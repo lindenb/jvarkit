@@ -69,7 +69,7 @@ public class VcfConcat extends Launcher
 	
 	public static final String VARIANTSOURCE="VARIANTSOURCE";
 	
-	@Parameter(names={"-o","--out"},description="Output file . Default: stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputfile=null;
 	
 	private Set<String> inputFiles=new HashSet<>();
@@ -82,7 +82,7 @@ public class VcfConcat extends Launcher
 	
 
 	
-	private int fromFiles(VariantContextWriter out) throws IOException
+	private int fromFiles(final VariantContextWriter out) throws IOException
 		{
 		List<VcfIterator> inputs=new ArrayList<VcfIterator>(this.inputFiles.size());
 		List<String> inputFiles=new ArrayList<>(this.inputFiles.size());

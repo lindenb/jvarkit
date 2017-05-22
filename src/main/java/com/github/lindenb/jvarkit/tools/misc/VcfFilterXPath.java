@@ -62,15 +62,19 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.semontology.Term;
 
-@Program(name="vcffilterxpath",description="Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document")
+@Program(name="vcffilterxpath",
+	description="Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document",
+	keywords={"vcf","xml","xpath"},
+	terms=Term.ID_0000017
+	)
 public class VcfFilterXPath
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfFilterXPath.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	
 	/** the INFO tag to use in the VCF input */
 	@Parameter(names="-T",description=" (info tag) INFO tag containing a base64-encoded XML document")
 	private String infoTag=null;

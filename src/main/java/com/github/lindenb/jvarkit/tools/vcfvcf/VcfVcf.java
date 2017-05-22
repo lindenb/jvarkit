@@ -31,7 +31,7 @@ public class VcfVcf extends Launcher
 	{
 	 private static Logger LOG=Logger.build(VcfVcf.class).make(); 
 	
-	 @Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	 private File outputFile = null;
 
 	@Parameter(names="-TBX",description="The VCF file indexed with TABIX. Source of the annotations")

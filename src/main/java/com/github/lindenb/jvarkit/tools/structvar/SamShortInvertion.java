@@ -383,6 +383,7 @@ public class SamShortInvertion extends Launcher
 				}
 			
 			it.close();
+			r.close();r=null;
 			progress.finish();
 			return RETURN_OK;
 			}

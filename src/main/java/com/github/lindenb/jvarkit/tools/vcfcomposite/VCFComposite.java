@@ -38,9 +38,9 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 @Program(name="vcfcomposite",description="TODO",keywords={"vcf","disease","annotation","pedigree"})
 public class VCFComposite extends Launcher {
 	private static final Logger LOG= Logger.build(VCFComposite.class).make();
-	@Parameter(names={"-ped","--pedigree"},description="Pedigree file",required=true)
+	@Parameter(names={"-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION,required=true)
 	private File pedigreeFile=null;
-	@Parameter(names={"-o","--out"},description="OUtput file")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	@Parameter(names={"-acceptFiltered","--acceptFiltered"},description="Accept FILTERED variants")
 	private boolean acceptFiltered=false;

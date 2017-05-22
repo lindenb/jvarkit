@@ -97,7 +97,7 @@ private static final String SEGMENT="__SEGMENT__";
 @Parameter(names={"-o","--out"},description="Output SVG file. If defined, MUST Contains the word \'"+SEGMENT+"\'")
 private File outputFile=null;
 
-@Parameter(names={"-k","--knownGenes"},description="Tabix indexed UCSC knownGene file. Beware with the name of the chromosomes: they should be the same than in your VCF",required=true)
+@Parameter(names={"-k","--knownGenes"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
 private String knownGeneUri=null;
 
 @Parameter(names={"-trim2ctx","--trimToVariant"},

@@ -142,7 +142,7 @@ END_DOC
 public class XContaminations extends Launcher
 	{
 	private static final Logger LOG=Logger.build(XContaminations.class).make();
-	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();

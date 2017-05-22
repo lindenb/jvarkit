@@ -26,7 +26,7 @@ public class VcfGetVariantByIndex extends Launcher
 	{
 	private static Logger LOG=Logger.build(VcfGetVariantByIndex.class).make();
 	
-	@Parameter(names="-o",description=" (out)  output file. default stdout")
+	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	@Parameter(names="-i",description=" (file) list of 1-based indexes")
 	private File fileListOfIndexes=null;

@@ -81,22 +81,19 @@ $ java -jar dist/vcfmulti2oneallele.jar  ExAC.r0.3.sites.vep.vcf.gz   | grep rs3
 
 END_DOC
  */
-@Program(name="vcfmulti2oneallele",description="'one variant with N ALT alleles' to 'N variants with one ALT'")
+@Program(
+		name="vcfmulti2oneallele",
+		description="'one variant with N ALT alleles' to 'N variants with one ALT'",
+		keywords={"vcf"}
+		)
 public class VcfMultiToOneAllele
 	extends Launcher
 	{
-
-
 	private static final Logger LOG = Logger.build(VcfMultiToOneAllele.class).make();
-
-
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-p","--samples"},description="print sample name. set genotype to ./. if both allele of the genotype are in 'ALT'")
 	private boolean print_samples = false;
-
 	@Parameter(names={"-r","--rmAtt"},description="20161110: after merging with GATK CombineVariants there can have problemes with INFO/type='A' present in vcf1 but not in vcf2, and multiallelelic variants. This option delete the attributes having such problems.")
 	private boolean rmErrorAttributes = false;
 
@@ -280,11 +277,11 @@ public class VcfMultiToOneAllele
 		}
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		return doVcfToVcf(args,outputFile);
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfMultiToOneAllele().instanceMainWithExit(args);
 		}

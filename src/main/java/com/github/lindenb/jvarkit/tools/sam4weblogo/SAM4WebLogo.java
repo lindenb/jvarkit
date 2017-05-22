@@ -161,7 +161,7 @@ public class SAM4WebLogo extends Launcher
 	@Parameter(names={"-r","--region","--interval"},description="Region to observe: chrom:start-end",required=true)
 	private String regionStr = null;
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-readFilter","--readFilter"},description=SamFilterParser.FILTER_DESCRIPTION)

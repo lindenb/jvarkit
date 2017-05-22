@@ -109,7 +109,7 @@ public class VcfPeekVcf extends Launcher
 	@Parameter(names={"-i","--replaceid"},description="Replace the ID field if it exists")
 	private boolean peekId = false;
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	

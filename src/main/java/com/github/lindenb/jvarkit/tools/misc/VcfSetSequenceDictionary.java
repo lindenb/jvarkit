@@ -51,12 +51,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-@Program(name="vcfsetdict",description="Set the ##contig lines in a VCF header",deprecatedMsg="Use picard UpdateVcfSequenceDictionary")
+@Program(name="vcfsetdict",description="Set the ##contig lines in a VCF header",
+deprecatedMsg="Use picard UpdateVcfSequenceDictionary",
+keywords={"vcf","dict","fai"}
+)
 public class VcfSetSequenceDictionary extends Launcher
 {
 	private static final Logger LOG=Logger.build(VcfSetSequenceDictionary.class).make();
 
-	@Parameter(names={"-o","--output"},description="Ouput file. Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 
 

@@ -147,14 +147,15 @@ END_DOC
 */
 
 
-@Program(name="samextractclip",description="Extract Clipped Sequences from a SAM. Ouput is a FASTQ")
+@Program(name="samextractclip",
+	description="Extract Clipped Sequences from a SAM. Ouput is a FASTQ")
 public class SamExtractClip extends Launcher
 	{
 
 	private static final Logger LOG = Logger.build(SamExtractClip.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-m","--minsize"},description="Min size of clipped read")

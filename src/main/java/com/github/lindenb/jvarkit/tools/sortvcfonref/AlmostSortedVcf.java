@@ -46,7 +46,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 public class AlmostSortedVcf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(AlmostSortedVcf.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-N","--buffersize"},description="max records in ram")
 	private int MAX_RECORDS_IN_RAM = 1000 ;

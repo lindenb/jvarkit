@@ -79,11 +79,14 @@ efined_sample 3          ********  ****   **                ****
             
 END_DOC
  */
-@Program(name="tview",description="equivalent of samtools tview",keywords={"sam","bam","visualization","terminal"})
+@Program(name="tview",
+	description="equivalent of samtools tview",
+	keywords={"sam","bam","visualization","terminal"}
+	)
 public class TViewCmd extends Launcher
 	{
 	private static final Logger LOG = Logger.build(TViewCmd.class).make();
-	@Parameter(names={"-o","--out"},description="Output file . Default: stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-r","--region"},description="Interval list")
 	private Set<String> intervalStr = new HashSet<>();

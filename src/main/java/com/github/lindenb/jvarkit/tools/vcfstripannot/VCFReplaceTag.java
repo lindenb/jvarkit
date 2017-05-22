@@ -69,9 +69,8 @@ public class VCFReplaceTag extends Launcher
 	@Parameter(names={"-k","--tag"},description="tag to replace . Format FROM/TO")
 	private List<String> userTagList = new ArrayList<>();
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	
 	private Map<String,String> transformMap=new HashMap<>();
 	private int replaceTypeNo=-1;

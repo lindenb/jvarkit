@@ -93,12 +93,10 @@ keywords={"vcf"}
 )
 public class VCFStripAnnotations extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VCFStripAnnotations.class).make();
-	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	private static final Logger LOG = Logger.build(VCFStripAnnotations.class).make();	
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	
 	@Parameter(names={"-x","--exclude"},description="Use bcftools syntax INFO/x,INFO/y")
 	private List<String> bcfToolStringSet=new ArrayList<>();
 

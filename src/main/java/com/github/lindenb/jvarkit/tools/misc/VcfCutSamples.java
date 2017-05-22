@@ -82,7 +82,7 @@ END_DOC
  */
 @Program(name="vcfcutsamples",
 		description="Select/Exclude some samples from a VCF",
-		keywords={"vcf"},
+		keywords={"vcf","sample"},
 		deprecatedMsg="use bcftools or gatk SelectVariants"
 		)
 public class VcfCutSamples
@@ -91,7 +91,7 @@ public class VcfCutSamples
 	private static final Logger LOG=Logger.build(VcfCutSamples.class).make();
 	
 	/** output file */
-	@Parameter(names={"-o","--out"},description=" File out. Default: stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	/** selected sample */
 	@Parameter(names={"-S","--samples"},description="Sample name")

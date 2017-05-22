@@ -66,13 +66,15 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 
-@Program(name="vcfburden",description="Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)",deprecatedMsg="deprecated")
+@Program(name="vcfburden",
+	description="Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)",
+	deprecatedMsg="deprecated")
 public class VcfBurden extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfBurden.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description="zip file")
 	private File outputFile = null;
 	@Parameter(names="-H",description=" only high damage")
 	private boolean highdamage=false;

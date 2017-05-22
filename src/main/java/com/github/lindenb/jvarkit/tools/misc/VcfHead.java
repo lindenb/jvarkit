@@ -65,12 +65,16 @@ NG|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;Inb
  
  END_DOC
  */
-@Program(name="vcfhead",description="print the first variants of a vcf",keywords={"vcf"})
+@Program(
+		name="vcfhead",
+		description="print the first variants of a vcf",
+		keywords={"vcf"}
+		)
 public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfHead.class).make();
 	
-	@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
+	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
 	@Parameter(names={"-n","--count"},description="number of variants")
 	private long count=10;

@@ -66,7 +66,7 @@ END_DOC
 public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfTail.class).make();
-	@Parameter(names={"-o","--out"},description="Output vcf   or stdout",required=false)
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT,required=false)
 	private File output=null;
 	@Parameter(names={"-n","--count"},description="number of variants")
 	private int count=10;
@@ -121,12 +121,12 @@ public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		return doVcfToVcf(args,output);
 		}
 	
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfTail().instanceMainWithExit(args);
 		}

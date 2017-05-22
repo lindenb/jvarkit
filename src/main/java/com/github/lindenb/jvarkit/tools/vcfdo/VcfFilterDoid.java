@@ -25,7 +25,7 @@ public class VcfFilterDoid
 	private static final Logger LOG= Logger.build(AbstractVCFDiseaseOntology.class).make();
 
 	
-	@Parameter(names={"-o","--out"},description="Output File")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
    /* list of DOID accessions for gene having a DOID-term children of the user output. */
 	@Parameter(names="-C",description="list of DOID accessions for gene having a DOID-term children of the user output")

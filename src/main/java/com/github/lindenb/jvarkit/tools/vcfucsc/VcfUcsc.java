@@ -107,12 +107,10 @@ public class VcfUcsc extends Launcher
 		}
 
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	@Parameter(names={"-e","--expression"},description="expression string.")
 	private String expressionStr="";
-	
 	private Printf expression=new PrintfText("");
 	
 	@Parameter(names={"-D","--database"},description="database name")

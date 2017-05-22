@@ -73,7 +73,7 @@ public abstract class AbstractVCFDiseaseOntology
 	@Parameter(names="-A",description="Disease Annotations")
 	protected String DOI_ANN="http://dga.nubic.northwestern.edu/ajax/Download.ajax.php?exportType=ids";
 	/*  used to reduce the number of mapped genes */
-	@Parameter(names="-R",description="Indexed  Genome Reference")
+	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	protected File REF=null;
 	
 	
