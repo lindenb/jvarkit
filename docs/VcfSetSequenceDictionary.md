@@ -9,7 +9,7 @@ Usage: vcfsetdict [options] Files
     -h, --help
       print help and exit
     -o, --output
-      Ouput file. Default: stdout
+      Output file. Optional . Default: stdout
     -r, -R, --reference
       indexed reference
     --version
@@ -27,6 +27,14 @@ Use picard UpdateVcfSequenceDictionary
 ## Description
 
 Set the ##contig lines in a VCF header
+
+
+## Keywords
+
+ * vcf
+ * dict
+ * fai
+
 
 ## Compilation
 
@@ -80,7 +88,7 @@ Should you cite **vcfsetdict** ? [https://github.com/mr-c/shouldacite/blob/maste
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)

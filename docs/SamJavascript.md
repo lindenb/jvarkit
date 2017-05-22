@@ -42,6 +42,7 @@ Filters a BAM using a javascript expression ( java nashorn engine  ).
  * bam
  * nashorn
  * javascript
+ * filter
 
 
 
@@ -109,7 +110,7 @@ Should you cite **samjs** ? [https://github.com/mr-c/shouldacite/blob/master/sho
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
@@ -129,6 +130,9 @@ For eacg read the script injects in the context the following values:
 the script should return a boolean : true accept the read, false: discard the read.
 
 ## Example
+
+### Example 1
+
 
 get a SAM where the  read OR the mate is unmapped
 
@@ -152,6 +156,13 @@ EAS188_4:8:12:628:973	89	seq1	18	75	35M	*	0	0	AAATGTGTGGTTTAACTCGTCCATGGCCCAGCAT
 (...)
 ```
 
+### Example 2
+
+remove reads with indels:
+
+```
+java -jar dist/samjs.jar -e 'function accept(r) { if(r.getReadUnmappedFlag()) return false; var cigar=r.getCigar();if(cigar==null) return false; for(var i=0;i< cigar.numCigarElements();++i) {if(cigar.getCigarElement(i).getOperator().isIndelOrSkippedRegion()) return false; } return true;} accept(record);' input.bam
+```
 
 
 

@@ -9,7 +9,7 @@ Usage: vcffilterdoid [options] Files
     -h, --help
       print help and exit
     -o, --out
-      Output File
+      Output file. Optional . Default: stdout
     --version
       print version and exit
     -A
@@ -23,7 +23,8 @@ Usage: vcffilterdoid [options] Files
       Disease Ontology OWL file/URI
       Default: http://www.berkeleybop.org/ontologies/doid.owl
     -R
-      Indexed  Genome Reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
 
 ```
 
@@ -84,7 +85,7 @@ Should you cite **vcffilterdoid** ? [https://github.com/mr-c/shouldacite/blob/ma
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)

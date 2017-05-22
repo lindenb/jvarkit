@@ -4,7 +4,7 @@
 ## Usage
 
 ```
-Usage: bamLiftOver [options] Files
+Usage: bamliftover [options] Files
   Options:
     --bamcompression
       Compression Level.
@@ -57,7 +57,7 @@ Lift-over a BAM file.
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make bamLiftOver
+$ make bamliftover
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -89,13 +89,16 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **bamLiftOver** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **bamliftover** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+
 
 

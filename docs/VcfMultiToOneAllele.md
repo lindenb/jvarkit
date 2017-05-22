@@ -30,6 +30,12 @@ Usage: vcfmulti2oneallele [options] Files
 
 'one variant with N ALT alleles' to 'N variants with one ALT'
 
+
+## Keywords
+
+ * vcf
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -82,7 +88,7 @@ Should you cite **vcfmulti2oneallele** ? [https://github.com/mr-c/shouldacite/bl
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)

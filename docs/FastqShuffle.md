@@ -26,7 +26,7 @@ Usage: fastqshuffle [options] Files
       Default: false
     -r
       random
-      Default: java.util.Random@19f7e29
+      Default: java.util.Random@110406
 
 ```
 
@@ -93,7 +93,7 @@ Should you cite **fastqshuffle** ? [https://github.com/mr-c/shouldacite/blob/mas
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)

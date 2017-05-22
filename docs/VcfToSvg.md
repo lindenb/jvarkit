@@ -21,8 +21,11 @@ Usage: vcf2svg [options] Files
     -h, --help
       print help and exit
   * -k, --knownGenes
-      Tabix indexed UCSC knownGene file. Beware with the name of the 
-      chromosomes: they should be the same than in your VCF
+      UCSC knownGene URI. Beware chromosome names are formatted the same as 
+      your REFERENCE. A typical KnownGene file is 
+      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
+      .If you only have a gff file, you can try to generate a knownGene file 
+      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
     -m, --manifest
       Manifest file containing the names of the files.
     --nonCoding
@@ -108,7 +111,7 @@ Should you cite **vcf2svg** ? [https://github.com/mr-c/shouldacite/blob/master/s
 
 The current reference is:
 
-http://dx.doi.org/10.6084/m9.figshare.1425030
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
