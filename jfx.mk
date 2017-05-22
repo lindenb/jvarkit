@@ -96,7 +96,7 @@ compile-webstart : .secret.keystore webstart/picard.jar webstart/SnpSift.jar \
 	echo "</table></body></html>" >> webstart/index.html
 	chmod 755 webstart/*.html webstart/*.jar webstart/*.jnlp 
 
-webstart/jfxngs/jfxngs.jar: .secret.keystore ${htsjdk.jars}  src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/JfxNgs.java
+webstart/jfxngs/jfxngs.jar: .secret.keystore ${htsjdk.jars} ${jcommander.jar}  src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/JfxNgs.java
 	mkdir -p webstart/tmp webstart/jfxngs
 	$(foreach P,$(filter %.jar,$^), unzip -o "$P"  -d webstart/tmp ${CRLF} )
 	javac -d webstart/tmp -sourcepath src/main/java -cp '$(subst $(SPACE),:,$(filter %.jar,$^))' $(filter %.java,$^)

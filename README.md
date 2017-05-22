@@ -5,13 +5,9 @@ Java utilities for Bioinformatics
 
 [![Build Status](https://travis-ci.org/lindenb/jvarkit.svg)](https://travis-ci.org/lindenb/jvarkit)
 
-## Warning
+## Documentation
 
-<div style="background-color:red;">Since 2015-12-10, I'm slowly moving to a <b>XML</b>-based description of my tools and I'm now using <b>java8</b> .
-I do my best to change all those tools. The documentation in the wiki migh be out of date. If you think you have found an error leave a message at https://github.com/lindenb/jvarkit/issues .
-Furthermore, I'm now using the "Apache Commons CLI library" for parsing the command line. For the arguments takings as input more than one parameter, you might have to
-add a double dash '--' to separate with the input files. 
-</div>
+documentation is available at: [https://github.com/lindenb/jvarkit](https://github.com/lindenb/jvarkit)
 
 
 ## Author
