@@ -83,7 +83,7 @@ END_DOC
 public class Biostar86363 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar86363.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	

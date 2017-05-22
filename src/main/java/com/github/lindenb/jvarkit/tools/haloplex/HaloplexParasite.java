@@ -77,12 +77,36 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="haloplexparasite",description="for @SolenaLS : remove artctifacts from haloplex that gives indels in GATK hapcaller ")
+/**
+BEGIN_DOC
+
+### Examples
+
+```
+
+echo "input.bam" > all.list
+gunzip -c input.vcf.gz |
+  java -jar dist/haloplexparasite.jar -B all.list
+rm all.list
+
+
+
+```
+
+
+
+
+END_DOC
+ */
+@Program(name="haloplexparasite",
+	description="for @SolenaLS : remove artctifacts from haloplex that gives indels in GATK hapcaller ",
+	keywords={"vcf","haloplex"}
+	)
 public class HaloplexParasite extends Launcher {
 	private static final Logger LOG = Logger.build(HaloplexParasite.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

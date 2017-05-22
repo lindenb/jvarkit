@@ -45,30 +45,36 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+/**
+BEGIN_DOC
 
-@Program(name="vcfshuffle",description="Shuffle a VCF")
+END_DOC
+ */
+@Program(
+	name="vcfshuffle",
+	description="Shuffle a VCF",
+	keywords={"vcf"}
+	)
 public class VCFShuffle extends Launcher
 	{
 
 	private static final Logger LOG = Logger.build(VCFShuffle.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	@Parameter(names={"-N","--seed"},description="random seed. Optional. -1 = time.")
 	private long seed = -1L ;
 
-	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
-
-	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
-	private int maxRecordsInRam =50000;
-
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
 	
 	private static class RLine
 		{
@@ -146,8 +152,8 @@ public class VCFShuffle extends Launcher
 					RLine.class,
 					new RLineCodec(),
 					new RLineCmp(),
-					this.maxRecordsInRam,
-					this.tmpDir
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
 					);
 			shuffled.setDestructiveIteration(true);
 			String line;

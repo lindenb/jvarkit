@@ -24,7 +24,13 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.liftover;
+/**
+BEGIN_DOC
 
+
+
+END_DOC
+ */
 import java.io.File;
 import java.util.List;
 
@@ -51,7 +57,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="bamLiftOver",
+@Program(name="bamliftover",
 	description="Lift-over a BAM file.",
 	keywords={"bam","liftover"}
 		)
