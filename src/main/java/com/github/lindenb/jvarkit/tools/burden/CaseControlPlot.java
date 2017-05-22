@@ -75,7 +75,7 @@ BEGIN_DOC
 END_DOC
  */
 @Program(
-	name="casecontrolplot",
+	name="casectrlplot",
 	description="Plot CASE/CTRL data from VCF files",
 	keywords={"maf","burden","case","control","plot","chart","vcf"},
 	terms=Term.ID_0000018
