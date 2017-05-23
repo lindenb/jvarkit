@@ -10,14 +10,23 @@ Usage: lowresbam2raster [options] Files
       Show clipping
       Default: false
     -depth, --depth
-      Depth size
+      Depth track height.
       Default: 100
+    -gcPercent, --gcPercent
+      GC% track height.
+      Default: 100
+    -gcwin, --gcWindowSize
+      GC% Window size
+      Default: 10
     --groupby
       Group Reads by
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -h, --help
       print help and exit
+    --highlight
+      hightligth those positions.
+      Default: []
     -kg, --knownGene
       UCSC knownGene URI. Beware chromosome names are formatted the same as 
       your REFERENCE. A typical KnownGene file is 
@@ -27,8 +36,14 @@ Usage: lowresbam2raster [options] Files
     --limit, --maxrows
       Limit number of rows to 'N' lines. negative: no limit.
       Default: -1
+    -minh, --minh
+      Min. distance between two reads.
+      Default: 10
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
   * -r, --region
       restrict to that region. REQUIRED
     -srf, --samRecordFilter
@@ -36,6 +51,12 @@ Usage: lowresbam2raster [options] Files
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
       for a complete syntax.
       Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+    --spaceyfeature
+      number of pixels between features
+      Default: 1
+    -V, --variants, --vcf
+      VCF files used to fill the position to hightlight with POS
+      Default: []
     --version
       print version and exit
     -w, --width
@@ -116,5 +137,7 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
 
 

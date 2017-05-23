@@ -10,7 +10,7 @@ Usage: bam2raster [options] Files
       Show clipping
       Default: false
     -depth, --depth
-      Depth size
+      Depth track height.
       Default: 100
     --groupby
       Group Reads by
@@ -43,7 +43,8 @@ Usage: bam2raster [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
-      indexed fasta reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
   * -r, --region
       restrict to that region. REQUIRED
     -srf, --samRecordFilter
