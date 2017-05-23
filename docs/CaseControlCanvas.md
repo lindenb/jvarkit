@@ -21,7 +21,7 @@ Usage: Main [options] Files
       'rgb(int,int,int)'. 
       Default: java.awt.Color[r=255,g=200,b=0]
     -format, --format
-      How to print doubles, printf-life precision format
+      How to print doubles, printf-like precision format.
       Default: %.5f
     -h, --help
       print help and exit
@@ -29,10 +29,10 @@ Usage: Main [options] Files
       Consider no call as hom-ref
       Default: false
     -opacity, --opacity
-      opacity
+      opacity [0-1]
       Default: 0.6
     -o, --out
-      Output file. Optional . Default: stdout
+      Image file name. Output file. Optional . Default: stdout
     -ped, --pedigree
       A pedigree is a text file delimited with tabs. No header. Columns are 
       (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
@@ -44,7 +44,7 @@ Usage: Main [options] Files
       Default: oval
       Possible Values: [oval, square, cross]
     --pointsize
-      Size of point
+      points width
       Default: 10.0
     -sexchr, --sexualchromosomes
       comma separated list of chromosomes that should be considered as sexual 
@@ -52,7 +52,7 @@ Usage: Main [options] Files
       Default: chrX,chrY,X,Y
     -tee, --tee
       Tee input to stdout, useful in linux pipelines to get intermediary 
-      results. 
+      results. Requires that -o 'file' is set.
       Default: false
     -txt, --txt, --text, -tsv, --tsv
       Input is a tab delimited file. containg x=case and y=controls
@@ -64,7 +64,7 @@ Usage: Main [options] Files
       print version and exit
     --width
       Canvas width
-      Default: 600
+      Default: 700
     -xyAttribute, --xyAttribute
       When using 'tee', add this Attribute containing the MAF for case and 
       control 
@@ -129,6 +129,27 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Example
+
+Create Exac/Gnomad from a VCF annotated with both databases:
+
+```
+java -jar casectrlcanvas.jar -caseAtt AC_NFE/AN_NFE -ctrlAtt gnomad_exome_AF_NFE -o exome_gnomad_vs_exac.png.NFE.png -title 'Case:ExacAC/AN_NFE Ctrl:gnomad_exome_AF_NFE' -opacity 0.2 input.vcf
+```
+
+
+Create Exac/my-controls from a VCF annotated with both databases:
+
+```
+java -jar casectrlcanvas.jar -p myped.ped -caseAtt AC_NFE/AN_NFE   -o out.png -opacity 0.2 input.vcf
+```
+
+## Note to self: create a mosaic of images:
+
+```
+montage -geometry 1000x1000+2+2 file1.png file2.png fileN.png out.png
+```
 
 
 

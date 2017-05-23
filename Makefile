@@ -204,7 +204,7 @@ gatk_apps:$(if ${gatk.jar},gatkwalkers,)
 	
 
 APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
-	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq	bam2raster	bam2svg \
+	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq lowresbam2raster bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
@@ -217,7 +217,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	 \
 	howmanybamdict	illuminadir	ilmnfastqstats	impactofduplicates	jeter \
 	liftover2svg	mapuniprot	mergesplittedblast	ncbitaxonomy2xml metrics2xml ngsfilessummary	noemptyvcf \
-	nozerovariationvcf	pademptyfastq	paintcontext	pubmeddump	pubmedorcidgraph pubmedfilterjs	referencetovcf	sam2json \
+	nozerovariationvcf	pademptyfastq	pubmeddump	pubmedorcidgraph pubmedfilterjs	referencetovcf	sam2json \
 	sam2psl	sam2tsv	sam4weblogo	samclipindelfraction	samextractclip	samfindclippedregions	samfixcigar \
 	samgrep	samjs	samshortinvert	samstats01	sigframe	sortvcfoninfo \
 	sortvcfonref2	splitbam3	splitbytile	splitread \
@@ -283,7 +283,8 @@ $(eval $(call compile-htsjdk-cmd,bam2xml,${jvarkit.package}.tools.bam2xml.Bam2Xm
 $(eval $(call compile-htsjdk-cmd,almostsortedvcf,${jvarkit.package}.tools.sortvcfonref.AlmostSortedVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,backlocate,${jvarkit.package}.tools.backlocate.BackLocate,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToFastq,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,lowresbam2raster,${jvarkit.package}.tools.bam2graphics.LowResBam2Raster,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage,${jcommander.jar}))

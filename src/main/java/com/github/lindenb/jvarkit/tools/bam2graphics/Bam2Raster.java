@@ -160,7 +160,7 @@ public class Bam2Raster extends Launcher
 
 	
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-nobase","--nobase"},description="hide bases")
@@ -198,7 +198,6 @@ public class Bam2Raster extends Launcher
 	private int spaceYbetweenFeatures=4;
 	@Parameter(names={"-V","--variants","--vcf"},description="VCF files used to fill the position to hightlight with POS")
 	private List<String> variants=new ArrayList<>();
-
 	
 	private enum AlphaHandler {all_opaque,handler1}
 	@Parameter(names={"--mapqopacity"},description="How to handle the MAPQ/ opacity of the reads.")
@@ -389,6 +388,7 @@ public class Bam2Raster extends Launcher
 					};
 				}
 			final Graphics2D g= this.image.createGraphics();
+			g.setStroke(new BasicStroke(0.5f));
 			g.setRenderingHint(
 					RenderingHints.KEY_RENDERING,
 					RenderingHints.VALUE_RENDER_QUALITY
@@ -801,10 +801,9 @@ public class Bam2Raster extends Launcher
 			// print depth
 			if(Bam2Raster.this.depthSize>0)
 				{
-				double minDepth = Arrays.stream(depth_array).min().orElse(0);
-				double maxDepth = Arrays.stream(depth_array).max().orElse(1);
-			
-				if(minDepth==maxDepth) minDepth--;
+				final double minDepth = Arrays.stream(depth_array).min().orElse(0);
+				final double maxDepth = Arrays.stream(depth_array).max().orElse((int)(minDepth+1));
+				
 				for(int i=0;i< depth_array.length;++i)
 					{
 					final double d= depth_array[i];

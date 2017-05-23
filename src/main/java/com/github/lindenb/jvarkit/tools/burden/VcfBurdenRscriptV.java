@@ -86,28 +86,21 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 BEGIN_DOC
 
 
-
-
 ### Output
-
-
 
 #### INFO column
 
 
  *  BurdenF1Fisher : Fisher test
 
-
 #### FILTER column
 
  *  BurdenF1Fisher :Fisher test doesn't meet  user's requirements
-
 
 ### see also
 
 
  *  VcfBurdenFilter3
-
 
 
 END_DOC

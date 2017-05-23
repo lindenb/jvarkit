@@ -31,6 +31,7 @@ import java.awt.Composite;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
@@ -91,6 +92,15 @@ java -jar casectrlcanvas.jar -p myped.ped -caseAtt AC_NFE/AN_NFE   -o out.png -o
 
 ```
 montage -geometry 1000x1000+2+2 file1.png file2.png fileN.png out.png
+```
+
+
+## Note to self: Running in headless mode (no X11 available)
+
+see [http://www.oracle.com/technetwork/articles/javase/headless-136834.html](http://www.oracle.com/technetwork/articles/javase/headless-136834.html)
+
+```
+java -Djava.awt.headless=true -jar casectrlcanvas.jar ....
 ```
 
 
@@ -197,6 +207,10 @@ public class CaseControlCanvas implements Consumer<Point2D> {
 			cfg.width+(this.insets.top+this.insets.bottom),
 			BufferedImage.TYPE_INT_RGB);
 		this.gc = this.canvas.createGraphics();
+		this.gc.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		this.gc.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+		this.gc.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+
 		this.gc.setColor(ALMOST_WHITE);
 		this.gc.fillRect(0,0,this.canvas.getWidth(),this.canvas.getHeight());
 		
@@ -286,7 +300,7 @@ public class CaseControlCanvas implements Consumer<Point2D> {
 public static class Config
 	{
 	@Parameter(names={"--width"},description="Canvas width")
-	private int width=600;
+	private int width=700;
 
 	}	
 	
@@ -464,7 +478,7 @@ public static class Main extends Launcher
 		try {
 			final CaseControlCanvas instance=new  CaseControlCanvas(this.title,this.configuration);
 			if(!this.inputIsText) {
-				instance.setPainter(defaultPainter);
+				instance.setPainter(this.defaultPainter);
 				in = super.openVcfIterator(oneFileOrNull(args));
 				
 				final VCFHeader header= in.getHeader();
@@ -477,7 +491,7 @@ public static class Main extends Launcher
 					{
 					pedigree = Pedigree.newParser().parse(header);
 					}
-				if(pedigree==null || pedigree.isEmpty()) {
+				if(this.caseTag==null && this.controlTag==null && (pedigree==null || pedigree.isEmpty()) ) {
 					LOG.error("No pedigree defined , or it is empty");
 					return -1;
 					}
