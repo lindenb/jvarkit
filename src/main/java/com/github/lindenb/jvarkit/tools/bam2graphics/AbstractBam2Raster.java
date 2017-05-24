@@ -3,6 +3,8 @@ package com.github.lindenb.jvarkit.tools.bam2graphics;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.geom.GeneralPath;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +24,8 @@ import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
+
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -31,7 +35,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 
-public class AbstractBam2Raster extends Launcher{
+public abstract class AbstractBam2Raster extends Launcher{
 	protected static final Color ALMOST_BLACK = new Color(20,20,20);
 	protected static final Color ALMOST_WHITE = new Color(240,240,240);
 
@@ -62,7 +66,33 @@ public class AbstractBam2Raster extends Launcher{
 	protected Set<Integer> highlightPositions = new HashSet<>() ;
 	@Parameter(names={"-V","--variants","--vcf"},description="VCF files used to fill the position to hightlight with POS")
 	protected List<String> variants=new ArrayList<>();
+	private enum AlphaHandler {all_opaque,handler1}
+	@Parameter(names={"--mapqopacity"},description="How to handle the MAPQ/ opacity of the reads. all_opaque: no opacity, handler 1: transparency under MAPQ=60")
+	private AlphaHandler alpha_handler=AlphaHandler.handler1;
 
+	protected final Function<SAMRecord,Color> samRecord2color = new ColorUtils.SAMRecordColorExtractor();
+
+	
+	protected final Function<SAMRecord,Float> samRecord2alpha = R->{
+		final int mapq = R.getMappingQuality();
+		switch(alpha_handler)
+			{
+			case handler1:
+				if( mapq ==  SAMRecord.UNKNOWN_MAPPING_QUALITY) return 0.5f;
+				if( mapq >= 60 ) return 1f;
+				if(mapq >50 && mapq <= 60) return 0.9f;
+				if(mapq >40 && mapq <= 50) return 0.8f;
+				if(mapq >30 && mapq <= 40) return 0.7f;
+				if(mapq >20 && mapq <= 30) return 0.6f;
+				if(mapq >10 && mapq <= 20) return 0.5f;
+				return 0.4f;
+			case all_opaque: return 1f;
+			default: return 1f;
+			}
+		
+	};
+	
+	
 	protected Interval interval=null;
 	protected IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	protected final Hershey hersheyFont=new Hershey();
@@ -122,5 +152,25 @@ public class AbstractBam2Raster extends Launcher{
 			r.close();
 			vcfFileReader.close();
 			}
+		}
+	protected  Shape createTriange(double cx,double cy,double r,double angle)
+		{
+		GeneralPath gp = new GeneralPath();
+		for(int i=0;i< 3;++i)
+			{
+			double x= cx + Math.cos(angle)*r;
+			double y= cy + Math.sin(angle)*r;
+			if(i==0) 
+				{
+				gp.moveTo(x, y);
+				}
+			else
+				{
+				gp.lineTo(x, y);
+				}
+			angle+=(Math.PI*2.0)/3.0;
+			}
+		gp.closePath();
+		return gp;
 		}
 }

@@ -95,7 +95,6 @@ import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
@@ -153,20 +152,15 @@ public class Bam2Raster extends AbstractBam2Raster
 	private boolean printName = false;
 	@Parameter(names={"--noReadGradient"},description="Do not use gradient for reads")
 	private boolean noReadGradient=false;
-	private enum AlphaHandler {all_opaque,handler1}
-	@Parameter(names={"--mapqopacity"},description="How to handle the MAPQ/ opacity of the reads.")
-	private AlphaHandler alpha_handler=AlphaHandler.all_opaque;
 
-	
 	
 	public Bam2Raster()
     	{
     	}
   
-		
    private static interface Colorizer
     	{
-    	public Color getColor(SAMRecord rec);
+    	public Color getColor(final SAMRecord rec);
     	}
    /*
    private class QualityColorizer implements Colorizer
@@ -231,27 +225,8 @@ public class Bam2Raster extends AbstractBam2Raster
 			}
 	
 		private void build()
-			{
-			final Function<SAMRecord,Color> samRecord2color = new ColorUtils.SAMRecordColorExtractor();
-			
-			final Function<SAMRecord,Float> samRecord2alpha = R->{
-				final int mapq = R.getMappingQuality();
-				switch(alpha_handler)
-					{
-					case handler1:
-						if( mapq ==  SAMRecord.UNKNOWN_MAPPING_QUALITY) return 0.5f;
-						if( mapq >= 60 ) return 1f;
-						if(mapq >50 && mapq <= 60) return 0.9f;
-						if(mapq >40 && mapq <= 50) return 0.8f;
-						if(mapq >30 && mapq <= 40) return 0.7f;
-						if(mapq >20 && mapq <= 30) return 0.6f;
-						if(mapq >10 && mapq <= 20) return 0.5f;
-						return 0.4f;
-					case all_opaque: return 1f;
-					default: return 1f;
-					}
-				
-			};
+			{			
+
 
 			
 			final Function<Character, Color> base2color = C ->
@@ -468,7 +443,7 @@ public class Bam2Raster extends AbstractBam2Raster
 						g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,samRecord2alpha.apply(rec)));
 						
 					
-						Color ycColor = samRecord2color.apply(rec);
+						Color ycColor = Bam2Raster.this.samRecord2color.apply(rec);
 						
 						final Stroke oldStroke = g.getStroke();
 						g.setStroke(new BasicStroke(2f));

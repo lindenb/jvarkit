@@ -49,11 +49,13 @@ import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
 import htsjdk.samtools.Cigar;
@@ -63,11 +65,13 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 
@@ -89,10 +93,15 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	private String knownGeneUrl =null;
 	private final List<KnownGene> knownGenes = new ArrayList<>();
 	@Parameter(names={"-gcPercent","--gcPercent"},description="GC% track height.")
-	protected int gcPercentSize=100;
+	private int gcPercentSize=100;
 	@Parameter(names={"-gcwin","--gcWindowSize"},description="GC% Window size")
-	protected int gcWinSize=10;
+	private int gcWinSize=10;
+	@Parameter(names={"-noSuppl","--noSuppl"},description="Hide arcs of Supplementary alignments.")
+	private boolean hideArchOfSupplAlign =false;
+	@Parameter(names={"-printNames","--printNames"},description="Print Read Names (for debugging)")
+	private boolean printReadNames=false;
 
+	
 	private final int featureHeight=5;
 	private int minArrowWidth=3;
 	private final Map<String, PartitionImage> key2partition=new TreeMap<>();
@@ -101,6 +110,13 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	public LowResBam2Raster() {
 		super.spaceYbetweenFeatures=1;
 		super.minDistanceBetweenPairs=10;
+		}
+	
+	private static class Arc
+		{
+		int y;
+		Interval arcStart;
+		Interval arcEnd;
 		}
 	
 	private class SamRecordPair
@@ -167,11 +183,27 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			}
 		public float getAlpha()
 			{
-			return 1.f;
+			float alpha1 = LowResBam2Raster.this.samRecord2alpha.apply(R1);
+			if( R2==null) 
+				{
+				return alpha1;
+				}
+			return (alpha1 + LowResBam2Raster.this.samRecord2alpha.apply(R2))/2f;
 			}
 		public Color getColor()
 			{
 			if(samRecordFilter.filterOut(R1)) return Color.PINK;
+			
+			/** try the yc_color */
+			final Color yc_color1= LowResBam2Raster.this.samRecord2color.apply(R1);
+			if(yc_color1!=null)
+				{
+				if( R2==null ) return yc_color1;
+				final Color yc_color2 = LowResBam2Raster.this.samRecord2color.apply(R2);
+				if( yc_color2 == null ) return yc_color1;
+				return ColorUtils.average(yc_color1,yc_color2);
+				}
+			
 			if(R1.getReadPairedFlag())
 				{
 				if(R1.getMateUnmappedFlag())
@@ -182,14 +214,14 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					{
 					return Color.ORANGE;
 					}
-				else if(!R1.getProperPairFlag())
+				else if(!R1.getProperPairFlag() || R1.getReadNegativeStrandFlag()==R1.getMateNegativeStrandFlag())
 					{
 					return Color.ORANGE;
 					}
 				// not R2 was not necessarily fetched by samReader if it is not in interval
 				else  if(R2!=null) 
 					{
-					if(samRecordFilter.filterOut(R2)) return Color.PINK;
+					if(LowResBam2Raster.this.samRecordFilter.filterOut(R2)) return Color.PINK;
 					}
 				}
 			return Color.GRAY;
@@ -607,7 +639,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					}
 
 				
-				
+				final List<Arc> supplementaryArcs = new ArrayList<>();
 				for(final List<SamRecordPair> row: rows)
 					{
 					for(final SamRecordPair rp: row) {
@@ -624,15 +656,28 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 								pos2pixel.apply(rp.getEnd()),
 								ymid
 								));
-						// debug : print position
-						//hersheyFont.paint(g,rp.toString(),(pos2pixel.apply((int)rp.getEnd())).intValue(),y0,rp.toString().length()*12,featureHeight);
+						
 						final Set<Integer> refposOfInsertions = new HashSet<>();
 
+						/* loop over read R1 and read R2 */
 						for(int R=0;R<2;++R)
 							{
 							final SAMRecord rec = (R==0?rp.R1:rp.R2);
 							if(rec==null) continue;
 							
+							if(!hideArchOfSupplAlign)
+								{
+								//collect argc
+								for(final SAMRecord suppl : SAMUtils.getOtherCanonicalAlignments(rec))
+									{
+									final Arc arc=new Arc();
+									arc.y = y;
+									arc.arcStart = new Interval(rec.getContig(), readLeft.apply(rec), readRight.apply(rec),rec.getReadNegativeStrandFlag(),rec.getReadName());
+									arc.arcEnd = new Interval(suppl.getContig(), readLeft.apply(suppl), readRight.apply(suppl),suppl.getReadNegativeStrandFlag(),suppl.getReadName());
+									supplementaryArcs.add(arc);
+									}
+								}
+							//collect insertions
 							final Cigar cigar = rec.getCigar();
 							if(cigar!=null)
 								{
@@ -686,7 +731,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							g.draw(shapeRec);
 							g.fill(shapeRec);
 							
-							if(cigar!=null && LowResBam2Raster.this.showClip)
+							if(cigar!=null )
 								{
 								int ref=rec.getUnclippedStart();
 								for(final CigarElement ce:cigar.getCigarElements()) {
@@ -701,6 +746,17 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 										g.setColor(op.equals(CigarOperator.X)?Color.MAGENTA:Color.YELLOW);
 										g.fill(clipRect);
 										}
+									else if(op.equals(CigarOperator.D) || op.equals(CigarOperator.N))
+										{
+										final Rectangle2D clipRect= new Rectangle2D.Double(
+												pos2pixel.apply(ref),
+												y0,
+												pos2pixel.apply(ref+ce.getLength())-pos2pixel.apply(ref),
+												featureHeight
+												);
+										g.setColor(ColorUtils.salmon);
+										g.fill(clipRect);
+										}
 									if(op.consumesReferenceBases() || op.isClipping()) 
 										{
 										ref+=ce.getLength();
@@ -710,34 +766,128 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							final Integer mergePos=rp.closeReadsMergePosition();
 							if(mergePos!=null)
 								{
-								g.setColor(Color.RED); 
+								g.setColor(ColorUtils.aquamarine); 
 								g.fill(new Rectangle2D.Double(
 											pos2pixel.apply(mergePos),
 											y0,
-											2,
+											3,
 											featureHeight
 											));
 								}
 							
-							// paint insertions
-							for(final Integer refpos: refposOfInsertions) {
-								g.setColor(Color.RED); 
-								g.fill(new Rectangle2D.Double(
-											pos2pixel.apply(refpos),
-											y0,
-											2,
-											featureHeight
-											));
-								
-								}
+							
 							g.setClip(oldClip);
 							}
+						
+						// paint insertions
+						for(final Integer refpos: refposOfInsertions) {
+							Shape triange= createTriange(
+									pos2pixel.apply(refpos),
+									y+featureHeight/2,
+									featureHeight,
+									Math.PI/2.0);
+							g.setColor(Color.RED); 
+							g.fill(triange);
+							
+							}
+						
+						// debug : print position
+						if(printReadNames)
+							{
+							final String readName = rp.toString();
+							g.setColor(Color.RED);
+							hersheyFont.paint(
+								g,
+								readName,
+								(pos2pixel.apply((int)rp.getStart())).intValue(),
+								y0,
+								readName.length()*9,
+								featureHeight
+								);
+							}
+						
 						g.setComposite(oldComposite);
 						}
 					y+= LowResBam2Raster.this.featureHeight;
 					y+= LowResBam2Raster.this.spaceYbetweenFeatures;
 					}
-				
+				//print suppementary arcs
+				for(final Arc arc: supplementaryArcs)
+					{
+					
+					final Composite oldComposite = g.getComposite();
+					g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,.3f));
+					GeneralPath gp=new GeneralPath();
+					
+					if(arc.arcStart.getContig().equals(arc.arcEnd.getContig()))
+						{
+						double pa1;
+						double pa2;
+						if(arc.arcStart.isNegativeStrand())
+							{
+							pa1= pos2pixel.apply(arc.arcStart.getEnd());
+							pa2= pos2pixel.apply(arc.arcStart.getStart());
+							}
+						else
+							{
+							pa1= pos2pixel.apply(arc.arcStart.getStart());
+							pa2= pos2pixel.apply(arc.arcStart.getEnd());
+							}
+						
+						double pb1;
+						double pb2;
+						if(arc.arcEnd.isNegativeStrand())
+							{
+							pb1= pos2pixel.apply(arc.arcEnd.getEnd());
+							pb2= pos2pixel.apply(arc.arcEnd.getStart());
+							}
+						else
+							{
+							pb1= pos2pixel.apply(arc.arcEnd.getStart());
+							pb2= pos2pixel.apply(arc.arcEnd.getEnd());
+							}
+						double cax= ((pa1+pa2)/2.0);
+						double cbx= ((pb1+pb2)/2.0);
+						double distance= Math.abs(cax-cbx) ;
+						double midy = arc.y + Math.min(5*featureHeight,distance/2.0);
+						
+						
+						gp.moveTo(pa1, arc.y);
+						gp.lineTo(pa2, arc.y);
+						gp.curveTo(
+								pa2, arc.y,
+								(cax+cbx)/2.0, midy,
+								pb1, arc.y
+								);
+						gp.lineTo(pb2, arc.y);
+						gp.curveTo(
+								pb2, arc.y,
+								(cax+cbx)/2.0, midy+featureHeight,
+								pa1, arc.y
+								);
+						gp.closePath();
+						}
+					else
+						{
+						double pa1= pos2pixel.apply(arc.arcStart.getStart());
+						double pa2= pos2pixel.apply(arc.arcStart.getEnd());
+						gp.moveTo(pa1, arc.y);
+						gp.lineTo(pa2, arc.y);
+						double farawayx = (pa1+pa2)/2.0 + (pa1 < imageDimension.width/2? -1:1)*imageDimension.width*2;
+						gp.curveTo(
+								pa2, arc.y,
+								farawayx, arc.y- 20*featureHeight,
+								pa1, arc.y
+								);
+						gp.closePath();
+
+						}
+					g.setColor(Color.PINK);
+					g.fill(gp);
+					g.setColor(Color.RED);
+					g.draw(gp);
+					g.setComposite(oldComposite);
+					}
 				
 
 				g.dispose();
@@ -828,7 +978,8 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 
 					
 					final SamReaderFactory srf = super.createSamReaderFactory();
-					this.interval = new IntervalParser(this.indexedFastaSequenceFile==null?null:this.indexedFastaSequenceFile.getSequenceDictionary()).parse(this.regionStr);
+					this.interval = new IntervalParser(this.indexedFastaSequenceFile==null?null:this.indexedFastaSequenceFile.getSequenceDictionary()).
+							parse(this.regionStr);
 					if(this.interval==null)
 						{
 						LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary.");
@@ -868,7 +1019,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					
 					if(this.key2partition.isEmpty())
 						{
-						LOG.error("No data was found.(no Read-Group specified ?");
+						LOG.error("No data was found. no Read-Group specified ? no data in that region ?");
 						return -1;
 						}
 			

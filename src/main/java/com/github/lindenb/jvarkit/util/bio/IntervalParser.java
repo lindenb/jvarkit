@@ -28,18 +28,24 @@ History:
 */
 package com.github.lindenb.jvarkit.util.bio;
 
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.Interval;
 
 public class IntervalParser {
+	private static final Logger LOG = Logger.build(IntervalParser.class).make();
+	
 	private SAMSequenceDictionary dict=null;
 	private boolean raiseExceptionOnError=true;
 	private boolean tryToFixContigName=true;
+	private boolean trimToContigLength=false;
 	
 	public IntervalParser()
 		{
@@ -63,6 +69,15 @@ public class IntervalParser {
 	public boolean isFixContigName() {
 		return tryToFixContigName;
 		}
+	
+	/** if dict is set and interval is larger to contig, adjust to contig's length */
+	public void setTrimToContigLength(boolean trimToContig) {
+		this.trimToContigLength = trimToContig;
+		}
+	
+	public boolean isTrimToContigLength() {
+		return trimToContigLength;
+	}
 	
 	public IntervalParser setDictionary(final SAMSequenceDictionary dict) {
 		this.dict = dict;
@@ -125,17 +140,72 @@ public class IntervalParser {
 			}
 		return null;
 		}
+	private BigInteger parseBigInteger( String s)
+		{
+		BigInteger factor = BigInteger.ONE;
+		s=s.replace(",", "");
+		
+		
+		 if(s.endsWith("bp"))
+			{
+			s=s.substring(0, s.length()-2).trim();
+			}
+		else if(s.toLowerCase().endsWith("kb"))
+			{
+			s=s.substring(0, s.length()-2).trim();
+			factor = new BigInteger("1000");
+			}
+		else if(s.toLowerCase().endsWith("mb"))
+			{
+			s=s.substring(0, s.length()-2).trim();
+			factor = new BigInteger("1000000");
+			}
+		else if(s.endsWith("b"))
+			{
+			s=s.substring(0, s.length()-1).trim();
+			}
+		else if(s.endsWith("k"))
+			{
+			s=s.substring(0, s.length()-1).trim();
+			factor = new BigInteger("1000");
+			}
+		else if(s.endsWith("m"))
+			{
+			s=s.substring(0, s.length()-1).trim();
+			factor = new BigInteger("1000000");
+			}
+		final BigInteger vbi = new BigInteger(String.valueOf(s)).multiply(factor);
+		
+		return vbi;
+		}
 	
+	private int BigIntegerToInt(final BigInteger vbi)
+		{
+		final BigInteger INT_MAX=new BigInteger(String.valueOf(Integer.MAX_VALUE));
+		final BigInteger INT_MIN=new BigInteger(String.valueOf(Integer.MIN_VALUE));
+
+		if(INT_MAX.compareTo(vbi)<=0)
+			{
+			throw new IllegalArgumentException("value "+vbi+" cannot be greater or equal to "+INT_MAX);
+			}
+		if(vbi.compareTo(INT_MIN)<=0)
+			{
+			throw new IllegalArgumentException("value "+vbi+" cannot be lower or equal to "+INT_MIN);
+			}
+		return vbi.intValue();
+		}
 	public Interval parse(final String s)
 		{
 		final int colon=s.indexOf(':');
 		if(colon<1 || colon+1==s.length()) {
 			return returnErrorOrNullInterval("Cannot find colon in "+s);
 			}
-		final int hyphen=s.indexOf('-',colon+1);
-		if(hyphen==-1) return returnErrorOrNullInterval("Cannot find hyphen in "+s);
+		final int hyphen = s.indexOf('-',colon+1);
+		final int plus = s.indexOf('+',colon+1);
+		if(hyphen==-1 && plus==-1) return returnErrorOrNullInterval("Cannot find hyphen or plus in "+s);
+		if(hyphen!=-1 && plus!=-1) return returnErrorOrNullInterval("both hyphen and plus in "+s);
 			
-		int start,end;
+		BigInteger start=null,end=null;
 		try {
 			SAMSequenceRecord ssr=null;
 			String chrom=s.substring(0,colon);
@@ -145,13 +215,41 @@ public class IntervalParser {
 				if(ssr==null) return returnErrorOrNullInterval("Cannot find chromosome "+chrom+" in dictionary.");
 				chrom = ssr.getSequenceName();
 				}
-			start=Integer.parseInt(s.substring(colon+1,hyphen));
-			end=Integer.parseInt(s.substring(hyphen+1));
-			if(end<start) return null;
-			return new Interval(s.substring(0,colon), start, end,false,s);
+			if(hyphen!=-1)
+				{
+				start = parseBigInteger(s.substring(colon+1,hyphen));
+				end = parseBigInteger(s.substring(hyphen+1));
+				}
+			else if(plus!=-1)
+				{
+				final BigInteger mid = parseBigInteger(s.substring(colon+1,plus));
+				final BigInteger extend = parseBigInteger(s.substring(plus+1));
+				start = mid.subtract(extend);
+				if(start.compareTo(BigInteger.ZERO)<0) start=BigInteger.ZERO;
+				end = mid.add(extend);
+				}
+			else
+				{
+				throw new IllegalArgumentException("boum");
+				}
+			
+			if(isTrimToContigLength() && ssr!=null )
+			if(isTrimToContigLength() && ssr!=null )
+				{
+				final BigInteger ssrL = new BigInteger(String.valueOf(ssr.getSequenceLength()));
+				if(ssrL.compareTo(start)<0) start=ssrL;
+				if(ssrL.compareTo(end)<0) end=ssrL;
+				}
+
+			
+			int istart = BigIntegerToInt(start);
+			int iend = BigIntegerToInt(end);
+
+			if(iend<istart) return returnErrorOrNullInterval("end < start in "+s);
+			return new Interval(chrom, istart, iend,false,s);
 		} catch (final Exception e)
 			{
-			return null;
+			return returnErrorOrNullInterval("Cannot parse "+s +" : "+e.getMessage());
 			}
 		}
 	

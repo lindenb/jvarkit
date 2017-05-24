@@ -33,14 +33,25 @@ Usage: lowresbam2raster [options] Files
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
+    --mapqopacity
+      How to handle the MAPQ/ opacity of the reads. all_opaque: no opacity, 
+      handler 1: transparency under MAPQ=60
+      Default: handler1
+      Possible Values: [all_opaque, handler1]
     --limit, --maxrows
       Limit number of rows to 'N' lines. negative: no limit.
       Default: -1
     -minh, --minh
       Min. distance between two reads.
       Default: 10
+    -noSuppl, --noSuppl
+      Hide arcs of Supplementary alignments.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -printNames, --printNames
+      Print Read Names (for debugging)
+      Default: false
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
