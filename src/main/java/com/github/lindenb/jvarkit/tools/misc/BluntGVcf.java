@@ -21,7 +21,7 @@ import htsjdk.variant.vcf.VCFHeader;
 public class BluntGVcf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BluntGVcf.class).make();
-	@Parameter(names = { "-o", "--out" }, description = "Output file or stdout")
+	@Parameter(names = { "-o", "--out" }, description = OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	@Parameter(names = { "-E", "--stop" }, description = "Blunt end this position",converter=ContigPos.Converter.class,required=true)

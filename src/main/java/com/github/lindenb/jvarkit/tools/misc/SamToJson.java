@@ -38,7 +38,12 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
+/**
+BEGIN_DOC
 
+
+END_DOC
+ */
 @Program(name="sam2json",keywords={"sam","bam","json"},description="Convert a SAM input to JSON")
 public class SamToJson extends Launcher {
 	private static final Logger LOG = Logger.build(SamToJson.class).make();
@@ -58,7 +63,7 @@ public class SamToJson extends Launcher {
 	@Parameter(names={"-cigar","--cigar"},description="expand cigar")
 	private boolean excigar = false;
 
-	@Parameter(names={"-out","--out"},description="output")
+	@Parameter(names={"-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output = null;
 
 	

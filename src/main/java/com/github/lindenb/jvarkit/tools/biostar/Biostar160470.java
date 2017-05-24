@@ -65,6 +65,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 /**
 ## Example
 
@@ -128,7 +129,7 @@ ouput:
  */
 @Program(name="biostar160470",
 	description="Getting untranslated nucleotide sequences on tblastn standalone ",
-	biostars=160470)
+	biostars=160470,terms=Term.ID_0000015)
 public class Biostar160470 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar160470.class).make();
@@ -137,7 +138,7 @@ public class Biostar160470 extends Launcher
 	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;
 	
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-p","--bindir"},description="Blast binaries path")

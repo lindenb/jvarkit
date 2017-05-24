@@ -30,6 +30,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.semontology.Term;
 
 
 /**
@@ -79,6 +80,7 @@ END_DOC
 @Program(name="biostar86363",
 	biostars=86363,
 	keywords={"sample","genotype","vcf"},
+			terms=Term.ID_0000015,
 	description="Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/")
 public class Biostar86363 extends Launcher
 	{

@@ -56,6 +56,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -175,12 +176,10 @@ public class GroupByGene
 	private boolean ignore_filtered = false;
 	@Parameter(names={"-T","--tag"},description="add Tag in INFO field containing the name of the genes.")
 	private Set<String> user_gene_tags = new HashSet<>();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
-	@Parameter(names={"---maxRecordsInRam"},description="Max records in RAM")
-	private int maxRecordsInRam=50000;
-	@Parameter(names={"--tmpDir"},description="Temporary directory")
-	private File tmpDir= new File(System.getProperty("java.io.tmpdir"));
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
 	private Set<String> sampleNames = new TreeSet<String>();
 	private SortingCollection<Call> sortingCollection = null;
@@ -599,25 +598,19 @@ public class GroupByGene
 		CloserUtil.close(iter);
 		}
 	
-	/** public for knime */
-	public void initializeSortingCollections()
-		{
-		this.sortingCollection=SortingCollection.newInstance(
-				Call.class,
-				new CallCodec(),
-				new CallCmp(),
-				this.maxRecordsInRam,
-				this.tmpDir
-				);
-		this.sortingCollection.setDestructiveIteration(true);
-		this.sampleNames.clear();
-		}
-
 	@Override
 	public int doWork(List<String> args) {
 		try
 			{
-			this.initializeSortingCollections();
+			this.sortingCollection=SortingCollection.newInstance(
+					Call.class,
+					new CallCodec(),
+					new CallCmp(),
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpDirectories()
+					);
+			this.sortingCollection.setDestructiveIteration(true);
+			this.sampleNames.clear();
 			
 			if(args.isEmpty())
 				{

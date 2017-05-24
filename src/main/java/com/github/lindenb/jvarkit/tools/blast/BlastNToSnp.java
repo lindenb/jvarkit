@@ -159,13 +159,13 @@ No definition line  Homo sapiens chromosome 19, alternate assembly HuRef        
 
 END_DOC
  */
-@Program(name="blasn2snp",description="print indel/mismatch in a blastn stream")
+@Program(name="blasn2snp",	keywords={"blast","snp"},description="print indel/mismatch in a blastn stream")
 public class BlastNToSnp extends Launcher
 {
 	private static final Logger LOG = Logger.build(BlastNToSnp.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

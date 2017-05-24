@@ -66,9 +66,9 @@ public class Biostar84786 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar84786.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names="-d",description="column delimter")
+	@Parameter(names="-d",description="column delimiter")
 	private char delim='\t';
 	
 			

@@ -36,6 +36,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -76,6 +77,7 @@ END_DOC
 @Program(name="biostar81455",
 	biostars=81455,
 	keywords={"bed","gene","knownGene","ucsc"},
+			terms=Term.ID_0000015,
 	description="Defining precisely the genomic context based on a position .")
 public class Biostar81455 extends Launcher
 	{

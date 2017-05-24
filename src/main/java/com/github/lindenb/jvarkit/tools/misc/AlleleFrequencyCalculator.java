@@ -78,7 +78,8 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 @Program(
 	name="allelefreqcalc",
 	description="Allele Frequency Calculator",
-	keywords={"vcf","af"}
+	keywords={"vcf","af"},
+	deprecatedMsg="Use bioalcidae"
 	)
 public class AlleleFrequencyCalculator extends Launcher
 	{
@@ -91,7 +92,7 @@ public class AlleleFrequencyCalculator extends Launcher
 		
 		}
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
 		PrintStream out = null;
 		VcfIterator in = null;
@@ -106,11 +107,11 @@ public class AlleleFrequencyCalculator extends Launcher
 			while(in.hasNext() && !out.checkError())
 				{
 				
-				VariantContext ctx=in.next();
-				Allele ref=ctx.getReference();
+				final VariantContext ctx=in.next();
+				final Allele ref=ctx.getReference();
 				if(ref==null) continue;
 				if(ctx.getNSamples()==0 || ctx.getAlternateAlleles().isEmpty()) continue;
-				Allele alt=ctx.getAltAlleleWithHighestAlleleCount();
+				final Allele alt=ctx.getAltAlleleWithHighestAlleleCount();
 				if(alt==null) continue;
 				
 				GenotypesContext genotypes=ctx.getGenotypes();
@@ -120,7 +121,7 @@ public class AlleleFrequencyCalculator extends Launcher
 				for(int i=0;i< genotypes.size();++i)
 					{
 					Genotype g=genotypes.get(i);
-					for(Allele allele: g.getAlleles())
+					for(final Allele allele: g.getAlleles())
 						{
 						if(allele.equals(ref))
 							{

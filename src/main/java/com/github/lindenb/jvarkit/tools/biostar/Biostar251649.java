@@ -45,7 +45,7 @@ END_DOC
 public class Biostar251649 extends Launcher
 	{
 	private static final Logger LOG= Logger.build(Biostar251649.class).make();
-	@Parameter(names={"-o","--out"},description="output file or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names="-5",description="Left tag")

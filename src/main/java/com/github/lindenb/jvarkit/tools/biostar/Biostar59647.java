@@ -139,11 +139,11 @@ public class Biostar59647 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar59647.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	
-	@Parameter(names={"-r","-R","--reference"},description="Reference file indexed with picard",required=true)
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File refFile=null;
 	private  Biostar59647() {
 		}

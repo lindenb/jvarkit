@@ -48,6 +48,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -77,7 +78,8 @@ END_DOC
 @Program(name="biostar84452",
 	biostars=84452,
 	description="remove clipped bases from BAM",
-	keywords={"sam","bam","clip"}
+	keywords={"sam","bam","clip"},
+	terms=Term.ID_0000015
 	)
 public class Biostar84452 extends Launcher
 	{

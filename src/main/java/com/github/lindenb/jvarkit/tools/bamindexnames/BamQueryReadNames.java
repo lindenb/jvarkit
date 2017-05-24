@@ -55,11 +55,49 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+/**
+ BEGIN_DOC
+ 
+ 
+## Example
+
+
+
+```bash
+$cat read.names
+HWI-1KL149:18:C0RNBACXX:1:1101:12800:7069
+HWI-1KL149:18:C0RNBACXX:1:1101:15533:71685
+HWI-1KL149:18:C0RNBACXX:1:1103:6001:91243
+HWI-1KL149:18:C0RNBACXX:1:1107:2088:3461
+HWI-1KL149:18:C0RNBACXX:1:1108:2098:26795
+HWI-1KL149:18:C0RNBACXX:1:1110:10318:73043
+HWI-1KL149:18:C0RNBACXX:1:1112:18688:6422
+HWI-1KL149:18:C0RNBACXX:1:1116:8824:38450/1
+HWI-1KL149:18:C0RNBACXX:1:1202:13982:33444/2
+ZZZZ:X
+
+
+
+$ java -jar dist/bamqueryreadnames.jar -b -s -N list.notfound input.bam read.names | samtools view |head
+
+HWI-1KL149:18:C0RNBACXX:1:1101:12800:7069	77	*	0	0	*	*	0	0	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN	##################################################	RG:Z:p1294	AS:i:0	XS:i:0
+HWI-1KL149:18:C0RNBACXX:1:1101:12800:7069	141	*	0	0	*	*	0	0	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN	##################################################	RG:Z:p1294	AS:i:0	XS:i:0
+HWI-1KL149:18:C0RNBACXX:1:1101:15533:71685	99	X	238583	60	100M	=	23858972	274	(...)
+(...)
+
+$ cat list.notfound
+ZZZZ:X
+```
+
+
+ 
+ END_DOC
+ */
 @Program(description="Query a Bam file indexed with BamIndexReadNames")
 public class BamQueryReadNames extends BaseBamIndexReadNames
 	{
 	private static final Logger LOG=Logger.build(BamQueryReadNames.class).make();
-	@Parameter(names={"-o","--out"},description="Output file")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 
 	@Parameter(names={"-s"},description="user list of read names is sorted")

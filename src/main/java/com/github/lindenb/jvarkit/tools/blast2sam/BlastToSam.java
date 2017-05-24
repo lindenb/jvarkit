@@ -255,13 +255,15 @@ RF01_532_688_0:0:0_1:0:0_9/1	99	RF01	532	40	50=	=	639	156	ATAGTAGCTTCAACAGTAAATA
 
 END_DOC
 */
-@Program(name="blast2sam",description="Convert a **BLASTN-XML** input to SAM",keywords={"sam","blast"})
+@Program(name="blast2sam",
+description="Convert a **BLASTN-XML** input to SAM",
+keywords={"sam","blast"})
 public class BlastToSam extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BlastToSam.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

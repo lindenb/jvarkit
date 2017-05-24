@@ -55,13 +55,16 @@ PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAA
 
  END_DOC
  */
-@Program(name="commbams",description="Equivalent of unix 'comm' for bams sorted on queryname")
+@Program(name="commbams",
+	description="Equivalent of unix 'comm' for bams sorted on queryname",
+	keywords={"sam","bam","comm","compare"}
+	)
 public class CommBams extends Launcher {
 	
 	private enum WhatToPrint { name,but_metadata,all}
 	
 	private static final Logger LOG=Logger.build(CommBams.class).make();
-	@Parameter(names={"-o","--out"},description="output file . Default:stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-1","--hide1"},description="suppress read unique to file 1")
 	private boolean hide1=false;

@@ -58,7 +58,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="pubmedgraph",description="Creates a Gephi-gexf graph of references-cotes for a given PMID",keywords={"pubmed","xml","graph"})
+@Program(name="pubmedgraph",
+	description="Creates a Gephi-gexf graph of references-cotes for a given PMID",
+	keywords={"pubmed","xml","graph"}
+)
 public class PubmedGraph extends Launcher
 	{
 	private static final Logger LOG = Logger.build(PubmedGraph.class).make();
@@ -72,7 +75,7 @@ public class PubmedGraph extends Launcher
 	private boolean disable_cited_in=false;
 	@Parameter(names="-b",description="disable backward (referenced-in)")
 	private boolean disable_references=false;
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
 
 	private class Article

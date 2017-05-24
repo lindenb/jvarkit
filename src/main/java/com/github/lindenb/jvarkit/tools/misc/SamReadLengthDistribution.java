@@ -56,11 +56,21 @@ END_DOC
  */
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
  
-@Program(name="samreadlengthdistribution",description="Sam read length distribution<")
+/**
+BEGIN_DOC
+
+
+
+END_DOC
+ */
+@Program(name="samreadlengthdistribution",
+description="Sam read length distribution",
+keywords={"sam","bam","histogram"}
+)
 public class SamReadLengthDistribution extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamReadLengthDistribution.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by")
 	private SAMRecordPartition partition=SAMRecordPartition.sample;

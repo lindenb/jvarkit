@@ -66,6 +66,11 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 
+/**
+
+
+
+*/
 @Program(name="bamstats05",
 description="Coverage statistics for a BED file, group by gene",
 keywords={"bam","coverage","statistics","bed"}
@@ -74,7 +79,7 @@ public class BamStats05 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BamStats05.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

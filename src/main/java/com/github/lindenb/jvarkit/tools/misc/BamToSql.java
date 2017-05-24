@@ -277,7 +277,7 @@ public class BamToSql
 	{
 	private static final Logger LOG = Logger.build(BamToSql.class).make();
 	
-	@Parameter(names={"-o","--out"},description="Output file or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	@Parameter(names={"-r","--region"},description="Restrict to a given region")
@@ -289,7 +289,7 @@ public class BamToSql
 	@Parameter(names={"-f","--flag"},description="expands details about sam flag")
 	private boolean printflag = false;
 
-	@Parameter(names={"-R","--reference"},description="The Reference fasta file",required=true)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidxFile=null;
 	
 	public BamToSql()

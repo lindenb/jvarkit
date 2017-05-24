@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 import com.sleepycat.bind.tuple.StringBinding;
 import com.sleepycat.bind.tuple.TupleBinding;
 import com.sleepycat.bind.tuple.TupleInput;
@@ -96,13 +97,14 @@ END_DOC
  */
 @Program(name="biostar92368",biostars=92368,
 	keywords={"protein","interaction","interactome"},
+			terms=Term.ID_0000015,
 	description="Binary interactions depth See also http://www.biostars.org/p/92368/")
 public class Biostar92368 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar92368.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-D","--bdbhome"},description="berkeleydb home",required=true)
 	private File dbHome=null;

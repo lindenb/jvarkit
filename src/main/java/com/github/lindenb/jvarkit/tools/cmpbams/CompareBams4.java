@@ -113,13 +113,15 @@ BOTH	SameChrom	SameContig	Zero	0	0	177/177	chr22/chr22	1417
 
 END_DOC
  */
-@Program(name="cmpbams4",description="Compare two BAM files. Print a tab-delimited report")
+@Program(name="cmpbams4",
+	description="Compare two BAM files. Print a tab-delimited report",
+	keywords={"sam","bam","compare"})
 public class CompareBams4  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBams4.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

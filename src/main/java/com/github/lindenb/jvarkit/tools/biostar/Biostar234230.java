@@ -39,6 +39,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
@@ -82,7 +83,8 @@ END_DOC
 
 @Program(name="biostar234230",
 	description="Sliding Window : discriminate partial and fully contained fragments (from a bam file)",
-	biostars=234230
+	biostars=234230,
+	terms=Term.ID_0000015
 )
 public class Biostar234230 extends Launcher
 	{

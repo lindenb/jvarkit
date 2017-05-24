@@ -66,7 +66,7 @@ public class BamLiftOver extends Launcher
 	private static final Logger LOG = Logger.build(BamLiftOver.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
@@ -76,7 +76,7 @@ public class BamLiftOver extends Launcher
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match. default:-1 == use default value from htsjdk LiftOver.DEFAULT_LIFTOVER_MINMATCH")
 	private double userMinMatch = -1 ;
 
-	@Parameter(names={"-D","--reference"},description="indexed REFerence file for the new sequence dictionary. Required")
+	@Parameter(names={"-D","-R","--reference"},description="indexed REFerence file for the new sequence dictionary. Required")
 	private File faidx = null;
 
 	@ParametersDelegate

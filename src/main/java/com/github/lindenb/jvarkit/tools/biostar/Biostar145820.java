@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
 
 /*
 BEGIN_DOC
@@ -69,13 +70,17 @@ END_DOC
 
  */
 
-@Program(name="biostar145820",description="subsample BAM to fixed number of alignments.",biostars=145820)
+@Program(name="biostar145820",
+	description="subsample BAM to fixed number of alignments.",
+	biostars=145820,
+	terms=Term.ID_0000015
+	)
 public class Biostar145820 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar145820.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-n"},description=" number of reads. -1: all reads")

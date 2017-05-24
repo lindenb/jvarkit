@@ -27,6 +27,7 @@ import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -42,18 +43,22 @@ import htsjdk.samtools.util.SortingCollection;
  * GenScan
  *
  */
-@Program(name="genscan",description="Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).")
+@Program(
+	name="genscan",
+	description="Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).",
+	keywords={"chromosome","reference","chart","visualization"})
 public class GenScan extends AbstractGeneScan
 	{
 	private static final Logger LOG = Logger.build(GenScan.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-R","--reference"},description="Fasta indexed reference.")
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidxFile = null;
-   // @Option(shortName="IIS",doc="Input is a BAM/SAM file",optional=false)	
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
  
     
-	private Map<String,ChromInfo> chrom2chromInfo=new HashMap<String,ChromInfo>();
+	private final Map<String,ChromInfo> chrom2chromInfo=new HashMap<String,ChromInfo>();
 	private SortingCollection<DataPoint> dataPoints=null;
 	private boolean drawLines=true;
 	private boolean firstLineIsHeader=true;
@@ -283,14 +288,13 @@ public class GenScan extends AbstractGeneScan
 	
 	
 	
-	private void readTsv(InputStream in) throws IOException
+	private void readTsv(final InputStream in) throws IOException
 		{
 		LOG.info("reading tsv");
 		int nLines=0;
 		Pattern tab=Pattern.compile("[\t]");
 		
-		@SuppressWarnings("resource")
-		LineIterator r=new LineIteratorImpl(new SynchronousLineReader(in));
+		LineIterator r= IOUtils.openStreamForLineIterator(in);
 		boolean foundHeader=false;
 		if(firstLineIsHeader)
 			{
@@ -409,53 +413,42 @@ public class GenScan extends AbstractGeneScan
 	
 	
 	@Override
-	public int doWork(List<String> args) {
-	
+	public int doWork(final List<String> args) {
+		if(faidxFile!=null)
+			{
+			LOG.error("Ref file missing");
+			return -1;
+			}
 	
 		InputStream in=null;
 		try
 			{
-			this.dataPoints = 
-					SortingCollection.newInstance(DataPoint.class, new DataPointCodec(), new Comparator<GenScan.DataPoint>()
-				{
-				@Override
-				public int compare(DataPoint o1, DataPoint o2)
-					{
-					return o1.compareTo(o2);
-					}
-				}, 50000);
 			
-			
-			if(args.isEmpty())
-				{
-				LOG.info("Reading from stdin.");
-				in=stdin();
-				}
-			else if(args.size()==1)
-				{
-				String filename=args.get(0);
-				LOG.info("Reading from "+filename);
-				in=IOUtils.openURIForReading(filename);
-				}
-			else
-				{
-				LOG.error("Illegal number of arguments");
+			final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(faidxFile);
+			if(dict==null) {
+				LOG.error("cannot get dict from "+faidxFile);
 				return -1;
 				}
-			if(faidxFile!=null)
+			 dict.getSequences().stream().forEach(rec->
 				{
-				LOG.info("Reading "+faidxFile);
-				final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(faidxFile);
-				for(final SAMSequenceRecord rec: dict.getSequences())
-					{
-					ChromInfo ci=new ChromInfo();
-					ci.dictSequenceLength=rec.getSequenceLength();
-					ci.sequenceName=rec.getSequenceName();
-					ci.tid=chromInfos.size();
-					this.chromInfos.add(ci);
-					this.chrom2chromInfo.put(ci.sequenceName, ci);
-					}
-				}
+				final ChromInfo ci=new ChromInfo();
+				ci.dictSequenceLength=rec.getSequenceLength();
+				ci.sequenceName=rec.getSequenceName();
+				ci.tid=chromInfos.size();
+				this.chromInfos.add(ci);
+				this.chrom2chromInfo.put(ci.sequenceName, ci);
+				});
+			
+			in = openInputStream(oneFileOrNull(args)); 			
+			
+			this.dataPoints =  SortingCollection.newInstance(
+					DataPoint.class, 
+					new DataPointCodec(),
+					(o1,o2) -> o1.compareTo(o2),
+					writingSortingCollection.getMaxRecordsInRam(),
+					writingSortingCollection.getTmpDirectories()
+					);
+
 			
 			readTsv(in);
 			

@@ -205,7 +205,9 @@ BEGIN_DOC
 
 END_DOC
  */
-@Program(name="bam2xml",keywords={"sam","bam","xml"},description="converts a BAM to XML")
+@Program(name="bam2xml",
+	keywords={"sam","bam","xml"},
+	description="converts a BAM to XML")
 public class Bam2Xml extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Bam2Xml.class).make();

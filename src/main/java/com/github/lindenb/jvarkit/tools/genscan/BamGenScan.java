@@ -69,7 +69,7 @@ import htsjdk.samtools.util.SequenceUtil;
 public class BamGenScan extends AbstractGeneScan
 	{
 	private static final Logger LOG = Logger.build(BamGenScan.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private List<Input> inputs=new ArrayList<Input>();

@@ -41,6 +41,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.Cigar;
@@ -75,6 +76,7 @@ END_DOC
 @Program(name="biostar78285",
 	biostars=78285,
 	keywords={"sam","bam","depth","coverage"},
+	terms=Term.ID_0000015,
 	description="Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/")
 public class Biostar78285 extends Launcher
 	{

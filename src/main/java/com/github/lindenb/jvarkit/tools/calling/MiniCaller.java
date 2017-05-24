@@ -101,7 +101,7 @@ public class MiniCaller extends Launcher
     {
 	private static final Logger LOG = Logger.build(MiniCaller.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-d","--mindepth"},description="Min depth")
 	private int min_depth = 20 ;

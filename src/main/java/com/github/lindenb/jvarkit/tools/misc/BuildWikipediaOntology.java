@@ -70,7 +70,6 @@ public class BuildWikipediaOntology extends Launcher
 		{
 		private JDesktopPane desktopPane;
 		
-
 		
 		private class IFrame extends JInternalFrame
 			{

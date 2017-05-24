@@ -12,6 +12,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 
+/**
+BEGIN_DOC
+
+
+END_DOC
+*/
 @Program(name="fixvarscanmissingheader ",description="Fix the sample name in the #CHROM header and fix VCF header missingh in varscan2. Sometimes, but not always, it happends. See  http://seqanswers.com/forums/showthread.php?t=33235 ")
 public class FixVarScanMissingVCFHeader extends Launcher {
 	private static Log LOG=Log.getInstance(FixVarScanMissingVCFHeader.class);

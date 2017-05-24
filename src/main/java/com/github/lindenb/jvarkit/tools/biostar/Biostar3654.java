@@ -111,7 +111,8 @@ HIT   000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
 END_DOC
 
  */
-@Program(name="biostar3654",description="show blast alignment with annotations",biostars=3654,keywords={"blast","xml","annotation"})
+import com.github.lindenb.semontology.Term;
+@Program(name="biostar3654",terms=Term.ID_0000015,description="show blast alignment with annotations",biostars=3654,keywords={"blast","xml","annotation"})
 public class Biostar3654 extends Launcher
 	{
 	private static final Logger LOG=Logger.build(Biostar3654.class).make();
@@ -125,7 +126,7 @@ public class Biostar3654 extends Launcher
 	private PrintWriter pw=null;
 	/** left margin */
 	private int margin=9;
-	@Parameter(names={"-o","--out"},description="Ouput file. Default: stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	/** length of a fasta line */
 	@Parameter(names={"-L","--length"},description="Fasta Line kength")

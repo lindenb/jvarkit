@@ -166,7 +166,7 @@ END_DOC
 @Program(name="vcfrenamechr",
 	description="Convert the names of the chromosomes in a VCF file",
 	keywords={"vcf","contig","chromosome","convert"}
-		)
+	)
 public class ConvertVcfChromosomes extends com.github.lindenb.jvarkit.util.jcommander.Launcher {
 	private static final Logger LOG = Logger.build(ConvertVcfChromosomes.class).make();
 	

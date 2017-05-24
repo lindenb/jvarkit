@@ -17,10 +17,13 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 @Program(name="biostar77828",
-description="Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ ",
-		biostars=77828
+description="Divide the human genome among X cores, taking into account gaps",
+		biostars=77828,
+		keywords={"workflow","reference","parallel"},
+		terms=Term.ID_0000015
 		)
 public class Biostar77828 extends Launcher
 	{
@@ -28,7 +31,7 @@ public class Biostar77828 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar77828.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

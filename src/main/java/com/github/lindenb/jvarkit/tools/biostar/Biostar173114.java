@@ -31,6 +31,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.Cigar;
@@ -85,13 +86,14 @@ END_DOC
 */
 
 
-@Program(name="biostar173114",description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/")
+@Program(name="biostar173114",terms=Term.ID_0000015,
+	description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/")
 public class Biostar173114 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar173114.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-keepSeq","--keepSequence"},description="keep read sequence")

@@ -47,6 +47,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
@@ -83,7 +84,7 @@ END_DOC
 */
 
 
-@Program(name="biostar178713",description="split bed file into several bed files where each region is separated of any other by N bases https://www.biostars.org/p/178713/")
+@Program(name="biostar178713",terms=Term.ID_0000015,description="split bed file into several bed files where each region is separated of any other by N bases https://www.biostars.org/p/178713/")
 public class Biostar178713 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar178713.class).make();

@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -86,14 +87,15 @@ END_DOC
 @Program(
 		name="biostar130456",
 		description="Individual VCF files from main VCF file",
-		biostars=130456
+		biostars=130456,
+		terms=Term.ID_0000015
 		)
 public class Biostar130456 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar130456.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private final static String SAMPLE_TAG="__SAMPLE__";

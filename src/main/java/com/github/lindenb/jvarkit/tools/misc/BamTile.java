@@ -148,7 +148,7 @@ public class BamTile
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	public BamTile()

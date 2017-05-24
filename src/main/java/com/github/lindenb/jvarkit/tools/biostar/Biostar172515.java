@@ -37,6 +37,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.BAMFileSpan;
 import htsjdk.samtools.BAMIndexMetaData;
@@ -131,7 +132,9 @@ END_DOC
 @Program(name="biostar172515",
 description="Convert BAI to XML",
 biostars=172515,
-keywords={"bai","bam","xml"})
+keywords={"bai","bam","xml"},
+terms=Term.ID_0000015
+)
 public class Biostar172515 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar172515.class).make();

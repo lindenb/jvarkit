@@ -61,6 +61,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -87,13 +88,14 @@ END_DOC
 @Program(name="biostar95652",
 	keywords={"genbank","svg","tree","evolution"},
 	description="Drawing a schematic genomic context tree.",
+	terms=Term.ID_0000015,
 	biostars=95652)
 public class Biostar95652 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar95652.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	private static final String XLINK="http://www.w3.org/1999/xlink";

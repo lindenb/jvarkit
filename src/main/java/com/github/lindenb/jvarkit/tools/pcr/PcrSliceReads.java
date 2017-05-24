@@ -184,7 +184,7 @@ public class PcrSliceReads extends Launcher
 	@Parameter(names="--random",description=" random seed")
 	private Random random=RandomConverter.now();//0L for reproductive calculations
 	
-	@Parameter(names={"-o","--out"},description="output file (or stdout)")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	@Parameter(names={"-B","--bed"},description="bed file containing non-overlapping PCR fragments. Column name is required.")
 	private File bedFile=null;
@@ -405,7 +405,7 @@ public class PcrSliceReads extends Launcher
 				{
 				final BedLine bed=codec.decode(line);
 				if(bed==null) continue;
-				String chrom =  bed.getContig();
+				final String chrom =  bed.getContig();
 				int chromStart1 = bed.getStart();
 				int chromEnd1 =  bed.getEnd();
 				if(chromStart1<1 || chromStart1>chromEnd1)

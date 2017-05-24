@@ -48,6 +48,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.SAMFileHeader;
@@ -150,13 +151,14 @@ END_DOC
 
 @Program(name="biostar78400",
 	keywords={"sam","bam","xml","read-group"},
+			terms=Term.ID_0000015,
 	description="add the read group info to the sam file on a per lane basis")
 public class Biostar78400 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar78400.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

@@ -59,13 +59,22 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="reduceblast",description="Reduce the size of XML blast, by removing iterations that have no Hit")
+/**
+BEGIN_DOC
+
+
+END_DOC
+ */
+@Program(name="reduceblast",
+	description="Reduce the size of XML blast, by removing iterations that have no Hit",
+	keywords={"blast","xml"}
+	)
 public class ReduceBlast extends Launcher
 {
 	private static final Logger LOG = Logger.build(ReduceBlast.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

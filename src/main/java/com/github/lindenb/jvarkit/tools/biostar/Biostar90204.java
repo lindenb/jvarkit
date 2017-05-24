@@ -38,7 +38,7 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
@@ -79,6 +79,7 @@ END_DOC
 */
 @Program(name="biostar90204",
 	keywords={"sam","bam","split","util"},
+			terms=Term.ID_0000015,
 	description="Bam version of linux split. See also http://www.biostars.org/p/90204/",biostars=90204)
 public class Biostar90204 extends Launcher
 	{

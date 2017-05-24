@@ -77,8 +77,13 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.semontology.Term;
 
-@Program(name="biostar140111",description="How to obtain human genotype data from dpSNP ftp?",biostars=140111)
+@Program(name="biostar140111",
+	description="How to obtain human genotype data from dpSNP ftp?",
+	biostars=140111,
+	terms=Term.ID_0000015
+	)
 public class Biostar140111 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar130456.class).make();
@@ -90,7 +95,7 @@ public class Biostar140111 extends Launcher
 	
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	

@@ -45,6 +45,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -79,7 +80,7 @@ END_DOC
  
  */
 
-@Program(name="biostar165777",description="Split a XML file")
+@Program(name="biostar165777",description="Split a XML file",terms=Term.ID_0000015)
 public class Biostar165777 extends Launcher
 	{
 

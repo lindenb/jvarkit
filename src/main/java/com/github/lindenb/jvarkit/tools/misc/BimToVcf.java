@@ -108,11 +108,11 @@ public class BimToVcf extends Launcher
 	private static final Logger LOG = Logger.build(BimToVcf.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
-	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference",required=true)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File REF = null;
 
 	public BimToVcf() {

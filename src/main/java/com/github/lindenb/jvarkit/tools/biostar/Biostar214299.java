@@ -43,6 +43,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.semontology.Term;
+
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.CigarElement;
@@ -108,7 +110,7 @@ END_DOC
 @Program(name="biostar214299",
 	description="Extract allele specific reads from bamfiles",
 	biostars=214299,
-	keywords={"sam","bam","variant","snp"}
+	keywords={"sam","bam","variant","snp"},terms=Term.ID_0000015
 	)
 public class Biostar214299 extends Launcher
 	{

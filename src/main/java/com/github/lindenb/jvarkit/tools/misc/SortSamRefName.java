@@ -80,11 +80,16 @@ x6	0	ref2	14	30	23M	*	0	0	TAATTAAGTCTACAGAGCAACTA	???????????????????????
 END_DOC
  */
 
-@Program(name="sortsamrefname",description="Sort a BAM of contig and then on name")
+@Program(
+		name="sortsamrefname",
+		description="Sort a BAM of contig and then on name",
+		keywords={"sam","sort"},
+		biostars=154220
+		)
 public class SortSamRefName extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SortSamRefName.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@ParametersDelegate

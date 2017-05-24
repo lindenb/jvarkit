@@ -156,14 +156,17 @@ END_DOC
  * BlastFilterJS
  *
  */
-@Program(name="blastfilterjs",description="Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit.")
+@Program(name="blastfilterjs",
+	description="Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit.",
+	keywords={"blast","js","javascript","filter"}
+	)
 public class BlastFilterJS
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BlastFilterJS.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
 	private String scriptExpr=null;

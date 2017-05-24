@@ -131,7 +131,9 @@ grep domain -B 5
 
 END_DOC
  */
-@Program(name="pubmedmap",description="Use Pubmed Author's Affiliation to map the authors .",keywords={"pubmed","xml","gis","map"})
+@Program(name="pubmedmap",
+description="Use Pubmed Author's Affiliation to map the authors .",
+	keywords={"pubmed","xml","gis","map"})
 public class PubmedMap
 	extends Launcher
 	{

@@ -115,14 +115,18 @@ picard LiftOverVcf (loads all the genome in memory...)
 
 END_DOC
 */
-@Program(name="vcfliftover",description="Lift-over a VCF file")
+@Program(
+		name="vcfliftover",
+		description="Lift-over a VCF file",
+		keywords={"vcf","liftover"}
+		)
 public class VcfLiftOver extends Launcher
 	{
 
 	private static final Logger LOG = Logger.build(VcfLiftOver.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)

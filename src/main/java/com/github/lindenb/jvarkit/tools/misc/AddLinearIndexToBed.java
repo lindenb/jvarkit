@@ -73,9 +73,9 @@ public class AddLinearIndexToBed extends Launcher
 {
 	private static final Logger LOG = Logger.build(AddLinearIndexToBed.class).make();
 
-	@Parameter(names = { "-o", "--out" }, description = "Output file or stdout")
+	@Parameter(names = { "-o", "--out" }, description = OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names = { "-R", "--reference" }, description = "Indexed Reference File.", required = true)
+	@Parameter(names = { "-R", "--reference" }, description = INDEXED_FASTA_REFERENCE_DESCRIPTION, required = true)
 	private File refFile = null;
 
 	public AddLinearIndexToBed() {

@@ -32,6 +32,7 @@ import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -41,7 +42,7 @@ import htsjdk.samtools.util.Interval;
 
 public class IntervalParser {
 	private static final Logger LOG = Logger.build(IntervalParser.class).make();
-	
+	public static final String OPT_DESC="An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\". A program might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)" ;
 	private SAMSequenceDictionary dict=null;
 	private boolean raiseExceptionOnError=true;
 	private boolean tryToFixContigName=true;
@@ -212,7 +213,12 @@ public class IntervalParser {
 			if(hasDictionary())
 				{
 				ssr= getSAMSequenceRecord(chrom);
-				if(ssr==null) return returnErrorOrNullInterval("Cannot find chromosome "+chrom+" in dictionary.");
+				if(ssr==null)
+					{
+					return returnErrorOrNullInterval(
+						"Cannot find chromosome \""+chrom+"\" in dictionary. Available chromosomes are : "+
+						this.dict.getSequences().stream().map(S->"\""+S.getSequenceName()+"\"").collect(Collectors.joining(", ")));
+					}
 				chrom = ssr.getSequenceName();
 				}
 			if(hyphen!=-1)

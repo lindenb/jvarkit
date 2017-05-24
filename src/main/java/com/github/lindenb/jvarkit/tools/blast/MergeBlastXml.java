@@ -61,7 +61,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SortingCollection;
 
-@Program(name="mergeblastxml",biostars=246958,description="merge XML blast results (same Iteration/Iteration_query-def in multiple xml files")
 /**
  BEGIN_DOC
  
@@ -74,6 +73,9 @@ import htsjdk.samtools.util.SortingCollection;
  
  END_DOC
  */
+@Program(name="mergeblastxml",biostars=246958,description="merge XML blast results (same Iteration/Iteration_query-def in multiple xml files",
+keywords={"blast","xml"}
+)
 public class MergeBlastXml extends Launcher {
 private static final Logger LOG=Logger.build(MergeBlastXml.class).make();
 private Unmarshaller unmarshaller;

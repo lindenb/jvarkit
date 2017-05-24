@@ -34,6 +34,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -43,11 +44,31 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
+/**
+BEGIN_DOC
 
+## Example
+
+```
+ $ cat toy.sam 
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+r001    163 ref 7   30  1M2X5=4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG*XX:B:S,12561,2,20,112
+
+ $ java -jar dist/biostar234081.jar toy.sam 
+@HD VN:1.5  SO:unsorted
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+r001    163 ref 7   30  8M4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG*XX:B:S,12561,2,20,112
+```
+
+END_DOC
+ */
 @Program(name="biostar234081",
 	description="convert extended CIGAR to regular CIGAR",
 	keywords={"sam","bam","cigar"},
-	biostars=234081
+	biostars=234081,
+	terms=Term.ID_0000015
 	)
 public class Biostar234081 extends Launcher
 	{

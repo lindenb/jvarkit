@@ -19,6 +19,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -40,7 +41,8 @@ END_DOC
 @Program(name="biostar105754",
 	description="bigwig : peak distance from specific genomic region",
 	biostars=105754,
-	keywords={"wig","bigwig"}
+	keywords={"wig","bigwig"},
+	terms=Term.ID_0000015
 	)
 public class Biostar105754 extends Launcher
 	{
