@@ -1,5 +1,7 @@
 # LowResBam2Raster
 
+Low Resolution BAM to raster graphics
+
 
 ## Usage
 
@@ -77,11 +79,6 @@ Usage: lowresbam2raster [options] Files
 ```
 
 
-## Description
-
-Low Resolution BAM to raster graphics
-
-
 ## Keywords
 
  * bam
@@ -150,5 +147,16 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Example
+
+```
+java -jar dist/lowresbam2raster.jar \
+	-o out.png -r "22:38999+10000" in.bam \
+	 -clip -srf "" -R ref.fasta  -kg knownGene.txt.gz
+```
+
+## Screenshot
+
+![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
 
 

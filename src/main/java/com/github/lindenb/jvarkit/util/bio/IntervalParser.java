@@ -247,9 +247,10 @@ public class IntervalParser {
 
 			if(iend<istart) return returnErrorOrNullInterval("end < start in "+s);
 			return new Interval(chrom, istart, iend,false,s);
-		} catch (final Exception e)
+		} catch (final Exception err)
 			{
-			return returnErrorOrNullInterval("Cannot parse "+s +" : "+e.getMessage());
+			LOG.error(err);
+			return returnErrorOrNullInterval("Cannot parse "+s +" : "+err.getMessage());
 			}
 		}
 	

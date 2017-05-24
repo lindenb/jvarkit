@@ -203,22 +203,33 @@ public static  class UsageBuider
 			{
 			jc.setProgramName(clazz.getSimpleName());
 			}
-		if(print_markdown_help)  sb.append("# "+clazz.getSimpleName()+"\n\n");
+		if(print_markdown_help)  
+			{
+			sb.append("# "+clazz.getSimpleName()+"\n\n");
+			
+			if(programdesc!=null){
+				
+				sb.append(programdesc.description()).
+					append("\n\n");
+				
+				if(!programdesc.deprecatedMsg().isEmpty())
+					{
+					sb.append("\n## DEPRECATED\n\n").
+						append(programdesc.deprecatedMsg()).
+						append("\n");
+					}
+				
+				
+				}
+			
+			}
+		
+		
 		if(print_markdown_help) sb.append("\n## Usage\n\n```\n");
 		jc.usage(sb);
 		if(print_markdown_help) sb.append("\n```\n\n");
 
 		if(programdesc!=null){
-			if(!programdesc.deprecatedMsg().isEmpty())
-				{
-				sb.append("\n## DEPRECATED\n\n").
-					append(programdesc.deprecatedMsg()).
-					append("\n");
-				}
-			
-			sb.append("\n## Description\n\n").
-				append(programdesc.description()).
-				append("\n\n");
 			
 			if(programdesc.keywords()!=null && programdesc.keywords().length>0) {
 				sb.append("\n## Keywords\n\n");

@@ -55,7 +55,6 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
-import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
 import htsjdk.samtools.Cigar;
@@ -79,6 +78,17 @@ import htsjdk.samtools.util.Locatable;
 
 BEGIN_DOC
 
+## Example
+
+```
+java -jar dist/lowresbam2raster.jar \
+	-o out.png -r "22:38999+10000" in.bam \
+	 -clip -srf "" -R ref.fasta  -kg knownGene.txt.gz
+```
+
+## Screenshot
+
+![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
 
 END_DOC
 

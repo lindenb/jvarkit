@@ -102,6 +102,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 					if(className==null ) return;
 					int dollar  = className.indexOf('$');
 					if(dollar!=-1) className=className.substring(0,dollar);
+					if( className.equals(mainClass)) return;//de facto included in jar 
 					File javaFile = new File(thisDir+"/src/main/java/"+className.replace('.','/') +".java");
 					if(!javaFile.exists()) return;
 					final Filer filer = super.processingEnv.getFiler();					
