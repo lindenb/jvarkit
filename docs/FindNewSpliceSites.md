@@ -1,5 +1,7 @@
 # FindNewSpliceSites
 
+use the 'N' operator in the cigar string to find unknown splice sites
+
 
 ## Usage
 
@@ -30,11 +32,6 @@ Usage: findnewsplicesites [options] Files
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
 
 ```
-
-
-## Description
-
-use the 'N' operator in the cigar string to find unknown splice sites
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # LiftOverToSVG
 
+Convert LiftOver chain files to animated SVG
+
 
 ## Usage
 
@@ -21,11 +23,6 @@ Usage: liftover2svg [options] Files
       Default: 1000
 
 ```
-
-
-## Description
-
-Convert LiftOver chain files to animated SVG
 
 
 ## Keywords

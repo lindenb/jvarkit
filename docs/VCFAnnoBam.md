@@ -1,5 +1,11 @@
 # VCFAnnoBam
 
+Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. It uses the Cigar string instead of the start/end to get the voverage
+
+
+## DEPRECATED
+
+useless: use DP/DP4 in the Genotypes
 
 ## Usage
 
@@ -26,15 +32,6 @@ Usage: vcfannobam [options] Files
       BED File capture.
 
 ```
-
-
-## DEPRECATED
-
-useless: use DP/DP4 in the Genotypes
-
-## Description
-
-Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. It uses the Cigar string instead of the start/end to get the voverage
 
 ## Compilation
 

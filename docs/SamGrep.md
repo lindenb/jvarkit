@@ -1,5 +1,7 @@
 # SamGrep
 
+grep read-names in a bam file
+
 
 ## Usage
 
@@ -36,11 +38,6 @@ Usage: samgrep [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-grep read-names in a bam file
 
 
 ## Keywords

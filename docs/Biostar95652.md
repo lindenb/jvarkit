@@ -1,5 +1,7 @@
 # Biostar95652
 
+Drawing a schematic genomic context tree.
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: biostar95652 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Drawing a schematic genomic context tree.
 
 
 ## Keywords

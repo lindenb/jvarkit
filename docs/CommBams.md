@@ -1,5 +1,7 @@
 # CommBams
 
+Equivalent of unix 'comm' for bams sorted on queryname
+
 
 ## Usage
 
@@ -28,7 +30,7 @@ Usage: commbams [options] Files
       suppress reads present in both files
       Default: false
     -o, --out
-      output file . Default:stdout
+      Output file. Optional . Default: stdout
     -st, --samtools
       Data was sorted using samtools sort -n algorithm (!= picard) see 
       https://github.com/samtools/hts-specs/issues/5 
@@ -39,9 +41,13 @@ Usage: commbams [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Equivalent of unix 'comm' for bams sorted on queryname
+ * sam
+ * bam
+ * comm
+ * compare
+
 
 ## Compilation
 

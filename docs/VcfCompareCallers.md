@@ -1,5 +1,7 @@
 # VcfCompareCallers
 
+Compare two VCFs and print common/exclusive information for each sample/genotype
+
 
 ## Usage
 
@@ -31,11 +33,6 @@ Usage: vcfcomparecallers [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Compare two VCFs and print common/exclusive information for each sample/genotype
 
 ## Compilation
 

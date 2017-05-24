@@ -1,5 +1,7 @@
 # DumpExomeVariantServerData
 
+Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.
+
 
 ## Usage
 
@@ -18,11 +20,6 @@ Usage: evs2bed [options] Files
       Default: 25000
 
 ```
-
-
-## Description
-
-Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.
 
 ## Compilation
 

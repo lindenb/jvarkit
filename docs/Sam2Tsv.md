@@ -1,5 +1,7 @@
 # Sam2Tsv
 
+Prints the SAM alignments as a TAB delimited file.
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: sam2tsv [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Prints the SAM alignments as a TAB delimited file.
 
 
 ## Keywords
@@ -293,7 +290,6 @@ x2	0	ref2	20	T	30	22	t	M
 Sam2tsv was cited in : 
 
  *  Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements* . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
-
 
 
 

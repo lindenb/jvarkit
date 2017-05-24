@@ -1,5 +1,7 @@
 # Biostar154220
 
+Cap BAM to a given coverage
+
 
 ## Usage
 
@@ -28,11 +30,6 @@ Usage: biostar154220 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Cap BAM to a given coverage
 
 
 ## See also in Biostars

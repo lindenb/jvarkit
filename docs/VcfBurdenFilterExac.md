@@ -1,5 +1,7 @@
 # VcfBurdenFilterExac
 
+Burden filter 3 - Exac
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: vcfburdenexac [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Burden filter 3 - Exac
 
 
 ## Keywords

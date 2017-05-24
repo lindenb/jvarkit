@@ -1,5 +1,7 @@
 # VcfGetVariantByIndex
 
+Access a Plain or BGZF-compressed VCF file by index
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: vcfgetvariantbyIndex [options] Files
       Output file. Optional . Default: stdout
 
 ```
-
-
-## Description
-
-Access a Plain or BGZF-compressed VCF file by index
 
 ## Compilation
 

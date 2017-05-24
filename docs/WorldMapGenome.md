@@ -1,5 +1,7 @@
 # WorldMapGenome
 
+Genome/Map of the world. Input is a BED file: chrom/start/end/country.
+
 
 ## Usage
 
@@ -24,11 +26,6 @@ Usage: worldmapgenome [options] Files
       Default: 1000
 
 ```
-
-
-## Description
-
-Genome/Map of the world. Input is a BED file: chrom/start/end/country.
 
 
 ## Keywords

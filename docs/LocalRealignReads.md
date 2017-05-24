@@ -1,5 +1,7 @@
 # LocalRealignReads
 
+Local Realignment of Reads
+
 
 ## Usage
 
@@ -22,11 +24,6 @@ Usage: localrealignreads [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Local Realignment of Reads
 
 ## Compilation
 

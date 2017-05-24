@@ -1,5 +1,7 @@
 # SplitVcf
 
+split a vcf...
+
 
 ## Usage
 
@@ -24,11 +26,6 @@ Usage: splitvcf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-split a vcf...
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # SAM4WebLogo
 
+Sequence logo for different alleles or generated from SAM/BAM 
+
 
 ## Usage
 
@@ -24,11 +26,6 @@ Usage: sam4weblogo [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Sequence logo for different alleles or generated from SAM/BAM 
 
 
 ## Keywords

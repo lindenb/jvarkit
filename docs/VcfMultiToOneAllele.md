@@ -1,5 +1,7 @@
 # VcfMultiToOneAllele
 
+'one variant with N ALT alleles' to 'N variants with one ALT'
+
 
 ## Usage
 
@@ -24,11 +26,6 @@ Usage: vcfmulti2oneallele [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-'one variant with N ALT alleles' to 'N variants with one ALT'
 
 
 ## Keywords

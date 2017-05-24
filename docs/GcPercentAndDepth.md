@@ -1,5 +1,7 @@
 # GcPercentAndDepth
 
+Extracts GC% and depth for multiple bam using a sliding window
+
 
 ## Usage
 
@@ -42,11 +44,6 @@ Usage: gcpercentanddepth [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Extracts GC% and depth for multiple bam using a sliding window
 
 ## Compilation
 

@@ -1,5 +1,7 @@
 # Biostar84786
 
+Matrix transposition
+
 
 ## Usage
 
@@ -13,15 +15,10 @@ Usage: biostar84786 [options] Files
     --version
       print version and exit
     -d
-      column delimter
+      column delimiter
       Default: 	
 
 ```
-
-
-## Description
-
-Matrix transposition
 
 
 ## Keywords

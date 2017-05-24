@@ -1,5 +1,7 @@
 # VcfRebase
 
+Restriction sites overlaping variations in a vcf
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: vcfrefbase [options] Files
       Default: 5.0
 
 ```
-
-
-## Description
-
-Restriction sites overlaping variations in a vcf
 
 
 ## Keywords

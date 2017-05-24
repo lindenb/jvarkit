@@ -1,5 +1,7 @@
 # VcfBurdenMAF
 
+Burden : MAF for Cases / Controls 
+
 
 ## Usage
 
@@ -21,11 +23,6 @@ Usage: vcfburdenmaf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Burden : MAF for Cases / Controls 
 
 
 ## Keywords

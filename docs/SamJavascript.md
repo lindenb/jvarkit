@@ -1,5 +1,7 @@
 # SamJavascript
 
+Filters a BAM using a javascript expression ( java nashorn engine  ).
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: samjs [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Filters a BAM using a javascript expression ( java nashorn engine  ).
 
 
 ## Keywords

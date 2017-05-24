@@ -1,5 +1,11 @@
 # VCFBedSetFilter
 
+Set FILTER for VCF if it doesn't intersects with BED.
+
+
+## DEPRECATED
+
+use GATK FilterVariants
 
 ## Usage
 
@@ -28,15 +34,6 @@ Usage: vcfbedsetfilter [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-use GATK FilterVariants
-
-## Description
-
-Set FILTER for VCF if it doesn't intersects with BED.
 
 
 ## Keywords

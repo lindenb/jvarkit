@@ -1,5 +1,7 @@
 # CompareBamAndBuild
 
+Compare two  BAM files mapped on two different builds. Requires a liftover chain file
+
 
 ## Usage
 
@@ -27,11 +29,6 @@ Usage: cmpbamsandbuild [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Compare two  BAM files mapped on two different builds. Requires a liftover chain file
 
 ## Compilation
 

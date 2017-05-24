@@ -1,5 +1,11 @@
 # VCFMerge2
 
+Merge VCF Files
+
+
+## DEPRECATED
+
+use GATK combineVariants 
 
 ## Usage
 
@@ -32,15 +38,6 @@ Usage: vcfmerge [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-use GATK combineVariants 
-
-## Description
-
-Merge VCF Files
 
 ## Compilation
 

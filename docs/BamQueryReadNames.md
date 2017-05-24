@@ -1,5 +1,7 @@
 # BamQueryReadNames
 
+Query a Bam file indexed with BamIndexReadNames
+
 
 ## Usage
 
@@ -12,7 +14,7 @@ Usage:  [options] Files
     -h, --help
       print help and exit
     -o, --out
-      Output file
+      Output file. Optional . Default: stdout
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
@@ -25,11 +27,6 @@ Usage:  [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Query a Bam file indexed with BamIndexReadNames
 
 ## Compilation
 
@@ -88,4 +85,38 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+ 
+ 
+## Example
+
+
+
+```bash
+$cat read.names
+HWI-1KL149:18:C0RNBACXX:1:1101:12800:7069
+HWI-1KL149:18:C0RNBACXX:1:1101:15533:71685
+HWI-1KL149:18:C0RNBACXX:1:1103:6001:91243
+HWI-1KL149:18:C0RNBACXX:1:1107:2088:3461
+HWI-1KL149:18:C0RNBACXX:1:1108:2098:26795
+HWI-1KL149:18:C0RNBACXX:1:1110:10318:73043
+HWI-1KL149:18:C0RNBACXX:1:1112:18688:6422
+HWI-1KL149:18:C0RNBACXX:1:1116:8824:38450/1
+HWI-1KL149:18:C0RNBACXX:1:1202:13982:33444/2
+ZZZZ:X
+
+
+
+$ java -jar dist/bamqueryreadnames.jar -b -s -N list.notfound input.bam read.names | samtools view |head
+
+HWI-1KL149:18:C0RNBACXX:1:1101:12800:7069	77	*	0	0	*	*	0	0	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN	##################################################	RG:Z:p1294	AS:i:0	XS:i:0
+HWI-1KL149:18:C0RNBACXX:1:1101:12800:7069	141	*	0	0	*	*	0	0	NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN	##################################################	RG:Z:p1294	AS:i:0	XS:i:0
+HWI-1KL149:18:C0RNBACXX:1:1101:15533:71685	99	X	238583	60	100M	=	23858972	274	(...)
+(...)
+
+$ cat list.notfound
+ZZZZ:X
+```
+
+
+ 
 

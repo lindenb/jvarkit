@@ -1,5 +1,7 @@
 # VcfToSvg
 
+write a vcf to svg , with gene context
+
 
 ## Usage
 
@@ -44,11 +46,6 @@ Usage: vcf2svg [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-write a vcf to svg , with gene context
 
 
 ## Keywords

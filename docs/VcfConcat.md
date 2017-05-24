@@ -1,5 +1,7 @@
 # VcfConcat
 
+Concatenante sorted VCF with same sample, does NOT merge genotypes
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: vcfconcat [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Concatenante sorted VCF with same sample, does NOT merge genotypes
 
 ## Compilation
 

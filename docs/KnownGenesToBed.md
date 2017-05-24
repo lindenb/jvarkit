@@ -1,5 +1,7 @@
 # KnownGenesToBed
 
+converts UCSC knownGenes file to BED.
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: kg2bed [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-converts UCSC knownGenes file to BED.
 
 
 ## Keywords

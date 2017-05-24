@@ -1,5 +1,7 @@
 # Biostar81455
 
+Defining precisely the genomic context based on a position .
+
 
 ## Usage
 
@@ -21,11 +23,6 @@ Usage: biostar81455 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Defining precisely the genomic context based on a position .
 
 
 ## Keywords

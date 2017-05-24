@@ -1,5 +1,7 @@
 # BamStats04
 
+Coverage statistics for a BED file.
+
 
 ## Usage
 
@@ -28,11 +30,6 @@ Usage: bamstats04 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Coverage statistics for a BED file.
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # ConvertBamChromosomes
 
+Convert the names of the chromosomes in a BAM file
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: bamrenamechr [options] Files
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
 
 ```
-
-
-## Description
-
-Convert the names of the chromosomes in a BAM file
 
 
 ## Keywords

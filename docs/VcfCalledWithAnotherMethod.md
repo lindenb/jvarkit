@@ -1,5 +1,7 @@
 # VcfCalledWithAnotherMethod
 
+After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: vcfcalledwithanothermethod [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.
 
 ## Compilation
 

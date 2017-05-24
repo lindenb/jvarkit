@@ -1,6 +1,8 @@
 # SamFindClippedRegions
 
 
+
+
 ## Usage
 
 ```
@@ -17,11 +19,6 @@ Usage: samfindclippedregions [options] Files
       Default: 20
 
 ```
-
-
-## Description
-
-
 
 ## Compilation
 

@@ -1,5 +1,7 @@
 # SortVcfOnInfo
 
+Sort a VCF a field in the INFO column
+
 
 ## Usage
 
@@ -25,11 +27,6 @@ Usage: sortvcfoninfo [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Sort a VCF a field in the INFO column
 
 
 ## Keywords

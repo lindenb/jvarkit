@@ -1,5 +1,7 @@
 # VCFCompare
 
+Compares two VCF files
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: vcfcompare [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Compares two VCF files
 
 
 ## Keywords

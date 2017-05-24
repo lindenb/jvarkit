@@ -1,5 +1,7 @@
 # Biostar77828
 
+Divide the human genome among X cores, taking into account gaps
+
 
 ## Usage
 
@@ -25,9 +27,12 @@ Usage: biostar77828 [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Divide the human genome among X cores, taking into account gaps See http://www.biostars.org/p/77828/ 
+ * workflow
+ * reference
+ * parallel
+
 
 
 ## See also in Biostars

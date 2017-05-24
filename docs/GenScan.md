@@ -1,5 +1,7 @@
 # GenScan
 
+Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).
+
 
 ## Usage
 
@@ -11,23 +13,37 @@ Usage: genscan [options] Files
     --imagesize
        (int)x(int) image width x height
       Default: java.awt.Dimension[width=1000,height=300]
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
     --maxy
       max y value
     --miny
       min y value
     -o, --output
       Output file. Optional . Default: stdout
-    -R, --reference
-      Fasta indexed reference.
+  * -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exit
 
 ```
 
 
-## Description
+## Keywords
 
-Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).
+ * chromosome
+ * reference
+ * chart
+ * visualization
+
 
 ## Compilation
 

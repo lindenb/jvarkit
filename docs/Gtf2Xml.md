@@ -1,5 +1,7 @@
 # Gtf2Xml
 
+Convert GTF to XML
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: gtf2xml [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert GTF to XML
 
 
 ## Keywords

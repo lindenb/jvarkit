@@ -1,5 +1,7 @@
 # VcfToBam
 
+vcf to bam
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: vcf2bam [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-vcf to bam
 
 
 ## Keywords

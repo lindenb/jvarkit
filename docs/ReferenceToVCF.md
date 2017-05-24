@@ -1,5 +1,7 @@
 # ReferenceToVCF
 
+Creates a VCF containing all the possible substitutions from a Reference Genome.
+
 
 ## Usage
 
@@ -25,11 +27,6 @@ Usage: referencetovcf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Creates a VCF containing all the possible substitutions from a Reference Genome.
 
 
 ## Keywords

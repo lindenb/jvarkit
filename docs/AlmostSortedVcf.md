@@ -1,5 +1,7 @@
 # AlmostSortedVcf
 
+Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: almostsortedvcf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.
 
 ## Compilation
 

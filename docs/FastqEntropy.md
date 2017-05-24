@@ -1,5 +1,7 @@
 # FastqEntropy
 
+Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: fastqentropy [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))
 
 
 ## Keywords

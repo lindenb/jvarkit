@@ -1,5 +1,7 @@
 # VcfToSql
 
+Generate the SQL code to insert a VCF into mysql
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: vcf2sql [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Generate the SQL code to insert a VCF into mysql
 
 
 ## Keywords

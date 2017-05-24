@@ -1,5 +1,7 @@
 # Gff2KnownGene
 
+Convert GFF3 format to UCSC knownGene format.
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: gff2knowngene [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert GFF3 format to UCSC knownGene format.
 
 
 ## Keywords

@@ -1,5 +1,11 @@
 # VCFStripAnnotations
 
+Removes one or more field from the INFO/FORMAT column of a VCF.
+
+
+## DEPRECATED
+
+Use bcftools annotate -x 
 
 ## Usage
 
@@ -17,15 +23,6 @@ Usage: vcfstripannot [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-Use bcftools annotate -x 
-
-## Description
-
-Removes one or more field from the INFO/FORMAT column of a VCF.
 
 
 ## Keywords

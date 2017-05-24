@@ -1,5 +1,7 @@
 # Biostar78400
 
+add the read group info to the sam file on a per lane basis
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: biostar78400 [options] Files
       XML description of the groups.
 
 ```
-
-
-## Description
-
-add the read group info to the sam file on a per lane basis
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # SamClipIndelFraction
 
+Extract clipping/indel fraction from BAM
+
 
 ## Usage
 
@@ -18,11 +20,6 @@ Usage: Samclipindelfraction [options] Files
       Possible Values: [leftclip, rightclip, allclip, insert, deletion]
 
 ```
-
-
-## Description
-
-Extract clipping/indel fraction from BAM
 
 ## Compilation
 

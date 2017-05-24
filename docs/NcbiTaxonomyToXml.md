@@ -1,5 +1,7 @@
 # NcbiTaxonomyToXml
 
+Dump NCBI taxonomy tree as a hierarchical XML document
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: ncbitaxonomy2xml [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Dump NCBI taxonomy tree as a hierarchical XML document
 
 
 ## Keywords

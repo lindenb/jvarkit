@@ -1,5 +1,7 @@
 # VCFComm
 
+Equivalent of linux comm for VCF
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: vcfcomm [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Equivalent of linux comm for VCF
 
 ## Compilation
 

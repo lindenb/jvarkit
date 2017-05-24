@@ -1,5 +1,7 @@
 # BamClipToInsertion
 
+Convert SOFT clip to Insertion of other read confirm it
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: bamclip2insertion [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert SOFT clip to Insertion of other read confirm it
 
 
 ## Keywords

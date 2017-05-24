@@ -1,5 +1,7 @@
 # VcfAnnotWithBeacon
 
+Annotate a VCF with ga4gh beacon
+
 
 ## Usage
 
@@ -36,11 +38,6 @@ Usage: vcfannotwithbeacon [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Annotate a VCF with ga4gh beacon
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # VcfGeneOntology
 
+Find the GO terms for VCF annotated with SNPEFF or VEP
+
 
 ## Usage
 
@@ -35,11 +37,6 @@ Usage: vcfgo [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Find the GO terms for VCF annotated with SNPEFF or VEP
 
 
 ## Keywords

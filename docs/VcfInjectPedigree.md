@@ -1,5 +1,7 @@
 # VcfInjectPedigree
 
+Injects a pedigree (.ped) file in the VCF header
+
 
 ## Usage
 
@@ -31,11 +33,6 @@ Usage: vcfinjectpedigree [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Injects a pedigree (.ped) file in the VCF header
 
 
 ## Keywords

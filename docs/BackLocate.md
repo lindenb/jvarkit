@@ -1,5 +1,7 @@
 # BackLocate
 
+Mapping a mutation on a protein back to the genome.
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: backlocate [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Mapping a mutation on a protein back to the genome.
 
 ## Compilation
 

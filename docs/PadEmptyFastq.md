@@ -1,5 +1,11 @@
 # PadEmptyFastq
 
+Pad empty fastq sequence/qual with N/#
+
+
+## DEPRECATED
+
+use awk
 
 ## Usage
 
@@ -17,15 +23,6 @@ Usage: pademptyfastq [options] Files
       Default: -1
 
 ```
-
-
-## DEPRECATED
-
-use awk
-
-## Description
-
-Pad empty fastq sequence/qual with N/#
 
 
 ## Keywords

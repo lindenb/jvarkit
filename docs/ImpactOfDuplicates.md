@@ -1,5 +1,7 @@
 # ImpactOfDuplicates
 
+Impact of Duplicates per BAM.
+
 
 ## Usage
 
@@ -25,11 +27,6 @@ Usage: impactofduplicates [options] Files
       BED File
 
 ```
-
-
-## Description
-
-Impact of Duplicates per BAM.
 
 
 ## Keywords

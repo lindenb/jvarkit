@@ -1,5 +1,7 @@
 # FastqSplitInterleaved
 
+Split interleaved Fastq files.
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: fastqsplitinterleaved [options] Files
       (fastq2 file or '-' for stdout). Ignore 2nd read if omitted. Optional.
 
 ```
-
-
-## Description
-
-Split interleaved Fastq files.
 
 
 ## Keywords

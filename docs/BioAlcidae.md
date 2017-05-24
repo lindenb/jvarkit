@@ -1,5 +1,7 @@
 # BioAlcidae
 
+javascript version of awk for bioinformatics
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: bioalcidae [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-javascript version of awk for bioinformatics
 
 
 ## Keywords

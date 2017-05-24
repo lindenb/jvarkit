@@ -1,5 +1,7 @@
 # Biostar86480
 
+Genomic restriction finder
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: biostar86480 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Genomic restriction finder
 
 
 ## Keywords

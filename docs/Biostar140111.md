@@ -1,5 +1,7 @@
 # Biostar140111
 
+How to obtain human genotype data from dpSNP ftp?
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: biostar140111 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-How to obtain human genotype data from dpSNP ftp?
 
 
 ## See also in Biostars

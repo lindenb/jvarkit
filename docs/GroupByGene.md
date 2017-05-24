@@ -1,27 +1,32 @@
 # GroupByGene
 
+Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff
+
 
 ## Usage
 
 ```
 Usage: groupbygene [options] Files
   Options:
-    ---maxRecordsInRam
-      Max records in RAM
-      Default: 50000
     --filtered
       ignore FILTERED variants
       Default: false
     -h, --help
       print help and exit
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
     -T, --tag
       add Tag in INFO field containing the name of the genes.
       Default: []
     --tmpDir
-      Temporary directory
-      Default: /tmp
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exit
     -X, --xml
@@ -29,11 +34,6 @@ Usage: groupbygene [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff
 
 
 ## Keywords

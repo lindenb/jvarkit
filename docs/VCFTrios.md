@@ -1,5 +1,7 @@
 # VCFTrios
 
+Find mendelian incompatibilitie in a VCF
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: vcftrio [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Find mendelian incompatibilitie in a VCF
 
 
 ## Keywords

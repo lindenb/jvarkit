@@ -1,5 +1,7 @@
 # VcfBurdenRscriptV
 
+Fisher Case / Controls per Variant (Vertical)
+
 
 ## Usage
 
@@ -28,11 +30,6 @@ Usage: vcfburdenrscriptv [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Fisher Case / Controls per Variant (Vertical)
 
 
 ## Keywords
@@ -121,28 +118,21 @@ Variant in that VCF should have one and only one ALT allele. Use https://github.
 
 
 
-
-
 ### Output
-
-
 
 #### INFO column
 
 
  *  BurdenF1Fisher : Fisher test
 
-
 #### FILTER column
 
  *  BurdenF1Fisher :Fisher test doesn't meet  user's requirements
-
 
 ### see also
 
 
  *  VcfBurdenFilter3
-
 
 
 

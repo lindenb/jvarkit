@@ -1,5 +1,7 @@
 # VcfToRdf
 
+convert VCF to RDF (N3 notation)
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: vcf2rdf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-convert VCF to RDF (N3 notation)
 
 
 ## Keywords

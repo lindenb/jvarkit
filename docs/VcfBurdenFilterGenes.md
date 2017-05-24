@@ -1,5 +1,7 @@
 # VcfBurdenFilterGenes
 
+Filter VEP Output from a list of genes.
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcfburdenfiltergenes [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Filter VEP Output from a list of genes.
 
 
 ## Keywords

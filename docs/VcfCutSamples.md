@@ -1,5 +1,11 @@
 # VcfCutSamples
 
+Select/Exclude some samples from a VCF
+
+
+## DEPRECATED
+
+use bcftools or gatk SelectVariants
 
 ## Usage
 
@@ -28,15 +34,6 @@ Usage: vcfcutsamples [options] Files
       Default: false
 
 ```
-
-
-## DEPRECATED
-
-use bcftools or gatk SelectVariants
-
-## Description
-
-Select/Exclude some samples from a VCF
 
 
 ## Keywords

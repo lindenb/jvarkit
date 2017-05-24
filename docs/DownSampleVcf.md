@@ -1,5 +1,7 @@
 # DownSampleVcf
 
+DownSample a VCF
+
 
 ## Usage
 
@@ -14,17 +16,12 @@ Usage: downsamplevcf [options] Files
       print version and exit
     -N
        random seed
-      Default: 1495468992383
+      Default: 1495643381950
     -n
       output size
       Default: 10
 
 ```
-
-
-## Description
-
-DownSample a VCF
 
 
 ## Keywords

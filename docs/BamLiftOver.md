@@ -1,5 +1,7 @@
 # BamLiftOver
 
+Lift-over a BAM file.
+
 
 ## Usage
 
@@ -19,7 +21,7 @@ Usage: bamliftover [options] Files
       Default: -1.0
     -o, --output
       Output file. Optional . Default: stdout
-    -D, --reference
+    -D, -R, --reference
       indexed REFerence file for the new sequence dictionary. Required
     --samoutputformat
       Sam output format.
@@ -28,11 +30,6 @@ Usage: bamliftover [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Lift-over a BAM file.
 
 
 ## Keywords

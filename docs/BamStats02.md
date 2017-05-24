@@ -1,5 +1,7 @@
 # BamStats02
 
+Statistics about the flags and reads in a BAM
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: bamstats02 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Statistics about the flags and reads in a BAM
 
 ## Compilation
 

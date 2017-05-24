@@ -1,5 +1,11 @@
 # VcfBurden
 
+Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)
+
+
+## DEPRECATED
+
+deprecated
 
 ## Usage
 
@@ -33,15 +39,6 @@ Usage: vcfburden [options] Files
       Default: false
 
 ```
-
-
-## DEPRECATED
-
-deprecated
-
-## Description
-
-Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)
 
 ## Compilation
 

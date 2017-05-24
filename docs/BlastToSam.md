@@ -1,5 +1,7 @@
 # BlastToSam
 
+Convert a **BLASTN-XML** input to SAM
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: blast2sam [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert a **BLASTN-XML** input to SAM
 
 
 ## Keywords

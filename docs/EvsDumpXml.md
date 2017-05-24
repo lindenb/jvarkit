@@ -1,5 +1,7 @@
 # EvsDumpXml
 
+Download data from EVS http://evs.gs.washington.edu/EVS as XML file.
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: evsdumpxml [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Download data from EVS http://evs.gs.washington.edu/EVS as XML file.
 
 ## Compilation
 

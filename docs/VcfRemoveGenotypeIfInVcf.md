@@ -1,5 +1,7 @@
 # VcfRemoveGenotypeIfInVcf
 
+Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix
+
 
 ## Usage
 
@@ -19,11 +21,6 @@ Usage: vcfresetvcf [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix
 
 ## Compilation
 

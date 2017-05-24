@@ -1,5 +1,7 @@
 # VcfDoest
 
+generate Transcript information for DOEST test
+
 
 ## Usage
 
@@ -36,11 +38,6 @@ Usage: vcfdoest [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-generate Transcript information for DOEST test
 
 
 ## Keywords

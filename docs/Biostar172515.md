@@ -1,5 +1,7 @@
 # Biostar172515
 
+Convert BAI to XML
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: biostar172515 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert BAI to XML
 
 
 ## Keywords

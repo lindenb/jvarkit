@@ -1,5 +1,7 @@
 # BuildWikipediaOntology
 
+Build a simple RDFS/XML ontology from the Wikipedia Categories
+
 
 ## Usage
 
@@ -12,11 +14,6 @@ Usage: buildwpontology [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Build a simple RDFS/XML ontology from the Wikipedia Categories
 
 
 ## Keywords

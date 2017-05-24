@@ -1,5 +1,11 @@
 # VcfPeekVcf
 
+Get the INFO from a VCF and use it for another VCF
+
+
+## DEPRECATED
+
+Use GATK or vcftools
 
 ## Usage
 
@@ -27,15 +33,6 @@ Usage: vcfpeekvcf [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-Use GATK or vcftools
-
-## Description
-
-Get the INFO from a VCF and use it for another VCF
 
 
 ## Keywords

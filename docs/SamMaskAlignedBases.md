@@ -1,5 +1,7 @@
 # SamMaskAlignedBases
 
+Mask bases aligned on Reference.
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: sammaskalignedbases [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Mask bases aligned on Reference.
 
 ## Compilation
 

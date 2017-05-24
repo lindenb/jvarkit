@@ -1,5 +1,7 @@
 # BlastNToSnp
 
+print indel/mismatch in a blastn stream
+
 
 ## Usage
 
@@ -19,9 +21,11 @@ Usage: blasn2snp [options] Files
 ```
 
 
-## Description
+## Keywords
 
-print indel/mismatch in a blastn stream
+ * blast
+ * snp
+
 
 ## Compilation
 

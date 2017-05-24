@@ -1,5 +1,7 @@
 # Biostar130456
 
+Individual VCF files from main VCF file
+
 
 ## Usage
 
@@ -22,11 +24,6 @@ Usage: biostar130456 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Individual VCF files from main VCF file
 
 
 ## See also in Biostars

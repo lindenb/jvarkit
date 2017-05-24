@@ -1,5 +1,7 @@
 # SamRetrieveSeqAndQual
 
+I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136
+
 
 ## Usage
 
@@ -24,11 +26,6 @@ Usage: samretrieveseqandqual [options] Files
        (fastq / fastqR) required
 
 ```
-
-
-## Description
-
-I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136
 
 ## Compilation
 

@@ -1,5 +1,7 @@
 # VCFTabixml
 
+ annotate a value from a vcf+xml file
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcftabixml [options] Files
       x xslt-stylesheet. REQUIRED. Should produce a valid set of INFO field.
 
 ```
-
-
-## Description
-
- annotate a value from a vcf+xml file
 
 
 ## Keywords

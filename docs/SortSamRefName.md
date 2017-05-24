@@ -1,5 +1,7 @@
 # SortSamRefName
 
+Sort a BAM of contig and then on name
+
 
 ## Usage
 
@@ -31,9 +33,17 @@ Usage: sortsamrefname [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Sort a BAM of contig and then on name
+ * sam
+ * sort
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/154220](https://www.biostars.org/p/154220)
+
 
 ## Compilation
 

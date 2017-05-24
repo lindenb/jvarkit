@@ -1,5 +1,7 @@
 # SkipXmlElements
 
+Filter XML elements with a javascript  (java rhino) expression. Context contain 'element' the current element. It implementsthe interface Tag described in  SkipXmlElements.class
+
 
 ## Usage
 
@@ -18,11 +20,6 @@ Usage: skipxmlelements [options] Files
        (js file). Optional.
 
 ```
-
-
-## Description
-
-Filter XML elements with a javascript  (java rhino) expression. Context contain 'element' the current element. It implementsthe interface Tag described in  SkipXmlElements.class
 
 
 ## Keywords

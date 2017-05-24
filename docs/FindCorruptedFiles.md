@@ -1,5 +1,7 @@
 # FindCorruptedFiles
 
+Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)
+
 
 ## Usage
 
@@ -22,11 +24,6 @@ Usage: findcorruptedfiles [options] Files
       Default: 100
 
 ```
-
-
-## Description
-
-Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)
 
 
 ## Keywords

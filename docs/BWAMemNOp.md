@@ -1,5 +1,7 @@
 # BWAMemNOp
 
+Merge the other BWA-MEM alignements with its SA:Z:* attributes to an alignment containing a cigar string with 'N' (  Skipped region from the reference.)
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: bwamemnop [options] Files
       Output file. Optional . Default: stdout
 
 ```
-
-
-## Description
-
-Merge the other BWA-MEM alignements with its SA:Z:* attributes to an alignment containing a cigar string with 'N' (  Skipped region from the reference.)
 
 
 ## Keywords

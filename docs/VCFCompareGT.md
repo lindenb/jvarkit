@@ -1,5 +1,7 @@
 # VCFCompareGT
 
+ compare two or more genotype-callers for the same individuals. Produce a VCF with FORMAT fields indicating if a genotype is new or modified.
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: vcfcomparegt [options] Files
       Default: false
 
 ```
-
-
-## Description
-
- compare two or more genotype-callers for the same individuals. Produce a VCF with FORMAT fields indicating if a genotype is new or modified.
 
 
 ## Keywords

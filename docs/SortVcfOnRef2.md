@@ -1,5 +1,11 @@
 # SortVcfOnRef2
 
+Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).
+
+
+## DEPRECATED
+
+use picard sortvcf
 
 ## Usage
 
@@ -26,15 +32,6 @@ Usage: sortvcfonref2 [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-use picard sortvcf
-
-## Description
-
-Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).
 
 
 ## Keywords

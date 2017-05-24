@@ -1,5 +1,7 @@
 # PubmedGender
 
+Add gender-related attributes in the Author tag of pubmed xml. 
+
 
 ## Usage
 
@@ -19,11 +21,6 @@ Usage: pubmedgender [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Add gender-related attributes in the Author tag of pubmed xml. 
 
 
 ## Keywords

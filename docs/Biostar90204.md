@@ -1,5 +1,7 @@
 # Biostar90204
 
+Bam version of linux split. See also http://www.biostars.org/p/90204/
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: biostar90204 [options] Files
       Default: _splitbam
 
 ```
-
-
-## Description
-
-Bam version of linux split. See also http://www.biostars.org/p/90204/
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # HowManyBamDict
 
+finds if there's are some differences in the sequence dictionaries.
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: howmanybamdict [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-finds if there's are some differences in the sequence dictionaries.
 
 
 ## Keywords

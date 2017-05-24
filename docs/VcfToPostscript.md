@@ -1,5 +1,7 @@
 # VcfToPostscript
 
+Print VCF context as Postscript
+
 
 ## Usage
 
@@ -21,11 +23,6 @@ Usage: vcf2postscript [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Print VCF context as Postscript
 
 
 ## Keywords

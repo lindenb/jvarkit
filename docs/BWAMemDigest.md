@@ -1,6 +1,8 @@
 # BWAMemDigest
 
 
+
+
 ## Usage
 
 ```
@@ -17,11 +19,6 @@ Usage: bwamemdigest [options] Files
       Default: 0
 
 ```
-
-
-## Description
-
-
 
 ## Compilation
 

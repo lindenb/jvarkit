@@ -1,5 +1,7 @@
 # VcfRegulomeDB
 
+Annotate a VCF with the Regulome data (http://regulome.stanford.edu/
+
 
 ## Usage
 
@@ -24,11 +26,6 @@ Usage: ccfregulomedb [options] Files
       Default: 5
 
 ```
-
-
-## Description
-
-Annotate a VCF with the Regulome data (http://regulome.stanford.edu/
 
 ## Compilation
 

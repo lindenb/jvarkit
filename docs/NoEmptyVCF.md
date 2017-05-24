@@ -1,5 +1,11 @@
 # NoEmptyVCF
 
+If VCF is empty or doesn't exists, create a dummy one
+
+
+## DEPRECATED
+
+Was developped at the time where VEP didn't send an output if there was no variant, just a header in the source vcf.
 
 ## Usage
 
@@ -17,15 +23,6 @@ Usage: noemptyvcf [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-Was developped at the time where VEP didn't send an output if there was no variant, just a header in the source vcf.
-
-## Description
-
-If VCF is empty or doesn't exists, create a dummy one
 
 ## Compilation
 

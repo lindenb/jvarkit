@@ -1,5 +1,7 @@
 # FastqRevComp
 
+produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: fastqrevcomp [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )
 
 
 ## Keywords

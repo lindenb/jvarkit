@@ -1,5 +1,7 @@
 # Biostar175929
 
+Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/
+
 
 ## Usage
 
@@ -22,11 +24,6 @@ Usage: biostar175929 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/
 
 ## Compilation
 

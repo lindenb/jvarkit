@@ -1,5 +1,7 @@
 # VcfEnsemblVepRest
 
+Annotate a VCF with ensembl REST API
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: vcfensemblvep [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Annotate a VCF with ensembl REST API
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # PubmedMap
 
+Use Pubmed Author's Affiliation to map the authors .
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: pubmedmap [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Use Pubmed Author's Affiliation to map the authors .
 
 
 ## Keywords

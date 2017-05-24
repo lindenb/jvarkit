@@ -1,5 +1,11 @@
 # VcfSetSequenceDictionary
 
+Set the ##contig lines in a VCF header
+
+
+## DEPRECATED
+
+Use picard UpdateVcfSequenceDictionary
 
 ## Usage
 
@@ -18,15 +24,6 @@ Usage: vcfsetdict [options] Files
       at the end, save an alternate dict in that file.
 
 ```
-
-
-## DEPRECATED
-
-Use picard UpdateVcfSequenceDictionary
-
-## Description
-
-Set the ##contig lines in a VCF header
 
 
 ## Keywords

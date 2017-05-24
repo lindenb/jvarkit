@@ -1,5 +1,7 @@
 # VcfFilterNotInPedigree
 
+Adds a FILTER NotInPedigree if the only not(homref) genotypes are not in a pedigree
+
 
 ## Usage
 
@@ -28,11 +30,6 @@ Usage: vcffilternotinpedigree [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Adds a FILTER NotInPedigree if the only not(homref) genotypes are not in a pedigree
 
 
 ## Keywords

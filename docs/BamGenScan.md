@@ -1,5 +1,7 @@
 # BamGenScan
 
+Paint a Genome Scan picture from a BAM
+
 
 ## Usage
 
@@ -21,11 +23,6 @@ Usage: bamgenscan [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Paint a Genome Scan picture from a BAM
 
 ## Compilation
 

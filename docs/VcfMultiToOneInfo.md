@@ -1,5 +1,7 @@
 # VcfMultiToOneInfo
 
+'one INFO with N values' to 'N variants with one INFO'
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: vcfmulti2oneinfo [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-'one INFO with N values' to 'N variants with one INFO'
 
 ## Compilation
 

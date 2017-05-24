@@ -1,5 +1,7 @@
 # Biostar76892
 
+fix strand of two paired reads close but on the same strand. 
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: biostar76892 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-fix strand of two paired reads close but on the same strand. 
 
 
 ## Keywords

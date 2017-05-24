@@ -1,5 +1,11 @@
 # VcfVcf
 
+Get the INFO from a VCF and use it for another VCF
+
+
+## DEPRECATED
+
+obsolete. use GATK
 
 ## Usage
 
@@ -33,15 +39,6 @@ Usage: vcfvcf [options] Files
       The VCF file indexed with TABIX. Source of the annotations
 
 ```
-
-
-## DEPRECATED
-
-obsolete. use GATK
-
-## Description
-
-Get the INFO from a VCF and use it for another VCF
 
 ## Compilation
 

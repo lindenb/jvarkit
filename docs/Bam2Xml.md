@@ -1,5 +1,7 @@
 # Bam2Xml
 
+converts a BAM to XML
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: bam2xml [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-converts a BAM to XML
 
 
 ## Keywords

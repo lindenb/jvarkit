@@ -1,5 +1,7 @@
 # Biostar86363
 
+Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: biostar86363 [options] Files
       genotypes to reset. Format :CHROM(tab)POS(tab)ref(tab)SAMPLE. REQUIRED.
 
 ```
-
-
-## Description
-
-Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/
 
 
 ## Keywords

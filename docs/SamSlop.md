@@ -1,5 +1,7 @@
 # SamSlop
 
+extends sam by 'x' bases
+
 
 ## Usage
 
@@ -34,11 +36,6 @@ Usage: SamSlop [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-extends sam by 'x' bases
 
 ## Compilation
 

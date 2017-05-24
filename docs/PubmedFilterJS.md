@@ -1,5 +1,7 @@
 # PubmedFilterJS
 
+Filters Pubmed XML with a javascript  (java rhino) expression. Context contain 'article' a  PubmedBookArticle or a PubmedArticle and 'index', the index in the XML file.
+
 
 ## Usage
 
@@ -18,11 +20,6 @@ Usage: pubmedfilterjs [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Filters Pubmed XML with a javascript  (java rhino) expression. Context contain 'article' a  PubmedBookArticle or a PubmedArticle and 'index', the index in the XML file.
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # SamShortInvertion
 
+Scan short inversions in SAM
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: samshortinvert [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Scan short inversions in SAM
 
 ## Compilation
 

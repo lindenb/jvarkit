@@ -1,5 +1,7 @@
 # AddLinearIndexToBed
 
+Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.
+
 
 ## Usage
 
@@ -9,18 +11,14 @@ Usage: addlinearindextobed [options] Files
     -h, --help
       print help and exit
     -o, --out
-      Output file or stdout
+      Output file. Optional . Default: stdout
   * -R, --reference
-      Indexed Reference File.
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
 ```
-
-
-## Description
-
-Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.
 
 
 ## Keywords

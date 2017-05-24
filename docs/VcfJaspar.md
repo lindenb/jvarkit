@@ -1,5 +1,7 @@
 # VcfJaspar
 
+Finds JASPAR profiles in VCF
+
 
 ## Usage
 
@@ -22,11 +24,6 @@ Usage: vcfjaspar [options] Files
       Default: 0.95
 
 ```
-
-
-## Description
-
-Finds JASPAR profiles in VCF
 
 
 ## Keywords

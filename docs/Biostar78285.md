@@ -1,5 +1,7 @@
 # Biostar78285
 
+Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/
+
 
 ## Usage
 
@@ -19,11 +21,6 @@ Usage: biostar78285 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/
 
 
 ## Keywords

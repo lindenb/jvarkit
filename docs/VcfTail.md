@@ -1,5 +1,7 @@
 # VcfTail
 
+print the last variants of a vcf
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcftail [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-print the last variants of a vcf
 
 
 ## Keywords

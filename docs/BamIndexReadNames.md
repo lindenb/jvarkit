@@ -1,5 +1,7 @@
 # BamIndexReadNames
 
+Build a dictionary of read names to be searched with BamQueryReadNames
+
 
 ## Usage
 
@@ -12,11 +14,6 @@ Usage:  [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Build a dictionary of read names to be searched with BamQueryReadNames
 
 ## Compilation
 

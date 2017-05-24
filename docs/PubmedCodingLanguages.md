@@ -1,5 +1,7 @@
 # PubmedCodingLanguages
 
+Programming language use distribution from recent programs / articles
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: pubmedcodinglang [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Programming language use distribution from recent programs / articles
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # SamReadLengthDistribution
 
+Sam read length distribution
+
 
 ## Usage
 
@@ -20,9 +22,12 @@ Usage: samreadlengthdistribution [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Sam read length distribution<
+ * sam
+ * bam
+ * histogram
+
 
 ## Compilation
 
@@ -83,5 +88,8 @@ The current reference is:
 
 
 Because gatk is buggy: http://gatkforums.broadinstitute.org/gatk/discussion/8342/duplicate-columns-in-readlengthdistribution#latest
+
+
+
 
 

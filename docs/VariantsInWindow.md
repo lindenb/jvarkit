@@ -1,5 +1,7 @@
 # VariantsInWindow
 
+Annotate Number of Variants overlaping a sliding window.
+
 
 ## Usage
 
@@ -39,11 +41,6 @@ Usage: vcfwindowvariants [options] Files
       Default: 150
 
 ```
-
-
-## Description
-
-Annotate Number of Variants overlaping a sliding window.
 
 
 ## Keywords

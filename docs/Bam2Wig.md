@@ -1,5 +1,7 @@
 # Bam2Wig
 
+Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
+
 
 ## Usage
 
@@ -37,11 +39,6 @@ Usage: bam2wig [options] Files
       Default: 200
 
 ```
-
-
-## Description
-
-Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
 
 
 ## Keywords

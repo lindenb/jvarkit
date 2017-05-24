@@ -1,5 +1,7 @@
 # Biostar145820
 
+subsample BAM to fixed number of alignments.
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: biostar145820 [options] Files
       Default: -1
 
 ```
-
-
-## Description
-
-subsample BAM to fixed number of alignments.
 
 
 ## See also in Biostars

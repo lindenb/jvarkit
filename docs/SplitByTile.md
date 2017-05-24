@@ -1,5 +1,7 @@
 # SplitByTile
 
+Split Bam By tile
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: splitbytile [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Split Bam By tile
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # ExtendReferenceWithReads
 
+Extending ends of sequences with the help of reads
+
 
 ## Usage
 
@@ -23,7 +25,7 @@ Usage: extendrefwithreads [options] Files
       min depth
       Default: 1
     -o, --out
-      Output file or stdout
+      Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -31,11 +33,6 @@ Usage: extendrefwithreads [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Extending ends of sequences with the help of reads
 
 
 ## Keywords

@@ -1,5 +1,11 @@
 # AlleleFrequencyCalculator
 
+Allele Frequency Calculator
+
+
+## DEPRECATED
+
+Use bioalcidae
 
 ## Usage
 
@@ -14,11 +20,6 @@ Usage: allelefreqcalc [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Allele Frequency Calculator
 
 
 ## Keywords

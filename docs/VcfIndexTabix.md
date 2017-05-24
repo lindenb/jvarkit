@@ -1,5 +1,7 @@
 # VcfIndexTabix
 
+Index and sort a VCF on the fly with Tabix
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: vcfindextabix [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Index and sort a VCF on the fly with Tabix
 
 ## Compilation
 

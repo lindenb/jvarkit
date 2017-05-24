@@ -1,5 +1,7 @@
 # VcfCadd
 
+Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276.
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcfcadd [options] Files
       Default: http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz
 
 ```
-
-
-## Description
-
-Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276.
 
 ## Compilation
 

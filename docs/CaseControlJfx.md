@@ -1,5 +1,7 @@
 # CaseControlJfx
 
+display jfx chart of case/control maf from a VCF and a pedigree
+
 
 ## Usage
 
@@ -53,11 +55,6 @@ Usage: casectrljfx [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-display jfx chart of case/control maf from a VCF and a pedigree
 
 
 ## Keywords

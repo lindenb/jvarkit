@@ -1,5 +1,7 @@
 # IlluminaDirectory
 
+Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: illuminadir [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.
 
 
 ## Keywords

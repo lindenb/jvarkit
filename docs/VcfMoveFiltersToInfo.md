@@ -1,5 +1,7 @@
 # VcfMoveFiltersToInfo
 
+Move any FILTER to the INFO column. reset FILTER to PASS
+
 
 ## Usage
 
@@ -19,11 +21,6 @@ Usage: vcfmovefilterstoinfo [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Move any FILTER to the INFO column. reset FILTER to PASS
 
 
 ## Keywords

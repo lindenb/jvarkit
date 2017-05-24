@@ -1,5 +1,7 @@
 # Biostar3654
 
+show blast alignment with annotations
+
 
 ## Usage
 
@@ -12,16 +14,11 @@ Usage: biostar3654 [options] Files
       Fasta Line kength
       Default: 50
     -o, --out
-      Ouput file. Default: stdout
+      Output file. Optional . Default: stdout
     --version
       print version and exit
 
 ```
-
-
-## Description
-
-show blast alignment with annotations
 
 
 ## Keywords

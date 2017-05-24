@@ -1,5 +1,7 @@
 # PicardMetricsToXML
 
+transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: picardmetrics2xml [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html
 
 ## Compilation
 

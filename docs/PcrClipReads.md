@@ -1,5 +1,7 @@
 # PcrClipReads
 
+Soft clip bam files based on PCR target regions
+
 
 ## Usage
 
@@ -36,9 +38,19 @@ Usage: pcrclipreads [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Soft clip bam files based on PCR target regions https://www.biostars.org/p/147136/
+ * sam
+ * bam
+ * pcr
+ * bed
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/147136](https://www.biostars.org/p/147136)
+
 
 ## Compilation
 

@@ -1,5 +1,7 @@
 # VcfBiomart
 
+BiomartQueries with VCF
+
 
 ## Usage
 
@@ -34,11 +36,6 @@ Usage: vcfbiomart [options] Files
       Default: http://www.biomart.org/biomart/martservice/result
 
 ```
-
-
-## Description
-
-BiomartQueries with VCF
 
 
 ## Keywords

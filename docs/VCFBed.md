@@ -1,5 +1,7 @@
 # VCFBed
 
+Transfer information from a BED to a VCF
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: vcfbed [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Transfer information from a BED to a VCF
 
 
 ## Keywords

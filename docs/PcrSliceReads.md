@@ -1,5 +1,7 @@
 # PcrSliceReads
 
+Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/
+
 
 ## Usage
 
@@ -15,7 +17,7 @@ Usage: pcrslicereads [options] Files
     -h, --help
       print help and exit
     -o, --out
-      output file (or stdout)
+      Output file. Optional . Default: stdout
     --random
        random seed
       Default: java.util.Random@19af9a9
@@ -34,11 +36,6 @@ Usage: pcrslicereads [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/
 
 ## Compilation
 

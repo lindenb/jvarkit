@@ -1,5 +1,7 @@
 # VcfBurdenSplitter
 
+Split VCF Using a Burden Splitter (by gene, transcript, etc..)
+
 
 ## Usage
 
@@ -78,11 +80,6 @@ Usage: vcfburdensplitter [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Split VCF Using a Burden Splitter (by gene, transcript, etc..)
 
 ## Compilation
 

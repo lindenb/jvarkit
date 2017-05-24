@@ -1,5 +1,7 @@
 # MapUniProtFeatures
 
+map uniprot features on reference genome
+
 
 ## Usage
 
@@ -27,11 +29,6 @@ Usage: mapuniprot [options] Files
       Default: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz
 
 ```
-
-
-## Description
-
-map uniprot features on reference genome
 
 
 ## Keywords

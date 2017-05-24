@@ -1,5 +1,7 @@
 # VcfStats
 
+Produce VCF statitics
+
 
 ## Usage
 
@@ -67,11 +69,6 @@ Usage: vcfstats [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Produce VCF statitics
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # GenomicJaspar
 
+Find jaspar patterns in FASTA sequences. Reports a BED file.
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: genomicjaspar [options] Files
       Default: 0.95
 
 ```
-
-
-## Description
-
-Find jaspar patterns in FASTA sequences. Reports a BED file.
 
 ## Compilation
 

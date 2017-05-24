@@ -1,5 +1,7 @@
 # BamStats02View
 
+Statistics about the flags and reads in a BAM. Visualize date from BamStats02
+
 
 ## Usage
 
@@ -12,11 +14,6 @@ Usage: bamstats02view [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Statistics about the flags and reads in a BAM. Visualize date from BamStats02
 
 ## Compilation
 

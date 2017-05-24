@@ -1,5 +1,7 @@
 # ConcatSam
 
+concat sam files
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: concatsam [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-concat sam files
 
 
 ## Keywords

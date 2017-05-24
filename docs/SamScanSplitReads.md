@@ -1,5 +1,7 @@
 # SamScanSplitReads
 
+scan split reads
+
 
 ## Usage
 
@@ -25,11 +27,6 @@ Usage: samscansplitreads [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-scan split reads
 
 
 ## Keywords

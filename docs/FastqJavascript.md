@@ -1,5 +1,7 @@
 # FastqJavascript
 
+Filters a FASTQ file using javascript( java nashorn engine). 
+
 
 ## Usage
 
@@ -30,11 +32,6 @@ Usage: fastqjs [options] Files
       javascript file
 
 ```
-
-
-## Description
-
-Filters a FASTQ file using javascript( java nashorn engine). 
 
 
 ## Keywords

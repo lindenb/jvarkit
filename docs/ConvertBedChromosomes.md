@@ -1,5 +1,7 @@
 # ConvertBedChromosomes
 
+Convert the names of the chromosomes in a Bed file
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: bedrenamechr [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert the names of the chromosomes in a Bed file
 
 
 ## Keywords

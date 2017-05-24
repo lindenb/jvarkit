@@ -1,5 +1,7 @@
 # VcfFilterSequenceOntology
 
+Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.<
+
 
 ## Usage
 
@@ -48,11 +50,6 @@ Usage: vcffilterso [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.<
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # Biostar105754
 
+bigwig : peak distance from specific genomic region
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: biostar105754 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-bigwig : peak distance from specific genomic region
 
 
 ## Keywords

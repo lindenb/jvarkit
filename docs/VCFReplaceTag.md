@@ -1,5 +1,7 @@
 # VCFReplaceTag
 
+Replace the key for INFO/FORMAT/FILTER
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcfreplacetag [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Replace the key for INFO/FORMAT/FILTER
 
 
 ## Keywords

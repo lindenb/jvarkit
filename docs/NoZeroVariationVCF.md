@@ -1,5 +1,7 @@
 # NoZeroVariationVCF
 
+cat a whole VCF, or, if there is no variant, creates a fake one
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: nozerovariationvcf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-cat a whole VCF, or, if there is no variant, creates a fake one
 
 ## Compilation
 

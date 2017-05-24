@@ -1,5 +1,7 @@
 # MergeSplittedBlast
 
+merge blast Hits from splitted BLAST database
+
 
 ## Usage
 
@@ -12,11 +14,6 @@ Usage: mergesplittedblast [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-merge blast Hits from splitted BLAST database
 
 
 ## Keywords

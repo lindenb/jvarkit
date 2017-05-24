@@ -1,5 +1,7 @@
 # Biostar84452
 
+remove clipped bases from BAM
+
 
 ## Usage
 
@@ -22,11 +24,6 @@ Usage: biostar84452 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-remove clipped bases from BAM
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # Biostar214299
 
+Extract allele specific reads from bamfiles
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: biostar214299 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Extract allele specific reads from bamfiles
 
 
 ## Keywords

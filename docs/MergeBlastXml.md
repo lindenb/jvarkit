@@ -1,5 +1,7 @@
 # MergeBlastXml
 
+merge XML blast results (same Iteration/Iteration_query-def in multiple xml files
+
 
 ## Usage
 
@@ -22,9 +24,11 @@ Usage: mergeblastxml [options] Files
 ```
 
 
-## Description
+## Keywords
 
-merge XML blast results (same Iteration/Iteration_query-def in multiple xml files
+ * blast
+ * xml
+
 
 
 ## See also in Biostars

@@ -1,5 +1,7 @@
 # Biostar234230
 
+Sliding Window : discriminate partial and fully contained fragments (from a bam file)
+
 
 ## Usage
 
@@ -25,11 +27,6 @@ Usage: biostar234230 [options] Files
       Default: 100
 
 ```
-
-
-## Description
-
-Sliding Window : discriminate partial and fully contained fragments (from a bam file)
 
 
 ## See also in Biostars

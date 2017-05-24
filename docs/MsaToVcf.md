@@ -1,5 +1,11 @@
 # MsaToVcf
 
+Getting a VCF file from a CLUSTAW or a FASTA alignment. 
+
+
+## DEPRECATED
+
+use https://github.com/sanger-pathogens/snp_sites
 
 ## Usage
 
@@ -27,15 +33,6 @@ Usage: msa2vcf [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-use https://github.com/sanger-pathogens/snp_sites
-
-## Description
-
-Getting a VCF file from a CLUSTAW or a FASTA alignment. 
 
 
 ## See also in Biostars

@@ -1,5 +1,7 @@
 # VcfRemoveGenotypeJs
 
+Reset Genotype in VCF using a javascript expression
+
 
 ## Usage
 
@@ -27,11 +29,6 @@ Usage: vcfremovegenotypejs [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Reset Genotype in VCF using a javascript expression
 
 ## Compilation
 

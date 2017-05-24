@@ -1,5 +1,7 @@
 # BamStats01
 
+Statistics about the reads in a BAM.
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: samstats01 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Statistics about the reads in a BAM.
 
 ## Compilation
 

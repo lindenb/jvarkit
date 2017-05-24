@@ -1,5 +1,7 @@
 # PubmedOrcidGraph
 
+Creates a graph from Pubmed and Authors' Orcid identifiers
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: pubmedorcidgraph [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Creates a graph from Pubmed and Authors' Orcid identifiers
 
 
 ## Keywords

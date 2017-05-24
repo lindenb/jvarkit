@@ -1,5 +1,7 @@
 # CompareBams
 
+Compare two or more BAM files
+
 
 ## Usage
 
@@ -38,11 +40,6 @@ Usage: cmpbams [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Compare two or more BAM files
 
 ## Compilation
 

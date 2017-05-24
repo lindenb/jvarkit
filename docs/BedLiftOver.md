@@ -1,5 +1,7 @@
 # BedLiftOver
 
+Lift-over a VCF file
+
 
 ## Usage
 
@@ -28,9 +30,11 @@ Usage: bedliftover [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Lift-over a VCF file
+ * bed
+ * liftover
+
 
 ## Compilation
 

@@ -1,5 +1,7 @@
 # VcfDerby01
 
+Insert similar VCFs into an Apache Derby Database
+
 
 ## Usage
 
@@ -28,11 +30,6 @@ Usage: vcfderby01 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Insert similar VCFs into an Apache Derby Database
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # Biostar160470
 
+Getting untranslated nucleotide sequences on tblastn standalone 
+
 
 ## Usage
 
@@ -18,11 +20,6 @@ Usage: biostar160470 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Getting untranslated nucleotide sequences on tblastn standalone 
 
 
 ## See also in Biostars

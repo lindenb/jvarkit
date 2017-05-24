@@ -1,5 +1,7 @@
 # FindAVariation
 
+Finds a specific mutation in a list of VCF files
+
 
 ## Usage
 
@@ -30,11 +32,6 @@ Usage: findavariation [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Finds a specific mutation in a list of VCF files
 
 
 ## Keywords

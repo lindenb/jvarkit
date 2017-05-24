@@ -1,5 +1,7 @@
 # XContaminations
 
+For @AdrienLeger2 : cross contamination between samples in same lane
+
 
 ## Usage
 
@@ -19,11 +21,6 @@ Usage: xcontaminations [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-For @AdrienLeger2 : cross contamination between samples in same lane
 
 ## Compilation
 

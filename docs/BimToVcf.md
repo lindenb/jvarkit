@@ -1,5 +1,7 @@
 # BimToVcf
 
+convert a .bim to a .vcf
+
 
 ## Usage
 
@@ -11,16 +13,12 @@ Usage: bim2vcf [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
-      Indexed fasta Reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
 ```
-
-
-## Description
-
-convert a .bim to a .vcf
 
 ## Compilation
 

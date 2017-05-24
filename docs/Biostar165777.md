@@ -1,5 +1,7 @@
 # Biostar165777
 
+Split a XML file
+
 
 ## Usage
 
@@ -19,11 +21,6 @@ Usage: biostar165777 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Split a XML file
 
 ## Compilation
 

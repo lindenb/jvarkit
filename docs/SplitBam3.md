@@ -1,5 +1,7 @@
 # SplitBam3
 
+Split a BAM by chromosome group
+
 
 ## Usage
 
@@ -28,11 +30,6 @@ Usage: splitbam3 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Split a BAM by chromosome group
 
 ## Compilation
 

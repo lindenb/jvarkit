@@ -1,5 +1,11 @@
 # FastqToFasta
 
+fastq -> fasta
+
+
+## DEPRECATED
+
+use awk, samtools...
 
 ## Usage
 
@@ -20,15 +26,6 @@ Usage: fastq2fasta [options] Files
       Default: false
 
 ```
-
-
-## DEPRECATED
-
-use awk, samtools...
-
-## Description
-
-fastq -> fasta
 
 
 ## Keywords

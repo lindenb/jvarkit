@@ -1,5 +1,7 @@
 # Biostar251649
 
+ Annotating the flanking bases of SNPs in a VCF file
+
 
 ## Usage
 
@@ -9,7 +11,7 @@ Usage: biostar251649 [options] Files
     -h, --help
       print help and exit
     -o, --out
-      output file or stdout
+      Output file. Optional . Default: stdout
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -26,11 +28,6 @@ Usage: biostar251649 [options] Files
       Default: 1
 
 ```
-
-
-## Description
-
- Annotating the flanking bases of SNPs in a VCF file
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # FixVcfFormat
 
+Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453
+
 
 ## Usage
 
@@ -12,11 +14,6 @@ Usage: fixvcfformat [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453
 
 ## Compilation
 

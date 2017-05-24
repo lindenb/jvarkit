@@ -1,5 +1,7 @@
 # SamExtractClip
 
+Extract Clipped Sequences from a SAM. Ouput is a FASTQ
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: samextractclip [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Extract Clipped Sequences from a SAM. Ouput is a FASTQ
 
 ## Compilation
 

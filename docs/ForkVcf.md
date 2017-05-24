@@ -1,5 +1,7 @@
 # ForkVcf
 
+Fork a VCF.
+
 
 ## Usage
 
@@ -31,11 +33,6 @@ Usage: forkvcf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Fork a VCF.
 
 ## Compilation
 

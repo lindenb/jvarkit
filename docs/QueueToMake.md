@@ -1,5 +1,7 @@
 # QueueToMake
 
+Convert Broad/Queue genomestrip Log stream to Makefile.
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: queue2make [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert Broad/Queue genomestrip Log stream to Makefile.
 
 ## Compilation
 

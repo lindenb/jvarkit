@@ -1,5 +1,7 @@
 # PubmedDump
 
+Dump XML results from pubmed/Eutils
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: pubmeddump [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Dump XML results from pubmed/Eutils
 
 
 ## Keywords

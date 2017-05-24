@@ -1,5 +1,7 @@
 # CompareBams4
 
+Compare two BAM files. Print a tab-delimited report
+
 
 ## Usage
 
@@ -28,9 +30,12 @@ Usage: cmpbams4 [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Compare two BAM files. Print a tab-delimited report
+ * sam
+ * bam
+ * compare
+
 
 ## Compilation
 

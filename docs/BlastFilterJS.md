@@ -1,5 +1,7 @@
 # BlastFilterJS
 
+Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit.
+
 
 ## Usage
 
@@ -20,9 +22,13 @@ Usage: blastfilterjs [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit.
+ * blast
+ * js
+ * javascript
+ * filter
+
 
 ## Compilation
 

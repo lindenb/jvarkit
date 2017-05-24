@@ -1,5 +1,7 @@
 # VcfBurdenFisherV
 
+Fisher Case / Controls per Variant (Vertical)
+
 
 ## Usage
 
@@ -18,11 +20,6 @@ Usage: vcfburdenfisherv [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Fisher Case / Controls per Variant (Vertical)
 
 ## Compilation
 

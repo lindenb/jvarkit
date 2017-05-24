@@ -1,5 +1,7 @@
 # Biostar139647
 
+Convert alignment in Fasta/Clustal format to SAM/BAM file
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: biostar139647 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert alignment in Fasta/Clustal format to SAM/BAM file
 
 
 ## See also in Biostars

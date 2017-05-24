@@ -1,5 +1,7 @@
 # FixVCF
 
+Fix a VCF if INFO or FILTER are missing
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: fixvcf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Fix a VCF if INFO or FILTER are missing
 
 ## Compilation
 

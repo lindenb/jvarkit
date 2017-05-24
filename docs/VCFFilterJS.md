@@ -1,5 +1,7 @@
 # VCFFilterJS
 
+Filtering VCF with javascript expressions
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: vcffilterjs [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Filtering VCF with javascript expressions
 
 
 ## Keywords

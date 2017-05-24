@@ -1,5 +1,7 @@
 # VcfHead
 
+print the first variants of a vcf
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcfhead [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-print the first variants of a vcf
 
 
 ## Keywords

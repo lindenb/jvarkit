@@ -1,5 +1,7 @@
 # Vcf2Xml
 
+Convert VCF to XML
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: vcf2xml [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert VCF to XML
 
 
 ## Keywords

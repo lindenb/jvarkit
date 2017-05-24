@@ -1,5 +1,7 @@
 # VcfToZip
 
+Reads a stream of concatenated VCFs and insert them into a Zip file
+
 
 ## Usage
 
@@ -21,11 +23,6 @@ Usage: vcf2zip [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Reads a stream of concatenated VCFs and insert them into a Zip file
 
 ## Compilation
 

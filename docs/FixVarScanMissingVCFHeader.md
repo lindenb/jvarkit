@@ -1,5 +1,7 @@
 # FixVarScanMissingVCFHeader
 
+Fix the sample name in the #CHROM header and fix VCF header missingh in varscan2. Sometimes, but not always, it happends. See  http://seqanswers.com/forums/showthread.php?t=33235 
+
 
 ## Usage
 
@@ -15,11 +17,6 @@ Usage: fixvarscanmissingheader  [options] Files
       Default: []
 
 ```
-
-
-## Description
-
-Fix the sample name in the #CHROM header and fix VCF header missingh in varscan2. Sometimes, but not always, it happends. See  http://seqanswers.com/forums/showthread.php?t=33235 
 
 ## Compilation
 
@@ -77,5 +74,7 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
 
 

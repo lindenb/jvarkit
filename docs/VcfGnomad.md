@@ -1,5 +1,7 @@
 # VcfGnomad
 
+Peek annotations from gnomad
+
 
 ## Usage
 
@@ -38,11 +40,6 @@ Usage: vcfgnomad [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Peek annotations from gnomad
 
 
 ## Keywords

@@ -1,5 +1,11 @@
 # FastqGrep
 
+Grep reads names in fastq
+
+
+## DEPRECATED
+
+use picard
 
 ## Usage
 
@@ -26,15 +32,6 @@ Usage: fastqgrep [options] Files
       Default: -1
 
 ```
-
-
-## DEPRECATED
-
-use picard
-
-## Description
-
-Grep reads names in fastq
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # SamToJson
 
+Convert a SAM input to JSON
+
 
 ## Usage
 
@@ -24,16 +26,11 @@ Usage: sam2json [options] Files
       do not print read name
       Default: false
     -out, --out
-      output
+      Output file. Optional . Default: stdout
     --version
       print version and exit
 
 ```
-
-
-## Description
-
-Convert a SAM input to JSON
 
 
 ## Keywords
@@ -99,5 +96,7 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
 
 

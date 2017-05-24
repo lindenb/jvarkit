@@ -1,5 +1,7 @@
 # VcfFilterDoid
 
+Set Filters for VCF annotated with SNPEFF or VEP tesing if Genes are part / are not part of a GeneOntology tree. 
+
 
 ## Usage
 
@@ -27,11 +29,6 @@ Usage: vcffilterdoid [options] Files
       faidx and with picard CreateSequenceDictionary
 
 ```
-
-
-## Description
-
-Set Filters for VCF annotated with SNPEFF or VEP tesing if Genes are part / are not part of a GeneOntology tree. 
 
 ## Compilation
 

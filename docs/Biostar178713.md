@@ -1,5 +1,7 @@
 # Biostar178713
 
+split bed file into several bed files where each region is separated of any other by N bases https://www.biostars.org/p/178713/
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: biostar178713 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-split bed file into several bed files where each region is separated of any other by N bases https://www.biostars.org/p/178713/
 
 ## Compilation
 

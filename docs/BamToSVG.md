@@ -1,5 +1,7 @@
 # BamToSVG
 
+BAM to raster graphics
+
 
 ## Usage
 
@@ -38,11 +40,6 @@ Usage: bam2svg [options] Files
       Default: 1000
 
 ```
-
-
-## Description
-
-BAM to raster graphics
 
 
 ## Keywords

@@ -1,5 +1,7 @@
 # BamCmpCoverage
 
+Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: bamcmpcoverage [options] Files
       Default: 1000
 
 ```
-
-
-## Description
-
-Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2
 
 
 ## Keywords

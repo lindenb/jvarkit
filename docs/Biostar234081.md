@@ -1,5 +1,7 @@
 # Biostar234081
 
+convert extended CIGAR to regular CIGAR
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: biostar234081 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-convert extended CIGAR to regular CIGAR
 
 
 ## Keywords
@@ -96,5 +93,21 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+```
+ $ cat toy.sam 
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+r001    163 ref 7   30  1M2X5=4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG*XX:B:S,12561,2,20,112
+
+ $ java -jar dist/biostar234081.jar toy.sam 
+@HD VN:1.5  SO:unsorted
+@SQ SN:ref  LN:45
+@SQ SN:ref2 LN:40
+r001    163 ref 7   30  8M4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG*XX:B:S,12561,2,20,112
+```
 
 

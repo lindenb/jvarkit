@@ -1,5 +1,7 @@
 # BamToSql
 
+Convert a SAM/BAM to sqlite statements
+
 
 ## Usage
 
@@ -15,9 +17,10 @@ Usage: bam2sql [options] Files
     -h, --help
       print help and exit
     -o, --out
-      Output file or stdout
+      Output file. Optional . Default: stdout
   * -R, --reference
-      The Reference fasta file
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     -r, --region
       Restrict to a given region
       Default: <empty string>
@@ -25,11 +28,6 @@ Usage: bam2sql [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert a SAM/BAM to sqlite statements
 
 
 ## Keywords

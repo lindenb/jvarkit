@@ -1,5 +1,7 @@
 # ConvertPhred64toFastq33
 
+Convert Illumina Fastq 64 encoding to Fastq 33
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: fastqphred64to33 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Convert Illumina Fastq 64 encoding to Fastq 33
 
 
 ## Keywords

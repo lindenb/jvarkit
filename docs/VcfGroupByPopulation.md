@@ -1,5 +1,7 @@
 # VcfGroupByPopulation
 
+Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: vcfgroupbypop [options] Files
       mapping file: each line is (SAMPLE)\t(POP)\n
 
 ```
-
-
-## Description
-
-Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population
 
 ## Compilation
 

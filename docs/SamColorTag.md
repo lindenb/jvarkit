@@ -1,5 +1,7 @@
 # SamColorTag
 
+Add the UCSC 'YC' color tag in a BAM. See http://software.broadinstitute.org/software/igv/book/export/html/6 and http://genome.ucsc.edu/goldenPath/help/hgBamTrackHelp.html
+
 
 ## Usage
 
@@ -27,11 +29,6 @@ Usage: samcolortag [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Add the UCSC 'YC' color tag in a BAM. See http://software.broadinstitute.org/software/igv/book/export/html/6 and http://genome.ucsc.edu/goldenPath/help/hgBamTrackHelp.html
 
 
 ## Keywords

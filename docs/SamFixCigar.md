@@ -1,5 +1,7 @@
 # SamFixCigar
 
+Fix Cigar String in SAM replacing 'M' by 'X' or '='
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: samfixcigar [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Fix Cigar String in SAM replacing 'M' by 'X' or '='
 
 
 ## Keywords

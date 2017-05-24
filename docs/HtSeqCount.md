@@ -1,5 +1,11 @@
 # HtSeqCount
 
+java version of htseqcount
+
+
+## DEPRECATED
+
+never tested, don't use this
 
 ## Usage
 
@@ -26,15 +32,6 @@ Usage: deseqcount [options] Files
       path to GTF file
 
 ```
-
-
-## DEPRECATED
-
-never tested, don't use this
-
-## Description
-
-java version of htseqcount
 
 ## Compilation
 

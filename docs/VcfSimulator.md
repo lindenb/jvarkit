@@ -1,5 +1,7 @@
 # VcfSimulator
 
+Generate a VCF
+
 
 ## Usage
 
@@ -18,11 +20,6 @@ Usage: ccfSimulator [options] Files
       Default: java.util.Random@17050dc
 
 ```
-
-
-## Description
-
-Generate a VCF
 
 ## Compilation
 

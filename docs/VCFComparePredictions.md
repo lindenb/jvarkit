@@ -1,5 +1,7 @@
 # VCFComparePredictions
 
+Compare predictions (SNPEff, VEP) for several VCFs
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: vcfcmppred [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Compare predictions (SNPEff, VEP) for several VCFs
 
 ## Compilation
 

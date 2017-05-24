@@ -1,5 +1,7 @@
 # BlastMapAnnotations
 
+Maps uniprot/genbank annotations on a blast result.
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: blastmapannots [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Maps uniprot/genbank annotations on a blast result.
 
 
 ## Keywords

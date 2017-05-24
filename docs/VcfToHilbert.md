@@ -1,5 +1,7 @@
 # VcfToHilbert
 
+Plot a Hilbert Curve from a VCF file.
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcf2hilbert [options] Files
       Default: 1000
 
 ```
-
-
-## Description
-
-Plot a Hilbert Curve from a VCF file.
 
 
 ## Keywords

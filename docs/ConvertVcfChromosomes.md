@@ -1,5 +1,7 @@
 # ConvertVcfChromosomes
 
+Convert the names of the chromosomes in a VCF file
+
 
 ## Usage
 
@@ -20,11 +22,6 @@ Usage: vcfrenamechr [options] Files
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
 
 ```
-
-
-## Description
-
-Convert the names of the chromosomes in a VCF file
 
 
 ## Keywords

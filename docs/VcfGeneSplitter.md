@@ -1,5 +1,7 @@
 # VcfGeneSplitter
 
+Split VCF+VEP by gene.
+
 
 ## Usage
 
@@ -47,11 +49,6 @@ Usage: vcfgenesplitter [options] Files
       Default: splitbygene
 
 ```
-
-
-## Description
-
-Split VCF+VEP by gene.
 
 ## Compilation
 

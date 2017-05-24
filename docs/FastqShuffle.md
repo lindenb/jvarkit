@@ -1,5 +1,7 @@
 # FastqShuffle
 
+Shuffle Fastq files
+
 
 ## Usage
 
@@ -29,11 +31,6 @@ Usage: fastqshuffle [options] Files
       Default: java.util.Random@110406
 
 ```
-
-
-## Description
-
-Shuffle Fastq files
 
 
 ## Keywords

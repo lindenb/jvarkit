@@ -1,5 +1,7 @@
 # FindMyVirus
 
+Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. 
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: findmyvirus [options] Files
       Default: []
 
 ```
-
-
-## Description
-
-Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. 
 
 ## Compilation
 

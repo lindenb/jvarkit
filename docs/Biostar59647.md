@@ -1,5 +1,7 @@
 # Biostar59647
 
+SAM/BAM to XML
+
 
 ## Usage
 
@@ -11,16 +13,12 @@ Usage: biostar59647 [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -r, -R, --reference
-      Reference file indexed with picard
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
 ```
-
-
-## Description
-
-SAM/BAM to XML
 
 
 ## See also in Biostars

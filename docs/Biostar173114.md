@@ -1,5 +1,7 @@
 # Biostar173114
 
+make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/
+
 
 ## Usage
 
@@ -41,11 +43,6 @@ Usage: biostar173114 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/
 
 ## Compilation
 

@@ -1,5 +1,7 @@
 # CoverageNormalizer
 
+normalize BAM coverage
+
 
 ## Usage
 
@@ -27,11 +29,6 @@ Usage: coveragenormalizer [options] Files
       Default: 100
 
 ```
-
-
-## Description
-
-normalize BAM coverage
 
 ## Compilation
 

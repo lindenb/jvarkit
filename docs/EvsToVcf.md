@@ -1,5 +1,7 @@
 # EvsToVcf
 
+Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.
+
 
 ## Usage
 
@@ -12,11 +14,6 @@ Usage: evs2vcf [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.
 
 ## Compilation
 

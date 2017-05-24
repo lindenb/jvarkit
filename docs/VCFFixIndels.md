@@ -1,5 +1,7 @@
 # VCFFixIndels
 
+Fix samtools indels (for @SolenaLS)
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: vcffixindels [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Fix samtools indels (for @SolenaLS)
 
 ## Compilation
 

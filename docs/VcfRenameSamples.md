@@ -1,5 +1,7 @@
 # VcfRenameSamples
 
+Rename the Samples in a VCF
+
 
 ## Usage
 
@@ -19,11 +21,6 @@ Usage: vcfrenamesamples [options] Files
       Tab delimited file containing old-name\tnew-name
 
 ```
-
-
-## Description
-
-Rename the Samples in a VCF
 
 
 ## Keywords

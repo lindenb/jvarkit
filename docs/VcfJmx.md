@@ -1,5 +1,7 @@
 # VcfJmx
 
+Monitor/interrupt/break a VCF stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: vcfjmx [options] Files
       Stream identifier
 
 ```
-
-
-## Description
-
-Monitor/interrupt/break a VCF stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html
 
 
 ## Keywords

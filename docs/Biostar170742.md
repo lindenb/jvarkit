@@ -1,5 +1,7 @@
 # Biostar170742
 
+convert sam format to axt Format
+
 
 ## Usage
 
@@ -19,9 +21,11 @@ Usage: biostar170742 [options] Files
 ```
 
 
-## Description
+## Keywords
 
-convert sam format to axt Format
+ * sam
+ * axt
+
 
 ## Compilation
 

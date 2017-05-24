@@ -1,5 +1,7 @@
 # Biostar103303
 
+Calculate Percent Spliced In (PSI).
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: biostar103303 [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Calculate Percent Spliced In (PSI).
 
 
 ## See also in Biostars

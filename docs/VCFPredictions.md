@@ -1,5 +1,7 @@
 # VCFPredictions
 
+Basic Variant Effect prediction using ucsc-known gene
+
 
 ## Usage
 
@@ -30,11 +32,6 @@ Usage: vcfpredictions [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Basic Variant Effect prediction using ucsc-known gene
 
 
 ## Keywords

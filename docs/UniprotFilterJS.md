@@ -1,5 +1,7 @@
 # UniprotFilterJS
 
+Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. Context contain 'entry' an uniprot entry and 'index', the index in the XML file.
+
 
 ## Usage
 
@@ -16,11 +18,6 @@ Usage: uniprotfilterjs [options] Files
        (js file). Optional.
 
 ```
-
-
-## Description
-
-Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. Context contain 'entry' an uniprot entry and 'index', the index in the XML file.
 
 ## Compilation
 

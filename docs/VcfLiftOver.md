@@ -1,5 +1,7 @@
 # VcfLiftOver
 
+Lift-over a VCF file
+
 
 ## Usage
 
@@ -48,9 +50,11 @@ Usage: vcfliftover [options] Files
 ```
 
 
-## Description
+## Keywords
 
-Lift-over a VCF file
+ * vcf
+ * liftover
+
 
 ## Compilation
 

@@ -1,5 +1,7 @@
 # Biostar77288
 
+Low resolution sequence alignment visualization
+
 
 ## Usage
 
@@ -23,11 +25,6 @@ Usage: biostar77288 [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-Low resolution sequence alignment visualization
 
 
 ## Keywords

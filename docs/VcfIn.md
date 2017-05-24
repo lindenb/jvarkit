@@ -1,5 +1,7 @@
 # VcfIn
 
+Only prints variants that are contained/not contained into another VCF
+
 
 ## Usage
 
@@ -31,11 +33,6 @@ Usage: vcfin [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Only prints variants that are contained/not contained into another VCF
 
 
 ## Keywords

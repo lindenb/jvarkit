@@ -1,5 +1,7 @@
 # VCFPolyX
 
+Number of repeated REF bases around POS.
+
 
 ## Usage
 
@@ -24,11 +26,6 @@ Usage: vcfpolyx [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Number of repeated REF bases around POS.
 
 
 ## Keywords

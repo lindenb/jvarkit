@@ -1,5 +1,7 @@
 # BedIndexTabix
 
+Index and sort a Bed on the fly with Tabix.
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: bedindextabix [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Index and sort a Bed on the fly with Tabix.
 
 
 ## Keywords

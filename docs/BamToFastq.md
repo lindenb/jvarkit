@@ -1,5 +1,11 @@
 # BamToFastq
 
+Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. 
+
+
+## DEPRECATED
+
+use picard
 
 ## Usage
 
@@ -25,15 +31,6 @@ Usage: bam2fastq [options] Files
       print version and exit
 
 ```
-
-
-## DEPRECATED
-
-use picard
-
-## Description
-
-Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. 
 
 
 ## Keywords

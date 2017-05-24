@@ -1,5 +1,7 @@
 # VCFCombineTwoSnvs
 
+Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert
+
 
 ## Usage
 
@@ -36,11 +38,6 @@ Usage: vcfcombinetwosnvs [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert
 
 
 ## Keywords

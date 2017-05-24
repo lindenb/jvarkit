@@ -1,5 +1,7 @@
 # VcfToTable
 
+convert a vcf to a table, to ease display in the terminal
+
 
 ## Usage
 
@@ -32,11 +34,6 @@ Usage: vcf2table [options] Files
       Default: false
 
 ```
-
-
-## Description
-
-convert a vcf to a table, to ease display in the terminal
 
 
 ## Keywords

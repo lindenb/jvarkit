@@ -1,5 +1,7 @@
 # VCFShuffle
 
+Shuffle a VCF
+
 
 ## Usage
 
@@ -26,11 +28,6 @@ Usage: vcfshuffle [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Shuffle a VCF
 
 
 ## Keywords

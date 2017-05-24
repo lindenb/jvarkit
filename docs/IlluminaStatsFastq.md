@@ -1,5 +1,7 @@
 # IlluminaStatsFastq
 
+Reads filenames from stdin: Count FASTQs in Illumina Result.
+
 
 ## Usage
 
@@ -17,11 +19,6 @@ Usage: IlluminaStatsFastq [options] Files
       Default: 0
 
 ```
-
-
-## Description
-
-Reads filenames from stdin: Count FASTQs in Illumina Result.
 
 ## Compilation
 

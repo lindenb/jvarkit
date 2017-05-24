@@ -1,5 +1,7 @@
 # NgsFilesSummary
 
+Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
+
 
 ## Usage
 
@@ -14,11 +16,6 @@ Usage: ngsfilessummary [options] Files
       print version and exit
 
 ```
-
-
-## Description
-
-Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
 
 ## Compilation
 
