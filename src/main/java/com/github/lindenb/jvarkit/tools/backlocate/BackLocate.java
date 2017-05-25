@@ -111,7 +111,10 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
  
  END_DOC
  */
-@Program(name="backlocate",description="Mapping a mutation on a protein back to the genome.")
+@Program(name="backlocate",
+	description="Mapping a mutation on a protein back to the genome.",
+	keywords={"vcf","annotation","prediction","protein"}
+	)
 public class BackLocate
 	extends Launcher
 	{
@@ -119,7 +122,7 @@ public class BackLocate
 	@Parameter(names={"-p","--printSeq"},description="print mRNA & protein sequences")
 	private boolean printSequences = false;
 
-	@Parameter(names={"-k","--kg"},description="UCSC knownGene URI")
+	@Parameter(names={"-k","--kg"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String knownGeneURI = KnownGene.getDefaultUri();
 
 	@Parameter(names={"-x","--kgxref"},description="UCSC kgXRef URI")

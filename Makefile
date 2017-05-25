@@ -165,7 +165,7 @@ endif
 	echo '$$$$*' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	# generate markdown if needed
-	-if [ -e "${tmp.dir}/markdown.flag" ]  ; then  ${JAVA} -jar "${dist.dir}/$(1).jar" --markdownhelp > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ; fi
+	-if [ -e "${tmp.dir}/markdown.flag" ]  ; then  ${JAVA} -jar "${dist.dir}/$(1).jar" --help --helpFormat markdown > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ; fi
 	#cleanup
 	rm -rf "${tmp.dir}"
 

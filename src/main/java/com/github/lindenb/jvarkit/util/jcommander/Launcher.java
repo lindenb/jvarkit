@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,12 +49,22 @@ import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IStringConverterFactory;
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.converters.IntegerConverter;
@@ -65,6 +76,7 @@ import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -103,21 +115,62 @@ public static  class UsageBuider
 	
 	@Parameter(names = {"-h","--help"},description="print help and exit", help = true)
 	public boolean print_help = false;
-	@Parameter(names = {"--markdownhelp"},description="print Markdown help and exit", help = true,hidden=true)
-	public boolean print_markdown_help = false;
+	@Parameter(names = {"--helpFormat"},description="What kind of help", help = true)
+	public HelpFormat helpFormat = HelpFormat.usage;
 	@Parameter(names = {"--version"}, help = true,description="print version and exit")
 	public boolean print_version = false;
 
+	private enum HelpFormat {usage,markdown,xml}
+	
 	public UsageBuider(Class<?> mainClass) {
 		this.mainClass = mainClass;
 	}
 	
 	public boolean shouldPrintUsage() {
-		return this.print_help || this.print_markdown_help;
+		return this.print_help;
 	}
 	
 	public void usage(final JCommander jc) {
-		System.out.println(getUsage(jc));
+		if(this.helpFormat.equals(HelpFormat.xml))
+			{
+			final Document dom;
+			try {
+				dom = this.xmlUsage(jc);
+				}
+			catch(final Exception err)
+				{
+				err.printStackTrace();
+				System.err.println("An error occured. Cannot produce XML");
+				return ;
+				}
+
+			try {
+				final Transformer transformer = TransformerFactory.newInstance().newTransformer();
+
+				final DOMSource source = new DOMSource(dom);
+				final StreamResult result = new StreamResult(new StringWriter());
+
+				if(!this.helpFormat.equals(HelpFormat.xml))
+					{
+					System.err.println("TODO");
+					}
+				else
+					{
+					transformer.transform(source, result);
+					final String xmlString = result.getWriter().toString();
+					System.out.println(xmlString);
+					}
+				}
+			catch(final Exception err)
+				{
+				err.printStackTrace();
+				System.err.println("An error occured. Cannot produce XML");
+				}
+			}
+		else
+			{
+			System.out.println(getUsage(jc));
+			}
 		}
 
 	
@@ -191,6 +244,64 @@ public static  class UsageBuider
 		}
 	}
 	
+	public Document xmlUsage(final JCommander jc) throws Exception
+		{
+		
+			final Class<?> clazz = getMainClass();			
+			final Program programdesc = clazz.getAnnotation(Program.class);
+
+			final Document dom = DocumentBuilderFactory.newInstance().
+						newDocumentBuilder().
+						newDocument();
+			final Element root = dom.createElement("program");
+			Element e1;
+			dom.appendChild(root);
+			if(programdesc!=null)
+				{
+				root.setAttribute("name", programdesc.name());
+				e1 = dom.createElement("description");
+				root.appendChild(e1);
+				e1.appendChild(dom.createTextNode(programdesc.description()));
+				for(final String kw : programdesc.keywords())
+					{
+					e1 = dom.createElement("keyword");
+					root.appendChild(e1);
+					e1.appendChild(dom.createTextNode(kw));
+					}
+				for(final Term t : programdesc.terms())
+					{
+					e1 = dom.createElement("term");
+					root.appendChild(e1);
+					e1.appendChild(dom.createTextNode(t.name()));
+					}
+				for(final int bid : programdesc.biostars())
+					{
+					e1 = dom.createElement("biostar");
+					root.appendChild(e1);
+					e1.appendChild(dom.createTextNode(String.valueOf(bid)));
+					}
+				}
+			e1 = dom.createElement("parameters");
+			root.appendChild(e1);
+			for(final ParameterDescription pd:jc.getParameters())
+				{
+				final Element e2= dom.createElement("parameter");
+				e1.appendChild(e2);
+				for(final String name : pd.getParameter().names())
+					{
+					final Element e3 = dom.createElement("name");
+					e2.appendChild(e3);
+					e1.appendChild(dom.createTextNode(name));
+					}
+				final Element e3 = dom.createElement("description");
+				e2.appendChild(e3);
+				e1.appendChild(dom.createTextNode(pd.getDescription()));
+				}
+			
+		return dom;
+		}	
+	
+	
 	public void usage(final JCommander jc,final StringBuilder sb) {
 
 		final Class<?> clazz = getMainClass();
@@ -203,7 +314,7 @@ public static  class UsageBuider
 			{
 			jc.setProgramName(clazz.getSimpleName());
 			}
-		if(print_markdown_help)  
+		if(this.helpFormat.equals(HelpFormat.markdown))  
 			{
 			sb.append("# "+clazz.getSimpleName()+"\n\n");
 			
@@ -218,19 +329,15 @@ public static  class UsageBuider
 						append(programdesc.deprecatedMsg()).
 						append("\n");
 					}
-				
-				
 				}
-			
 			}
 		
 		
-		if(print_markdown_help) sb.append("\n## Usage\n\n```\n");
+		if(this.helpFormat.equals(HelpFormat.markdown)) sb.append("\n## Usage\n\n```\n");
 		jc.usage(sb);
-		if(print_markdown_help) sb.append("\n```\n\n");
+		if(this.helpFormat.equals(HelpFormat.markdown)) sb.append("\n```\n\n");
 
-		if(programdesc!=null){
-			
+		if(programdesc!=null && this.helpFormat.equals(HelpFormat.markdown)){
 			if(programdesc.keywords()!=null && programdesc.keywords().length>0) {
 				sb.append("\n## Keywords\n\n");
 				for(String sk:programdesc.keywords()) sb.append(" * "+sk+"\n");
@@ -240,11 +347,10 @@ public static  class UsageBuider
 				sb.append("\n## See also in Biostars\n\n");
 				for(int postid:programdesc.biostars()) sb.append(" * "+hyperlink("https://www.biostars.org/p/"+postid)+"\n");
 				sb.append("\n\n");
-			}
-			
+			}	
 		}
 		
-		if(print_markdown_help)
+		if(this.helpFormat.equals(HelpFormat.markdown))
 			{
 			final String progName=(programdesc==null?"software":programdesc.name());
 			sb.append("## Compilation\n");
@@ -307,8 +413,9 @@ public static  class UsageBuider
 			sb.append("> "+hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
 			sb.append("\n");
 			}
-		include(sb,clazz.getName());
-		
+		if( this.helpFormat.equals(HelpFormat.markdown) ) {
+			include(sb,clazz.getName());
+			}
 		}
 	
 	public Class<?> getMainClass()
