@@ -22,6 +22,9 @@ Usage: vcfgnomad [options] Files
       if defined, add this FILTER when the variant is found in nomad
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --manifest
       manifest file descibing how to map a contig to an URI . 3 columns: 1) 
       exome|genome 2) contig 3) path or URL.

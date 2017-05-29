@@ -16,6 +16,9 @@ Usage: vcf2bam [options] Files
       Default: 600
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     --readsize

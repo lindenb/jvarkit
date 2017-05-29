@@ -14,6 +14,9 @@ Usage: vcfvcf [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -96,5 +99,7 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
 
 

@@ -13,6 +13,9 @@ Usage: biostar173114 [options] Files
       Default: 9
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -keepAtt, --keepAttributes
       keep Attributes
       Default: false

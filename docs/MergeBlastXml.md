@@ -10,6 +10,9 @@ Usage: mergeblastxml [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --maxRecordsInRam
       Max Records in RAM
       Default: 50000

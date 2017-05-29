@@ -10,13 +10,16 @@ Usage: downsamplevcf [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     --version
       print version and exit
     -N
        random seed
-      Default: 1495643381950
+      Default: 1496070503887
     -n
       output size
       Default: 10

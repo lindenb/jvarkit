@@ -10,6 +10,9 @@ Usage: findcorruptedfiles [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -E, --noempty
       empty file is an error.
       Default: false

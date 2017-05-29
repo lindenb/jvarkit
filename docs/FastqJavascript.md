@@ -16,6 +16,9 @@ Usage: fastqjs [options] Files
       Save dicarded reads in that file. Optional. Default: no file
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -i, --interleaved
       interleaved input
       Default: false

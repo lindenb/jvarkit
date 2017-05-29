@@ -18,6 +18,9 @@ Usage: bam2wig [options] Files
       Default: false
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -i, --integer
       cast to integer
       Default: false

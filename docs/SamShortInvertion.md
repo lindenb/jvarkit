@@ -10,6 +10,9 @@ Usage: samshortinvert [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --maxsize
       max size of inversion
       Default: 2000

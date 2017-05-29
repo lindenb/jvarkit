@@ -10,6 +10,9 @@ Usage: vcfburdenfisherv [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -if, --ignorefilter
       accept variants having a FILTER column. Default is ignore variants with 
       a FILTER column

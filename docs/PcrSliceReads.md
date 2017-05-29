@@ -16,11 +16,14 @@ Usage: pcrslicereads [options] Files
       required. 
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --out
       Output file. Optional . Default: stdout
     --random
        random seed
-      Default: java.util.Random@19af9a9
+      Default: java.util.Random@514713
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}

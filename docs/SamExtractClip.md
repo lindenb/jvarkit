@@ -13,6 +13,9 @@ Usage: samextractclip [options] Files
       Default: false
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --minsize
       Min size of clipped read
       Default: 5

@@ -10,12 +10,21 @@ Usage: vcfconcat [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --out
       Output file. Optional . Default: stdout
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * vcf
+
 
 ## Compilation
 
@@ -73,5 +82,21 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+### From stdin
+
+```bash
+$ find ./ -name "*.vcf" | grep Sample1 | java -jar dist/vcfconcat.jar > out.vcf
+```
+
+### From files
+
+```bash
+$ java -jar dist/vcfconcat.jar Sample1.samtools.vcf Sample1.gatk.vcf > out.vcf
+```
+
 
 

@@ -10,6 +10,9 @@ Usage: vcfcmppred [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
@@ -82,5 +85,49 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+### VEP
+
+```bash
+$  java -jar dist/vcfcmppred.jar  f1.vcf f2.vcf 
+(...)
+7	8566286	rs2139	A	VEP discordant SO:terms between f1.vcf and f2.vcf	[SO:0001619, SO:0001632]
+```
+
+
+in f1.vcf (VEP 75) CSQ contains:
+
+* intron_variant
+* downstream_gene_variant
+* nc_transcript_variant
+
+in f2.vcf (VEP 71) CSQ contains:
+
+* intron_variant
+
+### SNPEFF
+
+```bash
+$  java -jar dist/vcfcmppred.jar  f1.vcf f2.vcf 
+(...)
+ 8	1394127	.	G	SNPEff discordant SO:terms between between f1.vcf and f2.vcf	[SO:0001630]
+```
+
+in f1.vcf  (snpEff_3_6) EFF contains:
+
+* downstream_gene_variant
+* intron_variant
+* splice_region_variant
+
+in f2.vcf  (snpEff_3_4) EFF contains:
+
+* downstream_gene_variant
+* intron_variant
+
+
+
 
 

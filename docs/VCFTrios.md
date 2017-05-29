@@ -17,6 +17,9 @@ Usage: vcftrio [options] Files
       genotype filter name. create a filter in the GENOTYPE column
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -if, --inversefilter
       inverse FILTER, flag variant having NO mendelian incompat.
       Default: false

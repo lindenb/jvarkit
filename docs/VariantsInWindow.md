@@ -14,6 +14,9 @@ Usage: vcfwindowvariants [options] Files
       Default: TOO_MANY_CLOSE_VARIANTS
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     -treshold, --treshold

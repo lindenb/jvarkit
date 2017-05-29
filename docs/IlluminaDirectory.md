@@ -10,6 +10,9 @@ Usage: illuminadir [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -J, --json
       Generate JSON output.
       Default: false

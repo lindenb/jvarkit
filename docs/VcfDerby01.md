@@ -20,6 +20,9 @@ Usage: vcfderby01 [options] Files
       Default: <empty string>
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     -t, --title

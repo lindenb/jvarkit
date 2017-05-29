@@ -14,6 +14,9 @@ Usage: vcfcomparecallers [options] Files
       Write a few Variants in this XML file. Optional
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -c, --homref2nocall
       Treat HomRef as No Call (created when comparing merged vcf with GATK: 
       there is no homref, everything is nocall)

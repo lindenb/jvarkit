@@ -16,6 +16,9 @@ Usage: vcffilterjs [options] Files
       Default: <empty string>
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -json, --json
       json files. syntax key=path/to/file.json . Inject the json object parsed 
       with google gson into the javascript context as 'key'

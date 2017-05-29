@@ -10,6 +10,9 @@ Usage: ccfSimulator [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --version
       print version and exit
   * -R
@@ -17,7 +20,7 @@ Usage: ccfSimulator [options] Files
       faidx and with picard CreateSequenceDictionary
     -S
       random seed
-      Default: java.util.Random@17050dc
+      Default: java.util.Random@19af9a9
 
 ```
 

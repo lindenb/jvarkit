@@ -10,6 +10,9 @@ Usage: vcfrenamechr [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
   * -f, --mapping, -m
       load a custom name mapping. Format (chrom-source\tchrom-dest\n)+
     -o, --out

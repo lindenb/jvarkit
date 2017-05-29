@@ -10,6 +10,9 @@ Usage: biostar130456 [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -z, --homref
       remove homzygote REF/REF
       Default: false

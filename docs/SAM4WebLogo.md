@@ -13,6 +13,9 @@ Usage: sam4weblogo [options] Files
       Default: false
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
   * -r, --region, --interval
       Region to observe: chrom:start-end
     -o, --output

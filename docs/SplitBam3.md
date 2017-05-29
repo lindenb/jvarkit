@@ -15,6 +15,9 @@ Usage: splitbam3 [options] Files
       Chromosome group file. Interval are 1 based
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --mock
       add mock record if no samRecord saved in bam
       Default: false

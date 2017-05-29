@@ -13,6 +13,9 @@ Usage: splitbytile [options] Files
       Default: 5
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
   * -o, --output
       Output file. Must contain __TILE__
     --samoutputformat

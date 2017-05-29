@@ -10,6 +10,9 @@ Usage: vcfburdenmaf [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -c, --homref
       Treat No Call './.' genotypes as HomRef
       Default: false

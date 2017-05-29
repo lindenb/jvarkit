@@ -10,6 +10,9 @@ Usage: findavariation [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -homref, --homref
       Hide HOM_REF genotypes
       Default: false

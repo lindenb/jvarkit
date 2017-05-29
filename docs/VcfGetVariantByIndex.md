@@ -10,6 +10,9 @@ Usage: vcfgetvariantbyIndex [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --version
       print version and exit
     -i
@@ -18,6 +21,12 @@ Usage: vcfgetvariantbyIndex [options] Files
       Output file. Optional . Default: stdout
 
 ```
+
+
+## Keywords
+
+ * vcf
+
 
 ## Compilation
 
@@ -75,5 +84,16 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+```bash
+# get random indexes
+$ gunzip -c input.vcf.gz | grep -v "#" | awk '{print NR;}' | shuf | head -n 15 > index.list
+# get those 15 variants
+java -jar dist/vcfgetvariantbyindex.jar -i index.list input.vcf.gz > output.vcf
+
+```
 
 

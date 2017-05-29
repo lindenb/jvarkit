@@ -10,6 +10,9 @@ Usage: vcfburdenfisherh [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -fisher, --minFisherPValue
       if p-value fisher(case/control vs have alt/have not alt) lower than 
       'fisher' the FILTER Column is Filled

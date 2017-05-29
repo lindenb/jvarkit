@@ -22,6 +22,9 @@ Usage: vcfbedsetfilter [options] Files
       Default: VCFBED
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -i, --inverse
       inverse selection
       Default: false

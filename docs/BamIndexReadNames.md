@@ -6,10 +6,13 @@ Build a dictionary of read names to be searched with BamQueryReadNames
 ## Usage
 
 ```
-Usage:  [options] Files
+Usage: bamindexreadnames [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --version
       print version and exit
 
@@ -31,7 +34,7 @@ Usage:  [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make 
+$ make bamindexreadnames
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -63,7 +66,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **bamindexreadnames** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -71,5 +74,13 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+```bash
+$  java -jar dist/bamindexreadnames.jar file.bam
+```
+
 
 

@@ -27,6 +27,9 @@ Usage: vcfliftover [options] Files
       Default: LIFTOVER_FAILED
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --indel, --indels
       do not LiftOver indels
       Default: false

@@ -10,6 +10,9 @@ Usage: genscan [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --imagesize
        (int)x(int) image width x height
       Default: java.awt.Dimension[width=1000,height=300]

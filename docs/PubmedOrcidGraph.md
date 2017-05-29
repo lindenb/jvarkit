@@ -22,6 +22,9 @@ Usage: pubmedorcidgraph [options] Files
       stderr 
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -d, --maxdepth
       Max graph depth
       Default: 2

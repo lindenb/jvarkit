@@ -10,15 +10,28 @@ Usage: genomicjaspar [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --version
       print version and exit
-    -J
+  * -J
        jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt
     -f
       (0<ratio<1) fraction of best score
       Default: 0.95
+    -o
+      Output file. Optional . Default: stdout
 
 ```
+
+
+## Keywords
+
+ * jaspar
+ * genomic
+ * pattern
+
 
 ## Compilation
 

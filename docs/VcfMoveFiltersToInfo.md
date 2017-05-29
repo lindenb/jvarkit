@@ -13,6 +13,9 @@ Usage: vcfmovefilterstoinfo [options] Files
       Default: PREVIOUSLY_FILTERED_AS
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -t, --limitto
       If not empty, limit to those FILTERS. Multiple separated by comma/space.
     -o, --output

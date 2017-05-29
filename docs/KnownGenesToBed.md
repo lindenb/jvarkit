@@ -16,6 +16,9 @@ Usage: kg2bed [options] Files
       Default: false
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -i, --intron
       Hide Introns
       Default: false

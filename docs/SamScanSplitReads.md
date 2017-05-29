@@ -16,6 +16,9 @@ Usage: samscansplitreads [options] Files
       Default: 20
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -msr, --minSupportingReads
       Minimal number of supporting reads.
       Default: 0

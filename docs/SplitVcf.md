@@ -13,6 +13,9 @@ Usage: splitvcf [options] Files
       will use the sequence dictionary to output one vcf per contig.
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --multi
       if set, allow one variant to be mapped on multiple chromosome group (the 
       record is duplicated)

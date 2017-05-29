@@ -16,6 +16,9 @@ Usage: cmpbams [options] Files
       Default: 10
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -Q, --mapq
       min MAPQ
       Default: 0

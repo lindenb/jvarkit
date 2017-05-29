@@ -18,6 +18,9 @@ Usage: extendrefwithreads [options] Files
       Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -N, --mincontig
       onsider only gaps in reference with size&gt;=N
       Default: 100

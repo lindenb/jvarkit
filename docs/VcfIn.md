@@ -21,6 +21,9 @@ Usage: vcfin [options] Files
       Default: <empty string>
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -i, --inverse
       Print variant that are not part of the VCF-database.
       Default: false

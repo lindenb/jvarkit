@@ -13,6 +13,9 @@ Usage: biostar76892 [options] Files
       Default: 5
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -d, --maxc
       distance beween two reads
       Default: 30

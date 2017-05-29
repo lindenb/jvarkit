@@ -10,6 +10,9 @@ Usage: bwamemdigest [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --version
       print version and exit
     -B

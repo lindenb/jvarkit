@@ -17,6 +17,9 @@ Usage: bamcmpcoverage [options] Files
       Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -M, --maxDepth
       max depth
       Default: 1000

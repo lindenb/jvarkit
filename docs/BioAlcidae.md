@@ -16,6 +16,9 @@ Usage: bioalcidae [options] Files
       of NCBI EFetch rettype=gbc.
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -J, --json
       Optional. Reads a JSON File using google gson 
       (https://google-gson.googlecode.com/svn/trunk/gson/docs/javadocs/index.html 

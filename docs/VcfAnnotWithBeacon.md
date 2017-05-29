@@ -22,6 +22,9 @@ Usage: vcfannotwithbeacon [options] Files
       Default: false
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --noupdate
       Don't query the variant already having the tag / do not update the 
       existing annotation

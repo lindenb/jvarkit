@@ -10,6 +10,9 @@ Usage: vcf2postscript [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -kg, -k, --knownGene
       UCSC knownGene URI. Beware chromosome names are formatted the same as 
       your REFERENCE. A typical KnownGene file is 

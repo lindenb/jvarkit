@@ -10,6 +10,9 @@ Usage: bamgenscan [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --imagesize
        (int)x(int) image width x height
       Default: java.awt.Dimension[width=1000,height=300]
@@ -80,5 +83,18 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+```bash
+$  java -jar dist/bamgenscan.jar  --max-y 20 --image-size 2000x800  -o out.jpg f1.bam f2.bam f3.bam
+```
+the figure displays the mean, min, max, median of the coverage. 
+
+![bamgenscan](https://pbs.twimg.com/media/Bfnu__LCAAEcJu4.jpg:large)
+
+
+
 
 

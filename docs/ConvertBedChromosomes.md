@@ -17,6 +17,9 @@ Usage: bedrenamechr [options] Files
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
   * -f, --mapping, -m
       load a custom name mapping. Format (chrom-source\tchrom-dest\n)+
     -o, --out

@@ -13,6 +13,9 @@ Usage: samgrep [options] Files
       Default: 5
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -V, --invert
       invert
       Default: false

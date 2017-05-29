@@ -12,6 +12,9 @@ Usage: cmpbams4 [options] Files
       Lift Over file from bam1 to bam2. Optional
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --mismatch
       Default Lift Over mismatch. negative=use default
       Default: 0.95

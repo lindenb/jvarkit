@@ -15,6 +15,9 @@ Usage: blastmapannots [options] Files
       XML sequence file Genbank.xml or uniprot.xml.
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --include
       Restrict to uniprot/feature/type of genbank/feature/key.
       Default: []

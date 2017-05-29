@@ -14,6 +14,9 @@ Usage: vcfmerge [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -homref, --homref
       Use HomRef 0/0 for unknown variant
       Default: false
@@ -98,4 +101,10 @@ The current reference is:
 
 
  
+## Example
+
+```bash
+$  find ./ -name "*.vcf.gz" | xargs java -jar dist/vcfmerge.jar   > out.vcf
+```
+
 

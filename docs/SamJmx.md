@@ -13,8 +13,11 @@ Usage: samjmx [options] Files
       Default: 5
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --out
-      Output vcf , or stdout
+      Output file. Optional . Default: stdout
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
@@ -24,6 +27,15 @@ Usage: samjmx [options] Files
       Stream identifier
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * jmx
+ * monitoring
+
 
 ## Compilation
 
@@ -81,5 +93,20 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+```bash
+$   java -jar dist/samjmx.jar  -T bam -p MyWorkflow1 input.bam > /dev/null
+```
+
+while the stream is running, open a new jconsole https://docs.oracle.com/javase/7/docs/technotes/guides/management/jconsole.html . here you can get the number of records, t
+he elapsed time. Two operation are available:
+
+* doBreak: interrupt current streaming , exit with success (0)
+* doAbort: interrupt current streaming , exit with failure (-1)
+
+
 
 

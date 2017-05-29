@@ -10,6 +10,9 @@ Usage: reduceblast [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -message, --message
       Keep <Iteration_message>
       Default: false

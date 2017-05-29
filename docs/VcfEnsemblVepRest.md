@@ -19,6 +19,9 @@ Usage: vcfensemblvep [options] Files
       Default: /vep/homo_sapiens/region
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     -s, --server

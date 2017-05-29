@@ -17,6 +17,9 @@ Usage: samcolortag [options] Files
       javascript file
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -E, --ignoreErrors
       Ignore javascript/color errors
       Default: false

@@ -19,6 +19,9 @@ Usage: pcrclipreads [options] Files
       Default: -1
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -largest, --largest
       see if a read overlaps two bed intervals use the bed region sharing the 
       longest sequence with a read. see 

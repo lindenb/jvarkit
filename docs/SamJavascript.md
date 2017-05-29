@@ -19,6 +19,9 @@ Usage: samjs [options] Files
       javascript file
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -N, --limit
       limit to 'N' records (for debugging).
       Default: -1

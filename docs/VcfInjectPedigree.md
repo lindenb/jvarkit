@@ -14,6 +14,9 @@ Usage: vcfinjectpedigree [options] Files
       Default: false
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -imih, --ignoreMissingInHeader
       Ignore errors if a sample is declared in the pedigree but is missing in 
       the VCF header

@@ -10,6 +10,9 @@ Usage: vcfindextabix [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
@@ -28,6 +31,13 @@ Usage: vcfindextabix [options] Files
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * vcf
+ * tabix
+
 
 ## Compilation
 

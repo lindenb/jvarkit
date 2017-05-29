@@ -17,6 +17,9 @@ Usage: bedliftover [options] Files
         write bed failing the liftOver here. Optional.
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --minmatch
       lift over min-match.
       Default: 0.95

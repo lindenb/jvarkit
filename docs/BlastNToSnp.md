@@ -13,6 +13,9 @@ Usage: blasn2snp [options] Files
       Default: 3
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     --version

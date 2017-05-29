@@ -16,6 +16,9 @@ Usage: bam2fastq [options] Files
       Save fastq_R1 to file (default: stdout)
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -maxRecordsInRam, --maxRecordsInRam
       Max records in RAM
       Default: 50000

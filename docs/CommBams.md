@@ -20,6 +20,9 @@ Usage: commbams [options] Files
       Possible Values: [name, but_metadata, all]
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -1, --hide1
       suppress read unique to file 1
       Default: false

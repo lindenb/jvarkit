@@ -112,18 +112,18 @@
 <tr id="fixvcf"><th><a href="FixVCF.html" title="FixVCF">fixvcf</a></th><td>Fix a VCF if INFO or FILTER are missing</td><td/><td/><td/></tr>
 <tr id="fixvcfformat"><th><a href="FixVcfFormat.html" title="FixVcfFormat">fixvcfformat</a></th><td>Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453</td><td/><td/><td/></tr>
 <tr id="fixvcfmissinggenotypes"><th><a href="FixVcfMissingGenotypes.html" title="FixVcfMissingGenotypes">fixvcfmissinggenotypes</a></th><td>After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.</td><td>sam bam vcf</td><td/><td/></tr>
-<tr id="gcpercentanddepth"><th><a href="GcPercentAndDepth.html" title="GcPercentAndDepth">gcpercentanddepth</a></th><td>Extracts GC% and depth for multiple bam using a sliding window</td><td/><td/><td/></tr>
-<tr id="genomicjaspar"><th><a href="GenomicJaspar.html" title="GenomicJaspar">genomicjaspar</a></th><td>Find jaspar patterns in FASTA sequences. Reports a BED file.</td><td/><td/><td/></tr>
+<tr id="gcpercentanddepth"><th><a href="GcPercentAndDepth.html" title="GcPercentAndDepth">gcpercentanddepth</a></th><td>Extracts GC% and depth for multiple bam using a sliding window</td><td>gc% depth coverage</td><td/><td/></tr>
+<tr id="genomicjaspar"><th><a href="GenomicJaspar.html" title="GenomicJaspar">genomicjaspar</a></th><td>Find jaspar patterns in FASTA sequences. Reports a BED file.</td><td>jaspar genomic pattern</td><td/><td/></tr>
 <tr id="genscan"><th><a href="GenScan.html" title="GenScan">genscan</a></th><td>Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).</td><td>chromosome reference chart visualization</td><td/><td/></tr>
 <tr id="howmanybamdict"><th><a href="HowManyBamDict.html" title="HowManyBamDict">howmanybamdict</a></th><td>finds if there's are some differences in the sequence dictionaries.</td><td>sam bam dict</td><td/><td/></tr>
 <tr id="illuminadir"><th><a href="IlluminaDirectory.html" title="IlluminaDirectory">illuminadir</a></th><td>Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.</td><td>json xml illumina fastq</td><td/><td/></tr>
-<tr id="ilmnfastqstats"><th><a href="IlluminaStatsFastq.html" title="IlluminaStatsFastq">IlluminaStatsFastq</a></th><td>Reads filenames from stdin: Count FASTQs in Illumina Result.</td><td/><td/><td/></tr>
+<tr id="ilmnfastqstats"><th><a href="IlluminaStatsFastq.html" title="IlluminaStatsFastq">ilmnfastqstats</a></th><td>Reads filenames from stdin: Count FASTQs in Illumina Result.</td><td/><td/><td/></tr>
 <tr id="impactofduplicates"><th><a href="ImpactOfDuplicates.html" title="ImpactOfDuplicates">impactofduplicates</a></th><td>Impact of Duplicates per BAM.</td><td>bam</td><td/><td/></tr>
 <tr id="liftover2svg"><th><a href="LiftOverToSVG.html" title="LiftOverToSVG">liftover2svg</a></th><td>Convert LiftOver chain files to animated SVG</td><td>svg liftover ucsc xml</td><td/><td/></tr>
 <tr id="mapuniprot"><th><a href="MapUniProtFeatures.html" title="MapUniProtFeatures">mapuniprot</a></th><td>map uniprot features on reference genome</td><td>uniprot bed fasta reference xjc xml</td><td/><td/></tr>
 <tr id="mergesplittedblast"><th><a href="MergeSplittedBlast.html" title="MergeSplittedBlast">mergesplittedblast</a></th><td>merge blast Hits from splitted BLAST database</td><td>blast</td><td/><td/></tr>
 <tr id="ncbitaxonomy2xml"><th><a href="NcbiTaxonomyToXml.html" title="NcbiTaxonomyToXml">ncbitaxonomy2xml</a></th><td>Dump NCBI taxonomy tree as a hierarchical XML document</td><td>taxonomy ncbi xml</td><td/><td/></tr>
-<tr id="samjmx"><th><a href="SamJmx.html" title="SamJmx">samjmx</a></th><td>Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html</td><td/><td/><td/></tr>
+<tr id="samjmx"><th><a href="SamJmx.html" title="SamJmx">samjmx</a></th><td>Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html</td><td>sam bam jmx monitoring</td><td/><td/></tr>
 <tr id="ngsfilessummary"><th><a href="NgsFilesSummary.html" title="NgsFilesSummary">ngsfilessummary</a></th><td>Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)</td><td/><td/><td/></tr>
 <tr id="noemptyvcf"><th><a href="NoEmptyVCF.html" title="NoEmptyVCF">noemptyvcf</a></th><td>If VCF is empty or doesn't exists, create a dummy one</td><td/><td/><td><span style="color:orange;" title="deprecated">Was developped at the time where VEP didn't send an output if there was no variant, just a header in the source vcf.</span>. </td></tr>
 <tr id="nozerovariationvcf"><th><a href="NoZeroVariationVCF.html" title="NoZeroVariationVCF">nozerovariationvcf</a></th><td>cat a whole VCF, or, if there is no variant, creates a fake one</td><td/><td/><td/></tr>
@@ -157,7 +157,7 @@
 <tr id="vcfcomm"><th><a href="VCFComm.html" title="VCFComm">vcfcomm</a></th><td>Equivalent of linux comm for VCF</td><td/><td/><td/></tr>
 <tr id="vcfcompare"><th><a href="VCFCompare.html" title="VCFCompare">vcfcompare</a></th><td>Compares two VCF files</td><td>vcf compare</td><td/><td/></tr>
 <tr id="vcfcomparegt"><th><a href="VCFCompareGT.html" title="VCFCompareGT">vcfcomparegt</a></th><td> compare two or more genotype-callers for the same individuals. Produce a VCF with FORMAT fields indicating if a genotype is new or modified.</td><td>vcf compare</td><td/><td/></tr>
-<tr id="vcfconcat"><th><a href="VcfConcat.html" title="VcfConcat">vcfconcat</a></th><td>Concatenante sorted VCF with same sample, does NOT merge genotypes</td><td/><td/><td/></tr>
+<tr id="vcfconcat"><th><a href="VcfConcat.html" title="VcfConcat">vcfconcat</a></th><td>Concatenante sorted VCF with same sample, does NOT merge genotypes</td><td>vcf</td><td/><td/></tr>
 <tr id="vcfcutsamples"><th><a href="VcfCutSamples.html" title="VcfCutSamples">vcfcutsamples</a></th><td>Select/Exclude some samples from a VCF</td><td>vcf sample</td><td/><td><span style="color:orange;" title="deprecated">use bcftools or gatk SelectVariants</span>. </td></tr>
 <tr id="vcffilterdoid"><th><a href="VcfFilterDoid.html" title="VcfFilterDoid">vcffilterdoid</a></th><td>Set Filters for VCF annotated with SNPEFF or VEP tesing if Genes are part / are not part of a GeneOntology tree. </td><td/><td/><td/></tr>
 <tr id="vcfjaspar"><th><a href="VcfJaspar.html" title="VcfJaspar">vcfjaspar</a></th><td>Finds JASPAR profiles in VCF</td><td>vcf matrix jaspar</td><td/><td/></tr>
@@ -167,7 +167,7 @@
 <tr id="ccfregulomedb"><th><a href="VcfRegulomeDB.html" title="VcfRegulomeDB">ccfregulomedb</a></th><td>Annotate a VCF with the Regulome data (http://regulome.stanford.edu/</td><td/><td/><td/></tr>
 <tr id="vcfrenamechr"><th><a href="ConvertVcfChromosomes.html" title="ConvertVcfChromosomes">vcfrenamechr</a></th><td>Convert the names of the chromosomes in a VCF file</td><td>vcf contig chromosome convert</td><td/><td/></tr>
 <tr id="vcfrenamesamples"><th><a href="VcfRenameSamples.html" title="VcfRenameSamples">vcfrenamesamples</a></th><td>Rename the Samples in a VCF</td><td>vcf sample</td><td/><td/></tr>
-<tr id="vcfresetvcf"><th><a href="VcfRemoveGenotypeIfInVcf.html" title="VcfRemoveGenotypeIfInVcf">vcfresetvcf</a></th><td>Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix</td><td/><td/><td/></tr>
+<tr id="vcfresetvcf"><th><a href="VcfRemoveGenotypeIfInVcf.html" title="VcfRemoveGenotypeIfInVcf">vcfresetvcf</a></th><td>Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix</td><td>vcf genotype</td><td/><td/></tr>
 <tr id="vcfsetdict"><th><a href="VcfSetSequenceDictionary.html" title="VcfSetSequenceDictionary">vcfsetdict</a></th><td>Set the ##contig lines in a VCF header</td><td>vcf dict fai</td><td/><td><span style="color:orange;" title="deprecated">Use picard UpdateVcfSequenceDictionary</span>. </td></tr>
 <tr id="vcfshuffle"><th><a href="VCFShuffle.html" title="VCFShuffle">vcfshuffle</a></th><td>Shuffle a VCF</td><td>vcf</td><td/><td/></tr>
 <tr id="ccfSimulator"><th><a href="VcfSimulator.html" title="VcfSimulator">ccfSimulator</a></th><td>Generate a VCF</td><td/><td/><td/></tr>
@@ -177,7 +177,7 @@
 <tr id="vcftabixml"><th><a href="VCFTabixml.html" title="VCFTabixml">vcftabixml</a></th><td> annotate a value from a vcf+xml file</td><td>vcf xml</td><td/><td/></tr>
 <tr id="vcfvcf"><th><a href="VcfVcf.html" title="VcfVcf">vcfvcf</a></th><td>Get the INFO from a VCF and use it for another VCF</td><td/><td/><td><span style="color:orange;" title="deprecated">obsolete. use GATK</span>. </td></tr>
 <tr id="worldmapgenome"><th><a href="WorldMapGenome.html" title="WorldMapGenome">worldmapgenome</a></th><td>Genome/Map of the world. Input is a BED file: chrom/start/end/country.</td><td>gis</td><td>[ID:0000017]just_a_proof_of_concept</td><td/></tr>
-<tr id="uniprotfilterjs"><th><a href="UniprotFilterJS.html" title="UniprotFilterJS">uniprotfilterjs</a></th><td>Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. Context contain 'entry' an uniprot entry and 'index', the index in the XML file.</td><td/><td/><td/></tr>
+<tr id="uniprotfilterjs"><th><a href="UniprotFilterJS.html" title="UniprotFilterJS">uniprotfilterjs</a></th><td>Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. Context contain 'entry' an uniprot entry and 'index', the index in the XML file.</td><td>unitprot javascript xjc xml</td><td/><td/></tr>
 <tr id="skipxmlelements"><th><a href="SkipXmlElements.html" title="SkipXmlElements">skipxmlelements</a></th><td>Filter XML elements with a javascript  (java rhino) expression. Context contain 'element' the current element. It implementsthe interface Tag described in  SkipXmlElements.class</td><td>xml javascript</td><td/><td/></tr>
 <tr id="vcfensemblvep"><th><a href="VcfEnsemblVepRest.html" title="VcfEnsemblVepRest">vcfensemblvep</a></th><td>Annotate a VCF with ensembl REST API</td><td>vcf annotation rest ensembl</td><td/><td/></tr>
 <tr id="vcfgroupbypop"><th><a href="VcfGroupByPopulation.html" title="VcfGroupByPopulation">vcfgroupbypop</a></th><td>Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population</td><td/><td/><td/></tr>
@@ -187,7 +187,7 @@
 <tr id="vcfburden"><th><a href="VcfBurden.html" title="VcfBurden">vcfburden</a></th><td>Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)</td><td/><td/><td><span style="color:orange;" title="deprecated">deprecated</span>. </td></tr>
 <tr id="vcfreplacetag"><th><a href="VCFReplaceTag.html" title="VCFReplaceTag">vcfreplacetag</a></th><td>Replace the key for INFO/FORMAT/FILTER</td><td>vcf</td><td/><td/></tr>
 <tr id="vcfpeekvcf"><th><a href="VcfPeekVcf.html" title="VcfPeekVcf">vcfpeekvcf</a></th><td>Get the INFO from a VCF and use it for another VCF</td><td>vcf annotation</td><td/><td><span style="color:orange;" title="deprecated">Use GATK or vcftools</span>. </td></tr>
-<tr id="vcfgetvariantbyIndex"><th><a href="VcfGetVariantByIndex.html" title="VcfGetVariantByIndex">vcfgetvariantbyIndex</a></th><td>Access a Plain or BGZF-compressed VCF file by index</td><td/><td/><td/></tr>
+<tr id="vcfgetvariantbyIndex"><th><a href="VcfGetVariantByIndex.html" title="VcfGetVariantByIndex">vcfgetvariantbyIndex</a></th><td>Access a Plain or BGZF-compressed VCF file by index</td><td>vcf</td><td/><td/></tr>
 <tr id="vcfmulti2oneinfo"><th><a href="VcfMultiToOneInfo.html" title="VcfMultiToOneInfo">vcfmulti2oneinfo</a></th><td>'one INFO with N values' to 'N variants with one INFO'</td><td/><td/><td/></tr>
 <tr id="bedindextabix"><th><a href="BedIndexTabix.html" title="BedIndexTabix">bedindextabix</a></th><td>Index and sort a Bed on the fly with Tabix.</td><td>bed tabix</td><td/><td/></tr>
 <tr id="vcf2bam"><th><a href="VcfToBam.html" title="VcfToBam">vcf2bam</a></th><td>vcf to bam</td><td>ref vcf bam</td><td/><td/></tr>
@@ -242,7 +242,7 @@
 <tr id="reduceblast"><th><a href="ReduceBlast.html" title="ReduceBlast">reduceblast</a></th><td>Reduce the size of XML blast, by removing iterations that have no Hit</td><td>blast xml</td><td/><td/></tr>
 <tr id="blasn2snp"><th><a href="BlastNToSnp.html" title="BlastNToSnp">blasn2snp</a></th><td>print indel/mismatch in a blastn stream</td><td>blast snp</td><td/><td/></tr>
 <tr id="splitbam3"><th><a href="SplitBam3.html" title="SplitBam3">splitbam3</a></th><td>Split a BAM by chromosome group</td><td/><td/><td/></tr>
-<tr id="vcfindextabix"><th><a href="VcfIndexTabix.html" title="VcfIndexTabix">vcfindextabix</a></th><td>Index and sort a VCF on the fly with Tabix</td><td/><td/><td/></tr>
+<tr id="vcfindextabix"><th><a href="VcfIndexTabix.html" title="VcfIndexTabix">vcfindextabix</a></th><td>Index and sort a VCF on the fly with Tabix</td><td>vcf tabix</td><td/><td/></tr>
 <tr id="blastfilterjs"><th><a href="BlastFilterJS.html" title="BlastFilterJS">blastfilterjs</a></th><td>Filters a BlastOutput with a javascript expression. The script injects each &lt;Hit&gt; as the variable 'blasthit'. The user script should return 'true' to keep the hit.</td><td>blast js javascript filter</td><td/><td/></tr>
 <tr id="SamSlop"><th><a href="SamSlop.html" title="SamSlop">SamSlop</a></th><td>extends sam by 'x' bases</td><td/><td/><td/></tr>
 <tr id="vcfgenesplitter"><th><a href="VcfGeneSplitter.html" title="VcfGeneSplitter">vcfgenesplitter</a></th><td>Split VCF+VEP by gene.</td><td/><td/><td/></tr>
@@ -263,7 +263,7 @@
 <tr id="projectserver"><th><a href="ProjectServer.html" title="ProjectServer">projectserver</a></th><td>Jetty Based http server serving VCF, BAM files</td><td/><td/><td/></tr>
 <tr id="vcfwindowvariants"><th><a href="VariantsInWindow.html" title="VariantsInWindow">vcfwindowvariants</a></th><td>Annotate Number of Variants overlaping a sliding window.</td><td>vcf annotation</td><td/><td/></tr>
 <tr id="allelefreqcalc"><th><a href="AlleleFrequencyCalculator.html" title="AlleleFrequencyCalculator">allelefreqcalc</a></th><td>Allele Frequency Calculator</td><td>vcf af</td><td/><td><span style="color:orange;" title="deprecated">Use bioalcidae</span>. </td></tr>
-<tr id="bamindexreadnames"><th><a href="BamQueryReadNames.html" title="BamQueryReadNames"/></th><td>Query a Bam file indexed with BamIndexReadNames</td><td/><td/><td/></tr>
+<tr id="bamindexreadnames"><th><a href="BamIndexReadNames.html" title="BamIndexReadNames">bamindexreadnames</a></th><td>Build a dictionary of read names to be searched with BamQueryReadNames</td><td/><td/><td/></tr>
 <tr id="bamtreepack"><th><a href="BamTreePack.html" title="BamTreePack">bamtreepack</a></th><td>Create a TreeMap from one or more SAM/BAM file. Ouput is a SVG file.</td><td>bam treepack</td><td/><td/></tr>
 <tr id="fastqrecordtreepack"><th><a href="FastqRecordTreePack.html" title="FastqRecordTreePack">fastqrecordtreepack</a></th><td>Create a TreeMap from one or more Fastq file. Ouput is a SVG file</td><td/><td/><td/></tr>
 <tr id="samfindclippedregions"><th><a href="SamFindClippedRegions.html" title="SamFindClippedRegions">samfindclippedregions</a></th><td/><td/><td/><td/></tr>
@@ -277,6 +277,7 @@
 <tr id="picardmetrics2xml"><th><a href="PicardMetricsToXML.html" title="PicardMetricsToXML">picardmetrics2xml</a></th><td>transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html</td><td/><td/><td/></tr>
 <tr id="casectrlcanvas"><th><a href="CaseControlCanvas.html" title="CaseControlCanvas">casectrlcanvas</a></th><td>draw a chart of case/control maf from a stream of X/Y values</td><td>vcf case control visualization jfx chart maf</td><td/><td/></tr>
 <tr id="lowresbam2raster"><th><a href="LowResBam2Raster.html" title="LowResBam2Raster">lowresbam2raster</a></th><td>Low Resolution BAM to raster graphics</td><td>bam alignment graphics visualization png knowngene</td><td/><td/></tr>
+<tr id=""><th><a href="BamQueryReadNames.html" title="BamQueryReadNames"/></th><td>Query a Bam file indexed with BamIndexReadNames</td><td/><td/><td/></tr>
 </tbody>
 
 </table>

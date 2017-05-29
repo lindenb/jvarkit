@@ -22,6 +22,9 @@ Usage: vcfbed [options] Files
       Default: ${1}:${2}-${3}
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --map
       unindexed bed file, will be loaded in memory (faster than tribble/tabix 
       but memory consumming)

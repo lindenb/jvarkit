@@ -15,6 +15,9 @@ Usage: gcpercentanddepth [options] Files
       Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --version
       print version and exit
     -B
@@ -44,6 +47,14 @@ Usage: gcpercentanddepth [options] Files
       Default: false
 
 ```
+
+
+## Keywords
+
+ * gc%
+ * depth
+ * coverage
+
 
 ## Compilation
 
@@ -101,5 +112,12 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+## Example
+
+```bash
+$ java -jar dist/gcanddepth.jar -R ref.fasta -b capture.bed 1.bam 2.bam ... > result.tsv
+```
+
 
 

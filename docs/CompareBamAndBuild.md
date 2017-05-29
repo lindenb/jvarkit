@@ -15,6 +15,9 @@ Usage: cmpbamsandbuild [options] Files
       Default: 10
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -maxRecordsInRam, --maxRecordsInRam
       Max records in RAM
       Default: 50000

@@ -15,6 +15,9 @@ Usage: bamliftover [options] Files
       LiftOver file. Require
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --minmatch
       lift over min-match. default:-1 == use default value from htsjdk 
       LiftOver.DEFAULT_LIFTOVER_MINMATCH 

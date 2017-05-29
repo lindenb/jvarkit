@@ -18,6 +18,9 @@ Usage: vcfburdenexac [options] Files
       https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -maxFreq, --maxFreq
       set FILTER if max(exac frequency in any pop) is greater than this value)
       Default: 0.001

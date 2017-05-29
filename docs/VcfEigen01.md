@@ -12,6 +12,9 @@ Usage: vcfeigen [options] Files
       Eigen directory containing the tabix files *.tab.gz
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
     --version

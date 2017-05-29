@@ -22,6 +22,9 @@ Usage: sam2json [options] Files
       Default: false
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -name, --name
       do not print read name
       Default: false

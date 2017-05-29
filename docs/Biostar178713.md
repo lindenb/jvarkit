@@ -13,6 +13,9 @@ Usage: biostar178713 [options] Files
       Default: 100
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
   * -o, --output
       Output file.zip .
     --version

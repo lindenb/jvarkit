@@ -10,6 +10,9 @@ Usage: uniprotfilterjs [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --version
       print version and exit
     -e
@@ -18,6 +21,15 @@ Usage: uniprotfilterjs [options] Files
        (js file). Optional.
 
 ```
+
+
+## Keywords
+
+ * unitprot
+ * javascript
+ * xjc
+ * xml
+
 
 ## Compilation
 
@@ -75,5 +87,42 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+the following script get the human (id=9606) uniprot entries having an id in ensembl:
+
+```javascript
+function accept(e)
+	{
+	var ok=0,i;
+	// check organism is human 
+	if(e.getOrganism()==null) return false;
+	var L= e.getOrganism().getDbReference();
+	if(L==null) return false;
+	for(i=0;i<L.size();++i)
+		{
+		if(L.get(i).getId()=="9606") {ok=1;break;}
+		}
+	if(ok==0) return false;
+	ok=0;
+	L= e.getDbReference();
+	if(L==null) return false;
+	for(i=0;i<L.size();++i)
+		{
+		if(L.get(i).getType()=="Ensembl") {ok=1;break;}
+		}
+	return ok==1;
+	}
+accept(entry);
+```
+
+
+```bash
+$   curl -skL "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz" | gunzip -c |\
+java -jar dist/uniprotfilterjs.jar  -f filter.js > output.xml
+```
+
+
 
 

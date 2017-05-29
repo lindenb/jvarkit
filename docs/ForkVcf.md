@@ -13,6 +13,9 @@ Usage: forkvcf [options] Files
       Default: 2
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -m, --manifest
       optional save produced vcf filenames in this file.
     -maxRecordsInRam, --maxRecordsInRam

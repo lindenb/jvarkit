@@ -10,6 +10,9 @@ Usage: vcfmulti2oneinfo [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
   * -i, --info
       The INFO tag
     -o, --output

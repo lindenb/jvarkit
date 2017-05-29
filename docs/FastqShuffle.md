@@ -10,6 +10,9 @@ Usage: fastqshuffle [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
@@ -28,7 +31,7 @@ Usage: fastqshuffle [options] Files
       Default: false
     -r
       random
-      Default: java.util.Random@110406
+      Default: java.util.Random@946e09
 
 ```
 

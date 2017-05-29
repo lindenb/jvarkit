@@ -10,6 +10,9 @@ Usage: vcf2zip [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -o, --output
       Output zip file.
     -p, --prefix
