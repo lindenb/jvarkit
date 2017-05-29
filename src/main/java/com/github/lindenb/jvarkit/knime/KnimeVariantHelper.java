@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
@@ -98,6 +99,9 @@ catch(Throwable err)
 END_DOC
 
  */
+@Program(name="knimehelper",description="library for using htsjdk into knime",
+		keywords={"knime","vcf"}
+		)	
 public class KnimeVariantHelper extends VcfTools {
 	public static final Logger LOG = Logger.build(KnimeVariantHelper.class).make();
 	private final Map<String,IndexedBedReader> bedReaders=new HashMap<>();
@@ -454,6 +458,9 @@ public class KnimeVariantHelper extends VcfTools {
 		return new VariantBuilder();
 	}
 	
-
+public static void main(String[] args) {
+	System.err.println("This is a library. It's expected to be run into knime.");
+	System.exit(-1);
+}
 	
 }

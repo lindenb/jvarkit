@@ -90,10 +90,14 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 		final String mainClass = System.getProperty("jvarkit.main.class");
 		final String thisDir = System.getProperty("jvarkit.this.dir");
 		
-		roundEnv.getElementsAnnotatedWith(Program.class).stream().
+		/*roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class).stream().
+			forEach(E->{System.err.println("#########################"+E+" "+E.getAnnotation(IncludeSourceInJar.class));});
+		*/
+		
+		roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class).stream().
 			filter(E->E.getKind()==ElementKind.CLASS).
 			filter(E-> E.getAnnotation(IncludeSourceInJar.class) !=null).
-			forEach(E->{
+			forEach(E->{					
 				Writer writer = null;
 				Reader reader = null;
 				try {
@@ -217,7 +221,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 							
 							
 							final XPath xpath = XPathFactory.newInstance().newXPath();
-							final NodeList nodeList=(NodeList)xpath.evaluate("//table/tbody/tr[@id='"+prog.name()+"']", dom, XPathConstants.NODESET);
+							final NodeList nodeList=(NodeList)xpath.evaluate("//table[1]/tbody/tr[@id='"+prog.name()+"']", dom, XPathConstants.NODESET);
 							for(int i=0;i< nodeList.getLength();++i) {
 								Node oldTr= nodeList.item(i);
 								if(tr!=null) {
@@ -230,7 +234,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 									}
 								}
 							if(tr!=null) {
-								Node tbody = (Node)xpath.evaluate("//table/tbody",dom,XPathConstants.NODE);
+								Node tbody = (Node)xpath.evaluate("//table[1]/tbody",dom,XPathConstants.NODE);
 								if( tbody != null ) {
 									tbody.appendChild(tr);
 									tbody.appendChild(dom.createTextNode("\n"));

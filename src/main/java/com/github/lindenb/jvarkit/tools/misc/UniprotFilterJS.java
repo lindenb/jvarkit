@@ -56,12 +56,54 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+/**
+BEGIN_DOC
 
+## Example
+the following script get the human (id=9606) uniprot entries having an id in ensembl:
+
+```javascript
+function accept(e)
+	{
+	var ok=0,i;
+	// check organism is human 
+	if(e.getOrganism()==null) return false;
+	var L= e.getOrganism().getDbReference();
+	if(L==null) return false;
+	for(i=0;i<L.size();++i)
+		{
+		if(L.get(i).getId()=="9606") {ok=1;break;}
+		}
+	if(ok==0) return false;
+	ok=0;
+	L= e.getDbReference();
+	if(L==null) return false;
+	for(i=0;i<L.size();++i)
+		{
+		if(L.get(i).getType()=="Ensembl") {ok=1;break;}
+		}
+	return ok==1;
+	}
+accept(entry);
+```
+
+
+```bash
+$   curl -skL "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz" | gunzip -c |\
+java -jar dist/uniprotfilterjs.jar  -f filter.js > output.xml
+```
+
+
+
+END_DOC
+
+ */
 
 
 @Program(name="uniprotfilterjs",description= "Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. "
 		+ "Context contain 'entry' an uniprot entry "
-		+ "and 'index', the index in the XML file.")
+		+ "and 'index', the index in the XML file.",
+		keywords={"unitprot","javascript","xjc","xml"})
 public class UniprotFilterJS
 	extends Launcher
 	{
@@ -82,7 +124,7 @@ public class UniprotFilterJS
 		}
 	
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
 		
 

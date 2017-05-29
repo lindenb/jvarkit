@@ -70,11 +70,19 @@ import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 
 /**
- * 
- * GcPercentAndDepth
- *
+BEGIN_DOC
+## Example
+
+```bash
+$ java -jar dist/gcanddepth.jar -R ref.fasta -b capture.bed 1.bam 2.bam ... > result.tsv
+```
+
+
+END_DOC
  */
-@Program(name="gcpercentanddepth",description="Extracts GC% and depth for multiple bam using a sliding window")
+@Program(name="gcpercentanddepth",
+description="Extracts GC% and depth for multiple bam using a sliding window",
+keywords={"gc%","depth","coverage"})
 public class GcPercentAndDepth extends Launcher
 	{
 	private static Logger LOG=Logger.build(GcPercentAndDepth.class).make();

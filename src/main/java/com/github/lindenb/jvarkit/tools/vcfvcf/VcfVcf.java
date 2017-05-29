@@ -22,6 +22,12 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 
+/*
+BEGIN_DOC
+
+
+END_DOC
+ */
 @Deprecated
 @Program(name="vcfvcf",
 	description="Get the INFO from a VCF and use it for another VCF",

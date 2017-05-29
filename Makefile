@@ -807,6 +807,7 @@ ${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/JVark
 	rm -rf "${tmp.dir}"
 
 ## Knime helper
+knimehelper: ${dist.dir}/knimehelper.jar
 ${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVariantHelper.java ${htsjdk.jars}   ${slf4j.jars}
 	mkdir -p ${tmp.dir}/META-INF/services
 	${JAVAC} -cp "$(subst $(SPACE),:,$(realpath $(filter %.jar,$^)))" -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<

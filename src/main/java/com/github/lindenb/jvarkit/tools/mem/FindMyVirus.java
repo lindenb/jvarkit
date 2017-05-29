@@ -28,7 +28,18 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
-@Program(name="findmyvirus",description="Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. ")
+/**
+
+## Example
+
+```bash
+$  java -jar dist/findmyvirus.jar -V virus_chr -o category in.bam
+```
+
+
+*/
+@Program(name="findmyvirus",
+	description="Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. ")
 public class FindMyVirus extends Launcher
 	{
 	private static final Logger LOG= Logger.build(FindMyVirus.class).make();

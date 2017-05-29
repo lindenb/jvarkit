@@ -56,9 +56,29 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+/*
+BEGIN_DOC
+
+## Example
+
+```bash
+ java -jar dist/vcfbigwig.jar \
+ 	-T GERP \
+ 	-B gerp.bw input.vcf.gz 
+	
+##INFO=<ID=GERP,Number=1,Type=Float,Description="Values from bigwig file: com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig BIGWIG=gerp.bw TAG=GERP IN=input.vcf.gz    VERBOSITY=INFO QUIET=false VALIDATION_STRINGENCY=STRICT COMPRESSION_LEVEL=5 MAX_RECORDS_IN_RAM=500000 CREATE_INDEX=false CREATE_MD5_FILE=false">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO(...)
+A	33926	.	G	A	182	.	GERP=-6.35(...)
+A	45365	.	A	G	222	.	GERP=-3.55(...)
+```
 
 
-@Program(name="vcfbigwig",description="annotate a VCF with values from a bigwig file")
+END_DOC
+*/
+@Program(name="vcfbigwig",
+description="annotate a VCF with values from a bigwig file",
+keywords={"vcf","wig","wiggle","bigwig"}
+)
 public class VCFBigWig extends Launcher
 	{
 

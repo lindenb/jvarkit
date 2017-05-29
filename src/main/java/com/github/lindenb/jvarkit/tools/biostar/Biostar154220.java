@@ -57,8 +57,48 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.semontology.Term;
 
+/*
+BEGIN_DOC
+## Example
+
+```bash
+$ java -jar dist/sortsamrefname.jar -T bam /input.bam  |\
+  java -jar dist/biostar154220.jar  -n 20 -T bam |\
+  samtools sort - output
+
+
+$ samtools mpileup output.bam  | cut -f 4 | sort | uniq -c
+
+  12692 0
+ 596893 1
+  94956 10
+  56715 11
+  76947 12
+  57912 13
+  66585 14
+  51961 15
+  63184 16
+  47360 17
+  65189 18
+  65014 19
+ 364524 2
+ 169064 20
+  72078 3
+ 118288 4
+  54802 5
+  82555 6
+  53175 7
+  78474 8
+  54052 9
+
+```
+
+END_DOC
+
+*/
 @Program(name="biostar154220",
-	description="Cap BAM to a given coverage",biostars=154220,
+	description="Cap BAM to a given coverage",
+	biostars=154220,
 	terms=Term.ID_0000015
 	)
 public class Biostar154220 extends Launcher

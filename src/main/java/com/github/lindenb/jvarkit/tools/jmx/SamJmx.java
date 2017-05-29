@@ -48,12 +48,32 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 
+/*
+BEGIN_DOC
 
-@Program(name="samjmx",description="Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html")
+## Example
+
+```bash
+$   java -jar dist/samjmx.jar  -T bam -p MyWorkflow1 input.bam > /dev/null
+```
+
+while the stream is running, open a new jconsole https://docs.oracle.com/javase/7/docs/technotes/guides/management/jconsole.html . here you can get the number of records, t
+he elapsed time. Two operation are available:
+
+* doBreak: interrupt current streaming , exit with success (0)
+* doAbort: interrupt current streaming , exit with failure (-1)
+
+
+
+END_DOC
+*/
+@Program(name="samjmx",
+description="Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html",
+keywords={"sam","bam","jmx","monitoring"})
 public class SamJmx extends Launcher
 	{
 	private static final Logger LOG=Logger.build(SamJmx.class).make();
-	@Parameter(names={"-o","--out"},description="Output vcf , or stdout")
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
@@ -63,7 +83,7 @@ public class SamJmx extends Launcher
 	public SamJmx() {
 	}
 	
-	public void setProjectName(String projectName) {
+	public void setProjectName(final String projectName) {
 		this.projectName = projectName;
 		}
 	

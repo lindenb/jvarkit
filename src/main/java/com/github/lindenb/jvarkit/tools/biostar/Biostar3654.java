@@ -28,6 +28,57 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+/*
+BEGIN_DOC
+
+## Example
+
+```
+$ cat ~/jeter.blastn.xml 
+<?xml version="1.0"?>
+<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">
+<BlastOutput>
+(...)
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gi|14971104|gb|AF338247.1|</Hit_id>
+  <Hit_def>Human rotavirus A strain M clone M1 NSP3 genes, complete cds</Hit_def>
+  <Hit_accession>AF338247</Hit_accession>
+  <Hit_len>2032</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+```
+
+```
+$ java -jar dist/biostar3654.jar ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
+
+QUERY: No definition line
+       ID:Query_186611 Len:980
+>Human rotavirus A strain M clone M1 NSP3 genes, complete cds
+ AF338247
+ id:gi|14971104|gb|AF338247.1| len:2032
+
+   e-value:0 gap:0 bitScore:1764.98
+
+QUERY 000000001 GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGC 000000050
+                ||||||||||||||||||||||||||||||||||||||||||||||||||
+HIT   000000001 GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGC 000000050
+                ################################################## source organi
+                ##################################                 5'UTR
+                                                  ################ CDS codon_sta
+
+QUERY 000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
+                ||||||||||||||||||||||||||||||||||||||||||||||||||
+HIT   000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
+                ################################################## source organi
+                ################################################## CDS codon_sta
+(...)
+
+```
+
+END_DOC
+*/
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
@@ -112,7 +163,9 @@ END_DOC
 
  */
 import com.github.lindenb.semontology.Term;
-@Program(name="biostar3654",terms=Term.ID_0000015,description="show blast alignment with annotations",biostars=3654,keywords={"blast","xml","annotation"})
+@Program(name="biostar3654",
+terms=Term.ID_0000015,description="show blast alignment with annotations",
+	biostars=3654,keywords={"blast","xml","annotation"})
 public class Biostar3654 extends Launcher
 	{
 	private static final Logger LOG=Logger.build(Biostar3654.class).make();

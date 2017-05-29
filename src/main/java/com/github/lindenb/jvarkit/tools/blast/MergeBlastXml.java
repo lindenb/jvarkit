@@ -73,7 +73,8 @@ import htsjdk.samtools.util.SortingCollection;
  
  END_DOC
  */
-@Program(name="mergeblastxml",biostars=246958,description="merge XML blast results (same Iteration/Iteration_query-def in multiple xml files",
+@Program(name="mergeblastxml",biostars=246958,
+description="merge XML blast results (same Iteration/Iteration_query-def in multiple xml files",
 keywords={"blast","xml"}
 )
 public class MergeBlastXml extends Launcher {

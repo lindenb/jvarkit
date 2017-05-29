@@ -1,4 +1,86 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
+
+/**
+BEGIN_DOC
+ 
+## Output
+the software generates a directory or a zip file.
+
+it contains the following files:
+
+* names.tsv : file path with sample, index, lane, side , split, file size
+* counts.tsv:  file path,total reads, read_fail_filter, read_do_not_fail_filter
+* histopos2qual:  file path, position, mean-qual, count bases (excluding read_fail_filter)
+* histquals: file path, [quality[, count reads
+* lengths: file path, length, count reads (excluding read_fail_filter)
+* notfastq: problem with that fastq
+* quals : file, mean-quality (excluding read_fail_filter)
+* bases! file, A,T,G,C,N (excluding read_fail_filter)
+* indexes most frequent indexes
+
+## Example
+
+``` bash
+$ find dir1 dir2 -type f -name "*.fastq.gz" |\
+   grep -v SAMPLE1234 |\
+   java -jar dist/ilmnfastqstats.jar \
+   O=OUTDIR
+
+$ ls JETER 
+bases.tsv
+counts.tsv
+histpos2qual.tsv
+histquals.tsv
+lengths.tsv
+names.tsv
+notfastq.tsv
+quals.tsv
+
+$ find dir1 dir2 -type f -name "*.fastq.gz" |\
+   grep -v SAMPLE1234 |\
+   java -jar dist/ilmnfastqstats.jar \
+   O=OUTDIR.zip
+
+
+$ unzip -t OUTDIR.zip 
+Archive:  OUTDIR.zip
+    testing: names.tsv                OK
+    testing: counts.tsv               OK
+    testing: quals.tsv                OK
+    testing: notfastq.tsv             OK
+    testing: histquals.tsv            OK
+    testing: histpos2qual.tsv         OK
+    testing: bases.tsv                OK
+    testing: lengths.tsv              OK
+```
+
+ 
+END_DOC
+*/
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -25,7 +107,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
-@Program(name="IlluminaStatsFastq",description="Reads filenames from stdin: Count FASTQs in Illumina Result.")
+@Program(name="ilmnfastqstats",description="Reads filenames from stdin: Count FASTQs in Illumina Result.")
 public class IlluminaStatsFastq
 	extends Launcher
 	{

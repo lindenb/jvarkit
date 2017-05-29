@@ -27,8 +27,52 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 
 /**
- * @author lindenb
- *
+BEGIN_DOC
+
+## Example
+
+### VEP
+
+```bash
+$  java -jar dist/vcfcmppred.jar  f1.vcf f2.vcf 
+(...)
+7	8566286	rs2139	A	VEP discordant SO:terms between f1.vcf and f2.vcf	[SO:0001619, SO:0001632]
+```
+
+
+in f1.vcf (VEP 75) CSQ contains:
+
+* intron_variant
+* downstream_gene_variant
+* nc_transcript_variant
+
+in f2.vcf (VEP 71) CSQ contains:
+
+* intron_variant
+
+### SNPEFF
+
+```bash
+$  java -jar dist/vcfcmppred.jar  f1.vcf f2.vcf 
+(...)
+ 8	1394127	.	G	SNPEff discordant SO:terms between between f1.vcf and f2.vcf	[SO:0001630]
+```
+
+in f1.vcf  (snpEff_3_6) EFF contains:
+
+* downstream_gene_variant
+* intron_variant
+* splice_region_variant
+
+in f2.vcf  (snpEff_3_4) EFF contains:
+
+* downstream_gene_variant
+* intron_variant
+
+
+
+
+END_DOC
  */
 @Program(name="vcfcmppred",description="Compare predictions (SNPEff, VEP) for several VCFs")
 public class VCFComparePredictions extends AbstractVCFCompareBase {

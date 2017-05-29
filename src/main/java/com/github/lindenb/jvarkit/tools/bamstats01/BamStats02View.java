@@ -775,12 +775,9 @@ public class BamStats02View
 	
 	
 	@Override
-	public int doWork(List<String> args) {
-		if(args.size()!=1)
-			{
-			return wrapException("Expected One file.");
-			}
-		final String inputFilename = args.get(0);
+	public int doWork(final List<String> args) {
+		
+			
 		
 		
 			{
@@ -788,6 +785,7 @@ public class BamStats02View
 			BufferedReader in=null;
 			try {
 				final Pattern tab=Pattern.compile("[\t]");
+				final String inputFilename = oneAndOnlyOneFile(args);
 				System.err.println("[LOG] Reading "+inputFilename);
 				in=IOUtils.openURIForBufferedReading(inputFilename);
 				String line;
@@ -849,7 +847,8 @@ public class BamStats02View
 				}
 			catch (Exception e)
 				{
-				return wrapException(e);
+				LOG.error(e);
+				return -1;
 				}
 			}
 		}

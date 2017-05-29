@@ -68,6 +68,7 @@ import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
 import com.beust.jcommander.converters.IntegerConverter;
+import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
@@ -92,7 +93,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 
-
+@IncludeSourceInJar
 public class Launcher {
 private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
@@ -101,7 +102,6 @@ public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Re
 
 protected static final int RETURN_OK=0;
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
-
 
 /** need to decouple from Launcher for JXF applications that cannot extends 'Launcher' */
 public static  class UsageBuider
@@ -156,6 +156,7 @@ public static  class UsageBuider
 					}
 				else
 					{
+					transformer.setOutputProperty(OutputKeys.STANDALONE,"yes");
 					transformer.transform(source, result);
 					final String xmlString = result.getWriter().toString();
 					System.out.println(xmlString);
@@ -244,62 +245,63 @@ public static  class UsageBuider
 		}
 	}
 	
-	public Document xmlUsage(final JCommander jc) throws Exception
-		{
-		
-			final Class<?> clazz = getMainClass();			
-			final Program programdesc = clazz.getAnnotation(Program.class);
+	/** create usage as XML. No DTD. Might change in the future */
+	private Document xmlUsage(final JCommander jc) throws Exception {
+		final Class<?> clazz = getMainClass();			
+		final Program programdesc = clazz.getAnnotation(Program.class);
 
-			final Document dom = DocumentBuilderFactory.newInstance().
-						newDocumentBuilder().
-						newDocument();
-			final Element root = dom.createElement("program");
-			Element e1;
-			dom.appendChild(root);
-			if(programdesc!=null)
-				{
-				root.setAttribute("name", programdesc.name());
-				e1 = dom.createElement("description");
-				root.appendChild(e1);
-				e1.appendChild(dom.createTextNode(programdesc.description()));
-				for(final String kw : programdesc.keywords())
-					{
-					e1 = dom.createElement("keyword");
-					root.appendChild(e1);
-					e1.appendChild(dom.createTextNode(kw));
-					}
-				for(final Term t : programdesc.terms())
-					{
-					e1 = dom.createElement("term");
-					root.appendChild(e1);
-					e1.appendChild(dom.createTextNode(t.name()));
-					}
-				for(final int bid : programdesc.biostars())
-					{
-					e1 = dom.createElement("biostar");
-					root.appendChild(e1);
-					e1.appendChild(dom.createTextNode(String.valueOf(bid)));
-					}
-				}
-			e1 = dom.createElement("parameters");
+		final Document dom = DocumentBuilderFactory.newInstance().
+					newDocumentBuilder().
+					newDocument();
+		final Element root = dom.createElement("program");
+		Element e1;
+		dom.appendChild(root);
+		if(programdesc!=null)
+			{
+			root.setAttribute("name", programdesc.name());
+			e1 = dom.createElement("description");
 			root.appendChild(e1);
-			for(final ParameterDescription pd:jc.getParameters())
+			e1.appendChild(dom.createTextNode(programdesc.description()));
+			for(final String kw : programdesc.keywords())
 				{
-				final Element e2= dom.createElement("parameter");
-				e1.appendChild(e2);
-				for(final String name : pd.getParameter().names())
-					{
-					final Element e3 = dom.createElement("name");
-					e2.appendChild(e3);
-					e1.appendChild(dom.createTextNode(name));
-					}
-				final Element e3 = dom.createElement("description");
-				e2.appendChild(e3);
-				e1.appendChild(dom.createTextNode(pd.getDescription()));
+				e1 = dom.createElement("keyword");
+				root.appendChild(e1);
+				e1.appendChild(dom.createTextNode(kw));
 				}
-			
-		return dom;
-		}	
+			for(final Term t : programdesc.terms())
+				{
+				e1 = dom.createElement("term");
+				root.appendChild(e1);
+				e1.setAttribute("id", t.getAccession());
+				e1.appendChild(dom.createTextNode(t.getLabel()));
+				}
+			for(final int bid : programdesc.biostars())
+				{
+				e1 = dom.createElement("biostar");
+				root.appendChild(e1);
+				e1.appendChild(dom.createTextNode("https://www.biostars.org/p/"+bid));
+				}
+			}
+		e1 = dom.createElement("parameters");
+		root.appendChild(e1);
+		for(final ParameterDescription pd:jc.getParameters())
+			{
+			final Element e2= dom.createElement("parameter");
+			e2.setAttribute("help",String.valueOf(pd.isHelp()));
+			e1.appendChild(e2);
+			for(final String name : pd.getParameter().names())
+				{
+				final Element e3 = dom.createElement("name");
+				e2.appendChild(e3);
+				e3.appendChild(dom.createTextNode(name));
+				}
+			final Element e3 = dom.createElement("description");
+			e2.appendChild(e3);
+			e3.appendChild(dom.createTextNode(pd.getDescription()));
+			}
+		
+	return dom;
+	}	
 	
 	
 	public void usage(final JCommander jc,final StringBuilder sb) {

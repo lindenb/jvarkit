@@ -24,17 +24,19 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.jaspar;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.readers.SynchronousLineReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -44,11 +46,42 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="genomicjaspar",description="Find jaspar patterns in FASTA sequences. Reports a BED file.")
+/**
+## Example
+
+```bash
+$ java -jar dist/genomicjaspar.jar  -J pfm_vertebrates.txt human_g1k_v37.fasta
+
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	10819	10825	MA0130.1 ZNF354C	978	-	6	ATCCAC	CTCCAC
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	10895	10901	MA0130.1 ZNF354C	978	-	6	ATCCAC	CTCCAC
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	10971	10977	MA0130.1 ZNF354C	978	-	6	ATCCAC	CTCCAC
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	11088	11094	MA0006.1 Arnt::Ahr	957	-	6	TGCGTG	CGCGTG
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	11104	11112	MA0067.1 Pax2	951	+	8	AGTCACGG	CGTCACGG
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	11421	11427	MA0056.1 MZF1_1-4	1000	+	6	TGGGGA	TGGGGA
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	11550	11558	MA0033.1 FOXL1	959	-	8	TATACATA	TAAACATA
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	11554	11560	MA0151.1 ARID3A	1000	-	6	ATTAAA	ATTAAA
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	11556	11561	MA0075.1 Prrx2	1000	-	5	AATTA	AATTA
+1 dna:chromosome chromosome:GRCh37:1:1:249250621:1	11629	11635	MA0130.1 ZNF354C	978	+	6	ATCCAC	CTCCAC
+
+```
+
+## See also
+
+* [[VcfJaspar]]
+* http://www.biostars.org/p/90823/
+* http://jaspar.genereg.net/
+
+ */
+@Program(name="genomicjaspar",
+	description="Find jaspar patterns in FASTA sequences. Reports a BED file.",
+	keywords={"jaspar","genomic","pattern"}
+		)
 public class GenomicJaspar extends Launcher
 	{
 	private static final Logger LOG = Logger.build(GenomicJaspar.class).make();
-	@Parameter(names="-J",description=" jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt")
+	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File OUT=null;
+	@Parameter(names="-J",description=" jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt",required=true)
 	private String jasparUri=null;
 	@Parameter(names="-f",description="(0<ratio<1) fraction of best score")
 	private double fraction_of_max=0.95;
@@ -61,6 +94,7 @@ public class GenomicJaspar extends Launcher
 	
 	
 	private void digest(
+			PrintWriter out,
 			String seqName,
 			int position0,
 			final StringBuilder sequence
@@ -83,24 +117,24 @@ public class GenomicJaspar extends Launcher
 				
 				if(score>= matrix.max()*this.fraction_of_max)
 					{
-					System.out.print(seqName);
-					System.out.print('\t');
-					System.out.print(position0);
-					System.out.print('\t');
-					System.out.print(position0+matrix.length());
-					System.out.print('\t');
-					System.out.print(matrix.getName());
-					System.out.print('\t');
-					System.out.print((int)(1000.0*(score/matrix.max())));
-					System.out.print('\t');
-					System.out.print(strand==1?'-':'+');
-					System.out.print('\t');
-					System.out.print(matrix.length());
-					System.out.print('\t');
-					System.out.print(matrix.getArchetype());
-					System.out.print('\t');
-					System.out.print(strand==0?forward:revcomp);
-					System.out.println();
+					out.print(seqName);
+					out.print('\t');
+					out.print(position0);
+					out.print('\t');
+					out.print(position0+matrix.length());
+					out.print('\t');
+					out.print(matrix.getName());
+					out.print('\t');
+					out.print((int)(1000.0*(score/matrix.max())));
+					out.print('\t');
+					out.print(strand==1?'-':'+');
+					out.print('\t');
+					out.print(matrix.length());
+					out.print('\t');
+					out.print(matrix.getArchetype());
+					out.print('\t');
+					out.print(strand==0?forward:revcomp);
+					out.println();
 					
 					break;
 					}
@@ -108,7 +142,7 @@ public class GenomicJaspar extends Launcher
 			}
 		}
 	
-	private void run(Reader in) throws IOException
+	private void run(PrintWriter out,Reader in) throws IOException
 		{
 		int longest=0;
 		for(Matrix m:this.jasparDb)
@@ -126,7 +160,7 @@ public class GenomicJaspar extends Launcher
 				{
 				while(sequences.length()!=0)
 					{
-					digest(seqName,position0,sequences);
+					digest(out,seqName,position0,sequences);
 					++position0;
 					sequences.deleteCharAt(0);
 					}
@@ -144,8 +178,8 @@ public class GenomicJaspar extends Launcher
 				sequences.append((char)Character.toUpperCase(c));
 				if(sequences.length()==longest)
 					{
-					digest(seqName,position0,sequences);
-					if(System.out.checkError())  return ;
+					digest(out,seqName,position0,sequences);
+					if(out.checkError())  return ;
 					++position0;
 					sequences.deleteCharAt(0);
 					if(position0%1000000==0)
@@ -164,13 +198,12 @@ public class GenomicJaspar extends Launcher
 			LOG.error("Undefined jaspar-uri");
 			return -1;
 			}
-		
-		
-		
+		PrintWriter out=null;
 		try
 			{
+			out = super.openFileOrStdoutAsPrintWriter(OUT);
 			LOG.info("Reading "+jasparUri);
-			LineReader lr=new SynchronousLineReader(IOUtils.openURIForReading(jasparUri));
+			LineReader lr= IOUtils.openURIForLineReader(jasparUri);
 			LineIterator liter=new LineIteratorImpl(lr);
 			Iterator<Matrix> miter=Matrix.iterator(liter);
 			while(miter.hasNext())
@@ -185,7 +218,7 @@ public class GenomicJaspar extends Launcher
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
-				run(new InputStreamReader(stdin()));
+				run(out,new InputStreamReader(stdin()));
 				}
 			else
 				{
@@ -193,17 +226,24 @@ public class GenomicJaspar extends Launcher
 					{
 					LOG.info("Opening "+fname);
 					Reader in=IOUtils.openURIForBufferedReading(fname);
-					run(in);
+					run(out,in);
 					in.close();
 					}
 					
 				}
+			out.flush();
+			out.close();
+			out=null;
 			return 0;
 			}
 		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(out);
 			}
 		}
 
