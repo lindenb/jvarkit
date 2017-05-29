@@ -72,7 +72,10 @@ $ gunzip -c input.vcf.gz | grep -E '(^#|1308871)' |\
 END_DOC
 
  */
-@Program(name="vcfresetvcf",description="Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix")
+@Program(name="vcfresetvcf",
+	description="Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix",
+	keywords={"vcf","genotype"}
+)
 public class VcfRemoveGenotypeIfInVcf extends Launcher {
 	private TabixVcfFileReader tabix=null;
 	
@@ -83,7 +86,7 @@ public class VcfRemoveGenotypeIfInVcf extends Launcher {
 	private static final Logger LOG = Logger.build(VcfRemoveGenotypeIfInVcf.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

@@ -51,7 +51,20 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
-@Program(description="Build a dictionary of read names to be searched with BamQueryReadNames")
+/**
+BEGIN_DOC
+
+## Example
+
+```bash
+$  java -jar dist/bamindexreadnames.jar file.bam
+```
+
+
+END_DOC
+ */
+@Program(name="bamindexreadnames",
+	description="Build a dictionary of read names to be searched with BamQueryReadNames")
 public class BamIndexReadNames
 	extends BaseBamIndexReadNames
 	{

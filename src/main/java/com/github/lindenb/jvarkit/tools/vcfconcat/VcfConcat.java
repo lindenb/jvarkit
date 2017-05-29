@@ -60,7 +60,28 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+BEGIN_DOC
+
+## Example
+
+### From stdin
+
+```bash
+$ find ./ -name "*.vcf" | grep Sample1 | java -jar dist/vcfconcat.jar > out.vcf
+```
+
+### From files
+
+```bash
+$ java -jar dist/vcfconcat.jar Sample1.samtools.vcf Sample1.gatk.vcf > out.vcf
+```
+
+
+END_DOC
+*/
 @Program(name="vcfconcat",
+	keywords={"vcf"},
 		description="Concatenante sorted VCF with same sample, does NOT merge genotypes"
 		)
 public class VcfConcat extends Launcher

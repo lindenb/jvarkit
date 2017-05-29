@@ -114,14 +114,14 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		}
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		return doVcfToVcf(args, this.output);
 		}
 		

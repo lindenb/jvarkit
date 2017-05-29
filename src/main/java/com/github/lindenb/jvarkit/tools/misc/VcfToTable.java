@@ -589,12 +589,15 @@ public class VcfToTable extends Launcher {
 						final Genotype aa = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),vc.getReference())).make();
 						final Genotype ab = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),a)).make();
 						final Genotype bb = new GenotypeBuilder("dummy", Arrays.asList(a,a)).make();
-						hw=HardyWeinbergCalculation.hwCalculate(
-								(int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(aa, true)).count()),
-								(int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(ab, true)).count()),
-								(int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(bb, true)).count())
-								);
-						if(hw<0) hw=null;
+						final int obsaa= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(aa, true)).count());
+						final int obsab= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(ab, true)).count());
+						final int obsbb= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(bb, true)).count());
+						if( obsaa + obsab + obsbb >0) 
+							{
+							hw=HardyWeinbergCalculation.hwCalculate(obsaa,obsab,obsbb);
+							if(hw<0) hw=null;
+							}
+					
 						}
 					
 					r.add(hw);

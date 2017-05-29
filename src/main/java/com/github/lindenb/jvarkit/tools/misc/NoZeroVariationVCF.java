@@ -32,14 +32,33 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+BEGIN_DOC
 
+## Example
+
+```bash
+# we use grep to create an empty VCF
+$ gunzip -c file.vcf.gz | \
+ grep  "#" |\
+ java -jar dist/nozerovariationvcf.jar -r human_g1k_v37.fasta
+
+##fileformat=VCFv4.1
+##FILTER=<ID=FAKESNP,Description="Fake SNP created because vcf input was empty. See https://github.com/lindenb/jvarkit">
+(...)
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample1
+GL000207.1	1	.	C	A	1	FAKESNP	.	GT:DP:GQ	0/1:1:1
+```
+
+END_DOC
+*/
 @Program(name="nozerovariationvcf",description="cat a whole VCF, or, if there is no variant, creates a fake one")
 public class NoZeroVariationVCF extends Launcher
 	{
 	private static final Logger LOG = Logger.build(NoZeroVariationVCF.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File faidx = null;

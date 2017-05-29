@@ -55,6 +55,14 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.RDF;
 
+/*
+## Example
+
+```bash
+$  java -jar dist/buildwpontology.jar
+```
+
+*/
 @SuppressWarnings("serial")
 @Program(name="buildwpontology",
 	description="Build a simple RDFS/XML ontology from the Wikipedia Categories",

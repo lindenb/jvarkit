@@ -58,6 +58,19 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+/**
+BEGIN_DOC
+
+## Example
+
+```bash
+$   java -jar dist/vcfreplacetag.jar -t INFO -k VDB/NEWNAME ~/jeter.vcf 
+```
+
+
+
+END_DOC
+ */
 @Program(name="vcfreplacetag",description="Replace the key for INFO/FORMAT/FILTER",keywords={"vcf"})
 public class VCFReplaceTag extends Launcher
 	{

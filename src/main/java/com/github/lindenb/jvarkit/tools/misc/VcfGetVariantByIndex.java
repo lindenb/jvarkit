@@ -20,8 +20,24 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+/**
+BEGIN_DOC
 
-@Program(name="vcfgetvariantbyIndex",description="Access a Plain or BGZF-compressed VCF file by index" )
+## Example
+
+```bash
+# get random indexes
+$ gunzip -c input.vcf.gz | grep -v "#" | awk '{print NR;}' | shuf | head -n 15 > index.list
+# get those 15 variants
+java -jar dist/vcfgetvariantbyindex.jar -i index.list input.vcf.gz > output.vcf
+
+```
+
+END_DOC
+*/
+@Program(name="vcfgetvariantbyIndex",
+	description="Access a Plain or BGZF-compressed VCF file by index",
+	keywords={"vcf"})
 public class VcfGetVariantByIndex extends Launcher
 	{
 	private static Logger LOG=Logger.build(VcfGetVariantByIndex.class).make();

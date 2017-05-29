@@ -59,6 +59,13 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 BEGIN_DOC
 
+## Example
+
+```bash
+  java -jar dist/bedindextabix.jar -s -o out.bed.gz input.bed
+
+```
+
 END_DOC
 
  */
@@ -73,7 +80,7 @@ public class BedIndexTabix
 	private static final Logger LOG = Logger.build(BedIndexTabix.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file.",required=true)
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT,required=true)
 	private File outputFile = null;
 
 	@Parameter(names={"-s","--sort"},description="sort BED prior to saving")

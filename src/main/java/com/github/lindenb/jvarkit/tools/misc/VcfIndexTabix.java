@@ -68,14 +68,17 @@ $ java -jar dist/vcfshuffle.jar in.vcf |\
 END_DOC
 */
 
-@Program(name="vcfindextabix",description="Index and sort a VCF on the fly with Tabix")
+@Program(name="vcfindextabix",
+	description="Index and sort a VCF on the fly with Tabix",
+	keywords={"vcf","tabix"}
+)
 public class VcfIndexTabix
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfIndexTabix.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 

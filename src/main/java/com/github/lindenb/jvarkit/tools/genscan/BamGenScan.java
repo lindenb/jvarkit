@@ -61,7 +61,21 @@ import htsjdk.samtools.util.SequenceUtil;
 
 /**
  * BamGenScan
- *
+BEGIN_DOC
+
+## Example
+
+```bash
+$  java -jar dist/bamgenscan.jar  --max-y 20 --image-size 2000x800  -o out.jpg f1.bam f2.bam f3.bam
+```
+the figure displays the mean, min, max, median of the coverage. 
+
+![bamgenscan](https://pbs.twimg.com/media/Bfnu__LCAAEcJu4.jpg:large)
+
+
+
+
+END_DOC
  */
 
 

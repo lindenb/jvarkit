@@ -71,8 +71,14 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 
 /**
- * @author lindenb
- *
+BEGIN_DOC
+## Example
+
+```bash
+$  java -jar dist/vcfcomm.jar < in.vcf > out.vcf
+``
+
+END_DOC
  */
 @Program(name="vcfcomm",description="Equivalent of linux comm for VCF")
 public class VCFComm extends AbstractVCFCompareBase {

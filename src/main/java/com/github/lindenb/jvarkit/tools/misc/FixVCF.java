@@ -66,6 +66,19 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
+/**
+BEGIN_DOC
+
+## Example
+
+```bash
+$ java -jar dist/fixvcf.jar < bad.vcf > ok.vcf
+```
+
+
+END_DOC
+
+*/
 @Program(name="fixvcf",description="Fix a VCF if INFO or FILTER are missing")
 public class FixVCF
 	extends Launcher

@@ -83,6 +83,12 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 BEGIN_DOC
 
  
+## Example
+
+```bash
+$  find ./ -name "*.vcf.gz" | xargs java -jar dist/vcfmerge.jar   > out.vcf
+```
+
 END_DOC
  */
 @Program(name="vcfmerge",description="Merge VCF Files",deprecatedMsg="use GATK combineVariants ")

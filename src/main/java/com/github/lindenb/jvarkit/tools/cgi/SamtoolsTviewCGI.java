@@ -15,6 +15,61 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 
+/**
+##Motivation
+
+CGI/Web based version of samtools tview
+
+
+##Screenshot
+![webtview.jpg](https://github.com/lindenb/jvarkit/blob/master/doc/webtview.jpg?raw=true)
+
+
+##Compilation/Installation
+
+### Create a Preference file.
+create a java preferences file with the following key/example:
+
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE preferences SYSTEM "http://java.sun.com/dtd/preferences.dtd">
+<preferences EXTERNAL_XML_VERSION="1.0">
+  <root type="user">
+    <map>
+      <entry key="samtools.path" value="/commun/packages/samtools-0.1.19/samtools"/>
+      <entry key="default.reference.path" value="/commun/reference/human_g1k_v37.fasta"/>
+    </map>
+  </root>
+</preferences>
+```
+
+On my server, I wrote that file in the CGI-BIN folder of apache:
+
+```
+/var/www/cgi-bin/prefs.xml
+```
+
+### Compile the program
+
+See also [[Compilation]].
+
+Important : the JAR/library files of picard should be visible from the CGI-bin. The path defined in the build.properties should be absolute.
+
+```bash
+$ make tview.cgi
+```
+It creates a jar file (tviewweb.jar) and an executable shell script (tviewweb.cgi) in the 'dist' folder. Both should be placed in the cgi-bin script of your server:
+```bash
+$ sudo mv dist/tviewweb* /var/www/cgi-bin/
+```
+
+If needed, edit the script tviewweb.cgi and change the JVM property `Dprefs.file.xml=` to the correct place of your xml preference file.
+```
+java (...) -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml (...)
+````
+
+ */
+
 @Program(name="",description="CGI/Web based version of samtools tview")
 public class SamtoolsTviewCGI extends AbstractCGICallApp
 	{

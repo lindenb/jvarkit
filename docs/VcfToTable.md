@@ -10,6 +10,9 @@ Usage: vcf2table [options] Files
   Options:
     -h, --help
       print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
     -g, --hideGenotypes
       Hide All genotypes
       Default: false

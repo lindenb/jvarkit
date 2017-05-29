@@ -65,17 +65,18 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	private static final Logger LOG = Logger.build(JVarkitAnnotationProcessor.class).make();
 	
-	
 	@Override
-	public synchronized void init(ProcessingEnvironment processingEnv) {
+	public synchronized void init(final ProcessingEnvironment processingEnv) {
 	   super.init(processingEnv);
 	}
+	
+	
 	
 	@Override
 	public Set<String> getSupportedAnnotationTypes() {
 		return Arrays.asList(
-				Program.class,
-				IncludeSourceInJar.class
+				IncludeSourceInJar.class,
+				Program.class
 				).stream().
 			map(C->C.getName()).
 			collect(Collectors.toSet())
@@ -86,13 +87,13 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	public boolean process(final Set<? extends TypeElement> annotations,
 		final RoundEnvironment roundEnv
 		) {
-		
 		final String mainClass = System.getProperty("jvarkit.main.class");
-		final String thisDir = System.getProperty("jvarkit.this.dir");
+		final String thisDir = System.getProperty("jvarkit.this.dir");		
 		
-		/*roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class).stream().
+		
+		roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class).stream().
 			forEach(E->{System.err.println("#########################"+E+" "+E.getAnnotation(IncludeSourceInJar.class));});
-		*/
+		
 		
 		roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class).stream().
 			filter(E->E.getKind()==ElementKind.CLASS).
@@ -265,7 +266,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 						}
 					}
 				});
-		return false;
+		return true;
 	}
 	
 	

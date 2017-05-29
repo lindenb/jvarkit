@@ -114,11 +114,11 @@ public class ThreadPrintStream
 		}
 	
 	@Override
-	public PrintStream append(CharSequence csq) {
+	public PrintStream append(final CharSequence csq) {
 		return stream().append(csq);
 		}
 	@Override
-	public PrintStream append(CharSequence csq, int start, int end) {
+	public PrintStream append(final CharSequence csq, int start, int end) {
 		return stream().append(csq, start, end);
 		}
 	

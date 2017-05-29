@@ -19,6 +19,13 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.semontology.Term;
 
+/**
+BEGIN_DOC
+
+
+
+END_DOC
+ */
 @Program(name="biostar77828",
 description="Divide the human genome among X cores, taking into account gaps",
 		biostars=77828,

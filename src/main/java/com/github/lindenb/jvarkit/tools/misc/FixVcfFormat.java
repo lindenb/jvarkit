@@ -10,7 +10,19 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="fixvcfformat",description="Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453")
+/**
+
+BEGIN_DOC
+## Example
+```bash
+$ java -jar dist/fixvcf.jar < bad.vcf > ok.vcf
+```
+END_DOC
+
+ */
+@Program(
+		name="fixvcfformat",
+		description="Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453")
 public class FixVcfFormat extends Launcher
 	{
 	private static Logger LOG=Logger.build(FixVcfFormat.class).make();
