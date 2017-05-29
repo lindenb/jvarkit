@@ -38,8 +38,6 @@ generated.dir=${this.dir}src/main/generated-sources
 tmp.dir=${this.dir}_tmp-${htsjdk.version}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
 export dist.dir?=${this.dir}dist
-wiki.dir?=${this.dir}doc/wiki
-galaxy.dir?=galaxy
 
 mysql.version?=5.1.34
 mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
@@ -93,41 +91,13 @@ define compile-htsjdk-cmd
 $(1)  : ${htsjdk.jars} \
 		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
-		$(filter-out wiki_flag,$(filter-out galaxy_flag,$(3))) ${apache.commons.cli.jars} ${slf4j.jars} \
+		$(3) \
 		${dist.dir}/annotproc.jar
 	echo "### COMPILING $(1) ######"
 	rm -f ${tmp.dir}/markdown.flag
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
 	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
 	cp -v "$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" "${tmp.dir}/$(dir $(subst .,/,$(2)))"
-	#generate java code if needed = a file with .xml exists, requires xsltproc, preprocessing file twice
-	if [ -e "$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))"   ] ; then mkdir -p ${generated.dir}/java/$(dir $(subst .,/,$(2))) && \
-	xsltproc \
-		--xinclude \
-		--stringparam jarname '$(1)' \
-		--stringparam githash $$(if $$(realpath ${this.dir}.git/refs/heads/master), `cat  $$(realpath ${this.dir}.git/refs/heads/master) `, "undefined") \
-		-o "$(addsuffix .proc.xml,${generated.dir}/$(2))" \
-		${this.dir}src/main/resources/xsl/commandpreproc.xsl \
-		"$(addsuffix .xml,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" && \
-	xsltproc \
-		--xinclude \
-		--path "${this.dir}src/main/resources/xml" \
-		-o ${generated.dir}/java/$(dir $(subst .,/,$(2)))Abstract$(notdir $(subst .,/,$(2))).java \
-		${this.dir}src/main/resources/xsl/command2java.xsl \
-		"$(addsuffix .proc.xml,${generated.dir}/$(2))"  && \
-	xsltproc \
-		-o "$(addsuffix .elixir.jsonx,${generated.dir}/$(2))" \
-		${this.dir}src/main/resources/xsl/jsonxelixir.xsl \
-		"$(addsuffix .proc.xml,${generated.dir}/$(2))" && \
-	xsltproc \
-		-o "$(addsuffix .elixir.json,${generated.dir}/$(2))" \
-		${this.dir}src/main/resources/xsl/jsonx2json.xsl \
-		"$(addsuffix .elixir.jsonx,${generated.dir}/$(2))" \
-		$(if $(filter galaxy_flag,$(3)), && mkdir -p ${galaxy.dir} && xsltproc ${this.dir}src/main/resources/xsl/tools2galaxy.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))" |  sed 's/__DOLLAR__//g' > ${galaxy.dir}/$(1).xml ) \
-		$(if $(filter wiki_flag,$(3)), && mkdir -p ${wiki.dir} && xsltproc -o "${wiki.dir}/$(notdir $(subst .,/,$(2))).md" ${this.dir}src/main/resources/xsl/command2md.xsl "$(addsuffix .proc.xml,${generated.dir}/$(2))"  ) \
-		; fi
-	#copy resource
-	cp ${this.dir}src/main/resources/messages/messages.properties ${tmp.dir}
 	echo '### Printing javac version : it should be Oracle 1.8 (NOT OpenJDK). if Not, check your $$$${PATH}.'
 	${JAVAC} -version
 	#compile
@@ -267,7 +237,7 @@ tests:
 #bigwig
 $(eval $(call compile-htsjdk-cmd,vcfbigwig,		${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${jcommander.jar} ${bigwig.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	${jvarkit.package}.tools.ensemblreg.VcfEnsemblReg,${bigwig.jars} ${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,105754,${bigwig.jar} ${jcommander.jar} wiki_flag))
+$(eval $(call compile_biostar_cmd,105754,${bigwig.jar} ${jcommander.jar} ))
 # common math
 $(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber01,${jcommander.jar} ${common.math.jar}))
 #berkeley
@@ -290,27 +260,27 @@ $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wi
 $(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamrenamechr,${jvarkit.package}.tools.misc.ConvertBamChromosomes,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,bamstats02view,${jvarkit.package}.tools.bamstats01.BamStats02View,${jcommander.jar} bamstats02 wiki_flag))
+$(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,bamstats02view,${jvarkit.package}.tools.bamstats01.BamStats02View,${jcommander.jar} bamstats02 ))
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamstats05,${jvarkit.package}.tools.bamstats04.BamStats05,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,bamtreepack,${jvarkit.package}.tools.treepack.BamTreePack,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,batchigvpictures,${jvarkit.package}.tools.batchpicts.BatchIGVPictures,${jcommander.jar} copy.opendoc.odp.resources))
 $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.BedLiftOver,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,103303,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,106668,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,130456,${jcommander.jar} wiki_flag))
+$(eval $(call compile_biostar_cmd,130456,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,145820,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,59647,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,76892,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,77288,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,77828,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,78285,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,78400,${jcommander.jar} wiki_flag))
+$(eval $(call compile_biostar_cmd,78400,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,81455,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,84452,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,84786,${jcommander.jar}))
@@ -321,29 +291,29 @@ $(eval $(call compile_biostar_cmd,95652,${jcommander.jar} api.ncbi.gb))
 $(eval $(call compile_biostar_cmd,3654,${jcommander.jar} api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,140111,${jcommander.jar} api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
-$(eval $(call compile_biostar_cmd,160470,${jcommander.jar} api.ncbi.blast wiki_flag))
+$(eval $(call compile_biostar_cmd,160470,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile_biostar_cmd,165777,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,170742,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,172515,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,173114,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,175929,${jcommander.jar} wiki_flag))
+$(eval $(call compile_biostar_cmd,175929,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,178713,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,214299,${jcommander.jar} wiki_flag))
-$(eval $(call compile_biostar_cmd,234081,${jcommander.jar} wiki_flag))
-$(eval $(call compile_biostar_cmd,234230,${jcommander.jar} wiki_flag))
+$(eval $(call compile_biostar_cmd,214299,${jcommander.jar} ))
+$(eval $(call compile_biostar_cmd,234081,${jcommander.jar} ))
+$(eval $(call compile_biostar_cmd,234230,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,251649,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} api.ncbi.blast wiki_flag))
+$(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots,${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations,${jcommander.jar} api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
-$(eval $(call compile-htsjdk-cmd,blastn2snp,${jvarkit.package}.tools.blast.BlastNToSnp,${jcommander.jar} api.ncbi.blast wiki_flag))
-$(eval $(call compile-htsjdk-cmd,reduceblast,${jvarkit.package}.tools.blast.ReduceBlast,${jcommander.jar} api.ncbi.blast wiki_flag))
+$(eval $(call compile-htsjdk-cmd,blastn2snp,${jvarkit.package}.tools.blast.BlastNToSnp,${jcommander.jar} api.ncbi.blast ))
+$(eval $(call compile-htsjdk-cmd,reduceblast,${jvarkit.package}.tools.blast.ReduceBlast,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,mergeblastxml,${jvarkit.package}.tools.blast.MergeBlastXml,${jcommander.jar} api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,buildwpontology,${jvarkit.package}.tools.misc.BuildWikipediaOntology,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bwamemdigest,${jvarkit.package}.tools.mem.BWAMemDigest,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bwamemnop,${jvarkit.package}.tools.mem.BWAMemNOp,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,cmpbams,${jvarkit.package}.tools.cmpbams.CompareBams,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,cmpbams4,${jvarkit.package}.tools.cmpbams.CompareBams4,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,commbams,${jvarkit.package}.tools.cmpbams.CommBams,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,cmpbams,${jvarkit.package}.tools.cmpbams.CompareBams,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,cmpbams4,${jvarkit.package}.tools.cmpbams.CompareBams4,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,commbams,${jvarkit.package}.tools.cmpbams.CommBams,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,cmpbamsandbuild,${jvarkit.package}.tools.cmpbams.CompareBamAndBuild,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,coveragenormalizer,${jvarkit.package}.tools.misc.CoverageNormalizer,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,deseqcount,${jvarkit.package}.tools.bam4deseq.HtSeqCount,${jcommander.jar}))
@@ -356,7 +326,7 @@ $(eval $(call compile-htsjdk-cmd,fastqentropy,${jvarkit.package}.tools.fastq.Fas
 $(eval $(call compile-htsjdk-cmd,fastqgrep,${jvarkit.package}.tools.misc.FastqGrep,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fastqjs,${jvarkit.package}.tools.fastq.FastqJavascript,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fastqphred64to33,${jvarkit.package}.tools.fastq.ConvertPhred64toFastq33,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,fastqrecordtreepack,${jvarkit.package}.tools.treepack.FastqRecordTreePack,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,fastqrecordtreepack,${jvarkit.package}.tools.treepack.FastqRecordTreePack,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,fastqrevcomp,${jvarkit.package}.tools.misc.FastqRevComp,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fastqshuffle,${jvarkit.package}.tools.fastq.FastqShuffle,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fastqsplitinterleaved,${jvarkit.package}.tools.fastq.FastqSplitInterleaved,${jcommander.jar}))
@@ -368,18 +338,18 @@ $(eval $(call compile-htsjdk-cmd,findnewsplicesites,${jvarkit.package}.tools.rna
 $(eval $(call compile-htsjdk-cmd,fixvarscanmissingheader,${jvarkit.package}.tools.misc.FixVarScanMissingVCFHeader,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fixvcf,${jvarkit.package}.tools.misc.FixVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fixvcfformat,${jvarkit.package}.tools.misc.FixVcfFormat,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,fixvcfmissinggenotypes,${jvarkit.package}.tools.misc.FixVcfMissingGenotypes,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,fixvcfmissinggenotypes,${jvarkit.package}.tools.misc.FixVcfMissingGenotypes,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,gcanddepth,${jvarkit.package}.tools.misc.GcPercentAndDepth,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,concatsam,${jvarkit.package}.tools.misc.ConcatSam,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,concatsam,${jvarkit.package}.tools.misc.ConcatSam,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,genomicjaspar,${jvarkit.package}.tools.jaspar.GenomicJaspar,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,genscan,${jvarkit.package}.tools.genscan.GenScan,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,groupbygene,${jvarkit.package}.tools.groupbygene.GroupByGene,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,howmanybamdict,${jvarkit.package}.tools.misc.HowManyBamDict,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,idea20130924,${jvarkit.package}.tools.bwamempcr.Idea20130924))
-$(eval $(call compile-htsjdk-cmd,illuminadir,${jvarkit.package}.tools.misc.IlluminaDirectory,${jcommander.jar} wiki_flag ${gson.jar}))
+$(eval $(call compile-htsjdk-cmd,illuminadir,${jvarkit.package}.tools.misc.IlluminaDirectory,${jcommander.jar}  ${gson.jar}))
 $(eval $(call compile-htsjdk-cmd,ilmnfastqstats,${jvarkit.package}.tools.misc.IlluminaStatsFastq,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,impactofduplicates,${jvarkit.package}.tools.impactdup.ImpactOfDuplicates,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,kg2bed,${jvarkit.package}.tools.misc.KnownGenesToBed,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,kg2bed,${jvarkit.package}.tools.misc.KnownGenesToBed,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,liftover2svg,${jvarkit.package}.tools.liftover.LiftOverToSVG,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,mapuniprot,${jvarkit.package}.tools.misc.MapUniProtFeatures,${jcommander.jar} ${generated.dir}/java/org/uniprot/package-info.java))
 $(eval $(call compile-htsjdk-cmd,mergesplittedblast,${jvarkit.package}.tools.blast.MergeSplittedBlast,${jcommander.jar} api.ncbi.blast))
@@ -399,24 +369,24 @@ $(eval $(call compile-htsjdk-cmd,pubmedorcidgraph,${jvarkit.package}.tools.pubme
 $(eval $(call compile-htsjdk-cmd,pubmedfilterjs,${jvarkit.package}.tools.pubmed.PubmedFilterJS,${jcommander.jar} api.ncbi.pubmed))
 $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.ReferenceToVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,sam2json,${jvarkit.package}.tools.misc.SamToJson,${jcommander.jar} ${gson.jar} ))
-$(eval $(call compile-htsjdk-cmd,sam2psl,${jvarkit.package}.tools.misc.SamToPsl,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,sam2tsv,${jvarkit.package}.tools.sam2tsv.Sam2Tsv,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,sam2psl,${jvarkit.package}.tools.misc.SamToPsl,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,sam2tsv,${jvarkit.package}.tools.sam2tsv.Sam2Tsv,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam4weblogo,${jvarkit.package}.tools.sam4weblogo.SAM4WebLogo,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samclipindelfraction,${jvarkit.package}.tools.misc.SamClipIndelFraction,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,samextractclip,${jvarkit.package}.tools.structvar.SamExtractClip,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,samscansplitreads,${jvarkit.package}.tools.structvar.SamScanSplitReads,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,samextractclip,${jvarkit.package}.tools.structvar.SamExtractClip,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,samscansplitreads,${jvarkit.package}.tools.structvar.SamScanSplitReads,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,samfindclippedregions,${jvarkit.package}.tools.structvar.SamFindClippedRegions,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,samfixcigar,${jvarkit.package}.tools.samfixcigar.SamFixCigar,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,samgrep,${jvarkit.package}.tools.samgrep.SamGrep,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,samfixcigar,${jvarkit.package}.tools.samfixcigar.SamFixCigar,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,samgrep,${jvarkit.package}.tools.samgrep.SamGrep,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,samjs,${jvarkit.package}.tools.samjs.SamJavascript,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samcolortag,${jvarkit.package}.tools.samjs.SamColorTag,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samshortinvert,${jvarkit.package}.tools.structvar.SamShortInvertion,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,samstats01,${jvarkit.package}.tools.bamstats01.BamStats01,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,samstats01,${jvarkit.package}.tools.bamstats01.BamStats01,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,scanshortinvert,${jvarkit.package}.tools.mem.ScanShortInvert))
 $(eval $(call compile-htsjdk-cmd,sigframe,${jvarkit.package}.tools.sigframe.SigFrame,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,sortvcfoninfo,${jvarkit.package}.tools.sortvcfonref.SortVcfOnInfo,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,sortvcfonref2,${jvarkit.package}.tools.sortvcfonref.SortVcfOnRef2,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,splitbam3,${jvarkit.package}.tools.splitbam.SplitBam3,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,sortvcfonref2,${jvarkit.package}.tools.sortvcfonref.SortVcfOnRef2,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,splitbam3,${jvarkit.package}.tools.splitbam.SplitBam3,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,splitbytile,${jvarkit.package}.tools.splitbytitle.SplitByTile,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,splitread,${jvarkit.package}.tools.splitread.SplitRead))
 $(eval $(call compile-htsjdk-cmd,tview,${jvarkit.package}.tools.tview.TViewCmd,${jcommander.jar}))
@@ -424,7 +394,7 @@ $(eval $(call compile-htsjdk-cmd,tview,${jvarkit.package}.tools.tview.TViewCmd,$
 $(eval $(call compile-htsjdk-cmd,vcf2hilbert,${jvarkit.package}.tools.misc.VcfToHilbert,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2ps,${jvarkit.package}.tools.misc.VcfToPostscript,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2svg,${jvarkit.package}.tools.misc.VcfToSvg,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcf2rdf,${jvarkit.package}.tools.vcf2rdf.VcfToRdf,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcf2rdf,${jvarkit.package}.tools.vcf2rdf.VcfToRdf,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcf2sql,${jvarkit.package}.tools.vcf2sql.VcfToSql,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2xml,${jvarkit.package}.tools.vcf2xml.Vcf2Xml,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfannobam,${jvarkit.package}.tools.vcfannobam.VCFAnnoBam,${jcommander.jar}))
@@ -436,24 +406,24 @@ $(eval $(call compile-htsjdk-cmd,vcfcomm,${jvarkit.package}.tools.vcfcmp.VCFComm
 $(eval $(call compile-htsjdk-cmd,vcfcompare,${jvarkit.package}.tools.vcfcmp.VCFCompare,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcomparegt,${jvarkit.package}.tools.vcfcmp.VCFCompareGT,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfconcat,${jvarkit.package}.tools.vcfconcat.VcfConcat,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcf2zip,${jvarkit.package}.tools.vcfconcat.VcfToZip,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcf2zip,${jvarkit.package}.tools.vcfconcat.VcfToZip,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcfcutsamples,${jvarkit.package}.tools.misc.VcfCutSamples,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfdas,${jvarkit.package}.tools.vcfdas.VcfDistributedAnnotationSystem, ${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,vcffilterdoid,${jvarkit.package}.tools.vcfdo.VcfFilterDoid,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS,${jcommander.jar}  ${gson.jar} galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterjs.VCFFilterJS,${jcommander.jar}  ${gson.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.vcffilterso.VcfFilterSequenceOntology,${jcommander.jar} vcfpredictions))
-$(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,${jcommander.jar} galaxy_flag wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,splitvcf,${jvarkit.package}.tools.misc.SplitVcf,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,forkvcf,${jvarkit.package}.tools.misc.ForkVcf,${jcommander.jar} galaxy_flag wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn,${jcommander.jar} galaxy_flag wiki_flag))
+$(eval $(call compile-htsjdk-cmd,forkvcf,${jvarkit.package}.tools.misc.ForkVcf,${jcommander.jar}  ))
+$(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfjaspar,${jvarkit.package}.tools.jaspar.VcfJaspar,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfliftover,${jvarkit.package}.tools.liftover.VcfLiftOver,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfmerge,${jvarkit.package}.tools.vcfmerge.VCFMerge2,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfmulti2one,${jvarkit.package}.tools.onesamplevcf.VcfMultiToOne,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfpolyx,${jvarkit.package}.tools.misc.VCFPolyX,${jcommander.jar} wiki_flag galaxy_flag))
-$(eval $(call compile-htsjdk-cmd,vcfpredictions,${jvarkit.package}.tools.vcfannot.VCFPredictions,${jcommander.jar} wiki_flag galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcfpolyx,${jvarkit.package}.tools.misc.VCFPolyX,${jcommander.jar}  ))
+$(eval $(call compile-htsjdk-cmd,vcfpredictions,${jvarkit.package}.tools.vcfannot.VCFPredictions,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfrebase,${jvarkit.package}.tools.vcfrebase.VcfRebase,${jcommander.jar}))
 $(eval $(call compile-cgi-cmd,vcfregistry.cgi,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfregulomedb,${jvarkit.package}.tools.misc.VcfRegulomeDB,${jcommander.jar}))
@@ -462,14 +432,14 @@ $(eval $(call compile-htsjdk-cmd,vcfrenamesamples,${jvarkit.package}.tools.misc.
 $(eval $(call compile-htsjdk-cmd,vcfresetvcf,${jvarkit.package}.tools.misc.VcfRemoveGenotypeIfInVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfremovegenotypejs,${jvarkit.package}.tools.misc.VcfRemoveGenotypeJs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfsetdict,${jvarkit.package}.tools.misc.VcfSetSequenceDictionary,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfshuffle,${jvarkit.package}.tools.misc.VCFShuffle,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfshuffle,${jvarkit.package}.tools.misc.VCFShuffle,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcfsimulator,${jvarkit.package}.tools.misc.VcfSimulator,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfstats,${jvarkit.package}.tools.vcfstats.VcfStats,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcombinetwosnvs,${jvarkit.package}.tools.vcfannot.VCFCombineTwoSnvs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfstripannot,${jvarkit.package}.tools.vcfstripannot.VCFStripAnnotations,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcftabixml,${jvarkit.package}.tools.vcftabixml.VCFTabixml,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.VcfTreePack,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.VcfTreePack,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTrios,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome,${jcommander.jar}))
@@ -486,13 +456,13 @@ $(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile,$
 $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xcontamination.XContaminations,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,139647,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburden,${jvarkit.package}.tools.misc.VcfBurden,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,${jcommander.jar} ${gson.jar} api.ncbi.blast api.ncbi.insdseq ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java  wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter,${jcommander.jar} wiki_flag galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,${jcommander.jar} ${gson.jar} api.ncbi.blast api.ncbi.insdseq ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java  ))
+$(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstripannot.VCFReplaceTag,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.VcfIndexTabix,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfpeekvcf,${jvarkit.package}.tools.vcfvcf.VcfPeekVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfgetvariantbyindex,${jvarkit.package}.tools.misc.VcfGetVariantByIndex,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfmulti2oneallele,${jvarkit.package}.tools.misc.VcfMultiToOneAllele,${jcommander.jar} galaxy_flag))
+$(eval $(call compile-htsjdk-cmd,vcfmulti2oneallele,${jvarkit.package}.tools.misc.VcfMultiToOneAllele,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcfmulti2oneinfo,${jvarkit.package}.tools.misc.VcfMultiToOneInfo,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bedindextabix,${jvarkit.package}.tools.misc.BedIndexTabix,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2bam,${jvarkit.package}.tools.misc.VcfToBam,${jcommander.jar}))
@@ -507,36 +477,36 @@ $(eval $(call compile-htsjdk-cmd,sortsamrefname,${jvarkit.package}.tools.misc.So
 $(eval $(call compile-htsjdk-cmd,bamclip2insertion,${jvarkit.package}.tools.misc.BamClipToInsertion,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,localrealignreads,${jvarkit.package}.tools.misc.LocalRealignReads,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,msa2vcf,${jvarkit.package}.tools.msa2vcf.MsaToVcf,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,samslop,${jvarkit.package}.tools.misc.SamSlop,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,samslop,${jvarkit.package}.tools.misc.SamSlop,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,projectserver,${jvarkit.package}.tools.server.ProjectServer,${jcommander.jar} ${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfcalledwithanothermethod,${jvarkit.package}.tools.misc.VcfCalledWithAnotherMethod,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfderby01,${jvarkit.package}.tools.burden.VcfDerby01,${jcommander.jar} ${derby.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,casectrljfx,${jvarkit.package}.tools.burden.CaseControlJfx,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter2,${jvarkit.package}.tools.burden.VcfBurdenSplitter2,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfburdenfisherh,${jvarkit.package}.tools.burden.VcfBurdenFisherH,${jcommander.jar} galaxy_flag wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfburdenfisherh,${jvarkit.package}.tools.burden.VcfBurdenFisherH,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherv,${jvarkit.package}.tools.burden.VcfBurdenFisherV,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburdenrscriptv,${jvarkit.package}.tools.burden.VcfBurdenRscriptV,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfdoest,${jvarkit.package}.tools.burden.VcfDoest,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcffilternotinpedigree,${jvarkit.package}.tools.burden.VcfFilterNotInPedigree,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcfburdenmaf,${jvarkit.package}.tools.burden.VcfBurdenMAF,${jcommander.jar} galaxy_flag wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcfburdenexac,${jvarkit.package}.tools.burden.VcfBurdenFilterExac,${jcommander.jar} galaxy_flag wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcfgenesplitter,${jvarkit.package}.tools.misc.VcfGeneSplitter,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcffilternotinpedigree,${jvarkit.package}.tools.burden.VcfFilterNotInPedigree,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,vcfburdenmaf,${jvarkit.package}.tools.burden.VcfBurdenMAF,${jcommander.jar}  ))
+$(eval $(call compile-htsjdk-cmd,vcfburdenexac,${jvarkit.package}.tools.burden.VcfBurdenFilterExac,${jcommander.jar}  ))
+$(eval $(call compile-htsjdk-cmd,vcfgenesplitter,${jvarkit.package}.tools.misc.VcfGeneSplitter,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcfsqltag,${jvarkit.package}.tools.sql.VcfSqlTag))
-$(eval $(call compile-htsjdk-cmd,vcfburdenfiltergenes,${jvarkit.package}.tools.burden.VcfBurdenFilterGenes,${jcommander.jar} wiki_flag galaxy_flag))
-$(eval $(call compile-htsjdk-cmd,sammaskalignedbases,${jvarkit.package}.tools.misc.SamMaskAlignedBases,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,gff2kg,${jvarkit.package}.tools.misc.Gff2KnownGene,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,miniassembly,${jvarkit.package}.tools.misc.MiniAssembly,wiki_flag))
-$(eval $(call compile-htsjdk-cmd,haloplexparasite,${jvarkit.package}.tools.haloplex.HaloplexParasite,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfburdenfiltergenes,${jvarkit.package}.tools.burden.VcfBurdenFilterGenes,${jcommander.jar}  ))
+$(eval $(call compile-htsjdk-cmd,sammaskalignedbases,${jvarkit.package}.tools.misc.SamMaskAlignedBases,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,gff2kg,${jvarkit.package}.tools.misc.Gff2KnownGene,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,miniassembly,${jvarkit.package}.tools.misc.MiniAssembly,))
+$(eval $(call compile-htsjdk-cmd,haloplexparasite,${jvarkit.package}.tools.haloplex.HaloplexParasite,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bam2sql,${jvarkit.package}.tools.misc.BamToSql,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfinjectpedigree,${jvarkit.package}.tools.burden.VcfInjectPedigree,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,gbrowserhtml,${jvarkit.package}.tools.misc.GBrowserHtml,${jcommander.jar} wiki_flag ${gson.jar} copy.samtools.js))
-$(eval $(call compile-htsjdk-cmd,bim2vcf,${jvarkit.package}.tools.misc.BimToVcf,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,samreadlengthdistribution,${jvarkit.package}.tools.misc.SamReadLengthDistribution,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,queue2make,${jvarkit.package}.tools.misc.QueueToMake,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.burden.VcfMoveFiltersToInfo,${jcommander.jar} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${gson.jar} ${velocity.jars} wiki_flag))
-$(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,${jcommander.jar} wiki_flag))
+$(eval $(call compile-htsjdk-cmd,vcfinjectpedigree,${jvarkit.package}.tools.burden.VcfInjectPedigree,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,gbrowserhtml,${jvarkit.package}.tools.misc.GBrowserHtml,${jcommander.jar}  ${gson.jar} copy.samtools.js))
+$(eval $(call compile-htsjdk-cmd,bim2vcf,${jvarkit.package}.tools.misc.BimToVcf,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,samreadlengthdistribution,${jvarkit.package}.tools.misc.SamReadLengthDistribution,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,queue2make,${jvarkit.package}.tools.misc.QueueToMake,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,vcfmovefilterstoinfo,${jvarkit.package}.tools.burden.VcfMoveFiltersToInfo,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,gatkcodegen,${jvarkit.package}.tools.gatk.codegen.GATKCodeGenerator,${jcommander.jar} ${gson.jar} ${velocity.jars} ))
+$(eval $(call compile-htsjdk-cmd,vcfeigen01,${jvarkit.package}.tools.vcfeigen.VcfEigen01,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,jfxngs,${jvarkit.package}.tools.vcfviewgui.JfxNgs,${jcommander.jar} jfxngs-resources))
 $(eval $(call compile-htsjdk-cmd,ngsworkflow,${jvarkit.package}.tools.workflow.NgsWorkflow,${gson.jar} ${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfgnomad,${jvarkit.package}.tools.gnomad.VcfGnomad,${gson.jar} ${jcommander.jar}))
@@ -808,7 +778,7 @@ ${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/JVark
 
 ## Knime helper
 knimehelper: ${dist.dir}/knimehelper.jar
-${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVariantHelper.java ${htsjdk.jars}   ${slf4j.jars}
+${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVariantHelper.java ${htsjdk.jars}
 	mkdir -p ${tmp.dir}/META-INF/services
 	${JAVAC} -cp "$(subst $(SPACE),:,$(realpath $(filter %.jar,$^)))" -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<
 	$(foreach J,$(filter %.jar,$^),unzip -o ${J} -d ${tmp.dir};) 

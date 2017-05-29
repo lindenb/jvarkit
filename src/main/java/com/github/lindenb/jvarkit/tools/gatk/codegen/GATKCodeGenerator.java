@@ -15,6 +15,7 @@ import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.FileResourceLoader;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -22,9 +23,20 @@ import com.google.gson.JsonParser;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
-public class GATKCodeGenerator extends AbstractGATKCodeGenerator {
-	private static final org.slf4j.Logger LOG = com.github.lindenb.jvarkit.util.log.Logging.getLog(GATKCodeGenerator.class);
-	public static class Utils
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+@Program(name="",description="Gatk code generator")
+public class GATKCodeGenerator extends Launcher {
+private static final Logger LOG = Logger.build(GATKCodeGenerator.class).make();
+@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+private File outputFile = null;
+
+@Parameter(names="-T",description="Velocity template",required=true)
+private File velocityTemplate = null;
+
+public static class Utils
 	{
 		
 	}
@@ -32,13 +44,14 @@ public GATKCodeGenerator() {
 	
 }
 @Override
-public Collection<Throwable> call() throws Exception {
-	final List<String> args = super.getInputFiles();
+	public int doWork(List<String> args) {
 	if(args.size()!=1) {
-		return wrapException("expected one and only one argument.");
+		LOG.error("expected one and only one argument.");
+		return -1;
 	}
-	if(super.velocityTemplate==null) {
-		return wrapException("undefined option -" + OPTION_VELOCITYTEMPLATE);
+	if(this.velocityTemplate==null) {
+		LOG.error("undefined option -T");
+		return -1;
 	}
 	String command = args.get(0);
 	Reader jsonReader = null;
@@ -74,8 +87,8 @@ public Collection<Throwable> call() throws Exception {
 		
 		LOG.info("URL is :" + command);
 		
-		IOUtil.assertFileIsReadable(super.velocityTemplate);
-		pw = openFileOrStdoutAsPrintWriter();
+		IOUtil.assertFileIsReadable(this.velocityTemplate);
+		pw = openFileOrStdoutAsPrintWriter(this.outputFile);
 		VelocityContext context = new VelocityContext();
 		
 		context.put("json", jsonDoc);
@@ -83,17 +96,18 @@ public Collection<Throwable> call() throws Exception {
 		final VelocityEngine ve = new VelocityEngine();
         ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "file");
         ve.setProperty("file.resource.loader.class",FileResourceLoader.class.getName());
-        ve.setProperty("file.resource.loader.path",super.velocityTemplate.getParent());
+        ve.setProperty("file.resource.loader.path",this.velocityTemplate.getParent());
         ve.init();
-        final Template template = ve.getTemplate(super.velocityTemplate.getName());
+        final Template template = ve.getTemplate(this.velocityTemplate.getName());
         template.merge( context, pw);
         pw.flush();
 		
 		return RETURN_OK;
 		}
-	catch(Exception err)
+	catch(final Exception err)
 		{
-		return wrapException(err);
+		LOG.error(err);
+		return -1;
 		}
 	finally
 		{

@@ -1,12 +1,12 @@
-# DownSampleVcf
+# GATKCodeGenerator
 
-DownSample a VCF
+Gatk code generator
 
 
 ## Usage
 
 ```
-Usage: downsamplevcf [options] Files
+Usage:  [options] Files
   Options:
     -h, --help
       print help and exit
@@ -17,20 +17,10 @@ Usage: downsamplevcf [options] Files
       Output file. Optional . Default: stdout
     --version
       print version and exit
-    -N
-       random seed
-      Default: 1496076562185
-    -n
-      output size
-      Default: 10
+  * -T
+      Velocity template
 
 ```
-
-
-## Keywords
-
- * vcf
-
 
 ## Compilation
 
@@ -48,7 +38,7 @@ Usage: downsamplevcf [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make downsamplevcf
+$ make 
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -66,8 +56,8 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/DownSampleVcf.java
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gatk/codegen/GATKCodeGenerator.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gatk/codegen/GATKCodeGenerator.java
 )
 ## Contribute
 
@@ -80,7 +70,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **downsamplevcf** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -88,15 +78,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-
-
-## Example
-
-```bash
-$ curl -skL "ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |\
-  gunzip -c |\
-java -jar dist/downsamplevcf.jar -n 100 > output.vcf
-```
 
 
