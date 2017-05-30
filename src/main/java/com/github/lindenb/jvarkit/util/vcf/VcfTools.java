@@ -64,7 +64,7 @@ private VepPredictionParser vepPredictionParser=null;
 private AnnPredictionParser annPredictionParser=null;
 
 public VcfTools() {
-	
+	init(null);
 	}
 public VcfTools(final VCFHeader header) {
 	init(header);

@@ -72,6 +72,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 public class AnnPredictionParser
 	implements PredictionParser
 	{
+	private static int header_not_found_warnings_count=5;
 	public static enum Impact 
 		{
 		// ordered from worst to lighter, keep this order
@@ -105,12 +106,18 @@ public class AnnPredictionParser
 	AnnPredictionParser(final VCFHeader header,final String tag)
 		{	
 		this.tag=(tag==null?getDefaultTag():tag);
-		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(this.tag));
-		if(info==null || info.getDescription()==null)
-			{
-			LOG.warning("no INFO["+tag+"] or no description This VCF was probably NOT annotated with SnpEff(ANN version) . But it's not a problem if this tool doesn't need to access SnpEff Annotations.");
-			this.valid=false;
-			return;
+		if(header!=null) {
+			final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(this.tag));
+			if(info==null || info.getDescription()==null)
+				{
+				if(header_not_found_warnings_count>0)
+					{
+					LOG.warning("no INFO["+tag+"] or no description This VCF was probably NOT annotated with SnpEff(ANN version) . But it's not a problem if this tool doesn't need to access SnpEff Annotations.");
+					header_not_found_warnings_count--;
+					}
+				//this.valid=false;
+				//return;
+				}
 			}
 		this.valid=true;
 		}

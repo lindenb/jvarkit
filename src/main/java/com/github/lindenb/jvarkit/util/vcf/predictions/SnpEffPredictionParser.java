@@ -54,6 +54,8 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class SnpEffPredictionParser implements PredictionParser
 	{
+	private static int header_not_found_warnings_count=5;
+
 	private static final Logger LOG=Logger.build(SnpEffPredictionParser.class).make();
 
 	private enum COLS{ Effect , Effect_Impact , Functional_Class,Codon_Change, 
@@ -63,7 +65,8 @@ public class SnpEffPredictionParser implements PredictionParser
 	private final Pattern pipe=Pattern.compile("[\\|\\(\\)]");
 	private String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
-
+	private final boolean valid;
+	
 	SnpEffPredictionParser(final VCFHeader header)
 		{		
 		this(header,getDefaultTag());
@@ -87,7 +90,12 @@ public class SnpEffPredictionParser implements PredictionParser
 		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(tag));
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("no INFO["+tag+"] or no description. This VCF was probably NOT annotated with SnpEff (old version). But it's not a problem if this tool doesn't need to access SnpEff Annotations. ");
+			if(header_not_found_warnings_count>0)
+				{
+				LOG.warning("no INFO["+tag+"] or no description. This VCF was probably NOT annotated with SnpEff (old version). But it's not a problem if this tool doesn't need to access SnpEff Annotations. ");
+				header_not_found_warnings_count--;
+				}
+			this.valid=false;
 			return;
 			}
 		String description=info.getDescription();
@@ -96,7 +104,7 @@ public class SnpEffPredictionParser implements PredictionParser
 		if(i==-1)
 			{
 			LOG.warning("Cannot find "+chunck+ " in "+description);
-
+			this.valid=false;
 			return;
 			}
 		description=description.substring(i+chunck.length()).replace('(','|').replaceAll("[ \'\\.)\\[\\]]+","").trim();
@@ -119,6 +127,7 @@ public class SnpEffPredictionParser implements PredictionParser
 				}
 			col2col.put(col, i);
 			}
+		this.valid=true;
 		}
 	
 	@Override
@@ -131,7 +140,7 @@ public class SnpEffPredictionParser implements PredictionParser
 	@Override
 	public List<SnpEffPrediction> getPredictions(VariantContext ctx)
 		{
-		if(this.col2col.isEmpty() || !ctx.hasAttribute(getTag()))
+		if(!this.valid || this.col2col.isEmpty() || !ctx.hasAttribute(getTag()))
 			{
 			return Collections.emptyList();
 			}
@@ -153,6 +162,10 @@ public class SnpEffPredictionParser implements PredictionParser
 	
 	public SnpEffPrediction  parseOnePrediction(final Object o)
 		{
+		if(!this.valid || this.col2col.isEmpty())
+			{
+			return null;
+			}
 		if(o==null) return null;
 		if(!(o instanceof String))
 			{

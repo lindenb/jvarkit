@@ -57,6 +57,7 @@ sition|Protein_position|Amino_acids|Codons|Existing_variation|HGNC|DISTANCE|SIFT
 public class VepPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.build(VepPredictionParser.class).make();
+	private static int header_not_found_warnings_count=5;
 
 	/* public, used in VcfBurdenFilterGene 
 	public enum COLS{
@@ -120,7 +121,11 @@ public class VepPredictionParser implements PredictionParser
 		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(tag));
 		if(info==null || info.getDescription()==null)
 			{
-			LOG.warning("NO INFO["+tag+"] found in header. This VCF was probably NOT annotated with VEP. But it's not a problem if this tool doesn't need to access VEP Annotations.");
+			if(header_not_found_warnings_count>0)
+				{
+				LOG.warning("NO INFO["+tag+"] found in header. This VCF was probably NOT annotated with VEP. But it's not a problem if this tool doesn't need to access VEP Annotations.");
+				header_not_found_warnings_count--;
+				}
 			this.valid = false;
 			return;
 			}
