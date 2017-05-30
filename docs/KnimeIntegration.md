@@ -58,3 +58,37 @@ catch(Throwable err)
 	 
 ```
 
+## generating the script from the VCF header
+
+![http://i.imgur.com/3SO6Mic.png](http://i.imgur.com/3SO6Mic.png)
+
+
+* Node Read File :VCF
+* Extract Column Header;: prefix column
+* Unpivoting: Value Columns: (all), Retained columns (nothing/empty)
+* JavasSnippet: append String column 'js'
+
+```java
+String s="";
+
+switch($$ROWINDEX$$)
+	{
+	case 0: s="htsjdk.variant.variantcontext.VariantContext ctx = helper.build().contig($"+ $ColumnValues$ +"$)."; break;
+	case 1: s="pos($"+ $ColumnValues$ +"$)."; break;
+	case 2: s="id($"+ $ColumnValues$ +"$)."; break;
+	case 3: s="ref($"+ $ColumnValues$ +"$)."; break;
+	case 4: s="alts($"+ $ColumnValues$ +"$)."; break;
+	case 5: s="qual($"+ $ColumnValues$ +"$)."; break;
+	case 6: s="filter($"+ $ColumnValues$ +"$)."; break;
+	case 7: s="info($"+ $ColumnValues$ +"$)."; break;
+        case 8: s="format($"+ $ColumnValues$ +"$)."; break;
+	default: s= "genotype(\""+$ColumnValues$ +"\",$" +$ColumnValues$ +"$).";if( $$ROWINDEX$$ +1 == $$ROWCOUNT$$) s+="build();"; break;
+	}
+
+return s;
+```
+
+* ColumnFilter: keep 'js' column
+* CSV Writer: overwrite, quote Mode: never, no header, no row-id
+
+

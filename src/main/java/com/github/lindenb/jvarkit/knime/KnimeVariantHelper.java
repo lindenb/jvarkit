@@ -281,9 +281,9 @@ public class KnimeVariantHelper extends VcfTools {
 					&& (Math.abs(val - VCFConstants.MISSING_QUALITY_v3_DOUBLE) < VCFConstants.VCF_ENCODING_EPSILON)) {
 				this.qual = null;
 			} else {
-				this.qual = val;
+				this.qual = val/-10.0;
 			}
-
+			
 			return this;
 		}
 
