@@ -58,10 +58,7 @@ public class SnpEffPredictionParser implements PredictionParser
 
 	private static final Logger LOG=Logger.build(SnpEffPredictionParser.class).make();
 
-	private enum COLS{ Effect , Effect_Impact , Functional_Class,Codon_Change, 
-		Amino_Acid_change,Amino_Acid_length,Gene_Name , Gene_BioType , Coding , Transcript,
-		Exon  , GenotypeNum , ERRORS , WARNINGS,Transcript_BioType,Gene_Coding,Transcript_ID,Exon_Rank,Genotype_Number};
-	private final Map<COLS, Integer> col2col=new HashMap<COLS, Integer>();
+	private final Map<String, Integer> col2col=new HashMap<String, Integer>();
 	private final Pattern pipe=Pattern.compile("[\\|\\(\\)]");
 	private String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
@@ -111,21 +108,14 @@ public class SnpEffPredictionParser implements PredictionParser
 		String tokens[]=pipe.split(description);
 		for(i=0;i< tokens.length;++i)
 			{
-			if(tokens[i].isEmpty()) continue;
-			COLS col=null;
-			for(COLS c:COLS.values())
+			final String col=tokens[i];
+			if(col.isEmpty()) continue;
+			if(this.col2col.containsKey(col))
 				{
-				if(c.name().equalsIgnoreCase(tokens[i]))
-					{
-					col=c;
-					}
-				}
-			if(col==null)
-				{
-				LOG.warning("Undefined SnpEff tag \""+tokens[i]+"\"");
+				LOG.warn("duplicate SnpEff attribute:"+col);
 				continue;
 				}
-			col2col.put(col, i);
+			this.col2col.put(col, i);
 			}
 		this.valid=true;
 		}
@@ -136,11 +126,14 @@ public class SnpEffPredictionParser implements PredictionParser
 		return this.tag;
 		}
 	
-
+	public boolean isValid() {
+		return valid;
+	}
+	
 	@Override
-	public List<SnpEffPrediction> getPredictions(VariantContext ctx)
+	public List<SnpEffPrediction> getPredictions(final VariantContext ctx)
 		{
-		if(!this.valid || this.col2col.isEmpty() || !ctx.hasAttribute(getTag()))
+		if(!this.isValid() || this.col2col.isEmpty() || !ctx.hasAttribute(getTag()))
 			{
 			return Collections.emptyList();
 			}
@@ -162,7 +155,7 @@ public class SnpEffPredictionParser implements PredictionParser
 	
 	public SnpEffPrediction  parseOnePrediction(final Object o)
 		{
-		if(!this.valid || this.col2col.isEmpty())
+		if(!this.isValid() || this.col2col.isEmpty())
 			{
 			return null;
 			}
@@ -187,25 +180,26 @@ public class SnpEffPredictionParser implements PredictionParser
 	public class SnpEffPrediction
 		implements Prediction
 		{
-		private String tokens[];
-		SnpEffPrediction(String tokens[])
+		private final String tokens[];
+		SnpEffPrediction(final String tokens[])
 			{
 			this.tokens=tokens;
 			}
-		private String getByCol(COLS col)
+		/** get column by name, may return null. Returns null if column is empty */
+		private String getByCol(String col)
 			{
-			Integer idx=col2col.get(col);
-			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty()) return null;
+			final Integer idx=col2col.get(col);
+			if(idx==null || idx>=this.tokens.length || tokens[idx].isEmpty()) return null;
 			return tokens[idx];
 			}
 		public String getGeneName()
 			{
-			return getByCol(COLS.Gene_Name);
+			return getByCol("Gene_Name");
 			}
 		
 		public String getEnsemblTranscript()
 			{
-			String s=getByCol(COLS.Transcript);
+			final String s=getByCol("Transcript");
 			if(s==null || !s.startsWith("ENST")) return null;
 			return s;
 			}
@@ -213,7 +207,7 @@ public class SnpEffPredictionParser implements PredictionParser
 		
 		private AAChange getAAChange()
 			{
-			String aa=getByCol(COLS.Amino_Acid_change);
+			String aa=getByCol("Amino_Acid_change");
 			if(aa==null || aa.isEmpty()) return null;
 			if(!Character.isLetter(aa.charAt(0))) return null;
 			if(!Character.isDigit(aa.charAt(1))) return null;
@@ -251,10 +245,10 @@ public class SnpEffPredictionParser implements PredictionParser
 			}
 
 		
-		private Map<COLS,String> getMap()
+		private Map<String,String> getMap()
 			{
-			Map<COLS, String> hash=new HashMap<COLS,String>();
-			for(COLS c: col2col.keySet())
+			final Map<String, String> hash = new HashMap<String,String>();
+			for(final String c: col2col.keySet())
 				{
 				int idx=col2col.get(c);
 				if(idx>=this.tokens.length) continue;
@@ -265,8 +259,8 @@ public class SnpEffPredictionParser implements PredictionParser
 		
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
-			Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			String EFF=getByCol(COLS.Effect);
+			final Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
+			String EFF=getByCol("Effect");
 			if(EFF==null) return set;
 			for(final SequenceOntologyTree.Term t: SnpEffPredictionParser.this.soTree.getTerms())
 				{

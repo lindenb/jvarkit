@@ -55,6 +55,8 @@ import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFEncoder;
+import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
@@ -457,6 +459,63 @@ public class KnimeVariantHelper extends VcfTools {
 	public VariantBuilder build() {
 		return new VariantBuilder();
 	}
+	
+	public static class Encoder
+		{
+		private final VariantContext context;
+		private final List<String> tokens;
+		Encoder(final VariantContext ctx) {
+			this.context = ctx;
+			final VCFHeader dummy=new VCFHeader();
+			final VCFEncoder encoder = new VCFEncoder(dummy, true,false);
+			final String line=encoder.encode(context);
+			this.tokens = Arrays.asList(line.split("[\t]"));
+			}
+		public String get(int index) { return this.tokens.get(index);}
+		public String getContig() { return context.getContig();}
+		public int getPos() { return context.getStart();}
+		public String getId() { return get(2);}
+		public String getRef() { return get(3);}
+		public String getAlt() { return get(4);}
+		public String getQual() { return get(5);}
+		public String getFilter() { return get(6);}
+		public String getInfo() { return get(7);}
+		public String getFormat() { return get(8);}
+		public String getGenotype(int i) { return get(9+i);}
+		public String getGenotype(final String sampleName) { 
+			for(int i=0;i< this.context.getNSamples();++i)
+				{
+				if(this.context.getGenotype(i).getSampleName().equals(sampleName))
+					{
+					return getGenotype(i);
+					}
+				}
+			throw new IllegalArgumentException("no such sample :"+sampleName);
+			}
+		@Override
+		public String toString() {
+			return String.join("\t", this.tokens);
+			}
+		}
+	
+	public Encoder encoder(final VariantContext ctx) {
+		return new Encoder(ctx);
+	}
+	
+	/** build a dummy VCF header from Variant Context 
+	private VCFHeader makeDummyHeader(final VariantContext ctx) {
+		final List<String> sampleNames = new ArrayList<>(ctx.getNSamples());
+		final Set<VCFHeaderLine> metaData = new HashSet<>();
+		for(int i=0;i< ctx.getNSamples();++i) sampleNames.add(ctx.getGenotype(i).getSampleName());
+		for(final String filter:ctx.getFilters())
+			{
+			metaData.add(new VCFFilterHeaderLine(filter));
+			}
+		final Set<String> formatKey = ctx.getGenotypes().stream().flatMap(G->G.getExtendedAttributes().keySet().stream()).collect(Collectors.toSet());
+		
+		return new VCFHeader(metaData,sampleNames);
+	}*/
+	
 	
 public static void main(String[] args) {
 	System.err.println("This is a library. It's expected to be run into knime.");
