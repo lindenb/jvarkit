@@ -116,9 +116,13 @@ public class KnimeVariantHelper extends VcfTools {
 
 	public void dispose()
 		{
-		for(IndexedBedReader r:this.bedReaders.values()) CloserUtil.close(r);
-		for(IndexedVcfFileReader r:this.vcfReaders.values()) CloserUtil.close(r);
+		for(final IndexedBedReader r:this.bedReaders.values()) CloserUtil.close(r);
+		for(final IndexedVcfFileReader r:this.vcfReaders.values()) CloserUtil.close(r);
 		}	
+	
+	public Logger getLogger() {
+		return LOG;
+	}
 	
 	@Override
 	protected void finalize() throws Throwable {

@@ -1,3 +1,28 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.workflow;
 
 import java.io.File;
@@ -38,10 +63,32 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.RuntimeIOException;
+/*
+BEGIN_DOC
 
+## Examples
+
+```
+{
+"name":"TSV",
+"output.directory":"/path/toTSV",
+"prefix":"20170531.TSV.",
+"use.lumpyexpress":true,
+"samples":[
+{"name":"S1","bam":"S1.reliable.realign.bam"},
+{"name":"S2","bam":"S2.reliable.realign.bam"}
+]
+}
+
+```
+END_DOC
+
+*/
 @Program(
 		name="ngsworkflow",
-		description="ngs workflow",keywords={"ngs","workflow","pipeline","bam","vcf"})
+		description="ngs workflow",
+		keywords={"ngs","workflow","pipeline","bam","vcf"}
+		)
 public class NgsWorkflow extends Launcher
 	{
 	private static final Logger LOG =Logger.build(NgsWorkflow.class).make();

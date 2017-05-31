@@ -158,7 +158,6 @@ public class VcfFilterSequenceOntology
 	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER its' prediction is NOT found in the database")
 	private String filterOut = "";
 
-
 	@Parameter(names={"-r","--rmatt"},description="Do not remove the variant itself, just remove the mismatching Prediction: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK")
 	private boolean removeUnusedAttribute = false;
 
@@ -166,7 +165,7 @@ public class VcfFilterSequenceOntology
 	private boolean removeIfNoMoreAttribute = false;
 
 	
-	@Parameter(names={"-A","--acn","--accession"},description="add this SO:ACN.")
+	@Parameter(names={"-A","--acn","--accession"},description="add this SO:ACN. e.g.: 'SO:0001818' Protein altering variant [http://www.sequenceontology.org/miso/current_svn/term/SO:0001818](http://www.sequenceontology.org/miso/current_svn/term/SO:0001818)")
 	private List<String> userTermsAsString = new ArrayList<>();
 
 	@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers")

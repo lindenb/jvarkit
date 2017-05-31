@@ -54,8 +54,6 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class SnpEffPredictionParser implements PredictionParser
 	{
-	private static int header_not_found_warnings_count=5;
-
 	private static final Logger LOG=Logger.build(SnpEffPredictionParser.class).make();
 
 	private final Map<String, Integer> col2col=new HashMap<String, Integer>();
@@ -87,11 +85,7 @@ public class SnpEffPredictionParser implements PredictionParser
 		final VCFInfoHeaderLine info=(header==null?null:header.getInfoHeaderLine(tag));
 		if(info==null || info.getDescription()==null)
 			{
-			if(header_not_found_warnings_count>0)
-				{
-				LOG.warning("no INFO["+tag+"] or no description. This VCF was probably NOT annotated with SnpEff (old version). But it's not a problem if this tool doesn't need to access SnpEff Annotations. ");
-				header_not_found_warnings_count--;
-				}
+			LOG.warning("no INFO["+tag+"] or no description. This VCF was probably NOT annotated with SnpEff (old version). But it's not a problem if this tool doesn't need to access SnpEff Annotations. ");
 			this.valid=false;
 			return;
 			}

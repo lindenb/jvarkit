@@ -779,6 +779,9 @@ ${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/JVark
 
 ## Knime helper
 knimehelper: ${dist.dir}/knimehelper.jar
+	@echo -n "KnimeHelper-";date +%Y-%m-%d
+	@echo -n "KnimeHelper: A  java library to be used in the java nodes of [http://knime.org](http://knime.org). See [http://lindenb.github.io/jvarkit/KnimeIntegration.html](http://lindenb.github.io/jvarkit/KnimeIntegration.html). This library was compiled on "; LANG=en_UTF-8 date | tr -d "\n"; echo "."
+
 ${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVariantHelper.java ${htsjdk.jars}
 	mkdir -p ${tmp.dir}/META-INF/services
 	${JAVAC} -cp "$(subst $(SPACE),:,$(realpath $(filter %.jar,$^)))" -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<
