@@ -118,7 +118,7 @@ webstart/picard.jar:
 webstart/SnpSift.jar : webstart/snpEff.jar
 webstart/snpEff.jar :
 	mkdir -p webstart
-	wget -O "webstart/snpEff.zip" "http://heanet.dl.sourceforge.net//project/snpeff/snpEff_v4_2_core.zip"
+	wget -O "webstart/snpEff.zip" "https://netix.dl.sourceforge.net/project/snpeff/snpEff_v4_2_core.zip"
 	(cd webstart; unzip -o -j snpEff.zip snpEff/snpEff.jar snpEff/SnpSift.jar)
 	rm webstart/snpEff.zip
 	touch -c $@
