@@ -2,8 +2,8 @@ package com.github.lindenb.jvarkit.tools.splitread;
 
 import java.io.File;
 import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
@@ -14,7 +14,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 
 public class SplitRead {
-	private static final Logger LOG=Logger.getLogger(SplitRead.class.getSimpleName());
+	private static final Logger LOG=Logger.build(SplitRead.class).make();
 	private float maxFractionCommon=0.1f;
 	
 	private class Fragment
@@ -172,15 +172,9 @@ public class SplitRead {
 				System.err.println("Pierre Lindenbaum PhD. 2013");
 				System.err.println("Options:");
 				System.err.println(" -h help; This screen.");
-				System.err.println(" -R (reference file) REQUIRED.");
-				System.err.println(" -L|--level (log level): default:"+LOG.getLevel());
-;
+				System.err.println(" -R (reference file) REQUIRED.");;
 				}
-			
-			else if((args[optind].equals("-L") || args[optind].equals("--level")) && optind+1< args.length)
-				{
-				LOG.setLevel(Level.parse(args[++optind]));
-				}
+		
 
 			else if(args[optind].equals("--"))
 				{
@@ -222,7 +216,6 @@ public class SplitRead {
 		
 	public static void main(String[] args) throws Exception
 		{
-		LOG.setLevel(Level.OFF);
 		new SplitRead().run(args);
 		}
 	

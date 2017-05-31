@@ -30,7 +30,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Optional;
-import java.util.logging.Logger;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.BamFileIoUtils;
@@ -46,7 +47,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
 public class BamFile implements NgsFile<SAMFileHeader,SAMRecord>{
-    private static final Logger LOG= Logger.getLogger("BamFile");
+    private static final Logger LOG= Logger.build(BamFile.class).make();
 
 	private final SamReader samReader;
 	private final String source;

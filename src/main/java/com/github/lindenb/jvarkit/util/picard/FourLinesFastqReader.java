@@ -46,7 +46,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 public class FourLinesFastqReader
 	extends AbstractFastqReader
 	{
-	//private static final java.util.logging.Logger LOG=java.util.logging.Logger.getLogger("jvarkit");
     private final LineReader lineReader;
     private long nLines=0;
    

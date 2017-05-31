@@ -45,6 +45,8 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
@@ -78,7 +80,7 @@ public class VcfBurdenFilterGenes
 	{
 	private static final Logger LOG = Logger.build(VcfBurdenFilterGenes.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
@@ -131,6 +133,7 @@ public class VcfBurdenFilterGenes
 					"RefSeq"					
 					);
 			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
+			final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
@@ -140,31 +143,47 @@ public class VcfBurdenFilterGenes
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
 				
-				final List<String> csqList= ctx.getAttributeAsList(vepParser.getTag()).stream().
-						map(O->String.class.cast(O)).collect(Collectors.toList());
 				
 				//not just set FILTER ?
 				if(filterControlsHeader==null) {
 					vcb.rmAttribute(vepParser.getTag());
+					vcb.rmAttribute(annParser.getTag());
 				}
 				
-				final List<String> newCsqList=new ArrayList<>();
-				for(final String predStr: csqList) {
+				final List<String> newVepList=new ArrayList<>();
+				for(final String predStr: ctx.getAttributeAsList(vepParser.getTag()).stream().map(O->String.class.cast(O)).collect(Collectors.toList()))
+					{
 					final VepPredictionParser.VepPrediction pred = vepParser.parseOnePrediction(ctx,predStr);
 					for(final String col:lookColumns) {
 						final String token = pred.getByCol(col);
 						if(token!=null && !token.isEmpty() && this.geneNames.contains(token))
 							{
-							newCsqList.add(predStr);
+							newVepList.add(predStr);
 							keep=true;
 							break;
 							}
 						}
 					}
+				
+				final List<String> newEffList=new ArrayList<>();
+				for(final String predStr: ctx.getAttributeAsList(annParser.getTag()).stream().map(O->String.class.cast(O)).collect(Collectors.toList())) {
+					final AnnPredictionParser.AnnPrediction pred = annParser.parseOnePrediction(predStr);
+					final String token = pred.getGeneName();
+					if(token!=null && !token.isEmpty() && this.geneNames.contains(token))
+						{
+						newEffList.add(predStr);
+						keep=true;
+						break;
+						}
+					}
+				
+				
+				
 				//not just set FILTER ?
 				if(filterControlsHeader==null) {
-					vcb.attribute(vepParser.getTag(),newCsqList);
-				}
+					if(!newVepList.isEmpty()) vcb.attribute(vepParser.getTag(),newVepList);
+					if(!newEffList.isEmpty()) vcb.attribute(annParser.getTag(),newEffList);
+					}
 				
 				
 				if(filterControlsHeader!=null)

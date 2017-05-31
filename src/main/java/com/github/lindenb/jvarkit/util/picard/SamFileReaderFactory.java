@@ -4,18 +4,19 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.logging.Logger;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 
+@Deprecated
 public class SamFileReaderFactory
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(SamFileReaderFactory.class).make();
 	private SamReaderFactory delegate;
 	private static ValidationStringency DEFAULT_VALIDATION_STRINGENCY=ValidationStringency.LENIENT;
 	public SamFileReaderFactory()

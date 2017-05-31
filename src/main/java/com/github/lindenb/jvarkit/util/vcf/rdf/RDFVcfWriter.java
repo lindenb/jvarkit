@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 
 import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
@@ -27,6 +26,7 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.Prediction;
@@ -44,7 +44,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 public class RDFVcfWriter
 	implements VariantContextWriter
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(RDFVcfWriter.class).make();
 
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
 	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;

@@ -9,7 +9,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 
@@ -18,6 +17,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFPredictions;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 /**
@@ -26,7 +26,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class MyPredictionParser implements PredictionParser
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(MyPredictionParser.class).make();
 	private Map<VCFPredictions.FORMAT1, Integer> col2col=new HashMap<VCFPredictions.FORMAT1, Integer>();
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	private final Pattern pipe=Pattern.compile("[\\|]");

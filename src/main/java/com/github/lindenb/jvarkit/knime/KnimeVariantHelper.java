@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.knime;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,14 +47,23 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.tribble.Tribble;
+import htsjdk.tribble.index.Index;
+import htsjdk.tribble.index.IndexFactory;
+import htsjdk.tribble.index.IndexFactory.IndexType;
+import htsjdk.tribble.index.tabix.TabixIndex;
 import htsjdk.tribble.util.ParsingUtils;
+import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
@@ -519,6 +529,58 @@ public class KnimeVariantHelper extends VcfTools {
 		
 		return new VCFHeader(metaData,sampleNames);
 	}*/
+
+	
+public void indexVcfFile(final String file) throws IOException{
+	indexVcfFile(new File(file));
+	}	
+	
+public void indexVcfFile(final File file) throws IOException{
+	IOUtil.assertFileIsReadable(file);
+	if(file.getName().endsWith(".vcf.gz"))
+		{
+		LOG.info("writing tabix index for "+file);
+		final File output=new File(file.getAbsolutePath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+		try
+			{
+			if(output.exists())
+    			{
+    			getLogger().info("Tabix index "+output+" already exists.");
+    			return;
+    			}
+			final TabixIndex index=IndexFactory.createTabixIndex(file,new VCFCodec(),(SAMSequenceDictionary)null);
+			index.write(output);
+			}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			throw new IOException(err);
+			}
+		}
+	else if(file.getName().endsWith(".vcf"))
+		{
+		LOG.info("writing tribble index for "+file);
+		final File output=new File(file.getAbsolutePath()+Tribble.STANDARD_INDEX_EXTENSION);
+		try
+			{
+			if(output.exists())
+    			{
+				getLogger().info("Tribble index "+output+" already exists.");
+    			}
+			final Index index=IndexFactory.createIndex(file,new VCFCodec(),IndexType.LINEAR);
+			index.writeBasedOnFeatureFile(file);
+			}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			throw new IOException(err);
+			}
+		}
+	else
+		{
+		throw new IOException("Cannot index VCF file "+file);
+		}
+	}
 	
 	
 public static void main(String[] args) {

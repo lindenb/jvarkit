@@ -47,8 +47,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
@@ -86,6 +84,7 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.BAMIndexer;
@@ -200,7 +199,7 @@ import javafx.util.Callback;
  */
 @SuppressWarnings("unused")
 public class JfxNgs extends Application {
-    private static final Logger LOG= Logger.getLogger("JfxNgs");
+    private static final Logger LOG= Logger.build(JfxNgs.class).make();
     final Preferences preferences ;
     final Optional<Compilable> javascriptCompiler;
     private static final String LAST_USED_DIR_KEY="last.used.dir";

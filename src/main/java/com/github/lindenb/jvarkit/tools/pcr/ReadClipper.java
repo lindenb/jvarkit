@@ -30,7 +30,8 @@ package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -41,7 +42,7 @@ import htsjdk.samtools.util.Interval;
 
 public class ReadClipper
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(ReadClipper.class).make();
 	private String programGroup = null;
 	
 	public void setProgramGroup(final String programGroup) {

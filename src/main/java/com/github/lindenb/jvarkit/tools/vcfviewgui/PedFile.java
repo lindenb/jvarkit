@@ -35,8 +35,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -47,7 +48,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 public class PedFile implements Iterable<PedFile.Sample>
 	{
-    private static final Logger LOG= Logger.getLogger("PedFile");
+    private static final Logger LOG= Logger.build(PedFile.class).make();
 
 	static final String EXTENSION=".ped";
 	public enum Sex {Male,Female,Unknown};

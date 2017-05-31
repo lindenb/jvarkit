@@ -44,9 +44,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 
 
@@ -58,7 +59,7 @@ import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 public class IndexedBedReader
 	implements Closeable
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(IndexedBedReader.class).make();
 
 		
 	private Object source;
@@ -73,8 +74,7 @@ public class IndexedBedReader
 		{
 		this.source=bedFile;
     	if(bedFile==null) throw new NullPointerException("bed file==null");
-    	if(!bedFile.isFile())  throw new IOException("bed is not a file "+bedFile);
-    	if(!bedFile.canRead())  throw new IOException("cannot read "+bedFile);
+    	IOUtil.assertFileIsReadable(bedFile);
     	if(bedFile.getName().endsWith(".gz"))
     		{
     		this.reader = new TabixReader(bedFile.getPath());
@@ -114,7 +114,6 @@ public class IndexedBedReader
 		return this.source;
 		}
 	
-
 	public CloseableIterator<BedLine>
 		iterator(final String chrom,final int start,final int end)
 		throws IOException
@@ -123,7 +122,7 @@ public class IndexedBedReader
 		return this.reader.query(chrom, start, end);
 		}
 	
-	public List<BedLine> getLines(final String chrom,final int start,final int end) throws IOException
+	public List<BedLine> getLines(final String chrom,final int start,final int end,final Predicate<BedLine> predicate) throws IOException
 		{
 		checkOpen();
 		CloseableIterator<BedLine> iter=null;
@@ -133,7 +132,9 @@ public class IndexedBedReader
 			iter = iterator(chrom,start,end);
 			while(iter.hasNext())
 				{
-				L.add(iter.next());
+				final BedLine bed = iter.next();
+				if( predicate!=null && !predicate.test(bed)) continue;
+				L.add(bed);
 				}
 			return L;
 			}
@@ -143,6 +144,10 @@ public class IndexedBedReader
 			}
 		}
 	
+	public List<BedLine> getLines(final String chrom,final int start,final int end) throws IOException
+		{
+		return getLines(chrom,start,end,BED->true);
+		}
 	
 	@Override
 	public void close() throws IOException

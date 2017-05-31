@@ -31,9 +31,11 @@ package com.github.lindenb.jvarkit.util.vcf;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.util.logging.Logger;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.FeatureCodec;
@@ -49,19 +51,18 @@ import htsjdk.variant.vcf.VCFHeader;
 public class TribbleVcfFileReader
 	implements Closeable
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(TribbleVcfFileReader.class).make();
 	private FeatureCodec<VariantContext, LineIterator> tribbleCodec=null;
 	private Index tribbleIndex=null;
     private File source;
     private AbstractFeatureReader<VariantContext,LineIterator> reader;
     
     
-    public TribbleVcfFileReader(File vcf) throws IOException
+    public TribbleVcfFileReader(final File vcf) throws IOException
     	{
     	this.source=vcf;
     	if(vcf==null) throw new NullPointerException("vcf file==null");
-    	if(!vcf.isFile())  throw new IOException("vcf is not a file "+vcf);
-    	if(!vcf.canRead())  throw new IOException("cannot read "+vcf);
+    	IOUtil.assertFileIsReadable(vcf);
     	this.tribbleCodec = VCFUtils.createAsciiFeatureCodec();
     	
     	File indexFile=Tribble.indexFile(this.source);

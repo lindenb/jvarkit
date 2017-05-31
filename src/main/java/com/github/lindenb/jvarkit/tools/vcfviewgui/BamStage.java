@@ -40,8 +40,6 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -63,6 +61,7 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadQualityChartFactory
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.SamFlagsChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantContextChartFactory;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -154,7 +153,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     static final List<ExtensionFilter> EXTENSION_FILTERS=Arrays.asList(
     		new ExtensionFilter("Indexed Bam Files", "*.bam")
     	);
-    private static final Logger LOG= Logger.getLogger("BamStage");
+    private static final Logger LOG= Logger.build(BamStage.class).make();
     /** shor-Read oriented chart-factories */
     private static final List<Supplier<ChartFactory<SAMFileHeader,SAMRecord>>> READ_CHART_LIST=Arrays.asList(
     		()->new BasesPerPositionChartFactory(),

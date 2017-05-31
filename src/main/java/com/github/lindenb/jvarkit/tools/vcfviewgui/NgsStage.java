@@ -46,7 +46,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.script.CompiledScript;
@@ -62,6 +61,7 @@ import javax.xml.stream.events.XMLEvent;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -133,7 +133,7 @@ import javafx.util.Callback;
  *
  */
 public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends Stage {
-    protected static final Logger LOG= Logger.getLogger("NgsStage");
+    protected static final Logger LOG= Logger.build(NgsStage.class).make();
 	protected static final String JAVASCRIPT_TAB_KEY="JS";
 	protected static final String TOOL_CONTEXT_KEY="tools";
 	protected static final String PEDIGREE_CONTEXT_KEY="pedigree";

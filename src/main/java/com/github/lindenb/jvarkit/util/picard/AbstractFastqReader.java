@@ -30,7 +30,9 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.fastq.FastqRecord;
 import java.util.NoSuchElementException;
-import java.util.logging.Logger;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import java.io.*;
 
 
@@ -40,7 +42,7 @@ import java.io.*;
 public abstract class AbstractFastqReader
 	implements FastqReader
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(AbstractFastqReader.class).make();
 	private File fastqFile=null;
     private ValidationStringency validationStringency=ValidationStringency.STRICT;
     private FastqRecord nextRecord=null;

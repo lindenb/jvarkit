@@ -29,7 +29,6 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.logging.Logger;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
@@ -39,11 +38,12 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 public class BioDASGenomicSequence extends AbstractCharSequence implements
 		ChromosomeSequence
 	{
-	private static final Logger LOG=Logger.getLogger("jvarkit");
+	private static final Logger LOG=Logger.build(BioDASGenomicSequence.class).make();
 	private boolean _length_searched=false;
 	private SAXParser parser;
 	private String chrom=null;

@@ -32,7 +32,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.util.logging.Logger;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -46,7 +47,7 @@ import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
-    private static final Logger LOG= Logger.getLogger("VcfFile");
+    private static final Logger LOG= Logger.build(VcfFile.class).make();
     private PedFile pedigree;
     
 	protected VcfFile(final PedFile pedigree)  throws IOException

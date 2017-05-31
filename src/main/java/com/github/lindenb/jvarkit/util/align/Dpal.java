@@ -49,10 +49,11 @@ import java.io.StringWriter;
 
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.logging.Logger;
+
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 public class Dpal {
-	private static final Logger LOG = Logger.getLogger("dpal");
+	private static final Logger LOG = Logger.build(Dpal.class).make();
 	private int DPAL_MAX_ALIGN = Integer.MAX_VALUE;
 	private boolean DPAL_FORGET_PATH = false;
 
