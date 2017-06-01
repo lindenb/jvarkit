@@ -608,13 +608,17 @@ public SimpleVcfFilter simpleVcfFilter() {
 	return new SimpleVcfFilter();
 	}	
 
+private enum ForceSuffix { No, ForceTabix,ForceTribble};
+
 public class SimpleVcfFilter
 	{
-	private final int SUFFIX_LENGTH=10;
+	private ForceSuffix forceSuffix=ForceSuffix.No;
+	private final int SUFFIX_LENGTH=20;
 	private File tmpDir=null;
 	private String fileId=null;
 	private String prefix=null;
 	private VCFHeader vcfheader=null;
+	public VcfTools vcfTools=null;
 	public final VariantContextWriterBuilder variantContextWriterBuilder = 
 			new VariantContextWriterBuilder().
 				setCreateMD5(false);
@@ -632,6 +636,18 @@ public class SimpleVcfFilter
 		return this;
 		}
 	
+	public SimpleVcfFilter compressed(boolean bgzip)
+		{
+		this.forceSuffix = (bgzip?ForceSuffix.ForceTabix:ForceSuffix.ForceTribble);
+		return this;
+		}
+	
+	/** alias of tmpDir */
+	public SimpleVcfFilter workDir(final String tmpDir)
+		{
+		return tmpDir(tmpDir);
+		}
+	/** set the directory where file will be written */
 	public SimpleVcfFilter tmpDir(final String tmpDir)
 		{
 		if(tmpDir!=null)
@@ -657,6 +673,10 @@ public class SimpleVcfFilter
 	
 	public VCFHeader getHeader() {
 		return vcfheader;
+		}
+	
+	public VcfTools getVcfTools() {
+		return vcfTools;
 		}
 	
 	public String filter(final String vcfIn,final Predicate<VariantContext> filter)
@@ -738,7 +758,11 @@ public class SimpleVcfFilter
 			filename += "."+this.fileId+".vcf";
 			final String indexFilename;
 			
-			if( inVcfFile.getName().endsWith(".gz"))
+			if(this.forceSuffix.equals(ForceSuffix.ForceTribble))
+				{
+				indexFilename = filename + Tribble.STANDARD_INDEX_EXTENSION;
+				}
+			else if( this.forceSuffix.equals(ForceSuffix.ForceTabix) || inVcfFile.getName().endsWith(".gz"))
 				{
 				filename+=".gz";
 				indexFilename = filename + TabixUtils.STANDARD_INDEX_EXTENSION;
@@ -747,11 +771,12 @@ public class SimpleVcfFilter
 				{
 				indexFilename = filename + Tribble.STANDARD_INDEX_EXTENSION;
 				}
-			outVcfFile = new File(filename);
+			outVcfFile = new File(this.tmpDir,filename);
 			outVcfIndexFile = new File(indexFilename);
 			
 			vcfFileReader = new VCFFileReader(inVcfFile,false);
 			this.vcfheader = vcfFileReader.getFileHeader();
+			this.vcfTools = new VcfTools(vcfheader);
 			final SAMSequenceDictionary dict = this.vcfheader.getSequenceDictionary();
 			if(dict==null)
 				{
@@ -827,6 +852,7 @@ public class SimpleVcfFilter
 					}
 				}
 			this.vcfheader=null;
+			this.vcfTools=null;
 			}
 		}
 	}

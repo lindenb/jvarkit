@@ -212,13 +212,13 @@ private static class KnimeLogger
 		final Class<?> org_knime_core_node_NodeLogger_clazz = Class.forName("org.knime.core.node.NodeLogger"); 
 	    final Method getLogger = org_knime_core_node_NodeLogger_clazz.getMethod("getLogger",Class.class);
 	    this.nodeLogger = getLogger.invoke(null, clazz);
-	    this.info = org_knime_core_node_NodeLogger_clazz.getMethod("info", Object.class);
+	    this.info = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
 	    this.debug = org_knime_core_node_NodeLogger_clazz.getMethod("debug", Object.class);
 	    this.warn = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
 	    this.error = org_knime_core_node_NodeLogger_clazz.getMethod("error", Object.class);
 	    this.fatal = org_knime_core_node_NodeLogger_clazz.getMethod("fatal", Object.class);
 
-	    this.info_t = org_knime_core_node_NodeLogger_clazz.getMethod("info", Object.class,Throwable.class);
+	    this.info_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
 	    this.debug_t = org_knime_core_node_NodeLogger_clazz.getMethod("debug", Object.class,Throwable.class);
 	    this.warn_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
 	    this.error_t = org_knime_core_node_NodeLogger_clazz.getMethod("error", Object.class,Throwable.class);
