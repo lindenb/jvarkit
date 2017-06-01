@@ -37,17 +37,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.Tribble;
@@ -63,9 +68,12 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFEncoder;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
@@ -530,11 +538,12 @@ public class KnimeVariantHelper extends VcfTools {
 		return new VCFHeader(metaData,sampleNames);
 	}*/
 
-	
+/** index a vcf file is needed */
 public void indexVcfFile(final String file) throws IOException{
 	indexVcfFile(new File(file));
 	}	
-	
+
+/** index a vcf file is needed */
 public void indexVcfFile(final File file) throws IOException{
 	IOUtil.assertFileIsReadable(file);
 	if(file.getName().endsWith(".vcf.gz"))
@@ -581,11 +590,251 @@ public void indexVcfFile(final File file) throws IOException{
 		throw new IOException("Cannot index VCF file "+file);
 		}
 	}
+
+public Stream<VariantContext> forEachVariants(final String vcfFile) throws IOException
+	{
+	final File file = new File(vcfFile);
+	IOUtil.assertFileIsReadable(file);
+	final VCFFileReader r= new VCFFileReader(file, false);
+	final CloseableIterator<VariantContext> iter = r.iterator();
+	final Iterable<VariantContext> iterable = () -> iter;
+	return StreamSupport.stream(iterable.spliterator(),false).onClose(()->{
+		CloserUtil.close(iter);
+		CloserUtil.close(r);
+		});
+	}
+
+public SimpleVcfFilter simpleVcfFilter() {
+	return new SimpleVcfFilter();
+	}	
+
+public class SimpleVcfFilter
+	{
+	private final int SUFFIX_LENGTH=10;
+	private File tmpDir=null;
+	private String fileId=null;
+	private String prefix=null;
+	private VCFHeader vcfheader=null;
+	public final VariantContextWriterBuilder variantContextWriterBuilder = 
+			new VariantContextWriterBuilder().
+				setCreateMD5(false);
 	
+	public SimpleVcfFilter prefix(final String prefix)
+		{
+		if(prefix!=null && !prefix.isEmpty())
+			{
+			this.prefix = prefix;
+			if(!this.prefix.endsWith("."))
+				{
+				this.prefix+=".";
+				}
+			}
+		return this;
+		}
 	
+	public SimpleVcfFilter tmpDir(final String tmpDir)
+		{
+		if(tmpDir!=null)
+			{
+			this.tmpDir = new File(tmpDir);
+			}
+		return this;
+		}
+	
+	public SimpleVcfFilter fileId(final String fileId)
+		{
+		if(fileId!=null)
+			{
+			this.fileId = fileId;
+			while(this.fileId.length()< SUFFIX_LENGTH)
+				{
+				this.fileId = "0"+this.fileId;
+				}
+			}
+		return this;
+		}
+
+	
+	public VCFHeader getHeader() {
+		return vcfheader;
+		}
+	
+	public String filter(final String vcfIn,final Predicate<VariantContext> filter)
+		throws IOException
+		{
+		if(vcfIn==null || vcfIn.isEmpty())
+			{
+			final String msg="User Error: vcfIn was not specified";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(filter==null )
+			{
+			final String msg="User Error: predicate was not specified";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(this.fileId==null)
+			{
+			final String msg="User Error: fileId was not specified";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(this.fileId.length()!=SUFFIX_LENGTH)
+			{
+			final String msg="User Error: fileId (\""+this.fileId+"\") must have length="+this.SUFFIX_LENGTH+". But got "+this.fileId.length()+".";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(!this.fileId.matches("[0-9A-Za-z_]{"+SUFFIX_LENGTH+"}"))
+			{
+			final String msg="User Error: fileId (\""+this.fileId+"\") must match the regular expression \"[0-9A-Za-z_]{"+SUFFIX_LENGTH+"}\"  .";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(this.tmpDir==null)
+			{
+			final String msg="Working directory was not specified.";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		final File inVcfFile=new File(vcfIn);
+		File outVcfFile = null;
+		File outVcfIndexFile = null;
+		final File STOP_FILE= new File(this.tmpDir,"STOP");
+		if(STOP_FILE.exists())
+			{
+			final String msg="There is a stop file in "+STOP_FILE;
+			LOG.error(msg);
+			throw new IOException(msg);
+			}
+		boolean fail_flag=false;
+		VCFFileReader vcfFileReader=null;
+		CloseableIterator<VariantContext> iter=null;
+		VariantContextWriter variantContextWriter = null;
+		try
+			{
+			IOUtil.assertDirectoryIsReadable(this.tmpDir);
+			IOUtil.assertDirectoryIsWritable(this.tmpDir);
+			IOUtil.assertFileIsReadable(inVcfFile);
+
+			String filename= inVcfFile.getName();
+			if(filename.endsWith(".gz"))
+				{
+				filename = filename.substring(0,filename.length()-3);
+				}
+			if(filename.endsWith(".vcf"))
+				{
+				filename = filename.substring(0,filename.length()-4);
+				}
+			if(filename.matches(".*\\.[A-Za-z0-9_]{"+SUFFIX_LENGTH+"}$"))
+				{
+				filename = filename.substring(0,filename.length()-(SUFFIX_LENGTH+1));
+				}
+			if(this.prefix!=null && !this.prefix.isEmpty())
+				{
+				filename= this.prefix+filename;
+				}
+			filename += "."+this.fileId+".vcf";
+			final String indexFilename;
+			
+			if( inVcfFile.getName().endsWith(".gz"))
+				{
+				filename+=".gz";
+				indexFilename = filename + TabixUtils.STANDARD_INDEX_EXTENSION;
+				}
+			else
+				{
+				indexFilename = filename + Tribble.STANDARD_INDEX_EXTENSION;
+				}
+			outVcfFile = new File(filename);
+			outVcfIndexFile = new File(indexFilename);
+			
+			vcfFileReader = new VCFFileReader(inVcfFile,false);
+			this.vcfheader = vcfFileReader.getFileHeader();
+			final SAMSequenceDictionary dict = this.vcfheader.getSequenceDictionary();
+			if(dict==null)
+				{
+				final String msg="There is no dictionary (##contig lines) in "+inVcfFile;
+				LOG.error(msg);
+				throw new IllegalArgumentException(msg);
+				}
+			iter = vcfFileReader.iterator();
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(dict);
+			progress.setLogPrefix(this.prefix);
+			
+			LOG.info("writing "+outVcfFile+". Emergency stop file is "+STOP_FILE);
+			
+			
+			variantContextWriter = this.variantContextWriterBuilder.
+				setOutputFile(outVcfFile).
+				setReferenceDictionary(dict).
+				build()
+				;
+			long lastTick = System.currentTimeMillis();
+			variantContextWriter.writeHeader(this.vcfheader);
+			while(iter.hasNext())
+				{
+				final VariantContext ctx = progress.watch(iter.next());
+				if(filter.test(ctx))
+					{
+					variantContextWriter.add(ctx);
+					}
+				// check STOP File
+				final long now = System.currentTimeMillis();
+				if((now - lastTick) > 10*1000)//10sec
+					{
+					lastTick = now;
+					if(STOP_FILE.exists())
+						{
+						LOG.warn("STO FILE detected "+STOP_FILE+" Aborting.");
+						fail_flag=true;
+						break;
+						}
+					}
+				}
+			progress.finish();
+			vcfFileReader.close();
+			vcfFileReader=null;
+			
+			variantContextWriter.close();
+			variantContextWriter=null;
+			
+			return outVcfFile.getPath();
+			}
+		catch(final Exception err)
+			{
+			fail_flag=true;
+			LOG.error(err);
+			throw new IOException(err);
+			}
+		finally
+			{
+			CloserUtil.close(iter);
+			CloserUtil.close(vcfFileReader);
+			CloserUtil.close(variantContextWriter);
+			if(fail_flag)
+				{
+				if(outVcfFile!=null && outVcfFile.exists())
+					{
+					LOG.warn("deleting "+outVcfFile);
+					outVcfFile.delete();
+					}
+				if(outVcfIndexFile!=null && outVcfIndexFile.exists())
+					{
+					LOG.warn("deleting "+outVcfIndexFile);
+					outVcfIndexFile.delete();
+					}
+				}
+			this.vcfheader=null;
+			}
+		}
+	}
+
+
 public static void main(String[] args) {
 	System.err.println("This is a library. It's expected to be run into knime.");
 	System.exit(-1);
-}
+	}
 	
 }

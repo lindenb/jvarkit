@@ -222,13 +222,13 @@ public class IndexedBedReader
 		}
 		
 		@Override
-		public CloseableIterator<BedLine> query(String chrom, int start, int end)
+		public CloseableIterator<BedLine> query(final String chrom, final int start,final int end)
 				throws IOException {
 			return (CloseableIterator<BedLine>)this.iterator(chrom, start, end);
 			}
 		
 		@Override
-		protected CloseableIterator<BedLine> iterator(Iterator<String> delegate) {
+		protected CloseableIterator<BedLine> iterator(final Iterator<String> delegate) {
 			return new MyIterator(delegate);
 			}
 		
@@ -236,15 +236,15 @@ public class IndexedBedReader
     	extends AbstractMyIterator
     	implements CloseableIterator<BedLine>
 	    	{
-	    	private Pattern tab=Pattern.compile("[\t]");
-	    	MyIterator(Iterator<String> delegate)
+	    	private final Pattern tab=Pattern.compile("[\t]");
+	    	MyIterator(final Iterator<String> delegate)
 	    		{
 	    		super(delegate);
 	    		}
 	    	
 	    	@Override
 	    	public BedLine next() {
-	    		String tokens[]=this.tab.split(delegate.next());
+	    		final String tokens[]=this.tab.split(delegate.next());
 	    		return new BedLine(tokens);
 	    		}
 	    	@Override

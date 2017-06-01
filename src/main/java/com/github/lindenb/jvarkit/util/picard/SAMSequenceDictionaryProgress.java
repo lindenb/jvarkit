@@ -259,12 +259,12 @@ public class SAMSequenceDictionaryProgress
 		this(h==null?null:h.getSequenceDictionary());
 		}
 	
-	public SAMSequenceDictionaryProgress(SAMFileHeader h)
+	public SAMSequenceDictionaryProgress(final SAMFileHeader h)
 		{
 		this(h==null?null:h.getSequenceDictionary());
 		}
 	
-	public void setLogPrefix(String prefix)
+	public void setLogPrefix(final String prefix)
 		{
 		this.prefix = prefix;
 		}
