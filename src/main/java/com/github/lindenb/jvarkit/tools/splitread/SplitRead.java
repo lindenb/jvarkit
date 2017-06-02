@@ -1,20 +1,22 @@
 package com.github.lindenb.jvarkit.tools.splitread;
 
-import java.io.File;
 import java.util.Iterator;
+import java.util.List;
 
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 
-public class SplitRead {
+public class SplitRead extends Launcher{
 	private static final Logger LOG=Logger.build(SplitRead.class).make();
+	
+	
 	private float maxFractionCommon=0.1f;
 	
 	private class Fragment
@@ -157,66 +159,25 @@ public class SplitRead {
 			}
 		}
 	
-	
-	private void run(String[] args)
-		throws Exception
-		{
-		
+	@Override
+	public int doWork(List<String> args) {		
 		int optind=0;
-		while(optind< args.length)
+	
+		try
 			{
-			if(args[optind].equals("-h") ||
-			   args[optind].equals("-help") ||
-			   args[optind].equals("--help"))
-				{
-				System.err.println("Pierre Lindenbaum PhD. 2013");
-				System.err.println("Options:");
-				System.err.println(" -h help; This screen.");
-				System.err.println(" -R (reference file) REQUIRED.");;
-				}
-		
-
-			else if(args[optind].equals("--"))
-				{
-				optind++;
-				break;
-				}
-			else if(args[optind].startsWith("-"))
-				{
-				System.err.println("Unknown option "+args[optind]);
-				return;
-				}
-			else 
-				{
-				break;
-				}
-			++optind;
+			scan(super.openSamReader(oneFileOrNull(args)));
+			return 0;
 			}
-		
-		
-		if(optind==args.length)
+		catch(Exception err)
 			{
-			SamReader r=SamFileReaderFactory.mewInstance().openStdin();
-			scan(r);
-			r.close();
-			}
-		else if(optind+1==args.length)
-			{
-			File file=new File(args[optind++]); 
-			SamReader r=SamFileReaderFactory.mewInstance().open(file);
-			scan(r);
-			r.close();
-			}
-		else 
-			{
-			System.err.println("illegal number of arguments.");
-			System.exit(-1);
+			LOG.error(err);
+			return -1;
 			}
 		}
 		
 	public static void main(String[] args) throws Exception
 		{
-		new SplitRead().run(args);
+		new SplitRead().instanceMainWithExit(args);
 		}
 	
 	}

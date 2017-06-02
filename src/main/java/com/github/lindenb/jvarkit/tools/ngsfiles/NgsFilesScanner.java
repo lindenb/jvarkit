@@ -62,7 +62,6 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.sleepycat.bind.tuple.StringBinding;
@@ -162,7 +161,10 @@ check URL: `curl -s http://localhost/cgi-bin/ngsfiles.cgi | xmllint --format -`
 END_DOC
  
  */
-@Program(name="ngsfilesscanner",description="Build a persistent database of NGS file. Dump as XML.")
+@Program(name="ngsfilesscanner",
+	description="Build a persistent database of NGS file. Dump as XML.",
+	keywords={"ngs","bam","sam","vcf","xml"}
+)
 public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	{
 	private static final Logger LOG = Logger.build(NgsFilesScanner.class).make();
@@ -240,7 +242,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     	}
     
 	@Override
-    protected void readBam(File f)
+    protected void readBam(final File f)
     	{
     	if(!f.canRead()) return;
     	SamReader r=null;
@@ -253,8 +255,8 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     		out.writeStartElement("bam");
     		writeFile(out,f);
     		
-			r=SamFileReaderFactory.mewInstance().open(f);
-			SAMFileHeader h=r.getFileHeader();
+			r=super.openSamReader(f.getPath());
+			final SAMFileHeader h=r.getFileHeader();
 			
 			out.writeStartElement("samples");
 			if(h!=null && h.getReadGroups()!=null)

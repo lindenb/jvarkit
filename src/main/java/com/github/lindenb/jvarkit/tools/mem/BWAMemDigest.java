@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.mem;
 
 
@@ -13,7 +37,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
 import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
@@ -23,13 +46,18 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 
 /**
- * : ant  bwamemdigest && ~/package/bwa/bwa-0.7.4/bwa mem \
- * 		 -M  ~/tmp/DATASANGER/hg18/chr1.fa  \
- * 			  ~/tmp/DATASANGER/4368_1_1.fastq.gz  ~/tmp/DATASANGER/4368_1_2.fastq.gz 2> /dev/null | 
- * 			java -jar dist/bwamemdigest.jar BED=<(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz" | gunzip -c | cut -f2,3,4 ) XBED=500  | tee /dev/tty | gzip --best > /tmp/jeter.mem.bed.gz
+BEGIN_DOC
+package/bwa/bwa-0.7.4/bwa mem \
+ -M  ~/tmp/DATASANGER/hg18/chr1.fa  \
+ ~/tmp/DATASANGER/4368_1_1.fastq.gz  ~/tmp/DATASANGER/4368_1_2.fastq.gz 2> /dev/null | 
+ java -jar dist/bwamemdigest.jar -B <(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz" | gunzip -c | cut -f2,3,4 ) -x 500  | tee /dev/tty | gzip --best > /tmp/jeter.mem.bed.gz
 
+
+END_DOC
  */
 @Program(name="bwamemdigest",description="")
 public class BWAMemDigest extends Launcher
@@ -136,7 +164,7 @@ public class BWAMemDigest extends Launcher
 	
 	@Override
 	public int doWork(List<String> args) {
-		SamSequenceRecordTreeMap<Boolean> ignore=null;
+		IntervalTreeMap<Boolean> ignore=null;
 		DefaultMemOuput output=new DefaultMemOuput();
 		
 		final float limitcigar=0.15f;
@@ -149,7 +177,7 @@ public class BWAMemDigest extends Launcher
 		if(IGNORE_BED!=null)
 			{
 			LOG.info("open "+IGNORE_BED);
-			ignore=new SamSequenceRecordTreeMap<Boolean>(header.getSequenceDictionary());
+			ignore=new IntervalTreeMap<>();
 			BufferedReader in=IOUtils.openFileForBufferedReading(IGNORE_BED);
 			String line;
 			while((line=in.readLine())!=null)
@@ -157,9 +185,9 @@ public class BWAMemDigest extends Launcher
 				if(line.isEmpty() || line.startsWith("#")) continue;
 				String tokens[]=line.split("[\t]");
 				if(tokens.length<3) continue;
-				if(ignore.put(tokens[0],
+				if(ignore.put(new Interval(tokens[0],
 						Math.max(1,Integer.parseInt(tokens[1])-(1+IGNORE_EXTEND)),
-						Integer.parseInt(tokens[2])+IGNORE_EXTEND,
+						Integer.parseInt(tokens[2])+IGNORE_EXTEND),
 						Boolean.TRUE
 						))
 					{
@@ -181,11 +209,11 @@ public class BWAMemDigest extends Launcher
 			if(record.getReadFailsVendorQualityCheckFlag()) continue;
 			if(record.getDuplicateReadFlag()) continue;
 			if(record.getReadUnmappedFlag()) continue;
-			if(ignore!=null && ignore.containsOverlapping(
-					record.getReferenceIndex(),
+			if(ignore!=null && ignore.containsOverlapping(new Interval(
+					record.getReferenceName(),
 					record.getAlignmentStart(),
 					record.getAlignmentEnd())
-					)
+					))
 				{
 				LOG.info("ignore "+record);
 				continue;
@@ -211,11 +239,11 @@ public class BWAMemDigest extends Launcher
 			for(OtherCanonicalAlign xp: xPalignFactory.getXPAligns(record))
 				{
 				if(ignore!=null &&
-						ignore.containsOverlapping(
+						ignore.containsOverlapping(new Interval(
 						xp.getReferenceName(),
 						xp.getAlignmentStart(),
 						xp.getAlignmentStart()
-						))
+						)))
 					{
 					LOG.info("ignore "+record);
 					continue;
@@ -233,11 +261,11 @@ public class BWAMemDigest extends Launcher
 				}
 			
 			
-			if(ignore!=null && ignore.containsOverlapping(
-					record.getMateReferenceIndex(),
+			if(ignore!=null && ignore.containsOverlapping(new Interval(
+					record.getMateReferenceName(),
 					record.getMateAlignmentStart(),
 					record.getMateAlignmentStart())
-					)
+					))
 				{
 				LOG.info("ignore "+record);
 				continue;

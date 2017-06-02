@@ -34,15 +34,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -55,6 +59,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.tribble.Tribble;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
@@ -75,6 +80,8 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
 BEGIN_DOC
 
@@ -126,18 +133,33 @@ public class KnimeVariantHelper extends VcfTools {
 	public static final Logger LOG = Logger.build(KnimeVariantHelper.class).make();
 	private final Map<String,IndexedBedReader> bedReaders=new HashMap<>();
 	private final Map<String,IndexedVcfFileReader> vcfReaders=new HashMap<>();
-	
+	private enum ForceSuffix { No, ForceTabix,ForceTribble};
+	private ForceSuffix forceSuffix=ForceSuffix.No;
+	private final int SUFFIX_LENGTH=20;
+	private File workfingDirectory=null;
+	private String fileSuffix=null;
+	private String filePrefix=null;
+	public final VariantContextWriterBuilder variantContextWriterBuilder = 
+			new VariantContextWriterBuilder().
+				setCreateMD5(false);
+
 	
 	public KnimeVariantHelper() {
 		
 		}
+	public KnimeVariantHelper(final VCFHeader header) {
+		super(header);
+		}
 
+	
+	/** called at end to dispose things */
 	public void dispose()
 		{
 		for(final IndexedBedReader r:this.bedReaders.values()) CloserUtil.close(r);
 		for(final IndexedVcfFileReader r:this.vcfReaders.values()) CloserUtil.close(r);
 		}	
 	
+	/** get current Logger */
 	public Logger getLogger() {
 		return LOG;
 	}
@@ -147,6 +169,8 @@ public class KnimeVariantHelper extends VcfTools {
 		dispose();
 		super.finalize();
 		}
+	
+	
 	
 	public IndexedBedReader openBed(final String resourceName,String path) throws IOException {
 		failIf(this.bedReaders.containsKey(resourceName), "duplicate resource "+resourceName);
@@ -216,7 +240,6 @@ public class KnimeVariantHelper extends VcfTools {
 			String sample;
 			String content;
 		}
-
 		private final Pattern commaRegex = Pattern.compile("[,]");
 		private final Pattern semiColon = Pattern.compile("[;]");
 		private final Pattern colonRegex = Pattern.compile("[:]");
@@ -591,11 +614,26 @@ public void indexVcfFile(final File file) throws IOException{
 		}
 	}
 
+
+/** wrapper around Variant , contains header, tools and variant*/
+public static abstract class VariantData
+	{
+	private final VariantContext ctx;
+	VariantData(final VariantContext ctx){
+		this.ctx = ctx;
+		}
+	public abstract VCFHeader getVcfHeader();
+	public abstract VcfTools getVcfTools();
+	public VariantContext getVariant() { return this.ctx;}
+	}
+
 public Stream<VariantContext> forEachVariants(final String vcfFile) throws IOException
 	{
 	final File file = new File(vcfFile);
 	IOUtil.assertFileIsReadable(file);
 	final VCFFileReader r= new VCFFileReader(file, false);
+	final VCFHeader header = r.getFileHeader();
+	this.init(header);
 	final CloseableIterator<VariantContext> iter = r.iterator();
 	final Iterable<VariantContext> iterable = () -> iter;
 	return StreamSupport.stream(iterable.spliterator(),false).onClose(()->{
@@ -604,83 +642,97 @@ public Stream<VariantContext> forEachVariants(final String vcfFile) throws IOExc
 		});
 	}
 
-public SimpleVcfFilter simpleVcfFilter() {
-	return new SimpleVcfFilter();
-	}	
-
-private enum ForceSuffix { No, ForceTabix,ForceTribble};
-
-public class SimpleVcfFilter
+public Stream<VariantData> forEachVariantData(final String vcfFile) throws IOException
 	{
-	private ForceSuffix forceSuffix=ForceSuffix.No;
-	private final int SUFFIX_LENGTH=20;
-	private File tmpDir=null;
-	private String fileId=null;
-	private String prefix=null;
-	private VCFHeader vcfheader=null;
-	public VcfTools vcfTools=null;
-	public final VariantContextWriterBuilder variantContextWriterBuilder = 
-			new VariantContextWriterBuilder().
-				setCreateMD5(false);
-	
-	public SimpleVcfFilter prefix(final String prefix)
+	final File file = new File(vcfFile);
+	IOUtil.assertFileIsReadable(file);
+	final VCFFileReader r= new VCFFileReader(file, false);
+	final VCFHeader header = r.getFileHeader();
+	this.init(header);
+	final VcfTools vcfTools = new VcfTools(header);
+	final CloseableIterator<VariantContext> iter = r.iterator();
+	final Iterable<VariantContext> iterable = () -> iter;
+	return StreamSupport.stream(iterable.spliterator(),false).onClose(()->{
+		CloserUtil.close(iter);
+		CloserUtil.close(r);
+		}).map(V->new VariantData(V){
+			@Override public  VCFHeader getVcfHeader() {
+				return header;
+				}
+			@Override public  VcfTools getVcfTools(){
+				return vcfTools;
+				}
+		});
+	}
+
+
+public Predicate<VariantContext> parseVariantIntervalFilters(final String...array)
+	{
+	final IntervalParser parser=new IntervalParser();
+	parser.setRaiseExceptionOnError(true);
+	Predicate<VariantContext> filter = V -> false;
+	for(final String str:array)	
+		{
+		final Interval interval = parser.parse(str);
+		filter = filter.or(V -> (V.getContig().equals(interval.getContig()) && !(interval.getEnd()<V.getStart() || V.getEnd()<interval.getStart())));
+		}
+	return filter;
+	}
+
+
+
+
+
+
+
+	public KnimeVariantHelper prefix(final String prefix)
 		{
 		if(prefix!=null && !prefix.isEmpty())
 			{
-			this.prefix = prefix;
-			if(!this.prefix.endsWith("."))
+			this.filePrefix = prefix;
+			if(!this.filePrefix.endsWith("."))
 				{
-				this.prefix+=".";
+				this.filePrefix+=".";
 				}
 			}
 		return this;
 		}
 	
-	public SimpleVcfFilter compressed(boolean bgzip)
+	public KnimeVariantHelper compressed(boolean bgzip)
 		{
 		this.forceSuffix = (bgzip?ForceSuffix.ForceTabix:ForceSuffix.ForceTribble);
 		return this;
 		}
 	
 	/** alias of tmpDir */
-	public SimpleVcfFilter workDir(final String tmpDir)
+	public final KnimeVariantHelper workDir(final String tmpDir)
 		{
 		return tmpDir(tmpDir);
 		}
 	/** set the directory where file will be written */
-	public SimpleVcfFilter tmpDir(final String tmpDir)
+	public KnimeVariantHelper tmpDir(final String tmpDir)
 		{
-		if(tmpDir!=null)
+		if(tmpDir!=null && !tmpDir.isEmpty())
 			{
-			this.tmpDir = new File(tmpDir);
+			this.workfingDirectory = new File(tmpDir);
 			}
 		return this;
 		}
 	
-	public SimpleVcfFilter fileId(final String fileId)
+	public KnimeVariantHelper fileId(final String fileId)
 		{
 		if(fileId!=null)
 			{
-			this.fileId = fileId;
-			while(this.fileId.length()< SUFFIX_LENGTH)
+			this.fileSuffix = fileId;
+			while(this.fileSuffix.length()< SUFFIX_LENGTH)
 				{
-				this.fileId = "0"+this.fileId;
+				this.fileSuffix = "0"+this.fileSuffix;
 				}
 			}
 		return this;
 		}
 
-	
-	public VCFHeader getHeader() {
-		return vcfheader;
-		}
-	
-	public VcfTools getVcfTools() {
-		return vcfTools;
-		}
-	
-	public String filter(final String vcfIn,final Predicate<VariantContext> filter)
-		throws IOException
+	public String createOutputFile(final String vcfIn,String extension)
 		{
 		if(vcfIn==null || vcfIn.isEmpty())
 			{
@@ -688,40 +740,112 @@ public class SimpleVcfFilter
 			LOG.error(msg);
 			throw new IllegalArgumentException(msg);
 			}
+		
+
+		if(this.fileSuffix==null || this.fileSuffix.isEmpty())
+			{
+			final String msg="User Error: file suffix was not specified";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(this.fileSuffix.length()!=SUFFIX_LENGTH)
+			{
+			final String msg="User Error: file suffix (\""+this.fileSuffix+"\") must have length="+this.SUFFIX_LENGTH+". But got "+this.fileSuffix.length()+".";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(!this.fileSuffix.matches("[0-9A-Za-z_]{"+SUFFIX_LENGTH+"}"))
+			{
+			final String msg="User Error: file suffix (\""+this.fileSuffix+"\") must match the regular expression \"[0-9A-Za-z_]{"+SUFFIX_LENGTH+"}\"  .";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		if(this.workfingDirectory==null)
+			{
+			final String msg="Working directory was not specified.";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		IOUtil.assertDirectoryIsReadable(this.workfingDirectory);
+		IOUtil.assertDirectoryIsWritable(this.workfingDirectory);
+
+		final File inVcfFile=new File(vcfIn);
+		String filename= inVcfFile.getName();
+		for(;;)
+			{
+			if(filename.endsWith(".gz"))
+				{
+				filename = filename.substring(0,filename.length()-3);
+				}
+			else if(filename.endsWith(".vcf") || 
+					filename.endsWith(".txt") || 
+					filename.endsWith(".tsv") || 
+					filename.endsWith(".csv") || 
+					filename.endsWith(".xsl"))
+				{
+				filename = filename.substring(0,filename.length()-4);
+				}
+			else
+				{
+				break;
+				}
+			}
+		if(filename.matches(".*\\.[A-Za-z0-9_]{"+SUFFIX_LENGTH+"}$"))
+			{
+			filename = filename.substring(0,filename.length()-(SUFFIX_LENGTH+1));
+			}
+		if((this.filePrefix!=null && !this.filePrefix.isEmpty()) && !filename.startsWith(this.filePrefix))
+			{
+			filename= this.filePrefix+filename;
+			}
+		
+		if(!extension.startsWith(".")) extension="."+extension;
+		filename += "."+this.fileSuffix+ extension;
+		
+		filename = new File(this.workfingDirectory,filename).getPath();
+		
+		return filename;
+		}
+	
+	
+	public String filterVcf(final String vcfIn,final Predicate<VariantContext> filter)
+		throws IOException
+		{
 		if(filter==null )
 			{
 			final String msg="User Error: predicate was not specified";
 			LOG.error(msg);
 			throw new IllegalArgumentException(msg);
 			}
-		if(this.fileId==null)
+		return processVcf(vcfIn,V->filter.test(V)?V:null);
+		}
+	public String processVcf(final String vcfIn,final Function<VariantContext,VariantContext> fun)
+			throws IOException
+		{
+		if(fun==null )
 			{
-			final String msg="User Error: fileId was not specified";
+			final String msg="User Error: function was not specified";
 			LOG.error(msg);
 			throw new IllegalArgumentException(msg);
 			}
-		if(this.fileId.length()!=SUFFIX_LENGTH)
-			{
-			final String msg="User Error: fileId (\""+this.fileId+"\") must have length="+this.SUFFIX_LENGTH+". But got "+this.fileId.length()+".";
-			LOG.error(msg);
-			throw new IllegalArgumentException(msg);
-			}
-		if(!this.fileId.matches("[0-9A-Za-z_]{"+SUFFIX_LENGTH+"}"))
-			{
-			final String msg="User Error: fileId (\""+this.fileId+"\") must match the regular expression \"[0-9A-Za-z_]{"+SUFFIX_LENGTH+"}\"  .";
-			LOG.error(msg);
-			throw new IllegalArgumentException(msg);
-			}
-		if(this.tmpDir==null)
-			{
-			final String msg="Working directory was not specified.";
-			LOG.error(msg);
-			throw new IllegalArgumentException(msg);
-			}
+		return processVcfMulti(vcfIn,V->{
+			final VariantContext v2 = fun.apply(V);
+			return v2==null?
+					Collections.emptyList():
+					Collections.singletonList(v2);}
+				);
+		}
+	
+	public String processVcfMulti(final String vcfIn,
+			final Function<VariantContext,List<VariantContext>> fun)
+		throws IOException
+		{
+		
+		
 		final File inVcfFile=new File(vcfIn);
 		File outVcfFile = null;
 		File outVcfIndexFile = null;
-		final File STOP_FILE= new File(this.tmpDir,"STOP");
+		final File STOP_FILE= new File(this.workfingDirectory,"STOP");
 		if(STOP_FILE.exists())
 			{
 			final String msg="There is a stop file in "+STOP_FILE;
@@ -734,50 +858,38 @@ public class SimpleVcfFilter
 		VariantContextWriter variantContextWriter = null;
 		try
 			{
-			IOUtil.assertDirectoryIsReadable(this.tmpDir);
-			IOUtil.assertDirectoryIsWritable(this.tmpDir);
+			IOUtil.assertDirectoryIsReadable(this.workfingDirectory);
+			IOUtil.assertDirectoryIsWritable(this.workfingDirectory);
 			IOUtil.assertFileIsReadable(inVcfFile);
 
-			String filename= inVcfFile.getName();
-			if(filename.endsWith(".gz"))
-				{
-				filename = filename.substring(0,filename.length()-3);
-				}
-			if(filename.endsWith(".vcf"))
-				{
-				filename = filename.substring(0,filename.length()-4);
-				}
-			if(filename.matches(".*\\.[A-Za-z0-9_]{"+SUFFIX_LENGTH+"}$"))
-				{
-				filename = filename.substring(0,filename.length()-(SUFFIX_LENGTH+1));
-				}
-			if(this.prefix!=null && !this.prefix.isEmpty())
-				{
-				filename= this.prefix+filename;
-				}
-			filename += "."+this.fileId+".vcf";
-			final String indexFilename;
 			
-			if(this.forceSuffix.equals(ForceSuffix.ForceTribble))
+			final String extension;
+			if( this.forceSuffix.equals(ForceSuffix.ForceTabix) || inVcfFile.getName().endsWith(".gz"))
 				{
-				indexFilename = filename + Tribble.STANDARD_INDEX_EXTENSION;
-				}
-			else if( this.forceSuffix.equals(ForceSuffix.ForceTabix) || inVcfFile.getName().endsWith(".gz"))
-				{
-				filename+=".gz";
-				indexFilename = filename + TabixUtils.STANDARD_INDEX_EXTENSION;
+				extension=".vcf.gz";
 				}
 			else
 				{
+				extension=".vcf";
+				}
+			final String filename  = this.createOutputFile(vcfIn, extension);
+			
+			final String indexFilename;
+			if(extension.endsWith(".gz"))
+				{
 				indexFilename = filename + Tribble.STANDARD_INDEX_EXTENSION;
 				}
-			outVcfFile = new File(this.tmpDir,filename);
+			else
+				{
+				indexFilename = filename + TabixUtils.STANDARD_INDEX_EXTENSION;
+				}
+			
+			outVcfFile = new File(filename);
 			outVcfIndexFile = new File(indexFilename);
 			
 			vcfFileReader = new VCFFileReader(inVcfFile,false);
-			this.vcfheader = vcfFileReader.getFileHeader();
-			this.vcfTools = new VcfTools(vcfheader);
-			final SAMSequenceDictionary dict = this.vcfheader.getSequenceDictionary();
+			super.init( vcfFileReader.getFileHeader());
+			final SAMSequenceDictionary dict = this.getHeader().getSequenceDictionary();
 			if(dict==null)
 				{
 				final String msg="There is no dictionary (##contig lines) in "+inVcfFile;
@@ -786,7 +898,7 @@ public class SimpleVcfFilter
 				}
 			iter = vcfFileReader.iterator();
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(dict);
-			progress.setLogPrefix(this.prefix);
+			progress.setLogPrefix(this.filePrefix);
 			
 			LOG.info("writing "+outVcfFile+". Emergency stop file is "+STOP_FILE);
 			
@@ -797,13 +909,17 @@ public class SimpleVcfFilter
 				build()
 				;
 			long lastTick = System.currentTimeMillis();
-			variantContextWriter.writeHeader(this.vcfheader);
+			variantContextWriter.writeHeader(getHeader());
 			while(iter.hasNext())
 				{
 				final VariantContext ctx = progress.watch(iter.next());
-				if(filter.test(ctx))
+				final List<VariantContext> array = fun.apply(ctx);
+				if(array!=null)
 					{
-					variantContextWriter.add(ctx);
+					for(final VariantContext ctx2: array)
+						{
+						variantContextWriter.add(ctx2);
+						}
 					}
 				// check STOP File
 				final long now = System.currentTimeMillis();
@@ -812,7 +928,7 @@ public class SimpleVcfFilter
 					lastTick = now;
 					if(STOP_FILE.exists())
 						{
-						LOG.warn("STO FILE detected "+STOP_FILE+" Aborting.");
+						LOG.warn("STOP FILE detected "+STOP_FILE+" Aborting.");
 						fail_flag=true;
 						break;
 						}
@@ -851,11 +967,10 @@ public class SimpleVcfFilter
 					outVcfIndexFile.delete();
 					}
 				}
-			this.vcfheader=null;
-			this.vcfTools=null;
+	
 			}
 		}
-	}
+	
 
 
 public static void main(String[] args) {

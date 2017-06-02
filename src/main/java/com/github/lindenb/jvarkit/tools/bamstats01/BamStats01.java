@@ -42,11 +42,12 @@ import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 import htsjdk.samtools.SamInputResource;
@@ -57,6 +58,8 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.SequenceUtil;
 
 /**
@@ -165,7 +168,7 @@ public class BamStats01
 	private int chrX_index=-1;
 	private int chrY_index=-1;
 	private SAMSequenceDictionary samSequenceDictionary=null;
-	private SamSequenceRecordTreeMap<Boolean> intervals=null;
+	private IntervalTreeMap<Boolean> intervalTreeMap=null;
     
     private  class Histogram2
     	{
@@ -360,26 +363,23 @@ public class BamStats01
 					}
 					
 				
-				if(intervals==null)
+				if(intervalTreeMap==null)
 					{
-					intervals=new SamSequenceRecordTreeMap<Boolean>(currDict);
+					final BedLineCodec bedCodec=new BedLineCodec();
+					intervalTreeMap=new IntervalTreeMap<>();
 					LOG.info("opening "+this.bedFile);
-					final Pattern tab=Pattern.compile("[\t]");
 					String line;
 					final BufferedReader bedIn=IOUtils.openFileForBufferedReading(bedFile);
 					while((line=bedIn.readLine())!=null)
 						{
-						if(line.isEmpty() || line.startsWith("#")) continue;
-						final String tokens[]=tab.split(line,5);
-						if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.bedFile);
-						int seqIndex=currDict.getSequenceIndex(tokens[0]);
+						final BedLine bedLine = bedCodec.decode(line);
+						if(bedLine==null) continue;
+						int seqIndex=currDict.getSequenceIndex(bedLine.getContig());
 						if(seqIndex==-1)
 							{
 							throw new IOException("unknown chromosome from dict in  in "+line+" "+this.bedFile);
 							}
-						int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
-						int chromEnd1= Integer.parseInt(tokens[2]);
-						intervals.put(seqIndex, chromStart1, chromEnd1,Boolean.TRUE);
+						intervalTreeMap.put(bedLine.toInterval(),Boolean.TRUE);
 						}
 					bedIn.close();
 					LOG.info("done reading "+this.bedFile);
@@ -423,7 +423,7 @@ public class BamStats01
 				
 				
 				
-				if(intervals==null) continue;
+				if(intervalTreeMap==null) continue;
 				if(rec.getReadUnmappedFlag())
 					{
 					continue;
@@ -431,11 +431,11 @@ public class BamStats01
 				
 			
 				
-				if(!intervals.containsOverlapping(
-							rec.getReferenceIndex(),
+				if(!intervalTreeMap.containsOverlapping(new Interval(
+							rec.getReferenceName(),
 							rec.getAlignmentStart(),
 							rec.getAlignmentEnd()
-							))
+							)))
 					{
 					hist.histograms[Category2.OFF_TARGET.ordinal()].watch(rec);
 					}		
@@ -460,7 +460,7 @@ public class BamStats01
 						out.print("\t");
 						out.print(hist.histograms[cat2.ordinal()].counts[cat1.ordinal()]);
 						}
-					if(intervals==null) break;
+					if(intervalTreeMap==null) break;
 					}
 				out.println();
 				}

@@ -42,12 +42,12 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.samtools.SAMSequenceDictionaryHelper;
 
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.SamReader;
@@ -267,12 +267,14 @@ HWI-1KL149:20:C1CU7ACXX:2:2315:4940:7934/2	EQ|EQ|EQ	K01:2059=163/100M	K01:2059=1
 END_DOC
 */
 
-@Program(name="cmpbams",description="Compare two or more BAM files")
+@Program(name="cmpbams",description="Compare two or more BAM files",
+	keywords={"sam","bam","compare"}
+	)
 public class CompareBams  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBams.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	@Parameter(names={"-Q","--mapq"},description="min MAPQ")
@@ -287,7 +289,7 @@ public class CompareBams  extends Launcher
 	@Parameter(names={"-c","--cigar"},description="use cigar String for comparaison")
 	private boolean useCigar = false;
 	
-	@Parameter(names={"-r","--region"},description="restrict to that region chr:start-end")
+	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
 	private String REGION = "";
 
 	@ParametersDelegate
@@ -551,8 +553,8 @@ public class CompareBams  extends Launcher
 				final Optional<Interval> interval;
 				if(REGION!=null && !REGION.trim().isEmpty())
 					{
-					final SAMSequenceDictionaryHelper dix = new SAMSequenceDictionaryHelper();
-					interval = dix.parseInterval(REGION);
+					final IntervalParser dix = new IntervalParser(dict);
+					interval = Optional.ofNullable(dix.parse(REGION));
 					
 					if(!interval.isPresent())
 						{

@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -52,12 +51,12 @@ import htsjdk.samtools.util.Interval;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.samtools.SAMSequenceDictionaryHelper;
 /**
  BEGIN_DOC
  
@@ -280,7 +279,7 @@ public class BamToSql
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
-	@Parameter(names={"-r","--region"},description="Restrict to a given region")
+	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
 	private String regionStr = "";
 
 	@Parameter(names={"-c","--cigar"},description="print cigar data")
@@ -414,7 +413,7 @@ public class BamToSql
 				if(dict==null)  {
 					throw new JvarkitException.DictionaryMissing("No Dictionary in input");
 					}
-				final SAMSequenceDictionaryHelper dix = new SAMSequenceDictionaryHelper(dict);
+				final IntervalParser intervalParser = new IntervalParser(dict);
 				
 				final Interval userInterval;
 				iter= null;
@@ -425,15 +424,14 @@ public class BamToSql
 					}
 				else
 					{
-					final Optional<Interval> interval = dix.parseInterval(this.regionStr);
-					if(!interval.isPresent()) {
+					userInterval = intervalParser.parse(this.regionStr);
+					if(userInterval==null) {
 						throw new JvarkitException.UserError("cannot parse interval "+this.regionStr);
 					}
-					userInterval = interval.get();
 					iter = sfr.query(
-							interval.get().getContig(),
-							interval.get().getStart(),
-							interval.get().getEnd(),
+							userInterval.getContig(),
+							userInterval.getStart(),
+							userInterval.getEnd(),
 							false
 							);
 					}

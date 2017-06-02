@@ -58,12 +58,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 BEGIN_DOC
 
 
-
-
-
 ### Example
-
-
 
 
 ```

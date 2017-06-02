@@ -44,7 +44,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.SAMFlag;
@@ -415,7 +414,7 @@ public class CompareBamAndBuild  extends Launcher
 					final File samFile=new File(args.get(currentSamFileIndex));
 					LOG.info("read "+samFile);
 					this.bamFiles[currentSamFileIndex]=samFile;
-					SamReader samFileReader=SamFileReaderFactory.mewInstance().open(samFile);
+					SamReader samFileReader= CompareBamAndBuild.this.openSamReader(samFile.getPath());
 					final SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
 					this.sequenceDictionaries[currentSamFileIndex]=dict;
 					if(dict.isEmpty())

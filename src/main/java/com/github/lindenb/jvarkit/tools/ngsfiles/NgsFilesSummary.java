@@ -48,7 +48,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
@@ -109,12 +108,12 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     	
     
 	@Override
-    protected void readBam(File f)
+    protected void readBam(final File f)
     	{
     	if(!f.canRead()) return;
     	SamReader r=null;
     	try {
-			r=SamFileReaderFactory.mewInstance().open(f);
+			r = super.openSamReader(f.getPath());
 			SAMFileHeader h=r.getFileHeader();
 			if(h!=null && h.getReadGroups()!=null)
 				{
@@ -126,7 +125,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 					}
 				}
 			} 
-    	catch (Exception e)
+    	catch (final Exception e)
     		{
     		LOG.warning(e);
 			}

@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
+import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -41,7 +42,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -69,19 +69,29 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.SequenceUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 
 import java.util.function.Predicate;
+
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamSequenceRecordTreeMap;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+/**
+BEGIN_DOC
 
+
+END_DOC
+
+ */
 @Program(name="samfindclippedregions")
 public class SamFindClippedRegions extends Launcher
 	{
@@ -306,31 +316,27 @@ public class SamFindClippedRegions extends Launcher
 			
 
 			
-			SamSequenceRecordTreeMap<Boolean> intervals=null;
+			final IntervalTreeMap<Boolean> intervals= new IntervalTreeMap<>();
 			//w=swf.make(header, System.out);
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			
 			if(bedFile!=null)
 				{
-				intervals=new SamSequenceRecordTreeMap<Boolean>(dict);
+				final BedLineCodec bedLineCodec=new BedLineCodec();
 				LOG.info("Reading "+bedFile);
-				LineIterator r=IOUtils.openFileForLineIterator(bedFile);
-				while(r.hasNext())
+				BufferedReader r=IOUtils.openFileForBufferedReading(bedFile);
+				String line;
+				while((line=r.readLine())!=null)
 					{
-					String line=r.next();
-					if(line.startsWith("#") || line.isEmpty()) continue;
-					String tokens[]=line.split("[\t]");
-					if(tokens.length<3)
-						{
-						LOG.warning("Bad bed line in "+bedFile+" "+line);
-						continue;
-						}
-					if(dict!=null && dict.getSequence(tokens[0])==null)
+					BedLine bedLine = bedLineCodec.decode(line);
+					if(bedLine==null) continue;
+
+					if(dict!=null && dict.getSequence(bedLine.getContig())==null)
 						{
 						LOG.warning("undefined chromosome  in "+bedFile+" "+line);
 						continue;
 						}
-					intervals.put(tokens[0],Integer.parseInt(tokens[1]), Integer.parseInt(tokens[2]), true);
+					intervals.put(bedLine.toInterval(), true);
 					}
 				CloserUtil.close(r);
 				}
@@ -375,7 +381,8 @@ public class SamFindClippedRegions extends Launcher
 					{
 					rec=forwardIterator.next();
 					progress.watch(rec);
-					if(intervals!=null && !intervals.containsOverlapping(rec.getReferenceName(),rec.getAlignmentStart(),rec.getAlignmentEnd())) continue;
+					if(intervals!=null && !intervals.containsOverlapping(
+							new Interval(rec.getReferenceName(),rec.getAlignmentStart(),rec.getAlignmentEnd()))) continue;
 					}
 				//need to flush buffer ?
 				if( rec==null ||

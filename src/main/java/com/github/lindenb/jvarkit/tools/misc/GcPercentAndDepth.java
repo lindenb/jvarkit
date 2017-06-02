@@ -66,8 +66,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
-
 
 /**
 BEGIN_DOC
@@ -76,8 +74,6 @@ BEGIN_DOC
 ```bash
 $ java -jar dist/gcanddepth.jar -R ref.fasta -b capture.bed 1.bam 2.bam ... > result.tsv
 ```
-
-
 END_DOC
  */
 @Program(name="gcpercentanddepth",
@@ -344,9 +340,8 @@ public class GcPercentAndDepth extends Launcher
 					optind< args.size();
 					++optind)
 				{
-				File bamFile=new File(args.get(optind));
-				LOG.info("Opening "+bamFile);
-				SamReader samFileReaderScan=SamFileReaderFactory.mewInstance().open(bamFile);
+				LOG.info("Opening "+args.get(optind));
+				final SamReader samFileReaderScan= super.openSamReader(args.get(optind));
 				readers.add(samFileReaderScan);
 				
 				SAMFileHeader header= samFileReaderScan.getFileHeader();

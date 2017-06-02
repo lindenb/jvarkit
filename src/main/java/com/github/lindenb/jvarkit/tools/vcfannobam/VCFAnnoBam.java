@@ -18,7 +18,6 @@ import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -215,18 +214,18 @@ public class VCFAnnoBam extends Launcher {
 			}
 	
     @Override
-    protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
+    protected int doVcfToVcf(final String inputName, final VcfIterator r,final  VariantContextWriter w) {
 		BufferedReader bedIn=null;
 		List<SamReader> samReaders=new ArrayList<SamReader>();
 		IntervalTreeMap<Rgn> capture=new IntervalTreeMap<Rgn>();
 		try
 			{
 			SAMFileHeader firstHeader=null;
-			for(File samFile:new HashSet<File>(BAMFILE))
+			for(final  File samFile:new HashSet<File>(BAMFILE))
 				{
 				LOG.info("open bam "+samFile);
-				SamReader samReader = SamFileReaderFactory.mewInstance().open(samFile);
-				SAMFileHeader samHeader=samReader.getFileHeader();
+				final SamReader samReader = super.openSamReader(samFile.getPath());
+				final SAMFileHeader samHeader=samReader.getFileHeader();
 				samReaders.add(samReader);
 				if(firstHeader==null)
 					{

@@ -36,17 +36,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
+
 public class BedLineCodec
 	extends AsciiFeatureCodec<BedLine>
 	{
-	private Pattern tab=Pattern.compile("[\t]");
+	private final Pattern tab=Pattern.compile("[\t]");
 	public BedLineCodec() {
 		super(BedLine.class);
 		}
 	
 	@Override
 	/** may be null of line is a BEd header or empty string */
-	public BedLine decode(String line) {
+	public BedLine decode(final String line) {
 		if (line.trim().isEmpty()) {
             return null;
         	}
@@ -80,6 +81,5 @@ public class BedLineCodec
     public boolean canDecode(final String path) {
         return path.toLowerCase().endsWith(".bed");
     }
-
 
 }

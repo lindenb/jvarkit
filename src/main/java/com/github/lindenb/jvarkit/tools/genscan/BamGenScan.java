@@ -46,7 +46,6 @@ import javax.imageio.ImageIO;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SamFileReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -109,7 +108,7 @@ public class BamGenScan extends AbstractGeneScan
 				{
 				if(filename.isEmpty()) continue;
 				LOG.info("Reading header for "+filename);
-				SamReader sfr=SamFileReaderFactory.mewInstance().open(new File(filename));
+				SamReader sfr=super.openSamReader(filename);
 				readers.add(sfr);
 				
 				}
@@ -253,7 +252,7 @@ public class BamGenScan extends AbstractGeneScan
 					{
 					if(filename.isEmpty()) continue;
 					LOG.info("["+inputs.size()+"]Reading header for "+filename);
-					SamReader sfr=SamFileReaderFactory.mewInstance().open(new File(filename));
+					SamReader sfr= super.openSamReader(filename);
 					SAMFileHeader h=sfr.getFileHeader();
 					sfr.close();
 					SAMSequenceDictionary d=h.getSequenceDictionary();
