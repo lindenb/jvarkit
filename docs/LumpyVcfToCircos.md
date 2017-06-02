@@ -1,6 +1,6 @@
 # LumpyVcfToCircos
 
-lumpysv2circos
+Lumpy to Circos
 
 
 ## Usage
@@ -105,8 +105,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
- java -jar dist/lumpyvcf2circos.jar -o tmp  LumpyExpress.vcf.gz
+## Example
 
-
+```
+ java -jar dist/lumpyvcf2circos.jar  --minsu 50 -inv -bnb -dup  -o tmp  LumpyExpress.vcf.gz \
+  && (cd tmp; /path/to/bin/circos  -outputdir . -conf lumpy.circos.conf  )
+```
 
 
