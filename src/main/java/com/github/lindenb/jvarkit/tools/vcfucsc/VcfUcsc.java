@@ -31,6 +31,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -52,8 +54,16 @@ import com.github.lindenb.jvarkit.util.bio.bin.BinIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+/**
+BEGIN_DOC
 
-@Program(name="vcfucsc",description="annotate an VCF with mysql UCSC data")
+END_DOC
+ */
+@Program(
+		name="vcfucsc",
+		description="annotate an VCF with mysql UCSC data",
+		keywords={"ucsc","mysql","vcf"}
+		)
 public class VcfUcsc extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfUcsc.class).make();
@@ -124,7 +134,7 @@ public class VcfUcsc extends Launcher
 	private String startColumn=null;
 	private String endColumn=null;
 	
-	private void select(Set<String> atts,PreparedStatement pstmt) throws SQLException
+	private void select(final Set<String> atts,PreparedStatement pstmt) throws SQLException
 		{
 		ResultSet row=pstmt.executeQuery();
 		while(row.next())
@@ -137,6 +147,22 @@ public class VcfUcsc extends Launcher
 			}
 		row.close();
 		}
+	
+	 private static List<Integer> reg2bins(final int beg, final int _end) {
+	        int k, end = _end;
+	        if (beg >= end) return Collections.emptyList();
+	        if (end >= 1 << 29) end = 1 << 29;
+	        --end;
+	        final List<Integer> list = new ArrayList<>();
+	        list.add(0);
+	        for (k = 1 + (beg >> 26); k <= 1 + (end >> 26); ++k) list.add(k);
+	        for (k = 9 + (beg >> 23); k <= 9 + (end >> 23); ++k) list.add(k);
+	        for (k = 73 + (beg >> 20); k <= 73 + (end >> 20); ++k) list.add(k);
+	        for (k = 585 + (beg >> 17); k <= 585 + (end >> 17); ++k) list.add(k);
+	        for (k = 4681 + (beg >> 14); k <= 4681 + (end >> 14); ++k) list.add(k);
+	        return list;
+	    }
+	
 	@Override
 	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) 
 		{
@@ -176,10 +202,9 @@ public class VcfUcsc extends Launcher
 				pstmt.setInt(3, ctx.getEnd());
 				if(this.has_bin_column)
 					{
-					BinIterator biter=new BinIterator(ctx.getStart()-1, ctx.getEnd());
-					while(biter.hasNext())
+					for(final Integer biter : reg2bins(ctx.getStart()-1, ctx.getEnd()))
 						{
-						pstmt.setInt(4, biter.next());
+						pstmt.setInt(4, biter);
 						select(atts,pstmt);
 						}
 					}
@@ -325,7 +350,7 @@ public class VcfUcsc extends Launcher
 				}
 			return doVcfToVcf(args, outputFile);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -336,9 +361,6 @@ public class VcfUcsc extends Launcher
 			}
 		}
 
-	/**
-	 * @param args
-	 */
 	public static void main(String[] args)
 		{
 		new VcfUcsc().instanceMainWithExit(args);

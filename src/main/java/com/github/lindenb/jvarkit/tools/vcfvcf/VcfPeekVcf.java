@@ -166,23 +166,17 @@ public class VcfPeekVcf extends Launcher
 						);
 				while(iter.hasNext())
 					{
-					VariantContext ctx2=iter.next();
+					final VariantContext ctx2=iter.next();
 					if(!ctx.getContig().equals(ctx2.getContig())) continue;
 					if(ctx.getStart()!=ctx2.getStart()) continue;
 					if(!ctx.getReference().equals(ctx2.getReference())) continue;
 					
-					if(this.altAlleleCheck)
+					if(this.altAlleleCheck && !ctx.getAlternateAlleles().
+							stream().
+							filter(A->ctx2.hasAlternateAllele(A)
+							).findAny().isPresent())
 						{
-						boolean found_all_alt=true;
-						for(Allele alt: ctx.getAlternateAlleles())
-							{
-							if(!ctx2.hasAlternateAllele(alt))
-								{
-								found_all_alt=false;
-								break;
-								}
-							}
-						if(!found_all_alt) continue;
+						continue;
 						}
 					if(this.peekId && ctx2.hasID())
 						{
@@ -225,7 +219,7 @@ public class VcfPeekVcf extends Launcher
 			
 			return doVcfToVcf(args, outputFile);
 			} 
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

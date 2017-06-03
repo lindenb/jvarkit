@@ -181,7 +181,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
 	biostar86480	biostar90204	msa2vcf	biostar95652 biostar139647	biostar145820 blast2sam reduceblast	blastmapannots \
 	blastn2snp	buildwpontology	bwamemdigest	bwamemnop	cmpbams	cmpbamsandbuild	coveragenormalizer \
-	deseqcount	downsamplevcf	evs2bed	evs2vcf	evs2xml	fastq2fasta kg2bed \
+	downsamplevcf	evs2bed	evs2vcf	evs2xml	fastq2fasta kg2bed \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
 	fastqsplitinterleaved	findallcoverageatposition	findavariation	findcorruptedfiles	findmyvirus	findnewsplicesites	fixvarscanmissingheader \
 	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	 \
@@ -316,7 +316,6 @@ $(eval $(call compile-htsjdk-cmd,cmpbams4,${jvarkit.package}.tools.cmpbams.Compa
 $(eval $(call compile-htsjdk-cmd,commbams,${jvarkit.package}.tools.cmpbams.CommBams,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,cmpbamsandbuild,${jvarkit.package}.tools.cmpbams.CompareBamAndBuild,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,coveragenormalizer,${jvarkit.package}.tools.misc.CoverageNormalizer,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,deseqcount,${jvarkit.package}.tools.bam4deseq.HtSeqCount,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,downsamplevcf,${jvarkit.package}.tools.misc.DownSampleVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,evs2bed,${jvarkit.package}.tools.evs2bed.DumpExomeVariantServerData,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,evs2vcf,${jvarkit.package}.tools.evs2bed.EvsToVcf,${jcommander.jar} api.evs))
