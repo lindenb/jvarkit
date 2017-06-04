@@ -1293,7 +1293,7 @@ public class VcfStats extends Launcher
 			
 			
 			this.archiveFactory = ArchiveFactory.open(this.outputFile);
-			if(this.tee) teeOut = super.openVariantContextWriter(null);
+			if(this.tee) teeOut = super.openVariantContextWriter(null,null);
 			
 			iter= super.openVcfIterator(oneFileOrNull(args));
 			

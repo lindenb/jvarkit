@@ -441,7 +441,7 @@ public class VCFMerge2
 	private void copyTo(InputStream in) throws IOException
 		{
 		final VcfIterator iter= VCFUtils.createVcfIteratorFromInputStream(in);
-		final VariantContextWriter out= this.openVariantContextWriter(outputFile);
+		final VariantContextWriter out= this.openVariantContextWriter(null,outputFile);
 		VCFUtils.copyHeaderAndVariantsTo(iter, out);
 		CloserUtil.close(out);
 		CloserUtil.close(iter);
@@ -513,7 +513,7 @@ public class VCFMerge2
 				metaData.add(NO_MERGE_INFO_HEADER);
 				}
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-			out = super.openVariantContextWriter(outputFile);
+			out = super.openVariantContextWriter(null,outputFile);
 			final VCFHeader headerOut=new VCFHeader(
 					metaData,
 					genotypeSampleNames);
@@ -664,7 +664,7 @@ public class VCFMerge2
 			
 	
 			//create the context writer
-			w= super.openVariantContextWriter(outputFile);
+			w= super.openVariantContextWriter(null,outputFile);
 			w.writeHeader(mergeHeader);
 			iter= array.iterator();
 			final List<VariantOfFile> row=new ArrayList<VariantOfFile>();

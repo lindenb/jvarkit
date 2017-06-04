@@ -84,7 +84,7 @@ public class FixVCF
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FixVCF.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-T","--tmpDir"},description="mp directory")
 	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
@@ -99,7 +99,7 @@ public class FixVCF
 			String fname=super.oneFileOrNull(args);
 			
 			in = super.openInputStream(fname);
-			w = super.openVariantContextWriter(this.outputFile);
+			w = super.openVariantContextWriter(null,this.outputFile);
 			
 			doWork((fname==null?"stdin":fname),in,w);
 				

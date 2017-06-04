@@ -282,7 +282,7 @@ public class SortVcfOnInfo extends Launcher
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 	
-			w=super.openVariantContextWriter(this.outputFile);
+			w=super.openVariantContextWriter(header.getSequenceDictionary(),this.outputFile);
 			
 			w.writeHeader(header);
 			

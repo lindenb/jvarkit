@@ -446,7 +446,7 @@ public class VcfIn extends Launcher
 					VCFUtils.createVcfIteratorFromInputStream(stdin()):
 					VCFUtils.createVcfIterator(userVcfUri)
 					);
-			w= super.openVariantContextWriter(outputFile);
+			w= super.openVariantContextWriter(null,outputFile);
 			if(this.databaseIsTabix)
 				{
 				return this.scanUsingTabix(w,databaseVcfUri, in);

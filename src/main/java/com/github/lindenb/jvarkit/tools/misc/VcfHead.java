@@ -30,13 +30,16 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -80,7 +83,9 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	private long count=10;
 	@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
 	private boolean by_contig=false;
-
+	@ParametersDelegate
+	private WritingVcfArgs writingVcfArgs = new WritingVcfArgs();
+	
 	public VcfHead()
 		{
 		}
@@ -120,6 +125,12 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 			return -1;
 			}
 		}
+	
+	@Override
+	protected VariantContextWriter openVariantContextWriter(SAMSequenceDictionary dict, File outorNull) throws IOException {
+		return this.writingVcfArgs.dictionary(dict).open(outorNull);
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		return doVcfToVcf(args, this.output);

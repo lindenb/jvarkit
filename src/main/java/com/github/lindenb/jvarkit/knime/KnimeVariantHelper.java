@@ -53,6 +53,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -853,8 +855,7 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 			throw new IOException(msg);
 			}
 		boolean fail_flag=false;
-		VCFFileReader vcfFileReader=null;
-		CloseableIterator<VariantContext> iter=null;
+		VcfIterator iter=null;
 		VariantContextWriter variantContextWriter = null;
 		try
 			{
@@ -887,8 +888,8 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 			outVcfFile = new File(filename);
 			outVcfIndexFile = new File(indexFilename);
 			
-			vcfFileReader = new VCFFileReader(inVcfFile,false);
-			super.init( vcfFileReader.getFileHeader());
+			iter = VCFUtils.createVcfIteratorFromFile(inVcfFile);
+			super.init( iter.getHeader());
 			final SAMSequenceDictionary dict = this.getHeader().getSequenceDictionary();
 			if(dict==null)
 				{
@@ -896,7 +897,6 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 				LOG.error(msg);
 				throw new IllegalArgumentException(msg);
 				}
-			iter = vcfFileReader.iterator();
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(dict);
 			progress.setLogPrefix(this.filePrefix);
 			
@@ -935,8 +935,8 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 					}
 				}
 			progress.finish();
-			vcfFileReader.close();
-			vcfFileReader=null;
+			iter.close();
+			iter=null;
 			
 			variantContextWriter.close();
 			variantContextWriter=null;
@@ -952,7 +952,6 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 		finally
 			{
 			CloserUtil.close(iter);
-			CloserUtil.close(vcfFileReader);
 			CloserUtil.close(variantContextWriter);
 			if(fail_flag)
 				{

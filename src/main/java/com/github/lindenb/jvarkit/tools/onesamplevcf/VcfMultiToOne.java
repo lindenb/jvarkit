@@ -332,7 +332,7 @@ public class VcfMultiToOne extends Launcher
 					Collections.singleton(DEFAULT_VCF_SAMPLE_NAME)
 					);
 			
-			out= super.openVariantContextWriter(this.outputFile);
+			out= super.openVariantContextWriter(null,this.outputFile);
 			out.writeHeader(h2);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			for(;;)

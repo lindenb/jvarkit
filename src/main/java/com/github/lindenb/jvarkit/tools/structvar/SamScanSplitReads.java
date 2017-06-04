@@ -457,7 +457,7 @@ END_DOC
 			if(sampleNames.isEmpty()) sampleNames.add(this.defaultSampleName);
 			VCFHeader header=new VCFHeader(meta,sampleNames);
 			header.setSequenceDictionary(dict);
-			VariantContextWriter vcw = super.openVariantContextWriter(outputFile);
+			VariantContextWriter vcw = super.openVariantContextWriter(null,outputFile);
 			vcw.writeHeader(header);
 			final List<Arc> all_arcs = new ArrayList<>();
 			

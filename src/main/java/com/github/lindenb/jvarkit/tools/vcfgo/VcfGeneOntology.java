@@ -333,7 +333,7 @@ public class VcfGeneOntology
 						));
 				}
 			
-			w = super.openVariantContextWriter(outputFile);
+			w = super.openVariantContextWriter(null,outputFile);
 
 			w.writeHeader(h2);
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());

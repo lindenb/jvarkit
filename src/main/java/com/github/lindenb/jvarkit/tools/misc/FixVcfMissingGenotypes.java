@@ -355,7 +355,7 @@ public class FixVcfMissingGenotypes extends Launcher
 				h2= in.getHeader();
 				}
 			
-			final VariantContextWriter w = super.openVariantContextWriter(this.outputFile);
+			final VariantContextWriter w = super.openVariantContextWriter(null,this.outputFile);
 			w.writeHeader(h2);
 			while(in.hasNext())
 				{

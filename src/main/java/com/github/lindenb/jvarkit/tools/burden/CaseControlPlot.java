@@ -410,7 +410,7 @@ public class CaseControlPlot extends Launcher
 					}
 			if( this.teeToStdout)
 				{
-				teeVariantWriter = super.openVariantContextWriter(null);
+				teeVariantWriter = super.openVariantContextWriter(header.getSequenceDictionary(),null);
 				teeVariantWriter.writeHeader(header);
 				}
 			archiveFactory = ArchiveFactory.open(this.outputDirOrZip);

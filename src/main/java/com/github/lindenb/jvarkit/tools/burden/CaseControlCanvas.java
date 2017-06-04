@@ -517,7 +517,7 @@ public static class Main extends Launcher
 				final VCFInfoHeaderLine xyInfoHeaderLine;
 				if( this.teeStdout)
 					{
-					teeVariantWriter = super.openVariantContextWriter(null);
+					teeVariantWriter = super.openVariantContextWriter(header.getSequenceDictionary(),null);
 					xyInfoHeaderLine=new VCFInfoHeaderLine(
 							this.outputXYAttribute,
 							VCFHeaderLineCount.A,

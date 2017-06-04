@@ -30,15 +30,19 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher.WritingVcfArgs;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -62,7 +66,9 @@ chr1    1334052 CTAGAG  C
 END_DOC
 
 **/
-@Program(name="vcftail",description="print the last variants of a vcf",keywords={"vcf"})
+@Program(
+	name="vcftail",
+	description="print the last variants of a vcf",keywords={"vcf"})
 public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfTail.class).make();
@@ -72,11 +78,19 @@ public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	private int count=10;
 	@Parameter(names={"-c","--bycontig"},descriptionKey="Print last variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
 	private boolean by_contig=false;
+	@ParametersDelegate
+	private WritingVcfArgs writingVcfArgs = new WritingVcfArgs();
 
 	
 	public VcfTail()
 		{
 		}
+	
+	@Override
+	protected VariantContextWriter openVariantContextWriter(SAMSequenceDictionary dict, File outorNull) throws IOException {
+		return this.writingVcfArgs.dictionary(dict).open(outorNull);
+		}
+	
 	@Override
 	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		String prev_contig=null;

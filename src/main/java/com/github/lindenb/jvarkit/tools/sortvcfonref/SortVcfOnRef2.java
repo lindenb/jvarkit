@@ -291,7 +291,7 @@ public class SortVcfOnRef2 extends Launcher
 			array.doneAdding();
 			progress.finish();
 			
-			w = super.openVariantContextWriter(outputFile);
+			w = super.openVariantContextWriter(null,outputFile);
 			w.writeHeader(h2);
 			
 			iter=array.iterator();
