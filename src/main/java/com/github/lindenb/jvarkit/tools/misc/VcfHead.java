@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -42,6 +41,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -84,7 +84,7 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
 	private boolean by_contig=false;
 	@ParametersDelegate
-	private WritingVcfArgs writingVcfArgs = new WritingVcfArgs();
+	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 	
 	public VcfHead()
 		{
@@ -127,8 +127,8 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 		}
 	
 	@Override
-	protected VariantContextWriter openVariantContextWriter(SAMSequenceDictionary dict, File outorNull) throws IOException {
-		return this.writingVcfArgs.dictionary(dict).open(outorNull);
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),outorNull);
 		}
 	
 	@Override

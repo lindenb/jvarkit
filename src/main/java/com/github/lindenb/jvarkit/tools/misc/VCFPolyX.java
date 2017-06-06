@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -42,11 +43,13 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /*
@@ -83,6 +86,8 @@ public class VCFPolyX extends Launcher
 
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx = null;
+	@ParametersDelegate
+	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
@@ -91,7 +96,13 @@ public class VCFPolyX extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),this.outputFile);
+		}
+
+	
+	@Override
+	public int doWork(final List<String> args) {
 		if(this.polyXtag.trim().isEmpty()) {
 			LOG.error("Empty tag in");
 			return -1;
@@ -104,7 +115,7 @@ public class VCFPolyX extends Launcher
 				}
 			LOG.info("opening reference "+faidx);
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
-			
+			this.writingVcfArgs.dictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
 			return doVcfToVcf(args,outputFile);
 		} catch (Exception e) {
 			LOG.error(e);

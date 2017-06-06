@@ -488,7 +488,7 @@ public class MiniCaller extends Launcher
                     );
             
             /* create variant context */
-            this.variantContextWriter = super.openVariantContextWriter(this.dictionary,outputFile);
+            this.variantContextWriter = super.openVariantContextWriter(outputFile);
             this.variantContextWriter.writeHeader(vcfHeader);
 
             GenomicSequence genomicSeq=null;

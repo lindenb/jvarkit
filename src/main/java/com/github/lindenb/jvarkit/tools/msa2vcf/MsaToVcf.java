@@ -439,7 +439,7 @@ public class MsaToVcf extends Launcher
 			Set<String> samples=new TreeSet<String>(this.sample2sequence.keySet());
 			VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
 			
-			w= super.openVariantContextWriter(null,this.outputFile);
+			w= super.openVariantContextWriter(this.outputFile);
 			w.writeHeader(vcfHeader);
 			
 			/** loop over data, print header */

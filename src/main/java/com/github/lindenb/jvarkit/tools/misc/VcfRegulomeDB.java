@@ -91,7 +91,7 @@ Those SNPs can be seen at:
 END_DOC
 
  */
-@Program(name="ccfregulomedb",description="Annotate a VCF with the Regulome data (http://regulome.stanford.edu/")
+@Program(name="vcfregulomedb",description="Annotate a VCF with the Regulome data (http://regulome.stanford.edu/")
 public class VcfRegulomeDB extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfRegulomeDB.class).make();

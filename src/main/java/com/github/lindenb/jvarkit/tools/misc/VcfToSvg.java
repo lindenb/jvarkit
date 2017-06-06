@@ -89,7 +89,10 @@ https://twitter.com/yokofakun/status/851875435948462080
 
 END_DOC
  */
-@Program(name="vcf2svg",description="write a vcf to svg , with gene context",keywords={"vcf","svg","xlm","visualization"})
+@Program(name="vcf2svg",
+	description="write a vcf to svg , with gene context",
+	keywords={"vcf","svg","xlm","visualization"}
+		)
 public class VcfToSvg extends Launcher {
 private static final Logger LOG=Logger.build(VcfToSvg.class).make();
 private static final String SEGMENT="__SEGMENT__";

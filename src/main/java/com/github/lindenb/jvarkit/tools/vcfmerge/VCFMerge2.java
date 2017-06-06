@@ -56,10 +56,8 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.AbstractVCFCodec;
-import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
@@ -280,107 +278,71 @@ public class VCFMerge2
 			}		
 		}
 	
+	private  Comparator<Genotype> genotypeComparator = (g1,g2) -> {
+		 if(g2.hasGQ() && g1.hasGQ() )
+		 	{
+			return g2.getGQ() - g1.getGQ(); 
+		 	}
+		 return 0;
+		};
+		
+	
 	private List<VariantContext> buildContextFromVariantContext(
 			final VCFHeader header,
 			final List<VariantContext> row
 			)
 		{
-		
-		
-		Double qual=null;
-		final Set<String> filters=new HashSet<String>();
-		final HashMap<String,Genotype> sample2genotype=new HashMap<String,Genotype>();
 		final VariantContextBuilder vcb=new VariantContextBuilder();
 		final Map<String,Object> atts=new HashMap<String,Object>();
-		String id=null;
-		vcb.chr(row.get(0).getContig());
-		vcb.start(row.get(0).getStart());
-		vcb.stop(row.get(0).getEnd());
+		final VariantContext ctx0 = row.get(0);
 		
-		final VCFInfoHeaderLine dpInfo= header.getInfoHeaderLine("DP");
-		int total_dp=0;
+		vcb.chr(ctx0.getContig());
+		vcb.start(ctx0.getStart());
+		vcb.stop(ctx0.getEnd());
 		
-		for(VariantContext ctx:row)
+		//fill genotypes
+		final HashMap<String,Genotype> sample2genotype=new HashMap<String,Genotype>();
+		for(final VariantContext ctx:row)
 			{
-			if(ctx.hasLog10PError())
-				{
-				if(qual==null || qual<ctx.getLog10PError()) qual=ctx.getLog10PError();
-				}
-			int dp=ctx.getAttributeAsInt("DP",-1);
-			if(dp!=-1)
-				{
-				total_dp+=dp;
-				}
-			
-			filters.addAll(ctx.getFilters());
-			if(id==null && ctx.hasID()) id=ctx.getID();
-			
-			Map<String,Object> at=ctx.getAttributes();
-			for(String attName:at.keySet())
-				{
-				if(row.size()!=1)
-					{
-					final VCFInfoHeaderLine headerInfo = header.getInfoHeaderLine(attName);
-					if(headerInfo==null) continue;
-					if(headerInfo.getCountType()==VCFHeaderLineCount.A) 
-						{
-						//TODO
-						continue;
-						}
-					if(headerInfo.getCountType()==VCFHeaderLineCount.G) 
-						{
-						//TODO
-						continue;
-						}
-					}
-				atts.put(attName, at.get(attName));
-				}
-			
-			
 			for(final String sample:ctx.getSampleNames())
 				{
 				final Genotype g1=ctx.getGenotype(sample);
 				if(g1==null || !g1.isCalled()) continue;
 				final Genotype g2=sample2genotype.get(sample);
-				if(g2==null || (g2.hasGQ() && g1.hasGQ() && g2.getGQ()<g1.getGQ()))
+				if(g2==null || this.genotypeComparator.compare(g1, g2)<0)
 					{
 					sample2genotype.put(sample,g1);
 					}
 				}
 			}
-		
-		
-		final Set<Allele> alleles=new HashSet<Allele>();
-		alleles.add(row.get(0).getReference());
-		for(final String sampleName:sample2genotype.keySet())
-			{	
-			final Genotype g1=sample2genotype.get(sampleName);
-			if(!g1.isAvailable()) continue;
-			alleles.addAll(g1.getAlleles());
-			}
 		// missing samples ?
 		final Set<String> remainingSamples=new HashSet<String>(header.getSampleNamesInOrder());
 		remainingSamples.removeAll(sample2genotype.keySet());
-		for(String sampleName:remainingSamples)
+		for(final String sampleName:remainingSamples)
 			{
 			final Genotype missing = createMissingGenotype(sampleName,row.get(0).getReference());
 			sample2genotype.put(sampleName,missing);
 			}
 		
-		if( atts.containsKey("DP") &&
-			dpInfo!=null && dpInfo.getCount()==1 && dpInfo.getType()==VCFHeaderLineType.Integer)
-			{
-			atts.remove("DP");
-			atts.put("DP", total_dp);
+		//collect alleles
+		final List<Allele> alleleList =new ArrayList<>();
+		alleleList.add(ctx0.getReference());
+		for(final String sampleName:sample2genotype.keySet())
+			{	
+			final Genotype g1=sample2genotype.get(sampleName);
+			if(!g1.isCalled() ) continue;
+			for(final Allele ga: g1.getAlleles())
+				{
+				if(ga.isReference() || alleleList.contains(ga)) continue;
+				alleleList.add(ga);
+				}
 			}
 		
+		
+		
 		vcb.attributes(atts);
-		filters.remove(VCFConstants.PASSES_FILTERS_v4);
-		if(!filters.isEmpty()) vcb.filters(filters);
-		vcb.alleles(alleles);
-		if(qual!=null) vcb.log10PError(qual);
+		vcb.alleles(alleleList);
 		vcb.genotypes(sample2genotype.values());
-		if(id!=null) vcb.id(id);
 		return Collections.singletonList(vcb.make());
 		}
 	
@@ -437,11 +399,10 @@ public class VCFMerge2
 	
 	
 	
-	
 	private void copyTo(InputStream in) throws IOException
 		{
 		final VcfIterator iter= VCFUtils.createVcfIteratorFromInputStream(in);
-		final VariantContextWriter out= this.openVariantContextWriter(null,outputFile);
+		final VariantContextWriter out= this.openVariantContextWriter(outputFile);
 		VCFUtils.copyHeaderAndVariantsTo(iter, out);
 		CloserUtil.close(out);
 		CloserUtil.close(iter);
@@ -513,7 +474,7 @@ public class VCFMerge2
 				metaData.add(NO_MERGE_INFO_HEADER);
 				}
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-			out = super.openVariantContextWriter(null,outputFile);
+			out = super.openVariantContextWriter(outputFile);
 			final VCFHeader headerOut=new VCFHeader(
 					metaData,
 					genotypeSampleNames);
@@ -664,7 +625,7 @@ public class VCFMerge2
 			
 	
 			//create the context writer
-			w= super.openVariantContextWriter(null,outputFile);
+			w= super.openVariantContextWriter(outputFile);
 			w.writeHeader(mergeHeader);
 			iter= array.iterator();
 			final List<VariantOfFile> row=new ArrayList<VariantOfFile>();

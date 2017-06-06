@@ -335,6 +335,10 @@ public class VCFBed extends Launcher
 					if(filterToSet!=null) {
 						vcb.filter(filterToSet);
 						}
+					else if(ctx.isNotFiltered())
+						{
+						vcb.passFilters();
+						}
 					w.add(vcb.make());
 					if(w.checkError()) break;
 					}

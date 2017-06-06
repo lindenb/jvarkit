@@ -136,7 +136,7 @@ public class ReferenceToVCF extends Launcher
 			{
 			final IndexedFastaSequenceFile fasta=new IndexedFastaSequenceFile(new File(oneAndOnlyOneFile(args)));
 			SAMSequenceDictionary dict=fasta.getSequenceDictionary();
-			out= super.openVariantContextWriter(dict,this.outputFile);
+			out= super.openVariantContextWriter(this.outputFile);
 			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			VCFHeader header=new VCFHeader();

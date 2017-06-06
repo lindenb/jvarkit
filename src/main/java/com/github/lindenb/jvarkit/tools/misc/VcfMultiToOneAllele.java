@@ -51,8 +51,10 @@ import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -78,6 +80,9 @@ $ java -jar dist/vcfmulti2oneallele.jar  ExAC.r0.3.sites.vep.vcf.gz   | grep rs3
 1	889238	rs3828049	G	C	8422863.10	PASS	AC=3;AC_AFR=0;AC_AMR=1;AC_Adj=3;AC_EAS=0;AC_FIN=0;AC_Het=3;AC_Hom=0;AC_NFE=0;AC_OTH=0;AC_SAS=2;AF=2.472e-05;AN=121358;AN_AFR=10148;AN_AMR=11522;AN_Adj=119272;AN_EAS=8582;AN_FIN=6358;AN_NFE=65282;AN_OTH=876;AN_SAS=16504;VCF_MULTIALLELIC_SRC=A|C;(....)
 ```
 
+## History
+
+* 20170606 added support for VCFHeaderLineCount.R
 
 END_DOC
  */
@@ -96,7 +101,10 @@ public class VcfMultiToOneAllele
 	private boolean print_samples = false;
 	@Parameter(names={"-r","--rmAtt"},description="20161110: after merging with GATK CombineVariants there can have problemes with INFO/type='A' present in vcf1 but not in vcf2, and multiallelelic variants. This option delete the attributes having such problems.")
 	private boolean rmErrorAttributes = false;
+	@ParametersDelegate
+	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
+	
 	 public VcfMultiToOneAllele()
 		{
 		}
@@ -136,13 +144,13 @@ public class VcfMultiToOneAllele
 			while(in.hasNext())
 				{
 				final VariantContext ctx=progess.watch(in.next());
-				final List<Allele> alleles = new ArrayList<>(ctx.getAlternateAlleles());
-				if(alleles.isEmpty())
+				final List<Allele> alternateAlleles = new ArrayList<>(ctx.getAlternateAlleles());
+				if(alternateAlleles.isEmpty())
 					{
 					LOG.warn("Remove no ALT variant:"+ctx);
 					continue;
 					}
-				else if(alleles.size()==1)
+				else if(alternateAlleles.size()==1)
 					{
 					if(!print_samples)
 						{
@@ -160,15 +168,15 @@ public class VcfMultiToOneAllele
 					//Collections.sort(aioulleles); don't sort , for VCFHeaderLineCount.A
 					final Map<String,Object> attributes = ctx.getAttributes();
 					final StringBuilder sb=new StringBuilder();
-					for(int i=0;i< alleles.size();++i)
+					for(int i=0;i< alternateAlleles.size();++i)
 						{
 						if(sb.length()>0) sb.append("|");
-						sb.append(alleles.get(i).getDisplayString());
+						sb.append(alternateAlleles.get(i).getDisplayString());
 						}
 					final String altAsString= sb.toString();
-					for(int i=0;i< alleles.size();++i)
+					for(int alternateIndex=0;alternateIndex< alternateAlleles.size();++alternateIndex)
 						{
-						final Allele the_allele = alleles.get(i);
+						final Allele the_allele = alternateAlleles.get(alternateIndex);
 	
 						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 						vcb.alleles(Arrays.asList(ctx.getReference(),the_allele));
@@ -177,8 +185,11 @@ public class VcfMultiToOneAllele
 							{
 							final VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
 							if(info==null) throw new IOException("Cannot get header INFO tag="+attid);
-							if(info.getCountType()!=VCFHeaderLineCount.A) continue;
+							final VCFHeaderLineCount lineCount = info.getCountType();
+							
+							if(lineCount!=VCFHeaderLineCount.A && lineCount!=VCFHeaderLineCount.R) continue;
 							final Object o = 	attributes.get(attid);
+							
 							if(!(o instanceof List)) {
 								final String msg="For INFO tag="+attid+" got "+o.getClass()+" instead of List in "+ctx;
 								if(this.rmErrorAttributes)
@@ -194,8 +205,10 @@ public class VcfMultiToOneAllele
 								}
 							@SuppressWarnings("rawtypes")
 							final List list = (List)o;
-							if(alleles.size()!=list.size()) {
-								final String msg= ctx.getContig()+":"+ctx.getStart()+" : For INFO tag="+attid+" got "+alleles.size()+" ALT, incompatible with "+list.toString();
+							// if 'R' we expected alleles.size()+list.size()+1 (for ref allele)
+							final int mallusForRef = +(lineCount.equals(VCFHeaderLineCount.A)?0:1);
+							if(alternateAlleles.size() + mallusForRef !=list.size()) {
+								final String msg= ctx.getContig()+":"+ctx.getStart()+" : For INFO tag="+attid+" got "+alternateAlleles.size()+" ALT, incompatible with "+list.toString();
 								if(this.rmErrorAttributes)
 									{
 									LOG.warn("remove this attribute : "+msg);
@@ -207,9 +220,15 @@ public class VcfMultiToOneAllele
 									throw new IOException(msg);
 									}
 								}
-							else
+							else if(lineCount.equals(VCFHeaderLineCount.R)) {
+								final List<Object> rlist = new ArrayList<>(2);
+								rlist.add(list.get(0));///0==REF
+								rlist.add(list.get(alternateIndex+1));
+								vcb.attribute(attid, rlist);	
+								}
+							else // VCFHeaderLineCount.A
 								{	
-								vcb.attribute(attid, list.get(i));	
+								vcb.attribute(attid, list.get(alternateIndex));	
 								}
 							}
 						
@@ -280,6 +299,12 @@ public class VcfMultiToOneAllele
 	public int doWork(final List<String> args) {
 		return doVcfToVcf(args,outputFile);
 		}
+	
+	@Override
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),this.outputFile);
+		}
+
 	
 	public static void main(final String[] args)
 		{

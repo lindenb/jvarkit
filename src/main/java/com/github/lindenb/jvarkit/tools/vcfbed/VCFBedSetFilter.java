@@ -65,13 +65,10 @@ BEGIN_DOC
 
 ### Examples
 
-
 ```
 $java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf 
 
 ```
-
-
 
 END_DOC
 */
@@ -226,7 +223,7 @@ public class VCFBedSetFilter extends Launcher
 			
 			return doVcfToVcf(args, outputFile);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

@@ -6,7 +6,7 @@ Generate a VCF
 ## Usage
 
 ```
-Usage: ccfSimulator [options] Files
+Usage: vcfSimulator [options] Files
   Options:
     -h, --help
       print help and exit
@@ -20,7 +20,7 @@ Usage: ccfSimulator [options] Files
       faidx and with picard CreateSequenceDictionary
     -S
       random seed
-      Default: java.util.Random@11d72ca
+      Default: java.util.Random@22d8cfe0
 
 ```
 
@@ -40,7 +40,7 @@ Usage: ccfSimulator [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make ccfSimulator
+$ make vcfSimulator
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -72,7 +72,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **ccfSimulator** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **vcfSimulator** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 

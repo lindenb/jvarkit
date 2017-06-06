@@ -6,7 +6,7 @@ Annotate a VCF with the Regulome data (http://regulome.stanford.edu/
 ## Usage
 
 ```
-Usage: ccfregulomedb [options] Files
+Usage: vcfregulomedb [options] Files
   Options:
     -h, --help
       print help and exit
@@ -46,7 +46,7 @@ Usage: ccfregulomedb [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make ccfregulomedb
+$ make vcfregulomedb
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -78,7 +78,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **ccfregulomedb** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **vcfregulomedb** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 

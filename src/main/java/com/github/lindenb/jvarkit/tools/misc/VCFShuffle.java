@@ -137,7 +137,7 @@ public class VCFShuffle extends Launcher
 		try
 			{
 			lr = super.openBufferedReader(oneFileOrNull(args));
-			out = super.openVariantContextWriter(null,this.outputFile);
+			out = super.openVariantContextWriter(this.outputFile);
 			
 			
 			final Random random=new Random(this.seed);

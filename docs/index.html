@@ -163,13 +163,13 @@
 <tr id="vcfliftover"><th><a href="VcfLiftOver.html" title="VcfLiftOver">vcfliftover</a></th><td>Lift-over a VCF file</td><td>vcf liftover</td><td/><td/></tr>
 <tr id="vcfmerge"><th><a href="VCFMerge2.html" title="VCFMerge2">vcfmerge</a></th><td>Merge VCF Files</td><td/><td/><td><span style="color:orange;" title="deprecated">use GATK combineVariants </span>. </td></tr>
 <tr id="vcfmulti2one"><th><a href="VcfMultiToOne.html" title="VcfMultiToOne">vcfmulti2one</a></th><td>&gt;Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column</td><td>vcf sample</td><td/><td/></tr>
-<tr id="ccfregulomedb"><th><a href="VcfRegulomeDB.html" title="VcfRegulomeDB">ccfregulomedb</a></th><td>Annotate a VCF with the Regulome data (http://regulome.stanford.edu/</td><td/><td/><td/></tr>
+<tr id="vcfregulomedb"><th><a href="VcfRegulomeDB.html" title="VcfRegulomeDB">vcfregulomedb</a></th><td>Annotate a VCF with the Regulome data (http://regulome.stanford.edu/</td><td/><td/><td/></tr>
 <tr id="vcfrenamechr"><th><a href="ConvertVcfChromosomes.html" title="ConvertVcfChromosomes">vcfrenamechr</a></th><td>Convert the names of the chromosomes in a VCF file</td><td>vcf contig chromosome convert</td><td/><td/></tr>
 <tr id="vcfrenamesamples"><th><a href="VcfRenameSamples.html" title="VcfRenameSamples">vcfrenamesamples</a></th><td>Rename the Samples in a VCF</td><td>vcf sample</td><td/><td/></tr>
 <tr id="vcfresetvcf"><th><a href="VcfRemoveGenotypeIfInVcf.html" title="VcfRemoveGenotypeIfInVcf">vcfresetvcf</a></th><td>Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix</td><td>vcf genotype</td><td/><td/></tr>
 <tr id="vcfsetdict"><th><a href="VcfSetSequenceDictionary.html" title="VcfSetSequenceDictionary">vcfsetdict</a></th><td>Set the ##contig lines in a VCF header</td><td>vcf dict fai</td><td/><td><span style="color:orange;" title="deprecated">Use picard UpdateVcfSequenceDictionary</span>. </td></tr>
 <tr id="vcfshuffle"><th><a href="VCFShuffle.html" title="VCFShuffle">vcfshuffle</a></th><td>Shuffle a VCF</td><td>vcf</td><td/><td/></tr>
-<tr id="ccfSimulator"><th><a href="VcfSimulator.html" title="VcfSimulator">ccfSimulator</a></th><td>Generate a VCF</td><td/><td/><td/></tr>
+<tr id="vcfSimulator"><th><a href="VcfSimulator.html" title="VcfSimulator">vcfSimulator</a></th><td>Generate a VCF</td><td/><td/><td/></tr>
 <tr id="vcfstats"><th><a href="VcfStats.html" title="VcfStats">vcfstats</a></th><td>Produce VCF statitics</td><td>vcf stats burden gnuplot</td><td/><td/></tr>
 <tr id="vcfcombinetwosnvs"><th><a href="VCFCombineTwoSnvs.html" title="VCFCombineTwoSnvs">vcfcombinetwosnvs</a></th><td>Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert</td><td>vcf annotation prediction protein</td><td/><td/></tr>
 <tr id="vcfstripannot"><th><a href="VCFStripAnnotations.html" title="VCFStripAnnotations">vcfstripannot</a></th><td>Removes one or more field from the INFO/FORMAT column of a VCF.</td><td>vcf</td><td/><td><span style="color:orange;" title="deprecated">Use bcftools annotate -x </span>. </td></tr>
@@ -187,7 +187,7 @@
 <tr id="vcfreplacetag"><th><a href="VCFReplaceTag.html" title="VCFReplaceTag">vcfreplacetag</a></th><td>Replace the key for INFO/FORMAT/FILTER</td><td>vcf</td><td/><td/></tr>
 <tr id="vcfpeekvcf"><th><a href="VcfPeekVcf.html" title="VcfPeekVcf">vcfpeekvcf</a></th><td>Get the INFO from a VCF and use it for another VCF</td><td>vcf annotation</td><td/><td><span style="color:orange;" title="deprecated">Use GATK or vcftools</span>. </td></tr>
 <tr id="vcfgetvariantbyIndex"><th><a href="VcfGetVariantByIndex.html" title="VcfGetVariantByIndex">vcfgetvariantbyIndex</a></th><td>Access a Plain or BGZF-compressed VCF file by index</td><td>vcf</td><td/><td/></tr>
-<tr id="vcfmulti2oneinfo"><th><a href="VcfMultiToOneInfo.html" title="VcfMultiToOneInfo">vcfmulti2oneinfo</a></th><td>'one INFO with N values' to 'N variants with one INFO'</td><td/><td/><td/></tr>
+<tr id="vcfmulti2oneinfo"><th><a href="VcfMultiToOneInfo.html" title="VcfMultiToOneInfo">vcfmulti2oneinfo</a></th><td>'one INFO with N values' to 'N variants with one INFO'</td><td>vcf</td><td/><td/></tr>
 <tr id="bedindextabix"><th><a href="BedIndexTabix.html" title="BedIndexTabix">bedindextabix</a></th><td>Index and sort a Bed on the fly with Tabix.</td><td>bed tabix</td><td/><td/></tr>
 <tr id="vcf2bam"><th><a href="VcfToBam.html" title="VcfToBam">vcf2bam</a></th><td>vcf to bam</td><td>ref vcf bam</td><td/><td/></tr>
 <tr id="vcffilterxpath"><th><a href="VcfFilterXPath.html" title="VcfFilterXPath">vcffilterxpath</a></th><td>Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document</td><td>vcf xml xpath</td><td>[ID:0000017]just_a_proof_of_concept</td><td/></tr>

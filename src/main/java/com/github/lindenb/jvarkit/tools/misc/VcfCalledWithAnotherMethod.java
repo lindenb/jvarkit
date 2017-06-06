@@ -301,7 +301,7 @@ public class VcfCalledWithAnotherMethod extends Launcher
 				h2= in.getHeader();
 				}
 			
-			final VariantContextWriter w = super.openVariantContextWriter(null,outputFile);
+			final VariantContextWriter w = super.openVariantContextWriter(outputFile);
 			w.writeHeader(h2);
 			while(in.hasNext())
 				{

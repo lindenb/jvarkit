@@ -256,7 +256,7 @@ public class VcfConcat extends Launcher
 				LOG.error("No input");
 				return -1;
 				}
-			w= super.openVariantContextWriter(null,this.outputfile);
+			w= super.openVariantContextWriter(this.outputfile);
 			return fromFiles(w);
 			}
 		catch(Exception err)

@@ -178,7 +178,7 @@ public class VcfLiftOver extends Launcher
 				header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 				header2.addMetaDataLine(new VCFInfoHeaderLine(this.failedinfoTag,1,VCFHeaderLineType.String,"Why the liftOver failed."));
 
-				failed= super.openVariantContextWriter(inputHeader.getSequenceDictionary(),failedFile);
+				failed= super.openVariantContextWriter(failedFile);
 				failed.writeHeader(header2);
 				}
 			

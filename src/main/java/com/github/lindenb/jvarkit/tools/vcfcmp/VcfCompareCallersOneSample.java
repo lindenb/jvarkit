@@ -205,7 +205,7 @@ public class VcfCompareCallersOneSample
 				listChallengers.add(new EqualRangeVcfIterator(cin,ctxComparator));
 				}
 			
-			vcw= super.openVariantContextWriter(null,outputFile);
+			vcw= super.openVariantContextWriter(outputFile);
 			vcw.writeHeader(h2);
 			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);

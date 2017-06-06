@@ -38,6 +38,7 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -56,6 +57,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -112,6 +114,8 @@ public class VcfRebase extends Launcher {
 	private Set<String> selEnzymesStr = new HashSet<>();
 	@Parameter(names={"-w","-weight"},description="min enzyme weight")
 	private float weight= 5f;		
+	@ParametersDelegate
+	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
 	
 	private Rebase rebase=Rebase.createDefaultRebase();
@@ -217,7 +221,7 @@ public class VcfRebase extends Launcher {
 		
 		
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		this.rebase=Rebase.createDefaultRebase();
 
 		if(!this.selEnzymesStr.isEmpty())
@@ -267,10 +271,9 @@ public class VcfRebase extends Launcher {
 			throw new JvarkitException.ReferenceMissing("reference.undefined");
 			}
 		
-		VcfIterator in=null;
-		VariantContextWriter out=null;
 		try
 			{
+			this.writingVcfArgs.dictionary(SAMSequenceDictionaryExtractor.extractDictionary(this.referenceFile));
 			return doVcfToVcf(args, outputFile);
 			}
 		catch(final Exception err)
@@ -280,11 +283,13 @@ public class VcfRebase extends Launcher {
 			}
 		finally
 			{
-			CloserUtil.close(out);
-			CloserUtil.close(in);
 			}
 		}
 		
+	@Override
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),outorNull);
+		}
 	
 	public static void main(String[] args)
 		{

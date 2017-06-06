@@ -82,13 +82,11 @@ import com.github.lindenb.semontology.Term;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
@@ -627,59 +625,6 @@ public class WritingSortingCollection
 	
 	}	
 
-public class WritingVcfArgs
-	{
-	
-	@Parameter(names={"--vcfmd5"},description="VCF, create MD5 checksum when writing a VCF/BCF to a file.")
-	private boolean createMd5=false;
-	@Parameter(names={"--vcfcreateindex"},description="VCF, create tribble or tabix Index when writing a VCF/BCF to a file.")
-	private boolean createIndex=false;
-	@Parameter(names={"--outputbcf"},description="Output bcf (for streams)")
-	private boolean outputbcf=false;
-
-	
-	
-	private SAMSequenceDictionary dict=null;
-	
-	public WritingVcfArgs dictionary(final SAMSequenceDictionary dict)
-		{
-		this.dict=dict;
-		return this;
-		}
-	
-	public VariantContextWriterBuilder createVariantContextWriterBuilder()
-		{
-		return new VariantContextWriterBuilder();
-		}
-	public VariantContextWriter open(final File fileOrNull) {
-		final VariantContextWriterBuilder builder = this.createVariantContextWriterBuilder();
-		builder.unsetOption(Options.INDEX_ON_THE_FLY);
-		if(this.dict!=null) builder.setReferenceDictionary(dict);
-		
-		if(fileOrNull==null) {
-			builder.setCreateMD5(false);
-			if(outputbcf) {
-				builder.setOutputBCFStream(Launcher.this.stdout());
-				}
-			else
-				{
-				builder.setOutputVCFStream(Launcher.this.stdout());
-				}
-			}
-		else
-			{
-			builder.setCreateMD5(this.createMd5);
-			if(this.createIndex)
-				{	
-				builder.setOption(Options.INDEX_ON_THE_FLY);
-				}
-			builder.setOutputFile(fileOrNull);
-			}
-		return builder.build();
-		}
-	}
-
-
 public class WritingBamArgs
 	{
 	private File referenceFile = null;
@@ -991,7 +936,7 @@ protected VcfIterator openVcfIterator(final String inputNameOrNull) throws IOExc
 /**
  * dict will be using for sorting or indexing. May be null it no indexing.
 */
-protected VariantContextWriter openVariantContextWriter(final SAMSequenceDictionary dict,final File outorNull) throws IOException {
+protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
 	if( outorNull == null)
 		{
 		return VCFUtils.createVariantContextWriterToOutputStream(stdout());
@@ -1001,10 +946,7 @@ protected VariantContextWriter openVariantContextWriter(final SAMSequenceDiction
 		return VCFUtils.createVariantContextWriter(outorNull);
 		}
 	}
-@Deprecated // use openVariantContextWriter(dict,file)
-protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-	return this.openVariantContextWriter(null, outorNull);
-	}
+
 
 protected InputStream openInputStream(final String inOrNull) throws IOException {
 	return(inOrNull==null?
@@ -1034,13 +976,10 @@ protected int doVcfToVcf(final String inputName,final VcfIterator iterin,final V
 protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
 	VcfIterator iterin=null;
 	VariantContextWriter w=null;
-	int ret=0;
 	try {
 		iterin = openVcfIterator(inputNameOrNull);
-		final VCFHeader header=iterin.getHeader();
-		final SAMSequenceDictionary dict=header.getSequenceDictionary();
-		w = openVariantContextWriter(dict,outorNull);
-		ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
+		w = openVariantContextWriter(outorNull);
+		int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
 		w.close();
 		w=null;
 		iterin.close();

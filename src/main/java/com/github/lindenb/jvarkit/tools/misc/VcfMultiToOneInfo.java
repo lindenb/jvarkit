@@ -35,34 +35,41 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-@Program(name="vcfmulti2oneinfo",description="'one INFO with N values' to 'N variants with one INFO'")
+@Program(
+		name="vcfmulti2oneinfo",
+		description="'one INFO with N values' to 'N variants with one INFO'",
+		keywords={"vcf"}
+		)
 public class VcfMultiToOneInfo
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfMultiToOneInfo.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-i","--info"},description="The INFO tag",required=true)
 	private String infoTag = null;
+	@ParametersDelegate
+	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
 	 public VcfMultiToOneInfo()
 		{
 		}
 	 
 	 @Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-	
-		
+	protected int doVcfToVcf(final String inputName,final VcfIterator in,final VariantContextWriter out) {
 		final VCFHeader srcHeader=in.getHeader();
 		final VCFInfoHeaderLine srcInfo = srcHeader.getInfoHeaderLine(this.infoTag);
 		if( srcInfo == null )
@@ -114,9 +121,14 @@ public class VcfMultiToOneInfo
 		LOG.info("done");
 		return RETURN_OK;
 		}
-	
+	 
 	@Override
-	public int doWork(List<String> args) {
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),this.outputFile);
+		}
+
+	@Override
+	public int doWork(final List<String> args) {
 		if(this.infoTag==null || this.infoTag.isEmpty())
 			{
 			LOG.error("No info tag defined");

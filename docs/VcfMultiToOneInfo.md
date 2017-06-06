@@ -17,10 +17,25 @@ Usage: vcfmulti2oneinfo [options] Files
       The INFO tag
     -o, --output
       Output file. Optional . Default: stdout
+    --outputbcf
+      Output bcf (for streams)
+      Default: false
+    --vcfcreateindex
+      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
+      Default: false
+    --vcfmd5
+      VCF, create MD5 checksum when writing a VCF/BCF to a file.
+      Default: false
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * vcf
+
 
 ## Compilation
 

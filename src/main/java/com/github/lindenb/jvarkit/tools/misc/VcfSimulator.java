@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-@Program(name="ccfSimulator",description="Generate a VCF")
+@Program(name="vcfSimulator",description="Generate a VCF")
 public class VcfSimulator extends Launcher
 	{
 	private static Logger LOG=Logger.build(SkipXmlElements.class).make();

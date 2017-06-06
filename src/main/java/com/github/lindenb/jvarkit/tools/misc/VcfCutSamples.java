@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -51,7 +52,9 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -97,7 +100,7 @@ public class VcfCutSamples
 	@Parameter(names={"-S","--samples"},description="Sample name")
 	private Set<String> user_samples=new HashSet<String>();
 
-	@Parameter(names={"-f"},description="read file containing sample names")
+	@Parameter(names={"-f","--samplefile"},description="read file containing sample names")
 	private File sampleFile=null;
 	
 	@Parameter(names="--invert",description=" invert selection")
@@ -109,9 +112,19 @@ public class VcfCutSamples
 	@Parameter(names="-E",description=" a missing sample is an error")
 	private boolean missing_sample_is_error=true;
 	
+	@ParametersDelegate
+	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
+
+	
 	public VcfCutSamples()
 		{
 		}
+	
+	@Override
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),this.outputFile);
+		}
+
 	
 	public Set<String> getUserSamples() {
 		return user_samples;
@@ -127,8 +140,7 @@ public class VcfCutSamples
 	}
 
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in,
-			VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VcfIterator in,VariantContextWriter out) {
 		VCFHeader header=in.getHeader();
 		final Set<String> samples1=new HashSet<String>(header.getSampleNamesInOrder());
 		

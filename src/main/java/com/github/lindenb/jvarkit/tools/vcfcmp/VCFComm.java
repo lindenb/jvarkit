@@ -277,7 +277,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 				}
 			
 			
-			 w= super.openVariantContextWriter(null,super.outputFile);
+			 w= super.openVariantContextWriter(super.outputFile);
 			w.writeHeader(header);
 			final List<LineAndFile> row=new ArrayList<LineAndFile>(super.inputs.size());
 			

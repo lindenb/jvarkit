@@ -1531,7 +1531,7 @@ public class Vcf2Xml extends Launcher
 	
 	/** open VariantContextWriter */
 	@Override
-	protected VariantContextWriter openVariantContextWriter(final SAMSequenceDictionary dict,final File outorNull) throws IOException {
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
 		final XMLVcfWriterFactory factory=XMLVcfWriterFactory.newInstance();
 		if(outorNull!=null)
 			{

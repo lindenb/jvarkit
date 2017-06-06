@@ -1025,7 +1025,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				header2.addMetaDataLine(vcfFilterHeaderLine);
 				}
 			
-			w = super.openVariantContextWriter(null,saveAs);
+			w = super.openVariantContextWriter(saveAs);
 			w.writeHeader(header2);
 			
 			progress=new SAMSequenceDictionaryProgress(header);

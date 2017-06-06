@@ -53,10 +53,12 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -92,6 +94,12 @@ public class VcfRenameSamples extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names="-f",description="Tab delimited file containing old-name\\tnew-name",required=true)
+	private File mappingFile=null;
+	@Parameter(names="-E",description= "error like src sample missing in VCF")
+	private boolean missing_user_name_is_error=false;
+	@ParametersDelegate
+	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
 	private Map<String,String> oldNameToNewName=new HashMap<String,String>();
 	
@@ -133,7 +141,7 @@ public class VcfRenameSamples extends Launcher
 				}
 			}
 			
-		VCFHeader header2=new VCFHeader(header1.getMetaDataInInputOrder(), newHeader);
+		final VCFHeader header2=new VCFHeader(header1.getMetaDataInInputOrder(), newHeader);
 		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
@@ -141,17 +149,17 @@ public class VcfRenameSamples extends Launcher
 
 		out.writeHeader(header2);
 		
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
 		while(in.hasNext() )
 			{	
-			VariantContext ctx=progress.watch(in.next());
-			VariantContextBuilder b=new VariantContextBuilder(ctx);
-			List<Genotype> genotypes=new ArrayList<Genotype>();
+			final VariantContext ctx=progress.watch(in.next());
+			final VariantContextBuilder b=new VariantContextBuilder(ctx);
+			final List<Genotype> genotypes=new ArrayList<Genotype>();
 			for(String oldName:samples1)
 				{
 				Genotype g=ctx.getGenotype(oldName);
 				
-				String destName=this.oldNameToNewName.get(oldName);
+				final String destName=this.oldNameToNewName.get(oldName);
 				if(destName!=null)
 					{
 					GenotypeBuilder gb=new GenotypeBuilder(g);
@@ -168,22 +176,18 @@ public class VcfRenameSamples extends Launcher
 		}
 	
 	
-	@Parameter(names="-f",description="Tab delimited file containing old-name\\tnew-name",required=true)
-	private File mappingFile=null;
-	@Parameter(names="-E",description= "error like src sample missing in VCF")
-	private boolean missing_user_name_is_error=false;
 	
 	
-	private void parseNames(File f) throws IOException
+	private void parseNames(final File f) throws IOException
 		{
-		Pattern tab=Pattern.compile("[\t]");
-		BufferedReader in=IOUtils.openFileForBufferedReading(f);
+		final Pattern tab=Pattern.compile("[\t]");
+		final BufferedReader in=IOUtils.openFileForBufferedReading(f);
 		String line;
 		while((line=in.readLine())!=null)
 			{
 			if(line.startsWith("#")) continue;
 			if(line.trim().isEmpty()) continue;
-			String tokens[]=tab.split(line);
+			final String tokens[]=tab.split(line);
 			if(tokens.length<2) throw new IOException("Expected two columns in \""+line+"\" : "+f);
 			tokens[0]=tokens[0].trim();
 			tokens[1]=tokens[1].trim();
@@ -197,7 +201,7 @@ public class VcfRenameSamples extends Launcher
 				}
 			if(this.oldNameToNewName.containsKey(tokens[0]))
 				{
-				String dest=this.oldNameToNewName.get(tokens[0]);
+				final String dest=this.oldNameToNewName.get(tokens[0]);
 				if(dest.equals(tokens[1]))
 					{
 					LOG.warning(tokens[0]+" -> "+tokens[1]+" defined twice");
@@ -244,9 +248,12 @@ public class VcfRenameSamples extends Launcher
 		return doVcfToVcf(args, outputFile);
 		}
 
+	@Override
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),this.outputFile);
+		}
 	
-	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfRenameSamples().instanceMainWithExit(args);
 		}

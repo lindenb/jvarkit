@@ -52,9 +52,9 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 @Program(name="vcfsetdict",description="Set the ##contig lines in a VCF header",
-deprecatedMsg="Use picard UpdateVcfSequenceDictionary",
-keywords={"vcf","dict","fai"}
-)
+	deprecatedMsg="Use picard UpdateVcfSequenceDictionary",
+	keywords={"vcf","dict","fai"}
+	)
 public class VcfSetSequenceDictionary extends Launcher
 {
 	private static final Logger LOG=Logger.build(VcfSetSequenceDictionary.class).make();

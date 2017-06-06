@@ -150,7 +150,7 @@ public class BimToVcf extends Launcher
 			final List<String> genotypeSampleNames = Collections.emptyList();
 			final VCFHeader header=new VCFHeader(headerLines, genotypeSampleNames);
 			header.setSequenceDictionary(dict);
-			w = super.openVariantContextWriter(null,this.outputFile);
+			w = super.openVariantContextWriter(this.outputFile);
 			w.writeHeader(header);
 			final Pattern tab=Pattern.compile("[\t]");
 			String line;

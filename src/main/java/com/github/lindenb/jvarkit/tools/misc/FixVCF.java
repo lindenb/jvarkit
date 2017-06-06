@@ -99,7 +99,7 @@ public class FixVCF
 			String fname=super.oneFileOrNull(args);
 			
 			in = super.openInputStream(fname);
-			w = super.openVariantContextWriter(null,this.outputFile);
+			w = super.openVariantContextWriter(this.outputFile);
 			
 			doWork((fname==null?"stdin":fname),in,w);
 				

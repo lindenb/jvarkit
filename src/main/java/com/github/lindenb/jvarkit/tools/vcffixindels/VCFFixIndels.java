@@ -108,7 +108,11 @@ END_DOC
 */
 
 
-@Program(name="vcffixindels",description="Fix samtools indels (for @SolenaLS)")
+@Program(
+	name="vcffixindels",
+	description="Fix samtools indels (for @SolenaLS)",
+	keywords={"vcf","indel"}
+		)
 public class VCFFixIndels extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFFixIndels.class).make();
@@ -294,7 +298,7 @@ public class VCFFixIndels extends Launcher
 
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try {
 			return doVcfToVcf(args,outputFile);
 			} 

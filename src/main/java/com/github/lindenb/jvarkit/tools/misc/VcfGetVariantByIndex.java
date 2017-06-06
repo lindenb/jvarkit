@@ -287,7 +287,7 @@ public class VcfGetVariantByIndex extends Launcher
 
 			
 			indexFile.open();
-			w = super.openVariantContextWriter(null,outputFile);
+			w = super.openVariantContextWriter(outputFile);
 		
 			
 			w.writeHeader(indexFile.getHeader());
