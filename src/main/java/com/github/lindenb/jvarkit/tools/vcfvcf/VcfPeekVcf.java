@@ -30,9 +30,11 @@ package com.github.lindenb.jvarkit.tools.vcfvcf;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -44,14 +46,14 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 /**
 BEGIN_DOC
 
@@ -94,11 +96,11 @@ public class VcfPeekVcf extends Launcher
 	private static final Logger LOG = Logger.build(VcfPeekVcf.class).make();
 	
 	
-	@Parameter(names={"-f","--tabix"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
-	private File TABIX = null;
+	@Parameter(names={"-f","--tabix","--resource"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
+	private File resourceVcfFile = null;
 	
 	@Parameter(names={"-t","--tags"},description="tag1,tag2,tag... the INFO keys to peek from the indexed file")
-	private String tagsAsString = null;
+	private Set<String> tagsAsString = new HashSet<>();
 	
 	@Parameter(names={"-p","--prefix"},description="prefix all database tags with this prefix to avoid collisions")
 	private String peekTagPrefix = "";
@@ -141,10 +143,16 @@ public class VcfPeekVcf extends Launcher
 				VCFInfoHeaderLine hinfo =this.indexedVcfFileReader.getFileHeader().getInfoHeaderLine(key);
 				if(hinfo==null)
 					{
-					LOG.warn("INFO name="+key+" missing in "+this.TABIX);
+					LOG.warn("INFO name="+key+" missing in "+this.resourceVcfFile);
 					continue;
 					}
-				hinfo = VCFUtils.renameVCFInfoHeaderLine(hinfo, this.peekTagPrefix+key);
+				String description= hinfo.getDescription();				
+				hinfo = new VCFInfoHeaderLine(
+						this.peekTagPrefix+key,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						description
+						);
 				if(h2.getInfoHeaderLine(hinfo.getID())!=null)
 					{
 					throw new JvarkitException.UserError("key "+this.peekTagPrefix+key+" already defined in VCF header");
@@ -211,11 +219,13 @@ public class VcfPeekVcf extends Launcher
 		this.indexedVcfFileReader = null;
 		try
 			{
-			this.indexedVcfFileReader = new VCFFileReader(TABIX,true);
-			for(final String s: this.tagsAsString.split("[, \n]+")) {
-				if(s.isEmpty()) continue;
-				this.peek_info_tags.add(s);
-				}
+			this.indexedVcfFileReader = new VCFFileReader(resourceVcfFile,true);
+			
+			this.peek_info_tags.addAll(this.tagsAsString.stream().
+					flatMap(S->Arrays.stream(S.split("[, \n]+"))).
+					filter(S->!S.isEmpty()).
+					collect(Collectors.toSet())
+					);
 			
 			return doVcfToVcf(args, outputFile);
 			} 

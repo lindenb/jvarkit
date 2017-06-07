@@ -109,7 +109,7 @@ END_DOC
 @Program(name="samjs",
 	description="Filters a BAM using a javascript expression ( java nashorn engine  ).",
 	keywords={"sam","bam","nashorn","javascript","filter"},
-	biostars={75168,81750,75354,77802,103052,106900,150530,253774}
+	biostars={75168,81750,75354,77802,103052,106900,150530,253774,256615}
 	)
 public class SamJavascript
 	extends Launcher
