@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.knime;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,8 +47,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -62,6 +65,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.tribble.Tribble;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
@@ -681,6 +685,29 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 	return filter;
 	}
 
+public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String bedUri) throws IOException
+	{
+	if(bedUri==null || bedUri.isEmpty()) throw new IllegalArgumentException("bad bed uri");
+	BufferedReader r=null;
+	final IntervalTreeMap<Boolean> treeMap = new IntervalTreeMap<>();
+	try
+		{
+		r = IOUtils.openURIForBufferedReading(bedUri);
+		final BedLineCodec codec=new BedLineCodec();
+		r.lines().forEach(L->{
+			final BedLine bedline = codec.decode(L);
+			if(bedline==null) return;
+			treeMap.put(bedline.toInterval(),Boolean.TRUE);
+			});
+		
+		return treeMap;
+		}
+	finally
+		{
+		
+		}
+	
+}
 
 
 
@@ -734,11 +761,12 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 		return this;
 		}
 
-	public String createOutputFile(final String vcfIn,String extension)
+	/** creates a generic output file from this input */
+	public String createOutputFile(final String pathname,String extension)
 		{
-		if(vcfIn==null || vcfIn.isEmpty())
+		if(pathname==null || pathname.isEmpty())
 			{
-			final String msg="User Error: vcfIn was not specified";
+			final String msg="User Error: pathname was not specified";
 			LOG.error(msg);
 			throw new IllegalArgumentException(msg);
 			}
@@ -771,7 +799,7 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 		IOUtil.assertDirectoryIsReadable(this.workfingDirectory);
 		IOUtil.assertDirectoryIsWritable(this.workfingDirectory);
 
-		final File inVcfFile=new File(vcfIn);
+		final File inVcfFile=new File(pathname);
 		String filename= inVcfFile.getName();
 		for(;;)
 			{
@@ -844,7 +872,7 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 		{
 		
 		
-		final File inVcfFile=new File(vcfIn);
+		
 		File outVcfFile = null;
 		File outVcfIndexFile = null;
 		final File STOP_FILE= new File(this.workfingDirectory,"STOP");
@@ -861,11 +889,15 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 			{
 			IOUtil.assertDirectoryIsReadable(this.workfingDirectory);
 			IOUtil.assertDirectoryIsWritable(this.workfingDirectory);
-			IOUtil.assertFileIsReadable(inVcfFile);
+						
+			if(!IOUtil.isUrl(vcfIn)) {
+				IOUtil.assertFileIsReadable(new File(vcfIn));
+				}
+			
 
 			
 			final String extension;
-			if( this.forceSuffix.equals(ForceSuffix.ForceTabix) || inVcfFile.getName().endsWith(".gz"))
+			if( this.forceSuffix.equals(ForceSuffix.ForceTabix) || vcfIn.endsWith(".gz"))
 				{
 				extension=".vcf.gz";
 				}
@@ -887,13 +919,13 @@ public Predicate<VariantContext> parseVariantIntervalFilters(final String...arra
 			
 			outVcfFile = new File(filename);
 			outVcfIndexFile = new File(indexFilename);
-			
-			iter = VCFUtils.createVcfIteratorFromFile(inVcfFile);
+			LOG.info("opening "+vcfIn);
+			iter = VCFUtils.createVcfIterator(vcfIn);
 			super.init( iter.getHeader());
 			final SAMSequenceDictionary dict = this.getHeader().getSequenceDictionary();
 			if(dict==null)
 				{
-				final String msg="There is no dictionary (##contig lines) in "+inVcfFile;
+				final String msg="There is no dictionary (##contig lines) in "+vcfIn;
 				LOG.error(msg);
 				throw new IllegalArgumentException(msg);
 				}
