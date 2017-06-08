@@ -213,16 +213,16 @@ private static class KnimeLogger
 	    final Method getLogger = org_knime_core_node_NodeLogger_clazz.getMethod("getLogger",Class.class);
 	    this.nodeLogger = getLogger.invoke(null, clazz);
 	    this.info = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
-	    this.debug = org_knime_core_node_NodeLogger_clazz.getMethod("debug", Object.class);
+	    this.debug = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
 	    this.warn = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
-	    this.error = org_knime_core_node_NodeLogger_clazz.getMethod("error", Object.class);
+	    this.error = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
 	    this.fatal = org_knime_core_node_NodeLogger_clazz.getMethod("fatal", Object.class);
 
 	    this.info_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
-	    this.debug_t = org_knime_core_node_NodeLogger_clazz.getMethod("debug", Object.class,Throwable.class);
+	    this.debug_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
 	    this.warn_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
-	    this.error_t = org_knime_core_node_NodeLogger_clazz.getMethod("error", Object.class,Throwable.class);
-	    this.fatal_t = org_knime_core_node_NodeLogger_clazz.getMethod("fatal", Object.class,Throwable.class);
+	    this.error_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
+	    this.fatal_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
 		}
 	@Override
 	public Logger log(final Level level,final Object msg,final Throwable err) {

@@ -46,6 +46,7 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public abstract class ContigNameConverter implements  Function<String, String> {
+public static final String OPT_ON_NT_FOUND_DESC="Contig converter. I will do my best to convert the contig names (e.g 'chr1' -> '1'): But what should I do when comparing two dictionaries with different notations";	
 public static enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 private OnNotFound onNotFound=OnNotFound.RAISE_EXCEPTION;
 protected abstract String find(final String contig);
@@ -181,4 +182,78 @@ private static class GRCh37Ucsc2Ensembl extends MapBasedContigNameConverter
 	public String getName() {return "GRCh37UcscToEnsembl";}
 	}
 
+/** creates a ContigNameConverter from two dictionaries, just using the common chromosome names */
+public static ContigNameConverter fromDictionaries(
+		final SAMSequenceDictionary dictIn,
+		final SAMSequenceDictionary dictOut
+		)
+	{
+	return new TwoDictionaries(dictIn,dictOut);
+	}
+
+private static class TwoDictionaries extends MapBasedContigNameConverter
+	{
+	TwoDictionaries(final SAMSequenceDictionary dictIn,final SAMSequenceDictionary dictOut) {
+		if(dictIn==null || dictIn.isEmpty())
+			{
+			throw new IllegalArgumentException("dictIn is null or empty");
+			}
+		if(dictOut==null || dictOut.isEmpty())
+			{
+			throw new IllegalArgumentException("dictOut is null or empty");
+			}
+		
+		for(final SAMSequenceRecord ssr : dictIn.getSequences())
+			{
+			if(dictOut.getSequence(ssr.getSequenceName())!=null)
+				{
+				super.map.put(ssr.getSequenceName(), ssr.getSequenceName());
+				continue;
+				}
+			
+			if(ssr.getSequenceName().startsWith("chr") )
+				{
+				final String ctg = ssr.getSequenceName().substring(3);
+				if(dictOut.getSequence(ctg)!=null)
+					{
+					super.map.put(ssr.getSequenceName(), ctg);
+					continue;
+					}
+				if(ssr.getSequenceName().equals("chrMT") && dictOut.getSequence("M")!=null)
+					{
+					super.map.put("chrMT","M");
+					continue;
+					}
+				if(ssr.getSequenceName().equals("chrM") && dictOut.getSequence("MT")!=null)
+					{
+					super.map.put("chrM","MT");
+					continue;
+					}
+				continue;
+				}
+			if(!ssr.getSequenceName().startsWith("chr") )
+				{
+				final String ctg = "chr"+ssr.getSequenceName();
+				if(dictOut.getSequence(ctg)!=null)
+					{
+					super.map.put(ssr.getSequenceName(), ctg);
+					continue;
+					}
+				if(ssr.getSequenceName().equals("MT") && dictOut.getSequence("chrM")!=null)
+					{
+					super.map.put("MT","chrM");
+					continue;
+					}
+				if(ssr.getSequenceName().equals("M") && dictOut.getSequence("chrMT")!=null)
+					{
+					super.map.put("M","chrMT");
+					continue;
+					}
+				continue;
+				}
+			}
+		}
+	@Override
+	public String getName() {return "TwoDictionaries";}
+}
 }

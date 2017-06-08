@@ -41,6 +41,28 @@ will generate a jar file in `dist/knimehelper.jar`
 
 ## Examples
 
+# configuration Knime.ini
+
+```
+-Dhttp.proxyHost=cache.ha...
+-Dhttps.proxyHost=cache.ha...
+-Dhttp.proxyPort=3128
+-Dhttps.proxyPort=3128
+-Dhttp.nonProxyHosts=IP1,IP2,IP3
+-Duser.language=en
+-Duser.country=US
+-Duser.variant=EN
+```
+
+dans File->Prefs->General->network
+
+
+(Manual)
+Http/Https: cache.ha...
+Fill: ProxybyPass
+
+
+
 ## Example
 
 Julien B. 2017-05-31 (16 samples, two families  ). **Java Snippet Row Filter**: 

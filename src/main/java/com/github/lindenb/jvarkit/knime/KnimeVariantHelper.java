@@ -48,6 +48,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -149,6 +150,8 @@ public class KnimeVariantHelper extends VcfTools {
 			new VariantContextWriterBuilder().
 				setCreateMD5(false);
 
+	@SuppressWarnings("unused")
+	private static VcfPeekVcf __fooljavac = null;
 	
 	public KnimeVariantHelper() {
 		
