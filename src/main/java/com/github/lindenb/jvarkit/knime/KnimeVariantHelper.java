@@ -35,10 +35,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -88,8 +86,6 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
 BEGIN_DOC
 
@@ -903,7 +899,15 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 
 			
 			final String extension;
-			if( this.forceSuffix.equals(ForceSuffix.ForceTabix) || vcfIn.endsWith(".gz"))
+			if( this.forceSuffix.equals(ForceSuffix.ForceTabix))
+				{
+				extension=".vcf.gz";
+				}
+			else if( this.forceSuffix.equals(ForceSuffix.ForceTribble))
+				{
+				extension=".vcf";
+				}
+			else if(vcfIn.endsWith(".gz"))
 				{
 				extension=".vcf.gz";
 				}
