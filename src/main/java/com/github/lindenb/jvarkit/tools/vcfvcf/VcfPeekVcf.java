@@ -285,7 +285,7 @@ public class VcfPeekVcf extends Launcher
 								for(int i=0;i< ctx.getAlternateAlleles().size();++i)
 									{
 									final Allele ctxalt = ctx.getAlternateAllele(i);
-									int index2 = ctx2.getAlleleIndex(ctxalt);
+									int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
 									if(index2==-1 || index2>=ctx2att.size())
 										{
 										newatt.add(null);
