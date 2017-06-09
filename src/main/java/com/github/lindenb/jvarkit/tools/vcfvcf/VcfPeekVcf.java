@@ -175,12 +175,20 @@ public class VcfPeekVcf extends Launcher
 			
 			 
 
-			final ContigNameConverter nameConverter = 
-					ContigNameConverter.fromDictionaries(
+			final ContigNameConverter nameConverter =( 
+					h.getSequenceDictionary()!=null && 
+					!h.getSequenceDictionary().isEmpty() &&
+					databaseHeader.getSequenceDictionary()!=null && 
+					!databaseHeader.getSequenceDictionary().isEmpty() 
+						?
+						ContigNameConverter.fromDictionaries(
 							h.getSequenceDictionary(),
 							databaseHeader.getSequenceDictionary()
-							).setOnNotFound(this.onContigNotFound);
-			
+							)
+						:
+						ContigNameConverter.getIdentity()
+						).setOnNotFound(this.onContigNotFound);
+					;
 			
 			for(final String key: this.peek_info_tags)
 				{

@@ -107,7 +107,7 @@ public static  ContigNameConverter getIdentity() {
 	return new ContigNameConverter()
 			{
 			@Override
-			protected String find(String contig) {
+			protected String find(final String contig) {
 				return contig;
 				}
 			@Override
