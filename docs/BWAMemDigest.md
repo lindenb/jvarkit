@@ -80,4 +80,10 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+package/bwa/bwa-0.7.4/bwa mem \
+ -M  ~/tmp/DATASANGER/hg18/chr1.fa  \
+ ~/tmp/DATASANGER/4368_1_1.fastq.gz  ~/tmp/DATASANGER/4368_1_2.fastq.gz 2> /dev/null | 
+ java -jar dist/bwamemdigest.jar -B <(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz" | gunzip -c | cut -f2,3,4 ) -x 500  | tee /dev/tty | gzip --best > /tmp/jeter.mem.bed.gz
+
+
 

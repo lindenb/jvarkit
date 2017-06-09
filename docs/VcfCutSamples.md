@@ -22,16 +22,25 @@ Usage: vcfcutsamples [options] Files
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
+    --outputbcf
+      Output bcf (for streams)
+      Default: false
+    -f, --samplefile
+      read file containing sample names
     -S, --samples
       Sample name
       Default: []
+    --vcfcreateindex
+      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
+      Default: false
+    --vcfmd5
+      VCF, create MD5 checksum when writing a VCF/BCF to a file.
+      Default: false
     --version
       print version and exit
     -E
        a missing sample is an error
       Default: true
-    -f
-      read file containing sample names
     -r
       remove variant if no call at all
       Default: false

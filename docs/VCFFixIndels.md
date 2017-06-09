@@ -20,6 +20,13 @@ Usage: vcffixindels [options] Files
 
 ```
 
+
+## Keywords
+
+ * vcf
+ * indel
+
+
 ## Compilation
 
 ### Requirements / Dependencies

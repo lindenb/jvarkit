@@ -19,12 +19,21 @@ Usage: vcfpolyx [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
-    -R, --reference
+    --outputbcf
+      Output bcf (for streams)
+      Default: false
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     -t, --tag
       Tag used in INFO and FILTER columns.
       Default: POLYX
+    --vcfcreateindex
+      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
+      Default: false
+    --vcfmd5
+      VCF, create MD5 checksum when writing a VCF/BCF to a file.
+      Default: false
     --version
       print version and exit
 

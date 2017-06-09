@@ -9,7 +9,7 @@ Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology
 Usage: vcffilterso [options] Files
   Options:
     -A, --acn, --accession
-      add this SO:ACN.
+      add this SO:ACN. e.g.: 'SO:0001818' Protein altering variant [http://www.sequenceontology.org/miso/current_svn/term/SO:0001818](http://www.sequenceontology.org/miso/current_svn/term/SO:0001818)
       Default: []
     -f, --acnfile
       file of SO accession numbers

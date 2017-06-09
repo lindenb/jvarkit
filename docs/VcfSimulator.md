@@ -20,7 +20,7 @@ Usage: vcfSimulator [options] Files
       faidx and with picard CreateSequenceDictionary
     -S
       random seed
-      Default: java.util.Random@22d8cfe0
+      Default: java.util.Random@1de0aca6
 
 ```
 

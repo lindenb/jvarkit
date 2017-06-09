@@ -81,12 +81,7 @@ The current reference is:
 
 
 
-
-
-
 ### Example
-
-
 
 
 ```
