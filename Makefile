@@ -342,6 +342,7 @@ $(eval $(call compile-htsjdk-cmd,gcanddepth,${jvarkit.package}.tools.misc.GcPerc
 $(eval $(call compile-htsjdk-cmd,concatsam,${jvarkit.package}.tools.misc.ConcatSam,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,genomicjaspar,${jvarkit.package}.tools.jaspar.GenomicJaspar,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,genscan,${jvarkit.package}.tools.genscan.GenScan,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,genscan2,${jvarkit.package}.tools.genscan.GenScan2,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,groupbygene,${jvarkit.package}.tools.groupbygene.GroupByGene,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,howmanybamdict,${jvarkit.package}.tools.misc.HowManyBamDict,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,idea20130924,${jvarkit.package}.tools.bwamempcr.Idea20130924))
