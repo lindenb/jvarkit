@@ -6,7 +6,6 @@ import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.Insets;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
@@ -18,11 +17,16 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -74,6 +78,9 @@ public class GenScan2 extends Launcher {
 	private int HEIGHT=700;
 	@Parameter(names={"-dbc","--distancebetweencontigs"},description="number of pixels between contigs")
 	private double distanceBetweenContigs = 1;
+	@Parameter(names={"-track","--track"},description="Add a track by specifying it's name")
+	private Set<String> trackNames = new TreeSet<>();
+
 	
 	private SAMSequenceDictionary dict=null;
 	private List<DisplayRange> displayRanges = new ArrayList<>();
@@ -82,72 +89,75 @@ public class GenScan2 extends Launcher {
 	private final Hershey hershey = new Hershey();
 	private final ColorUtils colorUtils = new ColorUtils();
 	private enum ShapeType { circle,square}; 
+	/** default track, only defined if trackNames isEmpty() */
+	private Track defaultTrack = null;
 	
+	/** CSS - like selector */
+	private enum Selector {
+		penColor,
+		paperColor,
+		f_alpha,
+		d_size,
+		f_strokeWidth,
+		shapeType,
+		track_name
+		}
+	
+	
+	/** CSS style: just a map of selectors */ 
 	private class Style
 		{
-		Color penColor=Color.BLACK;
-		Color paperColor=Color.ORANGE;
-		float alpha=1.0f;
-		double size=2;
-		float strokeWidth=0.5f;
-		ShapeType shapeType=ShapeType.circle;
+		final Map<Selector,Object> selectors ;
+
 		Style() {
-			
+			this.selectors = new HashMap<>();
+			this.selectors.put(Selector.penColor, Color.BLACK);
+			this.selectors.put(Selector.paperColor, Color.ORANGE);
+			this.selectors.put(Selector.f_alpha, 1.0f);
+			this.selectors.put(Selector.d_size, 1.0 );
+			this.selectors.put(Selector.f_strokeWidth, 0.5f);
+			this.selectors.put(Selector.shapeType, ShapeType.circle);
 			}
 		Style(final Style cp) {
-			this.penColor = cp.penColor;
-			this.paperColor = cp.paperColor;
-			this.alpha = cp.alpha;
-			this.size = cp.size;
-			this.strokeWidth = cp.strokeWidth;
-			this.shapeType=cp.shapeType;
+			this.selectors = new HashMap<>(cp.selectors);
 			}
-		void update( String line) {
-			if(line.startsWith("#!")) line= line.substring(2);
-			for(final String token:line.split("[;]"))
-				{
-				if(token.trim().isEmpty()) continue;
-				int colon=token.indexOf(':');
-				if(colon==-1 |- colon==0) continue;
-				final String key = token.substring(0,colon).toLowerCase().trim();
-				final String value = token.substring(colon+1).trim();
-				if(key.equals("color") || key.equals("stoke") || key.equals("stoke-color"))
-					{
-					this.penColor=(value.equals("null") || value.isEmpty()?null:colorUtils.parse(value));
-					}
-				else if(key.equals("fill") || key.equals("fill-color") || key.equals("background-color"))
-					{
-					this.paperColor=(value.equals("null") || value.isEmpty()?null:colorUtils.parse(value));
-					}
-				else if(key.equals("size") || key.equals("width") )
-					{
-					this.size=Double.parseDouble(value);
-					}
-				else if(key.equals("alpha") || key.equals("opacity") )
-					{
-					this.alpha=Float.parseFloat(value);
-					}
-				else if(key.equals("stroke-width") )
-					{
-					this.strokeWidth=Float.parseFloat(value);
-					}
-				else if(key.equals("transparency")  )
-					{
-					this.alpha= 1f - Float.parseFloat(value);
-					}
-				else if(key.equals("shape")  )
-					{
-					this.shapeType= ShapeType.valueOf(value);
-					}
-				else
-					{
-					LOG.error("unknown selector "+token);
-					}
-				}
+		void update( final String line) {
+			GenScan2.this.parseSelectors(this.selectors,line);
+			}
+		public float getAlpha() {
+			return Float.class.cast(this.selectors.get(Selector.f_alpha));
+			}
+		public float getStrokeWidth() {
+			return Float.class.cast(this.selectors.get(Selector.f_alpha));
+			}
+		public Color getPenColor() {
+			return Color.class.cast(this.selectors.get(Selector.penColor));
+			}
+		public Color getPaperColor() {
+			return Color.class.cast(this.selectors.get(Selector.paperColor));
+			}
+		public ShapeType getShapeType() {
+			return ShapeType.class.cast(this.selectors.get(Selector.shapeType));
+			}
+		public double getSize() {
+			return Double.class.cast(this.selectors.get(Selector.d_size));
 			}
 		}
 	private final Stack<Style> styleStack = new Stack<>();
 
+	
+	private class Track
+		{
+		Rectangle2D.Double bounds= new Rectangle2D.Double();
+		final String label;
+		Track(final String label) {
+			this.label=label;
+			}
+		
+		}
+	
+	private final Map<String,Track> name2track = new HashMap<>();
+	
 	
 	private class Data implements Locatable
 		{
@@ -155,6 +165,9 @@ public class GenScan2 extends Launcher {
 		private String contig;
 		private int pos;
 		private Style style= GenScan2.this.styleStack.peek();
+		private Track track;
+		
+		
 		public double getValue() { return this.value;}
 		public Style getStyle(){ return this.style;}
 		@Override
@@ -169,6 +182,7 @@ public class GenScan2 extends Launcher {
 		public int getEnd() {
 			return pos;
 			}
+		
 		}
 
 	
@@ -292,14 +306,97 @@ public class GenScan2 extends Launcher {
 			}
 		}
 	
+	private void parseSelectors(final Map<Selector,Object> selectors,String line) {
+		if(line.startsWith("#!")) line= line.substring(2);
+		for(final String token:line.split("[;]"))
+			{
+			if(token.trim().isEmpty()) continue;
+			int colon=token.indexOf(':');
+			if(colon==-1 |- colon==0) continue;
+			final String key = token.substring(0,colon).toLowerCase().trim();
+			final String value = token.substring(colon+1).trim();
+			if(key.equals("color") || key.equals("stoke") || key.equals("stoke-color"))
+				{
+				selectors.put(Selector.penColor, value.equals("null") || value.isEmpty()?null:colorUtils.parse(value));
+				}
+			else if(key.equals("fill") || key.equals("fill-color") || key.equals("background-color"))
+				{
+				selectors.put(Selector.paperColor, (value.equals("null") || value.isEmpty()?null:colorUtils.parse(value)));
+				}
+			else if(key.equals("size") || key.equals("width") )
+				{
+				selectors.put(Selector.d_size, Double.parseDouble(value));
+				}
+			else if(key.equals("alpha") || key.equals("opacity") )
+				{
+				selectors.put(Selector.f_alpha, Float.parseFloat(value));
+				}
+			else if(key.equals("stroke-width") )
+				{
+				selectors.put(Selector.f_strokeWidth, Float.parseFloat(value));
+				}
+			else if(key.equals("transparency")  )
+				{
+				selectors.put(Selector.f_alpha, 1f-Float.parseFloat(value));
+				}
+			else if(key.equals("shape")  )
+				{
+				selectors.put(Selector.shapeType, ShapeType.valueOf(value));
+				}
+			else if(key.equals("track")  )
+				{
+				selectors.put(Selector.track_name, value);
+				}
+			else
+				{
+				LOG.error("unknown selector "+token);
+				}
+			}
+		
+		}
+	
+	
 	
 	private Data parseData(final String line) {
-		String tokens[]=line.split("[\t]");
+		String tokens[]=line.split("[\t]",4);
+		if(tokens.length<3) 
+			{
+			LOG.warning("Not enought tokens in "+line);
+			return null;
+			}
 		Data data=new Data();
 		data.contig=tokens[0];
 		data.pos=Integer.parseInt(tokens[1]);
 		data.value=Double.parseDouble(tokens[2]);
-		
+		if(tokens.length>3)
+			{
+			data.style= new Style(data.style);
+			data.style.update(tokens[3]);
+			}
+		final String trackName=String.class.cast(data.style.selectors.get(Selector.track_name));
+		if(GenScan2.this.defaultTrack!=null)
+			{
+			if(!(trackName==null || trackName.isEmpty()) )
+				{
+				LOG.warn("Track name "+trackName+" defined for "+line+" but no track with this name was defined by user.");
+				return null;
+				}
+			data.track = GenScan2.this.defaultTrack;
+			}
+		else
+			{
+			if(trackName==null || trackName.isEmpty()) 
+				{
+				LOG.warn("No Track name defined for data "+line);
+				return null;
+				}
+			data.track = this.name2track.get(trackName);
+			if(data.track==null)
+				{
+				LOG.warn("Track name "+trackName+" defined for "+line+" but no track with this name was defined by user.");
+				return null;
+				}
+			}
 		return data;
 	}
 	
@@ -315,6 +412,21 @@ public class GenScan2 extends Launcher {
 			LOG.error("MaxY <= MinY");
 			return -1;
 			}
+		this.trackNames.stream().
+			flatMap(S->Arrays.stream(S.split("[ ,;]"))).
+			filter(S->!S.isEmpty()).
+			collect(Collectors.toSet()).
+				forEach(LABEL->{
+				this.name2track.put(LABEL, new Track(LABEL));
+				});
+		/* no track specified, add a default one */
+		if(this.name2track.isEmpty())
+			{
+			/** define default track */
+			this.defaultTrack = new Track("");
+			this.name2track.put(this.defaultTrack.label, this.defaultTrack);
+			}
+		
 		
 		BufferedReader r=null;
 		try {
@@ -327,6 +439,18 @@ public class GenScan2 extends Launcher {
 			
 			final Style styleBase = new Style();
 			this.styleStack.add(styleBase);
+			
+			final double adjustedHeight = drawingRect.getHeight() - this.distanceBetweenContigs*(this.name2track.size()-1);
+			double y= drawingRect.y;
+			for(final Track track:this.name2track.values() )
+				{
+				track.bounds.y = y;
+				track.bounds.height = (adjustedHeight/this.name2track.size());
+				track.bounds.x = drawingRect.x; 
+				track.bounds.width = drawingRect.width; 
+				y += this.distanceBetweenContigs;
+				y += track.bounds.height;
+				}
 			
 			
 			this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidxFile);
@@ -424,57 +548,65 @@ public class GenScan2 extends Launcher {
 				
 				if(data.getValue()< GenScan2.this.minY) {continue;}
 				if(data.getValue()> GenScan2.this.maxY) {continue;}
-				
+				if(data.track==null) continue;
+				if(data.style.getAlpha()<=0f) continue;
+
 				final Style style= data.getStyle();
 				
 				for(final DisplayRange dr: GenScan2.this.displayRanges) {
 					if(!dr.contains(data)) continue;
-					final Rectangle2D.Double bounds= dr.getBounds();
-
+					final Rectangle2D.Double bounds= new Rectangle2D.Double(
+							dr.startX,
+							data.track.bounds.y,
+							dr.width,
+							data.track.bounds.width
+							);
+					
 					final Point2D.Double point= dr.convertToPoint(data);
 					
 					final Shape oldClip = g.getClip();
 					final Composite oldComposite = g.getComposite();
 					g.setClip(bounds);
 					//
-					g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, style.alpha));
+					g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, style.getAlpha()));
 					final Shape dataShape;
-					switch(style.shapeType)
+					final double shape_size= style.getSize();
+					switch(style.getShapeType())
 						{
 						case circle:
 							dataShape = new Ellipse2D.Double(
-									point.x-style.size/2.0,
-									point.y-style.size/2.0,
-									style.size,
-									style.size
+									point.x-shape_size/2.0,
+									point.y-shape_size/2.0,
+									shape_size,
+									shape_size
 									);
 							break;
 						case square:
 							dataShape = new Rectangle2D.Double(
-									point.x-style.size/2.0,
-									point.y-style.size/2.0,
-									style.size,
-									style.size
+									point.x-shape_size/2.0,
+									point.y-shape_size/2.0,
+									shape_size,
+									shape_size
 									);
 							break;
 						default:throw new IllegalArgumentException();
 						}
-					
-					if(style.paperColor!=null)
+					if(style.getPaperColor()!=null)
 						{
-						g.setColor(style.paperColor);
+						g.setColor(style.getPaperColor());
 						g.fill(dataShape);
 						}
-					if(style.penColor!=null && style.strokeWidth>0)
+					final float stroke_width = style.getStrokeWidth();
+					if(style.getPenColor()!=null && stroke_width>0)
 						{
 						final Stroke oldStroke = g.getStroke();
 						final Stroke stroke = new BasicStroke(
-								style.strokeWidth,
+								stroke_width,
 								BasicStroke.CAP_BUTT,
 								BasicStroke.JOIN_ROUND
 								);
 						g.setStroke(stroke);
-						g.setColor(style.penColor);
+						g.setColor(style.getPenColor());
 						g.draw(dataShape);
 						g.setStroke(oldStroke);
 						}
@@ -521,26 +653,38 @@ public class GenScan2 extends Launcher {
 				}
 
 			//plot y axis
-			
-			for(int i=0;i<= 10;++i)
-				{
-				double v= this.minY+ ((this.maxY-this.minY)/10.0)*i;
-				double y= drawingRect.getMaxY() - (drawingRect.getHeight()/10.0)*i;
-				double font_size=12;
-				
-				g.setColor(Color.LIGHT_GRAY);
-				g.draw(new Line2D.Double(
-						insets.left-5, y,
-						WIDTH-insets.right,
-						y));
-				
-				g.setColor(Color.BLACK);
-				this.hershey.paint(g, String.format("%8s",v), new Rectangle2D.Double(
-						0,y-font_size,
-						insets.left,
-						font_size
-						));
-				}
+			for(final Track track:this.name2track.values()) {
+				for(int i=0;i<= 10;++i)
+					{
+					double v= this.minY+ ((this.maxY-this.minY)/10.0)*i;
+					double ty= track.bounds.getMaxY() - (track.bounds.getHeight()/10.0)*i;
+					double font_size=12;
+					
+					g.setColor(Color.LIGHT_GRAY);
+					g.draw(new Line2D.Double(
+							track.bounds.x - 5, ty,
+							track.bounds.getMaxX(),
+							y));
+					
+					g.setColor(Color.BLACK);
+					this.hershey.paint(g, String.format("%8s",v), 
+						new Rectangle2D.Double(
+							0,
+							ty-font_size,
+							insets.left,
+							font_size
+							));
+					}
+				// plot track label if no default track
+				if(this.defaultTrack==null)
+					{
+					g.translate(track.bounds.getMaxX()+2, track.bounds.y);
+					g.rotate(Math.PI/2.0);
+					g.drawString(track.label, 0, 0);
+					g.rotate(-Math.PI/2.0);
+					g.translate(-(track.bounds.getMaxX()+2), -(track.bounds.y));
+					}
+			}
 			
 			g.dispose();
 			
