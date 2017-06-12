@@ -56,7 +56,6 @@
 <tr id="bam2xml"><th><a href="Bam2Xml.html" title="Bam2Xml">bam2xml</a></th><td>converts a BAM to XML</td><td>sam bam xml</td><td/><td/></tr>
 <tr id="bam2wig"><th><a href="Bam2Wig.html" title="Bam2Wig">bam2wig</a></th><td>Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)</td><td>bam wig wiggle</td><td/><td/></tr>
 <tr id="bamcmpcoverage"><th><a href="BamCmpCoverage.html" title="BamCmpCoverage">bamcmpcoverage</a></th><td>Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2</td><td>sam bam visualization coverage</td><td/><td/></tr>
-<tr id="bamgenscan"><th><a href="BamGenScan.html" title="BamGenScan">bamgenscan</a></th><td>Paint a Genome Scan picture from a BAM</td><td/><td/><td/></tr>
 <tr id="vcfgo"><th><a href="VcfGeneOntology.html" title="VcfGeneOntology">vcfgo</a></th><td>Find the GO terms for VCF annotated with SNPEFF or VEP</td><td>vcf go</td><td/><td/></tr>
 <tr id="bamrenamechr"><th><a href="ConvertBamChromosomes.html" title="ConvertBamChromosomes">bamrenamechr</a></th><td>Convert the names of the chromosomes in a BAM file</td><td>sam bam chromosome contig</td><td/><td/></tr>
 <tr id="bamstats04"><th><a href="BamStats04.html" title="BamStats04">bamstats04</a></th><td>Coverage statistics for a BED file.</td><td>bam coverage statistics bed</td><td/><td/></tr>
@@ -113,7 +112,6 @@
 <tr id="fixvcfmissinggenotypes"><th><a href="FixVcfMissingGenotypes.html" title="FixVcfMissingGenotypes">fixvcfmissinggenotypes</a></th><td>After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.</td><td>sam bam vcf</td><td/><td/></tr>
 <tr id="gcpercentanddepth"><th><a href="GcPercentAndDepth.html" title="GcPercentAndDepth">gcpercentanddepth</a></th><td>Extracts GC% and depth for multiple bam using a sliding window</td><td>gc% depth coverage</td><td/><td/></tr>
 <tr id="genomicjaspar"><th><a href="GenomicJaspar.html" title="GenomicJaspar">genomicjaspar</a></th><td>Find jaspar patterns in FASTA sequences. Reports a BED file.</td><td>jaspar genomic pattern</td><td/><td/></tr>
-<tr id="genscan"><th><a href="GenScan.html" title="GenScan">genscan</a></th><td>Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).</td><td>chromosome reference chart visualization</td><td/><td/></tr>
 <tr id="howmanybamdict"><th><a href="HowManyBamDict.html" title="HowManyBamDict">howmanybamdict</a></th><td>finds if there's are some differences in the sequence dictionaries.</td><td>sam bam dict</td><td/><td/></tr>
 <tr id="illuminadir"><th><a href="IlluminaDirectory.html" title="IlluminaDirectory">illuminadir</a></th><td>Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.</td><td>json xml illumina fastq</td><td/><td/></tr>
 <tr id="ilmnfastqstats"><th><a href="IlluminaStatsFastq.html" title="IlluminaStatsFastq">ilmnfastqstats</a></th><td>Reads filenames from stdin: Count FASTQs in Illumina Result.</td><td/><td/><td/></tr>
@@ -279,6 +277,7 @@
 <tr id=""><th><a href="GATKCodeGenerator.html" title="GATKCodeGenerator"/></th><td>Gatk code generator</td><td/><td/><td/></tr>
 <tr id="knime2txt"><th><a href="KnimeToText.html" title="KnimeToText">knime2txt</a></th><td>converts a Knime Workflow to a html representation.</td><td>knime workflow convert</td><td/><td/></tr>
 <tr id="lumpyvcf2circos"><th><a href="LumpyVcfToCircos.html" title="LumpyVcfToCircos">lumpyvcf2circos</a></th><td>Lumpy to Circos</td><td>lumpy circos sv vcf</td><td/><td/></tr>
+<tr id="genscan"><th><a href="GenScan.html" title="GenScan">genscan</a></th><td>Paint a Genome Scan picture from a Tab delimited file (CHROM/POS/VALUE1/VALUE2/....).</td><td>chromosome reference chart visualization</td><td/><td/></tr>
 </tbody>
 
 </table>

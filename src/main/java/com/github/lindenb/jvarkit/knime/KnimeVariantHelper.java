@@ -147,6 +147,8 @@ public class KnimeVariantHelper extends VcfTools {
 	private String fileSuffix=null;
 	private String filePrefix=null;
 	private final Set<VCFHeaderLine> extraVcfHeaderLines = new HashSet<>();
+	/** number of variant printed the last time we called  processVcfMulti */
+	private int lastVariantCount=0;
 	
 	public final VariantContextWriterBuilder variantContextWriterBuilder = 
 			new VariantContextWriterBuilder().
@@ -721,7 +723,10 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 		final BedLineCodec codec=new BedLineCodec();
 		r.lines().forEach(L->{
 			final BedLine bedline = codec.decode(L);
-			if(bedline==null) return;
+			if(bedline==null) {
+				LOG.warn("Ignoring line in BED (doesn't look like a BED line):"+L);
+				return;
+			}
 			treeMap.put(bedline.toInterval(),Boolean.TRUE);
 			});
 		
@@ -729,7 +734,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 		}
 	finally
 		{
-		
+		CloserUtil.close(r);
 		}
 	
 }
@@ -918,6 +923,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			final Function<VariantContext,List<VariantContext>> fun)
 		throws IOException
 		{
+		this.lastVariantCount=0;
 		if(vcfIn==null)
 			{
 			final String msg="Vcf Input URI/FIle is null.";
@@ -1034,6 +1040,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 					for(final VariantContext ctx2: array)
 						{
 						variantContextWriter.add(ctx2);
+						this.lastVariantCount++;
 						}
 					}
 				// check STOP File
@@ -1085,7 +1092,10 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			}
 		}
 	
-
+/** number of variant echoed the last time we called processVcfMulti */
+public int getLastVariantCount() {
+	return this.lastVariantCount;
+	}
 
 public static void main(String[] args) {
 	System.err.println("This is a library. It's expected to be run into knime.");
