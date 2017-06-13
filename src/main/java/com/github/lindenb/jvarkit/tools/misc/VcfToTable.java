@@ -361,7 +361,7 @@ public class VcfToTable extends Launcher {
 	public static class TerminalViewer
 		implements VariantContextWriter
 		{
-		@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+		@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 		private File outputFile = null;
 		@Parameter(names={"-H"},description="Print Header")
 		private boolean printHeader=false;

@@ -516,6 +516,15 @@ $(eval $(call compile-htsjdk-cmd,casectrlcanvas,${jvarkit.package}.tools.burden.
 $(eval $(call compile-htsjdk-cmd,knime2txt,${jvarkit.package}.tools.misc.KnimeToText,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,lumpyvcf2circos,${jvarkit.package}.tools.lumpysv.LumpyVcfToCircos,${jcommander.jar}))
 
+
+ij: ${dist.dir}/ij
+${dist.dir}/ij : $(sort ${derby.jars} ${derby-tools.jar})
+	mkdir -p $(dir $@)
+	echo '#!/bin/bash' > @
+	echo -n '${JAVA} -Dfile.encoding=UTF8  -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" org.apache.derby.tools.ij $$*' >> $@
+	chmod  ugo+rx $@
+	
+
 GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/SoftClipAnnotator variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants variants/WindowVariants))
 
 gatkwalkers:
