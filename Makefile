@@ -175,7 +175,7 @@ gatk_apps:$(if ${gatk.jar},gatkwalkers,)
 
 APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq lowresbam2raster bam2raster	bam2svg \
-	bam2xml bam2wig		bamcmpcoverage	bamgenscan	bamindexreadnames	bamliftover	bamqueryreadnames \
+	bam2xml bam2wig		bamcmpcoverage	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	batchigvpictures	bedliftover \
 	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
@@ -258,7 +258,6 @@ $(eval $(call compile-htsjdk-cmd,lowresbam2raster,${jvarkit.package}.tools.bam2g
 $(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,bamgenscan,${jvarkit.package}.tools.genscan.BamGenScan,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames,${jcommander.jar}))
@@ -781,7 +780,7 @@ knimehelper: ${dist.dir}/knimehelper.jar
 	@echo -n "KnimeHelper-";date +%Y-%m-%d
 	@echo -n "KnimeHelper: A  java library to be used in the java nodes of [http://knime.org](http://knime.org). See [http://lindenb.github.io/jvarkit/KnimeIntegration.html](http://lindenb.github.io/jvarkit/KnimeIntegration.html). This library was compiled on "; LANG=en_UTF-8 date | tr -d "\n"; echo "."
 
-${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVariantHelper.java ${htsjdk.jars}
+${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVariantHelper.java ${htsjdk.jars} ${jcommander.jar}
 	mkdir -p ${tmp.dir}/META-INF/services
 	${JAVAC} -cp "$(subst $(SPACE),:,$(realpath $(filter %.jar,$^)))" -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<
 	$(foreach J,$(filter %.jar,$^),unzip -o ${J} -d ${tmp.dir};) 

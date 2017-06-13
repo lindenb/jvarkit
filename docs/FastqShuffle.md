@@ -31,7 +31,7 @@ Usage: fastqshuffle [options] Files
       Default: false
     -r
       random
-      Default: java.util.Random@15316f2
+      Default: java.util.Random@5387f9e0
 
 ```
 

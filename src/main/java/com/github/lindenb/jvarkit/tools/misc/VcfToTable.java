@@ -373,6 +373,9 @@ public class VcfToTable extends Launcher {
 		private boolean hideHomRefGenotypes=false;
 		@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION+" If undefined, this tool will try to get the pedigree from the header.")
 		private File pedigreeFile=null;
+		@Parameter(names={"-L","--limit","--limit"},description="Limit the number of output variant. '-1' == ALL/No limit.")
+		private int limitVariants=-1;
+
 		
 		private int countVariants=0;
 		
@@ -522,6 +525,19 @@ public class VcfToTable extends Launcher {
 		@Override
 		public void add(final VariantContext vc) {
 			if(out==null) return;
+			
+			if(this.limitVariants!=-1)
+				{
+				if(this.countVariants==this.limitVariants)
+					{
+					out.println();
+					out.println("... More variants exist but they've been omitted...( limit reached)");
+					}
+				else
+					{
+					return;
+					}
+				}
 			
 			final String variantName=vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
 			++countVariants;

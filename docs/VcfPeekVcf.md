@@ -3,37 +3,53 @@
 Get the INFO from a VCF and use it for another VCF
 
 
-## DEPRECATED
-
-Use GATK or vcftools
-
 ## Usage
 
 ```
 Usage: vcfpeekvcf [options] Files
   Options:
-    -a, --alt
-      **ALL** alt allele must be found in indexed file.
-      Default: false
+    -a, -alt, --alt
+      How alt allele must be found in the variants of the indexed file.
+      Default: none
+      Possible Values: [none, all, at_least_one]
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -missingIsError, --missingIsError
+      Missing Info Header is an error
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    --outputbcf
+      Output bcf (for streams)
+      Default: false
     -p, --prefix
       prefix all database tags with this prefix to avoid collisions
       Default: <empty string>
     -i, --replaceid
       Replace the ID field if it exists
       Default: false
-  * -f, --tabix
+  * -f, --tabix, --resource
       The VCF file indexed with TABIX or tribble. Source of the annotations
     -t, --tags
       tag1,tag2,tag... the INFO keys to peek from the indexed file
+      Default: []
+    --vcfcreateindex
+      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
+      Default: false
+    --vcfmd5
+      VCF, create MD5 checksum when writing a VCF/BCF to a file.
+      Default: false
     --version
       print version and exit
+    -contigConverter
+      Contig converter. I will do my best to convert the contig names (e.g 
+      'chr1' -> '1'): But what should I do when comparing two dictionaries 
+      with different notations
+      Default: SKIP
+      Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
 
 ```
 
@@ -102,6 +118,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Alternate tools
+
+you can also use GATK or VCFtools. But this one contains some interesting options.
+
+
 ## Example
 
 Peek GENEINFO and VP from dbsnp_135.b37 to decorate /ExAC.r0.3.sites.vep.vcf.gz
@@ -124,5 +145,10 @@ grep NCBI135_
 1	69590	rs141776804	T	A	222918.56	PASS	00_NCBI135_GENEINFO=.;00_NCBI135_VP=050200000004000000000100;AC=110;AC_AFR=1;AC_AMR=102;AC_Adj=103;AC_EAS=0;AC_FIN=0;AC_Het=37;AC_Hom=33;AC_NFE=0;AC_OTH=0;AC_SAS=0;AF=1.172e-03;AN=93836;AN_AFR=7862;AN_AMR=8636;AN_Adj=83862;AN_EAS=8438;AN_FIN=3596;AN_NFE=41696;AN_OTH=630;AN_SAS=13004;BaseQRankSum=0.266;ClippingRankSum=-8.820e-01;DB;DP=1437071;FS=0.000;GQ_HIST=150|4009|30|54|880|37|22|5|6|8|9|15|30709|7422|1387|1208|454|97|77|339,1|2|0|2|0|0|0|0|0|1|0|1|1|0|0|0|0|0|0|68;GQ_MEAN=58.94;GQ_STDDEV=53.31;Het_AFR=1;Het_AMR=36;Het_EAS=0;Het_FIN=0;Het_NFE=0;Het_OTH=0;Het_SAS=0;Hom_AFR=0;Hom_AMR=33;Hom_EAS=0;Hom_FIN=0;Hom_NFE=0;Hom_OTH=0;Hom_SAS=0;InbreedingCoeff=0.0538;MQ=39.62;MQ0=0;MQRankSum=0.559;NCC=23145;QD=18.54;ReadPosRankSum=0.033;VQSLOD=-2.401e-01;culprit=MQ
 
 (...)
+```
+
+## History
+
+2017-06-08: more intelligent for AlleleCount.A and AlleleCount.R
 
 

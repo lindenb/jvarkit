@@ -119,5 +119,3 @@ The current reference is:
 $ java -jar dist/gcanddepth.jar -R ref.fasta -b capture.bed 1.bam 2.bam ... > result.tsv
 ```
 
-
-

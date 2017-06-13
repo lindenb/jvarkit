@@ -25,7 +25,9 @@ Usage: bam2sql [options] Files
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     -r, --region
-      Restrict to a given region
+      An interval as the following syntax : "chrom:start-end" or 
+      "chrom:middle+extend". A program might use a Reference sequence to fix 
+      the chromosome name (e.g: 1->chr1)
       Default: <empty string>
     --version
       print version and exit

@@ -48,6 +48,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -86,8 +88,6 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
 BEGIN_DOC
 
@@ -132,6 +132,7 @@ catch(Throwable err)
 END_DOC
 
  */
+import htsjdk.variant.vcf.VCFHeaderLine;
 @Program(name="knimehelper",description="library for using htsjdk into knime",
 		keywords={"knime","vcf"}
 		)	
@@ -145,10 +146,18 @@ public class KnimeVariantHelper extends VcfTools {
 	private File workfingDirectory=null;
 	private String fileSuffix=null;
 	private String filePrefix=null;
+	private final Set<VCFHeaderLine> extraVcfHeaderLines = new HashSet<>();
+	/** number of variant printed the last time we called  processVcfMulti */
+	private int lastVariantCount=0;
+	
 	public final VariantContextWriterBuilder variantContextWriterBuilder = 
 			new VariantContextWriterBuilder().
 				setCreateMD5(false);
 
+	@SuppressWarnings("unused")
+	private static VcfPeekVcf __fooljavac1 = null;
+	@SuppressWarnings("unused")
+	private static VcfToTable __fooljavac2 = null;
 	
 	public KnimeVariantHelper() {
 		
@@ -177,6 +186,24 @@ public class KnimeVariantHelper extends VcfTools {
 		}
 	
 	
+	/** expose the extra vcf header lines, give the user a chance to add some new header line before the next VariantContextWriter.writeHeader */
+	public Set<VCFHeaderLine> getExtraVcfHeaderLines()
+		{
+		return this.extraVcfHeaderLines;
+		}
+	
+	
+	public KnimeVariantHelper addVcfHeaderLines(final VCFHeaderLine newheader)
+		{
+		if(newheader==null) 
+			{
+			final String msg = "Cannot add newheader==null";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
+		getExtraVcfHeaderLines().add(newheader);
+		return this;
+		}
 	
 	public IndexedBedReader openBed(final String resourceName,String path) throws IOException {
 		failIf(this.bedReaders.containsKey(resourceName), "duplicate resource "+resourceName);
@@ -696,7 +723,10 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 		final BedLineCodec codec=new BedLineCodec();
 		r.lines().forEach(L->{
 			final BedLine bedline = codec.decode(L);
-			if(bedline==null) return;
+			if(bedline==null) {
+				LOG.warn("Ignoring line in BED (doesn't look like a BED line):"+L);
+				return;
+			}
 			treeMap.put(bedline.toInterval(),Boolean.TRUE);
 			});
 		
@@ -704,7 +734,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 		}
 	finally
 		{
-		
+		CloserUtil.close(r);
 		}
 	
 }
@@ -837,7 +867,14 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 		return filename;
 		}
 	
-	
+	/** 
+	 * filter the VCF file,
+	 * 
+	 * @param vcfIn input file name
+	 * @param fun functional
+	 * @return the output file name
+	 * @throws IOException
+	 */
 	public String filterVcf(final String vcfIn,final Predicate<VariantContext> filter)
 		throws IOException
 		{
@@ -849,6 +886,14 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			}
 		return processVcf(vcfIn,V->filter.test(V)?V:null);
 		}
+	/** 
+	 * process the VCF file,
+	 * 
+	 * @param vcfIn input file name
+	 * @param fun functional
+	 * @return the output file name
+	 * @throws IOException
+	 */
 	public String processVcf(final String vcfIn,final Function<VariantContext,VariantContext> fun)
 			throws IOException
 		{
@@ -866,11 +911,25 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 				);
 		}
 	
+	/** 
+	 * process the VCF file,
+	 * 
+	 * @param vcfIn input file name
+	 * @param fun functional
+	 * @return the output file name
+	 * @throws IOException
+	 */
 	public String processVcfMulti(final String vcfIn,
 			final Function<VariantContext,List<VariantContext>> fun)
 		throws IOException
 		{
-		
+		this.lastVariantCount=0;
+		if(vcfIn==null)
+			{
+			final String msg="Vcf Input URI/FIle is null.";
+			LOG.error(msg);
+			throw new IllegalArgumentException(msg);
+			}
 		
 		
 		File outVcfFile = null;
@@ -897,7 +956,15 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 
 			
 			final String extension;
-			if( this.forceSuffix.equals(ForceSuffix.ForceTabix) || vcfIn.endsWith(".gz"))
+			if( this.forceSuffix.equals(ForceSuffix.ForceTabix))
+				{
+				extension=".vcf.gz";
+				}
+			else if( this.forceSuffix.equals(ForceSuffix.ForceTribble))
+				{
+				extension=".vcf";
+				}
+			else if(vcfIn.endsWith(".gz"))
 				{
 				extension=".vcf.gz";
 				}
@@ -921,11 +988,33 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			outVcfIndexFile = new File(indexFilename);
 			LOG.info("opening "+vcfIn);
 			iter = VCFUtils.createVcfIterator(vcfIn);
+			
+			
+			
+			
 			super.init( iter.getHeader());
+			
+			final VCFHeader vcfHeader2 ;
+			if(this.getExtraVcfHeaderLines().isEmpty())
+				{
+				vcfHeader2 =  iter.getHeader();
+				}
+			else
+				{
+				vcfHeader2  =new VCFHeader(iter.getHeader());
+				for(final VCFHeaderLine extra: this.getExtraVcfHeaderLines())
+					{
+					vcfHeader2.addMetaDataLine(extra);
+					}
+				// clear vcf header line now they 've been added to the header.
+				this.getExtraVcfHeaderLines().clear();
+				}
+				
+			
 			final SAMSequenceDictionary dict = this.getHeader().getSequenceDictionary();
 			if(dict==null)
 				{
-				final String msg="There is no dictionary (##contig lines) in "+vcfIn;
+				final String msg="There is no dictionary (##contig lines) in "+vcfIn+" but they are required.";
 				LOG.error(msg);
 				throw new IllegalArgumentException(msg);
 				}
@@ -941,7 +1030,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 				build()
 				;
 			long lastTick = System.currentTimeMillis();
-			variantContextWriter.writeHeader(getHeader());
+			variantContextWriter.writeHeader(vcfHeader2);
 			while(iter.hasNext())
 				{
 				final VariantContext ctx = progress.watch(iter.next());
@@ -951,6 +1040,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 					for(final VariantContext ctx2: array)
 						{
 						variantContextWriter.add(ctx2);
+						this.lastVariantCount++;
 						}
 					}
 				// check STOP File
@@ -1002,7 +1092,10 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			}
 		}
 	
-
+/** number of variant echoed the last time we called processVcfMulti */
+public int getLastVariantCount() {
+	return this.lastVariantCount;
+	}
 
 public static void main(String[] args) {
 	System.err.println("This is a library. It's expected to be run into knime.");
