@@ -109,12 +109,9 @@ The current reference is:
 
 ### Examples
 
-
 ```
 $java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf 
 
 ```
-
-
 
 

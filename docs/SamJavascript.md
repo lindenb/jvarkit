@@ -56,6 +56,7 @@ Usage: samjs [options] Files
  * [https://www.biostars.org/p/106900](https://www.biostars.org/p/106900)
  * [https://www.biostars.org/p/150530](https://www.biostars.org/p/150530)
  * [https://www.biostars.org/p/253774](https://www.biostars.org/p/253774)
+ * [https://www.biostars.org/p/256615](https://www.biostars.org/p/256615)
 
 
 ## Compilation
