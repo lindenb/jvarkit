@@ -377,9 +377,6 @@ java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.ne
 
 #### Blast
 
-
-
-
 ```
 $ cat ~/input.blastn.xml | java -jar dist/bioalcidae.jar -F blast -e 'while(iter.hasNext())
  	{
@@ -390,10 +387,7 @@ $ cat ~/input.blastn.xml | java -jar dist/bioalcidae.jar -F blast -e 'while(iter
 
 ```
 
-
-
 output:
-
 
 
 ```
@@ -419,19 +413,13 @@ Enterobacteria phage phiX174 sensu lato, complete genome Hit: Escherichia coli g
 
 #### NCBI Sequence INDSeq
 
-
-
-
 ```
 $  curl "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=25,26,27&rettype=gbc" |\
 java -jar dist/bioalcidae.jar  -F INSDSEQ -e 'while(iter.hasNext()) {var seq= iter.next(); out.println(seq.getINSDSeqDefinition()+" LENGTH="+seq.getINSDSeqLength());}'
 ```
 
 
-
 output:
-
-
 
 ```
 Blue Whale heavy satellite DNA LENGTH=422
@@ -440,13 +428,9 @@ B.physalus gene for large subunit rRNA LENGTH=518
 ```
 
 
-
-
-
 #### NCBI DBSNP
 
 
- 
 
 ```
 $  curl -s "ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/XML/ds_chMT.xml.gz" | gunzip -c |\
@@ -471,8 +455,6 @@ rs1116904 snp genomic
 
 
 
-
-
 END_DOC
 */
 
@@ -480,7 +462,7 @@ END_DOC
 @Program(name="bioalcidae",
 	description="javascript version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","js","nashorn"},
-	biostars={183197,185162,153060,152016,152720,152820,218444,224402,241751,240452,248385,186610,242127,167389,187494,183197,152820,178004,156250,202400,183982,173201}
+	biostars={257346,183197,185162,153060,152016,152720,152820,218444,224402,241751,240452,248385,186610,242127,167389,187494,183197,152820,178004,156250,202400,183982,173201}
 	)
 public class BioAlcidae
 	extends Launcher

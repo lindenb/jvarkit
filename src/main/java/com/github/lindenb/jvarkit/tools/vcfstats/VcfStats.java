@@ -246,6 +246,47 @@ public class VcfStats extends Launcher
 	private ArchiveFactory archiveFactory=null;
 	
 	
+	//define a pair of samples
+	private static class SamplePair
+		{
+		final String sample1;
+		final String sample2;
+		SamplePair(final String sample1,final String sample2)
+			{
+			if(sample1.compareTo(sample2)<0)
+				{
+				this.sample1 = sample1;
+				this.sample2 = sample2;
+				}
+			else
+				{
+				this.sample1 = sample2;
+				this.sample2 = sample1;
+				}
+			}
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + sample1.hashCode();
+			result = prime * result + sample2.hashCode();
+			return result;
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)  return true;
+			if (obj == null)  return false;
+			if (!(obj instanceof SamplePair)) return false;
+			final SamplePair other = (SamplePair) obj;
+			return other.sample1.equals(sample1) && other.sample2.equals(sample2); 
+			}
+		@Override
+		public String toString() {
+			return sample1+"/"+sample2;
+			}
+		}
+	
+	
 	private class PlotMaf implements Closeable
 		{
 		//final String title;
@@ -389,6 +430,8 @@ public class VcfStats extends Launcher
 		final Counter<RangeOfIntegers.Range> countAffectedSamples = new Counter<>();
 		final Counter<RangeOfIntegers.Range> countAltAlleles = new Counter<>();
 		final Counter<RangeOfIntegers.Range> countIndelSize = new Counter<>();
+		final Counter<SamplePair>  genotypeConcordance = new Counter<>();
+
 		private int countVariants=0;
 		
 		/** stats for Samples */
@@ -485,7 +528,15 @@ public class VcfStats extends Launcher
 						filter(S->header.getSampleNamesInOrder().contains(S)).
 						collect(Collectors.toSet())
 						;
-
+			// genotype concordance
+			final List<String> samples = header.getGenotypeSamples();
+			for(int x=0;x +1 < samples.size();++x)
+				{
+				for(int y= x +1; y < samples.size();++y)
+					{
+					this.genotypeConcordance.initializeIfNotExists(new SamplePair(samples.get(x),samples.get(y)));
+					}
+				}
 			}
 		
 		public void visit(final VariantContext ctx) {
@@ -631,7 +682,20 @@ public class VcfStats extends Launcher
 				this.countAltAlleles.incr(VcfStats.this.altTranches.getRange(alternates.size()));
 				}
 			
-
+			// genotype concordance
+			for(int x=0;x < ctx.getNSamples();++x)
+				{
+				final Genotype g1 = ctx.getGenotype(x);
+				for(int y= x ; y < ctx.getNSamples();++y)
+					{
+					final Genotype g2 = ctx.getGenotype(y);
+					if(g1.sameGenotype(g2) && !(g1.isNoCall() || g2.isNoCall()))
+						{
+						this.genotypeConcordance.incr(new SamplePair(g1.getSampleName(), g2.getSampleName()));
+						}
+					}
+				}
+			
 			
 			}
 		private String toTsv(final String filename)
@@ -706,7 +770,7 @@ public class VcfStats extends Launcher
 					+ "set title \"Genotypes Types\";"
 					+ "set xlabel \"Sample\";"
 					+ "set key autotitle columnhead;"
-					+ "set xtic rotate by 90;"
+					// + "set xtic rotate by -90;"
 					+ "set ylabel \"Count\";"
 					+ "set yrange [0:];"
 					+ "set key invert reverse Left outside;"
@@ -742,7 +806,7 @@ public class VcfStats extends Launcher
 				makefileWriter.println("\techo '"
 						+ "set ylabel \"Number of Variants /" + this.countVariants+"\";"
 						+ "set xlabel \"Number of Affected Samples\";"
-						+ "set xtic rotate by 90;"
+						// + "set xtic rotate by -90;"
 						+ "set size  ratio 0.618;"
 						+ "set title \"Number Variants/ num( Affected Samples ) \";"
 						+ "set style fill solid border -1;"
@@ -812,7 +876,7 @@ public class VcfStats extends Launcher
 						+ "set ylabel \"Number of Variants /" + this.countVariants+"\";"
 						+ "set yrange [0:];"
 						+ "set xlabel \"Indel Size\";"
-						+ "set xtic rotate by 90;"
+						// + "set xtic rotate by -90;"
 						+ "set size  ratio 0.618;"
 						+ "set title \"Indel Sizes\";"
 						+ "set style fill solid border -1;"
@@ -844,10 +908,11 @@ public class VcfStats extends Launcher
 					makefileWriter.println("ALL_TARGETS+=" + png);
 					makefileWriter.println(png+":"+filename);
 					makefileWriter.println("\techo '"
+							+ "set title \"Depth / Variant\";"
 							+ "set ylabel \"Count / " + this.countVariants+" Variants\";"
 							+ "set yrange [0:];"
 							+ "set xlabel \"Depth\";"
-							+ "set xtic rotate by 90;"
+							//// + "set xtic rotate by -90;"
 							+ "set size  ratio 0.618;"
 							+ "set ylabel \"Depth /" + this.countVariants+" Variants\";"
 							+ "set style fill solid border -1;"
@@ -861,7 +926,7 @@ public class VcfStats extends Launcher
 							+ "plot \"$<\" using 2:xtic(1) ti \"\";' | "
 							+ "gnuplot");			
 					}
-				if(!this.sample2stats.isEmpty()) {
+				if(!this.sample2stats.isEmpty() && this.sample2stats.values().stream().filter(st->!st.countDepth.isEmpty()).count()>0) {
 
 					final String filename=toTsv("countDepthBySample");
 					final PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
@@ -889,7 +954,7 @@ public class VcfStats extends Launcher
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Depth Genotype\";"
 							+ "set key autotitle columnhead;"
-							+ "set xtic rotate by 90;"
+							//// + "set xtic rotate by -90;"
 							+ "set ylabel \"Count\";"
 							+ "set yrange [0:];"
 							+ "set key invert reverse Left outside;"
@@ -931,7 +996,7 @@ public class VcfStats extends Launcher
 							+ "set ylabel \"Count Variants\";"
 							+ "set yrange [0:];"
 							+ "set xlabel \"Distance\";"
-							+ "set xtic rotate by 90;"
+							//// + "set xtic rotate by -90;"
 							+ "set size  ratio 0.618;"
 							+ "set title \"Distance Between Variants\";"
 							+ "set style fill solid border -1;"
@@ -973,7 +1038,7 @@ public class VcfStats extends Launcher
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Distance between variants\";"
 							+ "set key autotitle columnhead;"
-							+ "set xtic rotate by 90;"
+							// + "set xtic rotate by -90;"
 							+ "set ylabel \"Count\";"
 							+ "set yrange [0:];"
 							+ "set key invert reverse Left outside;"
@@ -1039,7 +1104,7 @@ public class VcfStats extends Launcher
 						+ "set xlabel \"Where\";"
 						+ "set ylabel \"Count Variants / "+this.countVariants+"\";"
 						+ "set key autotitle columnhead;"
-						+ "set xtic rotate by 90;"
+						// + "set xtic rotate by -90;"
 						+ "set ylabel \"Count\";"
 						+ "set yrange [0:];"
 						+ "set key invert reverse Left outside;"
@@ -1071,7 +1136,7 @@ public class VcfStats extends Launcher
 						+ "set ylabel \"Count Variants / "+this.countVariants+"\";"
 						+ "set yrange [0:];"
 						+ "set xlabel \"Category\";"
-						+ "set xtic rotate by 90;"
+						// + "set xtic rotate by -90;"
 						+ "set size  ratio 0.618;"
 						+ "set title \"Position in the transcript\";"
 						+ "set style fill solid border -1;"
@@ -1106,8 +1171,8 @@ public class VcfStats extends Launcher
 				makefileWriter.println("\techo '"
 						+ "set ylabel \"Count Variants / "+this.countVariants+"\";"
 						+ "set yrange [0:];"
-						+ "set xlabel \"Consequences (warning categories may overlap)\";"
-						+ "set xtic rotate by 90;"
+						+ "set xlabel \"Consequences (warning: categories may overlap)\";"
+						// + "set xtic rotate by -90;"
 						+ "set size  ratio 0.618;"
 						+ "set title \"Consequences/Variants\";"
 						+ "set style fill solid border -1;"
@@ -1151,7 +1216,7 @@ public class VcfStats extends Launcher
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Prediction\";"
 							+ "set key autotitle columnhead;"
-							+ "set xtic rotate by 90;"
+							// + "set xtic rotate by -90;"
 							+ "set ylabel \"Count\";"
 							+ "set yrange [0:];"
 							+ "set key invert reverse Left outside;"
@@ -1200,13 +1265,14 @@ public class VcfStats extends Launcher
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Prediction\";"
 							+ "set key autotitle columnhead;"
-							+ "set xtic rotate by 90;"
+							// + "set xtic rotate by -90;"
 							+ "set ylabel \"Count\";"
 							+ "set yrange [0:];"
 							+ "set key invert reverse Left outside;"
 							+ "set datafile separator \"\t\";"
 							+ "set style fill solid border -1;"
-							+ "set style data histograms;set style histogram rowstacked;"
+							+ "set style data histograms;"
+							+ "set style histogram rowstacked;"
 							+ "set boxwidth 0.95;set output \"$@\";"
 							+ "plot \"$<\" using 2:xtic(1)"
 							);
@@ -1220,6 +1286,47 @@ public class VcfStats extends Launcher
 					makefileWriter.println("'| gnuplot");
 					}
 
+				}
+			
+			if(!this.genotypeConcordance.isEmpty())
+				{
+				final String filename = toTsv("gtConcordance");
+				final PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				final List<String> samples= this.vcfTools.getHeader().getSampleNamesInOrder();
+				
+				//http://gnuplot.sourceforge.net/demo/heatmaps.html
+				for(int x=0;x< samples.size();++x)
+					{
+					pw.print(",");
+					pw.print(samples.get(x));
+					}
+				pw.println();
+				for(int y=0;y< samples.size();++y)
+					{
+					pw.print(samples.get(y));
+					for(int x=0;x< samples.size();++x)
+						{
+						pw.print(",");
+						pw.print(this.genotypeConcordance.count(new SamplePair(samples.get(x), samples.get(y))));
+						}
+					pw.println();
+					}
+				
+				pw.flush();
+				pw.close();
+				
+				
+				final String png= toPng(filename);
+				makefileWriter.println("ALL_TARGETS+=" + png);
+				makefileWriter.println(png+":"+filename);
+				makefileWriter.print("\techo 'set terminal png truecolor size 1000, 1000;"
+						+ "set title \"Genotype Concordance\";"
+						+ "unset key; set view map;"
+						+ "set output \"$@\";"
+						+ "set datafile separator \",\";"
+						+ "plot \"$<\" matrix rowheaders columnheaders using 1:2:3 with image pixels;"
+						);
+				makefileWriter.println("'| gnuplot");
 				}
 			
 			for(final SampleStat st:this.sample2stats.values())

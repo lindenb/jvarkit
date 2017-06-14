@@ -121,7 +121,36 @@ $ java -jar  dist/bam2raster.jar -r "scf7180000354095:168-188"   \
 	-R  scf_7180000354095.fasta  scf7180000354095.bam 
 	
 	
+```
 
+batch:
+
+```makefile
+POS=1|123 2|345 3|456
+IMAGES=
+BAMS=	S1|f1.bam \
+	S2|f2.bam \
+	S3|f3.bam
+	
+
+define run
+$(1)_$(3)_$(4).png: $(2)
+	java -jar dist/bam2raster.jar -clip --highlight $(4)  --mapqopacity handler1 --nobase -r "chr$(3):$(4)+50"   --reference /commun/data/pubdb/broadinstitute.org/bundle/1.5/b37/human_g1k_v37_prefix.fasta -o $$@ $$<
+
+IMAGES+=$(1)_$(3)_$(4).png
+
+endef
+
+all: all2
+
+$(eval $(foreach P,$(POS),$(foreach B,$(BAMS),$(call run,$(word 1, $(subst |, ,${B})),$(word 2, $(subst |, ,${B})),$(word 1, $(subst |, ,${P})),$(word 2, $(subst |, ,${P}))))))
+
+all2: ${IMAGES}
+	rm -f jeter.zip
+	zip jeter.zip $^
+```
+
+## screenshots
 
 ![https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png](https://raw.github.com/lindenb/jvarkit/master/doc/bam2graphics.png)
 
@@ -131,7 +160,7 @@ $ java -jar  dist/bam2raster.jar -r "scf7180000354095:168-188"   \
 
 ![http://i.imgur.com/lBSpTSW.png](http://i.imgur.com/lBSpTSW.png)
 
-```
+
 
 END_DOC
 

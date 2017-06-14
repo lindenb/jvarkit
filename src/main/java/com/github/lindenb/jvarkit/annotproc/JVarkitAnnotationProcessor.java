@@ -40,6 +40,9 @@ import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -83,69 +86,91 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 			;
 		}
 	
+	private void copySource(final javax.lang.model.element.Element element)
+		{
+		
+		if(element==null || element.getKind()!=ElementKind.CLASS) return;
+		final String thisDir = System.getProperty("jvarkit.this.dir");	
+		if(thisDir==null || thisDir.isEmpty()) {
+			System.err.println("jvarkit.this.dir is not defined");
+			return ;
+			}
+		Writer writer = null;
+		Reader reader = null;
+		try 
+			{
+			do
+				{
+				String className= element.toString();
+				if(className==null ||  className.isEmpty() || className.equals("java.lang.Object") ) return;
+				int dollar  = className.indexOf('$');
+				if(dollar!=-1) className = className.substring(0,dollar);
+				File javaFile = new File(thisDir+"/src/main/java/"+className.replace('.','/') +".java");
+				if(!javaFile.exists()) break;
+				final Filer filer = super.processingEnv.getFiler();					
+				final String packageName;
+				final String fileName;
+				int dot= className.lastIndexOf('.');
+				if(dot==-1)
+					{
+					packageName = "";
+					fileName = className;
+					}
+				else
+					{
+					packageName = className.substring(0,dot);
+					fileName = className.substring(dot+1);
+					}
+				final FileObject fo=filer.createResource(StandardLocation.CLASS_OUTPUT,
+						packageName,
+						fileName+".java");
+				
+				if( new File(fo.getName()).exists()) break;
+				
+				System.err.println("## Copying "+ javaFile+ " -> "+ fo.getName());
+				reader = new FileReader(javaFile);
+				writer=fo.openWriter();
+				final char  buffer[]=new char[1024];
+				int nRead;
+				while((nRead=reader.read(buffer))!=-1)
+					{
+					writer.write(buffer,0,nRead);
+					}
+				writer.close();writer=null;
+				reader.close();reader=null;
+				} while(false);
+			}
+		catch(final Exception err)
+			{
+			System.err.println(err.getMessage());
+			}
+		finally
+			{
+			if(writer!=null) try {writer.close();}catch(Exception err) {}
+			if(reader!=null) try {reader.close();}catch(Exception err) {}
+			}
+		final TypeMirror superclass = ((TypeElement) element).getSuperclass();
+		if(superclass==null || superclass.getKind() == TypeKind.NONE) {
+			return ;
+			}
+		final DeclaredType kind = (DeclaredType) superclass;
+		copySource(kind.asElement());
+		}
+	
 	@Override
 	public boolean process(final Set<? extends TypeElement> annotations,
 		final RoundEnvironment roundEnv
 		) {
 		final String mainClass = System.getProperty("jvarkit.main.class");
 		final String thisDir = System.getProperty("jvarkit.this.dir");		
-		
-		
-		roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class).stream().
-			forEach(E->{System.err.println("#########################"+E+" "+E.getAnnotation(IncludeSourceInJar.class));});
-		
+				
 		
 		roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class).stream().
 			filter(E->E.getKind()==ElementKind.CLASS).
 			filter(E-> E.getAnnotation(IncludeSourceInJar.class) !=null).
 			forEach(E->{					
-				Writer writer = null;
-				Reader reader = null;
-				try {
-					if( thisDir==null || thisDir.isEmpty()) return;
-					String className=E.toString();
-					if(className==null ) return;
-					int dollar  = className.indexOf('$');
-					if(dollar!=-1) className=className.substring(0,dollar);
-					if( className.equals(mainClass)) return;//de facto included in jar 
-					File javaFile = new File(thisDir+"/src/main/java/"+className.replace('.','/') +".java");
-					if(!javaFile.exists()) return;
-					final Filer filer = super.processingEnv.getFiler();					
-					final String packageName;
-					final String fileName;
-					int dot= className.lastIndexOf('.');
-					if(dot==-1)
-						{
-						packageName = "";
-						fileName = className;
-						}
-					else
-						{
-						packageName = className.substring(0,dot);
-						fileName = className.substring(dot+1);
-						}
-					FileObject fo=filer.createResource(StandardLocation.CLASS_OUTPUT,
-							packageName,
-							fileName+".java");
-					reader = new FileReader(javaFile);
-					writer=fo.openWriter();
-					int c;
-					while((c=reader.read())!=-1)
-						{
-						writer.write((char)c);
-						}
-					writer.close();writer=null;
-					reader.close();reader=null;
-					}
-				catch(Exception err)
-					{
-					
-					}
-				finally
-					{
-					if(writer!=null) try {writer.close();}catch(Exception err) {}
-					if(reader!=null) try {reader.close();}catch(Exception err) {}
-					}
+				if( thisDir==null || thisDir.isEmpty()) return;
+				copySource(E);
 				});
 		
 		/* find if roundEnv contains main class annotated with 'Program' annotation
@@ -156,6 +181,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 			filter(E->E.getKind()==ElementKind.CLASS).
 			filter(E->{final Program prog=E.getAnnotation(Program.class); return prog!=null && prog.generate_doc();}).
 			forEach(E->{
+				copySource(E);
 				final String className=E.toString();
 				if(mainClass==null ) return;
 				if(!mainClass.equals(className)) return;
