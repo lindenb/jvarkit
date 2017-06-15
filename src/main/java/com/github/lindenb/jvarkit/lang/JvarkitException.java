@@ -31,8 +31,11 @@ package com.github.lindenb.jvarkit.lang;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.w3c.dom.Node;
+
+import htsjdk.samtools.SAMSequenceDictionary;
 
 @SuppressWarnings("serial")
 public class JvarkitException   {
@@ -92,7 +95,13 @@ public static class ContigNotFound extends Error
 		super(msg);
 		}
 	}
-
+/** exception thrown when we cannot find a contig in a dict */
+public static class ContigNotFoundInDictionary extends ContigNotFound
+	{
+	public ContigNotFoundInDictionary(final String contig,final SAMSequenceDictionary dict) {
+		super("Cannot find contig \""+contig+"\" in dictionary:["+dict.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))+"]");
+		}
+	}
 	
 /** exception thrown when the user made an error on the command line */
 public static class CommandLineError extends Error

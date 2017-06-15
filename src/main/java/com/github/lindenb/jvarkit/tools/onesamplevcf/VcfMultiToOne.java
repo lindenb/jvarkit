@@ -273,17 +273,17 @@ public class VcfMultiToOne extends Launcher
 				}
 			else
 				{
-				for(String vcfFile: args)
+				for(final String vcfFile: args)
 					{
 					inputs.add(VCFUtils.createVcfIterator(vcfFile));
 					inputFiles.add(VCFUtils.escapeInfoField(vcfFile));
 					}
 				}
 			SAMSequenceDictionary dict=null;
-			Set<String> sampleNames=new HashSet<String>();
+			final Set<String> sampleNames=new HashSet<String>();
 
 			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
-			for(VcfIterator in:inputs)
+			for(final VcfIterator in:inputs)
 				{
 				final VCFHeader header = in.getHeader();
 				if(dict==null)
@@ -409,7 +409,7 @@ public class VcfMultiToOne extends Launcher
 			LOG.debug("done");
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

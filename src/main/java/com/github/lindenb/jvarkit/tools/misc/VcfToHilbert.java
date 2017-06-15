@@ -429,7 +429,7 @@ public class VcfToHilbert extends Launcher
     
     
     @Override
-    public int doWork(List<String> args) {
+    public int doWork(final List<String> args) {
 		if(this.imgOut==null)
 			{
 			LOG.error("output image file not defined");
@@ -552,17 +552,18 @@ public class VcfToHilbert extends Launcher
 			
 			//save file
 			LOG.info("saving "+imgOut);
-			if(imgOut.getName().toLowerCase().endsWith(".png"))
+			if(imgOut!=null)
 				{
-				ImageIO.write(img, "PNG", imgOut);
+				ImageIO.write(img, imgOut.getName().toLowerCase().endsWith(".png")
+						?"PNG":"JPG", imgOut);
 				}
 			else
 				{
-				ImageIO.write(img, "JPG", imgOut);
+				ImageIO.write(img, "PNG", stdout());
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

@@ -164,19 +164,21 @@ public class BamTile
 		SAMFileWriter sfw =null;
 		try
 			{			
-			sfr = openSamReader(oneAndOnlyOneFile(args));
-			SAMFileHeader header1=sfr.getFileHeader();
+			sfr = openSamReader(oneFileOrNull(args));
+			final SAMFileHeader header1=sfr.getFileHeader();
 			if(header1==null)
 				{
-				return wrapException("File header missing");
+				LOG.error("File header missing");
+				return -1;
 				}
 			
 			if(header1.getSortOrder()!=SAMFileHeader.SortOrder.coordinate)
 				{
-				return wrapException("File header not sorted on coordinate");
+				LOG.error("File header not sorted on coordinate");
+				return -1;
 				}
 			
-			SAMFileHeader header2=header1.clone();
+			final SAMFileHeader header2=header1.clone();
 			header2.addComment("BamTile:"+getVersion()+":"+getProgramCommandLine());
 			
 			sfw =  this.writingBamArgs.openSAMFileWriter(this.outputFile,header2, true);
@@ -184,9 +186,9 @@ public class BamTile
 			
 			
 			
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
 			iter=sfr.iterator();
-			LinkedList<SAMRecord> buffer=new LinkedList<>();
+			final LinkedList<SAMRecord> buffer=new LinkedList<>();
 			for(;;)
 				{
 				SAMRecord rec=null;
@@ -196,7 +198,7 @@ public class BamTile
 					if(rec.getReadUnmappedFlag()) continue;
 					if(!buffer.isEmpty())
 						{
-						SAMRecord last= buffer.getLast();
+						final SAMRecord last= buffer.getLast();
 						if( last.getReferenceIndex()==rec.getReferenceIndex() &&
 							last.getAlignmentStart()<=rec.getAlignmentStart() &&
 							last.getAlignmentEnd()>=rec.getAlignmentEnd())
@@ -218,10 +220,10 @@ public class BamTile
 				
 				if(buffer.size()>2)
 					{
-					int index = buffer.size();
-					SAMRecord prev =  buffer.get(index-3);
-					SAMRecord curr =  buffer.get(index-2);
-					SAMRecord next =  buffer.get(index-1);
+					final int index = buffer.size();
+					final SAMRecord prev =  buffer.get(index-3);
+					final SAMRecord curr =  buffer.get(index-2);
+					final SAMRecord next =  buffer.get(index-1);
 					
 					if( prev.getAlignmentEnd() >= next.getAlignmentStart() ||
 						curr.getAlignmentEnd() <= prev.getAlignmentEnd())
@@ -246,9 +248,10 @@ public class BamTile
 			LOG.info("done");
 			return  RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

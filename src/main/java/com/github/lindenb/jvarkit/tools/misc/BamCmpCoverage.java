@@ -432,25 +432,21 @@ public class BamCmpCoverage extends Launcher
 				return -1;
 				}
 			
-			Comparator<SAMRecord> comparator=new Comparator<SAMRecord>()
+			final Comparator<SAMRecord> comparator= (samRecord1,samRecord2)->
 				{
-				@Override
-				public int compare(SAMRecord samRecord1, SAMRecord samRecord2)
-					{
-					final int refIndex1 = samRecord1.getReferenceIndex();
-			        final int refIndex2 = samRecord2.getReferenceIndex();
-			        if (refIndex1 == -1) {
-			            return (refIndex2 == -1? 0: 1);
-			        } else if (refIndex2 == -1) {
-			            return -1;
-			        }
-			        final int cmp = refIndex1 - refIndex2;
-			        if (cmp != 0)
-			        	{
-			            return cmp;
-			        	}
-			        return samRecord1.getAlignmentStart() - samRecord2.getAlignmentStart();
-					}
+				final int refIndex1 = samRecord1.getReferenceIndex();
+		        final int refIndex2 = samRecord2.getReferenceIndex();
+		        if (refIndex1 == -1) {
+		            return (refIndex2 == -1? 0: 1);
+		        } else if (refIndex2 == -1) {
+		            return -1;
+		        }
+		        final int cmp = refIndex1 - refIndex2;
+		        if (cmp != 0)
+		        	{
+		            return cmp;
+		        	}
+		        return samRecord1.getAlignmentStart() - samRecord2.getAlignmentStart();
 				};
 			List<SamReader> readers=new ArrayList<SamReader>(files.size());
 			List<CloseableIterator<SAMRecord>> iterators=new ArrayList<CloseableIterator<SAMRecord>>(files.size());
@@ -506,7 +502,8 @@ public class BamCmpCoverage extends Launcher
 					SAMSequenceRecord ssr= dict.getSequence(chrom);
 					if(ssr==null)
 						{
-						return wrapException("Chromosome "+chrom+" not present in dictionary");
+						LOG.error("Chromosome "+chrom+" not present in dictionary");
+						return -1;
 						}
 					int hyphen=regionStr.indexOf('-', colon+1);
 					if(hyphen!=-1)
@@ -521,7 +518,8 @@ public class BamCmpCoverage extends Launcher
 						}
 					if(chromStart<0 || chromEnd<chromStart)
 						{
-						return wrapException("bad position in "+regionStr);
+						LOG.error("bad position in "+regionStr);
+						return -1;
 						}
 					
 					queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),chromStart,chromEnd));
@@ -534,7 +532,8 @@ public class BamCmpCoverage extends Launcher
 						SAMSequenceRecord ssr= dict.getSequence(interval.getContig());
 						if(ssr==null)
 							{
-							return wrapException("Chromosome "+interval.getContig()+" not present in dictionary");
+							LOG.error("Chromosome "+interval.getContig()+" not present in dictionary");
+							return -1;
 							}
 						queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),interval.getStart(),interval.getEnd()));
 						}
@@ -743,7 +742,8 @@ public class BamCmpCoverage extends Launcher
 								depth = depthList.get((depthList.size()-1)-(distance));
 								if(depth.pos!=pos)
 									{
-									return wrapException(" "+pos+" vs "+depth.pos+" "+lastPos);
+									LOG.error(" "+pos+" vs "+depth.pos+" "+lastPos);
+									return -1;
 									}
 								}
 							depth.depths[sample_id]++;
@@ -789,7 +789,7 @@ public class BamCmpCoverage extends Launcher
 			
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

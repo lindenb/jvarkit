@@ -87,12 +87,12 @@ public class FindNewSpliceSites extends Launcher
 			int end1
 			)
 		{
-		for(KnownGene g:genes)
+		for(final KnownGene g:genes)
 			{
 			for(int k=0;k+1< g.getExonCount();++k)
 				{
-				Exon ex0=g.getExon(k);
-				Exon ex1=g.getExon(k+1);
+				final Exon ex0=g.getExon(k);
+				final Exon ex1=g.getExon(k+1);
 				if( is_close_to(ex0.getEnd()+1,start1) &&
 					is_close_to(ex1.getStart()+1,end1))
 					{
@@ -102,7 +102,7 @@ public class FindNewSpliceSites extends Launcher
 			}
 		return false;
 		}
-	private static boolean isMatch(CigarElement e)
+	private static boolean isMatch(final CigarElement e)
 		{
 		switch(e.getOperator())
 			{
@@ -111,11 +111,11 @@ public class FindNewSpliceSites extends Launcher
 			}
 		}
 	private void scanRead(
-			SAMRecord rec,
-			SAMSequenceDictionary dict
+			final SAMRecord rec,
+			final SAMSequenceDictionary dict
 			)
 			{
-			Cigar cigar=rec.getCigar();
+		final Cigar cigar=rec.getCigar();
 			//if(cigar==null || !rec.getCigarString().contains("N")) return; //aleady checked
 
 		
@@ -204,7 +204,7 @@ public class FindNewSpliceSites extends Launcher
 		
 		while(iter.hasNext())
 			{
-			SAMRecord rec=iter.next();
+			final SAMRecord rec=iter.next();
 			if(rec.getReadUnmappedFlag()) continue;
 			if(rec.isSecondaryOrSupplementary()) continue;
 			progress.watch(rec);
@@ -228,7 +228,7 @@ public class FindNewSpliceSites extends Launcher
 		progress.finish();
 		}
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(this.knownGeneUri==null || this.knownGeneUri.trim().isEmpty())
 			{
 			LOG.error("known Gene file undefined");
@@ -278,7 +278,7 @@ public class FindNewSpliceSites extends Launcher
 			LOG.info("Done");
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
