@@ -56,8 +56,26 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 /**
 BEGIN_DOC
 
+## Example
+
+
+```
+java -jar dist/vcfucsc.jar --table snp142 -e '${name}' input.vcf
+(...)
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr3	124290753	.	G	C	579.77	.	UCSC_HG19_SNP142=rs145115089
+chr3	124290943	.	A	G	491.77	.	UCSC_HG19_SNP142=rs7372055
+chr3	124291069	.	G	A	266.77	.	UCSC_HG19_SNP142=rs7373767
+chr3	124291171	.	C	CA	240.73	.	.
+chr3	124291245	.	A	G	563.77	.	UCSC_HG19_SNP142=rs12695439
+chr3	124291351	.	A	G	194.77	.	UCSC_HG19_SNP142=rs7613600
+chr3	124291416	.	G	T	308.77	.	UCSC_HG19_SNP142=rs73189597
+chr3	124291579	.	T	C	375.77	.	UCSC_HG19_SNP142=rs7649882
+```
+
 END_DOC
  */
+
 @Program(
 		name="vcfucsc",
 		description="annotate an VCF with mysql UCSC data",
@@ -70,14 +88,14 @@ public class VcfUcsc extends Launcher
 	private static abstract class Printf
 		{
 		Printf next=null;
-		abstract void eval(ResultSet row,StringBuilder sb) throws SQLException;
-		void append(Printf n) {if( this.next==null) {this.next=n;} else this.next.append(n);}	
+		abstract void eval(final ResultSet row,final StringBuilder sb) throws SQLException;
+		void append(final Printf n) {if( this.next==null) {this.next=n;} else this.next.append(n);}	
 		}
 	private static class PrintfText extends Printf
 		{
 		final String content;
-		PrintfText(String text) {this.content=text;}
-		void eval(ResultSet row,StringBuilder sb) throws SQLException
+		PrintfText(final String text) {this.content=text;}
+		@Override void eval(final ResultSet row,final StringBuilder sb) throws SQLException
 			{
 			sb.append(content);
 			if(next!=null) next.eval(row, sb);
@@ -88,7 +106,7 @@ public class VcfUcsc extends Launcher
 		{
 		final int column1;
 		PrintfColumnIndex(int c) {this.column1=c;}
-		void eval(ResultSet row,StringBuilder sb) throws SQLException
+		@Override  void eval(final ResultSet row,final StringBuilder sb) throws SQLException
 			{
 			if(column1>0 || column1<=row.getMetaData().getColumnCount())
 				{
@@ -104,7 +122,7 @@ public class VcfUcsc extends Launcher
 		{
 		final String label;
 		PrintfColumnLabel(String text) {this.label=text;}
-		void eval(ResultSet row,StringBuilder sb) throws SQLException
+		@Override  void eval(ResultSet row,final StringBuilder sb) throws SQLException
 			{
 			if(!label.isEmpty())
 				{
@@ -196,9 +214,9 @@ public class VcfUcsc extends Launcher
 		try	{
 			final StringBuilder b=new StringBuilder(
 					"select * from "+database+"."+table+" where ");
-			b.append(chromColumn).append("=? and NOT(");
-			b.append(endColumn).append("<=? or ");
-			b.append(startColumn).append(">=? ) ");
+			b.append(chromColumn).append("=? and NOT(");//contig
+			b.append(endColumn).append("<=? or ");//start0
+			b.append(startColumn).append(">=? ) ");//end0
 			if(has_bin_column) b.append(" and bin=?");
 			
 			pstmt=connection.prepareStatement(b.toString());
@@ -206,13 +224,25 @@ public class VcfUcsc extends Launcher
 			while(in.hasNext())
 				{
 				final VariantContext ctx=in.next();
+				final int start0 ,end0;
+				
+				if(ctx.isIndel()) //mutation starts *after* the base
+					{
+					start0 = ctx.getStart();
+					end0 = ctx.getEnd();
+					}
+				else
+					{
+					start0 = ctx.getStart() -1;
+					end0 = ctx.getEnd();
+					}
 				final Set<String> atts=new HashSet<String>();
 				pstmt.setString(1, ctx.getContig());
-				pstmt.setInt(2, ctx.getStart());
-				pstmt.setInt(3, ctx.getEnd());
+				pstmt.setInt(2, start0);
+				pstmt.setInt(3, end0);
 				if(this.has_bin_column)
 					{
-					for(final Integer biter : reg2bins(ctx.getStart()-1, ctx.getEnd()))
+					for(final Integer biter : reg2bins(start0, end0))
 						{
 						pstmt.setInt(4, biter);
 						select(atts,pstmt);

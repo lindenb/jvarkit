@@ -12,7 +12,8 @@ Usage: vcfucsc [options] Files
       database name
       Default: hg19
     -e, --expression
-      expression string.
+      What should be displayed in the INFO field. expression string using 
+      column offsets. or names e.g: "${chrom}:${2}-${3}"
       Default: <empty string>
     -h, --help
       print help and exit
@@ -21,8 +22,11 @@ Usage: vcfucsc [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
-    -T, -t, --table
+  * -T, -t, --table
       table name
+    -tag, --tag
+      tag prefix. Default = UCSC_${db}_${table}
+      Default: <empty string>
     --version
       print version and exit
 
@@ -93,5 +97,22 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Example
+
+
+```
+java -jar dist/vcfucsc.jar --table snp142 -e '${name}' input.vcf
+(...)
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr3	124290753	.	G	C	579.77	.	UCSC_HG19_SNP142=rs145115089
+chr3	124290943	.	A	G	491.77	.	UCSC_HG19_SNP142=rs7372055
+chr3	124291069	.	G	A	266.77	.	UCSC_HG19_SNP142=rs7373767
+chr3	124291171	.	C	CA	240.73	.	.
+chr3	124291245	.	A	G	563.77	.	UCSC_HG19_SNP142=rs12695439
+chr3	124291351	.	A	G	194.77	.	UCSC_HG19_SNP142=rs7613600
+chr3	124291416	.	G	T	308.77	.	UCSC_HG19_SNP142=rs73189597
+chr3	124291579	.	T	C	375.77	.	UCSC_HG19_SNP142=rs7649882
+```
 
 
