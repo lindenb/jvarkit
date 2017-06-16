@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
 import com.beust.jcommander.Parameter;

@@ -67,12 +67,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 BEGIN_DOC
 
 
-
-
-
 ### Example
-
-
 
 
 ```
@@ -80,8 +75,6 @@ BEGIN_DOC
 $  java -jar dist/vcf2rdf.jar < in.vcf | xmllint --format -
 
 ```
-
-
 
 
 
@@ -282,7 +275,6 @@ $  java -jar dist/vcf2rdf.jar < in.vcf | xmllint --format -
 </rdf:RDF>
 
 ```
-
 
 
 
