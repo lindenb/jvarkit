@@ -50,6 +50,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.bin.BinIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -118,16 +119,14 @@ public class VcfUcsc extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-e","--expression"},description="What should be displayed in the INFO field. expression string using column offsets. or names e.g: \"${chrom}:${2}-${3}\"")
+	@Parameter(names={"-e","--expression"},description="expression string.")
 	private String expressionStr="";
 	private Printf expression=new PrintfText("");
 	
 	@Parameter(names={"-D","--database"},description="database name")
 	private String database="hg19";
-	@Parameter(names={"-T","-t","--table"},description="table name",required=true)
+	@Parameter(names={"-T","-t","--table"},description="table name")
 	private String table=null;
-	@Parameter(names={"-tag","--tag"},description="tag prefix. Default = UCSC_${db}_${table}")
-	private String tag="";
 	private Connection connection=null;
 	private String jdbcuri="jdbc:mysql://genome-mysql.cse.ucsc.edu";
 	private boolean has_bin_column=false;
@@ -137,10 +136,10 @@ public class VcfUcsc extends Launcher
 	
 	private void select(final Set<String> atts,PreparedStatement pstmt) throws SQLException
 		{
-		final ResultSet row=pstmt.executeQuery();
+		ResultSet row=pstmt.executeQuery();
 		while(row.next())
 			{
-			final StringBuilder sb=new StringBuilder();
+			StringBuilder sb=new StringBuilder();
 			this.expression.eval(row,sb);
 			String s=sb.toString();
 			if(s.isEmpty()) continue;
@@ -165,23 +164,14 @@ public class VcfUcsc extends Launcher
 	    }
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, VcfIterator in, VariantContextWriter out) 
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) 
 		{
-		final String TAG= this.tag.isEmpty()?
-				"UCSC_"+database.toUpperCase()+"_"+table.toUpperCase():
-				this.tag
-				;
+		String TAG="UCSC_"+database.toUpperCase()+"_"+table.toUpperCase();
 		PreparedStatement pstmt=null;
 		ResultSet row=null;
-		final VCFHeader header=in.getHeader();
-		if(header.getInfoHeaderLine(TAG)!=null)
-			{
-			LOG.error("VCFheader already contains INFO="+TAG);
-			return -1;
-			}
+		VCFHeader header=in.getHeader();
 		
-		
-		final VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
+		VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 		h2.addMetaDataLine(new VCFInfoHeaderLine(
 				TAG,
 				VCFHeaderLineCount.UNBOUNDED,
@@ -194,7 +184,7 @@ public class VcfUcsc extends Launcher
 		
 		out.writeHeader(h2);
 		try	{
-			final StringBuilder b=new StringBuilder(
+			StringBuilder b=new StringBuilder(
 					"select * from "+database+"."+table+" where ");
 			b.append(chromColumn).append("=? and NOT(");
 			b.append(endColumn).append("<=? or ");
@@ -205,8 +195,8 @@ public class VcfUcsc extends Launcher
 			
 			while(in.hasNext())
 				{
-				final VariantContext ctx=in.next();
-				final Set<String> atts=new HashSet<String>();
+				VariantContext ctx=in.next();
+				Set<String> atts=new HashSet<String>();
 				pstmt.setString(1, ctx.getContig());
 				pstmt.setInt(2, ctx.getStart());
 				pstmt.setInt(3, ctx.getEnd());
@@ -227,16 +217,16 @@ public class VcfUcsc extends Launcher
 					out.add(ctx);
 					continue;
 					}
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 				vcb.attribute(TAG,atts.toArray());
 				out.add(vcb.make());
 				}
-			return 0;
-			}
-		catch(final SQLException err)
-			{
-			LOG.error(err);
 			return -1;
+			}
+		catch(SQLException err)
+			{
+			throw new RuntimeException("SQLError", err);
+		
 			}
 		finally
 			{
@@ -248,6 +238,7 @@ public class VcfUcsc extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		
+
 		try
 			{
 			String s=this.expressionStr;
@@ -283,7 +274,7 @@ public class VcfUcsc extends Launcher
 				s=s.substring(e+1);
 				}
 			}
-		catch(final Exception err)
+		catch(Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -320,7 +311,7 @@ public class VcfUcsc extends Launcher
 			this.has_bin_column=cols.contains("bin");
 			
 			
-			for(final String col:new String[]{"chrom"})
+			for(String col:new String[]{"chrom"})
 				{
 				if(this.chromColumn==null && cols.contains(col))
 					{
@@ -333,7 +324,7 @@ public class VcfUcsc extends Launcher
 				return -1;
 				}
 			
-			for(final String col:new String[]{"txStart","cdsStart","chromStart"})
+			for(String col:new String[]{"txStart","cdsStart","chromStart"})
 				{
 				if(this.startColumn==null && cols.contains(col))
 					{
@@ -345,7 +336,7 @@ public class VcfUcsc extends Launcher
 				LOG.error("cannot find startColumn in "+cols);
 				return -1;
 				}
-			for(final String col:new String[]{"txEnd","cdsEnd","chromEnd"})
+			for(String col:new String[]{"txEnd","cdsEnd","chromEnd"})
 				{
 				if(this.endColumn==null && cols.contains(col))
 					{
