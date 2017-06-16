@@ -1,39 +1,41 @@
-# VcfUcsc
+# XsltStream
 
-annotate an VCF with mysql UCSC data
+XSLT transformation for large XML files. xslt is only applied on a given subset of nodes.
 
 
 ## Usage
 
 ```
-Usage: vcfucsc [options] Files
+Usage: xsltstream [options] Files
   Options:
-    -D, --database
-      database name
-      Default: hg19
-    -e, --expression
-      expression string.
-      Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -n, --tag, --name, -tag, -name
+      XML node name. name has syntax '{ns}prefix:localName' or 
+      'prefix:localName' or 'localName' or '{ns}localName'
+      Default: []
     -o, --output
       Output file. Optional . Default: stdout
-    -T, -t, --table
-      table name
+    -skip, --skip
+      Ignore those names
+      Default: []
     --version
       print version and exit
+  * -t, -template
+      XSLT template file.
 
 ```
 
 
 ## Keywords
 
- * ucsc
- * mysql
- * vcf
+ * xml
+ * xslt
+ * xsl
+ * stylesheet
 
 
 ## Compilation
@@ -52,7 +54,7 @@ Usage: vcfucsc [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make vcfucsc
+$ make xsltstream
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -70,8 +72,8 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfucsc/VcfUcsc.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfucsc/VcfUcsc.java
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/XsltStream.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/XsltStream.java
 )
 ## Contribute
 
@@ -84,7 +86,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfucsc** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **xsltstream** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -92,23 +94,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-
-## Example
-
-
-```
-java -jar dist/vcfucsc.jar --table snp142 -e '${name}' input.vcf
-(...)
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-chr3	124290753	.	G	C	579.77	.	UCSC_HG19_SNP142=rs145115089
-chr3	124290943	.	A	G	491.77	.	UCSC_HG19_SNP142=rs7372055
-chr3	124291069	.	G	A	266.77	.	UCSC_HG19_SNP142=rs7373767
-chr3	124291171	.	C	CA	240.73	.	.
-chr3	124291245	.	A	G	563.77	.	UCSC_HG19_SNP142=rs12695439
-chr3	124291351	.	A	G	194.77	.	UCSC_HG19_SNP142=rs7613600
-chr3	124291416	.	G	T	308.77	.	UCSC_HG19_SNP142=rs73189597
-chr3	124291579	.	T	C	375.77	.	UCSC_HG19_SNP142=rs7649882
-```
 
 
