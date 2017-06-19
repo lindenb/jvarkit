@@ -91,11 +91,13 @@ jcommander.jar= \
 
 berkeleydb.jar=$(lib.dir)/com/sleepycat/je/7.3.7/je-7.3.7.jar
 
+javacc.jar=\
+	$(lib.dir)/net/java/dev/javacc/javacc/7.0.2/javacc-7.0.2.jar
+
 ${berkeleydb.jar}:
 	mkdir -p $(dir $@) && wget -O "$@" "http://download.oracle.com/maven/$(patsubst ${lib.dir}/%,%,$@)"
 	
-
-all_maven_jars = $(sort ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
+all_maven_jars = $(sort ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 
 ${all_maven_jars}  : 

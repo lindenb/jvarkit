@@ -526,6 +526,13 @@ ${dist.dir}/ij : $(sort ${derby.jars} ${derby-tools.jar})
 	echo '#!/bin/bash' > @
 	echo -n '${JAVA} -Dfile.encoding=UTF8  -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" org.apache.derby.tools.ij $$*' >> $@
 	chmod  ugo+rx $@
+
+javacc: ${dist.dir}/javacc
+${dist.dir}/javacc : ${javacc.jar}
+	mkdir -p $(dir $@)
+	echo '#!/bin/bash' > @
+	echo -n '${JAVA} -Dfile.encoding=UTF8  -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" javacc $$*' >> $@
+	chmod  ugo+rx $@
 	
 
 GATKWALKERS_SRC=$(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/tools/gatk/, variants/SoftClipAnnotator variants/GroupByVariants variants/GroupByGenotypes variants/EigenVariants variants/WindowVariants))

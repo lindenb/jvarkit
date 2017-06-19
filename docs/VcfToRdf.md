@@ -98,12 +98,7 @@ The current reference is:
 
 
 
-
-
-
 ### Example
-
-
 
 
 ```
@@ -111,8 +106,6 @@ The current reference is:
 $  java -jar dist/vcf2rdf.jar < in.vcf | xmllint --format -
 
 ```
-
-
 
 
 
@@ -313,7 +306,6 @@ $  java -jar dist/vcf2rdf.jar < in.vcf | xmllint --format -
 </rdf:RDF>
 
 ```
-
 
 
 

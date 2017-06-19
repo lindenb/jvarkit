@@ -46,6 +46,7 @@ Usage: bioalcidae [options] Files
 
 ## See also in Biostars
 
+ * [https://www.biostars.org/p/257346](https://www.biostars.org/p/257346)
  * [https://www.biostars.org/p/183197](https://www.biostars.org/p/183197)
  * [https://www.biostars.org/p/185162](https://www.biostars.org/p/185162)
  * [https://www.biostars.org/p/153060](https://www.biostars.org/p/153060)
@@ -423,9 +424,6 @@ java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.ne
 
 #### Blast
 
-
-
-
 ```
 $ cat ~/input.blastn.xml | java -jar dist/bioalcidae.jar -F blast -e 'while(iter.hasNext())
  	{
@@ -436,10 +434,7 @@ $ cat ~/input.blastn.xml | java -jar dist/bioalcidae.jar -F blast -e 'while(iter
 
 ```
 
-
-
 output:
-
 
 
 ```
@@ -465,19 +460,13 @@ Enterobacteria phage phiX174 sensu lato, complete genome Hit: Escherichia coli g
 
 #### NCBI Sequence INDSeq
 
-
-
-
 ```
 $  curl "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=25,26,27&rettype=gbc" |\
 java -jar dist/bioalcidae.jar  -F INSDSEQ -e 'while(iter.hasNext()) {var seq= iter.next(); out.println(seq.getINSDSeqDefinition()+" LENGTH="+seq.getINSDSeqLength());}'
 ```
 
 
-
 output:
-
-
 
 ```
 Blue Whale heavy satellite DNA LENGTH=422
@@ -486,13 +475,9 @@ B.physalus gene for large subunit rRNA LENGTH=518
 ```
 
 
-
-
-
 #### NCBI DBSNP
 
 
- 
 
 ```
 $  curl -s "ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/XML/ds_chMT.xml.gz" | gunzip -c |\
@@ -514,8 +499,6 @@ rs1116904 snp genomic
 (...)
 
 ```
-
-
 
 
 
