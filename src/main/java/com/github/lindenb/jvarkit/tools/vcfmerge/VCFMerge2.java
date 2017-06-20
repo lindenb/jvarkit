@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
@@ -64,12 +66,14 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -83,13 +87,20 @@ BEGIN_DOC
  
 ## Example
 
+
+
+
 ```bash
 $  find ./ -name "*.vcf.gz" | xargs java -jar dist/vcfmerge.jar   > out.vcf
 ```
 
 END_DOC
  */
-@Program(name="vcfmerge",description="Merge VCF Files",deprecatedMsg="use GATK combineVariants ")
+@Program(name="vcfmerge",
+	description="Merge VCF Files",
+	deprecatedMsg="use GATK combineVariants.",
+	keywords={"vcf","sort"}
+	)
 public class VCFMerge2
 	extends Launcher
 	{
@@ -109,7 +120,7 @@ public class VCFMerge2
 
 	@Parameter(names={"-homref","--homref"},description="Use HomRef 0/0 for unknown variant")
 	private boolean useHomRefForUnknown = false;
-
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
@@ -137,6 +148,8 @@ public class VCFMerge2
 		final String origin;
 		AbstractVCFCodec vcfCodec = VCFUtils.createDefaultVCFCodec();
 		VCFHeader header=null;
+		
+		
 		VCFHandler(final String origin) {
 			this.origin=origin;
 		}
@@ -144,7 +157,10 @@ public class VCFMerge2
 		VariantContext parse(final String line)
 			{
 			return vcfCodec.decode(line);
-			}	
+			}
+	
+		
+		
 		}
 	
 	
@@ -161,7 +177,7 @@ public class VCFMerge2
 		
 		boolean same(VariantOfFile var)
 			{
-			return compare(global_dictionary,this.parse(),var.parse())==0;
+			return VCFMerge2.this.compareChromPosRef.compare(this.parse(),var.parse())==0;
 			}
 		
 
@@ -170,7 +186,7 @@ public class VCFMerge2
 			{
 			final VariantContext vc1=parse();
 			final VariantContext vc2=var.parse();
-			final int i= compare(global_dictionary, vc1, vc2);
+			final int i= VCFMerge2.this.compareChromPosRef.compare(vc1, vc2);
 			if(i!=0) return i;
 			return fileIndex - var.fileIndex;
 			}
@@ -407,34 +423,82 @@ public class VCFMerge2
 		CloserUtil.close(out);
 		CloserUtil.close(iter);
 		}
-	/** container uri+vcfIterator */
-	private static class PeekVCF
-		{
-		String uri;
-		VcfIterator iter=null;
-		}
 	
-	private int compare(
-			final SAMSequenceDictionary dict,
-			final VariantContext me,
-			final VariantContext other)
+	
+	/** container uri+vcfIterator */
+	private class PeekVCF
 		{
-		int ref0=dict.getSequenceIndex(me.getContig());
-		if(ref0<0) throw new IllegalArgumentException("unknown chromosome not in sequence dictionary: "+me.getContig());
-		int ref1=dict.getSequenceIndex(other.getContig());
-		if(ref1<0) throw new IllegalArgumentException("unknown chromosome not in sequence dictionary: "+other.getContig());
+		final String uri;
+		final VcfIterator iter0;
+		final PeekableIterator<VariantContext> iter;
+		final VCFHeader header;
+		final List<VariantContext> buffer = new ArrayList<>();
 		
-		int i=ref0-ref1;
-		if(i!=0) return i;
-		i=me.getStart()-other.getStart();
-		if(i!=0) return i;
-		/*i=me.getEnd()-other.getEnd();
-		if(i!=0) return i; no we can have indel at the same place*/ 
-		i=me.getReference().compareTo(other.getReference());
-		if(i!=0) return i;
-
-		return 0;
+		PeekVCF(final String uri) throws IOException {
+			this.uri = uri;
+			this.iter0 = VCFUtils.createVcfIterator(uri);
+			this.iter = new PeekableIterator<>(this.iter0); 
+			this.header = this.iter0.getHeader();
+			if(this.header.getSequenceDictionary()==null){
+				throw new JvarkitException.DictionaryMissing("No dict in "+uri);
+			}
+			}
+		
+		private List<VariantContext> priv_peek()
+			{
+			if(!this.buffer.isEmpty()) return this.buffer;
+			while(this.iter.hasNext())
+				{
+				final VariantContext ctx= this.iter.peek();
+				if(this.buffer.isEmpty())
+					{
+					this.buffer.add(this.iter.next());
+					}
+				else
+					{
+					// compare with first item in buffer
+					final int i = VCFMerge2.this.compareChromPos.compare(
+							ctx,
+							this.buffer.get(0) 
+							);
+					if( i< 0) {
+						throw new JvarkitException.UserError("Variant are not sorted! got: "+ctx+" after "+buffer.get(0));
+						}
+					else if(i > 0)
+						{
+						break;
+						}
+					else //i == 0 or growing
+						{
+						buffer.add(this.iter.next());
+						}
+					}
+				}
+			Collections.sort(this.buffer, VCFMerge2.this.compareChromPosRef);
+			return buffer;
+			}
+		List<VariantContext> peek()
+			{
+			final List<VariantContext> L = priv_peek();
+			if(L.isEmpty() || L.size()==1) return L;
+			return L.stream().
+					filter(V->V==L.get(0) /* compare ptr */|| VCFMerge2.this.compareChromPosRef.compare(L.get(0),V)==0).
+					collect(Collectors.toList());
+			}
+		
+		void reset(final VariantContext ctx0)
+			{
+			this.buffer.removeIf(V->
+					 V.getContig().equals(ctx0.getContig()) &&
+					 V.getStart() == ctx0.getStart()  &&
+				     V.getReference().equals(ctx0.getReference()));
+			}
+		@Override
+		public String toString() {
+			return this.uri;
+			}
 		}
+		
 	
 	private int workUsingPeekIterator()
 		{
@@ -442,75 +506,70 @@ public class VCFMerge2
 		final List<PeekVCF> input=new ArrayList<PeekVCF>();
 
 		try {
-			SAMSequenceDictionary dict=null;
 			final Set<String> genotypeSampleNames=new TreeSet<String>();
 			final Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			
 			//get all VCF, check same dict
-			for(String arg:this.userVcfFiles )
+			for(final String arg:this.userVcfFiles )
 				{
-				PeekVCF p=new PeekVCF();
-				p.uri=arg;
-				LOG.info("Opening "+p.uri);
-				p.iter=VCFUtils.createVcfIterator(p.uri);
+				LOG.info("Opening "+arg);
+				final PeekVCF p=new PeekVCF(arg);
 				input.add(p);
-				final SAMSequenceDictionary dict1=p.iter.getHeader().getSequenceDictionary();
-				if(dict1==null) throw new RuntimeException("dictionary missing in "+p.uri);
-				if(dict1.isEmpty()) throw new RuntimeException("dictionary is Empty in "+p.uri);
-				genotypeSampleNames.addAll(p.iter.getHeader().getSampleNamesInOrder());
-				metaData.addAll(p.iter.getHeader().getMetaDataInInputOrder());
-				if(dict==null)
+				genotypeSampleNames.addAll(p.header.getSampleNamesInOrder());
+				metaData.addAll(p.header.getMetaDataInInputOrder());
+				if(this.global_dictionary==null)
 					{
-					dict=dict1;
+					this.global_dictionary=p.header.getSequenceDictionary();
 					}
-				else if(!SequenceUtil.areSequenceDictionariesEqual(dict, dict1))
+				else if(!SequenceUtil.areSequenceDictionariesEqual(this.global_dictionary, p.header.getSequenceDictionary()))
 					{
-					throw new RuntimeException("Not the same Sequence dictionaries "+input.get(0).uri+" / "+p.uri);
+					throw new JvarkitException.DictionariesAreNotTheSame(this.global_dictionary, p.header.getSequenceDictionary());
 					}
 				}
+			
+			if(this.global_dictionary==null)
+				{
+				throw new IllegalStateException("No Dict");
+				}
+			
 			//super.addMetaData(metaData);
 			if(this.doNotMergeRowLines)
 				{
 				metaData.add(NO_MERGE_INFO_HEADER);
 				}
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-			out = super.openVariantContextWriter(outputFile);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(this.global_dictionary);
+			out = super.openVariantContextWriter(this.outputFile);
 			final VCFHeader headerOut=new VCFHeader(
 					metaData,
-					genotypeSampleNames);
+					genotypeSampleNames
+					);
 			
 			
 			out.writeHeader(headerOut);
-			boolean peeked[]=new boolean[input.size()];
-			final List<VariantContext> row=new ArrayList<VariantContext>();
+			final List<VariantContext> row=new ArrayList<VariantContext>(input.size());
 			//find smallest ordered variant
 			for(;;)
 				{
 				row.clear();
-				Arrays.fill(peeked, false);
-				for(int i=0;i< input.size();++i)
+				for(final PeekVCF peekVcf: input)
 					{
-					if(!input.get(i).iter.hasNext()) continue;
-					final VariantContext ctx=input.get(i).iter.peek();
+					final List<VariantContext> peekVcfList = peekVcf.peek(); 
+					if(peekVcf.peek().isEmpty()) continue;
+					final VariantContext ctx= peekVcfList.get(0);
 					if(row.isEmpty())
 						{
-						Arrays.fill(peeked, false);
-						peeked[i]=true;
-						row.add(ctx);
+						row.addAll(peekVcfList);
 						continue;
 						}
-					final int cmp=compare(dict, ctx, row.get(0));
+					final int cmp= this.compareChromPosRef.compare( ctx, row.get(0));
 					if(cmp==0)
 						{
-						peeked[i]=true;
-						row.add(ctx);
+						row.addAll(peekVcfList);
 						}
 					else if(cmp<0)
 						{
-						Arrays.fill(peeked, false);
-						peeked[i]=true;
 						row.clear();
-						row.add(ctx);
+						row.addAll(peekVcfList);
 						}
 					}
 				if(row.isEmpty()) break;
@@ -521,26 +580,31 @@ public class VCFMerge2
 					}
 				
 				//consumme peeked variants
-				for(int i=0;i< input.size();++i)
+				for(final PeekVCF peekVcf: input)
 					{
-					if(peeked[i]) input.get(i).iter.next();
+					peekVcf.reset(row.get(0));
 					}
 				
 				}
+			for(final PeekVCF peekVcf: input)
+				{
+				peekVcf.iter.close();
+				}
+			input.clear();
 			CloserUtil.close(out); out=null;
 			progress.finish();
 			
 			LOG.info("Done peek sorting");
 			return RETURN_OK;
 			}
-		catch(Exception err) {
+		catch(final Exception err) {
 			LOG.error(err);
 			return -1;
 		}
 		finally
 			{
 			CloserUtil.close(out);
-			for(PeekVCF p: input)
+			for(final PeekVCF p: input)
 				{
 				CloserUtil.close(p.iter);
 				}
@@ -548,6 +612,30 @@ public class VCFMerge2
 		}
 	
 	private SAMSequenceDictionary global_dictionary=null;
+	
+	private final Function<String,Integer> contig2tid=C->{
+		final int tid = global_dictionary.getSequenceIndex(C);
+		if(tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(C, global_dictionary);
+		return tid;
+		};
+	
+	private final Comparator<String> compareContigs = (C1,C2)->{
+		if(C1.equals(C2)) return 0;
+		return contig2tid.apply(C1) - contig2tid.apply(C2);
+		};
+	
+	private final Comparator<VariantContext> compareChromPos = (V1,V2)->{
+		int i = compareContigs.compare(V1.getContig(),V2.getContig());
+		if( i!=0 ) return i;
+		return V1.getStart() - V2.getStart();
+		};	
+	private final Comparator<VariantContext> compareChromPosRef = (V1,V2)->{
+		int i = compareChromPos.compare(V1,V2);
+		if( i!=0 ) return i;
+		return V1.getReference().compareTo(V2.getReference());
+		};	
+		
+	
 	private int workUsingSortingCollection() 
 		{
 		VariantContextWriter w=null;
@@ -586,17 +674,17 @@ public class VCFMerge2
 				metaData.addAll(handler.header.getMetaDataInInputOrder());
 				if(fileIndex==0)
 					{
-					global_dictionary=dict1;
+					this.global_dictionary=dict1;
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(global_dictionary, dict1))
 					{
-					throw new RuntimeException("Not the same Sequence dictionaries "+IN.get(0)+" / "+vcfFile);
+					throw new JvarkitException.DictionariesAreNotTheSame(global_dictionary, dict1);
 					}
 	
-	
+				
 				while(lit.hasNext())
 					{					
-					VariantOfFile vof=new VariantOfFile();
+					final VariantOfFile vof=new VariantOfFile();
 					vof.fileIndex=fileIndex;
 					vof.line=lit.next();
 					array.add(vof);
@@ -604,7 +692,7 @@ public class VCFMerge2
 	
 				in.close();
 				in=null;
-			}
+				}
 			array.doneAdding();
 			LOG.info("merging..."+vcfHandlers.size()+" vcfs");
 	
@@ -681,12 +769,7 @@ public class VCFMerge2
 
 	
 
-	
-
-	/**
-	 * main
-	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VCFMerge2().instanceMainWithExit(args);
 		}

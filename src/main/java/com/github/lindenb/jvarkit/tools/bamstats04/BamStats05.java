@@ -47,6 +47,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -65,9 +66,28 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 
 /**
+BEGIN_DOC
 
+## Example
+
+```
+
+$ head genes.bed
+1	179655424	179655582	ZORG
+1	179656788	179656934	ZORG
+
+$ java -jar  dist/bamstats05.jar -B genes.bed --mincoverage 10  > out.txt
+
+$ head out.txt
+#chrom	start	end	gene	sample	length	mincov	maxcov	avg	nocoverage.bp	percentcovered
+1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
+
+```
+
+END_DOC
 
 
 */
@@ -88,18 +108,14 @@ public class BamStats05 extends Launcher
 
 	@Parameter(names={"-B","--bed"},description="bed file (columns: chrom start end GENE)",required=true)
 	private File BEDILE = null;
-
-	@Parameter(names={"-p","--orphan"},description="use orphan reads (not only properly paired)")
-	private boolean USE_ORPHAN = false;
-
-	@Parameter(names={"-q","--minmapq"},description="min mapping quality")
-	private int MMQ = 0 ;
 	
 	@Parameter(names={"--groupby"},description="Group Reads by")
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
-
-	private Map<String, List<Interval>> readBedFile(File bedFile) throws IOException
+	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	
+	private Map<String, List<Interval>> readBedFile(final File bedFile) throws IOException
     	{
     	final Map<String, List<Interval>> gene2interval=new TreeMap<String, List<Interval>>();
     	
@@ -209,30 +225,20 @@ public class BamStats05 extends Launcher
 								;
 						while(r.hasNext())
 							{
-							SAMRecord rec=r.next();
+							final SAMRecord rec=r.next();
 							if(rec.getReadUnmappedFlag()) continue;
-							if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-							if(rec.getDuplicateReadFlag() ) continue;
-							if(rec.getReadPairedFlag())
-								{
-								if(!USE_ORPHAN && !rec.getProperPairFlag()) continue;
-								}
-							if(rec.isSecondaryOrSupplementary()) continue;
+							if(filter.filterOut(rec)) continue;
+							
 							if(!rec.getReferenceName().equals(interval.getContig())) continue;
-							if(rec.getMappingQuality()==255 ||
-								rec.getMappingQuality()==0 ||
-								rec.getMappingQuality()< this.MMQ)
-								{
-								continue;
-								}
+							
 							final SAMReadGroupRecord rg = rec.getReadGroup();
 							if(rg==null || !partition.equals(this.groupBy.apply(rg))) continue;
 							final Cigar cigar=rec.getCigar();
 							if(cigar==null) continue;
 				    		int refpos1=rec.getAlignmentStart();
-				    		for(CigarElement ce:cigar.getCigarElements())
+				    		for(final CigarElement ce:cigar.getCigarElements())
 				    			{
-				    			CigarOperator op=ce.getOperator();
+				    			final CigarOperator op=ce.getOperator();
 				    			if(!op.consumesReferenceBases()) continue;
 				    			if(op.consumesReadBases())
 				    				{
@@ -305,8 +311,8 @@ public class BamStats05 extends Launcher
 			{
 			Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
 			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			pw.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tmean\tnocoverage.bp\tpercentcovered");
-			SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+			pw.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tavg\tnocoverage.bp\tpercentcovered");
+			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			final Set<String> files = new  HashSet<>();
 			if(args.isEmpty())
 				{

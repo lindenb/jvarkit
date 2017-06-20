@@ -102,7 +102,20 @@ public static class ContigNotFoundInDictionary extends ContigNotFound
 		super("Cannot find contig \""+contig+"\" in dictionary:["+dict.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))+"]");
 		}
 	}
-	
+
+/** exception two dicts are not the same */
+public static class DictionariesAreNotTheSame extends Error
+	{
+	public DictionariesAreNotTheSame(final SAMSequenceDictionary dict1,final SAMSequenceDictionary dict2) {
+		super("Two dictionaries are not the same:"+
+				dict1.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))
+				+"\nand\n"+
+				dict2.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))
+				);
+		}
+	}
+
+
 /** exception thrown when the user made an error on the command line */
 public static class CommandLineError extends Error
 	{

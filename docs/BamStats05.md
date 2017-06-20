@@ -10,6 +10,11 @@ Usage: bamstats05 [options] Files
   Options:
   * -B, --bed
       bed file (columns: chrom start end GENE)
+    -f, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     --groupby
       Group Reads by
       Default: sample
@@ -22,12 +27,6 @@ Usage: bamstats05 [options] Files
     -m, --mincoverage
       min coverage to say the position is not covered
       Default: 0
-    -q, --minmapq
-      min mapping quality
-      Default: 0
-    -p, --orphan
-      use orphan reads (not only properly paired)
-      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version
