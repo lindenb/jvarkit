@@ -373,7 +373,7 @@ public class VcfToTable extends Launcher {
 		private boolean hideHomRefGenotypes=false;
 		@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION+" If undefined, this tool will try to get the pedigree from the header.")
 		private File pedigreeFile=null;
-		@Parameter(names={"-L","--limit","--limit"},description="Limit the number of output variant. '-1' == ALL/No limit.")
+		@Parameter(names={"-L","-limit","--limit"},description="Limit the number of output variant. '-1' == ALL/No limit.")
 		private int limitVariants=-1;
 
 		

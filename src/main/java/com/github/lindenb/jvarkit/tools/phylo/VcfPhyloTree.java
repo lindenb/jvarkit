@@ -28,895 +28,282 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.phylo;
 
-import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.stream.Collectors;
 
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
-
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFHeader;
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.bdb.AlleleBinding;
-import com.sleepycat.bind.tuple.TupleBinding;
-import com.sleepycat.bind.tuple.TupleInput;
-import com.sleepycat.bind.tuple.TupleOutput;
-import com.sleepycat.je.Cursor;
-import com.sleepycat.je.CursorConfig;
-import com.sleepycat.je.Database;
-import com.sleepycat.je.DatabaseConfig;
-import com.sleepycat.je.DatabaseEntry;
-import com.sleepycat.je.Environment;
-import com.sleepycat.je.EnvironmentConfig;
-import com.sleepycat.je.LockMode;
-import com.sleepycat.je.OperationStatus;
-import com.sleepycat.je.Transaction;
 
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeType;
+import htsjdk.variant.variantcontext.VariantContext;
+/**
+BEGIN_DOC
+
+## Example
+
+```
+
+```
+
+END_DOC
+ */
 public class VcfPhyloTree extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfPhyloTree.class).make();
-
-	private enum GType
+	private static int ID_GENERATOR=0;
+	private static abstract class SampleNode
 		{
-		HOM_REF,
-		HOM_ALT,
-		HET
-		//,UNAVAILABLE
+		final int id= ++ID_GENERATOR;
+		abstract void printDot(final PrintStream out);
 		}
 	
-	
-	
-	private static class Call
+	private static class OneSampleNode extends SampleNode
 		{
-		int sample_index;
-		GType gtype;
-		int depth;
-		int qual;
-		}
-	
-	private static class CallBinding
-		extends TupleBinding<Call>
-		{
-		private final GType[] GTYPES=GType.values();
-		@Override
-		public Call entryToObject(TupleInput in) {
-			int sample_index= in.readInt();
-			if(sample_index==-1) return null;
-			Call call= new Call();
-			call.sample_index=sample_index;
-			call.gtype=GTYPES[(int)in.readByte()];
-			call.depth = in.readInt();
-			call.qual = in.readInt();
-			return call;
-			}
-		@Override
-		public void objectToEntry(Call g, TupleOutput w)
+		private final String name;
+		OneSampleNode(final String name)
 			{
-			if(g==null || g.sample_index==-1)
-				{	
-				w.writeInt(-1);
-				return;
-				}
-			w.writeInt(g.sample_index);
-			w.writeByte((byte)g.gtype.ordinal());
-			w.writeInt(g.depth);
-			w.writeInt(g.qual);
-			}
-		}
-
-	
-	private class Calls
-		{
-		private List<Call> calls=new ArrayList<>(VcfPhyloTree.this.sampleList.size());
-		
-		
-		Call get(int sampleIndex)
-			{
-			return sampleIndex<calls.size()?calls.get(sampleIndex):null;
-			}
-		GType getGenotype(int sampleIndex)
-			{
-			Call c=get(sampleIndex);
-			return c==null?GType.HOM_REF:c.gtype;
-			}
-		void visit(VariantContext ctx)
-			{
-			for(int i=0;i<  VcfPhyloTree.this.sampleList.size();++i)
-				{
-				String sampleName= VcfPhyloTree.this.sampleList.get(i);
-				Genotype g = ctx.getGenotype(sampleName);
-				Call newcall=new Call();
-				newcall.sample_index=i;
-				if(g.hasDP()) newcall.depth=g.getDP();
-				if(g.hasGQ()) newcall.qual=g.getGQ();
-				
-				switch(g.getType())
-					{
-					case HET: newcall.gtype =GType.HET;break;
-					case HOM_REF: newcall.gtype =GType.HOM_REF;break;
-					case HOM_VAR: newcall.gtype =GType.HOM_ALT;break;
-					default: newcall=null; break;
-					}
-				if(newcall==null) continue;
-				
-				Call old= this.get(i);
-				if( old!=null && 
-					old.qual!=-1 && newcall.qual!=-1 &&
-					old.qual > newcall.qual
-					)
-					{
-					continue;
-					}
-				while(this.calls.size()<=i) this.calls.add(null);
-				this.calls.set(i, newcall);
-				}
-			}
-		}
-
-	private class CallsBinding
-	extends TupleBinding<Calls>
-		{
-		private CallBinding callBinding=new CallBinding();
-		@Override
-		public Calls entryToObject(TupleInput in)
-			{
-			Calls calls=new Calls();
-			int n=in.readInt();
-			for(int i=0;i< n;++i)
-				{
-				calls.calls.add(this.callBinding.entryToObject(in));
-				}
-			return calls;
-			}
-		@Override
-		public void objectToEntry(Calls o, TupleOutput w)
-			{
-			w.writeInt(o.calls.size());
-			for(int i=0;i< o.calls.size();++i)
-				{
-				this.callBinding.objectToEntry(o.calls.get(i),w);
-				}
-			}
-		}
-	private  final CallsBinding callsBindingInstance=new CallsBinding();
-
-	
-
-	
-	private static class ChromPosRefBinding
-		extends TupleBinding<ContigPosRef>
-		{
-		AlleleBinding alleleBinding=new AlleleBinding();
-		@Override
-		public ContigPosRef entryToObject(TupleInput in)
-			{
-			final String c = in.readString();
-			int p = in.readInt();
-			final Allele a = alleleBinding.entryToObject(in);
-			return new ContigPosRef(c,p,a);
-			}
-		@Override
-		public void objectToEntry(ContigPosRef o, TupleOutput out) {
-			out.writeString(o.getContig());
-			out.writeInt(o.getStart());
-			alleleBinding.objectToEntry(o.getReference(), out);
-			}
-		}
-	private ChromPosRefBinding chromPosRefBindingInstance=new ChromPosRefBinding();
-	
-	
-	
-	private long ID_GENERATOR=0L;
-	
-	
-	
-	private abstract class TreeNode
-		{
-		long nodeid=(++ID_GENERATOR);
-		double weight = 0L;
-		private Set<Integer> _cacheSamples=null;
-		
-		abstract void collectSampleIds(Set<Integer> set);
-		public Set<Integer> getSamples()
-			{
-			if(_cacheSamples==null)
-				{
-				_cacheSamples=new HashSet<Integer>();
-				collectSampleIds(_cacheSamples);
-				}
-			return _cacheSamples;
+			this.name=name;
 			}
 		
-		public Set<String> getSampleNames()
+		@Override void printDot(final PrintStream out)
 			{
-			Set<String> h=new TreeSet<String>();
-			for(Integer idx:this.getSamples()) h.add(VcfPhyloTree.this.sampleList.get(idx));
-			return h;
-			}
-		
-		protected abstract Counter<GType> getGenotypeTypes( Counter<GType> counter,final Calls ctx);
-		
-		private double distance(GType t1,GType t2)
-			{	
-			final double dAA_AA=0.0;
-			final double dAA_AB=5.0;
-			final double dAA_BB=15.0;
-
-			
-			switch(t1)
-				{
-				case HET:
-					{
-					switch(t2)
-						{
-						case HET: return dAA_AA;
-						case HOM_ALT: return dAA_AB;
-						case HOM_REF: return dAA_AB;
-						default:break;
-						}
-					break;
-					}
-				case HOM_ALT:
-					{
-					switch(t2)
-						{
-						case HET: return dAA_AB;
-						case HOM_ALT: return dAA_AA;
-						case HOM_REF: return dAA_BB;
-						default:break;
-						}
-					break;
-					}
-				case HOM_REF:
-					{
-					switch(t2)
-						{
-						case HET: return dAA_AB;
-						case HOM_ALT: return dAA_BB;
-						case HOM_REF: return dAA_AA;
-						default:break;
-						}
-					break;
-					}
-				default:break;
-				}
-			throw new RuntimeException(t1.toString()+" "+t2);
-			}
-		
-		double distance(TreeNode other,final Calls ctx)
-			{
-			Counter<GType> x1=new Counter<GType>();
-			Counter<GType> x2=new Counter<GType>();
-			x1= this.getGenotypeTypes(x1,ctx);
-			x2= other.getGenotypeTypes(x2,ctx);
-			if(x1.isEmpty() && x2.isEmpty()) return 0.0;
-			if(x1.isEmpty() || x2.isEmpty()) return 1.0;
-			double n=0;
-			long m=0;
-			for(GType t1:x1.keySet())
-				{
-				for(GType t2:x2.keySet())
-					{
-					n+=distance(t1,t2)*x1.count(t1)*x2.count(t2);
-					m++;
-					}
-				}
-			
-			return n/m;
-			/*
-			if(x1.keySet().equals(x2.keySet())) return 0L;
-			
-			GType t1= x1.getMostFrequent();
-			GType t2= x2.getMostFrequent();
-			return distance(t1,t2);
-			*/
-			}
-
-		
-		boolean containsAnySampleIds(Set<Integer> set)
-			{
-			for(Integer s: getSamples())
-				{
-				if(set.contains(s)) return true;
-				}
-			return false;
-			}
-		abstract void writeGraphizDot(PrintStream out);
-		
-		abstract void writeGexfNodes(XMLStreamWriter out) throws XMLStreamException;
-		abstract void writeGexfEdges(XMLStreamWriter out) throws XMLStreamException;
-		
-		abstract void writeNewick(PrintStream out);
-
-		
-		public String getNodeId()
-			{
-			return "node"+this.nodeid;
-			}
-		abstract public String toString();
-		
-		}
-	
-	private class OneSample extends TreeNode
-		{
-		private int sample_index;
-		OneSample(int sample_index)
-			{
-			this.sample_index = sample_index;
-			}
-		String getSampleName()
-			{
-			return VcfPhyloTree.this.sampleList.get(this.sample_index);
-			}
-		
-		@Override
-		protected Counter<GType> getGenotypeTypes(Counter<GType> c,final Calls calls)
-			{
-			c.incr(calls.getGenotype(this.sample_index));
-			return c;
-			}
-		
-		@Override
-		void collectSampleIds(Set<Integer> set)
-			{
-			set.add(this.sample_index);
-			}
-		
-		@Override
-		void writeGraphizDot(PrintStream out) {
-			out.println(getNodeId()+"[label=\""+this.getSampleName()+"\"];");
-			}
-		@Override
-		 void writeGexfNodes(XMLStreamWriter w) throws XMLStreamException
-			{
-			w.writeEmptyElement("node");
-				w.writeAttribute("id",getNodeId());
-				w.writeAttribute("label",this.getSampleName());
-			}
-		
-		@Override
-		void writeGexfEdges(XMLStreamWriter w) throws XMLStreamException
-			{
-			//empty
-			}
-		@Override
-		void writeNewick(PrintStream out)
-			{
-			out.print(this.getSampleName());
+			out.println("n"+this.id+"[label=\""+this.name+"\"];");
 			}
 		@Override
 		public String toString() {
-			return this.getSampleName()+" ("+this.weight+")";
+			return name;
 			}
 		}
-	
-	
-
-	
-	private class MergedNodes extends TreeNode
+	private static class MergeSampleNode extends SampleNode
 		{
-		private TreeNode t1;
-		private TreeNode t2;
-		MergedNodes(TreeNode t1,TreeNode t2)
+		private final SampleNode n1;
+		private final SampleNode n2;
+		private final double distance;
+		MergeSampleNode(final SampleNode n1,final SampleNode n2,double distance)
 			{
-			this.t1=t1;
-			this.t2=t2;
+			this.n1=n1;
+			this.n2=n2;
+			this.distance=distance;
 			}
 		
-		@Override
-		void collectSampleIds(Set<Integer> set) {
-			t1.collectSampleIds(set);
-			t2.collectSampleIds(set);
-			}
-		
-		
-		@Override
-		protected Counter<GType> getGenotypeTypes(Counter<GType> c,final Calls ctx)
+		@Override void printDot(final PrintStream out)
 			{
-			t1.getGenotypeTypes(c,ctx);
-			t2.getGenotypeTypes(c,ctx);
-			
-			return c;
+			n1.printDot(out);
+			n2.printDot(out);
+			out.println("n"+this.id+"[shape=circle,label=\""+String.format("%.2f", this.distance)+"\"];");
+			out.println("n"+this.n1.id+" -> n"+ this.id+";");
+			out.println("n"+this.n2.id+" -> n"+ this.id+";");
 			}
 
-		@Override
-		void writeGraphizDot(PrintStream out)
-			{
-			t1.writeGraphizDot(out);
-			t2.writeGraphizDot(out);
-			out.println(this.getNodeId()+"[shape=point];");
-			String label="[weight="+(1+(int)this.weight)+",label=\""+(int)this.weight+"\"]";
-			out.println(t1.getNodeId()+" -- "+ this.getNodeId()+label+";");
-			out.println(t2.getNodeId()+" -- "+ this.getNodeId()+label+";");
-			
-			}
-		@Override
-		 void writeGexfNodes(XMLStreamWriter w) throws XMLStreamException
-			{
-			w.writeEmptyElement("node");
-				w.writeAttribute("id",getNodeId());
-				w.writeAttribute("label","");
-			this.t1.writeGexfNodes(w);
-			this.t2.writeGexfNodes(w);
-			}
 		
 		@Override
-		void writeGexfEdges(XMLStreamWriter w) throws XMLStreamException
+		public String toString() {
+			return "("+n1.toString()+","+n2+":"+this.distance+")";
+			}
+		}
+
+	
+	private static class GTPair
+		{
+		private final GenotypeType t1;
+		private final GenotypeType t2;
+		GTPair(final GenotypeType t1,final GenotypeType t2)
 			{
-			for(int i=0;i<2;++i)
-				{
-				TreeNode c=(i==0?t1:t2);
-				String nid= c.getNodeId();
-				w.writeStartElement("edge");
-				w.writeAttribute("id","E"+this.nodeid+"_"+nid);
-				w.writeAttribute("type","directed");
-				w.writeAttribute("source",nid);
-				w.writeAttribute("target",this.getNodeId());
-				w.writeAttribute("weight",String.valueOf((int)this.weight));
-				/*
-				w.writeStartElement("attvalues");
-				w.writeEmptyElement("attvalue");
-				 w.writeAttribute("for","weight");
-				w.writeAttribute("value",String.valueOf(this.score));
-				w.writeEndElement();//attvalues
-				*/
-				w.writeEndElement();
+			if(t1.compareTo(t2)<0) {
+				this.t1 = t1;
+				this.t2 = t2;
 				}
-			this.t1.writeGexfEdges(w);
-			this.t2.writeGexfEdges(w);
+			else
+				{
+				this.t1 = t2;
+				this.t2 = t1;
+				}
 			}
 		@Override
-		void writeNewick(PrintStream w)
-			{
-			w.print("(");
-			this.t1.writeNewick(w);
-			w.print(",");
-			this.t2.writeNewick(w);
-			w.print(")");
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + t1.hashCode();
+			result = prime * result + t2.hashCode();
+			return result;
 			}
 		
 		@Override
-		public String toString()
+		public boolean equals(Object obj) {
+			if (this == obj)  return true;
+			if (obj == null) {return false;}
+			final GTPair other = (GTPair) obj;
+			return this.t1.equals(other.t1) && this.t2.equals(other.t2);
+			}
+		
+		}
+	
+	private final Map<GTPair,Double> gtype2score= new HashMap<>(); 
+		
+	private class Call
+		{
+		final List<GenotypeType> genotypes;
+		Call(final Genotype g)
 			{
-			Set<String> s=getSampleNames();
-			if(s.size()>10) return ""+s.size()+" samples ("+this.weight+")";
-			return Arrays.toString(s.toArray())+"("+this.weight+")";
+			this.genotypes = Collections.singletonList(g.getType());
+			}
+		Call(final Call c1,final Call c2)
+			{
+			this.genotypes = new ArrayList<>(c1.genotypes.size()+c2.genotypes.size());
+			this.genotypes.addAll(c1.genotypes);
+			this.genotypes.addAll(c2.genotypes);
+			}
+		
+		double distance(final Call c2) {
+			int n=0;
+			double d=0;
+			for(final GenotypeType gt1:this.genotypes)
+				{
+				for(final GenotypeType gt2:c2.genotypes)
+					{
+					final GTPair gtpair = new GTPair(gt1, gt2);
+					final Double score = VcfPhyloTree.this.gtype2score.get(gtpair);
+					if(score ==null) throw new RuntimeException("diff score between "+gt1+" and "+gt2+" is not defined");
+					d+=score.doubleValue();
+					++n;
+					}
+				}
+			return d/n;
 			}
 		}
 	
-
-	
-	/** map TidPos to CovRow */
-	private Environment env;
-	/** map TidPos to CovRow */
-	private Database pos2cov;
-	/** all samples */
-	private Map<String,Integer> sample2col=new HashMap<String,Integer>();
-	private List<String> sampleList =new ArrayList<String>();
-	
-	/** count snps */
-	private long snp_count=0L;
 	
 	private VcfPhyloTree()
 		{
-		
+		for(GenotypeType gt1:GenotypeType.values())
+			{
+			for(GenotypeType gt2:GenotypeType.values())
+				{
+				double score=5;
+				if(gt1.equals(gt2))
+					{
+					score=0;
+					}
+				final  GTPair p=new GTPair(gt1, gt2);
+				this.gtype2score.put(p, score);
+				}
+			}
 		}
 	
-	private void cleanup(Transaction txn)
-		{
-		long count_deleted=0;
-		DatabaseEntry key=new DatabaseEntry();
-		DatabaseEntry data=new DatabaseEntry();
-		Cursor cursor=null;
-		cursor=this.pos2cov.openCursor(txn, null);
-		while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
-			{
-			/*
-			Calls row = this.callsBindingInstance.entryToObject(data);
-			
-			boolean mixed=false;
-			for(String sample:this.sampleList)
-				{
-				Genotype g=row.get(sample);
-				
-				if(g!=null && g.isMixed())
-					{
-					mixed=true;
-					break;
-					}
-				}
-			//remove mixed calls
-			if(mixed)
-				{
-				cursor.delete();
-				++count_deleted;
-				continue;
-				}*/
-			}
-		cursor.close();
-		LOG.info("After cleanup, removed "+count_deleted+" snps.");
-		}
-	private final int MAX_NODES=2000000;
-	
-	private TreeNode matrix(Transaction txn, List<TreeNode> parents)
-		{
-		long last=System.currentTimeMillis();
-		
-		/* faster computing ? , parse BerkeleyDB one time */
-		if(Math.pow(parents.size(),2)/2.0 < MAX_NODES)
-			{
-			CursorConfig cursorConfig=CursorConfig.DEFAULT;
-			List<MergedNodes> nodes=new ArrayList<>();
-			for(int x=0;x< parents.size();++x)
-				{
-				TreeNode tn1= parents.get(x);
-				for(int y=x+1;y< parents.size();++y)
-					{
-					TreeNode tn2= parents.get(y);
-					nodes.add(new MergedNodes(tn1, tn2));
-					}
-				}
-			DatabaseEntry key=new DatabaseEntry();
-			DatabaseEntry data=new DatabaseEntry();
-			Cursor cursor=this.pos2cov.openCursor(txn,cursorConfig);
-			long nVar=0L;
-			while(cursor.getNext(key, data,LockMode.DEFAULT )==OperationStatus.SUCCESS)
-				{
-				long now=System.currentTimeMillis();
-				if(now-last > 10*1000)
-					{
-					LOG.info("iteration "+nVar+"/"+this.snp_count+" for "+parents.size());
-					last=now;
-					}
-				
-				Calls row = this.callsBindingInstance.entryToObject(data);
-				for(MergedNodes merged : nodes)
-					{
-					merged.weight += merged.t1.distance(merged.t2,row);
-					}
-				++nVar;
-				}
-			cursor.close();
-			
-			Collections.sort(nodes,new Comparator<MergedNodes>()
-				{
-				public int compare(MergedNodes o1, MergedNodes o2)
-					{
-					if(o1.weight< o2.weight) return -1;
-					if(o1.weight> o2.weight) return 1;
-					return 0;
-					}
-				});
-			
-			if(nodes.size()>1 &&
-					nodes.get(0).weight == nodes.get(1).weight
-					)
-				{
-				LOG.warning("Score ambiguity for "+nodes.get(0)+" and "+nodes.get(1));
-				}
-				
-			return nodes.get(0);
-			}
-		else
-			{
-			Cursor cursor=this.pos2cov.openCursor(txn, null);;
-			MergedNodes best=null;
-			for(int x=0;x< parents.size();++x)
-				{
-				TreeNode tn1= parents.get(x);
-				
-				
-				for(int y=x+1;y< parents.size();++y)
-					{
-					long now=System.currentTimeMillis();
-					if(now-last > 10*1000)
-						{
-						LOG.info("iteration ["+(x+1)+","+(y+1)+"]/"+parents.size());
-						last=now;
-						}
-					
-					TreeNode tn2= parents.get(y);
-					DatabaseEntry key=new DatabaseEntry();
-					DatabaseEntry data=new DatabaseEntry();
-					MergedNodes merged= new MergedNodes(tn1, tn2);
-					boolean first=true;
-					
-					
-					while((first?cursor.getFirst(key, data, LockMode.DEFAULT):cursor.getNext(key, data, LockMode.DEFAULT))==OperationStatus.SUCCESS)
-						{
-						first=false;
-						Calls row = this.callsBindingInstance.entryToObject(data);
-						
-						merged.weight += tn1.distance(tn2,row);
-						}
-					
-					if(best==null || best.weight > merged.weight)
-						{
-						best=merged;
-						}
-					}
-				}
-			cursor.close();
-			return best;
-			}
-		
-		}
-	
-	private TreeNode matrix(Transaction txn)
-		{
-		ArrayList<TreeNode> nodes=new ArrayList<TreeNode>();
-		//initialize population
-		for(int sample_index=0; sample_index< this.sampleList.size();++sample_index)
-			{
-			nodes.add(new OneSample(sample_index));
-			}
-		
-		while(nodes.size()>1)
-			{
-			long now= System.currentTimeMillis();
-			LOG.info("nodes.count= "+nodes.size());
-			
-			/* no, want to get the distance between the two nodes 
-			if(nodes.size()==2)
-				{
-				return new MergedNodes(
-						nodes.get(0),
-						nodes.get(1)
-						);
-				}
-			*/
-			
-			
-			TreeNode best = matrix(txn, nodes);
-			LOG.info(best);
-			Set<Integer> bestsamples= best.getSamples();
-			
-			ArrayList<TreeNode> newnodes=new ArrayList<TreeNode>();
-
-			for(TreeNode tn:nodes)
-				{
-				if(tn.containsAnySampleIds(bestsamples)) continue;
-				newnodes.add(tn);
-				}
-			newnodes.add(best);
-			
-			nodes=newnodes;
-			
-			LOG.info("That took :"+ (System.currentTimeMillis()-now)/1000f  +" seconds");
-			}
-		return nodes.get(0);
-		}
-	
-	
-	private void readvcf(Transaction txn,VcfIterator in)
-		{
-		Cursor cursor=null;
-		VCFHeader header = in.getHeader();
-		if(!header.hasGenotypingData()) return;
-		List<String> sampleNames = header.getSampleNamesInOrder();
-		for(String sample: sampleNames)
-			{
-			if(this.sample2col.containsKey(sample)) continue;
-			this.sample2col.put(sample, this.sampleList.size());
-			this.sampleList.add(sample);
-			}
-		
-		cursor= this.pos2cov.openCursor(txn, null);
-
-		DatabaseEntry key = new DatabaseEntry();
-		DatabaseEntry data = new DatabaseEntry();
-		
-		while(in.hasNext())
-			{
-			VariantContext ctx = in.next();
-			ContigPosRef chromPosRef=new ContigPosRef(ctx);
-			
-			
-			chromPosRefBindingInstance.objectToEntry(chromPosRef, key);
-			
-			if(cursor.getSearchKey(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
-				{
-				Calls row = this.callsBindingInstance.entryToObject(data);
-				row.visit(ctx);
-				this.callsBindingInstance.objectToEntry(row, data);
-				cursor.putCurrent(data);
-				}
-			else
-				{
-				Calls row=new Calls();
-				row.visit(ctx);
-				this.callsBindingInstance.objectToEntry(row, data);
-				cursor.put(key,data);
-				}
-			
-			}
-		cursor.close();
-		}
-	
-
-	
-	
-	private enum OUT_FMT
-		{
-		dot,gexf,newick
-		};
-	
-		
-	@Parameter(names="-B",description="bdb home")
-	private 	File bdbHome=null;;
-	@Parameter(names="-f",description="output format")
-	private 	OUT_FMT outformat=OUT_FMT.dot;
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 
-		if(bdbHome==null)
-			{
-			LOG.error("undefined bdb home");
-			return -1;
-			}
-		
-		
-		Transaction txn=null;
 		VcfIterator iter=null;
 		try
 			{
-			LOG.info("Opening "+bdbHome);
-			EnvironmentConfig cfg=new EnvironmentConfig();
-			cfg.setAllowCreate(true);
-			cfg.setReadOnly(false);
-			//cfg.setTransactional(false);
+			iter = super.openVcfIterator(oneFileOrNull(args));
 			
-			this.env= new Environment(bdbHome, cfg);
+			final List<SampleNode> samplesNodes = new ArrayList<>(iter.getHeader().getSampleNamesInOrder().
+					stream().map(S->new OneSampleNode(S)).
+					collect(Collectors.toList()));
 			
-			DatabaseConfig cfg2=new DatabaseConfig();
-			cfg2.setAllowCreate(true);
-			cfg2.setTemporary(true);
-			cfg2.setReadOnly(false);
-			
-			//cfg2.setTransactional(false);
-			this.pos2cov=this.env.openDatabase(txn, "vcf", cfg2);
-			
-			
-			if(args.isEmpty())
-				{
-				LOG.info("reading from stdin");
-				iter=super.openVcfIterator(null);
-				readvcf(txn,iter);
-				iter.close();
-				}
-			else
-				{
-				for(String filename:args)
-					{
-					LOG.info("reading "+filename);
-					iter=VCFUtils.createVcfIterator(filename);
-					readvcf(txn,iter);
-					iter.close();
-					}
-				}
-			
-			if(this.sampleList.size()<2)
-				{
-				LOG.error("Not enoug samples");
+
+			if(samplesNodes.size()<3)
+				{	
+				LOG.error("expected at least 3 samples in input");
 				return -1;
 				}
-			
-			
-			
-			cleanup(txn);
-			
-			this.snp_count= this.pos2cov.count();
-			LOG.info("Samples: "+this.sampleList.size());
-			LOG.info("SNPs: "+this.snp_count);
-
-			if(this.snp_count==0L)
+			final List<List<Call>> variants = new ArrayList<>();
+			while(iter.hasNext())
 				{
-				LOG.error("Not enough SNPS.");
-				return -1;
+				final VariantContext ctx=iter.next();
+				final int n_nocall = (int) ctx.getGenotypes().stream().filter(G->G.isNoCall()).count();
+				final int n_homref = (int) ctx.getGenotypes().stream().filter(G->G.isHomRef()).count();
+				if(n_nocall + n_homref == ctx.getNSamples()) continue;
+				
+				
+				final List<Call> row = new ArrayList<>(ctx.getNSamples());
+				for(int i=0;i< samplesNodes.size();i++)
+					{
+					row.add(new Call(ctx.getGenotype(i)));
+					}
+				variants.add(row);
+				}
+			iter.close();
+			iter=null;
+			
+			while(samplesNodes.size()>1)
+				{
+				LOG.info("Iteration N="+samplesNodes.size()+" / variants:"+variants.size());
+				int best_x1 = -1;
+				int best_x2 = -1;
+				double best_distance=-1;
+				for(int x1=0;x1+1 < samplesNodes.size();++x1)
+					{
+					for(int x2=x1+1;x2 < samplesNodes.size();++x2)
+						{	
+						double distance=0;
+						for(final List<Call> row:  variants)
+							{
+							final Call c1 = row.get(x1);
+							final Call c2 = row.get(x2);
+							distance += c1.distance(c2);
+							}
+						if(best_distance==-1 || best_distance > distance)
+							{
+							best_distance=distance;
+							best_x1 = x1;
+							best_x2 = x2;
+							}
+						}
+					}
+				
+				final List<SampleNode> newSampleNodes = new ArrayList<>(samplesNodes.size()-1);
+				for(int x1=0;x1 < samplesNodes.size();++x1)
+					{
+					if(x1==best_x1 || x1==best_x2) continue;
+					newSampleNodes.add(samplesNodes.get(x1));
+					}
+				
+				LOG.info("Merging\n\t"+samplesNodes.get(best_x1)+"\nand\n\t"+samplesNodes.get(best_x2)+"\ndistance\n\t"+best_distance);
+
+				
+				newSampleNodes.add(new MergeSampleNode(
+						samplesNodes.get(best_x1),
+						samplesNodes.get(best_x2),
+						best_distance)
+						);
+				
+				for(int y=0;y< variants.size();++y)
+					{
+					final List<Call> row = variants.get(y);
+					final List<Call> newrow = new ArrayList<>(samplesNodes.size()-1);
+					for(int x1=0;x1 < samplesNodes.size();++x1)
+						{
+						if(x1==best_x1 || x1==best_x2) continue;
+						newrow.add(row.get(x1));
+						}
+					newrow.add(new Call(row.get(best_x1),row.get(best_x2)));
+					variants.set(y, newrow);
+					}
+				samplesNodes.clear();
+				samplesNodes.addAll(newSampleNodes);
+				
 				}
 			
-			TreeNode t = matrix(txn);
+			System.out.println("digraph G {");
+			samplesNodes.get(0).printDot(System.out);
+			System.out.println("}");
 			
-			switch(outformat)
-				{
-				case newick:
-					{
-					t.writeNewick(System.out);
-					System.out.print(";");
-					break;
-					}
-				case gexf:
-					{
-					XMLOutputFactory xof=XMLOutputFactory.newFactory();
-					XMLStreamWriter w=xof.createXMLStreamWriter(System.out, "UTF-8");
-					w.writeStartDocument("UTF-8", "1.0");
-					w.writeStartElement("gexf");
-					w.writeDefaultNamespace("http://www.gexf.net/1.2draft");
-					w.writeAttribute("version", "1.2");
-					w.writeStartElement("meta");
-					  w.writeStartElement("creator");
-					  w.writeCharacters(getProgramName()+" by Pierre Lindenbaum");
-					  w.writeEndElement();
-					 
-					  w.writeStartElement("description");
-					  w.writeCharacters(getProgramCommandLine());
-					  w.writeEndElement();
-					
-					w.writeEndElement();//meta
-					  
-					  w.writeStartElement("graph");
-					  w.writeAttribute("mode", "static");
-					  w.writeAttribute("defaultedgetype", "directed");
-					  
-					  w.writeStartElement("attributes");
-					  w.writeAttribute("class", "node");
-					  w.writeAttribute("mode", "static");
-					  w.writeEndElement();//attributes
-						
-					  w.writeStartElement("attributes");                                                                                     
-					  w.writeAttribute("class", "edge");
-					  w.writeAttribute("mode", "static");
-    					  /*
-                        w.writeEmptyElement("attribute");
-						w.writeAttribute("id", "weight");
-						w.writeAttribute("title", "Weight");
-						w.writeAttribute("type", "float");*/
-                      w.writeEndElement();//attributes
-					  
-
-					  
-					  w.writeStartElement("nodes");
-					  t.writeGexfNodes(w);
-					  w.writeEndElement();//nodes
-					
-					  
-					  w.writeStartElement("edges");
-					  t.writeGexfEdges(w);
-					  w.writeEndElement();//edges
-					  
-					  w.writeEndElement();//graph
-
-					
-					w.writeEndElement();//gexf
-					w.writeEndDocument();
-					w.flush();
-					System.out.flush();
-					break;
-					}
-				case dot:
-				default:
-					{
-					System.out.println("graph G {");
-					t.writeGraphizDot(System.out);
-					System.out.println("}");
-					break;
-					}
-				}
+			
+			LOG.info("Done");
 			return 0;
 			}
-		catch(Throwable err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -924,8 +311,6 @@ public class VcfPhyloTree extends Launcher
 		finally
 			{
 			CloserUtil.close(iter);
-			CloserUtil.close(this.pos2cov);
-			CloserUtil.close(this.env);
 			}
 		}
 	public static void main(String[] args) {

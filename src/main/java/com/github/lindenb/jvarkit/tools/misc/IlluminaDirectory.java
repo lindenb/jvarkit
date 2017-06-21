@@ -489,7 +489,6 @@ public class IlluminaDirectory
     		w.writeEndElement();
     		w.writeEndElement();
     		}
-    	
     	}
     
     /** 
@@ -697,7 +696,7 @@ public class IlluminaDirectory
 		}
     
     @Override
-    public int doWork(List<String> args) {
+    public int doWork(final List<String> args) {
     	   	BufferedReader in=null;
 			try
 				{

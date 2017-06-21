@@ -364,7 +364,7 @@ public class VCFMerge2
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		InputStream in=null;
 		try
 			{
@@ -388,7 +388,7 @@ public class VCFMerge2
 				}
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -415,7 +415,7 @@ public class VCFMerge2
 	
 	
 	
-	private void copyTo(InputStream in) throws IOException
+	private void copyTo(final InputStream in) throws IOException
 		{
 		final VcfIterator iter= VCFUtils.createVcfIteratorFromInputStream(in);
 		final VariantContextWriter out= this.openVariantContextWriter(outputFile);

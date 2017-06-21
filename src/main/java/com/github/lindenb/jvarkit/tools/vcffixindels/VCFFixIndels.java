@@ -101,9 +101,6 @@ $ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/
 ```
 
 
-
-
-
 END_DOC
 */
 
@@ -138,7 +135,7 @@ public class VCFFixIndels extends Launcher
 		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS (position|alleles...)"));
 
 		w.writeHeader(h2);
-		SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+		final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 		
 		while(r.hasNext())
 			{
@@ -148,7 +145,7 @@ public class VCFFixIndels extends Launcher
 			Map<Allele, Allele> original2modified=new HashMap<Allele, Allele>();
 			/* did we found a strange allele (symbolic, etc ) */
 			boolean strange_allele_flag=false;
-			for(Allele a:ctx.getAlleles())
+			for(final Allele a:ctx.getAlleles())
 				{
 				original2modified.put(a, a);
 				if(a.isSymbolic() || a.isNoCall())
@@ -251,23 +248,23 @@ public class VCFFixIndels extends Launcher
 				continue;
 				}
 			
-			VariantContextBuilder b=new VariantContextBuilder(ctx);
+			final VariantContextBuilder b=new VariantContextBuilder(ctx);
 			b.start(chromStart);
 			Allele newRef=original2modified.get(ctx.getReference());
 			b.stop(chromStart+newRef.getBaseString().length()-1);
 			b.alleles(original2modified.values());
 			List<Genotype> genotypes=new ArrayList<>();
-			for(String sample:header.getSampleNamesInOrder())
+			for(final String sample:header.getSampleNamesInOrder())
 				{
-				Genotype g = ctx.getGenotype(sample);
+				final Genotype g = ctx.getGenotype(sample);
 				if(g.isNoCall()) 
 					{
 					genotypes.add(g);
 					continue;
 					}
-				GenotypeBuilder gb=new GenotypeBuilder(g);
-				List<Allele> aL=new ArrayList<>();
-				for(Allele a:g.getAlleles())
+				final GenotypeBuilder gb=new GenotypeBuilder(g);
+				final List<Allele> aL=new ArrayList<>();
+				for(final Allele a:g.getAlleles())
 					{
 					aL.add(original2modified.get(a));
 					}
