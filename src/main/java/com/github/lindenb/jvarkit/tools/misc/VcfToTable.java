@@ -532,8 +532,9 @@ public class VcfToTable extends Launcher {
 					{
 					out.println();
 					out.println("... More variants exist but they've been omitted...( limit reached)");
+					return;
 					}
-				else
+				else if(this.countVariants>this.limitVariants)
 					{
 					return;
 					}
