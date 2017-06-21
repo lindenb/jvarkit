@@ -185,7 +185,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	fastqentropy	fastqgrep	fastqjs	fastqphred64to33	fastqrecordtreepack	fastqrevcomp	fastqshuffle \
 	fastqsplitinterleaved	findallcoverageatposition	findavariation	findcorruptedfiles	findmyvirus	findnewsplicesites	fixvarscanmissingheader \
 	fixvcf	fixvcfformat	fixvcfmissinggenotypes	gcanddepth	genomicjaspar	genscan	 \
-	howmanybamdict	illuminadir	ilmnfastqstats	impactofduplicates	jeter \
+	howmanybamdict	illuminadir	ilmnfastqstats	impactofduplicates \
 	liftover2svg	mapuniprot	mergesplittedblast	ncbitaxonomy2xml metrics2xml ngsfilessummary	noemptyvcf \
 	nozerovariationvcf	pademptyfastq	pubmeddump	pubmedorcidgraph pubmedfilterjs	referencetovcf	sam2json \
 	sam2psl	sam2tsv	sam4weblogo	samclipindelfraction	samextractclip	samfindclippedregions	samfixcigar \
@@ -515,9 +515,9 @@ $(eval $(call compile-htsjdk-cmd,variantsinwindow,${jvarkit.package}.tools.misc.
 $(eval $(call compile-htsjdk-cmd,casectrlcanvas,${jvarkit.package}.tools.burden.CaseControlCanvas,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,knime2txt,${jvarkit.package}.tools.misc.KnimeToText,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,lumpyvcf2circos,${jvarkit.package}.tools.lumpysv.LumpyVcfToCircos,${jcommander.jar}))
-
 $(eval $(call compile-htsjdk-cmd,fastgenotypegvcfs,${jvarkit.package}.tools.gvcf.FastGenotypeGVCFs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,xsltstream,${jvarkit.package}.tools.misc.XsltStream,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.drools.Test,${jcommander.jar} ${drools.jar}))
 
 
 ij: ${dist.dir}/ij

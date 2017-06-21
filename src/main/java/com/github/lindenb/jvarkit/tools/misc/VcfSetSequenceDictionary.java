@@ -31,7 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -63,7 +63,7 @@ public class VcfSetSequenceDictionary extends Launcher
 	private File outputFile=null;
 
 
-	@Parameter(names={"-r","-R","--reference"},description="indexed reference")
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File faidx=null;
 
 	@Parameter(names={"-d"},description="at the end, save an alternate dict in that file.")
@@ -79,15 +79,11 @@ public class VcfSetSequenceDictionary extends Launcher
 	@Override
 	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
 		final VCFHeader header=in.getHeader();
-		final Set<VCFHeaderLine> meta2=new LinkedHashSet<VCFHeaderLine>();
-		for(final VCFHeaderLine L:header.getMetaDataInInputOrder())
-		{
-			if(!L.getKey().equals(VCFHeader.CONTIG_KEY))
-			{
-				meta2.add(L);
-			}
-		}
-
+		final Set<VCFHeaderLine> meta2=new LinkedHashSet<VCFHeaderLine>(
+				header.getMetaDataInInputOrder().stream().
+				filter(L->!L.getKey().equals(VCFHeader.CONTIG_KEY)).
+				collect(Collectors.toSet())
+				);
 		meta2.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		meta2.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 

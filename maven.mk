@@ -89,15 +89,34 @@ velocity.jars  =  \
 jcommander.jar= \
 	$(lib.dir)/com/beust/jcommander/1.64/jcommander-1.64.jar
 
-berkeleydb.jar=$(lib.dir)/com/sleepycat/je/7.3.7/je-7.3.7.jar
 
 javacc.jar=\
 	$(lib.dir)/net/java/dev/javacc/javacc/7.0.2/javacc-7.0.2.jar
 
+berkeleydb.jar=$(lib.dir)/com/sleepycat/je/7.3.7/je-7.3.7.jar
 ${berkeleydb.jar}:
 	mkdir -p $(dir $@) && wget -O "$@" "http://download.oracle.com/maven/$(patsubst ${lib.dir}/%,%,$@)"
+
+drools.jar  =  \
+	$(lib.dir)/com/google/protobuf/protobuf-java/3.3.1/protobuf-java-3.3.1.jar \
+	$(lib.dir)/com/thoughtworks/xstream/xstream/1.4.10-java7/xstream-1.4.10-java7.jar \
+	$(lib.dir)/commons-codec/commons-codec/1.10/commons-codec-1.10.jar \
+	$(lib.dir)/javax/activation/activation/1.1.1/activation-1.1.1.jar \
+	$(lib.dir)/jmock/jmock/1.0.0/jmock-1.0.0.jar \
+	$(lib.dir)/org/antlr/antlr-runtime/3.5.2/antlr-runtime-3.5.2.jar \
+	$(lib.dir)/org/drools/drools-compiler/7.0.0.Final/drools-compiler-7.0.0.Final.jar \
+	$(lib.dir)/org/drools/drools-core/7.0.0.Final/drools-core-7.0.0.Final.jar \
+	$(lib.dir)/org/eclipse/jdt/core/compiler/ecj/4.6.1/ecj-4.6.1.jar \
+	$(lib.dir)/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar \
+	$(lib.dir)/org/kie/kie-api/7.1.0.Beta2/kie-api-7.1.0.Beta2.jar \
+	$(lib.dir)/org/kie/kie-internal/7.1.0.Beta2/kie-internal-7.1.0.Beta2.jar \
+	$(lib.dir)/org/mvel/mvel2/2.3.1.Final/mvel2-2.3.1.Final.jar \
+	$(lib.dir)/org/slf4j/slf4j-api/1.8.0-alpha2/slf4j-api-1.8.0-alpha2.jar \
+	$(lib.dir)/xmlpull/xmlpull/1.1.2.1/xmlpull-1.1.2.1.jar \
+	$(lib.dir)/xpp3/xpp3_min/1.1.3.4.O/xpp3_min-1.1.3.4.O.jar
+
 	
-all_maven_jars = $(sort ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
+all_maven_jars = $(sort ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 
 ${all_maven_jars}  : 

@@ -175,14 +175,14 @@ public class VCFMerge2
 		/** variantContext cache */
 		private VariantContext var=null;
 		
-		boolean same(VariantOfFile var)
+		boolean same(final VariantOfFile var)
 			{
 			return VCFMerge2.this.compareChromPosRef.compare(this.parse(),var.parse())==0;
 			}
 		
 
 		
-		public int compareTo(VariantOfFile var)
+		public int compareTo(final VariantOfFile var)
 			{
 			final VariantContext vc1=parse();
 			final VariantContext vc2=var.parse();
@@ -194,9 +194,9 @@ public class VCFMerge2
 		
 		VariantContext parse()
 			{
-			if(var==null)
+			if(this.var==null)
 				{
-				var=vcfHandlers.get(fileIndex).parse(this.line);
+				this.var=vcfHandlers.get(fileIndex).parse(this.line);
 				}
 			return var;
 			}	
@@ -654,6 +654,7 @@ public class VCFMerge2
 					this.writingSortingCollection.getTmpDirectories()
 					);
 			array.setDestructiveIteration(true);
+			
 			for(int fileIndex=0;fileIndex<  IN.size();++fileIndex)
 				{
 				final String vcfFile= IN.get(fileIndex);
@@ -766,8 +767,6 @@ public class VCFMerge2
 			if(array!=null) array.cleanup();
 			}
 		}
-
-	
 
 	public static void main(final String[] args)
 		{

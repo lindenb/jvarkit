@@ -174,7 +174,8 @@ ojected=open_646009|InactiveRegions
 
 END_DOC
  */
-@Program(name="vcfensemblreg",description="Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.")
+@Program(name="vcfensemblreg",
+description="Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.")
 public class VcfEnsemblReg extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfEnsemblReg.class).make();

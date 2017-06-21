@@ -73,6 +73,7 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.BufferedList;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
@@ -112,18 +113,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 BEGIN_DOC
 
 
-
-
 ### Screenshot
 
 ![img](https://pbs.twimg.com/media/B3in9wrIAAElLz8.jpg)
 
+### Example
 
 ```
 $ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
 ```
-
-
 
 
 END_DOC
@@ -402,11 +400,11 @@ public class BamCmpCoverage extends Launcher
 		try
 			{
 		
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+			final SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			srf.disable(SamReaderFactory.Option.EAGERLY_DECODE);
 			srf.disable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS);
 			srf.disable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS);
-			for(String arg: args)
+			for(final String arg: args)
 				{
 				File f=new File(arg);
 				if(f.getName().endsWith(".list"))
@@ -459,7 +457,7 @@ public class BamCmpCoverage extends Launcher
 			QueryInterval queryIntervalArray[]=null;
 			
 			//scan samples names
-			for(File bamFile:files)
+			for(final File bamFile:files)
 				{
 				SamReader r= srf.open(bamFile);
 				readers.add(r);
@@ -477,8 +475,7 @@ public class BamCmpCoverage extends Launcher
 					}
 				else if(!SequenceUtil.areSequenceDictionariesEqual(dict,h.getSequenceDictionary()))
 					{
-					LOG.error("Found more than one dictint sequence dictionary");
-					return -1;
+					throw new JvarkitException.DictionariesAreNotTheSame(dict,h.getSequenceDictionary());
 					}
 				
 				//fill query interval once
@@ -545,9 +542,9 @@ public class BamCmpCoverage extends Launcher
 					queryIntervalArray = queryIntervals.toArray(new QueryInterval[queryIntervals.size()]);
 					}
 				
-				for(SAMReadGroupRecord rg:h.getReadGroups())
+				for(final SAMReadGroupRecord rg:h.getReadGroups())
 					{
-					String sample=rg.getSample();
+					final String sample=rg.getSample();
 					if(sample==null) continue;
 					samples.add(sample);
 					}
