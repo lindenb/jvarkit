@@ -24,19 +24,23 @@ SOFTWARE.
 
 History:
 
-*/package com.github.lindenb.jvarkit.tools.burden;
+*/
+package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.StringTokenizer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -78,10 +82,10 @@ Generate the bed file from a VCF annotated with SnpEff
 ```
 $ java -jar dist/vcfloopovergenes.jar -p KARAKA input.vcf.gz > genes.bed 
 $ head jeter.bed
-13	124462807	124462808	KARAKA.000000002	2V30:A_440-A_477:ENST00000232607	ANN_FeatureID	1
-13	124411689	124420735	KARAKA.000000004	AC080008.1	ANN_GeneName	30
-13	124475803	124490595	KARAKA.000000006	ENSG00000082781	ANN_GeneID	284
-13	124444306	124468961	KARAKA.000000008	ENSG00000114491	ANN_GeneID	1545
+13	62807	62808	KARAKA.000000002	2V3477:ENST000002607	ANN_FeatureID	1
+13	11689	20735	KARAKA.000000004	AC07.1	ANN_GeneName	30
+13	75803	90595	KARAKA.000000006	ENSG000000781	ANN_GeneID	284
+13	44306	68961	KARAKA.000000008	ENSG00044491	ANN_GeneID	1545
 (...)
 ```
 
@@ -109,6 +113,39 @@ tmp/KARAKA.3_KARAKA.000000004.vcf
 (...)
 ```
 
+### Example 'Exec'
+
+```
+$ java -jar dist/vcfloopovergenes.jar -p KARAKA -g genes.bed -exec "echo __ID__ __PREFIX__ __VCF__ __CONTIG__" -o tmp input.vcf.gz 
+KARAKA.000000001 KARAKA. tmp/KARAKA.000000001.vcf 3
+KARAKA.000000002 KARAKA. tmp/KARAKA.000000002.vcf 3
+KARAKA.000000003 KARAKA. tmp/KARAKA.000000003.vcf 3
+KARAKA.000000004 KARAKA. tmp/KARAKA.000000004.vcf 3
+KARAKA.000000005 KARAKA. tmp/KARAKA.000000005.vcf 3
+KARAKA.000000006 KARAKA. tmp/KARAKA.000000006.vcf 3
+KARAKA.000000007 KARAKA. tmp/KARAKA.000000007.vcf 3
+KARAKA.000000008 KARAKA. tmp/KARAKA.000000008.vcf 3
+KARAKA.000000009 KARAKA. tmp/KARAKA.000000009.vcf 3
+KARAKA.000000010 KARAKA. tmp/KARAKA.000000010.vcf 3
+KARAKA.000000011 KARAKA. tmp/KARAKA.000000011.vcf 3
+KARAKA.000000012 KARAKA. tmp/KARAKA.000000012.vcf 3
+```
+
+
+### Example 'Exec'
+
+execute the following Makefile 'count.mk' for each gene:
+
+```make
+all:${MYVCF}
+	echo -n "Number of variants in $< : " && grep -vE '^#' $< | wc -l	
+```
+
+```
+java -jar dist/vcfloopovergenes.jar \
+	-p MATILD -gene genes.bed input.vcf.gz \
+	-exec 'make -f count.mk MYVCF=__VCF__' -o tmp
+```
 
 
 
@@ -119,13 +156,12 @@ END_DOC
 
 
 @Program(name="vcfloopovergenes",
-description="generate a BED file of the Genes in a VCF, loop over those genes",
+description="Generates a BED file of the Genes in an annotated VCF, loop over those genes and generate a VCF for each gene, then execute an optional command.",
 keywords={"vcf","gene","burden"})
 public class VcfLoopOverGenes extends Launcher {
 	private static final Logger LOG = Logger.build(VcfLoopOverGenes.class).make();
 
-
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	@Parameter(names={"-o","--output"},description="For gene.bed: a File or stdout. When creating a VCF this should be a zip file or an existing directory.")
 	private File outputFile = null;
 	@Parameter(names={"-g","--gene","-gene","--genes"},description="Loop over the gene file. "
 			+ "If not defined VCF will be scanned for SnpEff annotations and output will be a BED file with the gene names and provenance."
@@ -133,6 +169,15 @@ public class VcfLoopOverGenes extends Launcher {
 	private File geneFile=null;
 	@Parameter(names={"-p","-prefix","--prefix"},description="File prefix when saving the individual VCF files.")
 	private String prefix="";
+	@Parameter(names={"-e","-exec","--exec"},description="When saving the VCF to a directory. "
+			+ "Execute the following command line. "
+			+ "The words __PREFIX__  __CONTIG__ (or __CHROM__ ) __ID__ __NAME__ __SOURCE__ __VCF__ will be replaced by their values."
+			+ "If no __VCF__ is found, it will be appended to the command line as the last argument")
+	private String exec="";
+
+	@Parameter(names={"-compress","--compress"},description="generate VCF.gz files")
+	private boolean compress=false;
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
@@ -253,12 +298,13 @@ public class VcfLoopOverGenes extends Launcher {
 				{
 				throw new JvarkitException.VcfDictionaryMissing(vcf);
 				}
+
 			final VcfTools tools = new VcfTools(vcfFileReader.getFileHeader());
 
 			if(!this.prefix.isEmpty() && !this.prefix.endsWith("."))
-			{	
-			this.prefix +=".";
-			}
+				{	
+				this.prefix +=".";
+				}
 			
 			if(this.geneFile==null)
 				{
@@ -355,6 +401,15 @@ public class VcfLoopOverGenes extends Launcher {
 					LOG.error("When scanning a VCF with "+this.geneFile+". Output file must be defined");
 					}
 				
+				if(!this.exec.isEmpty() )
+					{
+					if(this.outputFile.getName().endsWith(".zip")){
+						LOG.error("Cannot execute "+this.exec+" when saving to a zip.");
+						return -1;
+						}
+					}
+				
+				
 				final ArchiveFactory archive= ArchiveFactory.open(this.outputFile);
 				PrintWriter manifest = archive.openWriter( this.prefix+"manifest.txt");
 				br= IOUtils.openFileForBufferedReading(this.geneFile);
@@ -368,7 +423,11 @@ public class VcfLoopOverGenes extends Launcher {
 					final String geneName=bedLine.get(4);//name
 					final SourceType sourceType=SourceType.valueOf(bedLine.get(5));
 					final String filename =  geneIdentifier;
-					
+					final String outputVcfName =  (filename.startsWith(this.prefix)?"":this.prefix) +
+							filename +
+							".vcf" +
+							(this.compress?".gz":"")
+							;
 					
 					OutputStream vcfOutputStream=null;
 					VariantContextWriter vw=null;
@@ -450,14 +509,11 @@ public class VcfLoopOverGenes extends Launcher {
 						if(ctx==null) continue;
 						if(vcfOutputStream==null)
 							{
-							LOG.info(filename);
-							final String filename2 =  (filename.startsWith(this.prefix)?"":this.prefix) +
-									filename+
-									".vcf";
-							manifest.println(filename2);
+							LOG.info(filename);							
+							manifest.println(outputVcfName);
 							final VCFHeader header= new VCFHeader(vcfFileReader.getFileHeader());
 							header.addMetaDataLine(new VCFHeaderLine("VCF_ID", filename));
-							vcfOutputStream = archive.openOuputStream(filename2);
+							vcfOutputStream = archive.openOuputStream(outputVcfName);
 							vw = VCFUtils.createVariantContextWriterToOutputStream(vcfOutputStream);
 							vw.writeHeader(header);
 							}
@@ -469,6 +525,56 @@ public class VcfLoopOverGenes extends Launcher {
 						vcfOutputStream.flush();
 						vcfOutputStream.close();
 						vw=null;
+						if(!this.exec.isEmpty())
+							{
+							final String vcfPath = new File(this.outputFile,outputVcfName).getPath();
+							boolean foundName=false;
+							final StringTokenizer st = new StringTokenizer(this.exec);
+							final List<String> command = new ArrayList<>(1+st.countTokens());
+						     while(st.hasMoreTokens()) {
+						    	  String token =st.nextToken().
+						    			  replaceAll("__PREFIX__", this.prefix).
+						    			  replaceAll("__CONTIG__", bedLine.getContig()).
+						    			  replaceAll("__CHROM__", bedLine.getContig()).
+								    	  replaceAll("__ID__",geneIdentifier).
+								    	  replaceAll("__NAME__",geneName).
+								    	  replaceAll("__SOURCE__",sourceType.name())
+						    			  ;
+						    	  if(token.contains("__VCF__"))
+						    	  	{
+						    		  foundName=true;
+						    		  token=token.replaceAll("__VCF__", vcfPath);
+						    	  	}
+						    	  
+						    	  command.add(token);
+						      	}
+						      if(!foundName)
+						      	{
+						    	command.add(vcfPath);
+						      	}
+							
+							LOG.info(command.stream().map(S->"'"+S+"'").collect(Collectors.joining(" ")));
+							final ProcessBuilder pb = new ProcessBuilder(command);
+							pb.redirectErrorStream(true);
+							final Process p = pb.start();
+							final Thread stdoutThread = new Thread(()->{
+									try {
+									InputStream in = p.getInputStream();
+									IOUtils.copyTo(in, stdout());
+									} catch(Exception err)
+									{
+										LOG.error(err);
+									}
+								});
+							stdoutThread.start();
+							int exitValue= p.waitFor();
+						
+							if(exitValue!=0)
+								{
+								LOG.error("Command failed ("+exitValue+")");
+								return -1;
+								}
+							}
 						}
 					else
 						{

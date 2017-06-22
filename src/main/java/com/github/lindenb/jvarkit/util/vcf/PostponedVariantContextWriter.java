@@ -64,6 +64,17 @@ public class PostponedVariantContextWriter implements VariantContextWriter {
 		public WritingVcfConfig() {
 			}
 		
+		public WritingVcfConfig createIndex(final boolean createIndex)
+			{
+			this.createIndex=createIndex;
+			return this;
+			}
+		public WritingVcfConfig createMd5(final boolean createMd5)
+			{
+			this.createMd5=createMd5;
+			return this;
+			}
+		
 		public WritingVcfConfig dictionary(final SAMSequenceDictionary dict)
 			{
 			this.dict=dict;

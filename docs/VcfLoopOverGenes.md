@@ -1,6 +1,6 @@
 # VcfLoopOverGenes
 
-generate a BED file of the Genes in a VCF, loop over those genes
+Generates a BED file of the Genes in an annotated VCF, loop over those genes and generate a VCF for each gene, then execute an optional command.
 
 
 ## Usage
@@ -8,6 +8,15 @@ generate a BED file of the Genes in a VCF, loop over those genes
 ```
 Usage: vcfloopovergenes [options] Files
   Options:
+    -compress, --compress
+      generate VCF.gz files
+      Default: false
+    -e, -exec, --exec
+      When saving the VCF to a directory. Execute the following command line. 
+      The words __PREFIX__  __CONTIG__ (or __CHROM__ ) __ID__ __NAME__ 
+      __SOURCE__ __VCF__ will be replaced by their values.If no __VCF__ is 
+      found, it will be appended to the command line as the last argument
+      Default: <empty string>
     -g, --gene, -gene, --genes
       Loop over the gene file. If not defined VCF will be scanned for SnpEff 
       annotations and output will be a BED file with the gene names and 
@@ -24,7 +33,8 @@ Usage: vcfloopovergenes [options] Files
       the amount of RAM needed
       Default: 50000
     -o, --output
-      Output file. Optional . Default: stdout
+      For gene.bed: a File or stdout. When creating a VCF this should be a zip 
+      file or an existing directory.
     -p, -prefix, --prefix
       File prefix when saving the individual VCF files.
       Default: <empty string>
@@ -109,10 +119,10 @@ Generate the bed file from a VCF annotated with SnpEff
 ```
 $ java -jar dist/vcfloopovergenes.jar -p KARAKA input.vcf.gz > genes.bed 
 $ head jeter.bed
-13	124462807	124462808	KARAKA.000000002	2V30:A_440-A_477:ENST00000232607	ANN_FeatureID	1
-13	124411689	124420735	KARAKA.000000004	AC080008.1	ANN_GeneName	30
-13	124475803	124490595	KARAKA.000000006	ENSG00000082781	ANN_GeneID	284
-13	124444306	124468961	KARAKA.000000008	ENSG00000114491	ANN_GeneID	1545
+13	62807	62808	KARAKA.000000002	2V3477:ENST000002607	ANN_FeatureID	1
+13	11689	20735	KARAKA.000000004	AC07.1	ANN_GeneName	30
+13	75803	90595	KARAKA.000000006	ENSG000000781	ANN_GeneID	284
+13	44306	68961	KARAKA.000000008	ENSG00044491	ANN_GeneID	1545
 (...)
 ```
 
@@ -140,6 +150,39 @@ tmp/KARAKA.3_KARAKA.000000004.vcf
 (...)
 ```
 
+### Example 'Exec'
+
+```
+$ java -jar dist/vcfloopovergenes.jar -p KARAKA -g genes.bed -exec "echo __ID__ __PREFIX__ __VCF__ __CONTIG__" -o tmp input.vcf.gz 
+KARAKA.000000001 KARAKA. tmp/KARAKA.000000001.vcf 3
+KARAKA.000000002 KARAKA. tmp/KARAKA.000000002.vcf 3
+KARAKA.000000003 KARAKA. tmp/KARAKA.000000003.vcf 3
+KARAKA.000000004 KARAKA. tmp/KARAKA.000000004.vcf 3
+KARAKA.000000005 KARAKA. tmp/KARAKA.000000005.vcf 3
+KARAKA.000000006 KARAKA. tmp/KARAKA.000000006.vcf 3
+KARAKA.000000007 KARAKA. tmp/KARAKA.000000007.vcf 3
+KARAKA.000000008 KARAKA. tmp/KARAKA.000000008.vcf 3
+KARAKA.000000009 KARAKA. tmp/KARAKA.000000009.vcf 3
+KARAKA.000000010 KARAKA. tmp/KARAKA.000000010.vcf 3
+KARAKA.000000011 KARAKA. tmp/KARAKA.000000011.vcf 3
+KARAKA.000000012 KARAKA. tmp/KARAKA.000000012.vcf 3
+```
+
+
+### Example 'Exec'
+
+execute the following Makefile 'count.mk' for each gene:
+
+```make
+all:${MYVCF}
+	echo -n "Number of variants in $< : " && grep -vE '^#' $< | wc -l	
+```
+
+```
+java -jar dist/vcfloopovergenes.jar \
+	-p MATILD -gene genes.bed input.vcf.gz \
+	-exec 'make -f count.mk MYVCF=__VCF__' -o tmp
+```
 
 
 
