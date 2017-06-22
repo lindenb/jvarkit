@@ -42,11 +42,13 @@ import htsjdk.samtools.util.Interval;
 
 public class IntervalParser {
 	private static final Logger LOG = Logger.build(IntervalParser.class).make();
+	private static final int MAX_CONTIG_LENGTH = Integer.MAX_VALUE - 1000;
 	public static final String OPT_DESC="An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\". A program might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)" ;
 	private SAMSequenceDictionary dict=null;
 	private boolean raiseExceptionOnError=true;
 	private boolean tryToFixContigName=true;
 	private boolean trimToContigLength=false;
+	private boolean contigAloneIsWholeContig=false;
 	
 	public IntervalParser()
 		{
@@ -79,6 +81,16 @@ public class IntervalParser {
 	public boolean isTrimToContigLength() {
 		return trimToContigLength;
 	}
+	
+	/** specifying 'chr1' would return this whole contig */
+	public void setContigNameIsWholeContig(final boolean contigAloneIsWholeContig) {
+		this.contigAloneIsWholeContig = contigAloneIsWholeContig;
+		}
+
+	public boolean isContigAloneIsWholeContig() {
+		return contigAloneIsWholeContig;
+		}
+	
 	
 	public IntervalParser setDictionary(final SAMSequenceDictionary dict) {
 		this.dict = dict;
@@ -199,6 +211,29 @@ public class IntervalParser {
 		{
 		final int colon=s.indexOf(':');
 		if(colon<1 || colon+1==s.length()) {
+			/** chromosome alone */
+			if(colon==-1 && isContigAloneIsWholeContig())
+				{
+				String chrom=s;
+				if(hasDictionary())
+					{
+					final SAMSequenceRecord ssr= getSAMSequenceRecord(chrom);
+					if(ssr==null)
+						{
+						return returnErrorOrNullInterval(
+							"Cannot find chromosome \""+chrom+"\" in dictionary. Available chromosomes are : "+
+							this.dict.getSequences().stream().
+							map(S->"\""+S.getSequenceName()+"\"").
+							collect(Collectors.joining(", ")));
+						}
+					return new Interval(ssr.getSequenceName(),1,ssr.getSequenceLength());
+					}
+				else
+					{
+					return new Interval(chrom, 1, MAX_CONTIG_LENGTH);
+					}
+				}
+			
 			return returnErrorOrNullInterval("Cannot find colon in "+s);
 			}
 		final int hyphen = s.indexOf('-',colon+1);

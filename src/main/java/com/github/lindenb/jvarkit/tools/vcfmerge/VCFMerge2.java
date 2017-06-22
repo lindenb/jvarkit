@@ -29,6 +29,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfmerge;
 
+import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -45,6 +46,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import htsjdk.tribble.readers.LineIterator;
@@ -58,6 +60,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.AbstractVCFCodec;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -66,14 +69,17 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
+import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -120,6 +126,10 @@ public class VCFMerge2
 
 	@Parameter(names={"-homref","--homref"},description="Use HomRef 0/0 for unknown variant")
 	private boolean useHomRefForUnknown = false;
+	
+	@Parameter(names={"-region","--region"},description="Merge in that region: " + IntervalParser.OPT_DESC )
+	private String regionStr = "";
+
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
@@ -426,22 +436,33 @@ public class VCFMerge2
 	
 	
 	/** container uri+vcfIterator */
-	private class PeekVCF
+	private class PeekVCF implements Closeable
 		{
 		final String uri;
-		final VcfIterator iter0;
+		final VCFFileReader reader;
 		final PeekableIterator<VariantContext> iter;
+		final CloseableIterator<VariantContext> iter0;
 		final VCFHeader header;
 		final List<VariantContext> buffer = new ArrayList<>();
 		
 		PeekVCF(final String uri) throws IOException {
 			this.uri = uri;
-			this.iter0 = VCFUtils.createVcfIterator(uri);
+			if(StringUtil.isBlank(VCFMerge2.this.regionStr))
+				{
+				this.reader = new VCFFileReader(new File(uri),false);
+				this.header = this.reader.getFileHeader();
+				this.iter0  = this.reader.iterator();
+				}
+			else
+				{
+				this.reader = new VCFFileReader(new File(uri),true);
+				this.header = this.reader.getFileHeader();
+				final IntervalParser intervalParser=new IntervalParser(this.header.getSequenceDictionary());
+				intervalParser.setContigNameIsWholeContig(true);
+				final Interval rgn = intervalParser.parse(VCFMerge2.this.regionStr);
+				this.iter0  = this.reader.query(rgn.getContig(), rgn.getStart(), rgn.getEnd());
+				}
 			this.iter = new PeekableIterator<>(this.iter0); 
-			this.header = this.iter0.getHeader();
-			if(this.header.getSequenceDictionary()==null){
-				throw new JvarkitException.DictionaryMissing("No dict in "+uri);
-			}
 			}
 		
 		private List<VariantContext> priv_peek()
@@ -492,6 +513,14 @@ public class VCFMerge2
 					 V.getContig().equals(ctx0.getContig()) &&
 					 V.getStart() == ctx0.getStart()  &&
 				     V.getReference().equals(ctx0.getReference()));
+			}
+		
+		@Override
+		public void close()
+			{
+			CloserUtil.close(this.iter);
+			CloserUtil.close(this.iter0);
+			CloserUtil.close(this.reader);
 			}
 		@Override
 		public String toString() {
@@ -548,6 +577,7 @@ public class VCFMerge2
 			out.writeHeader(headerOut);
 			final List<VariantContext> row=new ArrayList<VariantContext>(input.size());
 			//find smallest ordered variant
+			long nCountForGC=0L;
 			for(;;)
 				{
 				row.clear();
@@ -584,11 +614,11 @@ public class VCFMerge2
 					{
 					peekVcf.reset(row.get(0));
 					}
-				
+				if(nCountForGC++%100000==0) System.gc();
 				}
 			for(final PeekVCF peekVcf: input)
 				{
-				peekVcf.iter.close();
+				peekVcf.close();
 				}
 			input.clear();
 			CloserUtil.close(out); out=null;
@@ -606,7 +636,7 @@ public class VCFMerge2
 			CloserUtil.close(out);
 			for(final PeekVCF p: input)
 				{
-				CloserUtil.close(p.iter);
+				p.close();
 				}
 			}
 		}
@@ -681,13 +711,28 @@ public class VCFMerge2
 					{
 					throw new JvarkitException.DictionariesAreNotTheSame(global_dictionary, dict1);
 					}
-	
+				final Predicate<VariantOfFile> accept;
+				if(StringUtil.isBlank(VCFMerge2.this.regionStr)) {
+					final IntervalParser intervalParser=new IntervalParser(dict1);
+					intervalParser.setContigNameIsWholeContig(true);
+					final Interval rgn = intervalParser.parse(VCFMerge2.this.regionStr);
+					accept = (VOL)->{
+						final VariantContext ctx = VOL.parse();
+						return rgn.intersects(new Interval(ctx.getContig(), ctx.getStart(),ctx.getEnd()));
+						};
+					}
+				else
+					{
+					accept = (VOL) -> true;	
+					}
+
 				
 				while(lit.hasNext())
 					{					
 					final VariantOfFile vof=new VariantOfFile();
 					vof.fileIndex=fileIndex;
 					vof.line=lit.next();
+					if(!accept.test(vof)) continue;
 					array.add(vof);
 					}
 	
