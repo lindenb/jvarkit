@@ -111,11 +111,11 @@ public class VcfInjectPedigree
 private static final Logger LOG = Logger.build(VcfInjectPedigree.class).make();
 
 
-@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private File outputFile = null;
 
 
-@Parameter(names={"-p","--pedigree"},description="Path to a pedigree file.")
+@Parameter(names={"-p","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
 private File pedigreeFile = null;
 
 @Parameter(names={"-clean","--clean"},description="Remove all previous data about pedigree in the VCF header before adding the new one.")

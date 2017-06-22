@@ -435,7 +435,11 @@ public class VepPredictionParser implements PredictionParser
 			return keys;
 			}
 		
-		
+	/** return the prediction encoded in the original VariantContext */
+	public String getOriginalAttributeAsString()
+		{
+		return this.source;
+		}
 	@Override
 	public String toString() {
 		return this.source;

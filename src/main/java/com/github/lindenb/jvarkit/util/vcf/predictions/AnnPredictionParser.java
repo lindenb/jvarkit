@@ -394,6 +394,12 @@ public class AnnPredictionParser
 			return keys;
 			}
 		
+		/** return the prediction encoded in the original VariantContext */
+		public String getOriginalAttributeAsString()
+			{
+			return this.originalStr;
+			}
+		
 		@Override
 		public String toString() {
 			return this.originalStr;

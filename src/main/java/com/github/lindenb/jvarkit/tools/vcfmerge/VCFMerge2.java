@@ -712,7 +712,7 @@ public class VCFMerge2
 					throw new JvarkitException.DictionariesAreNotTheSame(global_dictionary, dict1);
 					}
 				final Predicate<VariantOfFile> accept;
-				if(StringUtil.isBlank(VCFMerge2.this.regionStr)) {
+				if(!StringUtil.isBlank(VCFMerge2.this.regionStr)) {
 					final IntervalParser intervalParser=new IntervalParser(dict1);
 					intervalParser.setContigNameIsWholeContig(true);
 					final Interval rgn = intervalParser.parse(VCFMerge2.this.regionStr);

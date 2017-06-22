@@ -209,7 +209,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
-	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream
+	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes
 	
 
 
@@ -517,6 +517,8 @@ $(eval $(call compile-htsjdk-cmd,knime2txt,${jvarkit.package}.tools.misc.KnimeTo
 $(eval $(call compile-htsjdk-cmd,lumpyvcf2circos,${jvarkit.package}.tools.lumpysv.LumpyVcfToCircos,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fastgenotypegvcfs,${jvarkit.package}.tools.gvcf.FastGenotypeGVCFs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,xsltstream,${jvarkit.package}.tools.misc.XsltStream,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfloopovergenes,${jvarkit.package}.tools.burden.VcfLoopOverGenes,${jcommander.jar}))
+
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.drools.Test,${jcommander.jar} ${drools.jar}))
 
 
