@@ -108,7 +108,7 @@ public class VcfMultiToOneAllele
 	private static final Logger LOG = Logger.build(VcfMultiToOneAllele.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-p","--samples"},description="print sample name. set genotype to ./. if both allele of the genotype are in 'ALT'")
+	@Parameter(names={"-p","--samples"},description="print sample genotypes.")
 	private boolean print_samples = false;
 	@Parameter(names={"-r","--rmAtt"},description="[20161110]: after merging with GATK CombineVariants there can have problemes with INFO/type='A' present in vcf1 but not in vcf2, and multiallelelic variants. This option delete the attributes having such problems.")
 	private boolean rmErrorAttributes = false;
