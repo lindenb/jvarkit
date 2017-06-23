@@ -45,14 +45,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfTools;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -60,6 +66,11 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 /*
 BEGIN_DOC
+
+## SNPEFF/VEP Annotations
+
+this tool will try to split the VEP or the VCF annotation for each allele.
+
 
 ## Example
 
@@ -99,29 +110,213 @@ public class VcfMultiToOneAllele
 	private File outputFile = null;
 	@Parameter(names={"-p","--samples"},description="print sample name. set genotype to ./. if both allele of the genotype are in 'ALT'")
 	private boolean print_samples = false;
-	@Parameter(names={"-r","--rmAtt"},description="20161110: after merging with GATK CombineVariants there can have problemes with INFO/type='A' present in vcf1 but not in vcf2, and multiallelelic variants. This option delete the attributes having such problems.")
+	@Parameter(names={"-r","--rmAtt"},description="[20161110]: after merging with GATK CombineVariants there can have problemes with INFO/type='A' present in vcf1 but not in vcf2, and multiallelelic variants. This option delete the attributes having such problems.")
 	private boolean rmErrorAttributes = false;
+	@Parameter(names={"-highest","--highest"},description="[20170723]: Use  Allele With Highest Allele Count, discard/replace the other")
+	private boolean useAltAlleleWithHighestAlleleCount = false;
 	@ParametersDelegate
 	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
+	@Parameter(names={"-tag","--tag"},description="Info field name that will be added to recall the original alleles.")
+	private String TAG="VCF_MULTIALLELIC_SRC";
+	@Parameter(names={"--ignoreMissingInfoDecl"},description="Ignore error when a variant INFO is missing a definition in the VCF header.")
+	private boolean ignoreMissingInfoDecl=false;
+	@Parameter(names={"--addNoVariant"},description="Print Variants without ALT allele")
+	private boolean addNoVariant=false;
+	@Parameter(names={"--skipSpanningDeletions"},description="Skip Alt Spanning deletion alleles "+Allele.SPAN_DEL_STRING)
+	private boolean skipSpanningDeletion=false;
 
+	@Parameter(names={"--replaceWith"},description="When replacing an alternative allele, replace it with REF or current ALT allele.")
+	private ReplaceWith replaceWith=ReplaceWith.REF;
 	
+	enum ReplaceWith {REF,ALT};
+
 	 public VcfMultiToOneAllele()
 		{
 		}
 	 
+	 
+	 private Map<String,Object> makeAttributes(
+			 final VCFHeader header,
+			 final VcfTools vcfTools,
+			 final VariantContext ctx,
+			 final Allele the_allele
+			 ) throws IOException
+	 	{
+		final int alleleIndex = ctx.getAlleleIndex(the_allele);
+		 
+		if(alleleIndex==0) throw new IllegalStateException("alleleIndex==0 (REF)");
+		if(alleleIndex==-1) throw new IllegalStateException("alleleIndex<0");
+		final Map<String,Object> attributes = ctx.getAttributes();
+		final Map<String,Object> newAttributes = new HashMap<>(attributes.size());
+			
+
+			
+		for(final String attid:attributes.keySet())
+			{
+			final VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
+			if(info==null) {
+				final String msg = "Cannot get header INFO tag="+attid+" at "+ctx.getContig()+":"+ctx.getStart();
+				if(!ignoreMissingInfoDecl)
+					{
+					throw new IOException(msg);
+					}
+				else
+					{
+					LOG.warning(msg);
+					continue;
+					}
+				}
+			// get ANN specific annotations
+			if(info.getID().equals(vcfTools.getAnnPredictionParser().getTag()))
+				{
+				final List<String> L=
+					vcfTools.getAnnPredictionParser().getPredictions(ctx).
+					stream().
+					filter(P->the_allele.getDisplayString().equals(P.getAllele())).
+					map(P->P.getOriginalAttributeAsString()).
+					collect(Collectors.toList());
+				if(L.isEmpty())
+					{
+					if(!the_allele.equals(Allele.SPAN_DEL)) {
+						LOG.warning("No ANN Prediction for "+the_allele +" in "+
+								ctx.getAttributeAsList(vcfTools.getVepPredictionParser().getTag()));
+						}
+					}
+				else
+					{
+					newAttributes.put(info.getID(), L);
+					}
+				continue;
+				}
+			// get VEP specific annotations
+			if(info.getID().equals(vcfTools.getVepPredictionParser().getTag()))
+				{
+				List<String> L=
+						vcfTools.getVepPredictionParser().getPredictions(ctx).
+						stream().
+						filter(P->the_allele.getDisplayString().equals(P.getAlleleStr())).
+						map(P->P.getOriginalAttributeAsString()).
+						collect(Collectors.toList());
+				
+				if(L.isEmpty() && ctx.isIndel())
+					{
+					L=  vcfTools.getVepPredictionParser().getPredictions(ctx).
+						stream().
+						filter(P->P.getAlleleStr().equals(VepPredictionParser.INDEL_SYMBOL_STR)).
+						map(P->P.getOriginalAttributeAsString()).
+						collect(Collectors.toList());
+					}
+				
+				if(L.isEmpty())
+					{
+					if(!the_allele.equals(Allele.SPAN_DEL)) {
+						LOG.warning("No Vep Prediction for "+the_allele +" in "+
+								ctx.getAttributeAsList(vcfTools.getVepPredictionParser().getTag()));
+						}
+					}
+				else
+					{
+					newAttributes.put(info.getID(), L);
+					}
+				continue;
+				}
+			final VCFHeaderLineCount lineCount = info.getCountType();
+
+			if(lineCount!=VCFHeaderLineCount.A && lineCount!=VCFHeaderLineCount.R)
+				{
+				newAttributes.put(attid, attributes.get(attid));
+				continue;
+				}
+			final Object o = 	attributes.get(attid);
+			
+			if(!(o instanceof List)) {
+				final String msg="For INFO tag="+attid+" got "+o.getClass()+" instead of List in "+ctx;
+				if(this.rmErrorAttributes)
+					{
+					LOG.warn("remove this attribute : "+msg);
+					continue;
+					}
+				else
+					{
+					throw new IOException(msg);
+					}				
+				}
+			@SuppressWarnings("rawtypes")
+			final List list = (List)o;
+			if(ctx.getNAlleles() != list.size()+  ( lineCount.equals(VCFHeaderLineCount.A) ? 1 : 0 ) ) 
+				{
+				final String msg= ctx.getContig()+":"+ctx.getStart()+" : For INFO tag="+attid+" got "+ctx.getNAlleles()+" ALLELES, incompatible with "+list.toString();
+				if(this.rmErrorAttributes)
+					{
+					LOG.warn("remove this attribute : "+msg);
+					continue;
+					}
+				else
+					{
+					throw new IOException(msg);
+					}
+				}
+			else if(lineCount.equals(VCFHeaderLineCount.R))
+				{
+				newAttributes.put(attid, Arrays.asList(
+						list.get(0)/* REF */,
+						list.get(alleleIndex))
+						);	
+				}
+			else // VCFHeaderLineCount.A
+				{	
+				newAttributes.put(attid, list.get(alleleIndex-1) /* -1 because the index is in the total allele list, including REF=0 */);	
+				}
+			}
+		return	newAttributes;
+	 	}
+	 
+	 
+	 private List<Genotype> makeGenotypes(
+			 final VariantContext ctx,
+			 final List<String> sample_names,
+			 final Allele theAllele,
+			 final Allele replaceWith
+			 )
+	 		{
+			final List<Genotype> genotypes=new ArrayList<>(sample_names.size());
+			
+			for(final String sampleName: sample_names)
+				{							
+				final Genotype g= ctx.getGenotype(sampleName);
+				
+				final GenotypeBuilder gb =new GenotypeBuilder(
+						g.getSampleName(),
+							g.getAlleles().stream().
+							map(A->(A.isNoCall() || A.isReference() || A.equals(theAllele)?A:replaceWith)).
+							collect(Collectors.toList())
+						);
+				if(g.hasDP()) gb.DP(g.getDP());
+				if(g.hasGQ()) gb.GQ(g.getGQ());
+				if(g.isFiltered()) gb.filter(g.getFilters());
+
+				genotypes.add(gb.make());
+				}
+		return genotypes;
+	 	}
+	 
 	@Override
-	/* public for knime */
-	public int doVcfToVcf(String inputName,
-			VcfIterator in, VariantContextWriter out)   {
+	public int doVcfToVcf(
+			final String inputName,
+			final VcfIterator in,
+			final VariantContextWriter out
+			)   {
 			try {
-			final String TAG="VCF_MULTIALLELIC_SRC";
 			final List<String> noSamples=Collections.emptyList();
-		
 			final VCFHeader header=in.getHeader();
+			final VcfTools tools = new VcfTools(header);
 			final List<String> sample_names=header.getSampleNamesInOrder();
 			final Set<VCFHeaderLine> metaData=new HashSet<>(header.getMetaDataInInputOrder());
 			//addMetaData(metaData);		
-			metaData.add(new VCFInfoHeaderLine(TAG, 1, VCFHeaderLineType.String,
+			metaData.add(new VCFInfoHeaderLine(
+					this.TAG,
+					1,
+					VCFHeaderLineType.String,
 					"The variant was processed with VcfMultiAlleleToOneAllele and contained the following alleles."));
 			VCFHeader h2;
 			
@@ -139,19 +334,44 @@ public class VcfMultiToOneAllele
 						sample_names
 						);
 				}
-			SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header);
+			final Function<List<Allele>, String> altListToString = alternateAlleles -> alternateAlleles.stream().
+					map(A->A.getDisplayString()).
+					collect(Collectors.joining("|"))
+					;
+			
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header);
 			out.writeHeader(h2);
 			while(in.hasNext())
 				{
-				final VariantContext ctx=progess.watch(in.next());
+				final VariantContext ctx = progess.watch(in.next());
 				final List<Allele> alternateAlleles = new ArrayList<>(ctx.getAlternateAlleles());
 				if(alternateAlleles.isEmpty())
 					{
-					LOG.warn("Remove no ALT variant:"+ctx);
-					continue;
+					if(addNoVariant)
+						{
+						if(!print_samples)
+							{
+							final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+							vcb.noGenotypes();
+							out.add(vcb.make());
+							}
+						else
+							{
+							out.add(ctx);
+							}						
+						}
+					else
+						{
+						LOG.warn("Remove no ALT variant:"+ctx);
+						}
 					}
 				else if(alternateAlleles.size()==1)
-					{
+					{		
+					if(skipSpanningDeletion && alternateAlleles.get(0).equals(Allele.SPAN_DEL))
+						{
+						continue;
+						}
+					
 					if(!print_samples)
 						{
 						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
@@ -165,131 +385,50 @@ public class VcfMultiToOneAllele
 					}
 				else
 					{
-					//Collections.sort(aioulleles); don't sort , for VCFHeaderLineCount.A
-					final Map<String,Object> attributes = ctx.getAttributes();
-					final StringBuilder sb=new StringBuilder();
-					for(int i=0;i< alternateAlleles.size();++i)
-						{
-						if(sb.length()>0) sb.append("|");
-						sb.append(alternateAlleles.get(i).getDisplayString());
-						}
-					final String altAsString= sb.toString();
+					final Allele highest = (this.useAltAlleleWithHighestAlleleCount?
+							ctx.getAltAlleleWithHighestAlleleCount():
+							null
+							);
+
+					
 					for(int alternateIndex=0;alternateIndex< alternateAlleles.size();++alternateIndex)
 						{
 						final Allele the_allele = alternateAlleles.get(alternateIndex);
-	
-						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-						vcb.alleles(Arrays.asList(ctx.getReference(),the_allele));
-						
-						for(final String attid:attributes.keySet())
+						if(highest!=null && !highest.equals(the_allele)) continue;
+						if(this.skipSpanningDeletion && the_allele.equals(Allele.SPAN_DEL))
 							{
-							final VCFInfoHeaderLine info = header.getInfoHeaderLine(attid);
-							if(info==null) throw new IOException("Cannot get header INFO tag="+attid);
-							final VCFHeaderLineCount lineCount = info.getCountType();
-							
-							if(lineCount!=VCFHeaderLineCount.A && lineCount!=VCFHeaderLineCount.R) continue;
-							final Object o = 	attributes.get(attid);
-							
-							if(!(o instanceof List)) {
-								final String msg="For INFO tag="+attid+" got "+o.getClass()+" instead of List in "+ctx;
-								if(this.rmErrorAttributes)
-									{
-									LOG.warn("remove this attribute : "+msg);
-									vcb.rmAttribute(attid);
-									continue;
-									}
-								else
-									{
-									throw new IOException(msg);
-									}				
-								}
-							@SuppressWarnings("rawtypes")
-							final List list = (List)o;
-							// if 'R' we expected alleles.size()+list.size()+1 (for ref allele)
-							final int mallusForRef = +(lineCount.equals(VCFHeaderLineCount.A)?0:1);
-							if(alternateAlleles.size() + mallusForRef !=list.size()) {
-								final String msg= ctx.getContig()+":"+ctx.getStart()+" : For INFO tag="+attid+" got "+alternateAlleles.size()+" ALT, incompatible with "+list.toString();
-								if(this.rmErrorAttributes)
-									{
-									LOG.warn("remove this attribute : "+msg);
-									vcb.rmAttribute(attid);
-									continue;
-									}
-								else
-									{
-									throw new IOException(msg);
-									}
-								}
-							else if(lineCount.equals(VCFHeaderLineCount.R)) {
-								final List<Object> rlist = new ArrayList<>(2);
-								rlist.add(list.get(0));///0==REF
-								rlist.add(list.get(alternateIndex+1));
-								vcb.attribute(attid, rlist);	
-								}
-							else // VCFHeaderLineCount.A
-								{	
-								vcb.attribute(attid, list.get(alternateIndex));	
-								}
+							continue;
 							}
 						
-						vcb.attribute(TAG,altAsString);
+						
+						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+						vcb.alleles(Arrays.asList(ctx.getReference(),the_allele));
+						vcb.attributes(makeAttributes(header,tools,ctx,the_allele));						
+						vcb.attribute(this.TAG,altListToString.apply(alternateAlleles));
 						
 						if(!print_samples)
 							{
 							vcb.noGenotypes();
 							}
 						else
-							{
-							final List<Genotype> genotypes=new ArrayList<>(sample_names.size());
-							
-							for(final String sampleName: sample_names)
-								{							
-								final Genotype g= ctx.getGenotype(sampleName);
-								if(!g.isCalled() || g.isNoCall() )
-									{
-									genotypes.add(g);
-									continue;
-									}
-								
-								
-								final GenotypeBuilder gb =new GenotypeBuilder(g);
-								final List<Allele> galist = new ArrayList<>(g.getAlleles());
-								
-								if(galist.size()>0)
-									{
-									boolean replace=false;
-									for(int y=0;y< galist.size();++y)
-										{
-										final Allele ga = galist.get(y);
-										if(ga.isSymbolic()) throw new RuntimeException("How should I handle "+ga);
-										if(!(ga.isNoCall() || 
-											 ga.equals(ctx.getReference()) ||
-											 ga.equals(the_allele)))
-											{
-											replace=true;
-											galist.set(y, ctx.getReference());
-											}
-										}
-									if(replace)
-										{
-										gb.reset(true);/* keep sample name */
-										gb.alleles(galist);
-										}
-									}
-								genotypes.add(gb.make());
+							{							
+							final Allele replaceAlleleWith;
+							switch(this.replaceWith)
+								{
+								case ALT: replaceAlleleWith= the_allele;break;
+								case REF: replaceAlleleWith= ctx.getReference();break;
+								default: throw new IllegalStateException();
 								}
-							
-							vcb.genotypes(genotypes);
+							vcb.genotypes(makeGenotypes(ctx, sample_names, the_allele, replaceAlleleWith));
 							}
-						
-						out.add(vcb.make());
+						out.add(VCFUtils.recalculateAttributes(vcb.make()));
 						}
 					}
 				}
 			progess.finish();
 			return RETURN_OK;
 			} 
-		catch(Exception err) {
+		catch(final Exception err) {
 			LOG.error(err);
 			return -1;
 			}

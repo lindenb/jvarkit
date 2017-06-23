@@ -57,6 +57,8 @@ sition|Protein_position|Amino_acids|Codons|Existing_variation|HGNC|DISTANCE|SIFT
 public class VepPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.build(VepPredictionParser.class).make();
+	public static final String INDEL_SYMBOL_STR="<indel>";
+	
 	/* public, used in VcfBurdenFilterGene 
 	public enum COLS{
 		Allele,
@@ -206,7 +208,7 @@ public class VepPredictionParser implements PredictionParser
 					}
 				else
 					{
-					this.tokens[idx_allele]="<indel>";
+					this.tokens[idx_allele]=INDEL_SYMBOL_STR;
 					}
 				}
 			}
@@ -232,9 +234,16 @@ public class VepPredictionParser implements PredictionParser
 			return s!=null && !s.isEmpty();
 			}
 		
+		/** return the 'Allele' String or null if not found */
+		public String getAlleleStr()
+			{
+			return getByCol("Allele");
+			}
+	
+		
 		public Allele getAllele()
 			{
-			final String s= getByCol("Allele");
+			final String s= getAlleleStr();
 			return s==null?null:Allele.create(s, false);
 			}
 		

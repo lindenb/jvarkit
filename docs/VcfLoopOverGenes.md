@@ -11,6 +11,10 @@ Usage: vcfloopovergenes [options] Files
     -compress, --compress
       generate VCF.gz files
       Default: false
+    -delete, --delete
+      if a command if executed with '-exec', delete the file after the 
+      completion of the command.
+      Default: false
     -e, -exec, --exec
       When saving the VCF to a directory. Execute the following command line. 
       The words __PREFIX__  __CONTIG__ (or __CHROM__ ) __ID__ __NAME__ 
@@ -26,6 +30,10 @@ Usage: vcfloopovergenes [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -j, --jobs
+      When -exec is specified, use <n> jobs. A value lower than 1 means use 
+      all procs available.
+      Default: 1
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 

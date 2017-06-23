@@ -8,18 +8,34 @@
 ```
 Usage: vcfmulti2oneallele [options] Files
   Options:
+    --addNoVariant
+      Print Variants without ALT allele
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -highest, --highest
+      [20170723]: Use  Allele With Highest Allele Count, discard/replace the 
+      other 
+      Default: false
+    --ignoreMissingInfoDecl
+      Ignore error when a variant INFO is missing a definition in the VCF 
+      header. 
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --outputbcf
       Output bcf (for streams)
       Default: false
+    --replaceWith
+      When replacing an alternative allele, replace it with REF or current ALT 
+      allele. 
+      Default: REF
+      Possible Values: [REF, ALT]
     -r, --rmAtt
-      20161110: after merging with GATK CombineVariants there can have 
+      [20161110]: after merging with GATK CombineVariants there can have 
       problemes with INFO/type='A' present in vcf1 but not in vcf2, and 
       multiallelelic variants. This option delete the attributes having such 
       problems. 
@@ -28,6 +44,12 @@ Usage: vcfmulti2oneallele [options] Files
       print sample name. set genotype to ./. if both allele of the genotype 
       are in 'ALT'
       Default: false
+    --skipSpanningDeletions
+      Skip Alt Spanning deletion alleles *
+      Default: false
+    -tag, --tag
+      Info field name that will be added to recall the original alleles.
+      Default: VCF_MULTIALLELIC_SRC
     --vcfcreateindex
       VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
       Default: false
@@ -101,6 +123,11 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## SNPEFF/VEP Annotations
+
+this tool will try to split the VEP or the VCF annotation for each allele.
 
 
 ## Example

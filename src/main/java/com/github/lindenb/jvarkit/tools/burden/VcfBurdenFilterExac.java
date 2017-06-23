@@ -117,7 +117,7 @@ public class VcfBurdenFilterExac
 		}
 	 
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator vcfIterator, VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName,final VcfIterator vcfIterator,final VariantContextWriter out) {
 		
 		VcfIterator exacIn =null;
 		TabixVcfFileReader tabix=null;

@@ -36,9 +36,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.StringTokenizer;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,6 +70,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -150,7 +158,6 @@ java -jar dist/vcfloopovergenes.jar \
 
 
 END_DOC
- * @author lindenb
  *
  */
 
@@ -160,6 +167,7 @@ description="Generates a BED file of the Genes in an annotated VCF, loop over th
 keywords={"vcf","gene","burden"})
 public class VcfLoopOverGenes extends Launcher {
 	private static final Logger LOG = Logger.build(VcfLoopOverGenes.class).make();
+	static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
 
 	@Parameter(names={"-o","--output"},description="For gene.bed: a File or stdout. When creating a VCF this should be a zip file or an existing directory.")
 	private File outputFile = null;
@@ -177,6 +185,10 @@ public class VcfLoopOverGenes extends Launcher {
 
 	@Parameter(names={"-compress","--compress"},description="generate VCF.gz files")
 	private boolean compress=false;
+	@Parameter(names={"-delete","--delete"},description="if a command if executed with '-exec', delete the file after the completion of the command.")
+	private boolean deleteAfterCommand = false;
+	@Parameter(names={"-j","--jobs"},description="When -exec is specified, use <n> jobs. A value lower than 1 means use all procs available. ")
+	private int nJobs = 1;
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
@@ -282,6 +294,7 @@ public class VcfLoopOverGenes extends Launcher {
 		}
 
 	
+	@SuppressWarnings("resource")
 	@Override
 	public int doWork(final List<String> args) {
 		PrintWriter pw=null;
@@ -290,7 +303,10 @@ public class VcfLoopOverGenes extends Launcher {
 		CloseableIterator<VariantContext> iter=null;
 		CloseableIterator<GeneLoc> iter2=null;
 		BufferedReader br=null;
+		ArchiveFactory archive=null;
 		try {
+			
+			
 			final File vcf =new File(oneAndOnlyOneFile(args));
 			vcfFileReader = new VCFFileReader(vcf,this.geneFile!=null);
 			this.dictionary = vcfFileReader.getFileHeader().getSequenceDictionary();
@@ -396,7 +412,30 @@ public class VcfLoopOverGenes extends Launcher {
 				}
 			else
 				{
-				if(outputFile==null)
+				if(this.nJobs<1)
+					{
+					this.nJobs = Math.max(1, Runtime.getRuntime().availableProcessors());
+					LOG.info("setting njobs to "+this.nJobs);
+					}
+				
+				 final ExecutorService executorService;
+				 final List<Future<Integer>> futureResults;
+				 if(this.nJobs>1)
+				 	{
+				    executorService =  new ThreadPoolExecutor(
+						   this.nJobs, this.nJobs,
+				              0L, TimeUnit.MILLISECONDS,
+				              new LinkedBlockingQueue<Runnable>()
+				              );
+				    futureResults= new ArrayList<>();
+				 	}
+				 else
+				 	{
+					executorService = null;
+					futureResults = Collections.emptyList();
+				 	}
+				 
+				if(this.outputFile==null)
 					{
 					LOG.error("When scanning a VCF with "+this.geneFile+". Output file must be defined");
 					}
@@ -408,15 +447,43 @@ public class VcfLoopOverGenes extends Launcher {
 						return -1;
 						}
 					}
-				
-				
-				final ArchiveFactory archive= ArchiveFactory.open(this.outputFile);
+				archive= ArchiveFactory.open(this.outputFile);
 				PrintWriter manifest = archive.openWriter( this.prefix+"manifest.txt");
 				br= IOUtils.openFileForBufferedReading(this.geneFile);
 				final BedLineCodec bedCodec =new BedLineCodec();
-				String line;
-				while((line=br.readLine())!=null)
+				
+				for(;;)
 					{
+					if(!futureResults.isEmpty())
+						{
+						int i=0;
+						while(i<futureResults.size())
+							{
+							final Future<Integer> r=futureResults.get(i);
+							if(r.isCancelled())
+								{
+								LOG.error("Task was canceled. Break.");
+								return -1;
+								}
+							else if(r.isDone())
+								{
+								futureResults.remove(i);
+								int rez= r.get();
+								if(rez!=0)
+									{
+									LOG.error("Task Failed ("+rez+"). Break");
+									}
+								}
+							else
+								{
+								i++;
+								}
+							}
+						}
+					
+					final String line =br.readLine();
+					if(line==null) break;
+					if(line.startsWith("#" ) || line.isEmpty()) continue;
 					final BedLine bedLine = bedCodec.decode(line);
 					if(bedLine==null) continue;
 					final String geneIdentifier=bedLine.get(3);//ID
@@ -512,7 +579,7 @@ public class VcfLoopOverGenes extends Launcher {
 							LOG.info(filename);							
 							manifest.println(outputVcfName);
 							final VCFHeader header= new VCFHeader(vcfFileReader.getFileHeader());
-							header.addMetaDataLine(new VCFHeaderLine("VCF_ID", filename));
+							header.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SPLITKEY, filename));
 							vcfOutputStream = archive.openOuputStream(outputVcfName);
 							vw = VCFUtils.createVariantContextWriterToOutputStream(vcfOutputStream);
 							vw.writeHeader(header);
@@ -527,53 +594,78 @@ public class VcfLoopOverGenes extends Launcher {
 						vw=null;
 						if(!this.exec.isEmpty())
 							{
-							final String vcfPath = new File(this.outputFile,outputVcfName).getPath();
-							boolean foundName=false;
-							final StringTokenizer st = new StringTokenizer(this.exec);
-							final List<String> command = new ArrayList<>(1+st.countTokens());
-						     while(st.hasMoreTokens()) {
-						    	  String token =st.nextToken().
-						    			  replaceAll("__PREFIX__", this.prefix).
-						    			  replaceAll("__CONTIG__", bedLine.getContig()).
-						    			  replaceAll("__CHROM__", bedLine.getContig()).
-								    	  replaceAll("__ID__",geneIdentifier).
-								    	  replaceAll("__NAME__",geneName).
-								    	  replaceAll("__SOURCE__",sourceType.name())
-						    			  ;
-						    	  if(token.contains("__VCF__"))
-						    	  	{
-						    		  foundName=true;
-						    		  token=token.replaceAll("__VCF__", vcfPath);
-						    	  	}
-						    	  
-						    	  command.add(token);
-						      	}
-						      if(!foundName)
-						      	{
-						    	command.add(vcfPath);
-						      	}
+							final Callable<Integer> callable = () ->{
+								final File vcfOutFile = new File(this.outputFile,outputVcfName);
+								IOUtil.assertFileIsReadable(vcfOutFile);
+								final String vcfPath = vcfOutFile.getPath();
+								boolean foundName=false;
+								final StringTokenizer st = new StringTokenizer(this.exec);
+								final List<String> command = new ArrayList<>(1+st.countTokens());
+							     while(st.hasMoreTokens()) {
+							    	  String token =st.nextToken().
+							    			  replaceAll("__PREFIX__", this.prefix).
+							    			  replaceAll("__CONTIG__", bedLine.getContig()).
+							    			  replaceAll("__CHROM__", bedLine.getContig()).
+									    	  replaceAll("__ID__",geneIdentifier).
+									    	  replaceAll("__NAME__",geneName).
+									    	  replaceAll("__SOURCE__",sourceType.name())
+							    			  ;
+							    	  if(token.contains("__VCF__"))
+							    	  	{
+							    		  foundName=true;
+							    		  token=token.replaceAll("__VCF__", vcfPath);
+							    	  	}
+							    	  
+							    	  command.add(token);
+							      	}
+							      if(!foundName)
+							      	{
+							    	command.add(vcfPath);
+							      	}
+								
+								LOG.info(command.stream().map(S->"'"+S+"'").collect(Collectors.joining(" ")));
+								final ProcessBuilder pb = new ProcessBuilder(command);
+								pb.redirectErrorStream(true);
+								final Process p = pb.start();
+								final Thread stdoutThread = new Thread(()->{
+										try {
+										InputStream in = p.getInputStream();
+										IOUtils.copyTo(in, stdout());
+										} catch(Exception err)
+										{
+											LOG.error(err);
+										}
+									});
+								stdoutThread.start();
+								int exitValue= p.waitFor();
 							
-							LOG.info(command.stream().map(S->"'"+S+"'").collect(Collectors.joining(" ")));
-							final ProcessBuilder pb = new ProcessBuilder(command);
-							pb.redirectErrorStream(true);
-							final Process p = pb.start();
-							final Thread stdoutThread = new Thread(()->{
-									try {
-									InputStream in = p.getInputStream();
-									IOUtils.copyTo(in, stdout());
-									} catch(Exception err)
+								if(exitValue!=0)
 									{
-										LOG.error(err);
+									LOG.error("Command failed ("+exitValue+"):"+String.join(" ", command));
+									return -1;
 									}
-								});
-							stdoutThread.start();
-							int exitValue= p.waitFor();
-						
-							if(exitValue!=0)
+								else
+									{
+									if(deleteAfterCommand) {
+										if(!vcfOutFile.delete()) {
+											LOG.warn("Cannot delete "+vcfOutFile);
+											}
+										}
+									return 0;
+									}
+								};
+								
+							if(executorService!=null)
 								{
-								LOG.error("Command failed ("+exitValue+")");
-								return -1;
+								final Future<Integer> rez = executorService.submit(callable);
+								futureResults.add(rez);
 								}
+							else
+								{
+								final int ret=callable.call();
+								if(ret!=0) return ret;
+								}
+								
 							}
 						}
 					else
@@ -583,9 +675,14 @@ public class VcfLoopOverGenes extends Launcher {
 						}
 					iter.close();
 					};
+				if(executorService!=null)
+					{
+					executorService.shutdown();
+					}
 				br.close();br=null;
 				manifest.close();
 				archive.close();
+				archive=null;
 				}
 			vcfFileReader.close();vcfFileReader=null;
 			return 0;
@@ -600,6 +697,7 @@ public class VcfLoopOverGenes extends Launcher {
 				CloserUtil.close(pw);
 				CloserUtil.close(vcfFileReader);
 				CloserUtil.close(br);
+				CloserUtil.close(archive);
 			}
 		}
 		
