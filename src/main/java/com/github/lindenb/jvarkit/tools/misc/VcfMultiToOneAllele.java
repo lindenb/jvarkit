@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -124,9 +125,11 @@ public class VcfMultiToOneAllele
 	private boolean addNoVariant=false;
 	@Parameter(names={"--skipSpanningDeletions"},description="Skip Alt Spanning deletion alleles "+Allele.SPAN_DEL_STRING)
 	private boolean skipSpanningDeletion=false;
-
 	@Parameter(names={"--replaceWith"},description="When replacing an alternative allele, replace it with REF or current ALT allele.")
 	private ReplaceWith replaceWith=ReplaceWith.REF;
+	@Parameter(names={"--disableHomVarAlt"},description="by default is a genotype is homvar for an external ALT ('2/2'), it will be set to ./. (no call). Setting this option will replace the current allele.")
+	private boolean disableHomVarAlt=true;
+	
 	
 	enum ReplaceWith {REF,ALT};
 
@@ -284,6 +287,19 @@ public class VcfMultiToOneAllele
 			for(final String sampleName: sample_names)
 				{							
 				final Genotype g= ctx.getGenotype(sampleName);
+				
+				if( !disableHomVarAlt &&
+					g.isCalled() && 
+					!g.getAlleles().stream().
+					filter(A->!(A.isNoCall() || A.isReference() || A.equals(theAllele) || A.equals(replaceWith))).
+					collect(Collectors.toSet()).
+					isEmpty() // only contains the 'other alleles'
+					)
+					{
+					genotypes.add(GenotypeBuilder.createMissing(sampleName, g.getPloidy()));
+					continue;
+					}
+				
 				
 				final GenotypeBuilder gb =new GenotypeBuilder(
 						g.getSampleName(),

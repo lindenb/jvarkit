@@ -11,6 +11,11 @@ Usage: vcfmulti2oneallele [options] Files
     --addNoVariant
       Print Variants without ALT allele
       Default: false
+    --disableHomVarAlt
+      by default is a genotype is homvar for an external ALT ('2/2'), it will 
+      be set to ./. (no call). Setting this option will replace the current 
+      allele. 
+      Default: true
     -h, --help
       print help and exit
     --helpFormat
@@ -41,8 +46,7 @@ Usage: vcfmulti2oneallele [options] Files
       problems. 
       Default: false
     -p, --samples
-      print sample name. set genotype to ./. if both allele of the genotype 
-      are in 'ALT'
+      print sample genotypes.
       Default: false
     --skipSpanningDeletions
       Skip Alt Spanning deletion alleles *

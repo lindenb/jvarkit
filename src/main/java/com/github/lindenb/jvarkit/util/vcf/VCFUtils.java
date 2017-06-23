@@ -991,6 +991,9 @@ public class VCFUtils
      *  */
     public static VariantContext recalculateAttributes(final VariantContext ctx) {
     	final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+    	
+    	
+    	
     	if(ctx.hasAttribute(VCFConstants.DEPTH_KEY)) {
     		vcb.rmAttribute(VCFConstants.DEPTH_KEY);
     		if(ctx.getGenotypes().stream().filter(G->G.hasDP()).findAny().isPresent()) {
@@ -1014,11 +1017,11 @@ public class VCFUtils
     	
     	if(ctx.hasAttribute(VCFConstants.ALLELE_COUNT_KEY)) {
     		vcb.rmAttribute(VCFConstants.ALLELE_COUNT_KEY);
-    		vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,acL);
+    		if(AN>0 /* yes AN */) vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,acL);
     		}
     	if(ctx.hasAttribute(VCFConstants.ALLELE_NUMBER_KEY)) {
     		vcb.rmAttribute(VCFConstants.ALLELE_NUMBER_KEY);
-    		vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,AN);
+    		if(AN>0 /* yes AN */)vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,AN);
     		}
     	if(ctx.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY)) {
     		vcb.rmAttribute(VCFConstants.ALLELE_FREQUENCY_KEY);

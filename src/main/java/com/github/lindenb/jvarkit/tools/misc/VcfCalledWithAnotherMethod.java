@@ -128,6 +128,8 @@ public class VcfCalledWithAnotherMethod extends Launcher
 	private String formatCountDiscordant="COUNT_DISCORDANT";
 	@Parameter(names={"--gtSame"},description="FORMAT name for the number of time we found the same genotype")
 	private String formatCountSame="COUNT_SAME";
+	@Parameter(names={"--nocallhomref"},description="NO_CALL is same as HOM_REF")
+	private boolean noCallSameAsHomRef=false;
 
 	
 	
@@ -417,7 +419,7 @@ public class VcfCalledWithAnotherMethod extends Launcher
 							{
 							final Genotype otherGt = otherVariant.getGenotype(gt.gt.getSampleName());
 							if(otherGt==null) continue;
-							if(gt.gt.sameGenotype(otherGt)) {
+							if(gt.gt.sameGenotype(otherGt) || (this.noCallSameAsHomRef && ((gt.gt.isNoCall() && otherGt.isHomRef())|| (gt.gt.isHomRef() && otherGt.isNoCall())))) {
 								gt.countSame++;
 								}
 							else
