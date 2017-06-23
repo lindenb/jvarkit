@@ -28,7 +28,10 @@ Usage: vcfinjectpedigree [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -p, --pedigree
-      Path to a pedigree file.
+      A pedigree is a text file delimited with tabs. No header. Columns are 
+      (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
+      (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
+      affected,-9 unknown
     -valid, --valid
       Ignore pedigree validation
       Default: false

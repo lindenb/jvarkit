@@ -41,8 +41,7 @@ Usage: vcfmulti2oneallele [options] Files
       problems. 
       Default: false
     -p, --samples
-      print sample name. set genotype to ./. if both allele of the genotype 
-      are in 'ALT'
+      print sample genotypes.
       Default: false
     --skipSpanningDeletions
       Skip Alt Spanning deletion alleles *

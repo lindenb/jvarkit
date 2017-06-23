@@ -122,18 +122,15 @@ $ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
 
 
 
-
-
 ### Screenshot
 
 ![img](https://pbs.twimg.com/media/B3in9wrIAAElLz8.jpg)
 
+### Example
 
 ```
 $ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
 ```
-
-
 
 
 
