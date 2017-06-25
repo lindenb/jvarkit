@@ -69,24 +69,30 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 /**
  BEGIN_DOC
  
+## Input
+
+The input is a file containing a list of path to the bam.
+ 
 ## Example
 
 ```
-$ find ./  -type f -name "*.bam" |\
-   java -jar dist/findallcoverageatposition.jar -p "chr2:1234" 
+$ find ./testdata/ -type f -name "*.bam" | \
+ java -jar dist/findallcoverageatposition.jar -p rotavirus:100
 
 
-#File   CHROM   POS SAMPLE  DEPTH   M   I   D   N   S   H   P   EQ  X
-/path/to/Sample1.bam    2   1234    SAMPLE1 10  10  0   1   0   0   0   0   0   0
-/path/to/Sample2.bam    2   1234    SAMPLE2 10  0   0   0   1   0   0   0   5   5
-/path/to/Sample3.bam    2   1234    SAMPLE3 10  10  0   0   0   0   0   0   0   0
+#File              CHROM      POS  SAMPLE  DEPTH  M    I  D  N  S   H  P  EQ  X  Base(A)  Base(C)  Base(G)  Base(T)  Base(N)  Base(^)  Base(-)
+./testdata/S4.bam  rotavirus  100  S4      126    126  0  0  0  29  0  0  0   0  5        0        0        121      0        0        0
+./testdata/S1.bam  rotavirus  100  S1      317    317  1  0  0  50  0  0  0   0  27       0        1        289      0        1        0
+./testdata/S2.bam  rotavirus  100  S2      311    311  0  1  0  60  0  0  0   0  29       1        0        281      0        0        1
+./testdata/S3.bam  rotavirus  100  S3      446    446  1  0  0  86  0  0  0   0  39       0        1        406      0        1        0
+
 ```
 
 ## See also
 
- * https://twitter.com/pjacock/status/538300664334798848
- * https://twitter.com/yokofakun/status/538300434109456385
- * https://twitter.com/pjacock/status/538299549455233024
+ * [https://twitter.com/pjacock/status/538300664334798848](https://twitter.com/pjacock/status/538300664334798848)
+ * [https://twitter.com/yokofakun/status/538300434109456385](https://twitter.com/yokofakun/status/538300434109456385)
+ * [https://twitter.com/pjacock/status/538299549455233024](https://twitter.com/pjacock/status/538299549455233024)
  * FindAVariation
 
 ## History
@@ -97,7 +103,9 @@ END_DOC
  */
 @Program(name="findallcoverageatposition",
 	keywords={"bam","coverage","search","depth"},
-	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?")
+	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
+	biostars=259223
+	)
 public class FindAllCoverageAtPosition extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindAllCoverageAtPosition.class).make();
