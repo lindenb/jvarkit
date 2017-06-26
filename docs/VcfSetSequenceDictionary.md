@@ -20,7 +20,8 @@ Usage: vcfsetdict [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -r, -R, --reference
-      indexed reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
     -d

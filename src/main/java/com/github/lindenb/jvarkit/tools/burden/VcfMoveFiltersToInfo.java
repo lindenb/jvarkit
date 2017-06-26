@@ -29,9 +29,11 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -53,9 +55,29 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 BEGIN_DOC
 
+For Matilde K: move the information in FILTER to the INFO column to keep a trace of the FILTERs.
 
-For Matilde: move the information in FILTER to the INFO column to keep a trace of the FILTERs.
+## Example
 
+```
+$ cat input.vcf | grep -v "##"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+22	16057607	rs201535778	G	GAAAA	.	.	AAC=2;AAF=0.0005;BEACON=T|solvebio,T|bob,T|solvebio-133,T|altruist,T|prism,T|kaviar;NS=3690;RAC=3688;RAF=0.9995;VTYPE=SNV
+22	16057608	rs201535778	G	T	.	.	AAC=2;AAF=0.0005;BEACON=T|solvebio,T|bob,T|solvebio-133,T|altruist,T|prism,T|kaviar;NS=3690;RAC=3688;RAF=0.9995;VTYPE=SNV
+
+
+$ java -jar dist/vcfmovefilterstoinfo.jar input.vcf | grep -v "##"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+22	16057608	rs201535778	G	T	.	.	AAC=2;AAF=0.0005;NS=3690;PREVIOUSLY_FILTERED_AS=FT1;RAC=3688;RAF=0.9995;VTYPE=SNV
+22	16058492	.	G	A	.	.	AAC=2;AAF=0.0005;NS=3708;PREVIOUSLY_FILTERED_AS=FT2;RAC=3706;RAF=0.9995;VTYPE=SNV
+
+
+$ java -jar dist/vcfmovefilterstoinfo.jar -f OLDFILTER -t FT2 input.vcf | grep -v "##"
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+22	16057608	rs201535778	G	T	.	FT1	AAC=2;AAF=0.0005;NS=3690;RAC=3688;RAF=0.9995;VTYPE=SNV
+22	16058492	.	G	A	.	.	AAC=2;AAF=0.0005;NS=3708;OLDFILTER=FT2;RAC=3706;RAF=0.9995;VTYPE=SNV
+
+```
 
 END_DOC
 */
@@ -69,16 +91,14 @@ public class VcfMoveFiltersToInfo
 	{
 	private static final Logger LOG = Logger.build(VcfMoveFiltersToInfo.class).make();
 
-
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-f","--filter"},description="INFO name. This tag will be used to store the previous filters")
 	private String infoName = "PREVIOUSLY_FILTERED_AS";
 
 	@Parameter(names={"-t","--limitto"},description="If not empty, limit to those FILTERS. Multiple separated by comma/space.")
-	private String onlyThoseFiltersTagStr = null;
+	private Set<String> onlyThoseFiltersTagStr = new HashSet<>();
 	
 	
 	public VcfMoveFiltersToInfo()
@@ -86,20 +106,22 @@ public class VcfMoveFiltersToInfo
 		}
 	 
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(
+			final String inputName,
+			final VcfIterator in,
+			final VariantContextWriter out)
+		{
 		if(StringUtil.isBlank(this.infoName)) {
 			LOG.error("undefined option for infoName");
 			return -1;
 			}
 		final VCFHeader header = in.getHeader();
-		final Set<String> limitToThoseFilters = new HashSet<>();
-		if(!StringUtil.isBlank(this.onlyThoseFiltersTagStr)) {
-			for(final String f:this.onlyThoseFiltersTagStr.split("[, ]"))
-				{
-				if(StringUtil.isBlank(f)) continue;
-				limitToThoseFilters.add(f.trim());
-				}
-		}
+		final Set<String> limitToThoseFilters = 
+		this.onlyThoseFiltersTagStr.stream().flatMap(
+				S->Arrays.asList(S.split("[, ]")).stream()).
+				filter(S->!StringUtil.isBlank(S)).
+				collect(Collectors.toSet())
+				;
 		
 		try {
 			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
@@ -115,10 +137,8 @@ public class VcfMoveFiltersToInfo
 				}
 			
 			
-			final VCFHeader h2= new VCFHeader(header);
-			
+			final VCFHeader h2= new VCFHeader(header);	
 			h2.addMetaDataLine(infoHeaderLine);
-			
 			
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			out.writeHeader(h2);
@@ -168,7 +188,7 @@ public class VcfMoveFiltersToInfo
 			progess.finish();
 			LOG.info("done.");
 			return RETURN_OK;
-			} catch(Exception err) {
+			} catch(final Exception err) {
 				LOG.error(err);
 				return -1;
 			} finally {
@@ -178,12 +198,12 @@ public class VcfMoveFiltersToInfo
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		return doVcfToVcf(args,outputFile);
 		}
 	 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfMoveFiltersToInfo().instanceMainWithExit(args);
 		}

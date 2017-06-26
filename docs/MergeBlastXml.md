@@ -20,7 +20,7 @@ Usage: mergeblastxml [options] Files
       Output SVG file or stdout
     --tmpDir
       Tmp Directory
-      Default: /var/folders/zm/23lwd0tn43q33r32881s0p680000gn/T
+      Default: /tmp
     --version
       print version and exit
 

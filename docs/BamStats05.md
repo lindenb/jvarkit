@@ -101,3 +101,20 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Example
+
+```
+
+$ head genes.bed
+1	179655424	179655582	ZORG
+1	179656788	179656934	ZORG
+
+$ java -jar  dist/bamstats05.jar -B genes.bed --mincoverage 10  > out.txt
+
+$ head out.txt
+#chrom	start	end	gene	sample	length	mincov	maxcov	avg	nocoverage.bp	percentcovered
+1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
+
+```
+
+

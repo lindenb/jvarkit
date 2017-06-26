@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -71,6 +72,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -189,6 +191,9 @@ public class VcfLoopOverGenes extends Launcher {
 	private boolean deleteAfterCommand = false;
 	@Parameter(names={"-j","--jobs"},description="When -exec is specified, use <n> jobs. A value lower than 1 means use all procs available. ")
 	private int nJobs = 1;
+	
+	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
+	private String regionStr="";
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
@@ -331,8 +336,23 @@ public class VcfLoopOverGenes extends Launcher {
 					this.writingSortingCollection.getTmpDirectories()
 					);
 				sortingCollection.setDestructiveIteration(true);
-					
-				iter = vcfFileReader.iterator();
+				
+				if(StringUtil.isBlank(this.regionStr))
+					{
+					iter = vcfFileReader.iterator();
+					}
+				else
+					{
+					final IntervalParser parser = new IntervalParser(this.dictionary);
+					parser.setContigNameIsWholeContig(true);
+					final Interval interval = parser.parse(this.regionStr);
+					if(interval==null) {
+						LOG.error("Cannot parse interval "+this.regionStr);
+						return -1;
+						}
+					iter = vcfFileReader.query(interval.getContig(), interval.getStart(), interval.getEnd());
+					}
+				
 				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(vcfFileReader.getFileHeader());
 				while(iter.hasNext())
 					{

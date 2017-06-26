@@ -46,6 +46,11 @@ Usage: vcfloopovergenes [options] Files
     -p, -prefix, --prefix
       File prefix when saving the individual VCF files.
       Default: <empty string>
+    -r, --region
+      An interval as the following syntax : "chrom:start-end" or 
+      "chrom:middle+extend". A program might use a Reference sequence to fix 
+      the chromosome name (e.g: 1->chr1)
+      Default: <empty string>
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
