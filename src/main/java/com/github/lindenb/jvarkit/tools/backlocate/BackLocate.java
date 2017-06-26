@@ -97,7 +97,6 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
  * http://plindenbaum.blogspot.fr/2011/03/mapping-mutation-on-protein-to-genome.html
  * https://github.com/lindenb/jvarkit/issues/14
  * https://github.com/lindenb/jvarkit/issues/13
- * https://www.biostars.org/p/116366/
 
 
 ## History
@@ -107,13 +106,19 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
  * Nov 2014 : removed all the dependencies to SQL and DAS; use a local indexed genome
  * Aug 2015 : Added a new column "potention var codon" (as https://twitter.com/_ramrs/status/631123002005061633 ) , renamed "codon" to "wild codon"
 
+## Cited in
+
+backlocate was cited in:
+
+ * CRISPR-STOP: gene silencing through base-editing-induced nonsense mutations. 2017 Nat Meth. [http://dx.doi.org/10.1038/nmeth.4327](http://dx.doi.org/10.1038/nmeth.4327).
 
  
  END_DOC
  */
 @Program(name="backlocate",
 	description="Mapping a mutation on a protein back to the genome.",
-	keywords={"vcf","annotation","prediction","protein"}
+	keywords={"vcf","annotation","prediction","protein"},
+	biostars=116366
 	)
 public class BackLocate
 	extends Launcher

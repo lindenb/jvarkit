@@ -60,7 +60,6 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -355,7 +354,7 @@ public class VcfMultiToOneAllele
 					collect(Collectors.joining("|"))
 					;
 			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header);
+			final SAMSequenceDictionaryProgress progess = new SAMSequenceDictionaryProgress(header);
 			out.writeHeader(h2);
 			while(in.hasNext())
 				{

@@ -677,10 +677,7 @@ public class VcfStats extends Launcher
 						mapToInt(A->A.length()).max().orElse(0);
 				this.countIndelSize.incr(VcfStats.this.indelTranches.getRange(longest));
 				}	
-			if(alternates.size()>1)
-				{
-				this.countAltAlleles.incr(VcfStats.this.altTranches.getRange(alternates.size()));
-				}
+			this.countAltAlleles.incr(VcfStats.this.altTranches.getRange(alternates.size()));
 			
 			// genotype concordance
 			for(int x=0;x < ctx.getNSamples();++x)

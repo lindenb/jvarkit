@@ -313,7 +313,7 @@ public class VcfLoopOverGenes extends Launcher {
 			
 			
 			final File vcf =new File(oneAndOnlyOneFile(args));
-			vcfFileReader = new VCFFileReader(vcf,this.geneFile!=null);
+			vcfFileReader = new VCFFileReader(vcf,(this.geneFile!=null || !StringUtil.isBlank(this.regionStr)));
 			this.dictionary = vcfFileReader.getFileHeader().getSequenceDictionary();
 			if(this.dictionary==null)
 				{

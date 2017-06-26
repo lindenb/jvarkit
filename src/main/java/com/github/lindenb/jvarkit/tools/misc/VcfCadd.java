@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
-
+BEGIN_DOC
 ## Example
 
 ```bash
@@ -82,7 +82,7 @@ ores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc">
 1	1657021	.	T	C	3.02	.	AC1=2;AF1=1;CADD=C|-0.271229|0.740;...
 (..)
 ```
-
+END_DOC
 */
 @Program(name="vcfcadd",description= "Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. "+
 		"A general framework for estimating the relative pathogenicity of human genetic variants. "+
@@ -93,9 +93,8 @@ public class VcfCadd extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfCadd.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz";
 	private TabixFileReader tabix=null;
 	@Parameter(names="-u",description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")

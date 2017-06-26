@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -196,11 +197,12 @@ public class VcfBurdenRscriptV
 			pw.println("# Title ");
 			final VCFHeaderLine vcfTitle= 
 					(
-					this.titleHeaderStr==null || this.titleHeaderStr.trim().isEmpty() ?
+					StringUtil.isBlank(this.titleHeaderStr) ?
 					null :
 					header.getOtherHeaderLine(this.titleHeaderStr.trim())
 					);
 			if(vcfTitle==null) {
+				LOG.warn("No title was found");
 				pw.println("# [WARNING] No title was found. ");
 				
 				pw.println("vcf.title <- \"vcf"+String.format("%04d", vcf_id)+"\"");
@@ -320,20 +322,26 @@ public class VcfBurdenRscriptV
 			first=true; for(final Variant v: variants) {if(!first) pw.print(",");pw.print(v.maf==null?"NA":String.valueOf(v.maf));first=false;}
 			pw.println("))");
 			
-			pw.println("# assert sizes");
-			pw.println("stopifnot( length(genotypes) %% NROW(population) == 0 )");
-			pw.println("stopifnot(NROW(variants) * NROW(population) == length(genotypes) )");
-			
-			
-			if(this.userDefinedFunName==null || this.userDefinedFunName.trim().isEmpty()) {
-				pw.println("## WARNING not user-defined R function was defined");
+			if(!variants.isEmpty())
+				{
+				pw.println("# assert sizes");
+				pw.println("stopifnot( length(genotypes) %% NROW(population) == 0 )");
+				pw.println("stopifnot(NROW(variants) * NROW(population) == length(genotypes) )");
+				
+				
+				if(this.userDefinedFunName==null || this.userDefinedFunName.trim().isEmpty()) {
+					pw.println("## WARNING not user-defined R function was defined");
+					}
+				else
+					{
+					pw.println("# consumme data with user-defined R function ");
+					pw.println(this.userDefinedFunName+"()");
+					}
 				}
 			else
 				{
-				pw.println("# consumme data with user-defined R function ");
-				pw.println(this.userDefinedFunName+"()");
+				LOG.warn("No Variant found");
 				}
-			
 			pw.println("# END VCF ##########################################");
 			
 			}

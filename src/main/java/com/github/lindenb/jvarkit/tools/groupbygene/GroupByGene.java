@@ -384,7 +384,7 @@ public class GroupByGene
 		XMLStreamWriter w=null;
 		if(xml_output)
 			{
-			XMLOutputFactory xof=XMLOutputFactory.newFactory();
+			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			w= xof.createXMLStreamWriter(pw, "UTF-8");
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("genes");
@@ -392,7 +392,7 @@ public class GroupByGene
 			w.writeComment("Version "+getVersion());
 			w.writeStartElement("samples");
 			w.writeAttribute("count", String.valueOf(sampleNames.size()));
-			for(String sample:this.sampleNames)
+			for(final String sample:this.sampleNames)
 				{
 				w.writeStartElement("sample");
 				w.writeCharacters(sample);
@@ -416,7 +416,7 @@ public class GroupByGene
 			pw.print("samples.affected");
 			pw.print('\t');
 			pw.print("count.variations");
-			for(String sample:this.sampleNames)
+			for(final String sample:this.sampleNames)
 				{
 				pw.print('\t');
 				pw.print(sample);
@@ -599,7 +599,7 @@ public class GroupByGene
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try
 			{
 			this.sortingCollection=SortingCollection.newInstance(
@@ -633,7 +633,7 @@ public class GroupByGene
 			dump();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
