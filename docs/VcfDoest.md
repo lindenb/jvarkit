@@ -24,7 +24,8 @@ Usage: vcfdoest [options] Files
       your REFERENCE. A typical KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
+      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html). 
+      File must be compressed and indexed with tabix.
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 

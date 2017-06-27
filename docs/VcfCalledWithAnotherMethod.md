@@ -29,6 +29,9 @@ Usage: vcfcalledwithanothermethod [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --nocallhomref
+      NO_CALL is same as HOM_REF
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -f, --vcfs
