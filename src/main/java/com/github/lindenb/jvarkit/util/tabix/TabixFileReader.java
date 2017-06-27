@@ -69,15 +69,18 @@ public class TabixFileReader implements Closeable
 		}
 
     
+    /** returns the underlying TabixReader */
     public TabixReader getTabix() {
 		return tabix;
 		}
     
+    /** return contigs associated to the tabix file*/
     public Set<String> getChromosomes()
     	{
     	return getTabix().getChromosomes();
     	}
     
+    /** return URL of the TABIX file */
     public String getURI()
     	{
     	return this.uri;

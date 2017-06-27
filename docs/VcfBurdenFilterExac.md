@@ -9,8 +9,8 @@ Burden filter 3 - Exac
 Usage: vcfburdenexac [options] Files
   Options:
     -d, --discardNotInExac
-      if variant was not found in Exac, discard the variant (set the FILTER). 
-      Default: don't set the FILTER.
+      if variant was not found in Exac, set the FILTER. Default: don't set the 
+      FILTER. 
       Default: false
     -exac, --exac
       Path to Exac VCF file. At the time of writing, you'd better use a 
@@ -104,8 +104,7 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
-
+20170626: this tool now supports multiple ALT in the user VCF, however it's not been tested for choosing when to set the FILTER or the min value
 
 ### Output
 

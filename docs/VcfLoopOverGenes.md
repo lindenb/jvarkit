@@ -18,8 +18,7 @@ Usage: vcfloopovergenes [options] Files
     -e, -exec, --exec
       When saving the VCF to a directory. Execute the following command line. 
       The words __PREFIX__  __CONTIG__ (or __CHROM__ ) __ID__ __NAME__ 
-      __SOURCE__ __VCF__ will be replaced by their values.If no __VCF__ is 
-      found, it will be appended to the command line as the last argument
+      __SOURCE__ __VCF__ __START__ __END__ will be replaced by their values.
       Default: <empty string>
     -g, --gene, -gene, --genes
       Loop over the gene file. If not defined VCF will be scanned for SnpEff 

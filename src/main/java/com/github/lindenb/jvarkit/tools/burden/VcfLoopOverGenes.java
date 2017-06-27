@@ -181,8 +181,8 @@ public class VcfLoopOverGenes extends Launcher {
 	private String prefix="";
 	@Parameter(names={"-e","-exec","--exec"},description="When saving the VCF to a directory. "
 			+ "Execute the following command line. "
-			+ "The words __PREFIX__  __CONTIG__ (or __CHROM__ ) __ID__ __NAME__ __SOURCE__ __VCF__ will be replaced by their values."
-			+ "If no __VCF__ is found, it will be appended to the command line as the last argument")
+			+ "The words __PREFIX__  __CONTIG__ (or __CHROM__ ) __ID__ __NAME__ __SOURCE__ __VCF__ __START__ __END__ will be replaced by their values."
+			)
 	private String exec="";
 
 	@Parameter(names={"-compress","--compress"},description="generate VCF.gz files")
@@ -618,7 +618,6 @@ public class VcfLoopOverGenes extends Launcher {
 								final File vcfOutFile = new File(this.outputFile,outputVcfName);
 								IOUtil.assertFileIsReadable(vcfOutFile);
 								final String vcfPath = vcfOutFile.getPath();
-								boolean foundName=false;
 								final StringTokenizer st = new StringTokenizer(this.exec);
 								final List<String> command = new ArrayList<>(1+st.countTokens());
 							     while(st.hasMoreTokens()) {
@@ -628,21 +627,15 @@ public class VcfLoopOverGenes extends Launcher {
 							    			  replaceAll("__CHROM__", bedLine.getContig()).
 									    	  replaceAll("__ID__",geneIdentifier).
 									    	  replaceAll("__NAME__",geneName).
-									    	  replaceAll("__SOURCE__",sourceType.name())
+									    	  replaceAll("__START__",String.valueOf(bedLine.getStart())).
+									    	  replaceAll("__END__",String.valueOf(bedLine.getEnd())).
+									    	  replaceAll("__SOURCE__",sourceType.name()).
+									    	  replaceAll("__VCF__",vcfPath)
 							    			  ;
-							    	  if(token.contains("__VCF__"))
-							    	  	{
-							    		  foundName=true;
-							    		  token=token.replaceAll("__VCF__", vcfPath);
-							    	  	}
-							    	  
+							    	 
 							    	  command.add(token);
 							      	}
-							      if(!foundName)
-							      	{
-							    	command.add(vcfPath);
-							      	}
-								
+							      
 								LOG.info(command.stream().map(S->"'"+S+"'").collect(Collectors.joining(" ")));
 								final ProcessBuilder pb = new ProcessBuilder(command);
 								pb.redirectErrorStream(true);
@@ -724,6 +717,6 @@ public class VcfLoopOverGenes extends Launcher {
 		}
 	
 	public static void main(final String[] args) {
-		new VcfLoopOverGenes().instanceMain(args);
+		new VcfLoopOverGenes().instanceMainWithExit(args);
 	}
 }

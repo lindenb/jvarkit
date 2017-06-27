@@ -248,7 +248,7 @@ public class VcfBurdenRscriptV
 						if(genotype==null) {
 							pw.close();pw=null;
 							in.close();
-							throw new IllegalStateException();
+							throw new IllegalStateException("Cannot get genotype for "+person.getId());
 						}
 						
 						mafCalculator.add(genotype,  person.isMale());

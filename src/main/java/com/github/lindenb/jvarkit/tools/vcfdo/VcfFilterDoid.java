@@ -40,8 +40,8 @@ public class VcfFilterDoid
 protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
 			try {
 			super.readDiseaseOntoglogyTree();
-			Set<DiseaseOntoglogyTree.Term> positive_terms=new HashSet<DiseaseOntoglogyTree.Term>(CHILD_OF.size());
-			for(String acn:CHILD_OF)
+			final Set<DiseaseOntoglogyTree.Term> positive_terms=new HashSet<DiseaseOntoglogyTree.Term>(CHILD_OF.size());
+			for(final String acn:CHILD_OF)
 				{
 				DiseaseOntoglogyTree.Term t=super.diseaseOntoglogyTree.getTermByAccession(acn);
 				if(t==null)
