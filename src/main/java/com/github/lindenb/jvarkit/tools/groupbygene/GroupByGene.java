@@ -37,10 +37,10 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -164,7 +164,10 @@ xmllint --> --format -<!--
 
 END_DOC
  */
-@Program(name="groupbygene",keywords={"vcf","gene"},description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff")
+@Program(
+		name="groupbygene",
+		keywords={"vcf","gene"},
+		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff")
 public class GroupByGene
 	extends Launcher
 	{
@@ -181,14 +184,14 @@ public class GroupByGene
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
-	private Set<String> sampleNames = new TreeSet<String>();
+	private final Set<String> sampleNames = new TreeSet<String>();
 	private SortingCollection<Call> sortingCollection = null;
 	
 	private static class GeneName
 		{
-		String name;
-		String type;
-		GeneName(String name,String type)
+		final String name;
+		final String type;
+		GeneName(final String name,final String type)
 			{
 			this.name=name;
 			this.type=type;
@@ -203,7 +206,7 @@ public class GroupByGene
 			return result;
 			}
 		@Override
-		public boolean equals(Object o)
+		public boolean equals(final Object o)
 			{
 			if (this == o) return true;
 			if (o == null) return false;
@@ -250,7 +253,7 @@ public class GroupByGene
 			}
 		
 		@Override
-		public Call decode(DataInputStream dis) throws IOException
+		public Call decode(final DataInputStream dis) throws IOException
 			{
 			final Call c= new Call();
 			try {
@@ -318,7 +321,7 @@ public class GroupByGene
 			s=pred.getRefSeq();
 			if(s!=null)  set.add(new GeneName(s,"vep-refseq"));
 			}
-		for(SnpEffPredictionParser.SnpEffPrediction pred: this.snpEffPredictionParser.getPredictions(ctx))
+		for(final SnpEffPredictionParser.SnpEffPrediction pred: this.snpEffPredictionParser.getPredictions(ctx))
 			{
 			String s=pred.getGeneName();
 			if(s!=null)  set.add(new GeneName(s,"snpeff-gene-name"));
@@ -334,43 +337,25 @@ public class GroupByGene
 			if(s!=null)  set.add(new GeneName(s,"ann-feature-id"));
 			}
 		
-		for(String user_gene_tag:user_gene_tags)
+		for(final String user_gene_tag:user_gene_tags)
 			{
 			if(user_gene_tag.isEmpty()) continue;
 			if(user_gene_tag.equals(".")) continue;
-			Object o=ctx.getAttribute(user_gene_tag);
-			Set<String> tag=new HashSet<String>();
-			if(o==null) 
+			for(final String t:ctx.getAttributeAsList(user_gene_tag).stream().
+					filter(O->O!=null).
+					map(O->O.toString()).
+					filter(S->!S.isEmpty()).
+					collect(Collectors.toSet())
+					)
 				{
-				//
-				}
-			else if(o.getClass().isArray())
-				{
-				for(Object o2:(Object[])o) tag.add(String.valueOf(o2));
-				}
-			else if(o instanceof java.util.Collection)
-				{
-				for(Object o2:(java.util.Collection<?>)o) tag.add(String.valueOf(o2));
-				}
-			else
-				{
-				tag.add(o.toString());
-				}
-			for(String t:tag)
-				{
-				if(t.isEmpty()) continue;
 				set.add(new GeneName(t,"user:"+user_gene_tag));
 				}
 			}
-		Iterator<GeneName> iter=set.iterator();
-		while(iter.hasNext())
-			{
-			if(iter.next().name.isEmpty()) iter.remove();
-			}
+		set.removeIf(G->G.name.isEmpty());
 		return set;
 		}
 	
-	public void addUserGeneTag(String t) {
+	public void addUserGeneTag(final String t) {
 		this.user_gene_tags.add(t);
 		}
 	
@@ -382,7 +367,7 @@ public class GroupByGene
 		PrintStream pw = openFileOrStdoutAsPrintStream(this.outFile);
 		
 		XMLStreamWriter w=null;
-		if(xml_output)
+		if(this.xml_output)
 			{
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			w= xof.createXMLStreamWriter(pw, "UTF-8");
@@ -499,7 +484,7 @@ public class GroupByGene
 						pw.print(affected.size());
 						pw.print('\t');
 						pw.print(distinctMut.size());
-						for(String sample:this.sampleNames)
+						for(final String sample:this.sampleNames)
 							{
 							pw.print('\t');
 							pw.print(sample2count.count(sample));
@@ -587,8 +572,8 @@ public class GroupByGene
 						}
 					else
 						{
-						CloserUtil.close(iter);
-						throw new RuntimeException("cannot handle multi-ploidy "+ctx);
+						LOG.warn("cannot handle multi-ploidy "+ctx);
+						continue;
 						}
 
 					this.sortingCollection.add(c);
@@ -644,10 +629,7 @@ public class GroupByGene
 			}
 		}
 
-	
-	
-	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new GroupByGene().instanceMainWithExit(args);
 		}

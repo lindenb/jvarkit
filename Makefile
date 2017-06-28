@@ -177,7 +177,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq lowresbam2raster bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	batchigvpictures	bedliftover \
-	bedrenamechr	biostar103303	biostar106668	biostar130456	biostar59647	biostar76892	biostar77288 \
+	bedrenamechr	biostar103303	biostar130456	biostar59647	biostar76892	biostar77288 \
 	biostar77828	biostar78285	biostar78400	biostar81455	biostar84452	biostar84786	biostar86363 \
 	biostar86480	biostar90204	msa2vcf	biostar95652 biostar139647	biostar145820 blast2sam reduceblast	blastmapannots \
 	blastn2snp	buildwpontology	bwamemdigest	bwamemnop	cmpbams	cmpbamsandbuild	coveragenormalizer \
@@ -271,7 +271,6 @@ $(eval $(call compile-htsjdk-cmd,batchigvpictures,${jvarkit.package}.tools.batch
 $(eval $(call compile-htsjdk-cmd,bedliftover,${jvarkit.package}.tools.liftover.BedLiftOver,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bedrenamechr,${jvarkit.package}.tools.misc.ConvertBedChromosomes,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,103303,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,106668,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,130456,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,145820,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,59647,${jcommander.jar}))

@@ -142,7 +142,7 @@ public class Biostar95652 extends Launcher
 		String locus;
 		String definition;
 		int length;
-		List<DomainRegion> domains=new ArrayList<DomainRegion>();
+		final List<DomainRegion> domains=new ArrayList<DomainRegion>();
 		
 		double pos2pix(int pos)
 			{

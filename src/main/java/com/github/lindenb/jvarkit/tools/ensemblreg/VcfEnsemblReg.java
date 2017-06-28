@@ -174,13 +174,16 @@ ojected=open_646009|InactiveRegions
 
 END_DOC
  */
-@Program(name="vcfensemblreg",
-description="Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.")
+@Program(
+	name="vcfensemblreg",
+	description="Annotate a VCF with the UCSC genome hub tracks for Ensembl Regulation.",
+	keywords={"vcf","ensembl","regulation"}
+	)
 public class VcfEnsemblReg extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfEnsemblReg.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	
@@ -448,7 +451,7 @@ public class VcfEnsemblReg extends Launcher
 		}
 		}
 	
-	private void parseTrackDB(URL url) throws IOException
+	private void parseTrackDB(final URL url) throws IOException
 		{
 		LOG.info("Parsing "+url);
 		BufferedReader r=new BufferedReader(new InputStreamReader(url.openStream(),"UTF-8"));
@@ -485,8 +488,8 @@ public class VcfEnsemblReg extends Launcher
 				continue;
 				}
 			if(track==null) track=new Track();
-			String key=line.substring(0,w).trim();
-			String val=line.substring(w+1).trim();
+			final String key=line.substring(0,w).trim();
+			final String val=line.substring(w+1).trim();
 			switch(key)
 				{
 				case "track":track.id=val;break;
@@ -504,14 +507,14 @@ public class VcfEnsemblReg extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try
 			{
 			parseTrackDB(new URL(trackDBUrl));
 			
 			return doVcfToVcf(args,outputFile);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

@@ -40,6 +40,7 @@ import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
@@ -70,6 +71,7 @@ import java.util.TreeSet;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -109,6 +111,8 @@ public class MiniCaller extends Launcher
     private File fastaFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by")
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
+	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter readFilter  = SamFilterParser.buildDefault();
 
 	
 	private SAMSequenceDictionary dictionary=null;
@@ -502,10 +506,7 @@ public class MiniCaller extends Launcher
                     {
                     rec=progress.watch(iter.next());
                     if(rec.getReadUnmappedFlag()) continue;
-                    if(rec.isSecondaryOrSupplementary()) continue;
-                    if(rec.getDuplicateReadFlag()) continue;
-                    if(rec.getMappingQuality()==0) continue;
-                    if(rec.getReadPairedFlag() && !rec.getProperPairFlag()) continue;
+                    if(this.readFilter.filterOut(rec)) continue;
                   
                     /* flush buffer if needed */
                     while(!this.buffer.isEmpty() &&
@@ -530,9 +531,9 @@ public class MiniCaller extends Launcher
                     String sampleName= this.samRecordPartition.getPartion(rec);
                     if( sampleName == null ) sampleName=samRecordPartition.name();
                     
-                    for(CigarElement ce: cigar.getCigarElements())
+                    for(final CigarElement ce: cigar.getCigarElements())
                         {
-                        CigarOperator op =ce.getOperator();
+                        final CigarOperator op =ce.getOperator();
                         switch(op)
                             {
                             case P: break;
