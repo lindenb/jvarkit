@@ -53,6 +53,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
@@ -354,6 +355,8 @@ public class VcfLoopOverGenes extends Launcher {
 					}
 				
 				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(vcfFileReader.getFileHeader());
+				progress.setLogPrefix(VcfLoopOverGenes.class.getSimpleName());
+				
 				while(iter.hasNext())
 					{
 					final VariantContext ctx = progress.watch(iter.next());
@@ -468,7 +471,11 @@ public class VcfLoopOverGenes extends Launcher {
 						}
 					}
 				archive= ArchiveFactory.open(this.outputFile);
-				PrintWriter manifest = archive.openWriter( this.prefix+"manifest.txt");
+				PrintWriter manifest =
+						this.deleteAfterCommand && !this.exec.isEmpty() ?
+						new PrintWriter(new NullOuputStream()): // all files will be deleted, no manifest needed
+						archive.openWriter( this.prefix+"manifest.txt")
+						;
 				br= IOUtils.openFileForBufferedReading(this.geneFile);
 				final BedLineCodec bedCodec =new BedLineCodec();
 				
@@ -676,7 +683,10 @@ public class VcfLoopOverGenes extends Launcher {
 							else
 								{
 								final int ret=callable.call();
-								if(ret!=0) return ret;
+								if(ret!=0) {
+									LOG.error("Error with process ("+ret+")");
+									return ret;
+									}
 								}
 								
 							}
@@ -690,12 +700,15 @@ public class VcfLoopOverGenes extends Launcher {
 					};
 				if(executorService!=null)
 					{
+					LOG.info("shutdown");
 					executorService.shutdown();
+					executorService.awaitTermination(365, TimeUnit.DAYS);
 					}
 				br.close();br=null;
 				manifest.close();
 				archive.close();
 				archive=null;
+				LOG.info("Done");
 				}
 			vcfFileReader.close();vcfFileReader=null;
 			return 0;

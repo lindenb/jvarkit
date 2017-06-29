@@ -43,7 +43,9 @@ import htsjdk.samtools.util.Interval;
 public class IntervalParser {
 	private static final Logger LOG = Logger.build(IntervalParser.class).make();
 	private static final int MAX_CONTIG_LENGTH = Integer.MAX_VALUE - 1000;
-	public static final String OPT_DESC="An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\". A program might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)" ;
+	public static final String OPT_DESC= 
+			"An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\"  or \"chrom:start-end+extend\"."
+			+ "A program might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)" ;
 	private SAMSequenceDictionary dict=null;
 	private boolean raiseExceptionOnError=true;
 	private boolean tryToFixContigName=true;
@@ -239,7 +241,11 @@ public class IntervalParser {
 		final int hyphen = s.indexOf('-',colon+1);
 		final int plus = s.indexOf('+',colon+1);
 		if(hyphen==-1 && plus==-1) return returnErrorOrNullInterval("Cannot find hyphen or plus in "+s);
-		if(hyphen!=-1 && plus!=-1) return returnErrorOrNullInterval("both hyphen and plus in "+s);
+		if(hyphen!=-1 && plus!=-1)
+			{
+			// chr1:123-+
+			if(plus <= hyphen+1) return returnErrorOrNullInterval("both hyphen and plus in "+s);
+			}
 			
 		BigInteger start=null,end=null;
 		try {
@@ -258,8 +264,24 @@ public class IntervalParser {
 				}
 			if(hyphen!=-1)
 				{
+				final BigInteger extend;
 				start = parseBigInteger(s.substring(colon+1,hyphen));
-				end = parseBigInteger(s.substring(hyphen+1));
+				
+				// chr12:345-678
+				if(plus==-1)
+					{
+					end = parseBigInteger(s.substring(hyphen+1));
+					extend = BigInteger.ZERO;
+					}
+				// chr12:345-678+10
+				else
+					{
+					end = parseBigInteger(s.substring(hyphen+1,plus));
+					extend = parseBigInteger(s.substring(plus+1));
+					}
+				start = start.subtract(extend);
+				if(start.compareTo(BigInteger.ZERO)<0) start=BigInteger.ZERO;
+				end = end.add(extend);
 				}
 			else if(plus!=-1)
 				{

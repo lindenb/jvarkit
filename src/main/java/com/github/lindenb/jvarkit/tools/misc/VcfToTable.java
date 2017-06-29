@@ -758,31 +758,34 @@ public class VcfToTable extends Launcher {
 				hds.add("Type");
 				
 				final int prefix_header_size = hds.size();
+				
 				hds.addAll(header.getFormatHeaderLines().
 						stream().
 						map(F->F.getID()).
-						collect(Collectors.toList()));
+						collect(Collectors.toList())
+						);
 				final Table t=new Table(hds).setCaption("Genotypes");
-				String tokens[]=tab.split(this.vcfEncoder.encode(vc));
+				final String tokens[]=tab.split(this.vcfEncoder.encode(vc));
 				final List<String> formats=Arrays.asList(colon.split(tokens[8]));
 				for(int i=0;i< vc.getNSamples();i++)
 					{
 					final Genotype g=vc.getGenotype(i);
 					if(this.hideHomRefGenotypes && g.isHomRef()) continue;
 					if(this.hideNoCallGenotypes && g.isNoCall()) continue;
+					
 					final List<String> gstr =Arrays.asList(colon.split(tokens[9+i]));
 					final List<Object> r= new ArrayList<>(hds.size());
 					r.add(g.getSampleName());
 					r.add(g.getType().name());
 					for(int j=prefix_header_size;j< hds.size();++j)
 						{
-						int x=formats.indexOf(hds.get(j));
-						if( x==-1 || x>=gstr.size()) {
+						int indexInFORMAT = formats.indexOf(hds.get(j));
+						if( indexInFORMAT==-1 || indexInFORMAT>=gstr.size()) {
 							r.add(null);
 							}
 						else
 							{
-							r.add(gstr.get(x));
+							r.add(gstr.get(indexInFORMAT));
 							}
 						}
 					t.addList(r);
