@@ -53,6 +53,26 @@ public class ReadClipper
 		return programGroup;
 	}
 	
+	
+	private static class BaseOp
+		{
+		CigarOperator op;
+		final int refPos;
+		BaseOp(final CigarOperator op,final int refPos)
+			{ 
+			this.op= op;
+			this.refPos = refPos;
+			}
+		boolean isMatch()
+			{
+			switch(op)
+				{
+				case EQ: case M: return true;
+				default: return false;
+				}
+			}		
+		}
+	
 	public SAMRecord clip(final SAMRecord rec,final Interval fragment)
 		{
 		if(rec.getReadUnmappedFlag())
@@ -76,128 +96,67 @@ public class ReadClipper
 			}
 
 		
-		int newStart = rec.getAlignmentStart();
 		Cigar cigar = rec.getCigar();
 		if(cigar==null)
 			{
 			LOG.warning("cigar missing in "+rec);
 			return rec;
 			}
-		final List<CigarOperator> operators = new ArrayList<>(
+		final List<BaseOp> bases = new ArrayList<>(
 				cigar.getCigarElements().stream().
 				mapToInt(C->C.getLength()).sum()
 				);
 		//expand cigar	
+		int refPos= rec.getUnclippedStart();
 		for(final CigarElement ce:cigar.getCigarElements())
 			{
 			final CigarOperator op = ce.getOperator();
+			if(op.equals(CigarOperator.P)) continue;
 			for(int x=0;x < ce.getLength();++x)
 				{
-				operators.add(op);
-				}
-			}
-		
-		/* 5' side */				
-		if(rec.getAlignmentStart() < fragment.getStart())
-			{
-			int operator_index =0;
-			newStart = fragment.getStart();
-			int refPos1 = rec.getUnclippedStart();
-			
-			while(	operator_index < operators.size() &&
-					refPos1 <  fragment.getStart())
-				{
-				final CigarOperator op = operators.get(operator_index);
+				bases.add(new BaseOp(op,
+					op.consumesReferenceBases() || op.isClipping()? refPos:-1
+					));
+				
 				if(op.consumesReferenceBases() || op.isClipping())
 					{
-					refPos1++;
-					}
-				if(op.consumesReadBases())
-					{
-					operators.set(operator_index, CigarOperator.S);
-					}
-				operator_index++;
-				}
-			//shouln't start with a problem
-			while(operator_index < operators.size())
-				{
-				final CigarOperator op = operators.get(operator_index);
-				if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
-					{
-					break;
-					}
-				if(op.consumesReadBases())//insertion...
-					{
-					operators.set(operator_index, CigarOperator.S);
-					newStart++;
-					}
-				operator_index++;
-				}
-			int x=0;
-			int y=0;
-			for(x=0;x< operator_index;++x)
-				{
-				final CigarOperator op = operators.get(y);
-				if(!op.isClipping())
-					{
-					operators.remove(y);
-					}
-				else
-					{
-					++y;
+					refPos++;
 					}
 				}
-			
 			}
-
 		
-		/* 3' side */				
-		if(rec.getAlignmentEnd() > fragment.getEnd())
+		/* 5' side */	
+		int newStart = rec.getAlignmentStart();			
+		int x=0;
+		while(x<bases.size())
 			{
-			int operator_index = operators.size()-1;
-			int refPos1 = rec.getUnclippedEnd();
-
-			while(operator_index >=0 &&
-				refPos1 > fragment.getEnd())
+			final BaseOp b = bases.get(x);
+			if(b.refPos!=-1 && b.isMatch() && b.refPos>=fragment.getStart())
 				{
-				final CigarOperator op = operators.get(operator_index);
-				if(op.consumesReferenceBases() )
-					{
-					refPos1--;
-					}
-				if(op.consumesReadBases())
-					{
-					operators.set(operator_index, CigarOperator.S);
-					}
-				operator_index--;
+				newStart=b.refPos;
+				break;
 				}
-			
-			//shouln't end with a problem
-			while(operator_index >=0 )
+			if(!b.op.isClipping())
 				{
-				final CigarOperator op = operators.get(operator_index);
-				if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
-					{
-					break;
-					}
-				if(op.consumesReadBases())//insertion...
-					{
-					operators.set(operator_index, CigarOperator.S);
-					}
-				operator_index--;
+				b.op=CigarOperator.S;
 				}
-			int y = operators.size()-1;
-			final int len = (operators.size()-1) - operator_index;
-			for(int x=0;x< len;++x)
+			++x;
+			}
+		
+		/* 3' sid */
+		x = bases.size()-1;
+		while(x>=0)
+			{
+			final BaseOp b = bases.get(x);
+			if(b.refPos!=-1 && b.isMatch() && b.refPos<=fragment.getEnd())
 				{
-				final CigarOperator op = operators.get(y);
-				if(!(op.equals(CigarOperator.S) || op.equals(CigarOperator.H)))
-					{
-					operators.remove(y);
-					}
-				--y;
+				break;
 				}
-			
+			if(!b.op.isClipping())
+				{
+				b.op=CigarOperator.S;
+				}
+			--x;
 			}
 		
 		
@@ -205,21 +164,21 @@ public class ReadClipper
 		//build new cigar
 		boolean found_M=false;
 		List<CigarElement> newcigarlist=new ArrayList<>();
-		int c1 = 0;
-		while(c1 < operators.size())
+		x = 0;
+		while(x < bases.size())
 			{
-			CigarOperator op =  operators.get(c1);
+			final CigarOperator op =  bases.get(x).op;
 			if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
 				{
 				found_M=true;
 				}
-			int c2=c1;
-			while(c2< operators.size() && op.equals(operators.get(c2)))
+			int x2=x;
+			while(x2< bases.size() && op.equals(bases.get(x2).op))
 				{
-				++c2;
+				++x2;
 				}
-			newcigarlist.add(new CigarElement(c2-c1,op));
-			c1=c2;
+			newcigarlist.add(new CigarElement(x2-x,op));
+			x=x2;
 			}
 		
 		if(!found_M)
@@ -227,7 +186,7 @@ public class ReadClipper
 			SAMUtils.makeReadUnmappedWithOriginalTags(rec);
 			if(this.programGroup!=null) {
 				rec.setAttribute("PG",programGroup);
-			}
+				}
 			return rec;
 			}
 		cigar = new Cigar(newcigarlist);				
