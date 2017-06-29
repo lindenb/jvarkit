@@ -266,7 +266,7 @@ public class Sam2Tsv
 	@Parameter(names={"-A","--printAlignments"},description="Print Alignments")
 	private boolean printAlignment = false;
 
-	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File refFile = null;
 	
 	
@@ -292,7 +292,11 @@ public class Sam2Tsv
 		
 		public char getRefBase()
 			{
-			if(refPos>=1 && refPos<= genomicSequence.length())
+			if(Sam2Tsv.this.genomicSequence==null)
+				{
+				return 'N';
+				}
+			else if(refPos>=1 && refPos<= genomicSequence.length())
  				{
 				return genomicSequence.charAt(refPos-1);
  				}
@@ -432,10 +436,12 @@ public class Sam2Tsv
 		row.readbases = fixReadBases.toString().getBytes();
 		row.readQuals = fixReadQuals.toString().getBytes();
 
-		
-		if(genomicSequence==null || !genomicSequence.getChrom().equals(rec.getReferenceName()))
+		if(this.indexedFastaSequenceFile!=null)
 			{
-			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, rec.getReferenceName());
+			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(rec.getReferenceName()))
+				{
+				this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, rec.getReferenceName());
+				}
 			}
 		
 
@@ -576,12 +582,7 @@ public class Sam2Tsv
 			}
 		}
 	@Override
-	public int doWork(List<String> args) {
-		if(this.refFile==null)
-			{
-			LOG.error("reference.undefined");
-			return -1;
-			}
+	public int doWork(final List<String> args) {
 		
 		if(printAlignment)
 			{
@@ -593,16 +594,18 @@ public class Sam2Tsv
 		SamReader samFileReader=null;
 		try
 			{
-			
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
-			out  =  openFileOrStdoutAsPrintWriter(outputFile);
-			out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
+			if(refFile!=null)
+				{
+				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+				}
+			this.out  =  openFileOrStdoutAsPrintWriter(outputFile);
+			this.out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
 			samFileReader= openSamReader(oneFileOrNull(args));
 			
 			scan(samFileReader);
 			samFileReader.close();
 			samFileReader = null;
-			this.out.flush();
+			this.out.flush();this.out.close();this.out=null;
 			return RETURN_OK;
 			}
 		catch (final Exception e)
@@ -612,7 +615,7 @@ public class Sam2Tsv
 			}
 		finally
 			{
-			CloserUtil.close(indexedFastaSequenceFile);
+			CloserUtil.close(this.indexedFastaSequenceFile);
 			CloserUtil.close(samFileReader);
 			CloserUtil.close(out);
 			L1=null;

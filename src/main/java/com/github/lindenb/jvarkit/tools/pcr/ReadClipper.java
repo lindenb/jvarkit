@@ -83,7 +83,10 @@ public class ReadClipper
 			LOG.warning("cigar missing in "+rec);
 			return rec;
 			}
-		final List<CigarOperator> operators = new ArrayList<>(200);
+		final List<CigarOperator> operators = new ArrayList<>(
+				cigar.getCigarElements().stream().
+				mapToInt(C->C.getLength()).sum()
+				);
 		//expand cigar	
 		for(final CigarElement ce:cigar.getCigarElements())
 			{
@@ -102,10 +105,10 @@ public class ReadClipper
 			int refPos1 = rec.getUnclippedStart();
 			
 			while(	operator_index < operators.size() &&
-					refPos1< fragment.getStart())
+					refPos1 <  fragment.getStart())
 				{
 				final CigarOperator op = operators.get(operator_index);
-				if(op.consumesReferenceBases() )
+				if(op.consumesReferenceBases() || op.isClipping())
 					{
 					refPos1++;
 					}
@@ -118,7 +121,7 @@ public class ReadClipper
 			//shouln't start with a problem
 			while(operator_index < operators.size())
 				{
-				CigarOperator op = operators.get(operator_index);
+				final CigarOperator op = operators.get(operator_index);
 				if(op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ))
 					{
 					break;
@@ -135,7 +138,7 @@ public class ReadClipper
 			for(x=0;x< operator_index;++x)
 				{
 				final CigarOperator op = operators.get(y);
-				if(!(op.equals(CigarOperator.S) || op.equals(CigarOperator.H)))
+				if(!op.isClipping())
 					{
 					operators.remove(y);
 					}

@@ -18,7 +18,7 @@ Usage: sam2tsv [options] Files
     -A, --printAlignments
       Print Alignments
       Default: false
-  * -r, -R, --reference
+    -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     --version

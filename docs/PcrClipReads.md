@@ -11,7 +11,7 @@ Usage: pcrclipreads [options] Files
     --bamcompression
       Compression Level.
       Default: 5
-    -B, --bed
+  * -B, --bed
       Bed file containing non-overlapping PCR fragments
     -flag, --flag
       Only run on reads having sam flag (flag). -1 = all reads. (as 

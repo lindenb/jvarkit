@@ -33,8 +33,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
-
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
@@ -145,6 +143,8 @@ END_DOC
 */
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -223,7 +223,7 @@ public class PcrClipReads extends Launcher
 	private File outputFile = null;
 
 
-	@Parameter(names={"-B","--bed"},description="Bed file containing non-overlapping PCR fragments")
+	@Parameter(names={"-B","--bed"},description="Bed file containing non-overlapping PCR fragments",required=true)
 	private File bedFile = null;
 
 	@Parameter(names={"-flag","--flag"},description="Only run on reads having sam flag (flag). -1 = all reads. (as https://github.com/lindenb/jvarkit/issues/43)")
@@ -365,7 +365,7 @@ public class PcrClipReads extends Launcher
 			}
 		}
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(this.bedFile==null)
 			{
 			LOG.error("undefined bed file ");
@@ -377,26 +377,19 @@ public class PcrClipReads extends Launcher
 			final String inputName = oneFileOrNull(args);
 			samReader = openSamReader(inputName);
 			LOG.info("reading bed File "+this.bedFile);
-			final Pattern tab= Pattern.compile("[\t]");
 			r= IOUtils.openFileForBufferedReading(this.bedFile);
 			String line;
+			final BedLineCodec codec = new BedLineCodec();
 			while((line=r.readLine())!=null)
 				{
-				String tokens[]=tab.split(line);
-				if(tokens.length<3)
+				final BedLine bedLine = codec.decode(line);
+				if(bedLine==null)
 					{
-					LOG.error("Bad bed line "+line);
-					return -1;
+					LOG.warn("Ignoring bed line "+line);
+					continue;
 					}
-				String chrom = tokens[0];
-				int chromStart1 = Integer.parseInt(tokens[1])+1;
-				int chromEnd1 = Integer.parseInt(tokens[2])+0;
-				if(chromStart1<1 || chromStart1>chromEnd1)
-					{
-					LOG.error("Bad bed line "+line);
-					return -1;
-					}
-				Interval i =new Interval(chrom, chromStart1, chromEnd1);
+				
+				final Interval i = bedLine.toInterval();
 				this.bedIntervals.put(i, i);
 				}
 			
@@ -404,7 +397,7 @@ public class PcrClipReads extends Launcher
 			
 			return run(samReader);
 			}
-		catch (Exception err) {
+		catch (final Exception err) {
 			LOG.error(err);
 			return -1;
 			}
