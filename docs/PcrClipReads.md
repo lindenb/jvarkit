@@ -30,7 +30,7 @@ Usage: pcrclipreads [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -pr, --programId
-      add a program ID to the clipped SAM records
+      add a program group PG to the clipped SAM records
       Default: false
     --samoutputformat
       Sam output format.
@@ -210,15 +210,17 @@ AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCAC
 * mapping quality is set to zero if no PCR fragment is found
 * after processing the BAM file should be sorted, processed with samtools calmd and picard fixmate
 
+Warning: 
+After processing with this tool, many meta-data like 'NM', position of the Mate, distance with the Mate will be wrong.
 
 ## Example
 
 
 ```bash
 echo  "seq2\t1100\t1200" > test.bed
-java -jar dist-1.133/pcrclipreads.jar -B test.bed -b  samtools-0.1.19/examples/ex1.bam  |\
-	samtools  view -q 1 -F 4 -bu  -  |\
-	samtools  sort - clipped && samtools index clipped.bam
+java -jar dist/pcrclipreads.jar -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
+	samtools  view -q 1 -F 4 -Sbu  -  |\
+	samtools  sort -o clipped.bam -  && samtools index clipped.bam
 
 samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
 ```
@@ -253,6 +255,9 @@ AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCAC
                                                                                                                  .
 ```
 
+## History
+
+ * 20170630 : rewritten after [https://github.com/lindenb/jvarkit/issues/81](https://github.com/lindenb/jvarkit/issues/81)
 
 
 

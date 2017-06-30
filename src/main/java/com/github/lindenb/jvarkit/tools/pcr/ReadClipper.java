@@ -44,7 +44,6 @@ public class ReadClipper
 	{
 	private static final Logger LOG=Logger.build(ReadClipper.class).make();
 	private String programGroup = null;
-	
 	public void setProgramGroup(final String programGroup) {
 		this.programGroup = programGroup;
 	}
@@ -71,6 +70,14 @@ public class ReadClipper
 				default: return false;
 				}
 			}		
+		boolean isDeletion()
+			{
+			switch(op)
+				{
+				case D: case I: return true;
+				default: return false;
+				}
+			}
 		}
 	
 	public SAMRecord clip(final SAMRecord rec,final Interval fragment)
@@ -136,14 +143,23 @@ public class ReadClipper
 				newStart=b.refPos;
 				break;
 				}
-			if(!b.op.isClipping())
+			else if(b.isDeletion())
+				{
+				bases.remove(x);
+				continue;
+				}
+			else if(!b.op.isClipping())
 				{
 				b.op=CigarOperator.S;
+				++x;
 				}
-			++x;
+			else
+				{
+				++x;
+				}
 			}
 		
-		/* 3' sid */
+		/* 3' side */
 		x = bases.size()-1;
 		while(x>=0)
 			{
@@ -152,18 +168,27 @@ public class ReadClipper
 				{
 				break;
 				}
-			if(!b.op.isClipping())
+			else if(b.isDeletion())
+				{
+				bases.remove(x);
+				--x;
+				continue;
+				}
+			else if(!b.op.isClipping())
 				{
 				b.op=CigarOperator.S;
+				--x;
 				}
-			--x;
+			else
+				{
+				--x;
+				}
 			}
-		
 		
 		
 		//build new cigar
 		boolean found_M=false;
-		List<CigarElement> newcigarlist=new ArrayList<>();
+		final List<CigarElement> newcigarlist=new ArrayList<>();
 		x = 0;
 		while(x < bases.size())
 			{

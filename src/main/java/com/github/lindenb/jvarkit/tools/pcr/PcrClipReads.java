@@ -33,16 +33,20 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.StringUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -161,15 +165,17 @@ BEGIN_DOC
 * mapping quality is set to zero if no PCR fragment is found
 * after processing the BAM file should be sorted, processed with samtools calmd and picard fixmate
 
+Warning: 
+After processing with this tool, many meta-data like 'NM', position of the Mate, distance with the Mate will be wrong.
 
 ## Example
 
 
 ```bash
 echo  "seq2\t1100\t1200" > test.bed
-java -jar dist-1.133/pcrclipreads.jar -B test.bed -b  samtools-0.1.19/examples/ex1.bam  |\
-	samtools  view -q 1 -F 4 -bu  -  |\
-	samtools  sort - clipped && samtools index clipped.bam
+java -jar dist/pcrclipreads.jar -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
+	samtools  view -q 1 -F 4 -Sbu  -  |\
+	samtools  sort -o clipped.bam -  && samtools index clipped.bam
 
 samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
 ```
@@ -204,6 +210,9 @@ AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCAC
                                                                                                                  .
 ```
 
+## History
+
+ * 20170630 : rewritten after [https://github.com/lindenb/jvarkit/issues/81](https://github.com/lindenb/jvarkit/issues/81)
 
 
 END_DOC
@@ -232,8 +241,8 @@ public class PcrClipReads extends Launcher
 	@Parameter(names={"-largest","--largest"},description="see if a read overlaps two bed intervals use the bed region sharing the longest sequence with a read. see https://github.com/lindenb/jvarkit/issues/44")
 	private boolean chooseLargestOverlap = false;
 
-	@Parameter(names={"-pr","--programId"},description="add a program ID to the clipped SAM records")
-	private boolean addProgramId = false;
+	@Parameter(names={"-pr","--programId"},description="add a program group PG to the clipped SAM records")
+	private boolean programId = false;
 
 	
 	@ParametersDelegate
@@ -279,11 +288,12 @@ public class PcrClipReads extends Launcher
 		final SAMFileHeader header1= reader.getFileHeader();
 		final SAMFileHeader header2 = header1.clone();
 		Optional<SAMProgramRecord> samProgramRecord = Optional.empty();
-		if(this.addProgramId) {
+		if(this.programId) {
 			final SAMProgramRecord spr = header2.createProgramRecord();
 			samProgramRecord = Optional.of(spr);
-			spr.setProgramName(this.getProgramName());
+			spr.setProgramName(PcrClipReads.class.getSimpleName());
 			spr.setProgramVersion(this.getGitHash());
+			spr.setCommandLine(getProgramCommandLine().replace('\t', ' '));
 			}
 		header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
@@ -293,7 +303,7 @@ public class PcrClipReads extends Launcher
 			{
 			sw = this.writingBamArgs.openSAMFileWriter(outputFile,header2, false);
 			
-			final SAMSequenceDictionaryProgress progress =new SAMSequenceDictionaryProgress(header1);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header1);
 			iter =  reader.iterator();
 			while(iter.hasNext())
 				{
@@ -353,7 +363,7 @@ public class PcrClipReads extends Launcher
 			progress.finish();
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -376,6 +386,14 @@ public class PcrClipReads extends Launcher
 		try {
 			final String inputName = oneFileOrNull(args);
 			samReader = openSamReader(inputName);
+			final SAMFileHeader header = samReader.getFileHeader();
+			if(header==null)
+				{
+				LOG.error("No SAM header in input");
+				return -1;
+				}
+			final SAMSequenceDictionary dict = header.getSequenceDictionary();
+		
 			LOG.info("reading bed File "+this.bedFile);
 			r= IOUtils.openFileForBufferedReading(this.bedFile);
 			String line;
@@ -389,10 +407,19 @@ public class PcrClipReads extends Launcher
 					continue;
 					}
 				
+				if(dict!=null)
+					{
+					if(dict.getSequenceIndex(bedLine.getContig())==-1) {
+						LOG.warn("unknown contig in "+bedLine+". Available are "+
+								dict.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(", ")) +
+								". Skipping.");
+						continue;
+						}
+					}
+				
 				final Interval i = bedLine.toInterval();
 				this.bedIntervals.put(i, i);
 				}
-			
 			CloserUtil.close(r);r=null;
 			
 			return run(samReader);
