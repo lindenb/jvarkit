@@ -242,6 +242,10 @@ public class VcfStats extends Launcher
 	private RangeOfIntegers distanceTranches =new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,100,200,300,400,500,1000);
 	@Parameter(names={"-so","--soterms"},description="Sequence ontology Accession to observe. VCF must be annotated with SNPEFF or VEP. e.g: \"SO:0001818\" (protein altering variant) \"SO:0001819\" (synonymouse variant)")
 	private Set<String> sequenceOntologyTermsStr=new HashSet<>();
+	@Parameter(names={"--disableMAFPlot"},description="Disable MAF plot")
+	private boolean disableMAFPlot=false;
+	@Parameter(names={"--disableGTConcordance"},description="Disable Plot Sample vs Sample Genotypes")
+	private boolean disableGenotypeConcordance=false;
 	
 	private ArchiveFactory archiveFactory=null;
 	
@@ -529,12 +533,14 @@ public class VcfStats extends Launcher
 						collect(Collectors.toSet())
 						;
 			// genotype concordance
-			final List<String> samples = header.getGenotypeSamples();
-			for(int x=0;x +1 < samples.size();++x)
-				{
-				for(int y= x +1; y < samples.size();++y)
+			if(!VcfStats.this.disableGenotypeConcordance) {
+				final List<String> samples = header.getGenotypeSamples();
+				for(int x=0;x +1 < samples.size();++x)
 					{
-					this.genotypeConcordance.initializeIfNotExists(new SamplePair(samples.get(x),samples.get(y)));
+					for(int y= x +1; y < samples.size();++y)
+						{
+						this.genotypeConcordance.initializeIfNotExists(new SamplePair(samples.get(x),samples.get(y)));
+						}
 					}
 				}
 			}
@@ -592,7 +598,7 @@ public class VcfStats extends Launcher
 			
 			
 			/* can we compute the MAF ? we need (non)affected samples*/
-			if(!(alternates.isEmpty() || this.unaffectedSamples.isEmpty() || this.affectedSamples.isEmpty()))
+			if(!VcfStats.this.disableMAFPlot && !(alternates.isEmpty() || this.unaffectedSamples.isEmpty() || this.affectedSamples.isEmpty()))
 				{
 				for(int alt_idx=0;alt_idx < alternates.size();++alt_idx) {
 					final Allele alt = alternates.get(alt_idx);
@@ -680,19 +686,21 @@ public class VcfStats extends Launcher
 			this.countAltAlleles.incr(VcfStats.this.altTranches.getRange(alternates.size()));
 			
 			// genotype concordance
-			for(int x=0;x < ctx.getNSamples();++x)
-				{
-				final Genotype g1 = ctx.getGenotype(x);
-				for(int y= x ; y < ctx.getNSamples();++y)
+
+			if(!VcfStats.this.disableGenotypeConcordance) {
+				for(int x=0;x < ctx.getNSamples();++x)
 					{
-					final Genotype g2 = ctx.getGenotype(y);
-					if(g1.sameGenotype(g2) && !(g1.isNoCall() || g2.isNoCall()))
+					final Genotype g1 = ctx.getGenotype(x);
+					for(int y= x ; y < ctx.getNSamples();++y)
 						{
-						this.genotypeConcordance.incr(new SamplePair(g1.getSampleName(), g2.getSampleName()));
+						final Genotype g2 = ctx.getGenotype(y);
+						if(g1.sameGenotype(g2) && !(g1.isNoCall() || g2.isNoCall()))
+							{
+							this.genotypeConcordance.incr(new SamplePair(g1.getSampleName(), g2.getSampleName()));
+							}
 						}
 					}
 				}
-			
 			
 			}
 		private String toTsv(final String filename)
@@ -1285,7 +1293,7 @@ public class VcfStats extends Launcher
 
 				}
 			
-			if(!this.genotypeConcordance.isEmpty())
+			if(!VcfStats.this.disableGenotypeConcordance && !this.genotypeConcordance.isEmpty())
 				{
 				final String filename = toTsv("gtConcordance");
 				final PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);

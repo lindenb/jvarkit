@@ -38,7 +38,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -115,8 +114,6 @@ See also: http://picard.sourceforge.net/explain-flags.html
 ### Example
 
 
-
-
 ```
 $  java -jar dist/bamstats01.jar \
 		IN=my.bam \
@@ -128,11 +125,6 @@ my.bam	Sample	1617984	1617984	3966	1614018	1407862	806964	807054	1614018	56980	0
 (...)
 
 ```
-
-
-
-
-
 
 
 END_DOC

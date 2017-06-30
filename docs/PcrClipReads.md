@@ -53,6 +53,7 @@ Usage: pcrclipreads [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/147136](https://www.biostars.org/p/147136)
+ * [https://www.biostars.org/p/178308](https://www.biostars.org/p/178308)
 
 
 ## Compilation
@@ -126,27 +127,18 @@ The current reference is:
 after processing the BAM file should be sorted, processed with samtools calmd and picard fixmate
 
 
-
-
 ### Example
 
 
-
-
-
 ```
-
 echo  "seq2\t1100\t1200" > test.bed
-java -jar dist-1.133/pcrclipreads.jar -B test.bed -b  samtools-0.1.19/examples/ex1.bam  |\
-	samtools  view -q 1 -F 4 -bu  -  |\
-	samtools  sort - clipped && samtools index clipped.bam
+java -jar dist/pcrclipreads.jar -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
+	samtools  view -q 1 -F 4 -Sbu  -  |\
+	samtools  sort -o clipped.bam -  && samtools index clipped.bam
 
 samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
 
-
 ```
-
-
 
 
 ### output
@@ -156,7 +148,6 @@ samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
 
 
 
-
 ```
 
     1091      1101      1111      1121      1131      1141      1151      1161      1171      1181      1191
@@ -188,76 +179,11 @@ AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCAC
 
 
 
-
-
-### See also
-
-
- *  https://www.biostars.org/p/147136/
- *  https://www.biostars.org/p/178308
-
-
-
-
-
-
-## Motivation
-
- Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/
-
-* mapping quality is set to zero if a read on strand - overlap the 5' side of the PCR fragment
-* mapping quality is set to zero if a read on strand + overlap the 3' side of the PCR fragment
-* mapping quality is set to zero if no PCR fragment is found
-* after processing the BAM file should be sorted, processed with samtools calmd and picard fixmate
-
-Warning: 
-After processing with this tool, many meta-data like 'NM', position of the Mate, distance with the Mate will be wrong.
-
-## Example
-
-
-```bash
-echo  "seq2\t1100\t1200" > test.bed
-java -jar dist/pcrclipreads.jar -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
-	samtools  view -q 1 -F 4 -Sbu  -  |\
-	samtools  sort -o clipped.bam -  && samtools index clipped.bam
-
-samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
-```
-output:
-
-![http://i.imgur.com/bjDEnMW.jpg](http://i.imgur.com/bjDEnMW.jpg)
-
-```
-    1091      1101      1111      1121      1131      1141      1151      1161      1171      1181      1191
-AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCACCTAACACAAGACTACCCAGATTCATAAAACAAATNNNNN
-              ...................................                               ..................................
-              ,,,                                                               ..................................
-              ,,,,,                                                              .................................
-              ,,,,,,,,,,,                                                        .............................N...
-              ,,,,,,,,                                                             ...............................
-              ,,g,,,,,,,,,,,,,                                                        ............................
-              ,,,,,,,,,,,,,,,,,,,,                                                    ............................
-              ,,,,,,,,,,,,,,,,,,,                                                       ..........................
-              ,,,,,,,,,,,,,,,,,,,,,,                                                    ..........................
-              ,,,,,,,,,,,,,,,,,,,,,,,                                                       ......................
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ..................
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ..................
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                       .................
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                       ................
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                        ...............
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                         ............
-              ,,,,,,,,,,,,a,,,,,,,,,,,,,,,,,,,                                                             .......
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                            ......
-              ,,a,,,a,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                              ....
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                             ....
-              ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,                                                                .
-                                                                                                                 .
-```
 
 ## History
 
  * 20170630 : rewritten after [https://github.com/lindenb/jvarkit/issues/81](https://github.com/lindenb/jvarkit/issues/81)
+
 
 
 

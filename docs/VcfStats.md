@@ -8,6 +8,12 @@ Produce VCF statitics
 ```
 Usage: vcfstats [options] Files
   Options:
+    --disableGTConcordance
+      Disable Plot Sample vs Sample Genotypes
+      Default: false
+    --disableMAFPlot
+      Disable MAF plot
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
