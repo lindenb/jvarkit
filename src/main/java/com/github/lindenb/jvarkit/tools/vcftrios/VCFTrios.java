@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -150,6 +151,8 @@ public class VCFTrios
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
+	@Parameter(names={"--discard"},description="Discard variants without mendelian incompatibilities")
+	private boolean discard_variants_without_mendelian_incompat=false;
 	
 	private Pedigree pedigree=null;
 	
@@ -161,12 +164,9 @@ public class VCFTrios
     	{
     	if(!g.isCalled()) return g.getSampleName()+" not called";
     	if(!g.isAvailable()) return g.getSampleName()+" not available";
-    	String s=g.getSampleName()+":";
-    	for(final Allele a:g.getAlleles())
-    		{
-    		s+= " "+a.getDisplayString();
-    		}
-    	return s;
+    	return g.getSampleName()+":"+g.getAlleles().
+    			stream().map(A->A.getDisplayString()).
+    			collect(Collectors.joining(" "));
     	}
     
 	
@@ -235,10 +235,10 @@ public class VCFTrios
 		
 		addMetaData(h2);
 
-		if( filterName!=null && !filterName.trim().isEmpty()) {
+		if(!StringUtil.isBlank(this.filterName)) {
 			h2.addMetaDataLine(new VCFFilterHeaderLine(filterName, "data filtered with VCFTrios"));
 		}
-		if(genotypeFilterName!=null && !genotypeFilterName.trim().isEmpty())
+		if(!StringUtil.isBlank(this.genotypeFilterName))
 			{
 			h2.addMetaDataLine(new VCFFormatHeaderLine(
 					genotypeFilterName,1,
@@ -284,7 +284,8 @@ public class VCFTrios
 			final VariantContext ctx= progress.watch(r.next());
 			
 			final VariantContextBuilder vcb= new VariantContextBuilder(ctx);
-			final Map<String,Genotype> sample2genotype = new HashMap<>( ctx.getGenotypes().stream().
+			final Map<String,Genotype> sample2genotype = new HashMap<>( 
+					ctx.getGenotypes().stream().
 					collect(Collectors.toMap(G->G.getSampleName(), G->G)));
 			
 						
@@ -374,6 +375,7 @@ public class VCFTrios
 				}
 			else
 				{
+				if(this.discard_variants_without_mendelian_incompat) continue;
 				if( filterName!=null && this.inverseFilter) vcb.filter(filterName);
 				}
 			w.add(vcb.make());
@@ -394,6 +396,12 @@ public class VCFTrios
 			LOG.error("Pedigree undefined.");
 			return -1;
 			}
+		if(this.discard_variants_without_mendelian_incompat && this.inverseFilter)
+			{
+			LOG.error("Cannot inverse filter and discard variants without problem at the same time");
+			return -1;
+			}
+		
 		BufferedReader in = null;
 		try {
 			LOG.info("reading pedigree "+this.pedigreeFile);

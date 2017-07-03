@@ -103,7 +103,7 @@ public class VcfCompareCallersOneSample
 	{
 	private static final Logger LOG = Logger.build(VcfCompareCallersOneSample.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names="-f",description="VCF to be challenged.  Must be sorted on dict. Must contain a dict.")

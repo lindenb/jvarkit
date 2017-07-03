@@ -11,6 +11,9 @@ Usage: vcftrio [options] Files
     -A, --attribute
       INFO Attribute name
       Default: MENDEL
+    --discard
+      Discard variants without mendelian incompatibilities
+      Default: false
     -f, --filter
       filter name. create a filter in the FILTER column
     -gf, --gfilter
