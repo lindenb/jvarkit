@@ -136,8 +136,6 @@ See also: http://picard.sourceforge.net/explain-flags.html
 ### Example
 
 
-
-
 ```
 $  java -jar dist/bamstats01.jar \
 		IN=my.bam \
@@ -149,11 +147,6 @@ my.bam	Sample	1617984	1617984	3966	1614018	1407862	806964	807054	1614018	56980	0
 (...)
 
 ```
-
-
-
-
-
 
 
 

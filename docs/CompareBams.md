@@ -32,8 +32,8 @@ Usage: cmpbams [options] Files
       Output file. Optional . Default: stdout
     -r, --region
       An interval as the following syntax : "chrom:start-end" or 
-      "chrom:middle+extend". A program might use a Reference sequence to fix 
-      the chromosome name (e.g: 1->chr1)
+      "chrom:middle+extend"  or "chrom:start-end+extend".A program might use a 
+      Reference sequence to fix the chromosome name (e.g: 1->chr1)
       Default: <empty string>
     -F, --sam
       use sam flag for comparaison

@@ -62,8 +62,9 @@ Usage: lowresbam2raster [options] Files
       faidx and with picard CreateSequenceDictionary
   * -r, --region
       Restrict to that region. An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend". A program might use a 
-      Reference sequence to fix the chromosome name (e.g: 1->chr1)
+      "chrom:start-end" or "chrom:middle+extend"  or 
+      "chrom:start-end+extend".A program might use a Reference sequence to fix 
+      the chromosome name (e.g: 1->chr1)
     -srf, --samRecordFilter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
