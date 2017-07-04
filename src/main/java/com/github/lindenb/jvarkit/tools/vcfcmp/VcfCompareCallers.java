@@ -65,6 +65,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.vcf.VCFHeader;
 
 /**
@@ -132,13 +133,23 @@ public class VcfCompareCallers
 	private boolean noCallIsHomRef = false;
 
 	
-	@Parameter(names={"-vcf1","--vcf1"},description="descriptive name for VCF1")
+	@Parameter(names={"-vcf1","--vcf1"},description="short descriptive name for VCF1")
 	private String vcf1Name = "VCF1";
-	@Parameter(names={"-vcf2","--vcf2"},description="descriptive name for VCF2")
+	@Parameter(names={"-vcf2","--vcf2"},description="short descriptive name for VCF2")
 	private String vcf2Name = "VCF2";
 	@Parameter(names={"--collapseGenotypeType"},description="collapse Genotype Type. Just show Same Genotype or Discordant, don't print the type of genotype.")
 	private boolean collapseGenotypeType = false;
+	@Parameter(names={"--jexl1"},description="An optional list of GATK-like JEXL expressions to filter the variants from VCF File 1")
+	private List<String> jexlExprStrings1 = new ArrayList<>();
+	@Parameter(names={"--jexl2"},description="An optional list of GATK-like JEXL expressions to filter the variants from VCF File 2")
+	private List<String> jexlExprStrings2 = new ArrayList<>();
+	
 
+	// https://stackoverflow.com/questions/13655048/
+	private static final String escapeUnderscore(final String s)
+		{
+		return s.replace('_', '-');
+		}
 	
 	private class SampleCategory
 		{
@@ -166,12 +177,11 @@ public class VcfCompareCallers
 				{
 				if(g1.sameGenotype(g2))
 					{
-					
-					counter.incr("Same"+(collapseGenotypeType?"":" "+g1.getType().name()));
+					counter.incr(collapseGenotypeType?"Same":" "+g1.getType().name());
 					}
 				else
 					{
-					counter.incr("Discordant"+(collapseGenotypeType?"":" "+vcf1Name+" "+g1.getType().name()+ " -> "+g2.getType().name()+" "+vcf2Name));
+					counter.incr(collapseGenotypeType?"Discordant":vcf1Name+" "+g1.getType().name()+ " -> "+g2.getType().name()+" "+vcf2Name);
 					}
 				}
 			}
@@ -276,7 +286,9 @@ public class VcfCompareCallers
 		final VCFHeader header;
 		final List<VariantContext> buffer = new ArrayList<>();
 		final SAMSequenceDictionary dict;
+		private int debug_multiple=0;
 		int count=0;
+		private final List<VariantContextUtils.JexlVCMatchExp> jexlVCMatchExps = new ArrayList<>();
 		PeekVCF(final VcfIterator iterator,final String uri) throws IOException {
 			this.uri = uri;
 			this.iter = iterator;
@@ -294,6 +306,25 @@ public class VcfCompareCallers
 			while(this.iter.hasNext())
 				{
 				final VariantContext ctx= this.iter.peek();
+				if(!ctx.isVariant())
+					{
+					this.iter.next();//consume
+					continue;
+					}
+				
+				if(!this.jexlVCMatchExps.isEmpty())
+					{
+					if(VariantContextUtils.match(ctx,this.jexlVCMatchExps).
+						values().
+						stream().
+						anyMatch(B->B.booleanValue()==false)
+						)
+						{
+						this.iter.next();//consume
+						continue;
+						}
+					}
+				
 				if(this.buffer.isEmpty())
 					{
 					this.buffer.add(this.iter.next());
@@ -334,8 +365,20 @@ public class VcfCompareCallers
 					collect(Collectors.toList());
 			if(L2.isEmpty()) throw new IllegalStateException("???");
 			if(L2.size()==1) return L2.get(0);
-			final VariantContext ctx = L2.get(0);
-			LOG.warn("Multiple CHROM/POS/REF in "+this.uri+" at "+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString());
+			final VariantContext ctx = L2.stream().sorted((V1,V2)->{
+				if(V1.isVariant() && !V2.isVariant()) return -1;
+				if(!V1.isVariant() && V2.isVariant()) return 1;
+				if(!V1.isFiltered() && V2.isFiltered()) return -1;
+				if(V1.isFiltered() && !V2.isFiltered()) return 1;
+				if(V1.isSNP() && !V2.isSNP()) return -1;
+				if(!V1.isSNP() && V2.isSNP()) return 1;
+				return 0;
+				}).findFirst().get();
+			if(debug_multiple<10)
+				{
+				LOG.warn("Multiple CHROM/POS/REF in "+this.uri+" at "+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString());
+				debug_multiple++;
+				}
 			return ctx;
 			}
 		
@@ -414,6 +457,20 @@ public class VcfCompareCallers
 			if( !SequenceUtil.areSequenceDictionariesEqual( vcfIterator1.dict,  vcfIterator2.dict))
 				{
 				throw new JvarkitException.DictionariesAreNotTheSame( vcfIterator1.dict,  vcfIterator2.dict);
+				}
+			
+			for(int side=0;side<2;++side)
+				{
+				final List<String> jexlExprStrings = (side==0?this.jexlExprStrings1:this.jexlExprStrings2);
+				final PeekVCF peek = (side==0?vcfIterator1:vcfIterator2);
+				//initialize JEXL map
+				if(!jexlExprStrings.isEmpty()) continue;
+					
+				final ArrayList<String> dummyNames = new ArrayList<String>(jexlExprStrings.size());
+			        for (int expCount =1; expCount< jexlExprStrings.size();++expCount ) {
+			            dummyNames.add(String.format("vce%d",expCount));
+			        	}
+			    peek.jexlVCMatchExps.addAll(VariantContextUtils.initializeMatchExps(dummyNames, jexlExprStrings));
 				}
 			
 			/* samples */
@@ -517,7 +574,7 @@ public class VcfCompareCallers
 					PrintWriter dataW = archiveFactory.openWriter(tsv);
 					for(final String sk: new TreeSet<String>(sampleCat.counter.keySet()))
 						{
-						dataW.print(sk);
+						dataW.print(escapeUnderscore(sk));
 						dataW.print("\t");
 						dataW.print(sampleCat.counter.count(sk));
 						dataW.println();
@@ -530,19 +587,20 @@ public class VcfCompareCallers
 					
 					makefileWriter.println(png+":"+tsv);
 					makefileWriter.println("\techo '"
-							+ "set ylabel \"Number of Genotypes  " + sampleInfo.sampleName +"\";"
+							+ "set ylabel \"Number of Genotypes  " + escapeUnderscore(sampleInfo.sampleName) +"\";"
 							+ "set yrange [0:];"
-							+ "set xlabel \"Category "+vcf1Name+": "+vcfIterator1.count+", "+vcf2Name+": "+vcfIterator2.count+" variants  \";"
-							+ "set xtic rotate by 90;"
+							+ "set xlabel \"Category "+escapeUnderscore(vcf1Name)+": "+vcfIterator1.count+
+									", "+escapeUnderscore(vcf2Name)+": "+vcfIterator2.count+" variants  \";"
+							+ "set xtic rotate by 90 right;"
 							+ "set size  ratio 0.618;"
-							+ "set title \"Genotypes " + sampleInfo.sampleName +" / Variants: "+ sampleCat.variantCatName +" \";"
+							+ "set title \""+escapeUnderscore(vcf1Name)+" vs "+escapeUnderscore(vcf2Name)+" : Genotypes " + escapeUnderscore(sampleInfo.sampleName) +" / Variants: "+ escapeUnderscore(sampleCat.variantCatName) +" \";"
 							+ "set key  off;"
 							+ "set datafile separator \"\t\";"
 							+ "set auto x;"
 							+ "set style histogram;"
 							+ "set style data histogram;"
 							+ "set style fill solid border -1;"
-							+ "set terminal png truecolor  size "+(500+sampleCat.counter.getCountCategories()*50)+", 1000;"
+							+ "set terminal png truecolor  size "+(500+sampleCat.counter.getCountCategories()*50)+", 1500;"
 							+ "set output \"$@\";"
 							+ "plot \"$<\" using 2:xtic(1) ti \"\";' | "
 							+ "gnuplot");				

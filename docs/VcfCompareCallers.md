@@ -19,6 +19,14 @@ Usage: vcfcomparecallers [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --jexl1
+      An optional list of GATK-like JEXL expressions to filter the variants 
+      from VCF File 1
+      Default: []
+    --jexl2
+      An optional list of GATK-like JEXL expressions to filter the variants 
+      from VCF File 2
+      Default: []
     -c, --noCallIsHomRef
       No Call is HomRef (created when comparing merged vcf with GATK: there is 
       no homref, everything is nocall)
@@ -29,10 +37,10 @@ Usage: vcfcomparecallers [options] Files
       Archive prefix (for option -d)
       Default: <empty string>
     -vcf1, --vcf1
-      descriptive name for VCF1
+      short descriptive name for VCF1
       Default: VCF1
     -vcf2, --vcf2
-      descriptive name for VCF2
+      short descriptive name for VCF2
       Default: VCF2
     --version
       print version and exit
