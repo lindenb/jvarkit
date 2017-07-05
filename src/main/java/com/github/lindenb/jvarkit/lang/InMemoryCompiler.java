@@ -210,7 +210,6 @@ public class InMemoryCompiler {
 				{
 				options = Collections.emptyList();
 				}
-			System.err.println(options+"##################");
 			final List<JavaFileObject> compilationUnits = Arrays.asList(new MemorySource(className, javaCode));
 			final DiagnosticListener<? super JavaFileObject> dianosticListener = null;
 			final Iterable<String> classes = null;

@@ -19,6 +19,9 @@ Usage: vcffilterjdk [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --nocode
+       Don't show the generated code
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -f, --script
@@ -103,6 +106,8 @@ The current reference is:
 The user code is a piece of java code that will be inserted as the body of the following instance of `java.util.function.Function<VariantContext,Object>`:
 
 ```java
+import java.util.*;
+import java.util.stream.*;
 import htsjdk.samtools.util.*;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.*;
@@ -133,7 +138,7 @@ The Function returns an object that can either:
 
 ## See also
 
-* VcfFilterJS
+* VcfFilterJS . Slower, using javascript syntax (rhino engine)
 
 ## About Galaxy
 
@@ -149,6 +154,16 @@ to prevent it to access the filesystem. See [http://stackoverflow.com/questions/
 
 ##  Examples
 
+
+###  Example
+
+>  I'm interested in finding all sites (regardless of genotype call heterozygous or homozygous) where at least one of the alternative alleles have an AD value (Allelic Depth) greater than 10,
+
+see [https://bioinformatics.stackexchange.com/questions/974/](https://bioinformatics.stackexchange.com/questions/974/)
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10)‌​.findAny().isPresent‌​()).findAny().isPres‌​ent();' 
+```
 
 ###  Example
 

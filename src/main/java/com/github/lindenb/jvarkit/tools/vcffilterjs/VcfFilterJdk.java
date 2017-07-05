@@ -66,6 +66,8 @@ BEGIN_DOC
 The user code is a piece of java code that will be inserted as the body of the following instance of `java.util.function.Function<VariantContext,Object>`:
 
 ```java
+import java.util.*;
+import java.util.stream.*;
 import htsjdk.samtools.util.*;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.*;
@@ -96,7 +98,7 @@ The Function returns an object that can either:
 
 ## See also
 
-* VcfFilterJS
+* VcfFilterJS . Slower, using javascript syntax (rhino engine)
 
 ## About Galaxy
 
@@ -112,6 +114,16 @@ to prevent it to access the filesystem. See [http://stackoverflow.com/questions/
 
 ##  Examples
 
+
+###  Example
+
+>  I'm interested in finding all sites (regardless of genotype call heterozygous or homozygous) where at least one of the alternative alleles have an AD value (Allelic Depth) greater than 10,
+
+see [https://bioinformatics.stackexchange.com/questions/974/](https://bioinformatics.stackexchange.com/questions/974/)
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10)‌​.findAny().isPresent‌​()).findAny().isPres‌​ent();' 
+```
 
 ###  Example
 
@@ -149,6 +161,8 @@ public class VcfFilterJdk
 	private String scriptExpr=null;
 	@Parameter(names={"-f","--script"},description=" (js file). Optional.")
 	private File scriptFile=null;
+	@Parameter(names={"--nocode"},description=" Don't show the generated code")
+	private boolean hideGeneratedCode=false;
 	
 	public VcfFilterJdk()
 		{
@@ -169,6 +183,7 @@ public class VcfFilterJdk
 				{
 				code = this.scriptExpr;
 				}
+			
 			final VCFHeader header = r.getHeader();
 			final VCFHeader h2 = new VCFHeader(header);
 			addMetaData(h2);
@@ -186,10 +201,12 @@ public class VcfFilterJdk
 			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
 			
 			
-			final String javaClassName =VcfFilterJdk.class.getSimpleName()+"Custom"+System.currentTimeMillis();
+			final String javaClassName =VcfFilterJdk.class.getSimpleName()+"Custom"+System.currentTimeMillis()+"_" + Math.abs(new java.util.Random(System.currentTimeMillis()).nextInt());
 			
 			final StringWriter codeWriter=new StringWriter();
 			final PrintWriter pw = new PrintWriter(codeWriter);
+			pw.println("import java.util.*;");
+			pw.println("import java.util.stream.*;");
 			pw.println("import htsjdk.samtools.util.*;");
 			pw.println("import htsjdk.variant.variantcontext.*;");
 			pw.println("import htsjdk.variant.vcf.*;");
@@ -207,7 +224,17 @@ public class VcfFilterJdk
 			pw.println("}");
 			pw.flush();
 			
-			LOG.debug("#### Compiling :\n" + codeWriter+"\n####");
+			
+			if(!hideGeneratedCode)
+				{
+				final StringWriter codeWithLineNumber = new StringWriter();
+				final String codeLines[] = codeWriter.toString().split("[\n]");
+				for(int nLine=0;nLine < codeLines.length;++nLine)
+					{
+					codeWithLineNumber.append(nLine==0?"":"\n").append(String.format("%10d  ",(nLine+1))+codeLines[nLine]);
+					}
+				LOG.debug(" Compiling :\n" + codeWithLineNumber);
+				}
 			
 			final Class<?> compiledClass = inMemoryCompiler.compileClass(
 					javaClassName,
