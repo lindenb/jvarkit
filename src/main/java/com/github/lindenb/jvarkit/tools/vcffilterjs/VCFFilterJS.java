@@ -66,7 +66,6 @@ BEGIN_DOC
 
 ## About the script
 
-
 The user script is a javascript nashorn script [https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html](https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html).
 The return value should be either:
 
@@ -88,6 +87,10 @@ But you can use the JVM parameter
 to prevent it to access the filesystem. See [http://stackoverflow.com/questions/40177810](http://stackoverflow.com/questions/40177810)
 
 
+## See also
+
+* VcfFilterJdk
+
 ## History
 
  * 2017-05 : removed the variables 'sneff', 'vep','casecontrol'... 
@@ -105,11 +108,7 @@ the script binds the following variables:
 
 
 
-
-
 ###  Examples
-
-
 
 
 ####  Example 

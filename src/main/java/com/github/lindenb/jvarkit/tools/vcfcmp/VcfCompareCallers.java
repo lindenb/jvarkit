@@ -163,7 +163,7 @@ public class VcfCompareCallers
 			{
 			if(g1==null && g2==null)
 				{
-				counter.incr("both missing");
+				counter.incr("Both Missing");
 				}
 			else if(g1==null && g2!=null)
 				{

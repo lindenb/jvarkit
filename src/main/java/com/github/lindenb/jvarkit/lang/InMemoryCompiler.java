@@ -31,11 +31,19 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
 import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
+import java.util.stream.Collectors;
 
 import javax.tools.DiagnosticListener;
 import javax.tools.FileObject;
@@ -48,6 +56,9 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
+
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 /** 
  * In Memory Java Compiler
  * seen https://blog.nobel-joergensen.com/2008/07/16/using-eclipse-compiler-to-create-dynamic-java-objects-2/ 
@@ -155,7 +166,51 @@ public class InMemoryCompiler {
 			final StandardJavaFileManager sjfm = javac.getStandardFileManager(null, null, null);
 			final SpecialClassLoader cl = new SpecialClassLoader();
 			final SpecialJavaFileManager fileManager = new SpecialJavaFileManager(sjfm, cl);
-			final List<String> options = Collections.emptyList();
+			
+			// https://stackoverflow.com/questions/1563909
+			final Set<String> classpathcomponents = new LinkedHashSet<>(); 
+			
+			final String java_class_path = System.getProperty("java.class.path");
+			if(!StringUtil.isBlank(java_class_path)) {
+				classpathcomponents.add(java_class_path);
+				}
+			
+			final Enumeration<URL> resources = getClass().getClassLoader().getResources("META-INF/MANIFEST.MF");
+			while (resources.hasMoreElements()) {
+				InputStream is = null;
+			    try {
+			        is = resources.nextElement().openStream();
+			        final Manifest manifest = new Manifest(is);
+			        final  Attributes attr = manifest.getMainAttributes();
+			        final String cp=attr.getValue("Class-Path");
+			        if(!StringUtil.isBlank(cp))
+			        	{
+			        	classpathcomponents.addAll( Arrays.stream(cp.split("[: ]")).
+			        			filter(S->!S.trim().isEmpty()).
+			        			collect(Collectors.toSet()));
+			        	}
+			    	} 
+			    catch (final IOException err) {
+			    	err.printStackTrace();
+			    	}
+			    finally
+			    	{
+			    	CloserUtil.close(is);
+			    	}
+				}
+			
+			final List<String> options;
+			if(!classpathcomponents.isEmpty())
+				{
+			    options =  new ArrayList<String>();
+			    options.add("-classpath");
+			    options.add(String.join(":", classpathcomponents));
+				}
+			else
+				{
+				options = Collections.emptyList();
+				}
+			System.err.println(options+"##################");
 			final List<JavaFileObject> compilationUnits = Arrays.asList(new MemorySource(className, javaCode));
 			final DiagnosticListener<? super JavaFileObject> dianosticListener = null;
 			final Iterable<String> classes = null;
