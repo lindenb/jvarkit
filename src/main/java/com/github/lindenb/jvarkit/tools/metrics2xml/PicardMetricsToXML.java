@@ -121,7 +121,10 @@ $ cat jeter.metrics |\
 ![https://jvarkit.googlecode.com/svn/wiki/picardmetrics01.jpg](https://jvarkit.googlecode.com/svn/wiki/picardmetrics01.jpg)
 
  */
-@Program(name="picardmetrics2xml",description="transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html")
+@Program(name="picardmetrics2xml",
+	description="transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html",
+	keywords={"picard","xml","metrics"}
+	)
 public class PicardMetricsToXML
 	extends Launcher
 	{

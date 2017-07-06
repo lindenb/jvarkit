@@ -127,7 +127,9 @@ else
 
  END_DOC
  */
-@Program(name="vcfgnomad",description="Peek annotations from gnomad",keywords={"vcf","annotation","gnomad"})
+@Program(name="vcfgnomad",
+	description="Peek annotations from gnomad",
+	keywords={"vcf","annotation","gnomad"})
 public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
@@ -181,6 +183,7 @@ public class VcfGnomad extends Launcher{
 					while(iter.hasNext())
 						{
 						final VariantContext ctx = iter.next();
+						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
 						final ContigPosRef key= new ContigPosRef(ctx);
 						this.buffer.put(key,ctx);
 						}
@@ -196,9 +199,10 @@ public class VcfGnomad extends Launcher{
 	private File outputFile = null;
 	@Parameter(names={"-m","--manifest"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
 	private File manifestFile=null;
-	@Parameter(names={"-filtered","--filtered"},description="Skip Filtered")
+	@Parameter(names={"-filtered","--filtered"},description="Skip Filtered User Variants")
 	private boolean skipFiltered=false;
-
+	@Parameter(names={"-filteredGnomad","--filteredGnomad"},description="[20170706] Skip Filtered GNOMAD Variants")
+	private boolean filteredGnomad=false;
 	@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when the variant is found in nomad")
 	private String inGnomadFilterName=null;
 	@Parameter(names={"-ac","--alleleconcordance"},description="ALL Alt allele must be found in gnomad before setting a FILTER")
@@ -209,7 +213,6 @@ public class VcfGnomad extends Launcher{
 	private boolean doNotInsertAlleleNumber=false;
 	@Parameter(names={"--noAlleleFreq"},description="do Not Insert AF /Allele Freq.")
 	private boolean doNotInsertAlleleFreq=false;
-	
 	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Exac, load the variants for 'N' bases instead of doing a random access for each variant")
 	private int gnomadBufferSize=100000;
 

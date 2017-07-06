@@ -31,15 +31,22 @@ import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.function.Function;
+
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Iso8601Date;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -57,38 +64,74 @@ BEGIN_DOC
 ## About the script
 
 
-The user code is a piece of java code that will be inserted as the body of the following instance of `java.util.function.Function<VariantContext,Object>`:
+The user code is a piece of java code that will be inserted as the method apply, or as the body of a com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk.AbstractFilter class with implements `java.util.function.Function<VariantContext,Object>`:
+
+At the time of writing the documentation, the parent class AbstractFilter is defined as:
 
 ```java
-import java.util.*;
-import java.util.stream.*;
-import htsjdk.samtools.util.*;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.vcf.*;
-public class VcfFilterJdkCustom1499244002429 implements java.util.function.Function<VariantContext, Object> {
-  protected final VCFHeader header;
-  public VcfFilterJdkCustom1499244002429(final VCFHeader header) {
-  this.header = header;
-  }
-  @Override
-  public Object apply(final VariantContext variant) {
-   // user code starts here
-   
-   // USER CODE is inserted here <-------
-   
-   // user code ends here
-   }
-}
+public static class AbstractFilter
+	implements Function<VariantContext,Object>
+	{
+	protected final Map<String,Object> userData = new HashMap<>();
+	protected final VCFHeader header;
+	protected AbstractFilter(final VCFHeader header) {
+		this.header = header;
+		}
+	@Override
+	public Object apply(final VariantContext variant) {
+		throw new IllegalStateException("apply(variant) for AbstractFilter is not implemented");
+		}
+	}
 ```
+
+where
+
+* 'header' is the VCF header
+* 'userData' is a placeHolder where the user is free to put things.
+
+'userData' will be filled with the following properties:
+
+* `<"first.variant",Boolean>` the current variant is the first variant in the VCF
+* `<"last.variant",Boolean>` the current variant is the last variant in the VCF
+
+If the user puts `<"STOP",Boolean.TRUE>` in `userData` the scanning of the VCF will be aborted without error.
+
+The user code will be inserted in the following java code:
+
+
+```
+ 1  import java.util.*;
+ 2  import java.util.stream.*;
+ 3  import java.util.function.*;
+ 4  import htsjdk.samtools.util.*;
+ 5  import htsjdk.variant.variantcontext.*;
+ 6  import htsjdk.variant.vcf.*;
+ 7  import javax.annotation.Generated;
+ 8  @Generated("VcfFilterJdk")
+ 9  public class VcfFilterJdkCustom123 extends com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk.AbstractFilter {
+10    public VcfFilterJdkCustom123(final VCFHeader header) {
+11    super(header);
+12    }
+13    @Override
+14    public Object apply(final VariantContext variant) {
+15     // user code starts here 
+16     user's code is inserted here <===================
+17     // user code ends here 
+18     }
+19  }
+```
+
+When the option `--body` is set : the user's code is the whole body (but the constructor) of the class
+
+
 
 The program is then compiled in **memory**.
 
-The Function returns an object that can either:
-
+The method `apply` returns an object that can either:
 
 * a boolean : true accept the variant, false reject the variant
 * a (VariantContext)[https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html] to replace the current variant
-* a (java.util.List<VariantContext>)[https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html] to replace the current variant with a list of variants.
+* a (java.util.List)[https://docs.oracle.com/javase/8/docs/api/java/util/List.html]<(VariantContext)[https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html]> to replace the current variant with a list of variants.
 
 ## See also
 
@@ -133,6 +176,15 @@ chr22	42522755	.	C	G	36.98	.	AC=1;AF=0.071;AN=14;BaseQRankSum=-14.866;DP=1527;DS
 chr22	42523003	rs116917064	A	G	7113.55	.	AC=8;AF=0.571;AN=14;BaseQRankSum=6.026;DB;DP=1433;DS;Dels=0.00;FS=0.000;HRun=1;HaplotypeScore=101.7894;MQ=182.04;MQ0=0;MQRankSum=-2.501;QD=4.96;ReadPosRankSum=8.294	GT:AD:DP:GQ:PL	0/1:10,2:12:1:1,0,257	1/1:9,173:183:99:2385,273,0	0/1:153,95:249:99:355,0,2355	0/1:140,110:250:99:1334,0,2242	0/1:164,85:249:99:1070,0,2279	0/1:160,90:250:99:1245,0,2300	0/1:156,81:238:99:724,0,2764
 ```
 
+### Example
+
+first and second genotype are not the same:
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return !variant.getGenotype(0).sameGenotype(variant.getGenotype(1));' 
+```
+
+
 END_DOC
  */
 @Program(
@@ -144,8 +196,6 @@ public class VcfFilterJdk
 	extends Launcher
 	{	
 	private static final Logger LOG = Logger.build(VcfFilterJdk.class).make();
-
-	
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -157,6 +207,26 @@ public class VcfFilterJdk
 	private File scriptFile=null;
 	@Parameter(names={"--nocode"},description=" Don't show the generated code")
 	private boolean hideGeneratedCode=false;
+	@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
+	private boolean user_code_is_body=false;
+	@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
+	private File saveCodeInDir=null;
+	
+	
+	public static class AbstractFilter
+		implements Function<VariantContext,Object>
+		{
+		protected final Map<String,Object> userData = new HashMap<>();
+		protected final VCFHeader header;
+		protected AbstractFilter(final VCFHeader header) {
+			this.header = header;
+			}
+		@Override
+		public Object apply(final VariantContext variant) {
+			throw new IllegalStateException("apply(variant) for AbstractFilter is not implemented");
+			}
+		}
+	
 	
 	public VcfFilterJdk()
 		{
@@ -189,32 +259,43 @@ public class VcfFilterJdk
 			
 			if(filterHeaderLine!=null) h2.addMetaDataLine(filterHeaderLine);
 			
-			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 
 			
-			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
 			
-			
-			final String javaClassName =VcfFilterJdk.class.getSimpleName()+"Custom"+System.currentTimeMillis()+"_" + Math.abs(new java.util.Random(System.currentTimeMillis()).nextInt());
+			final Random rand= new  Random(System.currentTimeMillis());
+			final String javaClassName =VcfFilterJdk.class.getSimpleName()+
+					"Custom"+ Math.abs(rand.nextInt());
 			
 			final StringWriter codeWriter=new StringWriter();
 			final PrintWriter pw = new PrintWriter(codeWriter);
 			pw.println("import java.util.*;");
 			pw.println("import java.util.stream.*;");
+			pw.println("import java.util.function.*;");
 			pw.println("import htsjdk.samtools.util.*;");
 			pw.println("import htsjdk.variant.variantcontext.*;");
 			pw.println("import htsjdk.variant.vcf.*;");
-			pw.println("public class "+javaClassName+" implements java.util.function.Function<VariantContext, Object> {");
-			pw.println("  protected final VCFHeader header;");
+			pw.println("import javax.annotation.Generated;");
+
+			pw.println("@Generated(value=\""+VcfFilterJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+			pw.println("public class "+javaClassName+" extends "+AbstractFilter.class.getName().replace('$', '.')+" {");
 			pw.println("  public "+javaClassName+"(final VCFHeader header) {");
-			pw.println("  this.header = header;");
+			pw.println("  super(header);");
 			pw.println("  }");
-			pw.println("  @Override");
-			pw.println("  public Object apply(final VariantContext variant) {");
-			pw.println("   /** user code starts here */");
-			pw.println(code);
-			pw.println(    "/** user code ends here */");
-			pw.println("   }");
+			if(user_code_is_body)
+				{
+				pw.println("   /** user code starts here */");
+				pw.println(code);
+				pw.println(    "/** user code ends here */");
+				}
+			else
+				{
+				pw.println("  @Override");
+				pw.println("  public Object apply(final VariantContext variant) {");
+				pw.println("   /** user code starts here */");
+				pw.println(code);
+				pw.println(    "/** user code ends here */");
+				pw.println("   }");
+				}
 			pw.println("}");
 			pw.flush();
 			
@@ -230,20 +311,55 @@ public class VcfFilterJdk
 				LOG.debug(" Compiling :\n" + codeWithLineNumber);
 				}
 			
+			if(this.saveCodeInDir!=null)
+				{
+				PrintWriter cw=null;
+				try 
+					{
+					IOUtil.assertDirectoryIsWritable(this.saveCodeInDir);
+					cw = new PrintWriter(new File(this.saveCodeInDir,javaClassName+".java"));
+					cw.write(codeWriter.toString());
+					cw.flush();
+					cw.close();
+					cw=null;
+					LOG.info("saved "+javaClassName+".java in "+this.saveCodeInDir);
+					}
+				catch(final Exception err)
+					{
+					LOG.error(err);
+					return -1;
+					}
+				finally
+					{
+					CloserUtil.close(cw);
+					}
+				}
+			
+			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
 			final Class<?> compiledClass = inMemoryCompiler.compileClass(
 					javaClassName,
 					codeWriter.toString()
 					);
 			final Constructor<?> ctor=compiledClass.getDeclaredConstructor(VCFHeader.class);
-			@SuppressWarnings("unchecked")
-			final Function<VariantContext,Object> filter = (Function<VariantContext,Object>)ctor.newInstance(header);
+			final AbstractFilter filter = (AbstractFilter)ctor.newInstance(header);
 			
 			w.writeHeader(h2);
+			
+			filter.userData.put("first.variant", Boolean.TRUE);
+			filter.userData.put("last.variant", Boolean.FALSE);
+
+			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
+			progress.setLogPrefix(VcfFilterJdk.class.getSimpleName());
 			while (r.hasNext() && !w.checkError())
 				{
 				final  VariantContext variation = progress.watch(r.next());
 
 				final Object result = filter.apply(variation);
+				
+				filter.userData.put("first.variant", Boolean.FALSE);
+				filter.userData.put("last.variant", !r.hasNext());
+				
+				
 				// result is an array of a collection of variants
 				if(result!=null && (result.getClass().isArray() || (result instanceof Collection)))
 					{
@@ -309,7 +425,12 @@ public class VcfFilterJdk
 					
 					w.add(variation);
 					}
+				
+				final Object stop = filter.userData.get("STOP");
+				if(Boolean.TRUE.equals(stop)) break;
+				
 				}
+			progress.finish();
 			return RETURN_OK;
 			}
 		catch(final Exception err)

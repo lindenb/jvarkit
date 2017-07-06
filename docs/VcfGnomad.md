@@ -16,7 +16,10 @@ Usage: vcfgnomad [options] Files
       instead of doing a random access for each variant
       Default: 100000
     -filtered, --filtered
-      Skip Filtered
+      Skip Filtered User Variants
+      Default: false
+    -filteredGnomad, --filteredGnomad
+      Skip Filtered GNOMAD Variants
       Default: false
     -gf, --gnomadFilter
       if defined, add this FILTER when the variant is found in nomad

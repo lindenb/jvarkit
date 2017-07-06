@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -170,10 +169,6 @@ public class InMemoryCompiler {
 			// https://stackoverflow.com/questions/1563909
 			final Set<String> classpathcomponents = new LinkedHashSet<>(); 
 			
-			final String java_class_path = System.getProperty("java.class.path");
-			if(!StringUtil.isBlank(java_class_path)) {
-				classpathcomponents.add(java_class_path);
-				}
 			
 			final Enumeration<URL> resources = getClass().getClassLoader().getResources("META-INF/MANIFEST.MF");
 			while (resources.hasMoreElements()) {
@@ -199,12 +194,19 @@ public class InMemoryCompiler {
 			    	}
 				}
 			
+			final String java_class_path = System.getProperty("java.class.path");
+			if(!StringUtil.isBlank(java_class_path)) {
+	        	classpathcomponents.addAll( Arrays.stream(java_class_path.split("[: ]")).
+	        			filter(S->!S.trim().isEmpty()).
+	        			collect(Collectors.toSet()));
+				}
+
+			
 			final List<String> options;
 			if(!classpathcomponents.isEmpty())
 				{
-			    options =  new ArrayList<String>();
-			    options.add("-classpath");
-			    options.add(String.join(":", classpathcomponents));
+				final String classpathstr = String.join(":", classpathcomponents);
+			    options = Arrays.asList("-classpath",classpathstr);
 				}
 			else
 				{

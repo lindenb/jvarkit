@@ -55,7 +55,7 @@ public class SAMSequenceDictionaryProgress
 	
 	private long count=0L;
 	private long print_every_n_seconds=10L;
-	private String prefix=null;
+	private String logPrefix=null;
 	private Handler handler=null;
 	
 	private Logger getLogger() {
@@ -83,7 +83,7 @@ public class SAMSequenceDictionaryProgress
 		
 		void printVoid()
 			{
-			getLogger().info( (prefix==null?"":"["+prefix+"]")+" Count:"+
+			getLogger().info( (logPrefix==null?"":"["+logPrefix+"]")+" Count:"+
 					count+" Elapsed: "+duration(curr_ticks-start_ticks)+
 					(lastSeen==null?"":" Last: "+lastSeen)+speed()
 					);
@@ -177,7 +177,7 @@ public class SAMSequenceDictionaryProgress
 				{
 				if(pos<prev_pos) 
 					{
-					getLogger().info((prefix==null?"":"["+prefix+"]")+
+					getLogger().info((logPrefix==null?"":"["+logPrefix+"]")+
 						"Data are not ordered on chromosome "+
 						samSequenceDictionary.getSequence(tid).getSequenceName()+
 						" saw "+pos+" after "+prev_pos
@@ -202,7 +202,7 @@ public class SAMSequenceDictionaryProgress
 			getLogger().info(
 					String.format("%sCount: %d Elapsed: %s(%.2f%%) Remains: %s(%.2f%%) Last: %s:%d",
 					
-					(prefix==null?"":"["+prefix+"]"),
+					(logPrefix==null?"":"["+logPrefix+"]"),
 					count,
 					
 					duration(curr_ticks-start_ticks),
@@ -264,10 +264,16 @@ public class SAMSequenceDictionaryProgress
 		this(h==null?null:h.getSequenceDictionary());
 		}
 	
-	public void setLogPrefix(final String prefix)
+	public void setLogPrefix(final String logPrefix)
 		{
-		this.prefix = prefix;
+		this.logPrefix = logPrefix;
 		}
+	public SAMSequenceDictionaryProgress prefix(final String p)
+		{
+		this.setLogPrefix(p);
+		return this;
+		}
+	
 	
 	public void setPrintEveryNSeconds(long print_every_n_seconds)
 		{
