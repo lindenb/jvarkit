@@ -23,6 +23,14 @@ Usage: picardmetrics2xml [options] Files
 
 ```
 
+
+## Keywords
+
+ * picard
+ * xml
+ * metrics
+
+
 ## Compilation
 
 ### Requirements / Dependencies

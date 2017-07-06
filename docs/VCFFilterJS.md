@@ -128,14 +128,13 @@ The current reference is:
 
 ## About the script
 
-
 The user script is a javascript nashorn script [https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html](https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html).
 The return value should be either:
 
 
 * a boolean : true accept the variant, false reject the variant
-* a [VariantContext](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) to replace the current variant
-* a [java.util.List<VariantContext>](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) to replace the current variant with a list of variants.
+* a (VariantContext)[https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html] to replace the current variant
+* a (java.util.List)[https://docs.oracle.com/javase/8/docs/api/java/util/List.html]<(VariantContext)[https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html]> to replace the current variant with a list of variants.
 
 
 ## About Galaxy
@@ -149,6 +148,10 @@ But you can use the JVM parameter
 
 to prevent it to access the filesystem. See [http://stackoverflow.com/questions/40177810](http://stackoverflow.com/questions/40177810)
 
+
+## See also
+
+* VcfFilterJdk a faster version that doesn't use javascript but in-memory java compilation.
 
 ## History
 
@@ -167,11 +170,7 @@ the script binds the following variables:
 
 
 
-
-
 ###  Examples
-
-
 
 
 ####  Example 

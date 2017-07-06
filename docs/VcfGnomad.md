@@ -19,7 +19,7 @@ Usage: vcfgnomad [options] Files
       Skip Filtered User Variants
       Default: false
     -filteredGnomad, --filteredGnomad
-      Skip Filtered GNOMAD Variants
+      [20170706] Skip Filtered GNOMAD Variants
       Default: false
     -gf, --gnomadFilter
       if defined, add this FILTER when the variant is found in nomad
