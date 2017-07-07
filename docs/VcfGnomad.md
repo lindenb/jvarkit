@@ -40,6 +40,9 @@ Usage: vcfgnomad [options] Files
     --noAlleleNumber
       do Not Insert AN /Allele Number
       Default: false
+    -noMultiAltGnomad, --noMultiAltGnomad
+      [20170706] Skip Multi Allelic GNOMAD Variants
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --streaming

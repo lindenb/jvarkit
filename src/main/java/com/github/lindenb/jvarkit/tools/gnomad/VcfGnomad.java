@@ -201,6 +201,7 @@ public class VcfGnomad extends Launcher{
 						{System.err.println("Got it");
 						if( !ctx.getReference().equals(userVariantCtx.getReference())) continue;
 						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
+						if( VcfGnomad.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
 						return ctx;
 						}
 					return null;
@@ -227,6 +228,7 @@ public class VcfGnomad extends Launcher{
 						{
 						final VariantContext ctx = iter.next();
 						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
+						if( VcfGnomad.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
 						final ContigPosRef key= new ContigPosRef(ctx);
 						this.buffer.put(key,ctx);
 						}
@@ -246,6 +248,8 @@ public class VcfGnomad extends Launcher{
 	private boolean skipFiltered=false;
 	@Parameter(names={"-filteredGnomad","--filteredGnomad"},description="[20170706] Skip Filtered GNOMAD Variants")
 	private boolean filteredGnomad=false;
+	@Parameter(names={"-noMultiAltGnomad","--noMultiAltGnomad"},description="[20170706] Skip Multi Allelic GNOMAD Variants")
+	private boolean noMultiAltGnomad=false;
 	@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when the variant is found in nomad")
 	private String inGnomadFilterName=null;
 	@Parameter(names={"-ac","--alleleconcordance"},description="ALL Alt allele must be found in gnomad before setting a FILTER")
