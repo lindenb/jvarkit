@@ -32,7 +32,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -44,6 +46,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 
 public abstract class ContigNameConverter implements  Function<String, String> {
 public static final String OPT_ON_NT_FOUND_DESC="Contig converter. I will do my best to convert the contig names (e.g 'chr1' -> '1'): But what should I do when comparing two dictionaries with different notations";	
@@ -191,6 +194,23 @@ public static ContigNameConverter fromDictionaries(
 	return new TwoDictionaries(dictIn,dictOut);
 	}
 
+/** creates a ContigNameConverter from one dictionary, try to guess best conversion*/
+public static ContigNameConverter fromOneDictionary(
+		final SAMSequenceDictionary dict
+		)
+	{
+	return new OneDictionary(dict);
+	}
+/** creates a ContigNameConverter from a set of contig names, try to guess best conversion*/
+public static ContigNameConverter fromContigSet(
+		final Set<String> contigSet
+		)
+	{
+	return new OneDictionary(contigSet);
+	}
+
+
+
 private static class TwoDictionaries extends MapBasedContigNameConverter
 	{
 	TwoDictionaries(final SAMSequenceDictionary dictIn,final SAMSequenceDictionary dictOut) {
@@ -251,9 +271,78 @@ private static class TwoDictionaries extends MapBasedContigNameConverter
 					}
 				continue;
 				}
+			
+			final String md5in = ssr.getMd5();
+			if(!StringUtil.isBlank(md5in)) {
+				final List<SAMSequenceRecord> ssrOUts = dictOut.getSequences().
+						stream().
+						filter(SSR->!StringUtil.isBlank(SSR.getMd5()) && md5in.equals(SSR.getMd5())).
+						collect(Collectors.toList());
+				if(ssrOUts.size()==1)
+					{
+					super.map.put(ssr.getSequenceName(), ssrOUts.get(0).getSequenceName());
+					continue;
+					}
+				}
 			}
 		}
 	@Override
 	public String getName() {return "TwoDictionaries";}
-}
+	}
+
+private static class OneDictionary extends ContigNameConverter
+	{
+	private final SAMSequenceDictionary dict;
+	OneDictionary( final SAMSequenceDictionary dict)
+		{
+		this.dict = dict;
+		}
+	
+	OneDictionary( final Set<String> contigs)
+		{
+		this.dict = new SAMSequenceDictionary(
+			contigs.stream().
+				map(C->new SAMSequenceRecord(C, 9999)).
+				collect(Collectors.toList())
+			);
+		}
+	
+	@Override
+	protected String find(final String contig) {
+		if(this.dict.getSequenceIndex(contig)!=-1) return contig;
+		
+	
+		if(contig.equals("chrM"))
+			{
+			SAMSequenceRecord ssr = this.dict.getSequence("M");
+			if(ssr==null) ssr = this.dict.getSequence("MT");
+			if(ssr!=null) return ssr.getSequenceName();
+			}
+		else if(contig.equals("M") || contig.equals("MT"))
+			{
+			SAMSequenceRecord ssr = this.dict.getSequence("chrM");
+			if(ssr==null) ssr = this.dict.getSequence("chrMT");
+			if(ssr!=null) return ssr.getSequenceName();
+			}
+		
+		final String c2;
+		if(contig.startsWith("chr"))
+			{
+			c2 = contig.substring(3);
+			}
+		else
+			{
+			c2 = "chr"+contig;
+			}
+		final SAMSequenceRecord ssr = this.dict.getSequence(c2);
+		if(ssr!=null) return ssr.getSequenceName();
+		
+		return null;
+		}
+	@Override
+	public String getName() {
+		return "OneDictionary";
+		}
+	}
+
 }

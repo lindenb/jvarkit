@@ -1,11 +1,7 @@
 # VcfSetSequenceDictionary
 
-Set the ##contig lines in a VCF header
+Set the ##contig lines in a VCF header on the fly
 
-
-## DEPRECATED
-
-Use picard UpdateVcfSequenceDictionary
 
 ## Usage
 
@@ -17,6 +13,12 @@ Usage: vcfsetdict [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --onNotFound
+      Contig converter. I will do my best to convert the contig names (e.g 
+      'chr1' -> '1'): But what should I do when comparing two dictionaries 
+      with different notations
+      Default: SKIP
+      Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
     -o, --output
       Output file. Optional . Default: stdout
     -r, -R, --reference
@@ -93,5 +95,15 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+The tool will try to convert the contig names ('1' -> 'chr1') according to the new dictionary.
+
+## Example
+
+```
+java  -jar jvarkit-git/vcfsetdict.jar --onNotFound SKIP -r ref.fasta input.vcf > out.vcf
+```
+
 
 

@@ -190,7 +190,6 @@ public class VcfGnomad extends Launcher{
 					CloserUtil.close(iter);
 					}
 				return this.buffer.get(userCtx);
-				
 			}
 		
 		}
@@ -337,7 +336,7 @@ public class VcfGnomad extends Launcher{
 				h2.addMetaDataLine(infoField.makeVCFInfoHeaderLine());
 				}
 			out.writeHeader(h2);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h2);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h2).logger(LOG);
 			while(iter.hasNext()) {
 				final VariantContext ctx = progress.watch(iter.next());
 				
