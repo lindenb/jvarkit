@@ -229,7 +229,11 @@ public class IOUtils {
 			//do we have .... azdazpdoazkd.vcf.gz?param=1&param=2
 			int question=uri.indexOf('?');
 			if(question!=-1) uri=uri.substring(0, question);
-			if(uri.endsWith(".gz"))
+			if(uri.endsWith(".vcf.gz"))
+				{
+				return new BlockCompressedInputStream(url);
+				}
+			else if(uri.endsWith(".gz"))
 				{
 				return tryBGZIP(in);
 				}

@@ -42,6 +42,11 @@ Usage: vcfgnomad [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    --streaming
+      [20170707] Don't use tabix random-access (which are ok for small inputs) 
+      but you a streaming process (better to annotate a large WGS file). 
+      Assume dictionaries are sorted the same way.
+      Default: false
     --version
       print version and exit
 

@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -15,16 +16,20 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.tools.vcfcmp.EqualRangeVcfIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -149,33 +154,71 @@ public class VcfGnomad extends Launcher{
 		OmeType omeType;
 		String contig;
 		String uri;
-		TabixVcfFileReader gnomadTabix=null;
+		
+		/** when using Tabix reader */
+		TabixVcfFileReader gnomad_tabix=null;
+		/** when using vcf streaming */
+		VcfIterator gnomad_vcf_iterator = null;
+		EqualRangeVcfIterator gnomad_equal_range=null;
+		
 		int buffferChromEnd=0;
 		final Map<ContigPosRef,VariantContext> buffer=new HashMap<>();
 		@Override
 		public void close() throws IOException {
-			CloserUtil.close(gnomadTabix);
+			CloserUtil.close(gnomad_tabix);
+			CloserUtil.close(gnomad_equal_range);
+			CloserUtil.close(gnomad_vcf_iterator);
 			this.buffer.clear();
 			this.buffferChromEnd=0;
-			this.gnomadTabix=null;
+			this.gnomad_tabix=null;
+			this.gnomad_vcf_iterator=null;
 			}
 		public void open()  throws IOException
 			{
-			this.gnomadTabix=new TabixVcfFileReader(this.uri);
+			if(VcfGnomad.this.streaming)
+				{
+				this.gnomad_vcf_iterator = VCFUtils.createVcfIterator(this.uri);
+				final SAMSequenceDictionary dict = this.gnomad_vcf_iterator.getHeader().getSequenceDictionary();
+				if(dict==null || dict.isEmpty()) throw new JvarkitException.VcfDictionaryMissing(this.uri);
+				final Comparator<VariantContext> cmp = VCFUtils.createTidPosComparator(dict);
+				this.gnomad_equal_range = new EqualRangeVcfIterator(this.gnomad_vcf_iterator, cmp);
+				}
+			else
+				{
+				this.gnomad_tabix=new TabixVcfFileReader(this.uri);
+				}
 			}
 		
 		
 		
 		/** find matching variant in tabix file, use a buffer to avoid multiple random accesses */
-		VariantContext findMatching(final ContigPosRef userCtx)
+		VariantContext findMatching(final VariantContext userVariantCtx)
 			{
-			
+			if( VcfGnomad.this.streaming) {
+				try {
+					final List<VariantContext> found = this.gnomad_equal_range.next(userVariantCtx);
+					for(final VariantContext ctx:found)
+						{System.err.println("Got it");
+						if( !ctx.getReference().equals(userVariantCtx.getReference())) continue;
+						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
+						return ctx;
+						}
+					return null;
+					}
+				catch(final IOException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				}
+			else
+				{
+				final ContigPosRef userCtx=new ContigPosRef(userVariantCtx);
 				//past last buffer ? refill buffer
 				if(this.buffferChromEnd <= userCtx.getPos())
 					{
 					buffer.clear();
 					this.buffferChromEnd = userCtx.getPos() + VcfGnomad.this.gnomadBufferSize;
-					final Iterator<VariantContext> iter=this.gnomadTabix.iterator(
+					final Iterator<VariantContext> iter=this.gnomad_tabix.iterator(
 							userCtx.getContig(),
 							Math.max(0,userCtx.getPos()-1),
 							this.buffferChromEnd
@@ -190,6 +233,7 @@ public class VcfGnomad extends Launcher{
 					CloserUtil.close(iter);
 					}
 				return this.buffer.get(userCtx);
+				}
 			}
 		
 		}
@@ -214,7 +258,8 @@ public class VcfGnomad extends Launcher{
 	private boolean doNotInsertAlleleFreq=false;
 	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Exac, load the variants for 'N' bases instead of doing a random access for each variant")
 	private int gnomadBufferSize=100000;
-
+	@Parameter(names={"--streaming"},description="[20170707] Don't use tabix random-access (which are ok for small inputs) but you a streaming process (better to annotate a large WGS file). Assume dictionaries are sorted the same way.")
+	private boolean streaming=false;
 	
 	
 	private class InfoField
@@ -229,7 +274,6 @@ public class VcfGnomad extends Launcher{
 			this.ome=ome;
 			this.is_AC = is_AC;
 			this.lineType=lineType;
-			
 			}
 		public String getOutputTag() {
 			return "gnomad_"+ this.ome.name()+"_"+this.tag;
@@ -410,13 +454,13 @@ public class VcfGnomad extends Launcher{
 					ManifestEntry entry = ome2manifest[i];
 					if(entry==null) continue;
 					
-					final VariantContext ctx2=entry.findMatching(new ContigPosRef(ctx));
+					final VariantContext ctx2=entry.findMatching(ctx);
 					if(ctx2==null) continue;
 					for(final InfoField infoField: infoFields)
 						{
 						if(infoField.ome!=entry.omeType) continue;
 						infoField.fill(ctx, ctx2);
-						}		
+						}
 					if(this.alleleconcordance)
 						{
 						//stream all ALT. return false if we found one ALT that is not found in Gnomad
