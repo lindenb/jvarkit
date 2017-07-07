@@ -198,7 +198,7 @@ public class VcfGnomad extends Launcher{
 				try {
 					final List<VariantContext> found = this.gnomad_equal_range.next(userVariantCtx);
 					for(final VariantContext ctx:found)
-						{System.err.println("Got it");
+						{
 						if( !ctx.getReference().equals(userVariantCtx.getReference())) continue;
 						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
 						if( VcfGnomad.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;

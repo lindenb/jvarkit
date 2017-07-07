@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,6 @@ package com.github.lindenb.jvarkit.io;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -65,6 +64,7 @@ import htsjdk.samtools.Defaults;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.util.BlockCompressedStreamConstants;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -201,7 +201,8 @@ public class IOUtils {
 		}
 	private static InputStream tryBGZIP(final InputStream in) throws IOException
 		{
-		final byte buffer[]=new byte[2048];
+		final byte buffer[]=new byte[ 
+				BlockCompressedStreamConstants.GZIP_BLOCK_PREAMBLE.length  ];
 		
 		final PushbackInputStream push_back=new PushbackInputStream(in,buffer.length+10);
 		int nReads=push_back.read(buffer);
@@ -209,15 +210,22 @@ public class IOUtils {
 		
 		try
 			{
-			final BlockCompressedInputStream bgz=new BlockCompressedInputStream(new ByteArrayInputStream(buffer, 0, nReads));
-			bgz.read();
-			bgz.close();
-			return new BlockCompressedInputStream(push_back);
+			if( nReads>= buffer.length && 
+				buffer[0]==BlockCompressedStreamConstants.GZIP_ID1 &&
+				buffer[1]==(byte)BlockCompressedStreamConstants.GZIP_ID2 &&
+				buffer[2]==BlockCompressedStreamConstants.GZIP_CM_DEFLATE &&
+				buffer[3]==BlockCompressedStreamConstants.GZIP_FLG &&
+				buffer[8]==BlockCompressedStreamConstants.GZIP_XFL
+				)
+				{
+				return new BlockCompressedInputStream(push_back);
+				}
 			}
 		catch(final Exception err)
 			{
-			return new GZIPInputStream(push_back);
+			//not bzip
 			}
+		return new GZIPInputStream(push_back);
 		}
 	
 	public static InputStream openURIForReading(String uri) throws IOException
@@ -257,7 +265,7 @@ public class IOUtils {
 		return new FileReader(file);
 		}
 
-	
+
 	public static InputStream openFileForReading(final File file) throws IOException
 		{
 		IOUtil.assertFileIsReadable(file);
@@ -268,7 +276,7 @@ public class IOUtils {
 			}
 		return in;
 		}
-	
+
 	public static BufferedReader openFileForBufferedReading(File file) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(openFileForReading(file), Charset.forName("UTF-8")));
@@ -278,7 +286,7 @@ public class IOUtils {
     	{
         return new BufferedWriter(new OutputStreamWriter(openFileForWriting(file)), Defaults.BUFFER_SIZE);
     	}
-    
+   
     public static OutputStream openFileForWriting(final File file) throws IOException
     	{
         if (file.getName().endsWith(".vcf.gz"))
