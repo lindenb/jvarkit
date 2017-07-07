@@ -201,20 +201,20 @@ public class IOUtils {
 		}
 	private static InputStream tryBGZIP(final InputStream in) throws IOException
 		{
-		byte buffer[]=new byte[2048];
+		final byte buffer[]=new byte[2048];
 		
-		PushbackInputStream push_back=new PushbackInputStream(in,buffer.length+10);
+		final PushbackInputStream push_back=new PushbackInputStream(in,buffer.length+10);
 		int nReads=push_back.read(buffer);
 		push_back.unread(buffer, 0, nReads);
 		
 		try
 			{
-			BlockCompressedInputStream bgz=new BlockCompressedInputStream(new ByteArrayInputStream(buffer, 0, nReads));
+			final BlockCompressedInputStream bgz=new BlockCompressedInputStream(new ByteArrayInputStream(buffer, 0, nReads));
 			bgz.read();
 			bgz.close();
 			return new BlockCompressedInputStream(push_back);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			return new GZIPInputStream(push_back);
 			}
@@ -229,11 +229,7 @@ public class IOUtils {
 			//do we have .... azdazpdoazkd.vcf.gz?param=1&param=2
 			int question=uri.indexOf('?');
 			if(question!=-1) uri=uri.substring(0, question);
-			if(uri.endsWith(".vcf.gz"))
-				{
-				return new BlockCompressedInputStream(url);
-				}
-			else if(uri.endsWith(".gz"))
+			if(uri.endsWith(".gz"))
 				{
 				return tryBGZIP(in);
 				}
@@ -268,7 +264,7 @@ public class IOUtils {
 		InputStream in= Files.newInputStream(file.toPath());
 		if(file.getName().endsWith(".gz"))
 			{
-			in=tryBGZIP(in);
+			in = tryBGZIP(in);
 			}
 		return in;
 		}
