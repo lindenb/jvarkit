@@ -409,7 +409,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 									}
 								if(laf.getContext().isFiltered() )
 									{
-									gbuilder.filter("VCFILTERED");
+									gbuilder.filter("VCFFILTERED");
 									}
 								if(laf.getContext().hasLog10PError())
 									{

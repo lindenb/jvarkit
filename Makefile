@@ -518,6 +518,7 @@ $(eval $(call compile-htsjdk-cmd,fastgenotypegvcfs,${jvarkit.package}.tools.gvcf
 $(eval $(call compile-htsjdk-cmd,xsltstream,${jvarkit.package}.tools.misc.XsltStream,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfloopovergenes,${jvarkit.package}.tools.burden.VcfLoopOverGenes,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcffilterjdk,${jvarkit.package}.tools.vcffilterjs.VcfFilterJdk,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,optimizer,${jvarkit.package}.tools.optimizer.Optimizer,${jcommander.jar} ${gson.jar}))
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.vg.VcfToGraph,${jcommander.jar}))
 

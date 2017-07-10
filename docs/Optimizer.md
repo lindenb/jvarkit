@@ -1,0 +1,177 @@
+# Optimizer
+
+Genetic-Programming-like parameters optimizer
+
+
+## Usage
+
+```
+Usage: optimizer [options] Files
+  Options:
+    -A, --all
+      Run all possible combinations
+      Default: false
+    -h, --help
+      print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
+    -seed, --random
+      Random seed. -1 == current time
+      Default: -1
+  * -c, --code, --source
+      User's code.
+    --version
+      print version and exit
+
+```
+
+
+## Keywords
+
+ * genetic-programming
+
+
+## Compilation
+
+### Requirements / Dependencies
+
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* GNU Make >= 3.81
+* curl/wget
+* git
+* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
+
+
+### Download and Compile
+
+```bash
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ make optimizer
+```
+
+The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
+The required libraries will be downloaded and installed in the `dist` directory.
+
+### edit 'local.mk' (optional)
+
+The a file **local.mk** can be created edited to override/add some definitions.
+
+For example it can be used to set the HTTP proxy:
+
+```
+http.proxy.host=your.host.com
+http.proxy.port=124567
+```
+## Source code 
+
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/optimizer/Optimizer.java
+](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/optimizer/Optimizer.java
+)
+## Contribute
+
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
+
+## License
+
+The project is licensed under the MIT license.
+
+## Citing
+
+Should you cite **optimizer** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+
+The current reference is:
+
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+This is a Genetic-Programming-like parameters optimizer.
+
+use must provide the scafold of a java code that will override `Solution` and a JSON file describing the
+parameters.
+
+## An example of json config
+
+```json
+
+{
+"params":[
+	{
+	"name":"param1",
+	"type":"int",
+	"min": 1,
+	"max":10,
+	"shift":1
+	},
+	{
+	"name":"param2",
+	"type":"double",
+	"min": 0.01,
+	"max": 0.1,
+	"shift":0.01
+	}
+  ]
+}
+```
+
+
+## The base class Solution
+
+```java
+public static abstract class Solution implements Comparable<Solution>
+	{
+	protected long generation;
+	protected final Map<String,Object> params;
+	public Solution(final long generation,final Map<String,Object> params)
+		{
+		this.params = Collections.unmodifiableMap(params);
+		this.generation = generation;
+		}
+	// eval the result. Must be implemented by the user
+	public abstract int execute() throws Exception;
+	// delete any file associated to this solution 
+	public void delete() {}
+		
+	}
+```
+
+## An example of custom class extending `Solution`
+
+`__BASE__` will be replaced by the base class name `Solution`.
+`__CLASS__` will be replaced by the current generated class name.
+
+The user's code will be inserted in the following template:
+
+```
+ 1  import java.util.*;
+ 2  import java.io.*;
+ 3  import java.util.stream.*;
+ 4  import java.util.function.*;
+ 5  import htsjdk.samtools.util.*;
+ 6  import htsjdk.variant.variantcontext.*;
+ 7  import htsjdk.variant.vcf.*;
+ 8  import javax.annotation.Generated;
+ 9  @Generated(value="Optimizer",date="2017-07-10T11:20:07+0200")
+10  public class __CLASS__ extends  __BASE__ {
+11  public __CLASS__(final long generation,final Map<String,Object> params) {
+12  super(generation,params);
+13  }
+14      // user's code starts here 
+(...)  
+93     // user's code ends here 
+94  }
+
+```
+
+in __CLASS__ User must implement:
+
+* 'compareTo' to compare two solutions
+* 'execute' to compute the result with the current params. Returns '0' on success.
+* 'delete' remove resources associated to this Solution.
+
+

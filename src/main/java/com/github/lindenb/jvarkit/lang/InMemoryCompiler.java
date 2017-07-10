@@ -232,4 +232,20 @@ public class InMemoryCompiler {
 			throw new RuntimeException("Cannot compile custom class "+className,e);
 		}
 	}
+	
+	/** append line numbers to code */
+	public static String beautifyCode(final String sourceCode)
+		{
+		final StringWriter codeWithLineNumber = new StringWriter();
+		final String codeLines[] = sourceCode.split("[\n]");
+		for(int nLine=0;nLine < codeLines.length;++nLine)
+			{
+			codeWithLineNumber.
+				append(nLine==0?"":"\n").
+				append(String.format("%10d  ",(nLine+1))+codeLines[nLine])
+				;
+			}
+		return codeWithLineNumber.toString();
+		}
+	
 }

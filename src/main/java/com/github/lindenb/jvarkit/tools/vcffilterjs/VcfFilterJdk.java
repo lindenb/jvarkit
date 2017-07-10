@@ -289,17 +289,17 @@ public class VcfFilterJdk
 			pw.println("  }");
 			if(user_code_is_body)
 				{
-				pw.println("   /** user code starts here */");
+				pw.println("   /** user's code starts here */");
 				pw.println(code);
-				pw.println(    "/** user code ends here */");
+				pw.println(    "/** user's code ends here */");
 				}
 			else
 				{
 				pw.println("  @Override");
 				pw.println("  public Object apply(final VariantContext variant) {");
-				pw.println("   /** user code starts here */");
+				pw.println("   /** user's code starts here */");
 				pw.println(code);
-				pw.println(    "/** user code ends here */");
+				pw.println(    "/** user's code ends here */");
 				pw.println("   }");
 				}
 			pw.println("}");
@@ -308,13 +308,7 @@ public class VcfFilterJdk
 			
 			if(!hideGeneratedCode)
 				{
-				final StringWriter codeWithLineNumber = new StringWriter();
-				final String codeLines[] = codeWriter.toString().split("[\n]");
-				for(int nLine=0;nLine < codeLines.length;++nLine)
-					{
-					codeWithLineNumber.append(nLine==0?"":"\n").append(String.format("%10d  ",(nLine+1))+codeLines[nLine]);
-					}
-				LOG.debug(" Compiling :\n" + codeWithLineNumber);
+				LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
 				}
 			
 			if(this.saveCodeInDir!=null)

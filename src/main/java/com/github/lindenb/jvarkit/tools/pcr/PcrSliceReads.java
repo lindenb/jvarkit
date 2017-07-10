@@ -170,7 +170,12 @@ mysample_rg_myid_PCR8   1930    0.61    1       1       1       2.1
 END_DOC
  *
  */
-@Program(name="pcrslicereads",description="Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/")
+@Program(
+	name="pcrslicereads",
+	description="Mark PCR reads to their PCR amplicon",
+	keywords={"pcr","sam","bam","cigar"},
+	biostars=149687
+	)
 public class PcrSliceReads extends Launcher
 	{
 	private static final Logger LOG =Logger.build(PcrSliceReads.class).make();

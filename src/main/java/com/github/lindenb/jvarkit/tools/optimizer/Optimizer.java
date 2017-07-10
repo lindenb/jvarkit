@@ -34,6 +34,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -46,6 +47,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -53,15 +55,102 @@ import com.google.gson.JsonParser;
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.IOUtil;
-import jdk.nashorn.internal.parser.JSONParser;
+import htsjdk.samtools.util.Iso8601Date;
 
 /**
 BEGIN_DOC
 
+This is a Genetic-Programming-like parameters optimizer.
+
+use must provide the scafold of a java code that will override `Solution` and a JSON file describing the
+parameters.
+
+## An example of json config
+
+```json
+
+{
+"params":[
+	{
+	"name":"param1",
+	"type":"int",
+	"min": 1,
+	"max":10,
+	"shift":1
+	},
+	{
+	"name":"param2",
+	"type":"double",
+	"min": 0.01,
+	"max": 0.1,
+	"shift":0.01
+	}
+  ]
+}
+```
+
+
+## The base class Solution
+
+```java
+public static abstract class Solution implements Comparable<Solution>
+	{
+	protected long generation;
+	protected final Map<String,Object> params;
+	public Solution(final long generation,final Map<String,Object> params)
+		{
+		this.params = Collections.unmodifiableMap(params);
+		this.generation = generation;
+		}
+	// eval the result. Must be implemented by the user
+	public abstract int execute() throws Exception;
+	// delete any file associated to this solution 
+	public void delete() {}
+		
+	}
+```
+
+## An example of custom class extending `Solution`
+
+`__BASE__` will be replaced by the base class name `Solution`.
+`__CLASS__` will be replaced by the current generated class name.
+
+The user's code will be inserted in the following template:
+
+```
+ 1  import java.util.*;
+ 2  import java.io.*;
+ 3  import java.util.stream.*;
+ 4  import java.util.function.*;
+ 5  import htsjdk.samtools.util.*;
+ 6  import htsjdk.variant.variantcontext.*;
+ 7  import htsjdk.variant.vcf.*;
+ 8  import javax.annotation.Generated;
+ 9  @Generated(value="Optimizer",date="2017-07-10T11:20:07+0200")
+10  public class __CLASS__ extends  __BASE__ {
+11  public __CLASS__(final long generation,final Map<String,Object> params) {
+12  super(generation,params);
+13  }
+14      // user's code starts here 
+(...)  
+93     // user's code ends here 
+94  }
+
+```
+
+in __CLASS__ User must implement:
+
+* 'compareTo' to compare two solutions
+* 'execute' to compute the result with the current params. Returns '0' on success.
+* 'delete' remove resources associated to this Solution.
 
 END_DOC
 */
-
+@Program(
+		name="optimizer",
+		description="Genetic-Programming-like parameters optimizer",
+		keywords={"genetic-programming"}
+		)
 public class Optimizer extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Optimizer.class).make();
@@ -69,7 +158,12 @@ public class Optimizer extends Launcher
 	
 	@Parameter(names={"-A","--all"},description="Run all possible combinations")
 	private boolean run_all_combinations = false;
+	@Parameter(names={"-c","--code","--source"},description="User's code.",required=true)
+	private File useSourceCode = null;
+	@Parameter(names={"-seed","--random"},description="Random seed. -1 == current time")
+	private long  randomSeed = -1L;
 
+	
 	
 	private Random random = new Random(0L);
 	private List<VariableParam> variableParams = new ArrayList<>();
@@ -88,14 +182,15 @@ public class Optimizer extends Launcher
 			this.params = Collections.unmodifiableMap(params);
 			this.generation = generation;
 			}
-		public abstract int execute();
+		public abstract int execute() throws Exception;
+		/** delete any file associated to this solution */
 		public void delete() {}
 		@Override
 		public String toString()
 			{
 			return "Generation "+this.generation+"\n"+
 					this.params.keySet().stream().
-						map(S-> " \""+S+"\"\t"+this.params.get(S)).collect(Collectors.joining("\n" ));
+						map(S-> " \""+S+"\" :"+this.params.get(S)).collect(Collectors.joining("\n" ));
 			}
 		}
 	
@@ -155,6 +250,9 @@ public class Optimizer extends Launcher
 		IntRangeParam(final String name,int min,int max,int shift)
 			{
 			super(name);
+			this.min=min;
+			this.max=max;
+			this.shift=shift;
 			}
 		@Override Iterable<VariableValue> getAll()
 			{
@@ -194,6 +292,10 @@ public class Optimizer extends Launcher
 		double shift=0.1;
 		DoubleRangeParam(final String name,double min,double max,double shift) {
 			super(name);
+			this.min=min;
+			this.max=max;
+			this.shift=shift;
+
 			}
 		@Override Iterable<VariableValue> getAll()
 			{
@@ -202,7 +304,7 @@ public class Optimizer extends Launcher
 		
 		@Override VariableValue get()
 			{
-			double v= this.min + random.nextDouble()*(max-min);
+			double v= this.min + random.nextDouble()*(this.max-this.min);
 			return new VariableValue(this,v);
 			}
 		@Override
@@ -247,7 +349,11 @@ public class Optimizer extends Launcher
 		{
 		try
 			{
-			return Solution.class.cast(this.solutionConstructor.newInstance(++this.generation,values));
+			return Solution.class.cast(
+					this.solutionConstructor.newInstance(++this.generation,
+						values.entrySet().stream().
+							collect(Collectors.toMap(E->E.getKey(),E->E.getValue().value))
+						));
 			}
 		catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e)
 			{
@@ -257,7 +363,6 @@ public class Optimizer extends Launcher
 	
 	private Status challenge(final Map<String,VariableValue> values)
 		{
-		this.generation++;
 		LOG.info("Challenge["+generation+"]: " + values.values().stream().map(VV->"\""+VV.param.getName()+"\":"+VV.value).collect(Collectors.joining("; ")));
 		
 		Solution sol = creatSolution(values);
@@ -270,21 +375,26 @@ public class Optimizer extends Launcher
 				sol=null;
 				}
 			}
-		catch(Throwable err)
+		catch(final Throwable err)
 			{
 			LOG.warn("solution "+sol+" failed");
 			LOG.warn(err);
+			sol.delete();
 			sol=null;
 			}
-		if(sol!=null)
+		if(sol!=null &&
+		(this.bestSolution==null || sol.compareTo(this.bestSolution)<0))
 			{
-			if(this.bestSolution!=null &&  sol.compareTo(this.bestSolution)<0)
-				{
-				LOG.debug("Deleteing "+this.bestSolution);
+			if(this.bestSolution!=null) {
+				LOG.debug("Deleting "+this.bestSolution);
 				this.bestSolution.delete();
 				}
-			LOG.debug("Best is now "+ sol);
 			this.bestSolution = sol;
+			}
+			
+		if(this.bestSolution!=null)
+			{
+			LOG.debug("Best is\n"+ this.bestSolution);
 			}
 		return Status.STATUS_CONTINUE;
 		}
@@ -327,33 +437,84 @@ public class Optimizer extends Launcher
 		}
 	
 	
-	private void readParams(final File jsonFile) throws IOException {
+	private int readParams(final File jsonFile) throws IOException {
+		LOG.info("reading params in "+jsonFile);
 		IOUtil.assertFileIsWritable(jsonFile);
 		FileReader r= new FileReader(jsonFile);
 		JsonParser jsonParser=new JsonParser();
 		final JsonElement root = jsonParser.parse(r);
-		for(JsonElement pe:root.getAsJsonObject().get("params").getAsJsonArray())
+		if(!root.isJsonObject())
 			{
-			JsonObject paramObj = pe.getAsJsonObject();
+			LOG.error("root is not an object");
+			return -1;
+			}
+		if(!root.getAsJsonObject().has("params"))
+			{
+			LOG.error("root.params missing");
+			return -1;
+			}
+		if(!root.getAsJsonObject().get("params").isJsonArray())
+			{
+			LOG.error("root.params is not an array");
+			return -1;
+			}
+		if(root.getAsJsonObject().get("params").getAsJsonArray().size()==0)
+			{
+			LOG.error("root.params is  an empty array");
+			return -1;
+			}
+		for(final JsonElement pe:root.getAsJsonObject().get("params").getAsJsonArray())
+			{
+			if(!pe.isJsonObject())
+				{
+				LOG.error("not an object:"+pe);
+				return -1;
+				}
+			final JsonObject paramObj = pe.getAsJsonObject();
+			if(root.getAsJsonObject().has("name"))
+				{
+				LOG.error("\"name\":missing in "+paramObj);
+				return -1;
+				}
+			
+			
 			final String name = paramObj.get("name").getAsString();
 			if(this.variableParams.stream().filter(V->V.getName().equals(name)).findAny().isPresent())
 				{
 				throw new IOException("duplicate param name="+name);
 				}
 			final VariableParam variableParam;
+			if(root.getAsJsonObject().has("type"))
+				{
+				LOG.error("\"type\":missing in "+paramObj);
+				return -1;
+				}
 			final String type = paramObj.get("type").getAsString();
 			if(type.equals("strings"))
 				{
+				if(!paramObj.has("values"))
+					{
+					LOG.error("\"values\":missing in "+paramObj);
+					return -1;
+					}
+				
 				final Set<String> values = new LinkedHashSet<>();
-				for(Iterator<JsonElement> it=pe.getAsJsonObject().get("values").getAsJsonArray().iterator();
+				
+				
+				for(final Iterator<JsonElement> it= paramObj.get("values").getAsJsonArray().iterator();
 						it.hasNext();
 						)
 					{
 					values.add(it.next().getAsString());
 					}
+				if(values.isEmpty())
+					{
+					LOG.error("no values in "+paramObj);
+					return -1;
+					}
 				variableParam = new StringListParam(name,values);
 				}
-			else if(type.equals("int"))
+			else if(type.equals("int") || type.equals("integer"))
 				{
 				variableParam = new IntRangeParam(name,
 						paramObj.get("min").getAsInt(),
@@ -379,38 +540,70 @@ public class Optimizer extends Launcher
 				}
 			this.variableParams.add(variableParam);
 			}
-		jsonReader.close();
 		r.close();
-	}
+		return 0;
+		}
 	
 	@Override
 	public int doWork(final List<String> args)
 		{
+		if(this.useSourceCode==null)
+			{
+			LOG.error("use source code is missing");
+			return -1;
+			}
+		this.random =new Random(
+				randomSeed==-1?
+				System.currentTimeMillis():
+				randomSeed
+				);
 		try
 			{
-			final String javaCode="";
-			final String className="CustomClass" + this.random.nextInt();
-
+			if(this.readParams( new File(super.oneAndOnlyOneFile(args)))!=0)
+				{
+				LOG.error("Cannot read params");
+				return -1;
+				}
+			if(this.variableParams.isEmpty())
+				{
+				LOG.error("no params found");
+				return -1;
+				}
+			
+			final String className="CustomOptimizer" + Math.abs(this.random.nextInt());
 			final StringWriter codestr= new StringWriter();
 			final PrintWriter w = new PrintWriter(codestr);
 			w.println("import java.util.*;");
-			w.println("public static class "+className+" extends "+Solution.class.getName().replace("$", ".")+ "{");
-			w.println(className+"(final long generation,final Map<String,Object> params) {");
-			w.println("super(generation,params");
+			w.println("import java.io.*;");
+			w.println("import java.util.stream.*;");
+			w.println("import java.util.function.*;");
+			w.println("import htsjdk.samtools.util.*;");
+			w.println("import htsjdk.variant.variantcontext.*;");
+			w.println("import htsjdk.variant.vcf.*;");
+			w.println("import javax.annotation.Generated;");
+			w.println("@Generated(value=\""+Optimizer.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+			w.println("public class "+className+" extends "+Solution.class.getName().replace("$", ".")+ "{");
+			w.println("public "+className+"(final long generation,final Map<String,Object> params) {");
+			w.println("super(generation,params);");
 			w.println("}");
-			w.println(javaCode);
+			w.println("   /** user's code starts here */");
+			w.println(IOUtil.slurp(this.useSourceCode));
+			w.println("   /** user's code ends here */");
+
 			w.println("}");
 			w.flush();
 			
+			final String code = codestr.toString().
+					replaceAll("__BASE__", Solution.class.getName().replace("$", ".")).
+					replaceAll("__CLASS__", className)
+					;
 			
-			
-			
+			LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(code));
+
 			
 			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
-			final Class<?> clazz = inMemoryCompiler.compileClass(className, javaCode);
-			this.solutionConstructor =clazz.getConstructor(Long.class,Map.class);
-			
-			
+			final Class<?> clazz = inMemoryCompiler.compileClass(className,code);
+			this.solutionConstructor =clazz.getConstructor(Long.TYPE,Map.class);
 			
 			if(this.run_all_combinations)
 				{

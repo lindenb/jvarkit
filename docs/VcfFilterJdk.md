@@ -115,11 +115,13 @@ At the time of writing the documentation, the parent class AbstractFilter is def
 
 ```java
 public static class AbstractFilter
+	extends com.github.lindenb.jvarkit.util.vcf.VcfTools
 	implements Function<VariantContext,Object>
 	{
 	protected final Map<String,Object> userData = new HashMap<>();
 	protected final VCFHeader header;
 	protected AbstractFilter(final VCFHeader header) {
+		super(header);
 		this.header = header;
 		}
 	@Override
@@ -131,6 +133,7 @@ public static class AbstractFilter
 
 where
 
+* the base class VcfTools contains some utilities for parsing VEP/SNPEFF annotations and detecting Mendelian Violations. see [https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/VcfTools.java](https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/vcf/VcfTools.java).
 * 'header' is the VCF header
 * 'userData' is a placeHolder where the user is free to put things.
 
@@ -175,8 +178,8 @@ The program is then compiled in **memory**.
 The method `apply` returns an object that can either:
 
 * a boolean : true accept the variant, false reject the variant
-* a (VariantContext)[https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html] to replace the current variant
-* a (java.util.List)[https://docs.oracle.com/javase/8/docs/api/java/util/List.html]<(VariantContext)[https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html]> to replace the current variant with a list of variants.
+* a [VariantContext](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) to replace the current variant
+* a [java.util.List](https://docs.oracle.com/javase/8/docs/api/java/util/List.html)<[VariantContext](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) > to replace the current variant with a list of variants.
 
 ## See also
 
