@@ -413,14 +413,13 @@ public class VcfFilterSequenceOntology
 		private void parseAccessionsFile(final File f) throws IOException
 			{
 			final BufferedReader in=IOUtils.openFileForBufferedReading(f);
-			String line;
-			while((line=in.readLine())!=null)
-				{
-				if(line.startsWith("#")) continue;
-				line=line.trim();
-				if(line.trim().isEmpty()) continue;
-				this.userTermsAsString.add(line);
-				}
+			in.lines().
+				filter(L->!L.startsWith("#")).
+				map(L->L.trim()).
+				filter(L->!L.isEmpty()).
+				forEach(L->{
+					VcfFilterSequenceOntology.this.userTermsAsString.add(L);
+				});
 			in.close();
 			}
 
@@ -437,7 +436,7 @@ public class VcfFilterSequenceOntology
 			if(this.showList)
 				{
 				final PrintWriter pw=super.openFileOrStdoutAsPrintWriter(this.outputFile);
-				for(SequenceOntologyTree.Term t:this.sequenceOntologyTree.getTerms())
+				for(final SequenceOntologyTree.Term t:this.sequenceOntologyTree.getTerms())
 					{
 					pw.println(t.getAcn()+"\t"+t.getLabel());
 					}

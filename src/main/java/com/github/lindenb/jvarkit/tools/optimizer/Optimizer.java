@@ -438,7 +438,7 @@ public class Optimizer extends Launcher
 		if(sol!=null) addSolution(sol);
 		
 		// try mate
-		if(this.bestSolutions.size()>2)
+		if(!this.run_all_combinations && this.bestSolutions.size()>2)
 			{
 			int idx = 1 + this.random.nextInt(this.bestSolutions.size()-1);
 			sol = this.bestSolutions.get(0).mate(this.bestSolutions.get(idx));
@@ -652,8 +652,8 @@ public class Optimizer extends Launcher
 			w.println("import javax.annotation.Generated;");
 			w.println("@Generated(value=\""+Optimizer.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
 			w.println("public class "+className+" extends "+Solution.class.getName().replace("$", ".")+ "{");
-			w.println("public "+className+"(final long generation,final Map<String,Object> params) {");
-			w.println("super(generation,params);");
+			w.println("public "+className+"(final Map<String,Object> params) {");
+			w.println("super(params);");
 			w.println("}");
 			w.println("   /** user's code starts here */");
 			w.println(IOUtil.slurp(this.useSourceCode));

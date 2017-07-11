@@ -272,6 +272,11 @@ public class AnnPredictionParser
 			return aa==null?null:aa.ref;
 			}
 	*/
+		/** return true if SO-term-string is and is only equals to 'intergenic_region' */
+		public boolean isIntergenicRegion()
+			{
+			return "intergenic_region".equals(this.getSOTermsString());
+			}
 		
 		public String getSOTermsString() {
 			return(this.tokens.length<2 ?"":tokens[1]);

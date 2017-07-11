@@ -125,18 +125,33 @@ parameters.
 ```java
 public static abstract class Solution implements Comparable<Solution>
 	{
-	protected long generation;
+	protected long generation =  -1L;
 	protected final Map<String,Object> params;
-	public Solution(final long generation,final Map<String,Object> params)
+	public Solution(final Map<String,Object> params)
 		{
 		this.params = Collections.unmodifiableMap(params);
-		this.generation = generation;
 		}
 	// eval the result. Must be implemented by the user
 	public abstract int execute() throws Exception;
 	// delete any file associated to this solution 
 	public void delete() {}
-		
+	//mate a Solution with another, returns null if mating is not possible
+	public Solution mate(final Solution another) {
+		return null;
+	}
+	
+	@Override
+	public boolean equals(final Object obj) {
+		if(obj==this) return true;
+		if(obj ==null || !(obj instanceof Solution)) return false;
+		final Solution other=Solution.class.cast(obj);
+		return this.params.equals(other.params);
+		}
+	
+	@Override
+	public int hashCode() {
+		return this.params.hashCode();
+		}
 	}
 ```
 
@@ -158,8 +173,8 @@ The user's code will be inserted in the following template:
  8  import javax.annotation.Generated;
  9  @Generated(value="Optimizer",date="2017-07-10T11:20:07+0200")
 10  public class __CLASS__ extends  __BASE__ {
-11  public __CLASS__(final long generation,final Map<String,Object> params) {
-12  super(generation,params);
+11  public __CLASS__(final Map<String,Object> params) {
+12  super(params);
 13  }
 14      // user's code starts here 
 (...)  

@@ -348,7 +348,7 @@ public class VcfFilterJdk
 			filter.userData.put("first.variant", Boolean.TRUE);
 			filter.userData.put("last.variant", Boolean.FALSE);
 
-			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
+			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 			progress.setLogPrefix(VcfFilterJdk.class.getSimpleName());
 			while (r.hasNext() && !w.checkError())
 				{

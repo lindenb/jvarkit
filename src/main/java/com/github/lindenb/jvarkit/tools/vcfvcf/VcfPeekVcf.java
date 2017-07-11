@@ -223,7 +223,7 @@ public class VcfPeekVcf extends Launcher
 				}
 			
 			out.writeHeader(h2);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h).logger(LOG);
 			while(vcfIn.hasNext())
 				{
 				final VariantContext ctx=progress.watch(vcfIn.next());

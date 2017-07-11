@@ -192,9 +192,17 @@ public class VcfLoopOverGenes extends Launcher {
 	private boolean deleteAfterCommand = false;
 	@Parameter(names={"-j","--jobs"},description="When -exec is specified, use <n> jobs. A value lower than 1 means use all procs available. ")
 	private int nJobs = 1;
-	
 	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
 	private String regionStr="";
+	@Parameter(names={"--splitMethod"},description="[20170711] How to split primary vcf")
+	private SplitMethod splitMethod = SplitMethod.Annotations;
+	@Parameter(names={"--snpEffNoIntergenic"},description="[20170711] when using SNPEFF annotations ignore intergenic variants. Makes things faster if you're only working with protein-things.")
+	private boolean snpEffNoIntergenic=false;
+	@Parameter(names={"--variantsWinCount"},description="[20170711] when split per count of variants, put at most this number of variants in the chunk.")
+	private int variantsWinCount=1000;
+	@Parameter(names={"--variantsWinShift"},description="[20170711] when split per count of variants, shift the window by this number of variants.")
+	private int variantsWinShift=500;
+
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
@@ -223,6 +231,13 @@ public class VcfLoopOverGenes extends Launcher {
 		return A.sourceType.compareTo(B.sourceType);
 		};
 	
+		
+	private enum SplitMethod
+		{
+		Annotations,
+		Variants
+		}
+		
 	private enum SourceType {
 		ANN_GeneName,
 		ANN_GeneID,
@@ -230,7 +245,9 @@ public class VcfLoopOverGenes extends Launcher {
 		VEP_Gene,
 		VEP_Feature,
 		VEP_Symbol,
-		VEP_HgncId
+		VEP_HgncId,
+		
+		SlidingVariants
 	}
 		
 	private class GeneLoc implements Comparable<GeneLoc>
@@ -304,7 +321,6 @@ public class VcfLoopOverGenes extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		PrintWriter pw=null;
-		SortingCollection<GeneLoc> sortingCollection=null;
 		VCFFileReader vcfFileReader=null;
 		CloseableIterator<VariantContext> iter=null;
 		CloseableIterator<GeneLoc> iter2=null;
@@ -330,7 +346,7 @@ public class VcfLoopOverGenes extends Launcher {
 			
 			if(this.geneFile==null)
 				{
-				sortingCollection = SortingCollection.newInstance(GeneLoc.class,
+				final SortingCollection<GeneLoc> sortingCollection = SortingCollection.newInstance(GeneLoc.class,
 					new GeneLocCodec(),
 					(A,B)->A.compareTo(B),
 					this.writingSortingCollection.getMaxRecordsInRam(),
@@ -354,49 +370,115 @@ public class VcfLoopOverGenes extends Launcher {
 					iter = vcfFileReader.query(interval.getContig(), interval.getStart(), interval.getEnd());
 					}
 				
-				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(vcfFileReader.getFileHeader());
-				progress.setLogPrefix(VcfLoopOverGenes.class.getSimpleName());
+				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(vcfFileReader.getFileHeader()).logger(LOG);
 				
-				while(iter.hasNext())
-					{
-					final VariantContext ctx = progress.watch(iter.next());
-					for(final AnnPredictionParser.AnnPrediction pred:tools.getAnnPredictionParser().getPredictions(ctx))
-						{
-						if(!StringUtil.isBlank(pred.getGeneName())) 
-							{
-							sortingCollection.add(create(ctx, pred.getGeneName(), SourceType.ANN_GeneName));
-							}
-						if(!StringUtil.isBlank(pred.getGeneId())) 
-							{
-							sortingCollection.add(create(ctx, pred.getGeneId(), SourceType.ANN_GeneID));
-							}
-						if(!StringUtil.isBlank(pred.getFeatureId())) 
-							{
-							sortingCollection.add(create(ctx, pred.getFeatureId(), SourceType.ANN_FeatureID));
-							}
-						}
-					
-					for(final VepPredictionParser.VepPrediction pred:tools.getVepPredictionParser().getPredictions(ctx))
-						{
-						if(!StringUtil.isBlank(pred.getGene())) 
-							{
-							sortingCollection.add(create(ctx, pred.getGene(), SourceType.VEP_Gene));
-							}
-						if(!StringUtil.isBlank(pred.getFeature())) 
-							{
-							sortingCollection.add(create(ctx, pred.getFeature(), SourceType.VEP_Feature));
-							}
-						if(!StringUtil.isBlank(pred.getSymbol())) 
-							{
-							sortingCollection.add(create(ctx, pred.getSymbol(), SourceType.VEP_Symbol));
-							}
-						if(!StringUtil.isBlank(pred.getHgncId())) 
-							{
-							sortingCollection.add(create(ctx, pred.getHgncId(), SourceType.VEP_HgncId));
-							}
-						}
+				/** split VCF per annotations */
 
+				if(this.splitMethod.equals(SplitMethod.Annotations))
+					{
+					while(iter.hasNext())
+							{
+							final VariantContext ctx = progress.watch(iter.next());
+							for(final AnnPredictionParser.AnnPrediction pred:tools.getAnnPredictionParser().getPredictions(ctx))
+								{
+								if(this.snpEffNoIntergenic && pred.isIntergenicRegion())
+									{
+									continue;
+									}
+								
+								if(!StringUtil.isBlank(pred.getGeneName())) 
+									{
+									sortingCollection.add(create(ctx, pred.getGeneName(), SourceType.ANN_GeneName));
+									}
+								if(!StringUtil.isBlank(pred.getGeneId())) 
+									{
+									sortingCollection.add(create(ctx, pred.getGeneId(), SourceType.ANN_GeneID));
+									}
+								if(!StringUtil.isBlank(pred.getFeatureId())) 
+									{
+									sortingCollection.add(create(ctx, pred.getFeatureId(), SourceType.ANN_FeatureID));
+									}
+								}
+							
+							for(final VepPredictionParser.VepPrediction pred:tools.getVepPredictionParser().getPredictions(ctx))
+								{
+								if(!StringUtil.isBlank(pred.getGene())) 
+									{
+									sortingCollection.add(create(ctx, pred.getGene(), SourceType.VEP_Gene));
+									}
+								if(!StringUtil.isBlank(pred.getFeature())) 
+									{
+									sortingCollection.add(create(ctx, pred.getFeature(), SourceType.VEP_Feature));
+									}
+								if(!StringUtil.isBlank(pred.getSymbol())) 
+									{
+									sortingCollection.add(create(ctx, pred.getSymbol(), SourceType.VEP_Symbol));
+									}
+								if(!StringUtil.isBlank(pred.getHgncId())) 
+									{
+									sortingCollection.add(create(ctx, pred.getHgncId(), SourceType.VEP_HgncId));
+									}
+								}
+							}
+					}
+				/** split VCF per sliding window of variants */
+				else if(this.splitMethod.equals(SplitMethod.Variants))
+					{
+					if(this.variantsWinCount<1)
+						{
+						LOG.error("Bad value for variantsWinCount");
+						return -1;
+						}
+					if(this.variantsWinShift<1 || this.variantsWinShift>this.variantsWinCount)
+						{
+						LOG.error("Bad value for variantsWinShift");
+						return -1;
+						}
+					final List<VariantContext> buffer=new ArrayList<>(this.variantsWinCount);
 					
+					/** routine to dump buffer into sorting collection */
+					final Runnable dumpBuffer =()->{
+						if(buffer.isEmpty()) return;
+						final String contig= buffer.get(0).getContig();
+						final int chromStart = buffer.stream().mapToInt(CTX->CTX.getStart()).min().getAsInt();
+						//use last of start too
+						final int chromEnd0 = buffer.stream().mapToInt(CTX->CTX.getStart()).max().getAsInt();
+						//final int chromEnd1 = buffer.stream().mapToInt(CTX->CTX.getEnd()).max().getAsInt();
+						final String identifier=
+								contig+ 
+								"_"+String.format("%06d", chromStart)+
+								"-"+String.format("%06d", chromEnd0)
+								;
+						
+						for(final VariantContext ctx:buffer) {
+							sortingCollection.add(create(ctx,identifier, SourceType.SlidingVariants));
+							}
+						};
+					
+					while(iter.hasNext())
+						{
+						final VariantContext ctx = progress.watch(iter.next());
+						if(!buffer.isEmpty() && !buffer.get(0).getContig().equals(ctx.getContig()))
+							{
+							dumpBuffer.run();
+							buffer.clear();
+							}
+						buffer.add(ctx);
+						if(buffer.size()>=this.variantsWinCount)
+							{
+							dumpBuffer.run();
+							for(int x=0;x<this.variantsWinShift && !buffer.isEmpty();++x )
+								{
+								buffer.remove(0);
+								}
+							}
+						}
+					dumpBuffer.run();
+					buffer.clear();
+					}
+				else
+					{
+					throw new IllegalStateException("No such method: "+this.splitMethod);
 					}
 				sortingCollection.doneAdding();
 				progress.finish();
@@ -532,6 +614,11 @@ public class VcfLoopOverGenes extends Launcher {
 						
 						switch(sourceType)
 							{
+							case SlidingVariants:
+								{
+								//nothing
+								break;
+								}
 							case ANN_GeneName:
 							case ANN_FeatureID:
 							case ANN_GeneID:

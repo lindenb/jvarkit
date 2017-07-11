@@ -194,9 +194,12 @@ public class VcfGnomad extends Launcher{
 		/** find matching variant in tabix file, use a buffer to avoid multiple random accesses */
 		VariantContext findMatching(final VariantContext userVariantCtx)
 			{
+			
 			if( VcfGnomad.this.streaming) {
 				try {
-					final List<VariantContext> found = this.gnomad_equal_range.next(userVariantCtx);
+					final List<VariantContext> found = this.gnomad_equal_range.next(
+							userVariantCtx
+							);
 					for(final VariantContext ctx:found)
 						{
 						if( !ctx.getReference().equals(userVariantCtx.getReference())) continue;
@@ -220,7 +223,7 @@ public class VcfGnomad extends Launcher{
 					buffer.clear();
 					this.buffferChromEnd = userCtx.getPos() + VcfGnomad.this.gnomadBufferSize;
 					final Iterator<VariantContext> iter=this.gnomad_tabix.iterator(
-							userCtx.getContig(),
+							userVariantCtx.getContig(),
 							Math.max(0,userCtx.getPos()-1),
 							this.buffferChromEnd
 							);
@@ -349,6 +352,16 @@ public class VcfGnomad extends Launcher{
 		return contig;
 		}
 	
+	/** change user's chromosome for a variant if needed */
+	private VariantContext normalizeVariantContig(final VariantContext userVariantCtx)
+		{
+		final String ensemblContig = normalizeContig(userVariantCtx.getContig());
+		return ensemblContig.equals(userVariantCtx.getContig())
+				? userVariantCtx
+				: new VariantContextBuilder(userVariantCtx).chr(ensemblContig).make()
+				;
+		}
+	
 	
 	@Override
 	protected int doVcfToVcf(
@@ -458,7 +471,7 @@ public class VcfGnomad extends Launcher{
 					ManifestEntry entry = ome2manifest[i];
 					if(entry==null) continue;
 					
-					final VariantContext ctx2=entry.findMatching(ctx);
+					final VariantContext ctx2=entry.findMatching(normalizeVariantContig(ctx));
 					if(ctx2==null) continue;
 					for(final InfoField infoField: infoFields)
 						{
