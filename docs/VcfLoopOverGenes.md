@@ -50,9 +50,25 @@ Usage: vcfloopovergenes [options] Files
       "chrom:middle+extend"  or "chrom:start-end+extend".A program might use a 
       Reference sequence to fix the chromosome name (e.g: 1->chr1)
       Default: <empty string>
+    --snpEffNoIntergenic
+      [20170711] when using SNPEFF annotations ignore intergenic variants. 
+      Makes things faster if you're only working with protein-things.
+      Default: false
+    --splitMethod
+      [20170711] How to split primary vcf
+      Default: Annotations
+      Possible Values: [Annotations, Variants]
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
+    --variantsWinCount
+      [20170711] when split per count of variants, put at most this number of 
+      variants in the chunk.
+      Default: 1000
+    --variantsWinShift
+      [20170711] when split per count of variants, shift the window by this 
+      number of variants.
+      Default: 500
     --version
       print version and exit
 

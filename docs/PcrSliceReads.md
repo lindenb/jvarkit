@@ -1,6 +1,6 @@
 # PcrSliceReads
 
-Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/
+Mark PCR reads to their PCR amplicon
 
 
 ## Usage
@@ -39,6 +39,21 @@ Usage: pcrslicereads [options] Files
       Default: false
 
 ```
+
+
+## Keywords
+
+ * pcr
+ * sam
+ * bam
+ * cigar
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/149687](https://www.biostars.org/p/149687)
+
 
 ## Compilation
 
