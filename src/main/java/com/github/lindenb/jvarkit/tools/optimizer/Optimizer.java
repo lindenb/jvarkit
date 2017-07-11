@@ -95,18 +95,33 @@ parameters.
 ```java
 public static abstract class Solution implements Comparable<Solution>
 	{
-	protected long generation;
+	protected long generation =  -1L;
 	protected final Map<String,Object> params;
-	public Solution(final long generation,final Map<String,Object> params)
+	public Solution(final Map<String,Object> params)
 		{
 		this.params = Collections.unmodifiableMap(params);
-		this.generation = generation;
 		}
 	// eval the result. Must be implemented by the user
 	public abstract int execute() throws Exception;
 	// delete any file associated to this solution 
 	public void delete() {}
-		
+	//mate a Solution with another, returns null if mating is not possible
+	public Solution mate(final Solution another) {
+		return null;
+	}
+	
+	@Override
+	public boolean equals(final Object obj) {
+		if(obj==this) return true;
+		if(obj ==null || !(obj instanceof Solution)) return false;
+		final Solution other=Solution.class.cast(obj);
+		return this.params.equals(other.params);
+		}
+	
+	@Override
+	public int hashCode() {
+		return this.params.hashCode();
+		}
 	}
 ```
 
@@ -128,8 +143,8 @@ The user's code will be inserted in the following template:
  8  import javax.annotation.Generated;
  9  @Generated(value="Optimizer",date="2017-07-10T11:20:07+0200")
 10  public class __CLASS__ extends  __BASE__ {
-11  public __CLASS__(final long generation,final Map<String,Object> params) {
-12  super(generation,params);
+11  public __CLASS__(final Map<String,Object> params) {
+12  super(params);
 13  }
 14      // user's code starts here 
 (...)  
@@ -162,29 +177,47 @@ public class Optimizer extends Launcher
 	private File useSourceCode = null;
 	@Parameter(names={"-seed","--random"},description="Random seed. -1 == current time")
 	private long  randomSeed = -1L;
-
 	
 	
 	private Random random = new Random(0L);
 	private List<VariableParam> variableParams = new ArrayList<>();
 	private enum Status {STATUS_CONTINUE,STATUS_STOP};
 	private long generation = 0L;
-	private Solution bestSolution = null;
+	private final List<Solution> bestSolutions = new ArrayList<>();
 	private Constructor<?> solutionConstructor = null;
+	
 
 	
 	public static abstract class Solution implements Comparable<Solution>
 		{
-		protected long generation;
+		protected long generation=-1L;
 		protected final Map<String,Object> params;
-		public Solution(final long generation,final Map<String,Object> params)
+		public Solution(final Map<String,Object> params)
 			{
 			this.params = Collections.unmodifiableMap(params);
-			this.generation = generation;
 			}
 		public abstract int execute() throws Exception;
 		/** delete any file associated to this solution */
 		public void delete() {}
+		
+		/** mate a Solution with another, returns null if mating is not possible*/
+		public Solution mate(final Solution another) {
+			return null;
+		}
+		
+		@Override
+		public boolean equals(final Object obj) {
+			if(obj==this) return true;
+			if(obj ==null || !(obj instanceof Solution)) return false;
+			final Solution other=Solution.class.cast(obj);
+			return this.params.equals(other.params);
+			}
+		
+		@Override
+		public int hashCode() {
+			return this.params.hashCode();
+			}
+		
 		@Override
 		public String toString()
 			{
@@ -349,15 +382,35 @@ public class Optimizer extends Launcher
 		{
 		try
 			{
-			return Solution.class.cast(
-					this.solutionConstructor.newInstance(++this.generation,
-						values.entrySet().stream().
+			final Solution sol = Solution.class.cast(
+					this.solutionConstructor.newInstance(values.entrySet().stream().
 							collect(Collectors.toMap(E->E.getKey(),E->E.getValue().value))
 						));
+			
+			sol.generation = ++this.generation;
+			return sol;
 			}
 		catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e)
 			{
 			throw new RuntimeException(e);
+			}
+		}
+	
+	private void addSolution(final Solution sol)
+		{
+		if(sol==null) return;
+		if(this.bestSolutions.contains(sol)) return;
+		this.bestSolutions.add(sol);
+		Collections.sort(this.bestSolutions);
+		if(this.bestSolutions.size()>10)
+			{
+			final Solution oldSol = this.bestSolutions.remove(this.bestSolutions.size()-1);
+			LOG.debug("Deleting "+oldSol);
+			oldSol.delete();
+			}
+		if(!this.bestSolutions.isEmpty())
+			{
+			LOG.debug("Best is\n"+ this.bestSolutions.get(0));
 			}
 		}
 	
@@ -382,20 +435,36 @@ public class Optimizer extends Launcher
 			sol.delete();
 			sol=null;
 			}
-		if(sol!=null &&
-		(this.bestSolution==null || sol.compareTo(this.bestSolution)<0))
+		if(sol!=null) addSolution(sol);
+		
+		// try mate
+		if(this.bestSolutions.size()>2)
 			{
-			if(this.bestSolution!=null) {
-				LOG.debug("Deleting "+this.bestSolution);
-				this.bestSolution.delete();
+			int idx = 1 + this.random.nextInt(this.bestSolutions.size()-1);
+			sol = this.bestSolutions.get(0).mate(this.bestSolutions.get(idx));
+			if(sol!=null && !this.bestSolutions.contains(sol))
+				{
+				sol.generation = ++this.generation;
+				try
+					{
+					int ret = sol.execute();
+					if(ret!=0)
+						{
+						LOG.warn("solution "+sol+" failed");
+						sol=null;
+						}
+					}
+				catch(final Throwable err)
+					{
+					LOG.warn("solution "+sol+" failed");
+					LOG.warn(err);
+					sol.delete();
+					sol=null;
+					}
+				if(sol!=null) addSolution(sol);
 				}
-			this.bestSolution = sol;
 			}
-			
-		if(this.bestSolution!=null)
-			{
-			LOG.debug("Best is\n"+ this.bestSolution);
-			}
+		
 		return Status.STATUS_CONTINUE;
 		}
 	
@@ -603,7 +672,7 @@ public class Optimizer extends Launcher
 			
 			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
 			final Class<?> clazz = inMemoryCompiler.compileClass(className,code);
-			this.solutionConstructor =clazz.getConstructor(Long.TYPE,Map.class);
+			this.solutionConstructor =clazz.getConstructor(Map.class);
 			
 			if(this.run_all_combinations)
 				{
@@ -613,9 +682,13 @@ public class Optimizer extends Launcher
 				{
 				this.runRandom();
 				}
-			if(this.bestSolution==null) {
+			if(this.bestSolutions.isEmpty()) {
 				LOG.error("no solution was found");
 				return -1;
+				}
+			for(final Solution sol: this.bestSolutions)
+				{
+				sol.delete();
 				}
 			return 0;
 			}

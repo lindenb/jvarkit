@@ -74,7 +74,7 @@ public class ReadClipper
 			{
 			switch(op)
 				{
-				case D: case I: return true;
+				case D: case N: return true;
 				default: return false;
 				}
 			}

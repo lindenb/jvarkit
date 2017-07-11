@@ -49,6 +49,13 @@ import htsjdk.samtools.util.IntervalTreeMap;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 /**
@@ -90,7 +97,6 @@ samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
 
 
 ```
-
     1091      1101      1111      1121      1131      1141      1151      1161      1171      1181      1191
 AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCACCTAACACAAGACTACCCAGATTCATAAAACAAATNNNNN
               ...................................                               ..................................
@@ -131,13 +137,6 @@ AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCAC
 
 END_DOC
 */
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 @Program(name="pcrclipreads",
 	description="Soft clip bam files based on PCR target regions",

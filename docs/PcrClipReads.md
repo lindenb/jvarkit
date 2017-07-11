@@ -149,7 +149,6 @@ samtools tview -p seq2:1100  clipped.bam  samtools-0.1.19/examples/ex1.fa
 
 
 ```
-
     1091      1101      1111      1121      1131      1141      1151      1161      1171      1181      1191
 AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCACCTAACACAAGACTACCCAGATTCATAAAACAAATNNNNN
               ...................................                               ..................................
