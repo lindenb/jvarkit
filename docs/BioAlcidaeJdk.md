@@ -159,6 +159,18 @@ At the time of writing, we have:
 					false);
 			}
 		}
+		
+    public static abstract class FastaHandler extends AbstractHandler
+		{
+		protected CloseableIterator<FastaSequence> iter=null;
+		public Stream<FastaSequence> stream()
+			{
+			return StreamSupport.stream(
+					new IterableAdapter<FastaSequence>(this.iter).spliterator(),
+					false);
+			}
+		}
+
 ```
 
 ## VCF 
@@ -241,6 +253,34 @@ when reading a Fastq, a new class extending `FastqHandler` will be compiled. The
 
 ```
 
+## Fasta
+
+when reading a Fasta, a new class extending `FastaHandler` will be compiled. The user's code will be inserted as:
+
+```
+ 1  import java.util.*;
+ 2  import java.util.stream.*;
+ 3  import java.util.function.*;
+ 4  import htsjdk.samtools.*;
+ 5  import htsjdk.samtools.util.*;
+ 6  import htsjdk.variant.variantcontext.*;
+ 7  import htsjdk.variant.vcf.*;
+ 8  import javax.annotation.Generated;
+ 9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
+10  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
+11    public BioAlcidaeJdkCustom298960668() {
+12    }
+13    @Override
+14    public void execute() throws Exception {
+15     // user's code starts here 
+16     
+17      //user's code ends here 
+18     }
+19  }
+
+```
+
+
 
 ## Examples
 
@@ -249,7 +289,7 @@ when reading a Fastq, a new class extending `FastqHandler` will be compiled. The
 count the SNP having a ID in a VCF file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(V->V.isSNP()).filter(V->V.hasID()).count());' input.vcf.gz
+$ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(V->V.isSNP()).filter(V->V.hasID()).count());' input.vcf.gz
 
 953
 ```
@@ -259,7 +299,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(V->V.i
 count the mapped SAM Reads in a BAM file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
+$ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
 5518 
 ```
 
@@ -268,8 +308,24 @@ $ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->!R.
 count the  Reads starting with "A' in a FASTQ file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
+$ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
 218 
+```
+
+## Example
+
+generate a matrix: first row is sample names, one row per variant, genotypes (0=HOM_REF,1=HET,2=HOM_VAR,other=-9)
+
+```
+java -jar dist/bioalcidaejdk.jar -e 'System.out.println(String.join(",",header.getSampleNamesInOrder())); stream().forEach(V->out.println(V.getGenotypes().stream().map(G->{if(G.isHomRef()) return "0";if(G.isHet()) return "1"; if(G.isHomVar()) return "2"; return "-9";}).collect(Collectors.joining(","))));' input.vcf
+```
+
+## Example
+
+longest fasta  length
+
+```
+/java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().mapToInt(S->S.length()).max().getAsInt());' input.fasta
 ```
 
 

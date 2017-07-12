@@ -53,7 +53,7 @@ Usage: vcfstats [options] Files
     --trancheAffected
       tranches for the number of affected. A range of is a list of integers is 
       ascending order separated with semicolons.
-      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/50[, [50/100[, [100/Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/Inf[]
     --trancheAlts
       tranches for the number of ALTs. A range of is a list of integers is 
       ascending order separated with semicolons.
@@ -61,7 +61,7 @@ Usage: vcfstats [options] Files
     --trancheDP
       tranches for the DEPTH. A range of is a list of integers is ascending 
       order separated with semicolons.
-      Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/50[, [50/100[, [100/200[, [200/Inf[]
+      Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/600[, [600/700[, [700/800[, [800/900[, [900/1000[, [1000/2000[, [2000/3000[, [3000/4000[, [4000/5000[, [5000/10000[, [10000/Inf[]
     --trancheDistance
       tranches for the distance between the variants. A range of is a list of 
       integers is ascending order separated with semicolons.
@@ -69,7 +69,7 @@ Usage: vcfstats [options] Files
     --trancheIndelSize
       tranches for the Indel size A range of is a list of integers is 
       ascending order separated with semicolons.
-      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/15[, [15/20[, [20/Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/15[, [15/20[, [20/50[, [50/100[, [100/Inf[]
     --vckey
       Variant Context Key. if defined, I will look at this key in the INFO 
       column and produce a CASE/CTRL graf for each item. If undefined, I will 

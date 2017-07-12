@@ -349,7 +349,6 @@ public class VcfFilterJdk
 			filter.userData.put("last.variant", Boolean.FALSE);
 
 			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
-			progress.setLogPrefix(VcfFilterJdk.class.getSimpleName());
 			while (r.hasNext() && !w.checkError())
 				{
 				final  VariantContext variation = progress.watch(r.next());

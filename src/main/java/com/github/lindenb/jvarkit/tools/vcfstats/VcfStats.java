@@ -231,11 +231,11 @@ public class VcfStats extends Launcher
 	@Parameter(names={"-tee","--tee"},description="output the incoming vcf to stdout. Useful to get intermediary stats in a pipeline")
 	boolean tee=false;
 	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
-	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100);
+	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
 	@Parameter(names={"--trancheDP"},description="tranches for the DEPTH. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
-	private RangeOfIntegers depthTranches =new RangeOfIntegers(0,10,20,30,50,100,200);
+	private RangeOfIntegers depthTranches =new RangeOfIntegers(0,10,20,30,50,100,200,300,400,500,600,700,800,900,1000,2000,3000,4000,5000,10000);
 	@Parameter(names={"--trancheIndelSize"},description="tranches for the Indel size "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
-	private RangeOfIntegers indelTranches =new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,15,20);
+	private RangeOfIntegers indelTranches =new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,15,20,50,100);
 	@Parameter(names={"--trancheAlts"},description="tranches for the number of ALTs. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers altTranches =new RangeOfIntegers(0,1,2,3,4,5,6,8,9,10);
 	@Parameter(names={"--trancheDistance"},description="tranches for the distance between the variants. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
@@ -255,6 +255,8 @@ public class VcfStats extends Launcher
 		{
 		final String sample1;
 		final String sample2;
+		final int _hash;
+		
 		SamplePair(final String sample1,final String sample2)
 			{
 			if(sample1.compareTo(sample2)<0)
@@ -267,14 +269,16 @@ public class VcfStats extends Launcher
 				this.sample1 = sample2;
 				this.sample2 = sample1;
 				}
+			
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + this.sample1.hashCode();
+			result = prime * result + this.sample2.hashCode();
+			this._hash = result;
 			}
 		@Override
 		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + sample1.hashCode();
-			result = prime * result + sample2.hashCode();
-			return result;
+			return this._hash;
 			}
 		@Override
 		public boolean equals(Object obj) {
@@ -282,7 +286,9 @@ public class VcfStats extends Launcher
 			if (obj == null)  return false;
 			if (!(obj instanceof SamplePair)) return false;
 			final SamplePair other = (SamplePair) obj;
-			return other.sample1.equals(sample1) && other.sample2.equals(sample2); 
+			return this._hash==other._hash && 
+				   other.sample1.equals(this.sample1) && 
+				   other.sample2.equals(this.sample2); 
 			}
 		@Override
 		public String toString() {
@@ -351,6 +357,8 @@ public class VcfStats extends Launcher
 		final Counter<NucleicAcidChange> nucleicAcidChanges = new Counter<>();
 		final Counter<GeneLocation> geneLocations = new Counter<>();
 		final Counter<String> consequences = new Counter<>();
+		final Counter<String> variantsPerContigs = new Counter<>();
+		
 		protected ContigPosRef prevCtx=null;
 
 		protected void visitForDistance(final VariantContext ctx)
@@ -450,10 +458,14 @@ public class VcfStats extends Launcher
 				this.pedireePerson= VcfStats.this.pedigree.getPersonById(sampleName);
 				}
 			
-			public void visit(final VariantContext ctx,List<KnownGene> knownGenes) {
+			public void visit(final VariantContext ctx,final List<KnownGene> knownGenes) {
 				final Genotype genotype = ctx.getGenotype(this.sampleName);
 				if(genotype==null) return;
 				this.countTypes.incr(genotype.getType());
+				if(ctx.isVariant() && !(genotype.isNoCall() || genotype.isHomRef()))
+					{
+					this.variantsPerContigs.count(ctx.getContig());
+					}
 				
 				if( this.pedireePerson !=null && 
 					this.pedireePerson.hasAtLeastOneParent() &&
@@ -503,6 +515,8 @@ public class VcfStats extends Launcher
 		VariantStats(final String key,final VCFHeader header) {
 			this.key = key;
 			this.vcfTools = new VcfTools(header);
+			
+			
 			this.sequenceOntologyTermsToObserve.addAll(
 				VcfStats.this.sequenceOntologyTermsStr.stream().
 			 	filter(S->!S.trim().isEmpty()).
@@ -548,6 +562,12 @@ public class VcfStats extends Launcher
 		public void visit(final VariantContext ctx) {
 			this.countVariants++;
 			this.countTypes.incr(ctx.getType());
+			if(ctx.isVariant())
+				{
+				this.variantsPerContigs.count(ctx.getContig());
+				}
+			
+			
 			final List<KnownGene> knownGenes =  VcfStats.this.getOverlappingKnownGenes(ctx);			
 
 			visitForGeneLocation(ctx,knownGenes);
@@ -719,6 +739,7 @@ public class VcfStats extends Launcher
 		public void finish(final PrintWriter makefileWriter) throws IOException
 		{
 
+		if(!this.countTypes.isEmpty())
 			{
 			final String filename = toTsv("variant2type");
 
@@ -742,6 +763,7 @@ public class VcfStats extends Launcher
 					+ "set style fill solid border -1;"
 					+ "set key  off;set datafile separator \"\t\";"
 					+ "set auto x;"
+					+ "set xtic rotate by 90 right;"
 					+ "set style histogram;"
 					+ "set style data histogram;"
 					+ "set terminal png truecolor;"
@@ -750,6 +772,90 @@ public class VcfStats extends Launcher
 					+ "gnuplot");
 			}
 
+		if(!this.variantsPerContigs.isEmpty())
+			{
+			final String filename = toTsv("variant2contigs");
+
+			PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+			pw.println("Contig\tCount");
+
+			for(final String contig: this.variantsPerContigs.keySetDecreasing())
+				{
+				pw.println(contig+"\t"+this.variantsPerContigs.count(contig));
+				}
+			pw.flush();
+			pw.close();
+			final String png= toPng(filename);
+			makefileWriter.println("ALL_TARGETS+=" + png);
+			makefileWriter.println(png+":"+filename);
+			makefileWriter.println("\techo 'set key autotitle columnheader;"
+					+ "set ylabel \"Count\";"
+					+ "set yrange [0:];"
+					+ "set size  ratio 0.618;"
+					+ "set title \"Variant per Contigs (N="+this.variantsPerContigs.getTotal()+")\";"
+					+ "set style fill solid border -1;"
+					+ "set key  off;set datafile separator \"\t\";"
+					+ "set auto x;"
+					+ "set xtic rotate by 90 right;"
+					+ "set style histogram;"
+					+ "set style data histogram;"
+					+ "set terminal png truecolor;"
+					+ "set output \"$@\";"
+					+ "plot \"$<\" using 2:xtic(1) ti \"Contig\";' | "
+					+ "gnuplot");
+			}
+
+		if(!this.sample2stats.isEmpty())
+			{
+			final String filename=toTsv("sample2contig");
+			final Set<String> contigs =  this.sample2stats.values().
+					stream().
+					flatMap(S->S.variantsPerContigs.keySet().stream()).
+					collect(Collectors.toSet());
+			
+			PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+			pw.println("Sample\t"+ String.join("\t",contigs));
+			for(final String sample: this.sample2stats.keySet())
+				{
+				pw.print(sample);
+				for(final String contig: contigs)
+					{
+					pw.print("\t"+this.sample2stats.get(sample).variantsPerContigs.count(contig));
+					}
+				pw.println();
+				}
+			pw.flush();
+			pw.close();
+			
+			
+			final String png=toPng(filename);
+			makefileWriter.println("ALL_TARGETS+=" + png);
+			makefileWriter.println(png+":"+filename);
+
+			makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH},${SCREEN_HEIGHT} ;"
+					+ "set title \"Sample/Contig\";"
+					+ "set xlabel \"Sample\";"
+					+ "set key autotitle columnhead;"
+					+ "set xtic rotate by 90 right;"
+					+ "set ylabel \"Count\";"
+					+ "set yrange [0:];"
+					+ "set key invert reverse Left outside;"
+					+ "set datafile separator \"\t\";"
+					+ "set style fill solid border -1;"
+					+ "set style data histograms;set style histogram rowstacked;"
+					+ "set boxwidth 0.95;set output \"$@\";"
+					+ "plot \"$<\" using 2:xtic(1)");
+			int k=2;
+			for(final String contig: contigs)
+				{
+				makefileWriter.print((k==2?"":", \"\" using "+k)+" ti \""+contig+"\"");
+				++k;
+				}
+			makefileWriter.println("' | gnuplot");
+			}
+		
+		
+		if(!this.sample2stats.isEmpty())	
 			{
 			final String filename=toTsv("sample2gtype");
 			PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
@@ -771,7 +877,7 @@ public class VcfStats extends Launcher
 			makefileWriter.println("ALL_TARGETS+=" + png);
 			makefileWriter.println(png+":"+filename);
 
-			makefileWriter.print("\techo 'set terminal png truecolor size 2600, 1000;"
+			makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH}, ${SCREEN_HEIGHT};"
 					+ "set title \"Genotypes Types\";"
 					+ "set xlabel \"Sample\";"
 					+ "set key autotitle columnhead;"
@@ -954,7 +1060,7 @@ public class VcfStats extends Launcher
 					final String png= toPng(filename);
 					makefileWriter.println("ALL_TARGETS+=" + png);
 					makefileWriter.println(png+":"+filename);
-					makefileWriter.print("\techo 'set terminal png truecolor size 2600, 1000;"
+					makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH},${SCREEN_HEIGHT};"
 							+ "set title \"Depth / Genotype\";"
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Depth Genotype\";"
@@ -1038,7 +1144,7 @@ public class VcfStats extends Launcher
 					final String png= toPng(filename);
 					makefileWriter.println("ALL_TARGETS+=" + png);
 					makefileWriter.println(png+":"+filename);
-					makefileWriter.print("\techo 'set terminal png truecolor size 2600, 1000;"
+					makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH}, ${SCREEN_HEIGHT};"
 							+ "set title \"Distance between variants\";"
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Distance between variants\";"
@@ -1073,7 +1179,7 @@ public class VcfStats extends Launcher
 				final String png= toPng(this.mafPlotter.filename);
 				makefileWriter.println("ALL_TARGETS+=" + png);
 				makefileWriter.println(png+":"+this.mafPlotter.filename);
-				makefileWriter.println("\techo 'set terminal png truecolor size 1000, 1000;"
+				makefileWriter.println("\techo 'set terminal png truecolor size ${SCREEN_WIDTH},${SCREEN_HEIGHT};"
 						+ "set title \"MAF Cases/Controls\";"
 						+ "set ylabel \"Controls\";"
 						+ "set xlabel \"Cases\";"
@@ -1104,7 +1210,7 @@ public class VcfStats extends Launcher
 				final String png= toPng(filename);
 				makefileWriter.println("ALL_TARGETS+=" + png);
 				makefileWriter.println(png+":"+filename);
-				makefileWriter.println("\techo 'set terminal png truecolor size 2600, 1000;"
+				makefileWriter.println("\techo 'set terminal png truecolor size ${SCREEN_WIDTH}, ${SCREEN_HEIGHT};"
 						+ "set title \"Transition/Transversion\";"
 						+ "set xlabel \"Where\";"
 						+ "set ylabel \"Count Variants / "+this.countVariants+"\";"
@@ -1216,7 +1322,7 @@ public class VcfStats extends Launcher
 					final String png= toPng(filename);
 					makefileWriter.println("ALL_TARGETS+=" + png);
 					makefileWriter.println(png+":"+filename);
-					makefileWriter.print("\techo 'set terminal png truecolor size 2600, 1000;"
+					makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH},${SCREEN_HEIGHT};"
 							+ "set title \"Predictions/Samples\";"
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Prediction\";"
@@ -1265,7 +1371,7 @@ public class VcfStats extends Launcher
 					final String png= toPng(filename);
 					makefileWriter.println("ALL_TARGETS+=" + png);
 					makefileWriter.println(png+":"+filename);
-					makefileWriter.print("\techo 'set terminal png truecolor size 2600, 1000;"
+					makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH},${SCREEN_HEIGHT};"
 							+ "set title \"Mendelian violations\";"
 							+ "set xlabel \"Sample\";"
 							+ "set ylabel \"Prediction\";"
@@ -1324,7 +1430,7 @@ public class VcfStats extends Launcher
 				final String png= toPng(filename);
 				makefileWriter.println("ALL_TARGETS+=" + png);
 				makefileWriter.println(png+":"+filename);
-				makefileWriter.print("\techo 'set terminal png truecolor size 1000, 1000;"
+				makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH},${SCREEN_HEIGHT};"
 						+ "set title \"Genotype Concordance\";"
 						+ "unset key; set view map;"
 						+ "set output \"$@\";"
@@ -1440,6 +1546,8 @@ public class VcfStats extends Launcher
 				}
 			makefileWriter = this.archiveFactory.openWriter(this.prefix+"Makefile");
 			makefileWriter.println(".PHONY: all all_targets ");
+			makefileWriter.println("SCREEN_WIDTH?=2600");
+			makefileWriter.println("SCREEN_HEIGHT?=1000");
 			makefileWriter.println("ALL_TARGETS=");
 			makefileWriter.println("all: all_targets");
 
