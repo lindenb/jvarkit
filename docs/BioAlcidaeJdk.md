@@ -113,13 +113,15 @@ At the time of writing, we have:
 ```java
     public static abstract class AbstractHandler
     	{
+    	// output file
     	protected PrintStream out = System.out;
+    	// input file name
     	protected String inputFile = null;
     	// called at begin
     	public void initialize() {}
     	// called at end
     	public void dispose() {}
-    	// users MUST implement that function
+    	// users MUST implement the body of that function
     	public abstract void execute() throws Exception;
     	}
     
@@ -147,23 +149,33 @@ At the time of writing, we have:
 					false);
 			}
 		}
+    public static abstract class FastqHandler extends AbstractHandler
+		{
+		protected FastqReader iter=null;
+		public Stream<FastqRecord> stream()
+			{
+			return StreamSupport.stream(
+					new IterableAdapter<FastqRecord>(this.iter).spliterator(),
+					false);
+			}
+		}
 ```
 
 ## VCF 
 
-when reading a VCF, a new class extending `VcfHandler`will be compiled. The user's code will be inserted as:
+when reading a VCF, a new class extending `VcfHandler` will be compiled. The user's code will be inserted as:
 
 ```
      1  import java.util.*;
      2  import java.util.stream.*;
      3  import java.util.function.*;
-     4  import htsjdk.samtools.util.*;
+     4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
      7  import javax.annotation.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:00:49+0200")
-     9  public class VcfFilterJdkCustom970827757 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.VcfHandler {
-    10    public VcfFilterJdkCustom970827757() {
+     9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.VcfHandler {
+    10    public Custom1694491176() {
     11    }
     12    @Override
     13    public void execute() throws Exception {
@@ -176,20 +188,20 @@ when reading a VCF, a new class extending `VcfHandler`will be compiled. The user
 
 ## SAM
 
-when reading a SAM/BAM, a new class extending `SAMHandler`will be compiled. The user's code will be inserted as:
+when reading a SAM/BAM, a new class extending `SAMHandler` will be compiled. The user's code will be inserted as:
 
 
 ```java
      1  import java.util.*;
      2  import java.util.stream.*;
      3  import java.util.function.*;
-     4  import htsjdk.samtools.util.*;
+     4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
      7  import javax.annotation.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:09:20+0200")
-     9  public class VcfFilterJdkCustom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.SAMHandler {
-    10    public VcfFilterJdkCustom1694491176() {
+     9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.SAMHandler {
+    10    public Custom1694491176() {
     11    }
     12    @Override
     13    public void execute() throws Exception {
@@ -199,6 +211,36 @@ when reading a SAM/BAM, a new class extending `SAMHandler`will be compiled. The 
     17     }
     18  }
 ```
+
+
+## FASTQ
+
+when reading a Fastq, a new class extending `FastqHandler` will be compiled. The user's code will be inserted as:
+
+
+```java
+ 1  import java.util.*;
+ 2  import java.util.stream.*;
+ 3  import java.util.function.*;
+ 4  import htsjdk.samtools.*;
+ 5  import htsjdk.samtools.util.*;
+ 6  import htsjdk.variant.variantcontext.*;
+ 7  import htsjdk.variant.vcf.*;
+ 8  import javax.annotation.Generated;
+ 9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:46:47+0200")
+10  public class BioAlcidaeJdkCustom220769712 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastqHandler {
+11    public BioAlcidaeJdkCustom220769712() {
+12    }
+13    @Override
+14    public void execute() throws Exception {
+15    
+16     // user's code is inserted here <=======================
+17     
+18     }
+19  }
+
+```
+
 
 ## Examples
 
@@ -217,10 +259,18 @@ $ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(V->V.i
 count the mapped SAM Reads in a BAM file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->!R.getReadUnmappedFlag()).count());'input.bam
+$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
 5518 
 ```
 
+### Example:
+
+count the  Reads starting with "A' in a FASTQ file:
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
+218 
+```
 
 
 

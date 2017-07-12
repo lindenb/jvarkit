@@ -42,7 +42,6 @@ import java.util.stream.StreamSupport;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
-import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -53,6 +52,8 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.fastq.FastqReader;
+import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Iso8601Date;
@@ -77,13 +78,15 @@ At the time of writing, we have:
 ```java
     public static abstract class AbstractHandler
     	{
+    	// output file
     	protected PrintStream out = System.out;
+    	// input file name
     	protected String inputFile = null;
     	// called at begin
     	public void initialize() {}
     	// called at end
     	public void dispose() {}
-    	// users MUST implement that function
+    	// users MUST implement the body of that function
     	public abstract void execute() throws Exception;
     	}
     
@@ -111,23 +114,33 @@ At the time of writing, we have:
 					false);
 			}
 		}
+    public static abstract class FastqHandler extends AbstractHandler
+		{
+		protected FastqReader iter=null;
+		public Stream<FastqRecord> stream()
+			{
+			return StreamSupport.stream(
+					new IterableAdapter<FastqRecord>(this.iter).spliterator(),
+					false);
+			}
+		}
 ```
 
 ## VCF 
 
-when reading a VCF, a new class extending `VcfHandler`will be compiled. The user's code will be inserted as:
+when reading a VCF, a new class extending `VcfHandler` will be compiled. The user's code will be inserted as:
 
 ```
      1  import java.util.*;
      2  import java.util.stream.*;
      3  import java.util.function.*;
-     4  import htsjdk.samtools.util.*;
+     4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
      7  import javax.annotation.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:00:49+0200")
-     9  public class VcfFilterJdkCustom970827757 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.VcfHandler {
-    10    public VcfFilterJdkCustom970827757() {
+     9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.VcfHandler {
+    10    public Custom1694491176() {
     11    }
     12    @Override
     13    public void execute() throws Exception {
@@ -140,20 +153,20 @@ when reading a VCF, a new class extending `VcfHandler`will be compiled. The user
 
 ## SAM
 
-when reading a SAM/BAM, a new class extending `SAMHandler`will be compiled. The user's code will be inserted as:
+when reading a SAM/BAM, a new class extending `SAMHandler` will be compiled. The user's code will be inserted as:
 
 
 ```java
      1  import java.util.*;
      2  import java.util.stream.*;
      3  import java.util.function.*;
-     4  import htsjdk.samtools.util.*;
+     4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
      7  import javax.annotation.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:09:20+0200")
-     9  public class VcfFilterJdkCustom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.SAMHandler {
-    10    public VcfFilterJdkCustom1694491176() {
+     9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.SAMHandler {
+    10    public Custom1694491176() {
     11    }
     12    @Override
     13    public void execute() throws Exception {
@@ -163,6 +176,36 @@ when reading a SAM/BAM, a new class extending `SAMHandler`will be compiled. The 
     17     }
     18  }
 ```
+
+
+## FASTQ
+
+when reading a Fastq, a new class extending `FastqHandler` will be compiled. The user's code will be inserted as:
+
+
+```java
+ 1  import java.util.*;
+ 2  import java.util.stream.*;
+ 3  import java.util.function.*;
+ 4  import htsjdk.samtools.*;
+ 5  import htsjdk.samtools.util.*;
+ 6  import htsjdk.variant.variantcontext.*;
+ 7  import htsjdk.variant.vcf.*;
+ 8  import javax.annotation.Generated;
+ 9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:46:47+0200")
+10  public class BioAlcidaeJdkCustom220769712 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastqHandler {
+11    public BioAlcidaeJdkCustom220769712() {
+12    }
+13    @Override
+14    public void execute() throws Exception {
+15    
+16     // user's code is inserted here <=======================
+17     
+18     }
+19  }
+
+```
+
 
 ## Examples
 
@@ -181,10 +224,18 @@ $ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(V->V.i
 count the mapped SAM Reads in a BAM file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->!R.getReadUnmappedFlag()).count());'input.bam
+$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
 5518 
 ```
 
+### Example:
+
+count the  Reads starting with "A' in a FASTQ file:
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'System.err.println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
+218 
+```
 
 
 
@@ -251,6 +302,19 @@ public class BioAlcidaeJdk
 			}
 		}
 
+    public static abstract class FastqHandler extends AbstractHandler
+		{
+		protected FastqReader iter=null;
+		public Stream<FastqRecord> stream()
+			{
+			return StreamSupport.stream(
+					new IterableAdapter<FastqRecord>(this.iter).spliterator(),
+					false);
+			}
+		}
+
+    
+    
 	private enum FORMAT {
 		VCF{
 			@Override
@@ -269,12 +333,6 @@ public class BioAlcidaeJdk
 			boolean canAs(String src) {
 				return src!=null && (src.endsWith(".sam") || src.endsWith(".bam") );
 			}},
-		FASTA{
-			@Override
-			boolean canAs(String src) {
-				return src!=null && (src.endsWith(".fa") || src.endsWith(".fasta") || src.endsWith(".fa.gz") || src.endsWith(".fasta.gz")  );
-			}
-			},
 		FASTQ{
 			@Override
 			boolean canAs(String src) {
@@ -339,7 +397,7 @@ public class BioAlcidaeJdk
 			
 			
 			final Random rand= new  Random(System.currentTimeMillis());
-			final String javaClassName =VcfFilterJdk.class.getSimpleName()+
+			final String javaClassName =BioAlcidaeJdk.class.getSimpleName()+
 					"Custom"+ Math.abs(rand.nextInt());
 			
 			final String baseClass;
@@ -353,6 +411,11 @@ public class BioAlcidaeJdk
 				case VCF:
 					{
 					baseClass = VcfHandler.class.getName().replace('$', '.');
+					break;
+					}
+				case FASTQ:
+					{
+					baseClass = FastqHandler.class.getName().replace('$', '.');
 					break;
 					}
 				default: throw new IllegalStateException("Not implemented: "+this.format);
@@ -375,6 +438,7 @@ public class BioAlcidaeJdk
 			pw.println("import java.util.*;");
 			pw.println("import java.util.stream.*;");
 			pw.println("import java.util.function.*;");
+			pw.println("import htsjdk.samtools.*;");
 			pw.println("import htsjdk.samtools.util.*;");
 			pw.println("import htsjdk.variant.variantcontext.*;");
 			pw.println("import htsjdk.variant.vcf.*;");
@@ -389,17 +453,17 @@ public class BioAlcidaeJdk
 			
 			if(user_code_is_body)
 				{
-				pw.println("   /** user's code starts here */");
-				pw.println(code);
-				pw.println(    "/** user's code ends here */");
+				pw.println("   // user's code starts here ");
+				pw.println("   "+ code);
+				pw.println("   // user's code ends here ");
 				}
 			else
 				{
 				pw.println("  @Override");
 				pw.println("  public void execute() throws Exception {");
-				pw.println("   /** user's code starts here */");
-				pw.println(code);
-				pw.println(    "/** user's code ends here */");
+				pw.println("   // user's code starts here ");
+				pw.println("   "+ code);
+				pw.println("    //user's code ends here ");
 				pw.println("   }");
 				}
 			pw.println("}");
@@ -417,7 +481,7 @@ public class BioAlcidaeJdk
 					codeWriter.toString()
 					);
 			final Constructor<?> ctor=compiledClass.getDeclaredConstructor();
-			AbstractHandler handlerInstance= (AbstractHandler)ctor.newInstance();
+			final AbstractHandler handlerInstance= (AbstractHandler)ctor.newInstance();
 			handlerInstance.out = super.openFileOrStdoutAsPrintStream(outputFile);
 			handlerInstance.inputFile = inputFile;
 			
@@ -437,6 +501,12 @@ public class BioAlcidaeJdk
 					vcfHandler.iter = super.openVcfIterator(inputFile);
 					vcfHandler.header = vcfHandler.iter.getHeader();
 					vcfHandler.tools = new VcfTools(vcfHandler.header);
+					break;
+					}
+				case FASTQ:
+					{
+					final FastqHandler fqHandler = FastqHandler.class.cast(handlerInstance);
+					fqHandler.iter = new FastqReader(super.openBufferedReader(inputFile));
 					break;
 					}
 				default: throw new IllegalStateException("Not implemented: "+this.format);
@@ -471,11 +541,6 @@ public class BioAlcidaeJdk
 			
 			}
 		}
-	
-	
-	
-	
-	
 	
 	
 	public static void main(String[] args) {

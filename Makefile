@@ -199,7 +199,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
-	biostar3654  bioalcidae vcfburden  vcfreplacetag vcfindextabix \
+	biostar3654  bioalcidae bioalcidaejdk vcfburden  vcfreplacetag vcfindextabix \
 	vcfpeekvcf vcfgetvariantbyindex  vcfmulti2oneinfo bedindextabix vcf2bam vcffilterxpath \
 	biostar140111 pcrclipreads  extendrefwithreads pcrslicereads samjmx vcfjmx gtf2xml sortsamrefname biostar154220 \
 	biostar160470 biostar165777 blastfilterjs vcfcomparecallers bamclip2insertion localrealignreads biostar170742 biostar172515 \
@@ -454,6 +454,7 @@ $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xconta
 $(eval $(call compile_biostar_cmd,139647,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburden,${jvarkit.package}.tools.misc.VcfBurden,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,${jcommander.jar} ${gson.jar} api.ncbi.blast api.ncbi.insdseq ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java  ))
+$(eval $(call compile-htsjdk-cmd,bioalcidaejdk,${jvarkit.package}.tools.bioalcidae.BioAlcidaeJdk,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstripannot.VCFReplaceTag,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfindextabix,${jvarkit.package}.tools.misc.VcfIndexTabix,${jcommander.jar}))
