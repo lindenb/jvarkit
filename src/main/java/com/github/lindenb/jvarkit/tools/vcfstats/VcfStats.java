@@ -462,7 +462,7 @@ public class VcfStats extends Launcher
 				final Genotype genotype = ctx.getGenotype(this.sampleName);
 				if(genotype==null) return;
 				this.countTypes.incr(genotype.getType());
-				if(ctx.isVariant() && !(genotype.isNoCall() || genotype.isHomRef()))
+				if(ctx.isVariant() && genotype.isCalled() && !genotype.isHomRef())
 					{
 					this.variantsPerContigs.incr(ctx.getContig());
 					}
@@ -685,7 +685,7 @@ public class VcfStats extends Launcher
 			this.countAffectedSamples.incr(
 					VcfStats.this.affectedTranches.getRange(
 						(int)ctx.getGenotypes().stream().
-							filter(G->!(G.isNoCall() || G.isHomRef() || G.isFiltered() )).
+							filter(G->G.isCalled() && !(G.isHomRef() || G.isFiltered() )).
 							count()	)
 					);
 			if(ctx.hasAttribute(VCFConstants.DEPTH_KEY))
@@ -711,10 +711,12 @@ public class VcfStats extends Launcher
 				for(int x=0;x < ctx.getNSamples();++x)
 					{
 					final Genotype g1 = ctx.getGenotype(x);
+					if(!g1.isCalled()) continue;
 					for(int y= x ; y < ctx.getNSamples();++y)
 						{
 						final Genotype g2 = ctx.getGenotype(y);
-						if(g1.sameGenotype(g2) && !(g1.isNoCall() || g2.isNoCall()))
+						if(!g2.isCalled()) continue;
+						if(g1.sameGenotype(g2))
 							{
 							this.genotypeConcordance.incr(new SamplePair(g1.getSampleName(), g2.getSampleName()));
 							}

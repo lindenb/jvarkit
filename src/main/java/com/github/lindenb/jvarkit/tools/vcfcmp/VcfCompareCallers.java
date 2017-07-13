@@ -226,11 +226,11 @@ public class VcfCompareCallers
 			Genotype g0=(ctx0==null?null:ctx0.getGenotype(this.sampleName));
 			Genotype g1=(ctx1==null?null:ctx1.getGenotype(this.sampleName));
 			
-			if(g0!=null &&  VcfCompareCallers.this.noCallIsHomRef && g0.isNoCall())
+			if(g0!=null &&  VcfCompareCallers.this.noCallIsHomRef && !g0.isCalled())
 				{
 				g0 =  makeHomRef( this.theOne(ctx0, ctx1),g0.getPloidy());
 				}
-			if(g1!=null &&  VcfCompareCallers.this.noCallIsHomRef && g1.isNoCall())
+			if(g1!=null &&  VcfCompareCallers.this.noCallIsHomRef && !g1.isCalled())
 				{
 				g1 =makeHomRef( this.theOne(ctx0, ctx1),g1.getPloidy());
 				}

@@ -123,7 +123,7 @@ $ cat config.xml
   <node name="indels">
   function fun() {
 	  if(variant.isSNP()) return null;
-	  if(genotype.isNoCall() || genotype.isHomRef()) return null;
+	  if(!genotype.isCalled() || genotype.isHomRef()) return null;
 	  return "INDEL";
 	  }
 fun(); 

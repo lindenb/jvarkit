@@ -182,7 +182,7 @@ public class FindAVariation extends Launcher
     		for(int i=0;i< genotypes.size();++i)
     			{
     			Genotype g=genotypes.get(i);
-    			if(g.isNoCall() && this.hideNoCall) continue;
+    			if(!g.isCalled() && this.hideNoCall) continue;
     			if(g.isHomRef() && this.hideHomRef) continue;
     			reportPos(f,header,ctx);
     			out.print('\t');

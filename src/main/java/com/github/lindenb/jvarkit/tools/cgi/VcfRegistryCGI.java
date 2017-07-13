@@ -452,7 +452,7 @@ public class VcfRegistryCGI extends AbstractCGI {
 	        					for(String sample:header.getSampleNamesInOrder())
 	        						{
 	        						final Genotype genotype=var.getGenotype(sample);
-	        						if(genotype==null || genotype.isNoCall()) continue;
+	        						if(genotype==null || !genotype.isCalled()) continue;
 	        						if(!genotype.isAvailable()) continue;
 	        						
 	        						samplesWithGenotypes.add(sample);

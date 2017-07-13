@@ -257,7 +257,7 @@ public class VCFFixIndels extends Launcher
 			for(final String sample:header.getSampleNamesInOrder())
 				{
 				final Genotype g = ctx.getGenotype(sample);
-				if(g.isNoCall()) 
+				if(!g.isCalled()) 
 					{
 					genotypes.add(g);
 					continue;

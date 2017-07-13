@@ -771,7 +771,7 @@ public class VcfToTable extends Launcher {
 					{
 					final Genotype g=vc.getGenotype(i);
 					if(this.hideHomRefGenotypes && g.isHomRef()) continue;
-					if(this.hideNoCallGenotypes && g.isNoCall()) continue;
+					if(this.hideNoCallGenotypes && !g.isCalled()) continue;
 					
 					final List<String> gstr =Arrays.asList(colon.split(tokens[9+i]));
 					final List<Object> r= new ArrayList<>(hds.size());

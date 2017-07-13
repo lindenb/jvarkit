@@ -103,7 +103,7 @@ public class GroupByGenotypes  extends AbstractGroupBy {
 				for(int i=0;i< ctx.getNSamples();++i)
 					{
 					final Genotype g = ctx.getGenotype(i);
-					if(g==null || g.isNoCall() || g.isHomRef()) continue;
+					if(g==null || !g.isCalled() || g.isNoCall() || g.isHomRef()) continue;
 					if(index_singleton!=-1) {
 						//not anymore a singleton
 						index_singleton=-1;

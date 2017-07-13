@@ -91,7 +91,7 @@ public class PedFile implements Iterable<PedFile.Sample>
     	private boolean _isMendelianIncompatibility(final Genotype child,final Genotype parent)
     		{
     		if(child==null || parent==null) return false;
-    		if(child.isNoCall() || parent.isNoCall()) return false;
+    		if(!child.isCalled() || !parent.isCalled()) return false;
     		if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
     		for(final Allele childAllele:child.getAlleles())
     			{
@@ -102,11 +102,11 @@ public class PedFile implements Iterable<PedFile.Sample>
     		}
     	public boolean isMendelianIncompatibility()
 			{
-			if(children==null || children.isNoCall()) return false;
-			if(father==null || father.isNoCall()) {
+			if(children==null || !children.isCalled()) return false;
+			if(father==null || !father.isCalled()) {
 				return this._isMendelianIncompatibility(children,mother);
 				}
-			if(mother==null || mother.isNoCall()) {
+			if(mother==null || !mother.isCalled()) {
 				return this._isMendelianIncompatibility(children,father);
 				}
 			final Allele alleles[]=new Allele[2];

@@ -170,7 +170,7 @@ public boolean hasSequenceOntologyTerm(final VariantContext ctx,final SequenceOn
 public boolean isMendelianIncompatibility(final Genotype child,final Genotype parent)
 	{
 	if(child==null || parent==null) return false;
-	if(child.isNoCall() || parent.isNoCall()) return false;
+	if(!child.isCalled() || !parent.isCalled()) return false;
 	if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
 	for(final Allele childAllele:child.getAlleles())
 		{
@@ -184,11 +184,11 @@ public boolean isMendelianIncompatibility(final Genotype child,final Genotype pa
 
 public boolean isMendelianIncompatibility(final Genotype child,final Genotype father,final Genotype mother)
 	{
-	if(child==null || child.isNoCall() || (father==null && mother==null)) return false;
-	if(father==null || father.isNoCall()) {
+	if(child==null || !child.isCalled() || (father==null && mother==null)) return false;
+	if(father==null || !father.isCalled()) {
 		return this.isMendelianIncompatibility(child,mother);
 		}
-	if(mother==null || mother.isNoCall()) {
+	if(mother==null || !mother.isCalled()) {
 		return this.isMendelianIncompatibility(child,father);
 		}
 	final Allele alleles[]=new Allele[2];

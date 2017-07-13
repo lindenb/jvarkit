@@ -204,7 +204,7 @@ public class VcfCutSamples
 			for(final String sample:samples2)
 				{
 				final Genotype g=ctx.getGenotype(sample);
-				if(g.isNoCall()) continue;
+				if(g.isNoCall() || !g.isCalled()) continue;
 				alleles.addAll(g.getAlleles());
 				genotypes.add(g);
 				if(g.isCalled()) only_no_call=false;

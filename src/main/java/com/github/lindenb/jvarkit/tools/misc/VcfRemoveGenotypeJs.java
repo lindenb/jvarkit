@@ -165,7 +165,7 @@ public class VcfRemoveGenotypeJs extends Launcher {
 				Genotype genotype = ctx.getGenotype(i);
 				bindings.put("genotype", genotype);
 				
-				if(genotype.isNoCall() || !genotype.isAvailable())
+				if(!genotype.isCalled() || genotype.isNoCall() || !genotype.isAvailable())
 					{
 					countCalled--;
 					}

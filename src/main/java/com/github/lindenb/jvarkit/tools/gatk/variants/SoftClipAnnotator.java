@@ -155,7 +155,7 @@ public class SoftClipAnnotator
     	   for(int i=0;  i< ctx.getNSamples();++i)
     	   	{
     		final Genotype g=ctx.getGenotype(i);
-    		if(g.isNoCall() || g.isHomRef()) {
+    		if(!g.isCalled() || g.isNoCall() || g.isHomRef()) {
     			genotypes.add(g);
     			continue;
     		}
