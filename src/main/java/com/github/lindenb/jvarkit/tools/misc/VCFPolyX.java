@@ -157,7 +157,7 @@ public class VCFPolyX extends Launcher
 		}
 
 		w.writeHeader(h2);
-		final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+		final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header).logger(LOG);
 		while(r.hasNext())
 			{
 			final VariantContext ctx=progress.watch(r.next());

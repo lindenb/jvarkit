@@ -464,7 +464,7 @@ public class VcfStats extends Launcher
 				this.countTypes.incr(genotype.getType());
 				if(ctx.isVariant() && !(genotype.isNoCall() || genotype.isHomRef()))
 					{
-					this.variantsPerContigs.count(ctx.getContig());
+					this.variantsPerContigs.incr(ctx.getContig());
 					}
 				
 				if( this.pedireePerson !=null && 
@@ -564,7 +564,7 @@ public class VcfStats extends Launcher
 			this.countTypes.incr(ctx.getType());
 			if(ctx.isVariant())
 				{
-				this.variantsPerContigs.count(ctx.getContig());
+				this.variantsPerContigs.incr(ctx.getContig());
 				}
 			
 			
