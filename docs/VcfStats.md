@@ -9,10 +9,10 @@ Produce VCF statitics
 Usage: vcfstats [options] Files
   Options:
     --binSize
-      When plotting data over a genome, divide it into 'N' bp.
+      [20170718] When plotting data over a genome, divide it into 'N' bp.
       Default: 1000000
     --disableGTConcordance
-      Disable Plot Sample vs Sample Genotypes
+      Disable Plot Sample vs Sample Genotypes (Faster...)
       Default: false
     --disableMAFPlot
       Disable MAF plot
@@ -60,11 +60,11 @@ Usage: vcfstats [options] Files
     --trancheAlts
       tranches for the number of ALTs. A range of is a list of integers is 
       ascending order separated with semicolons.
-      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, [6/8[, 8, 9, [10/Inf[]
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/Inf[]
     --trancheDP
       tranches for the DEPTH. A range of is a list of integers is ascending 
       order separated with semicolons.
-      Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/600[, [600/700[, [700/800[, [800/900[, [900/1000[, [1000/2000[, [2000/3000[, [3000/4000[, [4000/5000[, [5000/10000[, [10000/Inf[]
+      Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/600[, [600/700[, [700/800[, [800/900[, [900/1000[, [1000/2000[, [2000/3000[, [3000/4000[, [4000/5000[, [5000/10000[, [10000/20000[, [20000/30000[, [30000/40000[, [40000/50000[, [50000/100000[, [100000/Inf[]
     --trancheDistance
       tranches for the distance between the variants. A range of is a list of 
       integers is ascending order separated with semicolons.

@@ -236,25 +236,27 @@ public class VcfStats extends Launcher
 	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
 	@Parameter(names={"--trancheDP"},description="tranches for the DEPTH. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
-	private RangeOfIntegers depthTranches =new RangeOfIntegers(0,10,20,30,50,100,200,300,400,500,600,700,800,900,1000,2000,3000,4000,5000,10000);
+	private RangeOfIntegers depthTranches =new RangeOfIntegers(0,10,20,30,50,100,200,300,400,500,600,700,800,900,1000,2000,3000,4000,5000,10_000,20_000,30_000,40_000,50_000,100_000);
 	@Parameter(names={"--trancheIndelSize"},description="tranches for the Indel size "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers indelTranches =new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,15,20,50,100);
 	@Parameter(names={"--trancheAlts"},description="tranches for the number of ALTs. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
-	private RangeOfIntegers altTranches =new RangeOfIntegers(0,1,2,3,4,5,6,8,9,10);
+	private RangeOfIntegers altTranches =new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10);
 	@Parameter(names={"--trancheDistance"},description="tranches for the distance between the variants. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers distanceTranches =new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,100,200,300,400,500,1000);
 	@Parameter(names={"-so","--soterms"},description="Sequence ontology Accession to observe. VCF must be annotated with SNPEFF or VEP. e.g: \"SO:0001818\" (protein altering variant) \"SO:0001819\" (synonymouse variant)")
 	private Set<String> sequenceOntologyTermsStr=new HashSet<>();
 	@Parameter(names={"--disableMAFPlot"},description="Disable MAF plot")
 	private boolean disableMAFPlot=false;
-	@Parameter(names={"--disableGTConcordance"},description="Disable Plot Sample vs Sample Genotypes")
+	@Parameter(names={"--disableGTConcordance"},description="Disable Plot Sample vs Sample Genotypes (Faster...)")
 	private boolean disableGenotypeConcordance=false;
-	@Parameter(names={"--binSize"},description="When plotting data over a genome, divide it into 'N' bp.")
+	@Parameter(names={"--binSize"},description="[20170718] When plotting data over a genome, divide it into 'N' bp.")
 	private int binSize = 1_000_000;
 	
 	private ArchiveFactory archiveFactory=null;
-	/* the SAMSequenceDictionary used to sort reference */
+	/** the SAMSequenceDictionary used to sort reference */
 	private SAMSequenceDictionary the_dictionary = null;
+	/** list of samples in order*/
+	private List<String> sampleNamesInOrder = Collections.emptyList();
 	
 	private final Function<String, Integer> contig2tid = (S)->{
 		final int tid = the_dictionary.getSequenceIndex(S);
@@ -324,15 +326,14 @@ public class VcfStats extends Launcher
 		}
 	
 	//define a pair of samples
-	private static class SamplePair
+	private class SamplePair
 		{
-		final String sample1;
-		final String sample2;
-		final int _hash;
+		final int sample1;
+		final int sample2;
 		
-		SamplePair(final String sample1,final String sample2)
+		SamplePair(final int sample1,final int sample2)
 			{
-			if(sample1.compareTo(sample2)<0)
+			if(sample1 < sample2)
 				{
 				this.sample1 = sample1;
 				this.sample2 = sample2;
@@ -342,30 +343,28 @@ public class VcfStats extends Launcher
 				this.sample1 = sample2;
 				this.sample2 = sample1;
 				}
-			
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + this.sample1.hashCode();
-			result = prime * result + this.sample2.hashCode();
-			this._hash = result;
 			}
 		@Override
 		public int hashCode() {
-			return this._hash;
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + this.sample1;
+			result = prime * result + this.sample2;
+			return result;
 			}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj)  return true;
 			if (obj == null)  return false;
 			if (!(obj instanceof SamplePair)) return false;
 			final SamplePair other = (SamplePair) obj;
-			return this._hash==other._hash && 
-				   other.sample1.equals(this.sample1) && 
-				   other.sample2.equals(this.sample2); 
+			return other.sample1==this.sample1 && 
+				   other.sample2==this.sample2; 
 			}
 		@Override
 		public String toString() {
-			return sample1+"/"+sample2;
+			return  VcfStats.this.sampleNamesInOrder.get(sample1)+"/"+
+					VcfStats.this.sampleNamesInOrder.get(sample2);
 			}
 		}
 	
@@ -601,7 +600,7 @@ public class VcfStats extends Launcher
 			
 			
 			
-			for(final String sn: header.getSampleNamesInOrder())
+			for(final String sn: VcfStats.this.sampleNamesInOrder)
 				{
 				this.sample2stats.put(sn,new SampleStat(sn));
 				}
@@ -610,7 +609,7 @@ public class VcfStats extends Launcher
 					VcfStats.this.pedigree.getPersons().stream().
 						filter(P->P.isAffected()).
 						map(P->P.getId()).
-						filter(S->header.getSampleNamesInOrder().contains(S)).
+						filter(S->VcfStats.this.sampleNamesInOrder.contains(S)).
 						collect(Collectors.toSet())
 						;
 			
@@ -618,17 +617,17 @@ public class VcfStats extends Launcher
 					VcfStats.this.pedigree.getPersons().stream().
 						filter(P->P.isUnaffected()).
 						map(P->P.getId()).
-						filter(S->header.getSampleNamesInOrder().contains(S)).
+						filter(S->VcfStats.this.sampleNamesInOrder.contains(S)).
 						collect(Collectors.toSet())
 						;
 			// genotype concordance
 			if(!VcfStats.this.disableGenotypeConcordance) {
-				final List<String> samples = header.getGenotypeSamples();
-				for(int x=0;x +1 < samples.size();++x)
+				final int n_samples = VcfStats.this.sampleNamesInOrder.size();
+				for(int x=0;x +1 < n_samples;++x)
 					{
-					for(int y= x +1; y < samples.size();++y)
+					for(int y= x +1; y < n_samples;++y)
 						{
-						this.genotypeConcordance.initializeIfNotExists(new SamplePair(samples.get(x),samples.get(y)));
+						this.genotypeConcordance.initializeIfNotExists(new SamplePair(x,y));
 						}
 					}
 				}
@@ -794,7 +793,7 @@ public class VcfStats extends Launcher
 						if(!g2.isCalled()) continue;
 						if(g1.sameGenotype(g2))
 							{
-							this.genotypeConcordance.incr(new SamplePair(g1.getSampleName(), g2.getSampleName()));
+							this.genotypeConcordance.incr(new SamplePair(x,y));
 							}
 						}
 					}
@@ -868,6 +867,8 @@ public class VcfStats extends Launcher
 							pw.print('\t');
 							pw.print(c);
 							pw.print('\t');
+							pw.print(ssr.getSequenceIndex());
+							pw.print('\t');
 							pw.print(ssr.getSequenceName()+":"+(x));
 							pw.println();
 							}
@@ -880,7 +881,7 @@ public class VcfStats extends Launcher
 						+ "set ylabel \"Count\";"
 						+ "set xlabel \"Position Genome\";"
 						+ "set yrange [0:];"
-						+ "set title \"Variant over the Genome\";"
+						+ "set title \"Variants over the Genome\";"
 						+ "set style fill solid border -1;"
 						+ "set key  off;"
 						+ "set datafile separator \"\t\";"
@@ -888,7 +889,7 @@ public class VcfStats extends Launcher
 						+ "set xtic rotate by 90 right;"
 						+ "set terminal png truecolor;"
 						+ "set output \"$@\";"
-						+ "plot \"$<\" using 1,2' | "
+						+ "plot \"$<\" using 1:2:3 w points linecolor variable' | "
 						+ "gnuplot");
 				
 					} 
@@ -905,7 +906,7 @@ public class VcfStats extends Launcher
 							+ "set ylabel \"Count\";"
 							+ "set xlabel \"Position Genome\";"
 							+ "set yrange [0:];"
-							+ "set title \"Variant over the Genome\";"
+							+ "set title \"Variants over the Genome\";"
 							+ "set style fill solid border -1;"
 							+ "set key  off;"
 							+ "set datafile separator \"\t\";"
@@ -1554,22 +1555,21 @@ public class VcfStats extends Launcher
 				{
 				final String filename = toTsv("gtConcordance");
 				final PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
-				final List<String> samples= this.vcfTools.getHeader().getSampleNamesInOrder();
 				
 				//http://gnuplot.sourceforge.net/demo/heatmaps.html
-				for(int x=0;x< samples.size();++x)
+				for(int x=0;x<  VcfStats.this.sampleNamesInOrder.size();++x)
 					{
 					pw.print(",");
-					pw.print(samples.get(x));
+					pw.print( VcfStats.this.sampleNamesInOrder.get(x));
 					}
 				pw.println();
-				for(int y=0;y< samples.size();++y)
+				for(int y=0;y<  VcfStats.this.sampleNamesInOrder.size();++y)
 					{
-					pw.print(samples.get(y));
-					for(int x=0;x< samples.size();++x)
+					pw.print( VcfStats.this.sampleNamesInOrder.get(y));
+					for(int x=0;x<  VcfStats.this.sampleNamesInOrder.size();++x)
 						{
 						pw.print(",");
-						pw.print(this.genotypeConcordance.count(new SamplePair(samples.get(x), samples.get(y))));
+						pw.print(this.genotypeConcordance.count(new SamplePair(x,y)));
 						}
 					pw.println();
 					}
@@ -1674,6 +1674,8 @@ public class VcfStats extends Launcher
 			
 			
 			final VCFHeader header=iter.getHeader();
+			this.sampleNamesInOrder = Collections.unmodifiableList(header.getSampleNamesInOrder());
+			
 			final SAMSequenceDictionary dict=header.getSequenceDictionary();
 			if(dict!=null && !dict.isEmpty()) {
 				this.the_dictionary = dict;
