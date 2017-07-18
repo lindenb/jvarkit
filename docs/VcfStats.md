@@ -8,6 +8,9 @@ Produce VCF statitics
 ```
 Usage: vcfstats [options] Files
   Options:
+    --binSize
+      When plotting data over a genome, divide it into 'N' bp.
+      Default: 1000000
     --disableGTConcordance
       Disable Plot Sample vs Sample Genotypes
       Default: false

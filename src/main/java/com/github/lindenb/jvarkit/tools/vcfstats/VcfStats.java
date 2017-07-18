@@ -1,6 +1,5 @@
 /*
 The MIT License (MIT)
-
 Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,17 +30,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.tools.burden.MafCalculator;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -57,9 +58,11 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -246,9 +249,79 @@ public class VcfStats extends Launcher
 	private boolean disableMAFPlot=false;
 	@Parameter(names={"--disableGTConcordance"},description="Disable Plot Sample vs Sample Genotypes")
 	private boolean disableGenotypeConcordance=false;
+	@Parameter(names={"--binSize"},description="When plotting data over a genome, divide it into 'N' bp.")
+	private int binSize = 1_000_000;
 	
 	private ArchiveFactory archiveFactory=null;
+	/* the SAMSequenceDictionary used to sort reference */
+	private SAMSequenceDictionary the_dictionary = null;
 	
+	private final Function<String, Integer> contig2tid = (S)->{
+		final int tid = the_dictionary.getSequenceIndex(S);
+		if(tid<0) throw new JvarkitException.ContigNotFoundInDictionary(S, the_dictionary);
+		return tid;
+		};
+	
+	private final Comparator<String> contigComparator = (S1,S2) -> {
+		if(S1.equals(S2)) return 0;
+		if(the_dictionary==null) {
+			return S1.compareTo(S2);
+			} else {
+				return contig2tid.apply(S1) - contig2tid.apply(S2);
+			}
+		};
+	
+	private class ContigBin	implements Locatable,Comparable<ContigBin> {
+		final String contig;
+		final int pos;
+		ContigBin(final String contig,final int pos) {
+			this.contig = contig;
+			this.pos = pos - pos%VcfStats.this.binSize;
+		}
+		
+		@Override
+		public String getContig() {
+			return this.contig;
+			}
+		@Override
+		public int getStart() {
+			return pos+1;
+			}
+		@Override
+		public int getEnd() {
+			return pos + VcfStats.this.binSize;
+			}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + contig.hashCode();
+			result = prime * result + pos;
+			return result;
+			}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null || getClass() != obj.getClass())
+				return false;
+			final ContigBin other = (ContigBin) obj;
+			return this.pos == other.pos && 
+				  this.contig.equals(other.contig) ; 
+			}
+		@Override
+		public int compareTo(final ContigBin o) {
+			int i = VcfStats.this.contigComparator.compare(this.getContig(), o.getContig());
+			if(i!=0) return i;
+			return pos - o.pos;
+			}
+		@Override
+		public String toString() {
+			return getContig()+";"+this.getStart()+"-"+this.getEnd();
+			}
+		}
 	
 	//define a pair of samples
 	private static class SamplePair
@@ -358,6 +431,7 @@ public class VcfStats extends Launcher
 		final Counter<GeneLocation> geneLocations = new Counter<>();
 		final Counter<String> consequences = new Counter<>();
 		final Counter<String> variantsPerContigs = new Counter<>();
+		final Counter<ContigBin> countBins = new Counter<>();
 		
 		protected ContigPosRef prevCtx=null;
 
@@ -465,6 +539,7 @@ public class VcfStats extends Launcher
 				if(ctx.isVariant() && genotype.isCalled() && !genotype.isHomRef())
 					{
 					this.variantsPerContigs.incr(ctx.getContig());
+					this.countBins.incr(new ContigBin(ctx.getContig(),ctx.getStart()));
 					}
 				
 				if( this.pedireePerson !=null && 
@@ -565,6 +640,7 @@ public class VcfStats extends Launcher
 			if(ctx.isVariant())
 				{
 				this.variantsPerContigs.incr(ctx.getContig());
+				this.countBins.incr(new ContigBin(ctx.getContig(),ctx.getStart()));
 				}
 			
 			
@@ -774,6 +850,78 @@ public class VcfStats extends Launcher
 					+ "gnuplot");
 			}
 
+		if(!this.countBins.isEmpty()) {
+			final String filename = toTsv("genscan");
+			PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+			final String png= toPng(filename);
+			makefileWriter.println("ALL_TARGETS+=" + png);
+			makefileWriter.println(png+":"+filename);
+
+			if(VcfStats.this.the_dictionary != null ) {
+				long gpos = 0L;
+				for(final SAMSequenceRecord ssr: VcfStats.this.the_dictionary.getSequences()) {
+					int x = 0;
+					while( x < ssr.getSequenceLength() ) {
+						final long c = this.countBins.count(new ContigBin(ssr.getSequenceName(), x));
+						if(c>0L) {
+							pw.print(String.valueOf(gpos+x));
+							pw.print('\t');
+							pw.print(c);
+							pw.print('\t');
+							pw.print(ssr.getSequenceName()+":"+(x));
+							pw.println();
+							}
+						x+= VcfStats.this.binSize;
+						}
+					gpos += ssr.getSequenceLength();
+					}
+				
+					makefileWriter.println("\techo '"
+						+ "set ylabel \"Count\";"
+						+ "set xlabel \"Position Genome\";"
+						+ "set yrange [0:];"
+						+ "set title \"Variant over the Genome\";"
+						+ "set style fill solid border -1;"
+						+ "set key  off;"
+						+ "set datafile separator \"\t\";"
+						+ "set auto x;"
+						+ "set xtic rotate by 90 right;"
+						+ "set terminal png truecolor;"
+						+ "set output \"$@\";"
+						+ "plot \"$<\" using 1,2' | "
+						+ "gnuplot");
+				
+					} 
+				else
+					{
+					for(final ContigBin ctgBin : new TreeSet<>(this.countBins.keySet())) {
+						pw.print(ctgBin.toString());
+						pw.print('\t');
+						pw.print(this.countBins.count(ctgBin));
+						pw.println();
+						}
+					
+					makefileWriter.println("\techo '"
+							+ "set ylabel \"Count\";"
+							+ "set xlabel \"Position Genome\";"
+							+ "set yrange [0:];"
+							+ "set title \"Variant over the Genome\";"
+							+ "set style fill solid border -1;"
+							+ "set key  off;"
+							+ "set datafile separator \"\t\";"
+							+ "set auto x;"
+							+ "set xtic rotate by 90 right;"
+							+ "set style histogram;"
+							+ "set style data histogram;"
+							+ "set terminal png truecolor;"
+							+ "set output \"$@\";"
+							+ "plot \"$<\" using 2:xtic(1) ti \"Position\";' | "
+							+ "gnuplot");
+					}
+			pw.flush();
+			pw.close();
+			}
+		
 		if(!this.variantsPerContigs.isEmpty())
 			{
 			final String filename = toTsv("variant2contigs");
@@ -796,7 +944,7 @@ public class VcfStats extends Launcher
 					+ "set size  ratio 0.618;"
 					+ "set title \"Variant per Contigs (N="+this.variantsPerContigs.getTotal()+")\";"
 					+ "set style fill solid border -1;"
-					+ "set key  off;set datafile separator \"\t\";"
+					+ "set key  off; set datafile separator \"\t\";"
 					+ "set auto x;"
 					+ "set xtic rotate by 90 right;"
 					+ "set style histogram;"
@@ -810,10 +958,12 @@ public class VcfStats extends Launcher
 		if(!this.sample2stats.isEmpty())
 			{
 			final String filename=toTsv("sample2contig");
-			final Set<String> contigs =  this.sample2stats.values().
+			final Set<String> contigs = new TreeSet<String>( VcfStats.this.contigComparator);
+			contigs.addAll(this.sample2stats.values().
 					stream().
 					flatMap(S->S.variantsPerContigs.keySet().stream()).
-					collect(Collectors.toSet());
+					collect(Collectors.toSet())
+					);
 			
 			PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
 			pw.println("Sample\t"+ String.join("\t",contigs));
@@ -828,7 +978,6 @@ public class VcfStats extends Launcher
 				}
 			pw.flush();
 			pw.close();
-			
 			
 			final String png=toPng(filename);
 			makefileWriter.println("ALL_TARGETS+=" + png);
@@ -1504,6 +1653,11 @@ public class VcfStats extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.binSize<=0) {
+			LOG.error("binSize < 0");
+			return -1;
+		}
+		
 		VariantContextWriter teeOut=null;
 		VcfIterator iter = null;
 		final Map<String,VariantStats> category2stats = new HashMap<>();
@@ -1520,10 +1674,14 @@ public class VcfStats extends Launcher
 			
 			
 			final VCFHeader header=iter.getHeader();
+			final SAMSequenceDictionary dict=header.getSequenceDictionary();
+			if(dict!=null && !dict.isEmpty()) {
+				this.the_dictionary = dict;
+				}
+			
 			if(this.kgFile!=null)
 				{
 				LOG.info("load "+kgFile);
-				final SAMSequenceDictionary dict=header.getSequenceDictionary();
 				this.knownGeneTreeMap=KnownGene.loadUriAsIntervalTreeMap(this.kgFile,KG->(dict==null || dict.getSequence(KG.getContig())!=null));
 				}
 			else
