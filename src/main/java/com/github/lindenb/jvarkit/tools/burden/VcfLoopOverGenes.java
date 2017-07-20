@@ -235,7 +235,7 @@ public class VcfLoopOverGenes extends Launcher {
 	private enum SplitMethod
 		{
 		Annotations,
-		Variants
+		VariantSlidingWindow
 		}
 		
 	private enum SourceType {
@@ -422,7 +422,7 @@ public class VcfLoopOverGenes extends Launcher {
 							}
 					}
 				/** split VCF per sliding window of variants */
-				else if(this.splitMethod.equals(SplitMethod.Variants))
+				else if(this.splitMethod.equals(SplitMethod.VariantSlidingWindow))
 					{
 					if(this.variantsWinCount<1)
 						{
@@ -447,7 +447,7 @@ public class VcfLoopOverGenes extends Launcher {
 						final String identifier=
 								contig+ 
 								"_"+String.format("%06d", chromStart)+
-								"-"+String.format("%06d", chromEnd0)
+								"_"+String.format("%06d", chromEnd0)
 								;
 						
 						for(final VariantContext ctx:buffer) {
@@ -457,7 +457,14 @@ public class VcfLoopOverGenes extends Launcher {
 					
 					while(iter.hasNext())
 						{
-						final VariantContext ctx = progress.watch(iter.next());
+						VariantContext ctx = progress.watch(iter.next());
+						/* reduce the memory footprint for this context */
+						ctx = new VariantContextBuilder(ctx).
+								genotypes(Collections.emptyList()).
+								unfiltered().
+								rmAttributes(new ArrayList<>(ctx.getAttributes().keySet())).
+								make();
+						
 						if(!buffer.isEmpty() && !buffer.get(0).getContig().equals(ctx.getContig()))
 							{
 							dumpBuffer.run();
@@ -467,10 +474,8 @@ public class VcfLoopOverGenes extends Launcher {
 						if(buffer.size()>=this.variantsWinCount)
 							{
 							dumpBuffer.run();
-							for(int x=0;x<this.variantsWinShift && !buffer.isEmpty();++x )
-								{
-								buffer.remove(0);
-								}
+							final int fromIndex = Math.min(this.variantsWinShift, buffer.size());
+							buffer.subList(0,fromIndex).clear();
 							}
 						}
 					dumpBuffer.run();

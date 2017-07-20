@@ -57,7 +57,7 @@ Usage: vcfloopovergenes [options] Files
     --splitMethod
       [20170711] How to split primary vcf
       Default: Annotations
-      Possible Values: [Annotations, Variants]
+      Possible Values: [Annotations, VariantSlidingWindow]
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
