@@ -45,8 +45,6 @@ bigwig.version=20150429
 bigwig.jar?=lib/BigWig.jar
 bigwig.log4j.jar=$(dir ${bigwig.jar})/log4j-1.2.15.jar
 bigwig.jars=${bigwig.jar} ${bigwig.log4j.jar}
-common.math.version?=3.4.1
-common.math.jar?=lib/commons-math3-${common.math.version}.jar
 
 
 jvarkit.package=com.github.lindenb.jvarkit
@@ -239,7 +237,7 @@ $(eval $(call compile-htsjdk-cmd,vcfbigwig,		${jvarkit.package}.tools.vcfbigwig.
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	${jvarkit.package}.tools.ensemblreg.VcfEnsemblReg,${bigwig.jars} ${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,105754,${bigwig.jar} ${jcommander.jar} ))
 # common math
-$(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber01,${jcommander.jar} ${common.math.jar}))
+$(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber01,${jcommander.jar} ${common.math3.libs}))
 #berkeley
 $(eval $(call compile-htsjdk-cmd,vcfphylotree,${jvarkit.package}.tools.phylo.VcfPhyloTree,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilesscanner,${jvarkit.package}.tools.ngsfiles.NgsFilesScanner,${jcommander.jar} ${berkeleydb.jar}))
@@ -705,17 +703,6 @@ ${bigwig.jar} xx :
 	rm -rf bigwig-${bigwig.version}
 	
 
-
-##
-## Common math
-##
-${common.math.jar} :
-	echo "Downloading common math"
-	mkdir -p $(dir $@)
-	curl -Lk ${curl.proxy} -o jeter.tar.gz "http://www.us.apache.org/dist/commons/math/binaries/commons-math3-${common.math.version}-bin.tar.gz"	
-	tar xvfz  jeter.tar.gz  --strip-components=1 "commons-math3-${common.math.version}/commons-math3-${common.math.version}.jar"
-	mv commons-math3-${common.math.version}.jar $@
-	rm jeter.tar.gz
 
 ##
 ## Apache Stuf

@@ -48,6 +48,7 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.interpolation.LoessInterpolator;
 import org.apache.commons.math3.analysis.interpolation.UnivariateInterpolator;
+import org.apache.commons.math3.stat.descriptive.AbstractUnivariateStatistic;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
@@ -66,6 +67,8 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IntervalTree;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
@@ -73,6 +76,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -107,12 +111,14 @@ public class CopyNumber01 extends Launcher
 	/** global sam dict */
 	private SAMSequenceDictionary samDictionary=null;
 	/** map interval to depths and GC */
-	private List<GCAndDepth> interval2row=new ArrayList<GCAndDepth>(1000);
+	private final List<GCAndDepth> interval2row=new ArrayList<GCAndDepth>(1000);
 	
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File refFile=null;
 	@Parameter(names={"-b"},description="BED capture file (optional)")
 	private File bedFile=null;
+	@Parameter(names={"--blacklisted"},description="BED file of blackListed positions (optional)")
+	private File blackListedBedFile=null;
 	@Parameter(names={"-o","--out"},description="output base name",required=true)
 	private File archiveFile=null;
 	/** size of a window */
@@ -120,6 +126,39 @@ public class CopyNumber01 extends Launcher
 	private int windowSize=1000;	
 	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"--univariateDepth"},description="How to calculate depth in a sliding window")
+	private UnivariateStatistic univariateDepth = UnivariateStatistic.mean;
+	@Parameter(names={"--univariateGC"},description="Loess needs only one GC value: we need to merge Depth with same GC%. How do we merge ?")
+	private UnivariateStatistic univariateGCLoess = UnivariateStatistic.median;
+	@Parameter(names={"--univariateMid"},description="Loess needs only one GC value: we need to merge Depth with same GC%. How do we merge ?")
+	private UnivariateStatistic univariateMid = UnivariateStatistic.median;
+	@Parameter(names={"--univariateSmooth"},description="How to smooth data")
+	private UnivariateStatistic univariateSmooth = UnivariateStatistic.mean;
+	@Parameter(names={"--ignoreContigPattern"},description="Ignore those Chromosomes")
+	private String ignoreContigPattern = "^(chr)?(GL.*|M|MT|NC_.*)$";
+
+	
+	enum UnivariateStatistic
+		{
+		mean{
+			@Override
+			 	AbstractUnivariateStatistic  create() {
+				return new Mean();
+				}
+			
+		},median{
+			@Override
+			AbstractUnivariateStatistic  create() {
+				return new Median();
+				}
+		};
+		
+		abstract  AbstractUnivariateStatistic  create();
+		public double evaluate(final double array[]) {
+			return create().evaluate(array); 
+			}
+		}
+	
 	
 	/* fact: Y=depth X=GC% */
 	private class GCAndDepth
@@ -127,7 +166,8 @@ public class CopyNumber01 extends Launcher
 		int tid;
 		int start;
 		int end;
-		double mean_depth=0;
+		double raw_depth=0;
+		double norm_depth=0;
 		double gc=0;
 		
 		/** GC % */
@@ -138,7 +178,7 @@ public class CopyNumber01 extends Launcher
 		/** DEPTH */
 		double getY()
 			{
-			return mean_depth;
+			return norm_depth;
 			}
 		
 		public long getGenomicIndex()
@@ -155,7 +195,7 @@ public class CopyNumber01 extends Launcher
 		
 		@Override
 		public String toString() {
-			return getContig()+":"+start+"-"+end+" GC%="+gc+" depth:"+mean_depth;
+			return getContig()+":"+start+"-"+end+" GC%="+gc+" depth:"+this.raw_depth+" norm-depth:"+this.norm_depth;
 			}
 		}
 
@@ -186,30 +226,44 @@ public class CopyNumber01 extends Launcher
 		}
 		
 	
-	private boolean ignoreChromosomeName(String chrom)
+	private boolean ignoreChromosomeName(final String chrom)
 		{
-		return !chrom.matches("(chr)?([0-9]+|X|Y)");
+		return Pattern.compile(ignoreContigPattern).matcher(chrom).matches();
 		}
 	
 	private void prefillGCPercent(
-			GenomicSequence genomic,
+			final GenomicSequence genomic,
 			final int chromStart,
-			final int chromEnd
+			final int chromEnd,
+			final IntervalTree<Boolean> blackListed
 			) throws Exception
 			{
+			IntervalTree.Node<Boolean> blackNode;
 			final int tid = genomic.getSAMSequenceRecord().getSequenceIndex();
 			int pos = chromStart;
 
 			while( pos< genomic.length())
 				{
-				char c=genomic.charAt(pos);
+				final char c = genomic.charAt(pos);
 				if(c=='n' || c=='N')
 					{
 					++pos;
 					continue;
 					}
 				
-				final int pos_end = Math.min(pos + this.windowSize,chromEnd);
+				if((blackNode=blackListed.find(pos+1, pos+1))!=null)
+					{
+					pos=1+blackNode.getEnd();
+					continue;
+					}
+				
+				int pos_end = Math.min(pos + this.windowSize,chromEnd);
+				
+				if((blackNode=blackListed.find(pos+1, pos_end))!=null)
+					{
+					pos_end = Math.min(pos_end,blackNode.getStart());
+					}
+				
 				
 				if( (pos_end - pos) < this.windowSize*0.8)
 					{
@@ -245,7 +299,7 @@ public class CopyNumber01 extends Launcher
 					continue;
 					}
 				
-				final GCAndDepth dataRow=new GCAndDepth();
+				final GCAndDepth dataRow = new GCAndDepth();
 				dataRow.tid = tid;
 				dataRow.start = pos+1;
 				dataRow.end = pos_end;
@@ -263,6 +317,12 @@ public class CopyNumber01 extends Launcher
 		final SAMSequenceRecord ssr
 		) throws Exception
 		{
+		
+		final IntervalTree<Boolean> blackListed = getBlackListedRegions(ssr);
+		final GenomicSequence genomic=new GenomicSequence(
+				this.indexedFastaSequenceFile,
+				ssr.getSequenceName()
+				);
 		final BedLineCodec codec = new BedLineCodec();
 		BufferedReader in= IOUtils.openFileForBufferedReading(bedFile);
 		String line;
@@ -277,11 +337,12 @@ public class CopyNumber01 extends Launcher
 				continue;
 				}
 			
-			GenomicSequence genomic=new GenomicSequence(
-				this.indexedFastaSequenceFile,
-				ssr.getSequenceName()
-				);
-			prefillGCPercent(genomic, bedLine.getStart()-1, bedLine.getEnd());
+			prefillGCPercent(
+					genomic,
+					bedLine.getStart()-1,
+					bedLine.getEnd(),
+					blackListed
+					);
 			}
 		in.close();
 		}
@@ -290,11 +351,12 @@ public class CopyNumber01 extends Launcher
 	/** get a GC% */
 	private void prefillGCPercentWithoutCapture(final SAMSequenceRecord ssr) throws Exception
 		{		
+		final IntervalTree<Boolean> blackListed = getBlackListedRegions(ssr);
 		final GenomicSequence genomic=new GenomicSequence(
 			this.indexedFastaSequenceFile,
 			ssr.getSequenceName()
 			);
-		prefillGCPercent(genomic,0, ssr.getSequenceLength());
+		prefillGCPercent(genomic,0, ssr.getSequenceLength(),blackListed);
 		}
 	
 	private void scanCoverage(final SAMSequenceRecord ssr,final SamReader sr)
@@ -327,10 +389,10 @@ public class CopyNumber01 extends Launcher
 						{
 						for(int x=0;x< ce.getLength();++x)
 							{
-							final int pos = refStart+x;
+							final int pos = refStart + x;
 							if(pos >= row.start && pos <=row.end)
 								{
-								sum_array[pos - row.start]++;
+								sum_array[ pos - row.start ]++;
 								}
 							}
 						}
@@ -338,15 +400,12 @@ public class CopyNumber01 extends Launcher
 					}		
 				}
 			sri.close();
-			row.mean_depth = new Mean().evaluate(sum_array);//TODO check
+			row.raw_depth = this.univariateDepth.evaluate(sum_array);
+			row.norm_depth = row.raw_depth;
 			}
 		progress.finish();
 		}
 	
-	private boolean isSexualChrom(String chrom)
-		{
-		return chrom.matches("(chr?)(X|Y)");
-		}
 	
 	private UnivariateInterpolator createInterpolator()
 		{	
@@ -358,15 +417,6 @@ public class CopyNumber01 extends Launcher
 	
 	private void normalizeCoverage()
 		{
-		final Median medianOp =new Median();
-		final Mean meanOp =new Mean();
-		
-		if(medianOp.evaluate(new double[]{20,1000,19})!=20)
-			{
-			throw new RuntimeException("boum");
-			}
-		
-		
 		Collections.sort(this.interval2row,CopyNumber01.sortOnXY);
 		
 
@@ -387,19 +437,19 @@ public class CopyNumber01 extends Launcher
 		final double min_x=x[0];
 		final double max_x=x[x.length-1];
 		
-		/* merge adjacent x having same values */
+		/* merge adjacent x (GC%) having same values */
 		i=0;
 		int k=0;
 		while(i  < x.length)
 			{
-			int j=i+1;
+			int j = i+1;
 			
 			while(j< x.length && Double.compare(x[i],x[j])==0)
 				{
 				++j;
 				}
-			x[k]=x[i];
-			y[k]= meanOp.evaluate(y, i, j-i);
+			x[k] = x[i];
+			y[k] = this.univariateGCLoess.create().evaluate(y, i, j-i);
 			++k;
 			i=j;
 			}
@@ -414,7 +464,6 @@ public class CopyNumber01 extends Launcher
 		
 		//min depth cal
 		double min_depth=Double.MAX_VALUE;
-
 		
 		final UnivariateInterpolator interpolator = createInterpolator();
 		UnivariateFunction  spline =  interpolator.interpolate(x, y);
@@ -438,8 +487,8 @@ public class CopyNumber01 extends Launcher
 					++points_removed;
 					continue;
 					}
-				r.mean_depth -= norm; 
-				min_depth=Math.min(min_depth,r.mean_depth);
+				r.norm_depth -= norm; 
+				min_depth=Math.min(min_depth,r.norm_depth);
 				++i;
 				}
 			}
@@ -453,20 +502,18 @@ public class CopyNumber01 extends Launcher
 		y= new double[this.interval2row.size()];
 		for(i=0;i< this.interval2row.size();++i)
 			{
-			GCAndDepth gc= this.interval2row.get(i);
-			gc.mean_depth -= min_depth;
-			y[i] = gc.mean_depth;
+			final GCAndDepth gc= this.interval2row.get(i);
+			gc.norm_depth -= min_depth;
+			y[i] = gc.norm_depth;
 			}
 		
 		//normalize on median
-		double median_depth =  medianOp.evaluate(y, 0, y.length);
-		LOG.info("median:"+median_depth);
+		final double median_depth =  this.univariateMid.create().evaluate(y, 0, y.length);
 		for(i=0;i< this.interval2row.size();++i)
 			{
-			GCAndDepth gc= this.interval2row.get(i);
-			gc.mean_depth /= median_depth;
+			final GCAndDepth gc = this.interval2row.get(i);
+			gc.norm_depth /= median_depth;
 			}
-		
 		
 		//restore genomic order
 		Collections.sort(this.interval2row,CopyNumber01.sortOnPosition);
@@ -497,17 +544,20 @@ public class CopyNumber01 extends Launcher
 				{
 				right++;
 				}
-			gc.mean_depth= medianOp.evaluate(y, left,(right-left)+1);
+			gc.norm_depth= this.univariateSmooth.create().evaluate(y, left,(right-left)+1);
 			}
 		}
 	
 
 	
-	private void saveCoverage(final PrintWriter pw,final SAMSequenceRecord ssr)
+	private void saveCoverage(
+			final PrintWriter pw,
+			final SAMSequenceRecord ssr
+			)
 		{
 		LOG.info("Dumping coverage for "+ssr.getSequenceName());
 		/* header */
-		pw.println("#IDX\tCHROM\tSTART\tEND\tGC\tDP");
+		pw.println("#IDX\tCHROM\tSTART\tEND\tGC\tRAW-DP\tNORM-DP");
 		
 		/* get data */
 		for(final GCAndDepth r:this.interval2row)
@@ -522,13 +572,37 @@ public class CopyNumber01 extends Launcher
 			pw.print('\t');
 			pw.print(r.gc);
 			pw.print('\t');
-			pw.print(r.mean_depth);
+			pw.print(r.raw_depth);
+			pw.print('\t');
+			pw.print(r.norm_depth);
 			pw.println();
 			}
 		pw.flush();
 		}
 	
-	
+	private IntervalTree<Boolean> getBlackListedRegions(final SAMSequenceRecord ssr) throws IOException
+	{
+		final IntervalTree<Boolean> badIntervals = new IntervalTree<>();
+
+		if(this.blackListedBedFile==null) return badIntervals;
+
+		final BedLineCodec codec = new BedLineCodec();
+		BufferedReader in= IOUtils.openFileForBufferedReading(bedFile);
+		String line;
+		while((line=in.readLine())!=null)
+			{
+			final BedLine bedLine = codec.decode(line);
+			if( bedLine ==null ) continue;
+			
+			if(!bedLine.getContig().equals(ssr.getSequenceName()))
+				{
+				continue;
+				}
+			badIntervals.put(bedLine.getStart(),bedLine.getEnd(),Boolean.TRUE);
+			}
+		in.close();
+		return badIntervals;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {		
@@ -604,18 +678,14 @@ public class CopyNumber01 extends Launcher
 					{
 					prefillGCPercentWithoutCapture(ssr);
 					}
-				
 				scanCoverage(ssr,samReader);
 				
-				/* save raw coverage */
-				PrintWriter pw= archive.openWriter(ssr.getSequenceName()+"."+this.sampleName+".raw.tsv");
-				saveCoverage(pw,ssr);
-				pw.flush();pw.close();
+				
 				
 				normalizeCoverage();
 				
 				/* save normalized coverage */
-				pw= archive.openWriter(ssr.getSequenceName()+"."+this.sampleName+".normalized.tsv");
+				PrintWriter pw= archive.openWriter(ssr.getSequenceName()+"."+this.sampleName+".tsv");
 				saveCoverage(pw,ssr);
 				pw.flush();pw.close();
 
