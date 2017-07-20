@@ -55,18 +55,25 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -79,7 +86,11 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
  * CopyNumber01
  *
  */
-@Program(name="copynumber01",description="")
+@SuppressWarnings("unused")
+@Program(name="copynumber01",
+	description="experimental CNV detection",
+	keywords= {"cnv","bam","sam"}
+	)
 public class CopyNumber01 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CopyNumber01.class).make();
@@ -88,17 +99,25 @@ public class CopyNumber01 extends Launcher
 	private String sampleName="SAMPLE";
 	/** reference */
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;	
-	/** chrom name helper */
-	private Map<String,String> resolveChromName=new HashMap<String, String>();
 	/** global sam dict */
 	private SAMSequenceDictionary samDictionary=null;
 	/** map interval to depths and GC */
 	private List<GCAndDepth> interval2row=new ArrayList<GCAndDepth>(1000);
+	
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private File refFile=null;
+	@Parameter(names={"-b"},description="BED capture file (optional)")
+	private File bedFile=null;
+	@Parameter(names={"-o","--out"},description="output base name",required=true)
+	private File archiveFile=null;
 	/** size of a window */
 	@Parameter(names={"-w"},description="BED capture file (optional)")
-	private int windowSize=150;
+	private int windowSize=150;	
+	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 	
-	
+
+	private ContigNameConverter contigNameConverter=null;
 
 	/* fact: Y=depth X=GC% */
 	private class GCAndDepth
@@ -106,7 +125,7 @@ public class CopyNumber01 extends Launcher
 		int tid;
 		int start;
 		int end;
-		double depth=0;
+		double mean_depth=0;
 		double gc=0;
 		
 		/** GC % */
@@ -117,7 +136,7 @@ public class CopyNumber01 extends Launcher
 		/** DEPTH */
 		double getY()
 			{
-			return depth;
+			return mean_depth;
 			}
 		
 		public long getGenomicIndex()
@@ -127,39 +146,33 @@ public class CopyNumber01 extends Launcher
 			return n;
 			}
 		
-		public String getChrom()
+		public String getContig()
 			{
 			return samDictionary.getSequence(this.tid).getSequenceName();
 			}
+		
 		@Override
 		public String toString() {
-			return getChrom()+":"+start+"-"+end+" GC%="+gc+" depth:"+depth;
+			return getContig()+":"+start+"-"+end+" GC%="+gc+" depth:"+mean_depth;
 			}
 		}
 
-	private static final Comparator<GCAndDepth> sortOnXY=new Comparator<CopyNumber01.GCAndDepth>()
-			{
-			@Override
-			public int compare(GCAndDepth a, GCAndDepth b)
-				{
-				if(a.getX() < b.getX()) return -1;
-				if(a.getX() > b.getX()) return  1;
+	private static final Comparator<GCAndDepth> sortOnXY = (a,b)->
+		{
+		if(a.getX() < b.getX()) return -1;
+		if(a.getX() > b.getX()) return  1;
 
-				if(a.getY() < b.getY()) return -1;
-				if(a.getY() > b.getY()) return  1;
-				return 0;
-				}
-			};
-	private static final Comparator<GCAndDepth> sortOnPosition=new Comparator<CopyNumber01.GCAndDepth>()
-			{
-			@Override
-			public int compare(GCAndDepth a, GCAndDepth b)
-				{
-				int i= a.tid - b.tid;
-				if(i!=0) return i;
-				return a.start - b.start;
-				}
-			};
+		if(a.getY() < b.getY()) return -1;
+		if(a.getY() > b.getY()) return  1;
+		return 0;
+		};
+	
+	private static final Comparator<GCAndDepth> sortOnPosition = (a,b)->
+		{
+		int i= a.tid - b.tid;
+		if(i!=0) return i;
+		return a.start - b.start;
+		};
 
 			
 			
@@ -255,7 +268,7 @@ public class CopyNumber01 extends Launcher
 			String chrom=tokens[0];
 			if(this.samDictionary.getSequence(chrom)==null)
 				{
-				chrom = this.resolveChromName.get(chrom);
+				chrom = this.contigNameConverter.apply(chrom);
 				if(chrom==null)
 					{
 					if(!not_found.contains(tokens[0]))
@@ -301,7 +314,7 @@ public class CopyNumber01 extends Launcher
 			String chrom=ssr.getSequenceName();
 			if(this.samDictionary.getSequence(chrom)==null)
 				{
-				chrom = this.resolveChromName.get(chrom);
+				chrom = this.contigNameConverter.apply(chrom);
 				if(chrom==null)
 					{
 					LOG.info("Cannot resolve "+chrom);
@@ -316,7 +329,7 @@ public class CopyNumber01 extends Launcher
 				}
 			
 			
-			GenomicSequence genomic=new GenomicSequence(
+			final GenomicSequence genomic=new GenomicSequence(
 				this.indexedFastaSequenceFile,
 				chrom
 				);
@@ -325,39 +338,40 @@ public class CopyNumber01 extends Launcher
 			}
 		}
 	
-	private void scanCoverage(SamReader sr)
+	private void scanCoverage(final SAMSequenceRecord ssr,final SamReader sr)
 		throws IOException
 		{
 		Collections.sort(this.interval2row,CopyNumber01.sortOnPosition);
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.samDictionary);
-		for(GCAndDepth row:this.interval2row)
+		
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.samDictionary);
+		for(final GCAndDepth row:this.interval2row)
 			{
-			double sum = 0;
-			SAMRecordIterator sri=sr.query(
+			final double sum_array[]= new double[1 + row.end - row.start];
+			Arrays.fill(sum_array, 0.0);
+			
+			final SAMRecordIterator sri=sr.query(
 					this.samDictionary.getSequence(row.tid).getSequenceName(),
 					row.start,
 					row.end,
 					false);
 			while(sri.hasNext())
 				{
-				SAMRecord rec = sri.next();
+				final SAMRecord rec = progress.watch(sri.next());
 				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				if(rec.getDuplicateReadFlag()) continue;
-				if(rec.getReadFailsVendorQualityCheckFlag())continue;
-				progress.watch(rec);
-				Cigar c= rec.getCigar();
+				if(filter.filterOut(rec)) continue;
+				final Cigar c= rec.getCigar();
 				int refStart= rec.getAlignmentStart();
-				for(CigarElement ce:c.getCigarElements())
+				for(final CigarElement ce:c.getCigarElements())
 					{
 					if(!ce.getOperator().consumesReferenceBases()) continue;
 					if(ce.getOperator().consumesReadBases())
 						{
 						for(int x=0;x< ce.getLength();++x)
 							{
-							if(refStart+x>= row.start && refStart+x<=row.end)
+							final int pos = refStart+x;
+							if(pos >= row.start && pos <=row.end)
 								{
-								sum++;
+								sum_array[pos - row.start]++;
 								}
 							}
 						}
@@ -365,7 +379,7 @@ public class CopyNumber01 extends Launcher
 					}		
 				}
 			sri.close();
-			row.depth += sum /(double)this.windowSize;
+			row.mean_depth = new Mean().evaluate(sum_array);//TODO check
 			}
 		progress.finish();
 		}
@@ -400,7 +414,7 @@ public class CopyNumber01 extends Launcher
 		for(int j=0;j< this.interval2row.size();++j)
 			{
 			GCAndDepth r=this.interval2row.get(j);
-			if(isSexualChrom(r.getChrom())) continue;
+			if(isSexualChrom(r.getContig())) continue;
 			autosome_count++;
 			}
 
@@ -413,7 +427,7 @@ public class CopyNumber01 extends Launcher
 		for(int j=0;j< this.interval2row.size();++j)
 			{
 			GCAndDepth r=this.interval2row.get(j);
-			if(isSexualChrom(r.getChrom())) continue;
+			if(isSexualChrom(r.getContig())) continue;
 			x[i] = r.getX();
 			y[i] = r.getY();
 			++i;
@@ -473,8 +487,8 @@ public class CopyNumber01 extends Launcher
 					++points_removed;
 					continue;
 					}
-				r.depth -= norm; 
-				min_depth=Math.min(min_depth,r.depth);
+				r.mean_depth -= norm; 
+				min_depth=Math.min(min_depth,r.mean_depth);
 				++i;
 				}
 			}
@@ -489,8 +503,8 @@ public class CopyNumber01 extends Launcher
 		for(i=0;i< this.interval2row.size();++i)
 			{
 			GCAndDepth gc= this.interval2row.get(i);
-			gc.depth -= min_depth;
-			y[i] = gc.depth;
+			gc.mean_depth -= min_depth;
+			y[i] = gc.mean_depth;
 			}
 		
 		//normalize on median
@@ -499,7 +513,7 @@ public class CopyNumber01 extends Launcher
 		for(i=0;i< this.interval2row.size();++i)
 			{
 			GCAndDepth gc= this.interval2row.get(i);
-			gc.depth /= median_depth;
+			gc.mean_depth /= median_depth;
 			}
 		
 		
@@ -532,19 +546,15 @@ public class CopyNumber01 extends Launcher
 				{
 				right++;
 				}
-			gc.depth= medianOp.evaluate(y, left,(right-left)+1);
+			gc.mean_depth= medianOp.evaluate(y, left,(right-left)+1);
 			}
-		
-		
 		}
 	
 
 	
-	private void saveCoverage(GZIPOutputStream zout)
+	private void saveCoverage(PrintWriter pw)
 		{
 		LOG.info("Dumping coverage ");
-		PrintWriter pw=new PrintWriter(zout);
-		
 		/* header */
 		pw.println("ID\tCHROM\tSTART\tEND\tGC\t"+this.sampleName);
 		
@@ -561,21 +571,13 @@ public class CopyNumber01 extends Launcher
 			pw.print('\t');
 			pw.print(r.gc);
 			pw.print('\t');
-			pw.print(r.depth);
+			pw.print(r.mean_depth);
 			pw.println();
 			}
 		pw.flush();
 		}
 	
 	
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File refFile=null;
-	@Parameter(names={"-b"},description="BED capture file (optional)")
-	private File bedFile=null;
-	@Parameter(names={"-N"},description="chrom name helper (name1)(tab2)(name2)")
-	private File chromNameFile=null;
-	@Parameter(names={"-o","--out"},description="output base name",required=true)
-	private String outputFile="output";
 	
 	@Override
 	public int doWork(List<String> args) {
@@ -587,7 +589,7 @@ public class CopyNumber01 extends Launcher
 			}
 		
 		
-		if(this.outputFile==null)
+		if(this.archiveFile==null)
 			{
 			LOG.error("Undefined output file.");
 			return -1;
@@ -599,49 +601,35 @@ public class CopyNumber01 extends Launcher
 		
 		try
 			{
-			File bamFile=new File(oneAndOnlyOneFile(args));
+			final String input = oneAndOnlyOneFile(args);
+			samReader = super.openSamReader(input);
+			final SAMFileHeader header = samReader.getFileHeader();
 			
 			
-			final SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
-			
-			LOG.info("get Dict for "+bamFile);
-			samReader = srf.open(bamFile);
-			this.samDictionary=samReader.getFileHeader().getSequenceDictionary();
-			for(SAMReadGroupRecord rg:samReader.getFileHeader().getReadGroups())
-				{
-				String s = rg.getSample();
-				if(s==null || s.trim().isEmpty()) continue;
-				this.sampleName=s;
-				break;
+			this.samDictionary= header.getSequenceDictionary();
+			if(this.samDictionary==null || this.samDictionary.isEmpty()) {
+				throw new JvarkitException.DictionaryMissing(input);
 				}
 			
-			
+			this.sampleName =  header.getReadGroups().
+					stream().
+					map(RG->RG.getSample()).
+					filter(S->!StringUtil.isBlank(S)).
+					findFirst().orElse("SAMPLE");
 			
 			/* loading REF Reference */
-			LOG.info("Loading "+refFile);
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(refFile);
 			SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
 			if(dict==null)
 				{
-				LOG.error("Cannot get sequence dictionary for "+refFile);
-				return -1;
+				throw new JvarkitException.DictionaryMissing(refFile.getPath());
 				}
 			
+				
+			this.contigNameConverter = ContigNameConverter.fromDictionaries(dict, samDictionary);
 			
-			if(chromNameFile!=null)
-				{
-				LOG.info("Reading "+chromNameFile);
-				LineIterator r=IOUtils.openFileForLineIterator(chromNameFile);
-				while(r.hasNext())
-					{
-					String tokens[]=r.next().split("[\t]");
-					if(tokens.length<2) continue;
-					this.resolveChromName.put(tokens[0], tokens[1]);
-					this.resolveChromName.put(tokens[1], tokens[0]);
-					}
-				CloserUtil.close(r);
-				}
-			if(bedFile!=null)
+			
+			if(this.bedFile!=null)
 				{
 				prefillGCPercentWithCapture(bedFile);
 				}
@@ -650,23 +638,28 @@ public class CopyNumber01 extends Launcher
 				prefillGCPercentWithoutCapture();
 				}
 			
-			scanCoverage(samReader);
+			ArchiveFactory archive = ArchiveFactory.open(this.archiveFile);
+
+			
+			for(final SAMSequenceRecord ssr: this.samDictionary.getSequences()) {
+				scanCoverage(ssr,samReader);
+				}
 			samReader.close();
 			
 			
 			/* save raw coverage */
-			GZIPOutputStream zout = new GZIPOutputStream(new FileOutputStream(this.outputFile+"_raw.tsv.gz"));
-			saveCoverage(zout);
-			zout.finish();zout.close();
+			PrintWriter pw= archive.openWriter("raw.tsv");
+			saveCoverage(pw);
+			pw.flush();pw.close();
 			
 			normalizeCoverage();
 			
 			/* save normalized coverage */
-			zout = new GZIPOutputStream(new FileOutputStream(this.outputFile+"_normalized.tsv.gz"));
-			saveCoverage(zout);
-			zout.finish();zout.close();
+			pw= archive.openWriter("normalized.tsv");
+			saveCoverage(pw);
+			pw.flush();pw.close();
 
-		
+			archive.close();
 			return 0;
 			}
 		catch(Exception err)
