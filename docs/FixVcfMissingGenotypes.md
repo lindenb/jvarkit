@@ -9,12 +9,22 @@ After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing ge
 Usage: fixvcfmissinggenotypes [options] Files
   Options:
     -B, --bams
-      >path of indexed BAM path with read Groups. You can put those paths in a 
+      path of indexed BAM path with read Groups. You can put those paths in a 
       text file having a *.list sufffix
       Default: []
     -d, --depth
-      min depth
+      minimal depth before setting a genotype to HOM_REF
       Default: 10
+    -filter, --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+    --filtered
+      Mark fixed genotypes as FILTERED with this FILTER
+    --fixDP
+      Update/create DP field even if genotype is called but there is no DP
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -22,6 +32,9 @@ Usage: fixvcfmissinggenotypes [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
+    -T, --tag
+      FORMAT 'Tag' for fixed genotype
+      Default: FXG
     --version
       print version and exit
 
@@ -39,6 +52,7 @@ Usage: fixvcfmissinggenotypes [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/119007](https://www.biostars.org/p/119007)
+ * [https://www.biostars.org/p/263309](https://www.biostars.org/p/263309)
 
 
 ## Compilation
@@ -99,95 +113,46 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+### Example
 
+```
+$ find ~/src/gatk-ui/testdata/ -name "*.bam" > input.list
 
+$ tail -2 input.vcf
+rotavirus	1064	.	G	A	21.5606	.	DP=250;VDB=2.70971e-16;SGB=8.40135;RPB=0.935144;MQB=1;BQB=0.683886;MQ0F=0;AF1=0.25;G3=0.75,2.37734e-17,0.25;HWE=0.033921;AC1=2;DP4=0,219,0,31;MQ=60;FQ=22.8019;PV4=1,1.22605e-06,1,1	GT:PL	0/0:0,244,70	0/0:0,199,65	0/0:0,217,68	1/1:69,84,0
+rotavirus	1064	.	G	A	21.5606	.	DP=250;VDB=2.70971e-16;SGB=8.40135;RPB=0.935144;MQB=1;BQB=0.683886;MQ0F=0;AF1=0.25;G3=0.75,2.37734e-17,0.25;HWE=0.033921;AC1=2;DP4=0,219,0,31;MQ=60;FQ=22.8019;PV4=1,1.22605e-06,1,1	GT:PL	./.	./.	./.	./.
 
+$ java -jar dist/fixvcfmissinggenotypes.jar -d 50 --fixDP --filtered zz -B input.list input.vcf | tail -2
+rotavirus	1064	.	G	A	21.56	.	AC1=2;AF1=0.25;BQB=0.683886;DP=188;DP4=0,219,0,31;FQ=22.8019;G3=0.75,2.37734e-17,0.25;HWE=0.033921;MQ=60;MQ0F=0;MQB=1;PV4=1,1.22605e-06,1,1;RPB=0.935144;SGB=8.40135;VDB=2.70971e-16	GT:DP:PL	0/0:48:0,244,70	0/0:63:0,199,65	0/0:53:0,217,68	1/1:24:69,84,0
+rotavirus	1064	.	G	A	21.56	.	AC1=2;AF1=0.25;BQB=0.683886;DP=72;DP4=0,219,0,31;FQ=22.8019;G3=0.75,2.37734e-17,0.25;HWE=0.033921;MQ=60;MQ0F=0;MQB=1;PV4=1,1.22605e-06,1,1;RPB=0.935144;SGB=8.40135;VDB=2.70971e-16	GT:DP:FT:FXG	./.:48:PASS	0/0:63:zz:1	0/0:53:zz:1	./.:24:PASS
+```
 
 ### Example
 
 
-
-
 ```
-
 $ yourtool-mergingvcf 1.vcf 2.vcf 3.vcf > merged.vcf
 $ find ./ -name "*.bam" > bams.list
 $  java -jar dist/fixvcfmissinggenotypes.jar -f bams.list < merged.vcf > out.vcf
-
 ```
 
-
-
-
-
 ```
+$ find DIR1 -name "PREFIX_*final.bam"  | grep -E '(S1|S2|S3|S4)' ) > bams.list
 
 $ find DIR1 -name "PREFIX_*_variations.gatk.annotations.vcf.gz" |\
 grep -E '(S1|S2|S3|S4)' |\
 xargs perl  vcftools_0.1.12b/perl vcftools_0.1.12b/bin/vcf-merge |\
-java -jar dist/fixvcfmissinggenotypes.jar -d 10 -f <( find DIR1 -name "PREFIX_*final.bam"  | grep -E '(S1|S2|S3|S4)' ) |\
+java -jar dist/fixvcfmissinggenotypes.jar -d 10 -f  bams.list |\
 gzip --best > out.vcf.gz
 
 ```
 
 
 
-
-
-### See also
-
-
-
- *  https://www.biostars.org/p/119007/
-
-
-
-
 ### History
 
-
-
- *  2014: Creation
-
-
-
-
-
-
-
-### Example
-
-
-
-```
-
-$ yourtool-mergingvcf 1.vcf 2.vcf 3.vcf > merged.vcf
-$ find ./ -name "*.bam" > bams.list
-$  java -jar dist/fixvcfmissinggenotypes.jar -f bams.list < merged.vcf > out.vcf
-
-```
-
-
-
-
-```
-
-$ find DIR1 -name "PREFIX_*_variations.gatk.annotations.vcf.gz" |\
-grep -E '(S1|S2|S3|S4)' |\
-xargs perl  vcftools_0.1.12b/perl vcftools_0.1.12b/bin/vcf-merge |\
-java -jar dist/fixvcfmissinggenotypes.jar -d 10 -f <( find DIR1 -name "PREFIX_*final.bam"  | grep -E '(S1|S2|S3|S4)' ) |\
-gzip --best > out.vcf.gz
-
-```
-
-### History
-
-
-
- *  2014: Creation
-
-
-
+ * 2017-07-24 : rewrite whole program 
+ * 2014: Creation
 
 
 
