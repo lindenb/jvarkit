@@ -59,6 +59,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -66,6 +67,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
@@ -181,11 +183,19 @@ public class GroupByGene
 	private Set<String> user_gene_tags = new HashSet<>();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
+	@Parameter(names={"-p","--ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
+	private File pedigreeFile=null;
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
+	
 	private final Set<String> sampleNames = new TreeSet<String>();
 	private SortingCollection<Call> sortingCollection = null;
+	/** vcf tools that will be created after header is parsed */
+	private VcfTools vcfTools = null;
+	/** pedigree associared to data */
+	private Pedigree pedigree = null;
 	
 	private static class GeneName
 		{
@@ -293,9 +303,6 @@ public class GroupByGene
 			}
 		}
 	
-	private SnpEffPredictionParser snpEffPredictionParser=null;
-	private VepPredictionParser vepPredictionParser=null;
-	private AnnPredictionParser annPredictionParser=null;
 	
 	public GroupByGene()
 		{
@@ -304,7 +311,7 @@ public class GroupByGene
 	private Set<GeneName> getGenes(final VariantContext ctx)
 		{
 		final Set<GeneName> set=new HashSet<GeneName>();
-		for(VepPredictionParser.VepPrediction pred: this.vepPredictionParser.getPredictions(ctx))
+		for(VepPredictionParser.VepPrediction pred: this.vcfTools.getVepPredictions(ctx))
 			{
 			String s=pred.getGeneName();
 			if(s!=null)  set.add(new GeneName(s,"vep-gene-name"));
@@ -321,14 +328,14 @@ public class GroupByGene
 			s=pred.getRefSeq();
 			if(s!=null)  set.add(new GeneName(s,"vep-refseq"));
 			}
-		for(final SnpEffPredictionParser.SnpEffPrediction pred: this.snpEffPredictionParser.getPredictions(ctx))
+		for(final SnpEffPredictionParser.SnpEffPrediction pred: this.vcfTools.getSnpEffPredictions(ctx))
 			{
 			String s=pred.getGeneName();
 			if(s!=null)  set.add(new GeneName(s,"snpeff-gene-name"));
 			s=pred.getEnsemblTranscript();
 			if(s!=null)  set.add(new GeneName(s,"snpeff-ensembl-transcript-name"));
 			}
-		for(final AnnPredictionParser.AnnPrediction pred:this.annPredictionParser.getPredictions(ctx)) {
+		for(final AnnPredictionParser.AnnPrediction pred:this.vcfTools.getAnnPredictions(ctx)) {
 			String s=pred.getGeneId();
 			if(s!=null)  set.add(new GeneName(s,"ann-gene-id"));
 			s=pred.getGeneName();
@@ -517,19 +524,26 @@ public class GroupByGene
 		CloserUtil.close(iter);
 		}
 	
-	/** public for knime */
-	public void readVcf(final VcfIterator iter) 
+	private void readVcf(final VcfIterator iter) throws IOException
 		{
-		final VCFHeader header=(VCFHeader)iter.getHeader();
+		final VCFHeader header=iter.getHeader();
+		
 		if(header.getSampleNamesInOrder()!=null)
 			{
 			this.sampleNames.addAll(header.getSampleNamesInOrder());
 			}
-		this.snpEffPredictionParser=new SnpEffPredictionParserFactory(header).get();
-		this.vepPredictionParser=new VepPredictionParserFactory(header).get();
-		this.annPredictionParser = new AnnPredictionParserFactory(header).get();
-		SAMSequenceDictionary dict=header.getSequenceDictionary();
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+		this.vcfTools = new VcfTools(header);
+		
+		if(this.pedigreeFile!=null) {
+			this.pedigree = Pedigree.newParser().parse(this.pedigreeFile);
+			}
+		else
+			{
+			this.pedigree = Pedigree.newParser().parse(header);
+			}
+		
+		final SAMSequenceDictionary dict=header.getSequenceDictionary();
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		while(iter.hasNext())
 			{
 			final VariantContext ctx= progress.watch(iter.next());
@@ -565,7 +579,7 @@ public class GroupByGene
 						c.a2=genotype.getAllele(1).getDisplayString().toUpperCase();
 						if(c.a1.compareTo(c.a2)>0)
 							{
-							String tmp=c.a1;
+							final String tmp=c.a1;
 							c.a1=c.a2;
 							c.a2=tmp;
 							}
