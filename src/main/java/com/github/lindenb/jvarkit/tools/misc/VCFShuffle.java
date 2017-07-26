@@ -33,7 +33,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -54,6 +53,13 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 /**
 BEGIN_DOC
 
+## Example
+
+```
+$ java -jar dist/vcfshuffle.jar input.vcf
+```
+
+
 END_DOC
  */
 @Program(
@@ -63,7 +69,6 @@ END_DOC
 	)
 public class VCFShuffle extends Launcher
 	{
-
 	private static final Logger LOG = Logger.build(VCFShuffle.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -93,7 +98,7 @@ public class VCFShuffle extends Launcher
 				{
 				r.rand=dis.readLong();
 				}
-			catch(IOException err)
+			catch(final IOException err)
 				{
 				return null;
 				}
@@ -111,19 +116,7 @@ public class VCFShuffle extends Launcher
 			return new RLineCodec();
 			}
 		}
-	
-	private static class RLineCmp
-		implements Comparator<RLine>
-		{
-		@Override
-		public int compare(final RLine o1,final  RLine o2) {
-			final int i= o1.rand<o2.rand?-1:o1.rand>o2.rand?1:0;
-			if(i!=0) return i;
-			return o1.line.compareTo(o2.line);
-			}
-		}
-
-	
+		
 	public VCFShuffle()
 		{
 		}
@@ -151,7 +144,11 @@ public class VCFShuffle extends Launcher
 			shuffled=SortingCollection.newInstance(
 					RLine.class,
 					new RLineCodec(),
-					new RLineCmp(),
+					(o1,o2)->{
+						final int i= o1.rand<o2.rand?-1:o1.rand>o2.rand?1:0;
+						if(i!=0) return i;
+						return o1.line.compareTo(o2.line);
+						},
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpDirectories()
 					);

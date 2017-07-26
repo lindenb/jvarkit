@@ -252,6 +252,7 @@ public int doWork(final List<String> args) {
 								}
 							else
 								{
+								
 								return false;
 								}
 							}
@@ -451,7 +452,8 @@ public int doWork(final List<String> args) {
     				".coverage {fill:url(#grad03);stroke:black;}"+
     				".kgcds {fill:yellow;stroke:black;opacity:0.7;}\n"+
     				".variant{stroke:none;fill:red;opacity:0.2;}\n"+
-    				".xaxis{stroke:gray;fill:none;opacity:0.2;}"
+    				".xaxis{stroke:gray;fill:none;opacity:0.2;}\n"+
+    				".postick{font-size:9px;stroke:black;stroke-width:1;}"
     				);
     		w.writeEndElement();//style
 
@@ -478,7 +480,7 @@ public int doWork(final List<String> args) {
 					}
 			};
 			
-			final Function<VariantContext,String> variantTitle= V-> V.getContig()+":"+V.getStart()+" "+V.getReference().getDisplayString();
+			final Function<VariantContext,String> variantTitle= V-> (V.getContig().startsWith("chr")?V.getContig().substring(3):V.getContig())+":"+V.getStart()+" "+V.getReference().getDisplayString();
 			
 			/** title */
 			double y=0;
@@ -582,12 +584,12 @@ public int doWork(final List<String> args) {
 				double x2 =  baseToPixel.apply(vc.getEnd());
 				final double y2= y+featureHeight*interline_weight;
 				w.writeStartElement("polygon");
-				w.writeAttribute("style","fill:ghostwhite;stroke:black;opacity:0.6;stroke-width:0.5;");
+				w.writeAttribute("style","fill:"+(vidx%2==0?"ghostwhite":"lavender")+";stroke:black;opacity:0.6;stroke-width:0.5;");
 				w.writeAttribute("points",
 						 ""+x1+","+(y-featureHeight/2.0)+
 						" "+x2+","+(y-featureHeight/2.0)+
 						" "+variantIndexToPixel.apply(vidx)+","+y2+
-						" "+variantIndexToPixel.apply(vidx+1)+","+y2
+						" "+(variantIndexToPixel.apply(vidx)+this.genotype_width)+","+y2
 						);
 				title(w,variantTitle.apply(vc));
 				w.writeEndElement();
@@ -602,7 +604,7 @@ public int doWork(final List<String> args) {
 						"rotate(-45)");
 				w.writeAttribute("x", "0");
 				w.writeAttribute("y", "0");
-				w.writeAttribute("style", "font-size:9px;stroke:black;stroke-width:1;");
+				w.writeAttribute("class", "postick");
 				w.writeCharacters(variantTitle.apply(vc));
 				w.writeEndElement();
 				w.writeCharacters("\n");

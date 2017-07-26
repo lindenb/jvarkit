@@ -101,7 +101,7 @@ public class VcfRenameSamples extends Launcher
 	@ParametersDelegate
 	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
-	private Map<String,String> oldNameToNewName=new HashMap<String,String>();
+	private final Map<String,String> oldNameToNewName=new HashMap<String,String>();
 	
 	public VcfRenameSamples()
 		{
@@ -109,13 +109,13 @@ public class VcfRenameSamples extends Launcher
 	
 	@Override
 	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-		VCFHeader header1=in.getHeader();
+		final VCFHeader header1=in.getHeader();
 		final Set<String> samples1 = new LinkedHashSet<String>(header1.getSampleNamesInOrder());
 		
 		final List<String> newHeader=new ArrayList<String>(samples1);
 		for(int i=0;i< newHeader.size();++i)
 			{
-			String destName=this.oldNameToNewName.get(newHeader.get(i));
+			final String destName=this.oldNameToNewName.get(newHeader.get(i));
 			if(destName==null) continue;
 			newHeader.set(i, destName);
 			}
@@ -125,7 +125,7 @@ public class VcfRenameSamples extends Launcher
 					"Error in input : there are some diplicates in the resulting new VCF header: "+newHeader);
 			}
 				
-		for(String srcName:this.oldNameToNewName.keySet())
+		for(final String srcName:this.oldNameToNewName.keySet())
 			{			
 			if(!samples1.contains(srcName))
 				{
@@ -155,14 +155,14 @@ public class VcfRenameSamples extends Launcher
 			final VariantContext ctx=progress.watch(in.next());
 			final VariantContextBuilder b=new VariantContextBuilder(ctx);
 			final List<Genotype> genotypes=new ArrayList<Genotype>();
-			for(String oldName:samples1)
+			for(final String oldName:samples1)
 				{
-				Genotype g=ctx.getGenotype(oldName);
+				Genotype g=  ctx.getGenotype(oldName);
 				
 				final String destName=this.oldNameToNewName.get(oldName);
 				if(destName!=null)
 					{
-					GenotypeBuilder gb=new GenotypeBuilder(g);
+					final GenotypeBuilder gb=new GenotypeBuilder(g);
 					gb.name(destName);
 					g=gb.make();
 					}
@@ -219,7 +219,7 @@ public class VcfRenameSamples extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		if(mappingFile==null) {
 			LOG.error("undefined mapping file");

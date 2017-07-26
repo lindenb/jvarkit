@@ -79,7 +79,11 @@ Variant in that VCF should have one and only one ALT allele. Use https://github.
 END_DOC
 */
 
-@Program(name="vcfburdenfisherv",description="Fisher Case / Controls per Variant (Vertical)")
+@Program(
+		name="vcfburdenfisherv",
+		description="Fisher Case / Controls per Variant (Vertical)",
+		keywords={"vcf","burden","fisher"}
+		)
 public class VcfBurdenFisherV
 	extends Launcher
 	{

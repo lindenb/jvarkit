@@ -451,12 +451,28 @@ public class Pedigree
 		return set;
 		}
 	
+	/** contains affected individuals */
+	public boolean hasAffected()
+		{
+		return getPersons().stream().
+				filter(P->P.getStatus()==Status.affected).
+				findAny().isPresent();
+		}
+	
 	/** get affected individuals */
 	public java.util.Set<Person> getAffected()
 		{
 		return getPersons().stream().filter(P->P.getStatus()==Status.affected).collect(Collectors.toSet());
 		}
 
+	/** contains unaffected individuals */
+	public boolean hasUnaffected()
+		{
+		return getPersons().stream().
+				filter(P->P.getStatus()==Status.unaffected).
+				findAny().isPresent();
+		}
+	
 	/** get unaffected individuals */
 	public java.util.Set<Person> getUnaffected()
 		{

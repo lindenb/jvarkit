@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
@@ -218,10 +219,10 @@ public class VcfFilterSequenceOntology
 		final AnnPredictionParser annPredParser= new AnnPredictionParserFactory().header(header).get().sequenceOntologyTree(this.sequenceOntologyTree);
 		out.writeHeader(header2);
 		
-		
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 		while(iter.hasNext())
 			{
-			VariantContext ctx=iter.next();
+			final VariantContext ctx= progress.watch(iter.next());
 			
 			
 			
@@ -346,6 +347,7 @@ public class VcfFilterSequenceOntology
 				addVariant(out,ctx,keep);
 				}
 			}
+		progress.finish();
 		return 0;
 		}
 	private void addVariant(final VariantContextWriter w,final VariantContext ctx,boolean keep)

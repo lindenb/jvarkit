@@ -8,8 +8,18 @@ Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff
 ```
 Usage: groupbygene [options] Files
   Options:
+    --annIntergenic
+      [20170726] Accept snpEff 'ANN' intergenic regions.
+      Default: false
     --filtered
       ignore FILTERED variants
+      Default: false
+    --fisher
+      [20170726] Print fisher for case/control (experimental, need to work on 
+      this) 
+      Default: false
+    --gtFiltered
+      [20170725] ignore FILTERED genotypes
       Default: false
     -h, --help
       print help and exit
@@ -24,17 +34,30 @@ Usage: groupbygene [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --ped, --pedigree
+      [20170725] A pedigree is a text file delimited with tabs. No header. 
+      Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
+      Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
+      unaffected, 1 affected,-9 unknown
+    --slidingWindowShift
+      [20170726] if greater than 0, add shift the sliding window by this 
+      distance 
+      Default: 0
+    --slidingWindowSize
+      [20170726] if greater than 0, add a sliding window of this size as the 
+      name of a virtual region
+      Default: 0
     -T, --tag
-      add Tag in INFO field containing the name of the genes.
+      search Tag in INFO field containing the name of the genes (optional)
       Default: []
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
+    --typeRegexExclude
+      [20170726] ignore prediction type matching this regex. e.g: 
+      '(ann_gene_id|ann_feature_id)' 
     --version
       print version and exit
-    -X, --xml
-      XML output
-      Default: false
 
 ```
 
@@ -128,65 +151,11 @@ chr10   126678092  126678092  CTBP2      vep-gene-name     1                 1  
 chr10   135336656  135369532  CYP2E1     snpeff-gene-name  3                 2                 0       2       1       1
 ```
 
-## XML output
-
-```
-$ curl -s -k "https://raw.github.com/arq5x/gemini/master/test/test4.vep.snpeff.vcf" |\
-java -jar dist/groupbygene.jar -X |\
-xmllint --> --format -<!-- 
 ```
 
+## History
 
-```
-<!-- <?xml version="1.0" encoding="UTF-8"?>
-<genes>
-  <samples count="4">
-    <sample>M10475</sample>
-    <sample>M10478</sample>
-    <sample>M10500</sample>
-    <sample>M128215</sample>
-  </samples>
-  <gene name="ASAH2" type="snpeff-gene-name" chrom="chr10" min.POS="52004315" max.POS="52004315" affected="2" variations="1">
-    <sample name="M10500" count="1">
-      <genotype pos="52004315" ref="T" A1="C" A2="C"/>
-    </sample>
-    <sample name="M128215" count="1">
-      <genotype pos="52004315" ref="T" A1="C" A2="C"/>
-    </sample>
-  </gene>
-  <gene name="ASAH2" type="vep-gene-name" chrom="chr10" min.POS="52004315" max.POS="52004315" affected="2" variations="1">
-    <sample name="M10500" count="1">
-(...)
-    <sample name="M10475" count="1">
-      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
-    </sample>
-  </gene>
-  <gene name="ENST00000572003" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
-    <sample name="M10475" count="1">
-      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
-    </sample>
-  </gene>
-  <gene name="ENST00000572887" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
-    <sample name="M10475" count="1">
-      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
-    </sample>
-  </gene>
-  <gene name="ENST00000573843" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
-    <sample name="M10475" count="1">
-      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
-    </sample>
-  </gene>
-  <gene name="ENST00000573922" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
-    <sample name="M10475" count="1">
-      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
-    </sample>
-  </gene>
-  <gene name="ENST00000574309" type="vep-ensembl-transcript-name" chrom="chr16" min.POS="72057435" max.POS="72057435" affected="1" variations="1">
-    <sample name="M10475" count="1">
-      <genotype pos="72057435" ref="C" A1="C" A2="T"/>
-    </sample>
-  </gene>
-</genes>
-```
+* 201707: added pedigree, removed XML output
+
 
 
