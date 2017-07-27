@@ -43,6 +43,12 @@ Usage: bioalcidaejdk [options] Files
  * jdk
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/264894](https://www.biostars.org/p/264894)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -123,6 +129,11 @@ At the time of writing, we have:
     	public void dispose() {}
     	// users MUST implement the body of that function
     	public abstract void execute() throws Exception;
+    	
+    	public void print(final Object o) { this.out.print(o);}
+    	public void println() { this.out.println();}
+    	public void println(final Object o) { this.print(o);this.println();}
+
     	}
     
     public static abstract class VcfHandler extends AbstractHandler
@@ -289,7 +300,7 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
 count the SNP having a ID in a VCF file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(V->V.isSNP()).filter(V->V.hasID()).count());' input.vcf.gz
+$ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(V->V.isSNP()).filter(V->V.hasID()).count());' input.vcf.gz
 
 953
 ```
@@ -299,7 +310,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(V->V.i
 count the mapped SAM Reads in a BAM file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
+$ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
 5518 
 ```
 
@@ -308,7 +319,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(R->!R.
 count the  Reads starting with "A' in a FASTQ file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
+$ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
 218 
 ```
 
@@ -317,7 +328,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().filter(R->R.g
 generate a matrix: first row is sample names, one row per variant, genotypes (0=HOM_REF,1=HET,2=HOM_VAR,other=-9)
 
 ```
-java -jar dist/bioalcidaejdk.jar -e 'System.out.println(String.join(",",header.getSampleNamesInOrder())); stream().forEach(V->out.println(V.getGenotypes().stream().map(G->{if(G.isHomRef()) return "0";if(G.isHet()) return "1"; if(G.isHomVar()) return "2"; return "-9";}).collect(Collectors.joining(","))));' input.vcf
+java -jar dist/bioalcidaejdk.jar -e 'println(String.join(",",header.getSampleNamesInOrder())); stream().forEach(V->println(V.getGenotypes().stream().map(G->{if(G.isHomRef()) return "0";if(G.isHet()) return "1"; if(G.isHomVar()) return "2"; return "-9";}).collect(Collectors.joining(","))));' input.vcf
 ```
 
 ## Example
@@ -325,9 +336,23 @@ java -jar dist/bioalcidaejdk.jar -e 'System.out.println(String.join(",",header.g
 longest fasta  length
 
 ```
-/java -jar dist/bioalcidaejdk.jar -e 'System.out.println(stream().mapToInt(S->S.length()).max().getAsInt());' input.fasta
+/java -jar dist/bioalcidaejdk.jar -e 'println(stream().mapToInt(S->S.length()).max().getAsInt());' input.fasta
 ```
 
+## Example
+
+Which tool to calculate per site stats on vcf file?
+
+```
+java -jar dist/bioalcidaejdk.jar -e 'print("POS\t");for(GenotypeType GT : GenotypeType.values()) print("\t"+GT); println(); stream().forEach(V->{print(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString());for(GenotypeType GT : GenotypeType.values()) print("\t"+V.getGenotypes().stream().filter(G->G.getType()==GT).count()); println();});' in.vcf | column -t
+
+POS               NO_CALL  HOM_REF  HET  HOM_VAR  UNAVAILABLE  MIXED
+rotavirus:51:A    0        3        0    1        0            0
+rotavirus:91:A    0        3        1    0        0            0
+rotavirus:130:T   0        3        1    0        0            0
+(...)
+
+```
 
 
 

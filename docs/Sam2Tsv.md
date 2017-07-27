@@ -41,6 +41,7 @@ Usage: sam2tsv [options] Files
  * [https://www.biostars.org/p/157232](https://www.biostars.org/p/157232)
  * [https://www.biostars.org/p/59647](https://www.biostars.org/p/59647)
  * [https://www.biostars.org/p/253828](https://www.biostars.org/p/253828)
+ * [https://www.biostars.org/p/264875](https://www.biostars.org/p/264875)
 
 
 ## Compilation
@@ -160,123 +161,19 @@ r002	0	ref	9	G	.	.	.	I
 r002	0	ref	10	G	.	.	.	I
 r002	0	ref	11	G	.	15	G	M
 r002	0	ref	12	A	.	16	A	M
-r002	0	ref	13	T	.	17	T	M
-r002	0	ref	14	A	.	18	A	M
-r002	0	ref	15	A	.	.	.	I
-r002	0	ref	16	A	.	.	.	I
-:   ref        8 AAAGATAAGGGATAAA 18      
-:                  ||||||  ||||  
-:  r002        1 --AGATAA--GATA-- 17      
-r003	0	ref	0	A	.	9	A	M
-r003	0	ref	1	G	.	10	G	M
-r003	0	ref	2	C	.	11	A	M
-r003	0	ref	3	T	.	12	T	M
-r003	0	ref	4	A	.	13	A	M
-r003	0	ref	5	A	.	14	A	M
-:   ref        4 AGCTAA 14      
-:                || |||
-:  r003        1 AGATAA 6       
-r004	0	ref	0	A	.	16	A	M
-r004	0	ref	1	T	.	17	T	M
-r004	0	ref	2	A	.	18	A	M
-r004	0	ref	3	G	.	19	G	M
-r004	0	ref	4	C	.	20	C	M
-r004	0	ref	5	T	.	21	T	M
-r004	0	ref	.	.	.	22	G	N
-r004	0	ref	.	.	.	23	T	N
-r004	0	ref	.	.	.	24	G	N
-r004	0	ref	.	.	.	25	C	N
-r004	0	ref	.	.	.	26	T	N
-r004	0	ref	.	.	.	27	A	N
-r004	0	ref	.	.	.	28	G	N
-r004	0	ref	.	.	.	29	T	N
-r004	0	ref	.	.	.	30	A	N
-r004	0	ref	.	.	.	31	G	N
-r004	0	ref	.	.	.	32	G	N
-r004	0	ref	.	.	.	33	C	N
-r004	0	ref	.	.	.	34	A	N
-r004	0	ref	.	.	.	35	G	N
-r004	0	ref	6	C	.	.	.	I
-r004	0	ref	7	T	.	36	T	M
-r004	0	ref	8	C	.	37	C	M
-r004	0	ref	9	A	.	38	A	M
-r004	0	ref	10	G	.	39	G	M
-r004	0	ref	11	C	.	40	C	M
-:   ref       16 ATAGCT--------------CTCAGC 40      
-:                ||||||               |||||
-:  r004        1 ATAGCTGTGCTAGTAGGCAG-TCAGC 12      
-r003	16	ref	0	T	.	29	T	M
-r003	16	ref	1	A	.	30	A	M
-r003	16	ref	2	G	.	31	G	M
-r003	16	ref	3	G	.	32	G	M
-r003	16	ref	4	C	.	33	C	M
-:   ref       23 TAGGC 33      
-:                |||||
-:  r003        1 TAGGC 5       
-r001	83	ref	0	C	.	37	C	M
-r001	83	ref	1	A	.	38	A	M
-r001	83	ref	2	G	.	39	G	M
-r001	83	ref	3	C	.	40	C	M
-r001	83	ref	4	G	.	41	G	M
-r001	83	ref	5	C	.	42	C	M
-r001	83	ref	6	C	.	43	C	M
-r001	83	ref	7	A	.	44	A	M
-r001	83	ref	8	T	.	45	T	M
-:   ref       37 CAGCGCCAT 45      
-:                |||||||||
-:  r001        1 CAGCGCCAT 9       
-x1	0	ref2	0	A	30	1	a	M
-x1	0	ref2	1	G	30	2	g	M
-x1	0	ref2	2	G	30	3	g	M
-x1	0	ref2	3	T	30	4	t	M
-x1	0	ref2	4	T	30	5	t	M
-x1	0	ref2	5	T	30	6	t	M
-x1	0	ref2	6	T	30	7	t	M
-x1	0	ref2	7	A	30	8	a	M
-x1	0	ref2	8	T	30	9	t	M
-x1	0	ref2	9	A	30	10	a	M
-x1	0	ref2	10	A	30	11	a	M
-x1	0	ref2	11	A	30	12	a	M
-x1	0	ref2	12	A	30	13	a	M
-x1	0	ref2	13	C	30	14	c	M
-x1	0	ref2	14	A	30	15	a	M
-x1	0	ref2	15	A	30	16	a	M
-x1	0	ref2	16	A	30	17	t	M
-x1	0	ref2	17	T	30	18	t	M
-x1	0	ref2	18	A	30	19	a	M
-x1	0	ref2	19	A	30	20	a	M
-:  ref2        1 AGGTTTTATAAAACAAATAA 20      
-:                |||||||||||||||| |||
-:    x1        1 aggttttataaaacaattaa 20      
-x2	0	ref2	0	G	30	2	g	M
-x2	0	ref2	1	G	30	3	g	M
-x2	0	ref2	2	T	30	4	t	M
-x2	0	ref2	3	T	30	5	t	M
-x2	0	ref2	4	T	30	6	t	M
-x2	0	ref2	5	T	30	7	t	M
-x2	0	ref2	6	A	30	8	a	M
-x2	0	ref2	7	T	30	9	t	M
-x2	0	ref2	8	A	30	10	a	M
-x2	0	ref2	9	A	30	11	a	M
-x2	0	ref2	10	A	30	12	a	M
-x2	0	ref2	11	A	30	13	a	M
-x2	0	ref2	12	C	30	14	c	M
-x2	0	ref2	13	A	30	15	a	M
-x2	0	ref2	14	A	30	16	a	M
-x2	0	ref2	15	A	30	17	t	M
-x2	0	ref2	16	T	30	18	t	M
-x2	0	ref2	17	A	30	19	a	M
-x2	0	ref2	18	A	30	20	a	M
-x2	0	ref2	19	T	30	21	g	M
-x2	0	ref2	20	T	30	22	t	M
-:  ref2        2 GGTTTTATAAAACAAATAATT 22      
-:                ||||||||||||||| ||| |
-:    x2        1 ggttttataaaacaattaagt 21      
+r002	0	ref	13	T	.	17	T	M  
 (...)   
 
 ```
 
 
+## Example 2
+
+sam2tsv can read data from a linux pipe.
+
+```
+samtools view -h input.bam | java -jar dist/sam2tsv.jar
+```
 
 
 

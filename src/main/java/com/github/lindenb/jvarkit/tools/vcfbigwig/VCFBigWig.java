@@ -172,7 +172,7 @@ public class VCFBigWig extends Launcher
 		
 		super.addMetaData(h2);
 		w.writeHeader(h2);
-		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).prefix(VCFBigWig.class.getSimpleName());
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 		final List<Float> values=new ArrayList<Float>();
 		while(r.hasNext())
 			{
