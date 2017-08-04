@@ -354,7 +354,7 @@ public class VcfMultiToOneAllele
 					collect(Collectors.joining("|"))
 					;
 			
-			final SAMSequenceDictionaryProgress progess = new SAMSequenceDictionaryProgress(header);
+			final SAMSequenceDictionaryProgress progess = new SAMSequenceDictionaryProgress(header).logger(LOG);
 			out.writeHeader(h2);
 			while(in.hasNext())
 				{

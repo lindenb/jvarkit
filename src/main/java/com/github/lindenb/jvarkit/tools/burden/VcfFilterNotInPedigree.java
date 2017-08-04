@@ -131,7 +131,7 @@ public class VcfFilterNotInPedigree
 				h2.addMetaDataLine(singletonFilter);
 			}
 			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
 				{

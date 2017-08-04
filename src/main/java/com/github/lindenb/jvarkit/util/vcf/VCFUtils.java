@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -68,6 +69,7 @@ import htsjdk.variant.vcf.VCF3Codec;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFContigHeaderLine;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -267,10 +269,16 @@ public class VCFUtils
 	 * 
 	 * @param IN input vcf file
 	 * */
-	public static  VcfIterator createVcfIteratorFromFile(final File f) throws IOException
+	public static  VcfIterator createVcfIteratorFromFile(final File vcfOrBcfFile) throws IOException
 		{
-		IOUtil.assertFileIsReadable(f);
-		return new VcfIteratorImpl(IOUtils.openFileForBufferedReading(f));	
+		IOUtil.assertFileIsReadable(vcfOrBcfFile);
+		if(Arrays.asList(IOUtil.VCF_EXTENSIONS).
+				stream().
+				anyMatch(S->vcfOrBcfFile.getName().endsWith(S)))
+			{
+			return new BcfOrVcfIteratorImpl(vcfOrBcfFile);
+			}
+		return new VcfIteratorImpl(IOUtils.openFileForBufferedReading(vcfOrBcfFile));	
 		}
 	
 	/** create a VCF iterator
@@ -304,6 +312,16 @@ public class VCFUtils
 		if(IN==null)
 			{
 			return createVcfIteratorStdin();
+			}
+		else if(Arrays.asList(IOUtil.VCF_EXTENSIONS).stream().anyMatch(S->IN.endsWith(S))
+				&& !IOUtils.isRemoteURI(IN))
+			{
+			final File bcfFile = new File(
+					IN.startsWith("file://")?
+					IN.substring(7):
+					IN
+					);
+			return createVcfIteratorFromFile(bcfFile);
 			}
 		else
 			{
@@ -1039,7 +1057,64 @@ public class VCFUtils
     	
     	return vcb.make();
     }
-    	/*
-	
-		*/
+    
+    
+    /**
+     * Implementation of a VcfIterator
+     * wrapping a VCFFileReader
+     *
+     */
+    private static class BcfOrVcfIteratorImpl
+    	extends AbstractIterator<VariantContext>
+    	implements VcfIterator
+    	{
+    	private final File bcfFile;
+    	private VCFFileReader vcfFileReader;
+    	private CloseableIterator<VariantContext> delegate;
+    	private final VCFCodec codec = new VCFCodec();
+    	private final VCFHeader header;
+    	BcfOrVcfIteratorImpl(final File bcfFile)
+    		{
+    		Objects.requireNonNull(bcfFile);
+    		IOUtil.assertFileIsReadable(bcfFile);
+    		this.bcfFile = bcfFile;
+    		this.vcfFileReader = new VCFFileReader(bcfFile,false);
+    		this.header = this.vcfFileReader.getFileHeader();
+    		this.delegate = this.vcfFileReader.iterator();
+    		try {
+				this.codec.readHeader(VCFUtils.convertVCFHeaderToLineIterator(this.header));
+			} catch (final IOException err) {
+				throw new RuntimeIOException(err);
+				}
+    		}
+    	protected void finalize() {
+    		close();
+    		}
+    	@Override
+    	public AbstractVCFCodec getCodec() {
+    		return this.codec;
+    		}
+    	@Override
+    	public VCFHeader getHeader() {
+    		return this.header;
+    		}
+    	
+    	@Override
+    	protected VariantContext advance() {
+    		return  this.delegate!=null && this.delegate.hasNext()?
+    				this.delegate.next():
+    				null;
+    		}
+    	@Override
+    	public void close()  {
+    		CloserUtil.close(this.delegate);
+    		CloserUtil.close(this.vcfFileReader);
+    		this.vcfFileReader = null;
+    		this.delegate = null;
+    		}
+    	@Override
+    	public String toString() {
+    		return "VCF/BCF iterator with source: "+this.bcfFile;
+    		}
+    	}
 	}

@@ -34,6 +34,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
@@ -409,7 +410,7 @@ public class BioAlcidaeJdk
 		VCF{
 			@Override
 			boolean canAs(final String src) {
-				return src!=null && (src.endsWith(".vcf") || src.endsWith(".vcf.gz") );
+				return src!=null && (Arrays.asList(IOUtil.VCF_EXTENSIONS).stream().anyMatch(EXT->src.endsWith(EXT)) );
 			}
 			},
 		SAM{

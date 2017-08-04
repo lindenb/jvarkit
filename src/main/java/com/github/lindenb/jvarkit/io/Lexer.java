@@ -30,10 +30,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
-import org.mortbay.io.RuntimeIOException;
+import htsjdk.samtools.util.RuntimeIOException;
+
 
 /** general utility for parsing */
 public class Lexer implements Closeable {
+	private static final int EOF=-1;
 	private final Reader reader;
 	private final String inputName;
 	private int rowNum=1;
@@ -50,11 +52,23 @@ public class Lexer implements Closeable {
 		{
 		this("<INPUT>",reader);
 		}
+	
+	
+	public String getLocation() {
+		return this.inputName+" row:"+this.rowNum+" col:"+this.colNum;
+		}
+	
 	private int _read()
 		{
 		try
 			{
-			int c = reader.read();
+			final int c = reader.read();
+			switch(c)
+				{
+				case EOF: break;
+				case '\n': rowNum++;colNum=1;break;
+				default: colNum++;break;
+				}
 			return c;
 			}
 		catch(final IOException err)
@@ -62,17 +76,12 @@ public class Lexer implements Closeable {
 			throw new RuntimeIOException(err);
 			}		
 		}
-	public int get(int pos)
+	public int get(final int pos)
 		{
-		while(pos>=stack.size())
+		while(pos<=stack.size())
 			{
 			final int c = this._read();
-			if(c==-1) return -1;
-			switch(c)
-				{
-				case '\n': rowNum++;colNum=1;break;
-				default: colNum++;break;
-				}
+			if(c==EOF) return EOF;
 			this.stack.add((char)c);	
 			}
 		return this.stack.get(pos);
@@ -87,20 +96,26 @@ public class Lexer implements Closeable {
 			n--;
 			c++;
 			}
-		while(n>0 && this._read()!=-1)
+		while(n>0 && this._read()!=EOF)
 			{		
 			n--;
 			c++;
 			}
 		return c;
 		}
-	public boolean eof() { return get()!=-1;}
+	
+	public int consumme()
+		{
+		return consumme(1);
+		}
+	
+	public boolean eof() { return get()!= EOF;}
 	
 	public int skip(final Predicate<Character> filter) {
 		int c,n=0;
-		while((c=get())!=-1 && filter.test((char)c))
+		while((c=get())!=EOF && filter.test((char)c))
 			{
-			consumme(1);
+			consumme();
 			++n;
 			}
 		return n;
@@ -112,7 +127,7 @@ public class Lexer implements Closeable {
 		StringBuilder sb=null;
 		int c;
 		int i=0;
-		while((c=get(i))!=-1 && c!='\n')
+		while((c=get(i))!= EOF && c!='\n')
 			{
 			if(sb==null) sb=new StringBuilder();
 			sb.append((char)c);
@@ -125,7 +140,7 @@ public class Lexer implements Closeable {
 		{
 		StringBuilder sb=null;
 		int c;
-		while((c=get())!=-1 && c!='\n')
+		while((c=get())!= EOF && c!='\n')
 			{
 			if(sb==null) sb=new StringBuilder();
 			sb.append((char)c);

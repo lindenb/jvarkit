@@ -229,9 +229,10 @@ private boolean ignorePedigreeValidation = false;
 			
 		
 			final VCFHeader h2= new VCFHeader(metaData, sampleNames);
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary()).logger(LOG);
+			
 			out.writeHeader(h2);
-			while(in.hasNext() &&  !out.checkError())
+			while(in.hasNext())
 				{
 				out.add(progess.watch(in.next()));
 				}
