@@ -65,7 +65,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 /**
 BEGIN_DOC
 
-## Example
+## Example
 
 a pedigree file:
 

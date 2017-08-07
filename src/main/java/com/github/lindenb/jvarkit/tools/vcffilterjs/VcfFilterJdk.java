@@ -163,7 +163,7 @@ to prevent it to access the filesystem. See [http://stackoverflow.com/questions/
 see [https://bioinformatics.stackexchange.com/questions/974/](https://bioinformatics.stackexchange.com/questions/974/)
 
 ```
-java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10)‌​.findAny().isPresent‌​()).findAny().isPres‌​ent();' 
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10).findAny().isPresent()).findAny().isPresent();' 
 ```
 
 ###  Example
@@ -194,7 +194,8 @@ END_DOC
 @Program(
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
-		keywords={"vcf","filter","java","jdk"}
+		keywords={"vcf","filter","java","jdk"},
+		biostars={266201}
 		)
 public class VcfFilterJdk
 	extends Launcher

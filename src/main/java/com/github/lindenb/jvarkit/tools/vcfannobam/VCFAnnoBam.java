@@ -45,8 +45,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /**
 BEGIN_DOC
 
-
-### Example
+## Example
 
 ```bash
 $  java -jar dist/vcfannobam.jar \

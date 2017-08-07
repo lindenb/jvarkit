@@ -75,7 +75,7 @@ public String apply(final String contig) {
 		switch(onNotFound)
 			{
 			case RAISE_EXCEPTION:
-				throw new JvarkitException.ContigNotFound("cannot convert contig  \""+contig+"\"");
+				throw new JvarkitException.ContigNotFound("cannot convert contig \""+contig+"\"");
 			case SKIP: /* lave plus blanc */
 				return null;
 			case RETURN_ORIGINAL:

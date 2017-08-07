@@ -136,7 +136,7 @@ Samples
 | FAM    | M128215 | M10500 |        | male   | unaffected |
 +--------+---------+--------+--------+--------+------------+
 
->>chr1/10001/T (n°1)
+>>chr1/10001/T (n 1)
  Variant
  +--------+--------------------+
  | Key    | Value              |
@@ -203,7 +203,7 @@ Samples
  +-----------+-----------+-----------+-----------+----------+----------+-----------+
  | M10475    | 0/1       | M10478    | 0/1       | M10500   | 0/1      |           |
  +-----------+-----------+-----------+-----------+----------+----------+-----------+
-<<chr1/10001/T n°1
+<<chr1/10001/T n 1
 
 (...)
 ```
@@ -542,7 +542,7 @@ public class VcfToTable extends Launcher {
 			
 			final String variantName=vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
 			++countVariants;
-			out.println(">>"+ variantName+" (n°"+countVariants+")");
+			out.println(">>"+ variantName+" (n. "+countVariants+")");
 			String margin=DEFAULT_MARGIN;
 			{
 			final Table t=new Table("Key","Value").setCaption("Variant");
@@ -844,7 +844,7 @@ public class VcfToTable extends Launcher {
 				
 				
 				}
-			out.println("<<"+variantName+" n°"+countVariants);
+			out.println("<<"+variantName+" (n. "+countVariants+")");
 			out.println();
 			out.println();
 			}

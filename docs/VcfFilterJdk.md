@@ -46,6 +46,12 @@ Usage: vcffilterjdk [options] Files
  * jdk
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/266201](https://www.biostars.org/p/266201)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -207,7 +213,7 @@ to prevent it to access the filesystem. See [http://stackoverflow.com/questions/
 see [https://bioinformatics.stackexchange.com/questions/974/](https://bioinformatics.stackexchange.com/questions/974/)
 
 ```
-java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10)‌​.findAny().isPresent‌​()).findAny().isPres‌​ent();' 
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10).findAny().isPresent()).findAny().isPresent();' 
 ```
 
 ###  Example

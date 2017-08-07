@@ -60,7 +60,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /**
 BEGIN_DOC
 
-## Example
+## Example
 
 ```
 $ curl -sL "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\
