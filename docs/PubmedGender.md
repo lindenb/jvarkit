@@ -110,7 +110,7 @@ No errors detected in compressed data of jeter.zip.
 $ unzip -p jeter.zip yob2015.txt &gt; database.csv
 ```
 
-## Example
+## Example
 
 ```
 $ java -jar dist/pubmeddump.jar "Lindenbaum[Author] Nantes" 2> /dev/null  | java -jar dist/pubmedgender.jar  -d jeter.csv 2> /dev/null | grep Lindenbaum -A 2 -B 1
