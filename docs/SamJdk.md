@@ -137,7 +137,7 @@ public static class AbstractFilter
 			}
 		@Override
 		public Object apply(final SAMRecord record) {
-			throw new IllegalStateException("test(record) for AbstractFilter is not implemented");
+			throw new IllegalStateException("apply(record) for AbstractFilter is not implemented");
 			}
 		}
 ```

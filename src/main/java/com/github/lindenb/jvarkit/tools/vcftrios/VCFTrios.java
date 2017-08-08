@@ -133,7 +133,7 @@ public class VCFTrios
 	{
 	private static final  Logger LOG = Logger.build(VCFTrios.class).make();
 
-	@Parameter(names={"-p","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
+	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
 	private File pedigreeFile = null;
 
 	@Parameter(names={"-f","--filter"},description="filter name. create a filter in the FILTER column")
@@ -278,7 +278,7 @@ public class VCFTrios
 		
 		LOG.info("persons in pedigree: "+samplename2person.size());
 		
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 		while(r.hasNext())
 			{
 			final VariantContext ctx= progress.watch(r.next());
