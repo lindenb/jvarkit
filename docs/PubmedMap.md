@@ -90,7 +90,7 @@ The current reference is:
 ## Motivation
 use the Affiliation field in XML pubmed and try to insert some XML attributes describing the location.
 
-## Example
+## Example
 
 ```
 $ curl -s "https://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=26941271&retmode=xml" |java -jar dist/pubmedmap.jar   |\

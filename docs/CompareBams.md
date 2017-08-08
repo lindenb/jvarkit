@@ -112,7 +112,8 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## Example
+## Example
+
 Question was : "mapping with BWA produced a variation one year ago. We then mapped the same fastq with two different sets of parameters, but we cannot find the variant anymore. Has the mapping changed ?"
 
 Extract the read names from the original BAM:

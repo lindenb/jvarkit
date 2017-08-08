@@ -93,7 +93,7 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## Example
+## Example
 
 ```
 $  echo -e "1\t1000\t20000\n3\t100\t200\nUn\t10\t11"  |\
