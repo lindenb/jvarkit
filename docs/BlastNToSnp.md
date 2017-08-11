@@ -6,7 +6,7 @@ print indel/mismatch in a blastn stream
 ## Usage
 
 ```
-Usage: blasn2snp [options] Files
+Usage: blastn2snp [options] Files
   Options:
     -n, --gapsize
       min gap
@@ -46,7 +46,7 @@ Usage: blasn2snp [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make blasn2snp
+$ make blastn2snp
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -64,9 +64,24 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/BlastNToSnp.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/BlastNToSnp.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/BlastNToSnp.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/BlastNToSnp.java)
+
+Git History for this file:
+```
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Tue May 16 12:40:09 2017 +0200 ; doc ; https://github.com/lindenb/jvarkit/commit/ce1caf182662dc4690ec9c90e8fdd567fafa7a1e
+Tue May 9 12:56:11 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/9bb79d41ffeb58983b93209b7b66484fd35da515
+Tue May 17 12:25:33 2016 +0200 ; bam format was ignored ; https://github.com/lindenb/jvarkit/commit/947b48244f25bc7bedafd3ab833daec8ed4034cb
+Thu Dec 10 12:31:38 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/2242c107247d288754dfb47b373e3ebbd9da07f6
+Mon Apr 13 10:32:12 2015 +0200 ; added option -n for https://github.com/lindenb/jvarkit/issues/26#issuecomment-92193999 ; https://github.com/lindenb/jvarkit/commit/19072426981ab0f13e61755012a4a35da591cc95
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
+Tue Dec 17 11:19:39 2013 +0100 ; blastn2var ; https://github.com/lindenb/jvarkit/commit/2ed17dd4072565d55e028efb3b8d55b9e1ed66eb
+Thu Nov 28 14:54:21 2013 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/6bd741fe898f5d735e5ada6b59222f8818c08baf
+Wed Nov 27 20:00:16 2013 +0100 ; abstract bam filter ; https://github.com/lindenb/jvarkit/commit/6da95f7c2f27ea15634c8f3504cdc71495020248
+Tue Nov 26 18:16:23 2013 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/bdb815b62e7d646360779bc136be36ebcf57a89b
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -78,7 +93,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **blasn2snp** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **blastn2snp** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 

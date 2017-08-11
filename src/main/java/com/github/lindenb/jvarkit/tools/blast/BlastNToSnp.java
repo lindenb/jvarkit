@@ -159,7 +159,7 @@ No definition line  Homo sapiens chromosome 19, alternate assembly HuRef        
 
 END_DOC
  */
-@Program(name="blasn2snp",	keywords={"blast","snp"},description="print indel/mismatch in a blastn stream")
+@Program(name="blastn2snp",	keywords={"blast","snp"},description="print indel/mismatch in a blastn stream")
 public class BlastNToSnp extends Launcher
 {
 	private static final Logger LOG = Logger.build(BlastNToSnp.class).make();
@@ -179,17 +179,17 @@ public class BlastNToSnp extends Launcher
 	private gov.nih.nlm.ncbi.blast.ObjectFactory _ignore_for_javac=null;
 	
 	
-	private Iteration peekIteration(XMLEventReader r) throws XMLStreamException,JAXBException
+	private Iteration peekIteration(final XMLEventReader r) throws XMLStreamException,JAXBException
 		{
 		while(r.hasNext())
 			{
-			XMLEvent evt=r.peek();
+			final XMLEvent evt=r.peek();
 			if(!(evt.isStartElement()))
 				{
 				r.next();
 				continue;
 				}
-			String name=evt.asStartElement().getName().getLocalPart();
+			final String name=evt.asStartElement().getName().getLocalPart();
 			if(name.equals("BlastOutput_program"))
 				{
 				r.next();
@@ -470,7 +470,7 @@ private void run(
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new BlastNToSnp().instanceMainWithExit(args);
 
 	}

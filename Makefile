@@ -133,7 +133,12 @@ endif
 	echo '$$$$*' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	# generate markdown if needed
-	-if [ -e "${tmp.dir}/markdown.flag" ]  ; then  ${JAVA} -jar "${dist.dir}/$(1).jar" --help --helpFormat markdown > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ; fi
+	-if [ -e "${tmp.dir}/markdown.flag" ]  ; then \
+		touch ${tmp.dir}/githistory; \
+		(git log --pretty=format:"%ad ; %s ; https://github.com/lindenb/jvarkit/commit/%H" HEAD -- $(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) > ${tmp.dir}/githistory || true  ) ; \
+		${JAVA} -jar "${dist.dir}/$(1).jar" --help --helpFormat markdown | sed -e '/__INCLUDE_GIT_HISTORY__/ r ${tmp.dir}/githistory' -e 's/__INCLUDE_GIT_HISTORY__//' > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ;\
+		rm -fv ${tmp.dir}/githistory; \
+	fi
 	#cleanup
 	rm -rf "${tmp.dir}"
 
@@ -521,6 +526,7 @@ $(eval $(call compile-htsjdk-cmd,samjdk,${jvarkit.package}.tools.samjs.SamJdk,${
 $(eval $(call compile-htsjdk-cmd,optimizer,${jvarkit.package}.tools.optimizer.Optimizer,${jcommander.jar} ${gson.jar}))
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.vg.VcfToGraph,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))
 
 
 ij: ${dist.dir}/ij

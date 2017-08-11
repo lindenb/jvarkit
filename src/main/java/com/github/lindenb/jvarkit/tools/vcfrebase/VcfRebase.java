@@ -126,7 +126,11 @@ public class VcfRebase extends Launcher {
 	
 
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(
+		final String inputName,
+		final VcfIterator in,
+		final VariantContextWriter out
+		) {
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 
 		try
@@ -208,7 +212,7 @@ public class VcfRebase extends Launcher {
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

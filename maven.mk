@@ -70,6 +70,7 @@ jetty.jars  =  \
 spring-beans.jars  =  \
 	$(lib.dir)/org/springframework/spring-core/4.2.4.RELEASE/spring-core-4.2.4.RELEASE.jar \
 	$(lib.dir)/org/springframework/spring-beans/4.2.4.RELEASE/spring-beans-4.2.4.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-context/4.2.4.RELEASE/spring-context-4.2.4.RELEASE.jar \
 	$(lib.dir)/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
 
 web.frameworks.jar  =  \
