@@ -51,7 +51,6 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -113,14 +112,36 @@ public class VcfPeekVcf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfPeekVcf.class).make();
 	
+	
+	@Parameter(names={"-f","--tabix","--resource"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
+	private File resourceVcfFile = null;
+	
+	@Parameter(names={"-t","--tags"},description="tag1,tag2,tag... the INFO keys to peek from the indexed file")
+	private Set<String> tagsAsString = new HashSet<>();
+	
+	@Parameter(names={"-p","--prefix"},description="prefix all database tags with this prefix to avoid collisions")
+	private String peekTagPrefix = "";
+	
+	private enum AlleleMatch {none,all,at_least_one};
+	@Parameter(names={"-a","-alt","--alt"},description="How alt allele must be found in the variants of the indexed file.")
+	private AlleleMatch altAlleleMatcher = AlleleMatch.none;
+	
+	@Parameter(names={"-i","--replaceid"},description="Replace the ID field if it exists")
+	private boolean peekId = false;
+	@Parameter(names={"-missingIsError","--missingIsError"},description="Missing Info Header is an error")
+	private boolean missingIdIsError = false;
+	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
+	@Parameter(names="-contigConverter",description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
+	private ContigNameConverter.OnNotFound onContigNotFound=ContigNameConverter.OnNotFound.SKIP;
+	
 	@ParametersDelegate
 	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
-	@ParametersDelegate
-	private Component component = new Component();
+	private final Set<String> peek_info_tags=new HashSet<String>();
+	private VCFFileReader indexedVcfFileReader=null;
 	
 	
 	
@@ -128,39 +149,229 @@ public class VcfPeekVcf extends Launcher
 		{
 		}
 	
-	public static class Component extends DelegateVariantContextWriter
+	@Override
+	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
+		return new PostponedVariantContextWriter(writingVcfArgs,stdout(),outorNull);
+		}
+	
+	/** public for knime */
+	@Override
+	public int doVcfToVcf(
+			final String inputName, 
+			final VcfIterator vcfIn,
+			final VariantContextWriter out)
 		{
-		@Parameter(names={"-f","--tabix","--resource"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
-		private File resourceVcfFile = null;
-		
-		@Parameter(names={"-t","--tags"},description="tag1,tag2,tag... the INFO keys to peek from the indexed file")
-		private Set<String> tagsAsString = new HashSet<>();
-		
-		@Parameter(names={"-p","--prefix"},description="prefix all database tags with this prefix to avoid collisions")
-		private String peekTagPrefix = "";
-		
-		private enum AlleleMatch {none,all,at_least_one};
-		@Parameter(names={"-a","-alt","--alt"},description="How alt allele must be found in the variants of the indexed file.")
-		private AlleleMatch altAlleleMatcher = AlleleMatch.none;
-		
-		@Parameter(names={"-i","--replaceid"},description="Replace the ID field if it exists")
-		private boolean peekId = false;
-		@Parameter(names={"-missingIsError","--missingIsError"},description="Missing Info Header is an error")
-		private boolean missingIdIsError = false;
-
-		private final Set<String> peek_info_tags=new HashSet<String>();
-		private VCFFileReader indexedVcfFileReader=null;
-		@Parameter(names="-contigConverter",description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
-		private ContigNameConverter.OnNotFound onContigNotFound=ContigNameConverter.OnNotFound.SKIP;
-
-		private SAMSequenceDictionaryProgress progress=null;
-		private ContigNameConverter nameConverter = null;
-		private final Set<String> unmatchedcontigs = new HashSet<>();
-		private final Map<String,VCFInfoHeaderLine> databaseTags = new HashMap<String, VCFInfoHeaderLine>();
-
-		@Override
-			public void writeHeader(final VCFHeader h) {
+		try
+			{
+			final Set<String> unmatchedcontigs = new HashSet<>();
+			final VCFHeader h = vcfIn.getHeader();
 			final VCFHeader h2 = new VCFHeader(h);
+			
+			super.addMetaData(h2);
+			
+			final Map<String,VCFInfoHeaderLine> databaseTags = new HashMap<String, VCFInfoHeaderLine>();
+			
+			final VCFHeader databaseHeader= this.indexedVcfFileReader.getFileHeader();
+			
+			 
+
+			final ContigNameConverter nameConverter =( 
+					h.getSequenceDictionary()!=null && 
+					!h.getSequenceDictionary().isEmpty() &&
+					databaseHeader.getSequenceDictionary()!=null && 
+					!databaseHeader.getSequenceDictionary().isEmpty() 
+						?
+						ContigNameConverter.fromDictionaries(
+							h.getSequenceDictionary(),
+							databaseHeader.getSequenceDictionary()
+							)
+						:
+						ContigNameConverter.getIdentity()
+						).setOnNotFound(this.onContigNotFound);
+					;
+			
+			for(final String key: this.peek_info_tags)
+				{
+				VCFInfoHeaderLine hinfo =databaseHeader.getInfoHeaderLine(key);
+				if(hinfo==null)
+					{
+					final String msg="INFO name="+key+" missing in "+this.resourceVcfFile;
+					if(this.missingIdIsError)
+						{
+						LOG.warn(msg);
+						continue;
+						}
+					else
+						{
+						LOG.error(msg);
+						return -1;
+						}
+					}
+				switch(hinfo.getCountType())
+					{
+					case G:throw new JvarkitException.UserError("Cannot handle VCFHeaderLineCount.G for "+hinfo.getID());
+					default: databaseTags.put(hinfo.getID(), hinfo);break;
+					}
+				
+				hinfo = VCFUtils.renameVCFInfoHeaderLine(hinfo,this.peekTagPrefix+key);
+				
+				if(h2.getInfoHeaderLine(hinfo.getID())!=null)
+					{
+					throw new JvarkitException.UserError("key "+this.peekTagPrefix+key+" already defined in VCF header");
+					}
+				h2.addMetaDataLine(hinfo);;
+				}
+			
+			out.writeHeader(h2);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h).logger(LOG);
+			while(vcfIn.hasNext())
+				{
+				final VariantContext ctx=progress.watch(vcfIn.next());
+				final String outContig = nameConverter.apply(ctx.getContig());
+				if(outContig==null)
+					{
+					unmatchedcontigs.add(ctx.getContig());
+					continue;
+					}
+				
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				CloseableIterator<VariantContext> iter= this.indexedVcfFileReader.query(
+						outContig,
+						Math.max(0,ctx.getStart()-1),
+						(ctx.getEnd()+1)
+						);
+				while(iter.hasNext())
+					{
+					final VariantContext ctx2=iter.next();
+					if(!outContig.equals(ctx2.getContig())) continue;
+					if(ctx.getStart()!=ctx2.getStart()) continue;
+					if(!ctx.getReference().equals(ctx2.getReference())) continue;
+					
+					final boolean okAllele;
+					
+					switch(altAlleleMatcher)
+						{
+						case all:
+							{
+							okAllele = 	ctx.getAlternateAlleles().
+									stream().
+									filter(A->ctx2.hasAlternateAllele(A)
+									).count() == ctx.getAlternateAlleles().size();
+							break;
+							}
+						case at_least_one: 
+							{
+							okAllele = 	ctx.getAlternateAlleles().
+									stream().
+									filter(A->ctx2.hasAlternateAllele(A)
+									).findAny().isPresent();
+							break;
+							}
+						case none: okAllele=true;break;
+						default: throw new IllegalStateException(altAlleleMatcher.name());
+						}
+					
+					if(!okAllele) continue;
+					
+					
+					if(this.peekId && ctx2.hasID())
+						{
+						vcb.id(ctx2.getID());
+						}
+					boolean somethingWasChanged=false;
+					for(final String key: databaseTags.keySet())
+						{
+						if(!ctx2.hasAttribute(key)) continue;
+						
+						final VCFInfoHeaderLine dbHeader= databaseTags.get(key);
+						switch(dbHeader.getCountType())
+							{
+							case A:
+								{
+								final List<Object> newatt = new ArrayList<>();
+								final List<Object> ctx2att = ctx2.getAttributeAsList(key);
+								for(int i=0;i< ctx.getAlternateAlleles().size();++i)
+									{
+									final Allele ctxalt = ctx.getAlternateAllele(i);
+									int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
+									if(index2==-1 || index2>=ctx2att.size())
+										{
+										newatt.add(null);
+										}
+									else
+										{
+										newatt.add(ctx2att.get(index2));
+										}
+									}
+								if(newatt.stream().filter(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))).count()>0)
+									{
+									vcb.attribute(this.peekTagPrefix+key, newatt);
+									somethingWasChanged=true;
+									}
+								break;
+								}
+							case R:
+								{
+								final List<Object> newatt = new ArrayList<>();
+								final List<Object> ctx2att = ctx2.getAttributeAsList(key);
+								for(int i=0;i< ctx.getAlleles().size();++i)
+									{
+									final Allele ctxalt = ctx.getAlleles().get(i);
+									int index2 = ctx2.getAlleleIndex(ctxalt);
+									if(index2==-1 || index2>=ctx2att.size())
+										{
+										newatt.add(null);
+										}
+									else
+										{
+										newatt.add(ctx2att.get(index2));
+										}
+									}
+								if(newatt.stream().filter(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))).count()>0)
+									{
+									vcb.attribute(this.peekTagPrefix+key, newatt);
+									somethingWasChanged=true;
+									}
+								break;
+								}
+							default:
+								{
+								final Object o = ctx2.getAttribute(key);
+								vcb.attribute(this.peekTagPrefix+key, o);
+								somethingWasChanged=true;
+								break;
+								}
+							}
+						}
+					if(somethingWasChanged) break;
+					}
+				iter.close();
+				iter=null;
+				
+				out.add(vcb.make());
+					
+				if(out.checkError()) break;
+				}
+			progress.finish();
+			if(!unmatchedcontigs.isEmpty())
+				{
+				LOG.debug("Unmatched contigs: "+unmatchedcontigs.stream().collect(Collectors.joining("; ")));
+				}
+			
+			return 0;
+			}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+		}
+
+	@Override
+	public int doWork(final List<String> args) {
+		this.indexedVcfFileReader = null;
+		try
+			{
 			
 			this.peek_info_tags.addAll(this.tagsAsString.stream().
 					flatMap(S->Arrays.stream(S.split("[, \n]+"))).
@@ -174,235 +385,7 @@ public class VcfPeekVcf extends Launcher
 				LOG.warn("No tag defined");
 				}
 			this.indexedVcfFileReader = new VCFFileReader(resourceVcfFile,true);
-		
-			final VCFHeader databaseHeader= this.indexedVcfFileReader.getFileHeader();
-		
-		 
-	
-			this.nameConverter =( 
-				h.getSequenceDictionary()!=null && 
-				!h.getSequenceDictionary().isEmpty() &&
-				databaseHeader.getSequenceDictionary()!=null && 
-				!databaseHeader.getSequenceDictionary().isEmpty() 
-					?
-					ContigNameConverter.fromDictionaries(
-						h.getSequenceDictionary(),
-						databaseHeader.getSequenceDictionary()
-						)
-					:
-					ContigNameConverter.getIdentity()
-					).setOnNotFound(this.onContigNotFound);
-				;
-		
-		for(final String key: this.peek_info_tags)
-			{
-			VCFInfoHeaderLine hinfo =databaseHeader.getInfoHeaderLine(key);
-			if(hinfo==null)
-				{
-				final String msg="INFO name="+key+" missing in "+this.resourceVcfFile;
-				if(this.missingIdIsError)
-					{
-					LOG.warn(msg);
-					continue;
-					}
-				else
-					{
-					throw new JvarkitException.UserError(msg);
-					}
-				}
-			switch(hinfo.getCountType())
-				{
-				case G:throw new JvarkitException.UserError("Cannot handle VCFHeaderLineCount.G for "+hinfo.getID());
-				default: databaseTags.put(hinfo.getID(), hinfo);break;
-				}
-			
-			hinfo = VCFUtils.renameVCFInfoHeaderLine(hinfo,this.peekTagPrefix+key);
-			
-			if(h2.getInfoHeaderLine(hinfo.getID())!=null)
-				{
-				throw new JvarkitException.UserError("key "+this.peekTagPrefix+key+" already defined in VCF header");
-				}
-			h2.addMetaDataLine(hinfo);
-			}
-		this.progress = new SAMSequenceDictionaryProgress(h).logger(LOG);
-		this.getDelegateNonNull().writeHeader(h2);
-		}
-		
-	@Override
-	public void add(final VariantContext ctx) {
-		this.progress.watch(ctx);
-		final String outContig = nameConverter.apply(ctx.getContig());
-		if(outContig==null)
-			{
-			unmatchedcontigs.add(ctx.getContig());
-			return;
-			}
-		
-		final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-		CloseableIterator<VariantContext> iter= this.indexedVcfFileReader.query(
-				outContig,
-				Math.max(0,ctx.getStart()-1),
-				(ctx.getEnd()+1)
-				);
-		while(iter.hasNext())
-			{
-			final VariantContext ctx2=iter.next();
-			if(!outContig.equals(ctx2.getContig())) continue;
-			if(ctx.getStart()!=ctx2.getStart()) continue;
-			if(!ctx.getReference().equals(ctx2.getReference())) continue;
-			
-			final boolean okAllele;
-			
-			switch(altAlleleMatcher)
-				{
-				case all:
-					{
-					okAllele = 	ctx.getAlternateAlleles().
-							stream().
-							filter(A->ctx2.hasAlternateAllele(A)
-							).count() == ctx.getAlternateAlleles().size();
-					break;
-					}
-				case at_least_one: 
-					{
-					okAllele = 	ctx.getAlternateAlleles().
-							stream().
-							filter(A->ctx2.hasAlternateAllele(A)
-							).findAny().isPresent();
-					break;
-					}
-				case none: okAllele=true;break;
-				default: throw new IllegalStateException(altAlleleMatcher.name());
-				}
-			
-			if(!okAllele) continue;
-			
-			
-			if(this.peekId && ctx2.hasID())
-				{
-				vcb.id(ctx2.getID());
-				}
-			boolean somethingWasChanged=false;
-			for(final String key: databaseTags.keySet())
-				{
-				if(!ctx2.hasAttribute(key)) continue;
-				
-				final VCFInfoHeaderLine dbHeader= databaseTags.get(key);
-				switch(dbHeader.getCountType())
-					{
-					case A:
-						{
-						final List<Object> newatt = new ArrayList<>();
-						final List<Object> ctx2att = ctx2.getAttributeAsList(key);
-						for(int i=0;i< ctx.getAlternateAlleles().size();++i)
-							{
-							final Allele ctxalt = ctx.getAlternateAllele(i);
-							int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
-							if(index2==-1 || index2>=ctx2att.size())
-								{
-								newatt.add(null);
-								}
-							else
-								{
-								newatt.add(ctx2att.get(index2));
-								}
-							}
-						if(newatt.stream().filter(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))).count()>0)
-							{
-							vcb.attribute(this.peekTagPrefix+key, newatt);
-							somethingWasChanged=true;
-							}
-						break;
-						}
-					case R:
-						{
-						final List<Object> newatt = new ArrayList<>();
-						final List<Object> ctx2att = ctx2.getAttributeAsList(key);
-						for(int i=0;i< ctx.getAlleles().size();++i)
-							{
-							final Allele ctxalt = ctx.getAlleles().get(i);
-							int index2 = ctx2.getAlleleIndex(ctxalt);
-							if(index2==-1 || index2>=ctx2att.size())
-								{
-								newatt.add(null);
-								}
-							else
-								{
-								newatt.add(ctx2att.get(index2));
-								}
-							}
-						if(newatt.stream().filter(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))).count()>0)
-							{
-							vcb.attribute(this.peekTagPrefix+key, newatt);
-							somethingWasChanged=true;
-							}
-						break;
-						}
-					default:
-						{
-						final Object o = ctx2.getAttribute(key);
-						vcb.attribute(this.peekTagPrefix+key, o);
-						somethingWasChanged=true;
-						break;
-						}
-					}
-				}
-			if(somethingWasChanged) break;
-			}
-		iter.close();
-		iter=null;
-		
-		this.getDelegateNonNull().add(vcb.make());
-		}
-	
-	@Override
-	public void close() {
-		super.close();
-		if(this.progress!=null) {
-			this.progress.finish();
-			this.progress=null;
-			}
-		if(!unmatchedcontigs.isEmpty())
-			{
-			LOG.debug("Unmatched contigs: "+unmatchedcontigs.stream().collect(Collectors.joining("; ")));
-			unmatchedcontigs.clear();
-			}
-		CloserUtil.close(this.indexedVcfFileReader);
-		this.indexedVcfFileReader=null;
-		this.peek_info_tags.clear();
-		}
-	}		
-	
-	@Override
-	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-		return new PostponedVariantContextWriter(writingVcfArgs,stdout(),outorNull);
-		}
-	
-	@Override
-	public int doVcfToVcf(
-			final String inputName, 
-			final VcfIterator vcfIn,
-			final VariantContextWriter out)
-		{
-		try
-			{
-			this.component.setDelegateVariantContextWriter(out);
-			VCFUtils.copyHeaderAndVariantsTo(vcfIn, this.component);
-			return 0;
-			}
-		catch(final Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		}
 
-	@Override
-	public int doWork(final List<String> args) {
-		try
-			{
-			
-			
 			return doVcfToVcf(args, outputFile);
 			} 
 		catch(final Exception err)
@@ -412,7 +395,9 @@ public class VcfPeekVcf extends Launcher
 			}
 		finally
 			{
-			
+			CloserUtil.close(this.indexedVcfFileReader);
+			this.indexedVcfFileReader=null;
+			this.peek_info_tags.clear();
 			}
 		}
 	
