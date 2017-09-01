@@ -110,7 +110,7 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## Example
+## Example
 
 Map the NCBI biosystems to a BED file using the following script:     https://gist.github.com/6024788 
 

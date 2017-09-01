@@ -597,9 +597,11 @@ public class VcfLoopOverGenes extends Launcher {
 					
 					final String line =br.readLine();
 					if(line==null) break;
+					
 					if(line.startsWith("#" ) || line.isEmpty()) continue;
 					final BedLine bedLine = bedCodec.decode(line);
 					if(bedLine==null) continue;
+					
 					final String geneIdentifier=bedLine.get(3);//ID
 					final String geneName=bedLine.get(4);//name
 					final SourceType sourceType=SourceType.valueOf(bedLine.get(5));
@@ -609,13 +611,20 @@ public class VcfLoopOverGenes extends Launcher {
 							".vcf" +
 							(this.compress?".gz":"")
 							;
+					LOG.info(bedLine.getContig()+":"+bedLine.getStart()+"-"+bedLine.getEnd()+" length :"+(bedLine.getEnd()-bedLine.getStart()));
+					if(bedLine.getEnd()-bedLine.getStart() > 1E6)
+						{
+						LOG.warn("That's a large region ! "+bedLine);
+						}
 					
 					OutputStream vcfOutputStream=null;
 					VariantContextWriter vw=null;
+					int countVariants=0;
+					final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(vcfFileReader.getFileHeader()).logger(LOG).prefix(geneName+" "+bedLine.getContig()+":"+bedLine.getStart()+"-"+bedLine.getEnd());
 					iter = vcfFileReader.query(bedLine.getContig(), bedLine.getStart(),bedLine.getEnd());
 					while(iter.hasNext())
 						{
-						VariantContext ctx=iter.next();
+						VariantContext ctx= progress.watch(iter.next());
 						
 						switch(sourceType)
 							{
@@ -703,8 +712,17 @@ public class VcfLoopOverGenes extends Launcher {
 							vw = VCFUtils.createVariantContextWriterToOutputStream(vcfOutputStream);
 							vw.writeHeader(header);
 							}
+						countVariants++;
 						vw.add(ctx);
+						
+						if(countVariants%1000==0)
+							{
+							LOG.info("Loading : "+ geneIdentifier+" N="+countVariants);
+							}
+						
 						}
+					progress.finish();
+					LOG.info(geneIdentifier+" N="+countVariants);
 					if(vcfOutputStream!=null)
 						{
 						vw.close();

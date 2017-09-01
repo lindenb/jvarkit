@@ -56,8 +56,7 @@ import htsjdk.samtools.util.CloserUtil;
 /**
 BEGIN_DOC
 
-## Example
-
+## Example
 
 ```
 $ java -jar dist/pubmeddump.jar 'Bioinformatics 2017' | java -jar dist/pubmedcodinglang.jar
@@ -65,7 +64,6 @@ $ java -jar dist/pubmeddump.jar 'Bioinformatics 2017' | java -jar dist/pubmedcod
 (...)
 28464826	java	microTaboo: a general and practical solution to the k-disjoint problem.	2017	, running [java] 7 and hig
 28453684	python	MAPPI-DAT: data management and analysis for protein-protein interaction data from the high-throughput MAPPIT cell microarray platform.	2017	eloped in [python], using r 
-28453674	c	ntCard: a streaming algorithm for cardinality estimation in genomics data.	2017	ntcard is [written in C] ++ and is
 28453672	python	Primerize-2D: automated primer design for RNA multidimensional chemical mapping.	2017	and-alone [python] package f
 28449031	python	RNAblueprint: Flexible multiple target nucleic acid sequence design.	2017	ritten in [python] to demons
 28444126	ruby	CImbinator: A web-based tool for drug synergy analysis in small- and large-scale datasets.	2017	ritten in [ruby] and r. it

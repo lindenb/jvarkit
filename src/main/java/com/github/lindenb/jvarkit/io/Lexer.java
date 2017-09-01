@@ -33,9 +33,10 @@ import java.util.function.Predicate;
 
 import htsjdk.samtools.util.RuntimeIOException;
 
+
 /** general utility for parsing */
 public class Lexer implements Closeable {
-	public static final int EOF = 1;
+	private static final int EOF=-1;
 	private final Reader reader;
 	private final String inputName;
 	private int rowNum=1;
@@ -67,7 +68,14 @@ public class Lexer implements Closeable {
 		{
 		try
 			{
-			return  reader.read();
+			final int c = reader.read();
+			switch(c)
+				{
+				case EOF: break;
+				case '\n': rowNum++;colNum=1;break;
+				default: colNum++;break;
+				}
+			return c;
 			}
 		catch(final IOException err)
 			{
@@ -85,7 +93,13 @@ public class Lexer implements Closeable {
 				case '\n': rowNum++;colNum=1;break;
 				default: colNum++;break;
 				}
-			this.stack.add((char)c);	
+	public int get(final int pos)
+		{
+		while(pos<=stack.size())
+			{
+			final int c = this._read();
+			if(c==EOF) return EOF;
+			this.stack.add((char)c);
 			}
 		return this.stack.get(pos);
 		}
@@ -100,19 +114,20 @@ public class Lexer implements Closeable {
 			c++;
 			}
 		while(n>0 && this._read()!=EOF)
-			{		
+			{
 			n--;
 			c++;
 			}
 		return c;
 		}
-	public boolean eof() { return peek()!=EOF;}
+	
+	public boolean eof() { return get()!= EOF;}
 	
 	public int skip(final Predicate<Character> filter) {
 		int c,n=0;
-		while((c=peek())!=-1 && filter.test((char)c))
+		while((c=get())!=EOF && filter.test((char)c))
 			{
-			consumme(1);
+			consumme();
 			++n;
 			}
 		return n;
@@ -124,7 +139,7 @@ public class Lexer implements Closeable {
 		StringBuilder sb=null;
 		int c;
 		int i=0;
-		while((c=peek(i))!=-1 && c!='\n')
+		while((c=get(i))!= EOF && c!='\n')
 			{
 			if(sb==null) sb=new StringBuilder();
 			sb.append((char)c);
@@ -137,7 +152,7 @@ public class Lexer implements Closeable {
 		{
 		StringBuilder sb=null;
 		int c;
-		while((c=peek())!=-1 && c!='\n')
+		while((c=get())!= EOF && c!='\n')
 			{
 			if(sb==null) sb=new StringBuilder();
 			sb.append((char)c);

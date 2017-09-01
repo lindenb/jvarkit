@@ -163,7 +163,7 @@ to prevent it to access the filesystem. See [http://stackoverflow.com/questions/
 see [https://bioinformatics.stackexchange.com/questions/974/](https://bioinformatics.stackexchange.com/questions/974/)
 
 ```
-java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10)‌​.findAny().isPresent‌​()).findAny().isPres‌​ent();' 
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasAD() && java.util.Arrays.stream(G.getAD()).skip(1).filter(AD->AD>10).findAny().isPresent()).findAny().isPresent();' 
 ```
 
 ###  Example
@@ -188,17 +188,47 @@ first and second genotype are not the same:
 java -jar dist/vcffilterjdk.jar -e 'return !variant.getGenotype(0).sameGenotype(variant.getGenotype(1));' 
 ```
 
+### Example
+
+at least 3 samples have a DP greater than 30
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasDP() && G.getDP()>30).limit(3).count()> 2;' 
+```
+
+### Example
+
+Variant is annotated with SO:0001818 or its children ( protein_altering_variant )
+
+```
+$ java -jar dist/vcffilterjdk.jar -e 'return this.hasSequenceOntologyLabel(variant,"protein_altering_variant");' 
+```
+
+or
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return this.hasSequenceOntologyAccession(variant,"SO:0001818");' 
+```
+
+### Example
+
+Unphase a VCF file
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return new VariantContextBuilder(variant).genotypes(variant.getGenotypes().stream().map(G->new GenotypeBuilder(G).phased(false).make()).collect(Collectors.toList())).make();' input.vcf
+```
 
 END_DOC
  */
 @Program(
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
-		keywords={"vcf","filter","java","jdk"}
+		keywords={"vcf","filter","java","jdk"},
+		biostars={266201,269854}
 		)
 public class VcfFilterJdk
 	extends Launcher
-	{	
+	{
 	private static final Logger LOG = Logger.build(VcfFilterJdk.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

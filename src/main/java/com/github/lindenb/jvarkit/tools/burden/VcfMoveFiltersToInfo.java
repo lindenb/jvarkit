@@ -140,7 +140,7 @@ public class VcfMoveFiltersToInfo
 			final VCFHeader h2= new VCFHeader(header);	
 			h2.addMetaDataLine(infoHeaderLine);
 			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary()).logger(LOG);
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
 				{

@@ -48,6 +48,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
@@ -59,6 +60,7 @@ import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFEncoder;
@@ -136,7 +138,7 @@ Samples
 | FAM    | M128215 | M10500 |        | male   | unaffected |
 +--------+---------+--------+--------+--------+------------+
 
->>chr1/10001/T (n°1)
+>>chr1/10001/T (n 1)
  Variant
  +--------+--------------------+
  | Key    | Value              |
@@ -203,7 +205,7 @@ Samples
  +-----------+-----------+-----------+-----------+----------+----------+-----------+
  | M10475    | 0/1       | M10478    | 0/1       | M10500   | 0/1      |           |
  +-----------+-----------+-----------+-----------+----------+----------+-----------+
-<<chr1/10001/T n°1
+<<chr1/10001/T n 1
 
 (...)
 ```
@@ -220,6 +222,48 @@ END_DOC
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
 	private static final String DEFAULT_MARGIN=" ";
+	public static final String ANSI_ESCAPE = "\u001B[";
+	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
+	
+	private enum AnsiColor {
+    	BLACK (30),
+    	RED (31),
+    	GREEN (32),
+    	YELLOW (33),
+    	BLUE (34),
+    	MAGENTA (35),
+    	CYAN (36),
+    	WHITE (37)
+		;
+    	
+    	AnsiColor(final int opcode) {
+    		this.opcode=opcode;
+    		}
+    	final int opcode;
+    	}
+
+	private static class Colored
+		{
+		final Object o;
+		final AnsiColor color;
+		Colored(final Object o,final AnsiColor color) { this.o=o;this.color=color;}
+		public String start() {
+			if(o==null || color==null) return "";
+			return ANSI_ESCAPE+this.color.opcode+"m";
+			}
+		public String end()
+			{
+			if(o==null || color==null) return "";
+			return ANSI_RESET;
+			}
+		
+		@Override
+		public String toString() {
+			return o==null?"":o.toString();
+			}
+		}
+
+	
 	private static class Column
 		{
 		final String label;
@@ -343,9 +387,12 @@ public class VcfToTable extends Launcher {
 				out.print("|");
 				for(int i=0;i< this.columns.size() && i< row.size();i++)
 					{
-					String str= row.get(i)==null?"":row.get(i).toString();
+					final Object cell = row.get(i);
+					final String str=  cell==null?"":cell.toString();
 					out.print(" ");
+					if(cell instanceof Colored) out.print(Colored.class.cast(cell).start());
 					out.print(str);
+					if(cell instanceof Colored) out.print(Colored.class.cast(cell).end());
 					for(int j=str.length();j< this.columns.get(i).maxLength;j++) out.print(' ');
 					out.print(" |");
 					}
@@ -375,7 +422,16 @@ public class VcfToTable extends Launcher {
 		private File pedigreeFile=null;
 		@Parameter(names={"-L","-limit","--limit"},description="Limit the number of output variant. '-1' == ALL/No limit.")
 		private int limitVariants=-1;
-
+		@Parameter(names={"--color","--colors"},description="[20170808] Print Terminal ANSI colors.")
+		private boolean useANSIColors=false;
+		@Parameter(names={"--hideAlleles"},description="[20170808] hide Alleles table.")
+		private boolean hideAlleles=false;
+		@Parameter(names={"--hideFilters"},description="[20170808] hide Filters table.")
+		private boolean hideFilters=false;
+		@Parameter(names={"--hideInfo"},description="[20170808] hide INFO table.")
+		private boolean hideInfo=false;
+		@Parameter(names={"--hidePredictions"},description="[20170808] hide SNPEFF/VEP table.")
+		private boolean hidePredictions=false;
 		
 		private int countVariants=0;
 		
@@ -542,7 +598,7 @@ public class VcfToTable extends Launcher {
 			
 			final String variantName=vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
 			++countVariants;
-			out.println(">>"+ variantName+" (n°"+countVariants+")");
+			out.println(">>"+ variantName+" (n. "+countVariants+")");
 			String margin=DEFAULT_MARGIN;
 			{
 			final Table t=new Table("Key","Value").setCaption("Variant");
@@ -553,7 +609,8 @@ public class VcfToTable extends Launcher {
 			t.addRow("REF",vc.getReference().getDisplayString());
 			t.addRow("ALT",vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
 			t.addRow("QUAL",vc.hasLog10PError()?vc.getPhredScaledQual():null);
-			t.addRow("FILTER",vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null);
+			final String filterStr=vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null;
+			t.addRow("FILTER",filterStr!=null && useANSIColors?new Colored(filterStr, AnsiColor.RED):filterStr);
 			t.addRow("Type",vc.getType());
 			
 			
@@ -561,6 +618,7 @@ public class VcfToTable extends Launcher {
 			t.print(margin,out);
 			}
 		
+		if(!this.hideAlleles)
 			{
 			boolean has_affected_cols=false;
 			int AN=-1;
@@ -658,17 +716,19 @@ public class VcfToTable extends Launcher {
 			 	}
 			t.print(margin,out);
 			}
-			
+		
+		if(!this.hideFilters)
 			{
 			/* FILTER */
 			final	Table t=new Table("Filter").setCaption("FILTERS");
 			 for(final String f:vc.getFilters())
 			 	{
-				t.addRow(f);
+				t.addRow(this.useANSIColors?new Colored(f, AnsiColor.YELLOW):f);
 			 	}
 			t.print(margin,out);
 			}
-			
+		
+		if(!this.hideInfo)
 			{		
 			/* INFO */
 			final Table t=new Table("key","Index","Value").setCaption("INFO");
@@ -701,7 +761,7 @@ public class VcfToTable extends Launcher {
 			}
 				
 			/** VEP */
-			if(this.vcfTools.getVepPredictionParser().isValid())
+			if(!this.hidePredictions && this.vcfTools.getVepPredictionParser().isValid())
 				{
 				final List<String> cats = new ArrayList<>(this.vcfTools.getVepPredictionParser().getCategories());
 				
@@ -720,7 +780,7 @@ public class VcfToTable extends Launcher {
 
 				
 			/** ANN */
-			if(this.vcfTools.getAnnPredictionParser().isValid())
+			if(!this.hidePredictions && this.vcfTools.getAnnPredictionParser().isValid())
 				{
 				Table t = new Table("SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",
 						"BioType","HGVsc","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
@@ -729,7 +789,11 @@ public class VcfToTable extends Launcher {
 					final List<Object> r=new ArrayList<>();
 					r.add(P.getSOTermsString());
 					r.add(P.getAllele());
-					r.add(P.getPutativeImpact());
+					r.add(	
+								!useANSIColors || P.getPutativeImpact()==null ||P.getPutativeImpact().equals(AnnPredictionParser.Impact.UNDEFINED) || P.getPutativeImpact().equals(AnnPredictionParser.Impact.LOW)? 
+								P.getPutativeImpact():
+								new Colored(P.getPutativeImpact(), AnsiColor.RED)
+								);
 					r.add(P.getGeneName());
 					r.add(P.getGeneId());
 					r.add(P.getFeatureType());
@@ -747,7 +811,7 @@ public class VcfToTable extends Launcher {
 				t.removeEmptyColumns();
 				t.print(margin,out);
 				}
-			if(!this.hideGenotypes)
+			if(!this.hideGenotypes && vc.hasGenotypes())
 				{
 				//margin = margin+ DEFAULT_MARGIN;
 				final Pattern tab = Pattern.compile("\t");
@@ -776,7 +840,30 @@ public class VcfToTable extends Launcher {
 					final List<String> gstr =Arrays.asList(colon.split(tokens[9+i]));
 					final List<Object> r= new ArrayList<>(hds.size());
 					r.add(g.getSampleName());
-					r.add(g.getType().name());
+					if(!useANSIColors ||
+						g.getType().equals(GenotypeType.NO_CALL) || 
+						g.getType().equals(GenotypeType.UNAVAILABLE)
+						)
+						{
+						r.add(g.getType().name());
+						}
+					else if(g.getType().equals(GenotypeType.HOM_REF))
+						{
+						r.add(new Colored(g.getType().name(),AnsiColor.GREEN));
+						}
+					else if(g.getType().equals(GenotypeType.HET))
+						{
+						r.add(new Colored(g.getType().name(),AnsiColor.YELLOW));
+						}
+					else if(g.getType().equals(GenotypeType.HOM_VAR))
+						{
+						r.add(new Colored(g.getType().name(),AnsiColor.RED));
+						}
+					else
+						{
+						r.add(new Colored(g.getType().name(),AnsiColor.MAGENTA));
+						}
+					
 					for(int j=prefix_header_size;j< hds.size();++j)
 						{
 						int indexInFORMAT = formats.indexOf(hds.get(j));
@@ -825,14 +912,21 @@ public class VcfToTable extends Launcher {
 						final Genotype gm =  (mother==null?null:vc.getGenotype(mother.getId()));
 						
 						if(gf==null && gm==null) continue;
+						
+						final boolean is_incompat= this.vcfTools.isMendelianIncompatibility(gc, gf, gm);
+						final Function<Object, Object> colorize = O->{
+							if(O==null || !is_incompat|| !useANSIColors) return O;
+							return new Colored(O, AnsiColor.RED);
+							};
+						
 						final List<Object> r= new ArrayList<>();
-						r.add(father==null?null:father.getId());
-						r.add(gf==null?null:genotype2str.apply(gf));
-						r.add(mother==null?null:mother.getId());
-						r.add(gm==null?null:genotype2str.apply(gm));
-						r.add(child.getId());
-						r.add(genotype2str.apply(gc));
-						r.add(this.vcfTools.isMendelianIncompatibility(gc, gf, gm)?"*":null);
+						r.add(father==null?null:colorize.apply(father.getId()));
+						r.add(gf==null?null:colorize.apply(genotype2str.apply(gf)));
+						r.add(mother==null?null:colorize.apply(mother.getId()));
+						r.add(gm==null?null:colorize.apply(genotype2str.apply(gm)));
+						r.add(colorize.apply(child.getId()));
+						r.add(colorize.apply(genotype2str.apply(gc)));
+						r.add(is_incompat?colorize.apply("*"):null);
 						
 						
 						t2.addList(r);
@@ -844,7 +938,7 @@ public class VcfToTable extends Launcher {
 				
 				
 				}
-			out.println("<<"+variantName+" n°"+countVariants);
+			out.println("<<"+variantName+" (n. "+countVariants+")");
 			out.println();
 			out.println();
 			}

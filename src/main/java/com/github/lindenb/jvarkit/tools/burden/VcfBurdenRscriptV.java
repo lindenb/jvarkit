@@ -229,7 +229,7 @@ public class VcfBurdenRscriptV
 			pw.println("# 0 is homref (0/0), 1 is het (0/1), 2 is homvar (1/1)");
 			pw.println("# if the variant contains another ALT allele: (0/2) and (2/2) are considered 0 (homref)");
 			pw.print("genotypes <- c(");
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			while(in.hasNext()) {
 				final VariantContext ctx = progess.watch(in.next());
 				if(ctx.isFiltered() && !this.acceptFiltered) continue;

@@ -59,7 +59,7 @@ BEGIN_DOC
 
 Filters a BAM using javascript( java nashorn engine).
 
-For eacg read the script injects in the context the following values:
+For each read the script injects in the context the following values:
 
 
 * **'record'** a SamRecord  [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)
@@ -172,7 +172,7 @@ public class SamJavascript
 			long count=0L;
 	        	final Bindings bindings = this.script.getEngine().createBindings();
 		        bindings.put("header", samFileReader.getFileHeader());
-		        final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		        final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 		        iter = samFileReader.iterator();
 			while(iter.hasNext())
 				{

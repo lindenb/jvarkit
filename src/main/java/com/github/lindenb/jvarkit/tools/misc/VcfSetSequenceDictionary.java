@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -66,7 +67,7 @@ END_DOC
 
 */
 @Program(name="vcfsetdict",
-	description="Set the ##contig lines in a VCF header on the fly",
+	description="Set the `##contig` lines in a VCF header on the fly",
 	keywords={"vcf","dict","fai"}
 	)
 public class VcfSetSequenceDictionary extends Launcher
@@ -83,7 +84,7 @@ public class VcfSetSequenceDictionary extends Launcher
 	private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;
 	
 	
-	@Parameter(names={"-d"},description="at the end, save an alternate dict in that file.")
+	@Parameter(names={"-d","--newdict"},description="At the end, save an alternate dict in that file.")
 	private File newDictOut=null;
 
 	private SAMSequenceDictionary dict=null;
@@ -189,9 +190,14 @@ public class VcfSetSequenceDictionary extends Launcher
 		try {
 			if (this.faidx != null) {
 				this.dict = SAMSequenceDictionaryExtractor.extractDictionary(faidx);
-			}
+			} else 
+				if(newDictOut==null)
+				{
+				LOG.error("new dictionary undefined");
+				return -1;
+				}
 
-			int err = doVcfToVcf(args, outputFile);
+			final int err = doVcfToVcf(args, this.outputFile);
 
 			if (newDictOut != null) {
 				LOG.info("Saving alt dictionary " + newDictOut);
@@ -208,9 +214,9 @@ public class VcfSetSequenceDictionary extends Launcher
 				codec.encode(out, sfh);
 				out.flush();
 			}
-
+			
 			return err;
-		} catch (Exception err2) {
+		} catch (final Exception err2) {
 			LOG.error(err2);
 			return -1;
 		} finally {
@@ -219,7 +225,7 @@ public class VcfSetSequenceDictionary extends Launcher
 
 	}
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 	{
 		new VcfSetSequenceDictionary().instanceMainWithExit(args);
 	}

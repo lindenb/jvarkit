@@ -1,6 +1,6 @@
 # VcfSetSequenceDictionary
 
-Set the ##contig lines in a VCF header on the fly
+Set the `##contig` lines in a VCF header on the fly
 
 
 ## Usage
@@ -13,6 +13,8 @@ Usage: vcfsetdict [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -d, --newdict
+      At the end, save an alternate dict in that file.
     --onNotFound
       Contig converter. I will do my best to convert the contig names (e.g 
       'chr1' -> '1'): But what should I do when comparing two dictionaries 
@@ -26,8 +28,6 @@ Usage: vcfsetdict [options] Files
       faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
-    -d
-      at the end, save an alternate dict in that file.
 
 ```
 

@@ -187,13 +187,13 @@ public class VCFComposite extends Launcher {
 					{
 					
 					final Genotype gcx = variants.get(x).getGenotype(c.getId());
-					// child variant  n°y  must be HOM_VAR or HET
+					// child variant  n. y  must be HOM_VAR or HET
 					if(gcx==null || !isGenotypeForAffected(gcx)) continue;
 					// search for the second snp
 					for(int y=x+1;y< variants.size();++y)
 						{
 						final Genotype gcy = variants.get(y).getGenotype(c.getId());
-						// child variant n°y must be HOM_VAR or HET
+						// child variant n. y must be HOM_VAR or HET
 						if(gcy==null || !isGenotypeForAffected(gcy)) continue;
 						boolean unaffected_are_ok=true;
 						//check unaffected indididual don't have same haplotype

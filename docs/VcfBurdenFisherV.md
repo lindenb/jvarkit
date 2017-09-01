@@ -24,6 +24,14 @@ Usage: vcfburdenfisherv [options] Files
 
 ```
 
+
+## Keywords
+
+ * vcf
+ * burden
+ * fisher
+
+
 ## Compilation
 
 ### Requirements / Dependencies

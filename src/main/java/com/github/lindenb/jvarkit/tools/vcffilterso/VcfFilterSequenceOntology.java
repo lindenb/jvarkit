@@ -70,7 +70,8 @@ BEGIN_DOC
 
 ## Examples
 
-### Example 1
+### Example 1
+
 list the variants having a "*feature_elongation*"  ( SO:0001907  ) http://www.sequenceontology.org/browser/current_release/term/SO:0001907
 
 here the variant is selected because *stop_lost* is a children of *SO:0001907* .
@@ -84,7 +85,7 @@ grep -v "##"
 chr10	1142208	.	T	C	3404.30	.	AC=8;AF=1.00;AN=8;CSQ=intron_variant|||ENSG00000047056|WDR37|ENST00000263150|||,downstream_gene_variant|||ENSG00000047056|WDR37|ENST00000436154|||,intron_variant|||ENSG00000047056|WDR37|ENST00000358220|||,stop_lost|Tga/Cga|* / R|ENSG00000047056|WDR37|ENST00000381329|9/9||;DP=122;Dels=0.00;EFF=DOWNSTREAM(MODIFIER||||208|WDR37|protein_coding|CODING|ENST00000436154|),INTRON(MODIFIER||||494|WDR37|protein_coding|CODING|ENST00000263150|9),INTRON(MODIFIER||||494|WDR37|protein_coding|CODING|ENST00000358220|9),STOP_LOST(HIGH|MISSENSE|Tga/Cga|*250R|249|WDR37|protein_coding|CODING|ENST00000381329|);FS=0.000;HRun=0;HaplotypeScore=2.6747;MQ=36.00;MQ0=0;QD=27.90	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
 ```
 
-### Example 2
+### Example 2
 
 invert the query:
 
@@ -123,13 +124,13 @@ SO:0001599	3D_polypeptide_structure_variant
 (...)
 ```
 
-## See also
+## See also
 
  * GroupByGene
  * VCFPredictions
  * http://www.sequenceontology.org/browser/obob.cgi
 
-## History
+## History
 
  * 2017 moved to jcommander
 
