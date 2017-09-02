@@ -157,7 +157,8 @@ END_DOC
 */
 @Program(name="xsltstream",
 	description="XSLT transformation for large XML files. xslt is only applied on a given subset of nodes.",
-	keywords={"xml","xslt","xsl","stylesheet"}
+	keywords={"xml","xslt","xsl","stylesheet"},
+	biostars=270498
 	)
 public class XsltStream extends Launcher {
 	private static final Logger LOG = Logger.build(XsltStream.class).make();

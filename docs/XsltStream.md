@@ -38,6 +38,12 @@ Usage: xsltstream [options] Files
  * stylesheet
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/270498](https://www.biostars.org/p/270498)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
