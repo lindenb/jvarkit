@@ -181,9 +181,9 @@ public class VcfBurdenMAF
 			h2.addMetaDataLine(filterControlsHeader);
 			h2.addMetaDataLine(filterCaseOrControlsHeader);
 			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			out.writeHeader(h2);
-			while(in.hasNext() &&  !out.checkError())
+			while(in.hasNext())
 				{
 				final VariantContext ctx = progess.watch(in.next());
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);

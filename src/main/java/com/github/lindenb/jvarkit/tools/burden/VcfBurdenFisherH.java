@@ -149,7 +149,7 @@ public class VcfBurdenFisherH
 			h2.addMetaDataLine(fisherAlleleFilterHeader);
 			h2.addMetaDataLine(fisherDetailInfoHeader);
 			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
 				{

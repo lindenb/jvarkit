@@ -62,7 +62,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
  * VCFBed
 BEGIN_DOC
 
-## Example
+## Example
 
 Map the NCBI biosystems to a BED file using the following script:     https://gist.github.com/6024788 
 

@@ -91,7 +91,7 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## Example
+## Example
 
 ```
 $ curl -sL "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\

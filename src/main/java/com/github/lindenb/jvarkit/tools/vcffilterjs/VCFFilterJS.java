@@ -426,7 +426,7 @@ public class VCFFilterJS
 			
 			if(filterHeaderLine!=null) h2.addMetaDataLine(filterHeaderLine);
 			
-			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
+			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 
 			final  Bindings bindings = this.compiledScript.getEngine()
 					.createBindings();

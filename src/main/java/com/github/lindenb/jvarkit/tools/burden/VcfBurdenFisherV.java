@@ -133,7 +133,7 @@ public class VcfBurdenFisherV
 			final Count count= new Count();
 		
 			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			while(in.hasNext()) {
 				final VariantContext ctx = progess.watch(in.next());
 				tmpw.add(ctx);

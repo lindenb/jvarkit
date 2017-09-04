@@ -30,6 +30,12 @@ Usage: pubmeddump [options] Files
  * xml
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/270498](https://www.biostars.org/p/270498)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -88,7 +94,7 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## Example
+## Example
 
 ```
 $  java -jar dist/pubmeddump.jar "Lindenbaum P" | grep ArticleTitle
@@ -98,7 +104,7 @@ $  java -jar dist/pubmeddump.jar "Lindenbaum P" | grep ArticleTitle
     <ArticleTitle>[The Spanish Association of Surgeon's audited teaching programme for rectal cancer. Results after six years].</ArticleTitle>
     <ArticleTitle>Common variants at SCN5A-SCN10A and HEY2 are associated with Brugada syndrome, a rare disease with high risk of sudden cardiac death.</ArticleTitle>
     <ArticleTitle>The 3rd DBCLS BioHackathon: improving life science data integration with Semantic Web technologies.</ArticleTitle>
-    <ArticleTitle>Mass spectrometry-based identification of native cardiac Nav1.5 channel α subunit phosphorylation sites.</ArticleTitle>
+    <ArticleTitle>Mass spectrometry-based identification of native cardiac Nav1.5 channel alpha subunit phosphorylation sites.</ArticleTitle>
     <ArticleTitle>BioStar: an online question &amp; answer resource for the bioinformatics community.</ArticleTitle>
     <ArticleTitle>Knime4Bio: a set of custom nodes for the interpretation of next-generation sequencing data with KNIME.</ArticleTitle>
     <ArticleTitle>Truncating mutations in the last exon of NOTCH2 cause a rare skeletal disorder with osteoporosis.</ArticleTitle>
@@ -111,7 +117,7 @@ $  java -jar dist/pubmeddump.jar "Lindenbaum P" | grep ArticleTitle
     <ArticleTitle>In vivo and in vitro phosphorylation of rotavirus NSP5 correlates with its localization in viroplasms.</ArticleTitle>
 ```
 
-## See also
+## See also
 
  * https://gist.github.com/lindenb/6bfb49fd8bc3dd27d99f
 

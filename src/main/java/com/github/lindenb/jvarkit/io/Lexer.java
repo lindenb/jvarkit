@@ -28,14 +28,17 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.mortbay.io.RuntimeIOException;
+import htsjdk.samtools.util.RuntimeIOException;
+
 
 /** general utility for parsing */
 public class Lexer implements Closeable {
+	private static final int EOF=-1;
 	private final Reader reader;
 	private final String inputName;
 	private Lexer includeLexer = null;
@@ -66,13 +69,22 @@ public class Lexer implements Closeable {
 		return this.inputName+" row: "+this.rowNum+" column:"+this.colNum;
 		}
 	
+	public String toString()
+		{
+		return getLocation();
+		}
 	
 	private int _read()
 		{
 		try
 			{
-			int c;
-			c = reader.read();
+			final int c = reader.read();
+			switch(c)
+				{
+				case EOF: break;
+				case '\n': rowNum++;colNum=1;break;
+				default: colNum++;break;
+				}
 			return c;
 			}
 		catch(final IOException err)
@@ -80,23 +92,29 @@ public class Lexer implements Closeable {
 			throw new RuntimeIOException(err);
 			}		
 		}
-	public int get(int pos)
+	public int peek(final int pos)
 		{
-		while(pos>=stack.size())
+		while(pos <= this.stack.size())
 			{
 			final int c = this._read();
-			if(c==-1) return -1;
+			if(c==-1) return EOF;
 			switch(c)
 				{
 				case '\n': rowNum++;colNum=1;break;
 				default: colNum++;break;
 				}
-			this.stack.add((char)c);	
+	public int get(final int pos)
+		{
+		while(pos<=stack.size())
+			{
+			final int c = this._read();
+			if(c==EOF) return EOF;
+			this.stack.add((char)c);
 			}
 		return this.stack.get(pos);
 		}
 
-	public int get() { return get(0); }
+	public int peek() { return peek(0); }
 	public int consumme(int n) {
 		int c=0;
 		while(n>0 && !stack.isEmpty())
@@ -105,20 +123,21 @@ public class Lexer implements Closeable {
 			n--;
 			c++;
 			}
-		while(n>0 && this._read()!=-1)
-			{		
+		while(n>0 && this._read()!=EOF)
+			{
 			n--;
 			c++;
 			}
 		return c;
 		}
-	public boolean eof() { return get()!=-1;}
+	
+	public boolean eof() { return get()!= EOF;}
 	
 	public int skip(final Predicate<Character> filter) {
 		int c,n=0;
-		while((c=get())!=-1 && filter.test((char)c))
+		while((c=get())!=EOF && filter.test((char)c))
 			{
-			consumme(1);
+			consumme();
 			++n;
 			}
 		return n;
@@ -130,7 +149,7 @@ public class Lexer implements Closeable {
 		StringBuilder sb=null;
 		int c;
 		int i=0;
-		while((c=get(i))!=-1 && c!='\n')
+		while((c=get(i))!= EOF && c!='\n')
 			{
 			if(sb==null) sb=new StringBuilder();
 			sb.append((char)c);
@@ -143,7 +162,7 @@ public class Lexer implements Closeable {
 		{
 		StringBuilder sb=null;
 		int c;
-		while((c=get())!=-1 && c!='\n')
+		while((c=get())!= EOF && c!='\n')
 			{
 			if(sb==null) sb=new StringBuilder();
 			sb.append((char)c);
@@ -170,6 +189,20 @@ public class Lexer implements Closeable {
 			}	
 		return null;
 		}
+
+	public boolean downstream(final int pos,final String s) {
+	for(int i=0;i< s.length();i++) {
+		final int c = peek(pos+i);
+		if(c==EOF ||c!=(int)s.charAt(i)) return false;
+	}
+	return true;
+}
+
+	public boolean downstream(final String s) {
+		Objects.requireNonNull(s);
+		return downstream(0, s);
+		}
+
 	
 	@Override
 	public void close() throws IOException {

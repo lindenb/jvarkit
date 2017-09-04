@@ -35,7 +35,7 @@ Usage: groupbygene [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -p, --ped, --pedigree
-      [20170725] A pedigree is a text file delimited with tabs. No header. 
+      [20170725] A pedigree is a text file delimited with tabs. No header. 
       Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
       Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
       unaffected, 1 affected,-9 unknown
@@ -132,7 +132,7 @@ Group VCF data by gene/transcript. By default it tries to use data from VEP and 
 
 ## Example
 
-### Delimited output
+### Delimited output
 
 ```
 $ curl -s -k "https://raw.github.com/arq5x/gemini/master/test/test4.vep.snpeff.vcf" |\

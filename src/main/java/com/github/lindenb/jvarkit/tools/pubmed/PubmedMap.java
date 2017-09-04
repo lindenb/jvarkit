@@ -66,7 +66,7 @@ BEGIN_DOC
 ## Motivation
 use the Affiliation field in XML pubmed and try to insert some XML attributes describing the location.
 
-## Example
+## Example
 
 ```
 $ curl -s "https://www.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=26941271&retmode=xml" |java -jar dist/pubmedmap.jar   |\
@@ -315,7 +315,7 @@ public class PubmedMap
 		build("mv","Maldives"),
 		build("mw","Malawi"),
 		build("mx","Mexico"),
-		build("mx","méxico"),
+		build("mx","mexico"),
 		build("my","Malaysia"),
 		build("mz","Mozambique"),
 		build("na","Namibia"),
@@ -426,7 +426,7 @@ public class PubmedMap
 		build("us"," new york"),
 		build("ru","Russia"),
 		build("br","Brasil"),
-		build("es","españa"),
+		build("es","espana"),
 		build("us","stanford"),
 		build("us","cornell"),
 		build("us","san-francisco"),

@@ -85,7 +85,7 @@ Group VCF data by gene/transcript. By default it tries to use data from VEP and 
 
 ## Example
 
-### Delimited output
+### Delimited output
 
 ```
 $ curl -s -k "https://raw.github.com/arq5x/gemini/master/test/test4.vep.snpeff.vcf" |\
@@ -131,7 +131,7 @@ public class GroupByGene
 	private Set<String> user_gene_tags = new HashSet<>();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
-	@Parameter(names={"-p","--ped","--pedigree"},description="[20170725] "+Pedigree.OPT_DESCRIPTION)
+	@Parameter(names={"-p","--ped","--pedigree"},description="[20170725] "+ Pedigree.OPT_DESCRIPTION)
 	private File pedigreeFile=null;
 	@Parameter(names={"--annIntergenic"},description="[20170726] Accept snpEff 'ANN' intergenic regions.")
 	private boolean accept_snpeff_intergenic=false;
@@ -435,8 +435,7 @@ public class GroupByGene
 			
 			
 			
-			
-			/* ############# DUMP ***/
+			/** dump */			
 	
 			final Set<String> casesSamples = pedigree.getPersons().stream().
 						filter(P->P.isAffected()).

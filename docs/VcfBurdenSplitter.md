@@ -144,7 +144,7 @@ The current reference is:
 
 ### Description
 
-This tools reads a VCF  (it should be sorted on chrom/POS and annotated with Ensembl Variation Predictor) and split data into genomic area of interest (géne, transcripts...).
+This tools reads a VCF  (it should be sorted on chrom/POS and annotated with Ensembl Variation Predictor) and split data into genomic area of interest (gene, transcripts...).
 For each area, a small VCF is produced and a Fished test is computed.
 The final output is a set of concatenated VCF files. You could insert in a database using VcfDerby01
 

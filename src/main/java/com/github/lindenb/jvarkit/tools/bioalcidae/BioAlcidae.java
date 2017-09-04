@@ -36,6 +36,7 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.script.Bindings;
@@ -496,8 +498,8 @@ public class BioAlcidae
 	private enum FORMAT {
 		VCF{
 			@Override
-			boolean canAs(String src) {
-				return src!=null && (src.endsWith(".vcf") || src.endsWith(".vcf.gz") );
+			boolean canAs(final String src) {
+				return src!=null && (Arrays.asList(IOUtil.VCF_EXTENSIONS).stream().anyMatch(EXT->src.endsWith(EXT)) );
 			}
 			},
 		SAM{

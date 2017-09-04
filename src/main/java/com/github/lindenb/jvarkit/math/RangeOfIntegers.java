@@ -98,7 +98,10 @@ private final List<Range> ranges;
 
 /** generate RangeOfIntegers from a String with values separated with semicolons */
 public RangeOfIntegers(final String s) {
-	this(Arrays.asList(s.split(";")).stream().filter(S->!S.trim().isEmpty()).mapToInt(S->new Integer(S)).toArray());
+	this(Arrays.asList(s.split(";")).stream().
+			filter(S->!S.trim().isEmpty()).
+			mapToInt(S->new Integer(S)).
+			toArray());
 	}
 
 public RangeOfIntegers(final int...array) {

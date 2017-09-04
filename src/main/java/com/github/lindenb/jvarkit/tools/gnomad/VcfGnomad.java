@@ -101,7 +101,7 @@ we're going to create the following workflow : http://imgur.com/a/QcrKW
 
 * create a new Node `java Snippet`
 * in the tab 'additional libraries', add 'vcfgnomad4knime.jar'.
-* in the tab 'java snippet'. Declare the following inputs: `c_CHROM,c_POS,c_REF,c_ALT`, the output string  `GNOMAD`.
+* in the tab 'java snippet'. Declare the following inputs: `c_CHROM,c_POS,c_REF,c_ALT`, the output string `GNOMAD`.
 
 And insert the following code:
 

@@ -8,19 +8,34 @@ convert a vcf to a table, to ease display in the terminal
 ```
 Usage: vcf2table [options] Files
   Options:
+    --color, --colors
+      [20170808] Print Terminal ANSI colors.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --hideAlleles
+      [20170808] hide Alleles table.
+      Default: false
+    --hideFilters
+      [20170808] hide Filters table.
+      Default: false
     -g, --hideGenotypes
       Hide All genotypes
       Default: false
     -hr, --hideHomRefs
       Hide HOM_REF genotypes
       Default: false
+    --hideInfo
+      [20170808] hide INFO table.
+      Default: false
     -nc, --hideNoCalls
       Hide NO_CALL genotypes
+      Default: false
+    --hidePredictions
+      [20170808] hide SNPEFF/VEP table.
       Default: false
     -L, -limit, --limit
       Limit the number of output variant. '-1' == ALL/No limit.
@@ -175,7 +190,7 @@ Samples
 | FAM    | M128215 | M10500 |        | male   | unaffected |
 +--------+---------+--------+--------+--------+------------+
 
->>chr1/10001/T (n°1)
+>>chr1/10001/T (n 1)
  Variant
  +--------+--------------------+
  | Key    | Value              |
@@ -242,7 +257,7 @@ Samples
  +-----------+-----------+-----------+-----------+----------+----------+-----------+
  | M10475    | 0/1       | M10478    | 0/1       | M10500   | 0/1      |           |
  +-----------+-----------+-----------+-----------+----------+----------+-----------+
-<<chr1/10001/T n°1
+<<chr1/10001/T n 1
 
 (...)
 ```

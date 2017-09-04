@@ -62,7 +62,8 @@ import htsjdk.samtools.util.SortingCollection;
 /*
 BEGIN_DOC
 
-## Example
+## Example
+
 Question was : "mapping with BWA produced a variation one year ago. We then mapped the same fastq with two different sets of parameters, but we cannot find the variant anymore. Has the mapping changed ?"
 
 Extract the read names from the original BAM:

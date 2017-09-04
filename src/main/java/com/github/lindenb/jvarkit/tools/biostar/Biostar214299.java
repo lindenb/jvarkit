@@ -72,7 +72,7 @@ If two samples share the same group, the read group is AMBIGOUS.
 If the read is unmapped, the read group is UNMAPPED.
 If no sample is affected to a read, the read group will be UNAFFECTED;
  
-## Example
+## Example
 
 the positions file
 

@@ -67,7 +67,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.semontology.Term;
 /**
-## Example
+
+BEGIN_DOC
+
+## Example
 
 Makefile:
 
@@ -124,7 +127,7 @@ ouput:
                 <Hsp_hit-DNA>CATCAGGCAGCCCCCAGCCCCCTGAGGCCCTGTCCATCTTCTCCCCACCACCGCCCCGGTGTGCGTACCCAGGCGCACGTGCTGCAGCCCCCG---GCCCCGCTGAAACCTGGGCTGCCC</Hsp_hit-DNA>
               </Hsp>
 ```
-
+END_DOC
 
  */
 @Program(name="biostar160470",

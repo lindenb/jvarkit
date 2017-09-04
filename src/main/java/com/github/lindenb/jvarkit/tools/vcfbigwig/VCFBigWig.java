@@ -270,8 +270,6 @@ public class VCFBigWig extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		
-		
 		if(this.biwWigFile==null || this.biwWigFile.isEmpty())
 			{
 			LOG.info("Undefined BigWig file ");

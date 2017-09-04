@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /*
 BEGIN_DOC
 
-## Example
+## Example
 
 ```
 $ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf

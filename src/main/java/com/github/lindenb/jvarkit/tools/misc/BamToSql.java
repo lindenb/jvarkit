@@ -130,8 +130,8 @@ FOREIGN KEY(read_id) REFERENCES Read(id)
 );
 ```
 
+## Example
 
-## Example
 Build a sqlite3 database for a set of BAM files in the region "rotavirus:1-10""
 
 ```

@@ -131,7 +131,7 @@ Xiao	Bingxiu	B	0000000285929251		28618205	2017	J. Clin. Lab. Anal.	Reduced expre
 Heal	M Elisabeth	ME	0000000150571141		28618202	2017	Congenit Heart Dis	Effects of persistent Fontan fenestration patency on cardiopulmonary exercise testing variables.
 Hrubec	Terry C	TC	0000000239619201		28618200	2017	Birth Defects Res	Ambient and dosed exposure to quaternary ammonium disinfectants causes neural tube defects in rodents.
 Somri	Mostafa	M	0000000238141402		28618198	2017	Int J Paediatr Dent	Effect of intravenous paracetamol as pre-emptive compared to preventive analgesia in a pediatric dental setting: a prospective randomized study.
-Häggblom	Max M	MM	0000000163077863		28618195	2017	Environ Microbiol Rep	Novel Reductive Dehalogenases from the Marine Sponge Associated Bacterium Desulfoluna spongiiphila.
+Haggblom	Max M	MM	0000000163077863		28618195	2017	Environ Microbiol Rep	Novel Reductive Dehalogenases from the Marine Sponge Associated Bacterium Desulfoluna spongiiphila.
 Ehl	Stefan	S	0000000162861234		28618194	2017	Insect Sci.	Sexual dimorphism in the alpine butterflies Boloria pales and Boloria napaea: Differences in movement and foraging behaviour (Lepidoptera: Nymphalidae).
 Gautam	Nischal K	NK	0000000224916705		28618193	2017	Paediatr Anaesth	Introduction of color-flow injection test to confirm intravascular location of peripherally placed intravenous catheters.
 Kaymaz	Dicle	D	0000000179512065		28618190	2017	Clin Respir J	RELATION BETWEEN UPPER-LIMB MUSCLE STRENGTH WITH EXERCISE CAPACITY, QUALITY OF LIFE, AND DYSPNEA IN PATIENTS WITH SEVERE CHRONIC OBSTRUCTIVE PULMONARY DISEASE.
@@ -157,7 +157,8 @@ END_DOC
 */
 @Program(name="xsltstream",
 	description="XSLT transformation for large XML files. xslt is only applied on a given subset of nodes.",
-	keywords={"xml","xslt","xsl","stylesheet"}
+	keywords={"xml","xslt","xsl","stylesheet"},
+	biostars=270498
 	)
 public class XsltStream extends Launcher {
 	private static final Logger LOG = Logger.build(XsltStream.class).make();

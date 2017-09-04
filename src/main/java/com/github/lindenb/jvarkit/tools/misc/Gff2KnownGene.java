@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 /**
 BEGIN_DOC
 
-## Example
+## Example
 
 ```
 $  curl -s "ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_19/gencode.v19.annotation.gff3.gz" |\
