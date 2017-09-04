@@ -29,6 +29,8 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.mortbay.io.RuntimeIOException;
 
@@ -36,6 +38,7 @@ import org.mortbay.io.RuntimeIOException;
 public class Lexer implements Closeable {
 	private final Reader reader;
 	private final String inputName;
+	private Lexer includeLexer = null;
 	private int rowNum=1;
 	private int colNum=1;
 	private final List<Character> stack = new ArrayList<>();
@@ -46,15 +49,30 @@ public class Lexer implements Closeable {
 		this.reader = reader;
 		}
 
+	public void include(final Lexer child)
+		{
+		if(includeLexer!=null) throw new IllegalStateException();
+		this.includeLexer=child;
+		}
+	
 	public Lexer(final Reader reader)
 		{
 		this("<INPUT>",reader);
 		}
+	
+	public String getLocation()
+		{
+		if(this.includeLexer!=null) return this.includeLexer.getLocation();
+		return this.inputName+" row: "+this.rowNum+" column:"+this.colNum;
+		}
+	
+	
 	private int _read()
 		{
 		try
 			{
-			int c = reader.read();
+			int c;
+			c = reader.read();
 			return c;
 			}
 		catch(final IOException err)
@@ -132,6 +150,25 @@ public class Lexer implements Closeable {
 			consumme(1);
 			}
 		return sb==null?null:sb.toString();
+		}
+	
+	public String matcher(final Pattern p)
+		{
+		final StringBuilder sb= new StringBuilder();
+		Matcher matcher= p.matcher("");
+		int c;
+		while((c=get())!=-1 && c!='\n')
+			{
+			sb.append((char)c);
+			matcher.reset(sb.toString());
+			if(!matcher.matches()) break;
+			}
+		
+		if(matcher.hitEnd())
+			{
+			return sb.toString();
+			}	
+		return null;
 		}
 	
 	@Override
