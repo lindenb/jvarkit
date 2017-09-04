@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 import htsjdk.samtools.util.RuntimeIOException;
@@ -53,9 +54,14 @@ public class Lexer implements Closeable {
 		this("<INPUT>",reader);
 		}
 	
-	
 	public String getLocation() {
-		return this.inputName+" row:"+this.rowNum+" col:"+this.colNum;
+		return  this.inputName+" row:"+this.rowNum+" col:"+this.colNum;
+	}
+	
+	@Override
+	public String toString()
+		{
+		return getLocation();
 		}
 	
 	private int _read()
@@ -76,18 +82,29 @@ public class Lexer implements Closeable {
 			throw new RuntimeIOException(err);
 			}		
 		}
+	public int peek(final int pos)
+		{
+		while(pos <= this.stack.size())
+			{
+			final int c = this._read();
+			if(c==-1) return EOF;
+			switch(c)
+				{
+				case '\n': rowNum++;colNum=1;break;
+				default: colNum++;break;
+				}
 	public int get(final int pos)
 		{
 		while(pos<=stack.size())
 			{
 			final int c = this._read();
 			if(c==EOF) return EOF;
-			this.stack.add((char)c);	
+			this.stack.add((char)c);
 			}
 		return this.stack.get(pos);
 		}
 
-	public int get() { return get(0); }
+	public int peek() { return peek(0); }
 	public int consumme(int n) {
 		int c=0;
 		while(n>0 && !stack.isEmpty())
@@ -97,16 +114,11 @@ public class Lexer implements Closeable {
 			c++;
 			}
 		while(n>0 && this._read()!=EOF)
-			{		
+			{
 			n--;
 			c++;
 			}
 		return c;
-		}
-	
-	public int consumme()
-		{
-		return consumme(1);
 		}
 	
 	public boolean eof() { return get()!= EOF;}
@@ -148,6 +160,20 @@ public class Lexer implements Closeable {
 			}
 		return sb==null?null:sb.toString();
 		}
+	
+	public boolean downstream(final int pos,final String s) {
+	for(int i=0;i< s.length();i++) {
+		final int c = peek(pos+i);
+		if(c==EOF ||c!=(int)s.charAt(i)) return false;
+	}
+	return true;
+}
+
+	public boolean downstream(final String s) {
+		Objects.requireNonNull(s);
+		return downstream(0, s);
+		}
+
 	
 	@Override
 	public void close() throws IOException {

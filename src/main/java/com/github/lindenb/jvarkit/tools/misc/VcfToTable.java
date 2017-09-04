@@ -811,7 +811,7 @@ public class VcfToTable extends Launcher {
 				t.removeEmptyColumns();
 				t.print(margin,out);
 				}
-			if(!this.hideGenotypes)
+			if(!this.hideGenotypes && vc.hasGenotypes())
 				{
 				//margin = margin+ DEFAULT_MARGIN;
 				final Pattern tab = Pattern.compile("\t");

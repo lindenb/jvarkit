@@ -30,6 +30,12 @@ Usage: pubmeddump [options] Files
  * xml
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/270498](https://www.biostars.org/p/270498)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

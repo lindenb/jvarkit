@@ -85,7 +85,10 @@ $  java -jar dist/pubmeddump.jar "Lindenbaum P" | grep ArticleTitle
 END_DOC
  *
  */
-@Program(name="pubmeddump",keywords={"ncbi","pubmed","xml"}, description="Dump XML results from pubmed/Eutils")
+@Program(name="pubmeddump",keywords={"ncbi","pubmed","xml"}, 
+	description="Dump XML results from pubmed/Eutils",
+	biostars=270498
+	)
 public class PubmedDump
 	extends Launcher
 	{

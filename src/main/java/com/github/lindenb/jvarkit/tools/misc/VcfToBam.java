@@ -373,9 +373,9 @@ public class VcfToBam extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
-		if(this.indexedFastaSequenceFile==null)
+		if(this.faidx==null)
 			{
 			LOG.error("No REF defined");
 			return -1;

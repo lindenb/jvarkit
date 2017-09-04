@@ -210,6 +210,13 @@ or
 java -jar dist/vcffilterjdk.jar -e 'return this.hasSequenceOntologyAccession(variant,"SO:0001818");' 
 ```
 
+### Example
+
+Unphase a VCF file
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return new VariantContextBuilder(variant).genotypes(variant.getGenotypes().stream().map(G->new GenotypeBuilder(G).phased(false).make()).collect(Collectors.toList())).make();' input.vcf
+```
 
 END_DOC
  */
@@ -217,11 +224,11 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201}
+		biostars={266201,269854}
 		)
 public class VcfFilterJdk
 	extends Launcher
-	{	
+	{
 	private static final Logger LOG = Logger.build(VcfFilterJdk.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

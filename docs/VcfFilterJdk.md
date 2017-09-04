@@ -50,6 +50,7 @@ Usage: vcffilterjdk [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/266201](https://www.biostars.org/p/266201)
+ * [https://www.biostars.org/p/269854](https://www.biostars.org/p/269854)
 
 
 ## Compilation
@@ -238,5 +239,34 @@ first and second genotype are not the same:
 java -jar dist/vcffilterjdk.jar -e 'return !variant.getGenotype(0).sameGenotype(variant.getGenotype(1));' 
 ```
 
+### Example
+
+at least 3 samples have a DP greater than 30
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.hasDP() && G.getDP()>30).limit(3).count()> 2;' 
+```
+
+### Example
+
+Variant is annotated with SO:0001818 or its children ( protein_altering_variant )
+
+```
+$ java -jar dist/vcffilterjdk.jar -e 'return this.hasSequenceOntologyLabel(variant,"protein_altering_variant");' 
+```
+
+or
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return this.hasSequenceOntologyAccession(variant,"SO:0001818");' 
+```
+
+### Example
+
+Unphase a VCF file
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return new VariantContextBuilder(variant).genotypes(variant.getGenotypes().stream().map(G->new GenotypeBuilder(G).phased(false).make()).collect(Collectors.toList())).make();' input.vcf
+```
 
 
