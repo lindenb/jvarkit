@@ -186,7 +186,10 @@ public class VcfToBam extends Launcher
 					if(variantContig == null) throw new IOException("Unknown contig "+ctx.getContig());
 					if(variantContig.getSequenceIndex()< ssr.getSequenceIndex())
 						{
-						throw new IOException("Variants are not ordered on sequence dictionary ("+ctx+")");
+						//just consumme !
+						// https://github.com/lindenb/jvarkit/issues/86#issuecomment-326986654
+						vcfIterator.next();//consumme
+						continue;
 						}	
 					else if(variantContig.getSequenceIndex() > ssr.getSequenceIndex())
 						{
