@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import htsjdk.samtools.util.RuntimeIOException;
 
@@ -39,6 +41,7 @@ public class Lexer implements Closeable {
 	private static final int EOF=-1;
 	private final Reader reader;
 	private final String inputName;
+	private Lexer includeLexer = null;
 	private int rowNum=1;
 	private int colNum=1;
 	private final List<Character> stack = new ArrayList<>();
@@ -49,16 +52,23 @@ public class Lexer implements Closeable {
 		this.reader = reader;
 		}
 
+	public void include(final Lexer child)
+		{
+		if(includeLexer!=null) throw new IllegalStateException();
+		this.includeLexer=child;
+		}
+	
 	public Lexer(final Reader reader)
 		{
 		this("<INPUT>",reader);
 		}
 	
-	public String getLocation() {
-		return  this.inputName+" row:"+this.rowNum+" col:"+this.colNum;
-	}
+	public String getLocation()
+		{
+		if(this.includeLexer!=null) return this.includeLexer.getLocation();
+		return this.inputName+" row: "+this.rowNum+" column:"+this.colNum;
+		}
 	
-	@Override
 	public String toString()
 		{
 		return getLocation();
@@ -161,6 +171,25 @@ public class Lexer implements Closeable {
 		return sb==null?null:sb.toString();
 		}
 	
+	public String matcher(final Pattern p)
+		{
+		final StringBuilder sb= new StringBuilder();
+		Matcher matcher= p.matcher("");
+		int c;
+		while((c=get())!=-1 && c!='\n')
+			{
+			sb.append((char)c);
+			matcher.reset(sb.toString());
+			if(!matcher.matches()) break;
+			}
+		
+		if(matcher.hitEnd())
+			{
+			return sb.toString();
+			}	
+		return null;
+		}
+
 	public boolean downstream(final int pos,final String s) {
 	for(int i=0;i< s.length();i++) {
 		final int c = peek(pos+i);
