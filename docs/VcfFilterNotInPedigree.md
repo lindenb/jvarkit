@@ -76,9 +76,19 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigree.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigree.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigree.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigree.java)
+
+Git History for this file:
+```
+Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Wed May 10 20:57:52 2017 +0200 ; YC tag ; https://github.com/lindenb/jvarkit/commit/a9515d969d27c76ccd0814a093e886d71904b0f2
+Tue May 24 16:49:08 2016 +0200 ; error in fisherburdenv ; https://github.com/lindenb/jvarkit/commit/ad8d8c2252786a71d063854fddcf5c3e276a052e
+Tue May 3 17:34:10 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7d668372271a7ecc28da6051c0ef251f70bbece9
+Thu Apr 21 10:39:25 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7adf87adc987efbe89def5c530f5a84be0c841d4
+Tue Apr 19 14:25:22 2016 +0200 ; vcfnotinped ; https://github.com/lindenb/jvarkit/commit/265b0d11a280ad1458038fbd838a7a866952facf
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

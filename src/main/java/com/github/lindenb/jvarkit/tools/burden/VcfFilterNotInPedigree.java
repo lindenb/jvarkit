@@ -33,6 +33,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import javax.xml.bind.annotation.XmlRootElement;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -41,10 +43,14 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -69,18 +75,132 @@ public class VcfFilterNotInPedigree
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
+	
+	@XmlRootElement(name="vcfinjectpedigree")
+	public static class CtxWriterFactory 
+		implements VariantContextWriterFactory
+			{
+			@Parameter(names={"-f","--filter"},description="FILTER name. Will be set for variant where the only genotypes non-homref are NOT in the pedigree")
+			private String filterName = "NoGenotypeInPedigree";
+		
+			@Parameter(names={"-r","--remove"},description="remove the variant instead of setting the FILTER")
+			private boolean dicardVariant = false;
+		
+			@Parameter(names={"-s","--singleton"},description="Variant is flagged/FILTERed as SingletonAlt if the ALT if found in less or equal times 'singleton-times' in the genotypes. -1:ignore")
+			private int singleton = 1 ;
+		
+			@Parameter(names={"-sf","--sfilter"},description="FILTER name for option singleton")
+			private String singletonfilterName = "SingletonAlt";
+			
+			private class CtxWriter extends DelegateVariantContextWriter
+				{
+				private VCFFilterHeaderLine singletonFilter = null;
+				private VCFFilterHeaderLine filter = null;
+				private Set<Pedigree.Person> individuals = null;
+				private final int IGNORE_SINGLETON=-1;
+				CtxWriter(final VariantContextWriter delegate) {
+					super(delegate);
+					}
+				@Override
+				public void writeHeader(final VCFHeader header) {
+					
+					final Pedigree pedigree = Pedigree.newParser().parse(header);
+					if(pedigree.isEmpty()) {
+						throw new JvarkitException.PedigreeError("No pedigree found in header. use VcfInjectPedigree to add it");
+						}
+					if(!pedigree.verifyPersonsHaveUniqueNames()) {
+						throw new JvarkitException.PedigreeError("I can't use this pedigree in VCF because two samples have the same ID");
+					}
 
-	@Parameter(names={"-f","--filter"},description="FILTER name. Will be set for variant where the only genotypes non-homref are NOT in the pedigree")
-	private String filterName = "NoGenotypeInPedigree";
-
-	@Parameter(names={"-r","--remove"},description="remove the variant instead of setting the FILTER")
-	private boolean dicardVariant = false;
-
-	@Parameter(names={"-s","--singleton"},description="Variant is flagged/FILTERed as SingletonAlt if the ALT if found in less or equal times 'singleton-times' in the genotypes. -1:ignore")
-	private int singleton = 1 ;
-
-	@Parameter(names={"-sf","--sfilter"},description="FILTER name for option singleton")
-	private String singletonfilterName = "SingletonAlt";
+					final Set<String> samplesNames= new HashSet<>(header.getSampleNamesInOrder());
+					this.individuals = new HashSet<>(pedigree.getPersons());
+					final Iterator<Pedigree.Person> iter= individuals.iterator();
+					while(iter.hasNext())
+					{
+						final Pedigree.Person person = iter.next();
+						if(!(samplesNames.contains(person.getId()))) {
+							LOG.warn("Ignoring "+person+" because not in VCF header or status is unknown");
+							iter.remove();
+						}
+					}
+					
+					this.filter = new VCFFilterHeaderLine(
+							CtxWriterFactory.this.filterName,
+							"Will be set for variant where the only genotypes non-homref are NOT in the pedigree "
+							);
+					this.singletonFilter = new VCFFilterHeaderLine(
+							CtxWriterFactory.this.singletonfilterName,
+							"The ALT allele is found in less or equals than "+CtxWriterFactory.this.singleton+" individuals in the cases/controls"
+							);
+					
+					final VCFHeader h2= new VCFHeader(header);
+					h2.addMetaDataLine(filter);
+					if(CtxWriterFactory.this.singleton!=IGNORE_SINGLETON) {
+						h2.addMetaDataLine(singletonFilter);
+						}					
+					super.writeHeader(h2);
+					}
+				
+				@Override
+				public void add(final VariantContext ctx) {
+					final boolean in_pedigree= this.individuals.stream().
+							map(P->ctx.getGenotype(P.getId())).
+							anyMatch(g->(!(g==null ||
+									!g.isCalled() ||
+									!g.isAvailable() ||
+									g.isNoCall() ||
+									g.isHomRef())))
+									;
+					
+									
+					if(!in_pedigree) {
+						if(CtxWriterFactory.this.dicardVariant) return;
+						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+						vcb.filter(this.filter.getID());
+						super.add(vcb.make());
+						}
+					else
+						{
+						boolean is_singleton;
+						if(CtxWriterFactory.this.singleton!=IGNORE_SINGLETON) {
+							is_singleton = true;
+							for(final Allele alt:ctx.getAlternateAlleles()) {
+								if(this.individuals.stream().
+										map(P->ctx.getGenotype(P.getId())).
+										filter(g->g.isCalled()&& g.getAlleles().contains(alt)).
+										count() > CtxWriterFactory.this.singleton) 
+									{
+									is_singleton =false;
+									break;
+									}
+								}
+							}
+						else
+							{
+							is_singleton=false;
+							}
+						if(is_singleton) {
+							if(CtxWriterFactory.this.dicardVariant) return;
+							final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+							vcb.filter(this.singletonFilter.getID());
+							super.add(vcb.make());
+							}
+						else
+							{
+							super.add(ctx);
+							}
+						}
+					}
+				}
+						
+			@Override
+			public VariantContextWriter open(VariantContextWriter delegate) {
+				return new CtxWriter(delegate);
+				}
+			
+			}
 	
 	
 	public VcfFilterNotInPedigree()
@@ -89,115 +209,31 @@ public class VcfFilterNotInPedigree
 	 
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-	final int IGNORE_SINGLETON=-1;
-		final VCFHeader header = in.getHeader();
-		
-		try {
-			final Pedigree pedigree = Pedigree.newParser().parse(header);
-			if(pedigree.isEmpty()) {
-				LOG.error("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
-				return -1;
-				}
-			if(!pedigree.verifyPersonsHaveUniqueNames()) {
-				LOG.error("I can't use this pedigree in VCF because two samples have the same ID in  "+inputName);
-				return -1;
-			}
-
-			final Set<String> samplesNames= new HashSet<>(header.getSampleNamesInOrder());
-			final Set<Pedigree.Person> individuals = new HashSet<>(pedigree.getPersons());
-			final Iterator<Pedigree.Person> iter= individuals.iterator();
-			while(iter.hasNext())
+	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter delegate) {
+		final VariantContextWriter out = this.component.open(delegate);
+		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+		out.writeHeader(in.getHeader());
+		while(in.hasNext() &&  !out.checkError())
 			{
-				final Pedigree.Person person = iter.next();
-				if(!(samplesNames.contains(person.getId()))) {
-					LOG.warn("Ignoring "+person+" because not in VCF header or status is unknown");
-					iter.remove();
-				}
+			out.add(progess.watch(in.next()));
 			}
-			
-			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine(
-					this.filterName,
-					"Will be set for variant where the only genotypes non-homref are NOT in the pedigree "
-					);
-			final VCFFilterHeaderLine singletonFilter = new VCFFilterHeaderLine(
-					this.singletonfilterName,
-					"The ALT allele is found in less or equals than "+this.singleton+" individuals in the cases/controls"
-					);
-			
-			final VCFHeader h2= new VCFHeader(header);
-			h2.addMetaDataLine(filter);
-			if(this.singleton!=IGNORE_SINGLETON) {
-				h2.addMetaDataLine(singletonFilter);
-			}
-			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
-			out.writeHeader(h2);
-			while(in.hasNext() &&  !out.checkError())
-				{
-				final VariantContext ctx = progess.watch(in.next());
-				final boolean in_pedigree=individuals.stream().
-						map(P->ctx.getGenotype(P.getId())).
-						anyMatch(g->(!(g==null ||
-								!g.isCalled() ||
-								!g.isAvailable() ||
-								g.isNoCall() ||
-								g.isHomRef())))
-								;
-				
-								
-				if(!in_pedigree) {
-					if(this.dicardVariant) continue;
-					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-					vcb.filter(filter.getID());
-					out.add(vcb.make());
-					}
-				else
-					{
-					boolean is_singleton;
-					if(this.singleton!=IGNORE_SINGLETON) {
-						is_singleton = true;
-						for(final Allele alt:ctx.getAlternateAlleles()) {
-							if( individuals.stream().
-									map(P->ctx.getGenotype(P.getId())).
-									filter(g->g.isCalled()&& g.getAlleles().contains(alt)).
-									count() > this.singleton) 
-								{
-								is_singleton =false;
-								break;
-								}
-							}
-						}
-					else
-						{
-						is_singleton=false;
-						}
-					if(is_singleton) {
-						if(this.dicardVariant) continue;
-						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-						vcb.filter(singletonFilter.getID());
-						out.add(vcb.make());
-						}
-					else
-						{
-						out.add(ctx);
-						}
-					}
-				}
-			progess.finish();
-			return RETURN_OK;
-			} catch(Exception err) {
-				LOG.error(err);
-				return -1;
-			} finally {
-				CloserUtil.close(in);
-			}
+		progess.finish();
+		out.close();
+		return 0;
 		}
 	
 	
 	@Override
 	public int doWork(final List<String> args) {
-		return doVcfToVcf(args, outputFile);
+		try
+			{
+			if(this.component.initialize()!=0) return -1;
+			return doVcfToVcf(args, outputFile);
+			}
+		finally
+			{
+			CloserUtil.close(this.component);
+			}
 	}
 	
 	

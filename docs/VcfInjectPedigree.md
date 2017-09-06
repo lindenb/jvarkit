@@ -82,9 +82,18 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java)
+
+Git History for this file:
+```
+Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
+Thu Jun 22 13:16:05 2017 +0200 ; vcfloopovergenes ; https://github.com/lindenb/jvarkit/commit/aa4a6f29c853efddcee5678f9441d9994a2deee6
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Tue May 9 20:36:16 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/517cc3660251857061fa955cce5c8e07362c5bee
+Mon Apr 18 17:34:40 2016 +0200 ; cnot burden ; https://github.com/lindenb/jvarkit/commit/e0403a175b479d9e8bec1ced1e3f35715f404ad8
+Fri Apr 15 17:09:59 2016 +0200 ; inject pedigree ; https://github.com/lindenb/jvarkit/commit/f9a18a1ce155a78b2e430d8d7860d0cab8f33722
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

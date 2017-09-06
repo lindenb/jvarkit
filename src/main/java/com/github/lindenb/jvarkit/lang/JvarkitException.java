@@ -200,6 +200,14 @@ public static class FileFormatError  extends Error
 		super(msg);
 		}
 	}
+
+public static class PedigreeError  extends FileFormatError
+	{	
+	public PedigreeError(final String msg) {
+		super(msg);
+		}
+	}
+
 public static class TokenErrors  extends FileFormatError
 	{	
 	private static String vertical(final List<String> tokens) {
