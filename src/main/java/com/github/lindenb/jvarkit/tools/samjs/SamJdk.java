@@ -166,13 +166,21 @@ remove reads with indels:
 java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return false; Cigar cigar=record.getCigar();if(cigar==null) return false; for(int i=0;i< cigar.numCigarElements();++i) {if(cigar.getCigarElement(i).getOperator().isIndelOrSkippedRegion()) return false; } return true;' input.bam
 ```
 
+### Example 3
+
+select unmappeds read or clipped reads
+
+```
+java -jar dist/samjdk.jar -o out.bam -e 'return record.getReadUnmappedFlag() || record.getCigar().getCigarElements().stream().anyMatch(C->C.getOperator().isClipping());'  in.bam
+```
+
 
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={}
+	biostars={270879}
 	)
 public class SamJdk
 	extends Launcher

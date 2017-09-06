@@ -33,6 +33,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -41,7 +45,10 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -79,51 +86,94 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	
 	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
-	@Parameter(names={"-n","--count"},description="number of variants")
-	private long count=10;
-	@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
-	private boolean by_contig=false;
+
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
 	@ParametersDelegate
 	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 	
 	public VcfHead()
 		{
 		}
-	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-		long n=0L;
-		String prev_contig=null;
-
-		try
+	
+	@XmlRootElement(name="vcfhead")
+	public static class CtxWriterFactory 
+		implements VariantContextWriterFactory
+		{
+		@XmlElement
+		@Parameter(names={"-n","--count"},description="number of variants")
+		private long count=10;
+		@XmlElement
+		@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
+		private boolean by_contig=false;
+		
+		public void setCount(long count) {
+			this.count = count;
+			}
+		
+		public void setByContig(boolean by_contig) {
+			this.by_contig = by_contig;
+			}
+		
+		private class CtxWriter extends DelegateVariantContextWriter
 			{
-			final VCFHeader header2=  new VCFHeader(in.getHeader());
-			out.writeHeader(header2);
-			while(in.hasNext())
-				{
-				final VariantContext ctx = in.next();
-				if(this.by_contig && (prev_contig==null ||
-						!prev_contig.equals(ctx.getContig())))
+			private long n=0L;
+			private String prev_contig=null;
+			private boolean done = false;
+
+			CtxWriter(final VariantContextWriter delegate) {
+				super(delegate);
+				}
+			@Override
+			public void writeHeader(final VCFHeader header) {
+				getDelegate().writeHeader(header);
+				}
+			@Override
+			public void add(final VariantContext ctx) {
+				if( this.done ) return;
+				if(CtxWriterFactory.this.by_contig && 
+						(this.prev_contig==null ||
+						!this.prev_contig.equals(ctx.getContig())))
 					{
-					prev_contig = ctx.getContig();
-					n=0L;
+					this.prev_contig = ctx.getContig();
+					this.n=0L;
 					};
 					
-				if(n<this.count) {
-					out.add(ctx);
+				if(n< CtxWriterFactory.this.count) {
+					this.getDelegate().add(ctx);
 					++n;
 					}
-				else if(!this.by_contig)
+				else if(! CtxWriterFactory.this.by_contig )
 					{
-					break;
+					 this.done=true;
 					}
 				}
-			return 0;
 			}
-		catch(final Exception err)
+		
+		@Override
+		public CtxWriter open(final VariantContextWriter delegate) {
+			return new CtxWriter(delegate);
+			}
+		}
+	
+	@Override
+	protected int doVcfToVcf(
+			final String inputName,
+			final VcfIterator in,
+			final VariantContextWriter delegate
+			) 
+		{
+		final CtxWriterFactory.CtxWriter out = this.component.open(delegate);
+		out.writeHeader(in.getHeader());
+		
+		final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+		while(in.hasNext() && !out.done)
 			{
-			LOG.error(err);
-			return -1;
+			out.add(progress.watch(in.next()));
 			}
+		progress.finish();
+		out.close();
+		return 0;
 		}
 	
 	@Override
@@ -133,7 +183,15 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		return doVcfToVcf(args, this.output);
+		try
+			{
+			if(this.component.initialize()!=0) return -1;
+			return doVcfToVcf(args, this.output);
+			}
+		finally
+			{
+			CloserUtil.close(this.component);
+			}
 		}
 		
 	public static void main(String[] args)

@@ -61,8 +61,8 @@ public class SequenceOntologyTree
 	{
 
 	private static SequenceOntologyTree INSTANCE=null;
-	private final Map<String,TermImpl> acn2term=new HashMap<String,TermImpl>(3000);
-	private final Map<String,TermImpl> label2term=new HashMap<String,TermImpl>(3000);
+	private final Map<String,TermImpl> acn2term=new HashMap<>(3000);
+	private final Map<String,TermImpl> label2term=new HashMap<>(3000);
 	
 	
 	public interface Term
@@ -2438,7 +2438,7 @@ public class SequenceOntologyTree
 
 		
 		
-		for(TermImpl t:tree.acn2term.values()) {
+		for(final TermImpl t:tree.acn2term.values()) {
 			if(t.label==null) throw new JvarkitException.ProgrammingError("term "+t.accession+" has no label");
 			if(t!=tree.getTermByLabel(t.label)) throw new JvarkitException.ProgrammingError("???");
 		}

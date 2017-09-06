@@ -166,7 +166,7 @@ public class VCFBigWig extends Launcher
 		
 		
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromContigSet(new HashSet<>(this.bbFileReader.getChromosomeNames()));
-		
+		contigNameConverter.setOnNotFound(this.onContigNotFound);
 		
 		final Set<String> userContigsNotFound = new HashSet<>();
 		

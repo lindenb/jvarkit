@@ -54,6 +54,12 @@ Usage: samjdk [options] Files
  * filter
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/270879](https://www.biostars.org/p/270879)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -88,9 +94,14 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java)
+
+Git History for this file:
+```
+Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
+Mon Aug 7 15:05:18 2017 +0200 ; samjdk ; https://github.com/lindenb/jvarkit/commit/93cb0448be4d6deb253b21620d1da63ad2be9475
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -217,6 +228,14 @@ remove reads with indels:
 
 ```
 java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return false; Cigar cigar=record.getCigar();if(cigar==null) return false; for(int i=0;i< cigar.numCigarElements();++i) {if(cigar.getCigarElement(i).getOperator().isIndelOrSkippedRegion()) return false; } return true;' input.bam
+```
+
+### Example 3
+
+select unmappeds read or clipped reads
+
+```
+java -jar dist/samjdk.jar -o out.bam -e 'return record.getReadUnmappedFlag() || record.getCigar().getCigarElements().stream().anyMatch(C->C.getOperator().isClipping());'  in.bam
 ```
 
 

@@ -153,13 +153,13 @@ public boolean hasSequenceOntologyTerm(final VariantContext ctx,final SequenceOn
 	{
 	if(t==null) return false;
 	final Set<SequenceOntologyTree.Term> children=t.getAllDescendants();
-	for(AnnPredictionParser.AnnPrediction a: getAnnPredictions(ctx)) {
+	for(final AnnPredictionParser.AnnPrediction a: getAnnPredictions(ctx)) {
 		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
 		}
-	for(VepPredictionParser.VepPrediction a: getVepPredictions(ctx)) {
+	for(final VepPredictionParser.VepPrediction a: getVepPredictions(ctx)) {
 		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
 		}
-	for(SnpEffPredictionParser.SnpEffPrediction a: getSnpEffPredictions(ctx)) {
+	for(final SnpEffPredictionParser.SnpEffPrediction a: getSnpEffPredictions(ctx)) {
 		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
 		}
 	
