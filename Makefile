@@ -199,7 +199,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfconcat	vcfcutsamples	vcffilterdoid		vcfgo \
 	vcfjaspar	vcfliftover	vcfmerge	vcfmulti2one \
 	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
-	vcfresetvcf	vcfsetdict	vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
+	vcfresetvcf	vcfsetdict	vcfmakedict vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
 	vcftabixml	vcftreepack	 vcfvcf	worldmapgenome \
 	uniprotfilterjs skipxmlelements vcfensemblvep vcfgroupbypop bamtile xcontaminations \
 	biostar3654  bioalcidae bioalcidaejdk vcfburden  vcfreplacetag vcfindextabix \
@@ -432,6 +432,7 @@ $(eval $(call compile-htsjdk-cmd,vcfrenamesamples,${jvarkit.package}.tools.misc.
 $(eval $(call compile-htsjdk-cmd,vcfresetvcf,${jvarkit.package}.tools.misc.VcfRemoveGenotypeIfInVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfremovegenotypejs,${jvarkit.package}.tools.misc.VcfRemoveGenotypeJs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfsetdict,${jvarkit.package}.tools.misc.VcfSetSequenceDictionary,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfmakedict,${jvarkit.package}.tools.misc.VcfCreateDictionary,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfshuffle,${jvarkit.package}.tools.misc.VCFShuffle,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcfsimulator,${jvarkit.package}.tools.misc.VcfSimulator,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfstats,${jvarkit.package}.tools.vcfstats.VcfStats,${jcommander.jar}))

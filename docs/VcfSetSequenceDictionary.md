@@ -13,8 +13,6 @@ Usage: vcfsetdict [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    -d, --newdict
-      At the end, save an alternate dict in that file.
     --onNotFound
       Contig converter. I will do my best to convert the contig names (e.g 
       'chr1' -> '1'): But what should I do when comparing two dictionaries 
@@ -23,7 +21,7 @@ Usage: vcfsetdict [options] Files
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
     -o, --output
       Output file. Optional . Default: stdout
-    -r, -R, --reference
+  * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     --version
@@ -77,6 +75,7 @@ http.proxy.port=124567
 
 Git History for this file:
 ```
+Fri Aug 11 15:52:02 2017 +0200 ; git history, formatting ; https://github.com/lindenb/jvarkit/commit/cf2eb57ad251cd15ae1332db9dcd062cae607d38
 Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
 Fri Jul 7 18:36:14 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c5dc2be25578f7cbc60c0f5425bacf4450893c92
 Wed Jun 21 17:31:49 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/556a9b4ed5d047a215e160c0a480ea241cea83d9
@@ -120,6 +119,10 @@ The tool will try to convert the contig names ('1' -> 'chr1') according to the n
 ```
 java  -jar jvarkit-git/vcfsetdict.jar --onNotFound SKIP -r ref.fasta input.vcf > out.vcf
 ```
+
+## History
+
+* [20170906] remove the creation of a dictionary, moved to VcfCreateDictionary
 
 
 

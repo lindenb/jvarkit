@@ -25,17 +25,16 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
-import htsjdk.samtools.SAMFileHeader;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -44,11 +43,14 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /**
 BEGIN_DOC
@@ -61,6 +63,10 @@ The tool will try to convert the contig names ('1' -> 'chr1') according to the n
 java  -jar jvarkit-git/vcfsetdict.jar --onNotFound SKIP -r ref.fasta input.vcf > out.vcf
 ```
 
+## History
+
+* [20170906] remove the creation of a dictionary, moved to VcfCreateDictionary
+
 
 END_DOC
 
@@ -70,162 +76,152 @@ END_DOC
 	keywords={"vcf","dict","fai"}
 	)
 public class VcfSetSequenceDictionary extends Launcher
-{
+	{
 	private static final Logger LOG=Logger.build(VcfSetSequenceDictionary.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-
-
-	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File faidx=null;
-	@Parameter(names={"--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
-	private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
 	
-	
-	@Parameter(names={"-d","--newdict"},description="At the end, save an alternate dict in that file.")
-	private File newDictOut=null;
 
-	private SAMSequenceDictionary dict=null;
-	private LinkedHashMap<String, Integer> buildNewDictionary =null;
+	@XmlRootElement(name="vcfsetdict")
+	public static class CtxWriterFactory 
+		implements VariantContextWriterFactory
+			{
+			@XmlElement
+			@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+			private File faidx=null;
+			@XmlElement
+			@Parameter(names={"--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
+			private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;			
+		
+			private SAMSequenceDictionary dict=null;
+			
+			public void setReference(File faidx) {
+				this.faidx = faidx;
+				}
+			public void setOnContigNotFound(ContigNameConverter.OnNotFound onContigNotFound) {
+				this.onContigNotFound = onContigNotFound;
+				}
+			
+			
+			
+			private  class CtxWriter extends DelegateVariantContextWriter
+				{
+				private ContigNameConverter contigNameConverter;
+				private final Set<String> inputContigsNotFound=new HashSet<>();
+
+				CtxWriter(final VariantContextWriter delegate) {
+					super(delegate);
+					}
+				
+				@Override
+				public void writeHeader(final VCFHeader header) {
+					final VCFHeader header2 = new VCFHeader(header);
+					
+					final SAMSequenceDictionary oldDict = header.getSequenceDictionary();
+					header2.setSequenceDictionary(CtxWriterFactory.this.dict);
+					if(oldDict!=null && !oldDict.isEmpty())
+						{
+						this.contigNameConverter = ContigNameConverter.fromDictionaries(oldDict, CtxWriterFactory.this.dict);
+						}
+					else
+						{
+						this.contigNameConverter = ContigNameConverter.fromOneDictionary(CtxWriterFactory.this.dict);
+						}
+					this.contigNameConverter.setOnNotFound(CtxWriterFactory.this.onContigNotFound);
+					super.writeHeader(header2);
+					}
+				@Override
+				public void add(final VariantContext ctx) {
+					final String newContig = this.contigNameConverter.apply(ctx.getContig());
+					if(newContig==null)
+						{
+						if(!inputContigsNotFound.contains(ctx.getContig())) {
+							LOG.info("cannot convert contig "+ctx.getContig()+ " for new dictionary");
+							inputContigsNotFound.add(ctx.getContig());
+							}
+						return;
+						}
+					else if(newContig.equals(ctx.getContig()))
+						{
+						super.add(ctx);
+						}
+					else
+						{
+						super.add(new VariantContextBuilder(ctx).chr(newContig).make());
+						}
+					}
+				@Override
+				public void close() {
+					this.inputContigsNotFound.stream().forEach(chrom->
+						{
+						LOG.warn("Variant(s) with Contig \'"+chrom+"\' could not be converted to new Dictionary and where ignored");
+						});
+					this.inputContigsNotFound.clear();
+					super.close();
+					}
+				}
+			
+			@Override
+			public int initialize() {
+				Objects.requireNonNull(this.faidx);
+				this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
+				return 0;
+				}
+			
+			@Override
+			public VariantContextWriter open(VariantContextWriter delegate) {
+				return new CtxWriter(delegate);
+				}
+			
+			@Override
+			public void close() throws IOException {
+				this.dict=null;
+				}
+			
+			}
 
 	private VcfSetSequenceDictionary()
-	{
-	}
+		{
+		}
 
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
 		final VcfIterator in,
-		final VariantContextWriter out
+		final VariantContextWriter delegate
 		) 
 	    {
-		final VCFHeader header=in.getHeader();		
-		final VCFHeader header2=new VCFHeader(header);
-		final ContigNameConverter contigNameConverter;
+		final VariantContextWriter out = this.component.open(delegate);
 		
-		if(this.dict!=null)
-			{	
-			final SAMSequenceDictionary oldDict = header.getSequenceDictionary();
-			header2.setSequenceDictionary(this.dict);
-			if(oldDict!=null && !oldDict.isEmpty())
-				{
-				contigNameConverter = ContigNameConverter.fromDictionaries(oldDict, this.dict);
-				}
-			else
-				{
-				contigNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
-				}
-			}
-		else
-			{
-			header2.setSequenceDictionary(new SAMSequenceDictionary());//
-			LOG.warning("No sequence dictionary was defined");
-			contigNameConverter = ContigNameConverter.getIdentity();
-			}
-		
-		contigNameConverter.setOnNotFound(this.onContigNotFound);
-		
-		final Set<String> inputContigsNotFound=new HashSet<>();
-		
-		out.writeHeader(header2);
-		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
+		out.writeHeader(in.getHeader());
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
 		while(in.hasNext())
-		{
-			final VariantContext ctx=progress.watch(in.next());
-			
-			
-			if(this.buildNewDictionary!=null)
 			{
-				Integer length=this.buildNewDictionary.get(ctx.getContig());
-				if(length==null) length=0;
-				if(ctx.getEnd()>length)
-				{
-					this.buildNewDictionary.put(ctx.getContig(),ctx.getEnd());
-				}
-			}
-
-			final String newContig = contigNameConverter.apply(ctx.getContig());
-			if(newContig==null)
-				{
-				if(!inputContigsNotFound.contains(ctx.getContig())) {
-					LOG.info("cannot convert contig "+ctx.getContig()+ " for new dictionary");
-					inputContigsNotFound.add(ctx.getContig());
-					}
-				continue;
-				}
-			else if(newContig.equals(ctx.getContig()))
-				{
-				out.add(ctx);
-				}
-			else
-				{
-				out.add(new VariantContextBuilder(ctx).chr(newContig).make());
-				}
+			out.add(progress.watch(in.next()));
 			}
 		progress.finish();
-		
-		if(!inputContigsNotFound.isEmpty())
-			{
-			for(final String chrom: inputContigsNotFound)
-				{
-				LOG.warn("Variant with Contig "+chrom+" could not be converted to new Dictionary and where ignored");
-				}
-			}
-		
 		return 0;
-	}
+	    }
 
 	@Override
 	public int doWork(final List<String> args) {
-		if (newDictOut != null) {
-			if (!newDictOut.getName().endsWith(".dict")) {
-				LOG.error("dictionary should end with .dict :" + newDictOut);
-				return -1;
-			}
-			this.buildNewDictionary = new LinkedHashMap<String, Integer>();
-		}
-		FileWriter out = null;
 		try {
-			if (this.faidx != null) {
-				this.dict = SAMSequenceDictionaryExtractor.extractDictionary(faidx);
-			} else 
-				if(newDictOut==null)
-				{
-				LOG.error("new dictionary undefined");
+			if(this.component.initialize()!=0) {
 				return -1;
 				}
-
-			final int err = doVcfToVcf(args, this.outputFile);
-
-			if (newDictOut != null) {
-				LOG.info("Saving alt dictionary " + newDictOut);
-
-				final List<SAMSequenceRecord> list = new ArrayList<SAMSequenceRecord>(buildNewDictionary.size());
-				for (final String k : this.buildNewDictionary.keySet()) {
-					list.add(new SAMSequenceRecord(k, this.buildNewDictionary.get(k)));
-				}
-				final SAMFileHeader sfh = new SAMFileHeader();
-				sfh.setSequenceDictionary(new SAMSequenceDictionary(list));
-				final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
-				codec.setValidationStringency(htsjdk.samtools.ValidationStringency.SILENT);
-				out = new FileWriter(this.newDictOut);
-				codec.encode(out, sfh);
-				out.flush();
-			}
-			
-			return err;
+			 return doVcfToVcf(args, this.outputFile);
 		} catch (final Exception err2) {
 			LOG.error(err2);
 			return -1;
 		} finally {
-			CloserUtil.close(out);
+			CloserUtil.close(this.component);
 		}
-
 	}
 
-	public static void main(final String[] args)
-	{
+	public static void main(final String[] args) {
 		new VcfSetSequenceDictionary().instanceMainWithExit(args);
 	}
 }
