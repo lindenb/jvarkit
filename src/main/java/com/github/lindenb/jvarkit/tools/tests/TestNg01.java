@@ -1,3 +1,28 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.tests;
 import java.io.BufferedReader;
 import java.io.File;
@@ -5,6 +30,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -27,7 +53,11 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
+import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IterableAdapter;
@@ -235,10 +265,11 @@ class TestNg01 {
     
     @Test
     public void testVcfLoopOverGenes() throws IOException{    
+    	final String prefix="vlog";
     	File genes = new File(TEST_RESULTS_DIR,"jeter.genes.txt");
     	Assert.assertEquals(0,new VcfLoopOverGenes().instanceMain(new String[]{
         		"-o",genes.getPath(),
-        		"-p","vlog",
+        		"-p",prefix,
         		"--snpEffNoIntergenic",
         		VCF01
         		}));
@@ -256,7 +287,7 @@ class TestNg01 {
         		"--splitMethod","VariantSlidingWindow",
         		"--variantsWinCount","10",
         		"--variantsWinShift","10",
-        		"-p","vlog",
+        		"-p",prefix,
         		"--snpEffNoIntergenic",
         		VCF01
         		}));
@@ -266,17 +297,61 @@ class TestNg01 {
         		"-g",genes.getPath(),
         		VCF01
         		}));
-    	Arrays.asList(TEST_RESULTS_DIR.listFiles()).stream().filter(F->F.getName().startsWith("vlop") && F.getName().endsWith(".vcf")).forEach(F->F.delete());
+    	Arrays.asList(TEST_RESULTS_DIR.listFiles()).stream().
+    		filter(F->F.getName().startsWith(prefix) && F.getName().endsWith(".vcf")).
+    		forEach(F->F.delete());
     	}
-    
+    @Test
     public void testBiostar86480() throws IOException{    
     	File tmp = new File(TEST_RESULTS_DIR, "tmp.txt");
     	Assert.assertEquals(0,new Biostar86480().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
+        		"-o",tmp.getPath(),
         		"-E","EcoRI",
         		"-E","BamHI",
         		TOY_FA
         		}));
     	}
-    
+    @Test
+    public void testVcfFilterSo() throws IOException{   
+    	final AnnPredictionParser parser = new AnnPredictionParserFactory().createDefaultParser();
+    	final SequenceOntologyTree tree = SequenceOntologyTree.getInstance();
+    	String acn = "SO:0001583";
+    	final SequenceOntologyTree.Term term =tree.getTermByAcn(acn);
+    	final Set<SequenceOntologyTree.Term> terms = term.getAllDescendants();
+    	Assert.assertNotNull(term);
+    	
+    	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		"-A",acn,
+        		VCF01
+        		}));
+    	streamVcf(JETER_VCF).forEach(V->{
+    		Assert.assertTrue(parser.getPredictions(V).stream().
+    			flatMap(P->P.getSOTerms().stream()).
+				anyMatch(T->terms.contains(V)));
+    	});
+    	
+    	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		"-A",acn,
+        		"--invert",
+        		VCF01
+        		}));
+    	streamVcf(JETER_VCF).forEach(V->{
+    		Assert.assertFalse(parser.getPredictions(V).stream().
+    			flatMap(P->P.getSOTerms().stream()).
+				anyMatch(T->terms.contains(V)));
+    	});
+
+    	
+    	
+    	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		"-A",acn,
+        		"--rmatt",
+        		VCF01
+        		}));
+    	Assert.assertTrue(streamVcf(JETER_VCF).findAny().isPresent());
+    	}
+
 	}
