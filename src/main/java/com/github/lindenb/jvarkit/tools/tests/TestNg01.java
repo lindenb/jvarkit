@@ -38,11 +38,14 @@ import org.testng.Assert;
 import org.testng.annotations.*;
 
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
+import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
+import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
 import com.github.lindenb.jvarkit.tools.burden.VcfInjectPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
+import com.github.lindenb.jvarkit.tools.misc.BamToSql;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
@@ -52,9 +55,12 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
+import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
+import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
+import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -175,27 +181,50 @@ class TestNg01 {
         Assert.assertTrue( JETER_VCF.exists());
         Assert.assertEquals(streamVcf(JETER_VCF).filter(V->V.getStart()%2!=0).count(),0L);
     	}
-
+    
+    @Test
     public void testSamJdk() throws IOException{
     	File tmp = new File(TEST_RESULTS_DIR,"jeter.sam");
-    	Assert.assertEquals(0,new VcfFilterJdk().instanceMain(new String[]{
+    	Assert.assertEquals(0,new SamJdk().instanceMain(new String[]{
         		"-o",tmp.getPath(),
         		"-e","return record.getStart()%2==0;",
         		TOY_BAM
         	}));
         Assert.assertTrue( tmp.exists());
     	}
-
+    @Test
     public void testBamToRaster() throws IOException{
     	File tmp = new File(TEST_RESULTS_DIR,"jeter.png");
     	Assert.assertEquals(0,new Bam2Raster().instanceMain(new String[]{
         		"-o",tmp.getPath(),
         		"-R",TOY_FA,
-        		"-r","seq:1-100",
+        		"-r","ref:1-100",
         		TOY_BAM
         	}));
         Assert.assertTrue( tmp.exists());
     	}
+    @Test
+    public void testBamToSql() throws IOException{
+    	File tmp = new File(TEST_RESULTS_DIR,"jeter.sql");
+    	Assert.assertEquals(0,new BamToSql().instanceMain(new String[]{
+        		"-o",tmp.getPath(),
+        		"-R",TOY_FA,
+        		"-r","ref:1-100",
+        		TOY_BAM
+        	}));
+        Assert.assertTrue( tmp.exists());
+    	}
+    @Test
+    public void testLowResBamToRaster() throws IOException{
+	File tmp = new File(TEST_RESULTS_DIR,"jeter.png");
+	Assert.assertEquals(0,new LowResBam2Raster().instanceMain(new String[]{
+    		"-o",tmp.getPath(),
+    		"-R",TOY_FA,
+    		"-r","ref:1-100",
+    		TOY_BAM
+    	}));
+    Assert.assertTrue( tmp.exists());
+	}
     
     @Test
     public void testVcfPolyX() throws IOException{
@@ -285,8 +314,8 @@ class TestNg01 {
     	Assert.assertEquals(0,new VcfLoopOverGenes().instanceMain(new String[]{
         		"-o",genes.getPath(),
         		"--splitMethod","VariantSlidingWindow",
-        		"--variantsWinCount","10",
-        		"--variantsWinShift","10",
+        		"--variantsWinCount","50",
+        		"--variantsWinShift","50",
         		"-p",prefix,
         		"--snpEffNoIntergenic",
         		VCF01
@@ -353,5 +382,30 @@ class TestNg01 {
         		}));
     	Assert.assertTrue(streamVcf(JETER_VCF).findAny().isPresent());
     	}
+    @Test
+    public void testVcfRebase() throws IOException{    
+    	Assert.assertEquals(0,new VcfRebase().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		"-R",TOY_FA,
+        		TOY_VCF_GZ}));
+    	}
+    @Test
+    public void testCaseCtrlCanvas() throws IOException{    
+    	File tmp = new File(TEST_RESULTS_DIR, "tmp.png");
 
+    	Assert.assertEquals(0,new CaseControlCanvas.Main().instanceMain(new String[]{
+        		"-o",tmp.getPath(),
+        		"--pedigree",PED01,
+        		VCF01}));
+    	}
+    @Test
+    public void testVcfStats() throws IOException{    
+    	final File tmp = new File(TEST_RESULTS_DIR, "jeter.zip");
+
+    	Assert.assertEquals(0,new VcfStats().instanceMain(new String[]{
+        		"-o",tmp.getPath(),
+        		"--pedigree",PED01,
+        		VCF01}));
+    	Assert.assertTrue( tmp.exists());
+    	}
 	}
