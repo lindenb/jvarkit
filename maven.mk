@@ -19,6 +19,9 @@ htsjdk.jars  =  \
 	$(lib.dir)/org/tukaani/xz/1.5/xz-1.5.jar \
 	$(lib.dir)/org/xerial/snappy/snappy-java/1.0.3-rc3/snappy-java-1.0.3-rc3.jar
 
+testng.jars = \
+	$(lib.dir)/org/testng/testng/6.11/testng-6.11.jar
+
 commons.loggging.jars = \
 	$(lib.dir)/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
 
@@ -117,7 +120,7 @@ drools.jar  =  \
 	$(lib.dir)/xpp3/xpp3_min/1.1.3.4.O/xpp3_min-1.1.3.4.O.jar
 
 	
-all_maven_jars = $(sort ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
+all_maven_jars = $(sort ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
 
 
 ${all_maven_jars}  : 
