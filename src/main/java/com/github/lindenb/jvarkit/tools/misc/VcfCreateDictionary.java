@@ -73,7 +73,7 @@ public class VcfCreateDictionary extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	
-	private VcfCreateDictionary()
+	public VcfCreateDictionary()
 		{
 		}
 

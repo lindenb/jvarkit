@@ -183,7 +183,7 @@ public class VcfSetSequenceDictionary extends Launcher
 			
 			}
 
-	private VcfSetSequenceDictionary()
+	public VcfSetSequenceDictionary()
 		{
 		}
 

@@ -94,7 +94,7 @@ public class Biostar86480 extends Launcher
 
 	private Rebase rebase=Rebase.createDefaultRebase();
 	
-	private Biostar86480()
+	public Biostar86480()
 		{
 		}
 

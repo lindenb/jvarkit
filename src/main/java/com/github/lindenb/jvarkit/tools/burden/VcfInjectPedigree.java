@@ -43,7 +43,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary.CtxWriterFactory;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
@@ -261,7 +260,6 @@ public class VcfInjectPedigree
 				}
 			@Override
 			public void close() throws IOException {
-				this.close();
 				}
 			}
 	
@@ -295,7 +293,14 @@ public class VcfInjectPedigree
 		try
 			{
 			if(this.component.initialize()!=0) return -1;
-			return doVcfToVcf(args, outputFile);
+			final int ret= doVcfToVcf(args, outputFile);
+			LOG.info("ret:"+ret);
+			return ret;
+			}
+		catch(final Throwable err)
+			{
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

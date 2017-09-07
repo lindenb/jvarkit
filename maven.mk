@@ -19,8 +19,6 @@ htsjdk.jars  =  \
 	$(lib.dir)/org/tukaani/xz/1.5/xz-1.5.jar \
 	$(lib.dir)/org/xerial/snappy/snappy-java/1.0.3-rc3/snappy-java-1.0.3-rc3.jar
 
-testng.jars = \
-	$(lib.dir)/org/testng/testng/6.11/testng-6.11.jar
 
 commons.loggging.jars = \
 	$(lib.dir)/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
@@ -93,6 +91,10 @@ velocity.jars  =  \
 jcommander.jar= \
 	$(lib.dir)/com/beust/jcommander/1.64/jcommander-1.64.jar
 
+
+testng.jars = \
+	$(lib.dir)/org/testng/testng/6.11/testng-6.11.jar \
+	${jcommander.jar}
 
 javacc.jar=\
 	$(lib.dir)/net/java/dev/javacc/javacc/7.0.2/javacc-7.0.2.jar

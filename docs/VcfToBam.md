@@ -77,9 +77,21 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBam.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBam.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBam.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBam.java)
+
+Git History for this file:
+```
+Mon Sep 4 17:34:39 2017 +0200 ; fix https://github.com/lindenb/jvarkit/issues/86#issuecomment-326986654 ; https://github.com/lindenb/jvarkit/commit/7e9a296f733cfa76364b92b34707ec33d8e26f64
+Sun Sep 3 00:12:21 2017 +0200 ; fix https://github.com/lindenb/jvarkit/issues/86 ; https://github.com/lindenb/jvarkit/commit/28ae7e722db261d7d337e066f52bfb9d88e53733
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Tue Apr 18 18:26:58 2017 +0200 ; which changes ?? ; https://github.com/lindenb/jvarkit/commit/2d7cf86faca95815601e4bdd516a757c960749a3
+Fri Oct 2 18:46:06 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/470e305ccf3036229546d3f3232d5cc8b230fc27
+Thu Jun 25 16:18:29 2015 +0200 ; extends REF sequence with clipped reads #tweet ; https://github.com/lindenb/jvarkit/commit/e3e4b7c31e357848b2e156affaaead86a8b5cefe
+Fri Jun 12 21:12:27 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/56febbf1d9207f523d3ce342ca6c7b7ecf681fcc
+Fri Jun 12 18:32:07 2015 +0200 ; starting vcf to bam ; https://github.com/lindenb/jvarkit/commit/dfa534e03f973083f41247bdae20637f6232a358
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

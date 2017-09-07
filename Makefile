@@ -234,8 +234,14 @@ galaxy: ${GALAXY_APPS}
 
 burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcfmovefilterstoinfo
 
-tests: 
-	(cd ${this.dir}tests && $(MAKE))
+
+${dist.dir}/testsng.jar:testsng
+tests: ${testng.jars} ${dist.dir}/testsng.jar
+	-${JAVA} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" org.testng.TestNG -parallel false \
+		-suitename "jvarkit" -testname "jvarkit" \
+		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
+	rm -vf ${dist.dir}/testsng.jar
+	
 
 #bigwig
 $(eval $(call compile-htsjdk-cmd,vcfbigwig,		${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${jcommander.jar} ${bigwig.jars}))
@@ -528,6 +534,8 @@ $(eval $(call compile-htsjdk-cmd,optimizer,${jvarkit.package}.tools.optimizer.Op
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.vg.VcfToGraph,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))
+$(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}))
+
 
 
 ij: ${dist.dir}/ij
