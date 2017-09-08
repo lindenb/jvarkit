@@ -213,7 +213,7 @@ public class VcfFilterNotInPedigree
 		final VariantContextWriter out = this.component.open(delegate);
 		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
 		out.writeHeader(in.getHeader());
-		while(in.hasNext() &&  !out.checkError())
+		while(in.hasNext())
 			{
 			out.add(progess.watch(in.next()));
 			}

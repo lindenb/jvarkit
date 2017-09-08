@@ -534,7 +534,7 @@ $(eval $(call compile-htsjdk-cmd,optimizer,${jvarkit.package}.tools.optimizer.Op
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.vg.VcfToGraph,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))
-$(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}))
+$(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}  ${bigwig.jars}))
 
 
 

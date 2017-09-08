@@ -30,20 +30,26 @@ History:
 package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.tools.vcfcmp.EqualRangeVcfIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -96,110 +102,113 @@ public class VcfBurdenFilterExac
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-exac","--exac"},description="Path to Exac VCF file. At the time of writing, you'd better use a normalized version of Exac (see https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )")
-	private File exacFile = null;
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
 
-	@Parameter(names={"-d","--discardNotInExac"},description="if variant was not found in Exac, set the FILTER. Default: don't set the FILTER.")
-	private boolean ifNotInExacThenDiscard = false;
-
-	@Parameter(names={"-maxFreq","--maxFreq"},description="set FILTER if max(exac frequency in any pop) is greater than this value)")
-	private double maxFreq = 0.001 ;
-
-	@Parameter(names={"-pop","--population"},description="comma separated populations in exac")
-	private String exacPopulationStr = "AFR,AMR,EAS,FIN,NFE,SAS";
-
-	@Parameter(names={"-tabix","--tabix"},description="use tabix index for Exac it is present. Might speed up things if the number of variant is low.")
-	private boolean useTabixIndex = false;
-	
-	public VcfBurdenFilterExac()
+	public static class CtxWriterFactory 
+	implements VariantContextWriterFactory
 		{
-		}
-	 
-	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator vcfIterator,final VariantContextWriter out) {
+		@Parameter(names={"-exac","--exac"},description="Path to Exac VCF file. At the time of writing, you'd better use a normalized version of Exac (see https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )",required=true)
+		private File exacFile = null;
+	
+		@Parameter(names={"-d","--discardNotInExac"},description="if variant was not found in Exac, set the FILTER. Default: don't set the FILTER.")
+		private boolean ifNotInExacThenDiscard = false;
+	
+		@Parameter(names={"-maxFreq","--maxFreq"},description="set FILTER if max(exac frequency in any pop) is greater than this value)")
+		private double maxFreq = 0.001 ;
+	
+		@Parameter(names={"-pop","--population"},description="comma separated populations in exac")
+		private String exacPopulationStr = "AFR,AMR,EAS,FIN,NFE,SAS";
+	
+		@Parameter(names={"-tabix","--tabix"},description="use tabix index for Exac it is present. Might speed up things if the number of variant is low.")
+		private boolean useTabixIndex = false;
 		
-		VcfIterator exacIn =null;
-		VCFFileReader tabix=null;
-		final VcfIterator in = VCFUtils.createAssertSortedVcfIterator(vcfIterator, VCFUtils.createTidPosComparator(vcfIterator.getHeader().getSequenceDictionary()));
-		EqualRangeVcfIterator equalRange = null;
-		final String exacPopulations[]= this.exacPopulationStr.split("[,]+");
-		final VCFHeader exacHeader;
-		try {
-			LOG.info("open "+this.exacFile);
-			if(this.useTabixIndex && VCFUtils.isTabixVcfFile(this.exacFile))
-				{
-				tabix = new VCFFileReader(this.exacFile,true);
-				exacIn = null;
-				equalRange = null;
-				exacHeader = tabix.getFileHeader();
+		private class CtxWriter extends DelegateVariantContextWriter
+			{
+			private final String exacPopulations[];
+			private final VcfIterator exacIn;
+			private final VCFFileReader tabix;
+			private final EqualRangeVcfIterator equalRange;
+			private final VCFHeader exacHeader;
+			private VCFFilterHeaderLine filter = null;
+			private VCFInfoHeaderLine freqExacInfoHeader = null;
+			CtxWriter(final VariantContextWriter delegate) {
+				super(delegate);
+				this.exacPopulations= CtxWriterFactory.this.exacPopulationStr.split("[,]+");
+				
+				try {
+					LOG.info("open "+CtxWriterFactory.this.exacFile);
+					if(CtxWriterFactory.this.useTabixIndex && VCFUtils.isTabixVcfFile(CtxWriterFactory.this.exacFile))
+						{
+						this.tabix = new VCFFileReader(CtxWriterFactory.this.exacFile,true);
+						this.exacIn = null;
+						this.equalRange = null;
+						this.exacHeader = tabix.getFileHeader();
+						}
+					else
+						{
+						this.tabix=null;
+						this.exacIn = VCFUtils.createVcfIteratorFromFile(CtxWriterFactory.this.exacFile);
+						this.equalRange = new EqualRangeVcfIterator(exacIn, VCFUtils.createTidPosComparator(exacIn.getHeader().getSequenceDictionary()));
+						this.exacHeader = exacIn.getHeader();
+						}
+					}
+				catch(final IOException err)
+					{
+					throw new RuntimeIOException(err);
+					}
 				}
-			else
+			@Override
+			public void writeHeader(final VCFHeader header)
 				{
-				tabix=null;
-				exacIn = VCFUtils.createVcfIteratorFromFile(this.exacFile);
-				equalRange = new EqualRangeVcfIterator(exacIn, VCFUtils.createTidPosComparator(exacIn.getHeader().getSequenceDictionary()));
-				exacHeader = exacIn.getHeader();
+				final VCFHeader h2= new VCFHeader(header);
+				
+				this.filter = new VCFFilterHeaderLine("BurdenExac",
+							"Freq:"+CtxWriterFactory.this.maxFreq+" Pop:"+CtxWriterFactory.this.exacPopulationStr);
+				h2.addMetaDataLine(this.filter);
+					
+				this.freqExacInfoHeader = new VCFInfoHeaderLine(
+						"FreqExac",
+						VCFHeaderLineCount.A,
+						VCFHeaderLineType.Float,
+						"Freq in Exac AC/AN"
+						);
+				h2.addMetaDataLine(freqExacInfoHeader);
+				
+				
+				for(final String pop:exacPopulations)
+					{
+					if(pop.isEmpty()) continue;
+					final VCFInfoHeaderLine ac = exacHeader.getInfoHeaderLine("AC_"+pop);
+					if(ac==null) 
+						{
+						throw new JvarkitException.FileFormatError("Cannot find AC_"+pop+" in "+CtxWriterFactory.this.exacFile+" header");
+						}
+					if(ac.getCountType()!=VCFHeaderLineCount.A)
+						{
+						throw new JvarkitException.FileFormatError("expected VCFHeaderLineCount.A for "+ac );
+						}
+					h2.addMetaDataLine(ac);
+					final VCFInfoHeaderLine an = exacHeader.getInfoHeaderLine("AN_"+pop);
+					if(an==null)
+						{
+						throw new JvarkitException.FileFormatError("Cannot find AN_"+pop+" in "+CtxWriterFactory.this.exacFile+" header");
+						}
+					if(an.getCount()!=1)
+						{
+						throw new JvarkitException.FileFormatError("expected getCount==1 for "+an );
+						}
+					h2.addMetaDataLine(an);
+					}
+				super.writeHeader(h2);
 				}
 			
-			
-			final VCFHeader header=in.getHeader();
-			final VCFHeader h2=addMetaData(new VCFHeader(header));
-			
-
-			
-			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine("BurdenExac",
-					"Freq:"+this.maxFreq+" Pop:"+this.exacPopulationStr);
-			h2.addMetaDataLine(filter);
-			
-			final VCFInfoHeaderLine freqExacInfoHeader = new VCFInfoHeaderLine(
-					"FreqExac",
-					VCFHeaderLineCount.A,
-					VCFHeaderLineType.Float,
-					"Freq in Exac AC/AN"
-					);
-			h2.addMetaDataLine(freqExacInfoHeader);
-			
-			
-			for(final String pop:exacPopulations)
-				{
-				if(pop.isEmpty()) continue;
-				final VCFInfoHeaderLine ac = exacHeader.getInfoHeaderLine("AC_"+pop);
-				if(ac==null) 
-					{
-					LOG.error("Cannot find AC_"+pop+" in "+this.exacFile+" header");
-					return -1;
-					}
-				if(ac.getCountType()!=VCFHeaderLineCount.A)
-					{
-					LOG.error("expected VCFHeaderLineCount.A for "+ac );
-					return -1;
-					}
-				h2.addMetaDataLine(ac);
-				final VCFInfoHeaderLine an = exacHeader.getInfoHeaderLine("AN_"+pop);
-				if(an==null)
-					{
-					LOG.error("Cannot find AN_"+pop+" in "+this.exacFile+" header");
-					return -1;
-					}
-				if(an.getCount()!=1)
-					{
-					LOG.error("expected getCount==1 for "+an );
-					return -1;
-					}
-				h2.addMetaDataLine(an);
-				}
-			
-			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
-			out.writeHeader(h2);
-			while(in.hasNext())
-				{
+			@Override
+			public void add(VariantContext ctx) {
 				boolean set_filter = false;
-				final VariantContext ctx = progess.watch(in.next());
 				final List<Allele> ctxAlternateAlleles = ctx.getAlternateAlleles();
 				if(	ctxAlternateAlleles.size()!=1) {
-					LOG.error("Warning found more than one ALT allele per variant ("+ctx.getContig()+":"+ctx.getStart()+"/"+ctx.getReference()+"). Please use ManyAlleletoOne if you want to split those alleles");
-					return -1;
+					throw new JvarkitException.FileFormatError("Warning found more than one ALT allele per variant ("+ctx.getContig()+":"+ctx.getStart()+"/"+ctx.getReference()+"). Please use ManyAlleletoOne if you want to split those alleles");
 					}
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
@@ -208,12 +217,18 @@ public class VcfBurdenFilterExac
 				/* list of variant found in exac */
 				final List<VariantContext> exacListOfVariants;
 				
-				if( equalRange!=null)  {
-					exacListOfVariants =  equalRange.next(ctx);
-				} else
-				{
+				if( this.equalRange!=null)  {
+					try {
+						exacListOfVariants =  this.equalRange.next(ctx);
+						}
+					catch(final IOException err) {
+						throw new RuntimeIOException(err);
+						}
+					} 
+				else
+					{
 					exacListOfVariants = new ArrayList<>();
-					final CloseableIterator<VariantContext> vit=tabix.query(ctx.getContig(),ctx.getStart(), ctx.getEnd());
+					final CloseableIterator<VariantContext> vit= this.tabix.query(ctx.getContig(),ctx.getStart(), ctx.getEnd());
 					while(vit.hasNext()) {
 						final VariantContext exacv = vit.next();
 						if(!exacv.getContig().equals(ctx.getContig())) continue;
@@ -222,7 +237,7 @@ public class VcfBurdenFilterExac
 						exacListOfVariants.add(exacv); 
 						}
 					vit.close();
-				}
+					}
 				
 				if(exacListOfVariants.size()>1)
 					{
@@ -237,7 +252,7 @@ public class VcfBurdenFilterExac
 					}
 				
 				/* loop over populations */
-				for(final String pop:exacPopulations)
+				for(final String pop: this.exacPopulations)
 					{
 					/* will be the AC count for this population */
 					final List<Integer> acAttribute= new ArrayList<>(ctxAlternateAlleles.size());
@@ -289,45 +304,90 @@ public class VcfBurdenFilterExac
 						}
 					}
 
-				if(!freqInExac.stream().filter(F->F!=null).findAny().isPresent() && this.ifNotInExacThenDiscard) {
+				if(!freqInExac.stream().filter(F->F!=null).findAny().isPresent() && CtxWriterFactory.this.ifNotInExacThenDiscard) {
 					set_filter = true;
 				}
 				
 				if( freqInExac.stream().filter(F->F!=null).findAny().isPresent() && 
-					freqInExac.stream().filter(F->F!=null).mapToDouble(F->F.doubleValue()).min().getAsDouble() > (this.maxFreq)) {
+					freqInExac.stream().filter(F->F!=null).mapToDouble(F->F.doubleValue()).min().getAsDouble() > (CtxWriterFactory.this.maxFreq)) {
 					set_filter = true;
 				}
 				
 				if(freqInExac.stream().filter(F->F!=null).findAny().isPresent()) {
-					vcb.attribute(freqExacInfoHeader.getID(), freqInExac);
+					vcb.attribute(this.freqExacInfoHeader.getID(), freqInExac);
 				}
 				if(  set_filter ) {
-					vcb.filter(filter.getID());
+					vcb.filter(this.filter.getID());
 					}
-				out.add(vcb.make());
+				super.add(vcb.make());
 				}
-			progess.finish();
-			return RETURN_OK;
-			} catch(final Exception err) {
-				LOG.error(err);
-				return -1;
-			} finally {
-				CloserUtil.close(equalRange);
-				CloserUtil.close(exacIn);
-				CloserUtil.close(in);
-				CloserUtil.close(tabix);
+			@Override
+			public void close() {
+				CloserUtil.close(this.equalRange);
+				CloserUtil.close(this.exacIn);
+				CloserUtil.close(this.tabix);
+				super.close();
+				}
 			}
+		
+		@Override
+		public int initialize() {
+			if(this.exacFile==null || !this.exacFile.exists())
+				{
+				LOG.error("Undefined Exac file option");
+				return  -1;
+				}
+			return 0;
+			}
+		
+		@Override
+		public VariantContextWriter open(final VariantContextWriter delegate) {
+			return new CtxWriter(delegate);
+			}
+
 		}
+	
+	public VcfBurdenFilterExac()
+		{
+		}
+	 
+	@Override
+	protected int doVcfToVcf(
+			final String inputName,final VcfIterator vcfIterator,
+			final VariantContextWriter delegate) {
+			final VcfIterator in = VCFUtils.createAssertSortedVcfIterator(vcfIterator, VCFUtils.createTidPosComparator(vcfIterator.getHeader().getSequenceDictionary()));
+			final VariantContextWriter out  = this.component.open(delegate);
+			
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+			out.writeHeader(in.getHeader());
+			while(in.hasNext())
+				{
+				out.add(progess.watch(in.next()));
+				}
+			out.close();
+			progess.finish();
+			CloserUtil.close(in);
+			return 0;
+			}
 	
 	 
 	@Override
 	public int doWork(List<String> args) {
-		if(this.exacFile==null || !this.exacFile.exists())
+		try 
 			{
-			LOG.error("Undefined Exac file option");
-			return  -1;
+			if(this.component.initialize()!=0) {
+				return -1;
+				}
+			return doVcfToVcf(args,this.outputFile);
 			}
-		return doVcfToVcf(args, outputFile);
+		catch(final Exception err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(this.component);
+			}
 		}
 	
 	

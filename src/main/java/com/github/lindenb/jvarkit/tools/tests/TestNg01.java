@@ -42,13 +42,17 @@ import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
 import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac;
+import com.github.lindenb.jvarkit.tools.burden.VcfFilterNotInPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfInjectPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes;
+import com.github.lindenb.jvarkit.tools.burden.VcfMoveFiltersToInfo;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
+import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.misc.VcfToHilbert;
@@ -56,6 +60,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
+import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
@@ -407,5 +412,43 @@ class TestNg01 {
         		"--pedigree",PED01,
         		VCF01}));
     	Assert.assertTrue( tmp.exists());
+    	}
+    @Test
+    public void testVcfMoveFiltersToInfo() throws IOException{    
+
+    	Assert.assertEquals(0,new VcfMoveFiltersToInfo().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		VCF01}));
+    	Assert.assertTrue( JETER_VCF.exists());
+    	}
+    @Test
+    public void testVcfFilterNotInPedigree() throws IOException{    
+
+    	Assert.assertEquals(0,new VcfFilterNotInPedigree().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		VCF01}));
+    	Assert.assertTrue( JETER_VCF.exists());
+    	}
+    @Test
+    public void testVcfBigWig() throws IOException{    
+
+    	Assert.assertEquals(0,new VCFBigWig().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		VCF01}));
+    	Assert.assertTrue( JETER_VCF.exists());
+    	}
+    @Test
+    public void testVcfMultiToOneAllele() throws IOException{    
+    	Assert.assertEquals(0,new VcfMultiToOneAllele().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		VCF01}));
+    	Assert.assertTrue( JETER_VCF.exists());
+    	}
+    @Test
+    public void testVcfBurdenFilterExac() throws IOException{    
+    	Assert.assertEquals(0,new VcfBurdenFilterExac().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		VCF01}));
+    	Assert.assertTrue( JETER_VCF.exists());
     	}
 	}
