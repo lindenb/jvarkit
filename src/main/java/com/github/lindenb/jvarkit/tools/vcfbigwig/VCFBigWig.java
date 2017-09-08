@@ -80,9 +80,9 @@ A	45365	.	A	G	222	.	GERP=-3.55(...)
 END_DOC
 */
 @Program(name="vcfbigwig",
-description="annotate a VCF with values from a bigwig file",
-keywords={"vcf","wig","wiggle","bigwig"}
-)
+	description="Annotate a VCF with values from a bigwig file",
+	keywords={"vcf","wig","wiggle","bigwig"}
+	)
 public class VCFBigWig extends Launcher
 	{
 

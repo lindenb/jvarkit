@@ -1520,6 +1520,7 @@ public class Vcf2Xml extends Launcher
 			final VariantContextWriter out
 			) {
 		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(iterin.getHeader());
+		out.writeHeader(iterin.getHeader());
 		while(iterin.hasNext())
 			{
 			out.add(progress.watch(iterin.next()));

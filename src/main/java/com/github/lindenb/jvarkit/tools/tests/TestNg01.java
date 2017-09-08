@@ -30,17 +30,21 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.testng.Assert;
+import org.testng.Reporter;
 import org.testng.annotations.*;
 
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
+import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
 import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
@@ -67,7 +71,10 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
+import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
+import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
+import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallers;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
@@ -80,7 +87,10 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactor
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
 
 class TestNg01 {
 	static final File TEST_RESULTS_DIR= new File("test-results");
@@ -95,6 +105,32 @@ class TestNg01 {
 	
 	private Properties properties = new Properties();
 	
+	private static class VcfBuilder
+		{
+		private final VCFHeader header =new VCFHeader();
+		private final List<VariantContext> variants = new ArrayList<>();
+		VcfBuilder()
+			{
+			
+			}
+		public VcfBuilder add(final VariantContext ctx)
+			{
+			this.variants.add(ctx);
+			return this;
+			}
+		public VcfBuilder write(final File out)
+			{
+			final VariantContextWriter w= new VariantContextWriterBuilder().
+					setOutputFile(out).
+					build();
+			w.writeHeader(this.header);
+			for(final VariantContext ctx:this.variants) w.add(ctx);
+			w.close();
+			return this;
+			}
+
+		}
+	
 	@BeforeClass
     public void setup() throws IOException {
 		TEST_RESULTS_DIR.mkdirs();
@@ -108,7 +144,11 @@ class TestNg01 {
 	
 	@DataProvider(name = "all_vcfs")
 	public Object[][]  all_vcfs() {
-		return new Object[][] {{TOY_VCF_GZ},{VCF01}}	;
+		return new Object[][] {
+			{TOY_VCF_GZ},
+			{VCF01},
+			{"src/test/resources/ExAC.r1.sites.vep.vcf.gz"}
+			};
 		}
 	
 	 static Stream<VariantContext> streamVcf(final File f) {
@@ -120,6 +160,12 @@ class TestNg01 {
 		return streamVcf(JETER_VCF);
 		}
 	
+	 static VCFHeader getVcfHeader(final File f) {
+		final VCFFileReader r = new VCFFileReader(f,false);
+		final VCFHeader h = r.getFileHeader();
+		r.close();
+		return h;
+	 	}
 	
     @Test(dataProvider="all_vcfs")
     public void testVcf2Table(final String vcfPath) {
@@ -277,13 +323,22 @@ class TestNg01 {
         Assert.assertEquals(streamVcf(JETER_VCF).count(),1L);
     	}
     @Test
-    public void testVcfInjectPed() throws IOException{    
+    public void testVcfInjectPed() throws IOException{ 
+    	final File tmp=new File(TEST_RESULTS_DIR,"tmp.ped.vcf");
         Assert.assertEquals(0,new VcfInjectPedigree().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
+        		"-o",tmp.getPath(),
         		"--pedigree",PED01,
         		VCF01
         	}));
+        Assert.assertTrue(tmp.exists());
+        Assert.assertTrue(
+        		getVcfHeader(tmp).
+        		getOtherHeaderLines()
+        		.stream().
+        		anyMatch(H->H.getKey().equals("Sample"))
+        		);
     	}
+    
     @Test
     public void testVcfToSvg() throws IOException{    
     	File svg = new File(TEST_RESULTS_DIR,"jeter.__SEGMENT__.svg");
@@ -297,6 +352,7 @@ class TestNg01 {
     	}
     @Test(dataProvider="all_vcfs")
     public void testVcfToHilbert(final String vcfPath) throws IOException{    
+    	if(getVcfHeader(new File(vcfPath)).getNGenotypeSamples()==0) return;
     	File tmp = new File(TEST_RESULTS_DIR,"jeter.png");
     	Assert.assertEquals(0,new VcfToHilbert().instanceMain(new String[]{
         		"-o",tmp.getPath(),
@@ -437,12 +493,13 @@ class TestNg01 {
         		VCF01}));
     	Assert.assertTrue( JETER_VCF.exists());
     	}
-    @Test
+    @Test(groups={"burden"},dependsOnMethods={"testVcfInjectPed"})
     public void testVcfFilterNotInPedigree() throws IOException{    
-
+    	final File input =new File(TEST_RESULTS_DIR,"tmp.ped.vcf");
     	Assert.assertEquals(0,new VcfFilterNotInPedigree().instanceMain(new String[]{
         		"-o",JETER_VCF.getPath(),
-        		VCF01}));
+        		input.getPath()
+        		}));
     	Assert.assertTrue( JETER_VCF.exists());
     	}
     @Test
@@ -450,56 +507,125 @@ class TestNg01 {
 
     	Assert.assertEquals(0,new VCFBigWig().instanceMain(new String[]{
         		"-o",JETER_VCF.getPath(),
+        		"-T","Uniqueness35bp",
+        		"-B","src/test/resources/Uniqueness35bp.bigWig",
         		VCF01}));
     	Assert.assertTrue( JETER_VCF.exists());
+    	Assert.assertTrue(streamVcf(JETER_VCF).
+    			anyMatch(V->V.hasAttribute("Uniqueness35bp")
+    			));
     	}
-    @Test
-    public void testVcfMultiToOneAllele() throws IOException{    
+    
+
+    @Test(groups={"burden"},dependsOnMethods={"testVcfInjectPed"})
+    public void testVcfMultiToOneAllele() throws IOException{   
+    	final File input =new File(TEST_RESULTS_DIR,"tmp.ped.vcf");
+    	final File output =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
     	Assert.assertEquals(0,new VcfMultiToOneAllele().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
-        		VCF01}));
-    	Assert.assertTrue( JETER_VCF.exists());
+    			"--samples",
+        		"-o",output.getPath(),
+        		input.getPath()
+        		}));
+    	Assert.assertTrue( output.exists());
+    	Assert.assertFalse(streamVcf(output).anyMatch(V->V.getAlternateAlleles().size()>1));
     	}
-    @Test
+    
+    @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
     public void testVcfBurdenFilterExac() throws IOException{    
+    		final File input =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
+    	
 	    	Assert.assertEquals(0,new VcfBurdenFilterExac().instanceMain(new String[]{
 	        		"-o",JETER_VCF.getPath(),
-	        		VCF01}));
+	        		"--discardNotInExac",
+	        		"--exac","src/test/resources/ExAC.r1.sites.vep.vcf.gz",
+	        		input.getPath()
+	        		}));
 	    	Assert.assertTrue( JETER_VCF.exists());
 	    	}
     @Test
     public void testVcfGnomad() throws IOException{    
 	    	Assert.assertEquals(0,new VcfGnomad().instanceMain(new String[]{
 	        		"-o",JETER_VCF.getPath(),
+	        		"-m","/path/to/manifest",
 	        		VCF01}));
 	    	Assert.assertTrue( JETER_VCF.exists());
 	    	}
-    @Test
-    public void testVcfFisherH() throws IOException{    
+    @Test(dependsOnMethods={"testVcfInjectPed"})
+    public void testVcfFisherH() throws IOException{
+    		final File input =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
 	    	Assert.assertEquals(0,new VcfBurdenFisherH().instanceMain(new String[]{
 	        		"-o",JETER_VCF.getPath(),
-	        		VCF01}));
+	        		input.getPath()
+	        		}));
 	    	Assert.assertTrue( JETER_VCF.exists());
 	    	}
-    @Test
+    @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
     public void testVcfFisherV() throws IOException{    
+    		final File input =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
 	    	Assert.assertEquals(0,new VcfBurdenFisherV().instanceMain(new String[]{
 	        		"-o",JETER_VCF.getPath(),
-	        		VCF01}));
+	        		input.getPath()
+	        		}));
 	    	Assert.assertTrue( JETER_VCF.exists());
 	    	}
-    @Test
+    @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
     public void testVcfBurdenMAF() throws IOException{    
+    		final File input =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
 	    	Assert.assertEquals(0,new VcfBurdenMAF().instanceMain(new String[]{
 	        		"-o",JETER_VCF.getPath(),
-	        		VCF01}));
-	    	Assert.assertTrue( JETER_VCF.exists());
+	        		input.getPath()
+	        		}));
+	    	Assert.assertTrue( JETER_VCF.delete());
 	    	}
-    
+    @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
     public void testVcfBurdenRscriptV() throws IOException{    
+			final File input =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
+			final File output =new File(TEST_RESULTS_DIR,"tmp.R");
 	    	Assert.assertEquals(0,new VcfBurdenRscriptV().instanceMain(new String[]{
-	        		"-o",JETER_VCF.getPath(),
-	        		VCF01}));
-	    	Assert.assertTrue( JETER_VCF.exists());
+	        		"-o",output.getPath(),
+	        		input.getPath()
+	        		}));
+	    	Assert.assertTrue( output.exists());
 	    	}
+    @Test
+    public void testVcfSortOnInfo() throws IOException{    
+	    	Assert.assertEquals(0,new SortVcfOnInfo().instanceMain(new String[]{
+	        		"-o",JETER_VCF.getPath(),
+	        		"-T","DP",
+	        		TOY_VCF_GZ
+	        		}));
+	    	Assert.assertTrue( JETER_VCF.delete());
+	    	}
+    @Test
+    public void testVcf2Xml() throws IOException{    
+		final File output =new File(TEST_RESULTS_DIR,"vcf.xml");
+    	Assert.assertEquals(0,new Vcf2Xml().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		TOY_VCF_GZ
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testBamToWig() throws IOException{    
+		final File output =new File(TEST_RESULTS_DIR,"jeter.wig");
+    	Assert.assertEquals(0,new Bam2Wig().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		TOY_BAM
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    
+    @Test
+    public void testVcfCompareCallers() throws IOException{    
+		final File output =new File(TEST_RESULTS_DIR,"jeter.zip");
+    	Assert.assertEquals(0,new VcfCompareCallers().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-vcf1","VCF1",
+        		"-vcf2","VCF2",
+        		"--prefix","pfx",
+        		TOY_VCF_GZ,TOY_VCF_GZ
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    
 	}
