@@ -463,10 +463,7 @@ public class VcfMultiToOneAllele
 	 public VcfMultiToOneAllele()
 		{
 		}
-	 
-	 
 
-	 
 	@Override
 	public int doVcfToVcf(
 			final String inputName,

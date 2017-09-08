@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.tools.vcfcmp.EqualRangeVcfIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -22,8 +23,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -83,53 +86,6 @@ out.print("$(if $(realpath "+genome+"), --resource:gnomad_genome  "+genome+"  $(
 ```
 
 
-
-## Generating jar helper for knime
-  
-(for the people in my lab)
-  
-generate big jar
-
-```
-$ cd jvarkit
-$ rm -rf tmp && mkdir tmp && echo '1.jar:2.jar:...N.jar:vcfgnomad.jar' | tr ":" "\n" | sort | uniq | while read F; do unzip -o $F -d tmp ; done && jar cvf vcfgnomad4knime.jar -C tmp . && rm -rf tmp
-```
-  
-Open KNIME
-
-we're going to create the following workflow : http://imgur.com/a/QcrKW
-
-* create a new Node `java Snippet`
-* in the tab 'additional libraries', add 'vcfgnomad4knime.jar'.
-* in the tab 'java snippet'. Declare the following inputs: `c_CHROM,c_POS,c_REF,c_ALT`, the output string `GNOMAD`.
-
-And insert the following code:
-
-```java
-// Your custom imports:
-import  com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad.KnimeAdapter;
-// Enter your code here:
-
-System.setProperty("http.proxyHost","cache.ha.univ-nantes.fr");
-System.setProperty("https.proxyHost","cache.ha.univ-nantes.fr");
-System.setProperty("http.proxyPort","3128");
-System.setProperty("https.proxyPort","3128");
-
-final KnimeAdapter app= new KnimeAdapter();
-if(app.instanceMain(new String[]{"-ac",c_CHROM,String.valueOf(c_POS),c_REF,c_ALT})==0)
-	{
-	out_GNOMAD = app.getOutputString();
-	}
-else
-	{
-	out_GNOMAD = ".";
-	}
-
-// expression end
-
-```
- 
-
  END_DOC
  */
 @Program(name="vcfgnomad",
@@ -142,13 +98,51 @@ public class VcfGnomad extends Launcher{
 	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female","SAS", "raw", "POPMAX"}; 
 	/** 'ome'-type section */
 	private enum OmeType {exome,genome};
-	/** entries mapping chromosome/type->vcf.gz */
-	private List<ManifestEntry> manifestEntries=new ArrayList<>();
-	
-	private final Map<String,Integer> contig2tid;
 	
 	
-	private class ManifestEntry
+	
+	
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
+	
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
+
+	
+	public static class CtxWriterFactory 
+		implements VariantContextWriterFactory
+		{		
+		@Parameter(names={"-m","--manifest"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
+		private File manifestFile=null;
+		@Parameter(names={"-filtered","--filtered"},description="Skip Filtered User Variants")
+		private boolean skipFiltered=false;
+		@Parameter(names={"-filteredGnomad","--filteredGnomad"},description="[20170706] Skip Filtered GNOMAD Variants")
+		private boolean filteredGnomad=false;
+		@Parameter(names={"-noMultiAltGnomad","--noMultiAltGnomad"},description="[20170706] Skip Multi Allelic GNOMAD Variants")
+		private boolean noMultiAltGnomad=false;
+		@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when the variant is found in nomad")
+		private String inGnomadFilterName=null;
+		@Parameter(names={"-ac","--alleleconcordance"},description="ALL Alt allele must be found in gnomad before setting a FILTER")
+		private boolean alleleconcordance=false;
+		@Parameter(names={"--noAlleleCount"},description="do Not Insert AC /Allele Count")
+		private boolean doNotInsertAlleleCount=false;
+		@Parameter(names={"--noAlleleNumber"},description="do Not Insert AN /Allele Number")
+		private boolean doNotInsertAlleleNumber=false;
+		@Parameter(names={"--noAlleleFreq"},description="do Not Insert AF /Allele Freq.")
+		private boolean doNotInsertAlleleFreq=false;
+		@Parameter(names={"--bufferSize"},description="When we're looking for variant in Exac, load the variants for 'N' bases instead of doing a random access for each variant")
+		private int gnomadBufferSize=100000;
+		@Parameter(names={"--streaming"},description="[20170707] Don't use tabix random-access (which are ok for small inputs) but you a streaming process (better to annotate a large WGS file). Assume dictionaries are sorted the same way.")
+		private boolean streaming=false;
+		
+		/** entries mapping chromosome/type->vcf.gz */
+		private List<ManifestEntry> manifestEntries=new ArrayList<>();
+
+		private final Map<String,Integer> contig2tid = new HashMap<>(25);
+		final ManifestEntry ome2manifest[]=new ManifestEntry[OmeType.values().length];
+		
+
+		private class ManifestEntry
 		implements Closeable
 		{
 		OmeType omeType;
@@ -175,7 +169,7 @@ public class VcfGnomad extends Launcher{
 			}
 		public void open()  throws IOException
 			{
-			if(VcfGnomad.this.streaming)
+			if(CtxWriterFactory.this.streaming)
 				{
 				this.gnomad_vcf_iterator = VCFUtils.createVcfIterator(this.uri);
 				final SAMSequenceDictionary dict = this.gnomad_vcf_iterator.getHeader().getSequenceDictionary();
@@ -195,7 +189,7 @@ public class VcfGnomad extends Launcher{
 		VariantContext findMatching(final VariantContext userVariantCtx)
 			{
 			
-			if( VcfGnomad.this.streaming) {
+			if( CtxWriterFactory.this.streaming) {
 				try {
 					final List<VariantContext> found = this.gnomad_equal_range.next(
 							userVariantCtx
@@ -203,8 +197,8 @@ public class VcfGnomad extends Launcher{
 					for(final VariantContext ctx:found)
 						{
 						if( !ctx.getReference().equals(userVariantCtx.getReference())) continue;
-						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
-						if( VcfGnomad.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
+						if( CtxWriterFactory.this.filteredGnomad && ctx.isFiltered()) continue;
+						if( CtxWriterFactory.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
 						return ctx;
 						}
 					return null;
@@ -221,7 +215,7 @@ public class VcfGnomad extends Launcher{
 				if(this.buffferChromEnd <= userCtx.getPos())
 					{
 					buffer.clear();
-					this.buffferChromEnd = userCtx.getPos() + VcfGnomad.this.gnomadBufferSize;
+					this.buffferChromEnd = userCtx.getPos() + CtxWriterFactory.this.gnomadBufferSize;
 					final Iterator<VariantContext> iter=this.gnomad_tabix.iterator(
 							userVariantCtx.getContig(),
 							Math.max(0,userCtx.getPos()-1),
@@ -230,8 +224,8 @@ public class VcfGnomad extends Launcher{
 					while(iter.hasNext())
 						{
 						final VariantContext ctx = iter.next();
-						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
-						if( VcfGnomad.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
+						if( CtxWriterFactory.this.filteredGnomad && ctx.isFiltered()) continue;
+						if( CtxWriterFactory.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
 						final ContigPosRef key= new ContigPosRef(ctx);
 						this.buffer.put(key,ctx);
 						}
@@ -242,32 +236,235 @@ public class VcfGnomad extends Launcher{
 			}
 		
 		}
+		
+		
+		private class CtxWriter extends DelegateVariantContextWriter
+			{
+			private final List<InfoField> infoFields=new ArrayList<>();
+			private String prevContig=null;
+
+
+			CtxWriter(final VariantContextWriter delegate) {
+				super(delegate);
+				for(final OmeType ome:OmeType.values()) {
+					for(final String pop: POPS)
+						{
+						if(!CtxWriterFactory.this.doNotInsertAlleleCount) this.infoFields.add(new InfoField("AC_"+pop,ome,true,VCFHeaderLineType.Integer));
+						if(!CtxWriterFactory.this.doNotInsertAlleleFreq) this.infoFields.add(new InfoField("AF_"+pop,ome,true,VCFHeaderLineType.Float));
+						if(!CtxWriterFactory.this.doNotInsertAlleleNumber) this.infoFields.add(new InfoField("AN_"+pop,ome,pop.equals("POPMAX"),VCFHeaderLineType.Integer));
+						}
+					if(!CtxWriterFactory.this.doNotInsertAlleleCount) this.infoFields.add(new InfoField("AC",ome,true,VCFHeaderLineType.Integer));
+					}
+				}
+			
+			@Override
+			public void writeHeader(final VCFHeader header) {
+				if(!CtxWriterFactory.this.doNotInsertAlleleFreq) infoFields.add(new InfoField("AF",ome,true,VCFHeaderLineType.Float));
+				if(!CtxWriterFactory.this.doNotInsertAlleleNumber) infoFields.add(new InfoField("AN",ome,false,VCFHeaderLineType.Integer));
+				
+				final VCFHeader h2=new VCFHeader(header);
+				if(CtxWriterFactory.this.inGnomadFilterName!=null)
+					{
+					h2.addMetaDataLine(new VCFFilterHeaderLine(CtxWriterFactory.this.inGnomadFilterName,"Variant is in Gnomad"));
+					}
+				for(final InfoField infoField: this.infoFields)
+					{
+					h2.addMetaDataLine(infoField.makeVCFInfoHeaderLine());
+					}
+				super.writeHeader(h2);
+				}
+			
+			@Override
+			public void add(final VariantContext ctx) {
+				if(CtxWriterFactory.this.skipFiltered && ctx.isFiltered() )
+					{
+					super.add(ctx);
+					return;
+					}
+				final String ensemblContig=normalizeContig(ctx.getContig());
+
+				/* CONTIG has changed, update the CONTIG */
+				if(this.prevContig==null || !prevContig.equals(ctx.getContig())) {
+					LOG.debug("Data for "+ctx.getContig());
+					this.prevContig=ctx.getContig();
+					for(final OmeType ome: OmeType.values())
+						{
+						ManifestEntry newEntry = null;
+
+						for(final ManifestEntry e: CtxWriterFactory.this.manifestEntries)
+							{
+							if(e.omeType!=ome) continue;
+							if(e.contig.equals("*"))
+								{
+								//accept
+								}
+							else if(!e.contig.equals(ensemblContig)){
+								continue;
+								}
+							newEntry=e;
+							break;
+							}
+						if(newEntry==null)
+							{
+							LOG.warn("No Gnomad Data for "+ctx.getContig()+" / "+ome);
+							}
+						final ManifestEntry prevEntry = this.ome2manifest[ome.ordinal()];
+						if(prevEntry==null && newEntry==null){
+							this.ome2manifest[ome.ordinal()]=null;
+							}
+						else if(newEntry!=null && prevEntry!=null &&
+								prevEntry.uri.equals(newEntry.uri))
+							{
+							// no need to re-open
+							//continue with prev entry
+							}
+						else if(newEntry==null && prevEntry!=null)
+							{
+							prevEntry.close();
+							this.ome2manifest[ome.ordinal()]=null;
+							}
+						else
+							{
+							if(prevEntry!=null) prevEntry.close();
+							this.ome2manifest[ome.ordinal()]=newEntry;
+							LOG.info("opening "+newEntry.uri);
+							newEntry.open();
+							}
+						}
+					}
+				/** END UPDATE CONTIG */
+				
+				for(final InfoField infoField: this.infoFields)
+					{
+					infoField.attributes.clear();
+					}
+				
+				boolean setfilter=false;
+				
+				// lopp over exome and genome data
+				for(int i=0;i< this.ome2manifest.length;++i) {
+					ManifestEntry entry = this.ome2manifest[i];
+					if(entry==null) continue;
+					
+					final VariantContext ctx2=entry.findMatching(normalizeVariantContig(ctx));
+					if(ctx2==null) continue;
+					for(final InfoField infoField: infoFields)
+						{
+						if(infoField.ome!=entry.omeType) continue;
+						infoField.fill(ctx, ctx2);
+						}
+					if(CtxWriterFactory.this.alleleconcordance)
+						{
+						//stream all ALT. return false if we found one ALT that is not found in Gnomad
+						setfilter = !ctx.getAlternateAlleles().stream().
+								filter(A->!ctx2.getAlternateAlleles().contains(A)).
+								findAny().isPresent();
+						}
+					else
+						{
+						setfilter=true;
+						}					
+					}
+				
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				if(setfilter && CtxWriterFactory.this.inGnomadFilterName!=null)
+					{
+					vcb.filter(CtxWriterFactory.this.inGnomadFilterName);
+					}
+				for(final InfoField infoField: this.infoFields)
+					{
+					if(infoField.attributes.isEmpty()) continue;
+					if(!infoField.attributes.stream().filter(N->N!=null).findAny().isPresent()) continue;
+					vcb.attribute(infoField.getOutputTag(), infoField.attributes);
+					}
+				super.add(vcb.make());
+				}
+			}
+		
+		
+		@Override
+		public int initialize() {
+			Arrays.fill(this.ome2manifest,null);
+			this.contig2tid.clear();
+			for(int i=1;i<=22;++i) this.contig2tid.put(String.valueOf(i), i);
+			this.contig2tid.put("X",23);
+			this.contig2tid.put("Y",24);
+			
+			if(this.gnomadBufferSize < 10) {
+				this.gnomadBufferSize  = 10;
+				}
+			if(this.manifestFile==null)
+				{
+				LOG.info("Building default manifest file...");
+				for(OmeType ot: OmeType.values()) {
+					for(int i=1;i<= 23;++i) {
+						final ManifestEntry entry=new ManifestEntry();
+						entry.omeType=ot;
+						switch(i)
+							{
+							default: entry.contig=String.valueOf(i);break;
+							case 23: entry.contig="X";break;					
+							}
+						if(ot==OmeType.genome)
+							{
+							entry.uri = "https://storage.googleapis.com/gnomad-public/release-170228/vcf/genomes/gnomad.genomes.r2.0.1.sites."+entry.contig+".vcf.gz";
+							}
+						else
+							{
+							entry.uri = "https://storage.googleapis.com/gnomad-public/release-170228/vcf/exomes/gnomad.exomes.r2.0.1.sites.vcf.gz";
+							}
+						this.manifestEntries.add(entry);
+						}
+					}
+				LOG.info("Building default manifest file... Done");
+				}
+			else
+				{
+				try {
+				Files.lines(this.manifestFile.toPath()).forEach(L->{
+					if(L.startsWith("#") || L.trim().isEmpty()) return;
+					final String tokens[]=L.split("[\t]");
+					if(tokens.length<3) throw new JvarkitException.TokenErrors("Expected 3 words",tokens);
+					final ManifestEntry entry=new ManifestEntry();
+					entry.omeType=OmeType.valueOf(tokens[0]);
+					entry.contig = tokens[1].trim();
+					entry.uri=tokens[2].trim();
+					this.manifestEntries.add(entry);
+					});
+				} catch(final IOException err) {
+					LOG.error(err);
+					return -1;
+					}
+				}
+			
+			return 0;
+			}
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-m","--manifest"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
-	private File manifestFile=null;
-	@Parameter(names={"-filtered","--filtered"},description="Skip Filtered User Variants")
-	private boolean skipFiltered=false;
-	@Parameter(names={"-filteredGnomad","--filteredGnomad"},description="[20170706] Skip Filtered GNOMAD Variants")
-	private boolean filteredGnomad=false;
-	@Parameter(names={"-noMultiAltGnomad","--noMultiAltGnomad"},description="[20170706] Skip Multi Allelic GNOMAD Variants")
-	private boolean noMultiAltGnomad=false;
-	@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when the variant is found in nomad")
-	private String inGnomadFilterName=null;
-	@Parameter(names={"-ac","--alleleconcordance"},description="ALL Alt allele must be found in gnomad before setting a FILTER")
-	private boolean alleleconcordance=false;
-	@Parameter(names={"--noAlleleCount"},description="do Not Insert AC /Allele Count")
-	private boolean doNotInsertAlleleCount=false;
-	@Parameter(names={"--noAlleleNumber"},description="do Not Insert AN /Allele Number")
-	private boolean doNotInsertAlleleNumber=false;
-	@Parameter(names={"--noAlleleFreq"},description="do Not Insert AF /Allele Freq.")
-	private boolean doNotInsertAlleleFreq=false;
-	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Exac, load the variants for 'N' bases instead of doing a random access for each variant")
-	private int gnomadBufferSize=100000;
-	@Parameter(names={"--streaming"},description="[20170707] Don't use tabix random-access (which are ok for small inputs) but you a streaming process (better to annotate a large WGS file). Assume dictionaries are sorted the same way.")
-	private boolean streaming=false;
-	
+		@Override
+		public VariantContextWriter open(VariantContextWriter delegate) {
+			return new CtxWriter(delegate);
+			}
+		@Override
+		public void close() throws IOException {
+			CloserUtil.close(Arrays.asList(ome2manifest));
+			}
+		
+		private String normalizeContig(final String contig)
+			{
+			if(contig.startsWith("chr")) return contig.substring(3);
+			return contig;
+			}
+		
+		/** change user's chromosome for a variant if needed */
+		private VariantContext normalizeVariantContig(final VariantContext userVariantCtx)
+			{
+			final String ensemblContig = normalizeContig(userVariantCtx.getContig());
+			return ensemblContig.equals(userVariantCtx.getContig())
+					? userVariantCtx
+					: new VariantContextBuilder(userVariantCtx).chr(ensemblContig).make()
+					;
+			}
+		}
 	
 	private class InfoField
 		{
@@ -346,325 +543,49 @@ public class VcfGnomad extends Launcher{
 			}
 		}
 	
-	private String normalizeContig(final String contig)
-		{
-		if(contig.startsWith("chr")) return contig.substring(3);
-		return contig;
-		}
 	
-	/** change user's chromosome for a variant if needed */
-	private VariantContext normalizeVariantContig(final VariantContext userVariantCtx)
-		{
-		final String ensemblContig = normalizeContig(userVariantCtx.getContig());
-		return ensemblContig.equals(userVariantCtx.getContig())
-				? userVariantCtx
-				: new VariantContextBuilder(userVariantCtx).chr(ensemblContig).make()
-				;
-		}
 	
 	
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
 			final VcfIterator iter,
-			final VariantContextWriter out
+			final VariantContextWriter delegate
 			) {
-		final ManifestEntry ome2manifest[]=new ManifestEntry[OmeType.values().length];
-		Arrays.fill(ome2manifest,null);
-
-		try {
-			final List<InfoField> infoFields=new ArrayList<>();
-			for(OmeType ome:OmeType.values()) {
-				for(final String pop: POPS)
-					{
-					if(!doNotInsertAlleleCount) infoFields.add(new InfoField("AC_"+pop,ome,true,VCFHeaderLineType.Integer));
-					if(!doNotInsertAlleleFreq) infoFields.add(new InfoField("AF_"+pop,ome,true,VCFHeaderLineType.Float));
-					if(!doNotInsertAlleleNumber) infoFields.add(new InfoField("AN_"+pop,ome,pop.equals("POPMAX"),VCFHeaderLineType.Integer));
-					}
-				if(!doNotInsertAlleleCount) infoFields.add(new InfoField("AC",ome,true,VCFHeaderLineType.Integer));
-				if(!doNotInsertAlleleFreq) infoFields.add(new InfoField("AF",ome,true,VCFHeaderLineType.Float));
-				if(!doNotInsertAlleleNumber) infoFields.add(new InfoField("AN",ome,false,VCFHeaderLineType.Integer));
-				}
-			String prevContig=null;
-			final VCFHeader h2=new VCFHeader(iter.getHeader());
-			if(inGnomadFilterName!=null)
-				{
-				h2.addMetaDataLine(new VCFFilterHeaderLine(inGnomadFilterName,"Variant is in Gnomad"));
-				}
-			
-			for(final InfoField infoField: infoFields)
-				{
-				h2.addMetaDataLine(infoField.makeVCFInfoHeaderLine());
-				}
-			out.writeHeader(h2);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h2).logger(LOG);
-			while(iter.hasNext()) {
-				final VariantContext ctx = progress.watch(iter.next());
-				
-				if(this.skipFiltered && ctx.isFiltered() )
-					{
-					out.add(ctx);
-					continue;
-					}
-				final String ensemblContig=normalizeContig(ctx.getContig());
-
-				/* CONTIG has changed, update the CONTIG */
-				if(prevContig==null || !prevContig.equals(ctx.getContig())) {
-					LOG.debug("Data for "+ctx.getContig());
-					prevContig=ctx.getContig();
-					for(OmeType ome: OmeType.values())
-						{
-						ManifestEntry newEntry = null;
-
-						for(final ManifestEntry e: this.manifestEntries)
-							{
-							if(e.omeType!=ome) continue;
-							if(e.contig.equals("*"))
-								{
-								//accept
-								}
-							else if(!e.contig.equals(ensemblContig)){
-								continue;
-								}
-							newEntry=e;
-							break;
-							}
-						if(newEntry==null)
-							{
-							LOG.warn("No Gnomad Data for "+ctx.getContig()+" / "+ome);
-							}
-						final ManifestEntry prevEntry = ome2manifest[ome.ordinal()];
-						if(prevEntry==null && newEntry==null){
-							ome2manifest[ome.ordinal()]=null;
-							}
-						else if(newEntry!=null && prevEntry!=null &&
-								prevEntry.uri.equals(newEntry.uri))
-							{
-							// no need to re-open
-							//continue with prev entry
-							}
-						else if(newEntry==null && prevEntry!=null)
-							{
-							prevEntry.close();
-							ome2manifest[ome.ordinal()]=null;
-							}
-						else
-							{
-							if(prevEntry!=null) prevEntry.close();
-							ome2manifest[ome.ordinal()]=newEntry;
-							LOG.info("opening "+newEntry.uri);
-							newEntry.open();
-							}
-						}
-					}
-				/** END UPDATE CONTIG */
-				
-				for(final InfoField infoField: infoFields)
-					{
-					infoField.attributes.clear();
-					}
-				
-				boolean setfilter=false;
-				
-				// lopp over exome and genome data
-				for(int i=0;i< ome2manifest.length;++i) {
-					ManifestEntry entry = ome2manifest[i];
-					if(entry==null) continue;
-					
-					final VariantContext ctx2=entry.findMatching(normalizeVariantContig(ctx));
-					if(ctx2==null) continue;
-					for(final InfoField infoField: infoFields)
-						{
-						if(infoField.ome!=entry.omeType) continue;
-						infoField.fill(ctx, ctx2);
-						}
-					if(this.alleleconcordance)
-						{
-						//stream all ALT. return false if we found one ALT that is not found in Gnomad
-						setfilter = !ctx.getAlternateAlleles().stream().
-								filter(A->!ctx2.getAlternateAlleles().contains(A)).
-								findAny().isPresent();
-						}
-					else
-						{
-						setfilter=true;
-						}					
-					}
-				
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				if(setfilter && this.inGnomadFilterName!=null)
-					{
-					vcb.filter(inGnomadFilterName);
-					}
-				for(final InfoField infoField: infoFields)
-					{
-					if(infoField.attributes.isEmpty()) continue;
-					if(!infoField.attributes.stream().filter(N->N!=null).findAny().isPresent()) continue;
-					vcb.attribute(infoField.getOutputTag(), infoField.attributes);
-					}
-				out.add(vcb.make());
-				}
-			progress.finish();
-			return 0;
-		} catch (final Exception e) {
-			LOG.error(e);
-			return -1;
+		final VariantContextWriter out = this.component.open(delegate);
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
+		while(iter.hasNext()) {
+			out.add(progress.watch(iter.next()));
+			}
+		out.close();
+		progress.finish();
+		return 0;
 		}
-		finally {
-			CloserUtil.close(Arrays.asList(ome2manifest));
-		}
-	}
 
 	public VcfGnomad() {
-		contig2tid=new HashMap<>(25);
-		for(int i=1;i<=22;++i) contig2tid.put(String.valueOf(i), i);
-		contig2tid.put("X",23);
-		contig2tid.put("Y",24);
+		
 		
 	}
 	
-@Override
-public int doWork(final List<String> args) {
-	if(this.gnomadBufferSize < 10) {
-		this.gnomadBufferSize  = 10;
-		}
-	if(this.manifestFile==null)
-		{
-		LOG.info("Building default manifest file...");
-		for(OmeType ot: OmeType.values()) {
-			for(int i=1;i<= 23;++i) {
-				final ManifestEntry entry=new ManifestEntry();
-				entry.omeType=ot;
-				switch(i)
-					{
-					default: entry.contig=String.valueOf(i);break;
-					case 23: entry.contig="X";break;					
-					}
-				if(ot==OmeType.genome)
-					{
-					entry.uri = "https://storage.googleapis.com/gnomad-public/release-170228/vcf/genomes/gnomad.genomes.r2.0.1.sites."+entry.contig+".vcf.gz";
-					}
-				else
-					{
-					entry.uri = "https://storage.googleapis.com/gnomad-public/release-170228/vcf/exomes/gnomad.exomes.r2.0.1.sites.vcf.gz";
-					}
-				this.manifestEntries.add(entry);
+	@Override
+	public int doWork(final List<String> args) {
+		try 
+			{
+			if(this.component.initialize()!=0) {
+				return -1;
 				}
+			return doVcfToVcf(args,this.outputFile);
 			}
-		LOG.info("Building default manifest file... Done");
-		}
-	else
-		{
-		try {
-		Files.lines(this.manifestFile.toPath()).forEach(L->{
-			if(L.startsWith("#") || L.trim().isEmpty()) return;
-			final String tokens[]=L.split("[\t]");
-			if(tokens.length<3) throw new JvarkitException.TokenErrors("Expected 3 words",tokens);
-			final ManifestEntry entry=new ManifestEntry();
-			entry.omeType=OmeType.valueOf(tokens[0]);
-			entry.contig = tokens[1].trim();
-			entry.uri=tokens[2].trim();
-			VcfGnomad.this.manifestEntries.add(entry);
-		});
-		} catch(final IOException err) {
+		catch(final Exception err) {
 			LOG.error(err);
 			return -1;
-		}
-		}
-	return doVcfToVcf(args, outputFile);
-	}
-
-/** For SolenaLS & Julien in knime. temporary solution */
-@Deprecated
-public static final class KnimeAdapter extends VcfGnomad
-	{
-	private String outputString="";
-	private static class SingletonVcfIterator
-		extends AbstractIterator<VariantContext>
-		implements VcfIterator
-		{
-		final VCFHeader header=new VCFHeader();
-		final Iterator<VariantContext> delegate;
-		SingletonVcfIterator(VariantContext ctx)
+			}
+		finally
 			{
-			this.delegate = Collections.singletonList(ctx).iterator();
+			CloserUtil.close(this.component);
 			}
-		@Override
-		public AbstractVCFCodec getCodec() {
-			throw new JvarkitException.ShouldNeverHappen("getCodec");
-			}
-		@Override
-		public VCFHeader getHeader() {
-			return header;
-			}
-		@Override
-		protected VariantContext advance() {
-			return this.delegate.hasNext()?this.delegate.next():null;
-			}
-		@Override
-		public void close() throws IOException {
-			
-			}
-		}
-	private static class SingletonWriter
-		implements VariantContextWriter
-		{
-		VariantContext variant=null;
-		@Override
-		public void writeHeader(VCFHeader arg0) { }
-		@Override
-		public void add(VariantContext ctx) {
-			this.variant=ctx;
-			}
-		@Override
-		public void close() { }
-		@Override
-		public boolean checkError() {return false;}
-		}
-	@Override
-	protected int doVcfToVcf(final List<String> inputs,final File outorNull) {
-		super.gnomadBufferSize=5;
-		if(inputs.size()!=4) throw new JvarkitException.UserError("expected 4 fields : CHROM/POS/REF/ALTS");
-		final List<Allele> alleles=new ArrayList<>();
-		final Allele ref= Allele.create(inputs.get(2),true);
-		final long start = Long.parseLong(inputs.get(1));
-		alleles.add(ref);
-		alleles.addAll(Arrays.stream(inputs.get(3).split("[,]")).map(
-				S->Allele.create(S,false)
-				).collect(Collectors.toList()));
-		final VariantContext  vc=new VariantContextBuilder("knime",
-				inputs.get(0),
-				start,
-				start + ref.length() -1,
-				alleles
-				).make();
-		final SingletonWriter w=new SingletonWriter();
-		int ret= doVcfToVcf("knime", new SingletonVcfIterator(vc), w);
-		if(ret!=0 || w.variant==null) return -1;
-		for(final String key:w.variant.getAttributes().keySet())
-			{
-			if(!(this.outputString==null || this.outputString.isEmpty()))
-				{
-				this.outputString+=";";
-				}
-			this.outputString+=key+"="+String.join(",",w.variant.getAttributeAsStringList(key, "."));
-			}
-		return ret;
-		}
-	public String getOutputString()
-		{
-		return this.outputString;
-		}
-	public static void main(String[] args) {
-		final KnimeAdapter app= new KnimeAdapter();
-		if(app.instanceMain(args)==0)
-			{
-			app.stdout().println(app.outputString);
-			};
 		}
 
-	}
-	
 public static void main(String[] args) {
 	new VcfGnomad().instanceMainWithExit(args);
 	}

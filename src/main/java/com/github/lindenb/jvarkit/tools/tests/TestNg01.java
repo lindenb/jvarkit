@@ -26,10 +26,12 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.tests;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -43,10 +45,15 @@ import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
 import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherV;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenRscriptV;
 import com.github.lindenb.jvarkit.tools.burden.VcfFilterNotInPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfInjectPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes;
 import com.github.lindenb.jvarkit.tools.burden.VcfMoveFiltersToInfo;
+import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
@@ -85,9 +92,18 @@ class TestNg01 {
 	static final String VCF01 = "src/test/resources/test_vcf01.vcf";
 	static final String PED01 = "src/test/resources/test_vcf01.ped";
 	static final String KNOWN_GENES01 = "src/test/resources/test_vcf01.knownGenes.txt.gz";
+	
+	private Properties properties = new Properties();
+	
 	@BeforeClass
     public void setup() throws IOException {
 		TEST_RESULTS_DIR.mkdirs();
+		final File propFile = new File(TEST_RESULTS_DIR,"properties.xml");
+		if(propFile.exists()) {
+			FileInputStream in = new FileInputStream(propFile);
+			this.properties.loadFromXML(in);
+			in.close();
+			}
 		}
 	
 	@DataProvider(name = "all_vcfs")
@@ -446,9 +462,44 @@ class TestNg01 {
     	}
     @Test
     public void testVcfBurdenFilterExac() throws IOException{    
-    	Assert.assertEquals(0,new VcfBurdenFilterExac().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
-        		VCF01}));
-    	Assert.assertTrue( JETER_VCF.exists());
-    	}
+	    	Assert.assertEquals(0,new VcfBurdenFilterExac().instanceMain(new String[]{
+	        		"-o",JETER_VCF.getPath(),
+	        		VCF01}));
+	    	Assert.assertTrue( JETER_VCF.exists());
+	    	}
+    @Test
+    public void testVcfGnomad() throws IOException{    
+	    	Assert.assertEquals(0,new VcfGnomad().instanceMain(new String[]{
+	        		"-o",JETER_VCF.getPath(),
+	        		VCF01}));
+	    	Assert.assertTrue( JETER_VCF.exists());
+	    	}
+    @Test
+    public void testVcfFisherH() throws IOException{    
+	    	Assert.assertEquals(0,new VcfBurdenFisherH().instanceMain(new String[]{
+	        		"-o",JETER_VCF.getPath(),
+	        		VCF01}));
+	    	Assert.assertTrue( JETER_VCF.exists());
+	    	}
+    @Test
+    public void testVcfFisherV() throws IOException{    
+	    	Assert.assertEquals(0,new VcfBurdenFisherV().instanceMain(new String[]{
+	        		"-o",JETER_VCF.getPath(),
+	        		VCF01}));
+	    	Assert.assertTrue( JETER_VCF.exists());
+	    	}
+    @Test
+    public void testVcfBurdenMAF() throws IOException{    
+	    	Assert.assertEquals(0,new VcfBurdenMAF().instanceMain(new String[]{
+	        		"-o",JETER_VCF.getPath(),
+	        		VCF01}));
+	    	Assert.assertTrue( JETER_VCF.exists());
+	    	}
+    
+    public void testVcfBurdenRscriptV() throws IOException{    
+	    	Assert.assertEquals(0,new VcfBurdenRscriptV().instanceMain(new String[]{
+	        		"-o",JETER_VCF.getPath(),
+	        		VCF01}));
+	    	Assert.assertTrue( JETER_VCF.exists());
+	    	}
 	}
