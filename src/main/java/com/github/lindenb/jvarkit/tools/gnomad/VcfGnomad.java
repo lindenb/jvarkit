@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -353,6 +354,7 @@ public class VcfGnomad extends Launcher{
 
 			CtxWriter(final VariantContextWriter delegate) {
 				super(delegate);
+				Objects.requireNonNull(delegate);
 				Arrays.fill(this.ome2manifest,null);
 				for(final OmeType ome:OmeType.values()) {
 					for(final String pop: POPS)
@@ -451,7 +453,7 @@ public class VcfGnomad extends Launcher{
 				
 				// lopp over exome and genome data
 				for(int i=0;i< this.ome2manifest.length;++i) {
-					ManifestEntry entry = this.ome2manifest[i];
+					final ManifestEntry entry = this.ome2manifest[i];
 					if(entry==null) continue;
 					
 					final VariantContext ctx2=entry.findMatching(normalizeVariantContig(ctx));
@@ -485,8 +487,11 @@ public class VcfGnomad extends Launcher{
 					if(!infoField.attributes.stream().filter(N->N!=null).findAny().isPresent()) continue;
 					vcb.attribute(infoField.getOutputTag(), infoField.attributes);
 					}
-				super.add(vcb.make());
+				final VariantContext ctx2 = Objects.requireNonNull(vcb.make());
+				Objects.requireNonNull(getDelegate());
+				super.add(ctx2);
 				}
+			
 			@Override
 			public void close() {
 				CloserUtil.close(Arrays.asList(this.ome2manifest));
@@ -587,9 +592,11 @@ public class VcfGnomad extends Launcher{
 			final String inputName,
 			final VcfIterator iter,
 			final VariantContextWriter delegate
-			) {
+			)
+		{
 		final VariantContextWriter out = this.component.open(delegate);
 		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
+		out.writeHeader(iter.getHeader());
 		while(iter.hasNext()) {
 			out.add(progress.watch(iter.next()));
 			}

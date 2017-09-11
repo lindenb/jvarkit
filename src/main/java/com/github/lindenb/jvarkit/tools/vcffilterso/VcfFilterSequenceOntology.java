@@ -522,10 +522,8 @@ public class VcfFilterSequenceOntology
 		}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator iter, final VariantContextWriter delegate) {
-		
+	protected int doVcfToVcf(final String inputName,final VcfIterator iter, final VariantContextWriter delegate) {	
 		final VariantContextWriter out = this.component.open(delegate);
-		
 		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
 		out.writeHeader(iter.getHeader());
 		while(iter.hasNext())
@@ -566,7 +564,7 @@ public class VcfFilterSequenceOntology
 				return 0;
 				}
 			
-			if(this.initialize()!=0) return -1;
+			if(this.component.initialize()!=0) return -1;
 			
 			return doVcfToVcf(args, this.outputFile);
 			}

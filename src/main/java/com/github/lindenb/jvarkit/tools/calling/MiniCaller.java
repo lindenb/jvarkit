@@ -301,12 +301,10 @@ public class MiniCaller extends Launcher
 
 
 
-    private MiniCaller()
-        {
-
+    public MiniCaller() {
         }
 
-    private MyVariantContext findContext(int tid,int pos0,Allele ref)
+    private MyVariantContext findContext(final int tid,final int pos0,final Allele ref)
         {
         int idx=0;
         for(idx=0; idx<this.buffer.size(); ++idx)
@@ -323,7 +321,7 @@ public class MiniCaller extends Launcher
             return ctx;
             }
         //System.err.println("new at "+tid+":"+pos0+" idx="+idx+" N="+this.buffer);
-        MyVariantContext ctx=new MyVariantContext();
+        final MyVariantContext ctx=new MyVariantContext();
         ctx.tid=tid;
         ctx.pos0=pos0;
         ctx.ref=ref;
@@ -545,13 +543,13 @@ public class MiniCaller extends Launcher
                                 if(refPos0>0)// we need base before deletion
 	                                {
                                 	char refBase=genomicSeq.charAt(refPos0-1);/* we use base before deletion */
-	                            	StringBuilder sb=new StringBuilder(ce.getLength());
+                                	final StringBuilder sb=new StringBuilder(ce.getLength());
 	                            	sb.append(refBase);
 	                                for(int i=0;i< ce.getLength();++i)
 	                                	{
 	                                	sb.append(genomicSeq.charAt(refPos0+i));
 	                                	}
-	                                MyVariantContext v=findContext(
+	                                final MyVariantContext v=findContext(
                                             rec.getReferenceIndex(),
                                             refPos0-1,//we use base *before deletion */
                                             Allele.create(sb.toString(), true)
@@ -572,14 +570,14 @@ public class MiniCaller extends Launcher
 	                                {
                                 	float qual=0;
                                 	char refBase=Character.toUpperCase( genomicSeq.charAt(refPos0-1));
-	                                StringBuilder sb=new StringBuilder(1+ce.getLength());
+                                	final StringBuilder sb=new StringBuilder(1+ce.getLength());
 	                                sb.append(refBase);
 	                                for(int i=0;i< ce.getLength();++i)
 	                                	{
 	                                	sb.append((char)bases[readPos+i]);
-	                                	qual+=quals[readPos+i];
+	                                	qual+=(readPos + i < quals.length?quals[ readPos + i]:0);
 	                                	}
-	                                MyVariantContext v=findContext(
+	                                final MyVariantContext v=findContext(
                                             rec.getReferenceIndex(),
                                             refPos0-1,//we use base *before deletion */
                                             Allele.create(String.valueOf(refBase), true)
@@ -599,7 +597,7 @@ public class MiniCaller extends Launcher
                                 {
                                 for(int i=0; i< ce.getLength();++i)
                                     {
-                                    MyVariantContext v=findContext(
+                                    final MyVariantContext v=findContext(
                                             rec.getReferenceIndex(),
                                             refPos0 + i,
                                             Allele.create(String.valueOf(genomicSeq.charAt( refPos0 + i)), true)
@@ -608,7 +606,7 @@ public class MiniCaller extends Launcher
 
                                     v.add(new Base2(
                                             Allele.create(String.valueOf((char)bases[ readPos + i ]),false),
-                                            quals[ readPos + i],
+                                            (readPos + i < quals.length?quals[ readPos + i]:0),
                                             this.sample2index.get(sampleName),
                                             rec.getReadNegativeStrandFlag()
                                             ));

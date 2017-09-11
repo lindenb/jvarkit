@@ -28,6 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.util.Objects;
+
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -51,8 +53,7 @@ public class DelegateVariantContextWriter implements VariantContextWriter {
 	@Override
 	public void add(final VariantContext ctx) {
 		if(isClosed()) return;
-		getDelegate().add(ctx);
-
+		Objects.requireNonNull(getDelegate()).add(ctx);
 	}
 
 	@Override

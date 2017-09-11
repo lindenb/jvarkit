@@ -57,9 +57,12 @@ import com.github.lindenb.jvarkit.tools.burden.VcfFilterNotInPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfInjectPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes;
 import com.github.lindenb.jvarkit.tools.burden.VcfMoveFiltersToInfo;
+import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
+import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
+import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
@@ -69,7 +72,9 @@ import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.misc.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
+import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
+import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
@@ -80,6 +85,7 @@ import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
+import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -147,7 +153,9 @@ class TestNg01 {
 		return new Object[][] {
 			{TOY_VCF_GZ},
 			{VCF01},
-			{"src/test/resources/ExAC.r1.sites.vep.vcf.gz"}
+			{"src/test/resources/ExAC.r1.sites.vep.vcf.gz"},
+			{"src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz"},
+			{"src/test/resources/gnomad.genomes.r2.0.1.sites.1.vcf.gz"}
 			};
 		}
 	
@@ -419,45 +427,50 @@ class TestNg01 {
     	}
     @Test
     public void testVcfFilterSo() throws IOException{   
+    	File output = new File(TEST_RESULTS_DIR, "jeter.filrerso.vcf");
     	final AnnPredictionParser parser = new AnnPredictionParserFactory().createDefaultParser();
     	final SequenceOntologyTree tree = SequenceOntologyTree.getInstance();
     	String acn = "SO:0001583";
     	final SequenceOntologyTree.Term term =tree.getTermByAcn(acn);
     	final Set<SequenceOntologyTree.Term> terms = term.getAllDescendants();
     	Assert.assertNotNull(term);
+    	Assert.assertTrue(terms.size()>1);
     	
     	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
+        		"-o",output.getPath(),
         		"-A",acn,
         		VCF01
         		}));
-    	streamVcf(JETER_VCF).forEach(V->{
+    	streamVcf(output).forEach(V->{
+    		//System.err.println(V.getAttribute("ANN")+" vs "+ terms);
     		Assert.assertTrue(parser.getPredictions(V).stream().
     			flatMap(P->P.getSOTerms().stream()).
-				anyMatch(T->terms.contains(V)));
+				anyMatch(T->terms.contains(T)));
     	});
     	
     	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
+        		"-o",output.getPath(),
         		"-A",acn,
         		"--invert",
         		VCF01
         		}));
-    	streamVcf(JETER_VCF).forEach(V->{
+    	streamVcf(output).forEach(V->{
     		Assert.assertFalse(parser.getPredictions(V).stream().
     			flatMap(P->P.getSOTerms().stream()).
-				anyMatch(T->terms.contains(V)));
+				anyMatch(T->terms.contains(T)));
     	});
 
     	
     	
     	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
+        		"-o",output.getPath(),
         		"-A",acn,
         		"--rmatt",
         		VCF01
         		}));
-    	Assert.assertTrue(streamVcf(JETER_VCF).findAny().isPresent());
+    	Assert.assertTrue(streamVcf(output).findAny().isPresent());
+    	
+    	Assert.assertTrue(output.delete());
     	}
     @Test
     public void testVcfRebase() throws IOException{    
@@ -544,11 +557,19 @@ class TestNg01 {
 	    	}
     @Test
     public void testVcfGnomad() throws IOException{    
+    		final File manifest = new File(TEST_RESULTS_DIR,"gnomad.manifest");
+    		PrintWriter pw = new PrintWriter(manifest);
+    		pw.println("exome\t*\tsrc/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz");
+    		pw.println("genome\t1\tsrc/test/resources/gnomad.genomes.r2.0.1.sites.1.vcf.gz");
+    		pw.flush();
+    		pw.close();
+    		
 	    	Assert.assertEquals(0,new VcfGnomad().instanceMain(new String[]{
 	        		"-o",JETER_VCF.getPath(),
-	        		"-m","/path/to/manifest",
+	        		"-m",manifest.getPath(),
 	        		VCF01}));
-	    	Assert.assertTrue( JETER_VCF.exists());
+	    	Assert.assertTrue( JETER_VCF.delete());
+	    	Assert.assertTrue( manifest.delete());
 	    	}
     @Test(dependsOnMethods={"testVcfInjectPed"})
     public void testVcfFisherH() throws IOException{
@@ -627,5 +648,82 @@ class TestNg01 {
         		}));
     	Assert.assertTrue( output.delete());
     	}
-    
+    @Test
+    public void testNgsFilesSummary() throws IOException{   
+		final File input =new File(TEST_RESULTS_DIR,"jeter.path.txt");
+    	PrintWriter pw=new PrintWriter(input);
+    	pw.println(TOY_VCF_GZ);
+    	pw.println(TOY_BAM);
+    	pw.flush();
+    	pw.close();
+		final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
+    	Assert.assertEquals(0,new NgsFilesSummary().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		input.getPath()
+        		}));
+    	Assert.assertTrue( output.delete());
+    	Assert.assertTrue( input.delete());
+    	}
+    @Test
+    public void testFindAllCoverageAtPosition() throws IOException{   
+		final File input =new File(TEST_RESULTS_DIR,"jeter.path.txt");
+    	PrintWriter pw=new PrintWriter(input);
+    	pw.println(TOY_BAM);
+    	pw.flush();
+    	pw.close();
+		final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
+    	Assert.assertEquals(0,new FindAllCoverageAtPosition().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-p","ref2:14",
+        		input.getPath()
+        		}));
+    	Assert.assertTrue( output.delete());
+    	Assert.assertTrue( input.delete());
+    	}
+    @Test
+    public void testFindAVariation() throws IOException{   
+		final File input =new File(TEST_RESULTS_DIR,"jeter.path.txt");
+    	PrintWriter pw=new PrintWriter(input);
+    	pw.println(TOY_VCF_GZ);
+    	pw.flush();
+    	pw.close();
+		final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
+    	Assert.assertEquals(0,new FindAVariation().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-p","ref2:14",
+        		input.getPath()
+        		}));
+    	Assert.assertTrue( output.delete());
+    	Assert.assertTrue( input.delete());
+    	}
+    @Test
+    public void testSAM4WebLogo() throws IOException{   
+		final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
+    	Assert.assertEquals(0,new SAM4WebLogo().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-r","ref2:10-20",
+        		TOY_BAM
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testMiniCaller() throws IOException{   
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new MiniCaller().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-R",TOY_FA,
+        		TOY_BAM
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testVCFTrios() throws IOException{   
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VCFTrios().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-p",PED01,
+        		VCF01
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
 	}
