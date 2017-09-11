@@ -73,6 +73,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
+import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
@@ -722,6 +723,25 @@ class TestNg01 {
     	Assert.assertEquals(0,new VCFTrios().instanceMain(new String[]{
         		"-o",output.getPath(),
         		"-p",PED01,
+        		VCF01
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testVcfMultiToOne() throws IOException{   
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VcfMultiToOne().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		VCF01
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testSortVcfOnInfo() throws IOException{   
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new SortVcfOnInfo().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-T","AC",
         		VCF01
         		}));
     	Assert.assertTrue( output.delete());

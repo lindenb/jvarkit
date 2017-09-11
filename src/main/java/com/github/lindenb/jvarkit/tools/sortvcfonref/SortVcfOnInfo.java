@@ -98,7 +98,7 @@ public class SortVcfOnInfo extends Launcher
 
 	@Parameter(names={"-T","--tag","-t"},description="INFO tag",required=true)
     private String infoField=null;
-    private  VCFInfoHeaderLine infoDecl;
+    private VCFInfoHeaderLine infoDecl;
     private AbstractVCFCodec codec;
     
     @ParametersDelegate
@@ -227,14 +227,7 @@ public class SortVcfOnInfo extends Launcher
 			}
 		}
 	
-	private class VariantComparator implements Comparator<VcfLine>
-		{
-		@Override
-		public int compare(VcfLine o1, VcfLine o2)
-			{
-			return o1.compareTo(o2);
-			}
-		}
+	
 	@Override
 	public int doWork(final List<String> args)
 		{
@@ -290,7 +283,7 @@ public class SortVcfOnInfo extends Launcher
 			sorted=SortingCollection.newInstance(
 					VcfLine.class,
 					new VariantCodec(),
-					new VariantComparator(),
+					(V1,V2)->V1.compareTo(V2),
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpDirectories()
 					);
