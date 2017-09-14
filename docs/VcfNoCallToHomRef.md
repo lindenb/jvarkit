@@ -11,19 +11,6 @@ Usage: vcfnocall2homref [options] Files
     -dp, --depth
       Default DEPTH. negative = don't set depth.
       Default: 10
-    -x, --doNotFixExcludedIfAllNoCall
-      Default behavior is to fix the excluded samples there is more than one 
-      excluded sample and if ALL excluded samples are NOCALL. For example if 
-      we're combining exome and wgs.Say all WGS's samples have been excluded 
-      and ALL WGS are NOCALL: means that the whole WGS was uncalled while 
-      exome has may be one variant: we set HOM_REF for all samples
-      Default: false
-    -s, --excludeSamples
-      exclude those samples from being converted. e.g: if we merged a 
-      multi-called vcf.
-      Default: []
-    -sf, --excludeSamplesFile
-      exclude those samples from being converted. One sample per line.
     -f, --filter
       Set this Genotype FILTER for converted genotype
     -gq, --gq, --GT
@@ -34,6 +21,12 @@ Usage: vcfnocall2homref [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -s, --includeSamples
+      only converts those samples. Default: all samples are converted.
+      Default: []
+    -sf, --includeSamplesFile
+      only converts those samples. Default: all samples are converted. One 
+      sample per line.
     --noRecount
       do not recount DP/AC/AN/AF atttributes
       Default: false
@@ -53,6 +46,9 @@ Usage: vcfnocall2homref [options] Files
       Default: false
     --version
       print version and exit
+    -x
+      do not recount DP/AC/AN/AF atttributes
+      Default: false
 
 ```
 
@@ -100,7 +96,7 @@ http.proxy.port=124567
 
 Git History for this file:
 ```
-
+Thu Sep 14 13:10:00 2017 +0200 ; opss forgot the source ; https://github.com/lindenb/jvarkit/commit/2d1db69c6f4107dc989fb79e1138c7301da35232
 ```
 
 ## Contribute
@@ -157,12 +153,12 @@ rotavirus	51	.	A	G	22.55	.	AC=2;AF=0.25;AN=8;DP=10	GT:DP:GQ:PL	0/0:10:1	0/0:.:.:
 rotavirus	91	.	A	T	5.45	.	AC=1;AF=0.125;AN=8;DP=20	GT:DP:GQ:PL	0/0:.:.:0,255,133	0/1:.:.:40,0,310/0:10:1	0/0:10:1
 ```
 
-do not fix S1:
+convert S3 and S4 only
 
 ```
-$ java -jar dist/vcfnocall2homref.jar  -f xxx -s S1   input.vcf 
+$ java -jar dist/vcfnocall2homref.jar  -f CONVERTED -s S3 -s S4  ~/jeter.vcf 
 ##fileformat=VCFv4.2
-##FILTER=<ID=xxx,Description="NOCALL Genotypes converted to HOM_REF by com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef">
+##FILTER=<ID=CONVERTED,Description="NOCALL Genotypes converted to HOM_REF by com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef">
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
 ##FORMAT=<ID=FT,Number=.,Type=String,Description="Genotype-level filter">
 ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
@@ -175,50 +171,7 @@ $ java -jar dist/vcfnocall2homref.jar  -f xxx -s S1   input.vcf
 ##contig=<ID=rotavirus,length=1074>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2	S3	S4
 rotavirus	51	.	A	G	22.55	.	AC=2;AF=0.33333334;AN=6;DP=0	GT:PL	./.	0/0:0,255,127	0/0:0,255,137	1/1:70,255,0
-rotavirus	91	.	A	T	5.45	.	AC=1;AF=0.125;AN=8;DP=20	GT:DP:FT:GQ:PL	0/0:.:PASS:.:0,255,133	0/1:.:PASS:.:40,0,31	0/0:10:xxx:1	0/0:10:xxx:1
-```
-
-do not fix S3 and S4. They're **still** fixed for second variant because ALL excluded samples are no call.
-
-```
-$ java -jar dist/vcfnocall2homref.jar  -f xxx -s S3 -s S4   input.vcf 
-##fileformat=VCFv4.2
-##FILTER=<ID=xxx,Description="NOCALL Genotypes converted to HOM_REF by com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef">
-##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
-##FORMAT=<ID=FT,Number=.,Type=String,Description="Genotype-level filter">
-##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
-##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes, for each ALT allele, in the same order as listed">
-##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency, for each ALT allele, in the same order as listed">
-##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
-##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth; some reads may have been filtered">
-##contig=<ID=rotavirus,length=1074>
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2	S3	S4
-rotavirus	51	.	A	G	22.55	.	AC=2;AF=0.25;AN=8;DP=10	GT:DP:FT:GQ:PL	0/0:10:xxx:1	0/0:.:PASS:.:0,255,127	0/0:.:PASS:.:0,255,137	1/1:.:PASS:.:70,255,0
-rotavirus	91	.	A	T	5.45	.	AC=1;AF=0.125;AN=8;DP=20	GT:DP:FT:GQ:PL	0/0:.:PASS:.:0,255,133	0/1:.:PASS:.:40,0,31	0/0:10:xxx:1	0/0:10:xxx:1
-```
-
-
-do not fix S3 and S4 with option '-x'
-
-```
-$ java -jar dist/vcfnocall2homref.jar  -f xxx -s S3 -s S4 -x  input.vcf 
-##fileformat=VCFv4.2
-##FILTER=<ID=xxx,Description="NOCALL Genotypes converted to HOM_REF by com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef">
-##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
-##FORMAT=<ID=FT,Number=.,Type=String,Description="Genotype-level filter">
-##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
-##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes, for each ALT allele, in the same order as listed">
-##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency, for each ALT allele, in the same order as listed">
-##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
-##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth; some reads may have been filtered">
-##contig=<ID=rotavirus,length=1074>
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2	S3	S4
-rotavirus	51	.	A	G	22.55	.	AC=2;AF=0.25;AN=8;DP=10	GT:DP:FT:GQ:PL	0/0:10:xxx:1	0/0:.:PASS:.:0,255,127	0/0:.:PASS:.:0,255,137	1/1:.:PASS:.:70,255,0
-rotavirus	91	.	A	T	5.45	.	AC=1;AF=0.25;AN=4;DP=0	GT:PL	0/0:0,255,133	0/1:40,0,31	./.	./.
+rotavirus	91	.	A	T	5.45	.	AC=1;AF=0.125;AN=8;DP=20	GT:DP:FT:GQ:PL	0/0:.:PASS:.:0,255,133	0/1:.:PASS:.:40,0,31	0/0:10:CONVERTED:1	0/0:10:CONVERTED:1
 ```
 
 
