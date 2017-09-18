@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -40,7 +39,6 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
@@ -382,7 +380,7 @@ public class VCFTrios
 		@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
 		private File pedigreeFile = null;
 	
-		@Parameter(names={"-f","--filter"},description="filter name. create a filter in the FILTER column")
+		@Parameter(names={"-f","--filter"},description="filter name. create a filter in the FILTER column for variants having an INCOMPAT")
 		private String filterName = null;
 	
 		@Parameter(names={"-if","--inversefilter"},description="inverse FILTER, flag variant having NO mendelian incompat.")
@@ -391,9 +389,8 @@ public class VCFTrios
 		@Parameter(names={"-gf","--gfilter"},description="genotype filter name. create a filter in the GENOTYPE column")
 		private String genotypeFilterName = null;
 		
-		@Parameter(names={"-A","--attribute"},description="INFO Attribute name")
+		@Parameter(names={"-A","--attribute"},description="INFO Attribute name containing the name of the affected samples.")
 		private String attributeName = "MENDEL";
-	
 	
 		@Parameter(names={"--discard"},description="Discard variants without mendelian incompatibilities")
 		private boolean discard_variants_without_mendelian_incompat=false;
@@ -412,18 +409,16 @@ public class VCFTrios
 				LOG.error("Pedigree undefined.");
 				return -1;
 				}
-			if(this.discard_variants_without_mendelian_incompat && this.inverseFilter)
+			if(this.discard_variants_without_mendelian_incompat && 
+				this.inverseFilter)
 				{
 				LOG.error("Cannot inverse filter and discard variants without problem at the same time");
 				return -1;
 				}
 			
-			BufferedReader in = null;
 			try {
 				LOG.info("reading pedigree "+this.pedigreeFile);
-				 in=IOUtils.openFileForBufferedReading(this.pedigreeFile);
-				this.pedigree=Pedigree.newParser().parse(in);
-				in.close();
+				this.pedigree=Pedigree.newParser().parse(this.pedigreeFile);
 				}
 			catch(final Exception err)
 				{

@@ -61,12 +61,14 @@ import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
+import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
+import com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.misc.VcfToHilbert;
@@ -202,6 +204,32 @@ class TestNg01 {
         	}));
         Assert.assertTrue( output.exists());
     	}
+    
+    @Test
+    public void testVcfRename() throws IOException {
+    	File output = new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	File mapFile = new File(TEST_RESULTS_DIR,"jeter.tsv");
+    	PrintWriter pw = new PrintWriter(mapFile);
+    	
+    	
+    	BufferedReader br=new BufferedReader(new FileReader(TOY_FA+".fai"));
+    	br.lines().map(L->L.split("\t")[0]).
+    		map(L->L+"\tnew"+L).
+    		forEach(L->pw.println(L));
+    	br.close();
+    	pw.flush();pw.close();
+    	
+        Assert.assertEquals(0,new ConvertVcfChromosomes().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"--mapping",mapFile.getPath(),
+        		TOY_VCF_GZ
+        	}));
+        Assert.assertTrue( getVcfHeader(output).getContigLines().stream().allMatch(C->C.getID().startsWith("new")));
+        Assert.assertTrue(streamVcf(output).allMatch(V->V.getContig().startsWith("new")));
+        Assert.assertTrue( output.delete());
+        Assert.assertTrue( mapFile.delete());
+    	}
+    
     @Test(dataProvider="all_vcfs")
     public void testVcfCreateSequenceDictionary(final String vcfPath) throws IOException{
     	File output = new File(TEST_RESULTS_DIR,"jeter.dict");
@@ -742,6 +770,15 @@ class TestNg01 {
     	Assert.assertEquals(0,new SortVcfOnInfo().instanceMain(new String[]{
         		"-o",output.getPath(),
         		"-T","AC",
+        		VCF01
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testNoCallToHomRef() throws IOException{   
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VcfNoCallToHomRef().instanceMain(new String[]{
+        		"-o",output.getPath(),
         		VCF01
         		}));
     	Assert.assertTrue( output.delete());

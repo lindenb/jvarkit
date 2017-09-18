@@ -191,7 +191,7 @@ public class VCFMerge2
 			}
 		
 
-		
+		@Override
 		public int compareTo(final VariantOfFile var)
 			{
 			final VariantContext vc1=parse();
