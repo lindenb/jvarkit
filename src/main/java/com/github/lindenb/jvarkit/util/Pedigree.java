@@ -43,6 +43,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.variant.vcf.VCFHeader;
@@ -745,4 +746,51 @@ public class Pedigree
 			}
 		}
 	
+	/** extract case controls in VCF header injected with VcfInjectPedigree */
+	public static class CaseControlExtractor
+		{
+		private boolean verbose= true;
+		
+		public void setVerbose(boolean verbose) {
+			this.verbose = verbose;
+			}
+		public boolean isVerbose() {
+			return verbose;
+		}
+		
+		public java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> extract(final htsjdk.variant.vcf.VCFHeader header) {
+			final com.github.lindenb.jvarkit.util.Pedigree pedigree = Pedigree.newParser().parse(header);
+			if(pedigree.isEmpty())
+				{
+				throw new JvarkitException.PedigreeError("No pedigree found in header. use VcfInjectPedigree to add it");
+				}
+			if(!pedigree.verifyPersonsHaveUniqueNames()) {
+				throw new JvarkitException.PedigreeError("I can't use this pedigree in a VCF because two samples have the same ID.");
+			}
+
+			final java.util.Set<String> samplesNames= new java.util.HashSet<>(header.getSampleNamesInOrder());
+			final java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> individuals = new java.util.HashSet<>(pedigree.getPersons());
+			
+			
+			final java.util.Iterator<com.github.lindenb.jvarkit.util.Pedigree.Person> iter= individuals.iterator();
+			while(iter.hasNext())
+			{
+				final com.github.lindenb.jvarkit.util.Pedigree.Person person = iter.next();
+				if(!(samplesNames.contains(person.getId()) && (person.isAffected() || person.isUnaffected()))) {
+					if(isVerbose()) LOG.warn("Ignoring "+person+" because it is not present in VCF header or status is unknown");
+					iter.remove();
+				}
+			}
+			
+			if(isVerbose())  {
+				LOG.info("Individuals :"+individuals.size() +
+					" affected :"+individuals.stream().filter(P->P.isAffected()).count() +
+					" unaffected :"+individuals.stream().filter(P->P.isUnaffected()).count()
+					);
+				}
+			return java.util.Collections.unmodifiableSet( individuals );
+			}	
+		}
+	
+
 	}

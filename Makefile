@@ -212,8 +212,9 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
-	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref
-	
+	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
+	vcfamalgamation
+
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -532,6 +533,7 @@ $(eval $(call compile-htsjdk-cmd,vcfloopovergenes,${jvarkit.package}.tools.burde
 $(eval $(call compile-htsjdk-cmd,vcffilterjdk,${jvarkit.package}.tools.vcffilterjs.VcfFilterJdk,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samjdk,${jvarkit.package}.tools.samjs.SamJdk,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,optimizer,${jvarkit.package}.tools.optimizer.Optimizer,${jcommander.jar} ${gson.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfamalgamation,${jvarkit.package}.tools.vcfamalgation.VcfXmlAmalgamation,${jcommander.jar} ${gson.jar}  ${bigwig.jars}))
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.vg.VcfToGraph,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))

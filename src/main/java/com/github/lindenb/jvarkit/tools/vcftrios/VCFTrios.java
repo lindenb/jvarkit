@@ -37,6 +37,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -140,6 +147,9 @@ public class VCFTrios
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
+	@XmlType(name="vcftrios")
+	@XmlRootElement(name="vcftrios")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 	implements VariantContextWriterFactory
 		{
@@ -376,7 +386,7 @@ public class VCFTrios
 				}
 			}
 		
-		
+		@XmlElement(name="pedigree")
 		@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
 		private File pedigreeFile = null;
 	
@@ -395,7 +405,7 @@ public class VCFTrios
 		@Parameter(names={"--discard"},description="Discard variants without mendelian incompatibilities")
 		private boolean discard_variants_without_mendelian_incompat=false;
 		
-		
+		@XmlTransient
 		private Pedigree pedigree=null;
 		
 		@Override

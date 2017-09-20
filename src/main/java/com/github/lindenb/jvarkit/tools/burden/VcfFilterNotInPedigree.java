@@ -33,7 +33,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -78,19 +82,25 @@ public class VcfFilterNotInPedigree
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 	
-	@XmlRootElement(name="vcfinjectpedigree")
+	@XmlType(name="vcffilternotinpedigree")
+	@XmlRootElement(name="vcffilternotinpedigree")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
+			@XmlElement(name="filter")
 			@Parameter(names={"-f","--filter"},description="FILTER name. Will be set for variant where the only genotypes non-homref are NOT in the pedigree")
 			private String filterName = "NoGenotypeInPedigree";
 		
+			@XmlElement(name="discard")
 			@Parameter(names={"-r","--remove"},description="remove the variant instead of setting the FILTER")
 			private boolean dicardVariant = false;
 		
+			@XmlElement(name="singleton")
 			@Parameter(names={"-s","--singleton"},description="Variant is flagged/FILTERed as SingletonAlt if the ALT if found in less or equal times 'singleton-times' in the genotypes. -1:ignore")
 			private int singleton = 1 ;
 		
+			@XmlElement(name="singleton-filter")
 			@Parameter(names={"-sf","--sfilter"},description="FILTER name for option singleton")
 			private String singletonfilterName = "SingletonAlt";
 			
@@ -116,7 +126,7 @@ public class VcfFilterNotInPedigree
 
 					final Set<String> samplesNames= new HashSet<>(header.getSampleNamesInOrder());
 					this.individuals = new HashSet<>(pedigree.getPersons());
-					final Iterator<Pedigree.Person> iter= individuals.iterator();
+					final Iterator<Pedigree.Person> iter= this.individuals.iterator();
 					while(iter.hasNext())
 					{
 						final Pedigree.Person person = iter.next();
@@ -138,7 +148,7 @@ public class VcfFilterNotInPedigree
 					final VCFHeader h2= new VCFHeader(header);
 					h2.addMetaDataLine(filter);
 					if(CtxWriterFactory.this.singleton!=IGNORE_SINGLETON) {
-						h2.addMetaDataLine(singletonFilter);
+						h2.addMetaDataLine(this.singletonFilter);
 						}					
 					super.writeHeader(h2);
 					}
@@ -196,7 +206,7 @@ public class VcfFilterNotInPedigree
 				}
 						
 			@Override
-			public VariantContextWriter open(VariantContextWriter delegate) {
+			public VariantContextWriter open(final VariantContextWriter delegate) {
 				return new CtxWriter(delegate);
 				}
 			

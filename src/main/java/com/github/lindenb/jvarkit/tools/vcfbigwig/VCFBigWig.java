@@ -35,6 +35,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
+
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
@@ -95,29 +103,36 @@ public class VCFBigWig extends Launcher
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
-	
+	@XmlType(name="vcfbigwig")
+	@XmlRootElement(name="vcfbigwig")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 	implements VariantContextWriterFactory
 		{
+		@XmlElement(name="bigwig")
 		@Parameter(names={"-B","--bigwig"},description="Path to the bigwig file",required=true)
 		private String biwWigFile = null;
 	
+		@XmlElement(name="tag")
 		@Parameter(names={"-T","--tag","-tag"},description="Name of the INFO tag. default: name of the bigwig")
 		private String TAG = null;
 	
 		@Parameter(names={"-C","--contained"},description="Specifies wig values must be contained by region. if false: return any intersecting region values")
 		private boolean contained = false;
 	
+		@XmlElement(name="aggregate")
 		@Parameter(names={"-a","--aggregate"},description="How to aggregate overlapping values: 'avg' average; 'median': median, 'first': use first, 'all' : print all the data")
 		private AggregateMethod aggregateMethod  = AggregateMethod.avg;
 	
+		@XmlTransient
 		@Parameter(names={"-t","--transform"},description="Deprecated",hidden=true)
 		private String _convertChrName = null;
 	
+		@XmlElement(name="onNotFound")
 		@Parameter(names={"--onNotFound"},description="[20170707] " + ContigNameConverter.OPT_ON_NT_FOUND_DESC)
 		private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;
 		
-		
+		@XmlTransient
 		private BBFileReader bbFileReader=null;
 
 		

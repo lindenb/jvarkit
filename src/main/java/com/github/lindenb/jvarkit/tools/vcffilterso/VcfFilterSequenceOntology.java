@@ -41,7 +41,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -162,11 +167,13 @@ public class VcfFilterSequenceOntology
 	private boolean showList = false;
 
 
+	@XmlType(name="vcffilterso")
 	@XmlRootElement(name="vcffilterso")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
-		
+			
 			@Parameter(names={"-i","--invert"},description="invert selection (if one of the user's term is found, do not accept the variant")
 			private boolean invert = false;
 		
@@ -185,19 +192,24 @@ public class VcfFilterSequenceOntology
 			@Parameter(names={"-R","--rmnoatt"},description="remove the variant if option -r was used and the is no more attribute")
 			private boolean removeIfNoMoreAttribute = false;
 		
-			
+			@XmlElement(name="accession")
 			@Parameter(names={"-A","--acn","--accession"},description="add this SO:ACN. e.g.: 'SO:0001818' Protein altering variant [http://www.sequenceontology.org/miso/current_svn/term/SO:0001818](http://www.sequenceontology.org/miso/current_svn/term/SO:0001818)")
 			private List<String> userTermsAsString = new ArrayList<>();
 		
+			@XmlElement(name="accession-file")
 			@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers")
 			private File userAcnFile = null;
 		
-		
+			@XmlTransient
 			@Parameter(names={"-owluri","--owluri"},description="If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl")
 			private String owluri = "";
 			
+			@XmlTransient
 			private SequenceOntologyTree sequenceOntologyTree = SequenceOntologyTree.createDefault();
+			
+			
 			/* all sequence terms */
+			@XmlTransient
 			private final Set<SequenceOntologyTree.Term> user_terms=new HashSet<SequenceOntologyTree.Term>();
 
 			

@@ -34,6 +34,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -105,21 +111,29 @@ public class VcfBurdenFilterExac
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
+	@XmlType(name="vcfburdenexac")
+	@XmlRootElement(name="vcfburdenexac")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 	implements VariantContextWriterFactory
 		{
+		@XmlElement(name="exac")
 		@Parameter(names={"-exac","--exac"},description="Path to Exac VCF file. At the time of writing, you'd better use a normalized version of Exac (see https://github.com/lindenb/jvarkit/wiki/VCFFixIndels )",required=true)
 		private File exacFile = null;
 	
+		@XmlElement(name="discard-not-in-exac")
 		@Parameter(names={"-d","--discardNotInExac"},description="if variant was not found in Exac, set the FILTER. Default: don't set the FILTER.")
 		private boolean ifNotInExacThenDiscard = false;
 	
+		@XmlElement(name="max-freq")
 		@Parameter(names={"-maxFreq","--maxFreq"},description="set FILTER if max(exac frequency in any pop) is greater than this value)")
 		private double maxFreq = 0.001 ;
 	
+		@XmlElement(name="populations")
 		@Parameter(names={"-pop","--population"},description="comma separated populations in exac")
 		private String exacPopulationStr = "AFR,AMR,EAS,FIN,NFE,SAS";
 	
+		@XmlElement(name="tabix")
 		@Parameter(names={"-tabix","--tabix"},description="use tabix index for Exac it is present. Might speed up things if the number of variant is low.")
 		private boolean useTabixIndex = false;
 		

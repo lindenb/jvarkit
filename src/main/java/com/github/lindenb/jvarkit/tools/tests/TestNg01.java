@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
 import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterGenes;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherV;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF;
@@ -81,6 +82,7 @@ import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
+import com.github.lindenb.jvarkit.tools.vcfamalgation.VcfXmlAmalgamation;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallers;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
@@ -783,4 +785,45 @@ class TestNg01 {
         		}));
     	Assert.assertTrue( output.delete());
     	}
+    
+    @Test
+    public void testVcfAmalgation() throws IOException{   
+    	final File tmpXml = File.createTempFile("_tmp", ".xml",TEST_RESULTS_DIR);
+    	PrintWriter pw = new PrintWriter(tmpXml);
+    	pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n"+
+        		"<vcfhead><count>10</count></vcfhead>"+
+        		"<vcftail><count>5</count></vcftail>"+
+    		"</config>"
+    		);
+    	pw.flush();
+    	pw.close();
+    	
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VcfXmlAmalgamation().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"--xml",tmpXml.getPath(),
+        		VCF01
+        		}));
+    	Assert.assertTrue( output.delete());
+    	tmpXml.delete();
+    	}
+    @Test
+    public void testVcfBurdenFilterGenes() throws IOException{   
+    	final File tmp = File.createTempFile("_tmp", ".txt",TEST_RESULTS_DIR);
+    	PrintWriter pw = new PrintWriter(tmp);
+    	pw.println("ISG15");
+    	pw.flush();
+    	pw.close();
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VcfBurdenFilterGenes().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"--genes",tmp.getPath(),
+        		"--filter","ABCD",
+        		"src/test/resources/ExAC.r1.sites.vep.vcf.gz"
+        		}));
+    	Assert.assertTrue( streamVcf(output).count()>0L);
+    	Assert.assertTrue( output.delete());
+    	tmp.delete();
+    	}
+    
 	}
