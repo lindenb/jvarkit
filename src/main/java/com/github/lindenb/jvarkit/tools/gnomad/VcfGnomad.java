@@ -40,6 +40,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -134,35 +141,63 @@ public class VcfGnomad extends Launcher{
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
-	
+	@XmlType(name="vcfgnomad")
+	@XmlRootElement(name="vcfgnomad")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 		{		
+		@XmlElement(name="manifest")
 		@Parameter(names={"-m","--manifest"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
 		private File manifestFile=null;
+		
+		@XmlElement(name="skip-filtered")
 		@Parameter(names={"-filtered","--filtered"},description="Skip Filtered User Variants")
 		private boolean skipFiltered=false;
+		
+		@XmlElement(name="skip-filtered-gnomad")
 		@Parameter(names={"-filteredGnomad","--filteredGnomad"},description="[20170706] Skip Filtered GNOMAD Variants")
 		private boolean filteredGnomad=false;
+		
+		@XmlElement(name="skip-multi-alt-gnomad")
 		@Parameter(names={"-noMultiAltGnomad","--noMultiAltGnomad"},description="[20170706] Skip Multi Allelic GNOMAD Variants")
 		private boolean noMultiAltGnomad=false;
+		
+		
+		@XmlElement(name="in-gnomad-filter")
 		@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when the variant is found in nomad")
 		private String inGnomadFilterName=null;
+		
+		
+		@XmlElement(name="allele-concordance")
 		@Parameter(names={"-ac","--alleleconcordance"},description="ALL Alt allele must be found in gnomad before setting a FILTER")
 		private boolean alleleconcordance=false;
+		
+		
+		@XmlElement(name="ac")
 		@Parameter(names={"--noAlleleCount"},description="do Not Insert AC /Allele Count")
 		private boolean doNotInsertAlleleCount=false;
+		
+		@XmlElement(name="an")
 		@Parameter(names={"--noAlleleNumber"},description="do Not Insert AN /Allele Number")
 		private boolean doNotInsertAlleleNumber=false;
+		
+		@XmlElement(name="af")
 		@Parameter(names={"--noAlleleFreq"},description="do Not Insert AF /Allele Freq.")
 		private boolean doNotInsertAlleleFreq=false;
+		
+		@XmlElement(name="buffer-size")
 		@Parameter(names={"--bufferSize"},description="When we're looking for variant in Exac, load the variants for 'N' bases instead of doing a random access for each variant")
 		private int gnomadBufferSize=100000;
+		
+		@XmlElement(name="streaming")
 		@Parameter(names={"--streaming"},description="[20170707] Don't use tabix random-access (which are ok for small inputs) but you a streaming process (better to annotate a large WGS file). Assume dictionaries are sorted the same way.")
 		private boolean streaming=false;
 		
 		/** entries mapping chromosome/type->vcf.gz */
+		@XmlTransient
 		private List<ManifestEntry> manifestEntries=new ArrayList<>();
+		@XmlTransient
 		private final Map<String,Integer> contig2tid = new HashMap<>(25);
 		
 		private class InfoField

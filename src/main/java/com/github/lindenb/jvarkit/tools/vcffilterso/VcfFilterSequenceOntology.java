@@ -224,7 +224,6 @@ public class VcfFilterSequenceOntology
 				
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
-					
 					}
 				@Override
 				public void writeHeader(final VCFHeader header) {

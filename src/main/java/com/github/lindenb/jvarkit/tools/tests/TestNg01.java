@@ -90,6 +90,7 @@ import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
+import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
@@ -825,5 +826,18 @@ class TestNg01 {
     	Assert.assertTrue( output.delete());
     	tmp.delete();
     	}
-    
+    @Test
+    public void testVCFStripAnnotations() throws IOException{   
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VCFStripAnnotations().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"--exclude","INFO/CSQ,ID,FILTER/*",
+        		"src/test/resources/ExAC.r1.sites.vep.vcf.gz"
+        		}));
+    	Assert.assertTrue( streamVcf(output).count()>0L);
+    	Assert.assertTrue( streamVcf(output).filter(V->V.hasAttribute("CSQ")).count()==0L);
+    	Assert.assertTrue( streamVcf(output).filter(V->V.hasID()).count()==0L);
+    	Assert.assertTrue( streamVcf(output).filter(V->V.isFiltered()).count()==0L);
+    	Assert.assertTrue( output.delete());
+    	}
 	}
