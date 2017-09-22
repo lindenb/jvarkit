@@ -791,8 +791,10 @@ class TestNg01 {
     public void testVcfAmalgation() throws IOException{   
     	final File tmpXml = File.createTempFile("_tmp", ".xml",TEST_RESULTS_DIR);
     	PrintWriter pw = new PrintWriter(tmpXml);
-    	pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n"+
+    	pw.println(
+    		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n"+
         		"<vcfhead><count>10</count></vcfhead>"+
+        		"<vcffilterjdk><filter>ODD</filter><expression>return variant.getStart()%2==0;</expression></vcffilterjdk>"+
         		"<vcftail><count>5</count></vcftail>"+
     		"</config>"
     		);

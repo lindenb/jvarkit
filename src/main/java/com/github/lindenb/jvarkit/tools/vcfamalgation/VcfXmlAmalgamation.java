@@ -58,6 +58,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
+import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -96,7 +97,8 @@ public class VcfXmlAmalgamation extends Launcher {
 			VcfMoveFiltersToInfo.CtxWriterFactory.class,
 			VCFBigWig.CtxWriterFactory.class,
 			VcfBurdenFilterExac.CtxWriterFactory.class,
-			VcfBurdenFisherH.CtxWriterFactory.class
+			VcfBurdenFisherH.CtxWriterFactory.class,
+			VcfFilterJdk.CtxWriterFactory.class
 		};
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
