@@ -58,6 +58,7 @@ Usage: samjdk [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/270879](https://www.biostars.org/p/270879)
+ * [https://www.biostars.org/p/274183](https://www.biostars.org/p/274183)
 
 
 ## Compilation
@@ -98,6 +99,7 @@ http.proxy.port=124567
 
 Git History for this file:
 ```
+Wed Sep 6 14:49:24 2017 +0200 ; fixing typos, starting to generate VariantContextWriterFactory for spring xml ; https://github.com/lindenb/jvarkit/commit/cf023e059af85f6c266c56a8f7db6ff78e4a5134
 Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
 Mon Aug 7 15:05:18 2017 +0200 ; samjdk ; https://github.com/lindenb/jvarkit/commit/93cb0448be4d6deb253b21620d1da63ad2be9475
 ```
@@ -236,6 +238,35 @@ select unmappeds read or clipped reads
 
 ```
 java -jar dist/samjdk.jar -o out.bam -e 'return record.getReadUnmappedFlag() || record.getCigar().getCigarElements().stream().anyMatch(C->C.getOperator().isClipping());'  in.bam
+```
+
+### Example 4
+
+select chimeric reads virus/host
+
+```
+java -jar dist/samjdk.jar -e '
+    final Set<String> virus_chrom = new HashSet<>(Arrays.asList("viral_seg1", "viral_seg2"));
+    if(record.getReadUnmappedFlag()) return false;
+    if(record.getReadPairedFlag() && !record.getMateUnmappedFlag())
+        {
+        if( virus_chrom.contains(record.getReferenceName()) != 
+            virus_chrom.contains(record.getMateReferenceName())
+            )
+            {
+            return true;
+            }
+        }
+    for(final SAMRecord other: SAMUtils.getOtherCanonicalAlignments(record))
+        {
+        if( virus_chrom.contains(record.getReferenceName()) != 
+            virus_chrom.contains(other.getReferenceName())
+            )
+            {
+            return true;
+            }
+        }
+    return false;' input.bam
 ```
 
 
