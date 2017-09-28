@@ -83,9 +83,17 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java)
+
+Git History for this file:
+```
+Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
+Thu Jul 27 16:58:18 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a8aaf2d7df89f44442b36ee1120ee4dd5c1e36e6
+Wed Jul 12 17:06:39 2017 +0200 ; bioalcidaejdk / vcfstats ; https://github.com/lindenb/jvarkit/commit/c610681de3f3ba3f34efe9076a01484580d0d0f3
+Wed Jul 12 10:53:03 2017 +0200 ; bioalcidaejdk + fastq ; https://github.com/lindenb/jvarkit/commit/313ed6b8c913984622e0af33af4ad697fcb5e31a
+Wed Jul 12 10:16:50 2017 +0200 ; bioalcidaejdk ; https://github.com/lindenb/jvarkit/commit/7fd3f7f6a9576ffde4d46eaaffa652d265e6c38d
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -276,18 +284,19 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
  5  import htsjdk.samtools.util.*;
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
- 8  import javax.annotation.Generated;
- 9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
-10  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
-11    public BioAlcidaeJdkCustom298960668() {
-12    }
-13    @Override
-14    public void execute() throws Exception {
-15     // user's code starts here 
-16     
-17      //user's code ends here 
-18     }
-19  }
+ 8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
+ 9  import javax.annotation.Generated;
+10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
+11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
+12    public BioAlcidaeJdkCustom298960668() {
+13    }
+14    @Override
+15    public void execute() throws Exception {
+16     // user's code starts here 
+17     
+18      //user's code ends here 
+19     }
+20  }
 
 ```
 

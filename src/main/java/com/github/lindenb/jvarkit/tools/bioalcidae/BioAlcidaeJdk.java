@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.bioalcidae;
 
@@ -239,18 +235,19 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
  5  import htsjdk.samtools.util.*;
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
- 8  import javax.annotation.Generated;
- 9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
-10  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
-11    public BioAlcidaeJdkCustom298960668() {
-12    }
-13    @Override
-14    public void execute() throws Exception {
-15     // user's code starts here 
-16     
-17      //user's code ends here 
-18     }
-19  }
+ 8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
+ 9  import javax.annotation.Generated;
+10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
+11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
+12    public BioAlcidaeJdkCustom298960668() {
+13    }
+14    @Override
+15    public void execute() throws Exception {
+16     // user's code starts here 
+17     
+18      //user's code ends here 
+19     }
+20  }
 
 ```
 
@@ -368,7 +365,8 @@ public class BioAlcidaeJdk
 			return StreamSupport.stream(
 					new IterableAdapter<VariantContext>(this.iter).spliterator(),
 					false);
-			}		}
+			}		
+		}
 
     public static abstract class SAMHandler extends AbstractHandler
 		{
@@ -543,7 +541,9 @@ public class BioAlcidaeJdk
 			pw.println("import htsjdk.samtools.util.*;");
 			pw.println("import htsjdk.variant.variantcontext.*;");
 			pw.println("import htsjdk.variant.vcf.*;");
+			pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
 			pw.println("import javax.annotation.Generated;");
+			pw.println("import htsjdk.variant.vcf.*;");
 
 			pw.println("@Generated(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
 			pw.println("public class "+javaClassName+" extends "+ baseClass +" {");
