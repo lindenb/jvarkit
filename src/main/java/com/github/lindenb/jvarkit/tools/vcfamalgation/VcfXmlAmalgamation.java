@@ -65,6 +65,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -109,6 +110,25 @@ public class VcfXmlAmalgamation extends Launcher {
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
+	
+	//TODO
+	@XmlRootElement(name="vcf-tee")
+	public static class VcfTeeWriterFactory implements VariantContextWriterFactory {
+		private class VcfTeeWriter extends DelegateVariantContextWriter
+			{
+			private final VariantContextWriterFactory teeFactory;
+			VcfTeeWriter(final VariantContextWriter delegate,final VariantContextWriterFactory teeFactory) {
+				super(delegate);
+				this.teeFactory =  teeFactory;
+				}
+			
+			
+			}
+		@Override
+		public VariantContextWriter open(final VariantContextWriter delegate) {
+			return new VcfTeeWriter(delegate,null);//TODO
+			}
+		}
 	
 	@XmlRootElement(name="vcf-xml-amalgation")
 	@XmlAccessorType(XmlAccessType.FIELD)
