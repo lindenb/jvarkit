@@ -112,6 +112,9 @@ public class VcfXmlAmalgamation extends Launcher {
 	private CtxWriterFactory component = new CtxWriterFactory();
 
 	
+
+	
+	
 	public static class VcfReformater 
 		{
 		protected PrintWriter out;
