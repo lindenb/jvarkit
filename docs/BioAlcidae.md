@@ -105,9 +105,34 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java)
+
+Git History for this file:
+```
+Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
+Wed Jun 14 17:01:36 2017 +0200 ; fast genotype gvcf ; https://github.com/lindenb/jvarkit/commit/d77e93940ad9a7f8144527332067b663b55a10f6
+Thu May 18 10:38:01 2017 +0200 ; vcfilterjs ; https://github.com/lindenb/jvarkit/commit/437e95c1e567ec25812c12608f3df409f24c2fa1
+Wed May 17 18:02:11 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7d5989fdf77a7a4a616a29876997809683224316
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
+Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
+Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
+Fri Mar 17 17:06:05 2017 +0100 ; added SO terms, added vep to bioalcidae ; https://github.com/lindenb/jvarkit/commit/96d5c5dcc556f399bb8cf34bbc4d6f31fbebc8c5
+Mon Mar 13 17:51:01 2017 +0100 ; cont, textflow, thread/runner for bioalcidae ; https://github.com/lindenb/jvarkit/commit/0b8dff3e5660b68610f730a41eee38f57cd801df
+Fri Apr 8 17:17:56 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a943c4dfb102e4e4475d733fb32eb3dd22eb2760
+Thu Apr 7 17:18:22 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/136836f4840412ca7268127725d3b310fc8b9f1d
+Mon Feb 22 09:14:35 2016 +0100 ; bioalcidae stackoverflow ; https://github.com/lindenb/jvarkit/commit/24ed00d9f664c2c1064439b8ec888b55d939a276
+Wed Feb 10 11:18:43 2016 +0100 ; flush ; https://github.com/lindenb/jvarkit/commit/4d7ef46efb7db0c610cb7a712961bf3f8160bd6e
+Tue Jan 26 14:45:35 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/5201fb71870100bc4e4f40acf09d4e5f31ec4182
+Fri Nov 27 15:22:25 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/04a83d5b9f0e69fd2f7087e519b0de3e2b4f9863
+Thu Nov 26 12:58:31 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/cfdff2e66fbeaa4627b50361a09196be2a2e1477
+Fri Oct 2 16:11:52 2015 +0200 ; bioalci ; https://github.com/lindenb/jvarkit/commit/5506708d3f20dc4a6f6b9d43805f9722d47582b5
+Fri Oct 2 15:13:06 2015 +0200 ; bioalci ; https://github.com/lindenb/jvarkit/commit/7408e134eeedf1a9ec7378f93ac2679ce37d57c5
+Fri Jul 24 18:42:25 2015 +0200 ; bug for bam ; https://github.com/lindenb/jvarkit/commit/fe2d2d56cb59e045be890ced6c58b7afcd78d141
+Mon Jul 6 16:14:07 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ee95fe6971b5655c61d7feb22e8fa877201a9ca6
+Wed May 13 15:22:57 2015 +0200 ; bioalcidae: javascript-based file (vcf...) reformatter #tweet ; https://github.com/lindenb/jvarkit/commit/0f35c1940e5f381aaf593731bb3fa8d5540fa29f
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

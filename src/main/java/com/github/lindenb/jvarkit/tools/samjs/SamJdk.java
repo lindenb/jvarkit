@@ -174,6 +174,14 @@ select unmappeds read or clipped reads
 java -jar dist/samjdk.jar -o out.bam -e 'return record.getReadUnmappedFlag() || record.getCigar().getCigarElements().stream().anyMatch(C->C.getOperator().isClipping());'  in.bam
 ```
 
+### Example 4
+
+check whether all BAM read contain defined read groups? ( https://bioinformatics.stackexchange.com/questions/2590/ )
+
+```
+java -jar dist/samjdk.jar -e 'return record.getReadGroup()==null;'  input.bam
+```
+
 
 END_DOC
 */

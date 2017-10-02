@@ -216,7 +216,6 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfamalgamation
 
 
-
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
 
 
