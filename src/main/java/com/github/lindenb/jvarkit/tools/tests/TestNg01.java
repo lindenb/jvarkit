@@ -97,6 +97,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -274,7 +275,73 @@ class TestNg01 {
         		"-e","print(stream().count());",
         		vcfPath
         	}));
-        Assert.assertTrue( output.exists());
+        
+        Assert.assertEquals(
+        		Long.parseLong(IOUtil.slurp(output).trim()),
+        		streamVcf(new File(vcfPath)).count()
+        		);
+        Assert.assertTrue( output.delete());
+    	}
+    
+    @Test
+    public void testBioAlcidaeJdkFasta() throws IOException{
+    	final File fasta = new File(TEST_RESULTS_DIR,"jeter.fa");
+		PrintWriter pw = new PrintWriter(fasta);
+		int n = 100;
+		for(int i=0;i< n;++i)
+			{
+			pw.println(">G"+i+"\nGAATTC\nGAATT");
+			}
+		pw.flush();
+		pw.close();
+		
+    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
+    
+        Assert.assertEquals(0,new BioAlcidaeJdk().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-e","print(stream().count());",
+        		fasta.getPath()
+        	}));
+        Assert.assertEquals( n ,  Integer.parseInt(IOUtil.slurp(output).trim()));
+        Assert.assertTrue( output.delete());
+        Assert.assertTrue( fasta.delete());
+    	}
+    
+    @Test
+    public void testBioAlcidaeJdkFastq() throws IOException{
+    	final File fastq = new File(TEST_RESULTS_DIR,"jeter.fq");
+		PrintWriter pw = new PrintWriter(fastq);
+		int n = 100;
+		for(int i=0;i< n;++i)
+			{
+			pw.println("@G"+i+"\nGAATTC\n+\n######");
+			}
+		pw.flush();
+		pw.close();
+		
+    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
+    
+        Assert.assertEquals(0,new BioAlcidaeJdk().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-e","print(stream().count());",
+        		fastq.getPath()
+        	}));
+        Assert.assertEquals( n ,  Integer.parseInt(IOUtil.slurp(output).trim()));
+        Assert.assertTrue( output.delete());
+        Assert.assertTrue( fastq.delete());
+    	}
+    
+    @Test
+    public void testBioAlcidaeJdkSam() throws IOException{
+    	final File output = new File(TEST_RESULTS_DIR,"jeter.txt");
+    
+        Assert.assertEquals(0,new BioAlcidaeJdk().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-e","print(stream().count());",
+        		TOY_BAM
+        	}));
+        Assert.assertEquals( 12 ,  Integer.parseInt(IOUtil.slurp(output).trim()));
+        Assert.assertTrue( output.delete());
     	}
 
     

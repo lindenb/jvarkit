@@ -47,6 +47,7 @@ Usage: bioalcidaejdk [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/264894](https://www.biostars.org/p/264894)
+ * [https://www.biostars.org/p/275714](https://www.biostars.org/p/275714)
 
 
 ## Compilation
@@ -87,6 +88,7 @@ http.proxy.port=124567
 
 Git History for this file:
 ```
+Thu Sep 28 12:59:36 2017 +0200 ; add import sequence in bioalcidae ; https://github.com/lindenb/jvarkit/commit/57f2867e62d4acde5c99ae73b658e6a0a4652b53
 Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
 Thu Jul 27 16:58:18 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a8aaf2d7df89f44442b36ee1120ee4dd5c1e36e6
 Wed Jul 12 17:06:39 2017 +0200 ; bioalcidaejdk / vcfstats ; https://github.com/lindenb/jvarkit/commit/c610681de3f3ba3f34efe9076a01484580d0d0f3

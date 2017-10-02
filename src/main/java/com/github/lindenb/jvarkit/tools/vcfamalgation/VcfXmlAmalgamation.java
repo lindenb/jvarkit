@@ -71,6 +71,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 /**
 BEGIN_DOC
@@ -110,6 +111,15 @@ public class VcfXmlAmalgamation extends Launcher {
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
+	
+	public static class VcfReformater 
+		{
+		protected PrintWriter out;
+		protected void println() { this.out.println();}
+		protected void print(final Object o) { this.out.print(o);}
+		protected void println(final Object o) { this.out.println(o);}
+		protected void add(final VariantContext ctx) {}
+		}
 	
 	//TODO
 	@XmlRootElement(name="vcf-tee")
