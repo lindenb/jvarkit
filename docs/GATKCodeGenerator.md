@@ -56,9 +56,19 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gatk/codegen/GATKCodeGenerator.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gatk/codegen/GATKCodeGenerator.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gatk/codegen/GATKCodeGenerator.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gatk/codegen/GATKCodeGenerator.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 29 19:05:07 2017 +0200 ; removed xslt ; https://github.com/lindenb/jvarkit/commit/59047c84a493a0269a46c5f1e3f686468eda4b38
+Wed Nov 9 18:28:26 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/089de38b9ae80503b9c3b82daa78b0e253a2b0c4
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

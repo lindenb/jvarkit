@@ -86,9 +86,21 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBams.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBams.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBams.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBams.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Wed May 10 15:18:14 2017 +0200 ; bam2raster ; https://github.com/lindenb/jvarkit/commit/4f59fa50eb3be1389338e45302515fb4efd49eb5
+Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
+Thu Apr 20 19:53:01 2017 +0200 ; comm bams ; https://github.com/lindenb/jvarkit/commit/5d4089bc118077a4714e24f5dde5c56333ba65b2
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

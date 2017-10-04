@@ -93,9 +93,38 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJavascript.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon Aug 7 15:05:18 2017 +0200 ; samjdk ; https://github.com/lindenb/jvarkit/commit/93cb0448be4d6deb253b21620d1da63ad2be9475
+Wed Jun 7 16:15:41 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/8ed068b24f8b7a949e10999c5b219401827c03b0
+Sat May 20 16:46:01 2017 +0200 ; plot case ctrl ; https://github.com/lindenb/jvarkit/commit/f03530037d4b72cb515cfdf36cfd604c3654a760
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Wed Apr 26 17:26:23 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/ab6c7b760cd5376e08da24426cede7f84a6b3ae2
+Fri Apr 14 17:09:04 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/881f52d5d3775325240114702b7f07148b626f4c
+Fri Nov 27 15:22:25 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/04a83d5b9f0e69fd2f7087e519b0de3e2b4f9863
+Tue Jul 22 18:27:05 2014 +0200 ; htsjdk version ; https://github.com/lindenb/jvarkit/commit/3780ec67df1786dc87b1d5a06c35c1c3d473446c
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Tue Feb 11 15:03:41 2014 +0100 ; fixed bug in samjs ; https://github.com/lindenb/jvarkit/commit/3c67063c3c7091c41dae684c324d99376d226dd2
+Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
+Fri Dec 20 18:56:17 2013 +0100 ; samjs force unmatched ; https://github.com/lindenb/jvarkit/commit/007454d554ce6ca16592fd19e00a17dd1d95504e
+Fri Dec 20 19:16:58 2013 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/e285c4864a128ad94e0d4cd025905328e59037c6
+Fri Dec 20 16:43:59 2013 +0100 ; samjs and option -X' ; https://github.com/lindenb/jvarkit/commit/742a0716f089297af9020891cd12ed7ee284e249
+Tue Dec 10 13:54:40 2013 +0100 ; vcfshuffle ; https://github.com/lindenb/jvarkit/commit/813ec64f4e5105e0cbdca7b7fabea70924381896
+Fri Jun 28 12:36:50 2013 +0200 ; Merge branch 'master' of https://github.com/lindenb/jvarkit ; https://github.com/lindenb/jvarkit/commit/a0fc76ad8ea4841be2094c053bb516ac077a8e01
+Fri Jun 28 12:36:47 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/17278939a48c5827acb24286f9241e83cf881947
+Thu Jun 27 15:53:34 2013 +0200 ; input for deseq ; https://github.com/lindenb/jvarkit/commit/37b47d801ecdd2cc03f50c1b8aab15fd432500c0
+Tue Jun 25 09:30:11 2013 +0200 ; move samjs to picard ; https://github.com/lindenb/jvarkit/commit/7a3e3b0bc7297e40a1511fb54fbfbb6896bc10ac
+Mon May 6 18:56:46 2013 +0200 ; moving to git ; https://github.com/lindenb/jvarkit/commit/55158d13f0950f16c4a3cc3edb92a87905346ee1
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -121,7 +150,7 @@ The current reference is:
 
 Filters a BAM using javascript( java nashorn engine).
 
-For eacg read the script injects in the context the following values:
+For each read the script injects in the context the following values:
 
 
 * **'record'** a SamRecord  [https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)

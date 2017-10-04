@@ -85,6 +85,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Oct 4 17:05:37 2017 +0200 ; reading google scholar, answers to reviewers ; https://github.com/lindenb/jvarkit/commit/871a481468fbd1877f02bc171cf080c5e1d3190f
 Thu Jul 27 16:58:18 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a8aaf2d7df89f44442b36ee1120ee4dd5c1e36e6
 Thu Jun 29 20:41:53 2017 +0200 ; start fix https://github.com/lindenb/jvarkit/issues/81 ; https://github.com/lindenb/jvarkit/commit/3758963956c9ceec249feeb4a076c98314756c14
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0

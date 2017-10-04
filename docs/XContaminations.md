@@ -59,9 +59,25 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminations.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminations.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminations.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
+Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
+Thu May 11 10:59:12 2017 +0200 ; samcolortag ; https://github.com/lindenb/jvarkit/commit/dfd3239dc49af52966e2259bf0a5f52dd34aac8e
+Wed May 3 17:57:20 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/db456cbf0b6586ea60a4fe8ea05a5af7457d5d6e
+Mon Jun 8 17:24:41 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f9a941d604f378ff40a32666c8381cb2450c7cfa
+Thu Apr 23 11:26:16 2015 +0200 ; checking cross-contaminations for @AdrienLeger2. #tweet ; https://github.com/lindenb/jvarkit/commit/2ed4a8a1fc72c8b593753d6546c4ee4ef83ed012
+Wed Apr 22 12:21:29 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/dc65752a1d0c364957940847f8901d32106f21c7
+Thu Apr 16 15:26:07 2015 +0200 ; xcontaminations ; https://github.com/lindenb/jvarkit/commit/74e7091af278340e187548f945be51e73256f2ac
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

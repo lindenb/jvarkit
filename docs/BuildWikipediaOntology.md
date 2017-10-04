@@ -61,9 +61,24 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BuildWikipediaOntology.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BuildWikipediaOntology.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BuildWikipediaOntology.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BuildWikipediaOntology.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Thu May 4 13:06:07 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/b2f8f945cb8838c0289a7d850ce24603417eccde
+Mon Oct 13 18:29:16 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c83f20cde867920870918ee6eb5e5406f554e2bb
+Mon Jun 30 13:37:16 2014 +0200 ; almost sorted ; https://github.com/lindenb/jvarkit/commit/2375fb817a80f9ed9b7688421ebdb722a214a052
+Thu Jun 26 14:19:31 2014 +0200 ; wikipedia ontology ; https://github.com/lindenb/jvarkit/commit/98259f688e60ee471926fad7e7270fd057d47805
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

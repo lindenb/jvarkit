@@ -97,13 +97,20 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
+Wed Oct 4 08:45:59 2017 +0200 ; answer to bioinfo-se for samjdk ; https://github.com/lindenb/jvarkit/commit/6e147ce66a28fa3758be3b65898b9237dccdca41
 Mon Oct 2 09:16:12 2017 +0200 ; answer bioinformatics-se ; https://github.com/lindenb/jvarkit/commit/5a796015b9797e2803d01763a3d4c3cc80861c09
+Fri Sep 22 20:46:51 2017 +0200 ; https://www.biostars.org/p/274183/#274186 ; https://github.com/lindenb/jvarkit/commit/b2de07ddab29f1e6f5dc5e5dda4b746bcf1d19b5
 Wed Sep 6 14:49:24 2017 +0200 ; fixing typos, starting to generate VariantContextWriterFactory for spring xml ; https://github.com/lindenb/jvarkit/commit/cf023e059af85f6c266c56a8f7db6ff78e4a5134
 Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
 Mon Aug 7 15:05:18 2017 +0200 ; samjdk ; https://github.com/lindenb/jvarkit/commit/93cb0448be4d6deb253b21620d1da63ad2be9475
 ```
+
+</details>
 
 ## Contribute
 

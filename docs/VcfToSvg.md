@@ -95,7 +95,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
 Wed Jul 26 18:09:38 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/576fdd17812f9a47491945cb8bb74990ffb084c9
 Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
@@ -106,6 +109,8 @@ Wed Apr 12 11:48:07 2017 +0200 ; mergeblastxml ; https://github.com/lindenb/jvar
 Tue Apr 11 21:06:56 2017 +0200 ; vcf2svg ; https://github.com/lindenb/jvarkit/commit/42633d114593236f0c90832f65ef72bd283b1623
 Tue Apr 11 18:16:30 2017 +0200 ; vcf2svg ; https://github.com/lindenb/jvarkit/commit/064d84395b6b48d495c4fffa5819abebb0aba83c
 ```
+
+</details>
 
 ## Contribute
 

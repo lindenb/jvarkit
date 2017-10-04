@@ -61,9 +61,40 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffixindels/VCFFixIndels.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffixindels/VCFFixIndels.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffixindels/VCFFixIndels.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffixindels/VCFFixIndels.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Thu Jul 13 20:16:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/85b6c9c196e9a065dfd47bee37fe50238af41660
+Wed Jun 21 15:27:13 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/034f57d0e8d0399c12b290385d89e498e6138e1d
+Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
+Mon Apr 24 17:49:35 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/d822a90a1eaba26a4d874472ccd45e689e8ba063
+Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
+Fri Feb 12 17:17:38 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/c613240c7f1a266ee7e60083ac906c24588bb4f5
+Fri Nov 27 15:22:25 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/04a83d5b9f0e69fd2f7087e519b0de3e2b4f9863
+Tue Mar 24 10:29:58 2015 +0100 ; updated tool to fix vcf indels (L/R realign) for multiple ALT #tweet ; https://github.com/lindenb/jvarkit/commit/3d8b518d1a0d5e6daa8911c707e62475041fe38d
+Thu Sep 11 09:36:01 2014 +0200 ; problem with java dataInputSTream: writeUTF requires line.length < SHORt_MAX ; https://github.com/lindenb/jvarkit/commit/19eac4ee36909a730903546b50461de3c19a5c1f
+Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Fri Oct 11 15:39:02 2013 +0200 ; picard v.100: deletion of VcfIterator :-( ; https://github.com/lindenb/jvarkit/commit/e88fab449b04aed40c2ff7f9d0cf8c8b6ab14a31
+Sun Sep 15 17:28:38 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/372db15a9147defe95cbd79219fbb62e3ea90005
+Fri Sep 6 15:11:11 2013 +0200 ; moved code for latest version of picard (1.97). Using VCFIterator instead of ASciiLineReader ; https://github.com/lindenb/jvarkit/commit/810877c10406a017fd5a31dacff7e8401089d429
+Sun Jul 21 14:17:59 2013 +0200 ; vcf trios, added git HASH in METAINF/Manifest ; https://github.com/lindenb/jvarkit/commit/1854d3695563b91471861164f5e8903042493470
+Tue Jul 16 13:13:34 2013 +0200 ; moving bigwig to picard ; https://github.com/lindenb/jvarkit/commit/6b32bcf0385fa6d1125b97a7722cf99c82f7ead4
+Wed Jul 10 12:34:59 2013 +0200 ; build.dtd and  fixed error in blast-map-annot ; https://github.com/lindenb/jvarkit/commit/f1b5f928840df4c894fdf8a236e4dfabf064db2c
+Mon Jul 8 19:18:13 2013 +0200 ; fix constructor of VCF header ; https://github.com/lindenb/jvarkit/commit/0ebd352c3073e1fc9fea9f5813a26b2f8a67e0c7
+Mon Jul 8 14:52:31 2013 +0200 ; vcf fix samtools indels ; https://github.com/lindenb/jvarkit/commit/6ef915df9563a3aef75a40995047ab650cf5e30d
+Mon Jul 8 13:54:09 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1130d53716e0bcd1e1729fb5c43a7dc6955d5299
+Mon May 6 18:56:46 2013 +0200 ; moving to git ; https://github.com/lindenb/jvarkit/commit/55158d13f0950f16c4a3cc3edb92a87905346ee1
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

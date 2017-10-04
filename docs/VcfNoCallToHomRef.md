@@ -94,10 +94,15 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfNoCallToHomRef.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfNoCallToHomRef.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
 Thu Sep 14 13:10:00 2017 +0200 ; opss forgot the source ; https://github.com/lindenb/jvarkit/commit/2d1db69c6f4107dc989fb79e1138c7301da35232
 ```
+
+</details>
 
 ## Contribute
 

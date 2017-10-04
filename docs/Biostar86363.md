@@ -70,9 +70,27 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86363.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86363.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86363.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86363.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Mon May 22 16:12:07 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/778fea07cb650833dcb197b69f1add57f23b21c3
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
+Tue Jun 9 12:17:32 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3601851f8d35e25d0130b1cb765c936e53292750
+Thu Apr 23 11:26:16 2015 +0200 ; checking cross-contaminations for @AdrienLeger2. #tweet ; https://github.com/lindenb/jvarkit/commit/2ed4a8a1fc72c8b593753d6546c4ee4ef83ed012
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Thu Nov 28 14:54:21 2013 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/6bd741fe898f5d735e5ada6b59222f8818c08baf
+Wed Nov 13 16:57:49 2013 +0100 ; biostar 86363 ; https://github.com/lindenb/jvarkit/commit/4611cb92aa3539fcb9fcb7f87a482a783925a38f
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

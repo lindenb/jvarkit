@@ -64,9 +64,23 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeSplittedBlast.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeSplittedBlast.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeSplittedBlast.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeSplittedBlast.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Tue May 16 12:40:09 2017 +0200 ; doc ; https://github.com/lindenb/jvarkit/commit/ce1caf182662dc4690ec9c90e8fdd567fafa7a1e
+Wed May 3 08:14:25 2017 +0200 ; remove GetOpt ; https://github.com/lindenb/jvarkit/commit/32056bc2b0c9a20b7ae1c2216151885378bf2ab8
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
+Wed Jan 8 16:25:42 2014 +0100 ; split blast ; https://github.com/lindenb/jvarkit/commit/7e17f8bd273cf081d4415bc4f579cd34e2c681d1
+Wed Jan 8 13:44:32 2014 +0100 ; split blast ; https://github.com/lindenb/jvarkit/commit/53c4a986a950ebdbdc66a3a46a492692e053c9fa
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

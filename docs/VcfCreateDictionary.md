@@ -64,10 +64,17 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfCreateDictionary.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfCreateDictionary.java)
 
-Git History for this file:
-```
+
+<details>
+<summary>Git History</summary>
 
 ```
+Thu Sep 7 15:26:22 2017 +0200 ; adding unit test with testng ; https://github.com/lindenb/jvarkit/commit/980b8937646e706a83b10f6b1ceeb015f37bbcc1
+Wed Sep 6 18:09:53 2017 +0200 ; moving to spring xml component ; https://github.com/lindenb/jvarkit/commit/2a697f0a6ac81ad0975fedd43ca2ff916f2920f0
+Wed Sep 6 16:28:51 2017 +0200 ; create vcfmakedict, vcfsetdict moved to spring xml component ; https://github.com/lindenb/jvarkit/commit/88e83f863ba6ba49b7ca1e0a609ca61cc92fe14e
+```
+
+</details>
 
 ## Contribute
 

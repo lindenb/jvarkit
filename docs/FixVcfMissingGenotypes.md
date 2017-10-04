@@ -89,9 +89,32 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypes.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypes.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypes.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypes.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon Jul 24 14:40:15 2017 +0200 ; update FixVcfMissingGenotypes ; https://github.com/lindenb/jvarkit/commit/d62d1d9f2ef5084f9db454c261028491b060859a
+Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
+Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Fri May 19 17:10:13 2017 +0200 ; cont doc ; https://github.com/lindenb/jvarkit/commit/d2aea1eaa554d0498b197fb8fac01893b10ceb83
+Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
+Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26
+Thu Jul 7 17:21:44 2016 +0200 ; json, filterjs,... ; https://github.com/lindenb/jvarkit/commit/96ec92c986ddd3a75ab1a9b72b12e82b0df50959
+Fri Mar 11 12:29:24 2016 +0100 ; log in fixmissing gt ; https://github.com/lindenb/jvarkit/commit/894f5cbfc8e8c137aa41f974497cee3d82227c6b
+Fri Feb 12 17:17:38 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/c613240c7f1a266ee7e60083ac906c24588bb4f5
+Fri Dec 4 12:12:44 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/bfa0325927a7be363feecc143ef1d8a3de71f483
+Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
+Tue May 26 12:45:19 2015 +0200 ; FixVcfMissingGenotypes QUAL=0 ignored + misc ; https://github.com/lindenb/jvarkit/commit/5238e8d4e420e2859703c6dbf784350800f4ecd0
+Fri Jan 23 21:46:11 2015 +0100 ; fixed null bug ; https://github.com/lindenb/jvarkit/commit/1037fa1d09b58737ff337ab024db123895b008f6
+Sun Nov 9 19:52:52 2014 +0100 ; vcf fix missing genotypes ; https://github.com/lindenb/jvarkit/commit/e102079cf8a284c52782177bd12ed2edaddf1dba
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

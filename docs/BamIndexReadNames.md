@@ -52,9 +52,21 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamindexnames/BamIndexReadNames.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamindexnames/BamIndexReadNames.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamindexnames/BamIndexReadNames.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamindexnames/BamIndexReadNames.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
+Wed Apr 19 17:58:48 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/95f05cfd4e04f5013c22274c49db7bcc4cbbb1c8
+Tue Dec 8 20:40:37 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/077ab77af3285464454df574e38a58b6ca43c64a
+Tue Aug 5 12:09:43 2014 +0200 ; bam index read names ; https://github.com/lindenb/jvarkit/commit/749748d92fd5868fb36d01334502192a5a767fe5
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

@@ -67,9 +67,38 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotations.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotations.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotations.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Thu Sep 21 17:14:45 2017 +0200 ; moving to factories ; https://github.com/lindenb/jvarkit/commit/dede8184edc7e773732bdd393f47f204fd900d79
+Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
+Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
+Wed Apr 26 17:26:23 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/ab6c7b760cd5376e08da24426cede7f84a6b3ae2
+Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
+Fri Jun 17 13:56:39 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/865252a44fc018f46b4280788cec65a1383dcc18
+Thu Apr 21 10:39:25 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7adf87adc987efbe89def5c530f5a84be0c841d4
+Mon Nov 30 16:53:51 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/89f3cbe043ac8c52735feec5b45e43cf873b7179
+Tue Mar 24 10:29:58 2015 +0100 ; updated tool to fix vcf indels (L/R realign) for multiple ALT #tweet ; https://github.com/lindenb/jvarkit/commit/3d8b518d1a0d5e6daa8911c707e62475041fe38d
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Wed Feb 26 18:33:05 2014 +0100 ; short invert , messages, rev-comp, rename bam-chrom ; https://github.com/lindenb/jvarkit/commit/195aa6d36b0ec2501637d61386ef82c3c4118afa
+Wed Feb 26 11:54:02 2014 +0100 ; sort on info ; https://github.com/lindenb/jvarkit/commit/88011f4fe0612a962c335ea0f92b35828501aec8
+Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
+Thu Dec 26 21:35:12 2013 +0100 ; vcf biomart ; https://github.com/lindenb/jvarkit/commit/0350d93620b2c35ed68fc8f10c99f9d2e6205680
+Fri Oct 11 15:39:02 2013 +0200 ; picard v.100: deletion of VcfIterator :-( ; https://github.com/lindenb/jvarkit/commit/e88fab449b04aed40c2ff7f9d0cf8c8b6ab14a31
+Fri Sep 6 15:11:11 2013 +0200 ; moved code for latest version of picard (1.97). Using VCFIterator instead of ASciiLineReader ; https://github.com/lindenb/jvarkit/commit/810877c10406a017fd5a31dacff7e8401089d429
+Sun Jul 21 14:17:59 2013 +0200 ; vcf trios, added git HASH in METAINF/Manifest ; https://github.com/lindenb/jvarkit/commit/1854d3695563b91471861164f5e8903042493470
+Mon Jul 8 19:18:13 2013 +0200 ; fix constructor of VCF header ; https://github.com/lindenb/jvarkit/commit/0ebd352c3073e1fc9fea9f5813a26b2f8a67e0c7
+Fri Jul 5 08:13:23 2013 +0200 ; misc code added ; https://github.com/lindenb/jvarkit/commit/6450ec91c073aed549ebfe1285932f4674294222
+Fri Jun 28 12:07:46 2013 +0200 ; moved vcf strip INFO to picard ; https://github.com/lindenb/jvarkit/commit/76329cb3ba955f10f433e967252590e0b5dec1af
+Mon May 6 18:56:46 2013 +0200 ; moving to git ; https://github.com/lindenb/jvarkit/commit/55158d13f0950f16c4a3cc3edb92a87905346ee1
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

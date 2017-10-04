@@ -89,8 +89,12 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdk.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
+Fri Sep 22 14:56:29 2017 +0200 ; moving vcffilterjdk to factories ; https://github.com/lindenb/jvarkit/commit/64926d712c13592b362c6984df9f594c3cacb9f9
 Fri Sep 1 23:02:59 2017 +0200 ; add ref biostars ; https://github.com/lindenb/jvarkit/commit/18efbc16e3ec3f21d67da19dc0a43e4f5c709649
 Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
@@ -104,6 +108,8 @@ Thu Jul 6 08:59:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit
 Wed Jul 5 19:55:44 2017 +0200 ; improve VcfFilterJdk ; https://github.com/lindenb/jvarkit/commit/fcca3944fae3d439f3d5ea3adbf48be64c377577
 Wed Jul 5 11:08:10 2017 +0200 ; vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/b25cc45aa3a057f0dad46f0d83669bc88cc95e0c
 ```
+
+</details>
 
 ## Contribute
 

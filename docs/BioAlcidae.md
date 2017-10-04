@@ -107,7 +107,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidae.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
 Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
 Wed Jun 14 17:01:36 2017 +0200 ; fast genotype gvcf ; https://github.com/lindenb/jvarkit/commit/d77e93940ad9a7f8144527332067b663b55a10f6
@@ -132,6 +135,8 @@ Fri Jul 24 18:42:25 2015 +0200 ; bug for bam ; https://github.com/lindenb/jvarki
 Mon Jul 6 16:14:07 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ee95fe6971b5655c61d7feb22e8fa877201a9ca6
 Wed May 13 15:22:57 2015 +0200 ; bioalcidae: javascript-based file (vcf...) reformatter #tweet ; https://github.com/lindenb/jvarkit/commit/0f35c1940e5f381aaf593731bb3fa8d5540fa29f
 ```
+
+</details>
 
 ## Contribute
 

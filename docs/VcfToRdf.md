@@ -73,9 +73,32 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdf.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdf.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdf.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri Jun 16 16:37:03 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a34b590f797066d50ccc6f22c372e4a3a7143be1
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
+Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
+Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
+Wed Feb 22 19:07:03 2017 +0100 ; refactor prediction parsers ; https://github.com/lindenb/jvarkit/commit/dc7f7797c60d63cd09d3b7712fb81033cd7022cb
+Tue Apr 26 17:21:33 2016 +0200 ; vcfbuffer ; https://github.com/lindenb/jvarkit/commit/3300512769fd3bb2ee4430c9474367b06f2edc7c
+Fri Mar 25 17:18:27 2016 +0100 ; sammask ; https://github.com/lindenb/jvarkit/commit/b9c834afec6c7c9904baecd2fb2b61e57261da0f
+Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
+Thu Mar 5 17:39:59 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/f46d3dd4db827d4cc35dea1e7ffc94e0b0c276d0
+Wed Mar 4 17:03:41 2015 +0100 ; filtering @uniprot with a #javascript expression #tweet ; https://github.com/lindenb/jvarkit/commit/3a6b64f80c0ba406981f1040132acc247dad6391
+Mon May 26 17:26:20 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/9e0bb45f071f8d9502138b81c259bc32b7348d75
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
+Mon Dec 9 11:37:46 2013 +0100 ; vcf2xml , bamstats01 X/Y ; https://github.com/lindenb/jvarkit/commit/2c13f6f369faf3d076ccc9420b5284cd990c6892
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

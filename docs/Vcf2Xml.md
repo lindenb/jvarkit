@@ -61,9 +61,30 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2Xml.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2Xml.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2Xml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2Xml.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri Sep 8 17:22:44 2017 +0200 ; adding tests, fix bigwig doc ; https://github.com/lindenb/jvarkit/commit/e471af8c1fd840559b8dddfa3842f031a263a955
+Fri Jun 16 16:37:03 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a34b590f797066d50ccc6f22c372e4a3a7143be1
+Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
+Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
+Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa
+Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
+Fri Apr 14 10:22:16 2017 +0200 ; knime helper ; https://github.com/lindenb/jvarkit/commit/51679edcfb691b8851c06881599c6f1c7a65af34
+Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
+Wed May 13 15:22:57 2015 +0200 ; bioalcidae: javascript-based file (vcf...) reformatter #tweet ; https://github.com/lindenb/jvarkit/commit/0f35c1940e5f381aaf593731bb3fa8d5540fa29f
+Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Fri Dec 13 17:19:27 2013 +0100 ; fix major bug in prediction parsers ; https://github.com/lindenb/jvarkit/commit/7559f47ef5f1ecee018ea7eb0968b6bdede93283
+Thu Oct 24 17:43:13 2013 +0200 ; improve vcfsortonref and annotations ; https://github.com/lindenb/jvarkit/commit/e26f373d54dae96ae9d8c31c57dc8851e08134ae
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

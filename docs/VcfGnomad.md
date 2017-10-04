@@ -97,9 +97,35 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomad.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomad.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomad.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomad.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Thu Sep 21 17:14:45 2017 +0200 ; moving to factories ; https://github.com/lindenb/jvarkit/commit/dede8184edc7e773732bdd393f47f204fd900d79
+Mon Sep 11 14:48:00 2017 +0200 ; adding tests, add test files for gnomad ; https://github.com/lindenb/jvarkit/commit/bc90c3c76e38e677a2fe824ce29bd7705dde3bd0
+Fri Sep 8 17:22:44 2017 +0200 ; adding tests, fix bigwig doc ; https://github.com/lindenb/jvarkit/commit/e471af8c1fd840559b8dddfa3842f031a263a955
+Fri Sep 8 12:42:11 2017 +0200 ; gnomad spring + add test ; https://github.com/lindenb/jvarkit/commit/03445831f08a7e61c34d0c6fab5c4c6b4d647c6c
+Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
+Tue Jul 11 17:57:33 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1f248bc7f1fd8a0824bb65a4c67eb052d5a6e381
+Fri Jul 7 23:31:04 2017 +0200 ; fix try bgzip ; https://github.com/lindenb/jvarkit/commit/0813ceafb18a0da35d9b72a07b26614c60564ac8
+Fri Jul 7 21:52:19 2017 +0200 ; add multialt for vcfgnomad ; https://github.com/lindenb/jvarkit/commit/cf5c68279296fd36104ca730849c48054ce8c721
+Fri Jul 7 21:29:53 2017 +0200 ; add streaming option for vcfgnomad ; https://github.com/lindenb/jvarkit/commit/4119841bef49e4547703a7861c57585ae080fbd2
+Fri Jul 7 18:36:14 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c5dc2be25578f7cbc60c0f5425bacf4450893c92
+Thu Jul 6 17:31:09 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a0eaa65f9197fd51d1c495c7ed3c65f43a06aa9c
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Fri Apr 14 10:22:16 2017 +0200 ; knime helper ; https://github.com/lindenb/jvarkit/commit/51679edcfb691b8851c06881599c6f1c7a65af34
+Mon Apr 10 17:44:58 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1a3303b52707e9ba8c9b913e0f82d2735698d24e
+Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
+Thu Apr 6 18:34:56 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/883b4ba4b693661663694256f16b137e371147fa
+Wed Apr 5 13:49:50 2017 +0200 ; cont, fix bug in findallcovatpos ; https://github.com/lindenb/jvarkit/commit/7db18c7fe90fd5bf64d3ff3a4505607a1974ce6b
+Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -160,52 +186,5 @@ var genome="/commun/data/pubdb/broadinstitute.org/gnomad/release-170228/vcf/geno
 out.print("$(if $(realpath "+genome+"), --resource:gnomad_genome  "+genome+"  $(foreach A,${GFIELDS}, -E gnomad_genome.${A} ) )");
 ```
 
-
-
-## Generating jar helper for knime
-  
-(for the people in my lab)
-  
-generate big jar
-
-```
-$ cd jvarkit
-$ rm -rf tmp && mkdir tmp && echo '1.jar:2.jar:...N.jar:vcfgnomad.jar' | tr ":" "\n" | sort | uniq | while read F; do unzip -o $F -d tmp ; done && jar cvf vcfgnomad4knime.jar -C tmp . && rm -rf tmp
-```
-  
-Open KNIME
-
-we're going to create the following workflow : http://imgur.com/a/QcrKW
-
-* create a new Node `java Snippet`
-* in the tab 'additional libraries', add 'vcfgnomad4knime.jar'.
-* in the tab 'java snippet'. Declare the following inputs: `c_CHROM,c_POS,c_REF,c_ALT`, the output string `GNOMAD`.
-
-And insert the following code:
-
-```java
-// Your custom imports:
-import  com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad.KnimeAdapter;
-// Enter your code here:
-
-System.setProperty("http.proxyHost","cache.ha.univ-nantes.fr");
-System.setProperty("https.proxyHost","cache.ha.univ-nantes.fr");
-System.setProperty("http.proxyPort","3128");
-System.setProperty("https.proxyPort","3128");
-
-final KnimeAdapter app= new KnimeAdapter();
-if(app.instanceMain(new String[]{"-ac",c_CHROM,String.valueOf(c_POS),c_REF,c_ALT})==0)
-	{
-	out_GNOMAD = app.getOutputString();
-	}
-else
-	{
-	out_GNOMAD = ".";
-	}
-
-// expression end
-
-```
- 
 
 

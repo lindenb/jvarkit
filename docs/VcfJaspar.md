@@ -70,9 +70,24 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jaspar/VcfJaspar.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jaspar/VcfJaspar.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jaspar/VcfJaspar.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jaspar/VcfJaspar.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri May 19 17:10:13 2017 +0200 ; cont doc ; https://github.com/lindenb/jvarkit/commit/d2aea1eaa554d0498b197fb8fac01893b10ceb83
+Mon Apr 24 17:49:35 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/d822a90a1eaba26a4d874472ccd45e689e8ba063
+Sat Dec 26 21:12:35 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/38710f1fcb48f648e1724fc43dcee7765e108f20
+Tue Jul 21 17:15:14 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc3230eabbfb7c2c9763528c63c1f42ae1281351
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
+Thu Jan 16 17:01:40 2014 +0100 ; jaspar ; https://github.com/lindenb/jvarkit/commit/4265775861501d80f9199a49d6a7cb830856eb26
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

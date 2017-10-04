@@ -75,8 +75,13 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sortvcfonref/SortVcfOnInfo.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sortvcfonref/SortVcfOnInfo.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
+Mon Sep 18 17:29:05 2017 +0200 ; adding test for ConvertVcfChromosomes ; https://github.com/lindenb/jvarkit/commit/39c750097a13c007c850449a4586de5b51962242
+Mon Sep 11 17:29:03 2017 +0200 ; adding tests sortvcfoninfo ; https://github.com/lindenb/jvarkit/commit/705c1501020d57af6d5f7abe20c5a65560aaaec1
 Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
 Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
 Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
@@ -88,6 +93,8 @@ Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb
 Wed Feb 26 11:54:02 2014 +0100 ; sort on info ; https://github.com/lindenb/jvarkit/commit/88011f4fe0612a962c335ea0f92b35828501aec8
 Tue Feb 18 18:05:31 2014 +0100 ; sortvcf on info, vcfutils parse header, pad call/format for fixvcfformat, vcfcadd ; https://github.com/lindenb/jvarkit/commit/6123910f68df940c1f3986d142f9b0414f76a43a
 ```
+
+</details>
 
 ## Contribute
 

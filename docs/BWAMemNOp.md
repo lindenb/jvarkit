@@ -74,9 +74,23 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/mem/BWAMemNOp.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/mem/BWAMemNOp.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/mem/BWAMemNOp.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/mem/BWAMemNOp.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri May 19 17:10:13 2017 +0200 ; cont doc ; https://github.com/lindenb/jvarkit/commit/d2aea1eaa554d0498b197fb8fac01893b10ceb83
+Wed May 3 08:14:25 2017 +0200 ; remove GetOpt ; https://github.com/lindenb/jvarkit/commit/32056bc2b0c9a20b7ae1c2216151885378bf2ab8
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Wed Apr 30 15:37:14 2014 +0200 ; ngs file scanner ; https://github.com/lindenb/jvarkit/commit/33ad856503853ac2415cc7213642ec631b06b95d
+Wed Apr 9 12:50:50 2014 +0200 ; bwa mem convert cigar to N ; https://github.com/lindenb/jvarkit/commit/dac74ffe48ee2fbf391a9e8e0056e9b8ee18babc
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

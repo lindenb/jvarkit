@@ -31,7 +31,7 @@ Usage: fastqshuffle [options] Files
       Default: false
     -r
       random
-      Default: java.util.Random@15316f2
+      Default: java.util.Random@19bb367
 
 ```
 
@@ -75,9 +75,26 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffle.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffle.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffle.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffle.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
+Tue Apr 18 13:24:50 2017 +0200 ; cont-cleanup ; https://github.com/lindenb/jvarkit/commit/a86c8971fe5ebb3f8de175c75e78f2d0e5325cfd
+Mon Sep 1 15:47:33 2014 +0200 ; fix error in shuffle. pubmed filter js ; https://github.com/lindenb/jvarkit/commit/1c690742a61ba809e342eacd5d2a214134bfab72
+Mon Sep 1 12:29:24 2014 +0200 ; interleaved output only for fastqshuffle ; https://github.com/lindenb/jvarkit/commit/9e10fef890c7b66c7da2511eb7aeedb1faff737b
+Mon Sep 1 12:18:15 2014 +0200 ; split interleaved fastq ; https://github.com/lindenb/jvarkit/commit/5be82f90e563427ea157e3ecdbba1922a0dc37a3
+Mon Sep 1 11:14:52 2014 +0200 ; fix shuf ; https://github.com/lindenb/jvarkit/commit/0a5db047be03e570f53321df9da621b785adccfd
+Mon Sep 1 11:09:59 2014 +0200 ; fix shuf ; https://github.com/lindenb/jvarkit/commit/28aca1074b77e10334eb4ea04b02c7692dd99433
+Mon Sep 1 10:44:02 2014 +0200 ; shuffle fastqs ; https://github.com/lindenb/jvarkit/commit/c413013a584f7fa64b69a5b32f9b8e49c85caebb
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

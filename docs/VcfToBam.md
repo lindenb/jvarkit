@@ -79,7 +79,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBam.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBam.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
 Mon Sep 4 17:34:39 2017 +0200 ; fix https://github.com/lindenb/jvarkit/issues/86#issuecomment-326986654 ; https://github.com/lindenb/jvarkit/commit/7e9a296f733cfa76364b92b34707ec33d8e26f64
 Sun Sep 3 00:12:21 2017 +0200 ; fix https://github.com/lindenb/jvarkit/issues/86 ; https://github.com/lindenb/jvarkit/commit/28ae7e722db261d7d337e066f52bfb9d88e53733
@@ -91,6 +94,8 @@ Thu Jun 25 16:18:29 2015 +0200 ; extends REF sequence with clipped reads #tweet 
 Fri Jun 12 21:12:27 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/56febbf1d9207f523d3ce342ca6c7b7ecf681fcc
 Fri Jun 12 18:32:07 2015 +0200 ; starting vcf to bam ; https://github.com/lindenb/jvarkit/commit/dfa534e03f973083f41247bdae20637f6232a358
 ```
+
+</details>
 
 ## Contribute
 

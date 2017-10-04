@@ -127,7 +127,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2graphics/Bam2Raster.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2graphics/Bam2Raster.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
 Wed Jun 14 17:01:36 2017 +0200 ; fast genotype gvcf ; https://github.com/lindenb/jvarkit/commit/d77e93940ad9a7f8144527332067b663b55a10f6
 Wed May 24 12:24:00 2017 +0200 ; lowres bam2raster ; https://github.com/lindenb/jvarkit/commit/28e8b5122b13f7cd55b2ca0894c59f0f295b1f3e
@@ -163,6 +166,8 @@ Sun Jun 9 22:34:19 2013 +0200 ; hershey ; https://github.com/lindenb/jvarkit/com
 Fri Jun 7 17:30:06 2013 +0200 ; screenshot bam2raster ; https://github.com/lindenb/jvarkit/commit/0900d0b4de98fa82d7f5a548fe692b10f9c32e85
 Fri Jun 7 14:29:12 2013 +0200 ; raster image ; https://github.com/lindenb/jvarkit/commit/bf71f1d43af2e7bde6ed67dbcf7364a4397c9aa6
 ```
+
+</details>
 
 ## Contribute
 

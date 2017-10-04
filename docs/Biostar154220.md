@@ -74,9 +74,25 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar154220.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar154220.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar154220.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar154220.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 29 12:33:45 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/870be8e90d7e98d947f73e67ef9965f12f351846
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
+Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
+Fri Aug 28 08:53:17 2015 +0000 ; fixed memory leak ; https://github.com/lindenb/jvarkit/commit/3e121125caf1f137577a6d10a161e519ffdef57b
+Wed Aug 12 18:34:11 2015 +0200 ; ignore mapq=0 ; https://github.com/lindenb/jvarkit/commit/484ae4fc0e3333893aa6f343db8774f0ede40dda
+Wed Aug 12 15:39:20 2015 +0200 ; Tool to sort BAM on REF/name , tool to 'cap' bam. #tweet ; https://github.com/lindenb/jvarkit/commit/c12609cb0bb6c893e6477533ae3c9a60e8b9f3b5
+Wed Aug 12 15:35:53 2015 +0200 ; Tool to sort BAM on REF/name , tool to 'cap' bam. ; https://github.com/lindenb/jvarkit/commit/6f7e43d6fb776bf2a549700d71220b3d2693862d
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

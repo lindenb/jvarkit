@@ -90,9 +90,32 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GcPercentAndDepth.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GcPercentAndDepth.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GcPercentAndDepth.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GcPercentAndDepth.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri Jun 2 16:31:30 2017 +0200 ; circos / lumpy ; https://github.com/lindenb/jvarkit/commit/7bddffca3899196e568fb5e1a479300c0038f74f
+Mon May 29 12:33:45 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/870be8e90d7e98d947f73e67ef9965f12f351846
+Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
+Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
+Thu May 4 13:06:07 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/b2f8f945cb8838c0289a7d850ce24603417eccde
+Wed Apr 22 12:21:29 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/dc65752a1d0c364957940847f8901d32106f21c7
+Mon Apr 13 10:32:12 2015 +0200 ; added option -n for https://github.com/lindenb/jvarkit/issues/26#issuecomment-92193999 ; https://github.com/lindenb/jvarkit/commit/19072426981ab0f13e61755012a4a35da591cc95
+Tue Feb 24 16:43:03 2015 +0100 ; vcfin : code rewrittern. picky with ALT alleles. #tweet ; https://github.com/lindenb/jvarkit/commit/65ef7741539e89c7a1a1f9cca28c13d531902c96
+Thu Nov 27 13:11:06 2014 +0100 ; bam compare coverage ; https://github.com/lindenb/jvarkit/commit/0be60cca2b40fa2bb2713e759271573936911aba
+Thu Jun 5 11:06:35 2014 +0200 ; messages ; https://github.com/lindenb/jvarkit/commit/a5d02dbfcb811e9ed577a8850033c86ef5a91332
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Wed Apr 9 12:50:50 2014 +0200 ; bwa mem convert cigar to N ; https://github.com/lindenb/jvarkit/commit/dac74ffe48ee2fbf391a9e8e0056e9b8ee18babc
+Wed Apr 2 17:50:50 2014 +0200 ; cont rnaseq ; https://github.com/lindenb/jvarkit/commit/7b3f7e13a112b09018284931678ac78dd32cefcc
+Wed Mar 5 15:25:14 2014 +0100 ; continue everything ; https://github.com/lindenb/jvarkit/commit/15fc86fe1703398069d0bba3300be31c396dc818
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

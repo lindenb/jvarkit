@@ -71,9 +71,23 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jmx/SamJmx.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jmx/SamJmx.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jmx/SamJmx.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/jmx/SamJmx.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 29 12:33:45 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/870be8e90d7e98d947f73e67ef9965f12f351846
+Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa
+Thu May 4 14:27:36 2017 +0200 ; fix make ; https://github.com/lindenb/jvarkit/commit/044933b2091b68f3241c60c85de5dd605ae02756
+Mon May 1 15:40:19 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/11aa7fcf4cc15aecc2cc2019fc2df8752731a278
+Fri Jul 17 12:26:30 2015 +0200 ; all sample in shuffle ; https://github.com/lindenb/jvarkit/commit/fae29109c7b3e24a7dc9329d7d4eea06ee95a0f7
+Fri Jul 10 14:18:14 2015 +0200 ; vcfjmx + samjmx tools to monitor/break ngs stream with jmx #tweet ; https://github.com/lindenb/jvarkit/commit/c41af20479e5733369e3445f32968e7c2ddb2e06
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

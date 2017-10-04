@@ -80,9 +80,25 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedOrcidGraph.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedOrcidGraph.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedOrcidGraph.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedOrcidGraph.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
+Tue Apr 4 20:55:42 2017 +0200 ; bdb and fix orcid ; https://github.com/lindenb/jvarkit/commit/8a13cc0e9e36a4b86e3fd1628ff2f241b4a09c1f
+Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
+Thu May 26 16:43:07 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/60ada53779722d3b5f4bff4d31b08cb518a38541
+Mon May 23 09:37:06 2016 +0200 ; json ; https://github.com/lindenb/jvarkit/commit/ea11a24eac02ecb6ad28cadeefb035ae076e5a9d
+Sun May 22 12:00:54 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/82ee0a8cd412a3dab4fb0f251b6ec686426db85a
+Fri May 20 18:11:18 2016 +0200 ; orcid ; https://github.com/lindenb/jvarkit/commit/44efe5d5addfd9c2b2bc5604918d4092595893a5
+Fri May 20 12:11:28 2016 +0200 ; orcid graph ; https://github.com/lindenb/jvarkit/commit/7a15bbc49acd42dcc3b44828a61ddeaaed275c24
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

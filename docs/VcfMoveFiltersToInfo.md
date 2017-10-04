@@ -69,9 +69,24 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfMoveFiltersToInfo.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfMoveFiltersToInfo.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfMoveFiltersToInfo.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfMoveFiltersToInfo.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
+Wed Sep 6 18:09:53 2017 +0200 ; moving to spring xml component ; https://github.com/lindenb/jvarkit/commit/2a697f0a6ac81ad0975fedd43ca2ff916f2920f0
+Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
+Sun Jun 25 16:43:47 2017 +0200 ; loop over gene in region ; https://github.com/lindenb/jvarkit/commit/a491397b51bb7149fcdccad8c5dab9bdf6fd83fa
+Tue May 9 20:36:16 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/517cc3660251857061fa955cce5c8e07362c5bee
+Sun Nov 13 20:53:07 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/7497330cb0b4046eeaed4e56519cfbdf0210a05e
+Tue Oct 25 16:06:32 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/265f1f5f736bc19e87a717870b1c19b4273f7512
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

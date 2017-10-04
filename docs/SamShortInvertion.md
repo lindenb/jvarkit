@@ -60,9 +60,29 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
+Mon May 22 05:26:37 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1f1851299859a590e5807bca21e0b46e602568c2
+Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
+Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
+Tue Aug 2 17:12:59 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f9842fcf255e7b7f3468ca5e2abf947f9c8dd9e3
+Thu Dec 10 12:31:38 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/2242c107247d288754dfb47b373e3ebbd9da07f6
+Fri May 23 15:32:54 2014 +0200 ; continue move to htsjdk ; https://github.com/lindenb/jvarkit/commit/b5a8a3bce5ecd952abffb7aae6223d1e03a9809e
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Tue Mar 11 17:29:11 2014 +0100 ; kg2bed  bedliftover etc... ; https://github.com/lindenb/jvarkit/commit/71c0a6b173a9417b3c9ac3bc6ccd612efdf0fdb0
+Mon Mar 10 13:23:56 2014 +0100 ; SAM specification changed; supplementary align now defined as 'SA' ; https://github.com/lindenb/jvarkit/commit/0abcdb58cb641efc661a32a6fa5a36e150457dee
+Fri Feb 28 17:50:32 2014 +0100 ; scan clipped rgn ; https://github.com/lindenb/jvarkit/commit/e7f8693e7b4736384ddccd469c7af677bb1f0491
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

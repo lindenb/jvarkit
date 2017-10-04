@@ -62,9 +62,25 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/HowManyBamDict.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/HowManyBamDict.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/HowManyBamDict.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/HowManyBamDict.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
+Fri May 12 12:31:52 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/79b31100024fed64156ce4e1796507814c20ebf1
+Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
+Wed Jan 13 15:25:58 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/db4a0f749e0c5b5a0ba067c7f4e89392ea6b62c3
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Fri Nov 8 15:57:09 2013 +0100 ; no zero var vcf ; https://github.com/lindenb/jvarkit/commit/7fb37f38ec58fe05d1bc61af7293b4157c8e082c
+Fri Nov 8 11:49:28 2013 +0100 ; distinct bam dict ; https://github.com/lindenb/jvarkit/commit/6035b5fba30e26e67b4ea6a02cd75c24901caada
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

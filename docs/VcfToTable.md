@@ -100,7 +100,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToTable.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToTable.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
 Wed Aug 23 06:06:58 2017 +0200 ; vcf2table check genotypes ; https://github.com/lindenb/jvarkit/commit/1ff08305fab2b5b099a04ce8af13c6bac8fdee9c
 Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
@@ -120,6 +123,8 @@ Thu May 11 20:58:29 2017 +0200 ; vcf2table ; https://github.com/lindenb/jvarkit/
 Thu May 11 20:56:40 2017 +0200 ; vcf2table ; https://github.com/lindenb/jvarkit/commit/48e7523e800a0300c40dd6d0bac4b9d4fd43bc84
 Thu May 11 17:32:23 2017 +0200 ; vcf2table ; https://github.com/lindenb/jvarkit/commit/453621542766e5bae3498f1641168c277a693183
 ```
+
+</details>
 
 ## Contribute
 

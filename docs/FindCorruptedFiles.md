@@ -71,9 +71,31 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindCorruptedFiles.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindCorruptedFiles.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindCorruptedFiles.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindCorruptedFiles.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri May 12 12:31:52 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/79b31100024fed64156ce4e1796507814c20ebf1
+Thu Mar 30 17:38:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bba625df69e00a0aa54de192cdce6fda110a65b4
+Fri Jan 22 23:49:23 2016 +0100 ; vcfiterator is now an interface ; https://github.com/lindenb/jvarkit/commit/9f9b9314c4b31b21044c5911a7e79e1b3fb0af7a
+Tue Sep 23 09:06:47 2014 +0200 ; htsjdk 121 ; https://github.com/lindenb/jvarkit/commit/9b4a2140c3818506204f95f188379c814af6fb1d
+Fri Jun 20 10:43:04 2014 +0200 ; corrupeted files: test BED ; https://github.com/lindenb/jvarkit/commit/a2a0899b5b435c7349fdadf9f02c5328aad54ca8
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Thu Nov 28 08:16:28 2013 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/d41deb4c340967592eb53e98101077ccbd84a3dd
+Fri Nov 22 17:34:16 2013 +0100 ; my version of fastqreader ; https://github.com/lindenb/jvarkit/commit/caf819c6c165d251722ce24f4429d6106e50c2cc
+Fri Nov 22 14:50:33 2013 +0100 ; pad fastq ; https://github.com/lindenb/jvarkit/commit/dba22139a20b2e25b42cfcd1eb4969d2b1ebe929
+Mon Nov 4 13:49:15 2013 +0100 ; chaned command line handling + getopt ; https://github.com/lindenb/jvarkit/commit/939d2ccf1a9a4be2d2116586b925062c65d81195
+Fri Oct 11 15:39:02 2013 +0200 ; picard v.100: deletion of VcfIterator :-( ; https://github.com/lindenb/jvarkit/commit/e88fab449b04aed40c2ff7f9d0cf8c8b6ab14a31
+Fri Sep 6 15:11:11 2013 +0200 ; moved code for latest version of picard (1.97). Using VCFIterator instead of ASciiLineReader ; https://github.com/lindenb/jvarkit/commit/810877c10406a017fd5a31dacff7e8401089d429
+Wed Jul 31 17:19:13 2013 +0200 ; find corrupted NGS files ; https://github.com/lindenb/jvarkit/commit/d2f0c79e4fbc962ae335ba8aa065f1b389db949e
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

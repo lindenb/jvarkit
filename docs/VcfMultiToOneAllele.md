@@ -105,9 +105,40 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfMultiToOneAllele.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfMultiToOneAllele.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfMultiToOneAllele.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfMultiToOneAllele.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri Sep 8 12:42:11 2017 +0200 ; gnomad spring + add test ; https://github.com/lindenb/jvarkit/commit/03445831f08a7e61c34d0c6fab5c4c6b4d647c6c
+Fri Sep 8 11:29:13 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/0c5035b59124ca18aba0405d0c616b565a32d10e
+Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
+Mon Jun 26 17:29:03 2017 +0200 ; burden ; https://github.com/lindenb/jvarkit/commit/a3b7abf21d07f0366e81816ebbb2cce26b2341e7
+Fri Jun 23 16:37:51 2017 +0200 ; alt vs homref ; https://github.com/lindenb/jvarkit/commit/9ef5f8c8d0b33994515b0faac60e84b275ab34eb
+Fri Jun 23 15:32:55 2017 +0200 ; updated vcf2multiallele ; https://github.com/lindenb/jvarkit/commit/9a69f3da7748ae43458e34f0cd3c0f052aa09b51
+Fri Jun 23 15:26:55 2017 +0200 ; updated vcf2multiallele ; https://github.com/lindenb/jvarkit/commit/775e8ddcc38a3e283cf49d9287b06510d7634e31
+Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
+Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Thu Apr 27 17:22:22 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/0a27a246a537d2b48201596067652ea26bfc28d6
+Fri Nov 25 12:30:34 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/31949a5be3c9948eb6d6fa72a96e8cbcbc66796d
+Mon Jan 25 18:43:22 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/f49222d5a112d79fc4148f2a2a56e46a7ee5f517
+Sat Jan 23 14:55:35 2016 +0100 ; factory builder ; https://github.com/lindenb/jvarkit/commit/d70912b7dbbca748cf4d45a0ba44a6bc70f804d7
+Fri Nov 27 15:22:25 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/04a83d5b9f0e69fd2f7087e519b0de3e2b4f9863
+Tue Jul 21 17:15:14 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc3230eabbfb7c2c9763528c63c1f42ae1281351
+Mon Jul 6 16:14:07 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ee95fe6971b5655c61d7feb22e8fa877201a9ca6
+Wed Jul 1 20:06:47 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a98d085769cbd9a4300329cda346ab0697d24c61
+Wed Jul 1 19:37:31 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/0c182acaac09c876387bbb4d0777fd6596284665
+Tue Jun 30 17:45:37 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7c0d31b60217243a99bc4e1ea0045c9f885ba9bd
+Mon Jun 29 16:03:33 2015 +0200 ; VcfMultiToOneAllele support samples in header ; https://github.com/lindenb/jvarkit/commit/70f05f90c0062763d380921d0c3a9cbcf33421a6
+Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
+Tue Jun 2 16:04:16 2015 +0200 ; 'one variant, N ALT' to 'N variants one ALT' #tweet ; https://github.com/lindenb/jvarkit/commit/6019125b77027d0d11ec86c6ff8de72413be7263
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

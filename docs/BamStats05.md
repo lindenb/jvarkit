@@ -77,9 +77,27 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats04/BamStats05.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats04/BamStats05.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats04/BamStats05.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats04/BamStats05.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Tue Jun 20 15:07:17 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/8e712ff2b8d4b73d71cd2035cfac57381d3e9d4b
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d
+Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
+Wed Oct 5 21:00:52 2016 +0200 ; fix https://github.com/lindenb/jvarkit/issues/66 ; https://github.com/lindenb/jvarkit/commit/abee996272e161088c4fd81d4c4d36ad8c5e9f5d
+Mon May 30 09:56:31 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/e7b2fe070bf124c8b71611d621a2efb4d0fab90a
+Thu Nov 26 17:41:15 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/899c60335614350d463be66ec21e994b34dc55be
+Mon Nov 16 12:21:53 2015 +0100 ; blastfilterjs ; https://github.com/lindenb/jvarkit/commit/6b885d465b47f339d323f909c2ae7a88641f08a4
+Tue Oct 13 15:46:31 2015 +0200 ; bamstats05 ; https://github.com/lindenb/jvarkit/commit/e6b4b771f21e6973664c336243c814b2342a9cc4
+Mon Oct 12 17:40:15 2015 +0200 ; bamstats05 ; https://github.com/lindenb/jvarkit/commit/a68434654d5917076bee6d76c38c4c4555ce4f0f
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

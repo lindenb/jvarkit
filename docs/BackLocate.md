@@ -85,9 +85,32 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Thu Jul 6 19:24:32 2017 +0200 ; recompile ; https://github.com/lindenb/jvarkit/commit/c50120a6e41e990cbf57b6f06c9a9116a6926829
+Mon Jun 26 17:29:03 2017 +0200 ; burden ; https://github.com/lindenb/jvarkit/commit/a3b7abf21d07f0366e81816ebbb2cce26b2341e7
+Thu May 25 13:37:47 2017 +0200 ; format help ; https://github.com/lindenb/jvarkit/commit/cdb95fb8e7d7686bb137b45ef831479aefc2dca1
+Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
+Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d
+Thu Mar 30 17:38:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bba625df69e00a0aa54de192cdce6fda110a65b4
+Thu Nov 26 12:58:31 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/cfdff2e66fbeaa4627b50361a09196be2a2e1477
+Tue Nov 24 16:06:19 2015 +0100 ; fix https://github.com/lindenb/jvarkit/issues/36 ; https://github.com/lindenb/jvarkit/commit/eac04e587d9e0f784dd1a00c2d1245891a537568
+Tue Nov 3 22:42:18 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/4e4a9319be20626f0ea01dc2316c6420ba8e7dac
+Thu Sep 24 13:25:17 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/45943517fc1ae993f0d5c7fe5ee1e7d68fc92afe
+Wed Sep 23 21:31:51 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b2e626494b0af83f8ffc5e905bf1851f747424a1
+Tue Aug 11 17:25:02 2015 +0200 ; backlocate : potential alt codons ; https://github.com/lindenb/jvarkit/commit/1c7bc5e674136947586779a2aac53e576db4a67f
+Tue Jun 9 12:17:32 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3601851f8d35e25d0130b1cb765c936e53292750
+Wed Nov 5 12:07:30 2014 +0100 ; backlocate no more DAS/SQL ; https://github.com/lindenb/jvarkit/commit/f8cb884544354a7c62d4440b58e8e74c2045a6cd
+Thu Jun 19 19:30:34 2014 +0200 ; backlocate ; https://github.com/lindenb/jvarkit/commit/dadac3fc79b107ace5d4137cb1fe3a9c9ef5b606
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

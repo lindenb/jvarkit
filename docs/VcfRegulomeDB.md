@@ -64,9 +64,24 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRegulomeDB.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRegulomeDB.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRegulomeDB.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRegulomeDB.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
+Wed May 17 18:02:11 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7d5989fdf77a7a4a616a29876997809683224316
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Sun Apr 30 13:35:22 2017 +0200 ; coverage consensus ; https://github.com/lindenb/jvarkit/commit/fa67b93976fce20feb93d5807dfbb2feb25a2406
+Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
+Wed Jul 9 13:04:13 2014 +0200 ; remove blank in header ; https://github.com/lindenb/jvarkit/commit/6560a0852eaa2a3e05ca21095544df7ea3aed647
+Wed Jul 9 12:57:59 2014 +0200 ; VCF+regulomeDB ; https://github.com/lindenb/jvarkit/commit/dca9140dd60ccc44005311b72b4a87161a392c77
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

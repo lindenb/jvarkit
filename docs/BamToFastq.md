@@ -75,9 +75,29 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/BamToFastq.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/BamToFastq.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/BamToFastq.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/BamToFastq.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
+Tue Apr 18 13:24:50 2017 +0200 ; cont-cleanup ; https://github.com/lindenb/jvarkit/commit/a86c8971fe5ebb3f8de175c75e78f2d0e5325cfd
+Fri Mar 25 17:18:27 2016 +0100 ; sammask ; https://github.com/lindenb/jvarkit/commit/b9c834afec6c7c9904baecd2fb2b61e57261da0f
+Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
+Mon Oct 13 18:29:16 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c83f20cde867920870918ee6eb5e5406f554e2bb
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Thu Apr 3 17:24:00 2014 +0200 ; cont: doap, sam2fasta, sam2psl... ; https://github.com/lindenb/jvarkit/commit/bc9f11b1a0a1a7b0874a3b74d75b368e4de0bf98
+Thu Feb 27 17:10:54 2014 +0100 ; cont, fix bug in bam2fastq, shortread, starting change-ref bam, extract clipped seq ; https://github.com/lindenb/jvarkit/commit/d83138c95883cf87078565b54614b2aa7aa04740
+Wed Nov 20 17:26:42 2013 +0100 ; bam2fastq ; https://github.com/lindenb/jvarkit/commit/0fd5257cd14c23d833ee96e2a1e3c79a441a584d
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

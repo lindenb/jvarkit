@@ -67,9 +67,25 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BamTile.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BamTile.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BamTile.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BamTile.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Thu Jun 15 15:30:26 2017 +0200 ; update vcfcalledwithanothermethod, vcfucsc ; https://github.com/lindenb/jvarkit/commit/0efbf47c1a7be8ee9b0a6e2e1dbfd82ae0f8508f
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
+Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
+Tue Nov 3 22:42:18 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/4e4a9319be20626f0ea01dc2316c6420ba8e7dac
+Wed Sep 23 18:01:13 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/6156d1359a63a80c24f5b7694dc70431f6816289
+Sun Apr 5 18:28:21 2015 +0200 ; fix case where prev.start==curr.start && prev.end < curr.end ; https://github.com/lindenb/jvarkit/commit/48b5b0b088f6481cf379c837025dcfda9cefc6a5
+Sun Apr 5 18:19:47 2015 +0200 ; bam tile #tweet answer to https://twitter.com/sjackman/status/584418230791340032 ; https://github.com/lindenb/jvarkit/commit/0c46c168177ac7bf5a50ac485f8bd6ca11a3adf0
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

@@ -78,9 +78,25 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ensembl/VcfEnsemblVepRest.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ensembl/VcfEnsemblVepRest.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ensembl/VcfEnsemblVepRest.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ensembl/VcfEnsemblVepRest.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
+Wed Apr 19 17:58:48 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/95f05cfd4e04f5013c22274c49db7bcc4cbbb1c8
+Mon Apr 11 16:50:27 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/d84fc3f2d5da92ed230e79702df31c190bb0fb02
+Wed Dec 9 21:05:44 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/9a94c74ff2bbc322bcc0145e8d488ec8175065ec
+Mon Jun 15 17:24:26 2015 +0200 ; vep as xml base 64 ; https://github.com/lindenb/jvarkit/commit/d629603576c14a970208c9599b39ecb2a8b39994
+Thu Mar 19 21:00:03 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/62f0d18b86993734b6e05db102571dfac4f44158
+Thu Mar 19 17:22:51 2015 +0100 ; Annotate a VCF with Ensembl REST API #tweet ; https://github.com/lindenb/jvarkit/commit/24aa21f04af506b54f947409ffba9a1861d64fcc
+Thu Mar 19 16:38:00 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/fe6480ef56d91e683467200bbe805a726c4c6457
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

@@ -73,8 +73,14 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfSetSequenceDictionary.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfSetSequenceDictionary.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
+Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
+Thu Sep 7 15:26:22 2017 +0200 ; adding unit test with testng ; https://github.com/lindenb/jvarkit/commit/980b8937646e706a83b10f6b1ceeb015f37bbcc1
+Wed Sep 6 16:28:51 2017 +0200 ; create vcfmakedict, vcfsetdict moved to spring xml component ; https://github.com/lindenb/jvarkit/commit/88e83f863ba6ba49b7ca1e0a609ca61cc92fe14e
 Fri Aug 11 15:52:02 2017 +0200 ; git history, formatting ; https://github.com/lindenb/jvarkit/commit/cf2eb57ad251cd15ae1332db9dcd062cae607d38
 Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
 Fri Jul 7 18:36:14 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c5dc2be25578f7cbc60c0f5425bacf4450893c92
@@ -90,6 +96,8 @@ Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb
 Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
 Sun Jan 5 16:10:56 2014 +0100 ; vcf set dict ; https://github.com/lindenb/jvarkit/commit/f023bc9b0685266627a260c67813e7b76d42bef1
 ```
+
+</details>
 
 ## Contribute
 

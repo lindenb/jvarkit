@@ -81,9 +81,25 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar173114.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar173114.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar173114.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar173114.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa
+Wed Apr 19 10:40:28 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/971b090382a1b0b96e250030a5c8e7be500593b7
+Tue Jan 19 16:16:44 2016 +0100 ; samslop ; https://github.com/lindenb/jvarkit/commit/0a2c02494d4c883f89e4f1845a6ac461042355b0
+Mon Jan 18 18:49:08 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/8deefcf53b461c4d8b8f02998c5002728d6acd0c
+Mon Jan 18 18:47:20 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/6a3dfa02397f6851ada246463e6f15447972d2f8
+Mon Jan 18 17:05:57 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/247de95f508103732d0c8c42b92cef9d81627fc9
+Mon Jan 18 16:58:08 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/83f80fdbe8d6be71539cfdbf60d61ce7ead9c0fd
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

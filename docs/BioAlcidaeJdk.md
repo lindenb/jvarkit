@@ -86,8 +86,12 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
+Mon Oct 2 15:17:44 2017 +0200 ; https://www.biostars.org/p/275714/#275724 ; https://github.com/lindenb/jvarkit/commit/2f0f3e815c57c55ef971dc7c44912d16d8e06c93
 Thu Sep 28 12:59:36 2017 +0200 ; add import sequence in bioalcidae ; https://github.com/lindenb/jvarkit/commit/57f2867e62d4acde5c99ae73b658e6a0a4652b53
 Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
 Thu Jul 27 16:58:18 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a8aaf2d7df89f44442b36ee1120ee4dd5c1e36e6
@@ -95,6 +99,8 @@ Wed Jul 12 17:06:39 2017 +0200 ; bioalcidaejdk / vcfstats ; https://github.com/l
 Wed Jul 12 10:53:03 2017 +0200 ; bioalcidaejdk + fastq ; https://github.com/lindenb/jvarkit/commit/313ed6b8c913984622e0af33af4ad697fcb5e31a
 Wed Jul 12 10:16:50 2017 +0200 ; bioalcidaejdk ; https://github.com/lindenb/jvarkit/commit/7fd3f7f6a9576ffde4d46eaaffa652d265e6c38d
 ```
+
+</details>
 
 ## Contribute
 

@@ -62,9 +62,22 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/LocalRealignReads.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/LocalRealignReads.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/LocalRealignReads.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/LocalRealignReads.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26
+Mon Dec 14 17:18:02 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/9b271459821d8061aa07e98bc7f30232597f47c9
+Thu Dec 10 12:31:38 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/2242c107247d288754dfb47b373e3ebbd9da07f6
+Wed Dec 9 22:00:29 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/624dc8c8c37ef529bacc4bf267426d179e57f133
+Wed Dec 9 21:05:44 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/9a94c74ff2bbc322bcc0145e8d488ec8175065ec
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

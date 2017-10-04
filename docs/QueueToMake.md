@@ -54,9 +54,21 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/QueueToMake.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/QueueToMake.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/QueueToMake.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/QueueToMake.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Tue May 9 10:40:20 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/88cfdecb60c1f193ae8b3176ad86181c4a15256b
+Mon Jul 25 17:11:31 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ebfd55df76327f73a3850150ccff303d96256f93
+Wed Jul 20 18:42:50 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4a95c3e5e5a6e2c74dba24ed8172196dea8805b0
+Wed Jul 20 12:42:15 2016 +0200 ; q2make ; https://github.com/lindenb/jvarkit/commit/0f373f5f7ecffe4ba4325e8e4ca1f873c4fad323
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

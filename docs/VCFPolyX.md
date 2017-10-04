@@ -82,8 +82,12 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VCFPolyX.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VCFPolyX.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
+Wed Sep 6 14:49:24 2017 +0200 ; fixing typos, starting to generate VariantContextWriterFactory for spring xml ; https://github.com/lindenb/jvarkit/commit/cf023e059af85f6c266c56a8f7db6ff78e4a5134
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
 Thu Jul 13 18:38:11 2017 +0200 ; bioalcidaejdk / vcfstats ; https://github.com/lindenb/jvarkit/commit/b403134b5c8e9961489ac8b41d477947a83ff2c4
 Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
@@ -102,6 +106,8 @@ Fri Oct 25 17:42:45 2013 +0200 ; close Reference Fasta (picard.100) ; https://gi
 Fri Oct 11 15:39:02 2013 +0200 ; picard v.100: deletion of VcfIterator :-( ; https://github.com/lindenb/jvarkit/commit/e88fab449b04aed40c2ff7f9d0cf8c8b6ab14a31
 Mon Sep 30 17:03:13 2013 +0200 ; VCFPoly-X added ; https://github.com/lindenb/jvarkit/commit/9c91e722648f8180b964d52579c326fe583b010c
 ```
+
+</details>
 
 ## Contribute
 

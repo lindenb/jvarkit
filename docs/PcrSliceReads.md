@@ -23,7 +23,7 @@ Usage: pcrslicereads [options] Files
       Output file. Optional . Default: stdout
     --random
        random seed
-      Default: java.util.Random@b0d902
+      Default: java.util.Random@df8d8a
     --samoutputformat
       Sam output format.
       Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
@@ -89,9 +89,23 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pcr/PcrSliceReads.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pcr/PcrSliceReads.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pcr/PcrSliceReads.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pcr/PcrSliceReads.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Mon Jul 10 17:46:14 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/27c06b3b85d6783e15c1c259657e6c8391bf67a3
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa
+Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
+Tue May 2 19:12:27 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c19ca2c83aee03e076502cb872e2c1625cb94f54
+Tue Jul 7 16:03:42 2015 +0200 ; pcr slice reads ; https://github.com/lindenb/jvarkit/commit/fc442787c5e74077f0c7256750480b05b4b93317
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

@@ -85,9 +85,23 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfDoest.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfDoest.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfDoest.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfDoest.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Tue Jun 27 17:36:29 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/278970358111f7e3eca02e77d9a238321668a2dd
+Mon May 15 20:23:58 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bb4421e107f53c95efdcad8fb54f022f9642312c
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Thu Sep 22 18:14:13 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/9fe3df782c58b831b2ffb2c6db7fbcb376f3954a
+Fri Jun 3 16:35:43 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/8990c064a122e300faddcab38bd476a9f8b9758e
+Thu Jun 2 11:43:35 2016 +0200 ; does rare ; https://github.com/lindenb/jvarkit/commit/b2d306147dd9d0f2a125741a115379dd345573c1
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

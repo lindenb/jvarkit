@@ -88,9 +88,32 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVG.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVG.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVG.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVG.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Fri May 5 21:02:19 2017 +0200 ; git move usage builder ; https://github.com/lindenb/jvarkit/commit/cc2f3aea9ca8fbb617b7f57a15b3294b6d6680e5
+Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d
+Thu Apr 27 17:22:22 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/0a27a246a537d2b48201596067652ea26bfc28d6
+Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
+Wed Dec 9 21:05:44 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/9a94c74ff2bbc322bcc0145e8d488ec8175065ec
+Thu Nov 26 12:58:31 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/cfdff2e66fbeaa4627b50361a09196be2a2e1477
+Thu Oct 1 14:55:56 2015 +0200 ; bam2wig ; https://github.com/lindenb/jvarkit/commit/dd0835cd10122f2196335ebff9b7f6d7f40c265c
+Thu Oct 1 12:56:15 2015 +0200 ; bam2svg ; https://github.com/lindenb/jvarkit/commit/a395169444973ff7f9a22ea6f7e088f241832b48
+Wed Jun 17 15:29:12 2015 +0200 ;  end -> start in SVG ; https://github.com/lindenb/jvarkit/commit/20ad5d7db7c76e287e8d09261cd2109615530349
+Fri Oct 17 13:27:22 2014 +0200 ; bam2svg ; https://github.com/lindenb/jvarkit/commit/aee0ea431b43b34b65b824200369037acc8bf9f4
+Fri Oct 17 13:24:59 2014 +0200 ; bam2svg ; https://github.com/lindenb/jvarkit/commit/080f850e236f690b0d07be4c5080e89d89bb6b50
+Thu Oct 16 17:24:57 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f0697329ae2147544cd191da0a67824313227a3f
+Wed Oct 15 17:56:47 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/d924481c09a4131386a5abf45c4a49200f5a4165
+Mon Oct 13 18:29:16 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c83f20cde867920870918ee6eb5e5406f554e2bb
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

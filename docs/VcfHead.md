@@ -77,8 +77,13 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfHead.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfHead.java)
 
-Git History for this file:
+
+<details>
+<summary>Git History</summary>
+
 ```
+Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
+Wed Sep 6 14:49:24 2017 +0200 ; fixing typos, starting to generate VariantContextWriterFactory for spring xml ; https://github.com/lindenb/jvarkit/commit/cf023e059af85f6c266c56a8f7db6ff78e4a5134
 Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
 Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
 Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
@@ -100,6 +105,8 @@ Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb
 Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
 Tue Dec 10 22:12:54 2013 +0100 ; vcf head tail ; https://github.com/lindenb/jvarkit/commit/25adbeaf3de1c64fd793c5ddf5236322adb430d1
 ```
+
+</details>
 
 ## Contribute
 
