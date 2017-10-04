@@ -739,8 +739,9 @@ ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java 
 	echo -n 'public static String getDate() {return "' >> $@ &&  date | tr -d '\n' >> $@ && echo ')";}' >> $@
 	echo 'public static String getHash() {return "${htsjdk.version}";}' >> $@
 	echo 'public static String getHome() {return "$(word 1,${htsjdk.jars})";}' >> $@
-	echo 'public static String getJavadocUrl(Class<?> clazz) {return "https://samtools.github.io/htsjdk/javadoc/htsjdk/"+clazz.getName().replaceAll("\\.","/")+".html";}' >> $@
+	echo 'public static String getJavadocUrl(final Class<?> clazz) {return "https://samtools.github.io/htsjdk/javadoc/htsjdk/"+clazz.getName().replaceAll("\\.","/")+".html";}' >> $@
 	echo '}'  >> $@
+
 
 ## API EVS
 src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
