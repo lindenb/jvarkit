@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
@@ -35,7 +33,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -43,7 +46,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary.CtxWriterFactory;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
@@ -127,25 +129,32 @@ public class VcfInjectPedigree
 
 
 	@XmlRootElement(name="vcfinjectpedigree")
+	@XmlType(name="vcfinjectpedigree")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
+			@XmlElement(name="pedigree")
 			@Parameter(names={"-p","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
 			private File pedigreeFile = null;
 			
+			@XmlElement(name="clean")
 			@Parameter(names={"-clean","--clean"},description="Remove all previous data about pedigree in the VCF header before adding the new one.")
 			private boolean cleanPreviousPedigree = false;
 			
+			@XmlElement(name="ignore-missing-in-header")
 			@Parameter(names={"-imih","--ignoreMissingInHeader"},description="Ignore errors if a sample is declared in the pedigree but is missing in the VCF header")
 			private boolean ignoreMissingInHeader = false;
 			
+			@XmlElement(name="ignore-missing-in-pedigree")
 			@Parameter(names={"-imip","--ignoreMissingInPedigree"},description="Ignore errors if a sample is declared in the VCF header but is missing in the pedigree")
 			private boolean ignoreMissingInPedigree = false;
 			
+			@XmlElement(name="ignore-pedigree-validation")
 			@Parameter(names={"-valid","--valid"},description="Ignore pedigree validation")
 			private boolean ignorePedigreeValidation = false;
 			
-			
+			@XmlTransient
 			private Pedigree pedigree = null;
 			
 			private class CtxWriter extends DelegateVariantContextWriter
@@ -261,7 +270,6 @@ public class VcfInjectPedigree
 				}
 			@Override
 			public void close() throws IOException {
-				this.close();
 				}
 			}
 	
@@ -295,7 +303,14 @@ public class VcfInjectPedigree
 		try
 			{
 			if(this.component.initialize()!=0) return -1;
-			return doVcfToVcf(args, outputFile);
+			final int ret= doVcfToVcf(args, outputFile);
+			LOG.info("ret:"+ret);
+			return ret;
+			}
+		catch(final Throwable err)
+			{
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{

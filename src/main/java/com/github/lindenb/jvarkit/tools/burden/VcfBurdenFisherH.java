@@ -32,6 +32,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -47,8 +53,11 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -108,52 +117,62 @@ public class VcfBurdenFisherH
 	{	
 	private static final Logger LOG = Logger.build(VcfBurdenFisherH.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
 
-	@Parameter(names={"-fisher","--minFisherPValue"},description="if p-value fisher(case/control vs have alt/have not alt) lower than 'fisher' the FILTER Column is Filled")
-	private double minFisherPValue = 0.05 ;
-	
-	private static class Count {
-		int case_have_alt =0;
-		int case_miss_alt = 0;
-		int ctrl_have_alt = 0;
-		int ctrl_miss_alt = 0;
-	}
-	
-	public VcfBurdenFisherH()
+	@XmlType(name="vcfburdenfisherh")
+	@XmlRootElement(name="vcfburdenfisherh")
+	@XmlAccessorType(XmlAccessType.FIELD)
+	public static class CtxWriterFactory 
+	implements VariantContextWriterFactory
 		{
-		}
-	 
-	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-		final VCFHeader header=in.getHeader();
-		final Set<Pedigree.Person> individuals = super.getCasesControlsInPedigree(header);
+		@XmlElement(name="min-fisher")
+		@Parameter(names={"-fisher","--minFisherPValue"},description="if p-value fisher(case/control vs have alt/have not alt) lower than 'fisher' the FILTER Column is Filled")
+		private double minFisherPValue = 0.05 ;
 		
-		try {
-			final VCFHeader h2=addMetaData(new VCFHeader(header));
-			
-			final VCFInfoHeaderLine fisherAlleleInfoHeader = new VCFInfoHeaderLine(
-					"BurdenHFisher",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"Fisher Exact Test Case/Control."
+		private static class Count {
+			int case_have_alt =0;
+			int case_miss_alt = 0;
+			int ctrl_have_alt = 0;
+			int ctrl_miss_alt = 0;
+		}
+		
+		private class CtxWriter extends DelegateVariantContextWriter
+			{
+			private final VCFInfoHeaderLine fisherAlleleInfoHeader = new VCFInfoHeaderLine(
+					"BurdenHFisher",VCFHeaderLineCount.A,VCFHeaderLineType.Float,
+					"Fisher Exact Test Case/Control."
 					);
-			final VCFFilterHeaderLine fisherAlleleFilterHeader = new VCFFilterHeaderLine(
-					fisherAlleleInfoHeader.getID(),"Fisher case:control vs miss|have ALT is lower than "+this.minFisherPValue
+			private final VCFFilterHeaderLine fisherAlleleFilterHeader = new VCFFilterHeaderLine(
+					fisherAlleleInfoHeader.getID(),
+					"Fisher case:control vs miss|have ALT is lower than "+CtxWriterFactory.this.minFisherPValue
 					);
 			
-			final VCFInfoHeaderLine fisherDetailInfoHeader = new VCFInfoHeaderLine(
-					"BurdenHFisherDetail",VCFHeaderLineCount.A,VCFHeaderLineType.String,"Fisher Exact Test Case/Control"
+			private final VCFInfoHeaderLine fisherDetailInfoHeader = new VCFInfoHeaderLine(
+					"BurdenHFisherDetail",
+					VCFHeaderLineCount.A,VCFHeaderLineType.String,
+					"Fisher Exact Test Case/Control"
 					);
-
+			private Set<Pedigree.Person> individuals= null;
 			
-			h2.addMetaDataLine(fisherAlleleInfoHeader);
-			h2.addMetaDataLine(fisherAlleleFilterHeader);
-			h2.addMetaDataLine(fisherDetailInfoHeader);
+			CtxWriter(final VariantContextWriter delegate) {
+				super(delegate);
+			}
 			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
-			out.writeHeader(h2);
-			while(in.hasNext() &&  !out.checkError())
-				{
-				final VariantContext ctx = progess.watch(in.next());
+			@Override
+			public void writeHeader(final VCFHeader header) {
+				final VCFHeader h2= new VCFHeader(header);
+				h2.addMetaDataLine(this.fisherAlleleInfoHeader);
+				h2.addMetaDataLine(this.fisherAlleleFilterHeader);
+				h2.addMetaDataLine(this.fisherDetailInfoHeader);
+				this.individuals = new Pedigree.CaseControlExtractor().extract(header);
+				super.writeHeader(h2);
+				}
+			
+			@Override
+			public void add(final VariantContext ctx) {
 				boolean set_filter = true;
 				boolean found_one_alt_to_compute = false;
 				final List<String> infoData = new ArrayList<>(ctx.getAlleles().size());
@@ -174,7 +193,7 @@ public class VcfBurdenFisherH
 					final Count count = new Count();
 					
 					/* loop over persons in this pop */
-					for(final Pedigree.Person p:individuals ) 	{
+					for(final Pedigree.Person p: this.individuals ) 	{
 						/* get genotype for this individual */
 						final Genotype genotype = ctx.getGenotype(p.getId());
 						/* individual is not in vcf header */
@@ -186,7 +205,8 @@ public class VcfBurdenFisherH
 						}
 						
 						/* loop over alleles */
-						final boolean genotype_contains_allele=genotype.getAlleles().stream().anyMatch(A->A.equals(observed_alt));
+						final boolean genotype_contains_allele = genotype.getAlleles().stream().
+								anyMatch(A->A.equals(observed_alt));
 						
 						
 						/* fisher */
@@ -221,39 +241,75 @@ public class VcfBurdenFisherH
 							));
 					
 					found_one_alt_to_compute = true;
-					if( fisherAlt.getAsDouble() >= this.minFisherPValue ) {
+					if( fisherAlt.getAsDouble() >= CtxWriterFactory.this.minFisherPValue ) {
 						set_filter = false;
 						}
 					} //end of for each ALT allele
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 
-				vcb.attribute(fisherAlleleInfoHeader.getID(),fisherValues);
-				vcb.attribute(fisherDetailInfoHeader.getID(),infoData );
+				vcb.attribute(this.fisherAlleleInfoHeader.getID(),fisherValues);
+				vcb.attribute(this.fisherDetailInfoHeader.getID(),infoData );
 				
 				if( set_filter && found_one_alt_to_compute) {
-					vcb.filter(fisherAlleleFilterHeader.getID());
+					vcb.filter(this.fisherAlleleFilterHeader.getID());
 					}
 				
-				out.add(vcb.make());
+				super.add(vcb.make());
 				}
-			progess.finish();
-			LOG.info("done");
-			return RETURN_OK;
-			} catch(Exception err) {
-				LOG.error(err);
-				return -1;
-			} finally {
-				CloserUtil.close(in);
+			@Override
+			public void close() {
+				super.close();
+				this.individuals=null;
+				}
+			}
+		
+		
+		@Override
+		public VariantContextWriter open(VariantContextWriter delegate) {
+			return new CtxWriter(delegate);
 			}
 		}
 	
+	public VcfBurdenFisherH() {
+	}
+	
+	
 	@Override
-	public int doWork(List<String> args) {
-		return doVcfToVcf(args, outputFile);
+	protected int doVcfToVcf(final String inputName, final VcfIterator r, final VariantContextWriter delegate) {
+		final VariantContextWriter w = this.component.open(delegate);
+		w.writeHeader(r.getHeader());
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(r.getHeader()).logger(LOG);
+		while(r.hasNext())
+			{
+			w.add(progress.watch(r.next()));
+			}
+		progress.finish();
+		w.close();
+		return 0;
+		}
+
+	
+	@Override
+	public int doWork(final List<String> args) {
+		try 
+			{
+			if(this.component.initialize()!=0) {
+				return -1;
+				}
+			return doVcfToVcf(args,this.outputFile);
+			}
+		catch(final Exception err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(this.component);
+			}
 		}
 	 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfBurdenFisherH().instanceMainWithExit(args);
 		}

@@ -34,8 +34,11 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -84,14 +87,16 @@ public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 	
+	@XmlType(name="vcftail")
 	@XmlRootElement(name="vcftail")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
-			@XmlElement
+			@XmlElement(name="count")
 			@Parameter(names={"-n","--count"},description="number of variants")
 			private long count=10;
-			@XmlElement
+			@XmlElement(name="by-contig")
 			@Parameter(names={"-c","--bycontig"},descriptionKey="Print last variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
 			private boolean by_contig=false;
 			
@@ -112,7 +117,7 @@ public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 					{
 					for(final VariantContext ctx:this.buffer) 
 						{
-						getDelegate().add(ctx);
+						super.add(ctx);
 						}
 					this.buffer.clear();
 					}
@@ -122,7 +127,7 @@ public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 					}
 				@Override
 				public void writeHeader(final VCFHeader header) {
-					getDelegate().writeHeader(header);
+					super.writeHeader(header);
 					}
 				
 				@Override

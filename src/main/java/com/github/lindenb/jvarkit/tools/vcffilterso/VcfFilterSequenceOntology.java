@@ -37,9 +37,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
+
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -47,6 +56,7 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -54,6 +64,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -146,355 +158,424 @@ public class VcfFilterSequenceOntology
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfFilterSequenceOntology.class).make();
-
-
-	@Parameter(names={"-i","--invert"},description="invert selection (if one of the user's term is found, do not accept the variant")
-	private boolean invert = false;
-
-	@Parameter(names={"-d","--noreasoning"},description="disable reasoning, don't use term's children.")
-	private boolean disableReasoning = false;
-
-	@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER its' prediction is found in the database")
-	private String filterIn = "";
-
-	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER its' prediction is NOT found in the database")
-	private String filterOut = "";
-
-	@Parameter(names={"-r","--rmatt"},description="Do not remove the variant itself, just remove the mismatching Prediction: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK")
-	private boolean removeUnusedAttribute = false;
-
-	@Parameter(names={"-R","--rmnoatt"},description="remove the variant if option -r was used and the is no more attribute")
-	private boolean removeIfNoMoreAttribute = false;
-
 	
-	@Parameter(names={"-A","--acn","--accession"},description="add this SO:ACN. e.g.: 'SO:0001818' Protein altering variant [http://www.sequenceontology.org/miso/current_svn/term/SO:0001818](http://www.sequenceontology.org/miso/current_svn/term/SO:0001818)")
-	private List<String> userTermsAsString = new ArrayList<>();
-
-	@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers")
-	private File userAcnFile = null;
-
-	@Parameter(names={"-S","--showacn"},description="list the available SO accession and exit.")
-	private boolean showList = false;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
+	@Parameter(names={"-S","--showacn"},description="list the available SO accession and exit.")
+	private boolean showList = false;
 
-	@Parameter(names={"-owluri","--owluri"},description="If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl")
-	private String owluri = "";
-	
-	private SequenceOntologyTree sequenceOntologyTree = SequenceOntologyTree.createDefault();
 
-	
-	/* all sequence terms */
-	private final Set<SequenceOntologyTree.Term> user_terms=new HashSet<SequenceOntologyTree.Term>();
-	private final Set<String> user_terms_strings=new HashSet<>();
+	@XmlType(name="vcffilterso")
+	@XmlRootElement(name="vcffilterso")
+	@XmlAccessorType(XmlAccessType.FIELD)
+	public static class CtxWriterFactory 
+		implements VariantContextWriterFactory
+			{
+			
+			@Parameter(names={"-i","--invert"},description="invert selection (if one of the user's term is found, do not accept the variant")
+			private boolean invert = false;
+		
+			@Parameter(names={"-d","--noreasoning"},description="disable reasoning, don't use term's children.")
+			private boolean disableReasoning = false;
+		
+			@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER its' prediction is found in the database")
+			private String filterIn = "";
+		
+			@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER its' prediction is NOT found in the database")
+			private String filterOut = "";
+		
+			@Parameter(names={"-r","--rmatt"},description="Do not remove the variant itself, just remove the mismatching Prediction: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK")
+			private boolean removeUnusedAttribute = false;
+		
+			@Parameter(names={"-R","--rmnoatt"},description="remove the variant if option -r was used and the is no more attribute")
+			private boolean removeIfNoMoreAttribute = false;
+		
+			@XmlElement(name="accession")
+			@Parameter(names={"-A","--acn","--accession"},description="add this SO:ACN. e.g.: 'SO:0001818' Protein altering variant [http://www.sequenceontology.org/miso/current_svn/term/SO:0001818](http://www.sequenceontology.org/miso/current_svn/term/SO:0001818)")
+			private List<String> userTermsAsString = new ArrayList<>();
+		
+			@XmlElement(name="accession-file")
+			@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers")
+			private File userAcnFile = null;
+		
+			@XmlTransient
+			@Parameter(names={"-owluri","--owluri"},description="If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl")
+			private String owluri = "";
+			
+			@XmlTransient
+			private SequenceOntologyTree sequenceOntologyTree = SequenceOntologyTree.createDefault();
+			
+			
+			/* all sequence terms */
+			@XmlTransient
+			private final Set<SequenceOntologyTree.Term> user_terms=new HashSet<SequenceOntologyTree.Term>();
+
+			
+			private class CtxWriter extends DelegateVariantContextWriter
+				{
+				private VepPredictionParser vepParser = null;
+				private SnpEffPredictionParser snpEffparser= null;
+				private MyPredictionParser myPredParser= null;
+				private AnnPredictionParser annPredParser= null;
+				private final Set<String> user_terms_strings=new HashSet<>();
+
+				
+				CtxWriter(final VariantContextWriter delegate) {
+					super(delegate);
+					}
+				@Override
+				public void writeHeader(final VCFHeader header) {
+					final VCFHeader header2= new VCFHeader(header);
+					
+					final String termlist = String.join(", ",CtxWriterFactory.this.user_terms.stream().
+								map(S->S.getAcn()+"("+S.getLabel()+")").
+								collect(Collectors.toSet()))
+								;
+					if(!CtxWriterFactory.this.filterIn.isEmpty()) {
+						header2.addMetaDataLine(new VCFFilterHeaderLine(CtxWriterFactory.this.filterIn,
+								"Variant having SO terms:"+ termlist));
+						}
+					if(!CtxWriterFactory.this.filterOut.isEmpty()) {
+						header2.addMetaDataLine(new VCFFilterHeaderLine(CtxWriterFactory.this.filterOut,
+								"Variant non having SO terms :" + termlist));
+						}
+					this.user_terms_strings.addAll( CtxWriterFactory.this.user_terms.stream().
+							map(T->T.getLabel()).
+							collect(Collectors.toSet())
+							);
+					
+					this.vepParser =new VepPredictionParserFactory().header(header).get().sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+					this.snpEffparser= new SnpEffPredictionParserFactory().header(header).get().sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+					Objects.requireNonNull(this.snpEffparser);
+					this.myPredParser= new MyPredictionParser(header).sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+					this.annPredParser= new AnnPredictionParserFactory().header(header).get().sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+					
+					super.writeHeader(header2);
+					}
+				@Override
+				public void add(final VariantContext ctx) {
+					boolean keep=false;
+					List<Object> snpEffPredStrings = null;
+					List<Object> vepPredStrings = null;
+					List<Object> myPredStrings = null;
+					List<Object> annPredStrings = null;
+					Objects.requireNonNull(this.snpEffparser);
+					Objects.requireNonNull(this.snpEffparser.getTag());
+					/* handle SNP EFF */
+					if(ctx.hasAttribute(this.snpEffparser.getTag())) {
+						snpEffPredStrings = new ArrayList<>(ctx.getAttributeAsList(snpEffparser.getTag()));
+						int x=0;
+						while(x<snpEffPredStrings.size()){
+							final Object predStr = snpEffPredStrings.get(x);
+							final SnpEffPredictionParser.SnpEffPrediction pred = this.snpEffparser.parseOnePrediction(predStr);
+							if(pred!=null && hasUserTem(pred.getSOTerms()))
+								{
+								keep=true;
+								++x;
+								}
+							else
+								{
+								snpEffPredStrings.remove(x);
+								}
+							}
+						}
+					
+					/* handle VEP */
+					if(ctx.hasAttribute(vepParser.getTag()) && (CtxWriterFactory.this.removeUnusedAttribute || !keep)) {
+						vepPredStrings = new ArrayList<>(ctx.getAttributeAsList(vepParser.getTag()));
+						int x=0;
+						while(x<vepPredStrings.size()){
+							final Object predStr = vepPredStrings.get(x);
+							final VepPredictionParser.VepPrediction pred = vepParser.parseOnePrediction(ctx, predStr);
+							if(pred!=null && hasUserTemLabel(pred.getSOTermsStrings()))
+								{
+								keep=true;
+								++x;
+								}
+							else
+								{
+								vepPredStrings.remove(x);
+								}
+							}
+						}
+					/* handle MyPredictionParser */
+					if(ctx.hasAttribute(myPredParser.getTag()) && (CtxWriterFactory.this.removeUnusedAttribute || !keep)) {
+						myPredStrings = new ArrayList<>(ctx.getAttributeAsList(myPredParser.getTag()));
+						int x=0;
+						while(x<myPredStrings.size()){
+							final Object predStr = myPredStrings.get(x);
+							final MyPredictionParser.MyPrediction pred = myPredParser.parseOnePrediction(predStr);
+							if(pred!=null && hasUserTem(pred.getSOTerms()))
+								{
+								keep=true;
+								++x;
+								}
+							else
+								{
+								myPredStrings.remove(x);
+								}
+							}
+						}
+					
+					/* handle ANN */
+					if(ctx.hasAttribute(annPredParser.getTag()) && (CtxWriterFactory.this.removeUnusedAttribute || !keep)) {
+						annPredStrings = new ArrayList<>(ctx.getAttributeAsList(annPredParser.getTag()));
+						int x=0;
+						while(x<annPredStrings.size()){
+							final Object predStr = annPredStrings.get(x);
+							final AnnPredictionParser.AnnPrediction pred = annPredParser.parseOnePrediction(predStr);
+							if(pred!=null && hasUserTemLabel(pred.getSOTermsStrings()))
+								{
+								keep=true;
+								++x;
+								}
+							else
+								{
+								annPredStrings.remove(x);
+								}
+							}
+						}
+					
+					if(CtxWriterFactory.this.removeUnusedAttribute)
+						{
+						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+						int count=0;
+						if(snpEffPredStrings!=null) {
+							vcb.rmAttribute(snpEffparser.getTag());
+							vcb.attribute(snpEffparser.getTag(), snpEffPredStrings);
+							count += snpEffPredStrings.size();
+							}
+						if(vepPredStrings!=null) {
+							vcb.rmAttribute(vepParser.getTag());
+							vcb.attribute(vepParser.getTag(), vepPredStrings);
+							count += vepPredStrings.size();
+							}
+						if(myPredStrings!=null) {
+							vcb.rmAttribute(myPredParser.getTag());
+							vcb.attribute(myPredParser.getTag(), myPredStrings);
+							count += myPredStrings.size();
+							}
+						if(annPredStrings!=null) {
+							vcb.rmAttribute(annPredParser.getTag());
+							vcb.attribute(annPredParser.getTag(), annPredStrings);
+							count += annPredStrings.size();
+							}
+						
+						if( count == 0  && CtxWriterFactory.this.removeIfNoMoreAttribute) 
+							{
+							addVariant(vcb.make(),false);
+							}
+						else
+							{
+							addVariant(vcb.make(),true);
+							}
+						}
+					else
+						{
+						addVariant(ctx,keep);
+						}
+					}
+				
+				private void addVariant(final VariantContext ctx,boolean keep)
+					{
+					if(CtxWriterFactory.this.invert) keep=!keep;
+					if(!CtxWriterFactory.this.filterIn.isEmpty())
+						{
+						if(keep){
+							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+							vcb.filter(CtxWriterFactory.this.filterIn);
+							super.add(vcb.make());
+							}
+						else if( !ctx.filtersWereApplied()) {
+							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+							vcb.passFilters();
+							super.add(vcb.make());
+							}
+						else
+							{
+							super.add(ctx);
+							}
+						}
+					else  if(!CtxWriterFactory.this.filterOut.isEmpty()) {
+						if(keep && !ctx.filtersWereApplied()) {
+							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+							vcb.passFilters();
+							super.add(vcb.make());
+							}
+						else if(keep){
+							super.add(ctx);
+							}
+						else
+							{
+							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+							vcb.filter(CtxWriterFactory.this.filterOut);
+							super.add(vcb.make());
+							}
+						}
+					else
+						{
+						if(keep) {
+							super.add(ctx);
+							} else
+							{
+								/* don't print */
+							}
+						}
+					}
+				
+				private boolean hasUserTem(final Set<SequenceOntologyTree.Term> ctxTerms)
+					{
+					return ctxTerms.
+							stream().
+							anyMatch(S->user_terms.contains(S));
+					}
+				private boolean hasUserTemLabel(final Collection<String> ctxTerms)
+					{
+					return ctxTerms.
+							stream().
+							anyMatch(S->user_terms_strings.contains(S));
+					}				
+				}
+			
+			@Override
+			public int initialize() {
+				try {
+					this.sequenceOntologyTree = readSequenceOntologyTree(this.owluri);
+				} catch(IOException err)
+					{
+					LOG.error(err);
+					return -1;
+					}
+				
+				
+				final boolean reasoning = !this.disableReasoning;
+				if(this.userAcnFile!=null)
+					{
+					try {
+						this.parseAccessionsFile(this.userAcnFile);
+						} 
+					catch(IOException err)
+						{
+						LOG.error(err);
+						return -1;
+						}
+					}
+				
+				
+				this.userTermsAsString.stream().
+					map(S->S.trim()).
+					filter(S->!S.isEmpty()).
+					forEach(acn->{
+						final SequenceOntologyTree.Term t= this.sequenceOntologyTree.getTermByAcn(acn);
+						if(t==null)
+							{
+							throw new JvarkitException.UserError("Unknown SO:Accession \""+acn+"\"");
+							}
+						this.user_terms.add(t);
+						if(reasoning) this.user_terms.addAll(t.getAllDescendants());					
+					});
+				
+				if(this.user_terms.isEmpty())
+					{
+					LOG.warn("No SO: term found ");
+					}
+				LOG.info("Will be using :"+this.user_terms.stream().
+						map(T->T.getAcn()+"("+T.getLabel()+")").
+						collect(Collectors.joining(" ")));
+				
+				this.userTermsAsString.clear();//we don't need this anymore
+
+				if(this.invert && this.removeUnusedAttribute) {
+					LOG.error("Option invert cannot be used when Option removeUnusedAttribute is set");
+					return -1;
+				}				
+				
+				if(!this.filterIn.isEmpty() && !this.filterOut.isEmpty()) {
+					LOG.error("Option filterIn && filterOut both defined.");
+					return -1;
+				}
+				if((this.invert) && (!this.filterIn.isEmpty() || !this.filterOut.isEmpty())) {
+					LOG.error("Option invert cannot be used when Option filterIn or filterOut is defined.");
+					return -1;
+				}
+				return 0;
+				}
+			
+			@Override
+			public VariantContextWriter open(final VariantContextWriter delegate) {
+				return new CtxWriter(delegate);
+				}
+			
+			@Override
+			public void close() throws IOException {
+				}
+			
+			private void parseAccessionsFile(final File f) throws IOException
+				{
+				final BufferedReader in=IOUtils.openFileForBufferedReading(f);
+				in.lines().
+					filter(L->!L.startsWith("#")).
+					map(L->L.trim()).
+					filter(L->!L.isEmpty()).
+					forEach(L->{
+						this.userTermsAsString.add(L);
+					});
+				in.close();
+				}
+
+			
+			}
 	
 	public VcfFilterSequenceOntology()
 		{
 		}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator iter, final VariantContextWriter out) {
-		
-		 
-		final VCFHeader header= iter.getHeader();
-		final VCFHeader header2= new VCFHeader(header);
-		
-		final String termlist = String.join(", ",this.user_terms.stream().map(S->S.getAcn()+"("+S.getLabel()+")").collect(Collectors.toSet()));
-		if(!this.filterIn.isEmpty()) {
-			header2.addMetaDataLine(new VCFFilterHeaderLine(this.filterIn,
-					"Variant having SO terms:"+ termlist));
-			}
-		if(!this.filterOut.isEmpty()) {
-			header2.addMetaDataLine(new VCFFilterHeaderLine(this.filterOut,
-					"Variant non having SO terms :" + termlist));
-			}
-		this.user_terms_strings.clear();
-		this.user_terms_strings.addAll( this.user_terms.stream().
-				map(T->T.getLabel()).
-				collect(Collectors.toSet())
-				);
-		
-		final VepPredictionParser vepParser =new VepPredictionParserFactory().header(header).get().sequenceOntologyTree(this.sequenceOntologyTree);
-		final SnpEffPredictionParser snpEffparser= new SnpEffPredictionParserFactory().header(header).get().sequenceOntologyTree(this.sequenceOntologyTree);
-		final MyPredictionParser myPredParser= new MyPredictionParser(header).sequenceOntologyTree(this.sequenceOntologyTree);
-		final AnnPredictionParser annPredParser= new AnnPredictionParserFactory().header(header).get().sequenceOntologyTree(this.sequenceOntologyTree);
-		out.writeHeader(header2);
-		
-		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
+	protected int doVcfToVcf(final String inputName,final VcfIterator iter, final VariantContextWriter delegate) {	
+		final VariantContextWriter out = this.component.open(delegate);
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
+		out.writeHeader(iter.getHeader());
 		while(iter.hasNext())
 			{
-			final VariantContext ctx= progress.watch(iter.next());
-			
-			
-			
-
-			boolean keep=false;
-			List<Object> snpEffPredStrings = null;
-			List<Object> vepPredStrings = null;
-			List<Object> myPredStrings = null;
-			List<Object> annPredStrings = null;
-			
-			/* handle SNP EFF */
-			if(ctx.hasAttribute(snpEffparser.getTag())) {
-				snpEffPredStrings = new ArrayList<>(ctx.getAttributeAsList(snpEffparser.getTag()));
-				int x=0;
-				while(x<snpEffPredStrings.size()){
-					final Object predStr = snpEffPredStrings.get(x);
-					final SnpEffPredictionParser.SnpEffPrediction pred = snpEffparser.parseOnePrediction(predStr);
-					if(pred!=null && hasUserTem(pred.getSOTerms()))
-						{
-						keep=true;
-						++x;
-						}
-					else
-						{
-						snpEffPredStrings.remove(x);
-						}
-					}
-				}
-			
-			/* handle VEP */
-			if(ctx.hasAttribute(vepParser.getTag()) && (this.removeUnusedAttribute || !keep)) {
-				vepPredStrings = new ArrayList<>(ctx.getAttributeAsList(vepParser.getTag()));
-				int x=0;
-				while(x<vepPredStrings.size()){
-					final Object predStr = vepPredStrings.get(x);
-					final VepPredictionParser.VepPrediction pred = vepParser.parseOnePrediction(ctx, predStr);
-					if(pred!=null && hasUserTemLabel(pred.getSOTermsStrings()))
-						{
-						keep=true;
-						++x;
-						}
-					else
-						{
-						vepPredStrings.remove(x);
-						}
-					}
-				}
-			/* handle MyPredictionParser */
-			if(ctx.hasAttribute(myPredParser.getTag()) && (this.removeUnusedAttribute || !keep)) {
-				myPredStrings = new ArrayList<>(ctx.getAttributeAsList(myPredParser.getTag()));
-				int x=0;
-				while(x<myPredStrings.size()){
-					final Object predStr = myPredStrings.get(x);
-					final MyPredictionParser.MyPrediction pred = myPredParser.parseOnePrediction(predStr);
-					if(pred!=null && hasUserTem(pred.getSOTerms()))
-						{
-						keep=true;
-						++x;
-						}
-					else
-						{
-						myPredStrings.remove(x);
-						}
-					}
-				}
-			
-			/* handle ANN */
-			if(ctx.hasAttribute(annPredParser.getTag()) && (this.removeUnusedAttribute || !keep)) {
-				annPredStrings = new ArrayList<>(ctx.getAttributeAsList(annPredParser.getTag()));
-				int x=0;
-				while(x<annPredStrings.size()){
-					final Object predStr = annPredStrings.get(x);
-					final AnnPredictionParser.AnnPrediction pred = annPredParser.parseOnePrediction(predStr);
-					if(pred!=null && hasUserTemLabel(pred.getSOTermsStrings()))
-						{
-						keep=true;
-						++x;
-						}
-					else
-						{
-						annPredStrings.remove(x);
-						}
-					}
-				}
-			
-			if(this.removeUnusedAttribute)
-				{
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				int count=0;
-				if(snpEffPredStrings!=null) {
-					vcb.rmAttribute(snpEffparser.getTag());
-					vcb.attribute(snpEffparser.getTag(), snpEffPredStrings);
-					count += snpEffPredStrings.size();
-					}
-				if(vepPredStrings!=null) {
-					vcb.rmAttribute(vepParser.getTag());
-					vcb.attribute(vepParser.getTag(), vepPredStrings);
-					count += vepPredStrings.size();
-					}
-				if(myPredStrings!=null) {
-					vcb.rmAttribute(myPredParser.getTag());
-					vcb.attribute(myPredParser.getTag(), myPredStrings);
-					count += myPredStrings.size();
-					}
-				if(annPredStrings!=null) {
-					vcb.rmAttribute(annPredParser.getTag());
-					vcb.attribute(annPredParser.getTag(), annPredStrings);
-					count += annPredStrings.size();
-					}
-				
-				if( count == 0  && this.removeIfNoMoreAttribute) 
-					{
-					addVariant(out,vcb.make(),false);
-					}
-				else
-					{
-					addVariant(out,vcb.make(),true);
-					}
-				}
-			else
-				{
-				addVariant(out,ctx,keep);
-				}
+			out.add(progress.watch(iter.next()));
 			}
+		out.close();
 		progress.finish();
 		return 0;
 		}
-	private void addVariant(final VariantContextWriter w,final VariantContext ctx,boolean keep)
-		{
-		if(this.invert) keep=!keep;
-		if(!this.filterIn.isEmpty())
-			{
-			if(keep){
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.filter(this.filterIn);
-				w.add(vcb.make());
-				}
-			else if( !ctx.filtersWereApplied()) {
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.passFilters();
-				w.add(vcb.make());
-				}
-			else
-				{
-				w.add(ctx);
-				}
-			}
-		else  if(!this.filterOut.isEmpty()) {
-			if(keep && !ctx.filtersWereApplied()) {
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.passFilters();
-				w.add(vcb.make());
-				}
-			else if(keep){
-				w.add(ctx);
-				}
-			else
-				{
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.filter(this.filterOut);
-				w.add(vcb.make());
-				}
+			
+		
+	private static SequenceOntologyTree readSequenceOntologyTree(final String owluri) throws IOException {
+		if( !(owluri==null || owluri.trim().isEmpty()) ) {
+			LOG.info("loading so tree from "+owluri);
+			SequenceOntologyTree sequenceOntologyTree = SequenceOntologyTree.fromUri(owluri.trim());
+			LOG.info("Done loading SO.");
+			return sequenceOntologyTree;
 			}
 		else
 			{
-			if(keep) {
-				w.add(ctx);
-				} else
-				{
-					/* don't print */
-				}
+			return SequenceOntologyTree.getInstance();
 			}
 		}
-	
-	private boolean hasUserTem(final Set<SequenceOntologyTree.Term> ctxTerms)
-		{
-		return ctxTerms.
-				stream().
-				filter(S->user_terms.contains(S)).findAny().isPresent();
-		}
-	private boolean hasUserTemLabel(final Collection<String> ctxTerms)
-		{
-		return ctxTerms.
-				stream().
-				filter(S->user_terms_strings.contains(S)).findAny().isPresent();
-		}
-
-		
-		
-		private void parseAccessionsFile(final File f) throws IOException
-			{
-			final BufferedReader in=IOUtils.openFileForBufferedReading(f);
-			in.lines().
-				filter(L->!L.startsWith("#")).
-				map(L->L.trim()).
-				filter(L->!L.isEmpty()).
-				forEach(L->{
-					VcfFilterSequenceOntology.this.userTermsAsString.add(L);
-				});
-			in.close();
-			}
-
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			if( !(this.owluri==null || this.owluri.trim().isEmpty()) ) {
-				LOG.info("loading so tree from "+this.owluri);
-				this.sequenceOntologyTree = SequenceOntologyTree.fromUri(this.owluri.trim());
-				LOG.info("Done loading SO.");
-				}
-			
 			if(this.showList)
 				{
+				final SequenceOntologyTree tree = readSequenceOntologyTree(this.component.owluri);
 				final PrintWriter pw=super.openFileOrStdoutAsPrintWriter(this.outputFile);
-				for(final SequenceOntologyTree.Term t:this.sequenceOntologyTree.getTerms())
+				for(final SequenceOntologyTree.Term t: tree.getTerms())
 					{
 					pw.println(t.getAcn()+"\t"+t.getLabel());
 					}
 				pw.close();
 				return 0;
-				}		
-
-			
-			final boolean reasoning = !this.disableReasoning;
-			if(this.userAcnFile!=null)
-				{
-				this.parseAccessionsFile(this.userAcnFile);
 				}
 			
-			
-			this.userTermsAsString.stream().
-				map(S->S.trim()).
-				filter(S->!S.isEmpty()).
-				forEach(acn->{
-					final SequenceOntologyTree.Term t= this.sequenceOntologyTree.getTermByAcn(acn);
-					if(t==null)
-						{
-						throw new JvarkitException.UserError("Unknown SO:Accession \""+acn+"\"");
-						}
-					this.user_terms.add(t);
-					if(reasoning) this.user_terms.addAll(t.getAllDescendants());					
-				});
-			
-			if(this.user_terms.isEmpty())
-				{
-				LOG.warn("No SO: term found ");
-				}
-			LOG.info("Will be using :"+this.user_terms.stream().
-					map(T->T.getAcn()+"("+T.getLabel()+")").
-					collect(Collectors.joining(" ")));
-			
-			this.userTermsAsString.clear();//we don't need this anymore
-
-			if(this.invert && this.removeUnusedAttribute) {
-				LOG.error("Option invert cannot be used when Option removeUnusedAttribute is set");
-				return -1;
-			}
-
-			
-			
-			if(!this.filterIn.isEmpty() && !this.filterOut.isEmpty()) {
-				LOG.error("Option filterIn && filterOut both defined.");
-				return -1;
-			}
-			if((this.invert) && (!this.filterIn.isEmpty() || !this.filterOut.isEmpty())) {
-				LOG.error("Option invert cannot be used when Option filterIn or filterOut is defined.");
-				return -1;
-			}
-
-			
+			if(this.component.initialize()!=0) return -1;
 			
 			return doVcfToVcf(args, this.outputFile);
 			}
@@ -504,7 +585,7 @@ public class VcfFilterSequenceOntology
 			}
 		finally
 			{
-			
+			CloserUtil.close(this.component);
 			}
 		}
 		

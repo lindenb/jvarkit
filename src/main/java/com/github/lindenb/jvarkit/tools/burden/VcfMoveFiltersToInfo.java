@@ -35,7 +35,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -102,13 +106,17 @@ public class VcfMoveFiltersToInfo
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 	
-	@XmlRootElement(name="vcfinjectpedigree")
+	@XmlType(name="vcfmovefilterstoinfo")
+	@XmlRootElement(name="vcfmovefilterstoinfo")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
+			@XmlElement(name="filter")
 			@Parameter(names={"-f","--filter"},description="INFO name. This tag will be used to store the previous filters")
 			private String infoName = "PREVIOUSLY_FILTERED_AS";
 		
+			@XmlElement(name="limit")
 			@Parameter(names={"-t","--limitto"},description="If not empty, limit to those FILTERS. Multiple separated by comma/space.")
 			private Set<String> onlyThoseFiltersTagStr = new HashSet<>();
 	

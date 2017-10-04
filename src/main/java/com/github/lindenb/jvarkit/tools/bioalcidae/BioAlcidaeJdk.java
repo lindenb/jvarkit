@@ -25,7 +25,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.bioalcidae;
 
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -38,12 +41,15 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
@@ -320,7 +326,7 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars=264894
+	biostars={264894,275714}
 	)
 public class BioAlcidaeJdk
 	extends Launcher
@@ -355,6 +361,116 @@ public class BioAlcidaeJdk
     	public abstract void execute() throws Exception;
     	}
     
+    public static abstract class AbstractHandlerFactory<H extends AbstractHandler>
+    	{
+    	private File scriptFile  = null;
+    	private String scriptExpr = null ;
+    	private boolean user_code_is_body=false;
+    	private boolean hideGeneratedCode = false;
+    	private Constructor<H> ctor=null;
+    	
+    	public abstract int execute(final String inputFile,final PrintStream out) throws Exception;
+    	protected abstract Class<H> getHandlerClass();
+    	
+    	
+    	protected  BufferedReader openBufferedReader(final String inOrNull) throws IOException {
+    		return(inOrNull==null?
+    				new BufferedReader(new InputStreamReader(System.in)):
+    				IOUtils.openURIForBufferedReading(inOrNull)
+    				);
+    		}
+    	
+    	@SuppressWarnings("unchecked")
+		public Constructor<H> getConstructor() {
+    		if(this.ctor !=null) return this.ctor;
+    		if(this.scriptFile!=null && !StringUtil.isBlank(this.scriptExpr))
+				{
+				throw new JvarkitException.UserError("script file and expression both defined");
+				}
+			
+			if(this.scriptFile==null && StringUtil.isBlank(this.scriptExpr))
+				{
+				throw new JvarkitException.UserError("script file or expression missing");
+				}
+			
+			try {
+				
+				final Random rand= new  Random(System.currentTimeMillis());
+				final String javaClassName =BioAlcidaeJdk.class.getSimpleName()+
+						"Custom"+ Math.abs(rand.nextInt());
+				
+				final String baseClass = getHandlerClass().getName().replace('$', '.');
+				final String code;
+				
+				if(this.scriptFile!=null)
+					{
+					code = IOUtil.slurp(this.scriptFile);
+					}
+				else
+					{
+					code = this.scriptExpr;
+					}
+				
+				
+				final StringWriter codeWriter=new StringWriter();
+				final PrintWriter pw = new PrintWriter(codeWriter);
+				pw.println("import java.util.*;");
+				pw.println("import java.util.stream.*;");
+				pw.println("import java.util.function.*;");
+				pw.println("import htsjdk.samtools.*;");
+				pw.println("import htsjdk.samtools.util.*;");
+				pw.println("import htsjdk.variant.variantcontext.*;");
+				pw.println("import htsjdk.variant.vcf.*;");
+				pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
+				pw.println("import javax.annotation.Generated;");
+				pw.println("import htsjdk.variant.vcf.*;");
+
+				pw.println("@Generated(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+				pw.println("public class "+javaClassName+" extends "+ baseClass +" {");
+				
+				pw.println("  public "+javaClassName+"() {");
+				pw.println("  }");
+				
+				
+				if(this.user_code_is_body)
+					{
+					pw.println("   // user's code starts here ");
+					pw.println("   "+ code);
+					pw.println("   // user's code ends here ");
+					}
+				else
+					{
+					pw.println("  @Override");
+					pw.println("  public void execute() throws Exception {");
+					pw.println("   // user's code starts here ");
+					pw.println("   "+ code);
+					pw.println("    //user's code ends here ");
+					pw.println("   }");
+					}
+				pw.println("}");
+				pw.flush();
+				
+				
+				if(!this.hideGeneratedCode)
+					{
+					LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
+					}
+
+				final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
+				final Class<?> compiledClass = inMemoryCompiler.compileClass(
+						javaClassName,
+						codeWriter.toString()
+						);
+				this.ctor = (Constructor<H>)compiledClass.getDeclaredConstructor();
+				return this.ctor;
+				}
+			catch(final Throwable err) {
+				throw new RuntimeException(err);
+				}
+			}
+    	
+    	}	
+    
     public static abstract class VcfHandler extends AbstractHandler
 		{
     	protected VcfTools tools = null;
@@ -368,6 +484,46 @@ public class BioAlcidaeJdk
 			}		
 		}
 
+    
+    public static class VcfHandlerFactory extends AbstractHandlerFactory<VcfHandler>
+    	{
+    	@Override
+    	protected Class<VcfHandler> getHandlerClass() {
+    		return VcfHandler.class;
+    		}
+    	@Override
+    	public int execute(final String inputFile,final PrintStream out) throws Exception {
+    		VcfHandler vcfHandler = null;
+    		try 
+	    		{
+	    		vcfHandler= (VcfHandler)getConstructor().newInstance();
+	    		vcfHandler.out = out;
+	    		vcfHandler.inputFile = inputFile;
+				//
+				vcfHandler.iter = VCFUtils.createVcfIterator(inputFile);
+				vcfHandler.header = vcfHandler.iter.getHeader();
+				vcfHandler.tools = new VcfTools(vcfHandler.header);
+				vcfHandler.initialize();
+				vcfHandler.execute();
+				return 0;
+	    		}
+    		catch(Throwable err)
+    			{
+    			LOG.error(err);
+    			return -1;
+    			}
+    		finally
+    			{
+    			if(vcfHandler!=null) {
+    				vcfHandler.dispose();
+    				if(vcfHandler.out!=null) vcfHandler.out.flush();
+    				CloserUtil.close(vcfHandler.out);
+    				CloserUtil.close(vcfHandler.iter);
+    				}
+    			}
+			}
+    	}
+    
     public static abstract class SAMHandler extends AbstractHandler
 		{
 		protected SamReader in=null;
@@ -381,6 +537,57 @@ public class BioAlcidaeJdk
 			}
 		}
 
+    public static class SAMHandlerFactory extends AbstractHandlerFactory<SAMHandler>
+		{
+    	@Override
+    	protected Class<SAMHandler> getHandlerClass() {
+    		return SAMHandler.class;
+    		}
+		@Override
+		public int execute(final String inputFile,final PrintStream out) throws Exception {
+			SAMHandler samHandler= null;
+			try
+				{
+				samHandler = 	(SAMHandler)this.getConstructor().newInstance();
+				samHandler.out = out;
+				samHandler.inputFile = inputFile;
+				//
+				final htsjdk.samtools.SamReaderFactory srf= htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
+				if(inputFile==null)
+					{
+					samHandler.in =  srf.open(htsjdk.samtools.SamInputResource.of(System.in));
+					}
+				else
+					{
+					samHandler.in = srf.open(htsjdk.samtools.SamInputResource.of(inputFile));
+					}			
+				samHandler.header = samHandler.in.getFileHeader();
+				samHandler.iter = samHandler.in.iterator();	
+				
+				samHandler.initialize();
+				samHandler.execute();
+				return 0;
+				}
+			catch (final Throwable err) {
+				LOG.error(err);
+				return -1;
+				}
+			finally
+				{
+				if(samHandler!=null) 
+					{
+					samHandler.dispose();
+					CloserUtil.close(samHandler.iter);
+					CloserUtil.close(samHandler.in);
+					if(samHandler.out!=null) samHandler.out.flush();
+					CloserUtil.close(samHandler.out);
+					samHandler=null;
+					}
+				}
+			}
+		}
+    
+    
     public static abstract class FastqHandler extends AbstractHandler
 		{
 		protected FastqReader iter=null;
@@ -393,6 +600,43 @@ public class BioAlcidaeJdk
 		}
     
     
+    public static class FastqHandlerFactory extends AbstractHandlerFactory<FastqHandler>
+		{
+    	@Override
+    	protected Class<FastqHandler> getHandlerClass() {
+    		return FastqHandler.class;
+    		}
+		@Override
+		public int execute(final String inputFile,final PrintStream out) throws Exception {
+			FastqHandler fqHandler= null;
+			try {
+				fqHandler = (FastqHandler)this.getConstructor().newInstance();
+				fqHandler.out = out;
+				fqHandler.inputFile = inputFile;
+				fqHandler.iter = new FastqReader(super.openBufferedReader(inputFile));
+				
+				fqHandler.initialize();
+				fqHandler.execute();
+				return 0;
+				}
+			catch (final Throwable err) {
+				LOG.error(err);
+				return -1;
+				}
+			finally
+				{
+				if(fqHandler!=null) 
+					{
+					fqHandler.dispose();
+					CloserUtil.close(fqHandler.iter);
+					if(fqHandler.out!=null) fqHandler.out.flush();
+					CloserUtil.close(fqHandler.out);
+					fqHandler=null;
+					}
+				}
+			}
+		}
+    
     public static abstract class FastaHandler extends AbstractHandler
 		{
 		protected CloseableIterator<FastaSequence> iter=null;
@@ -403,6 +647,47 @@ public class BioAlcidaeJdk
 					false);
 			}
 		}
+    
+    public static class FastaHandlerFactory extends AbstractHandlerFactory<FastaHandler>
+		{
+    	@Override
+    	protected Class<FastaHandler> getHandlerClass() {
+    		return FastaHandler.class;
+    		}
+    	@Override
+    	public int execute(final String inputFile, final PrintStream out) throws Exception {
+    		FastaHandler faHandler= null;
+			try {
+				faHandler = (FastaHandler)this.getConstructor().newInstance();
+				faHandler.out = out;
+				faHandler.inputFile = inputFile;
+				//
+				faHandler.iter =  new FastaSequenceReader().iterator(super.openBufferedReader(inputFile));
+				
+				faHandler.initialize();
+				faHandler.execute();
+				return 0;
+				}
+			catch (final Throwable err) {
+				LOG.error(err);
+				return -1;
+				}
+			finally
+				{
+				if(faHandler!=null) 
+					{
+					faHandler.dispose();
+					CloserUtil.close(faHandler.iter);
+					if(faHandler.out!=null) faHandler.out.flush();
+					CloserUtil.close(faHandler.out);
+					faHandler=null;
+					}
+				}
+			}
+		
+		}
+
+    
     
 	private enum FORMAT {
 		VCF{
@@ -442,7 +727,7 @@ public class BioAlcidaeJdk
 	
 	@Override
 	public int doWork(final List<String> args) {
-		
+		AbstractHandlerFactory<?> abstractFactory = null;
 		if(this.formatString!=null)
 			{
 			try {
@@ -451,17 +736,6 @@ public class BioAlcidaeJdk
 				LOG.error(err);
 				return -1;
 				}
-			}
-		if(this.scriptFile!=null && !StringUtil.isBlank(this.scriptExpr))
-			{
-			LOG.error("script file and expression both defined");
-			return -1;
-			}
-		
-		if(this.scriptFile==null && StringUtil.isBlank(this.scriptExpr))
-			{
-			LOG.error("script file or expression missing");
-			return -1;
 			}
 		try
 			{
@@ -488,142 +762,25 @@ public class BioAlcidaeJdk
 					}
 				}
 			
-			
-			
-			final Random rand= new  Random(System.currentTimeMillis());
-			final String javaClassName =BioAlcidaeJdk.class.getSimpleName()+
-					"Custom"+ Math.abs(rand.nextInt());
-			
-			final String baseClass;
-			switch(this.format)
-				{
-				case BAM: case SAM:
-					{
-					baseClass = SAMHandler.class.getName().replace('$', '.');
-					break;
-					}
-				case VCF:
-					{
-					baseClass = VcfHandler.class.getName().replace('$', '.');
-					break;
-					}
-				case FASTQ:
-					{
-					baseClass = FastqHandler.class.getName().replace('$', '.');
-					break;
-					}
-				case FASTA:
-					{
-					baseClass = FastaHandler.class.getName().replace('$', '.');
-					break;
-					}
-				default: throw new IllegalStateException("Not implemented: "+this.format);
-				}
-			
-			final String code;
-			
-			if(this.scriptFile!=null)
-				{
-				code = IOUtil.slurp(this.scriptFile);
-				}
-			else
-				{
-				code = this.scriptExpr;
-				}
-			
-			
-			final StringWriter codeWriter=new StringWriter();
-			final PrintWriter pw = new PrintWriter(codeWriter);
-			pw.println("import java.util.*;");
-			pw.println("import java.util.stream.*;");
-			pw.println("import java.util.function.*;");
-			pw.println("import htsjdk.samtools.*;");
-			pw.println("import htsjdk.samtools.util.*;");
-			pw.println("import htsjdk.variant.variantcontext.*;");
-			pw.println("import htsjdk.variant.vcf.*;");
-			pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
-			pw.println("import javax.annotation.Generated;");
-			pw.println("import htsjdk.variant.vcf.*;");
-
-			pw.println("@Generated(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
-			pw.println("public class "+javaClassName+" extends "+ baseClass +" {");
-			
-			pw.println("  public "+javaClassName+"() {");
-			pw.println("  }");
-			
-			
-			if(user_code_is_body)
-				{
-				pw.println("   // user's code starts here ");
-				pw.println("   "+ code);
-				pw.println("   // user's code ends here ");
-				}
-			else
-				{
-				pw.println("  @Override");
-				pw.println("  public void execute() throws Exception {");
-				pw.println("   // user's code starts here ");
-				pw.println("   "+ code);
-				pw.println("    //user's code ends here ");
-				pw.println("   }");
-				}
-			pw.println("}");
-			pw.flush();
-			
-			
-			if(!hideGeneratedCode)
-				{
-				LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
-				}
-
-			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
-			final Class<?> compiledClass = inMemoryCompiler.compileClass(
-					javaClassName,
-					codeWriter.toString()
-					);
-			final Constructor<?> ctor=compiledClass.getDeclaredConstructor();
-			final AbstractHandler handlerInstance= (AbstractHandler)ctor.newInstance();
-			handlerInstance.out = super.openFileOrStdoutAsPrintStream(outputFile);
-			handlerInstance.inputFile = inputFile;
+			 
 			
 			switch(this.format)
 				{
-				case BAM: case SAM:
-					{
-					final SAMHandler samHandler = SAMHandler.class.cast(handlerInstance);
-					samHandler.in = super.openSamReader(inputFile);
-					samHandler.header = samHandler.in.getFileHeader();
-					samHandler.iter = samHandler.in.iterator();
-					break;
-					}
-				case VCF:
-					{
-					final VcfHandler vcfHandler = VcfHandler.class.cast(handlerInstance);
-					vcfHandler.iter = super.openVcfIterator(inputFile);
-					vcfHandler.header = vcfHandler.iter.getHeader();
-					vcfHandler.tools = new VcfTools(vcfHandler.header);
-					break;
-					}
-				case FASTQ:
-					{
-					final FastqHandler fqHandler = FastqHandler.class.cast(handlerInstance);
-					fqHandler.iter = new FastqReader(super.openBufferedReader(inputFile));
-					break;
-					}
-				case FASTA:
-					{
-					final FastaHandler faHandler = FastaHandler.class.cast(handlerInstance);
-					faHandler.iter =  new FastaSequenceReader().iterator(super.openBufferedReader(inputFile));
-					break;
-					}
+				case BAM: case SAM: abstractFactory = new SAMHandlerFactory(); break;
+				case VCF: abstractFactory = new VcfHandlerFactory(); break;
+				case FASTQ: abstractFactory = new FastqHandlerFactory(); break;
+				case FASTA: abstractFactory = new FastaHandlerFactory(); break;
 				default: throw new IllegalStateException("Not implemented: "+this.format);
 				}
+			abstractFactory.scriptExpr = this.scriptExpr;
+			abstractFactory.scriptFile = this.scriptFile;
+			abstractFactory.user_code_is_body = this.user_code_is_body ;
+			abstractFactory.hideGeneratedCode = this.hideGeneratedCode ;
+			
 			
 			try
 				{
-				handlerInstance.initialize();
-				handlerInstance.execute();
-				
+				return abstractFactory.execute(inputFile,super.openFileOrStdoutAsPrintStream(this.outputFile));
 				}
 			catch(final Throwable err)
 				{
@@ -632,11 +789,8 @@ public class BioAlcidaeJdk
 				}
 			finally
 				{
-				handlerInstance.dispose();
-				CloserUtil.close(handlerInstance.out);
-				handlerInstance.out=null;
+				abstractFactory.ctor=null;
 				}			
-			return 0;
 			}
 		catch(final Exception err)
 			{

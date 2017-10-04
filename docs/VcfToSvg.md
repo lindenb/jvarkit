@@ -93,9 +93,20 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java)
+
+Git History for this file:
+```
+Wed Jul 26 18:09:38 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/576fdd17812f9a47491945cb8bb74990ffb084c9
+Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
+Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Wed Apr 12 17:48:18 2017 +0200 ; vcf2svg, jconsole ; https://github.com/lindenb/jvarkit/commit/e4d329f75d6f0de7db56f976d1fc6527149efd99
+Wed Apr 12 11:48:07 2017 +0200 ; mergeblastxml ; https://github.com/lindenb/jvarkit/commit/34bbaa3a8bb1dca3c2417b8bf893feda574f214b
+Tue Apr 11 21:06:56 2017 +0200 ; vcf2svg ; https://github.com/lindenb/jvarkit/commit/42633d114593236f0c90832f65ef72bd283b1623
+Tue Apr 11 18:16:30 2017 +0200 ; vcf2svg ; https://github.com/lindenb/jvarkit/commit/064d84395b6b48d495c4fffa5819abebb0aba83c
+```
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

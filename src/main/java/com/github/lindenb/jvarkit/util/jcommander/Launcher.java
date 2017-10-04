@@ -1293,36 +1293,8 @@ protected static class StringToMd5 implements Function<String, String>
 	}
 /** extract case controls in VCF header injected with VcfInjectPedigree */
 protected java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> getCasesControlsInPedigree(final htsjdk.variant.vcf.VCFHeader header) {
-	final com.github.lindenb.jvarkit.util.Pedigree pedigree = Pedigree.newParser().parse(header);
-	if(pedigree.isEmpty())
-		{
-		throw new IllegalArgumentException("No pedigree found in header. use VcfInjectPedigree to add it");
-		}
-	if(!pedigree.verifyPersonsHaveUniqueNames()) {
-		throw new IllegalArgumentException("I can't use this pedigree in VCF because two samples have the same ID.");
-	}
-
-	final java.util.Set<String> samplesNames= new java.util.HashSet<>(header.getSampleNamesInOrder());
-	final java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> individuals = new java.util.HashSet<>(pedigree.getPersons());
-	
-	
-	final java.util.Iterator<com.github.lindenb.jvarkit.util.Pedigree.Person> iter= individuals.iterator();
-	while(iter.hasNext())
-	{
-		final com.github.lindenb.jvarkit.util.Pedigree.Person person = iter.next();
-		if(!(samplesNames.contains(person.getId()) && (person.isAffected() || person.isUnaffected()))) {
-			LOG.warn("Ignoring "+person+" because it is not present in VCF header or status is unknown");
-			iter.remove();
-		}
-	}
-	
-	LOG.info("Individuals :"+individuals.size() +
-		" affected :"+individuals.stream().filter(P->P.isAffected()).count() +
-		" unaffected :"+individuals.stream().filter(P->P.isUnaffected()).count()
-		);
-
-	return java.util.Collections.unmodifiableSet( individuals );
-}	
+	return new com.github.lindenb.jvarkit.util.Pedigree.CaseControlExtractor().extract(header);
+	}		
 
 /** just created to make a transition between XML and Jcommander. Remove in the future */
 @Deprecated

@@ -33,8 +33,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -96,14 +99,16 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 		{
 		}
 	
+	@XmlType(name="vcfhead")
 	@XmlRootElement(name="vcfhead")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 		{
-		@XmlElement
+		@XmlElement(name="count")
 		@Parameter(names={"-n","--count"},description="number of variants")
 		private long count=10;
-		@XmlElement
+		@XmlElement(name="by-contig")
 		@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
 		private boolean by_contig=false;
 		
@@ -126,7 +131,7 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 				}
 			@Override
 			public void writeHeader(final VCFHeader header) {
-				getDelegate().writeHeader(header);
+				super.writeHeader(header);
 				}
 			@Override
 			public void add(final VariantContext ctx) {
@@ -140,7 +145,7 @@ public class VcfHead extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 					};
 					
 				if(n< CtxWriterFactory.this.count) {
-					this.getDelegate().add(ctx);
+					super.add(ctx);
 					++n;
 					}
 				else if(! CtxWriterFactory.this.by_contig )

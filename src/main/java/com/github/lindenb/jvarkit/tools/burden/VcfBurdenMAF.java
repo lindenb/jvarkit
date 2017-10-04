@@ -32,6 +32,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -44,8 +50,11 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /**
 
@@ -91,6 +100,7 @@ Variant in that VCF should have one and only one ALT allele. Use https://github.
 END_DOC
 */
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -132,60 +142,67 @@ public class VcfBurdenMAF
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
 
-	@Parameter(names={"-maxMAF","--maxMAF"},description="if MAF of cases OR MAF of control is greater than maxMAF, the the FILTER Column is Filled")
-	private double maxMAF = 0.05 ;
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
 
-	@Parameter(names={"-c","--homref"},description="Treat No Call './.' genotypes as HomRef")
-	private boolean noCallAreHomRef = false;
-	
-	
-	public VcfBurdenMAF()
+	@XmlType(name="vcfburdenmaf")
+	@XmlRootElement(name="vcfburdenmaf")
+	@XmlAccessorType(XmlAccessType.FIELD)
+	public static class CtxWriterFactory 
+		implements VariantContextWriterFactory
 		{
-		}
-	 
-	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-		final VCFHeader header=in.getHeader();
-		final Pedigree pedigree = Pedigree.newParser().parse(header);
-		if(pedigree.isEmpty())
+		@XmlElement(name="max-maf")
+		@Parameter(names={"-maxMAF","--maxMAF"},description="if MAF of cases OR MAF of control is greater than maxMAF, the the FILTER Column is Filled")
+		private double maxMAF = 0.05 ;
+		
+		@XmlElement(name="nocall-is-homref")
+		@Parameter(names={"-c","--homref"},description="Treat No Call './.' genotypes as HomRef")
+		private boolean noCallAreHomRef = false;
+		
+		private class CtxWriter extends DelegateVariantContextWriter
 			{
-			LOG.error("No pedigree found in header "+inputName+". use VcfInjectPedigree to add it");
-			return -1;
-			}
-		
-		final Set<Pedigree.Person> caseSamples = pedigree.getAffected();
-		final Set<Pedigree.Person> controlSamples = pedigree.getUnaffected();
-		
-		try {
-			final VCFHeader h2=addMetaData(new VCFHeader(header));
-
-			final VCFInfoHeaderLine mafCasInfoHeader = new VCFInfoHeaderLine(
+			private Set<Pedigree.Person> caseSamples=null;
+			private Set<Pedigree.Person> controlSamples=null;
+			private final VCFInfoHeaderLine mafCasInfoHeader = new VCFInfoHeaderLine(
 					"BurdenMAFCas",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"Burden Filter F2. MAF Cases"
 					);
-			final VCFInfoHeaderLine mafControlsInfoHeader = new VCFInfoHeaderLine(
+			private final VCFInfoHeaderLine mafControlsInfoHeader = new VCFInfoHeaderLine(
 					"BurdenMAFControls",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"Burden Filter F2. MAF Controls"
 					);
-			final VCFFilterHeaderLine filterCasHeader = new VCFFilterHeaderLine(
-					mafCasInfoHeader.getID(),"MAF of cases is greater than "+this.maxMAF
+			private final VCFFilterHeaderLine filterCasHeader = new VCFFilterHeaderLine(
+					mafCasInfoHeader.getID(),"MAF of cases is greater than "+CtxWriterFactory.this.maxMAF
 					);
-			final VCFFilterHeaderLine filterControlsHeader = new VCFFilterHeaderLine(
-					mafControlsInfoHeader.getID(),"MAF of controls is greater than "+this.maxMAF
+			private final VCFFilterHeaderLine filterControlsHeader = new VCFFilterHeaderLine(
+					mafControlsInfoHeader.getID(),"MAF of controls is greater than "+CtxWriterFactory.this.maxMAF
 					);
-			final VCFFilterHeaderLine filterCaseOrControlsHeader = new VCFFilterHeaderLine(
-					"BurdenMAFCaseOrControls","MAF of (cases OR controls) is greater than "+this.maxMAF
+			private final VCFFilterHeaderLine filterCaseOrControlsHeader = new VCFFilterHeaderLine(
+					"BurdenMAFCaseOrControls","MAF of (cases OR controls) is greater than "+CtxWriterFactory.this.maxMAF
 					);			
+
+			CtxWriter(final VariantContextWriter delegate) {
+				super(delegate);
+				}
+			@Override
+			public void writeHeader(final VCFHeader header) {
+				final Pedigree pedigree = Pedigree.newParser().parse(header);
+				if(pedigree.isEmpty())
+					{
+					throw new JvarkitException.UserError("No pedigree found in header   use VcfInjectPedigree to add it");
+					}
+				this.caseSamples = pedigree.getAffected();
+				this.controlSamples = pedigree.getUnaffected();
+
+				final VCFHeader h2= new VCFHeader(header);
+				h2.addMetaDataLine(this.mafCasInfoHeader);
+				h2.addMetaDataLine(this.mafControlsInfoHeader);
+				h2.addMetaDataLine(this.filterCasHeader);
+				h2.addMetaDataLine(this.filterControlsHeader);
+				h2.addMetaDataLine(this.filterCaseOrControlsHeader);
+				super.writeHeader(h2);
+				}
 			
-			h2.addMetaDataLine(mafCasInfoHeader);
-			h2.addMetaDataLine(mafControlsInfoHeader);
-			h2.addMetaDataLine(filterCasHeader);
-			h2.addMetaDataLine(filterControlsHeader);
-			h2.addMetaDataLine(filterCaseOrControlsHeader);
-			
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header).logger(LOG);
-			out.writeHeader(h2);
-			while(in.hasNext())
-				{
-				final VariantContext ctx = progess.watch(in.next());
+			@Override
+			public void add(final VariantContext ctx) {
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				final List<Double> mafCasList = new ArrayList<>(); 
 				final List<Double> mafCtrlList = new ArrayList<>(); 
@@ -198,8 +215,7 @@ public class VcfBurdenMAF
 					/* loop over two populations : 0 = case, 1=controls */
 					for(int pop=0;pop<2;++pop) {
 						final MafCalculator mafCalculator = new MafCalculator(observed_alt, ctx.getContig());
-						mafCalculator.setNoCallIsHomRef(this.noCallAreHomRef);
-						
+						mafCalculator.setNoCallIsHomRef(CtxWriterFactory.this.noCallAreHomRef);
 						
 						/* loop over persons in this pop */
 						for(final Pedigree.Person p:(pop==CASE_POP?caseSamples:controlSamples)) 
@@ -221,14 +237,14 @@ public class VcfBurdenMAF
 								/* add INFO attribute */
 								mafCasList.add(maf);
 								/* remove FILTER if needed */
-								if(maf<=this.maxMAF)  set_max_maf_cas=false;
+								if(maf<=CtxWriterFactory.this.maxMAF)  set_max_maf_cas=false;
 								}
 							else
 								{
 								/* add INFO attribute */
 								mafCtrlList.add(maf);
 								/* remove FILTER if needed */
-								if(maf<=this.maxMAF)  set_max_maf_control=false;
+								if(maf<=CtxWriterFactory.this.maxMAF)  set_max_maf_control=false;
 								}
 							} 
 						else
@@ -246,33 +262,75 @@ public class VcfBurdenMAF
 					}/* end loop over alt allele */
 				
 				
-				vcb.attribute(mafCasInfoHeader.getID(),mafCasList);
-				vcb.attribute(mafControlsInfoHeader.getID(),mafCtrlList);
+				vcb.attribute(this.mafCasInfoHeader.getID(),mafCasList);
+				vcb.attribute(this.mafControlsInfoHeader.getID(),mafCtrlList);
 				
 				if(seen_data) {
-					if(set_max_maf_cas) vcb.filter(filterCasHeader.getID());
-					if(set_max_maf_control) vcb.filter(filterControlsHeader.getID());
+					if(set_max_maf_cas) vcb.filter(this.filterCasHeader.getID());
+					if(set_max_maf_control) vcb.filter(this.filterControlsHeader.getID());
 					if(set_max_maf_cas || set_max_maf_control) {
-						vcb.filter(filterCaseOrControlsHeader.getID());
+						vcb.filter(this.filterCaseOrControlsHeader.getID());
+						}
 					}
-				}
 
-				out.add(vcb.make());
+				super.add(vcb.make());
 				}
-			progess.finish();
-			LOG.info("done");
-			return RETURN_OK;
-			} catch(Exception err) {
-				LOG.error(err);
-				return -1;
-			} finally {
-				CloserUtil.close(in);
+			@Override
+			public void close() {
+				super.close();
+				this.caseSamples=null;
+				this.controlSamples=null;
+				}
+			}
+		@Override
+		public VariantContextWriter open(final VariantContextWriter delegate) {
+			return new CtxWriter(delegate);
 			}
 		}
-	@Override
-	public int doWork(List<String> args) {
-		return doVcfToVcf(args,outputFile);
+	
+	
+	public VcfBurdenMAF()
+		{
 		}
+	 	
+	@Override
+	protected int doVcfToVcf(
+		final String inputName,
+		final VcfIterator in,
+		final VariantContextWriter delegate)
+		{
+		final VariantContextWriter  out = this.component.open(delegate);
+		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+		out.writeHeader(in.getHeader());
+		while(in.hasNext())
+			{
+			out.add(progess.watch(in.next()));
+			}
+		progess.finish();
+		out.close();
+		return 0;
+		}
+
+	
+	@Override
+	public int doWork(final List<String> args) {
+		try 
+			{
+			if(this.component.initialize()!=0) {
+				return -1;
+				}
+			return doVcfToVcf(args,this.outputFile);
+			}
+		catch(final Exception err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(this.component);
+			}
+		}
+
 	 	
 	
 	public static void main(String[] args)

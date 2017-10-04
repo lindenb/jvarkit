@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.util.Date;
 import java.util.List;
 
@@ -81,29 +82,30 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
+	private PrintWriter printWriter=null;
 	
-    private NgsFilesSummary()
+    public NgsFilesSummary()
     	{
     	
     	}		
     
   
     
-    private void print(String sample,InfoType it,File f)
+    private void print(final String sample,final InfoType it,final File f)
     	{
-		System.out.print(sample);
-		System.out.print('\t');
-		System.out.print(it);
-		System.out.print('\t');
-		System.out.print(f);
+		this.printWriter.print(sample);
+		this.printWriter.print('\t');
+		this.printWriter.print(it);
+		this.printWriter.print('\t');
+		this.printWriter.print(f);
 		if(f.isFile())
 			{
-			System.out.print('\t');
-			System.out.print(f.length());
-			System.out.print('\t');
-			System.out.print(new Date(f.lastModified()));
+			this.printWriter.print('\t');
+			this.printWriter.print(f.length());
+			this.printWriter.print('\t');
+			this.printWriter.print(new Date(f.lastModified()));
 			}
-		System.out.println();
+		this.printWriter.println();
 		}
     	
     
@@ -196,9 +198,10 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     
 	
     @Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try
 			{
+			this.printWriter = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
@@ -209,17 +212,24 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 				for(final String filename:args)
 					{
 					LOG.info("Reading from "+filename);
-					BufferedReader r=IOUtils.openURIForBufferedReading(filename);
+					final BufferedReader r=IOUtils.openURIForBufferedReading(filename);
 					scan(r);
 					r.close();
 					}
 				}
+			this.printWriter.flush();
+			this.printWriter.close();
+			this.printWriter=null;
 			return 0;
 			}
 		catch(Exception err)
 			{
 			LOG.error(err);
 			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(this.printWriter);
 			}
 		}
 	

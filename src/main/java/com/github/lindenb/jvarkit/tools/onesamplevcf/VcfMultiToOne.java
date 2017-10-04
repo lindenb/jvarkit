@@ -423,7 +423,7 @@ public class VcfMultiToOne extends Launcher
 	
 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfMultiToOne().instanceMainWithExit(args);
 		}

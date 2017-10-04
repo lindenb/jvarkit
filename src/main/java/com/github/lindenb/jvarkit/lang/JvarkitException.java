@@ -31,11 +31,15 @@ package com.github.lindenb.jvarkit.lang;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.w3c.dom.Node;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 @SuppressWarnings("serial")
 public class JvarkitException   {
@@ -64,14 +68,31 @@ public static class FastaDictionaryMissing extends DictionaryMissing
 	}
 
 public static class VcfDictionaryMissing extends DictionaryMissing
-{
-public VcfDictionaryMissing(final File file) {
-	this(file.getPath());
-	}
-public VcfDictionaryMissing(final String file) {
-	super("A Sequence dictionary is missing for "+file+". A VCF should have a set of `##contig` in its header. See also https://broadinstitute.github.io/picard/command-line-overview.html#UpdateVcfSequenceDictionary ");
-	}
+	{
+	public VcfDictionaryMissing(final File file) {
+		this(file.getPath());
+		}
+	public VcfDictionaryMissing(final String file) {
+		super("A Sequence dictionary is missing for "+file+". A VCF should have a set of `##contig` in its header. See also https://broadinstitute.github.io/picard/command-line-overview.html#UpdateVcfSequenceDictionary ");
+		}
 }
+
+public static class DuplicateVcfHeaderInfo extends Error
+	{
+	public DuplicateVcfHeaderInfo(final String tag) {
+		super(
+			"In VCF header, INFO field with tag \""+tag+"\" is already defined. You can remove it with `bcftools annotate -x `.");
+		}
+	public DuplicateVcfHeaderInfo(final VCFInfoHeaderLine tag) {
+		super("In VCF header, INFO field with tag \""+tag.getID()+"\" is already defined as "+
+			tag.getDescription() + 
+			". You can remove it with `bcftools annotate -x `"
+			);
+		}
+	public DuplicateVcfHeaderInfo(final VCFHeader header,final String tag) {
+		this(Objects.requireNonNull(header.getInfoHeaderLine(tag)));
+		}
+	}
 
 
 public static class SampleMissing extends DictionaryMissing

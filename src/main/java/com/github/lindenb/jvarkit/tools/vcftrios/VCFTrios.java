@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,11 +37,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
+
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -133,257 +142,325 @@ public class VCFTrios
 	{
 	private static final  Logger LOG = Logger.build(VCFTrios.class).make();
 
-	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
-	private File pedigreeFile = null;
-
-	@Parameter(names={"-f","--filter"},description="filter name. create a filter in the FILTER column")
-	private String filterName = null;
-
-	@Parameter(names={"-if","--inversefilter"},description="inverse FILTER, flag variant having NO mendelian incompat.")
-	private boolean inverseFilter = false;
-
-	@Parameter(names={"-gf","--gfilter"},description="genotype filter name. create a filter in the GENOTYPE column")
-	private String genotypeFilterName = null;
-	
-	@Parameter(names={"-A","--attribute"},description="INFO Attribute name")
-	private String attributeName = "MENDEL";
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
 
-	@Parameter(names={"--discard"},description="Discard variants without mendelian incompatibilities")
-	private boolean discard_variants_without_mendelian_incompat=false;
+	@XmlType(name="vcftrios")
+	@XmlRootElement(name="vcftrios")
+	@XmlAccessorType(XmlAccessType.FIELD)
+	public static class CtxWriterFactory 
+	implements VariantContextWriterFactory
+		{
+		private class CtxWriter extends DelegateVariantContextWriter
+			{
+			private int count_incompats=0;
+			private final Map<String,Pedigree.Person> samplename2person=new HashMap<String,Pedigree.Person>();
+
+			CtxWriter(final VariantContextWriter delegate) {
+				super(delegate);
+				}
+			 
+			@Override
+			public void writeHeader(final VCFHeader header) {
+				
+				final VCFHeader h2=new VCFHeader(header);
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						CtxWriterFactory.this.attributeName,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"mendelian incompatibilities"
+						));
+				
+
+				if(!StringUtil.isBlank(CtxWriterFactory.this.filterName)) {
+					h2.addMetaDataLine(new VCFFilterHeaderLine(filterName, "data filtered with VCFTrios"));
+				}
+				if(!StringUtil.isBlank(CtxWriterFactory.this.genotypeFilterName))
+					{
+					h2.addMetaDataLine(new VCFFormatHeaderLine(
+							genotypeFilterName,1,
+							VCFHeaderLineType.String,
+							"Genotype with mendelian incompatibilities"
+							));
+					}
+				
+				for(final String sampleName:h2.getSampleNamesInOrder())
+					{
+					Pedigree.Person p=null;
+					for(final Pedigree.Family f:CtxWriterFactory.this.pedigree.getFamilies())
+						{
+						for(final Pedigree.Person child:f.getIndividuals())
+							{
+							if(child.getId().equals(sampleName))
+								{
+								if(p!=null)
+									{
+									throw new IllegalArgumentException(sampleName+" found twice in pedigree !");
+									}
+								p=child;
+								}
+							}
+						}
+					if(p==null)
+						{
+						LOG.info("Cannot find "+sampleName+" in "+pedigreeFile);
+						}
+					else
+						{
+						samplename2person.put(sampleName, p);
+						}
+					}
+			
+				LOG.info("person(s) in pedigree: "+samplename2person.size());
+				
+				super.writeHeader(h2);				
+				}
+			
+			@Override
+			public void add(final VariantContext ctx) {
+				
+				final VariantContextBuilder vcb= new VariantContextBuilder(ctx);
+				final Map<String,Genotype> sample2genotype = new HashMap<>( 
+						ctx.getGenotypes().stream().
+						collect(Collectors.toMap(G->G.getSampleName(), G->G)));
+				
+							
+				final Set<String> incompatibilities=new HashSet<String>();
+				
+				
+				for(final Pedigree.Person child:this.samplename2person.values())
+					{
+					final Genotype gChild=sample2genotype.get(child.getId());
+					if(gChild==null)
+						{
+						LOG.debug("cannot get genotype for child  "+child.getId());
+						continue;
+						}
+					if(gChild.isNoCall())
+						{
+						continue;
+						}
+					
+					if(gChild.getPloidy()!=2)
+						{
+						LOG.warn(getClass().getSimpleName()+" only handle two alleles child:"+ allelesToString(gChild));
+						continue;
+						}
+					
+					Pedigree.Person parent=child.getFather();
+					Genotype gFather=(parent==null?null:sample2genotype.get(parent.getId()));
+					if(gFather==null && parent!=null)
+						{
+						LOG.warn("cannot get genotype for father  "+parent.getId());
+						}
+					if(gFather!=null && gFather.isNoCall()) gFather=null;
+
+					if(gFather!=null && gFather.getPloidy()!=2)
+						{
+						LOG.warn(getClass().getSimpleName()+" only handle two alleles father: "+ allelesToString(gFather));
+						gFather=null;
+						}
+					parent=child.getMother();
+					
+					Genotype gMother=(parent==null?null:sample2genotype.get(parent.getId()));
+					
+					if(gMother==null && parent!=null)
+						{
+						LOG.debug("cannot get genotype for mother  "+parent.getId());
+						}
+					
+					if(gMother!=null && gMother.isNoCall()) gMother=null;
+					if(gMother!=null && gMother.getPloidy()!=2)
+						{
+						LOG.debug(getClass().getSimpleName()+" only handle two alleles mother:"+ allelesToString(gMother));
+						gMother=null;
+						}
+					
+					boolean is_ok=true;
+					if(gFather!=null && gMother!=null)
+						{
+						is_ok=trio(gChild,gFather,gMother);
+						}
+					else if(gFather!=null)
+						{
+						is_ok=duo(gChild,gFather);
+						}
+					else if(gMother!=null)
+						{
+						is_ok=duo(gChild,gMother);
+						}
+					if(!is_ok)
+						{
+						incompatibilities.add(child.getId());
+						if(CtxWriterFactory.this.genotypeFilterName!=null)
+							{
+							sample2genotype.put(child.getId(),
+								new GenotypeBuilder(gChild).filters(CtxWriterFactory.this.genotypeFilterName).make()
+								);
+							}
+						}
+					}
+				vcb.genotypes(sample2genotype.values());
+				
+			
+				++this.count_incompats;
+				
+				if(!incompatibilities.isEmpty()) {
+					vcb.attribute(attributeName, incompatibilities.toArray());
+					if( CtxWriterFactory.this.filterName!=null && !CtxWriterFactory.this.inverseFilter) vcb.filter(filterName);
+					}
+				else
+					{
+					if(CtxWriterFactory.this.discard_variants_without_mendelian_incompat) return;
+					if( CtxWriterFactory.this.filterName!=null && CtxWriterFactory.this.inverseFilter) vcb.filter(filterName);
+					}
+				super.add(vcb.make());				
+				}
+			
+			@Override
+			public void close() {
+				LOG.info("incompatibilitie(s) N="+this.count_incompats);
+				super.close();
+				}
+			
+			
+			private String allelesToString(final Genotype g)
+		    	{
+		    	if(!g.isCalled()) return g.getSampleName()+" not called";
+		    	if(!g.isAvailable()) return g.getSampleName()+" not available";
+		    	return g.getSampleName()+":"+g.getAlleles().
+		    			stream().map(A->A.getDisplayString()).
+		    			collect(Collectors.joining(" "));
+		    	}
+		    
+			
+			private boolean trio(
+					final Genotype gChild,
+					final List<Allele> fathers,
+					final List<Allele> mothers
+					)
+				{		
+				for(int f=0;f< fathers.size();++f)
+					{
+					for(int m=0;m< mothers.size();++m)
+						{
+						final Genotype gt=GenotypeBuilder.create(
+								gChild.getSampleName(),
+								Arrays.asList(fathers.get(f),mothers.get(m))
+								);
+						if(gt.sameGenotype(gChild,true)) return true;
+						}
+					}
+				return false;
+				}
+			
+			private boolean trio(final Genotype child,final Genotype father,final Genotype mother)
+				{
+				return	trio(
+						child,
+						father.getAlleles(),
+						mother.getAlleles()
+						);
+				}
+			
+			private boolean duo(
+					final Allele child1,final Allele child2,
+					final Allele parent1,final Allele parent2
+					)
+				{
+				return	 child1.equals(parent1) ||
+						 child1.equals(parent2) ||
+						 child2.equals(parent1) ||
+						 child2.equals(parent2)
+						 ;
+				}
+			
+			private boolean duo(final Genotype child,final Genotype parent)
+				{
+				return	duo(
+						child.getAllele(0),child.getAllele(1),
+						parent.getAllele(0),parent.getAllele(1)
+						);
+				}
+			}
+		
+		@XmlElement(name="pedigree")
+		@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
+		private File pedigreeFile = null;
 	
-	private Pedigree pedigree=null;
+		@Parameter(names={"-f","--filter"},description="filter name. create a filter in the FILTER column for variants having an INCOMPAT")
+		private String filterName = null;
+	
+		@Parameter(names={"-if","--inversefilter"},description="inverse FILTER, flag variant having NO mendelian incompat.")
+		private boolean inverseFilter = false;
+	
+		@Parameter(names={"-gf","--gfilter"},description="genotype filter name. create a filter in the GENOTYPE column")
+		private String genotypeFilterName = null;
+		
+		@Parameter(names={"-A","--attribute"},description="INFO Attribute name containing the name of the affected samples.")
+		private String attributeName = "MENDEL";
+	
+		@Parameter(names={"--discard"},description="Discard variants without mendelian incompatibilities")
+		private boolean discard_variants_without_mendelian_incompat=false;
+		
+		@XmlTransient
+		private Pedigree pedigree=null;
+		
+		@Override
+		public VariantContextWriter open(final VariantContextWriter delegate) {
+			return new CtxWriter(delegate);
+			}
+		@Override
+		public int initialize() {
+			if(this.pedigreeFile==null)
+				{
+				LOG.error("Pedigree undefined.");
+				return -1;
+				}
+			if(this.discard_variants_without_mendelian_incompat && 
+				this.inverseFilter)
+				{
+				LOG.error("Cannot inverse filter and discard variants without problem at the same time");
+				return -1;
+				}
+			
+			try {
+				LOG.info("reading pedigree "+this.pedigreeFile);
+				this.pedigree=Pedigree.newParser().parse(this.pedigreeFile);
+				}
+			catch(final Exception err)
+				{
+				LOG.error(err);
+				return -1;
+				}
+			return 0;
+			}
+
+	}
+	
+
 	
     public VCFTrios()
     	{
     	}
 	
-    private static String allelesToString(final Genotype g)
-    	{
-    	if(!g.isCalled()) return g.getSampleName()+" not called";
-    	if(!g.isAvailable()) return g.getSampleName()+" not available";
-    	return g.getSampleName()+":"+g.getAlleles().
-    			stream().map(A->A.getDisplayString()).
-    			collect(Collectors.joining(" "));
-    	}
-    
-	
-	private boolean trio(
-			final Genotype gChild,
-			final List<Allele> fathers,
-			final List<Allele> mothers
-			)
-		{		
-		for(int f=0;f< fathers.size();++f)
-			{
-			for(int m=0;m< mothers.size();++m)
-				{
-				final Genotype gt=GenotypeBuilder.create(
-						gChild.getSampleName(),
-						Arrays.asList(fathers.get(f),mothers.get(m))
-						);
-				if(gt.sameGenotype(gChild,true)) return true;
-				}
-			}
-		return false;
-		}
-	
-	private boolean trio(final Genotype child,final Genotype father,final Genotype mother)
-		{
-		return	trio(
-				child,
-				father.getAlleles(),
-				mother.getAlleles()
-				);
-		}
-	
-	private boolean duo(
-			final Allele child1,final Allele child2,
-			final Allele parent1,final Allele parent2
-			)
-		{
-		return	 child1.equals(parent1) ||
-				 child1.equals(parent2) ||
-				 child2.equals(parent1) ||
-				 child2.equals(parent2)
-				 ;
-		}
-	
-	private boolean duo(final Genotype child,final Genotype parent)
-		{
-		return	duo(
-				child.getAllele(0),child.getAllele(1),
-				parent.getAllele(0),parent.getAllele(1)
-				);
-		}
+
 	
 	
 	@Override
-	public int doVcfToVcf(final String inputName, VcfIterator r, VariantContextWriter w)
+	public int doVcfToVcf(final String inputName, VcfIterator r, final VariantContextWriter delegate)
 		{
-		int count_incompats=0;
-		final VCFHeader header=r.getHeader();
-		final VCFHeader h2=new VCFHeader(header);
-		h2.addMetaDataLine(new VCFInfoHeaderLine(
-				this.attributeName,
-				VCFHeaderLineCount.UNBOUNDED,
-				VCFHeaderLineType.String,
-				"mendelian incompatibilities"
-				));
-		
-		addMetaData(h2);
-
-		if(!StringUtil.isBlank(this.filterName)) {
-			h2.addMetaDataLine(new VCFFilterHeaderLine(filterName, "data filtered with VCFTrios"));
-		}
-		if(!StringUtil.isBlank(this.genotypeFilterName))
-			{
-			h2.addMetaDataLine(new VCFFormatHeaderLine(
-					genotypeFilterName,1,
-					VCFHeaderLineType.String,
-					"Genotype with mendelian incompatibilities"
-					));
-			}
-		w.writeHeader(h2);
-		
-		final Map<String,Pedigree.Person> samplename2person=new HashMap<String,Pedigree.Person>(h2.getSampleNamesInOrder().size());
-		for(final String sampleName:h2.getSampleNamesInOrder())
-			{
-			Pedigree.Person p=null;
-			for(final Pedigree.Family f:this.pedigree.getFamilies())
-				{
-				for(final Pedigree.Person child:f.getIndividuals())
-					{
-					if(child.getId().equals(sampleName))
-						{
-						if(p!=null)
-							{
-							throw new IllegalArgumentException(sampleName+" found twice in pedigree !");
-							}
-						p=child;
-						}
-					}
-				}
-			if(p==null)
-				{
-				LOG.info("Cannot find "+sampleName+" in "+pedigreeFile);
-				}
-			else
-				{
-				samplename2person.put(sampleName, p);
-				}
-			}
-		
-		LOG.info("persons in pedigree: "+samplename2person.size());
-		
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
+		final VariantContextWriter out = this.component.open(delegate);
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(r.getHeader()).logger(LOG);
+		out.writeHeader(r.getHeader());
 		while(r.hasNext())
 			{
-			final VariantContext ctx= progress.watch(r.next());
-			
-			final VariantContextBuilder vcb= new VariantContextBuilder(ctx);
-			final Map<String,Genotype> sample2genotype = new HashMap<>( 
-					ctx.getGenotypes().stream().
-					collect(Collectors.toMap(G->G.getSampleName(), G->G)));
-			
-						
-			final Set<String> incompatibilities=new HashSet<String>();
-			
-			
-			for(final Pedigree.Person child:samplename2person.values())
-				{
-				final Genotype gChild=sample2genotype.get(child.getId());
-				if(gChild==null)
-					{
-					LOG.debug("cannot get genotype for child  "+child.getId());
-					continue;
-					}
-				if(gChild.isNoCall())
-					{
-					continue;
-					}
-				
-				if(gChild.getPloidy()!=2)
-					{
-					LOG.warn(getClass().getSimpleName()+" only handle two alleles child:"+ allelesToString(gChild));
-					continue;
-					}
-				
-				Pedigree.Person parent=child.getFather();
-				Genotype gFather=(parent==null?null:sample2genotype.get(parent.getId()));
-				if(gFather==null && parent!=null)
-					{
-					LOG.warn("cannot get genotype for father  "+parent.getId());
-					}
-				if(gFather!=null && gFather.isNoCall()) gFather=null;
-
-				if(gFather!=null && gFather.getPloidy()!=2)
-					{
-					LOG.warn(getClass().getSimpleName()+" only handle two alleles father: "+ allelesToString(gFather));
-					gFather=null;
-					}
-				parent=child.getMother();
-				
-				Genotype gMother=(parent==null?null:sample2genotype.get(parent.getId()));
-				
-				if(gMother==null && parent!=null)
-					{
-					LOG.debug("cannot get genotype for mother  "+parent.getId());
-					}
-				
-				if(gMother!=null && gMother.isNoCall()) gMother=null;
-				if(gMother!=null && gMother.getPloidy()!=2)
-					{
-					LOG.debug(getClass().getSimpleName()+" only handle two alleles mother:"+ allelesToString(gMother));
-					gMother=null;
-					}
-				
-				boolean is_ok=true;
-				if(gFather!=null && gMother!=null)
-					{
-					is_ok=trio(gChild,gFather,gMother);
-					}
-				else if(gFather!=null)
-					{
-					is_ok=duo(gChild,gFather);
-					}
-				else if(gMother!=null)
-					{
-					is_ok=duo(gChild,gMother);
-					}
-				if(!is_ok)
-					{
-					incompatibilities.add(child.getId());
-					if(genotypeFilterName!=null)
-						{
-						sample2genotype.put(child.getId(),
-							new GenotypeBuilder(gChild).filters(genotypeFilterName).make()
-							);
-						}
-					}
-				}
-			vcb.genotypes(sample2genotype.values());
-			
-		
-			++count_incompats;
-			
-			if(!incompatibilities.isEmpty()) {
-				vcb.attribute(attributeName, incompatibilities.toArray());
-				if( filterName!=null && !this.inverseFilter) vcb.filter(filterName);
-				}
-			else
-				{
-				if(this.discard_variants_without_mendelian_incompat) continue;
-				if( filterName!=null && this.inverseFilter) vcb.filter(filterName);
-				}
-			w.add(vcb.make());
-			
-			if(w.checkError()) break;
-			}	
+			out.add(progress.watch(r.next()));
+			}
+		out.close();
 		progress.finish();
-		LOG.info("incompatibilities N="+count_incompats);
 		return 0;
 		}
 	
@@ -391,30 +468,19 @@ public class VCFTrios
 
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.pedigreeFile==null)
-			{
-			LOG.error("Pedigree undefined.");
-			return -1;
-			}
-		if(this.discard_variants_without_mendelian_incompat && this.inverseFilter)
-			{
-			LOG.error("Cannot inverse filter and discard variants without problem at the same time");
-			return -1;
-			}
-		
-		BufferedReader in = null;
 		try {
-			LOG.info("reading pedigree "+this.pedigreeFile);
-			 in=IOUtils.openFileForBufferedReading(this.pedigreeFile);
-			this.pedigree=Pedigree.newParser().parse(in);
-			in.close();
+			if(this.component.initialize()!=0) return -1;
+			return doVcfToVcf(args, this.outputFile);
 			}
 		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		return doVcfToVcf(args, this.outputFile);
+		finally
+			{
+			CloserUtil.close(this.component);
+			}
 		}
 	
 	

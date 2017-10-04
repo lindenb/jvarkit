@@ -31,8 +31,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -85,23 +89,26 @@ public class VcfSetSequenceDictionary extends Launcher
 	private CtxWriterFactory component = new CtxWriterFactory();
 	
 
-	@XmlRootElement(name="vcfsetdict")
+	@XmlType(name="vcfsetdict")
+	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
-			@XmlElement
+			@XmlElement(name="reference")
 			@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 			private File faidx=null;
-			@XmlElement
+			
+			@XmlElement(name="on-not-found")
 			@Parameter(names={"--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
 			private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;			
 		
+			@XmlTransient
 			private SAMSequenceDictionary dict=null;
 			
-			public void setReference(File faidx) {
+			public void setReference(final File faidx) {
 				this.faidx = faidx;
 				}
-			public void setOnContigNotFound(ContigNameConverter.OnNotFound onContigNotFound) {
+			public void setOnContigNotFound(final ContigNameConverter.OnNotFound onContigNotFound) {
 				this.onContigNotFound = onContigNotFound;
 				}
 			
@@ -183,7 +190,7 @@ public class VcfSetSequenceDictionary extends Launcher
 			
 			}
 
-	private VcfSetSequenceDictionary()
+	public VcfSetSequenceDictionary()
 		{
 		}
 

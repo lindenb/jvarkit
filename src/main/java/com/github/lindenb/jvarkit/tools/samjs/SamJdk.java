@@ -174,13 +174,50 @@ select unmappeds read or clipped reads
 java -jar dist/samjdk.jar -o out.bam -e 'return record.getReadUnmappedFlag() || record.getCigar().getCigarElements().stream().anyMatch(C->C.getOperator().isClipping());'  in.bam
 ```
 
+### Example 4
+
+check whether all BAM read contain defined read groups? ( https://bioinformatics.stackexchange.com/questions/2590/ )
+
+```
+java -jar dist/samjdk.jar -e 'return record.getReadGroup()==null;'  input.bam
+```
+
+### Example 5
+
+select chimeric reads virus/host
+
+```
+java -jar dist/samjdk.jar -e '
+    final Set<String> virus_chrom = new HashSet<>(Arrays.asList("viral_seg1", "viral_seg2"));
+    if(record.getReadUnmappedFlag()) return false;
+    if(record.getReadPairedFlag() && !record.getMateUnmappedFlag())
+        {
+        if( virus_chrom.contains(record.getReferenceName()) !=
+            virus_chrom.contains(record.getMateReferenceName())
+            )
+            {
+            return true;
+            }
+        }
+    for(final SAMRecord other: SAMUtils.getOtherCanonicalAlignments(record))
+        {
+        if( virus_chrom.contains(record.getReferenceName()) !=
+            virus_chrom.contains(other.getReferenceName())
+            )
+            {
+            return true;
+            }
+        }
+    return false;' input.bam
+```
+
 
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879}
+	biostars={270879,274183}
 	)
 public class SamJdk
 	extends Launcher

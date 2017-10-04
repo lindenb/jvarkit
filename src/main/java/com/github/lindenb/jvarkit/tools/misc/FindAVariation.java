@@ -135,7 +135,7 @@ public class FindAVariation extends Launcher
 	private final Set<Mutation> mutations=new HashSet<Mutation>();
 	private PrintWriter out=null;
 	
-    private FindAVariation()
+    public FindAVariation()
     	{
     	}		
    
