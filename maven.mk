@@ -121,9 +121,24 @@ drools.jar  =  \
 	$(lib.dir)/xmlpull/xmlpull/1.1.2.1/xmlpull-1.1.2.1.jar \
 	$(lib.dir)/xpp3/xpp3_min/1.1.3.4.O/xpp3_min-1.1.3.4.O.jar
 
+spring.batch.jars = \
+	$(lib.dir)/com/ibm/jbatch/com.ibm.jbatch-tck-spi/1.0/com.ibm.jbatch-tck-spi-1.0.jar \
+	$(lib.dir)/com/thoughtworks/xstream/xstream/1.4.7/xstream-1.4.7.jar \
+	$(lib.dir)/commons-logging/commons-logging/1.1.3/commons-logging-1.1.3.jar \
+	$(lib.dir)/javax/batch/javax.batch-api/1.0/javax.batch-api-1.0.jar \
+	$(lib.dir)/org/codehaus/jettison/jettison/1.2/jettison-1.2.jar \
+	$(lib.dir)/org/springframework/batch/spring-batch-core/3.0.8.RELEASE/spring-batch-core-3.0.8.RELEASE.jar \
+	$(lib.dir)/org/springframework/batch/spring-batch-infrastructure/3.0.8.RELEASE/spring-batch-infrastructure-3.0.8.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-aop/5.0.0.RELEASE/spring-aop-5.0.0.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-beans/5.0.0.RELEASE/spring-beans-5.0.0.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-context/5.0.0.RELEASE/spring-context-5.0.0.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-core/5.0.0.RELEASE/spring-core-5.0.0.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-expression/5.0.0.RELEASE/spring-expression-5.0.0.RELEASE.jar \
+	$(lib.dir)/org/springframework/spring-tx/4.0.5.RELEASE/spring-tx-4.0.5.RELEASE.jar
 	
-all_maven_jars = $(sort ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} )
+	
 
+all_maven_jars = $(sort ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} ${spring.batch.jars})
 
 ${all_maven_jars}  : 
 	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"

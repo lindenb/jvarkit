@@ -112,10 +112,17 @@ public class VcfXmlAmalgamation extends Launcher {
 	private CtxWriterFactory component = new CtxWriterFactory();
 
 	
+	private interface PipelineInput
+		{
+		}
+	private interface PipelineOutput
+		{
+		}
+	
 
 	
 	
-	public static class VcfReformater 
+	public static class VcfReformater implements PipelineOutput
 		{
 		protected PrintWriter out;
 		protected void println() { this.out.println();}
