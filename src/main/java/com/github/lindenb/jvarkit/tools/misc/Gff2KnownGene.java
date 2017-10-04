@@ -95,9 +95,10 @@ $	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_
 
 END_DOC
  */
-@Program(name="gff2knowngene",
+@Program(name="gff2kg",
 		description="Convert GFF3 format to UCSC knownGene format.",
-		keywords={"gff","knownGene","ucsc","convert"}
+		keywords={"gff","knownGene","ucsc","convert"},
+		biostars=276099
 		)
 public class Gff2KnownGene extends Launcher {
 	private static final Logger LOG = Logger.build(Gff2KnownGene.class).make();
