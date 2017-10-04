@@ -85,6 +85,10 @@ import com.github.lindenb.semontology.Term;
 BEGIN_DOC
 
 
+## Cited-In
+
+  * "Direct Head-to-Head Evaluation of Recombinant Adeno-associated Viral Vectors Manufactured in Human versus Insect Cells". Kondratov & al. Molecular Therapy. [https://doi.org/10.1016/j.ymthe.2017.08.003](https://doi.org/10.1016/j.ymthe.2017.08.003).
+
 ## Example
 
 ```bash

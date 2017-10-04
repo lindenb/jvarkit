@@ -75,6 +75,12 @@ Getting a VCF file from a CLUSTAW alignment. See also http://www.biostars.org/p/
 input is a clustalw file like: https://github.com/biopython/biopython/blob/master/Tests/Clustalw/opuntia.aln
 
 
+## Cited-in
+
+
+  * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
+
+
 ## Example
 
 ```bash

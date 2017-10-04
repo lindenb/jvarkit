@@ -78,9 +78,48 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/Sam2Tsv.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Thu Jul 27 16:58:18 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a8aaf2d7df89f44442b36ee1120ee4dd5c1e36e6
+Thu Jun 29 20:41:53 2017 +0200 ; start fix https://github.com/lindenb/jvarkit/issues/81 ; https://github.com/lindenb/jvarkit/commit/3758963956c9ceec249feeb4a076c98314756c14
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Sun May 21 17:11:09 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/aa4f02194fe00a1a842949e448661e227f16fe9f
+Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
+Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
+Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
+Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
+Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
+Wed Feb 24 11:59:51 2016 +0100 ; jsonx2json, elixir registry ; https://github.com/lindenb/jvarkit/commit/fb6af381b43b9112360587dde45d0918c2b40665
+Mon Nov 30 16:53:51 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/89f3cbe043ac8c52735feec5b45e43cf873b7179
+Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
+Fri Nov 28 12:44:44 2014 +0100 ; find all coverages ; https://github.com/lindenb/jvarkit/commit/a8c96e489787bf94d752e6bbd7c091175617459b
+Thu Nov 27 13:11:06 2014 +0100 ; bam compare coverage ; https://github.com/lindenb/jvarkit/commit/0be60cca2b40fa2bb2713e759271573936911aba
+Wed Nov 19 15:13:16 2014 +0100 ; fix qual in sam2tsv ; https://github.com/lindenb/jvarkit/commit/4be7535a661f42f43b44d9bd513694116cce189c
+Wed Nov 19 12:40:59 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/5b49c9ecb5e06c8524830b79939ad0788558cf98
+Wed Nov 19 11:48:09 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/6171c728bfe1fd2e2aca921424cede79dcc40b6f
+Tue Nov 18 17:06:48 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/bf0bc5db943ad39514df4676074850e0cd9cc3ef
+Fri May 23 15:32:54 2014 +0200 ; continue move to htsjdk ; https://github.com/lindenb/jvarkit/commit/b5a8a3bce5ecd952abffb7aae6223d1e03a9809e
+Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
+Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
+Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
+Sat Apr 5 16:02:59 2014 +0200 ; sam2tsv with qual+flag ; https://github.com/lindenb/jvarkit/commit/df519652164b3a3a10b176de53d0f4186d689895
+Wed Feb 12 18:02:27 2014 +0100 ; fastq grep added ; https://github.com/lindenb/jvarkit/commit/8d109ebd8d8fd928b58289f90a970d83e3ce474e
+Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
+Sat Dec 14 16:09:43 2013 +0100 ; updated sam2tsv ; https://github.com/lindenb/jvarkit/commit/c9e7c1d22439928326b381eabf087a8bd831ddc7
+Fri Oct 25 17:42:45 2013 +0200 ; close Reference Fasta (picard.100) ; https://github.com/lindenb/jvarkit/commit/9c4a6831016175308ec9a80539e2093c32e78af9
+Wed Jun 19 18:30:52 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/032e974cd9a068db5c8aa74e2eba723033f073a8
+Thu Jun 6 16:05:49 2013 +0200 ; compare 2 bams ; https://github.com/lindenb/jvarkit/commit/4fa8928e486e47e5f0c0bf94bf49859dabc2039c
+Wed Jun 5 19:01:41 2013 +0200 ; aln format ; https://github.com/lindenb/jvarkit/commit/7c5a24f5ea82dbc9c66e8d538a00e008e5f6f97e
+Tue Jun 4 15:20:17 2013 +0200 ; sam2tsv ; https://github.com/lindenb/jvarkit/commit/e81d4706dd51297677ddb64dcc69aaa681eab4af
+```
+
+</details>
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -189,7 +228,7 @@ samtools view -h input.bam | java -jar dist/sam2tsv.jar
 
 Sam2tsv was cited in : 
 
- *  Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements* . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
-
+  * "Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements" . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
+  * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).
 
 

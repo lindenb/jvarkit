@@ -65,6 +65,7 @@ import com.github.lindenb.jvarkit.tools.misc.BamToSql;
 import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
+import com.github.lindenb.jvarkit.tools.misc.Gff2KnownGene;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
@@ -909,4 +910,15 @@ class TestNg01 {
     	Assert.assertTrue( streamVcf(output).filter(V->V.isFiltered()).count()==0L);
     	Assert.assertTrue( output.delete());
     	}
+    
+    @Test
+    public void testGff2kg() throws IOException {
+		final File output =new File(TEST_RESULTS_DIR,"jeter.kg");
+    	Assert.assertEquals(0,new Gff2KnownGene().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"src/test/resources/gencode.v19.annotation.gff3"
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    
 	}

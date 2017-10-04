@@ -301,7 +301,7 @@ public class Gff2KnownGene extends Launcher {
 		*/
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		BufferedReader in =null;
 		EqualRangeIterator<GffLine> eq = null;
 		CloseableIterator<GffLine> iter = null;
