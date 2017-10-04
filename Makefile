@@ -7,7 +7,7 @@ this.dir=$(dir $(realpath ${this.makefile}))
 
 
 top:
-	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum" 
+	@echo "This  is the top target. Run 'make name-of-target' to build the desired target. Run 'make all' if you're Pierre Lindenbaum. See http://lindenb.github.io/jvarkit/  for a list of the available tools." 
 
 
 #need local settings ? create a file 'local.mk' in this directory

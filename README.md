@@ -7,7 +7,13 @@ Java utilities for Bioinformatics
 
 ## Documentation
 
-documentation is available at: [http://lindenb.github.io/jvarkit/](http://lindenb.github.io/jvarkit/)
+Documentation is available at: [http://lindenb.github.io/jvarkit/](http://lindenb.github.io/jvarkit/)
+
+## Compilation
+
+Each tool is compiled independently of each other.
+See the documentation for each tool at [http://lindenb.github.io/jvarkit/](http://lindenb.github.io/jvarkit/). All the pages should include a paragraph titled *'Download and Compile'*
+You shouldn't try to compile all the tools because some of them are not tested, deprecated, or just too specific to my lab.
 
 
 ## Author
