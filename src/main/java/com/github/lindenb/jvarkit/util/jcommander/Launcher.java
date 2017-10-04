@@ -393,7 +393,7 @@ public static  class UsageBuider
 			sb.append(hyperlink("https://github.com/lindenb/jvarkit/tree/master/src/main/java/"+
 				clazz.getName().replace('.','/')+".java")+"\n");
 			sb.append("\n");
-			sb.append("\n<detail>\n<summary>Git History</summary>\n```__INCLUDE_GIT_HISTORY__\n\n```\n</detail>\n\n");
+			sb.append("\n<detail>\n<summary>Git History</summary>\n\n```__INCLUDE_GIT_HISTORY__\n\n```\n\n</detail>\n\n");
 			
 			sb.append("## Contribute\n");
 			sb.append("\n");

@@ -107,7 +107,9 @@ http.proxy.port=124567
 
 <detail>
 <summary>Git History</summary>
+
 ```
+Wed Oct 4 14:04:58 2017 +0200 ; hidding git history in markdown details ; https://github.com/lindenb/jvarkit/commit/74a86447414541ffc90d6b7b50c3794aaf5159fa
 Wed Oct 4 09:14:09 2017 +0200 ; fix doc vcffilterjs ; https://github.com/lindenb/jvarkit/commit/0e5bf94b941fc09af78e76f1adb3c1bf82ff00f2
 Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
 Thu Jul 6 17:31:09 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a0eaa65f9197fd51d1c495c7ed3c65f43a06aa9c
@@ -141,6 +143,7 @@ Wed Jun 5 19:01:41 2013 +0200 ; aln format ; https://github.com/lindenb/jvarkit/
 Sun May 26 18:21:21 2013 +0200 ; README ; https://github.com/lindenb/jvarkit/commit/b391000b3b9d63da9b6faa519adc56b33c6ce546
 Sun May 26 17:45:59 2013 +0200 ; filter js ; https://github.com/lindenb/jvarkit/commit/0bde0696a866f4f4c8bb2d489a34dd24b257a205
 ```
+
 </detail>
 
 ## Contribute
