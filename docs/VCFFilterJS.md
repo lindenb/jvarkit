@@ -105,7 +105,7 @@ http.proxy.port=124567
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VCFFilterJS.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VCFFilterJS.java)
 
 
-<detail>
+<details>
 <summary>Git History</summary>
 
 ```
@@ -144,7 +144,7 @@ Sun May 26 18:21:21 2013 +0200 ; README ; https://github.com/lindenb/jvarkit/com
 Sun May 26 17:45:59 2013 +0200 ; filter js ; https://github.com/lindenb/jvarkit/commit/0bde0696a866f4f4c8bb2d489a34dd24b257a205
 ```
 
-</detail>
+</details>
 
 ## Contribute
 
