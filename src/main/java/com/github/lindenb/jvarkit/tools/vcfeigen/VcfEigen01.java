@@ -31,10 +31,20 @@ package com.github.lindenb.jvarkit.tools.vcfeigen;
 
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.XmlType;
+
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -129,10 +139,13 @@ $ gunzip -c input.vcf.gz | cut -f 1-8 | java -jar dist/vcfeigen01.jar -D eigen_d
 END_DOC
 */
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-/*
+/**
+BEGIN_DOC
 
 ### About Eigen
 
@@ -201,6 +214,7 @@ $ gunzip -c input.vcf.gz | cut -f 1-8 | java -jar dist/vcfeigen01.jar -D eigen_d
 
 ```
 
+END_DOC
  */
 @Program(name="vcfeigen",
 description="Annotator for the data of https://xioniti01.u.hpc.mssm.edu/v1.1/ : Eigen makes use of a variety of functional annotations in both coding and noncoding regions (such as made available by the ENCODE and Roadmap Epigenomics projects), and combines them into one single measure of functional importance.",
@@ -211,76 +225,139 @@ public class VcfEigen01
 	private static final Logger LOG = Logger.build(VcfEigen01.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-
-	@Parameter(names={"-D","--directory"},description="Eigen directory containing the tabix files *.tab.gz")
-	private String eigenDirStr = null;
 	
+	
+	@ParametersDelegate
+	private CtxWriterFactory component = new CtxWriterFactory();
+	
+	
+	@XmlType(name="vcfeigen")
+	@XmlRootElement(name="vcfeigen")
+	@XmlAccessorType(XmlAccessType.FIELD)
+	public static class CtxWriterFactory 
+		implements VariantContextWriterFactory
+			{
+			private class CtxWriter extends DelegateVariantContextWriter
+				{
+				CtxWriter(final VariantContextWriter delegate) {
+					super(delegate);
+					}
+				@Override
+				public void writeHeader(final VCFHeader header) {
+					final  VCFHeader h2 = new VCFHeader(header);
+					//addMetaData(h2);
+					for(final VCFInfoHeaderLine vihl: CtxWriterFactory.this.annotator.getInfoHeaderLines()) {
+						if(h2.getInfoHeaderLine(vihl.getID())!=null) {
+							throw new JvarkitException.DuplicateVcfHeaderInfo(header,vihl.getID());
+							}
+						h2.addMetaDataLine(vihl);
+						}
+					super.writeHeader(h2);
+					}
+				@Override
+				public void add(final VariantContext ctx) {
+					final Map<String,Object> m  =  CtxWriterFactory.this.annotator.getAnnotations(ctx);
+					if(m==null || m.isEmpty())
+						{
+						super.add(ctx);
+						}
+					else
+						{
+						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+						for(final String key: m.keySet()) {
+							vcb.attribute(key, m.get(key));
+							}
+						super.add(vcb.make());
+						}
+					}
+				}
+			
+			@Parameter(names={"-D","--directory"},
+						description="Eigen directory containing the tabix files *.tab.gz",
+						required=true
+						)
+			@XmlElement(name="directory")
+			private File eigenDir = null;
+			
+			@Parameter(names={"-p","--prefix","--tabixFilePrefix"},
+					description="prefix of the files in the eigen directory"
+					)
+			@XmlElement(name="prefix")
+			private String tabixFilePrefix = "Eigen_hg19_";
+
+			
+			@XmlTransient
+			private EigenInfoAnnotator annotator = null;
+			
+			
+			@Override
+			public int initialize() {
+				try
+					{
+					LOG.info("loading eigen directory "+this.eigenDir);
+					this.annotator = new EigenInfoAnnotator(this.eigenDir);
+					this.annotator.setTabixFilePrefix(this.tabixFilePrefix);
+					}
+				catch(final Exception err) {
+					LOG.error(err);
+					return -1;
+					}
+				return 0;
+				}
+			
+			@Override
+			public VariantContextWriter open(final VariantContextWriter delegate) {
+				return new CtxWriter(delegate);
+				}
+			@Override
+			public void close() throws IOException {
+				this.annotator = null;
+				}
+			}
 	public VcfEigen01()
 		{
 		
 		}
+
+	@Override
+	protected int doVcfToVcf(
+			final String inputName,
+			final VcfIterator iter,
+			final VariantContextWriter delegate
+			) {	
+		final VariantContextWriter out = this.component.open(delegate);
+		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
+		out.writeHeader(iter.getHeader());
+		while(iter.hasNext())
+			{
+			out.add(progress.watch(iter.next()));
+			}
+		out.close();
+		progress.finish();
+		return 0;
+		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
-		EigenInfoAnnotator annotator = null;
+	public int doWork(final List<String> args) {
 		try
 			{
-			
-			final File eigenDirectory = new File(this.eigenDirStr);
-			LOG.info("loading eigen directory "+eigenDirectory);
-			annotator = new EigenInfoAnnotator(eigenDirectory);
-			final VCFHeader header = r.getHeader();
-			
-			final  VCFHeader h2 = new VCFHeader(header);
-			addMetaData(h2);
-			for(final VCFInfoHeaderLine vihl: annotator.getInfoHeaderLines()) {
-				if(h2.getInfoHeaderLine(vihl.getID())!=null) {
-					LOG.error("VCF INFO "+vihl.getID()+" already defined in input VCF.");
-					return -1;
-				}
-				h2.addMetaDataLine(vihl);
+			if(this.component.initialize()!=0) return -1;
+			return doVcfToVcf(args, this.outputFile);
 			}
-			
-			
-			final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
-			w.writeHeader(h2);
-			while (r.hasNext())
-				{
-				final  VariantContext variation = progress.watch(r.next());
-				final Map<String,Object> m  = annotator.getAnnotations(variation);
-				if(m==null || m.isEmpty())
-					{
-					w.add(variation);
-					}
-				else
-					{
-					final VariantContextBuilder vcb = new VariantContextBuilder(variation);
-					for(final String key: m.keySet()) {
-						vcb.attribute(key, m.get(key));
-					}
-					w.add(vcb.make());
-					}
-				}
-			progress.finish();
-			return RETURN_OK;
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(annotator);
+			CloserUtil.close(this.component);
 			}
 		}
-	
-	@Override
-	public int doWork(List<String> args) {	
-		if(eigenDirStr==null || eigenDirStr.trim().isEmpty()) {
-			LOG.error("Eigen directory is undefined.");
-			return -1;
-		}
-		return doVcfToVcf(args,outputFile);
-		}
+
 	
 	public static void main(String[] args) throws Exception
 		{
