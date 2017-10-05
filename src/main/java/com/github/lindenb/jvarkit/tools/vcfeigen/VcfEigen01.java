@@ -234,9 +234,8 @@ public class VcfEigen01
 				this.annotator = null;
 				}
 			}
-	public VcfEigen01()
-		{
-		
+	
+	public VcfEigen01() {
 		}
 
 	@Override
