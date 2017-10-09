@@ -46,6 +46,7 @@ Usage: bioalcidae [options] Files
 
 ## See also in Biostars
 
+ * [https://www.biostars.org/p/276219](https://www.biostars.org/p/276219)
  * [https://www.biostars.org/p/257346](https://www.biostars.org/p/257346)
  * [https://www.biostars.org/p/183197](https://www.biostars.org/p/183197)
  * [https://www.biostars.org/p/185162](https://www.biostars.org/p/185162)
@@ -112,6 +113,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Oct 4 21:08:07 2017 +0200 ; answer to biostars 276219 ; https://github.com/lindenb/jvarkit/commit/2ce92e0c70f7ff1212f44420b4f34b6de6cf0215
 Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
 Wed Jun 14 17:01:36 2017 +0200 ; fast genotype gvcf ; https://github.com/lindenb/jvarkit/commit/d77e93940ad9a7f8144527332067b663b55a10f6
 Thu May 18 10:38:01 2017 +0200 ; vcfilterjs ; https://github.com/lindenb/jvarkit/commit/437e95c1e567ec25812c12608f3df409f24c2fa1
@@ -161,6 +163,11 @@ The current reference is:
 
 
 Bioinformatics file javascript-based reformatter ( java engine http://openjdk.java.net/projects/nashorn/ ). Something like awk for VCF, BAM, SAM, FASTQ, FASTA etc...
+
+
+## Why  this name, 'BioAlcidae' ?
+
+As 'bioalcidae' looks like an 'awk' for bioinformatics, we used '[Alcidae](https://en.wikipedia.org/wiki/Alcidae)', the taxonomic Family of the '[auk](https://en.wikipedia.org/wiki/Auk)' species.
 
 ## About Galaxy
 

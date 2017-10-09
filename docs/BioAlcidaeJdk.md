@@ -128,6 +128,10 @@ Bioinformatics file java-based reformatter. Something like awk for VCF, BAM, SAM
 This program takes as input a VCF or a BAM on stdin or as a file.
 The user provides a piece of java code that will be compiled at runtime in memory an executed.
 
+## Why  this name, 'BioAlcidae' ?
+
+As 'bioalcidae' looks like an 'awk' for bioinformatics, we used '[Alcidae](https://en.wikipedia.org/wiki/Alcidae)', the taxonomic Family of the '[auk](https://en.wikipedia.org/wiki/Auk)' species.
+
 ## Base classes 
 
 At the time of writing, we have:

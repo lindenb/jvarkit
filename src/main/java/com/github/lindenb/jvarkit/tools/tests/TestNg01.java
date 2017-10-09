@@ -39,7 +39,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.testng.Assert;
-import org.testng.Reporter;
 import org.testng.annotations.*;
 
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
@@ -59,13 +58,16 @@ import com.github.lindenb.jvarkit.tools.burden.VcfInjectPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes;
 import com.github.lindenb.jvarkit.tools.burden.VcfMoveFiltersToInfo;
 import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
+import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
 import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
+import com.github.lindenb.jvarkit.tools.misc.FixVcfMissingGenotypes;
 import com.github.lindenb.jvarkit.tools.misc.Gff2KnownGene;
+import com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
@@ -920,5 +922,33 @@ class TestNg01 {
         		}));
     	Assert.assertTrue( output.delete());
     	}
-    
+    @Test
+    public void testFixVcfMissingGenotypes() throws IOException {
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new FixVcfMissingGenotypes().instanceMain(new String[]{
+        		"-B",TOY_BAM,
+        		"-o",output.getPath(),
+        		TOY_VCF_GZ
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testFastqShuffle() throws IOException {
+		final File output =new File(TEST_RESULTS_DIR,"jeter.fq.gz");
+    	Assert.assertEquals(0,new FastqShuffle().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"./src/test/resources/SAMPLE1_GATGAATC_L002_R1_001.fastq.gz",
+        		"./src/test/resources/SAMPLE1_GATGAATC_L002_R2_001.fastq.gz"
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testPad() throws IOException {
+		final File output =new File(TEST_RESULTS_DIR,"jeter.fq.gz");
+    	Assert.assertEquals(0,new PadEmptyFastq().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"./src/test/resources/SAMPLE1_GATGAATC_L002_R1_001.fastq.gz"
+        		}));
+    	Assert.assertTrue( output.delete());
+    	}
 	}

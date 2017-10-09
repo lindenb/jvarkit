@@ -30,7 +30,7 @@ Usage: fastqshuffle [options] Files
       single input is paired reads interleaved.(optional)
       Default: false
     -r
-      random
+      random seed
       Default: java.util.Random@19bb367
 
 ```

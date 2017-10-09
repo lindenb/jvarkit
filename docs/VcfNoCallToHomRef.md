@@ -58,6 +58,12 @@ Usage: vcfnocall2homref [options] Files
  * vcf
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/276811](https://www.biostars.org/p/276811)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

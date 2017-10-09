@@ -53,6 +53,7 @@ Usage: fixvcfmissinggenotypes [options] Files
 
  * [https://www.biostars.org/p/119007](https://www.biostars.org/p/119007)
  * [https://www.biostars.org/p/263309](https://www.biostars.org/p/263309)
+ * [https://www.biostars.org/p/276811](https://www.biostars.org/p/276811)
 
 
 ## Compilation
