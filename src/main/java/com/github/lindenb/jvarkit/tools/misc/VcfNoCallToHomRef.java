@@ -127,7 +127,8 @@ END_DOC
 @Program(
 		name="vcfnocall2homref",
 		description="Convert the UNCALLED gentoypes in a VCF to HOM_REF. This tool can be used after using GATK CombineVariants.",
-		keywords={"vcf"}
+		keywords={"vcf"},
+		biostars={276811}
 		)
 public class VcfNoCallToHomRef extends  Launcher
 	{

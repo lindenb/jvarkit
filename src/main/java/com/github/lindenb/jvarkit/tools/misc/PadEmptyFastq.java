@@ -51,21 +51,17 @@ public class PadEmptyFastq extends Launcher
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
     private File outFile=null;
 
-	
 	private static final int DEFAULT_LENGTH=50;
 	
-	
-
 	@Parameter(names={"-N"},description="number of bases/qual to be added.  -1=length of the first read ")
 	private int N=-1;//default , will use the first read length
 	
-	
-	private PadEmptyFastq()
+	public PadEmptyFastq()
 		{
 		}
 	
 	
-	private void copyTo(FastqReader r,FastqWriter w)
+	private void copyTo(final FastqReader r,final FastqWriter w)
 		{
 		int padLength=this.N;
 		long nReads=0L;
@@ -76,7 +72,6 @@ public class PadEmptyFastq extends Launcher
 		while(r.hasNext())
 			{
 			FastqRecord rec=r.next();
-			
 			
 			if(++nReads%1E6==0)
 				{
@@ -115,12 +110,10 @@ public class PadEmptyFastq extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args) {
-		
+	public int doWork(final List<String> args) {
 		FastqWriter fqw=null;		
 		try
 			{
-			
 			if(this.outFile==null)
 				{
 				LOG.info("writing to stdout");
@@ -134,13 +127,13 @@ public class PadEmptyFastq extends Launcher
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
-				FastqReader fqr=new FourLinesFastqReader(System.in);
+				FastqReader fqr=new FourLinesFastqReader(stdin());
 				copyTo(fqr,fqw);
 				fqr.close();
 				}
 			else
 				{
-				for(String filename:args)
+				for(final String filename:args)
 					{
 					LOG.info("Reading from "+filename);
 					FastqReader fqr=new FourLinesFastqReader(new File(filename));
@@ -150,7 +143,7 @@ public class PadEmptyFastq extends Launcher
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -163,7 +156,7 @@ public class PadEmptyFastq extends Launcher
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new PadEmptyFastq().instanceMainWithExit(args);
 		}

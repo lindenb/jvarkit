@@ -113,14 +113,14 @@ public class FastqShuffle extends Launcher
 	private static final Logger LOG = Logger.build(FastqShuffle.class).make();
 
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File fileout = null;
 
 	@Parameter(names={"-i"},description="single input is paired reads interleaved.(optional)")
 	private boolean interleaved_input=false;
 
-	@Parameter(names={"-r"},description="random",converter=Launcher.RandomConverter.class)
-	private Random random=Launcher.RandomConverter.now();
+	@Parameter(names={"-r"},description="random seed ",converter=Launcher.RandomConverter.class)
+	private Random random=new Random(-1L);
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
@@ -143,7 +143,7 @@ public class FastqShuffle extends Launcher
 		{
 		@Override
 		public int compare(final OneRead o1, final OneRead o2) {
-			int i= o1.random < o2.random ? -1:  o1.random > o2.random ? 1: 0;
+			final int i= o1.random < o2.random ? -1:  o1.random > o2.random ? 1: 0;
 			if(i!=0) return i;
 			return  o1.index < o2.index ? -1:  o1.index > o2.index ? 1: 0;
 			}
@@ -163,12 +163,12 @@ public class FastqShuffle extends Launcher
 	private static class OneReadCodec extends AbstractDataCodec<OneRead>
 		{
 		@Override
-		public OneRead decode(DataInputStream dis) throws IOException
+		public OneRead decode(final DataInputStream dis) throws IOException
 			{
-			OneRead r=new OneRead();
+			final OneRead r=new OneRead();
 			try {
 				r.random = dis.readLong();
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				return null;
 				}
 			r.index = dis.readLong();
@@ -176,7 +176,7 @@ public class FastqShuffle extends Launcher
 			return r;
 			}
 		@Override
-		public void encode(DataOutputStream dos, OneRead r)
+		public void encode(final DataOutputStream dos,final OneRead r)
 				throws IOException {
 			dos.writeLong(r.random);
 			dos.writeLong(r.index);
@@ -191,12 +191,12 @@ public class FastqShuffle extends Launcher
 	private static class TwoReadsCodec extends AbstractDataCodec<TwoReads>
 		{
 		@Override
-		public TwoReads decode(DataInputStream dis) throws IOException
+		public TwoReads decode(final DataInputStream dis) throws IOException
 			{
-			TwoReads r=new TwoReads();
+			final TwoReads r=new TwoReads();
 			try {
 				r.random = dis.readLong();
-			} catch (IOException e) {
+			} catch (final IOException e) {
 				return null;
 				}
 			r.index = dis.readLong();
@@ -205,7 +205,7 @@ public class FastqShuffle extends Launcher
 			return r;
 			}
 		@Override
-		public void encode(DataOutputStream dos, TwoReads r)
+		public void encode(final DataOutputStream dos,final TwoReads r)
 				throws IOException {
 			dos.writeLong(r.random);
 			dos.writeLong(r.index);
@@ -219,21 +219,21 @@ public class FastqShuffle extends Launcher
 		}
 
 	
-	private static FastqRecord readFastqRecord(DataInputStream dis)  throws IOException
+	private static FastqRecord readFastqRecord(final DataInputStream dis)  throws IOException
 		{
-		String seqHeader=dis.readUTF();
-		String seqLine=dis.readUTF();
-		String qualHeader=dis.readUTF();
-		String qualLine=dis.readUTF();
+		final String seqHeader=dis.readUTF();
+		final String seqLine=dis.readUTF();
+		final String qualHeader=dis.readUTF();
+		final String qualLine=dis.readUTF();
 		return new FastqRecord(seqHeader, seqLine, qualHeader, qualLine);
 		}
 	
-	private static String notNull(String s)
+	private static String notNull(final String s)
 		{
 		return s==null?"":s;
 		}	
 	
-	private static void writeFastqRecord(DataOutputStream dos,final FastqRecord r)  throws IOException
+	private static void writeFastqRecord(final DataOutputStream dos,final FastqRecord r)  throws IOException
 		{
 		dos.writeUTF(notNull(r.getReadHeader()));
 		dos.writeUTF(notNull(r.getReadString()));
@@ -242,16 +242,15 @@ public class FastqShuffle extends Launcher
 		}
 
 	
-	private FastqShuffle()
+	public FastqShuffle()
 		{
-		
 		}
 	
 	
-	private void runPaired(FastqReader r1, FastqReader r2,FastqWriter w1) throws IOException
+	private void runPaired(final FastqReader r1, final FastqReader r2,final FastqWriter w1) throws IOException
 		{
 		long nReads=0;
-		SortingCollection<TwoReads> sorting= SortingCollection.newInstance(
+		final SortingCollection<TwoReads> sorting= SortingCollection.newInstance(
 				TwoReads.class,
 				new TwoReadsCodec(),
 				new TwoReadsCompare(),
@@ -261,18 +260,18 @@ public class FastqShuffle extends Launcher
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
 			{
-			TwoReads p=new TwoReads();
+			final TwoReads p=new TwoReads();
 			p.random=this.random.nextLong();
 			p.index=nReads;
 			p.first=r1.next();
 			if(r2!=null)
 				{
-				if(!r2.hasNext())  throw new IOException(getMessageBundle("fastq.paired.read.missing"));
+				if(!r2.hasNext())  throw new IOException("fastq.paired.read.missing");
 				p.second=r2.next();
 				}
 			else
 				{
-				if(!r1.hasNext())  throw new IOException(getMessageBundle("fastq.paired.read.missing"));
+				if(!r1.hasNext())  throw new IOException("fastq.paired.read.missing");
 				p.second=r1.next();
 				}
 			
@@ -284,13 +283,13 @@ public class FastqShuffle extends Launcher
 			
 			sorting.add(p);
 			}
-		if(r2!=null && r2.hasNext()) throw new IOException(getMessageBundle("fastq.paired.read.missing"));
+		if(r2!=null && r2.hasNext()) throw new IOException("fastq.paired.read.missing");
 		sorting.doneAdding();
-		CloseableIterator<TwoReads> iter=sorting.iterator();
+		final  CloseableIterator<TwoReads> iter=sorting.iterator();
 		
 		while(iter.hasNext())
 			{
-			TwoReads p=iter.next();
+			final TwoReads p=iter.next();
 			w1.write(p.first);
 			w1.write(p.second);
 			}
@@ -302,10 +301,10 @@ public class FastqShuffle extends Launcher
 	
 
 	
-	private void runSingle(FastqReader r1,FastqWriter w1) throws IOException
+	private void runSingle(final FastqReader r1,final FastqWriter w1) throws IOException
 		{
 		long nReads=0;
-		SortingCollection<OneRead> sorting= SortingCollection.newInstance(
+		final  SortingCollection<OneRead> sorting= SortingCollection.newInstance(
 				OneRead.class,
 				new OneReadCodec(),
 				new OneReadCompare(),
@@ -315,7 +314,7 @@ public class FastqShuffle extends Launcher
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
 			{
-			OneRead r=new OneRead();
+			final OneRead r=new OneRead();
 			r.random=this.random.nextLong();
 			r.index=nReads;
 			r.first=r1.next();
@@ -330,10 +329,10 @@ public class FastqShuffle extends Launcher
 			}
 		sorting.doneAdding();
 		
-		CloseableIterator<OneRead> iter=sorting.iterator();
+		final CloseableIterator<OneRead> iter=sorting.iterator();
 		while(iter.hasNext())
 			{
-			OneRead p=iter.next();
+			final OneRead p=iter.next();
 			w1.write(p.first);
 			}
 		
@@ -343,7 +342,7 @@ public class FastqShuffle extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		FastqReader r1=null;
 		FastqReader r2=null;
 		FastqWriter w=null;
@@ -394,12 +393,12 @@ public class FastqShuffle extends Launcher
 				}
 			else
 				{
-				LOG.error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("illegal.number.of.arguments");
 				return -1;
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

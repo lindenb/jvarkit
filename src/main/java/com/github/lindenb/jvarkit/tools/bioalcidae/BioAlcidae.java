@@ -87,6 +87,11 @@ BEGIN_DOC
 
 Bioinformatics file javascript-based reformatter ( java engine http://openjdk.java.net/projects/nashorn/ ). Something like awk for VCF, BAM, SAM, FASTQ, FASTA etc...
 
+
+## Why  this name, 'BioAlcidae' ?
+
+As 'bioalcidae' looks like an 'awk' for bioinformatics, we used '[Alcidae](https://en.wikipedia.org/wiki/Alcidae)', the taxonomic Family of the '[auk](https://en.wikipedia.org/wiki/Auk)' species.
+
 ## About Galaxy
 
 At first, this tool is not safe for a public Galaxy server, because the javascript code can access the filesystem.

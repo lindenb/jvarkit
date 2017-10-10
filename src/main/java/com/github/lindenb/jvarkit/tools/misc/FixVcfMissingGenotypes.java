@@ -122,7 +122,7 @@ END_DOC
 
 @Program(name="fixvcfmissinggenotypes",
 description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.",
-biostars={119007,263309},
+biostars={119007,263309,276811},
 keywords={"sam","bam","vcf"}
 )
 public class FixVcfMissingGenotypes extends Launcher
