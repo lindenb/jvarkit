@@ -129,6 +129,7 @@ spring.batch.jars = \
 	$(lib.dir)/org/codehaus/jettison/jettison/1.2/jettison-1.2.jar \
 	$(lib.dir)/org/springframework/batch/spring-batch-core/3.0.8.RELEASE/spring-batch-core-3.0.8.RELEASE.jar \
 	$(lib.dir)/org/springframework/batch/spring-batch-infrastructure/3.0.8.RELEASE/spring-batch-infrastructure-3.0.8.RELEASE.jar \
+	$(lib.dir)/org/springframework/retry/spring-retry/1.2.1.RELEASE/spring-retry-1.2.1.RELEASE.jar \
 	$(lib.dir)/org/springframework/spring-aop/5.0.0.RELEASE/spring-aop-5.0.0.RELEASE.jar \
 	$(lib.dir)/org/springframework/spring-beans/5.0.0.RELEASE/spring-beans-5.0.0.RELEASE.jar \
 	$(lib.dir)/org/springframework/spring-context/5.0.0.RELEASE/spring-context-5.0.0.RELEASE.jar \

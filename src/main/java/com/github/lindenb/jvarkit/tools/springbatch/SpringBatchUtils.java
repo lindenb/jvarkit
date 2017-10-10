@@ -33,11 +33,11 @@ import htsjdk.variant.vcf.VCFHeader;
 
 public class SpringBatchUtils {
 public static final String VCF_HEADER_KEY="vcf-header";
-public VCFHeader getVcfHeader(final ExecutionContext executionContext) {
+public static VCFHeader getVcfHeader(final ExecutionContext executionContext) {
 	if(!Objects.requireNonNull(executionContext, "executionContext NPE").containsKey(SpringBatchUtils.VCF_HEADER_KEY)) {
 		throw new RuntimeException("key \""+SpringBatchUtils.VCF_HEADER_KEY+"\" is not defined in StepExecution");
 		}
-	final Object o =executionContext.containsKey(SpringBatchUtils.VCF_HEADER_KEY);
+	final Object o =executionContext.get(SpringBatchUtils.VCF_HEADER_KEY);
 	if(!(o instanceof VCFHeader)) {
 		throw new RuntimeException("key \""+SpringBatchUtils.VCF_HEADER_KEY+"\" is not an instance of "+VCFHeader.class.getName()+" but "+o.getClass().getName());
 		}

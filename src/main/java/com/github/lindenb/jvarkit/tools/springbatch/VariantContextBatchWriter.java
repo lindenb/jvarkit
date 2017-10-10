@@ -61,16 +61,13 @@ public void open(final ExecutionContext executionContext) throws ItemStreamExcep
 			{
 			throw new ItemStreamException("Bad extension for a VCF file:" + vcfFile);
 			}
-		if(!executionContext.containsKey("vcf-header")) {
-			throw new ItemStreamException("Cannot find incoming vcf header!");
-			}
-		final List<VCFHeader> headers = ((List<VCFHeader>)executionContext.get("vcf-header"));
-		
+		final VCFHeader header= SpringBatchUtils.getVcfHeader(executionContext);
 		final VariantContextWriterBuilder vcwb = new VariantContextWriterBuilder();
 		vcwb.setOutputFile(vcfFile);
+		vcwb.setReferenceDictionary(header.getSequenceDictionary());
 		vcwb.setCreateMD5(this.createMD5);
 		this.vcw = vcwb.build();
-		this.vcw.writeHeader(headers.get(headers.size()-1));
+		this.vcw.writeHeader(header);
 		}
 	catch(final Exception err)
 		{
