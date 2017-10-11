@@ -148,7 +148,7 @@ END_DOC
 @Program(name="sam2tsv",
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","tsv"},
-	biostars={157232,59647,253828,264875})
+	biostars={157232,59647,253828,264875,277493})
 public class Sam2Tsv
 	extends Launcher
 	{
