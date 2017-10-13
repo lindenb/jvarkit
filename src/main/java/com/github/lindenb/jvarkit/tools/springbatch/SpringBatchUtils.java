@@ -25,10 +25,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.springbatch;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import org.springframework.batch.item.ExecutionContext;
 
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 public class SpringBatchUtils {
@@ -42,5 +46,41 @@ public static VCFHeader getVcfHeader(final ExecutionContext executionContext) {
 		throw new RuntimeException("key \""+SpringBatchUtils.VCF_HEADER_KEY+"\" is not an instance of "+VCFHeader.class.getName()+" but "+o.getClass().getName());
 		}
 	return VCFHeader.class.cast(o);
+	}
+
+public static class VariantContextWriterBridge
+	implements VariantContextWriter
+	{
+	private final List<VariantContext> variants = new ArrayList<VariantContext>();
+	private VCFHeader header=null;
+	
+	@Override
+	public void writeHeader(final VCFHeader header) {
+		this.header = header;
+		}
+	public VCFHeader getHeader() {
+		return this.header;
+		}
+	
+	@Override
+	public void add(final VariantContext vc) {
+		this.variants.add(vc);
+		}
+	
+	public void addAll(final List<VariantContext> vcs) {
+		this.variants.addAll(vcs);
+		}
+	@Override
+	public boolean checkError() {
+		return false;
+		}
+	@Override
+	public void close() {
+		}
+	public List<VariantContext> getAndClearVariants() {
+		final List<VariantContext> L = new ArrayList<>(this.variants);
+		this.variants.clear();
+		return L;
+		}
 	}
 }

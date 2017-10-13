@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.lang;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -57,6 +58,7 @@ import javax.tools.ToolProvider;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 /** 
  * In Memory Java Compiler
@@ -247,5 +249,22 @@ public class InMemoryCompiler {
 			}
 		return codeWithLineNumber.toString();
 		}
-	
+	/** get a code to compile in either expression or a file.
+	 * Will throw an exception if BOTH expression and file are Both null or both not null */
+	public static String getTheSourceCode(final String scriptExpr,final File scriptFile) throws IOException {
+		if(scriptExpr==null && scriptFile==null) {
+			throw new JvarkitException.ScriptingError("Both scriptExpr and scriptFile are undefined.");
+			}
+		else if(scriptExpr!=null && scriptFile!=null) {
+			throw new JvarkitException.ScriptingError("Both scriptExpr and scriptFile are defined.");
+			}
+		else if(scriptExpr!=null)
+			{
+			return scriptExpr;
+			}
+		else
+			{
+			return IOUtil.slurp(scriptFile);
+			}
+		}
 }
