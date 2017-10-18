@@ -170,6 +170,7 @@ description="Generates a BED file of the Genes in an annotated VCF, loop over th
 keywords={"vcf","gene","burden"})
 public class VcfLoopOverGenes extends Launcher {
 	private static final Logger LOG = Logger.build(VcfLoopOverGenes.class).make();
+	private static final String NUM_FORMAT = "%06d";
 	static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
 
 	@Parameter(names={"-o","--output"},description="For gene.bed: a File or stdout. When creating a VCF this should be a zip file or an existing directory.")
@@ -202,6 +203,10 @@ public class VcfLoopOverGenes extends Launcher {
 	private int variantsWinCount=1000;
 	@Parameter(names={"--variantsWinShift"},description="[20170711] when split per count of variants, shift the window by this number of variants.")
 	private int variantsWinShift=500;
+	@Parameter(names={"--contigWinLength"},description="[20171018] window size when splitting per contig")
+	private int contigWinLength=1000;
+	@Parameter(names={"--contigWinShift"},description="[20171018] window shift when splitting per contig")
+	private int contigWinShift=500;
 
 	
 	@ParametersDelegate
@@ -235,7 +240,8 @@ public class VcfLoopOverGenes extends Launcher {
 	private enum SplitMethod
 		{
 		Annotations,
-		VariantSlidingWindow
+		VariantSlidingWindow,
+		ContigSlidingWindow
 		}
 		
 	private enum SourceType {
@@ -247,7 +253,8 @@ public class VcfLoopOverGenes extends Launcher {
 		VEP_Symbol,
 		VEP_HgncId,
 		
-		SlidingVariants
+		SlidingVariants,
+		SlidingContig
 	}
 		
 	private class GeneLoc implements Comparable<GeneLoc>
@@ -273,7 +280,7 @@ public class VcfLoopOverGenes extends Launcher {
 	private class GeneLocCodec extends AbstractDataCodec<GeneLoc>
 		{
 		@Override
-		public void encode(DataOutputStream dos, GeneLoc g) throws IOException {
+		public void encode(final DataOutputStream dos,final GeneLoc g) throws IOException {
 			dos.writeUTF(g.geneName);
 			dos.writeUTF(g.contig);
 			dos.writeUTF(g.sourceType.name());
@@ -283,8 +290,8 @@ public class VcfLoopOverGenes extends Launcher {
 			}
 		
 		@Override
-		public GeneLoc decode(DataInputStream dis) throws IOException {
-			GeneLoc g=new GeneLoc();
+		public GeneLoc decode(final DataInputStream dis) throws IOException {
+			final GeneLoc g=new GeneLoc();
 			try {
 				g.geneName=dis.readUTF();
 				}
@@ -446,8 +453,8 @@ public class VcfLoopOverGenes extends Launcher {
 						//final int chromEnd1 = buffer.stream().mapToInt(CTX->CTX.getEnd()).max().getAsInt();
 						final String identifier=
 								contig+ 
-								"_"+String.format("%06d", chromStart)+
-								"_"+String.format("%06d", chromEnd0)
+								"_"+String.format(NUM_FORMAT, chromStart)+
+								"_"+String.format(NUM_FORMAT, chromEnd0)
 								;
 						
 						for(final VariantContext ctx:buffer) {
@@ -480,6 +487,49 @@ public class VcfLoopOverGenes extends Launcher {
 						}
 					dumpBuffer.run();
 					buffer.clear();
+					}
+				else if(this.splitMethod.equals(SplitMethod.ContigSlidingWindow)) {
+
+					if(this.contigWinLength<1)
+						{
+						LOG.error("Bad value for contigWinCount");
+						return -1;
+						}
+					if(this.contigWinShift<1 || this.contigWinShift>this.contigWinLength)
+						{
+						LOG.error("Bad value for contigWinShift");
+						return -1;
+						}
+
+					while(iter.hasNext())
+						{
+						VariantContext ctx = progress.watch(iter.next());
+						/* reduce the memory footprint for this context */
+						ctx = new VariantContextBuilder(ctx).
+								genotypes(Collections.emptyList()).
+								unfiltered().
+								rmAttributes(new ArrayList<>(ctx.getAttributes().keySet())).
+								make();
+						
+						int start = 0;
+						while(start<=ctx.getStart())
+							{
+							if(start+this.contigWinLength >= ctx.getStart())
+								{
+								final int chromStart = start;
+								final int chromEnd0 =  start+this.contigWinLength;
+								
+								final String identifier=
+										ctx.getContig()+ 
+										"_"+String.format(NUM_FORMAT, chromStart)+
+										"_"+String.format(NUM_FORMAT, chromEnd0)
+										;
+								
+								sortingCollection.add(create(ctx,identifier, SourceType.SlidingContig));
+								}
+							start+=this.contigWinShift;
+							}
+						}
 					}
 				else
 					{
@@ -629,6 +679,11 @@ public class VcfLoopOverGenes extends Launcher {
 						switch(sourceType)
 							{
 							case SlidingVariants:
+								{
+								//nothing
+								break;
+								}
+							case SlidingContig:
 								{
 								//nothing
 								break;

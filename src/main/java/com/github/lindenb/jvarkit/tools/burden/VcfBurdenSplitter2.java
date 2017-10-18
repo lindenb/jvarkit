@@ -336,11 +336,11 @@ public class VcfBurdenSplitter2
 			}
 		}
 
-	protected boolean isDebuggingVariant(VariantContext ctx) {
+	protected boolean isDebuggingVariant(final VariantContext ctx) {
 		return false;
 	}
 	
-	protected String shortName(VariantContext ctx) {
+	protected String shortName(final VariantContext ctx) {
 	return ctx.getContig()+":"+ctx.getStart()+":"+ctx.getAlleles();	
 	}
 	

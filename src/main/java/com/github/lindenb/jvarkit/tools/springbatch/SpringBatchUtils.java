@@ -26,7 +26,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.springbatch;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.batch.item.ExecutionContext;
@@ -46,6 +49,15 @@ public static VCFHeader getVcfHeader(final ExecutionContext executionContext) {
 		throw new RuntimeException("key \""+SpringBatchUtils.VCF_HEADER_KEY+"\" is not an instance of "+VCFHeader.class.getName()+" but "+o.getClass().getName());
 		}
 	return VCFHeader.class.cast(o);
+	}
+
+public static Map<String,Object> executionContextToMap(final ExecutionContext ctx) {
+	if(ctx==null || ctx.isEmpty() ) return Collections.emptyMap();
+	final Map<String,Object> hash = new HashMap<>(ctx.size());
+	for(final Map.Entry<String, Object> key: ctx.entrySet()){
+		hash.put(key.getKey(), key.getValue());
+		}
+	return hash;
 	}
 
 public static class VariantContextWriterBridge

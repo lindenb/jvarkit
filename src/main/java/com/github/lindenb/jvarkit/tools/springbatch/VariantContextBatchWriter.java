@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.springbatch;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -36,8 +37,11 @@ import org.springframework.batch.item.ItemStreamException;
 import org.springframework.batch.item.file.ResourceAwareItemWriterItemStream;
 import org.springframework.core.io.Resource;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -47,24 +51,40 @@ public class VariantContextBatchWriter implements
 	ResourceAwareItemWriterItemStream<List<VariantContext>> {
 	private static final Log LOG = LogFactory.getLog(VariantContextBatchWriter.class);
 
-	private Resource resource = null;
+	private Function<ExecutionContext,String> filenameFactory = null;
 	private VariantContextWriter vcw = null;
 	private boolean createMD5 = false;
+	private File reference = null;
 	
 @Override
 public void open(final ExecutionContext executionContext) throws ItemStreamException {
-	if(this.resource==null) throw new ItemStreamException("resource is not defined");
+	if(this.filenameFactory==null) throw new ItemStreamException("resource is not defined");
 	try {
-		if(LOG.isInfoEnabled()) LOG.info("Opening "+this.resource);
-		final File vcfFile = this.resource.getFile();
-		if(!Arrays.stream(IOUtil.VCF_EXTENSIONS).anyMatch(SUFF->vcfFile.getName().endsWith(SUFF)))
+		final String filename = this.filenameFactory.apply(executionContext);
+		if(StringUtil.isBlank(filename)) throw new ItemStreamException("No output file defined.");
+		if(LOG.isInfoEnabled()) LOG.info("Opening "+filename+" for writing");
+		
+		if(!Arrays.stream(IOUtil.VCF_EXTENSIONS).anyMatch(SUFF->filename.endsWith(SUFF)))
 			{
-			throw new ItemStreamException("Bad extension for a VCF file:" + vcfFile);
+			throw new ItemStreamException("Bad extension for a VCF file:" + filename);
 			}
-		final VCFHeader header= SpringBatchUtils.getVcfHeader(executionContext);
+		final File vcfFile = new File(filename);
+		VCFHeader header= SpringBatchUtils.getVcfHeader(executionContext);
 		final VariantContextWriterBuilder vcwb = new VariantContextWriterBuilder();
 		vcwb.setOutputFile(vcfFile);
-		vcwb.setReferenceDictionary(header.getSequenceDictionary());
+		if(this.reference!=null)
+			{
+			final SAMSequenceDictionary dic=SAMSequenceDictionaryExtractor.extractDictionary(this.reference);
+			vcwb.setReferenceDictionary(dic);
+			if(header.getSequenceDictionary()==null) {
+				header = new VCFHeader(header);
+				header.setSequenceDictionary(dic);
+				}
+			}
+		else
+			{
+			vcwb.setReferenceDictionary(header.getSequenceDictionary());
+			}
 		vcwb.setCreateMD5(this.createMD5);
 		this.vcw = vcwb.build();
 		this.vcw.writeHeader(header);
@@ -90,13 +110,21 @@ public void write(List<? extends List<VariantContext>> variants) throws Exceptio
 	if(this.vcw==null) return;
 	variants.stream().flatMap(L->L.stream()).forEach(ctx->this.vcw.add(ctx));
 	}
+
+public void setFilenameFactory(final Function<ExecutionContext, String> resourceFactory) {
+	this.filenameFactory = resourceFactory;
+}
+
 @Override
 public void setResource(final Resource resource) {
-	this.resource = resource;
+	this.setFilenameFactory( CTX-> resource.getFilename() );
 	}
 
 public void setCreateMD5(boolean createMD5) {
 	this.createMD5 = createMD5;
+	}
+public void setReference(final File reference) {
+	this.reference = reference;
 	}
 
 private void priv_close() {
