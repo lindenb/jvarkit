@@ -13,6 +13,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.github.lindenb.jvarkit.tools.burden.MafCalculator;
 import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -26,6 +27,8 @@ import htsjdk.variant.vcf.VCFFileReader;
 
 @XmlRootElement(name="skat")
 public class Skat {
+	private static final Logger LOG = Logger.build(Skat.class).make();
+
 	private boolean adjusted = false;
 	private boolean optimal = false;
 	private boolean acceptFILTERED = false;
@@ -103,7 +106,7 @@ public Skat.SkatResult execute(
 		)
 	{
 	if(variants==null || variants.isEmpty()) return new ResultError("no variant");
-	if(ped.isEmpty()) return new ResultError("ped is empty");
+	if(ped==null || ped.isEmpty()) return new ResultError("ped is empty");
 	variants = variants.stream().
 			filter(V->this.acceptFILTERED || !V.isFiltered()).
 			filter(V->V.getNAlleles()==2).
@@ -198,13 +201,13 @@ public Skat.SkatResult execute(
 			}
 		catch(final Throwable err2)
 			{
-			err2.printStackTrace();
+			LOG.error(err2);
 			return  new ResultError(err2.getMessage());
 			}
 		}
 	catch(final Throwable err)
 		{
-		err.printStackTrace();
+		LOG.error(err);
 		return  new ResultError(err.getMessage());
 		}
 	finally {
