@@ -2,7 +2,6 @@ package com.github.lindenb.jvarkit.tools.skat;
 
 import java.io.File;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -15,7 +14,6 @@ import com.github.lindenb.jvarkit.tools.burden.MafCalculator;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.ProcessExecutor;
@@ -23,7 +21,6 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 
 @XmlRootElement(name="skat")
 public class Skat {
@@ -34,11 +31,16 @@ public class Skat {
 	private boolean acceptFILTERED = false;
 	private String RScript= "Rscript";
 	
-	public static interface SkatResult
+	public static interface SkatResult extends Comparable<SkatResult>
 		{
 		public String getMessage();
 		public double getPValue();
 		public boolean isError();
+		@Override
+		public default int compareTo(final SkatResult o)
+			{
+			return Double.compare(this.getPValue(), o.getPValue());
+			}
 		}
 	
 	private static class ResultImpl implements SkatResult
@@ -52,6 +54,7 @@ public class Skat {
 		public String toString() {
 			return String.valueOf(this.pvalue);
 			}
+		
 		}
 	
 	private static class ResultError implements SkatResult
@@ -60,7 +63,7 @@ public class Skat {
 		ResultError(final String message) { this.message = StringUtil.isBlank(message)?"ERROR":message;}
 		@Override public String getMessage() { return this.message;}
 		@Override public boolean isError() { return true;}
-		@Override public double getPValue() { throw new IllegalStateException("cannot get p-value for an error");}
+		@Override public double getPValue() { throw new IllegalStateException("cannot get p-value for an error : "+this.message);}
 		@Override
 		public String toString() { return "ERROR:"+this.message;}
 		}
@@ -102,7 +105,7 @@ private MafCalculator calculateMaf(final VariantContext ctx,final Collection<Ped
 
 public Skat.SkatResult execute(
 		List<VariantContext> variants,
-		final Pedigree ped
+		final Collection<Pedigree.Person> ped
 		)
 	{
 	if(variants==null || variants.isEmpty()) return new ResultError("no variant");
@@ -119,7 +122,7 @@ public Skat.SkatResult execute(
 			collect(Collectors.toSet()
 			);
 	
-	final List<Pedigree.Person> samples = ped.getPersons().
+	final List<Pedigree.Person> samples = ped.
 		stream().
 		filter(P->(P.isAffected() || P.isUnaffected()) && samplesInVcf.contains(P.getId())).
 		collect(Collectors.toList())
@@ -214,25 +217,6 @@ public Skat.SkatResult execute(
 		CloserUtil.close(pw);
 		if(scriptFile!=null) scriptFile.delete();
 		if(saveFile!=null) saveFile.delete();
-	
 		}
 	}
-
-public static void main(String[] args) {
-	try {
-		VCFFileReader r= new VCFFileReader(new File(args[0]),false);
-		Pedigree ped = new Pedigree.Parser().parse(r.getFileHeader());
-		List<VariantContext> variants= new ArrayList<>();
-		CloseableIterator<VariantContext> iter=r.iterator();
-		while(iter.hasNext()) variants.add(iter.next());
-		iter.close();
-		r.close();
-		Skat skat=new Skat();
-		SkatResult rez=skat.execute(variants, ped);
-		System.err.println(rez);
-		System.exit(0);
-	} catch(Exception err) {
-		err.printStackTrace();
-	}
-}
 }
