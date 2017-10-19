@@ -536,6 +536,7 @@ $(eval $(call compile-htsjdk-cmd,vcfamalgamation,${jvarkit.package}.tools.vcfama
 
 #$(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.springbatch.Test01,${jcommander.jar} ${spring.batch.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfoptimizeped4skat,${jvarkit.package}.tools.skat.VcfOptimizePedForSkat,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.skat.VcfSkatSlidingWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))
 $(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}  ${bigwig.jars}))
 

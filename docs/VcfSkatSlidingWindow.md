@@ -1,45 +1,48 @@
-# VcfOptimizePedForSkat
+# VcfSkatSlidingWindow
 
-Optimize ped file for SKAT
+SkatFactory Over genome using a sliding window.
 
 
 ## Usage
 
 ```
-Usage: vcfoptimizeped4skat [options] Files
+Usage: vcfskatslidingwindow [options] Files
   Options:
-    --bootstrap
-      bootstrap samples. Multiple list of sample separated with space, comma 
-      or semicolons
+    -C, --contig
+      limit to this contig(s)
+      Default: []
+    --contigWinLength
+      window size when splitting per contig
+      Default: 1000
+    --contigWinShift
+      window shift when splitting per contig
+      Default: 500
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    --max-iter
-      max number of iterations. -1 == infinite
-      Default: -1
-    --max-results
-      max number of results.
-      Default: 10
+    -j, --jobs
+      When -exec is specified, use <n> jobs. A value lower than 1 means use 
+      all procs available.
+      Default: 1
+    -o, --output
+      Output file. Optional . Default: stdout
     -ped, --pedigree
       A pedigree is a text file delimited with tabs. No header. Columns are 
       (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
       (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
       affected,-9 unknown  If not defined, I will try to extract the pedigree 
       from  the VCFheader.
-    -n, --remove
-      max number of samples to remove
-      Default: 1
-    -seed, --seed
-      random seed; -1=currentTimeMillis
-      Default: 0
     --skat-adjusted
       SKAT adjusted
       Default: false
     --skat-optimized
       SKAT optimized (SKATO)/ davies method.
       Default: false
+    --skat-random-seed
+      Rstats value for `set.seed`. -1 == use random
+      Default: -1
     --version
       print version and exit
 
@@ -70,7 +73,7 @@ Usage: vcfoptimizeped4skat [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make vcfoptimizeped4skat
+$ make vcfskatslidingwindow
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -88,14 +91,14 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfOptimizePedForSkat.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfOptimizePedForSkat.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfSkatSlidingWindow.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfSkatSlidingWindow.java)
 
 
 <details>
 <summary>Git History</summary>
 
 ```
-Wed Oct 18 19:20:26 2017 +0200 ; skat optimize vcf ; https://github.com/lindenb/jvarkit/commit/75da9b6ddd1f2daaf04365ecec4f712ee79851a6
+
 ```
 
 </details>
@@ -111,7 +114,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfoptimizeped4skat** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **vcfskatslidingwindow** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 

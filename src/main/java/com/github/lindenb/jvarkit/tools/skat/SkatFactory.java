@@ -1,6 +1,32 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.skat;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
@@ -10,6 +36,7 @@ import java.util.stream.Collectors;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.tools.burden.MafCalculator;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -17,20 +44,37 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.ProcessExecutor;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
 @XmlRootElement(name="skat")
-public class Skat {
-	private static final Logger LOG = Logger.build(Skat.class).make();
+public class SkatFactory {
+	private static final Logger LOG = Logger.build(SkatFactory.class).make();
 
+	@Parameter(names={"--skat-adjusted"},description="SKAT adjusted")
 	private boolean adjusted = false;
+	@Parameter(names={"--skat-optimized"},description="SKAT optimized (SKATO)/ davies method.")
 	private boolean optimal = false;
+	@Parameter(names={"--skat-random-seed"},description="Rstats value for `set.seed`. -1 == use random")
+	private int set_random_seed_value = -1;
+
+	
 	private boolean acceptFILTERED = false;
 	private String RScript= "Rscript";
 	
+	public static interface SkatExecutor {
+			SkatResult execute(
+			List<VariantContext> variants,
+			Collection<Pedigree.Person> ped
+			);
+		};
+	
+		
+		
+		
 	public static interface SkatResult extends Comparable<SkatResult>
 		{
 		public String getMessage();
@@ -84,12 +128,33 @@ public boolean isOptimal() {
 	return optimal;
 	}
 
-private String getMethod() {
-	return isOptimal()?"optimal":"davies";
+public SkatExecutor build() {
+	return new ExecutorImpl();
 	}
 
-private String getKernel() {
-	return "linear.weighted";
+
+private class ExecutorImpl implements SkatExecutor {
+
+private final boolean	adjusted = SkatFactory.this.adjusted;
+private final boolean	optimal = SkatFactory.this.optimal;
+private final boolean acceptFILTERED = SkatFactory.this.acceptFILTERED;;
+private final String RScript=  SkatFactory.this.RScript;
+private final int set_random_seed_value = SkatFactory.this.set_random_seed_value;
+private final File scriptFile;
+private final File saveFile;
+
+public ExecutorImpl() {
+	try 
+		{
+		this.scriptFile = File.createTempFile("skat", ".R");
+		this.scriptFile.deleteOnExit();
+		this.saveFile = File.createTempFile("skat", ".txt");
+		this.saveFile.deleteOnExit();		
+		}
+	catch(final IOException err)
+		{
+		throw new RuntimeIOException(err);
+		}
 	}
 
 
@@ -103,7 +168,27 @@ private MafCalculator calculateMaf(final VariantContext ctx,final Collection<Ped
 	return mafCalculator;
 	}
 
-public Skat.SkatResult execute(
+
+private boolean isAdjusted() {
+	return adjusted;
+	}
+
+private boolean isOptimal() {
+	return optimal;
+	}
+
+
+private String getMethod() {
+	return isOptimal()?"optimal":"davies";
+	}
+
+private String getKernel() {
+	return "linear.weighted";
+	}
+
+	
+@Override
+public SkatFactory.SkatResult execute(
 		List<VariantContext> variants,
 		final Collection<Pedigree.Person> ped
 		)
@@ -138,17 +223,17 @@ public Skat.SkatResult execute(
 	File saveFile = null;
 	PrintWriter pw = null;
 	try {
-		
-		scriptFile = File.createTempFile("skat", ".R");
-		scriptFile.deleteOnExit();
-		saveFile = File.createTempFile("skat", ".txt");
-		saveFile.deleteOnExit();
-		
 		pw = new PrintWriter(scriptFile);
-		final String[] command = new String[]{this.RScript,scriptFile.getAbsolutePath()};
+		final String[] command = new String[]{this.RScript,this.scriptFile.getAbsolutePath()};
 		
 		
 		pw.println("library(\"SKAT\")");
+		
+		if(this.set_random_seed_value!=-1)
+			{
+			pw.println("set.seed("+this.set_random_seed_value+")");
+			}
+		
 		pw.print("phenotypes <- c(");
 		pw.print(samples.stream().map(P->P.isUnaffected()?"0":"1").collect(Collectors.joining(",")));
 		pw.println(")");
@@ -189,7 +274,7 @@ public Skat.SkatResult execute(
 		pw.println( "skat_value =SKAT(Z= genot_matrix ,weights=1/sqrt("+samples.size()+"*MAFs*(1-MAFs)),obj=obj2, kernel=\""+
 				this.getKernel() + "\", method=\""+ this.getMethod()+"\")");
 		
-		pw.println("cat(skat_value$p.value,file=\""+ saveFile.getPath()+"\")");
+		pw.println("cat(skat_value$p.value,file=\""+ this.saveFile.getPath()+"\")");
 		pw.println("quit()");
 		pw.flush();
 		pw.close();
@@ -215,8 +300,9 @@ public Skat.SkatResult execute(
 		}
 	finally {
 		CloserUtil.close(pw);
-		if(scriptFile!=null) scriptFile.delete();
-		if(saveFile!=null) saveFile.delete();
+		this.scriptFile.delete();
+		this.saveFile.delete();
 		}
 	}
+}
 }

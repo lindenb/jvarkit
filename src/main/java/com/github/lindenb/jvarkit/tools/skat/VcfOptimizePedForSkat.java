@@ -35,6 +35,8 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -42,6 +44,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 /**
@@ -64,63 +67,169 @@ public class VcfOptimizePedForSkat extends Launcher
 	@Parameter(names={"-n","--remove"},description="max number of samples to remove")
 	private int nSamplesRemove=1;
 	@Parameter(names={"-seed","--seed"},description="random seed; -1=currentTimeMillis")
-	private long seed=-1l;
+	private long seed=-0L;
 	@Parameter(names={"--max-results"},description="max number of results.")
 	private int max_results=10;
 	@Parameter(names={"--max-iter"},description="max number of iterations. -1 == infinite")
 	private long max_iterations=-1L;
+	@Parameter(names={"--bootstrap"},description="bootstrap samples. Multiple list of sample separated with space, comma or semicolons")
+	private String bootstrapSamples=null;
+	
+	@ParametersDelegate
+	private SkatFactory skatInstance = new SkatFactory();
 
 	
 	private Pedigree pedigree=null;
 	private Random random = null;
 	private final List<Solution> bestSolutions = new ArrayList<>();
+	private Double firstScore=null;
 	
-	private static class Solution implements Comparable<Solution>
+	private class Solution implements Comparable<Solution>
 		{
-		Skat.SkatResult result;
-		Set<String> samples= new TreeSet<>();
+		String origin="";
+		long generation;
+		SkatFactory.SkatResult result;
+		final Set<String> sampleSet= new TreeSet<>();
+		
+		
 		@Override
 		public int compareTo(final Solution o)
 			{
 			return this.result.compareTo(o.result);
 			}
 		@Override
+		public int hashCode() {
+			return sampleSet.hashCode();
+			}
+		@Override
+		public boolean equals(final Object obj) {
+			return sampleSet.equals(Solution.class.cast(obj).sampleSet);
+			}
+		
+		@Override
 		public String toString()
 			{
-			return String.valueOf(result.getPValue())+"\t"+String.join(";",this.samples);
+			return String.format("%6.3e",result.getPValue())+"\t"+
+					(firstScore==null?"N/A":String.format("%6.1e",firstScore/result.getPValue()) )+
+					"\t("+generation+")\t"+
+					origin+"\t"+
+					String.join(";",this.sampleSet);
 			}
 		}
 	
 	private void exec(
+			final long generation,
 			final List<VariantContext> variants, 
-			final List<Pedigree.Person> samples
+			final List<Pedigree.Person> samples,
+			final SkatFactory.SkatExecutor skatExecutor
 			)
 		{
 		final Solution solution = new Solution();
-		final List<Pedigree.Person> ped2 = new ArrayList<>(samples);
-		int nRemove = 1+this.random.nextInt(this.nSamplesRemove);
-		while(nRemove>0 && ped2.size()>2)
+		solution.generation = generation;
+		String origin = "random";
+		if(generation!=0)
 			{
-			final String sampleId = ped2.remove(this.random.nextInt(ped2.size())).getId();
-			solution.samples.add(sampleId);
-			nRemove--;
+			int nRemove = 1+this.random.nextInt(this.nSamplesRemove);
+			if(generation==1 && this.bootstrapSamples!=null)
+				{
+				origin="bootstrap";
+				for(final String sample:this.bootstrapSamples.split("[; ,]"))
+					{
+					if(StringUtil.isBlank(sample)) continue;
+					if(!samples.stream().anyMatch(S->S.getId().equals(sample))) {
+						throw new JvarkitException.UserError("Sample "+sample+" not found in effective pedigree.");
+						}
+					LOG.info("bootstraping with "+sample);
+					solution.sampleSet.add(sample);
+					}
+				}
+			else if(generation%5==0 && !this.bestSolutions.isEmpty()) {
+				int sol_index = this.random.nextInt(Math.min(this.max_results, this.bestSolutions.size()));
+				final List<String> list =  new ArrayList<>(this.bestSolutions.get(sol_index).sampleSet);
+				if(list.size()>1 && this.random.nextBoolean())
+					{
+					origin="best-minus-random";
+					list.remove(this.random.nextInt(list.size()));
+					}
+				else if(list.size()<nRemove)
+					{
+					origin="best-plus-random";
+					list.add( samples.get(this.random.nextInt(samples.size())).getId());
+					}
+				solution.sampleSet.addAll(list);
+				}
+			else if(generation%7==0 && this.bestSolutions.size()>2)
+				{
+				final Set<String> set=new HashSet<>(this.bestSolutions.get(0).sampleSet);
+				set.addAll(this.bestSolutions.get(1).sampleSet);
+				final List<String> bestsamples =  new ArrayList<>(set);
+				Collections.shuffle(bestsamples, this.random);
+				while(bestsamples.size()>nRemove) {
+					bestsamples.remove(0);
+					}
+				solution.sampleSet.addAll(bestsamples);
+				origin="best0-plus-best1";
+				}
+			else
+				{
+				while(nRemove>0)
+					{
+					final String sampleId ;
+					
+					if(generation%3==0L && 
+							nRemove%2==0 && 
+							this.bestSolutions.size()>0 && 
+							!this.bestSolutions.get(0).sampleSet.isEmpty())
+						{
+						final List<String> bestsamples =  new ArrayList<>(this.bestSolutions.get(0).sampleSet);
+						sampleId = bestsamples.get(this.random.nextInt(bestsamples.size()));
+						origin="random-plus-best0";
+						}
+					else
+						{
+						sampleId = samples.get(this.random.nextInt(samples.size())).getId();
+						}
+					solution.sampleSet.add(sampleId);
+					nRemove--;
+					}
+				}
 			}
+		else
+			{
+			origin="original";
+			}
+		if(generation>0 && solution.sampleSet.isEmpty()) return;
+		if(this.bestSolutions.contains(solution)) return;
+		solution.origin = origin;
+		
+		final List<Pedigree.Person> ped2 = new ArrayList<>(samples);
+		ped2.removeIf(I->solution.sampleSet.contains(I.getId()));
+		if(ped2.isEmpty()) return;
 		if(!ped2.stream().anyMatch(P->P.isAffected())) return;
 		if(!ped2.stream().anyMatch(P->P.isUnaffected())) return;
-		final Skat skat = new Skat();
-		solution.result = skat.execute(variants, ped2);
+		solution.result = skatExecutor.execute(variants, ped2);
 		if(solution.result.isError()) return;
 		if( this.bestSolutions.isEmpty() ||
 			solution.compareTo(this.bestSolutions.get(this.bestSolutions.size()-1))<0)
 			{
 			this.bestSolutions.add(solution);
+			if(this.firstScore==null)
+				{
+				this.firstScore = solution.result.getPValue();
+				}
+			
 			Collections.sort(this.bestSolutions);
-			while(this.bestSolutions.size()>this.max_results) {
+			final int BUFFER_RESULT=1000;
+			while(this.bestSolutions.size()>BUFFER_RESULT) {
 				this.bestSolutions.remove(this.bestSolutions.size()-1);
 				}
-			stdout().println(">>>");
-			this.bestSolutions.stream().forEach(S->stdout().println(S));
-			stdout().println("<<<\n");
+			if(this.bestSolutions.indexOf(solution)<this.max_results) {
+				stdout().println(">>> " + generation);
+				this.bestSolutions.stream().
+					limit(this.max_results).
+					forEach(S->stdout().println(S));
+				stdout().println("<<< " + generation+"\n");
+				}
 			}
 		}
 	
@@ -183,12 +292,12 @@ public class VcfOptimizePedForSkat extends Launcher
 				return -1;
 				}
 
-			
+			final SkatFactory.SkatExecutor executor = this.skatInstance.build();
 			
 			long nIter=0L;
 			while(max_iterations==-1L || nIter<max_iterations)
 				{
-				exec(variants,samples);
+				exec(nIter,variants,samples,executor);
 				++nIter;
 				}
 			
