@@ -31,10 +31,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -85,7 +84,6 @@ public class VcfSkatSlidingWindow extends Launcher
 	private SkatFactory skat = new SkatFactory();
 	
 	
-	private PrintWriter writer=null;
 	
 	private static class SkatCallerResult
 		{
@@ -105,69 +103,86 @@ public class VcfSkatSlidingWindow extends Launcher
 			}
 		}
 	
-	private static class SkatCaller implements Callable<SkatCallerResult>
+	private class SkatCaller implements Callable<List<SkatCallerResult>>
 		{
 		private final File vcfFile;
-		private final Interval interval;
+		private final Interval fromTo;
 		private final Set<Pedigree.Person> samples;
 		private final SkatFactory.SkatExecutor skatExec;
 		SkatCaller( final File vcfFile,
-					final Interval interval,
+					final Interval fromTo,
 					final Set<Pedigree.Person> samples,
 					final SkatFactory.SkatExecutor skatExec
 					) {
 			this.vcfFile = vcfFile;
-			this.interval = interval;
+			this.fromTo = fromTo;
 			this.samples= samples;
 			this.skatExec = skatExec;
 			}
 		
 		@Override
-		public SkatCallerResult call() throws Exception {
-			final SkatCallerResult result = new SkatCallerResult();
-			result.interval = this.interval;
+		public List<SkatCallerResult> call() throws Exception {
 			VCFFileReader vcfFileReader = null;
 			CloseableIterator<VariantContext> iter=null;
+			final List<SkatCallerResult> results = new ArrayList<>();
+			int x=1;
 			try
 				{
 				final List<VariantContext> variants = new ArrayList<>();
 				vcfFileReader=new VCFFileReader(this.vcfFile,true);
-				iter = vcfFileReader.query(this.interval.getName(), this.interval.getStart(), this.interval.getEnd());
-				while(iter.hasNext())
+				
+				while(x<this.fromTo.getEnd())
 					{
-					final VariantContext ctx = iter.next();
-					if(ctx.isFiltered()) continue;
-					if(ctx.getNAlleles()!=2) continue;
-					variants.add(ctx);
+					if(x < this.fromTo.getStart()) {
+						x += VcfSkatSlidingWindow.this.contigWinShift;
+						continue;
+						}
+					final SkatCallerResult result = new SkatCallerResult();
+					
+					
+					result.interval = new Interval(
+							this.fromTo.getContig(),
+							x,
+							x+VcfSkatSlidingWindow.this.contigWinLength
+							);
+
+					iter = vcfFileReader.query(result.interval.getName(), result.interval.getStart(), result.interval.getEnd());
+					while(iter.hasNext())
+						{
+						final VariantContext ctx = iter.next();
+						if(ctx.isFiltered()) continue;
+						if(ctx.getNAlleles()!=2) continue;
+						variants.add(ctx);
+						}
+					iter.close();
+					iter=null;
+					result.nVariants = variants.size();
+					if(variants.isEmpty())
+						{
+						result.pvalue=1;
+						}
+					else
+						{
+						final SkatFactory.SkatResult skatResult = this.skatExec.execute(variants, this.samples);
+						if(skatResult.isError())
+							{
+							result.error_msg=skatResult.getMessage();
+							}
+						else
+							{
+							result.pvalue = skatResult.getPValue();
+							}
+						}
+					results.add(result);
 					}
 				vcfFileReader.close();
 				vcfFileReader=null;
-				iter.close();
-				iter=null;
-				result.nVariants = variants.size();
-				if(variants.isEmpty())
-					{
-					result.pvalue=1;
-					return result;
-					}
-				
-				final SkatFactory.SkatResult skatResult = this.skatExec.execute(variants, this.samples);
-				if(skatResult.isError())
-					{
-					result.error_msg=skatResult.getMessage();
-					return result;
-					}
-				else
-					{
-					result.pvalue = skatResult.getPValue();
-					}
-				return result;
+				return results;
 				}
 			catch(final Throwable err)
 				{
 				LOG.error(err);
-				result.error_msg = "Exception: "+ err.getMessage() ;
-				return result;
+				throw new RuntimeException(err);
 				}
 			finally
 				{
@@ -185,7 +200,7 @@ public class VcfSkatSlidingWindow extends Launcher
 			this.nJobs = Math.max(1, Runtime.getRuntime().availableProcessors());
 			LOG.info("setting njobs to "+this.nJobs);
 			}
-
+		PrintWriter writer=null;
 		VcfIterator r=null;
 		try {	
 			final VCFHeader header;
@@ -217,53 +232,13 @@ public class VcfSkatSlidingWindow extends Launcher
 				{
 				pedigree = new Pedigree.Parser().parse(header);
 				}
-			final LinkedBlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>(this.nJobs);
-			final ExecutorService executorService =  new ThreadPoolExecutor(
-					   this.nJobs, this.nJobs,
-			              0L, TimeUnit.MILLISECONDS,
-			              queue
-			              );
-			final List<Future<SkatCallerResult>> futureResults= new ArrayList<>();
-			
-			final Runnable dumpResults = () -> {
-				try {
-					if(!futureResults.isEmpty())
-						{
-						int i=0;
-						while(i<futureResults.size())
-							{
-					 		final Future<SkatCallerResult> ft=futureResults.get(i);
-							if(ft.isCancelled())
-								{
-								throw new RuntimeException("Task was canceled.");
-								}
-							else if(ft.isDone())
-								{
-								final SkatCallerResult rez= futureResults.remove(i).get();
-								synchronized (this.writer) {
-									this.writer.println(rez.toString());
-									}
-								}
-							else
-								{
-								i++;
-								}
-							}
-						}
-					}
-				catch(final ExecutionException|InterruptedException err)
-					{
-					throw new RuntimeException(err);
-					}
-				};
-
 			final Set<Pedigree.Person> samples= new HashSet<>(
 					pedigree.getPersons()
 					);
 			samples.removeIf(I->!(I.isAffected() || I.isUnaffected()) || !header.getSampleNamesInOrder().contains(I.getId()));
 			
 			   
-			this.writer = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			writer = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			
 			for(final SAMSequenceRecord ssr:dict.getSequences())
 				{
@@ -271,34 +246,47 @@ public class VcfSkatSlidingWindow extends Launcher
 					LOG.warning("skipping " + ssr.getSequenceName());
 					continue;
 					}
-				int x=1;
-				while(x< ssr.getSequenceLength())
+				
+				final ExecutorService executorService =  new ThreadPoolExecutor(
+						   this.nJobs, this.nJobs,
+				              0L, TimeUnit.MILLISECONDS,
+				              new LinkedBlockingDeque<>(this.nJobs)
+				              );				
+				
+				final List<Future<List<SkatCallerResult>>> results = new ArrayList<>(this.nJobs);
+				for(int i=0;i< this.nJobs;i++)
 					{
-					while(queue.size()>= this.nJobs)
-						{
-   						dumpResults.run();
-						}
-					SkatCaller callable = new SkatCaller(
+					final int winLen = Math.max(1,ssr.getSequenceLength()/this.nJobs);
+					final SkatCaller caller = new SkatCaller(
 							vcfFile,
-							new Interval(ssr.getSequenceName(),x,Math.min(ssr.getSequenceLength(), x+this.contigWinLength)),
+							new Interval(ssr.getSequenceName(),i*winLen,(i+1)*winLen),
 							samples,
 							this.skat.build()
-							);
-					final Future<SkatCallerResult> rez = executorService.submit(callable);
-					futureResults.add(rez);
-
-					
-					x+=this.contigWinShift;
+							)
+							;
+					results.add(executorService.submit(caller));
 					}
+				executorService.awaitTermination(365, TimeUnit.DAYS);
+				executorService.shutdown();
+				for(final Future<List<SkatCallerResult>> fl:results)
+					{
+					try {
+						for(final SkatCallerResult scr: fl.get())
+							{
+							writer.println(scr.toString());
+							}
+						}
+					catch(Exception err)
+						{
+						writer.close();
+						throw new RuntimeException(err);
+						}
+					}				
 				}
-			executorService.shutdown();
-			executorService.awaitTermination(365, TimeUnit.DAYS);
-			LOG.warning("last dump");
-			dumpResults.run();
-			
-			this.writer.flush();
-			this.writer.close();
-			this.writer=null;
+				
+			writer.flush();
+			writer.close();
+			writer=null;
 			
 			return 0;
 			}
@@ -310,7 +298,7 @@ public class VcfSkatSlidingWindow extends Launcher
 		finally
 			{
 			CloserUtil.close(r);
-			CloserUtil.close(this.writer);
+			CloserUtil.close(writer);
 			}
 		}
 	public static void main(String[] args)
