@@ -147,9 +147,9 @@ public ExecutorImpl() {
 	try 
 		{
 		this.scriptFile = File.createTempFile("skat", ".R");
-		this.scriptFile.deleteOnExit();
+		//this.scriptFile.deleteOnExit();
 		this.saveFile = File.createTempFile("skat", ".txt");
-		this.saveFile.deleteOnExit();		
+		//this.saveFile.deleteOnExit();		
 		}
 	catch(final IOException err)
 		{

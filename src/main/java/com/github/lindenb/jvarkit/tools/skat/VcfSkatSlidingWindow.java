@@ -217,10 +217,11 @@ public class VcfSkatSlidingWindow extends Launcher
 				{
 				pedigree = new Pedigree.Parser().parse(header);
 				}
+			final LinkedBlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>(this.nJobs);
 			final ExecutorService executorService =  new ThreadPoolExecutor(
 					   this.nJobs, this.nJobs,
 			              0L, TimeUnit.MILLISECONDS,
-			              new LinkedBlockingQueue<Runnable>()
+			              queue
 			              );
 			final List<Future<SkatCallerResult>> futureResults= new ArrayList<>();
 			
@@ -231,7 +232,7 @@ public class VcfSkatSlidingWindow extends Launcher
 						int i=0;
 						while(i<futureResults.size())
 							{
-							final Future<SkatCallerResult> ft=futureResults.get(i);
+					 		final Future<SkatCallerResult> ft=futureResults.get(i);
 							if(ft.isCancelled())
 								{
 								throw new RuntimeException("Task was canceled.");
@@ -273,8 +274,10 @@ public class VcfSkatSlidingWindow extends Launcher
 				int x=1;
 				while(x< ssr.getSequenceLength())
 					{
-					dumpResults.run();
-					
+					while(queue.size()>= this.nJobs)
+						{
+   						dumpResults.run();
+						}
 					SkatCaller callable = new SkatCaller(
 							vcfFile,
 							new Interval(ssr.getSequenceName(),x,Math.min(ssr.getSequenceLength(), x+this.contigWinLength)),
@@ -288,9 +291,10 @@ public class VcfSkatSlidingWindow extends Launcher
 					x+=this.contigWinShift;
 					}
 				}
-			dumpResults.run();
 			executorService.shutdown();
 			executorService.awaitTermination(365, TimeUnit.DAYS);
+			LOG.warning("last dump");
+			dumpResults.run();
 			
 			this.writer.flush();
 			this.writer.close();
