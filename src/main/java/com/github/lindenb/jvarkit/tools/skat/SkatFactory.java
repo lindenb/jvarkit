@@ -31,6 +31,7 @@ import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -60,13 +61,16 @@ public class SkatFactory {
 	private boolean optimal = false;
 	@Parameter(names={"--skat-random-seed"},description="Rstats value for `set.seed`. -1 == use random")
 	private int set_random_seed_value = -1;
-
-	
+	@Parameter(names={"--skat-accept-filtered"},description="accept variants FILTER-ed")
 	private boolean acceptFILTERED = false;
 	private String RScript= "Rscript";
 	
 	public static interface SkatExecutor {
-			SkatResult execute(
+		
+		/** a filter to be used in the VcfReader to discard variant as soon as possible */
+		public Predicate<VariantContext> getUpstreamVariantFilter();
+		
+		public SkatResult execute(
 			List<VariantContext> variants,
 			Collection<Pedigree.Person> ped
 			);
@@ -157,6 +161,19 @@ public ExecutorImpl() {
 		}
 	}
 
+@Override
+public Predicate<VariantContext> getUpstreamVariantFilter() {
+		return new Predicate<VariantContext>()
+			{
+			@Override
+			public boolean test(final VariantContext V) {
+				if(!acceptFILTERED && V.isFiltered()) return false;
+				if(V.getNAlleles()!=2) return false;
+				return true;
+				}
+			};
+		}
+
 
 private MafCalculator calculateMaf(final VariantContext ctx,final Collection<Pedigree.Person>  samples) {
 	final Allele observed_alt = ctx.getAltAlleleWithHighestAlleleCount();
@@ -196,9 +213,9 @@ public SkatFactory.SkatResult execute(
 	if(variants==null || variants.isEmpty()) return new ResultError("no variant");
 	if(ped==null || ped.isEmpty()) return new ResultError("ped is empty");
 	variants = variants.stream().
-			filter(V->this.acceptFILTERED || !V.isFiltered()).
-			filter(V->V.getNAlleles()==2).
-			collect(Collectors.toList());
+			filter(this.getUpstreamVariantFilter()).
+			collect(Collectors.toList())
+			;
 	if(variants.isEmpty()) return new ResultError("no valid variants");
 	final Set<String> samplesInVcf = variants.
 			stream().

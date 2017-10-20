@@ -1,27 +1,18 @@
-# VcfOptimizePedForSkat
+# VcfSkat
 
-Optimize ped file for SKAT
+Calculate SKAT score for a VCF.
 
 
 ## Usage
 
 ```
-Usage: vcfoptimizeped4skat [options] Files
+Usage: vcfskat [options] Files
   Options:
-    --bootstrap
-      bootstrap samples. Multiple list of sample separated with space, comma 
-      or semicolons
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    --max-iter
-      max number of iterations. -1 == infinite
-      Default: -1
-    --max-results
-      max number of results.
-      Default: 10
     -o, --output
       Output file. Optional . Default: stdout
     -ped, --pedigree
@@ -30,12 +21,10 @@ Usage: vcfoptimizeped4skat [options] Files
       (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
       affected,-9 unknown  If not defined, I will try to extract the pedigree 
       from  the VCFheader.
-    -n, --remove
-      max number of samples to remove
-      Default: 1
-    -seed, --seed
-      random seed; -1=currentTimeMillis
-      Default: 0
+    -p, --print
+      Don't print the VCF on output,Just print the score on ouput, don't print 
+      the VCF itself
+      Default: false
     --skat-accept-filtered
       accept variants FILTER-ed
       Default: false
@@ -48,6 +37,9 @@ Usage: vcfoptimizeped4skat [options] Files
     --skat-random-seed
       Rstats value for `set.seed`. -1 == use random
       Default: -1
+    -tag, --tag
+      tag name in VCF header "tag=p-value"
+      Default: SKAT
     --version
       print version and exit
 
@@ -78,7 +70,7 @@ Usage: vcfoptimizeped4skat [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make vcfoptimizeped4skat
+$ make vcfskat
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -96,15 +88,14 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfOptimizePedForSkat.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfOptimizePedForSkat.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfSkat.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfSkat.java)
 
 
 <details>
 <summary>Git History</summary>
 
 ```
-Thu Oct 19 15:53:48 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/5c71e1cbcacfd5b034a49580655db7066d83c50e
-Wed Oct 18 19:20:26 2017 +0200 ; skat optimize vcf ; https://github.com/lindenb/jvarkit/commit/75da9b6ddd1f2daaf04365ecec4f712ee79851a6
+
 ```
 
 </details>
@@ -120,7 +111,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfoptimizeped4skat** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **vcfskat** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -128,6 +119,19 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+```
+$ java -jar dist/vcfskat.jar vcf_with_samples.vcf | grep SKAT
+##SKAT=0.2215079
+```
+
+```
+$ java -jar dist/vcfskat.jar -p vcf_with_samples.vcf 
+0.2215079
+```
 
 
 

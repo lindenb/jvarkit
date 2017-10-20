@@ -35,6 +35,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -560,6 +561,26 @@ public class IOUtils {
 		if(w==null) return;
 		try { w.flush();} catch(Throwable err) {}
 	}
-	
+	/** write something in a file */
+	public static void cat(final Object o,final File out, boolean append)
+		{
+		PrintWriter w=null;
+		try
+			{
+			w= new PrintWriter( new FileWriter(out, append));
+			w.print(o);
+			w.flush();
+			w.close();
+			w=null;
+			}
+		catch(final IOException err)
+			{
+			throw new RuntimeIOException(err);
+			}
+		finally
+			{
+			if(w!=null) w.close();
+			}
+		}
 	
 	}

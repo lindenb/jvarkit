@@ -32,14 +32,19 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.AbstractVCFCodec;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 /**
@@ -92,6 +97,27 @@ protected void finalize() throws Throwable {
 	super.finalize();
 	}
 
+public Stream<VariantContext> stream()
+	{
+	close();
+	if(this.disposed) throw new IllegalStateException("buffer was disposed");
+	if(this.header==null) {
+		throw new IllegalStateException("header was not set");	
+		}
+	if(this.tmpFile==null) 
+		{
+		return this.buffer.stream();
+		}
+	else
+		{
+		final VCFFileReader reader= new VCFFileReader(this.tmpFile,false);
+		final CloseableIterator<VariantContext> iter = reader.iterator();
+		return  StreamSupport.stream(new IterableAdapter<VariantContext>(iter).spliterator(), false).onClose(
+				()->{CloserUtil.close(iter);CloserUtil.close(reader);}
+				);
+		}
+	}
+
 public VcfIterator iterator() {
 close();
 if(this.disposed) throw new IllegalStateException("buffer was disposed");	
@@ -117,6 +143,11 @@ public void writeHeader(final VCFHeader header) {
 	if(this.done_adding) throw new IllegalArgumentException("iterator() already called");
 	if(this.header!=null) throw new IllegalArgumentException("Header already set");
 	this.header = header;
+	}
+
+public VCFHeader getHeader()
+	{
+	return this.header;
 	}
 
 @Override

@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.skat;
 
 import java.io.File;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -44,6 +46,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -61,7 +64,8 @@ END_DOC
 public class VcfOptimizePedForSkat extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfOptimizePedForSkat.class).make();
-	
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
 	@Parameter(names={"-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION+" If not defined, I will try to extract the pedigree from  the VCFheader.")
 	private File pedigreeFile=null;
 	@Parameter(names={"-n","--remove"},description="max number of samples to remove")
@@ -224,11 +228,26 @@ public class VcfOptimizePedForSkat extends Launcher
 				this.bestSolutions.remove(this.bestSolutions.size()-1);
 				}
 			if(this.bestSolutions.indexOf(solution)<this.max_results) {
-				stdout().println(">>> " + generation);
+				
+				final StringBuilder sb=new StringBuilder();
+				sb.append(">>> ").append(generation).append("\n");
+				
 				this.bestSolutions.stream().
 					limit(this.max_results).
-					forEach(S->stdout().println(S));
-				stdout().println("<<< " + generation+"\n");
+					forEach(S->sb.append(S).append("\n"));
+				sb.append("<<< ").append(generation).append("\n");
+				
+				if(outputFile==null)
+					{
+					stdout().println(sb.toString());
+					}
+				else
+					{
+					stderr().println(sb.toString());
+					
+					
+					IOUtils.cat(sb.toString(),this.outputFile,false);
+					}
 				}
 			}
 		}
@@ -244,13 +263,14 @@ public class VcfOptimizePedForSkat extends Launcher
 				return -1;
 			}
 			
+			final SkatFactory.SkatExecutor executor = this.skatInstance.build();
+			
 			r= super.openVcfIterator(oneFileOrNull(args));
 			final List<VariantContext> variants = new ArrayList<>();
 			while(r.hasNext())
 				{
 				final VariantContext ctx = r.next();
-				if(ctx.isFiltered()) continue;
-				if(ctx.getNAlleles()!=2) continue;
+				if(!executor.getUpstreamVariantFilter().test(ctx)) continue;
 				variants.add(ctx);
 				}
 			LOG.info("number of variants : "+variants.size());
@@ -292,7 +312,7 @@ public class VcfOptimizePedForSkat extends Launcher
 				return -1;
 				}
 
-			final SkatFactory.SkatExecutor executor = this.skatInstance.build();
+			
 			
 			long nIter=0L;
 			while(max_iterations==-1L || nIter<max_iterations)

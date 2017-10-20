@@ -166,8 +166,7 @@ public class VcfSkatSlidingWindow extends Launcher
 					while(iter.hasNext())
 						{
 						final VariantContext ctx = iter.next();
-						if(ctx.isFiltered()) continue;
-						if(ctx.getNAlleles()!=2) continue;
+						if(!this.skatExec.getUpstreamVariantFilter().test(ctx)) continue;
 						variants.add(ctx);
 						}
 					iter.close();
