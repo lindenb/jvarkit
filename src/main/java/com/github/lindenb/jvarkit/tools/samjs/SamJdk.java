@@ -217,7 +217,7 @@ END_DOC
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183}
+	biostars={270879,274183,278902}
 	)
 public class SamJdk
 	extends Launcher

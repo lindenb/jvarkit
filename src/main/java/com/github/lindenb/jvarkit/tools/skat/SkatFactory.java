@@ -219,11 +219,9 @@ public SkatFactory.SkatResult execute(
 			collect(Collectors.toList());
 	if(variants.isEmpty()) return new ResultError("no variants with valid MAF");
 	
-	File scriptFile = null;
-	File saveFile = null;
 	PrintWriter pw = null;
 	try {
-		pw = new PrintWriter(scriptFile);
+		pw = new PrintWriter(this.scriptFile);
 		final String[] command = new String[]{this.RScript,this.scriptFile.getAbsolutePath()};
 		
 		
@@ -285,7 +283,7 @@ public SkatFactory.SkatResult execute(
 			}
 		try
 			{
-			return new ResultImpl(Double.parseDouble(IOUtil.slurp(saveFile)));
+			return new ResultImpl(Double.parseDouble(IOUtil.slurp(this.saveFile)));
 			}
 		catch(final Throwable err2)
 			{

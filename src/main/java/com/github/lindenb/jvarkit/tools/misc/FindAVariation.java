@@ -96,6 +96,9 @@ public class FindAVariation extends Launcher
 	private boolean hideNoCall=false;
 	@Parameter(names={"-snp","--snp"},description="Search only variant have the very same position (ignore overlapping variants)")
 	private boolean onlySnp=false;
+	@Parameter(names={"-indexed","--indexed"},description="[20171020] Search only in indexed vcf")
+	private boolean indexedOnly=false;
+
 	
 	private static class Mutation
 		{
@@ -310,7 +313,7 @@ public class FindAVariation extends Launcher
 					CloserUtil.close(r);
 					}    				
 				}
-			else
+			else if(!this.indexedOnly)
 				{
 				try
 					{
@@ -387,6 +390,7 @@ public class FindAVariation extends Launcher
 					LOG.debug("adding "+m);
 					this.mutations.add(m);
 					}
+				r.close();
 				}
 			
 			for(final String s:this.positionsList)

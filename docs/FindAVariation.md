@@ -16,6 +16,9 @@ Usage: findavariation [options] Files
     -homref, --homref
       Hide HOM_REF genotypes
       Default: false
+    -indexed, --indexed
+      [20171020] Search only in indexed vcf
+      Default: false
     -nocall, --nocall
       Hide NO_CALL genotypes
       Default: false

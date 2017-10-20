@@ -59,6 +59,7 @@ Usage: samjdk [options] Files
 
  * [https://www.biostars.org/p/270879](https://www.biostars.org/p/270879)
  * [https://www.biostars.org/p/274183](https://www.biostars.org/p/274183)
+ * [https://www.biostars.org/p/278902](https://www.biostars.org/p/278902)
 
 
 ## Compilation
