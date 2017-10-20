@@ -63,6 +63,9 @@ public class SkatFactory {
 	private int set_random_seed_value = -1;
 	@Parameter(names={"--skat-accept-filtered"},description="accept variants FILTER-ed")
 	private boolean acceptFILTERED = false;
+	@Parameter(names={"--skat-num-retry"},description="compute n-times the p-value")
+	private int n_retry = 1;
+
 	private String RScript= "Rscript";
 	
 	public static interface SkatExecutor {
@@ -141,7 +144,8 @@ private class ExecutorImpl implements SkatExecutor {
 
 private final boolean	adjusted = SkatFactory.this.adjusted;
 private final boolean	optimal = SkatFactory.this.optimal;
-private final boolean acceptFILTERED = SkatFactory.this.acceptFILTERED;;
+private final boolean acceptFILTERED = SkatFactory.this.acceptFILTERED;
+private final int n_retry = SkatFactory.this.n_retry;
 private final String RScript=  SkatFactory.this.RScript;
 private final int set_random_seed_value = SkatFactory.this.set_random_seed_value;
 private final File scriptFile;
@@ -154,6 +158,7 @@ public ExecutorImpl() {
 		//this.scriptFile.deleteOnExit();
 		this.saveFile = File.createTempFile("skat", ".txt");
 		//this.saveFile.deleteOnExit();		
+		if(this.n_retry<1) throw new IllegalArgumentException("n_retry <1");
 		}
 	catch(final IOException err)
 		{
@@ -286,10 +291,17 @@ public SkatFactory.SkatResult execute(
 		pw.println("obj2 <- SKAT_Null_Model(phenotypes~1, out_type=\"D\", Adjustment="+(isAdjusted()?"T":"F")+")");
 		
 		
+		pw.println( "vector_values <- c()");
+		pw.println( "n <- "+this.n_retry);
+		pw.println( "while( n > 0 ) {");
 		pw.println( "skat_value =SKAT(Z= genot_matrix ,weights=1/sqrt("+samples.size()+"*MAFs*(1-MAFs)),obj=obj2, kernel=\""+
 				this.getKernel() + "\", method=\""+ this.getMethod()+"\")");
+		pw.println( " vector_values <- c( vector_values ,c(skat_value$p.value )) ");
+		pw.println( " n <- n - 1");
+		pw.println( " }");
 		
-		pw.println("cat(skat_value$p.value,file=\""+ this.saveFile.getPath()+"\")");
+
+		pw.println("cat(median(vector_values),file=\""+ this.saveFile.getPath()+"\")");
 		pw.println("quit()");
 		pw.flush();
 		pw.close();
