@@ -11,6 +11,10 @@ Usage: vcf2table [options] Files
     --color, --colors
       [20170808] Print Terminal ANSI colors.
       Default: false
+    --format
+      [20171020] output format.
+      Default: text
+      Possible Values: [text, html]
     -h, --help
       print help and exit
     --helpFormat

@@ -39,6 +39,11 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+import javax.xml.transform.stream.StreamResult;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -225,6 +230,10 @@ public class VcfToTable extends Launcher {
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
 	
+	private enum OutputFormat {
+		text,html
+		}
+	
 	private enum AnsiColor {
     	BLACK (30),
     	RED (31),
@@ -401,11 +410,75 @@ public class VcfToTable extends Launcher {
 			}
 			out.print(margin);
 			out.println(hr.toString());
-					
 			}
+		
+		void writeText(final XMLStreamWriter w,final Object o) throws XMLStreamException
+			{
+			if(o==null) return ;
+			w.writeCharacters(String.valueOf(o));
+			}
+		
+		void write(final XMLStreamWriter w) throws XMLStreamException
+			{
+			if(this.rows.isEmpty() || this.columns.isEmpty()) return;
+			w.writeStartElement("div");
+			
+
+			w.writeStartElement("table");
+			w.writeAttribute("style","border-collapse: collapse; border: 1px solid black;");
+			w.writeStartElement("thead");
+			w.writeStartElement("caption");
+			writeText(w,this.caption);
+			w.writeEndElement();//caption
+			w.writeStartElement("tr");
+			for(int i=0;i< this.columns.size();i++)
+				{
+				w.writeStartElement("td");
+				writeText(w,this.columns.get(i).label);
+				w.writeEndElement();//td
+				}
+			w.writeEndElement();//tr
+			w.writeEndElement();//thead
+			w.writeStartElement("tbody");
+			
+			
+			
+			
+			for(int y=0;y< this.rows.size();++y) {
+				w.writeStartElement("tr");
+				final List<Object> row= this.rows.get(y);
+				
+				for(int i=0;i< this.columns.size() && i< row.size();i++)
+					{
+					w.writeStartElement("td");
+					final Object cell = row.get(i);
+					final String str=  cell==null?"":cell.toString();
+					
+					if(cell instanceof Colored) 
+						{
+						w.writeStartElement("span");
+						w.writeAttribute("style", "color:"+Colored.class.cast(cell).color.name().toLowerCase()+";");
+						}
+					writeText(w,str);
+					if(cell instanceof Colored) {
+						w.writeEndElement();//span
+						}
+					
+					w.writeEndElement();//td
+					}
+				w.writeEndElement();//tr
+				
+				}
+			w.writeEndElement();//tbody
+			w.writeEndElement();//table
+			w.writeEndElement();//div
+			}
+		
 		}
 	
-	public static class TerminalViewer
+	
+	
+	public static class VcfToTableViewer
 		implements VariantContextWriter
 		{
 		@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -432,536 +505,712 @@ public class VcfToTable extends Launcher {
 		private boolean hideInfo=false;
 		@Parameter(names={"--hidePredictions"},description="[20170808] hide SNPEFF/VEP table.")
 		private boolean hidePredictions=false;
+		@Parameter(names={"--format"},description="[20171020] output format.")
+		private OutputFormat outputFormat=OutputFormat.text;
 		
-		private int countVariants=0;
+		private AbstractViewer delegate=null;
 		
-		private PrintStream out= System.out;
-		private VCFHeader header=null;
-		private VCFEncoder vcfEncoder=null;
-		private Pedigree pedigree = null;
-		private VcfTools vcfTools = null;
-		TerminalViewer() {
-			}
-		@Override
-		public void writeHeader(final VCFHeader header) {
-			String margin="";
-			this.header = header;
-			this.vcfEncoder = new VCFEncoder(header, true, true);
-			this.vcfTools = new VcfTools(header);
-			if(outputFile!=null) {
-				try {
-					this.out = new PrintStream(IOUtils.openFileForWriting(this.outputFile));
-				} catch (final IOException e) {
-					throw new RuntimeIOException(e);
+		
+		private abstract class AbstractViewer implements VariantContextWriter
+			{
+			private int countVariants=0;
+			private VCFHeader header=null;
+			private VCFEncoder vcfEncoder=null;
+			private Pedigree pedigree = null;
+			private VcfTools vcfTools = null;
+
+			VcfToTableViewer getOwner() {
+				return VcfToTableViewer.this;
+				}
+			
+			abstract void writeTable(final String margin,final Table t);
+		
+			abstract void println(String s);
+			abstract void println();
+			
+			
+			@Override
+			public void writeHeader(final VCFHeader header)
+				{
+				this.header = header;
+				this.vcfEncoder = new VCFEncoder(header, true, true);
+				this.vcfTools = new VcfTools(header);
+				
+				
+				if(getOwner().pedigreeFile!=null) {
+					try {
+						this.pedigree = Pedigree.newParser().parse(getOwner().pedigreeFile);
+					} catch (final IOException e) {
+						throw new RuntimeIOException(e);
+						}
+				} else
+					{
+					this.pedigree = Pedigree.newParser().parse(header);
 					}
 				
-				}
-			
-			if(this.pedigreeFile!=null) {
-				try {
-					this.pedigree = Pedigree.newParser().parse(this.pedigreeFile);
-				} catch (final IOException e) {
-					throw new RuntimeIOException(e);
-					}
-			} else
-				{
-				this.pedigree = Pedigree.newParser().parse(header);
-				}
-			
-			if(this.pedigree.isEmpty())
-				{
-				this.pedigree = null;
-				}
-			
-			if(printHeader)
-				{
-				/** INFO */
+				if(this.pedigree.isEmpty())
 					{
-					Table t=new Table("ID","Type","Count","Description").setCaption("INFO");
-					header.getInfoHeaderLines().stream().
-						map(F->{
-								final List<Object> r=new ArrayList<>();
-								r.add(F.getID());
-								r.add(F.getType()==null?null:F.getType().name());
-								r.add(F.isFixedCount()?F.getCount():null);
-								r.add(F.getDescription());
-								return r;
-								}).
-						forEach(R->t.addList(R));
-					t.print(margin,out);
-					out.println();
+					this.pedigree = null;
 					}
-				/** FORMAT */
-					{
-					Table t=new Table("ID","Type","Count","Description").setCaption("FORMAT");
-					header.getFormatHeaderLines().stream().
-						map(F->{
-								final List<Object> r=new ArrayList<>();
-								r.add(F.getID());
-								r.add(F.getType()==null?null:F.getType().name());
-								r.add(F.isFixedCount()?F.getCount():null);
-								r.add(F.getDescription());
-								return r;
-								}).
-						forEach(R->t.addList(R));
-					t.print(margin,out);
-					out.println();
-					}
-				/** FILTER */
-					{
-					final Table t=new Table("ID","Description").setCaption("FILTERS");
-					header.getFilterLines().forEach(
-						L->t.addRow(L.getID(),L.getDescription())
-						);
-					
-					t.removeEmptyColumns().print(margin,out);
-					out.println();
-					}
+				String margin="";
 				
-				/** OTHER METADATA */
+				
+				if(getOwner().printHeader)
 					{
-					final Table t=new Table("ID","Description").setCaption("Metadata");
-					header.getOtherHeaderLines().forEach(
-						L->t.addRow(L.getKey(),L.getValue())
-						);
-					
-					t.removeEmptyColumns().print(margin,out);
-					out.println();
-					}
-					
-				/** DICT */
-					{
-					final SAMSequenceDictionary dict = header.getSequenceDictionary();
-					if (dict != null) {
-						final List<String> h = new ArrayList<>();
-						h.add("Name");
-						h.add("Length");
-						final Set<String> all_attributes = dict.getSequences().stream()
-								.flatMap(S -> S.getAttributes().stream()).map(A -> A.getKey())
-								.filter(S -> !(S.equals("Name") || S.equals("length") || S.equals("Length"))).collect(Collectors.toSet());
-						h.addAll(all_attributes);
-						final Table t2 = new Table(h).setCaption("Dict");
-	
-						for (final SAMSequenceRecord ssr : dict.getSequences()) {
-							final List<Object> r = new ArrayList<>();
-							r.add(ssr.getSequenceName());
-							r.add(ssr.getSequenceLength());
-							for (final String key : all_attributes) {
-								r.add(ssr.getAttribute(key));
-							}
-							t2.addList(r);
-						}
-						t2.print(margin,out);
-						}
-					}
-				if(this.pedigree!=null)
-					{
-					final Table t=new Table("Family","Sample","Father","Mother","Sex","Status").setCaption("Samples");
-					for(final String sample: this.header.getSampleNamesInOrder())
+					/** INFO */
 						{
-						final List<Object> r = new ArrayList<>();
-						final Pedigree.Person person = this.pedigree.getPersonById(sample);
-						
-						r.add(person==null?null:person.getFamily().getId());
-						r.add(sample);
-						r.add(person==null?null:person.getFatherId());
-						r.add(person==null?null:person.getMotherId());
-						r.add(person==null?null:person.getSex());
-						r.add(person==null?null:person.getStatus());
-						t.addList(r);
+						final Table t=new Table("ID","Type","Count","Description").setCaption("INFO");
+						header.getInfoHeaderLines().stream().
+							map(F->{
+									final List<Object> r=new ArrayList<>();
+									r.add(F.getID());
+									r.add(F.getType()==null?null:F.getType().name());
+									r.add(F.isFixedCount()?F.getCount():null);
+									r.add(F.getDescription());
+									return r;
+									}).
+							forEach(R->t.addList(R));
+						writeTable(margin,t);
+						this.println();
+						}
+					/** FORMAT */
+						{
+						final Table t=new Table("ID","Type","Count","Description").setCaption("FORMAT");
+						header.getFormatHeaderLines().stream().
+							map(F->{
+									final List<Object> r=new ArrayList<>();
+									r.add(F.getID());
+									r.add(F.getType()==null?null:F.getType().name());
+									r.add(F.isFixedCount()?F.getCount():null);
+									r.add(F.getDescription());
+									return r;
+									}).
+							forEach(R->t.addList(R));
+						this.writeTable(margin,t);
+						this.println();
+						}
+					/** FILTER */
+						{
+						final Table t=new Table("ID","Description").setCaption("FILTERS");
+						header.getFilterLines().forEach(
+							L->t.addRow(L.getID(),L.getDescription())
+							);
+						this.writeTable(margin,t.removeEmptyColumns());
+						this.println();
 						}
 					
-					t.print(margin,out);
-					}
-					
-					
-				out.println();
-				}
-			}
-		@Override
-		public void add(final VariantContext vc) {
-			if(out==null) return;
-			
-			if(this.limitVariants!=-1)
-				{
-				if(this.countVariants==this.limitVariants)
-					{
-					out.println();
-					out.println("... More variants exist but they've been omitted...( limit reached)");
-					return;
-					}
-				else if(this.countVariants>this.limitVariants)
-					{
-					return;
-					}
-				}
-			
-			final String variantName=vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
-			++countVariants;
-			out.println(">>"+ variantName+" (n. "+countVariants+")");
-			String margin=DEFAULT_MARGIN;
-			{
-			final Table t=new Table("Key","Value").setCaption("Variant");
-			t.addRow("CHROM",vc.getContig());
-			t.addRow("POS",vc.getStart());
-			t.addRow("end",vc.getEnd());
-			t.addRow("ID",vc.hasID()?vc.getID():".");
-			t.addRow("REF",vc.getReference().getDisplayString());
-			t.addRow("ALT",vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
-			t.addRow("QUAL",vc.hasLog10PError()?vc.getPhredScaledQual():null);
-			final String filterStr=vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null;
-			t.addRow("FILTER",filterStr!=null && useANSIColors?new Colored(filterStr, AnsiColor.RED):filterStr);
-			t.addRow("Type",vc.getType());
-			
-			
-			
-			t.print(margin,out);
-			}
+					/** OTHER METADATA */
+						{
+						final Table t=new Table("ID","Description").setCaption("Metadata");
+						header.getOtherHeaderLines().forEach(
+							L->t.addRow(L.getKey(),L.getValue())
+							);
+						
+						this.writeTable(margin,t.removeEmptyColumns());
+						this.println();
+						}
+						
+					/** DICT */
+						{
+						final SAMSequenceDictionary dict = header.getSequenceDictionary();
+						if (dict != null) {
+							final List<String> h = new ArrayList<>();
+							h.add("Name");
+							h.add("Length");
+							final Set<String> all_attributes = dict.getSequences().stream()
+									.flatMap(S -> S.getAttributes().stream()).map(A -> A.getKey())
+									.filter(S -> !(S.equals("Name") || S.equals("length") || S.equals("Length"))).collect(Collectors.toSet());
+							h.addAll(all_attributes);
+							final Table t2 = new Table(h).setCaption("Dict");
 		
-		if(!this.hideAlleles)
-			{
-			boolean has_affected_cols=false;
-			int AN=-1;
-			final List<String> h = new ArrayList<>(Arrays.asList("Idx","REF","Sym","Bases","Length"));
-			if(vc.hasGenotypes())
-				{
-				h.add("HW");
-				h.add("AC");
-				h.add("AN");
-				h.add("AF");
-				AN = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.isCalled()).count();
-				
-				if(this.pedigree!=null &&
-					this.pedigree.getPersons().stream().filter(P->P.getStatus()!=Pedigree.Status.missing).findAny().isPresent()
-					) {
-					has_affected_cols=true;
-					h.add("AC_affected");
-					h.add("AC_unaffected");
+							for (final SAMSequenceRecord ssr : dict.getSequences()) {
+								final List<Object> r = new ArrayList<>();
+								r.add(ssr.getSequenceName());
+								r.add(ssr.getSequenceLength());
+								for (final String key : all_attributes) {
+									r.add(ssr.getAttribute(key));
+								}
+								t2.addList(r);
+							}
+							this.writeTable(margin,t2);
+							}
+						}
+					if(this.pedigree!=null)
+						{
+						final Table t=new Table("Family","Sample","Father","Mother","Sex","Status").setCaption("Samples");
+						for(final String sample: this.header.getSampleNamesInOrder())
+							{
+							final List<Object> r = new ArrayList<>();
+							final Pedigree.Person person = this.pedigree.getPersonById(sample);
+							
+							r.add(person==null?null:person.getFamily().getId());
+							r.add(sample);
+							r.add(person==null?null:person.getFatherId());
+							r.add(person==null?null:person.getMotherId());
+							r.add(person==null?null:person.getSex());
+							r.add(person==null?null:person.getStatus());
+							t.addList(r);
+							}
+						this.writeTable(margin,t.removeEmptyColumns());
+						}
+						
+						
+					this.println();
 					}
-				if(this.pedigree!=null ) {
-					h.add("AC_male");
-					h.add("AC_female");
-					}
-				
 				}
 			
+			@Override
+			public void add(final VariantContext vc)
+				{
+
+				if(getOwner().limitVariants!=-1)
+					{
+					if(this.countVariants== getOwner().limitVariants)
+						{
+						this.println();
+						this.println("... More variants exist but they've been omitted...( limit reached)");
+						return;
+						}
+					else if(this.countVariants> getOwner().limitVariants)
+						{
+						return;
+						}
+					}
+				
+				final String variantName=vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
+				++countVariants;
+				this.println(">>"+ variantName+" (n. "+countVariants+")");
+				String margin=DEFAULT_MARGIN;
+				{
+				final Table t=new Table("Key","Value").setCaption("Variant");
+				t.addRow("CHROM",vc.getContig());
+				t.addRow("POS",vc.getStart());
+				t.addRow("end",vc.getEnd());
+				t.addRow("ID",vc.hasID()?vc.getID():".");
+				t.addRow("REF",vc.getReference().getDisplayString());
+				t.addRow("ALT",vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
+				t.addRow("QUAL",vc.hasLog10PError()?vc.getPhredScaledQual():null);
+				final String filterStr=vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null;
+				t.addRow("FILTER",filterStr!=null && useANSIColors?new Colored(filterStr, AnsiColor.RED):filterStr);
+				t.addRow("Type",vc.getType());
+				
+				
+				this.writeTable(margin, t);
+				}
 			
-			 final Table t=new Table(h).
-					 setCaption("Alleles");
-			 for(final Allele a: vc.getAlleles())
-			 	{
-				final ArrayList<Object> r = new ArrayList<>(Arrays.asList(vc.getAlleleIndex(a),
-						a.isReference()?"*":"",
-						a.isSymbolic()?"*":"",
-						a.getDisplayString(),
-						a.isSymbolic()?null:a.length()
-						));
+			if(!getOwner().hideAlleles)
+				{
+				boolean has_affected_cols=false;
+				int AN=-1;
+				final List<String> h = new ArrayList<>(Arrays.asList("Idx","REF","Sym","Bases","Length"));
 				if(vc.hasGenotypes())
 					{
-					Double hw =null;
-					if(!(a.isReference() || a.isNoCall()))
-						{
-						final Genotype aa = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),vc.getReference())).make();
-						final Genotype ab = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),a)).make();
-						final Genotype bb = new GenotypeBuilder("dummy", Arrays.asList(a,a)).make();
-						final int obsaa= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(aa, true)).count());
-						final int obsab= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(ab, true)).count());
-						final int obsbb= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(bb, true)).count());
-						if( obsaa + obsab + obsbb >0) 
-							{
-							hw=HardyWeinbergCalculation.hwCalculate(obsaa,obsab,obsbb);
-							if(hw<0) hw=null;
-							}
+					h.add("HW");
+					h.add("AC");
+					h.add("AN");
+					h.add("AF");
+					AN = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.isCalled()).count();
 					
-						}
-					
-					r.add(hw);
-					
-					final int AC = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
-					r.add(AC);
-					r.add(AN);
-					r.add(AN<=0?".":String.valueOf(AC/(double)AN));
-					if(has_affected_cols)
-						{
-						int AC_aff=  (int)vc.getGenotypes().stream().filter(G->{
-									final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
-									if(p==null || !p.isAffected()) return false;
-									return true;
-									}).
-								flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
-						int AC_unaff=  (int)vc.getGenotypes().stream().filter(G->{
-							final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
-							if(p==null || !p.isUnaffected()) return false;
-							return true;
-							}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
-						r.add(AC_aff);
-						r.add(AC_unaff);
+					if(this.pedigree!=null &&
+						this.pedigree.getPersons().stream().filter(P->P.getStatus()!=Pedigree.Status.missing).findAny().isPresent()
+						) {
+						has_affected_cols=true;
+						h.add("AC_affected");
+						h.add("AC_unaffected");
 						}
 					if(this.pedigree!=null ) {
-						int AC_male=  (int)vc.getGenotypes().stream().filter(G->{
-							final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
-							if(p==null || !p.isMale()) return false;
-							return true;
-							}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
-						int AC_female=  (int)vc.getGenotypes().stream().filter(G->{
-							final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
-							if(p==null || !p.isFemale()) return false;
-							return true;
-							}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
-						r.add(AC_male);
-						r.add(AC_female);
+						h.add("AC_male");
+						h.add("AC_female");
 						}
-					}
-				t.addList(r);
-			 	}
-			t.print(margin,out);
-			}
-		
-		if(!this.hideFilters)
-			{
-			/* FILTER */
-			final	Table t=new Table("Filter").setCaption("FILTERS");
-			 for(final String f:vc.getFilters())
-			 	{
-				t.addRow(this.useANSIColors?new Colored(f, AnsiColor.YELLOW):f);
-			 	}
-			t.print(margin,out);
-			}
-		
-		if(!this.hideInfo)
-			{		
-			/* INFO */
-			final Table t=new Table("key","Index","Value").setCaption("INFO");
-			final Map<String,Object> atts = vc.getAttributes();
-			for(final String key: new TreeSet<>(atts.keySet()))
-				{
-				if(key.equals(this.vcfTools.getVepPredictionParser().getTag()) && this.vcfTools.getVepPredictionParser().isValid()) continue;
-				if(key.equals(this.vcfTools.getAnnPredictionParser().getTag()) && this.vcfTools.getAnnPredictionParser().isValid()) continue;
-				Object v= atts.get(key);
-				final List<?> L;
-				if(v instanceof List)
-					{
-					L=(List<?>)v;
-					}
-				else if(v.getClass().isArray())
-					{
-					Object a[]=(Object[])v;
-					L=Arrays.asList(a);
-					}
-				else
-					{
-					L=Collections.singletonList(v);
-					}
-				for(int x=0;x< L.size();++x)
-					{
-					t.addRow(key,(L.size()==1?null:x+1),L.get(x));
-					}
-				}
-			t.print(margin,out);
-			}
-				
-			/** VEP */
-			if(!this.hidePredictions && this.vcfTools.getVepPredictionParser().isValid())
-				{
-				final List<String> cats = new ArrayList<>(this.vcfTools.getVepPredictionParser().getCategories());
-				
-				final Table t = new Table(cats).setCaption("VEP");
-				for(VepPrediction pred: this.vcfTools.getVepPredictionParser().getPredictions(vc))
-					{
-					final List<Object> r=new ArrayList<>();
-					for(final String cat:cats) {
-						r.add(pred.get(cat));
-						}
-					t.addList(r);
-					}
-				t.removeEmptyColumns();
-				t.print(margin,out);
-				}
-
-				
-			/** ANN */
-			if(!this.hidePredictions && this.vcfTools.getAnnPredictionParser().isValid())
-				{
-				Table t = new Table("SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",
-						"BioType","HGVsc","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
-				
-				for(final AnnPrediction P: this.vcfTools.getAnnPredictionParser().getPredictions(vc)) {
-					final List<Object> r=new ArrayList<>();
-					r.add(P.getSOTermsString());
-					r.add(P.getAllele());
-					r.add(	
-								!useANSIColors || P.getPutativeImpact()==null ||P.getPutativeImpact().equals(AnnPredictionParser.Impact.UNDEFINED) || P.getPutativeImpact().equals(AnnPredictionParser.Impact.LOW)? 
-								P.getPutativeImpact():
-								new Colored(P.getPutativeImpact(), AnsiColor.RED)
-								);
-					r.add(P.getGeneName());
-					r.add(P.getGeneId());
-					r.add(P.getFeatureType());
-					r.add(P.getFeatureId());
-					r.add(P.getTranscriptBioType());
-					r.add(P.getHGVSc());
-					r.add(P.getRank());
-					r.add(P.getCDNAPos());
-					r.add(P.getCDSPos());
-					r.add(P.getAAPos());
-					r.add(P.getDistance());
-					r.add(P.getMessages());
-					t.addList(r);
-					}			
-				t.removeEmptyColumns();
-				t.print(margin,out);
-				}
-			if(!this.hideGenotypes && vc.hasGenotypes())
-				{
-				//margin = margin+ DEFAULT_MARGIN;
-				final Pattern tab = Pattern.compile("\t");
-				final Pattern colon = Pattern.compile("\\:");
-				final List<String> hds = new ArrayList<>();
-				
-				hds.add("Sample");
-				hds.add("Type");
-				
-				final int prefix_header_size = hds.size();
-				
-				hds.addAll(header.getFormatHeaderLines().
-						stream().
-						map(F->F.getID()).
-						collect(Collectors.toList())
-						);
-				final Table t=new Table(hds).setCaption("Genotypes");
-				final String tokens[]=tab.split(this.vcfEncoder.encode(vc));
-				final List<String> formats=Arrays.asList(colon.split(tokens[8]));
-				for(int i=0;i< vc.getNSamples();i++)
-					{
-					final Genotype g=vc.getGenotype(i);
-					if(this.hideHomRefGenotypes && g.isHomRef()) continue;
-					if(this.hideNoCallGenotypes && !g.isCalled()) continue;
 					
-					final List<String> gstr =Arrays.asList(colon.split(tokens[9+i]));
-					final List<Object> r= new ArrayList<>(hds.size());
-					r.add(g.getSampleName());
-					if(!useANSIColors ||
-						g.getType().equals(GenotypeType.NO_CALL) || 
-						g.getType().equals(GenotypeType.UNAVAILABLE)
-						)
+					}
+				
+				
+				 final Table t=new Table(h).
+						 setCaption("Alleles");
+				 for(final Allele a: vc.getAlleles())
+				 	{
+					final ArrayList<Object> r = new ArrayList<>(Arrays.asList(vc.getAlleleIndex(a),
+							a.isReference()?"*":"",
+							a.isSymbolic()?"*":"",
+							a.getDisplayString(),
+							a.isSymbolic()?null:a.length()
+							));
+					if(vc.hasGenotypes())
 						{
-						r.add(g.getType().name());
+						Double hw =null;
+						if(!(a.isReference() || a.isNoCall()))
+							{
+							final Genotype aa = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),vc.getReference())).make();
+							final Genotype ab = new GenotypeBuilder("dummy", Arrays.asList(vc.getReference(),a)).make();
+							final Genotype bb = new GenotypeBuilder("dummy", Arrays.asList(a,a)).make();
+							final int obsaa= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(aa, true)).count());
+							final int obsab= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(ab, true)).count());
+							final int obsbb= (int)(vc.getGenotypes().stream().filter(G->G.sameGenotype(bb, true)).count());
+							if( obsaa + obsab + obsbb >0) 
+								{
+								hw=HardyWeinbergCalculation.hwCalculate(obsaa,obsab,obsbb);
+								if(hw<0) hw=null;
+								}
+						
+							}
+						
+						r.add(hw);
+						
+						final int AC = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+						r.add(AC);
+						r.add(AN);
+						r.add(AN<=0?".":String.valueOf(AC/(double)AN));
+						if(has_affected_cols)
+							{
+							int AC_aff=  (int)vc.getGenotypes().stream().filter(G->{
+										final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+										if(p==null || !p.isAffected()) return false;
+										return true;
+										}).
+									flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+							int AC_unaff=  (int)vc.getGenotypes().stream().filter(G->{
+								final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+								if(p==null || !p.isUnaffected()) return false;
+								return true;
+								}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+							r.add(AC_aff);
+							r.add(AC_unaff);
+							}
+						if(this.pedigree!=null ) {
+							int AC_male=  (int)vc.getGenotypes().stream().filter(G->{
+								final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+								if(p==null || !p.isMale()) return false;
+								return true;
+								}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+							int AC_female=  (int)vc.getGenotypes().stream().filter(G->{
+								final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+								if(p==null || !p.isFemale()) return false;
+								return true;
+								}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
+							r.add(AC_male);
+							r.add(AC_female);
+							}
 						}
-					else if(g.getType().equals(GenotypeType.HOM_REF))
+					t.addList(r);
+				 	}
+				this.writeTable(margin, t);
+				}
+			
+			if(!getOwner().hideFilters)
+				{
+				/* FILTER */
+				final	Table t=new Table("Filter").setCaption("FILTERS");
+				 for(final String f:vc.getFilters())
+				 	{
+					t.addRow(getOwner().useANSIColors?new Colored(f, AnsiColor.YELLOW):f);
+				 	}
+				 this.writeTable(margin, t);
+				}
+			
+			if(!getOwner().hideInfo)
+				{		
+				/* INFO */
+				final Table t=new Table("key","Index","Value").setCaption("INFO");
+				final Map<String,Object> atts = vc.getAttributes();
+				for(final String key: new TreeSet<>(atts.keySet()))
+					{
+					if(key.equals(this.vcfTools.getVepPredictionParser().getTag()) && this.vcfTools.getVepPredictionParser().isValid()) continue;
+					if(key.equals(this.vcfTools.getAnnPredictionParser().getTag()) && this.vcfTools.getAnnPredictionParser().isValid()) continue;
+					Object v= atts.get(key);
+					final List<?> L;
+					if(v instanceof List)
 						{
-						r.add(new Colored(g.getType().name(),AnsiColor.GREEN));
+						L=(List<?>)v;
 						}
-					else if(g.getType().equals(GenotypeType.HET))
+					else if(v.getClass().isArray())
 						{
-						r.add(new Colored(g.getType().name(),AnsiColor.YELLOW));
-						}
-					else if(g.getType().equals(GenotypeType.HOM_VAR))
-						{
-						r.add(new Colored(g.getType().name(),AnsiColor.RED));
+						Object a[]=(Object[])v;
+						L=Arrays.asList(a);
 						}
 					else
 						{
-						r.add(new Colored(g.getType().name(),AnsiColor.MAGENTA));
+						L=Collections.singletonList(v);
 						}
-					
-					for(int j=prefix_header_size;j< hds.size();++j)
+					for(int x=0;x< L.size();++x)
 						{
-						int indexInFORMAT = formats.indexOf(hds.get(j));
-						if( indexInFORMAT==-1 || indexInFORMAT>=gstr.size()) {
-							r.add(null);
+						t.addRow(key,(L.size()==1?null:x+1),L.get(x));
+						}
+					}
+				this.writeTable(margin, t);
+				}
+					
+				/** VEP */
+				if(!getOwner().hidePredictions && this.vcfTools.getVepPredictionParser().isValid())
+					{
+					final List<String> cats = new ArrayList<>(this.vcfTools.getVepPredictionParser().getCategories());
+					
+					final Table t = new Table(cats).setCaption("VEP");
+					for(VepPrediction pred: this.vcfTools.getVepPredictionParser().getPredictions(vc))
+						{
+						final List<Object> r=new ArrayList<>();
+						for(final String cat:cats) {
+							r.add(pred.get(cat));
+							}
+						t.addList(r);
+						}
+					t.removeEmptyColumns();
+					this.writeTable(margin, t);
+					}
+
+					
+				/** ANN */
+				if(!getOwner().hidePredictions && this.vcfTools.getAnnPredictionParser().isValid())
+					{
+					Table t = new Table("SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",
+							"BioType","HGVsc","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
+					
+					for(final AnnPrediction P: this.vcfTools.getAnnPredictionParser().getPredictions(vc)) {
+						final List<Object> r=new ArrayList<>();
+						r.add(P.getSOTermsString());
+						r.add(P.getAllele());
+						r.add(	
+									!useANSIColors || P.getPutativeImpact()==null ||P.getPutativeImpact().equals(AnnPredictionParser.Impact.UNDEFINED) || P.getPutativeImpact().equals(AnnPredictionParser.Impact.LOW)? 
+									P.getPutativeImpact():
+									new Colored(P.getPutativeImpact(), AnsiColor.RED)
+									);
+						r.add(P.getGeneName());
+						r.add(P.getGeneId());
+						r.add(P.getFeatureType());
+						r.add(P.getFeatureId());
+						r.add(P.getTranscriptBioType());
+						r.add(P.getHGVSc());
+						r.add(P.getRank());
+						r.add(P.getCDNAPos());
+						r.add(P.getCDSPos());
+						r.add(P.getAAPos());
+						r.add(P.getDistance());
+						r.add(P.getMessages());
+						t.addList(r);
+						}			
+					t.removeEmptyColumns();
+					this.writeTable(margin, t);
+					}
+				if(!getOwner().hideGenotypes && vc.hasGenotypes())
+					{
+					//margin = margin+ DEFAULT_MARGIN;
+					final Pattern tab = Pattern.compile("\t");
+					final Pattern colon = Pattern.compile("\\:");
+					final List<String> hds = new ArrayList<>();
+					
+					hds.add("Sample");
+					hds.add("Type");
+					
+					final int prefix_header_size = hds.size();
+					
+					hds.addAll(header.getFormatHeaderLines().
+							stream().
+							map(F->F.getID()).
+							collect(Collectors.toList())
+							);
+					final Table t=new Table(hds).setCaption("Genotypes");
+					final String tokens[]=tab.split(this.vcfEncoder.encode(vc));
+					final List<String> formats=Arrays.asList(colon.split(tokens[8]));
+					for(int i=0;i< vc.getNSamples();i++)
+						{
+						final Genotype g=vc.getGenotype(i);
+						if(getOwner().hideHomRefGenotypes && g.isHomRef()) continue;
+						if(getOwner().hideNoCallGenotypes && !g.isCalled()) continue;
+						
+						final List<String> gstr =Arrays.asList(colon.split(tokens[9+i]));
+						final List<Object> r= new ArrayList<>(hds.size());
+						r.add(g.getSampleName());
+						if(!useANSIColors ||
+							g.getType().equals(GenotypeType.NO_CALL) || 
+							g.getType().equals(GenotypeType.UNAVAILABLE)
+							)
+							{
+							r.add(g.getType().name());
+							}
+						else if(g.getType().equals(GenotypeType.HOM_REF))
+							{
+							r.add(new Colored(g.getType().name(),AnsiColor.GREEN));
+							}
+						else if(g.getType().equals(GenotypeType.HET))
+							{
+							r.add(new Colored(g.getType().name(),AnsiColor.YELLOW));
+							}
+						else if(g.getType().equals(GenotypeType.HOM_VAR))
+							{
+							r.add(new Colored(g.getType().name(),AnsiColor.RED));
 							}
 						else
 							{
-							r.add(gstr.get(indexInFORMAT));
+							r.add(new Colored(g.getType().name(),AnsiColor.MAGENTA));
 							}
+						
+						for(int j=prefix_header_size;j< hds.size();++j)
+							{
+							int indexInFORMAT = formats.indexOf(hds.get(j));
+							if( indexInFORMAT==-1 || indexInFORMAT>=gstr.size()) {
+								r.add(null);
+								}
+							else
+								{
+								r.add(gstr.get(indexInFORMAT));
+								}
+							}
+						t.addList(r);
 						}
-					t.addList(r);
+					t.removeEmptyColumns();
+					this.writeTable(margin, t);
+					
+					
+					
+					if(this.pedigree!=null) {
+						final Function<Genotype,String> genotype2str = G->
+							G.getAlleles().stream().
+								map(A->A.isNoCall()?Allele.NO_CALL_STRING:String.valueOf(vc.getAlleleIndex(A))).
+								collect(Collectors.joining(G.isPhased()?"|":"/"))
+							;
+							
+						final Table t2=new Table(
+								"Father-ID",
+								"Father-GT",
+								"Mother-ID",
+								"Mother-GT",
+								"Child-ID",
+								"Child-GT",
+								"Incompat."
+								).setCaption("TRIOS");
+						for(final String childId:this.header.getSampleNamesInOrder())
+							{
+							final Pedigree.Person child = this.pedigree.getPersonById(childId);
+							if(child==null) continue;
+							final Genotype gc = vc.getGenotype(childId);
+							if(gc==null) continue;
+							
+							final  Pedigree.Person father= child.getFather();
+							final Genotype gf =  (father==null?null:vc.getGenotype(father.getId()));
+							
+							final  Pedigree.Person mother= child.getMother();
+							final Genotype gm =  (mother==null?null:vc.getGenotype(mother.getId()));
+							
+							if(gf==null && gm==null) continue;
+							
+							final boolean is_incompat= this.vcfTools.isMendelianIncompatibility(gc, gf, gm);
+							final Function<Object, Object> colorize = O->{
+								if(O==null || !is_incompat|| !useANSIColors) return O;
+								return new Colored(O, AnsiColor.RED);
+								};
+							
+							final List<Object> r= new ArrayList<>();
+							r.add(father==null?null:colorize.apply(father.getId()));
+							r.add(gf==null?null:colorize.apply(genotype2str.apply(gf)));
+							r.add(mother==null?null:colorize.apply(mother.getId()));
+							r.add(gm==null?null:colorize.apply(genotype2str.apply(gm)));
+							r.add(colorize.apply(child.getId()));
+							r.add(colorize.apply(genotype2str.apply(gc)));
+							r.add(is_incompat?colorize.apply("*"):null);
+							
+							
+							t2.addList(r);
+							}
+						this.writeTable(margin, t2);
+						
 					}
-				t.removeEmptyColumns();
-				t.print(margin,out);
-				
-				
-				
-				if(this.pedigree!=null) {
-					final Function<Genotype,String> genotype2str = G->
-						G.getAlleles().stream().
-							map(A->A.isNoCall()?Allele.NO_CALL_STRING:String.valueOf(vc.getAlleleIndex(A))).
-							collect(Collectors.joining(G.isPhased()?"|":"/"))
-						;
-						
-					final Table t2=new Table(
-							"Father-ID",
-							"Father-GT",
-							"Mother-ID",
-							"Mother-GT",
-							"Child-ID",
-							"Child-GT",
-							"Incompat."
-							).setCaption("TRIOS");
-					for(final String childId:this.header.getSampleNamesInOrder())
-						{
-						final Pedigree.Person child = this.pedigree.getPersonById(childId);
-						if(child==null) continue;
-						final Genotype gc = vc.getGenotype(childId);
-						if(gc==null) continue;
-						
-						final  Pedigree.Person father= child.getFather();
-						final Genotype gf =  (father==null?null:vc.getGenotype(father.getId()));
-						
-						final  Pedigree.Person mother= child.getMother();
-						final Genotype gm =  (mother==null?null:vc.getGenotype(mother.getId()));
-						
-						if(gf==null && gm==null) continue;
-						
-						final boolean is_incompat= this.vcfTools.isMendelianIncompatibility(gc, gf, gm);
-						final Function<Object, Object> colorize = O->{
-							if(O==null || !is_incompat|| !useANSIColors) return O;
-							return new Colored(O, AnsiColor.RED);
-							};
-						
-						final List<Object> r= new ArrayList<>();
-						r.add(father==null?null:colorize.apply(father.getId()));
-						r.add(gf==null?null:colorize.apply(genotype2str.apply(gf)));
-						r.add(mother==null?null:colorize.apply(mother.getId()));
-						r.add(gm==null?null:colorize.apply(genotype2str.apply(gm)));
-						r.add(colorize.apply(child.getId()));
-						r.add(colorize.apply(genotype2str.apply(gc)));
-						r.add(is_incompat?colorize.apply("*"):null);
-						
-						
-						t2.addList(r);
+					
+					
+					
+					}
+				this.println("<<"+variantName+" (n. "+countVariants+")");
+				this.println();
+				this.println();				
+				}
+			
+			
+			}
+		
+		private class TerminalViewer extends AbstractViewer
+			{
+			private PrintStream out= System.out;
+			
+			@Override
+			void writeTable(final String margin,final Table t) {
+				t.print(margin,this.out);
+				}
+			
+			@Override
+			void println(String s)
+				{
+				this.out.println(s);
+				}
+			
+			@Override
+			void println() {
+				out.println();
+				}
+
+			
+			@Override
+			public void writeHeader(final VCFHeader header)
+				{
+				if(getOwner().outputFile!=null) {
+					try {
+						this.out = new PrintStream(IOUtils.openFileForWriting(getOwner().outputFile));
+					} catch (final IOException e) {
+						throw new RuntimeIOException(e);
 						}
 					
-					t2.print(margin,out);
+					}
+				super.writeHeader(header);
 				}
-				
-				
-				
+			
+			
+			@Override
+			public boolean checkError() {
+				if(out==null) return true;
+				return out.checkError();
 				}
-			out.println("<<"+variantName+" (n. "+countVariants+")");
-			out.println();
-			out.println();
+			@Override
+			public void close() {
+				if(out==null) return;
+				out.flush();
+				out.close();
+				out=null;
+				}
+			}
+
+		private class HtmlViewer extends AbstractViewer
+			{
+			XMLStreamWriter out=null;
+			@Override
+			public void writeHeader(final VCFHeader header)
+				{
+				try {
+					final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+					if(getOwner().outputFile==null)
+						{
+						this.out = xof.createXMLStreamWriter(System.out, "UTF-8");
+						}
+					else
+						{
+						this.out = xof.createXMLStreamWriter(new StreamResult(getOwner().outputFile));
+						}
+					this.out.writeStartElement("div");//main-div
+					this.out.writeStartElement("div");//header
+					this.out.writeComment("BEGIN VCF HEADER");
+					}
+				catch(XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				
+				super.writeHeader(header);
+				try {
+					this.out.writeComment("END VCF HEADER");
+					this.out.writeEndElement();//header
+					this.out.writeStartElement("div");//div-variants
+					}
+				catch(XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				}
+			@Override
+			public void close()
+				{
+				if(this.out==null) return;
+				try {
+					this.out.writeEndElement();//div-variants
+					this.out.writeEndElement();//main-div
+					this.out.flush();
+					this.out.close();
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				out=null;
+				}
+			@Override
+			void println()
+				{
+				try {
+					this.out.writeEmptyElement("br");
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				}
+			@Override
+			void println(final String s)
+				{
+				try {
+					this.out.writeStartElement("p");
+					this.out.writeCharacters(s==null?"":s);
+					this.out.writeEndElement();
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				}
+			@Override
+			void writeTable(String margin, final Table t)
+				{
+				try {
+					
+					t.write(this.out);
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				}
+			@Override
+			public boolean checkError()
+				{
+				if(this.out==null) return true;
+				return false;
+				}
+			}
+
+		
+		
+		VcfToTableViewer() {
+			}
+		@Override
+		public void writeHeader(final VCFHeader header) {
+			if(this.delegate!=null) throw new IllegalStateException(); 
+			switch(this.outputFormat)
+				{
+				case html: this.delegate = new HtmlViewer();break;
+				default: this.delegate = new TerminalViewer();break;
+				}
+			
+			this.delegate.writeHeader(header);
+			}
+		@Override
+		public void add(final VariantContext vc) {
+			if(this.delegate==null) return ; 
+			this.delegate.add(vc);
 			}
 		@Override
 		public boolean checkError() {
-			if(out==null) return true;
-			return out.checkError();
+			if(this.delegate==null) return true;
+			return this.delegate.checkError();
 			}
 		@Override
 		public void close() {
-			if(out==null) return;
-			out.flush();
-			out.close();
-			out=null;
+			if(this.delegate==null) return;
+			this.delegate.close();
+			this.delegate=null;
 			}
 		}
 	
 	
 	@ParametersDelegate
-	private TerminalViewer  viewer = new TerminalViewer();
+	private VcfToTableViewer  viewer = new VcfToTableViewer();
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		VcfIterator in = null;
 		
 		
@@ -972,7 +1221,7 @@ public class VcfToTable extends Launcher {
 				{
 				viewer.add(in.next());
 				}
-			viewer.out.close();viewer.out=null;
+			viewer.close();viewer=null;
 			in.close();in=null;
 			return 0;
 		} catch (Exception err) {
