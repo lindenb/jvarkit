@@ -214,6 +214,15 @@ Samples
 
 (...)
 ```
+
+### Html output:
+
+
+```
+$ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
+```
+
+
 END_DOC
 
 ## History
@@ -425,7 +434,7 @@ public class VcfToTable extends Launcher {
 			
 
 			w.writeStartElement("table");
-			w.writeAttribute("style","border-collapse: collapse; border: 1px solid black;");
+			w.writeAttribute("class","minimalistBlack");
 			w.writeStartElement("thead");
 			w.writeStartElement("caption");
 			writeText(w,this.caption);
@@ -507,13 +516,15 @@ public class VcfToTable extends Launcher {
 		private boolean hidePredictions=false;
 		@Parameter(names={"--format"},description="[20171020] output format.")
 		private OutputFormat outputFormat=OutputFormat.text;
+		@Parameter(names={"--no-html-header"},description="[20171023] ignore html header for HTML output.")
+		private boolean hideHtmlHeader=false;
 		
 		private AbstractViewer delegate=null;
 		
 		
 		private abstract class AbstractViewer implements VariantContextWriter
 			{
-			private int countVariants=0;
+			protected int countVariants=0;
 			private VCFHeader header=null;
 			private VCFEncoder vcfEncoder=null;
 			private Pedigree pedigree = null;
@@ -527,6 +538,8 @@ public class VcfToTable extends Launcher {
 		
 			abstract void println(String s);
 			abstract void println();
+			abstract void startVariant(final VariantContext ctx);
+			abstract void endVariant(final VariantContext ctx);
 			
 			
 			@Override
@@ -677,9 +690,11 @@ public class VcfToTable extends Launcher {
 						}
 					}
 				
-				final String variantName=vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
+				
 				++countVariants;
-				this.println(">>"+ variantName+" (n. "+countVariants+")");
+				
+				startVariant(vc);
+				
 				String margin=DEFAULT_MARGIN;
 				{
 				final Table t=new Table("Key","Value").setCaption("Variant");
@@ -1018,11 +1033,15 @@ public class VcfToTable extends Launcher {
 					
 					
 					}
-				this.println("<<"+variantName+" (n. "+countVariants+")");
-				this.println();
-				this.println();				
+				this.endVariant(vc);
+				
+						
 				}
 			
+			protected String variantToString(final VariantContext vc)
+				{
+				return vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
+				}
 			
 			}
 		
@@ -1046,6 +1065,17 @@ public class VcfToTable extends Launcher {
 				out.println();
 				}
 
+			
+			
+			
+			@Override
+			void startVariant(final VariantContext ctx) {
+				this.println(">>"+ variantToString(ctx) +" (n. "+countVariants+")");
+				}
+			@Override
+			void endVariant(final VariantContext ctx) {
+				this.println("<<"+variantToString(ctx)+" (n. "+countVariants+")");				
+				}
 			
 			@Override
 			public void writeHeader(final VCFHeader header)
@@ -1079,6 +1109,11 @@ public class VcfToTable extends Launcher {
 		private class HtmlViewer extends AbstractViewer
 			{
 			XMLStreamWriter out=null;
+			
+			protected String getCssStyle() {
+				return "table.minimalistBlack { border: 1px solid #000000; text-align: left; border-collapse: collapse; } table.minimalistBlack td, table.minimalistBlack th { border: 1px solid #000000; padding: 5px 2px; } table.minimalistBlack tbody td { font-size: 13px; } table.minimalistBlack thead { background: #CFCFCF; background: -moz-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: -webkit-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: linear-gradient(to bottom, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); border-bottom: 2px solid #000000; } table.minimalistBlack thead th { font-size: 15px; font-weight: bold; color: #000000; text-align: left; } table.minimalistBlack tfoot td { font-size: 14px; } ";
+				}
+			
 			@Override
 			public void writeHeader(final VCFHeader header)
 				{
@@ -1092,6 +1127,23 @@ public class VcfToTable extends Launcher {
 						{
 						this.out = xof.createXMLStreamWriter(new StreamResult(getOwner().outputFile));
 						}
+					
+					if(!getOwner().hideHtmlHeader) {
+						out.writeStartElement("html");
+						out.writeStartElement("head");
+						
+						out.writeStartElement("title");
+						out.writeCharacters("VcfToTable");
+						out.writeEndElement();//title
+						
+						out.writeStartElement("style");
+						out.writeCharacters(getCssStyle());
+						out.writeEndElement();//style
+						
+						out.writeEndElement();//head
+						out.writeStartElement("body");
+						}
+					
 					this.out.writeStartElement("div");//main-div
 					this.out.writeStartElement("div");//header
 					this.out.writeComment("BEGIN VCF HEADER");
@@ -1117,8 +1169,18 @@ public class VcfToTable extends Launcher {
 				{
 				if(this.out==null) return;
 				try {
+					
+					
+					
 					this.out.writeEndElement();//div-variants
 					this.out.writeEndElement();//main-div
+					
+					if(!getOwner().hideHtmlHeader)
+						{
+						this.out.writeEndElement();//body
+						this.out.writeEndElement();//html
+						}
+					
 					this.out.flush();
 					this.out.close();
 					}
@@ -1170,6 +1232,53 @@ public class VcfToTable extends Launcher {
 				if(this.out==null) return true;
 				return false;
 				}
+			
+			@Override
+			void startVariant(final VariantContext ctx) {
+				try {
+					this.out.writeEmptyElement("a");
+					this.out.writeAttribute("name","vc"+this.countVariants);
+					this.out.writeStartElement("h3");
+					this.out.writeCharacters(variantToString(ctx)+" (n. "+this.countVariants+").");
+					if(this.countVariants>1)
+						{
+						this.out.writeStartElement("a");
+						this.out.writeAttribute("href", "#vc"+(this.countVariants-1));
+						this.out.writeCharacters("[prev]");
+						this.out.writeEndElement();//a
+						}
+					this.out.writeCharacters(" ");
+					this.out.writeStartElement("a");
+					this.out.writeAttribute("href", "#vc"+(this.countVariants+1));
+					this.out.writeCharacters("[next]");
+					this.out.writeEndElement();//a
+					this.out.writeEndElement();
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				
+				}
+			@Override
+			void endVariant(final VariantContext ctx) {
+				try {
+					out.writeEmptyElement("br");
+					this.out.writeCharacters(variantToString(ctx)+" (n. "+this.countVariants+"). ");
+					
+					this.out.writeStartElement("a");
+					this.out.writeAttribute("href", "#vc"+(this.countVariants));
+					this.out.writeCharacters("[top]");
+					this.out.writeEndElement();//a
+					
+					out.writeEmptyElement("hr");
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}				
+				}
+			
 			}
 
 		

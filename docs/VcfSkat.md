@@ -31,6 +31,9 @@ Usage: vcfskat [options] Files
     --skat-adjusted
       SKAT adjusted
       Default: false
+    --skat-num-retry
+      compute n-times the p-value
+      Default: 1
     --skat-optimized
       SKAT optimized (SKATO)/ davies method.
       Default: false
@@ -95,7 +98,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
-
+Fri Oct 20 16:36:05 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/54e62cdc08a38d1685b3842d300ec30740f2788a
 ```
 
 </details>

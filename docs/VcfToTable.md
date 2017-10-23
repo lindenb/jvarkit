@@ -44,6 +44,9 @@ Usage: vcf2table [options] Files
     -L, -limit, --limit
       Limit the number of output variant. '-1' == ALL/No limit.
       Default: -1
+    --no-html-header
+      [20171023] ignore html header for HTML output.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -p, --ped, --pedigree
@@ -109,6 +112,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Sun Oct 22 21:49:32 2017 +0200 ; xml + vcf2table ; https://github.com/lindenb/jvarkit/commit/cbd605b37c5b360683935779e46cc37fcc667fee
 Wed Aug 23 06:06:58 2017 +0200 ; vcf2table check genotypes ; https://github.com/lindenb/jvarkit/commit/1ff08305fab2b5b099a04ce8af13c6bac8fdee9c
 Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
@@ -290,4 +294,13 @@ Samples
 
 (...)
 ```
+
+### Html output:
+
+
+```
+$ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
+```
+
+
 

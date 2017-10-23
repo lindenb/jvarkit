@@ -73,7 +73,7 @@ public class VcfOptimizePedForSkat extends Launcher
 	@Parameter(names={"-seed","--seed"},description="random seed; -1=currentTimeMillis")
 	private long seed=-0L;
 	@Parameter(names={"--max-results"},description="max number of results.")
-	private int max_results=10;
+	private int max_results_output=10;
 	@Parameter(names={"--max-iter"},description="max number of iterations. -1 == infinite")
 	private long max_iterations=-1L;
 	@Parameter(names={"--bootstrap"},description="bootstrap samples. Multiple list of sample separated with space, comma or semicolons")
@@ -148,7 +148,7 @@ public class VcfOptimizePedForSkat extends Launcher
 					}
 				}
 			else if(generation%5==0 && !this.bestSolutions.isEmpty()) {
-				int sol_index = this.random.nextInt(Math.min(this.max_results, this.bestSolutions.size()));
+				int sol_index = this.random.nextInt(Math.min(this.max_results_output, this.bestSolutions.size()));
 				final List<String> list =  new ArrayList<>(this.bestSolutions.get(sol_index).sampleSet);
 				if(list.size()>1 && this.random.nextBoolean())
 					{
@@ -203,6 +203,14 @@ public class VcfOptimizePedForSkat extends Launcher
 			origin="original";
 			}
 		if(generation>0 && solution.sampleSet.isEmpty()) return;
+		while(solution.sampleSet.size()> this.nSamplesRemove)
+			{
+			LOG.warn("Hum... to many for "+origin);
+			final List<String> L =  new ArrayList<>(solution.sampleSet);
+			while(L.size()>0 && L.size()> this.nSamplesRemove) L.remove(this.random.nextInt(L.size()));
+			solution.sampleSet.clear();
+			solution.sampleSet.addAll(L);
+			}
 		if(this.bestSolutions.contains(solution)) return;
 		solution.origin = origin;
 		
@@ -227,13 +235,13 @@ public class VcfOptimizePedForSkat extends Launcher
 			while(this.bestSolutions.size()>BUFFER_RESULT) {
 				this.bestSolutions.remove(this.bestSolutions.size()-1);
 				}
-			if(this.bestSolutions.indexOf(solution)<this.max_results) {
+			if(this.bestSolutions.indexOf(solution)<this.max_results_output) {
 				
 				final StringBuilder sb=new StringBuilder();
 				sb.append(">>> ").append(generation).append("\n");
 				
 				this.bestSolutions.stream().
-					limit(this.max_results).
+					limit(this.max_results_output).
 					forEach(S->sb.append(S).append("\n"));
 				sb.append("<<< ").append(generation).append("\n");
 				
