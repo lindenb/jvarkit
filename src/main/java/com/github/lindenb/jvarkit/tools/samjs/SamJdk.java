@@ -211,13 +211,20 @@ java -jar dist/samjdk.jar -e '
     return false;' input.bam
 ```
 
+### Example
+
+deletions larger than 1kb
+
+```
+$ java -jar dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>=1000 && (C.getOperator()==CigarOperator.N || C.getOperator()==CigarOperator.D));'  in.bam
+```
 
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183,278902}
+	biostars={270879,274183,278902,279535}
 	)
 public class SamJdk
 	extends Launcher
