@@ -29,7 +29,8 @@ Usage: samjs [options] Files
       Output file. Optional . Default: stdout
     --samoutputformat
       Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+      Default: SAM
+      Possible Values: [BAM, SAM, CRAM]
     --version
       print version and exit
 

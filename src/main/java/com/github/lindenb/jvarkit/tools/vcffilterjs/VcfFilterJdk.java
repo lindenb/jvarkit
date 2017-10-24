@@ -236,7 +236,7 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854}
+		biostars={266201,269854,277820}
 		)
 public class VcfFilterJdk
 	extends Launcher

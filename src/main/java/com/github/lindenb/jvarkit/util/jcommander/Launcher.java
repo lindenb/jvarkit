@@ -71,7 +71,6 @@ import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -626,14 +625,21 @@ public class WritingSortingCollection
 	
 	}	
 
+public static enum WritingSamReaderType
+	{
+	BAM,SAM,CRAM
+	}
+
 public class WritingBamArgs
 	{
 	private File referenceFile = null;
 	
+	
+	
 	@Parameter(names={"--bamcompression"},description="Compression Level.")
 	public int compressionLevel=5;
 	@Parameter(names={"--samoutputformat"},description="Sam output format.")
-	public htsjdk.samtools.SamReader.Type samoutputformat = htsjdk.samtools.SamReader.Type.SAM_TYPE;
+	public WritingSamReaderType samoutputformat = WritingSamReaderType.SAM;
 	
 	/** creates a SAMFileWriterFactory */
 	public htsjdk.samtools.SAMFileWriterFactory createSAMFileWriterFactory() {
@@ -671,21 +677,21 @@ public class WritingBamArgs
 		if(outputFileOrNull==null)
 			{
 			if( this.samoutputformat!=null &&
-				this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.BAM_TYPE))
+				this.samoutputformat.equals(WritingSamReaderType.BAM))
 				{
 				return sfw.makeBAMWriter(header, presorted, stdout());
 				}
-			else if(this.samoutputformat==null || this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.SAM_TYPE))
+			else if(this.samoutputformat==null || this.samoutputformat.equals(WritingSamReaderType.SAM))
 				{
 				return sfw.makeSAMWriter(header, presorted, stdout());
 				}
-			else if(this.samoutputformat==null || this.samoutputformat.equals(htsjdk.samtools.SamReader.Type.CRAM_TYPE))
+			else if(this.samoutputformat==null || this.samoutputformat.equals(WritingSamReaderType.CRAM))
 				{
 				return sfw.makeCRAMWriter(header,stdout(),getReferenceFile());
 				}
 			else
 				{
-				throw new IllegalStateException("Bad output format");
+				throw new IllegalStateException("Bad output format "+this.samoutputformat+" expected one of "+Arrays.toString(WritingSamReaderType.values()));
 				}
 			}
 		else

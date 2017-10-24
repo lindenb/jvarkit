@@ -42,6 +42,7 @@ Usage: sam2tsv [options] Files
  * [https://www.biostars.org/p/59647](https://www.biostars.org/p/59647)
  * [https://www.biostars.org/p/253828](https://www.biostars.org/p/253828)
  * [https://www.biostars.org/p/264875](https://www.biostars.org/p/264875)
+ * [https://www.biostars.org/p/277493](https://www.biostars.org/p/277493)
 
 
 ## Compilation
@@ -85,6 +86,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Oct 11 22:38:59 2017 +0200 ; add biostars 277493 ; https://github.com/lindenb/jvarkit/commit/0649c3b450c251a774a6e6085cbfc826ea150485
 Wed Oct 4 17:05:37 2017 +0200 ; reading google scholar, answers to reviewers ; https://github.com/lindenb/jvarkit/commit/871a481468fbd1877f02bc171cf080c5e1d3190f
 Thu Jul 27 16:58:18 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a8aaf2d7df89f44442b36ee1120ee4dd5c1e36e6
 Thu Jun 29 20:41:53 2017 +0200 ; start fix https://github.com/lindenb/jvarkit/issues/81 ; https://github.com/lindenb/jvarkit/commit/3758963956c9ceec249feeb4a076c98314756c14
