@@ -216,7 +216,7 @@ java -jar dist/samjdk.jar -e '
 cigar string with deletion >= 1kb
 
 ```
- java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return false; int refpos = record.getStart(); for(CigarElement ce:record.getCigar()) { CigarOperator op = ce.getOperator(); int len = ce.getLength(); if(len>=1000 && (op.equals(CigarOperator.N) || op.equals(CigarOperator.D))) { return true; } if(op.consumesReferenceBases()) refpos+=len; } return false;' in.bam
+$ java -jar dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>=1000 && (C.getOperator()==CigarOperator.N || C.getOperator()==CigarOperator.D));'  in.bam
 ```
 
 END_DOC

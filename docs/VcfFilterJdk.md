@@ -51,6 +51,7 @@ Usage: vcffilterjdk [options] Files
 
  * [https://www.biostars.org/p/266201](https://www.biostars.org/p/266201)
  * [https://www.biostars.org/p/269854](https://www.biostars.org/p/269854)
+ * [https://www.biostars.org/p/277820](https://www.biostars.org/p/277820)
 
 
 ## Compilation
@@ -94,6 +95,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Oct 24 16:02:53 2017 +0200 ; fixing a bug from samoutput format, not defined as enum in htsjdk via https://www.biostars.org/p/247485/#279521 ; https://github.com/lindenb/jvarkit/commit/50ce395e37ba198aaff7d38d8b34475ed402965e
 Fri Sep 22 14:56:29 2017 +0200 ; moving vcffilterjdk to factories ; https://github.com/lindenb/jvarkit/commit/64926d712c13592b362c6984df9f594c3cacb9f9
 Fri Sep 1 23:02:59 2017 +0200 ; add ref biostars ; https://github.com/lindenb/jvarkit/commit/18efbc16e3ec3f21d67da19dc0a43e4f5c709649
 Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
