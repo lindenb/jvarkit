@@ -211,13 +211,20 @@ java -jar dist/samjdk.jar -e '
     return false;' input.bam
 ```
 
+### Example
+
+cigar string with deletion >= 1kb
+
+```
+ java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return false; int refpos = record.getStart(); for(CigarElement ce:record.getCigar()) { CigarOperator op = ce.getOperator(); int len = ce.getLength(); if(len>=1000 && (op.equals(CigarOperator.N) || op.equals(CigarOperator.D))) { return true; } if(op.consumesReferenceBases()) refpos+=len; } return false;' in.bam
+```
 
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183,278902}
+	biostars={270879,274183,278902,279535}
 	)
 public class SamJdk
 	extends Launcher

@@ -323,6 +323,15 @@ rotavirus:130:T   0        3        1    0        0            0
 (...)
 ```
 
+## Example
+
+BED from cigar string with deletion >= 1kb
+
+```
+java -jar dist/bioalcidaejdk -e  'stream().filter(R->!R.getReadUnmappedFlag()).forEach(R->{ int refpos = R.getStart(); for(CigarElement ce:R.getCigar()) { CigarOperator op = ce.getOperator(); int len = ce.getLength(); if(len>=1000 && (op.equals(CigarOperator.N) || op.equals(CigarOperator.D))) { println(R.getContig()+"\t"+(refpos-1)+"\t"+(refpos+len)); } if(op.consumesReferenceBases())  refpos+=len; } }); ' in.bam
+```
+
+
 END_DOC
 */
 
@@ -330,7 +339,7 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars={264894,275714}
+	biostars={264894,275714,279535}
 	)
 public class BioAlcidaeJdk
 	extends Launcher

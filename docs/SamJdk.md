@@ -36,7 +36,8 @@ Usage: samjdk [options] Files
       Output file. Optional . Default: stdout
     --samoutputformat
       Sam output format.
-      Default: TypeImpl{name='SAM', fileExtension='sam', indexExtension='null'}
+      Default: SAM
+      Possible Values: [BAM, SAM, CRAM]
     --saveCodeInDir
       Save the generated java code in the following directory
     --version
@@ -60,6 +61,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/270879](https://www.biostars.org/p/270879)
  * [https://www.biostars.org/p/274183](https://www.biostars.org/p/274183)
  * [https://www.biostars.org/p/278902](https://www.biostars.org/p/278902)
+ * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
 
 
 ## Compilation
@@ -103,6 +105,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Oct 20 09:53:19 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/76b0e511e054e438c38d2157bbc0e148480288bb
 Wed Oct 4 08:45:59 2017 +0200 ; answer to bioinfo-se for samjdk ; https://github.com/lindenb/jvarkit/commit/6e147ce66a28fa3758be3b65898b9237dccdca41
 Mon Oct 2 09:16:12 2017 +0200 ; answer bioinformatics-se ; https://github.com/lindenb/jvarkit/commit/5a796015b9797e2803d01763a3d4c3cc80861c09
 Fri Sep 22 20:46:51 2017 +0200 ; https://www.biostars.org/p/274183/#274186 ; https://github.com/lindenb/jvarkit/commit/b2de07ddab29f1e6f5dc5e5dda4b746bcf1d19b5
@@ -286,5 +289,12 @@ java -jar dist/samjdk.jar -e '
     return false;' input.bam
 ```
 
+### Example
+
+cigar string with deletion >= 1kb
+
+```
+ java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return false; int refpos = record.getStart(); for(CigarElement ce:record.getCigar()) { CigarOperator op = ce.getOperator(); int len = ce.getLength(); if(len>=1000 && (op.equals(CigarOperator.N) || op.equals(CigarOperator.D))) { return true; } if(op.consumesReferenceBases()) refpos+=len; } return false;' in.bam
+```
 
 
