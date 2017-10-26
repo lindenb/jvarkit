@@ -213,7 +213,7 @@ java -jar dist/samjdk.jar -e '
 
 ### Example
 
-deletions larger than 1kb
+cigar string with deletion >= 1kb
 
 ```
 $ java -jar dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>=1000 && (C.getOperator()==CigarOperator.N || C.getOperator()==CigarOperator.D));'  in.bam

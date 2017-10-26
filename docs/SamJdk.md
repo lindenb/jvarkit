@@ -105,6 +105,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
 Fri Oct 20 09:53:19 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/76b0e511e054e438c38d2157bbc0e148480288bb
 Wed Oct 4 08:45:59 2017 +0200 ; answer to bioinfo-se for samjdk ; https://github.com/lindenb/jvarkit/commit/6e147ce66a28fa3758be3b65898b9237dccdca41
 Mon Oct 2 09:16:12 2017 +0200 ; answer bioinformatics-se ; https://github.com/lindenb/jvarkit/commit/5a796015b9797e2803d01763a3d4c3cc80861c09
@@ -291,7 +292,7 @@ java -jar dist/samjdk.jar -e '
 
 ### Example
 
-deletions larger than 1kb
+cigar string with deletion >= 1kb
 
 ```
 $ java -jar dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>=1000 && (C.getOperator()==CigarOperator.N || C.getOperator()==CigarOperator.D));'  in.bam

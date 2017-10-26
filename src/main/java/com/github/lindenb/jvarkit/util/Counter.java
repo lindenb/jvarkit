@@ -31,14 +31,32 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Counter<T>
 	{
-	private Map<T,Long> object2count=new HashMap<T,Long>();
+	private final Map<T,Long> object2count=new HashMap<T,Long>();
 	private long total=0L;
 	
+	/** default constructor */
 	public Counter()
 		{
+		}
+	
+	/** constructor with map*/
+	public Counter(final Map<T,Long> other)
+		{
+		this.object2count.putAll(other);
+		for(final Long n : this.object2count.values()) {
+			this.total+=n;
+			}
+		}
+	/** constructor with a <code>stream&lt;T&gt;</code> */
+	public Counter(final Stream<T> stream)
+		{
+		this(stream.collect(Collectors.groupingBy(Function.identity(), Collectors.counting())));
 		}
 	
 	public void initializeIfNotExists(final T key)
@@ -75,7 +93,7 @@ public class Counter<T>
 		return count;
 		}
 	
-	public void putAll(Counter<T> other)
+	public void putAll(final Counter<T> other)
 		{
 		if(this==other)  throw new IllegalArgumentException("cannot put to self");
 		for(T k: other.keySet())
@@ -154,6 +172,21 @@ public class Counter<T>
 		{
 		return this.object2count.isEmpty();
 		}
+	
+	/** convert this Counter as a List of Map.Entry<T,Long> */
+	public List<Map.Entry<T, Long>> asList() {
+		final List<Map.Entry<T, Long>> L=new ArrayList<>(this.object2count.size());
+		this.object2count.forEach((K,V)->{
+			L.add(new java.util.AbstractMap.SimpleEntry<T,Long>(K,V));
+			});
+		return L;
+		}
+	
+	/** convert this Counter as Stream<Map.Entry<T,Long>> */
+	public Stream<Map.Entry<T, Long>> stream() {
+		return asList().stream();
+		}
+
 	
 	@Override
 	public String toString() {

@@ -48,6 +48,7 @@ Usage: bioalcidaejdk [options] Files
 
  * [https://www.biostars.org/p/264894](https://www.biostars.org/p/264894)
  * [https://www.biostars.org/p/275714](https://www.biostars.org/p/275714)
+ * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
 
 
 ## Compilation
@@ -374,5 +375,14 @@ rotavirus:91:A    0        3        1    0        0            0
 rotavirus:130:T   0        3        1    0        0            0
 (...)
 ```
+
+## Example
+
+BED from cigar string with deletion >= 1kb
+
+```
+java -jar dist/bioalcidaejdk -e  'stream().filter(R->!R.getReadUnmappedFlag()).forEach(R->{ int refpos = R.getStart(); for(CigarElement ce:R.getCigar()) { CigarOperator op = ce.getOperator(); int len = ce.getLength(); if(len>=1000 && (op.equals(CigarOperator.N) || op.equals(CigarOperator.D))) { println(R.getContig()+"\t"+(refpos-1)+"\t"+(refpos+len)); } if(op.consumesReferenceBases())  refpos+=len; } }); ' in.bam
+```
+
 
 

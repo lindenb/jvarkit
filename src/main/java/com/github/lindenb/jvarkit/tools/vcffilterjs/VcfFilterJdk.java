@@ -48,6 +48,7 @@ import javax.xml.bind.annotation.XmlType;
 
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
@@ -242,6 +243,7 @@ public class VcfFilterJdk
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfFilterJdk.class).make();
+	private static final Counter<?> _fool_javac=null;
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
