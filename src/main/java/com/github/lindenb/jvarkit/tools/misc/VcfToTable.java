@@ -61,6 +61,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -260,24 +261,169 @@ public class VcfToTable extends Launcher {
     	final int opcode;
     	}
 
-	private static class Colored
+	
+	private static abstract class Decorator
 		{
 		final Object o;
-		final AnsiColor color;
-		Colored(final Object o,final AnsiColor color) { this.o=o;this.color=color;}
-		public String start() {
-			if(o==null || color==null) return "";
-			return ANSI_ESCAPE+this.color.opcode+"m";
-			}
-		public String end()
+		Decorator(final Object o)
 			{
-			if(o==null || color==null) return "";
-			return ANSI_RESET;
+			this.o = o;
+			}
+		void beginXml(XMLStreamWriter w) throws XMLStreamException  {}
+		void endXml(XMLStreamWriter w) throws XMLStreamException  {}
+		
+		void writeXml(XMLStreamWriter w) throws XMLStreamException
+			{
+			if(o==null) {
+				return;
+				}
+			else if(o instanceof Decorator)
+				{
+				final Decorator xo=Decorator.class.cast(o);
+				beginXml(w);
+				xo.writeXml(w);
+				endXml(w);
+				}
+			else
+				{
+				final String s= this.toString();
+				if(!StringUtil.isBlank(s)) {
+					beginXml(w);
+					w.writeCharacters(s);
+					endXml(w);
+					}
+				}
+			}
+		public String start() { return "";}
+		public String end() { return "";}
+		void print(final PrintStream out) {
+			if(o==null) {
+				return;
+				}
+			else if(o instanceof Decorator)
+				{
+				final Decorator xo=Decorator.class.cast(o);
+				out.print(start());
+				xo.print(out);
+				out.print(end());
+				}
+			else
+				{
+				final String s= this.toString();
+				if(!StringUtil.isBlank(s)) {
+					out.print(start());
+					out.print(o.toString());
+					out.print(end());
+					}
+				}
 			}
 		
 		@Override
 		public String toString() {
 			return o==null?"":o.toString();
+			}
+		}
+	
+	private static class HyperlinkDecorator extends Decorator
+		{
+		HyperlinkDecorator(final Object o) {
+			super(o);
+			}
+		
+		protected String getURL()  	{
+			final String str= this.toString();
+			if(StringUtil.isBlank(str)) return null;
+			if(Pattern.compile("rs[0-9]+").matcher(str.toLowerCase()).matches())
+				{
+				return "https://www.ncbi.nlm.nih.gov/projects/SNP/snp_ref.cgi?rs="+str.substring(2);
+				}
+			else if(Pattern.compile("ENS[TPG][0-9]+").matcher(str.toUpperCase()).matches())
+				{
+				return "http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q="+str.toUpperCase()+";species=;site=ensembl";
+				}
+			return null;
+			}
+		@Override
+		void beginXml(final XMLStreamWriter w) throws XMLStreamException {
+			final String u = this.getURL();
+			if(StringUtil.isBlank(u)) return;
+			w.writeStartElement("a");
+			w.writeAttribute("title",this.toString());
+			w.writeAttribute("target","_blank");
+			w.writeAttribute("href",u);
+			}
+		@Override
+		void endXml(final XMLStreamWriter w) throws XMLStreamException {
+			final String u = this.getURL();
+			if(StringUtil.isBlank(u)) return;
+			w.writeEndElement();
+			}
+		}
+	
+	
+	private static class SODecorator extends Decorator
+		{
+		SODecorator(final String s)
+			{
+			super(s);
+			}
+		@Override
+		void writeXml(XMLStreamWriter w) throws XMLStreamException {
+			final String str= this.toString();
+			if(StringUtil.isBlank(str)) return;
+			final String tokens[]=str.split("[;]");
+			for(int i=0;i< tokens.length;i++)
+				{
+				if(i>0) w.writeCharacters("; ");
+				final String s=tokens[i];
+				if(StringUtil.isBlank(s)) continue;
+				w.writeStartElement("a");
+				w.writeAttribute("href","http://www.sequenceontology.org/browser/obob.cgi?release=current_svn&rm=term_list&obo_query="+s);
+				w.writeAttribute("target","_blank");
+				w.writeAttribute("title",s);
+				w.writeCharacters(s);
+				w.writeEndElement();//a
+				}
+			}
+		}
+	
+	private static class GenelinkDecorator extends HyperlinkDecorator
+		{
+		GenelinkDecorator(final String gene) {
+			super(gene);
+			}
+		protected String getURL() {
+			String u= super.getURL();
+			if(!StringUtil.isBlank(u)) return u;
+			final String str= this.toString();
+			if(StringUtil.isBlank(str)) return null;
+			return "https://www.ncbi.nlm.nih.gov/gene/?term="+str;
+			}
+		}
+	
+	private static class ColoredDecorator extends Decorator
+		{
+		final AnsiColor color;
+		ColoredDecorator(final Object o,final AnsiColor color) {super(o);this.color=color;}
+		@Override public String start() {
+			if(o==null || color==null) return "";
+			return ANSI_ESCAPE+this.color.opcode+"m";
+			}
+		@Override public String end()
+			{
+			if(o==null || color==null) return "";
+			return ANSI_RESET;
+			}
+		@Override
+		void beginXml(final XMLStreamWriter w) throws XMLStreamException {
+			if(o==null || color==null) return;
+			w.writeStartElement("span");
+			w.writeAttribute("style", "color:"+this.color.name().toLowerCase());
+			}
+		@Override
+		void endXml(final XMLStreamWriter w) throws XMLStreamException {
+			if(o==null || color==null) return;
+			w.writeEndElement();
 			}
 		}
 
@@ -408,9 +554,14 @@ public class VcfToTable extends Launcher {
 					final Object cell = row.get(i);
 					final String str=  cell==null?"":cell.toString();
 					out.print(" ");
-					if(cell instanceof Colored) out.print(Colored.class.cast(cell).start());
-					out.print(str);
-					if(cell instanceof Colored) out.print(Colored.class.cast(cell).end());
+					if( cell instanceof Decorator)
+						{
+						Decorator.class.cast(cell).print(out);
+						}
+					else
+						{
+						out.print(str);
+						}
 					for(int j=str.length();j< this.columns.get(i).maxLength;j++) out.print(' ');
 					out.print(" |");
 					}
@@ -463,16 +614,14 @@ public class VcfToTable extends Launcher {
 					final Object cell = row.get(i);
 					final String str=  cell==null?"":cell.toString();
 					
-					if(cell instanceof Colored) 
+					if(cell instanceof Decorator) 
 						{
-						w.writeStartElement("span");
-						w.writeAttribute("style", "color:"+Colored.class.cast(cell).color.name().toLowerCase()+";");
+						Decorator.class.cast(cell).writeXml(w);
 						}
-					writeText(w,str);
-					if(cell instanceof Colored) {
-						w.writeEndElement();//span
+					else
+						{
+						writeText(w,str);
 						}
-					
 					w.writeEndElement();//td
 					}
 				w.writeEndElement();//tr
@@ -701,12 +850,12 @@ public class VcfToTable extends Launcher {
 				t.addRow("CHROM",vc.getContig());
 				t.addRow("POS",vc.getStart());
 				t.addRow("end",vc.getEnd());
-				t.addRow("ID",vc.hasID()?vc.getID():".");
+				t.addRow("ID",vc.hasID()?new HyperlinkDecorator(vc.getID()):".");
 				t.addRow("REF",vc.getReference().getDisplayString());
 				t.addRow("ALT",vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
 				t.addRow("QUAL",vc.hasLog10PError()?vc.getPhredScaledQual():null);
 				final String filterStr=vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null;
-				t.addRow("FILTER",filterStr!=null && useANSIColors?new Colored(filterStr, AnsiColor.RED):filterStr);
+				t.addRow("FILTER",filterStr!=null && useANSIColors?new ColoredDecorator(filterStr, AnsiColor.RED):filterStr);
 				t.addRow("Type",vc.getType());
 				
 				
@@ -818,7 +967,7 @@ public class VcfToTable extends Launcher {
 				final	Table t=new Table("Filter").setCaption("FILTERS");
 				 for(final String f:vc.getFilters())
 				 	{
-					t.addRow(getOwner().useANSIColors?new Colored(f, AnsiColor.YELLOW):f);
+					t.addRow(getOwner().useANSIColors?new ColoredDecorator(f, AnsiColor.YELLOW):f);
 				 	}
 				 this.writeTable(margin, t);
 				}
@@ -882,17 +1031,17 @@ public class VcfToTable extends Launcher {
 					
 					for(final AnnPrediction P: this.vcfTools.getAnnPredictionParser().getPredictions(vc)) {
 						final List<Object> r=new ArrayList<>();
-						r.add(P.getSOTermsString());
+						r.add(new SODecorator(P.getSOTermsString()));
 						r.add(P.getAllele());
 						r.add(	
 									!useANSIColors || P.getPutativeImpact()==null ||P.getPutativeImpact().equals(AnnPredictionParser.Impact.UNDEFINED) || P.getPutativeImpact().equals(AnnPredictionParser.Impact.LOW)? 
 									P.getPutativeImpact():
-									new Colored(P.getPutativeImpact(), AnsiColor.RED)
+									new ColoredDecorator(P.getPutativeImpact(), AnsiColor.RED)
 									);
-						r.add(P.getGeneName());
-						r.add(P.getGeneId());
+						r.add(new GenelinkDecorator(P.getGeneName()));
+						r.add(new GenelinkDecorator(P.getGeneId()));
 						r.add(P.getFeatureType());
-						r.add(P.getFeatureId());
+						r.add(new GenelinkDecorator(P.getFeatureId()));
 						r.add(P.getTranscriptBioType());
 						r.add(P.getHGVSc());
 						r.add(P.getRank());
@@ -944,19 +1093,19 @@ public class VcfToTable extends Launcher {
 							}
 						else if(g.getType().equals(GenotypeType.HOM_REF))
 							{
-							r.add(new Colored(g.getType().name(),AnsiColor.GREEN));
+							r.add(new ColoredDecorator(g.getType().name(),AnsiColor.GREEN));
 							}
 						else if(g.getType().equals(GenotypeType.HET))
 							{
-							r.add(new Colored(g.getType().name(),AnsiColor.YELLOW));
+							r.add(new ColoredDecorator(g.getType().name(),AnsiColor.YELLOW));
 							}
 						else if(g.getType().equals(GenotypeType.HOM_VAR))
 							{
-							r.add(new Colored(g.getType().name(),AnsiColor.RED));
+							r.add(new ColoredDecorator(g.getType().name(),AnsiColor.RED));
 							}
 						else
 							{
-							r.add(new Colored(g.getType().name(),AnsiColor.MAGENTA));
+							r.add(new ColoredDecorator(g.getType().name(),AnsiColor.MAGENTA));
 							}
 						
 						for(int j=prefix_header_size;j< hds.size();++j)
@@ -1011,7 +1160,7 @@ public class VcfToTable extends Launcher {
 							final boolean is_incompat= this.vcfTools.isMendelianIncompatibility(gc, gf, gm);
 							final Function<Object, Object> colorize = O->{
 								if(O==null || !is_incompat|| !useANSIColors) return O;
-								return new Colored(O, AnsiColor.RED);
+								return new ColoredDecorator(O, AnsiColor.RED);
 								};
 							
 							final List<Object> r= new ArrayList<>();

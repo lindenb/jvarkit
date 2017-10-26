@@ -173,6 +173,21 @@ public class Counter<T>
 		return this.object2count.isEmpty();
 		}
 	
+	/** convert this Counter as a List of Map.Entry<T,Long> */
+	public List<Map.Entry<T, Long>> asList() {
+		final List<Map.Entry<T, Long>> L=new ArrayList<>(this.object2count.size());
+		this.object2count.forEach((K,V)->{
+			L.add(new java.util.AbstractMap.SimpleEntry<T,Long>(K,V));
+			});
+		return L;
+		}
+	
+	/** convert this Counter as Stream<Map.Entry<T,Long>> */
+	public Stream<Map.Entry<T, Long>> stream() {
+		return asList().stream();
+		}
+
+	
 	@Override
 	public String toString() {
 		return "Counter "+this.getTotal();
