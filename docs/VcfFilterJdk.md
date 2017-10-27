@@ -58,7 +58,7 @@ Usage: vcffilterjdk [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -95,6 +95,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Oct 25 09:48:05 2017 +0200 ; added counter<> to vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/282000fc2db2a3b69e7291a2ca74f2d88b6fbcb2
 Tue Oct 24 16:02:53 2017 +0200 ; fixing a bug from samoutput format, not defined as enum in htsjdk via https://www.biostars.org/p/247485/#279521 ; https://github.com/lindenb/jvarkit/commit/50ce395e37ba198aaff7d38d8b34475ed402965e
 Fri Sep 22 14:56:29 2017 +0200 ; moving vcffilterjdk to factories ; https://github.com/lindenb/jvarkit/commit/64926d712c13592b362c6984df9f594c3cacb9f9
 Fri Sep 1 23:02:59 2017 +0200 ; add ref biostars ; https://github.com/lindenb/jvarkit/commit/18efbc16e3ec3f21d67da19dc0a43e4f5c709649

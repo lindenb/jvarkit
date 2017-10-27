@@ -239,8 +239,10 @@ public class VcfToTable extends Launcher {
 	private static final String DEFAULT_MARGIN=" ";
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
-	
-	private enum OutputFormat {
+	public static final String DEFAULT_CSS_STYLE="table.minimalistBlack { border: 1px solid #000000; text-align: left; border-collapse: collapse; } table.minimalistBlack td, table.minimalistBlack th { border: 1px solid #000000; padding: 5px 2px; } table.minimalistBlack tbody td { font-size: 13px; } table.minimalistBlack thead { background: #CFCFCF; background: -moz-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: -webkit-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: linear-gradient(to bottom, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); border-bottom: 2px solid #000000; } table.minimalistBlack thead th { font-size: 15px; font-weight: bold; color: #000000; text-align: left; } table.minimalistBlack tfoot td { font-size: 14px; } ";
+
+	/** public: can be used by tools using vcf2table */
+	public enum OutputFormat {
 		text,html
 		}
 	
@@ -669,7 +671,7 @@ public class VcfToTable extends Launcher {
 		private boolean hideHtmlHeader=false;
 		
 		private AbstractViewer delegate=null;
-		
+		private PrintStream outputStream = System.out;
 		
 		private abstract class AbstractViewer implements VariantContextWriter
 			{
@@ -1196,7 +1198,7 @@ public class VcfToTable extends Launcher {
 		
 		private class TerminalViewer extends AbstractViewer
 			{
-			private PrintStream out= System.out;
+			private PrintStream out= VcfToTableViewer.this.outputStream;
 			
 			@Override
 			void writeTable(final String margin,final Table t) {
@@ -1260,7 +1262,7 @@ public class VcfToTable extends Launcher {
 			XMLStreamWriter out=null;
 			
 			protected String getCssStyle() {
-				return "table.minimalistBlack { border: 1px solid #000000; text-align: left; border-collapse: collapse; } table.minimalistBlack td, table.minimalistBlack th { border: 1px solid #000000; padding: 5px 2px; } table.minimalistBlack tbody td { font-size: 13px; } table.minimalistBlack thead { background: #CFCFCF; background: -moz-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: -webkit-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: linear-gradient(to bottom, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); border-bottom: 2px solid #000000; } table.minimalistBlack thead th { font-size: 15px; font-weight: bold; color: #000000; text-align: left; } table.minimalistBlack tfoot td { font-size: 14px; } ";
+				return DEFAULT_CSS_STYLE;
 				}
 			
 			@Override
@@ -1270,7 +1272,7 @@ public class VcfToTable extends Launcher {
 					final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 					if(getOwner().outputFile==null)
 						{
-						this.out = xof.createXMLStreamWriter(System.out, "UTF-8");
+						this.out = xof.createXMLStreamWriter(VcfToTableViewer.this.outputStream, "UTF-8");
 						}
 					else
 						{
@@ -1292,7 +1294,7 @@ public class VcfToTable extends Launcher {
 						out.writeEndElement();//head
 						out.writeStartElement("body");
 						}
-					
+					this.out.writeComment("BEGIN-VCF");
 					this.out.writeStartElement("div");//main-div
 					this.out.writeStartElement("div");//header
 					this.out.writeComment("BEGIN VCF HEADER");
@@ -1324,6 +1326,8 @@ public class VcfToTable extends Launcher {
 					this.out.writeEndElement();//div-variants
 					this.out.writeEndElement();//main-div
 					
+					this.out.writeComment("END-TABLE");
+					this.out.writeComment("END-VCF");
 					if(!getOwner().hideHtmlHeader)
 						{
 						this.out.writeEndElement();//body
@@ -1420,7 +1424,8 @@ public class VcfToTable extends Launcher {
 					this.out.writeCharacters("[top]");
 					this.out.writeEndElement();//a
 					
-					out.writeEmptyElement("hr");
+					this.out.writeEmptyElement("hr");
+					this.out.flush();
 					}
 				catch(final XMLStreamException err)
 					{
@@ -1431,9 +1436,45 @@ public class VcfToTable extends Launcher {
 			}
 
 		
-		
-		VcfToTableViewer() {
+		/** public, to be used in e.g; a VCF server */
+		public VcfToTableViewer() {
 			}
+		
+		/** give a chance to the class using vcf2table to change output stream */
+		public void setOutputStream(final PrintStream outputStream) {
+			this.outputStream = outputStream;
+			}
+		
+		public void setOutputFormat(final OutputFormat outputFormat) {
+			this.outputFormat = outputFormat;
+			}
+		
+		public void setHideHtmlHeader(boolean hideHtmlHeader) {
+			this.hideHtmlHeader = hideHtmlHeader;
+			}
+		
+		public void setPrintHeader(boolean printHeader) {
+			this.printHeader = printHeader;
+		}
+		
+		public void setPedigreeFile(File pedigreeFile) {
+			this.pedigreeFile = pedigreeFile;
+			}
+		
+		public void setHideHomRefGenotypes(boolean hideHomRefGenotypes) {
+			this.hideHomRefGenotypes = hideHomRefGenotypes;
+		}
+		
+		public void setHideNoCallGenotypes(boolean hideNoCallGenotypes) {
+			this.hideNoCallGenotypes = hideNoCallGenotypes;
+		}
+		public void setHideGenotypes(boolean hideGenotypes) {
+			this.hideGenotypes = hideGenotypes;
+		}
+		public void setUseANSIColors(boolean useANSIColors) {
+			this.useANSIColors = useANSIColors;
+		}
+		
 		@Override
 		public void writeHeader(final VCFHeader header) {
 			if(this.delegate!=null) throw new IllegalStateException(); 

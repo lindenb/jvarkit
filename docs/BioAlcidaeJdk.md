@@ -49,13 +49,14 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/264894](https://www.biostars.org/p/264894)
  * [https://www.biostars.org/p/275714](https://www.biostars.org/p/275714)
  * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
+ * [https://www.biostars.org/p/279942](https://www.biostars.org/p/279942)
 
 
 ## Compilation
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -92,6 +93,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
+Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
 Mon Oct 9 15:02:56 2017 +0200 ; adding tests, fixing doc ; https://github.com/lindenb/jvarkit/commit/d413e4841552cb4aa7d8eaa444704ea54e9321bd
 Mon Oct 2 15:17:44 2017 +0200 ; https://www.biostars.org/p/275714/#275724 ; https://github.com/lindenb/jvarkit/commit/2f0f3e815c57c55ef971dc7c44912d16d8e06c93
 Thu Sep 28 12:59:36 2017 +0200 ; add import sequence in bioalcidae ; https://github.com/lindenb/jvarkit/commit/57f2867e62d4acde5c99ae73b658e6a0a4652b53
@@ -383,6 +386,60 @@ BED from cigar string with deletion >= 1kb
 ```
 java -jar dist/bioalcidaejdk -e  'stream().filter(R->!R.getReadUnmappedFlag()).forEach(R->{ int refpos = R.getStart(); for(CigarElement ce:R.getCigar()) { CigarOperator op = ce.getOperator(); int len = ce.getLength(); if(len>=1000 && (op.equals(CigarOperator.N) || op.equals(CigarOperator.D))) { println(R.getContig()+"\t"+(refpos-1)+"\t"+(refpos+len)); } if(op.consumesReferenceBases())  refpos+=len; } }); ' in.bam
 ```
+
+## Example
+
+Printing the *aligned* reads in a given region of the reference (indels ignored)
+
+```java
+final String chrom = "rotavirus";
+final int start=150;
+final int end=200;
+
+stream().filter(R->!R.getReadUnmappedFlag()).
+    filter(R->R.getContig().equals(chrom) && !(R.getEnd()<start || R.getStart()>end)).
+    forEach(R->{
+
+    for(int pos=start; pos< end ;++pos)
+        {
+        char base='.';
+        int ref=R.getStart();
+        int read=0;
+        for(CigarElement ce:R.getCigar())
+            {
+            CigarOperator op=ce.getOperator();
+            switch(op)
+                {
+                case P: break;
+                case H: break;
+                case S : read+=ce.getLength(); break;
+                case D: case N: ref+=ce.getLength();break;
+                case I: read+=ce.getLength();break;
+                case EQ:case X: case M:
+                    {
+                    for(int i=0;i< ce.getLength() ;i++)
+                        {
+                        if(ref==pos)
+                            {
+                            base = R.getReadString().charAt(read);
+                            break;
+                            }
+                        if(ref>pos) break;
+                        read++;
+                        ref++;
+                        }
+                    break;
+                    }
+                default:break;
+                }
+            if(base!='.')break;
+            }
+        print(base);
+        }
+    println();
+});
+```
+
 
 
 

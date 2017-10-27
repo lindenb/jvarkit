@@ -44,6 +44,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -331,6 +332,60 @@ BED from cigar string with deletion >= 1kb
 java -jar dist/bioalcidaejdk -e  'stream().filter(R->!R.getReadUnmappedFlag()).forEach(R->{ int refpos = R.getStart(); for(CigarElement ce:R.getCigar()) { CigarOperator op = ce.getOperator(); int len = ce.getLength(); if(len>=1000 && (op.equals(CigarOperator.N) || op.equals(CigarOperator.D))) { println(R.getContig()+"\t"+(refpos-1)+"\t"+(refpos+len)); } if(op.consumesReferenceBases())  refpos+=len; } }); ' in.bam
 ```
 
+## Example
+
+Printing the *aligned* reads in a given region of the reference (indels ignored)
+
+```java
+final String chrom = "rotavirus";
+final int start=150;
+final int end=200;
+
+stream().filter(R->!R.getReadUnmappedFlag()).
+    filter(R->R.getContig().equals(chrom) && !(R.getEnd()<start || R.getStart()>end)).
+    forEach(R->{
+
+    for(int pos=start; pos< end ;++pos)
+        {
+        char base='.';
+        int ref=R.getStart();
+        int read=0;
+        for(CigarElement ce:R.getCigar())
+            {
+            CigarOperator op=ce.getOperator();
+            switch(op)
+                {
+                case P: break;
+                case H: break;
+                case S : read+=ce.getLength(); break;
+                case D: case N: ref+=ce.getLength();break;
+                case I: read+=ce.getLength();break;
+                case EQ:case X: case M:
+                    {
+                    for(int i=0;i< ce.getLength() ;i++)
+                        {
+                        if(ref==pos)
+                            {
+                            base = R.getReadString().charAt(read);
+                            break;
+                            }
+                        if(ref>pos) break;
+                        read++;
+                        ref++;
+                        }
+                    break;
+                    }
+                default:break;
+                }
+            if(base!='.')break;
+            }
+        print(base);
+        }
+    println();
+});
+```
+
+
 
 END_DOC
 */
@@ -339,7 +394,7 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars={264894,275714,279535}
+	biostars={264894,275714,279535,279942}
 	)
 public class BioAlcidaeJdk
 	extends Launcher
@@ -362,6 +417,10 @@ public class BioAlcidaeJdk
 	@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
 	private boolean user_code_is_body=false;
 
+	
+	@SuppressWarnings("unused")
+	private static final Counter<?> _fool_javac = null;
+	
     public static abstract class AbstractHandler
     	{
     	protected PrintStream out = System.out;

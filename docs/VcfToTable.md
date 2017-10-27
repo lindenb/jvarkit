@@ -75,7 +75,7 @@ Usage: vcf2table [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -112,6 +112,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
+Thu Oct 26 17:33:55 2017 +0200 ; added urls to vcf2table ; https://github.com/lindenb/jvarkit/commit/6afd4dbbd062d175325f1cda7006f112e35a719c
 Mon Oct 23 16:48:52 2017 +0200 ; vcf2table html output ; https://github.com/lindenb/jvarkit/commit/a30f3c2551dd1809ed7c311e8e276bfab4fb166a
 Sun Oct 22 21:49:32 2017 +0200 ; xml + vcf2table ; https://github.com/lindenb/jvarkit/commit/cbd605b37c5b360683935779e46cc37fcc667fee
 Wed Aug 23 06:06:58 2017 +0200 ; vcf2table check genotypes ; https://github.com/lindenb/jvarkit/commit/1ff08305fab2b5b099a04ce8af13c6bac8fdee9c

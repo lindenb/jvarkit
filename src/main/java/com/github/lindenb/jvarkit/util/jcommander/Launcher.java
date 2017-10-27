@@ -358,7 +358,7 @@ public static  class UsageBuider
 			sb.append("\n");
 			sb.append("### Requirements / Dependencies\n");
 			sb.append("\n");
-			sb.append("* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
+			sb.append("* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
 			sb.append("* GNU Make >= 3.81\n");
 			sb.append("* curl/wget\n");
 			sb.append("* git\n");

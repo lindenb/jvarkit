@@ -533,8 +533,8 @@ $(eval $(call compile-htsjdk-cmd,vcffilterjdk,${jvarkit.package}.tools.vcffilter
 $(eval $(call compile-htsjdk-cmd,samjdk,${jvarkit.package}.tools.samjs.SamJdk,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,optimizer,${jvarkit.package}.tools.optimizer.Optimizer,${jcommander.jar} ${gson.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfamalgamation,${jvarkit.package}.tools.vcfamalgation.VcfXmlAmalgamation,${jcommander.jar} ${gson.jar}  ${bigwig.jars}))
+$(eval $(call compile-htsjdk-cmd,vcfserver,${jvarkit.package}.tools.vcfserver.VcfServer,${jcommander.jar} ${jetty.jars}))
 
-#$(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.springbatch.Test01,${jcommander.jar} ${spring.batch.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfoptimizeped4skat,${jvarkit.package}.tools.skat.VcfOptimizePedForSkat,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.skat.VcfSkatSlidingWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskat,${jvarkit.package}.tools.skat.VcfSkat,${jcommander.jar}))
