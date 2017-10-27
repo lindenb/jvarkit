@@ -78,6 +78,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Oct 27 19:58:25 2017 +0200 ; text output for server ; https://github.com/lindenb/jvarkit/commit/b146971af0577da23b25d84338d608325f9432c2
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
 Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
 Fri Oct 27 13:05:17 2017 +0200 ; starting vcf server ; https://github.com/lindenb/jvarkit/commit/7a514c92bc44037f3f61538dfd1bf0147ac353af
@@ -104,5 +105,20 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example 
+
+```
+$ java -jar dist/vcfserver.jar input.vcf.gz
+
+2017-10-27 23:53:04.140:INFO::main: Logging initialized @510ms
+[INFO][VcfServer]Starting com.github.lindenb.jvarkit.tools.vcfserver.VcfServer on http://localhost:8080
+2017-10-27 23:53:04.223:INFO:oejs.Server:main: jetty-9.3.7.v20160115
+2017-10-27 23:53:04.336:INFO:oejs.ServerConnector:main: Started ServerConnector@9a8472{HTTP/1.1,[http/1.1]}{0.0.0.0:8080}
+2017-10-27 23:53:04.337:INFO:oejs.Server:main: Started @717ms
+
+```
+
 
 

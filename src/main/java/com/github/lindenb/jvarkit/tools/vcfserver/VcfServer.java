@@ -1,3 +1,28 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfserver;
 
 import java.io.Closeable;
@@ -7,9 +32,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -20,7 +44,6 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -41,10 +64,32 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextUtils;
-import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
+import htsjdk.variant.variantcontext.filter.JavascriptVariantFilter;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+
+
+/**
+
+BEGIN_DOC
+
+## Example 
+
+```
+$ java -jar dist/vcfserver.jar input.vcf.gz
+
+2017-10-27 23:53:04.140:INFO::main: Logging initialized @510ms
+[INFO][VcfServer]Starting com.github.lindenb.jvarkit.tools.vcfserver.VcfServer on http://localhost:8080
+2017-10-27 23:53:04.223:INFO:oejs.Server:main: jetty-9.3.7.v20160115
+2017-10-27 23:53:04.336:INFO:oejs.ServerConnector:main: Started ServerConnector@9a8472{HTTP/1.1,[http/1.1]}{0.0.0.0:8080}
+2017-10-27 23:53:04.337:INFO:oejs.Server:main: Started @717ms
+
+```
+
+
+END_DOC
+
+**/
 
 @Program(name="vcfserver",
 description="Web Server for vcf2table",
@@ -55,7 +100,7 @@ private static final int DEFAULT_LIMIT=100;
 private static final String REGION_PARAM="rgn";
 private static final String VCFIDX_PARAM="vcf";
 private static final String LIMIT_PARAM="limit";
-private static final String JEXL_PARAM="jexl";
+private static final String JAVASCRIPT_PARAM="js";
 private static final String SHOW_HEADER_PARAM="header";
 private static final String HIDE_NOCALL_PARAM="nc";
 private static final String HIDE_HOMREF_PARAM="hr";
@@ -83,7 +128,7 @@ private static class EscapeXmlOutputStream
 		}
 	@Override
 	public void write(int b) throws IOException {
-		if(!escape)
+		if(!this.escape)
 			{
 			super.write(b);
 			}
@@ -94,14 +139,15 @@ private static class EscapeXmlOutputStream
 				case '<': _write("&lt;");break; 
 				case '&': _write("&amp;");break; 
 				case '\'': _write("&apos;");break; 
-				case '\"': _write("&quot;");break; 
+				case '\"': _write("&quot;");break;
 				default:super.write(b); break;
 				}
 			}
 		}
 	@Override
 	public void close() throws IOException {
-		//nothing
+		flush();
+		//nothing do  not close
 		}
 	}
 
@@ -279,21 +325,25 @@ private class ViewVcfHandler extends AbstractHandler
 			
 			this.writer.writeEndElement();//span
 			//
+			{
 			//jexl
-			final String jexl = request.getParameter(JEXL_PARAM);
+			final String js = request.getParameter(JAVASCRIPT_PARAM);
 			this.writer.writeStartElement("span");
 			this.writer.writeStartElement("label");
-			this.writer.writeAttribute("for","jexl");
-			this.writer.writeCharacters("JEXL Expression");
+			this.writer.writeAttribute("for",JAVASCRIPT_PARAM);
+			this.writer.writeAttribute("title","javascript expression");
+			this.writer.writeCharacters("Javascript Expression");
 			this.writer.writeEndElement();
 			this.writer.writeCharacters(" : ");
 			
 			this.writer.writeEmptyElement("input");
-			this.writer.writeAttribute("id","jexl");
+			this.writer.writeAttribute("id",JAVASCRIPT_PARAM);
 			this.writer.writeAttribute("type","text");
-			this.writer.writeAttribute("name",JEXL_PARAM);
-			this.writer.writeAttribute("value",StringUtil.isBlank(jexl)?"":jexl);
+			this.writer.writeAttribute("placeholder","see https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/filter/JavascriptVariantFilter.html");
+			this.writer.writeAttribute("name",JAVASCRIPT_PARAM);
+			this.writer.writeAttribute("value",StringUtil.isBlank(js)?"":js);
 			this.writer.writeEndElement();//span
+			}
 			//
 			this.writer.writeEmptyElement("input");
 			this.writer.writeAttribute("type","submit");
@@ -512,18 +562,17 @@ private class ViewVcfHandler extends AbstractHandler
 					writeError("Cannot parse interval "+rgn_str);
 					return;
 					}
-				final String jex_str= this.request.getParameter(JEXL_PARAM);
+				final String js_str= this.request.getParameter(JAVASCRIPT_PARAM);
 				final Predicate<VariantContext> variantPredicate;
 				
-				if(!StringUtil.isBlank(jex_str))
+				if(!StringUtil.isBlank(js_str))
 					{
 					try
 						{
-						final List<JexlVCMatchExp> exps= VariantContextUtils.initializeMatchExps(
-								Collections.singletonList("CUSTOM"),
-								Collections.singletonList(jex_str)
-								);
-						variantPredicate = (V)-> VariantContextUtils.match(V,exps.get(0));
+						final StringReader scriptReader = new StringReader(js_str);
+						final JavascriptVariantFilter jsFilter=new JavascriptVariantFilter(scriptReader, header);
+						scriptReader.close();
+						variantPredicate = (V)-> jsFilter.test(V);
 						}
 					catch(final Exception err)
 						{
@@ -660,10 +709,10 @@ private class ViewVcfHandler extends AbstractHandler
 			{
 			delegate = new ShowVcfHandler(req,res);
 			}
-		if(delegate==null)
+		/*if(delegate==null)
 			{
 			delegate = new WelcomeHandler(req,res);
-			}
+			}*/
 		try {
 			delegate.run();
 			}
@@ -682,10 +731,11 @@ public int doWork(final List<String> args) {
 	Server server = null;
 	try
 		{
-		final List<File> vcfFiles = args.stream().
+		final List<File> vcfFiles = IOUtil.unrollFiles(args.stream().
 			map(S->new File(S)).
-			collect(Collectors.toList())
-			;
+			collect(Collectors.toList()),
+			".vcf",".vcf.gz"
+			);
 		if(vcfFiles.isEmpty())
 			{
 			LOG.error("No VCF file defined");
