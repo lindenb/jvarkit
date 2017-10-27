@@ -78,6 +78,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
 Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
 Fri Oct 27 13:05:17 2017 +0200 ; starting vcf server ; https://github.com/lindenb/jvarkit/commit/7a514c92bc44037f3f61538dfd1bf0147ac353af
 ```

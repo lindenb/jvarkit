@@ -2,7 +2,9 @@ package com.github.lindenb.jvarkit.tools.vcfserver;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -58,12 +60,51 @@ private static final String SHOW_HEADER_PARAM="header";
 private static final String HIDE_NOCALL_PARAM="nc";
 private static final String HIDE_HOMREF_PARAM="hr";
 private static final String HIDE_GENOTYPES_PARAM="gt";
+private static final String TEXT_FORMAT_PARAM="txt";
 
 @Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION+" If undefined, this tool will try to get the pedigree from the header.")
 private File pedigreeFile=null;
 
 @Parameter(names={"-P","--port","-port"},description="Server listening port")
 private int port=8080;	
+
+private static class EscapeXmlOutputStream
+	extends FilterOutputStream
+	{
+	final boolean escape;
+	EscapeXmlOutputStream(final OutputStream delegate, boolean escape)
+		{
+		super(delegate);
+		this.escape=escape;
+		}
+	private void _write(final String s) throws IOException
+		{
+		super.out.write(s.getBytes());
+		}
+	@Override
+	public void write(int b) throws IOException {
+		if(!escape)
+			{
+			super.write(b);
+			}
+		else
+			{
+			switch(b) {
+				case '>': _write("&gt;");break; 
+				case '<': _write("&lt;");break; 
+				case '&': _write("&amp;");break; 
+				case '\'': _write("&apos;");break; 
+				case '\"': _write("&quot;");break; 
+				default:super.write(b); break;
+				}
+			}
+		}
+	@Override
+	public void close() throws IOException {
+		//nothing
+		}
+	}
+
 
 private class ViewVcfHandler extends AbstractHandler
 	{
@@ -161,7 +202,21 @@ private class ViewVcfHandler extends AbstractHandler
 			this.writer.writeEndElement();//span
 			}
 
-			
+			//text output
+			{
+			this.writer.writeStartElement("span");
+			this.writer.writeEmptyElement("input");
+			this.writer.writeAttribute("id",TEXT_FORMAT_PARAM);
+			this.writer.writeAttribute("type","checkbox");
+			this.writer.writeAttribute("name",TEXT_FORMAT_PARAM);
+			if("true".equals(request.getParameter(TEXT_FORMAT_PARAM))) 	this.writer.writeAttribute("checked","true");
+			this.writer.writeAttribute("value","true");
+			this.writer.writeStartElement("label");
+			this.writer.writeAttribute("for",TEXT_FORMAT_PARAM);
+			this.writer.writeCharacters("Text Format");
+			this.writer.writeEndElement();//label
+			this.writer.writeEndElement();//span
+			}
 			
 			//header
 			final String show_header_str = request.getParameter(SHOW_HEADER_PARAM);
@@ -481,20 +536,33 @@ private class ViewVcfHandler extends AbstractHandler
 					variantPredicate =  (V)->true;
 					}
 				this.writer.writeComment("BEGIN-TABLE");
+				
+				final boolean text_output= "true".equals(this.request.getParameter(TEXT_FORMAT_PARAM));
+
+				if(text_output) {
+					this.writer.writeStartElement("pre");
+					this.writer.writeCharacters("");
+					}
 				this.flush();
 				
 				
-				
 				final VcfToTable.VcfToTableViewer vcfToTable=new VcfToTable.VcfToTableViewer();
-				vcfToTable.setOutputFormat(VcfToTable.OutputFormat.html);
-				final PrintStream newOut= new PrintStream(IOUtils.uncloseableOutputStream(this.response.getOutputStream()));
+				vcfToTable.setOutputFormat(text_output?
+						VcfToTable.OutputFormat.text:
+						VcfToTable.OutputFormat.html
+						);
+				final PrintStream newOut= new PrintStream(
+						new EscapeXmlOutputStream(
+						IOUtils.uncloseableOutputStream(this.response.getOutputStream()),
+						text_output
+						));
 				vcfToTable.setOutputStream(newOut);
 				vcfToTable.setHideHtmlHeader(true);//always
 				vcfToTable.setPrintHeader("true".equals(this.request.getParameter(SHOW_HEADER_PARAM)));
 				vcfToTable.setHideGenotypes("true".equals(this.request.getParameter(HIDE_GENOTYPES_PARAM)));
 				vcfToTable.setHideHomRefGenotypes("true".equals(this.request.getParameter(HIDE_HOMREF_PARAM)));
 				vcfToTable.setHideNoCallGenotypes("true".equals(this.request.getParameter(HIDE_NOCALL_PARAM)));
-				vcfToTable.setUseANSIColors(true);
+				vcfToTable.setUseANSIColors(!text_output);
 				
 				vcfToTable.writeHeader(header);
 				if(VcfServer.this.pedigreeFile!=null)
@@ -526,7 +594,12 @@ private class ViewVcfHandler extends AbstractHandler
 					}
 				
 				vcfToTable.close();
-				
+				if(text_output)
+					{
+					newOut.flush();
+					this.writer.writeCharacters("");
+					this.writer.writeEndElement();//pre
+					}
 				if(iter!=null && iter.hasNext())
 					{
 					this.writer.writeStartElement("p");
