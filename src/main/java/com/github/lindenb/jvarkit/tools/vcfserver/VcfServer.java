@@ -55,13 +55,15 @@ private static final String VCFIDX_PARAM="vcf";
 private static final String LIMIT_PARAM="limit";
 private static final String JEXL_PARAM="jexl";
 private static final String SHOW_HEADER_PARAM="header";
+private static final String HIDE_NOCALL_PARAM="nc";
+private static final String HIDE_HOMREF_PARAM="hr";
+private static final String HIDE_GENOTYPES_PARAM="gt";
 
 @Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION+" If undefined, this tool will try to get the pedigree from the header.")
 private File pedigreeFile=null;
 
 @Parameter(names={"-P","--port","-port"},description="Server listening port")
 private int port=8080;	
-
 
 private class ViewVcfHandler extends AbstractHandler
 	{
@@ -109,6 +111,57 @@ private class ViewVcfHandler extends AbstractHandler
 			this.writer.writeStartElement("div");
 			this.writer.writeStartElement("form");
 			writeSelectVcf();
+			
+			//no call
+			{
+			this.writer.writeStartElement("span");
+			this.writer.writeEmptyElement("input");
+			this.writer.writeAttribute("id",HIDE_NOCALL_PARAM);
+			this.writer.writeAttribute("type","checkbox");
+			this.writer.writeAttribute("name",HIDE_NOCALL_PARAM);
+			if("true".equals(request.getParameter(HIDE_NOCALL_PARAM))) 	this.writer.writeAttribute("checked","true");
+			this.writer.writeAttribute("value","true");
+			this.writer.writeStartElement("label");
+			this.writer.writeAttribute("for",HIDE_NOCALL_PARAM);
+			this.writer.writeCharacters("Hide NO_CALL");
+			this.writer.writeEndElement();//label
+			this.writer.writeEndElement();//span
+			}
+			
+			
+			//no Hom_ref
+			{
+			this.writer.writeStartElement("span");
+			this.writer.writeEmptyElement("input");
+			this.writer.writeAttribute("id",HIDE_HOMREF_PARAM);
+			this.writer.writeAttribute("type","checkbox");
+			this.writer.writeAttribute("name",HIDE_HOMREF_PARAM);
+			if("true".equals(request.getParameter(HIDE_HOMREF_PARAM))) 	this.writer.writeAttribute("checked","true");
+			this.writer.writeAttribute("value","true");
+			this.writer.writeStartElement("label");
+			this.writer.writeAttribute("for",HIDE_HOMREF_PARAM);
+			this.writer.writeCharacters("Hide HOM_REF");
+			this.writer.writeEndElement();//label
+			this.writer.writeEndElement();//span
+			}
+
+			//no GT
+			{
+			this.writer.writeStartElement("span");
+			this.writer.writeEmptyElement("input");
+			this.writer.writeAttribute("id",HIDE_GENOTYPES_PARAM);
+			this.writer.writeAttribute("type","checkbox");
+			this.writer.writeAttribute("name",HIDE_GENOTYPES_PARAM);
+			if("true".equals(request.getParameter(HIDE_GENOTYPES_PARAM))) 	this.writer.writeAttribute("checked","true");
+			this.writer.writeAttribute("value","true");
+			this.writer.writeStartElement("label");
+			this.writer.writeAttribute("for",HIDE_GENOTYPES_PARAM);
+			this.writer.writeCharacters("Hide Genotypes");
+			this.writer.writeEndElement();//label
+			this.writer.writeEndElement();//span
+			}
+
+			
 			
 			//header
 			final String show_header_str = request.getParameter(SHOW_HEADER_PARAM);
@@ -248,8 +301,25 @@ private class ViewVcfHandler extends AbstractHandler
 			writer.writeStartElement("style");
 			writer.writeCharacters(".error {background-color:yellow;color:red;");
 			writer.writeEndElement();//style
-
 			}
+		
+		void writeHtmlFooter()  throws XMLStreamException
+			{
+			flush();
+			writer.writeStartElement("div");
+			writer.writeCharacters("Author: Pierre Lindenbaum. made with ");
+			writer.writeStartElement("a");
+			writer.writeAttribute("href", "https://github.com/lindenb/jvarkit");
+			writer.writeAttribute("title", "https://github.com/lindenb/jvarkit");
+			writer.writeAttribute("target", "_blank");
+			writer.writeCharacters("jvarkit");
+			writer.writeEndElement();//a
+			writer.writeCharacters(".");
+			writer.writeEndElement();//div
+			this.writer.flush();
+			}
+		
+		
 		void writeHtmlBody() throws XMLStreamException
 			{
 		
@@ -266,6 +336,7 @@ private class ViewVcfHandler extends AbstractHandler
 			this.writer.writeAttribute("class","error");
 			this.writer.writeCharacters(sw.toString());
 			this.writer.writeEndElement();
+			this.writer.flush();
 			}
 		void writeError(final String err) throws XMLStreamException
 			{
@@ -275,10 +346,10 @@ private class ViewVcfHandler extends AbstractHandler
 			
 			this.writer.writeCharacters(err);
 			this.writer.writeEndElement();
+			this.writer.flush();
 			}
 		
 		void run() {
-			VCFFileReader vcfReader=null;
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			try
 				{
@@ -286,7 +357,6 @@ private class ViewVcfHandler extends AbstractHandler
 				if(StringUtil.isBlank(encoding)) encoding="UTF-8";
 				this.request.setCharacterEncoding(encoding);
 				this.writer = xof.createXMLStreamWriter(this.response.getOutputStream(),encoding);
-				vcfReader =new VCFFileReader(getVcfFile(this.request),true);
 				this.writer.writeStartElement("html");
 				this.writer.writeComment("BEGIN-VCF-SERVER");
 				this.writer.writeStartElement("head");
@@ -295,6 +365,7 @@ private class ViewVcfHandler extends AbstractHandler
 				this.writer.writeStartElement("body");
 				this.writer.flush();
 				writeHtmlBody();
+				writeHtmlFooter();
 				this.writer.writeEndElement();//BODY
 				this.writer.writeComment("END-VCF-SERVER");
 				this.writer.writeEndElement();
@@ -308,7 +379,6 @@ private class ViewVcfHandler extends AbstractHandler
 				}
 			finally
 				{
-				CloserUtil.close(vcfReader);
 				CloserUtil.close(this.writer);
 				this.writer=null;
 				}
@@ -318,52 +388,7 @@ private class ViewVcfHandler extends AbstractHandler
 			
 			}
 		}
-	
-	private class DelegateErrorHandler extends DelegateHandler
-		{
-		private final Throwable error;
-		private final String error_msg;
-		DelegateErrorHandler(
-				HttpServletRequest request,
-				HttpServletResponse response,
-				Throwable error
-				)
-			{ 
-			super(request,response);
-			this.error = error;
-			this.error_msg = error.getMessage();
-			}
-		DelegateErrorHandler(
-				HttpServletRequest request,
-				HttpServletResponse response,
-				String error
-				)
-			{ 
-			super(request,response);
-			this.error = null;
-			this.error_msg = error;
-			}
-		@Override
-		String getTitle() {
-			return this.error_msg;
-			}
-		@Override
-		void writeHtmlBody() throws XMLStreamException {
-			this.writer.writeStartElement("h1");
-			this.writer.writeCharacters(getTitle());
-			this.writer.writeEndElement();
-			
-			if(this.error!=null)
-				{
-				writeException(this.error);
-				}
-			else
-				{
-				writeError(this.error_msg);
-				}
-			}
-		}
-	
+		
 	private class WelcomeHandler extends DelegateHandler
 		{
 		WelcomeHandler(
@@ -464,7 +489,12 @@ private class ViewVcfHandler extends AbstractHandler
 				vcfToTable.setOutputFormat(VcfToTable.OutputFormat.html);
 				final PrintStream newOut= new PrintStream(IOUtils.uncloseableOutputStream(this.response.getOutputStream()));
 				vcfToTable.setOutputStream(newOut);
-				vcfToTable.setHideHtmlHeader(!("true".equals(this.request.getParameter(SHOW_HEADER_PARAM))));
+				vcfToTable.setHideHtmlHeader(true);//always
+				vcfToTable.setPrintHeader("true".equals(this.request.getParameter(SHOW_HEADER_PARAM)));
+				vcfToTable.setHideGenotypes("true".equals(this.request.getParameter(HIDE_GENOTYPES_PARAM)));
+				vcfToTable.setHideHomRefGenotypes("true".equals(this.request.getParameter(HIDE_HOMREF_PARAM)));
+				vcfToTable.setHideNoCallGenotypes("true".equals(this.request.getParameter(HIDE_NOCALL_PARAM)));
+				vcfToTable.setUseANSIColors(true);
 				
 				vcfToTable.writeHeader(header);
 				if(VcfServer.this.pedigreeFile!=null)
@@ -494,13 +524,16 @@ private class ViewVcfHandler extends AbstractHandler
 					vcfToTable.add(ctx);
 					--limit;
 					}
+				
+				vcfToTable.close();
+				
 				if(iter!=null && iter.hasNext())
 					{
 					this.writer.writeStartElement("p");
 					this.writer.writeCharacters("WARNING: there are more variants in "+rgn_str);
 					this.writer.writeEndElement();
+					this.writer.flush();
 					}
-				vcfToTable.close();
 				
 				newOut.flush();
 				newOut.close();

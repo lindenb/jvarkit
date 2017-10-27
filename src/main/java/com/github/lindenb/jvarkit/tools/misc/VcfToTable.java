@@ -1453,9 +1453,27 @@ public class VcfToTable extends Launcher {
 			this.hideHtmlHeader = hideHtmlHeader;
 			}
 		
+		public void setPrintHeader(boolean printHeader) {
+			this.printHeader = printHeader;
+		}
+		
 		public void setPedigreeFile(File pedigreeFile) {
 			this.pedigreeFile = pedigreeFile;
 			}
+		
+		public void setHideHomRefGenotypes(boolean hideHomRefGenotypes) {
+			this.hideHomRefGenotypes = hideHomRefGenotypes;
+		}
+		
+		public void setHideNoCallGenotypes(boolean hideNoCallGenotypes) {
+			this.hideNoCallGenotypes = hideNoCallGenotypes;
+		}
+		public void setHideGenotypes(boolean hideGenotypes) {
+			this.hideGenotypes = hideGenotypes;
+		}
+		public void setUseANSIColors(boolean useANSIColors) {
+			this.useANSIColors = useANSIColors;
+		}
 		
 		@Override
 		public void writeHeader(final VCFHeader header) {

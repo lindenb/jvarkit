@@ -44,6 +44,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -416,6 +417,10 @@ public class BioAlcidaeJdk
 	@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
 	private boolean user_code_is_body=false;
 
+	
+	@SuppressWarnings("unused")
+	private static final Counter<?> _fool_javac = null;
+	
     public static abstract class AbstractHandler
     	{
     	protected PrintStream out = System.out;
