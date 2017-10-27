@@ -55,7 +55,7 @@ Usage: bioalcidaejdk [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -92,6 +92,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
 Mon Oct 9 15:02:56 2017 +0200 ; adding tests, fixing doc ; https://github.com/lindenb/jvarkit/commit/d413e4841552cb4aa7d8eaa444704ea54e9321bd
 Mon Oct 2 15:17:44 2017 +0200 ; https://www.biostars.org/p/275714/#275724 ; https://github.com/lindenb/jvarkit/commit/2f0f3e815c57c55ef971dc7c44912d16d8e06c93
 Thu Sep 28 12:59:36 2017 +0200 ; add import sequence in bioalcidae ; https://github.com/lindenb/jvarkit/commit/57f2867e62d4acde5c99ae73b658e6a0a4652b53

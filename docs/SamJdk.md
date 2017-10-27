@@ -68,7 +68,7 @@ Usage: samjdk [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -105,7 +105,9 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Oct 25 09:48:05 2017 +0200 ; added counter<> to vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/282000fc2db2a3b69e7291a2ca74f2d88b6fbcb2
 Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
+Tue Oct 24 18:09:10 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f385f736efe12ab781498662a46f08887e61b048
 Fri Oct 20 09:53:19 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/76b0e511e054e438c38d2157bbc0e148480288bb
 Wed Oct 4 08:45:59 2017 +0200 ; answer to bioinfo-se for samjdk ; https://github.com/lindenb/jvarkit/commit/6e147ce66a28fa3758be3b65898b9237dccdca41
 Mon Oct 2 09:16:12 2017 +0200 ; answer bioinformatics-se ; https://github.com/lindenb/jvarkit/commit/5a796015b9797e2803d01763a3d4c3cc80861c09
