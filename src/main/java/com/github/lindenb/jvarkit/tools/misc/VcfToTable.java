@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -271,6 +272,17 @@ public class VcfToTable extends Launcher {
 			{
 			this.o = o;
 			}
+		
+		protected String escapeHttp(final String s) {
+			try {
+				return URLEncoder.encode(s, "UTF-8");
+				}
+			catch(final Exception err)
+				{
+				return s;
+				}
+			}
+		
 		void beginXml(XMLStreamWriter w) throws XMLStreamException  {}
 		void endXml(XMLStreamWriter w) throws XMLStreamException  {}
 		
@@ -339,9 +351,25 @@ public class VcfToTable extends Launcher {
 				{
 				return "https://www.ncbi.nlm.nih.gov/projects/SNP/snp_ref.cgi?rs="+str.substring(2);
 				}
-			else if(Pattern.compile("ENS[TPG][0-9]+").matcher(str.toUpperCase()).matches())
+			else if(
+					Pattern.compile("ENS[TPG][0-9]+").matcher(str.toUpperCase()).matches() ||
+					Pattern.compile("ENSEST[TGP][0-9]+").matcher(str.toUpperCase()).matches() 
+
+					)
 				{
 				return "http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q="+str.toUpperCase()+";species=;site=ensembl";
+				}
+			else if(Pattern.compile("[XN][MR]_[0-9\\.]+").matcher(str.toUpperCase()).matches())
+				{
+				return "https://www.ncbi.nlm.nih.gov/nuccore/"+str;
+				}
+			else if(Pattern.compile("[NX]P_[0-9\\.]+").matcher(str.toUpperCase()).matches())
+				{
+				return "https://www.ncbi.nlm.nih.gov/protein/"+str;
+				}
+			else if(Pattern.compile("CCDS[0-9\\.]+").matcher(str.toUpperCase()).matches())
+				{
+				return "https://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&GO=MainBrowse&DATA="+str;
 				}
 			return null;
 			}
@@ -380,7 +408,7 @@ public class VcfToTable extends Launcher {
 				final String s=tokens[i];
 				if(StringUtil.isBlank(s)) continue;
 				w.writeStartElement("a");
-				w.writeAttribute("href","http://www.sequenceontology.org/browser/obob.cgi?release=current_svn&rm=term_list&obo_query="+s);
+				w.writeAttribute("href","http://www.sequenceontology.org/browser/obob.cgi?release=current_svn&rm=term_list&obo_query="+escapeHttp(s));
 				w.writeAttribute("target","_blank");
 				w.writeAttribute("title",s);
 				w.writeCharacters(s);
@@ -399,7 +427,7 @@ public class VcfToTable extends Launcher {
 			if(!StringUtil.isBlank(u)) return u;
 			final String str= this.toString();
 			if(StringUtil.isBlank(str)) return null;
-			return "https://www.ncbi.nlm.nih.gov/gene/?term="+str;
+			return "https://www.ncbi.nlm.nih.gov/gene/?term="+escapeHttp(str);
 			}
 		}
 	
@@ -1010,15 +1038,35 @@ public class VcfToTable extends Launcher {
 				if(!getOwner().hidePredictions && this.vcfTools.getVepPredictionParser().isValid())
 					{
 					final List<String> cats = new ArrayList<>(this.vcfTools.getVepPredictionParser().getCategories());
-					
 					final Table t = new Table(cats).setCaption("VEP");
 					for(VepPrediction pred: this.vcfTools.getVepPredictionParser().getPredictions(vc))
 						{
-						final List<Object> r=new ArrayList<>();
+						final List<Object> row =new ArrayList<>(cats.size());//signe cat's eyes nanana
 						for(final String cat:cats) {
-							r.add(pred.get(cat));
+							final String valuestr = pred.get(cat);
+							final Object o;
+							if(StringUtil.isBlank(valuestr))
+								{
+								o=valuestr;
+								}
+							else if(cat.equals("RefSeq") || cat.equals("Feature") || cat.equals("Gene") || cat.equals("ENSP"))
+								{
+								o = new HyperlinkDecorator(valuestr);
+								}
+							else if(cat.equals("Consequence"))
+								{
+								o = new VcfToTable.SODecorator(valuestr);
+								}
+							else if(cat.equals("SYMBOL")) {
+								o = new GenelinkDecorator(valuestr);
+								}
+							else
+								{
+								o=valuestr;
+								}
+							row.add(o);	
 							}
-						t.addList(r);
+						t.addList(row);
 						}
 					t.removeEmptyColumns();
 					this.writeTable(margin, t);

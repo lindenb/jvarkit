@@ -34,6 +34,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -63,6 +64,8 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.VariantContextUtils;
+import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.filter.JavascriptVariantFilter;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -101,18 +104,23 @@ private static final String REGION_PARAM="rgn";
 private static final String VCFIDX_PARAM="vcf";
 private static final String LIMIT_PARAM="limit";
 private static final String JAVASCRIPT_PARAM="js";
+private static final String JEXL_PARAM="jexl";
 private static final String SHOW_HEADER_PARAM="header";
 private static final String HIDE_NOCALL_PARAM="nc";
 private static final String HIDE_HOMREF_PARAM="hr";
 private static final String HIDE_GENOTYPES_PARAM="gt";
 private static final String TEXT_FORMAT_PARAM="txt";
 
-@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION+" If undefined, this tool will try to get the pedigree from the header.")
+@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION)
 private File pedigreeFile=null;
-
 @Parameter(names={"-P","--port","-port"},description="Server listening port")
 private int port=8080;	
+@Parameter(names={"-timeout","--timeout"},description="query timeout in seconds")
+private long timeout_seconds =60;	
+@Parameter(names={"-jexl","--jexl"},description="Use/Show JEXL filter instead of Javascript filter (which is not filesystem-safe).")
+private boolean use_jexl = false;
 
+/** used to escape the text output in pre tag */
 private static class EscapeXmlOutputStream
 	extends FilterOutputStream
 	{
@@ -157,7 +165,7 @@ private class ViewVcfHandler extends AbstractHandler
 	private final List<File> vcfFiles;
 	
 	
-	ViewVcfHandler(List<File> vcfFiles)
+	ViewVcfHandler(final List<File> vcfFiles)
 		{
 		this.vcfFiles = vcfFiles;
 		}
@@ -169,7 +177,7 @@ private class ViewVcfHandler extends AbstractHandler
 		protected final HttpServletResponse response;
 		protected XMLStreamWriter writer = null;
 		ViewVcfHandler getOwner() { return ViewVcfHandler.this;}
-		DelegateHandler(HttpServletRequest request,HttpServletResponse response)
+		DelegateHandler(final HttpServletRequest request,final HttpServletResponse response)
 			{ 
 			this.request = request ;
 			this.response = response ;
@@ -325,25 +333,46 @@ private class ViewVcfHandler extends AbstractHandler
 			
 			this.writer.writeEndElement();//span
 			//
-			{
-			//jexl
-			final String js = request.getParameter(JAVASCRIPT_PARAM);
-			this.writer.writeStartElement("span");
-			this.writer.writeStartElement("label");
-			this.writer.writeAttribute("for",JAVASCRIPT_PARAM);
-			this.writer.writeAttribute("title","javascript expression");
-			this.writer.writeCharacters("Javascript Expression");
-			this.writer.writeEndElement();
-			this.writer.writeCharacters(" : ");
-			
-			this.writer.writeEmptyElement("input");
-			this.writer.writeAttribute("id",JAVASCRIPT_PARAM);
-			this.writer.writeAttribute("type","text");
-			this.writer.writeAttribute("placeholder","see https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/filter/JavascriptVariantFilter.html");
-			this.writer.writeAttribute("name",JAVASCRIPT_PARAM);
-			this.writer.writeAttribute("value",StringUtil.isBlank(js)?"":js);
-			this.writer.writeEndElement();//span
-			}
+			if(VcfServer.this.use_jexl)
+				{
+				//jexl
+				final String jex = request.getParameter(JEXL_PARAM);
+				this.writer.writeStartElement("span");
+				this.writer.writeStartElement("label");
+				this.writer.writeAttribute("for",JEXL_PARAM);
+				this.writer.writeAttribute("title","JEXL expression");
+				this.writer.writeCharacters("JEXL Expression");
+				this.writer.writeEndElement();
+				this.writer.writeCharacters(" : ");
+				
+				this.writer.writeEmptyElement("input");
+				this.writer.writeAttribute("id",JEXL_PARAM);
+				this.writer.writeAttribute("type","text");
+				this.writer.writeAttribute("placeholder","see hhttps://software.broadinstitute.org/gatk/documentation/article.php?id=1255");
+				this.writer.writeAttribute("name",JEXL_PARAM);
+				this.writer.writeAttribute("value",StringUtil.isBlank(jex)?"":jex);
+				this.writer.writeEndElement();//span
+				}
+			else
+				{
+				//javascript
+				final String js = request.getParameter(JAVASCRIPT_PARAM);
+				this.writer.writeStartElement("span");
+				this.writer.writeStartElement("label");
+				this.writer.writeAttribute("for",JAVASCRIPT_PARAM);
+				this.writer.writeAttribute("title","javascript expression");
+				this.writer.writeCharacters("Javascript Expression");
+				this.writer.writeEndElement();
+				this.writer.writeCharacters(" : ");
+				
+				this.writer.writeEmptyElement("input");
+				this.writer.writeAttribute("id",JAVASCRIPT_PARAM);
+				this.writer.writeAttribute("type","text");
+				this.writer.writeAttribute("placeholder","see https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/filter/JavascriptVariantFilter.html");
+				this.writer.writeAttribute("name",JAVASCRIPT_PARAM);
+				this.writer.writeAttribute("value",StringUtil.isBlank(js)?"":js);
+				this.writer.writeEndElement();//span
+				}
 			//
 			this.writer.writeEmptyElement("input");
 			this.writer.writeAttribute("type","submit");
@@ -461,10 +490,13 @@ private class ViewVcfHandler extends AbstractHandler
 				String encoding = this.request.getCharacterEncoding();
 				if(StringUtil.isBlank(encoding)) encoding="UTF-8";
 				this.request.setCharacterEncoding(encoding);
+				this.response.setContentType("text/html");
 				this.writer = xof.createXMLStreamWriter(this.response.getOutputStream(),encoding);
 				this.writer.writeStartElement("html");
 				this.writer.writeComment("BEGIN-VCF-SERVER");
 				this.writer.writeStartElement("head");
+				this.writer.writeEmptyElement("meta");
+				this.writer.writeAttribute("charset", encoding);
 				writeHtmlHead();
 				this.writer.writeEndElement();//head
 				this.writer.writeStartElement("body");
@@ -524,7 +556,7 @@ private class ViewVcfHandler extends AbstractHandler
 		@Override
 		String getTitle() {
 			final String rgn=request.getParameter(REGION_PARAM);
-			return StringUtil.isBlank(rgn)?"??":rgn;
+			return StringUtil.isBlank(rgn)?"No Region specified":rgn;
 			}
 		@Override
 		void writeHtmlBody() throws XMLStreamException {
@@ -553,19 +585,42 @@ private class ViewVcfHandler extends AbstractHandler
 					return;
 					}
 				
-				final IntervalParser parser= new IntervalParser(dict);
-				parser.setFixContigName(true);
-				parser.setRaiseExceptionOnError(false);
-				final Interval interval = parser.parse(rgn_str);	
-				if(interval==null)
-					{
-					writeError("Cannot parse interval "+rgn_str);
-					return;
-					}
-				final String js_str= this.request.getParameter(JAVASCRIPT_PARAM);
-				final Predicate<VariantContext> variantPredicate;
+				final Interval interval;
 				
-				if(!StringUtil.isBlank(js_str))
+				if(!StringUtil.isBlank(rgn_str)) 
+					{
+					final IntervalParser parser= new IntervalParser(dict);
+					parser.setFixContigName(true);
+					parser.setContigNameIsWholeContig(true);
+					parser.setRaiseExceptionOnError(false);
+					interval = parser.parse(rgn_str);	
+					}
+				else
+					{
+					interval = null;
+					}
+				final Predicate<VariantContext> variantPredicate;
+				final String js_str= (VcfServer.this.use_jexl ?null:this.request.getParameter(JAVASCRIPT_PARAM));
+				final String jexl_str= (VcfServer.this.use_jexl ?this.request.getParameter(JEXL_PARAM):null);
+
+				if(!StringUtil.isBlank(jexl_str) && VcfServer.this.use_jexl)
+					{
+				
+					try
+						{
+						final List<JexlVCMatchExp> exps= VariantContextUtils.initializeMatchExps(
+								Collections.singletonList("CUSTOM_JEXL_FILTER"),
+								Collections.singletonList(jexl_str)
+								);
+						variantPredicate = (V)-> VariantContextUtils.match(V,exps.get(0));
+						}
+					catch(final Exception err)
+						{
+						writeException(err);
+						return;
+						}
+					}
+				else if(!StringUtil.isBlank(js_str) && !VcfServer.this.use_jexl)
 					{
 					try
 						{
@@ -585,6 +640,7 @@ private class ViewVcfHandler extends AbstractHandler
 					variantPredicate =  (V)->true;
 					}
 				this.writer.writeComment("BEGIN-TABLE");
+				this.writer.writeCharacters("");
 				
 				final boolean text_output= "true".equals(this.request.getParameter(TEXT_FORMAT_PARAM));
 
@@ -618,9 +674,14 @@ private class ViewVcfHandler extends AbstractHandler
 					{
 					vcfToTable.setPedigreeFile(VcfServer.this.pedigreeFile);
 					}
-				
-				iter = reader.query(interval.getContig(), interval.getStart(), interval.getEnd());
-				
+				if(interval==null)
+					{
+					iter = reader.iterator();
+					}
+				else
+					{
+					iter = reader.query(interval.getContig(), interval.getStart(), interval.getEnd());
+					}
 				int limit=DEFAULT_LIMIT;
 				final String limit_str = request.getParameter(LIMIT_PARAM);
 				try {
@@ -633,32 +694,53 @@ private class ViewVcfHandler extends AbstractHandler
 					{
 					limit=DEFAULT_LIMIT;
 					}
-				
+				final long start_millisec = System.currentTimeMillis();
+				boolean timeout_flag = false;
 				while(iter!=null && iter.hasNext() && limit>0)
 					{
 					final VariantContext ctx = iter.next();
 					if(!variantPredicate.test(ctx)) continue;
+					
+					final long now_millisec = System.currentTimeMillis();
+					if( now_millisec - start_millisec > VcfServer.this.timeout_seconds * 1000L)
+						{
+						timeout_flag=true;
+						break;
+						}	
+					
 					vcfToTable.add(ctx);
 					--limit;
 					}
 				
 				vcfToTable.close();
+				
+				newOut.flush();
+				newOut.close();
+				
 				if(text_output)
 					{
-					newOut.flush();
 					this.writer.writeCharacters("");
 					this.writer.writeEndElement();//pre
 					}
 				if(iter!=null && iter.hasNext())
 					{
 					this.writer.writeStartElement("p");
-					this.writer.writeCharacters("WARNING: there are more variants in "+rgn_str);
+					this.writer.writeAttribute("class", "error");
+					this.writer.writeCharacters("WARNING: there are more variants but limit was reached.");
 					this.writer.writeEndElement();
 					this.writer.flush();
 					}
 				
-				newOut.flush();
-				newOut.close();
+				if(timeout_flag)
+					{
+					this.writer.writeStartElement("p");
+					this.writer.writeAttribute("class", "error");
+					this.writer.writeCharacters("Time out reached!");
+					this.writer.writeEndElement();
+					this.writer.flush();
+					}
+				
+				
 				this.writer.writeComment("END-TABLE");
 				this.flush();
 				}
@@ -697,11 +779,9 @@ private class ViewVcfHandler extends AbstractHandler
 			) throws java.io.IOException ,javax.servlet.ServletException
 		{
 		DelegateHandler delegate=null;
-		
-		final String rgn_str = req.getParameter(REGION_PARAM);
 		final File file = this.getVcfFile(req);
 		
-		if(StringUtil.isBlank(rgn_str) ||file==null)
+		if(file==null)
 			{
 			delegate = new WelcomeHandler(req,res);
 			}

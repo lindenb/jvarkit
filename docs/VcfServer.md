@@ -13,15 +13,21 @@ Usage: vcfserver [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -jexl, --jexl
+      Use/Show JEXL filter instead of Javascript filter (which is not 
+      filesystem-safe). 
+      Default: false
     -p, --ped, --pedigree
       Optional Pedigree file:A pedigree is a text file delimited with tabs. No 
       header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' 
       (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 
-      0 unaffected, 1 affected,-9 unknown  If undefined, this tool will try to 
-      get the pedigree from the header.
+      0 unaffected, 1 affected,-9 unknown
     -P, --port, -port
       Server listening port
       Default: 8080
+    -timeout, --timeout
+      query timeout in seconds
+      Default: 60
     --version
       print version and exit
 
@@ -78,6 +84,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Oct 27 23:58:05 2017 +0200 ; javascript for vcfserver ; https://github.com/lindenb/jvarkit/commit/2fbecaea195213025f9d860e7ba121887f247d2c
 Fri Oct 27 19:58:25 2017 +0200 ; text output for server ; https://github.com/lindenb/jvarkit/commit/b146971af0577da23b25d84338d608325f9432c2
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
 Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
