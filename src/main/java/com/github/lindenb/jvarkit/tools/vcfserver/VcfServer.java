@@ -95,7 +95,7 @@ END_DOC
 **/
 
 @Program(name="vcfserver",
-description="Web Server for vcf2table",
+description="Web Server displaying VCF file. A web interface for vcf2table",
 keywords={"vcf","table","visualization","server","web"})
 public class VcfServer extends Launcher{
 private static final Logger LOG=Logger.build(VcfServer.class).make();

@@ -1,6 +1,6 @@
 # VcfServer
 
-Web Server for vcf2table
+Web Server displaying VCF file. A web interface for vcf2table
 
 
 ## Usage
@@ -84,6 +84,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Sat Oct 28 18:04:34 2017 +0200 ; vcf server ; https://github.com/lindenb/jvarkit/commit/1ba12c148566055ec896ddec9b7c2d7674cf8236
 Fri Oct 27 23:58:05 2017 +0200 ; javascript for vcfserver ; https://github.com/lindenb/jvarkit/commit/2fbecaea195213025f9d860e7ba121887f247d2c
 Fri Oct 27 19:58:25 2017 +0200 ; text output for server ; https://github.com/lindenb/jvarkit/commit/b146971af0577da23b25d84338d608325f9432c2
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
