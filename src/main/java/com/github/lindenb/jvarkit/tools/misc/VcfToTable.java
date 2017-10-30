@@ -240,7 +240,7 @@ public class VcfToTable extends Launcher {
 	private static final String DEFAULT_MARGIN=" ";
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
-	public static final String DEFAULT_CSS_STYLE="table.minimalistBlack { border: 1px solid #000000; text-align: left; border-collapse: collapse; } table.minimalistBlack td, table.minimalistBlack th { border: 1px solid #000000; padding: 5px 2px; } table.minimalistBlack tbody td { font-size: 13px; } table.minimalistBlack thead { background: #CFCFCF; background: -moz-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: -webkit-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: linear-gradient(to bottom, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); border-bottom: 2px solid #000000; } table.minimalistBlack thead th { font-size: 15px; font-weight: bold; color: #000000; text-align: left; } table.minimalistBlack tfoot td { font-size: 14px; } ";
+	public static final String DEFAULT_CSS_STYLE="div.variant0 {background-color:#E4FAFF;}\ndiv.variant1 {background-color:#C6DDE2;}\ntable.minimalistBlack { border: 1px solid #1F1F1F; text-align: left; border-collapse: collapse; } table.minimalistBlack td, table.minimalistBlack th { border: 1px solid #1F1F1F; padding: 5px 2px; } table.minimalistBlack tbody td { font-size: 13px; } table.minimalistBlack thead { background: #CFCFCF; background: -moz-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: -webkit-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: linear-gradient(to bottom, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); border-bottom: 2px solid #000000; } table.minimalistBlack thead th { font-size: 15px; font-weight: bold; color: #000000; text-align: left; } table.minimalistBlack tfoot td { font-size: 14px; } ";
 
 	/** public: can be used by tools using vcf2table */
 	public enum OutputFormat {
@@ -352,7 +352,7 @@ public class VcfToTable extends Launcher {
 				return "https://www.ncbi.nlm.nih.gov/projects/SNP/snp_ref.cgi?rs="+str.substring(2);
 				}
 			else if(
-					Pattern.compile("ENS[TPG][0-9]+").matcher(str.toUpperCase()).matches() ||
+					Pattern.compile("ENS[TPGR][0-9]+").matcher(str.toUpperCase()).matches() ||
 					Pattern.compile("ENSEST[TGP][0-9]+").matcher(str.toUpperCase()).matches() 
 
 					)
@@ -401,7 +401,7 @@ public class VcfToTable extends Launcher {
 		void writeXml(XMLStreamWriter w) throws XMLStreamException {
 			final String str= this.toString();
 			if(StringUtil.isBlank(str)) return;
-			final String tokens[]=str.split("[;]");
+			final String tokens[]=str.split("[;&]");
 			for(int i=0;i< tokens.length;i++)
 				{
 				if(i>0) w.writeCharacters("; ");
@@ -430,6 +430,19 @@ public class VcfToTable extends Launcher {
 			return "https://www.ncbi.nlm.nih.gov/gene/?term="+escapeHttp(str);
 			}
 		}
+	
+	private static class HgncDecorator extends HyperlinkDecorator
+		{
+		HgncDecorator(final String gene) {
+			super(gene);
+			}
+		protected String getURL() {
+			final String str= this.toString();
+			if(StringUtil.isBlank(str)) return null;
+			return "https://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id="+escapeHttp(str);
+			}
+		}
+
 	
 	private static class ColoredDecorator extends Decorator
 		{
@@ -997,7 +1010,7 @@ public class VcfToTable extends Launcher {
 				final	Table t=new Table("Filter").setCaption("FILTERS");
 				 for(final String f:vc.getFilters())
 				 	{
-					t.addRow(getOwner().useANSIColors?new ColoredDecorator(f, AnsiColor.YELLOW):f);
+					t.addRow(getOwner().useANSIColors?new ColoredDecorator(f, AnsiColor.RED):f);
 				 	}
 				 this.writeTable(margin, t);
 				}
@@ -1049,7 +1062,7 @@ public class VcfToTable extends Launcher {
 								{
 								o=valuestr;
 								}
-							else if(cat.equals("RefSeq") || cat.equals("Feature") || cat.equals("Gene") || cat.equals("ENSP"))
+							else if(cat.equals("Existing_variation") || cat.equals("RefSeq") || cat.equals("Feature") || cat.equals("Gene") || cat.equals("ENSP"))
 								{
 								o = new HyperlinkDecorator(valuestr);
 								}
@@ -1059,6 +1072,9 @@ public class VcfToTable extends Launcher {
 								}
 							else if(cat.equals("SYMBOL")) {
 								o = new GenelinkDecorator(valuestr);
+								}
+							else if(cat.equals("HGNC_ID")) {
+								o = new HgncDecorator(valuestr);
 								}
 							else
 								{
@@ -1437,6 +1453,9 @@ public class VcfToTable extends Launcher {
 			@Override
 			void startVariant(final VariantContext ctx) {
 				try {
+					this.out.writeStartElement("div");//div for whole variant
+					this.out.writeAttribute("class","variant"+(this.countVariants%2));
+					
 					this.out.writeEmptyElement("a");
 					this.out.writeAttribute("name","vc"+this.countVariants);
 					this.out.writeStartElement("h3");
@@ -1472,6 +1491,8 @@ public class VcfToTable extends Launcher {
 					this.out.writeCharacters("[top]");
 					this.out.writeEndElement();//a
 					
+					
+					this.out.writeEndElement();//div for variant
 					this.out.writeEmptyElement("hr");
 					this.out.flush();
 					}

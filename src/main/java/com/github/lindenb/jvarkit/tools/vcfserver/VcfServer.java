@@ -76,6 +76,11 @@ import htsjdk.variant.vcf.VCFHeader;
 
 BEGIN_DOC
 
+## Input
+
+Input is a set of indexed VCF file (tabix or tribble) or a file containing the path to the VCFs.
+
+
 ## Example 
 
 ```
@@ -303,6 +308,7 @@ private class ViewVcfHandler extends AbstractHandler
 			this.writer.writeAttribute("id","selrgn");
 			this.writer.writeAttribute("type","text");
 			this.writer.writeAttribute("name",REGION_PARAM);
+			this.writer.writeAttribute("placeholder","chrom, chrom:pos+extend, chrom:start-end");
 			this.writer.writeAttribute("value",StringUtil.isBlank(rgn_str)?"":rgn_str);
 			this.writer.writeEndElement();//span
 			//
@@ -311,7 +317,7 @@ private class ViewVcfHandler extends AbstractHandler
 			this.writer.writeStartElement("span");
 			this.writer.writeStartElement("label");
 			this.writer.writeAttribute("for","limitctx");
-			this.writer.writeCharacters("Limit");
+			this.writer.writeCharacters("Limit number of variants");
 			this.writer.writeEndElement();
 			this.writer.writeCharacters(" : ");
 			
@@ -360,7 +366,7 @@ private class ViewVcfHandler extends AbstractHandler
 				this.writer.writeStartElement("span");
 				this.writer.writeStartElement("label");
 				this.writer.writeAttribute("for",JAVASCRIPT_PARAM);
-				this.writer.writeAttribute("title","javascript expression");
+				this.writer.writeAttribute("title","Javascript Filtering Expression");
 				this.writer.writeCharacters("Javascript Expression");
 				this.writer.writeEndElement();
 				this.writer.writeCharacters(" : ");
@@ -433,6 +439,10 @@ private class ViewVcfHandler extends AbstractHandler
 			writer.writeCharacters(VcfToTable.DEFAULT_CSS_STYLE);
 			writer.writeEndElement();//style
 			writer.writeStartElement("style");
+			writer.writeCharacters(
+					"label {color: #B4886B; font-weight: bold;}\n"+
+					"input[type=text] {border: 1px dotted #999; border-radius: 0;}");
+
 			writer.writeCharacters(".error {background-color:yellow;color:red;");
 			writer.writeEndElement();//style
 			}
@@ -462,8 +472,8 @@ private class ViewVcfHandler extends AbstractHandler
 		void writeException(final Throwable err) throws XMLStreamException
 			{
 			LOG.error(err);
-			StringWriter sw=new StringWriter();
-			PrintWriter pw=new PrintWriter(sw);
+			final StringWriter sw=new StringWriter();
+			final PrintWriter pw=new PrintWriter(sw);
 			err.printStackTrace(pw);
 			pw.close();
 			this.writer.writeStartElement("pre");
@@ -484,7 +494,7 @@ private class ViewVcfHandler extends AbstractHandler
 			}
 		
 		void run() {
-			XMLOutputFactory xof=XMLOutputFactory.newFactory();
+			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			try
 				{
 				String encoding = this.request.getCharacterEncoding();
@@ -497,6 +507,12 @@ private class ViewVcfHandler extends AbstractHandler
 				this.writer.writeStartElement("head");
 				this.writer.writeEmptyElement("meta");
 				this.writer.writeAttribute("charset", encoding);
+				this.writer.writeEmptyElement("meta");
+					this.writer.writeAttribute("name","Description");
+					this.writer.writeAttribute("content","VCF Server");
+				this.writer.writeEmptyElement("meta");
+					this.writer.writeAttribute("name","keywords");
+					this.writer.writeAttribute("content","VCF,variant,snp,server,bioinformatics");
 				writeHtmlHead();
 				this.writer.writeEndElement();//head
 				this.writer.writeStartElement("body");
@@ -529,8 +545,8 @@ private class ViewVcfHandler extends AbstractHandler
 	private class WelcomeHandler extends DelegateHandler
 		{
 		WelcomeHandler(
-				HttpServletRequest request,
-				HttpServletResponse response
+				final HttpServletRequest request,
+				final HttpServletResponse response
 				)
 			{ 
 			super(request,response);
@@ -547,8 +563,8 @@ private class ViewVcfHandler extends AbstractHandler
 	private class ShowVcfHandler extends DelegateHandler
 		{
 		ShowVcfHandler(
-				HttpServletRequest request,
-				HttpServletResponse response
+				final HttpServletRequest request,
+				final HttpServletResponse response
 				)
 			{ 
 			super(request,response);

@@ -153,12 +153,63 @@ Nelson	C E	CE	0000000325253496		28618153	2017	Environ. Microbiol.	Cascading infl
 (...)
 ```
 
+## Example:
+
+Sample identifiers from NCBI biosamples
+
+
+the xslt:
+
+```xslt
+<?xml version='1.0' encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform' version='1.0'>
+<xsl:output method="text"  encoding="UTF-8"/>
+<xsl:template match="BioSample">
+<xsl:copy>
+<xsl:apply-templates select="Ids"/>
+</xsl:copy>
+</xsl:template>
+
+<xsl:template match="Ids">
+<xsl:value-of select="Id[@db='BioSample']/text()"/>
+<xsl:text>	</xsl:text>
+<xsl:value-of select="Id[@db='SRA']/text()"/>
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
+</xsl:stylesheet>
+
+```
+
+execute:
+
+```
+curl -s "ftp://ftp.ncbi.nlm.nih.gov/biosample/biosample_set.xml.gz" |\
+  gunzip -c |\
+  java -jar dist/xsltstream.jar -n BioSample -t transform.xsl |\
+  nl
+
+
+(....)
+7211789	SAMN07945461	SRS2643051
+7211790	SAMN07945462	SRS2643052
+7211791	SAMN07945463	SRS2643049
+7211792	SAMN07945464	SRS2643050
+7211793	SAMN07945465	
+7211794	SAMN07945466	
+7211795	SAMN07945467	
+7211796	SAMN07945468	
+```
+
+
+
 END_DOC
 */
 @Program(name="xsltstream",
 	description="XSLT transformation for large XML files. xslt is only applied on a given subset of nodes.",
 	keywords={"xml","xslt","xsl","stylesheet"},
-	biostars=270498
+	biostars= {270498,280581}
 	)
 public class XsltStream extends Launcher {
 	private static final Logger LOG = Logger.build(XsltStream.class).make();

@@ -42,13 +42,14 @@ Usage: xsltstream [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/270498](https://www.biostars.org/p/270498)
+ * [https://www.biostars.org/p/280581](https://www.biostars.org/p/280581)
 
 
 ## Compilation
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -227,5 +228,56 @@ Davis	Adam S	AS	0000000271961197		28618159	2017	Pest Manag. Sci.	Are herbicides 
 Nelson	C E	CE	0000000325253496		28618153	2017	Environ. Microbiol.	Cascading influence of inorganic nitrogen sources on DOM production, composition, lability and microbial community structure in the open ocean.
 (...)
 ```
+
+## Example:
+
+Sample identifiers from NCBI biosamples
+
+
+the xslt:
+
+```xslt
+<?xml version='1.0' encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform' version='1.0'>
+<xsl:output method="text"  encoding="UTF-8"/>
+<xsl:template match="BioSample">
+<xsl:copy>
+<xsl:apply-templates select="Ids"/>
+</xsl:copy>
+</xsl:template>
+
+<xsl:template match="Ids">
+<xsl:value-of select="Id[@db='BioSample']/text()"/>
+<xsl:text>	</xsl:text>
+<xsl:value-of select="Id[@db='SRA']/text()"/>
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
+</xsl:stylesheet>
+
+```
+
+execute:
+
+```
+curl -s "ftp://ftp.ncbi.nlm.nih.gov/biosample/biosample_set.xml.gz" |\
+  gunzip -c |\
+  java -jar dist/xsltstream.jar -n BioSample -t transform.xsl |\
+  nl
+
+
+(....)
+7211789	SAMN07945461	SRS2643051
+7211790	SAMN07945462	SRS2643052
+7211791	SAMN07945463	SRS2643049
+7211792	SAMN07945464	SRS2643050
+7211793	SAMN07945465	
+7211794	SAMN07945466	
+7211795	SAMN07945467	
+7211796	SAMN07945468	
+```
+
+
 
 

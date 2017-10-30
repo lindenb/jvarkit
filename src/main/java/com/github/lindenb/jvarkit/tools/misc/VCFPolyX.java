@@ -97,6 +97,10 @@ public class VCFPolyX extends Launcher
 	
 		@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 		private File faidx = null;
+		
+		@Parameter(names={"--skip-filtered"},description="Don't spend some time to calculate the tag if the variant is FILTERed")
+		private boolean skip_filtered=false;
+
 	
 		private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 		
@@ -143,7 +147,7 @@ public class VCFPolyX extends Launcher
 					private GenomicSequence genomicSequence=null;
 					private VCFFilterHeaderLine filterHeaderLine = null;
 					private VCFInfoHeaderLine infoHeaderLine = null;
-					
+					private final boolean skip_filtered =  CtxWriterFactory.this.skip_filtered;
 					@Override
 					public void writeHeader(final VCFHeader header) {
 
@@ -173,7 +177,16 @@ public class VCFPolyX extends Launcher
 					
 					@Override
 					public void add(final VariantContext ctx) {
+						
+						if(this.skip_filtered && ctx.isFiltered())
+							{
+							super.add(ctx);
+							return;
+							}
+						
 						final VariantContextBuilder b = new VariantContextBuilder(ctx);
+
+						
 						if(this.genomicSequence==null || !ctx.getContig().equals(genomicSequence.getChrom()))
 							{
 							LOG.info("loading chromosome "+ctx.getContig());
