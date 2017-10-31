@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
@@ -83,14 +84,14 @@ public class TView implements Closeable
 	private static final String BLACK_SQUARE="\u25A0";
 	private static final Logger LOG = Logger.build(TView.class).make();
 	private enum LayoutReads {pileup,name};
-	private enum Formatout {tty,plain,html};
+	public enum Formatout {tty,plain,html};
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
 	
 	@Parameter(names={"--clip"},description="Show clip")
 	private boolean showClip=false;
 	private Interval interval=null;
-	@Parameter(names={"-R","--reference"},description="Indexed Reference file.")
+	@Parameter(names={"-R","--reference"},description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File referenceFile=null;
 	@Parameter(names={"--insert"},description="Show insertions")
 	private boolean showInsertions=false;
@@ -316,6 +317,26 @@ public class TView implements Closeable
 		return referenceFile;
 		}
 	
+	public void setReferenceFile(final File referenceFile) {
+		this.referenceFile = referenceFile;
+		}
+	
+	public void setShowClip(boolean showClip) {
+		this.showClip = showClip;
+	}
+	
+	public void setShowReadName(boolean showReadName) {
+		this.showReadName = showReadName;
+	}
+	
+	public void setShowInsertions(boolean showInsertions) {
+		this.showInsertions = showInsertions;
+	}
+	
+	public void setHideBases(boolean hideBases) {
+		this.hideBases = hideBases;
+	}
+	
 	private String margin(final Object o)
 		{
 		if(this.leftMarginWidth<=0) return "";
@@ -346,7 +367,13 @@ public class TView implements Closeable
 		this.interval = interval;
 		}
 
+	public void setFormatOut(Formatout formatOut) {
+		this.formatOut = formatOut;
+		}
 	
+	public void setSamRecordFilter(SamRecordFilter samRecordFilter) {
+		this.samRecordFilter = samRecordFilter;
+	}
 	
 	public int initialize() throws IOException
 		{
