@@ -27,9 +27,7 @@ package com.github.lindenb.jvarkit.tools.tview;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.FilterOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
@@ -78,6 +76,12 @@ BEGIN_DOC
 
 Input is a set of indexed BAM files  or a file containing the path to the BAMs.
 
+## Screenshot
+
+https://twitter.com/yokofakun/status/925395272225746944
+
+![twitter](https://pbs.twimg.com/media/DNepyjOW4AA-_rz.jpg "Screenshot")
+
 
 ## Example 
 
@@ -116,45 +120,6 @@ private File optionalReferenceFile=null;
 private int port=8080;	
 @Parameter(names={"-nojs","--no-javascript"},description="Disable Javascript (which is not filesystem-safe).")
 private boolean disable_javascript = false;
-
-/** used to escape the text output in pre tag */
-private static class EscapeXmlOutputStream
-	extends FilterOutputStream
-	{
-	final boolean escape;
-	EscapeXmlOutputStream(final OutputStream delegate, boolean escape)
-		{
-		super(delegate);
-		this.escape=escape;
-		}
-	private void _write(final String s) throws IOException
-		{
-		super.out.write(s.getBytes());
-		}
-	@Override
-	public void write(int b) throws IOException {
-		if(!this.escape)
-			{
-			super.write(b);
-			}
-		else
-			{
-			switch(b) {
-				case '>': _write("&gt;");break; 
-				case '<': _write("&lt;");break; 
-				case '&': _write("&amp;");break; 
-				case '\'': _write("&apos;");break; 
-				case '\"': _write("&quot;");break;
-				default:super.write(b); break;
-				}
-			}
-		}
-	@Override
-	public void close() throws IOException {
-		flush();
-		//nothing do  not close
-		}
-	}
 
 
 private class SamViewHandler extends AbstractHandler
@@ -328,7 +293,7 @@ private class SamViewHandler extends AbstractHandler
 			{
 			writeHtmlTitle();
 			writer.writeStartElement("style");
-			writer.writeCharacters("");//TODO
+			writer.writeCharacters("body {background-color:#F8F8F8;}");
 			writer.writeEndElement();//style
 			writer.writeStartElement("style");
 			writer.writeCharacters(

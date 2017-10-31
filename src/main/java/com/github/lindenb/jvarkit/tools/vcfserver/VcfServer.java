@@ -81,6 +81,18 @@ BEGIN_DOC
 Input is a set of indexed VCF file (tabix or tribble) or a file containing the path to the VCFs.
 
 
+## Screenshot
+
+https://twitter.com/yokofakun/status/923870331659485184
+
+![twitter](https://pbs.twimg.com/media/DNI-7GZX0AA41qF.jpg "Screenshot")
+
+https://twitter.com/yokofakun/status/924307836968079361
+
+![twitter](https://pbs.twimg.com/media/DNPNBdQWsAAF-5w.jpg "Screenshot")
+
+
+
 ## Example 
 
 ```

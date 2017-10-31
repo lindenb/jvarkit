@@ -79,7 +79,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
-
+Tue Oct 31 17:03:31 2017 +0100 ; tviewserver based on jvarkit:tview ; https://github.com/lindenb/jvarkit/commit/7799aa3b2dae490541a0ae017fd86b6819dd4aba
 ```
 
 </details>
@@ -108,6 +108,12 @@ The current reference is:
 ## Input
 
 Input is a set of indexed BAM files  or a file containing the path to the BAMs.
+
+## Screenshot
+
+https://twitter.com/yokofakun/status/925395272225746944
+
+![twitter](https://pbs.twimg.com/media/DNepyjOW4AA-_rz.jpg "Screenshot")
 
 
 ## Example 

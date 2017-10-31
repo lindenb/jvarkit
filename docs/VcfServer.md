@@ -84,6 +84,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
 Sat Oct 28 18:13:58 2017 +0200 ; vcf server: description ; https://github.com/lindenb/jvarkit/commit/7abb1d5513bdd8f9f249a290b418b75b3a237771
 Sat Oct 28 18:04:34 2017 +0200 ; vcf server ; https://github.com/lindenb/jvarkit/commit/1ba12c148566055ec896ddec9b7c2d7674cf8236
 Fri Oct 27 23:58:05 2017 +0200 ; javascript for vcfserver ; https://github.com/lindenb/jvarkit/commit/2fbecaea195213025f9d860e7ba121887f247d2c
@@ -119,6 +120,18 @@ The current reference is:
 ## Input
 
 Input is a set of indexed VCF file (tabix or tribble) or a file containing the path to the VCFs.
+
+
+## Screenshot
+
+https://twitter.com/yokofakun/status/923870331659485184
+
+![twitter](https://pbs.twimg.com/media/DNI-7GZX0AA41qF.jpg "Screenshot")
+
+https://twitter.com/yokofakun/status/924307836968079361
+
+![twitter](https://pbs.twimg.com/media/DNPNBdQWsAAF-5w.jpg "Screenshot")
+
 
 
 ## Example 
