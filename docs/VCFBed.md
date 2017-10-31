@@ -25,6 +25,9 @@ Usage: vcfbed [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -ignoreFiltered, --ignoreFiltered
+      [20171031] Ignore FILTERed Variants (should be faster)
+      Default: false
     -m, --map
       unindexed bed file, will be loaded in memory (faster than tribble/tabix 
       but memory consumming)
@@ -56,7 +59,7 @@ Usage: vcfbed [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git

@@ -162,7 +162,7 @@ public class InMemoryCompiler {
 			final JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
 			if(javac==null)
 				{
-				throw new RuntimeException("ToolProvider.getSystemJavaCompiler() failed.");
+				throw new RuntimeException("ToolProvider.getSystemJavaCompiler() failed. Do you use a correct version of java ? Please check the version and avoid openJDK, use the java from Oracle.");
 				}
 			final StandardJavaFileManager sjfm = javac.getStandardFileManager(null, null, null);
 			final SpecialClassLoader cl = new SpecialClassLoader();

@@ -87,6 +87,7 @@ import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcfamalgation.VcfXmlAmalgamation;
+import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallers;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
@@ -962,5 +963,19 @@ class TestNg01 {
         		"./src/test/resources/SAMPLE1_GATGAATC_L002_R1_001.fastq.gz"
         		}));
     	Assert.assertTrue( output.delete());
+    	}
+    @Test
+    public void testVcfBed() throws IOException {
+		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
+		for(int i=0;i< 2;i++) {
+	    	Assert.assertEquals(0,new VCFBed().instanceMain(new String[]{
+	        		"-o",output.getPath(),
+	        		"-T","VCFBED",
+	        		"-f","chr${1}",
+	        		(i==0?"--map":"--bed"),"./src/test/resources/toy.bed.gz",
+	        		TOY_VCF_GZ
+	        		}));
+	    	Assert.assertTrue( output.delete());
+			}
     	}
 	}
