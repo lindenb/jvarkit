@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -51,6 +52,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 
 /**
+BEGIN_DOC
 
 ## Example
 
@@ -129,10 +131,13 @@ e">0</flags>
 
 * cited in http://biorxiv.org/content/early/2014/01/21/001834 "Illumina TruSeq synthetic long-reads empower de novo assembly and resolve complex, highly repetitive transposable elements"
 
+END_DOC
+
  */
 
 @Program(name="biostar59647",
 	description="SAM/BAM to XML",
+	keywords= {"sam","bam","xml"},
 	biostars=59647
 	)
 public class Biostar59647 extends Launcher
@@ -145,14 +150,14 @@ public class Biostar59647 extends Launcher
 	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File refFile=null;
-	private  Biostar59647() {
+	public  Biostar59647() {
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 		SamReader samFileReader=null;
-		
+		PrintStream pout;
 		try
 			{
 			GenomicSequence genomicSequence=null;
@@ -161,7 +166,7 @@ public class Biostar59647 extends Launcher
 			final String bamFile = oneFileOrNull(args);
 			samFileReader = super.openSamReader(bamFile);
 			
-			if(SequenceUtil.areSequenceDictionariesEqual(
+			if(!SequenceUtil.areSequenceDictionariesEqual(
 					indexedFastaSequenceFile.getSequenceDictionary(),
 					samFileReader.getFileHeader().getSequenceDictionary())
 					)
@@ -169,8 +174,12 @@ public class Biostar59647 extends Launcher
 				LOG.warning("Not the same sequence dictionaries");
 				}
 			
-			XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-			XMLStreamWriter w= xmlfactory.createXMLStreamWriter(System.out,"UTF-8");
+			final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+			
+			pout=(outputFile==null?stdout():new PrintStream(this.outputFile));
+			final XMLStreamWriter w = xmlfactory.createXMLStreamWriter(pout,"UTF-8");
+			
+			
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("sam");
 			w.writeAttribute("bam",(bamFile==null?"stdin": bamFile));
@@ -184,11 +193,11 @@ public class Biostar59647 extends Launcher
 			
 
 				
-				SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader().getSequenceDictionary());
-				SAMRecordIterator iter=samFileReader.iterator();
+				final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(samFileReader.getFileHeader().getSequenceDictionary());
+				final SAMRecordIterator iter=samFileReader.iterator();
 				while(iter.hasNext())
 					{
-					SAMRecord rec=iter.next();
+					final SAMRecord rec=iter.next();
 					progess.watch(rec);
 					final byte readbases[]=rec.getReadBases();
 					w.writeStartElement("read");
@@ -343,9 +352,11 @@ public class Biostar59647 extends Launcher
 			w.writeEndElement();
 			w.writeEndDocument();
 			w.flush();
+			pout.flush();
 			CloserUtil.close(w);
+			CloserUtil.close(pout);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -361,7 +372,7 @@ public class Biostar59647 extends Launcher
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new Biostar59647().instanceMainWithExit(args);
 
 	}

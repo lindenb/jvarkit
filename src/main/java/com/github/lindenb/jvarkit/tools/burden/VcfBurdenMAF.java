@@ -31,11 +31,14 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -50,7 +53,6 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
@@ -159,8 +161,39 @@ public class VcfBurdenMAF
 		@Parameter(names={"-c","--homref"},description="Treat No Call './.' genotypes as HomRef")
 		private boolean noCallAreHomRef = false;
 		
+		@XmlElement(name="ignore-filtered")
+		@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
+		private boolean ignoreFiltered=false;
+		
+		@XmlTransient
+		private Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = 
+			(header)->  new Pedigree.CaseControlExtractor().extract(header);
+		
+		/** supplier for a collection of case/control individual.
+		 * default will use the pedigree. The idea
+		 * is to get a functional interface to give a chance to provide a
+		 * list of sample when using vcfburdenfisherh as a java bean 
+		 */
+		public void setCaseControlExtractor(final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor) {
+			this.caseControlExtractor = caseControlExtractor;
+		}
+		
+		public void setMaxMAF(double maxMAF) {
+			this.maxMAF = maxMAF;
+		}
+		
+		public void setNoCallAreHomRef(boolean noCallAreHomRef) {
+			this.noCallAreHomRef = noCallAreHomRef;
+		}
+		
+		public void setIgnoreFiltered(boolean ignoreFiltered) {
+			this.ignoreFiltered = ignoreFiltered;
+		}
+
 		private class CtxWriter extends DelegateVariantContextWriter
 			{
+			private final boolean ignoreFiltered = CtxWriterFactory.this.ignoreFiltered;
+			private final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = CtxWriterFactory.this.caseControlExtractor;
 			private Set<Pedigree.Person> caseSamples=null;
 			private Set<Pedigree.Person> controlSamples=null;
 			private final VCFInfoHeaderLine mafCasInfoHeader = new VCFInfoHeaderLine(
@@ -183,14 +216,13 @@ public class VcfBurdenMAF
 				super(delegate);
 				}
 			@Override
-			public void writeHeader(final VCFHeader header) {
-				final Pedigree pedigree = Pedigree.newParser().parse(header);
-				if(pedigree.isEmpty())
-					{
-					throw new JvarkitException.UserError("No pedigree found in header   use VcfInjectPedigree to add it");
-					}
-				this.caseSamples = pedigree.getAffected();
-				this.controlSamples = pedigree.getUnaffected();
+			public void writeHeader(final VCFHeader header) {				
+				final Set<Pedigree.Person> persons = this.caseControlExtractor.apply(header);
+				
+				this.caseSamples = persons.stream().
+						filter(I->I.isAffected()).collect(Collectors.toSet());
+				this.controlSamples = persons.stream().
+						filter(I->I.isUnaffected()).collect(Collectors.toSet());
 
 				final VCFHeader h2= new VCFHeader(header);
 				h2.addMetaDataLine(this.mafCasInfoHeader);
@@ -203,6 +235,12 @@ public class VcfBurdenMAF
 			
 			@Override
 			public void add(final VariantContext ctx) {
+				if(this.ignoreFiltered && ctx.isFiltered())
+					{
+					super.add(ctx);
+					return;
+					}
+				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				final List<Double> mafCasList = new ArrayList<>(); 
 				final List<Double> mafCtrlList = new ArrayList<>(); 
@@ -218,7 +256,7 @@ public class VcfBurdenMAF
 						mafCalculator.setNoCallIsHomRef(CtxWriterFactory.this.noCallAreHomRef);
 						
 						/* loop over persons in this pop */
-						for(final Pedigree.Person p:(pop==CASE_POP?caseSamples:controlSamples)) 
+						for(final Pedigree.Person p:(pop==CASE_POP?this.caseSamples:this.controlSamples)) 
 							{
 							/* get genotype for this individual */
 							final Genotype genotype = ctx.getGenotype(p.getId());

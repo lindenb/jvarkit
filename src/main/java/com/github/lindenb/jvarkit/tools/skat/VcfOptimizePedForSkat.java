@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.skat;
 
 import java.io.File;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -39,6 +38,8 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH;
+import com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -46,9 +47,9 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
@@ -88,6 +89,26 @@ public class VcfOptimizePedForSkat extends Launcher
 	private final List<Solution> bestSolutions = new ArrayList<>();
 	private Double firstScore=null;
 	
+	/* collector for Variants after BurdenMaf & BurdenFIsherH */
+	private static class VariantCollector implements VariantContextWriter
+		{
+		@SuppressWarnings("unused")
+		VCFHeader header;
+		final List<VariantContext> variants = new ArrayList<>();
+		@Override
+		public void writeHeader(final VCFHeader header) {
+			this.header = header;
+			}
+		@Override
+		public void add(VariantContext vc) {
+			if(vc.isFiltered()) return;
+			this.variants.add(vc);
+			}
+		@Override public boolean checkError() {return false;}
+		@Override public void close() {}
+		}
+	
+	
 	private class Solution implements Comparable<Solution>
 		{
 		String origin="";
@@ -123,6 +144,7 @@ public class VcfOptimizePedForSkat extends Launcher
 	
 	private void exec(
 			final long generation,
+			final VCFHeader header,
 			final List<VariantContext> variants, 
 			final List<Pedigree.Person> samples,
 			final SkatFactory.SkatExecutor skatExecutor
@@ -219,7 +241,37 @@ public class VcfOptimizePedForSkat extends Launcher
 		if(ped2.isEmpty()) return;
 		if(!ped2.stream().anyMatch(P->P.isAffected())) return;
 		if(!ped2.stream().anyMatch(P->P.isUnaffected())) return;
-		solution.result = skatExecutor.execute(variants, ped2);
+		
+		// test MAF et Fisher
+		
+		final VCFHeader header2 = new VCFHeader(
+				header.getMetaDataInInputOrder(),
+				header.getSampleNamesInOrder()
+				);
+		final VcfBurdenFisherH.CtxWriterFactory fisherhFactory = new VcfBurdenFisherH.CtxWriterFactory();
+		fisherhFactory.setCaseControlExtractor((H)->new HashSet<>(ped2));
+		fisherhFactory.setIgnoreFiltered(true);
+		final VcfBurdenMAF.CtxWriterFactory mafFactory = new VcfBurdenMAF.CtxWriterFactory();
+		mafFactory.setCaseControlExtractor((H)->new HashSet<>(ped2));
+		mafFactory.setIgnoreFiltered(true);
+
+		
+		final VariantCollector collector = new VariantCollector();
+		VariantContextWriter vcw = mafFactory.open(collector);
+		vcw = fisherhFactory.open(vcw);
+		
+		
+		vcw.writeHeader(header2);
+		for(final VariantContext vc: variants)
+			{
+			vcw.add(vc);
+			}
+		vcw.close();
+		CloserUtil.close(fisherhFactory);
+		CloserUtil.close(mafFactory);
+		
+		//
+		solution.result = skatExecutor.execute(collector.variants, ped2);
 		if(solution.result.isError()) return;
 		if( this.bestSolutions.isEmpty() ||
 			solution.compareTo(this.bestSolutions.get(this.bestSolutions.size()-1))<0)
@@ -325,7 +377,7 @@ public class VcfOptimizePedForSkat extends Launcher
 			long nIter=0L;
 			while(max_iterations==-1L || nIter<max_iterations)
 				{
-				exec(nIter,variants,samples,executor);
+				exec(nIter,header,variants,samples,executor);
 				++nIter;
 				}
 			

@@ -31,11 +31,14 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -111,10 +114,13 @@ VCF header must contain a pedigree ( see VCFinjectPedigree ).
 END_DOC
 */
 
-@Program(name="vcfburdenfisherh",description="Fisher Case /Controls per Variant")
+@Program(name="vcfburdenfisherh",
+	description="Fisher Case /Controls per Variant",
+	keywords= {"vcf","burden","fisher"})
 public class VcfBurdenFisherH
 	extends Launcher
 	{	
+	public static final double DEFAULT_MIN_FISHER_PVALUE = 0.05;
 	private static final Logger LOG = Logger.build(VcfBurdenFisherH.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -130,7 +136,31 @@ public class VcfBurdenFisherH
 		{
 		@XmlElement(name="min-fisher")
 		@Parameter(names={"-fisher","--minFisherPValue"},description="if p-value fisher(case/control vs have alt/have not alt) lower than 'fisher' the FILTER Column is Filled")
-		private double minFisherPValue = 0.05 ;
+		private double minFisherPValue = DEFAULT_MIN_FISHER_PVALUE ;
+		@XmlElement(name="ignore-filtered")
+		@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
+		private boolean ignoreFiltered=false;
+
+		
+		@XmlTransient
+		private Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = 
+			(header)->  new Pedigree.CaseControlExtractor().extract(header);
+		
+		/** supplier for a collection of case/control individual.
+		 * default will use the pedigree. The idea
+		 * is to get a functional interface to give a chance to provide a
+		 * list of sample when using vcfburdenfisherh as a java bean 
+		 */
+		public void setCaseControlExtractor(final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor) {
+			this.caseControlExtractor = caseControlExtractor;
+		}
+		public void setIgnoreFiltered(boolean ignoreFiltered) {
+			this.ignoreFiltered = ignoreFiltered;
+		}
+		public void setMinFisherPValue(double minFisherPValue) {
+			this.minFisherPValue = minFisherPValue;
+		}
+		
 		
 		private static class Count {
 			int case_have_alt =0;
@@ -155,7 +185,10 @@ public class VcfBurdenFisherH
 					VCFHeaderLineCount.A,VCFHeaderLineType.String,
 					"Fisher Exact Test Case/Control"
 					);
-			private Set<Pedigree.Person> individuals= null;
+			private Set<Pedigree.Person> individualSet= null;
+			private final boolean ignoreFiltered = CtxWriterFactory.this.ignoreFiltered;
+			private final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = CtxWriterFactory.this.caseControlExtractor;
+
 			
 			CtxWriter(final VariantContextWriter delegate) {
 				super(delegate);
@@ -167,12 +200,19 @@ public class VcfBurdenFisherH
 				h2.addMetaDataLine(this.fisherAlleleInfoHeader);
 				h2.addMetaDataLine(this.fisherAlleleFilterHeader);
 				h2.addMetaDataLine(this.fisherDetailInfoHeader);
-				this.individuals = new Pedigree.CaseControlExtractor().extract(header);
+				this.individualSet = this.caseControlExtractor.apply(header);
 				super.writeHeader(h2);
 				}
 			
 			@Override
 			public void add(final VariantContext ctx) {
+				
+				if(this.ignoreFiltered && ctx.isFiltered())
+					{
+					super.add(ctx);
+					return;
+					}
+				
 				boolean set_filter = true;
 				boolean found_one_alt_to_compute = false;
 				final List<String> infoData = new ArrayList<>(ctx.getAlleles().size());
@@ -193,11 +233,12 @@ public class VcfBurdenFisherH
 					final Count count = new Count();
 					
 					/* loop over persons in this pop */
-					for(final Pedigree.Person p: this.individuals ) 	{
+					for(final Pedigree.Person p: this.individualSet ) 	{
 						/* get genotype for this individual */
 						final Genotype genotype = ctx.getGenotype(p.getId());
 						/* individual is not in vcf header */
 						if(genotype==null || !genotype.isCalled() ) {
+							if(genotype==null) LOG.warn("Genotype is null for sample "+p.getId()+" not is pedigree!");
 							//no information , we consider that sample was called AND HOM REF
 							if(p.isAffected()) { count.case_miss_alt++; }
 							else { count.ctrl_miss_alt++; }
@@ -259,7 +300,7 @@ public class VcfBurdenFisherH
 			@Override
 			public void close() {
 				super.close();
-				this.individuals=null;
+				this.individualSet=null;
 				}
 			}
 		
