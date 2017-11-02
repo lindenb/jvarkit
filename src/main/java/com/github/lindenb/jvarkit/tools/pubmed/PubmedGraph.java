@@ -54,9 +54,11 @@ import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
 @Program(name="pubmedgraph",
 	description="Creates a Gephi-gexf graph of references-cotes for a given PMID",
@@ -77,6 +79,9 @@ public class PubmedGraph extends Launcher
 	private boolean disable_references=false;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
+	@ParametersDelegate
+	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
+
 
 	private class Article
 		{
@@ -92,7 +97,9 @@ public class PubmedGraph extends Launcher
 		final List<String> L=new ArrayList<>();
 		final String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?retmode=xml&db=pubmed&dbfrom=pubmed&" +
 				"id="+pmid+
-				"&linkname="+linkname;
+				"&linkname="+linkname+
+				this.ncbiApiKey.getAmpParamValue()
+				;
 		LOG.info(url);
 		StreamSource src=new StreamSource(url);
 		XMLEventReader reader= this.xmlInputFactory.createXMLEventReader(src);
@@ -129,7 +136,8 @@ public class PubmedGraph extends Launcher
 		final QName attName=new QName("Name");
 		final QName attType=new QName("Type");
 		String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?retmode=xml&db=pubmed&" +
-				"id="+a.pmid
+				"id="+a.pmid +
+				this.ncbiApiKey.getAmpParamValue()
 				;
 		LOG.info(url);
 		StreamSource src=new StreamSource(url);

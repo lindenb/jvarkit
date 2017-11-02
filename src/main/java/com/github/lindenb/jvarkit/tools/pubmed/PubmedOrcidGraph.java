@@ -71,11 +71,13 @@ import com.sleepycat.je.LockMode;
 import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Transaction;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -142,7 +144,9 @@ public class PubmedOrcidGraph
 	private boolean all_links_between_authors = false;
 	@Parameter(names={"-ea","--edgeattributes"},description="Do not show edge attributes (smaller files with less informations)")
 	private boolean hide_edge_attributes = false;
-	
+	@ParametersDelegate
+	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
+
 	
 	private long ID_GENERATOR = 0L;
 	private Database authorDatabase=null;
@@ -622,8 +626,10 @@ public class PubmedOrcidGraph
 		String WebEnv=null;
 		String QueryKey=null;
 		InputStream in=null;
-		String urlstr= new StringBuilder("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&usehistory=1&retmax=100000&term=").
-			 append(URLEncoder.encode("\""+orcid+"\"[auid]","UTF-8")).toString();
+		String urlstr= new StringBuilder("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&usehistory=1&retmax=100000&term=").			 
+			append(URLEncoder.encode("\""+orcid+"\"[auid]","UTF-8")).
+			append(this.ncbiApiKey.getAmpParamValue()).
+			toString();
 			;
 		
 		XMLEventReader r=null;
@@ -660,7 +666,8 @@ public class PubmedOrcidGraph
 			{
 			urlstr= new StringBuilder("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?"
 					+ "db=pubmed&usehistory=1&retmode=xml").
-					 append("&query_key=").append(QueryKey).append("&webenv=").append(WebEnv).toString();
+					append(this.ncbiApiKey.getAmpParamValue()).
+					append("&query_key=").append(QueryKey).append("&webenv=").append(WebEnv).toString();
 					;
 			LOG.debug(urlstr);
 			

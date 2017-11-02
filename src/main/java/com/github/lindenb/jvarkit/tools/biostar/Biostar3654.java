@@ -108,9 +108,11 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 /**
 BEGIN_DOC
 
@@ -184,6 +186,9 @@ public class Biostar3654 extends Launcher
 	/** length of a fasta line */
 	@Parameter(names={"-L","--length"},description="Fasta Line kength")
 	private int fastaLineLength=50;
+	@ParametersDelegate
+	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
+
 	
 	/** XML input factory */
 	private XMLInputFactory xif;
@@ -414,7 +419,9 @@ public class Biostar3654 extends Launcher
 				{
 				String uri="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db="+database+
 						"&id="+URLEncoder.encode(acn,"UTF-8")+
-						"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end;
+						"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end+
+						this.ncbiApiKey.getAmpParamValue()
+						;
 				LOG.info(uri);
 				in = new URL(uri).openStream();
 				r=this.xif.createXMLEventReader(in);

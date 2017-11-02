@@ -1,12 +1,12 @@
-# Biostar95652
+# PubmedGraph
 
-Drawing a schematic genomic context tree.
+Creates a Gephi-gexf graph of references-cotes for a given PMID
 
 
 ## Usage
 
 ```
-Usage: biostar95652 [options] Files
+Usage: pubmedgraph [options] Files
   Options:
     -h, --help
       print help and exit
@@ -21,22 +21,24 @@ Usage: biostar95652 [options] Files
       Output file. Optional . Default: stdout
     --version
       print version and exit
+    -b
+      disable backward (referenced-in)
+      Default: false
+    -d
+      max-depth
+      Default: 3
+    -f
+      disable forward (cited-in)
+      Default: false
 
 ```
 
 
 ## Keywords
 
- * genbank
- * svg
- * tree
- * evolution
-
-
-
-## See also in Biostars
-
- * [https://www.biostars.org/p/95652](https://www.biostars.org/p/95652)
+ * pubmed
+ * xml
+ * graph
 
 
 ## Compilation
@@ -55,7 +57,7 @@ Usage: biostar95652 [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make biostar95652
+$ make pubmedgraph
 ```
 
 The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
@@ -73,19 +75,18 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar95652.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar95652.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGraph.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGraph.java)
 
 
 <details>
 <summary>Git History</summary>
 
 ```
-Wed Jun 28 17:33:30 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3c252f19e5cad0ec87d250a5b9884b6f2d6fe856
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
+Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
 Thu Jul 28 09:48:29 2016 +0200 ; NCBI moved API to https ; https://github.com/lindenb/jvarkit/commit/d207e023a06d2ae7afd2e05d2f1369b8a713974b
-Sat Mar 22 16:38:35 2014 +0100 ; Biostar95652 ; https://github.com/lindenb/jvarkit/commit/8a15bae59af5d5afca27234fae71fb3dcd26ad87
+Tue Jun 16 17:40:00 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f394e306c86bd45240d165c69748acf44f0b38ec
+Mon Jun 15 21:35:36 2015 +0200 ; pubmed graph ; https://github.com/lindenb/jvarkit/commit/3fd6216961e9aca27a1013a7b2aab63afe819d52
 ```
 
 </details>
@@ -101,7 +102,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **biostar95652** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **pubmedgraph** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -109,21 +110,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-
-## Example
-
-```bash
-$ java -jar dist/biostar95652.jar \
-   NP_077719.2 \
-   XP_513697.3 XP_001114248.1 \
-   XP_540266.3 XP_002686160.2 \
-   NP_035058.2 NP_077334.1 \
-   NP_001238962.1 NP_001108566.1 > result.svg
-```
-
-Result:
-
-![Hosted by imgur.com](http://i.imgur.com/SYn6IAal.png)
 
 

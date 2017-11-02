@@ -56,10 +56,12 @@ import javax.xml.stream.XMLStreamWriter;
 import org.xml.sax.InputSource;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.semontology.Term;
 
@@ -97,6 +99,8 @@ public class Biostar95652 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@ParametersDelegate
+	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
 
 	private static final String XLINK="http://www.w3.org/1999/xlink";
 
@@ -355,7 +359,8 @@ public class Biostar95652 extends Launcher
 			for(String arg:args)
 				{
 				String uri="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&rettype=gb&retmode=xml&id="+
-						URLEncoder.encode(arg,"UTF-8");
+						URLEncoder.encode(arg,"UTF-8")+
+						this.ncbiApiKey.getAmpParamValue();
 				
 				LOG.info("Reading from "+uri);
 				GBSet gbset=(GBSet)unmarshaller.unmarshal(new InputSource(uri));
