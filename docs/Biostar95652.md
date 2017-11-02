@@ -14,8 +14,9 @@ Usage: biostar95652 [options] Files
       What kind of help
       Possible Values: [usage, markdown, xml]
     --ncbi-api-key
-      NCBI API Key. If undefined. Will try to read in that order: 1) A java 
-      XML property file ${HOME}/.ncbi.properties 2) the jvm property 
+      NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ 
+      . If undefined. Will try to read in that order: 1) A java XML property 
+      file ${HOME}/.ncbi.properties and key api_key 2) the jvm property 
       "ncbi.api.key" 3) environment variable NCBI_API_KEY
     -o, --output
       Output file. Optional . Default: stdout
@@ -80,6 +81,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Thu Nov 2 19:54:56 2017 +0100 ; added NCBI API key ; https://github.com/lindenb/jvarkit/commit/fa13648014a42cd307b25f8661385e9f62d42bea
 Wed Jun 28 17:33:30 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3c252f19e5cad0ec87d250a5b9884b6f2d6fe856
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
 Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e

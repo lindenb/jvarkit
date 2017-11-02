@@ -51,7 +51,7 @@ public class NcbiApiKey {
 	private static final String CONFIG_FILE=".ncbi.properties";
 	public static final String PARAM="api_key";
 	private static final Logger LOG=Logger.build(NcbiApiKey.class).make();
-	@Parameter(names="--ncbi-api-key",description="NCBI API Key. If undefined. Will try to read in that order: 1) A java XML property file ${HOME}/"+CONFIG_FILE+" 2) the jvm property \"ncbi.api.key\" 3) environment variable NCBI_API_KEY")
+	@Parameter(names="--ncbi-api-key",description="NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ . If undefined. Will try to read in that order: 1) A java XML property file ${HOME}/"+CONFIG_FILE+" and key "+PARAM+" 2) the jvm property \"ncbi.api.key\" 3) environment variable NCBI_API_KEY")
 	private String key = null;
 	private boolean _searched = false;
 	
