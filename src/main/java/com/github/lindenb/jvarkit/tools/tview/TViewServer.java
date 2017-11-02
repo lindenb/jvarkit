@@ -113,6 +113,7 @@ private static final String SHOWCLIP="clip";
 private static final String SHOWINSERT="insert";
 private static final String HIDEBASES="bases";
 private static final String SHOWNAME="name";
+private static final String SHOWALLBAMS="showall";
 
 @Parameter(names={"-R","--reference"},description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
 private File optionalReferenceFile=null;
@@ -120,6 +121,8 @@ private File optionalReferenceFile=null;
 private int port=8080;	
 @Parameter(names={"-nojs","--no-javascript"},description="Disable Javascript (which is not filesystem-safe).")
 private boolean disable_javascript = false;
+@Parameter(names={"-m","--max"},description="Max interval Length")
+private int max_interval_length = 2000;
 
 
 private class SamViewHandler extends AbstractHandler
@@ -132,6 +135,8 @@ private class SamViewHandler extends AbstractHandler
 		this.samFiles = vcfFiles;
 		}
 	
+	
+	
 	private abstract class DelegateHandler implements Closeable
 		{
 		private String title="";
@@ -143,6 +148,10 @@ private class SamViewHandler extends AbstractHandler
 			{ 
 			this.request = request ;
 			this.response = response ;
+			}
+		
+		protected boolean showAllBamsInOneWindow() {
+			return  TViewServer.showAllBamsInOneWindow(this.request);
 			}
 		
 		void flush() {
@@ -174,7 +183,8 @@ private class SamViewHandler extends AbstractHandler
 					SHOWCLIP,"Show Clip",
 					HIDEBASES,"Hide Bases",
 					SHOWINSERT,"Show Inserts",
-					SHOWNAME,"Show Read Names"
+					SHOWNAME,"Show Read Names",
+					SHOWALLBAMS,"Show All Bams in one Window"
 					};
 
 
@@ -191,8 +201,10 @@ private class SamViewHandler extends AbstractHandler
 				this.writer.writeAttribute("value","true");
 				this.writer.writeStartElement("label");
 				this.writer.writeAttribute("for",id);
-				this.writer.writeCharacters(lbl+". ");
+				this.writer.writeCharacters(lbl);
+				this.writer.writeCharacters(".");
 				this.writer.writeEndElement();//label
+				this.writer.writeCharacters(" ");
 				this.writer.writeEndElement();//span
 				}
 		
@@ -244,6 +256,8 @@ private class SamViewHandler extends AbstractHandler
 			this.writer.writeEndElement();//div
 			this.writer.writeComment("END FORM");
 			}
+		
+		
 		
 		void writeSelectVcf()throws XMLStreamException
 			{
@@ -434,97 +448,138 @@ private class SamViewHandler extends AbstractHandler
 		@Override
 		void writeHtmlBody() throws XMLStreamException {
 			final String rgn_str=request.getParameter(REGION_PARAM);
-			final File samFile= getOwner().getSamFile(this.request);
+			int sam_file_index=0;
 			writeForm();
 			this.writer.writeEmptyElement("hr");
 			
 			flush();
-			
-			
-			TView tview = new TView();
-			try
-				{
-				final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(samFile);
+			do {
 				
-				final Interval interval;
+				final File samFile;
 				
-				if(!StringUtil.isBlank(rgn_str)) 
+				if(this.showAllBamsInOneWindow())
 					{
-					final IntervalParser parser= new IntervalParser(dict);
-					parser.setFixContigName(true);
-					parser.setContigNameIsWholeContig(true);
-					parser.setRaiseExceptionOnError(false);
-					interval = parser.parse(rgn_str);	
+					if(sam_file_index<0 || sam_file_index>=getOwner().samFiles.size())
+						{
+						writeError("Illegal state sam_file_index");
+						return;
+						}
+					samFile = getOwner().samFiles.get(sam_file_index);
 					}
 				else
 					{
-					final SAMSequenceRecord rec = dict.getSequence(0);
-					interval =  new Interval(rec.getSequenceName(),1,Math.min(100, rec.getSequenceLength()));
+					samFile  = getOwner().getSamFile(this.request);
 					}
 				
-				tview.setInterval(interval);
-				if(optionalReferenceFile!=null) tview.setReferenceFile(optionalReferenceFile);
-				tview.setFormatOut(Formatout.html);
-				tview.setShowClip("true".equals(this.request.getParameter(SHOWCLIP)));
-				tview.setShowReadName("true".equals(this.request.getParameter(SHOWNAME)));
-				tview.setShowInsertions("true".equals(this.request.getParameter(SHOWINSERT)));
-				tview.setHideBases("true".equals(this.request.getParameter(HIDEBASES)));
-				tview.setBamFiles(Collections.singletonList(SamInputResource.of(samFile)));
-
-				if(!disable_javascript)
+				/* paranoid */
+				if(samFile==null)
 					{
-					final String js_expr = this.request.getParameter(JAVASCRIPT_PARAM);
-					if(!StringUtil.isBlank(js_expr))
-						{
-						final JavascriptSamRecordFilter filter;
-						try 
-							{
-							StringReader strReader = new StringReader(js_expr);
-							filter = new JavascriptSamRecordFilter(
-									js_expr,
-									SamReaderFactory.makeDefault().getFileHeader(samFile)
-									);
-							strReader.close();
-							}
-						catch(Exception err)
-							{
-							writeException(err);
-							return;
-							}
-						tview.setSamRecordFilter(filter);
+					writeError("Illegal state sam File is null");
+					return;
+					}
+				
+				this.writer.writeStartElement("p");
+				this.writer.writeCharacters(samFile.getName());
+				this.writer.writeEndElement();
+				
+				
+				
+				TView tview = new TView();
+				try
+					{
+					final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(samFile);
+					if(dict==null) {
+						writeError("no dict in this bam file :"+samFile);
+						return;
 						}
+					final Interval interval;
+					
+					if(!StringUtil.isBlank(rgn_str)) 
+						{
+						final IntervalParser parser= new IntervalParser(dict);
+						parser.setFixContigName(true);
+						parser.setContigNameIsWholeContig(true);
+						parser.setRaiseExceptionOnError(false);
+						interval = TViewServer.this.trimInterval(parser.parse(rgn_str));	
+						}
+					else
+						{
+						final SAMSequenceRecord rec = dict.getSequence(0);
+						interval = TViewServer.this.trimInterval(new Interval(rec.getSequenceName(),1,Math.min(100, rec.getSequenceLength())));
+						}
+					
+					tview.setInterval(interval);
+					if(optionalReferenceFile!=null) tview.setReferenceFile(optionalReferenceFile);
+					tview.setFormatOut(Formatout.html);
+					tview.setShowClip("true".equals(this.request.getParameter(SHOWCLIP)));
+					tview.setShowReadName("true".equals(this.request.getParameter(SHOWNAME)));
+					tview.setShowInsertions("true".equals(this.request.getParameter(SHOWINSERT)));
+					tview.setHideBases("true".equals(this.request.getParameter(HIDEBASES)));
+					tview.setBamFiles(Collections.singletonList(SamInputResource.of(samFile)));
+	
+					if(!TViewServer.this.disable_javascript)
+						{
+						final String js_expr = this.request.getParameter(JAVASCRIPT_PARAM);
+						if(!StringUtil.isBlank(js_expr))
+							{
+							final JavascriptSamRecordFilter filter;
+							try 
+								{
+								StringReader strReader = new StringReader(js_expr);
+								filter = new JavascriptSamRecordFilter(
+										js_expr,
+										SamReaderFactory.makeDefault().getFileHeader(samFile)
+										);
+								strReader.close();
+								}
+							catch(Exception err)
+								{
+								writeException(err);
+								return;
+								}
+							tview.setSamRecordFilter(filter);
+							}
+						}
+					
+					if(tview.initialize()!=0)
+						{
+						writeError("cannot initialize tview");
+						return ;
+						}
+					
+					
+					this.writer.writeStartElement("pre");
+					this.writer.writeCharacters("");
+					this.writer.flush();
+					
+					final PrintStream out  = new PrintStream(IOUtils.uncloseableOutputStream(this.response.getOutputStream()));
+					tview.paint(out);
+					out.flush();
+					tview.close();
+					tview=null;
+					this.writer.flush();
+					this.writer.writeCharacters("");
+					this.writer.writeEndElement();//pre
+					this.writer.writeEmptyElement("hr");
+					this.writer.writeCharacters("");
+					this.flush();
 					}
-				
-				if(tview.initialize()!=0)
+				catch(final Exception err)
 					{
-					writeError("cannot initialize tview");
-					return ;
+					super.writeException(err);
+					}
+				finally
+					{
+					CloserUtil.close(tview);
 					}
 				
 				
-				this.writer.writeStartElement("pre");
-				this.writer.writeCharacters("");
-				this.writer.flush();
-				
-				PrintStream out  = new PrintStream(IOUtils.uncloseableOutputStream(this.response.getOutputStream()));
-				tview.paint(out);
-				out.flush();
-				tview.close();
-				tview=null;
-				this.writer.flush();
-				this.writer.writeCharacters("");
-				this.writer.writeEndElement();//pre
-				this.writer.writeEmptyElement("hr");
-				this.flush();
-				}
-			catch(final Exception err)
-				{
-				super.writeException(err);
-				}
-			finally
-				{
-				CloserUtil.close(tview);
-				}
+				if(!this.showAllBamsInOneWindow()) {
+					break;
+					}
+				sam_file_index++;
+			} while(sam_file_index< getOwner().samFiles.size());
+			
 			}
 		}
 
@@ -533,7 +588,7 @@ private class SamViewHandler extends AbstractHandler
 	private File getSamFile(final HttpServletRequest req) {
 		
 		if(this.samFiles.size()==1) return this.samFiles.get(0);
-		
+		if(TViewServer.showAllBamsInOneWindow(req)) return null;
 		final String samidx=req.getParameter(SAMIDX_PARAM);
 		if(StringUtil.isBlank(samidx)) return null;
 		final int idx;
@@ -551,9 +606,9 @@ private class SamViewHandler extends AbstractHandler
 			) throws java.io.IOException ,javax.servlet.ServletException
 		{
 		DelegateHandler delegate=null;
-		final File file = this.getSamFile(req);
+		final File samFile = this.getSamFile(req);
 		
-		if(file==null)
+		if(!TViewServer.showAllBamsInOneWindow(req) && samFile==null)
 			{
 			delegate = new WelcomeHandler(req,res);
 			}
@@ -578,6 +633,23 @@ private class SamViewHandler extends AbstractHandler
 			}
 		}
 	}
+
+private Interval trimInterval(final Interval interval) {
+	if(interval.length()<=this.max_interval_length) return interval;
+	final Interval interval2 = new Interval(
+			interval.getContig(),
+			interval.getStart(),
+			interval.getStart()+this.max_interval_length-1
+			);
+	
+	LOG.debug("trim interval "+interval+" to "+interval2);
+	return interval2;
+	}
+
+private static boolean showAllBamsInOneWindow(final HttpServletRequest request) {
+	return "true".equals(request.getParameter(SHOWALLBAMS));
+	}
+
 @Override
 public int doWork(final List<String> args) {
 	Server server = null;

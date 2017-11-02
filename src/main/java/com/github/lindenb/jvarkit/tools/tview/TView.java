@@ -337,6 +337,10 @@ public class TView implements Closeable
 		this.hideBases = hideBases;
 	}
 	
+	public void setMaxReadRowPerGroup(int maxReadRowPerGroup) {
+		this.maxReadRowPerGroup = maxReadRowPerGroup;
+	}
+	
 	private String margin(final Object o)
 		{
 		if(this.leftMarginWidth<=0) return "";

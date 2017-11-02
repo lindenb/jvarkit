@@ -13,6 +13,9 @@ Usage: tviewserver [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -m, --max
+      Max interval Length
+      Default: 2000
     -nojs, --no-javascript
       Disable Javascript (which is not filesystem-safe).
       Default: false
@@ -79,6 +82,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Oct 31 17:21:38 2017 +0100 ; tviewserver / vcfserver : added screenshots ; https://github.com/lindenb/jvarkit/commit/2a991b2e352fb30b8e0a94144fcda8d52c2f653a
 Tue Oct 31 17:03:31 2017 +0100 ; tviewserver based on jvarkit:tview ; https://github.com/lindenb/jvarkit/commit/7799aa3b2dae490541a0ae017fd86b6819dd4aba
 ```
 
