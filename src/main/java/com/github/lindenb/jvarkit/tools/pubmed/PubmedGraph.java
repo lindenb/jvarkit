@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 
 @Program(name="pubmedgraph",
 	description="Creates a Gephi-gexf graph of references-cotes for a given PMID",
@@ -95,7 +96,9 @@ public class PubmedGraph extends Launcher
 	private List<String> eLink(String pmid,String linkname) throws IOException,XMLStreamException
 		{
 		final List<String> L=new ArrayList<>();
-		final String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?retmode=xml&db=pubmed&dbfrom=pubmed&" +
+		final String url=
+				NcbiConstants.elink()+
+				"?retmode=xml&db=pubmed&dbfrom=pubmed&" +
 				"id="+pmid+
 				"&linkname="+linkname+
 				this.ncbiApiKey.getAmpParamValue()
@@ -135,7 +138,9 @@ public class PubmedGraph extends Launcher
 		{
 		final QName attName=new QName("Name");
 		final QName attType=new QName("Type");
-		String url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?retmode=xml&db=pubmed&" +
+		String url=
+				NcbiConstants.esummary()+
+				"?retmode=xml&db=pubmed&" +
 				"id="+a.pmid +
 				this.ncbiApiKey.getAmpParamValue()
 				;
@@ -365,6 +370,12 @@ public class PubmedGraph extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		
+		if(!this.ncbiApiKey.isApiKeyDefined()) {
+			LOG.error("NCBI API key is not defined");
+			return -1;
+			}
+		
 		if(args.size()!=1)
 			{
 			LOG.error("Illegal number of arguments");

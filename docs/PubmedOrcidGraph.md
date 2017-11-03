@@ -30,9 +30,9 @@ Usage: pubmedorcidgraph [options] Files
       Default: 2
     --ncbi-api-key
       NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ 
-      . If undefined. Will try to read in that order: 1) A java XML property 
-      file ${HOME}/.ncbi.properties and key api_key 2) the jvm property 
-      "ncbi.api.key" 3) environment variable NCBI_API_KEY
+      .If undefined, it will try to get in that order:  1) environment 
+      variable ${NCBI_API_KEY} ;  2) the jvm property "ncbi.api.key" ;	3) A 
+      java property file ${HOME}/.ncbi.properties and key api_key
     -orcid, --orcid
       Input is a set of orcids identifiers
       Default: false

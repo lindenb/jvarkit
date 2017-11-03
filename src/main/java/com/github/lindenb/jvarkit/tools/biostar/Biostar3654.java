@@ -113,6 +113,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 /**
 BEGIN_DOC
 
@@ -417,7 +418,8 @@ public class Biostar3654 extends Launcher
 			
 			if(acn!=null && !acn.isEmpty() && !acn.startsWith("Query"))
 				{
-				String uri="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db="+database+
+				String uri=
+						NcbiConstants.efetch()+"?db="+database+
 						"&id="+URLEncoder.encode(acn,"UTF-8")+
 						"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end+
 						this.ncbiApiKey.getAmpParamValue()
@@ -573,6 +575,12 @@ public class Biostar3654 extends Launcher
 
 	@Override
 	public int doWork(final List<String> args) {
+		
+		if(!this.ncbiApiKey.isApiKeyDefined()) {
+			LOG.error("NCBI API key is not defined");
+			return -1;
+			}
+		
 		try
 			{
 			

@@ -29,6 +29,7 @@ import java.io.FileReader;
 import java.util.Properties;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -50,8 +51,16 @@ see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-util
 public class NcbiApiKey {
 	private static final String CONFIG_FILE=".ncbi.properties";
 	public static final String PARAM="api_key";
+	public static final String ENV_NAME="NCBI_API_KEY";
+	public static final String JVM_PARAM="ncbi.api.key";
 	private static final Logger LOG=Logger.build(NcbiApiKey.class).make();
-	@Parameter(names="--ncbi-api-key",description="NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ . If undefined. Will try to read in that order: 1) A java XML property file ${HOME}/"+CONFIG_FILE+" and key "+PARAM+" 2) the jvm property \"ncbi.api.key\" 3) environment variable NCBI_API_KEY")
+	@Parameter(names="--ncbi-api-key",description=
+			"NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ ."
+			+ 	"If undefined, it will try to get in that order: "
+			+ " 1) environment variable ${"+ENV_NAME+"} ; "
+			+ " 2) the jvm property \""+JVM_PARAM+"\" ;"
+			+ "	3) A java property file ${HOME}/"+CONFIG_FILE+" and key "+PARAM
+			)
 	private String key = null;
 	private boolean _searched = false;
 	
@@ -59,24 +68,26 @@ public class NcbiApiKey {
 		if(this.key!=null) return this.key;
 		if(this._searched) return null;
 		this._searched = true;
+		this.key = System.getenv(ENV_NAME);
+		if(!StringUtil.isBlank(this.key))
+			{
+			return this.key;
+			}
+		this.key = System.getProperty(JVM_PARAM,null);
+		if(!StringUtil.isBlank(this.key))
+			{
+			return this.key;
+			}
+		final File keyFile = new File(System.getProperty("user.home"),CONFIG_FILE);
 		FileReader r=null;
 		try {
-			final File keyFile = new File(System.getProperty("user.home, def"),CONFIG_FILE);
 			if(keyFile.exists()) {
 				final Properties prop = new Properties();
 				r=new FileReader(keyFile);
 				prop.load(r);
 				r.close();r=null;
-				if(!prop.containsKey(PARAM)) {
-					LOG.warning("property \""+PARAM+"\" not defined in "+keyFile);
-					}
-				this.key=prop.getProperty(PARAM);
-				if(StringUtil.isBlank(this.key))
-					{
-					this.key=null;
-					LOG.warning("property \""+PARAM+"\" is empty in "+keyFile);
-					}
-				else
+				this.key=prop.getProperty(PARAM,null);
+				if(!StringUtil.isBlank(this.key))
 					{
 					return this.key;
 					}
@@ -93,22 +104,37 @@ public class NcbiApiKey {
 			{
 			CloserUtil.close(r);
 			}
-		this.key = System.getProperty("ncbi.api.key");
-		if(StringUtil.isBlank(this.key))
-			{
-			LOG.warning("JVM property \"ncbi.api.key\" is empty");
-			}
-		else
-			{
-			return this.key;
-			}
-		this.key = System.getenv("NCBI_API_KEY");
-		if(StringUtil.isBlank(this.key))
-			{
-			LOG.warning("env property \"NCBI_API_KEY\" is empty");
-			}
+		LOG.warn("\n"+
+			"*****\n"+
+			"*\n"+
+			"* NCBI api_key is undefined. see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/.\n"+
+			"* 1) can find it in ${"+ENV_NAME+"}\n" +
+			"* 2) can find it in -D"+JVM_PARAM+"\n" +
+			"* 3) can find it in property file "+keyFile+"\n" +
+			"*\n"+
+			"*****"
+			);
+		
+		
 		return this.key;	
 		}
+	
+	/** throws an exeception if api key is not defined*/
+	public void assertApiKeyDefined()
+		{
+		if(!isApiKeyDefined())
+			{
+			throw new JvarkitException.UserError(
+					"NCBI API Key is undefined. see parameters and https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ ");
+			}
+		}
+	
+	/** return true if api key is defined and not empty/null */
+	public boolean isApiKeyDefined()
+		{
+		return !StringUtil.isBlank(this.getApiKey());
+		}
+	
 	/** return '&api_key=xxxxx' or empty string if no key is defined */
 	public String getAmpParamValue() {
 		final String s=this.getApiKey();

@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -117,6 +118,12 @@ public class PubmedDump
 			LOG.error("Query missing");
 			return -1;
 			}
+		
+		if(!this.ncbiApiKey.isApiKeyDefined()) {
+			LOG.error("NCBI API key is not defined");
+			return -1;
+			}
+		
 		final String query=args.stream().collect(Collectors.joining(" ")).trim();
 		
 		if(query.isEmpty())
@@ -142,7 +149,7 @@ public class PubmedDump
 			});
 			
 			String url=
-					"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term="+
+					NcbiConstants.esearch()+"?db=pubmed&term="+
 					URLEncoder.encode(query.toString(), "UTF-8")+
 					ncbiApiKey.getAmpParamValue()+
 					"&retstart=0&retmax=0&usehistory=y&retmode=xml"+
@@ -191,7 +198,7 @@ public class PubmedDump
 				{
 				final int ret_max=90000;
 				LOG.info("nFound:"+nFound+"/"+count);
-				url= "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&WebEnv="+
+				url= NcbiConstants.efetch()+"?db=pubmed&WebEnv="+
 						URLEncoder.encode(WebEnv,"UTF-8")+
 						"&query_key="+URLEncoder.encode(QueryKey,"UTF-8")+
 						"&retmode=xml&retmax="+ret_max+"&retstart="+nFound+

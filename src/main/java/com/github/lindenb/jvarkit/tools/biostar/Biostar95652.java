@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.semontology.Term;
 
@@ -354,11 +355,18 @@ public class Biostar95652 extends Launcher
 				LOG.error("protein ID missing");
 				return -1;
 				}
+			if(!this.ncbiApiKey.isApiKeyDefined()) {
+				LOG.error("NCBI API key is not defined");
+				return -1;
+				}
+			
 			JAXBContext context = JAXBContext.newInstance("gov.nih.nlm.ncbi.gb");
 			Unmarshaller unmarshaller=context.createUnmarshaller();
 			for(String arg:args)
 				{
-				String uri="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&rettype=gb&retmode=xml&id="+
+				String uri=
+						NcbiConstants.efetch()+
+						"?db=protein&rettype=gb&retmode=xml&id="+
 						URLEncoder.encode(arg,"UTF-8")+
 						this.ncbiApiKey.getAmpParamValue();
 				
