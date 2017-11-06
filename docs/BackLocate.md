@@ -48,6 +48,7 @@ Usage: backlocate [options] Files
 
 ## See also in Biostars
 
+ * [https://www.biostars.org/p/15992](https://www.biostars.org/p/15992)
  * [https://www.biostars.org/p/116366](https://www.biostars.org/p/116366)
 
 
@@ -55,7 +56,7 @@ Usage: backlocate [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -92,6 +93,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Nov 6 18:36:08 2017 +0100 ; add biostars 15992 ; https://github.com/lindenb/jvarkit/commit/c392165274dfd88b211ca6ddd8e45db5cb5fb78f
 Thu Jul 6 19:24:32 2017 +0200 ; recompile ; https://github.com/lindenb/jvarkit/commit/c50120a6e41e990cbf57b6f06c9a9116a6926829
 Mon Jun 26 17:29:03 2017 +0200 ; burden ; https://github.com/lindenb/jvarkit/commit/a3b7abf21d07f0366e81816ebbb2cce26b2341e7
 Thu May 25 13:37:47 2017 +0200 ; format help ; https://github.com/lindenb/jvarkit/commit/cdb95fb8e7d7686bb137b45ef831479aefc2dca1
