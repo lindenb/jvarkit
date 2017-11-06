@@ -114,7 +114,7 @@ backlocate was cited in:
 @Program(name="backlocate",
 	description="Mapping a mutation on a protein back to the genome.",
 	keywords={"vcf","annotation","prediction","protein"},
-	biostars=116366
+	biostars={15992,116366}
 	)
 public class BackLocate
 	extends Launcher
