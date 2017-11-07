@@ -13,6 +13,11 @@ Usage: vcfserver [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --igv
+      [20171107] if defined, generate a hyperlink to IGV for each variant. 
+      Format: 'http://HOST:PORT' , most of the time it should be 
+      'http://localhost:60151' (see 
+      http://software.broadinstitute.org/software/igv/book/export/html/189). 
     -jexl, --jexl
       Use/Show JEXL filter instead of Javascript filter (which is not 
       filesystem-safe). 
@@ -84,6 +89,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Oct 31 17:21:38 2017 +0100 ; tviewserver / vcfserver : added screenshots ; https://github.com/lindenb/jvarkit/commit/2a991b2e352fb30b8e0a94144fcda8d52c2f653a
 Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
 Sat Oct 28 18:13:58 2017 +0200 ; vcf server: description ; https://github.com/lindenb/jvarkit/commit/7abb1d5513bdd8f9f249a290b418b75b3a237771
 Sat Oct 28 18:04:34 2017 +0200 ; vcf server ; https://github.com/lindenb/jvarkit/commit/1ba12c148566055ec896ddec9b7c2d7674cf8236

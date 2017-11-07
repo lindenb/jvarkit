@@ -32,6 +32,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.URLEncoder;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -123,6 +124,8 @@ private int port=8080;
 private boolean disable_javascript = false;
 @Parameter(names={"-m","--max"},description="Max interval Length")
 private int max_interval_length = 2000;
+@Parameter(names={"--igv"},description="[20171107] if defined, generate a hyperlink to IGV for each variant. Format: 'http://HOST:PORT' , most of the time it should be 'http://localhost:60151' (see http://software.broadinstitute.org/software/igv/book/export/html/189).")
+private String igvHostPort=null;
 
 
 private class SamViewHandler extends AbstractHandler
@@ -176,7 +179,7 @@ private class SamViewHandler extends AbstractHandler
 			this.writer.writeComment("BEGIN FORM");
 			this.writer.writeStartElement("div");
 			this.writer.writeStartElement("form");
-			writeSelectVcf();
+			writeSelectSam();
 			
 			
 			final String flags[]=new String[] {
@@ -259,7 +262,7 @@ private class SamViewHandler extends AbstractHandler
 		
 		
 		
-		void writeSelectVcf()throws XMLStreamException
+		void writeSelectSam()throws XMLStreamException
 			{
 			if(getOwner().samFiles.size()==1) {
 				this.writer.writeEmptyElement("input");
@@ -547,6 +550,30 @@ private class SamViewHandler extends AbstractHandler
 						return ;
 						}
 					
+					/* Hyperlink to IGV */
+					if(!StringUtil.isBlank(TViewServer.this.igvHostPort)) {
+						try
+							{
+							final int EXTEND=15;
+							final String gotostr=URLEncoder.encode(interval.getContig()+":"+Math.max(interval.getStart()-EXTEND, 1)+"-"+ (interval.getEnd()+EXTEND),"UTF-8");
+							this.writer.writeStartElement("div");
+							this.writer.writeStartElement("a");
+							this.writer.writeAttribute("title","Open in IGV");
+							this.writer.writeAttribute("rel","nofollow");
+							this.writer.writeAttribute("href", 
+									TViewServer.this.igvHostPort+
+									"/goto?locus="+gotostr
+									);
+							this.writer.writeCharacters("[IGV]");
+							this.writer.writeEndElement();//a
+							this.writer.writeEndElement();//div
+							this.writer.writeCharacters("");
+							}
+						catch(final IOException err)
+							{
+							
+							}
+						}
 					
 					this.writer.writeStartElement("pre");
 					this.writer.writeCharacters("");
