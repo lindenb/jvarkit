@@ -71,11 +71,27 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+/**
+BEGIN_DOC
 
+## Example:
+
+```
+java -jar dist/trapindexer.jar  -o chr22.dat chr22.TraPv2.txt.gz
+echo -e "22\tchr22.dat" > out.manifest
+java -jar dist/vcftrap.jar -m out.manifest input.vcf
+```
+
+
+## See also
+
+* TrapIndexer
+
+END_DOC
+ */
 @Program(name="vcftrap",
 description="annotate vcf with trap database http://trap-score.org/",
-keywords={"vcf","trap","annotation"},
-generate_doc=false
+keywords={"vcf","trap","annotation"}
 )
 public class VcfTrap extends Launcher {
 	private static final Logger LOG = Logger.build(VcfTrap.class).make();
@@ -151,7 +167,7 @@ public class VcfTrap extends Launcher {
 			{
 
 			@XmlElement(name="manifest")
-			@Parameter(names={"-m","--manifest"},description="Manifest file. A tab delimited file with two columns : chromosome(tab)path-to-file-indexed-with-TrapIndexer.",required=true)
+			@Parameter(names={"-m","--manifest"},description="Manifest file. A tab delimited file with two columns : chromosome(tab)path-to-file-indexed-with-trapindex.",required=true)
 			private File manifestFile=null;
 			@Parameter(names={"--ignore-filtered"},description="Ignore FILTERed variants (faster)")
 			private boolean ignore_filtered=false;

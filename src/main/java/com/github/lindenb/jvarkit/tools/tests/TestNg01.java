@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -85,6 +86,8 @@ import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
+import com.github.lindenb.jvarkit.tools.trap.TrapIndexer;
+import com.github.lindenb.jvarkit.tools.trap.VcfTrap;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcfamalgation.VcfXmlAmalgamation;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
@@ -97,6 +100,7 @@ import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
+import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -978,4 +982,57 @@ class TestNg01 {
 	    	Assert.assertTrue( output.delete());
 			}
     	}
-	}
+    @Test
+    public void testCppAlgorithms() throws IOException {
+    	final Random rand = new Random(0L);
+		final List<Integer> data = new ArrayList<>();
+		for(int i=0;i< 50;i++)
+			{
+			int c = 5+rand.nextInt(20);
+			while(c>0) { data.add(i);--c;}
+			}
+		final int x0 = data.indexOf(40);
+		final int x1 = data.indexOf(41);
+		Assert.assertTrue(x0>0);
+		Assert.assertTrue(x1>x0);
+		Assert.assertEquals(x0,Algorithms.lower_bound(data,40));
+		Assert.assertEquals(x1,Algorithms.upper_bound(data,40));
+		Assert.assertEquals(x0,Algorithms.equal_range(data,40)[0]);
+		Assert.assertEquals(x1,Algorithms.equal_range(data,40)[1]);
+		Assert.assertEquals(0,Algorithms.lower_bound(data,-1));
+		Assert.assertEquals(data.size(),Algorithms.upper_bound(data,60));
+    	}
+    @Test
+    public void testVcfTrap() throws IOException {
+    	final File dbFile =new File(TEST_RESULTS_DIR,"chr1.TraPv2.txt");
+    	PrintWriter pw =new PrintWriter(dbFile);
+    	pw.println("906010\tA\tG\tENSG00000186092\t0.029");
+    	pw.println("906010\tA\tG\tENSG00000186092\t1");
+    	pw.println("906011\tT\tC\tENSG00000186093\t0.99");
+    	pw.flush();
+    	pw.close();
+    	final File indexFile =new File(TEST_RESULTS_DIR,"chr1.TraPv2.dat");
+    	Assert.assertEquals(0,new TrapIndexer().instanceMain(new String[]{
+        		"-o",indexFile.getPath(),
+        		dbFile.getPath()
+        		}));
+    	
+    	final File manifestFile =new File(TEST_RESULTS_DIR,"jeter.manifest");
+    	pw =new PrintWriter(manifestFile);
+    	pw.println("1\t"+indexFile.getPath());
+    	pw.flush();
+    	pw.close();
+    	final File outvcf =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VcfTrap().instanceMain(new String[]{
+        		"-o",outvcf.getPath(),
+        		"-A","TRAP",
+        		"-m",manifestFile.getPath(),
+        		"src/test/resources/gnomad.genomes.r2.0.1.sites.1.vcf.gz"
+        		}));
+    	Assert.assertTrue(streamVcf(outvcf).anyMatch(V->V.hasAttribute("TRAP")));
+    	Assert.assertTrue(manifestFile.delete());
+    	Assert.assertTrue(indexFile.delete());
+    	Assert.assertTrue(dbFile.delete());
+    	Assert.assertTrue(outvcf.delete());
+		}
+}

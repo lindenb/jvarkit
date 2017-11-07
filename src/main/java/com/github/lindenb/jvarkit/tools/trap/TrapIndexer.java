@@ -35,16 +35,18 @@ BEGIN_DOC
 ## Example:
 
 ```
-java -jar dist/trapindexer.jar  -o chr22.dat ~/TRAP/chr22.TraPv2.txt.gz
+java -jar dist/trapindexer.jar  -o chr22.dat  chr22.TraPv2.txt.gz
 ```
 
+## See also
+
+* VcfTrap
 
 END_DOC
  */
 @Program(name="trapindexer",
-	description="Convert text data to binary format for the trap DATABASE database http://trap-score.org/",
-	keywords= {"trap"},
-	generate_doc=false
+	description="Convert text data to binary format for the trap DATABASE database http://trap-score.org/. Those data can be used by the tool `vcftrap`.",
+	keywords= {"trap"}
 )
 public class TrapIndexer extends Launcher{
 private static final Logger LOG = Logger.build(TrapIndexer.class).make();

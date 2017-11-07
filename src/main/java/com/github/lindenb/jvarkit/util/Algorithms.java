@@ -38,6 +38,12 @@ import htsjdk.samtools.util.IterableAdapter;
  *
  */
 public class Algorithms {
+	
+	private static <T >boolean lower_than(final T a, final T b,final Comparator<T> cmp)
+		{
+		return cmp.compare(a, b)<0;
+		}
+	
 	/** C+ lower_bound */
 	public static <T extends Comparable<T>> int lower_bound(
 			List<T> dataVector,
@@ -64,11 +70,12 @@ public class Algorithms {
 	            {
 	            final int half = len / 2;
 	            final int middle = first + half;
-	            final T x= dataVector.get(middle);
-	            if (comparator.compare(x,select)<0)
+
+	            final T mid  = dataVector.get(middle);
+	            if (lower_than(mid,select,comparator))
 	                    {
 	                    first = middle + 1;
-	                    len -= half + 1;
+	                    len = len - half - 1;
 	                    }
 	            else
 	                    {
@@ -89,7 +96,7 @@ public class Algorithms {
 
 
 	/** C+ upper_bound */
-	public static <T extends Comparable<T>> int upper_bound(
+	public static <T> int upper_bound(
 			final List<T> dataVector,
 			int first,
 			final int last,
@@ -102,15 +109,16 @@ public class Algorithms {
 	            {
 	    		final int half = len / 2;
 	    		final int middle = first + half;
-	            final T x= dataVector.get(middle);
-	            if (comparator.compare(select,x)<0)
+
+	            final T mid = dataVector.get(middle);
+	            if (lower_than(select,mid,comparator))
 	                    {
 	                    len = half;
 	                    }
 	            else
 	                    {
 	                    first = middle + 1;
-	                    len -= half + 1;
+	                    len = len -  half - 1;
 	                    }
 	            }
 	    return first;
@@ -125,43 +133,37 @@ public class Algorithms {
 		return equal_range(dataVector,0,dataVector.size(), select,(A,B)->A.compareTo(B));
 		}
 	
-	public static <T extends Comparable<T>> int[] equal_range(
+	public static <T> int[] equal_range(
 			final List<T> dataVector,
 			int first,
 			final int last,
 			final T select,
 			final Comparator<T> comparator
-			)
-		{
+			) {
 		int __len = last - first;
 
-	        while (__len > 0)
-		  	{
-		  	  final int __half = __len / 2;
-		  	  int __middle = first + __half;
-		  	  if (comparator.compare(dataVector.get(__middle), select)<0)
-		  	    {
-		  	      first = __middle;
-		  	      ++first;
-		  	      __len = __len - __half - 1;
-		  	    }
-		  	  else if (comparator.compare(select, dataVector.get(__middle))<0)
-		  	  	{
-		  	    __len = __half;
-		  	  	}
-		  	  else
-		  	    {
-		  	    int __left = lower_bound(dataVector,first, __middle, select, comparator);
-		  	    first += __len;
-		  	    ++__middle;
-		  	    int __right = upper_bound(dataVector,__middle, first, select, comparator);
-		  	    return new int[] {__left, __right};
-		  	    }
-		  	}
-	    return new int[] {first, first};
+		while (__len > 0) {
+			final int __half = __len / 2;
+			int __middle = first + __half;
+			final T mid = dataVector.get(__middle);
+			if (lower_than(mid, select,comparator)) {
+				first = __middle;
+				++first;
+				__len = __len - __half - 1;
+			} else if (lower_than(select,mid,comparator)) {
+				__len = __half;
+			} else {
+				int __left = lower_bound(dataVector, first, __middle, select, comparator);
+				first += __len;
+				++__middle;
+				int __right = upper_bound(dataVector, __middle, first, select, comparator);
+				return new int[] { __left, __right };
+			}
 		}
+		return new int[] { first, first };
+	}
 	
-	public static <T extends Comparable<T>> Iterator<T> equal_range_iterator(
+	public static <T> Iterator<T> equal_range_iterator(
 			final List<T> dataVector,
 			int first,
 			final int last,
@@ -170,11 +172,14 @@ public class Algorithms {
 			)
 		{
 		final int indexes[]= equal_range(dataVector, first, last, select, comparator);
+		if(indexes[0]<0) throw new IllegalStateException("index[0]="+indexes[0]);
+		if(indexes[1]<0) throw new IllegalStateException("index[1]="+indexes[1]);
+		if(indexes[0]>indexes[1]) throw new IllegalStateException("index[1]="+indexes[1]+"<index[0]="+indexes[0]);
 		if(indexes[0]==indexes[1]) return Collections.emptyIterator();
 		return dataVector.subList(indexes[0], indexes[1]).iterator();
 		}
 	
-	public static <T extends Comparable<T>> Stream<T> equal_range_stream(
+	public static <T> Stream<T> equal_range_stream(
 			final List<T> dataVector,
 			int first,
 			final int last,

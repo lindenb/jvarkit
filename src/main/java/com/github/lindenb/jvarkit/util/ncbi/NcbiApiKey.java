@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.util.ncbi;
 import java.io.File;
 import java.io.FileReader;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -64,8 +65,19 @@ public class NcbiApiKey {
 	private String key = null;
 	private boolean _searched = false;
 	
+	public NcbiApiKey()
+		{
+		
+		}
+	
+	public NcbiApiKey(final String s)
+		{
+		this.key = s;
+		}
+	
+	
 	public String getApiKey() {		
-		if(this.key!=null) return this.key;
+		if(!StringUtil.isBlank(this.key)) return this.key;
 		if(this._searched) return null;
 		this._searched = true;
 		this.key = System.getenv(ENV_NAME);
@@ -141,4 +153,12 @@ public class NcbiApiKey {
 		if(StringUtil.isBlank(s)) return "";
 		return "&"+PARAM+"="+s;
 	}
+	
+	/** hide the api key if it is present in a string */
+	public String mask(final String s) {
+		if(s==null ) return s;
+		final String kv = getApiKey();
+		if(StringUtil.isBlank(kv)) return s;
+		return s.replaceAll(Pattern.quote(kv),"xxxxxxx");
+		}
 }
