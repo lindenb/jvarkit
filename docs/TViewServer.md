@@ -82,6 +82,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Thu Nov 2 12:09:38 2017 +0100 ; commit failed ??? strange.. ; https://github.com/lindenb/jvarkit/commit/3da2a1f1f839ab3c0ebb8e2369926ac6c6fca4f4
+Thu Nov 2 11:51:38 2017 +0100 ; vcfserver can display multiple bams ; https://github.com/lindenb/jvarkit/commit/587a8148bc4c4e330117d6154803de0eba9b3fcd
 Tue Oct 31 17:21:38 2017 +0100 ; tviewserver / vcfserver : added screenshots ; https://github.com/lindenb/jvarkit/commit/2a991b2e352fb30b8e0a94144fcda8d52c2f653a
 Tue Oct 31 17:03:31 2017 +0100 ; tviewserver based on jvarkit:tview ; https://github.com/lindenb/jvarkit/commit/7799aa3b2dae490541a0ae017fd86b6819dd4aba
 ```
