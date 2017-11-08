@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -96,6 +97,7 @@ import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallers;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
+import com.github.lindenb.jvarkit.tools.vcflist.VcfList;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations;
@@ -1035,4 +1037,24 @@ class TestNg01 {
     	Assert.assertTrue(dbFile.delete());
     	Assert.assertTrue(outvcf.delete());
 		}
+    
+    
+    @Test(dataProvider="all_vcfs")
+    public void testVcfFileOffsets(final String path) throws IOException {
+    	final File vcfFile = new File(path);
+    	VcfList.indexVcfFile(vcfFile);
+    	Assert.assertTrue(VcfList.indexVcfFile(vcfFile).exists());
+    	final VcfList list = VcfList.open(vcfFile);
+    	final List<Integer> positions = streamVcf(vcfFile).map(CTX->CTX.getStart()).collect(Collectors.toList());
+    	Assert.assertEquals(positions.size(),list.size());
+    	Assert.assertNotNull(list.getHeader());
+    	for(int i= list.size()-1;i>=0;--i)
+    		{
+        	Assert.assertNotNull(list.get(i));
+        	Assert.assertEquals(list.get(i).getStart(),positions.get(i).intValue());
+    		}
+    	Assert.assertEquals((long)list.size(),streamVcf(vcfFile).count());
+    	list.close();
+    	Assert.assertTrue(VcfList.indexVcfFile(vcfFile).delete());
+    	}
 }
