@@ -28,6 +28,11 @@ Usage: pubmedorcidgraph [options] Files
     -d, --maxdepth
       Max graph depth
       Default: 2
+    --ncbi-api-key
+      NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ 
+      .If undefined, it will try to get in that order:  1) environment 
+      variable ${NCBI_API_KEY} ;  2) the jvm property "ncbi.api.key" ;	3) A 
+      java property file ${HOME}/.ncbi.properties and key api_key
     -orcid, --orcid
       Input is a set of orcids identifiers
       Default: false
@@ -50,7 +55,7 @@ Usage: pubmedorcidgraph [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -87,6 +92,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Thu Nov 2 19:54:56 2017 +0100 ; added NCBI API key ; https://github.com/lindenb/jvarkit/commit/fa13648014a42cd307b25f8661385e9f62d42bea
 Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
 Tue Apr 4 20:55:42 2017 +0200 ; bdb and fix orcid ; https://github.com/lindenb/jvarkit/commit/8a13cc0e9e36a4b86e3fd1628ff2f241b4a09c1f
 Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181

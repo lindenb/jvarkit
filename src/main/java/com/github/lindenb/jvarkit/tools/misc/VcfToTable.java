@@ -710,6 +710,9 @@ public class VcfToTable extends Launcher {
 		private OutputFormat outputFormat=OutputFormat.text;
 		@Parameter(names={"--no-html-header"},description="[20171023] ignore html header for HTML output.")
 		private boolean hideHtmlHeader=false;
+		@Parameter(names={"--igv"},description="[20171107] if defined, in HTML output generate a hyperlink to IGV for each variant. Format: 'http://HOST:PORT' , most of the time it should be 'http://localhost:60151' (see http://software.broadinstitute.org/software/igv/book/export/html/189).")
+		private String igvHostPort=null;
+
 		
 		private AbstractViewer delegate=null;
 		private PrintStream outputStream = System.out;
@@ -1467,12 +1470,42 @@ public class VcfToTable extends Launcher {
 						this.out.writeCharacters("[prev]");
 						this.out.writeEndElement();//a
 						}
+					
+					/* Hyperlink to IGV */
+					if(!StringUtil.isBlank(VcfToTableViewer.this.igvHostPort)) {
+						try
+							{
+							final int EXTEND=15;
+							final String gotostr=URLEncoder.encode(ctx.getContig()+":"+Math.max(ctx.getStart()-EXTEND, 1)+"-"+ (ctx.getEnd()+EXTEND),"UTF-8");
+							this.out.writeCharacters(" ");
+							this.out.writeStartElement("a");
+							this.out.writeAttribute("title","Open in IGV");
+							this.out.writeAttribute("rel","nofollow");
+							this.out.writeAttribute("href", 
+									VcfToTableViewer.this.igvHostPort+
+									"/goto?locus="+gotostr
+									);
+							this.out.writeCharacters("[IGV]");
+							this.out.writeEndElement();//a
+							}
+						catch(final IOException err)
+							{
+							
+							}
+						}
+					
 					this.out.writeCharacters(" ");
 					this.out.writeStartElement("a");
 					this.out.writeAttribute("href", "#vc"+(this.countVariants+1));
 					this.out.writeCharacters("[next]");
 					this.out.writeEndElement();//a
-					this.out.writeEndElement();
+					
+					
+					
+					this.out.writeEndElement();//h3
+					
+					
+					
 					}
 				catch(final XMLStreamException err)
 					{
@@ -1542,6 +1575,9 @@ public class VcfToTable extends Launcher {
 		}
 		public void setUseANSIColors(boolean useANSIColors) {
 			this.useANSIColors = useANSIColors;
+		}
+		public void setIgvHostPort(final String igvHostPort) {
+			this.igvHostPort = igvHostPort;
 		}
 		
 		@Override

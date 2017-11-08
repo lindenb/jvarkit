@@ -13,6 +13,11 @@ Usage: tviewserver [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --igv
+      [20171107] if defined, generate a hyperlink to IGV for each variant. 
+      Format: 'http://HOST:PORT' , most of the time it should be 
+      'http://localhost:60151' (see 
+      http://software.broadinstitute.org/software/igv/book/export/html/189). 
     -m, --max
       Max interval Length
       Default: 2000

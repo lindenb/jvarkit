@@ -1,0 +1,167 @@
+# PubmedGraph
+
+Creates a Gephi-gexf graph of references-cites for a given PMID
+
+
+## Usage
+
+```
+Usage: pubmedgraph [options] Files
+  Options:
+    -h, --help
+      print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
+    --ncbi-api-key
+      NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ 
+      .If undefined, it will try to get in that order:  1) environment 
+      variable ${NCBI_API_KEY} ;  2) the jvm property "ncbi.api.key" ;	3) A 
+      java property file ${HOME}/.ncbi.properties and key api_key
+    -o, --output
+      Output file. Optional . Default: stdout
+    --version
+      print version and exit
+    -b
+      disable backward (referenced-in)
+      Default: false
+    -d
+      max-depth
+      Default: 3
+    -f
+      disable forward (cited-in)
+      Default: false
+
+```
+
+
+## Keywords
+
+ * pubmed
+ * xml
+ * graph
+
+
+## Compilation
+
+### Requirements / Dependencies
+
+* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* GNU Make >= 3.81
+* curl/wget
+* git
+* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
+
+
+### Download and Compile
+
+```bash
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ make pubmedgraph
+```
+
+The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
+The required libraries will be downloaded and installed in the `dist` directory.
+
+### edit 'local.mk' (optional)
+
+The a file **local.mk** can be created edited to override/add some definitions.
+
+For example it can be used to set the HTTP proxy:
+
+```
+http.proxy.host=your.host.com
+http.proxy.port=124567
+```
+## Source code 
+
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGraph.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGraph.java)
+
+
+<details>
+<summary>Git History</summary>
+
+```
+Fri Nov 3 09:47:30 2017 +0100 ; updated code for ncbi api_key ; https://github.com/lindenb/jvarkit/commit/1a6c7673fd0ec2473433d78e24b1cbd6cfe6e4ca
+Thu Nov 2 19:54:56 2017 +0100 ; added NCBI API key ; https://github.com/lindenb/jvarkit/commit/fa13648014a42cd307b25f8661385e9f62d42bea
+Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
+Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
+Thu Jul 28 09:48:29 2016 +0200 ; NCBI moved API to https ; https://github.com/lindenb/jvarkit/commit/d207e023a06d2ae7afd2e05d2f1369b8a713974b
+Tue Jun 16 17:40:00 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f394e306c86bd45240d165c69748acf44f0b38ec
+Mon Jun 15 21:35:36 2015 +0200 ; pubmed graph ; https://github.com/lindenb/jvarkit/commit/3fd6216961e9aca27a1013a7b2aab63afe819d52
+```
+
+</details>
+
+## Contribute
+
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
+
+## License
+
+The project is licensed under the MIT license.
+
+## Citing
+
+Should you cite **pubmedgraph** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+
+The current reference is:
+
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+
+## Example
+
+```
+$ java -jar dist/pubmedgraph.jar -d 0 15047801 
+```
+
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<gexf xmlns="http://www.gexf.net/1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.gexf.net/1.3 http://www.gexf.net/1.3/gexf.xsd" version="1.3">
+  <meta>
+    <creator>PubmedGraph  by Pierre Lindenbaum</creator>
+    <description/>
+  </meta>
+  <graph mode="static" defaultedgetype="directed">
+    <attributes class="node" mode="static"/>
+    <attributes class="edge" mode="static">
+      <attribute id="0" title="pmid" type="string"/>
+      <attribute id="1" title="title" type="string"/>
+      <attribute id="2" title="pubdate" type="string"/>
+    </attributes>
+    <nodes>
+      <node id="10889507" label="Cleavage of polypeptide cha...">
+        <attvalues>
+          <attvalue for="0" value="10889507"/>
+          <attvalue for="1" value="Cleavage of polypeptide chain initiation factor eIF4GI during apoptosis in lymphoma cells: characterisation of an internal fragment generated by caspase-3-mediated cleavage."/>
+          <attvalue for="2" value="2000 Jul"/>
+        </attvalues>
+      </node>
+      <node id="9989501" label="The structure of the protei...">
+        <attvalues>
+          <attvalue for="0" value="9989501"/>
+          <attvalue for="1" value="The structure of the protein phosphatase 2A PR65/A subunit reveals the conformation of its 15 tandemly repeated HEAT motifs."/>
+          <attvalue for="2" value="1999 Jan 8"/>
+        </attvalues>
+      </node>
+      <node id="11792322" label="Recognition of the rotaviru...">
+        <attvalues>
+          <attvalue for="0" value="11792322"/>
+          <attvalue for="1" value="Recognition of the rotavirus mRNA 3' consensus by an asymmetric NSP3 homodimer."/>
+          <attvalue for="2" value="2002 Jan 11"/>
+        </attvalues>
+      </node>
+      <node id="11875511" label="How a rotavirus hijacks the...">
+        <attvalues>
+          <attvalue for="0" value="11875511"/>
+```
+
+

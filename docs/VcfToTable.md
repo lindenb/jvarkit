@@ -41,6 +41,11 @@ Usage: vcf2table [options] Files
     --hidePredictions
       [20170808] hide SNPEFF/VEP table.
       Default: false
+    --igv
+      [20171107] if defined, in HTML output generate a hyperlink to IGV for 
+      each variant. Format: 'http://HOST:PORT' , most of the time it should be 
+      'http://localhost:60151' (see 
+      http://software.broadinstitute.org/software/igv/book/export/html/189). 
     -L, -limit, --limit
       Limit the number of output variant. '-1' == ALL/No limit.
       Default: -1
@@ -112,6 +117,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
+Sat Oct 28 18:04:34 2017 +0200 ; vcf server ; https://github.com/lindenb/jvarkit/commit/1ba12c148566055ec896ddec9b7c2d7674cf8236
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
 Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
 Thu Oct 26 17:33:55 2017 +0200 ; added urls to vcf2table ; https://github.com/lindenb/jvarkit/commit/6afd4dbbd062d175325f1cda7006f112e35a719c

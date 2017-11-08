@@ -231,18 +231,30 @@ Unphase a VCF file
 java -jar dist/vcffilterjdk.jar -e 'return new VariantContextBuilder(variant).genotypes(variant.getGenotypes().stream().map(G->new GenotypeBuilder(G).phased(false).make()).collect(Collectors.toList())).make();' input.vcf
 ```
 
+## Example
+
+Change haploid to diploid
+
+note: things like 'AF' are not fixed.
+
+```
+$ wget -q -O - "https://raw.githubusercontent.com/CostaLab/practical_SS2015/598ea0dddf2ef073a55ae21bc6d39ac2172eb617/data_analysis/organisms/escherichia_coli/O157H7_Sakai/IonTorrentPGM_mem/SRX185723/SRR566635/SRR566635-snps.vcf" | java -jar dist/vcffilterjdk.jar -e 'return new VariantContextBuilder(variant).genotypes(variant.getGenotypes().stream().map(G->!G.isCalled()?GenotypeBuilder.createMissing(G.getSampleName(),2):G).map(G->G.isCalled() && G.getPloidy()==1?new GenotypeBuilder(G).alleles(Arrays.asList(G.getAllele(0),G.getAllele(0))).make():G).collect(Collectors.toList())).attribute("AC",variant.getGenotypes().stream().mapToInt(G->G.isCalled() && G.getPloidy()==1 && !G.getAllele(0).isReference()?2:G.getAlleles().size()).sum()).attribute("AN",variant.getGenotypes().stream().mapToInt(G->G.isCalled() && G.getPloidy()==1 ?2:G.getAlleles().size()).sum()).make();'
+```
+
+
 END_DOC
  */
 @Program(
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820}
+		biostars={266201,269854,277820,250212}
 		)
 public class VcfFilterJdk
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfFilterJdk.class).make();
+	@SuppressWarnings("unused")
 	private static final Counter<?> _fool_javac=null;
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
