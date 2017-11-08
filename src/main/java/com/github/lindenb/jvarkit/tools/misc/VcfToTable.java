@@ -61,6 +61,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPr
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
@@ -710,8 +711,8 @@ public class VcfToTable extends Launcher {
 		private OutputFormat outputFormat=OutputFormat.text;
 		@Parameter(names={"--no-html-header"},description="[20171023] ignore html header for HTML output.")
 		private boolean hideHtmlHeader=false;
-		@Parameter(names={"--igv"},description="[20171107] if defined, in HTML output generate a hyperlink to IGV for each variant. Format: 'http://HOST:PORT' , most of the time it should be 'http://localhost:60151' (see http://software.broadinstitute.org/software/igv/book/export/html/189).")
-		private String igvHostPort=null;
+		@Parameter(names={"--url"},description=Launcher.USER_CUSTOM_INTERVAL_URL_DESC)
+		private String userCustomUrl=null;
 
 		
 		private AbstractViewer delegate=null;
@@ -1472,25 +1473,21 @@ public class VcfToTable extends Launcher {
 						}
 					
 					/* Hyperlink to IGV */
-					if(!StringUtil.isBlank(VcfToTableViewer.this.igvHostPort)) {
-						try
-							{
-							final int EXTEND=15;
-							final String gotostr=URLEncoder.encode(ctx.getContig()+":"+Math.max(ctx.getStart()-EXTEND, 1)+"-"+ (ctx.getEnd()+EXTEND),"UTF-8");
+					if(!StringUtil.isBlank(VcfToTableViewer.this.userCustomUrl)) {
+						final int EXTEND=15;
+						final String gotostr=Launcher.createUrlFromInterval(
+								VcfToTableViewer.this.userCustomUrl,
+								new Interval(ctx.getContig(),
+									Math.max(1, ctx.getStart()-EXTEND),
+									ctx.getEnd()+EXTEND));
+						if(!StringUtil.isBlank(gotostr)) {
 							this.out.writeCharacters(" ");
 							this.out.writeStartElement("a");
-							this.out.writeAttribute("title","Open in IGV");
+							this.out.writeAttribute("title","Open URL");
 							this.out.writeAttribute("rel","nofollow");
-							this.out.writeAttribute("href", 
-									VcfToTableViewer.this.igvHostPort+
-									"/goto?locus="+gotostr
-									);
-							this.out.writeCharacters("[IGV]");
+							this.out.writeAttribute("href", gotostr );
+							this.out.writeCharacters("[URL]");
 							this.out.writeEndElement();//a
-							}
-						catch(final IOException err)
-							{
-							
 							}
 						}
 					
@@ -1576,8 +1573,8 @@ public class VcfToTable extends Launcher {
 		public void setUseANSIColors(boolean useANSIColors) {
 			this.useANSIColors = useANSIColors;
 		}
-		public void setIgvHostPort(final String igvHostPort) {
-			this.igvHostPort = igvHostPort;
+		public void setUserCustomUrl(final String userCustomUrl) {
+			this.userCustomUrl = userCustomUrl;
 		}
 		
 		@Override

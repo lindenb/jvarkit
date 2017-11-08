@@ -13,11 +13,6 @@ Usage: vcfserver [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    --igv
-      [20171107] if defined, generate a hyperlink to IGV for each variant. 
-      Format: 'http://HOST:PORT' , most of the time it should be 
-      'http://localhost:60151' (see 
-      http://software.broadinstitute.org/software/igv/book/export/html/189). 
     -jexl, --jexl
       Use/Show JEXL filter instead of Javascript filter (which is not 
       filesystem-safe). 
@@ -33,6 +28,11 @@ Usage: vcfserver [options] Files
     -timeout, --timeout
       query timeout in seconds
       Default: 60
+    --url
+      A custom URL for a web browser. The following words will be replaced by 
+      they values: ${CHROM}, ${START}, ${END}. For example for IGV that would 
+      be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see 
+      http://software.broadinstitute.org/software/igv/book/export/html/189) 
     --version
       print version and exit
 
@@ -89,6 +89,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 7 16:33:40 2017 +0100 ; Hyperlinks to IGV ; https://github.com/lindenb/jvarkit/commit/b41b49dfc9e1948eb76085c343b69a4ac0520f16
 Tue Oct 31 17:21:38 2017 +0100 ; tviewserver / vcfserver : added screenshots ; https://github.com/lindenb/jvarkit/commit/2a991b2e352fb30b8e0a94144fcda8d52c2f653a
 Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
 Sat Oct 28 18:13:58 2017 +0200 ; vcf server: description ; https://github.com/lindenb/jvarkit/commit/7abb1d5513bdd8f9f249a290b418b75b3a237771

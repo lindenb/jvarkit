@@ -34,6 +34,7 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.StringWriter;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,6 +47,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.jar.Manifest;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
@@ -84,7 +86,9 @@ import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -98,6 +102,9 @@ private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
 		"This file must be indexed with samtools faidx and with picard CreateSequenceDictionary";
+/** description used when building custom URLs (e.g: VcfServer ) */
+public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web browser. The following words will be replaced by they values: ${CHROM}, ${START}, ${END}. "
+		+ "For example for IGV that would be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see http://software.broadinstitute.org/software/igv/book/export/html/189)";
 
 protected static final int RETURN_OK=0;
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
@@ -1334,6 +1341,26 @@ public static boolean isRunningJavaWebStart() {
     catch (ClassNotFoundException ex) {
        return false;
     	}
+	}
+
+
+/** build a cutsom URL from an interval. see {@link #USER_CUSTOM_INTERVAL_URL_DESC}. 
+ * @return the new url of null if pattern is blank or interval is null */
+public static String createUrlFromInterval(final String pattern,final Interval interval)
+	{
+	if(StringUtil.isBlank(pattern) || interval==null) return null;
+	try {
+		return pattern.
+			replaceAll(Pattern.quote("${CHROM}"),URLEncoder.encode(interval.getContig(),"UTF-8")).
+			replaceAll(Pattern.quote("${START}"),String.valueOf(interval.getStart()).
+			replaceAll(Pattern.quote("${END}"),String.valueOf(interval.getEnd())))
+			;
+		}
+	catch(final IOException err)
+		{
+		LOG.error(err);
+		return null;
+		}
 	}
 
 /** when using doVcfToVcfMultipleStream, this will be the name of the zip */

@@ -13,11 +13,6 @@ Usage: tviewserver [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    --igv
-      [20171107] if defined, generate a hyperlink to IGV for each variant. 
-      Format: 'http://HOST:PORT' , most of the time it should be 
-      'http://localhost:60151' (see 
-      http://software.broadinstitute.org/software/igv/book/export/html/189). 
     -m, --max
       Max interval Length
       Default: 2000
@@ -30,6 +25,11 @@ Usage: tviewserver [options] Files
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --url
+      A custom URL for a web browser. The following words will be replaced by 
+      they values: ${CHROM}, ${START}, ${END}. For example for IGV that would 
+      be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see 
+      http://software.broadinstitute.org/software/igv/book/export/html/189) 
     --version
       print version and exit
 
@@ -87,6 +87,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 7 16:33:40 2017 +0100 ; Hyperlinks to IGV ; https://github.com/lindenb/jvarkit/commit/b41b49dfc9e1948eb76085c343b69a4ac0520f16
 Thu Nov 2 12:09:38 2017 +0100 ; commit failed ??? strange.. ; https://github.com/lindenb/jvarkit/commit/3da2a1f1f839ab3c0ebb8e2369926ac6c6fca4f4
 Thu Nov 2 11:51:38 2017 +0100 ; vcfserver can display multiple bams ; https://github.com/lindenb/jvarkit/commit/587a8148bc4c4e330117d6154803de0eba9b3fcd
 Tue Oct 31 17:21:38 2017 +0100 ; tviewserver / vcfserver : added screenshots ; https://github.com/lindenb/jvarkit/commit/2a991b2e352fb30b8e0a94144fcda8d52c2f653a

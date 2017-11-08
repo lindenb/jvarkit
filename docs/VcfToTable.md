@@ -41,11 +41,6 @@ Usage: vcf2table [options] Files
     --hidePredictions
       [20170808] hide SNPEFF/VEP table.
       Default: false
-    --igv
-      [20171107] if defined, in HTML output generate a hyperlink to IGV for 
-      each variant. Format: 'http://HOST:PORT' , most of the time it should be 
-      'http://localhost:60151' (see 
-      http://software.broadinstitute.org/software/igv/book/export/html/189). 
     -L, -limit, --limit
       Limit the number of output variant. '-1' == ALL/No limit.
       Default: -1
@@ -60,6 +55,11 @@ Usage: vcf2table [options] Files
       (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 
       0 unaffected, 1 affected,-9 unknown  If undefined, this tool will try to 
       get the pedigree from the header.
+    --url
+      A custom URL for a web browser. The following words will be replaced by 
+      they values: ${CHROM}, ${START}, ${END}. For example for IGV that would 
+      be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see 
+      http://software.broadinstitute.org/software/igv/book/export/html/189) 
     --version
       print version and exit
     -H
@@ -117,6 +117,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 7 16:33:40 2017 +0100 ; Hyperlinks to IGV ; https://github.com/lindenb/jvarkit/commit/b41b49dfc9e1948eb76085c343b69a4ac0520f16
 Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
 Sat Oct 28 18:04:34 2017 +0200 ; vcf server ; https://github.com/lindenb/jvarkit/commit/1ba12c148566055ec896ddec9b7c2d7674cf8236
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc

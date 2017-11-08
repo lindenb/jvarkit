@@ -136,8 +136,8 @@ private int port=8080;
 private long timeout_seconds =60;	
 @Parameter(names={"-jexl","--jexl"},description="Use/Show JEXL filter instead of Javascript filter (which is not filesystem-safe).")
 private boolean use_jexl = false;
-@Parameter(names={"--igv"},description="[20171107] if defined, generate a hyperlink to IGV for each variant. Format: 'http://HOST:PORT' , most of the time it should be 'http://localhost:60151' (see http://software.broadinstitute.org/software/igv/book/export/html/189).")
-private String igvHostPort=null;
+@Parameter(names={"--url"},description=Launcher.USER_CUSTOM_INTERVAL_URL_DESC)
+private String userCustomUrl=null;
 
 /** used to escape the text output in pre tag */
 private static class EscapeXmlOutputStream
@@ -698,7 +698,7 @@ private class ViewVcfHandler extends AbstractHandler
 				vcfToTable.setHideHomRefGenotypes("true".equals(this.request.getParameter(HIDE_HOMREF_PARAM)));
 				vcfToTable.setHideNoCallGenotypes("true".equals(this.request.getParameter(HIDE_NOCALL_PARAM)));
 				vcfToTable.setUseANSIColors(!text_output);
-				vcfToTable.setIgvHostPort(VcfServer.this.igvHostPort);
+				vcfToTable.setUserCustomUrl(VcfServer.this.userCustomUrl);
 				
 				vcfToTable.writeHeader(header);
 				if(VcfServer.this.pedigreeFile!=null)
