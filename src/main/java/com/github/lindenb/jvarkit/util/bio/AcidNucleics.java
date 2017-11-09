@@ -136,5 +136,26 @@ public static float weight(char c)
 		default: return 0.f;
 		}
 	}
-
+/** convert degenerate base to array of ATGC */
+public static char[] degenerateToBases(final char c) {
+	switch(Character.toUpperCase(c)) {
+	    case 'A':
+	    case 'C':
+	    case 'G':
+	    case 'T':
+	    case 'U': return new char[]{c};
+	    case 'R': return new char[]{'A','G'}; 
+	    case 'Y': return new char[]{'C','T'}; 
+	    case 'S': return new char[]{'G','C'};
+	    case 'W': return new char[]{'A','T'};
+	    case 'K': return new char[]{'G','T'};
+	    case 'M' :return new char[]{'A','C'};
+	    case 'B': return new char[]{'C','G','T'};
+	    case 'D': return new char[]{'A','G','T'};
+	    case 'H': return new char[]{'A','C','T'};
+	    case 'V': return new char[]{'A','C','G'};
+	    case 'N': return new char[]{'A','C','G','T'};
+	    default: throw new IllegalArgumentException("bad DNA base:"+c);
+		}
+	}
 }
