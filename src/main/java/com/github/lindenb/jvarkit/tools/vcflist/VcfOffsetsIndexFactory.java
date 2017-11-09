@@ -30,7 +30,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -60,34 +62,61 @@ public class VcfOffsetsIndexFactory {
 	private Predicate<VariantContext> acceptVariant=null;
 	private Logger logger = LOG;
 	
-	public static File getIndexFile(final File vcf) {
+	
+	/** return true if the index file exists and we can read {@link #MAGIC} */
+	public static boolean hasMagic(final File indexFile)
+		{
+		if(indexFile==null || !indexFile.exists() || !indexFile.canRead()) {
+			return false;
+			}
+		try(final InputStream indexio = new FileInputStream(indexFile)) {
+			final byte magic[]=new byte[VcfOffsetsIndexFactory.MAGIC.length];
+			if(indexio.read(magic)!= magic.length) return false;
+			return Arrays.equals(magic, VcfOffsetsIndexFactory.MAGIC);
+			}
+		catch(final IOException err) {
+			return false;
+			}
+		}
+	/** get default index file associated to this vcf file */
+	public static File getDefaultIndexFile(final File vcf) {
 		return new File(vcf.getParentFile(),vcf.getName()+INDEX_EXTENSION);
 		}
+	/** set a predicate for the variant that will be indexed (default is 'all' ) */
 	public void setPredicate(final Predicate<VariantContext> acceptVariant) {
 		this.acceptVariant = acceptVariant;
 		}
 	public void setLogger(final Logger logger) {
 		this.logger = logger;
 		}
-	
 	public File indexVcfFileIfNeeded(final File vcfFile) throws IOException
 		{
-		final File indexFile = VcfOffsetsIndexFactory.getIndexFile(vcfFile);
-		
-		if( indexFile.exists() && 
+		return indexVcfFileIfNeeded(vcfFile, getDefaultIndexFile(vcfFile));
+		}
+	/** index vcf file if needed: index file exists, contains {@link #MAGIC} and was created after vcf */
+	public File indexVcfFileIfNeeded(final File vcfFile,final File indexFile) throws IOException
+		{		
+		if( indexFile!=null &&
+			indexFile.exists() && 
 			indexFile.length() >= MAGIC.length && 	
-			indexFile.lastModified() >= vcfFile.lastModified()) {
+			indexFile.lastModified() >= vcfFile.lastModified() &&
+			hasMagic(indexFile)) {
 			return indexFile;
 			}
 		else
 			{
-			return 	indexVcfFile(vcfFile);
+			return 	indexVcfFile(vcfFile,indexFile);
 			}
 		}
+	
 	public File indexVcfFile(final File vcfFile) throws IOException
 		{
+		return indexVcfFile(vcfFile, getDefaultIndexFile(vcfFile));
+		}
+	/** index a vcf file for its variant offsets */
+	public File indexVcfFile(final File vcfFile,final File indexFile) throws IOException
+		{
 		IOUtil.assertFileIsReadable(vcfFile);
-		final File indexFile = VcfOffsetsIndexFactory.getIndexFile(vcfFile);
 		DataOutputStream daos = null;
 		BlockCompressedInputStream bgzin = null;
 		AsciiLineReader ascii = null;
@@ -110,7 +139,7 @@ public class VcfOffsetsIndexFactory {
 				}
 			else
 				{
-				throw new IOException("not a vcf.gz or vcf file: "+vcfFile);
+				throw new IllegalArgumentException("not a vcf.gz or vcf file: "+vcfFile);
 				}
 			final List<String> headerLines=new ArrayList<>();
 			for(;;)
@@ -172,7 +201,6 @@ public class VcfOffsetsIndexFactory {
 			}
 		catch(final IOException err)
 			{
-			indexFile.delete();
 			throw err;
 			}
 		finally

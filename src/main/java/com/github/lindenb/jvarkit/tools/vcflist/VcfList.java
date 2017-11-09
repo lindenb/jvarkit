@@ -28,8 +28,9 @@ package com.github.lindenb.jvarkit.tools.vcflist;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.util.AbstractList;
+import java.util.Collections;
 import java.util.List;
-
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -40,7 +41,31 @@ import htsjdk.variant.vcf.VCFHeader;
  */
 public interface VcfList extends List<VariantContext>,Closeable {
 	public VCFHeader getHeader();
-	public static VcfList fromFile(final File VcfFile ) throws IOException {
-		return new DefaultVcfFileList(VcfFile);
+	public static VcfList fromFile(final File vcfFile ) throws IOException {
+		return fromFile(vcfFile,VcfOffsetsIndexFactory.getDefaultIndexFile(vcfFile));
+		}
+	public static VcfList fromFile(final File vcfFile,final File indexFile) throws IOException {
+		return new DefaultVcfFileList(vcfFile,indexFile);
+		}
+	public static VcfList from(final VCFHeader header,final List<VariantContext> variants) throws IOException {
+		class Tmp extends AbstractList<VariantContext> implements VcfList
+			{
+			final VCFHeader header;
+			final List<VariantContext> variants;
+			Tmp(final VCFHeader header,final List<VariantContext> variants)
+				{
+				this.header=header;
+				this.variants = Collections.unmodifiableList(variants);
+				}
+			@Override
+			public VCFHeader getHeader() { return this.header;}
+			@Override
+			public VariantContext get(int index) {return this.variants.get(index);}
+			@Override
+			public int size() { return this.variants.size();}
+			@Override
+			public void close() throws IOException {}
+			}
+		return new Tmp(header,variants);
 		}
 	}

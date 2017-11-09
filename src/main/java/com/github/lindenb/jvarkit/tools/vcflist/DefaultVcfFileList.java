@@ -43,7 +43,7 @@ import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
-
+/** default implementation of a VcfList */
 class DefaultVcfFileList extends AbstractList<VariantContext>
 	implements VcfList
 	{
@@ -56,9 +56,13 @@ class DefaultVcfFileList extends AbstractList<VariantContext>
 	private final RandomAccessFile vcfrandom;
 	private final VCFCodec codec = new VCFCodec();
 	private final int _size;
+	
 	DefaultVcfFileList(final File vcf) throws IOException {
+		this(vcf,VcfOffsetsIndexFactory.getDefaultIndexFile(vcf));
+		}
+	
+	DefaultVcfFileList(final File vcf,final File indexFile) throws IOException {
 		this.vcfFile = vcf;
-		final File indexFile= VcfOffsetsIndexFactory.getIndexFile(vcf);
 		IOUtil.assertFileIsReadable(indexFile);
 		IOUtil.assertFileIsReadable(this.vcfFile);
 		if(indexFile.lastModified()< this.vcfFile.lastModified()) {
@@ -135,5 +139,9 @@ class DefaultVcfFileList extends AbstractList<VariantContext>
 		CloserUtil.close(this.bgzfin);
 		CloserUtil.close(this.vcfrandom);
 		CloserUtil.close(this.indexio);
+		}
+	@Override
+	public String toString() {
+		return "VcfList: "+this.vcfFile;
 		}
 	}

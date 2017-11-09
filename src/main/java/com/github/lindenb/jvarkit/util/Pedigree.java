@@ -456,8 +456,8 @@ public class Pedigree
 	public boolean hasAffected()
 		{
 		return getPersons().stream().
-				filter(P->P.getStatus()==Status.affected).
-				findAny().isPresent();
+				anyMatch(P->P.getStatus()==Status.affected)
+				;
 		}
 	
 	/** get affected individuals */
@@ -470,8 +470,8 @@ public class Pedigree
 	public boolean hasUnaffected()
 		{
 		return getPersons().stream().
-				filter(P->P.getStatus()==Status.unaffected).
-				findAny().isPresent();
+				anyMatch(P->P.getStatus()==Status.unaffected)
+				;
 		}
 	
 	/** get unaffected individuals */

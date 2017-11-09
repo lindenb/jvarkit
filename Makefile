@@ -213,7 +213,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver
+	vcfamalgamation vcfserver tviewserver vcftrap
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -539,7 +539,7 @@ $(eval $(call compile-htsjdk-cmd,trapindexer,${jvarkit.package}.tools.trap.TrapI
 $(eval $(call compile-htsjdk-cmd,vcftrap,${jvarkit.package}.tools.trap.VcfTrap,${jcommander.jar}))
 
 
-
+$(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.burden.VcfBurdenEpistasis,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfoptimizeped4skat,${jvarkit.package}.tools.skat.VcfOptimizePedForSkat,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.skat.VcfSkatSlidingWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskat,${jvarkit.package}.tools.skat.VcfSkat,${jcommander.jar}))
