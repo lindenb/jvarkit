@@ -115,6 +115,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 10 17:07:13 2017 +0100 ; samjdk with pair mode, added sortmethod, fixed trapindex, fat-jar ; https://github.com/lindenb/jvarkit/commit/7eba4eda059e4ddbef27544cd87910131cf1f4a9
 Wed Oct 25 09:48:05 2017 +0200 ; added counter<> to vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/282000fc2db2a3b69e7291a2ca74f2d88b6fbcb2
 Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
 Tue Oct 24 18:09:10 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f385f736efe12ab781498662a46f08887e61b048
