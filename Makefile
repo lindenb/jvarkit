@@ -114,7 +114,7 @@ endif
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
 	echo "Main-Class: $(2)" >> ${tmp.mft}
 ifneq (${standalone},yes)
-	echo "Class-Path: $$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^))) ${dist.dir}/$(1)-fat.jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+	echo "Class-Path: $$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^))) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
 endif
 	echo -n "Git-Hash: " >> ${tmp.mft}
 	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
