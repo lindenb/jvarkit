@@ -103,7 +103,7 @@ public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Def
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
 		"This file must be indexed with samtools faidx and with picard CreateSequenceDictionary";
 /** description used when building custom URLs (e.g: VcfServer ) */
-public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web browser. The following words will be replaced by they values: ${CHROM}, ${START}, ${END}. "
+public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web browser. The following words will be replaced by their values: ${CHROM}, ${START}, ${END}. "
 		+ "For example for IGV that would be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see http://software.broadinstitute.org/software/igv/book/export/html/189)";
 
 protected static final int RETURN_OK=0;
