@@ -24,11 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio;
 
-
+import java.util.Set;
 
 public class AcidNucleics {
 
-	
+/** return the reverse complement of the sequence */	
 public static String reverseComplement(final CharSequence seq)
 	{
 	final StringBuilder b=new StringBuilder(seq.length());
@@ -38,7 +38,8 @@ public static String reverseComplement(final CharSequence seq)
 		}
 	return b.toString();
 	}
-	
+
+/** returns the reverse complement of the character */	
 public static char complement(char c)
 	{
 	switch(c)
@@ -137,13 +138,13 @@ public static float weight(char c)
 		}
 	}
 /** convert degenerate base to array of ATGC */
-public static char[] degenerateToBases(final char c) {
-	switch(Character.toUpperCase(c)) {
+public static char[] degenerateToBases(final char base) {
+	switch(base) {
 	    case 'A':
 	    case 'C':
 	    case 'G':
 	    case 'T':
-	    case 'U': return new char[]{c};
+	    case 'U': return new char[]{base};
 	    case 'R': return new char[]{'A','G'}; 
 	    case 'Y': return new char[]{'C','T'}; 
 	    case 'S': return new char[]{'G','C'};
@@ -155,7 +156,96 @@ public static char[] degenerateToBases(final char c) {
 	    case 'H': return new char[]{'A','C','T'};
 	    case 'V': return new char[]{'A','C','G'};
 	    case 'N': return new char[]{'A','C','G','T'};
-	    default: throw new IllegalArgumentException("bad DNA base:"+c);
+	    //
+	    case 'a':
+	    case 'c':
+	    case 'g':
+	    case 't':
+	    case 'u': return new char[]{base};
+	    case 'r': return new char[]{'a','g'}; 
+	    case 'y': return new char[]{'c','t'}; 
+	    case 's': return new char[]{'g','c'};
+	    case 'w': return new char[]{'a','t'};
+	    case 'k': return new char[]{'g','t'};
+	    case 'm' :return new char[]{'a','c'};
+	    case 'b': return new char[]{'c','g','t'};
+	    case 'd': return new char[]{'a','g','t'};
+	    case 'h': return new char[]{'a','c','t'};
+	    case 'v': return new char[]{'a','c','g'};
+	    case 'n': return new char[]{'a','c','g','t'};
+	    default: throw new IllegalArgumentException("bad DNA base:"+base);
 		}
 	}
+
+/** TODO: not tested */
+public static char basesToDegenerate(final Set<Character> bases) {
+	switch(bases.size())
+		{
+		case 0 : throw new IllegalArgumentException("empty set of bases");
+		case 1 :
+			{
+			final char c = bases.iterator().next();
+			switch(c) {
+				case 'u': case 'U':
+				case 'a': case 'c': case 'g': case 't':
+				case 'A': case 'C': case 'G': case 'T': return c;
+				default : throw new IllegalArgumentException("Not ATGC: "+c);
+				}
+			}
+		case 2:
+			{
+			if( (bases.contains('a') || bases.contains('A')) &&
+			    (bases.contains('g') || bases.contains('G'))
+				) return 'R';
+			if( (bases.contains('c') || bases.contains('C')) &&
+				(bases.contains('t') || bases.contains('T') || bases.contains('u') || bases.contains('U'))
+				) return 'Y';
+			if( (bases.contains('c') || bases.contains('C')) &&
+				(bases.contains('g') || bases.contains('G'))
+				) return 'S';
+			if( (bases.contains('a') || bases.contains('A')) &&
+				(bases.contains('t') || bases.contains('T') || bases.contains('u') || bases.contains('U'))
+				) return 'W';
+			if( (bases.contains('g') || bases.contains('G')) &&
+				(bases.contains('t') || bases.contains('T') || bases.contains('u') || bases.contains('U'))
+				) return 'K';
+			if( (bases.contains('a') || bases.contains('A')) &&
+				(bases.contains('c') || bases.contains('C'))
+				) return 'M';
+			throw new IllegalArgumentException("bad couple of bases "+bases);
+			}
+		case 3:
+			{
+			if( (bases.contains('c') || bases.contains('C')) &&
+				(bases.contains('g') || bases.contains('G')) &&
+				(bases.contains('t') || bases.contains('T') || bases.contains('u') || bases.contains('U'))
+				) return 'B';
+			if( (bases.contains('a') || bases.contains('A')) &&
+				(bases.contains('g') || bases.contains('G')) &&
+				(bases.contains('t') || bases.contains('T') || bases.contains('u') || bases.contains('U'))
+				) return 'D';
+			if( (bases.contains('a') || bases.contains('A')) &&
+				(bases.contains('c') || bases.contains('C')) &&
+				(bases.contains('t') || bases.contains('T') || bases.contains('u') || bases.contains('U'))
+				) return 'H';
+			if( (bases.contains('a') || bases.contains('A')) &&
+				(bases.contains('c') || bases.contains('C')) &&
+				(bases.contains('g') || bases.contains('G'))
+				) return 'V';
+			throw new IllegalArgumentException("bad triple of bases "+bases);
+			}
+		case 4:
+			{
+			if( (bases.contains('a') || bases.contains('A')) &&
+				(bases.contains('c') || bases.contains('C')) &&
+				(bases.contains('g') || bases.contains('G')) &&
+				(bases.contains('t') || bases.contains('T') || bases.contains('u') || bases.contains('U'))
+				) return 'N';
+			throw new IllegalArgumentException("bad group of 4 bases "+bases);
+			}
+		default : throw new IllegalArgumentException("bad number of bases");
+		}
+	}
+
+	
 }

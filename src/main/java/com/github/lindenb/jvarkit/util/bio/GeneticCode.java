@@ -93,7 +93,7 @@ public abstract class GeneticCode
 		}
 	
 	/** returns aminoacid to the 3 letter code. Returns *** for stop, return null if to correspondance */
-	public static String aminoAcidTo3Letters(char c)
+	public static String aminoAcidTo3Letters(final char c)
 		{
 		switch(Character.toUpperCase(c))
 			{

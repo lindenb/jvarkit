@@ -11,6 +11,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.ReadNameSortMethod;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
@@ -72,8 +73,8 @@ public class CommBams extends Launcher {
 	private boolean hide2=false;
 	@Parameter(names={"-3","--hide3"},description="suppress reads present in both files")
 	private boolean hide3=false;
-	@Parameter(names={"-st","--samtools"},description="Data was sorted using samtools sort -n algorithm (!= picard) see https://github.com/samtools/hts-specs/issues/5")
-	private boolean samtoolsquerysort = false;
+	@Parameter(names={"-sortmethod","--sortmethod"},description="[20171110]"+ReadNameSortMethod.DESCRIPTION)
+	private ReadNameSortMethod sortMethod = ReadNameSortMethod.picard;
 	@Parameter(names={"-delim","--delimiter"},description="Output delimiter")
 	private String delim = "\t";
 	@Parameter(names={"-empty","--empty"},description="Empty content symbol")
@@ -192,21 +193,13 @@ public class CommBams extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		final Comparator<SAMRecord> comparator;
 		if(args.size() !=2)
 			{
 			LOG.info("Expected two and only two bams please, but got "+args.size());
 			return -1;
 			}
+		final Comparator<SAMRecord> comparator = this.sortMethod.get();
 
-		if( this.samtoolsquerysort) {
-			LOG.info("using the samtools sort -n comparator");
-			comparator = new CompareBams4.SamToolsReadNameComparator();		
-			}
-		else
-			{
-			comparator = new CompareBams4.SimpleReadNameComparator();
-			}
 		final SamReader samFileReaders[]={null,null};
 		@SuppressWarnings("unchecked")
 		final PeekableIterator<SAMRecord> iters[]=new PeekableIterator[]{null,null};

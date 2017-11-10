@@ -121,12 +121,12 @@ endif
 	echo -n "Compile-Date: " >> ${tmp.mft}
 	date +%Y-%m-%d:%H-%m-%S >> ${tmp.mft}
 	#create jar
-	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
+	${JAR} cfm ${dist.dir}/$(1)$(if ${standalone},-fat).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
 	echo -n '${JAVA} -Djvarkit.log.name=$(1) -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) ' >> ${dist.dir}/$(1)
 ifeq (${standalone},yes)
-	echo -n ' -jar "${dist.dir}/$(1).jar" '  >> ${dist.dir}/$(1)
+	echo -n ' -jar "${dist.dir}/$(1)-fat.jar" '  >> ${dist.dir}/$(1)
 else
 	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
 endif
@@ -136,7 +136,7 @@ endif
 	-if [ -e "${tmp.dir}/markdown.flag" ] && [ "${TRAVIS}" != "true" ]  ; then \
 		touch ${tmp.dir}/githistory; \
 		(git log --pretty=format:"%ad ; %s ; https://github.com/lindenb/jvarkit/commit/%H" HEAD -- $(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) > ${tmp.dir}/githistory || true  ) ; \
-		${JAVA} -jar "${dist.dir}/$(1).jar" --help --helpFormat markdown | sed -e '/__INCLUDE_GIT_HISTORY__/ r ${tmp.dir}/githistory' -e 's/__INCLUDE_GIT_HISTORY__//' > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ;\
+		${JAVA} -jar "${dist.dir}/$(1)$(if ${standalone},-fat).jar" --help --helpFormat markdown | sed -e '/__INCLUDE_GIT_HISTORY__/ r ${tmp.dir}/githistory' -e 's/__INCLUDE_GIT_HISTORY__//' > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ;\
 		rm -fv ${tmp.dir}/githistory; \
 	fi
 	#cleanup
@@ -213,7 +213,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver
+	vcfamalgamation vcfserver tviewserver vcftrap
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -539,7 +539,7 @@ $(eval $(call compile-htsjdk-cmd,trapindexer,${jvarkit.package}.tools.trap.TrapI
 $(eval $(call compile-htsjdk-cmd,vcftrap,${jvarkit.package}.tools.trap.VcfTrap,${jcommander.jar}))
 
 
-
+$(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.burden.VcfBurdenEpistasis,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfoptimizeped4skat,${jvarkit.package}.tools.skat.VcfOptimizePedForSkat,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.skat.VcfSkatSlidingWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskat,${jvarkit.package}.tools.skat.VcfSkat,${jcommander.jar}))

@@ -185,6 +185,8 @@ public class VcfTrap extends Launcher {
 				private final boolean ignore_filtered = CtxWriterFactory.this.ignore_filtered;
 				private final String ATT = CtxWriterFactory.this.ATT;
 				private final String ATT_BEST = CtxWriterFactory.this.ATT+"_BEST";
+				private final String ATT_MIN = CtxWriterFactory.this.ATT+"_MIN";
+				private final String ATT_MAX = CtxWriterFactory.this.ATT+"_MAX";
 				private final Set<String> contigs_not_found=new HashSet<>();
 				private final Comparator<TrapRecord> comparator = (A,B) ->{
 					if(! A.getContig().equals(B.getContig())) throw new IllegalStateException("not the same contigs ???");
@@ -204,10 +206,16 @@ public class VcfTrap extends Launcher {
 									"TRAP Score:((ALT|GENE|SCORE) in Trap Database  http://trap-score.org/"
 								));
 					header2.addMetaDataLine(
-							new VCFInfoHeaderLine(this.ATT_BEST,
+							new VCFInfoHeaderLine(this.ATT_MIN,
 									1,
 									VCFHeaderLineType.Float,
-									"Best Score in Trap Database  http://trap-score.org/"
+									"Min Score in Trap Database  http://trap-score.org/"
+								));
+					header2.addMetaDataLine(
+							new VCFInfoHeaderLine(this.ATT_MAX,
+									1,
+									VCFHeaderLineType.Float,
+									"Max Score in Trap Database  http://trap-score.org/"
 								));
 					super.writeHeader(header2);
 					}
@@ -240,7 +248,8 @@ public class VcfTrap extends Launcher {
 						return;
 						}
 					final Set<String> annotations=new HashSet<>();
-					final Float best[]=new Float[] {null};
+					final Float min_score[]=new Float[] {null};
+					final Float max_score[]=new Float[] {null};
 					
 					Algorithms.equal_range_stream(
 							this.current,
@@ -275,9 +284,13 @@ public class VcfTrap extends Launcher {
 										R.getGene(),
 										String.format("%."+TrapIndexer.SCORE_STRLEN+"f", R.getScore())
 										));
-								if(best[0]==null || best[0].compareTo(R.getScore())<0)
+								if(min_score[0]==null || min_score[0].compareTo(R.getScore())>0)
 									{
-									best[0]=R.getScore();
+									min_score[0]=R.getScore();
+									}
+								if(max_score[0]==null || max_score[0].compareTo(R.getScore())<0)
+									{
+									max_score[0]=R.getScore();
 									}
 								});
 					if(annotations.isEmpty())
@@ -287,7 +300,8 @@ public class VcfTrap extends Launcher {
 						}
 					final VariantContextBuilder vcb = new VariantContextBuilder(var);
 					vcb.attribute(this.ATT, new ArrayList<>(annotations));
-					vcb.attribute(this.ATT_BEST,best[0]);
+					vcb.attribute(this.ATT_MIN,min_score[0]);
+					vcb.attribute(this.ATT_MAX,max_score[0]);
 					super.add(vcb.make());
 					}
 				@Override

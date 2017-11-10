@@ -47,17 +47,17 @@ public class BedLine
 	
 	@Override
 	public String getContig() {
-		return tokens[0];
+		return this.tokens[0];
 		}
 	
 	@Override
 	public int getStart() {
-		return Integer.parseInt(tokens[1]) + 1; /* +1 because the Feature uses a +1 position */
+		return Integer.parseInt(this.tokens[1]) + 1; /* +1 because the Feature uses a +1 position */
 		}
 	
 	@Override
 	public int getEnd() {
-		return (tokens.length<3 ?getStart(): Integer.parseInt(tokens[2]));
+		return (this.tokens.length<3 ?getStart(): Integer.parseInt(this.tokens[2]));
 		}
 	
 	/** shortcut to <code>new Interval(getContig(), getStart(), getEnd())</code> */
@@ -67,7 +67,7 @@ public class BedLine
 
 	public String get(final int index)
 		{
-		return (index<tokens.length?tokens[index]:null);
+		return (index<this.tokens.length?this.tokens[index]:null);
 		}
 	
 	public String join(final CharSequence delimiter) {
@@ -93,7 +93,7 @@ public class BedLine
 		}
 	
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if(obj==this) return true;
 		if(obj==null || !(obj instanceof BedLine)) return false;
 		return Arrays.equals(this.tokens, BedLine.class.cast(obj).tokens);

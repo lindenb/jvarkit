@@ -43,6 +43,8 @@ Usage: xsltstream [options] Files
 
  * [https://www.biostars.org/p/270498](https://www.biostars.org/p/270498)
  * [https://www.biostars.org/p/280581](https://www.biostars.org/p/280581)
+ * [https://www.biostars.org/p/282545](https://www.biostars.org/p/282545)
+ * [https://www.biostars.org/p/282602](https://www.biostars.org/p/282602)
 
 
 ## Compilation
@@ -280,5 +282,85 @@ curl -s "ftp://ftp.ncbi.nlm.nih.gov/biosample/biosample_set.xml.gz" |\
 ```
 
 
+## Example:
+
+rs / ss list from dbsnp
+
+```xsl
+<?xml version='1.0'  encoding="UTF-8" ?>
+<xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform' version='1.0' xmlns:r="https://www.ncbi.nlm.nih.gov/SNP/docsum">
+<xsl:output method="text"/>
+<xsl:template match="/">
+<xsl:apply-templates select="//r:Rs/r:Ss"/>
+</xsl:template>
+
+<xsl:template match="r:Ss">rs<xsl:value-of select="../@rsId"/> ss<xsl:value-of select="@ssId"/><xsl:text>
+</xsl:text>
+</xsl:template>
+</xsl:stylesheet>
+```
+
+execute:
+
+```
+ wget -O - -q  "ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/XML/ds_ch1.xml.gz" |\
+  gunzip -c |\
+  java -jar dist/xsltstream.jar -t transform.xsl --tag '{https://www.ncbi.nlm.nih.gov/SNP/docsum}Rs'
+```
+
+output:
+
+```
+rs171 ss41715810
+rs171 ss43026199
+rs171 ss96405203
+rs242 ss242
+rs242 ss287669350
+rs242 ss326012704
+rs242 ss326012781
+rs242 ss498801024
+rs242 ss550913725
+rs242 ss552749651
+(...)
+```
+
+## Example:
+
+rough exploration of non-coding variants with pathogenic consequences in clinvar:
+
+```xsl
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns="http://www.w3.org/1999/xhtml">
+<xsl:output method="text"/>
+<xsl:template match="/"><xsl:apply-templates/></xsl:template>
+<xsl:template match="ReleaseSet"><xsl:apply-templates/></xsl:template>
+<xsl:template match="ClinVarSet">
+<xsl:if test="count(.//Attribute[@Type='MolecularConsequence'])=1">
+<xsl:variable name="csq" select=".//Attribute[@Type='MolecularConsequence']/text()"/>
+<xsl:if test="($csq = 'non-coding transcript variant' or $csq  = 'intergenic variant'  or $csq  = '2kb upstream variant'  or $csq  = '5 prime utr variant' ) and .//Description[contains(text(),'athogenic')]">
+<xsl:value-of select="ReferenceClinVarAssertion/ClinVarAccession/@Acc"/>
+<xsl:text>	</xsl:text>
+<xsl:for-each select=".//Citation/ID[@Source = 'Pubmed']">pmid<xsl-value-of select="text()"/>;</xsl:for-each>
+<xsl:text>
+</xsl:text>
+</xsl:if>
+</xsl:if>
+</xsl:template>
+</xsl:stylesheet>
+```
+
+invoke:
+
+```
+$ curl -s  "ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/xml/ClinVarFullRelease_00-latest.xml.gz" | gunzip -c |\
+   java -jar dist/xsltstream.jar  -t transform.xsl -n ClinVarSet
+   
+RCV000203227	
+RCV000256194	
+RCV000256207	
+RCV000000913	
+RCV000000914	
+RCV000006518
+```
 
 

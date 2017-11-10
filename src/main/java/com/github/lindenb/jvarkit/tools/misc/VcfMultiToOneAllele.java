@@ -322,7 +322,7 @@ public class VcfMultiToOneAllele
 					if(L.isEmpty())
 						{
 						if(!the_allele.equals(Allele.SPAN_DEL)) {
-							LOG.warning("No ANN Prediction for "+the_allele +" in "+
+							LOG.warning("for "+ctx.getContig()+":"+ctx.getStart()+". No ANN Prediction for "+the_allele +" in "+
 									ctx.getAttributeAsList(vcfTools.getVepPredictionParser().getTag()));
 							}
 						}
@@ -354,7 +354,7 @@ public class VcfMultiToOneAllele
 					if(L.isEmpty())
 						{
 						if(!the_allele.equals(Allele.SPAN_DEL)) {
-							LOG.warning("No Vep Prediction for "+the_allele +" in "+
+							LOG.warning("for "+ctx.getContig()+":"+ctx.getStart()+". No Vep Prediction for "+the_allele +" in "+
 									ctx.getAttributeAsList(vcfTools.getVepPredictionParser().getTag()));
 							}
 						}

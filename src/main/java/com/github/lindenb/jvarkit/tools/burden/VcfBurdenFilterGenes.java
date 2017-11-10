@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -110,11 +111,11 @@ public class VcfBurdenFilterGenes
 			final VCFHeader h2=addMetaData(new VCFHeader(header));
 
 			final VCFFilterHeaderLine filterControlsHeader;
-			if(!this.filterTag.trim().isEmpty())
+			if(!StringUtil.isBlank(this.filterTag))
 				{
 				filterControlsHeader = new VCFFilterHeaderLine(
 						this.filterTag.trim(),
-						"Genes in list "+this.filterTag
+						"Genes not in list "+this.geneFile
 						);
 				h2.addMetaDataLine(filterControlsHeader);
 				}
@@ -134,7 +135,7 @@ public class VcfBurdenFilterGenes
 					);
 			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
 			final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary()).logger(LOG);
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
 				{
@@ -156,7 +157,7 @@ public class VcfBurdenFilterGenes
 					final VepPredictionParser.VepPrediction pred = vepParser.parseOnePrediction(ctx,predStr);
 					for(final String col:lookColumns) {
 						final String token = pred.getByCol(col);
-						if(token!=null && !token.isEmpty() && this.geneNames.contains(token))
+						if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
 							{
 							newVepList.add(predStr);
 							keep=true;
@@ -169,7 +170,7 @@ public class VcfBurdenFilterGenes
 				for(final String predStr: ctx.getAttributeAsList(annParser.getTag()).stream().map(O->String.class.cast(O)).collect(Collectors.toList())) {
 					final AnnPredictionParser.AnnPrediction pred = annParser.parseOnePrediction(predStr);
 					final String token = pred.getGeneName();
-					if(token!=null && !token.isEmpty() && this.geneNames.contains(token))
+					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
 						{
 						newEffList.add(predStr);
 						keep=true;
@@ -188,8 +189,15 @@ public class VcfBurdenFilterGenes
 				
 				if(filterControlsHeader!=null)
 					{
-					if(!keep) vcb.filter(filterControlsHeader.getID());
-					out.add(ctx);
+					if(!keep)
+						{
+						vcb.filter(filterControlsHeader.getID());
+						}
+					else if(!ctx.isFiltered())
+						{
+						vcb.passFilters();
+						}
+					out.add(vcb.make());
 					}
 				else
 					{
