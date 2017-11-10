@@ -1011,6 +1011,8 @@ class TestNg01 {
     	PrintWriter pw =new PrintWriter(dbFile);
     	pw.println("906010\tA\tG\tENSG00000186092\t0.029");
     	pw.println("906010\tA\tG\tENSG00000186092\t1");
+    	pw.println("906010\tA\tG\tENSG00000186094\t0");
+    	pw.println("906010\tA\tG\tENSG00000186095\t0.0");
     	pw.println("906011\tT\tC\tENSG00000186093\t0.99");
     	pw.flush();
     	pw.close();

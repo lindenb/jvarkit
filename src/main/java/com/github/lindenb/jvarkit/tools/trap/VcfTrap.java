@@ -184,7 +184,6 @@ public class VcfTrap extends Launcher {
 				private IndexFile current=null;
 				private final boolean ignore_filtered = CtxWriterFactory.this.ignore_filtered;
 				private final String ATT = CtxWriterFactory.this.ATT;
-				private final String ATT_BEST = CtxWriterFactory.this.ATT+"_BEST";
 				private final String ATT_MIN = CtxWriterFactory.this.ATT+"_MIN";
 				private final String ATT_MAX = CtxWriterFactory.this.ATT+"_MAX";
 				private final Set<String> contigs_not_found=new HashSet<>();

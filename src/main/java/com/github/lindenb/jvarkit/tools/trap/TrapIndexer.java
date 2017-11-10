@@ -69,7 +69,7 @@ public static TrapRecord decode(final String contig,byte array[]) {
 		byte score_bytes[]=new byte[SCORE_SIZEOF];
 		dis.readFully(score_bytes);
 		final float score ;
-		if( score_bytes[0]==(byte)1)
+		if( score_bytes[0] == (byte)1)
 			{	
 			score=1.0f;
 			}
@@ -210,11 +210,11 @@ public int doWork(final List<String> args) {
 		Arrays.fill(score_str,(byte)'0');
 		if(tokens[4]. equals("1") || tokens[4].equals("1.0"))
 			{
-			score_str[1]=(byte)1;//not a char !! just value 1
+			score_str[0]=(byte)1;//not a char !! just value 1
 			}
 		else if(tokens[4].equals("0"))
 			{
-			//already set
+			//0 already set
 			}
 		else if(tokens[4].startsWith("0.")) {
 			final byte b_array[] = tokens[4].substring(2).getBytes();
