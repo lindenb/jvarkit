@@ -34,6 +34,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.ReadNameSortMethod;
 
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
@@ -134,8 +135,8 @@ public class CompareBams4  extends Launcher
 	@Parameter(names={"-novalidchain","--novalidchain"},description="Disable Lift Over chain validation")
 	private boolean disableChainValidation = false;
 
-	@Parameter(names={"-st","--samtools"},description="Data was sorted using samtools sort -n algorithm (!= picard) see https://github.com/samtools/hts-specs/issues/5")
-	private boolean samtoolsquerysort = false;
+	@Parameter(names={"-sortmethod","--sortmethod"},description="[20171110]"+ReadNameSortMethod.DESCRIPTION)
+	private ReadNameSortMethod sortMethod = ReadNameSortMethod.picard;
 
 	private LiftOver liftOver=null;
 	private enum OnlyIn { ONLY_IN_FIRST,ONLY_IN_SECOND,BOTH};
@@ -143,101 +144,7 @@ public class CompareBams4  extends Launcher
 	private enum CompareContig {BothUnmapped,GainMapping,LostMapping,SameContig,DiscordantContig};
 	private enum Shift {Zero,Le10,Le20,Le100,Gt100};
 	private enum Flag { Discordant,Same};
-	
-	
-	
-	/** see https://github.com/samtools/hts-specs/issues/5 */
-	static class SamToolsReadNameComparator implements Comparator<SAMRecord>
-		{
-		@Override
-		public int compare(final SAMRecord o1, final SAMRecord o2) {
-			int i= strnum_cmp(o1.getReadName(), o2.getReadName());
-			if(i!=0) return i;
-			return side(o1)-side(o2);
-
-			}
 		
-		/* see https://github.com/samtools/hts-specs/issues/5 */
-		private int strnum_cmp(final String _a,final String _b)
-			{
-		
-				char ca='\0',cb='\0';
-			    int ia = 0, ib = 0;
-			    while(ia< _a.length() && ib<_b.length()) {
-			    	ca=(ia< _a.length()?_a.charAt(ia):'\0');
-			    	cb=(ib< _b.length()?_b.charAt(ib):'\0');
-			    	
-			    	
-			        if (Character.isDigit(ca) && Character.isDigit(cb))
-			        	{
-			            while (ca=='0'){
-			            	++ia;
-			            	ca=(ia< _a.length()?_a.charAt(ia):'\0');
-			            	}
-			            while (cb=='0'){
-			            	++ib;
-			            	cb=(ib< _b.length()?_b.charAt(ib):'\0');
-			            	}
-			            
-			            
-			            while (Character.isDigit(ca) && Character.isDigit(cb) && ca==cb)
-			            	{
-			            	++ia;
-			            	++ib;
-					    	ca=(ia< _a.length()?_a.charAt(ia):'\0');
-					    	cb=(ib< _b.length()?_b.charAt(ib):'\0');
-			            	}
-			            
-			            if (Character.isDigit(ca) && Character.isDigit(cb)) {
-			                int i = 0;
-			                while((ia+i)< _a.length() &&
-			                	  (ib+i)< _b.length() &&
-			                	  Character.isDigit(_a.charAt(ia+i)) &&
-			                	  Character.isDigit(_b.charAt(ib+i))
-			                	  ) {
-			                	++i;
-			                	}
-					    	final char c1=((ia+i)< _a.length()?_a.charAt(ia+i):'\0');
-					    	final char c2=((ib+i)< _b.length()?_b.charAt(ib+i):'\0');
-			                return Character.isDigit(c1)? 1 : Character.isDigit(c2)? -1 : (int)ca - (int)cb;
-			            }
-			          else if (Character.isDigit(ca))
-			        	  {
-			        	  return 1;
-			        	  }
-			         else if (Character.isDigit(cb))
-			        	 {
-			        	 return -1;
-			        	 }
-			         else if (ia != ib)
-			        	 {
-			        	 return ia - ib;
-			        	 }
-			        	}/* end of is digit */
-			        else
-			        	{
-			            if (ca != cb) {
-			            	return (int)ca - (int)cb;
-			            }
-			            ++ia; ++ib;
-			        	}
-			    	}
-			    if(ca==cb) return 0;
-			    return ca=='\0'?1:cb=='\0'?-1: (int)ca - (int)cb;
-			}
-		}
-	
-	static class SimpleReadNameComparator implements Comparator<SAMRecord>
-		{
-		@Override
-		public int compare(final SAMRecord o1, final SAMRecord o2) {
-			int i=o1.getReadName().compareTo(o2.getReadName());
-			if(i!=0) return i;
-			return side(o1)-side(o2);
-			}
-		}
-
-	
 	private static int hash(final int prev,final Object o) {
 		return prev*31 +(o==null?0:o.hashCode());
 	}
@@ -426,17 +333,7 @@ public class CompareBams4  extends Launcher
 				}
 			}
 			
-			final Comparator<SAMRecord> comparator;
-			
-			if( this.samtoolsquerysort) {
-				LOG.info("using the samtools sort -n comparator");
-				comparator = new SamToolsReadNameComparator();
-					
-				}
-			else
-				{
-				comparator = new SimpleReadNameComparator();
-				}
+			final Comparator<SAMRecord> comparator = this.sortMethod.get();
 			
 			for(;;) {
 				for(int i=0;i< 2;++i) {

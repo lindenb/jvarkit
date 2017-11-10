@@ -67,7 +67,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
-
+Tue Nov 7 10:25:46 2017 +0100 ; tools for trap-score.org ; https://github.com/lindenb/jvarkit/commit/54bf01ddbf3594f5a5b4aee149d67604df343af7
+Tue Nov 7 10:22:52 2017 +0100 ; tools for trap-score.org ; https://github.com/lindenb/jvarkit/commit/f4229a3e73f1be84e74e1ba3aad3d11fdbdaf541
 ```
 
 </details>

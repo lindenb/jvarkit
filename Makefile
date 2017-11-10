@@ -114,19 +114,19 @@ endif
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
 	echo "Main-Class: $(2)" >> ${tmp.mft}
 ifneq (${standalone},yes)
-	echo "Class-Path: $$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^))) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+	echo "Class-Path: $$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^))) ${dist.dir}/$(1)-fat.jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
 endif
 	echo -n "Git-Hash: " >> ${tmp.mft}
 	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
 	echo -n "Compile-Date: " >> ${tmp.mft}
 	date +%Y-%m-%d:%H-%m-%S >> ${tmp.mft}
 	#create jar
-	${JAR} cfm ${dist.dir}/$(1).jar ${tmp.mft}  -C ${tmp.dir} .
+	${JAR} cfm ${dist.dir}/$(1)$(if ${standalone},-fat).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
 	echo -n '${JAVA} -Djvarkit.log.name=$(1) -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) ' >> ${dist.dir}/$(1)
 ifeq (${standalone},yes)
-	echo -n ' -jar "${dist.dir}/$(1).jar" '  >> ${dist.dir}/$(1)
+	echo -n ' -jar "${dist.dir}/$(1)-fat.jar" '  >> ${dist.dir}/$(1)
 else
 	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
 endif
@@ -136,7 +136,7 @@ endif
 	-if [ -e "${tmp.dir}/markdown.flag" ] && [ "${TRAVIS}" != "true" ]  ; then \
 		touch ${tmp.dir}/githistory; \
 		(git log --pretty=format:"%ad ; %s ; https://github.com/lindenb/jvarkit/commit/%H" HEAD -- $(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) > ${tmp.dir}/githistory || true  ) ; \
-		${JAVA} -jar "${dist.dir}/$(1).jar" --help --helpFormat markdown | sed -e '/__INCLUDE_GIT_HISTORY__/ r ${tmp.dir}/githistory' -e 's/__INCLUDE_GIT_HISTORY__//' > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ;\
+		${JAVA} -jar "${dist.dir}/$(1)$(if ${standalone},-fat).jar" --help --helpFormat markdown | sed -e '/__INCLUDE_GIT_HISTORY__/ r ${tmp.dir}/githistory' -e 's/__INCLUDE_GIT_HISTORY__//' > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ;\
 		rm -fv ${tmp.dir}/githistory; \
 	fi
 	#cleanup

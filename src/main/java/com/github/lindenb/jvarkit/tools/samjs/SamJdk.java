@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -219,6 +220,41 @@ cigar string with deletion >= 1kb
 $ java -jar dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>=1000 && (C.getOperator()==CigarOperator.N || C.getOperator()==CigarOperator.D));'  in.bam
 ```
 
+### Example
+
+in *PAIRED* mode find some **pairs** of reads where at least one read startsWith `AAAAAAG`. See [https://bioinformatics.stackexchange.com/questions/2812](https://bioinformatics.stackexchange.com/questions/2812).
+
+
+```
+java -jar picard.jar SortSam I=S1.bam O=/dev/stdout  SO=queryname |\
+java -jar dist/samjdk.jar --samoutputformat BAM --pair -e 'return records.stream().anyMatch(R->R.getReadString().startsWith("AAAAAAG"));' |\
+samtools sort -T tmp - | samtools view -h - 
+```
+
+output:
+
+```
+@HD	VN:1.5	GO:none	SO:coordinate
+@SQ	SN:rotavirus	LN:1074
+@RG	ID:S1	SM:S1
+@PG	ID:bwa	PN:bwa	VN:0.7.12-r1044	CL:../bwa/bwa mem -R @RG\tID:S1\tSM:S1 ref.fa S1_01_R1.fq.gz S1_01_R2.fq.gz
+@PG	ID:bwa.1	PN:bwa	VN:0.7.12-r1044	CL:../bwa/bwa mem -R @RG\tID:S1\tSM:S1 ref.fa S1_02_R1.fq.gz S1_02_R2.fq.gz
+@PG	ID:bwa.2	PN:bwa	VN:0.7.12-r1044	CL:../bwa/bwa mem -R @RG\tID:S1\tSM:S1 ref.fa S1_03_R1.fq.gz S1_03_R2.fq.gz
+rotavirus_34_627_6:0:0_4:0:0_b6	99	rotavirus	34	60	70M	=	558	594	GATGGATTCTCCTCAGCAGATGGTAAGGTCTATTATAAAACCTTCTTTTGAAGCTGCAGTTGTTGCTGCT	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:6G3A16C8T2T0A29	RG:Z:S1	NM:i:6	AS:i:40	XS:i:0
+rotavirus_40_627_9:0:0_3:0:0_ab	99	rotavirus	40	42	61M9S	=	558	588	GTCTACTCAGCAGATTGTAATCTCTCTTAATCATACTTCATTTGAAGCTGCCGTTGTTGCTTCTCCTTCA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:15G4G4A3T1A7T11A9	RG:Z:S1	NM:i:7	AS:i:26	XS:i:19
+rotavirus_52_627_5:0:0_5:0:0_2f8	163	rotavirus	52	60	70M	=	558	576	GATTGTAAGCTCTAATATTAAAACTTCTTTAGAAGGTGCAGTTGTTGCTGCTACTTCAACATTAGAATTA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:3G10T6T8T4C34	RG:Z:S1	NM:i:5	AS:i:46	XS:i:0
+rotavirus_132_627_6:0:0_6:0:0_1ee	163	rotavirus	132	60	70M	=	558	496	AATATGATTACAATGAAGTCTTTACCAGAGTTAAAAGTAAATATGCTTATGTGCTGTAAGACTCTGGTGT	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:19A22T2A7A2G1T11	RG:Z:S1	NM:i:6	AS:i:40	XS:i:0
+rotavirus_160_646_2:0:0_6:0:0_2e2	99	rotavirus	160	60	70M	=	577	487	AGTTAAAAGTAAATTTGATTCTGTGATGGATGACACTGGTGTTAAAAACAATCTTTTGGGTAAAGCTATA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:20A13T35	RG:Z:S1	NM:i:2	AS:i:60	XS:i:0
+rotavirus_239_683_6:0:0_4:0:0_a7	163	rotavirus	239	60	64M6S	=	614	445	CAGGCGTTAAATGGAAAGATTAGCTCAGCTATAAGAAATAGCAATTGGATGAGTGATTCTAAAAGGGTAG	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:18T13T8A10C11	RG:Z:S1	NM:i:4	AS:i:44	XS:i:0
+rotavirus_132_627_6:0:0_6:0:0_1ee	83	rotavirus	558	60	70M	=	132	-496	AAAAAAGATTTGAATAACTATAACAGAGGGTTATTGACAAATACAATTCGTGGGTACAAAAAGCGAAGAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:15C4A12A3G9A1T20	RG:Z:S1	NM:i:6	AS:i:40	XS:i:0
+rotavirus_34_627_6:0:0_4:0:0_b6	147	rotavirus	558	60	70M	=	34	-594	AAAAAAGATTTGAATCACTAAAACTGAGGGTTAATGAGAAATACAATACGTCGGTACATAAAGCGAAGAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:24A24T1G6A11	RG:Z:S1	NM:i:4	AS:i:50	XS:i:0
+rotavirus_40_627_9:0:0_3:0:0_ab	147	rotavirus	558	60	70M	=	40	-588	AAAAAAGATTTGAATCACTAATACAGAGGGTTAATGAGATATACAATACTTGGGTACAAAAACCGAAGAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:21A17A22G7	RG:Z:S1	NM:i:3	AS:i:55	XS:i:0
+rotavirus_52_627_5:0:0_5:0:0_2f8	83	rotavirus	558	60	70M	=	52	-576	AAAAAAGATTTGAATCACGATAACAGAGGGTGAATGAGAAATACATTACTTCGGTACAAAAAGCGAAGAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:18T1A10T13A5G18	RG:Z:S1	NM:i:5	AS:i:45	XS:i:0
+rotavirus_160_646_2:0:0_6:0:0_2e2	147	rotavirus	577	60	70M	=	160	-487	AAAAAAGAGGGGTTATGAGTAATACAATACTTGGGTACAAAAAGAGATGAAAGTAAATGAAAATATGTAC	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:4C6T1A5A24C2A22	RG:Z:S1	NM:i:6	AS:i:41	XS:i:0
+rotavirus_239_683_6:0:0_4:0:0_a7	83	rotavirus	614	60	70M	=	239	-445	AAAAAAGCGAAGAAAGTAAATGTAAATAGGTACTCTCTTCAGAATGTTATCTCACAACAGCAAAAACAAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:0C21A5T36C4	RG:Z:S1	NM:i:4	AS:i:54	XS:i:0
+```
+
+
 END_DOC
 */
 @Program(name="samjdk",
@@ -256,17 +292,32 @@ public class SamJdk
 	private boolean user_code_is_body=false;
 	@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
 	private File saveCodeInDir=null;
+	@Parameter(names={"--pair"},description=
+			"[20171110] PAIR-MODE ."
+			+ "The signature of java function is `public Object apply(final List<SAMRecord> records)`. "
+			+ "This function must return `true` to accept the whole list, `false` to reject eveything, or another `List<SAMRecord>`."
+			+ "Input MUST be sorted on query name using picard SortSam (not `samtools sort` https://github.com/samtools/hts-specs/issues/5 ). ")
+	private boolean pair_mode=false;
+
+	
+	public static abstract class AbstractBaseFilter<T>
+		implements Function<T,Object>
+		{
+		/** hashmap, the user is free to use It */
+		protected final Map<String,Object> userData = new HashMap<>();
+		/** input SAM header */
+		protected final SAMFileHeader header;
+		protected AbstractBaseFilter(final SAMFileHeader header) {
+			this.header = header;
+			}
+		}
 
 
 	public static class AbstractFilter
-			implements Function<SAMRecord,Object>
+			extends AbstractBaseFilter<SAMRecord>
 			{
-			/** hashmap, the user is free to use It */
-			protected final Map<String,Object> userData = new HashMap<>();
-			/** input SAM header */
-			protected final SAMFileHeader header;
 			protected AbstractFilter(final SAMFileHeader header) {
-				this.header = header;
+				super(header);
 				}
 			@Override
 			public Object apply(final SAMRecord record) {
@@ -274,7 +325,18 @@ public class SamJdk
 				}
 			}
 
-	
+	public static class AbstractListFilter
+		extends AbstractBaseFilter<List<SAMRecord>>
+			{
+			protected AbstractListFilter(final SAMFileHeader header) {
+				super(header);
+				}
+			@Override
+			public Object apply(final List<SAMRecord> records) {
+				throw new IllegalStateException("apply(records) for AbstractListFilter is not implemented");
+				}
+			}
+
 	
 	
 	public SamJdk()
@@ -298,7 +360,7 @@ public class SamJdk
 		openFailing(h);
 		if(failingReadsWriter!=null) failingReadsWriter.addAlignment(rec);
 		}
-
+	
 	@Override
 	public int doWork(final List<String> args) {
 		SAMRecordIterator iter=null;
@@ -331,7 +393,8 @@ public class SamJdk
 			pw.println("import javax.annotation.Generated;");
 
 			pw.println("@Generated(value=\""+SamJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
-			pw.println("public class "+javaClassName+" extends "+AbstractFilter.class.getName().replace('$', '.')+" {");
+			pw.println("public class "+javaClassName+" extends "+
+					(this.pair_mode?AbstractListFilter.class:AbstractFilter.class).getName().replace('$', '.')+" {");
 			pw.println("  public "+javaClassName+"(final SAMFileHeader header) {");
 			pw.println("  super(header);");
 			pw.println("  }");
@@ -344,7 +407,9 @@ public class SamJdk
 			else
 				{
 				pw.println("  @Override");
-				pw.println("  public Object apply(final SAMRecord record) {");
+				pw.println("  public Object apply(final "+(this.pair_mode?
+								"List<SAMRecord> records":"SAMRecord record")+
+								") {");
 				pw.println("   /** user's code starts here */");
 				pw.println(code);
 				pw.println(    "/** user's code ends here */");
@@ -393,79 +458,178 @@ public class SamJdk
 			
 			samFileReader= openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=samFileReader.getFileHeader();
-			final AbstractFilter filter = (AbstractFilter)ctor.newInstance(header);
-			sw = writingBamArgs.openSAMFileWriter(outputFile,header, true);
-
+			if(this.pair_mode)
+				{
+				if(header.getSortOrder()==null || !header.getSortOrder().equals(SAMFileHeader.SortOrder.queryname)) {
+					LOG.error(
+						"In `--pair` mode , the input BAM is expected to be sorted on queryname but I've got \""+header.getSortOrder()+"\". "+
+						"Use picard SortSam (not `samtools sort` https://github.com/samtools/hts-specs/issues/5 )"
+						);
+					return -1;
+					}
+				}
 			
 			long count=0L;
-		        final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
-		        iter = samFileReader.iterator();
-			while(iter.hasNext())
-				{
-				final SAMRecord record=progress.watch(iter.next());
-				final Object result = filter.apply(record);
+	        final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
+	        sw = writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
+	        iter = samFileReader.iterator();
+	        
+	        
+	        
+	        if(this.pair_mode)
+	        	{
+				final AbstractListFilter filter = (AbstractListFilter)ctor.newInstance(header);
+				final List<SAMRecord> buffer = new ArrayList<>();
+				for(;;) {
+					final SAMRecord record = (iter.hasNext()?progress.watch(iter.next()):null);
+					if(record==null || (!buffer.isEmpty() && !buffer.get(0).getReadName().equals(record.getReadName())))
+						{
+						if(!buffer.isEmpty()) {
+							final Object result = filter.apply(buffer);
+							
+							// result is an array of a collection of reads
+							if(result!=null && (result.getClass().isArray() || (result instanceof Collection)))
+								{
+								final  Collection<?> col;
+								if(result.getClass().isArray())
+									{
+									final Object array[]=(Object[])result;
+									col= Arrays.asList(array);
+									}
+								else
+									{
+									col =( Collection<?>)result;
+									}
+								// write all of reads
+								for(final Object item:col)
+									{
+									if(item==null) throw new JvarkitException.UserError("item in array is null");
+									if(!(item instanceof SAMRecord)) throw new JvarkitException.UserError("item in array is not a SAMRecord "+item.getClass());
+									++count;
+									sw.addAlignment(SAMRecord.class.cast(item));
+									if(this.LIMIT>0L && count>=this.LIMIT) break;
+									}
+								}
+							// result is a SAMRecord
+							else if(result!=null && (result instanceof SAMRecord)) {
+								++count;
+								sw.addAlignment(SAMRecord.class.cast(result));
+								}
+							else
+								{
+								boolean accept=true;
+								if(result==null)
+									{
+									accept=false;
+									}
+								else if(result instanceof Boolean)
+									{
+									if(Boolean.FALSE.equals(result)) accept = false;
+									}
+								else if(result instanceof Number)
+									{
+									if(((Number)result).intValue()!=1) accept = false;
+									}
+								else
+									{
+									LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
+									accept = false;
+									}
+								if (!accept)
+									{
+									for(final SAMRecord item :buffer)
+										{
+										failing(item,header);
+										}
+									}
+								else
+									{
+									for(final SAMRecord item :buffer)
+										{
+										++count;
+										sw.addAlignment(item);
+										}
+									}
+								}
+							}// end of if !buffer.isEmpty()
+						if( record==null) break;
+						buffer.clear();
+						} // end flush flush 
+					if(this.LIMIT>0L && count>=this.LIMIT) break;
+					buffer.add(record);
+					}// infinite loop
 				
-				// result is an array of a collection of reads
-				if(result!=null && (result.getClass().isArray() || (result instanceof Collection)))
+	        	}
+	        else
+		        {
+				final AbstractFilter filter = (AbstractFilter)ctor.newInstance(header);
+			    
+				while(iter.hasNext())
 					{
-					final  Collection<?> col;
-					if(result.getClass().isArray())
+					final SAMRecord record=progress.watch(iter.next());
+					final Object result = filter.apply(record);
+					
+					// result is an array of a collection of reads
+					if(result!=null && (result.getClass().isArray() || (result instanceof Collection)))
 						{
-						final Object array[]=(Object[])result;
-						col= Arrays.asList(array);
+						final  Collection<?> col;
+						if(result.getClass().isArray())
+							{
+							final Object array[]=(Object[])result;
+							col= Arrays.asList(array);
+							}
+						else
+							{
+							col =( Collection<?>)result;
+							}
+						// write all of reads
+						for(final Object item:col)
+							{
+							if(item==null) throw new JvarkitException.UserError("item in array is null");
+							if(!(item instanceof SAMRecord)) throw new JvarkitException.UserError("item in array is not a SAMRecord "+item.getClass());
+							++count;
+							sw.addAlignment(SAMRecord.class.cast(item));
+							}
 						}
-					else
-						{
-						col =( Collection<?>)result;
-						}
-					// write all of reads
-					for(final Object item:col)
-						{
-						if(item==null) throw new JvarkitException.UserError("item in array is null");
-						if(!(item instanceof SAMRecord)) throw new JvarkitException.UserError("item in array is not a SAMRecord "+item.getClass());
+					// result is a SAMRecord
+					else if(result!=null && (result instanceof SAMRecord)) {
 						++count;
-						sw.addAlignment(SAMRecord.class.cast(item));
-						if(this.LIMIT>0L && count>=this.LIMIT) break;
-						}
-					}
-				// result is a SAMRecord
-				else if(result!=null && (result instanceof SAMRecord)) {
-					++count;
-					sw.addAlignment(SAMRecord.class.cast(result));
-					}
-				else
-					{
-					boolean accept=true;
-					if(result==null)
-						{
-						accept=false;
-						}
-					else if(result instanceof Boolean)
-						{
-						if(Boolean.FALSE.equals(result)) accept = false;
-						}
-					else if(result instanceof Number)
-						{
-						if(((Number)result).intValue()!=1) accept = false;
+						sw.addAlignment(SAMRecord.class.cast(result));
 						}
 					else
 						{
-						LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
-						accept = false;
+						boolean accept=true;
+						if(result==null)
+							{
+							accept=false;
+							}
+						else if(result instanceof Boolean)
+							{
+							if(Boolean.FALSE.equals(result)) accept = false;
+							}
+						else if(result instanceof Number)
+							{
+							if(((Number)result).intValue()!=1) accept = false;
+							}
+						else
+							{
+							LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
+							accept = false;
+							}
+						if (!accept)
+							{
+							failing(record,header);
+							}
+						else
+							{
+							++count;
+							sw.addAlignment(record);
+							}
 						}
-					if (!accept)
-						{
-						++count;
-						failing(record,header);
-						}
-					else
-						{
-						sw.addAlignment(record);
-						}
+	
+					if(this.LIMIT>0L && count>=this.LIMIT) break;
 					}
-
-				if(this.LIMIT>0L && count>=this.LIMIT) break;
-				}
+		        }
 			sw.close();
 			/* create empty if never called */
 			openFailing(header);
@@ -481,7 +645,7 @@ public class SamJdk
 			CloserUtil.close(iter);
 			CloserUtil.close(samFileReader);
 			CloserUtil.close(sw);
-			CloserUtil.close(failingReadsWriter);
+			CloserUtil.close(this.failingReadsWriter);
 			}
 		}
 

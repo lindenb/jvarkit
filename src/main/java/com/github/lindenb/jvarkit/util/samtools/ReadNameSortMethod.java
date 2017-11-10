@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 
 import htsjdk.samtools.SAMRecord;
 
+/** comparator for sam sorted on query-name (not the same between picard and samtools sort */
 public enum ReadNameSortMethod implements Supplier<Comparator<SAMRecord>> {
 samtools
 	{
