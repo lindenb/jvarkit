@@ -35,6 +35,7 @@ import java.io.PrintStream;
 import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -617,7 +618,7 @@ public class WritingSortingCollection
 	private List<File> tmpDirs=new ArrayList<>();
 	
 	
-	public WritingSortingCollection maxRecordsInRam(int n)
+	public WritingSortingCollection maxRecordsInRam(final int n)
 		{
 		this.maxRecordsInRam = n;
 		return this;
@@ -631,7 +632,12 @@ public class WritingSortingCollection
 			}
 		return L;
 		}
-	
+	/** convert getTmpDirectories to Array of Path */
+	public Path[] getTmpPaths() {
+		return getTmpDirectories().stream().
+				map(F->F.toPath()).
+				toArray((i)->new Path[i]);
+		}
 	}	
 
 public static enum WritingSamReaderType
@@ -789,6 +795,12 @@ public static class VcfWriterOnDemand
 		{
 		vcb.setOutputFile(file);
 		}
+	
+	@Override
+	public void setHeader(final VCFHeader header) {
+		throw new IllegalStateException("setHeader shouldn't be called.");
+	}
+	
 	@Override
 	public void writeHeader(final VCFHeader header) {
 		if(this.delegate==null) {

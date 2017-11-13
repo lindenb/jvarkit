@@ -70,6 +70,11 @@ public class DelegateVariantContextWriter implements VariantContextWriter {
 	}
 
 	@Override
+	public void setHeader(final VCFHeader header) {
+		getDelegate().setHeader(header);
+		}
+	
+	@Override
 	public void writeHeader(final VCFHeader header) {
 		getDelegate().writeHeader(header);
 	}

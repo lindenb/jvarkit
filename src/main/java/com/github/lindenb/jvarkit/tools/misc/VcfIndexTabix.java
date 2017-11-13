@@ -104,7 +104,10 @@ public class VcfIndexTabix
 			return  delegate.checkError();
 			}
 
-		
+		@Override
+		public void setHeader(final VCFHeader header) {
+			throw new UnsupportedOperationException("setHeader shouldn't be called"); 
+			}
 		@Override
 		public void writeHeader(VCFHeader header) {
 			this.delegate.writeHeader(header);			
@@ -114,7 +117,7 @@ public class VcfIndexTabix
 	                        new VCFRecordCodec(header),
 	                        header.getVCFRecordComparator(),
 	                        VcfIndexTabix.this.writingSortingCollection.getMaxRecordsInRam(),
-	                        VcfIndexTabix.this.writingSortingCollection.getTmpDirectories()
+	                        VcfIndexTabix.this.writingSortingCollection.getTmpPaths()
 	                        );
 			
 			}

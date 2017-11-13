@@ -9,7 +9,7 @@ avro.libs = $(lib.dir)/org/apache/avro/avro-tools/${avro.tools.version}/avro-too
 
 lib.dir?=lib
 
-htsjdk.version=2.9.1
+htsjdk.version=2.13.0
 htsjdk.jars  =  \
 	$(lib.dir)/com/github/samtools/htsjdk/${htsjdk.version}/htsjdk-${htsjdk.version}.jar \
 	$(lib.dir)/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar \
@@ -17,7 +17,7 @@ htsjdk.jars  =  \
 	$(lib.dir)/org/apache/commons/commons-compress/1.4.1/commons-compress-1.4.1.jar \
 	$(lib.dir)/org/apache/commons/commons-jexl/2.1.1/commons-jexl-2.1.1.jar \
 	$(lib.dir)/org/tukaani/xz/1.5/xz-1.5.jar \
-	$(lib.dir)/org/xerial/snappy/snappy-java/1.0.3-rc3/snappy-java-1.0.3-rc3.jar
+	$(lib.dir)/org/xerial/snappy/snappy-java/1.1.4/snappy-java-1.1.4.jar
 
 
 commons.loggging.jars = \

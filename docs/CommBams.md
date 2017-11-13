@@ -96,6 +96,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 10 17:07:13 2017 +0100 ; samjdk with pair mode, added sortmethod, fixed trapindex, fat-jar ; https://github.com/lindenb/jvarkit/commit/7eba4eda059e4ddbef27544cd87910131cf1f4a9
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
 Wed May 10 15:18:14 2017 +0200 ; bam2raster ; https://github.com/lindenb/jvarkit/commit/4f59fa50eb3be1389338e45302515fb4efd49eb5
 Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab

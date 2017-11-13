@@ -139,6 +139,11 @@ else
 }
 
 @Override
+public void setHeader(final VCFHeader header) {
+	throw new IllegalArgumentException("setHeader shouldn't be called");	
+	}
+
+@Override
 public void writeHeader(final VCFHeader header) {
 	if(this.done_adding) throw new IllegalArgumentException("iterator() already called");
 	if(this.header!=null) throw new IllegalArgumentException("Header already set");

@@ -825,6 +825,7 @@ ${dist.dir}/knimehelper.jar: ${src.dir}/com/github/lindenb/jvarkit/knime/KnimeVa
 	${JAR} cvf $@ -C ${tmp.dir} .
 	rm -rf "${tmp.dir}"
 
+
 clean:
 	rm -rf ${dist.dir}
 

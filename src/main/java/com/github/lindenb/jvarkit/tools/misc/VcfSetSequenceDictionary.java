@@ -90,6 +90,7 @@ public class VcfSetSequenceDictionary extends Launcher
 	
 
 	@XmlType(name="vcfsetdict")
+	@XmlRootElement(name="vcfsetdict")
 	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
