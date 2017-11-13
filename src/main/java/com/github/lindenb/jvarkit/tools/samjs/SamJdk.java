@@ -31,6 +31,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +47,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.samtools.ReadNameSortMethod;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -460,9 +462,14 @@ public class SamJdk
 			final SAMFileHeader header=samFileReader.getFileHeader();
 			if(this.pair_mode)
 				{
-				if(header.getSortOrder()==null || !header.getSortOrder().equals(SAMFileHeader.SortOrder.queryname)) {
+				final SAMFileHeader.SortOrder order = header.getSortOrder();
+				if(order==null || order.equals(SAMFileHeader.SortOrder.unsorted))
+					{
+					LOG.warning( "In `--pair` mode , the input BAM is expected to be sorted on queryname but current sort-order is "+order+" ... Continue...");	
+					}
+				else if(!order.equals(SAMFileHeader.SortOrder.queryname)) {
 					LOG.error(
-						"In `--pair` mode , the input BAM is expected to be sorted on queryname but I've got \""+header.getSortOrder()+"\". "+
+						"In `--pair` mode , the input BAM is expected to be sorted on queryname but I've got \""+ order +"\". "+
 						"Use picard SortSam (not `samtools sort` https://github.com/samtools/hts-specs/issues/5 )"
 						);
 					return -1;
@@ -471,17 +478,29 @@ public class SamJdk
 			
 			long count=0L;
 	        final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
-	        sw = writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
+	        sw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
 	        iter = samFileReader.iterator();
 	        
 	        
 	        
 	        if(this.pair_mode)
 	        	{
+	        	SAMRecord prev=null;
 				final AbstractListFilter filter = (AbstractListFilter)ctor.newInstance(header);
 				final List<SAMRecord> buffer = new ArrayList<>();
 				for(;;) {
+					int numWarnings = 100;
+					final Comparator<SAMRecord> nameComparator = ReadNameSortMethod.picard.get();
 					final SAMRecord record = (iter.hasNext()?progress.watch(iter.next()):null);
+					if( prev!=null && record!=null && numWarnings>0 && nameComparator.compare(prev,record)>0)
+						{
+						LOG.warn("SamRecord doesn't look sorted on query name using a picard/htsjdk method. Got "+record+" affter "+prev+". "
+								+ "In '--pair'  mode, reads should be sorted on query name using **picard/htsjdk**. (samtools != picard) see https://github.com/samtools/hts-specs/issues/5");
+						--numWarnings;
+						}
+					prev=record;
+
+					
 					if(record==null || (!buffer.isEmpty() && !buffer.get(0).getReadName().equals(record.getReadName())))
 						{
 						if(!buffer.isEmpty()) {
