@@ -89,6 +89,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 10 19:31:29 2017 +0100 ; fix a bug in trapindexer ; https://github.com/lindenb/jvarkit/commit/83c4f8cbf9cdf85a1d310b4e661797ed6febe5bd
+Fri Nov 10 18:25:15 2017 +0100 ; vcftrap min/max && fix fat in makefile ; https://github.com/lindenb/jvarkit/commit/aad41d76ccb11cc7b8d6eafb289c2a0242a18f2e
 Tue Nov 7 10:25:46 2017 +0100 ; tools for trap-score.org ; https://github.com/lindenb/jvarkit/commit/54bf01ddbf3594f5a5b4aee149d67604df343af7
 Tue Nov 7 10:22:52 2017 +0100 ; tools for trap-score.org ; https://github.com/lindenb/jvarkit/commit/f4229a3e73f1be84e74e1ba3aad3d11fdbdaf541
 ```
