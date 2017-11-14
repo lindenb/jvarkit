@@ -60,7 +60,6 @@ import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -1608,7 +1607,7 @@ public class VcfStats extends Launcher
 		{
 		if(this.knownGeneTreeMap==null) return Collections.emptyList();
 		final List<KnownGene> L = new ArrayList<>();
-		for(final List<KnownGene> lkg:VcfStats.this.knownGeneTreeMap.getOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd())))
+		for(final List<KnownGene> lkg:VcfStats.this.knownGeneTreeMap.getOverlapping(ctx))
 			{
 			L.addAll(lkg);
 			}
@@ -1616,7 +1615,7 @@ public class VcfStats extends Launcher
 		}
 	
 	// https://en.wikipedia.org/wiki/File:Transitions-transversions-v3.png
-	private static boolean isTransversion(Character a1, Character a2)
+	private static boolean isTransversion(final Character a1, final Character a2)
 		{
 		if(a1==null || a2==null) return false;
 		if(a1=='A' &&  a2=='C') return true;
@@ -1626,7 +1625,7 @@ public class VcfStats extends Launcher
 		return false;
 		}
 
-	private static boolean isTransition(Character a1, Character a2)
+	private static boolean isTransition(final Character a1, final Character a2)
 		{
 		if(a1==null || a2==null) return false;
 		if(a1=='A' &&  a2=='G') return true;

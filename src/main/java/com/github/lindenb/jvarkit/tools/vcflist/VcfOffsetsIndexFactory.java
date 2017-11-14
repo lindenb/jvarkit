@@ -83,11 +83,13 @@ public class VcfOffsetsIndexFactory {
 		return new File(vcf.getParentFile(),vcf.getName()+INDEX_EXTENSION);
 		}
 	/** set a predicate for the variant that will be indexed (default is 'all' ) */
-	public void setPredicate(final Predicate<VariantContext> acceptVariant) {
+	public VcfOffsetsIndexFactory setPredicate(final Predicate<VariantContext> acceptVariant) {
 		this.acceptVariant = acceptVariant;
+		return this;
 		}
-	public void setLogger(final Logger logger) {
+	public VcfOffsetsIndexFactory setLogger(final Logger logger) {
 		this.logger = logger;
+		return this;
 		}
 	public File indexVcfFileIfNeeded(final File vcfFile) throws IOException
 		{
@@ -116,6 +118,7 @@ public class VcfOffsetsIndexFactory {
 	/** index a vcf file for its variant offsets */
 	public File indexVcfFile(final File vcfFile,final File indexFile) throws IOException
 		{
+		LOG.info("indexing "+vcfFile);
 		IOUtil.assertFileIsReadable(vcfFile);
 		DataOutputStream daos = null;
 		BlockCompressedInputStream bgzin = null;

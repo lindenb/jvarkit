@@ -267,7 +267,7 @@ public class Biostar103303 extends Launcher
 						}
 					}
 				
-				Interval interval=new Interval(
+				final Interval interval=new Interval(
 						g.chrom,
 						exon.start,
 						exon.end

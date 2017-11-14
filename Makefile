@@ -537,6 +537,7 @@ $(eval $(call compile-htsjdk-cmd,vcfserver,${jvarkit.package}.tools.vcfserver.Vc
 $(eval $(call compile-htsjdk-cmd,tviewserver,${jvarkit.package}.tools.tview.TViewServer,${jcommander.jar} ${jetty.jars}))
 $(eval $(call compile-htsjdk-cmd,trapindexer,${jvarkit.package}.tools.trap.TrapIndexer,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcftrap,${jvarkit.package}.tools.trap.VcfTrap,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfepistatis01,${jvarkit.package}.tools.epistasis.VcfEpistatis01,${jcommander.jar}))
 
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.burden.VcfBurdenEpistasis,${jcommander.jar}))

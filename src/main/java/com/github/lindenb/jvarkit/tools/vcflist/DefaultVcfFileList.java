@@ -56,6 +56,7 @@ class DefaultVcfFileList extends AbstractList<VariantContext>
 	private final RandomAccessFile vcfrandom;
 	private final VCFCodec codec = new VCFCodec();
 	private final int _size;
+	private int last_list_index = -1;
 	
 	DefaultVcfFileList(final File vcf) throws IOException {
 		this(vcf,VcfOffsetsIndexFactory.getDefaultIndexFile(vcf));
@@ -111,18 +112,33 @@ class DefaultVcfFileList extends AbstractList<VariantContext>
 	public VariantContext get(final int index) {
 		if(index<0 || index>=this.size()) throw new IndexOutOfBoundsException("0<"+index+"<"+size() +" in "+vcfFile);
 		try {
-			this.indexio.seek((long)VcfOffsetsIndexFactory.MAGIC.length+ (long)index*(long)Long.BYTES);
-			long offset = this.indexio.readLong();
 			final String line;
-			if(this.bgzfin!=null) {
-				this.bgzfin.seek(offset);
-				line = this.bgzfin.readLine();
+			if(this.last_list_index==-1 || this.last_list_index+1!=index)
+				{
+				this.indexio.seek((long)VcfOffsetsIndexFactory.MAGIC.length+ (long)index*(long)Long.BYTES);
+				final long offset = this.indexio.readLong();
+				
+				if(this.bgzfin!=null) {
+					this.bgzfin.seek(offset);
+					line = this.bgzfin.readLine();
+					}
+				else
+					{
+					this.vcfrandom.seek(offset);
+					line = this.vcfrandom.readLine();
+					}
 				}
 			else
 				{
-				this.vcfrandom.seek(offset);
-				line = this.vcfrandom.readLine();
+				if(this.bgzfin!=null) {
+					line = this.bgzfin.readLine();
+					}
+				else
+					{
+					line = this.vcfrandom.readLine();
+					}
 				}
+			this.last_list_index = index;
 			return this.codec.decode(line);
 			}
 		catch(final IOException err)

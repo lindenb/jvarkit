@@ -26,14 +26,16 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.epistasis;
 
 import java.io.File;
-import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -42,6 +44,7 @@ import com.github.lindenb.jvarkit.tools.vcflist.VcfOffsetsIndexFactory;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -65,6 +68,10 @@ public class VcfEpistatis01 extends Launcher {
 	private  boolean load_variants_in_memory=false;
 	@Parameter(names={"-j","--jobs"},description="Number of parallel jobs.")
 	private  int number_of_jobs =1;
+	@Parameter(names={"-start","--start"},description="Specify start index in variant list. (for parallelisation)")
+	private  int start_index_at=0;
+	@Parameter(names={"-jexl","--jexl"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
+	private Predicate<VariantContext> variantFilter = (CTX)->true;
 	
 	
 	private static final Function<Long,Integer> CTRLS_nAlt2score=(N)->{switch(N.intValue()){
@@ -153,6 +160,7 @@ public class VcfEpistatis01 extends Launcher {
 		public Result call() throws Exception {
 			final VariantContext ctx1 = this.variants.get(this.startIndex);
 			final long startup = System.currentTimeMillis();
+
 			int i = this.startIndex + 1;
 			
 			while(i< this.variants.size())
@@ -209,6 +217,7 @@ public class VcfEpistatis01 extends Launcher {
 			final int variantsCount;
 			final List<VariantContext> inMemoryVariants;
 			final File vcfFile = new File(oneAndOnlyOneFile(args));
+			final File tmpIndexFile;
 			
 			if(vcfFile.equals(this.outputFile))
 				{
@@ -218,23 +227,36 @@ public class VcfEpistatis01 extends Launcher {
 			
 			VCFFileReader vcfFileReader = new VCFFileReader(vcfFile,false);
 			if(this.load_variants_in_memory) {
-				LOG.info("loading variant in memory");
+				LOG.info("loading variants in memory");
+				tmpIndexFile = null;
 				final CloseableIterator<VariantContext> iter2=vcfFileReader.iterator();
-				inMemoryVariants = iter2.stream().collect(Collectors.toList());
+				inMemoryVariants =  Collections.unmodifiableList(iter2.stream().
+						filter(this.variantFilter).
+						filter(V->V.getGenotypes().stream().filter(G->G.isCalled()).count()>0).//should fix https://github.com/samtools/htsjdk/issues/1026 ?
+						collect(Collectors.toList())
+						);
 				variantsCount = inMemoryVariants.size();
 				iter2.close();
 				}
 			else
 				{
-				new VcfOffsetsIndexFactory().setLogger(LOG).indexVcfFileIfNeeded(vcfFile);
-				CloseableIterator<VariantContext> iter2=vcfFileReader.iterator();
-				variantsCount = (int)iter2.stream().count();
-				iter2.close();
+				tmpIndexFile = File.createTempFile("epistatsis",VcfOffsetsIndexFactory.INDEX_EXTENSION);
+				tmpIndexFile.deleteOnExit();
+				new VcfOffsetsIndexFactory().
+					setLogger(LOG).
+					setPredicate(variantFilter).
+					indexVcfFile(vcfFile,tmpIndexFile);
+				VcfList tmpList = VcfList.fromFile(vcfFile, tmpIndexFile);
+				variantsCount = tmpList.size();
+				tmpList.close();
 				inMemoryVariants = null;
 				}
+			
+
+			
 			final VCFHeader header =  vcfFileReader.getFileHeader();
 			vcfFileReader.close();
-			
+			LOG.info("Number of variants: "+variantsCount);
 			
 			final Pedigree pedigree;
 			if(this.pedigreeFile!=null)
@@ -259,16 +281,22 @@ public class VcfEpistatis01 extends Launcher {
 					}
 			
 			Result bestResult =null;
-			int x=0;
+			int x= this.start_index_at;
 			while(x+1 < variantsCount)
 				{
 				final List<Runner> runners = new Vector<>(this.number_of_jobs);
 				while(x+1 < variantsCount && runners.size() < this.number_of_jobs)
 					{
+					
+					
 					LOG.info("starting "+x+"/"+variantsCount);
 					runners.add(new Runner(
-							inMemoryVariants == null? VcfList.fromFile(vcfFile): inMemoryVariants
-							,x,ctrlSamples,caseSamples));
+							inMemoryVariants == null? 
+									VcfList.fromFile(vcfFile,tmpIndexFile):
+									new Vector<>(inMemoryVariants)
+							,x,ctrlSamples,caseSamples
+							)
+							);
 					++x;
 					}
 				final ExecutorService execSvc;
@@ -287,14 +315,18 @@ public class VcfEpistatis01 extends Launcher {
 					}
 				else
 					{
-					execSvc.invokeAll(runners).stream().forEach(F->{try {F.get();}catch(Exception err2) {err2.printStackTrace();}});
+					execSvc.invokeAll(runners);
 					}
 					
+				if(execSvc!=null) {
+					execSvc.shutdown();
+					execSvc.awaitTermination(10000L, TimeUnit.DAYS);
+					execSvc.shutdownNow();
+				}
 				runners.stream().mapToLong(R->R.duration).min().ifPresent(D->{
 					LOG.info("That took "+ (D/1000f)+" seconds.");
 					});
 				
-				if(execSvc!=null) execSvc.shutdownNow();
 				
 				for(final Runner r: runners)
 					{
@@ -315,7 +347,7 @@ public class VcfEpistatis01 extends Launcher {
 					}
 				LOG.info("best: "+bestResult);
 				}
-			
+			if(tmpIndexFile!=null) tmpIndexFile.delete();
 			
 			return 0;
 			}
@@ -333,7 +365,7 @@ public class VcfEpistatis01 extends Launcher {
 	
 	public static void main( String[] args)
 		{
-		//args=new String[] {"-j","2","--memory","-o","/home/lindenb/jeter2.vcf","/home/lindenb/jeter.vcf"};
+		//args=new String[] {"-jexl","vc.getStart()%105==0","-j","2","--memory","-o","/home/lindenb/jeter2.vcf","/home/lindenb/jeter.vcf"};
 		new VcfEpistatis01().instanceMainWithExit(args);
 		}
 
