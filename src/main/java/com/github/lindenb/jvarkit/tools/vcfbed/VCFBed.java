@@ -50,7 +50,6 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -238,7 +237,7 @@ public class VCFBed extends Launcher
 					final Set<String> annotations=new HashSet<String>();
 					
 					if(getOwner().intervalTreeMap!=null) {
-						for(final Set<BedLine> bedLines :getOwner().intervalTreeMap.getOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd()))) {
+						for(final Set<BedLine> bedLines :getOwner().intervalTreeMap.getOverlapping(ctx)) {
 							for(final BedLine bedLine:bedLines) {
 							final String newannot=getOwner().parsedFormat.toString(bedLine);
 							found_overlap=true;

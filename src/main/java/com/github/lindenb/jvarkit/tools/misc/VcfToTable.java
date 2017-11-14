@@ -1297,6 +1297,11 @@ public class VcfToTable extends Launcher {
 				}
 			
 			@Override
+			public void setHeader(final VCFHeader header) {
+				throw new IllegalStateException("setHeader shouldn't be called"); 
+				}
+			
+			@Override
 			public void writeHeader(final VCFHeader header)
 				{
 				if(getOwner().outputFile!=null) {
@@ -1331,6 +1336,11 @@ public class VcfToTable extends Launcher {
 			
 			protected String getCssStyle() {
 				return DEFAULT_CSS_STYLE;
+				}
+			
+			@Override
+			public void setHeader(final VCFHeader header) {
+				throw new IllegalStateException("setHeader shouldn't be called"); 
 				}
 			
 			@Override
@@ -1576,6 +1586,12 @@ public class VcfToTable extends Launcher {
 		public void setUserCustomUrl(final String userCustomUrl) {
 			this.userCustomUrl = userCustomUrl;
 		}
+		
+		@Override
+		public void setHeader(final VCFHeader header) {
+			throw new IllegalStateException("setHeader shouldn't be called"); 
+			}
+		
 		
 		@Override
 		public void writeHeader(final VCFHeader header) {

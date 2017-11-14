@@ -123,6 +123,11 @@ public class PostponedVariantContextWriter implements VariantContextWriter {
 		}
 	
 	@Override
+	public void setHeader(final VCFHeader header) {
+		throw new UnsupportedOperationException("setHeader shouldn't be called"); 
+		}
+	
+	@Override
 	public void writeHeader(final VCFHeader header) {
 		if(this.delegate!=null) {
 			throw new IllegalStateException("WriteHeader called twice");
