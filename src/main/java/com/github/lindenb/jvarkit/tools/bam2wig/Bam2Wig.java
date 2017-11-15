@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.bam2wig;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
@@ -51,7 +53,9 @@ import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
@@ -61,6 +65,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -135,7 +140,7 @@ public class Bam2Wig extends Launcher
 	{
 	private static final String UCSC_HEADER="track type=track_type name=\"__REPLACE_WIG_NAME__\" description=\"__REPLACE_WIG_DESC__\"";
 	private static final Logger LOG = Logger.build(Bam2Wig.class).make();
-	private enum WHAT {COVERAGE,CLIPPING,INSERTION,DELETION,READ_GROUPS};
+	private enum WHAT {COVERAGE,CLIPPING,INSERTION,DELETION,READ_GROUPS,CASE_CTRL};
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -169,6 +174,8 @@ public class Bam2Wig extends Launcher
 	private int min_depth=0;
 	@Parameter(names={"--region","--interval"},description="Limit analysis to this interval. "+IntervalParser.OPT_DESC)
 	private String region_str=null;
+	@Parameter(names={"--pedigree","-ped"},description="Pedigree file for CASE_CTRL. " + Pedigree.OPT_DESCRIPTION )
+	private File pedigreeFile=null;
 
 
 	public Bam2Wig()
@@ -338,41 +345,51 @@ public class Bam2Wig extends Launcher
 			}
 		@Override
 		protected void dump(final List<SAMRecord> records,final int begin1,final int end1,final int array[]) {
-			int start1=begin1;
+			final Map<Integer,Counter<String>> pos2sample2depth= new HashMap<>();
 			
-			while(start1 <end1)
+			
+			
+				
+			for(final SAMRecord rec: records)
 				{
-				final Counter<String> sample2coverage = new Counter<>();
-				for(final SAMRecord rec: records)
-					{
-					final Cigar cigar = rec.getCigar();
-					if(cigar==null) continue;
-					final String sample = this.samRecordPartition.apply(rec.getReadGroup());
-					if(StringUtil.isBlank(sample)) continue;
-					
-					int pos1= rec.getAlignmentStart();
-					for(final CigarElement ce:cigar) {
-						if(pos1>=end1) break;
-						final CigarOperator op= ce.getOperator();
-						if(op.consumesReferenceBases())
+				final Cigar cigar = rec.getCigar();
+				if(cigar==null) continue;
+				final String sample = this.samRecordPartition.apply(rec.getReadGroup());
+				if(StringUtil.isBlank(sample)) continue;
+				
+				int pos1= rec.getAlignmentStart();
+				for(final CigarElement ce:cigar) {
+					if(pos1>=end1) break;
+					final CigarOperator op= ce.getOperator();
+					if(op.consumesReferenceBases())
+						{
+						final int L=ce.getLength();
+						if(op.consumesReadBases())
 							{
-							final int L=ce.getLength();
-							if(op.consumesReadBases())
+							for(int i=0;i< L && pos1+i<end1;++i)
 								{
-								for(int i=0;i< L && pos1+i<end1;++i)
+								final int nx = pos1 + i;
+								if(nx>=begin1 && nx< end1)
 									{
-									//coverage found for this sample at this position
-									if(pos1+i==start1)
-										{
-										sample2coverage.incr(sample);
-										break;
+									Counter<String> sample2coverage = pos2sample2depth.get(nx);
+									if(sample2coverage==null) {
+										sample2coverage = new Counter<String>();
+										pos2sample2depth.put(nx, sample2coverage);
 										}
+									sample2coverage.incr(sample);
 									}
 								}
-							pos1+=L;
 							}
+						pos1+=L;
 						}
 					}
+				}
+					
+			for(int start1 = begin1;start1<end1;++start1)
+				{
+				Counter<String> sample2coverage = pos2sample2depth.get(start1);
+				if(sample2coverage==null) continue;
+				
 				final int num_samples= (int)sample2coverage.stream().
 						mapToInt(E->E.getValue().intValue()).
 						filter(D->D>=this.minDepth).
@@ -385,11 +402,110 @@ public class Bam2Wig extends Launcher
 					array[start1-1]=num_samples;
 					}
 				
-				
-				++start1;
 				}
 			}
 		}
+	
+	private static class CaseControlAggregator extends BufferedAggregator
+		{
+		private final Map<String,Pedigree.Person> case2person;
+		private final Map<String,Pedigree.Person> ctrl2person;
+		CaseControlAggregator(final File pedigreeFile) {
+			final Pedigree pedigree ;
+			IOUtil.assertFileIsReadable(pedigreeFile);
+			try {
+				pedigree = Pedigree.newParser().parse(pedigreeFile);
+				}
+			catch(final IOException err)
+				{
+				throw new RuntimeIOException(err);
+				}
+			this.case2person=pedigree.getPersons().stream().
+						filter(P->P.isAffected()).
+						collect(Collectors.toMap(P->P.getId(), P->P))
+						;
+			this.ctrl2person=pedigree.getPersons().stream().
+					filter(P->P.isUnaffected()).
+					collect(Collectors.toMap(P->P.getId(), P->P))
+					;
+			}
+		@Override
+		protected void dump(final List<SAMRecord> records,final int begin1,final int end1,final int array[]) {
+			if(this.case2person.isEmpty()) return;
+			if(this.ctrl2person.isEmpty()) return;
+			final Map<Integer,Counter<String>> pos2sample2depth= new HashMap<>();
+				
+			for(final SAMRecord rec: records)
+				{
+				final Cigar cigar = rec.getCigar();
+				if(cigar==null) continue;
+				final SAMReadGroupRecord rg = rec.getReadGroup();
+				if(rg==null) continue;
+				final String sample = rg.getSample();
+				if(StringUtil.isBlank(sample)) continue;
+				if(!(this.ctrl2person.containsKey(sample)|| this.case2person.containsKey(sample))) continue;
+				
+				int pos1= rec.getAlignmentStart();
+				for(final CigarElement ce:cigar) {
+					if(pos1>=end1) break;
+					final CigarOperator op= ce.getOperator();
+					if(op.consumesReferenceBases())
+						{
+						final int L=ce.getLength();
+						if(op.consumesReadBases())
+							{
+							for(int i=0;i< L && pos1+i<end1;++i)
+								{
+								final int nx = pos1 + i;
+								if(nx>=begin1 && nx< end1)
+									{
+									Counter<String> sample2coverage = pos2sample2depth.get(nx);
+									if(sample2coverage==null) {
+										sample2coverage = new Counter<String>();
+										pos2sample2depth.put(nx, sample2coverage);
+										}
+									sample2coverage.incr(sample);
+									}
+								}
+							}
+						pos1+=L;
+						}
+					}
+				}
+					
+			for(int start1 = begin1;start1<end1;++start1)
+				{
+				double n_cases=0;
+				double n_ctrl=0;
+				
+				final Counter<String> sample2coverage = pos2sample2depth.get(start1);
+				if(sample2coverage==null) continue;
+				for(final String k: this.case2person.keySet())
+					{
+					n_cases+= sample2coverage.count(k);
+					}
+				n_cases/=this.case2person.size();
+				
+				for(final String k: this.ctrl2person.keySet())
+					{
+					n_ctrl+= sample2coverage.count(k);
+					}
+				if(n_ctrl==0.0) continue;
+				
+				n_ctrl/=this.ctrl2person.size();
+				
+				
+				final double ratio = n_cases / n_ctrl;
+				
+				if(start1>0 && start1<=array.length)
+					{
+					array[start1-1]= (int)(ratio * 1000.0);
+					}
+				
+				}
+			}
+		}
+
 	
 	
 	private void run(
@@ -407,6 +523,11 @@ public class Bam2Wig extends Launcher
 			case INSERTION : aggregator = new InsertionAggregator();break;
 			case DELETION : aggregator = new DeletionAggregator();break;
 			case READ_GROUPS: aggregator = new NumberOfSamplesCoveredX(this.min_depth, this.partition);break;
+			case CASE_CTRL : 
+				if(this.pedigreeFile==null) {
+					throw new JvarkitException.UserError("undefined pedigree");
+				}
+				aggregator = new CaseControlAggregator(this.pedigreeFile); break;
 			default: throw new IllegalStateException(this.whatDisplay.name());
 			}
 		

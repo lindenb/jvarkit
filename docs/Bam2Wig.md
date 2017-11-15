@@ -14,7 +14,7 @@ Usage: bam2wig [options] Files
     --display
       What kind of data should we display ?
       Default: COVERAGE
-      Possible Values: [COVERAGE, CLIPPING, INSERTION, DELETION, READ_GROUPS]
+      Possible Values: [COVERAGE, CLIPPING, INSERTION, DELETION, READ_GROUPS, CASE_CTRL]
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
@@ -51,10 +51,15 @@ Usage: bam2wig [options] Files
       When using display READ_GROUPS, how should a group the read groups ?
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    --pedigree, -ped
+      Pedigree file for CASE_CTRL. A pedigree is a text file delimited with 
+      tabs. No header. Columns are (1) Family (2) Individual-ID (3) Father Id 
+      or '0' (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) 
+      Status : 0 unaffected, 1 affected,-9 unknown
     --percentile
       How to group data in the sliding window ?
       Default: AVERAGE
-      Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM]
+      Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
     --version
       print version and exit
     -s, --windowShift
@@ -118,6 +123,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Nov 15 17:24:52 2017 +0100 ; adding Percentile, rewritten bam2wig, tests ; https://github.com/lindenb/jvarkit/commit/ecd0a198cb13ef05744c08b651a28448d360ef1d
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
 Fri May 5 21:02:19 2017 +0200 ; git move usage builder ; https://github.com/lindenb/jvarkit/commit/cc2f3aea9ca8fbb617b7f57a15b3294b6d6680e5
 Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
