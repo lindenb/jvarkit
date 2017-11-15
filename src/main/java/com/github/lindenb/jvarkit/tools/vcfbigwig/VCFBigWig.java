@@ -50,6 +50,7 @@ import org.broad.igv.bbfile.WigItem;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -227,30 +228,15 @@ public class VCFBigWig extends Launcher
 						b.attribute(CtxWriterFactory.this.TAG,values);
 						break;
 					case avg:
-						double total=0L;
-						for(final Float f:values) total+=f;
-						b.attribute(CtxWriterFactory.this.TAG,(float)(total/values.size()));
+						b.attribute(CtxWriterFactory.this.TAG,
+								(float)Percentile.average().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
 						break;
 					case first:
 						b.attribute(CtxWriterFactory.this.TAG,values.get(0));
 						break;
 					case median:
-						final double median_value;
-						values.sort((A,B)->A.compareTo(B));
-						final int mid_x= values.size()/2;
-						if(values.size()==1)
-							{
-							median_value = values.get(0);
-							}
-						else if(values.size()%2==0)
-	                        {
-	                		median_value =  (values.get(mid_x-1)+values.get(mid_x))/2.0;
-	                        }
-		                else
-	                        {
-	                		median_value =  values.get(mid_x);
-	                        }
-						b.attribute(CtxWriterFactory.this.TAG,median_value);
+						b.attribute(CtxWriterFactory.this.TAG,
+								(float)Percentile.median().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
 						break;
 					default: throw new IllegalStateException();
 					}

@@ -1,6 +1,6 @@
 # Bam2Wig
 
-Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
+Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
 
 
 ## Usage
@@ -8,27 +8,53 @@ Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Mem
 ```
 Usage: bam2wig [options] Files
   Options:
+    -bg, --bedgraph
+      Produce a BED GRAPH instead of a WIGGLE file.
+      Default: false
+    --display
+      What kind of data should we display ?
+      Default: COVERAGE
+      Possible Values: [COVERAGE, CLIPPING, INSERTION, DELETION, READ_GROUPS]
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
       for a complete syntax.
       Default: Accept All/ Filter out nothing
+    -f, --format
+      `Printf` Format for the values. see 
+      https://docs.oracle.com/javase/tutorial/java/data/numberformat.html . 
+      Use "%.01f" to print an integer. "%e" for scientific notation.
+      Default: %.3f
     -t, --header
-      print a UCSC custom track header
+      print a UCSC custom track header: something lile track type=track_type 
+      name="__REPLACE_WIG_NAME__" description="__REPLACE_WIG_DESC__". Use 
+      `sed` to replace the tokens. e.g: `sed 
+      '/^track/s/__REPLACE_WIG_NAME__/My data/'`
       Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    -i, --integer
-      cast to integer
-      Default: false
-    -d, --mindepth
-      minimal depth before setting depth to zero
+    --region, --interval
+      Limit analysis to this interval. An interval as the following syntax : 
+      "chrom:start-end" or "chrom:middle+extend"  or 
+      "chrom:start-end+extend".A program might use a Reference sequence to fix 
+      the chromosome name (e.g: 1->chr1)
+    --mindepth, --mindp
+      When using display READ_GROUPS, What is the minimal read depth that 
+      should be considered ?
       Default: 0
     -o, --output
       Output file. Optional . Default: stdout
+    --partition
+      When using display READ_GROUPS, how should a group the read groups ?
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    --percentile
+      How to group data in the sliding window ?
+      Default: AVERAGE
+      Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM]
     --version
       print version and exit
     -s, --windowShift
@@ -37,9 +63,6 @@ Usage: bam2wig [options] Files
     -w, --windowSize
       window size
       Default: 100
-    -g, --zerolength
-      minimal zero-coverage length before writing a new header
-      Default: 200
 
 ```
 
@@ -49,6 +72,7 @@ Usage: bam2wig [options] Files
  * bam
  * wig
  * wiggle
+ * bed
 
 
 ## Compilation
@@ -130,11 +154,27 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Input
+
+input is stdin; or  one or more BAM file sorted on coordinate; or a file ending with '.list' and containing the PATH to some bam files.
+
+About Wiggle: [https://genome.ucsc.edu/goldenpath/help/wiggle.html](https://genome.ucsc.edu/goldenpath/help/wiggle.html)
+
+About BedGraph: [https://genome.ucsc.edu/goldenpath/help/bedgraph.html](https://genome.ucsc.edu/goldenpath/help/bedgraph.html)
+
+## Memory
+
+warning: the program is memory consuming, it allocates on array of integer of the size of your longest contig.
+
+## History:
+
+20171115: removed cast_to_integer replaced by 'format', added percentile. Removed options --zerolength and --mindepth.
+
 ## Example
 the input file
 
 ```bash
-java -jar dist/bam2wig.jar -w 1 -s 3 -i -t -L OFF examples/toy.bam
+java -jar dist/bam2wig.jar -w 1 -s 3   examples/toy.bam
 ```
 
 ```
