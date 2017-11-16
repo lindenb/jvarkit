@@ -70,6 +70,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/274183](https://www.biostars.org/p/274183)
  * [https://www.biostars.org/p/278902](https://www.biostars.org/p/278902)
  * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
+ * [https://www.biostars.org/p/283969](https://www.biostars.org/p/283969)
 
 
 ## Compilation
@@ -344,6 +345,28 @@ rotavirus_40_627_9:0:0_3:0:0_ab	147	rotavirus	558	60	70M	=	40	-588	AAAAAAGATTTGA
 rotavirus_52_627_5:0:0_5:0:0_2f8	83	rotavirus	558	60	70M	=	52	-576	AAAAAAGATTTGAATCACGATAACAGAGGGTGAATGAGAAATACATTACTTCGGTACAAAAAGCGAAGAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:18T1A10T13A5G18	RG:Z:S1	NM:i:5	AS:i:45	XS:i:0
 rotavirus_160_646_2:0:0_6:0:0_2e2	147	rotavirus	577	60	70M	=	160	-487	AAAAAAGAGGGGTTATGAGTAATACAATACTTGGGTACAAAAAGAGATGAAAGTAAATGAAAATATGTAC	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:4C6T1A5A24C2A22	RG:Z:S1	NM:i:6	AS:i:41	XS:i:0
 rotavirus_239_683_6:0:0_4:0:0_a7	83	rotavirus	614	60	70M	=	239	-445	AAAAAAGCGAAGAAAGTAAATGTAAATAGGTACTCTCTTCAGAATGTTATCTCACAACAGCAAAAACAAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:0C21A5T36C4	RG:Z:S1	NM:i:4	AS:i:54	XS:i:0
+```
+
+### Example
+
+> Question: "How to extract reads with a known variant form a bam file"
+
+Searching for a base 'T' on 'rotavirus' at 1044.
+
+```java
+final String contig= "rotavirus";
+final int mutpos = 1044;
+final char mutbase='T';
+if(record.getReadUnmappedFlag()) return false;
+if(!record.getContig().equals(contig)) return false;
+if(record.getEnd() < mutpos) return false;
+if(record.getStart() > mutpos) return false;
+int readpos = record.getReadPositionAtReferencePosition(mutpos);
+if(readpos<1) return false;
+readpos--;
+final byte[]    bases= record.getReadBases();
+if(bases[readpos]==mutbase) return true;
+return false;
 ```
 
 

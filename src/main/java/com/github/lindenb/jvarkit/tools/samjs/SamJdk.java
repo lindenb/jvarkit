@@ -256,13 +256,35 @@ rotavirus_160_646_2:0:0_6:0:0_2e2	147	rotavirus	577	60	70M	=	160	-487	AAAAAAGAGG
 rotavirus_239_683_6:0:0_4:0:0_a7	83	rotavirus	614	60	70M	=	239	-445	AAAAAAGCGAAGAAAGTAAATGTAAATAGGTACTCTCTTCAGAATGTTATCTCACAACAGCAAAAACAAA	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:0C21A5T36C4	RG:Z:S1	NM:i:4	AS:i:54	XS:i:0
 ```
 
+### Example
+
+> Question: "How to extract reads with a known variant form a bam file"
+
+Searching for a base 'T' on 'rotavirus' at 1044.
+
+```java
+final String contig= "rotavirus";
+final int mutpos = 1044;
+final char mutbase='T';
+if(record.getReadUnmappedFlag()) return false;
+if(!record.getContig().equals(contig)) return false;
+if(record.getEnd() < mutpos) return false;
+if(record.getStart() > mutpos) return false;
+int readpos = record.getReadPositionAtReferencePosition(mutpos);
+if(readpos<1) return false;
+readpos--;
+final byte[]    bases= record.getReadBases();
+if(bases[readpos]==mutbase) return true;
+return false;
+```
+
 
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183,278902,279535}
+	biostars={270879,274183,278902,279535,283969}
 	)
 public class SamJdk
 	extends Launcher
