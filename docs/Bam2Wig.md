@@ -48,7 +48,7 @@ Usage: bam2wig [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     --partition
-      When using display READ_GROUPS, how should a group the read groups ?
+      When using display READ_GROUPS, how should we partition the ReadGroup ?
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     --pedigree, -ped
@@ -123,6 +123,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Nov 15 19:35:51 2017 +0100 ; bam2wig + ped ; https://github.com/lindenb/jvarkit/commit/244b5369fe9fcd87dfc1ec1f93c5607301fb8d08
 Wed Nov 15 17:24:52 2017 +0100 ; adding Percentile, rewritten bam2wig, tests ; https://github.com/lindenb/jvarkit/commit/ecd0a198cb13ef05744c08b651a28448d360ef1d
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
 Fri May 5 21:02:19 2017 +0200 ; git move usage builder ; https://github.com/lindenb/jvarkit/commit/cc2f3aea9ca8fbb617b7f57a15b3294b6d6680e5
@@ -175,6 +176,15 @@ warning: the program is memory consuming, it allocates on array of integer of th
 ## History:
 
 20171115: removed cast_to_integer replaced by 'format', added percentile. Removed options --zerolength and --mindepth.
+
+## Aggregators:
+
+* COVERAGE :  coverage, all sample merged
+* CLIPPING : consider only clipped base
+* INSERTION: consider only Cigar events I. Only one base in the reference is flagged
+* DELETION: consider Cigar events 'N' and 'D':
+* READ_GROUPS : Number of 'samples' having a depth greater than 'min-depth'
+* CASE_CTRL: ratio median(coverage-cases)/median(coverage-controls)
 
 ## Example
 the input file

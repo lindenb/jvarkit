@@ -93,6 +93,15 @@ warning: the program is memory consuming, it allocates on array of integer of th
 
 20171115: removed cast_to_integer replaced by 'format', added percentile. Removed options --zerolength and --mindepth.
 
+## Aggregators:
+
+* COVERAGE :  coverage, all sample merged
+* CLIPPING : consider only clipped base
+* INSERTION: consider only Cigar events I. Only one base in the reference is flagged
+* DELETION: consider Cigar events 'N' and 'D':
+* READ_GROUPS : Number of 'samples' having a depth greater than 'min-depth'
+* CASE_CTRL: ratio median(coverage-cases)/median(coverage-controls)
+
 ## Example
 the input file
 
@@ -144,31 +153,23 @@ public class Bam2Wig extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	@Parameter(names={"-t","--header"},description="print a UCSC custom track header: something lile "+UCSC_HEADER+". Use `sed` to replace the tokens. e.g: `sed '/^track/s/__REPLACE_WIG_NAME__/My data/'` ")
 	private boolean custom_track = false;
-
 	@Parameter(names={"-s","--windowShift"},description="window shift")
 	private int win_shift = 25 ;
-
 	@Parameter(names={"-w","--windowSize"},description="window size")
 	private int window_span = 100 ;
-
 	@Parameter(names={"-f","--format"},description="`Printf` Format for the values. see https://docs.oracle.com/javase/tutorial/java/data/numberformat.html . Use \"%.01f\" to print an integer. \"%e\" for scientific notation.")
 	private String printfFormat = "%.3f";
-
 	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
-	
 	@Parameter(names={"--percentile"},description="How to group data in the sliding window ?")
 	private Percentile.Type percentilType = Percentile.Type.AVERAGE;
-
 	@Parameter(names={"-bg","--bedgraph"},description="Produce a BED GRAPH instead of a WIGGLE file.")
 	private boolean bedGraph= false;
 	@Parameter(names={"--display"},description="What kind of data should we display ?")
 	private WHAT whatDisplay= WHAT.COVERAGE;
-	
-	@Parameter(names={"--partition"},description="When using display READ_GROUPS, how should a group the read groups ?")
+	@Parameter(names={"--partition"},description="When using display READ_GROUPS, how should we partition the ReadGroup ?")
 	private SAMRecordPartition partition= SAMRecordPartition.sample;
 	@Parameter(names={"--mindepth","--mindp"},description="When using display READ_GROUPS, What is the minimal read depth that should be considered ?")
 	private int min_depth=0;
@@ -309,6 +310,48 @@ public class Bam2Wig extends Launcher
 		private int last_start=1;
 		protected abstract void dump(final List<SAMRecord> records,int start1,int end1,final int array[]);
 		
+		protected abstract String partition(SAMRecord rec);
+		
+		protected Map<Integer,Counter<String>> fillPositions(final List<SAMRecord> records,final int begin1,final int end1)
+			{
+			final Map<Integer,Counter<String>> pos2sample2depth = new HashMap<>();
+			for(final SAMRecord rec:records) {
+				final Cigar cigar = rec.getCigar();
+				if(cigar==null) continue;
+				final String sample = partition(rec);
+				if(StringUtil.isBlank(sample)) continue;
+				
+				int pos1= rec.getAlignmentStart();
+				for(final CigarElement ce:cigar) {
+					if(pos1>=end1) break;
+					final CigarOperator op= ce.getOperator();
+					if(op.consumesReferenceBases())
+						{
+						final int L=ce.getLength();
+						if(op.consumesReadBases())
+							{
+							for(int i=0;i< L && pos1+i<end1;++i)
+								{
+								final int nx = pos1 + i;
+								if(nx>=begin1 && nx< end1)
+									{
+									Counter<String> sample2coverage = pos2sample2depth.get(nx);
+									if(sample2coverage==null) {
+										sample2coverage = new Counter<String>();
+										pos2sample2depth.put(nx, sample2coverage);
+										}
+									sample2coverage.incr(sample);
+									}
+								}
+							}
+						pos1+=L;
+						}
+					}
+				
+				}
+			return pos2sample2depth;
+			}
+		
 		@Override
 		void visit(final int array[],final SAMRecord rec)
 			{
@@ -343,60 +386,25 @@ public class Bam2Wig extends Launcher
 			this.minDepth = minDepth;
 			this.samRecordPartition = samRecordPartition;
 			}
+		
+		@Override
+		protected String partition(final SAMRecord rec) {
+			return this.samRecordPartition.apply(rec.getReadGroup());
+			}
+		
 		@Override
 		protected void dump(final List<SAMRecord> records,final int begin1,final int end1,final int array[]) {
-			final Map<Integer,Counter<String>> pos2sample2depth= new HashMap<>();
-			
-			
-			
-				
-			for(final SAMRecord rec: records)
-				{
-				final Cigar cigar = rec.getCigar();
-				if(cigar==null) continue;
-				final String sample = this.samRecordPartition.apply(rec.getReadGroup());
-				if(StringUtil.isBlank(sample)) continue;
-				
-				int pos1= rec.getAlignmentStart();
-				for(final CigarElement ce:cigar) {
-					if(pos1>=end1) break;
-					final CigarOperator op= ce.getOperator();
-					if(op.consumesReferenceBases())
-						{
-						final int L=ce.getLength();
-						if(op.consumesReadBases())
-							{
-							for(int i=0;i< L && pos1+i<end1;++i)
-								{
-								final int nx = pos1 + i;
-								if(nx>=begin1 && nx< end1)
-									{
-									Counter<String> sample2coverage = pos2sample2depth.get(nx);
-									if(sample2coverage==null) {
-										sample2coverage = new Counter<String>();
-										pos2sample2depth.put(nx, sample2coverage);
-										}
-									sample2coverage.incr(sample);
-									}
-								}
-							}
-						pos1+=L;
-						}
-					}
-				}
-					
+			final Map<Integer,Counter<String>> pos2sample2depth= fillPositions(records,begin1,end1);
 			for(int start1 = begin1;start1<end1;++start1)
 				{
-				Counter<String> sample2coverage = pos2sample2depth.get(start1);
+				final Counter<String> sample2coverage = pos2sample2depth.get(start1);
 				if(sample2coverage==null) continue;
 				
 				final int num_samples= (int)sample2coverage.stream().
 						mapToInt(E->E.getValue().intValue()).
 						filter(D->D>=this.minDepth).
 						count()
-						;
-				
-				
+						;				
 				if(start1>0 && start1<=array.length)
 					{
 					array[start1-1]=num_samples;
@@ -430,72 +438,46 @@ public class Bam2Wig extends Launcher
 					;
 			}
 		@Override
+		void visit(int[] array, SAMRecord rec) {
+			if(this.case2person.isEmpty()) return;
+			if(this.ctrl2person.isEmpty()) return;
+			if(StringUtil.isBlank(partition(rec))) return;
+			super.visit(array, rec);
+			}
+		
+		@Override
+		protected String partition(final SAMRecord rec) {
+
+			final SAMReadGroupRecord rg = rec.getReadGroup();
+			if(rg==null) return null;
+			final String sample= rg.getSample();			
+			if(!(this.ctrl2person.containsKey(sample)|| this.case2person.containsKey(sample))) return null;
+			return null;
+			}
+		
+		@Override
 		protected void dump(final List<SAMRecord> records,final int begin1,final int end1,final int array[]) {
 			if(this.case2person.isEmpty()) return;
 			if(this.ctrl2person.isEmpty()) return;
-			final Map<Integer,Counter<String>> pos2sample2depth= new HashMap<>();
+			final Map<Integer,Counter<String>> pos2sample2depth= fillPositions(records,begin1,end1);
 				
-			for(final SAMRecord rec: records)
-				{
-				final Cigar cigar = rec.getCigar();
-				if(cigar==null) continue;
-				final SAMReadGroupRecord rg = rec.getReadGroup();
-				if(rg==null) continue;
-				final String sample = rg.getSample();
-				if(StringUtil.isBlank(sample)) continue;
-				if(!(this.ctrl2person.containsKey(sample)|| this.case2person.containsKey(sample))) continue;
-				
-				int pos1= rec.getAlignmentStart();
-				for(final CigarElement ce:cigar) {
-					if(pos1>=end1) break;
-					final CigarOperator op= ce.getOperator();
-					if(op.consumesReferenceBases())
-						{
-						final int L=ce.getLength();
-						if(op.consumesReadBases())
-							{
-							for(int i=0;i< L && pos1+i<end1;++i)
-								{
-								final int nx = pos1 + i;
-								if(nx>=begin1 && nx< end1)
-									{
-									Counter<String> sample2coverage = pos2sample2depth.get(nx);
-									if(sample2coverage==null) {
-										sample2coverage = new Counter<String>();
-										pos2sample2depth.put(nx, sample2coverage);
-										}
-									sample2coverage.incr(sample);
-									}
-								}
-							}
-						pos1+=L;
-						}
-					}
-				}
 					
 			for(int start1 = begin1;start1<end1;++start1)
 				{
-				double n_cases=0;
-				double n_ctrl=0;
 				
 				final Counter<String> sample2coverage = pos2sample2depth.get(start1);
 				if(sample2coverage==null) continue;
-				for(final String k: this.case2person.keySet())
-					{
-					n_cases+= sample2coverage.count(k);
-					}
-				n_cases/=this.case2person.size();
 				
-				for(final String k: this.ctrl2person.keySet())
-					{
-					n_ctrl+= sample2coverage.count(k);
-					}
-				if(n_ctrl==0.0) continue;
-				
-				n_ctrl/=this.ctrl2person.size();
-				
-				
-				final double ratio = n_cases / n_ctrl;
+				final double median_cases = Percentile.median().evaluate(this.case2person.keySet().
+						stream().
+						mapToDouble(ID->sample2coverage.count(ID))
+						);
+				final double median_ctrl = Percentile.median().evaluate(this.ctrl2person.keySet().
+						stream().
+						mapToDouble(ID->sample2coverage.count(ID))
+						);
+
+				final double ratio = median_cases / median_ctrl;
 				
 				if(start1>0 && start1<=array.length)
 					{
