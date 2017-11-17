@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -55,7 +56,13 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+/**
+BEGIN_DOC
 
+
+
+END_DOC
+ */
 public class VcfEpistatis01 extends Launcher {
 	private static final Logger LOG = Logger.build(VcfEpistatis01.class).make();
 
@@ -87,6 +94,8 @@ public class VcfEpistatis01 extends Launcher {
 		default: return 30;
 		}};
 	
+		
+		
 	private static class Result
 		{
 		final VariantContext ctx1;
@@ -122,35 +131,35 @@ public class VcfEpistatis01 extends Launcher {
 	private static  class Runner implements Callable<Result>
 		{
 		private final List<VariantContext> variants;
-		private final List<Pedigree.Person> ctrlSamples;
-		private final List<Pedigree.Person> caseSamples;
+		private final int caseIndexes[];
+		private final int ctrlIndexes[];
 		private final int startIndex;
 		private Result result = null;
 		private long duration=0L;
 		Runner(
 				final List<VariantContext> variants,
 				final int startIndex,
-				final List<Pedigree.Person> ctrlSamples,
-				final List<Pedigree.Person> caseSamples
+				final int[] caseIndexes,
+				final int[] ctrlIndexes
 				)
 			{
 			this.variants = variants;
 			this.startIndex = startIndex;
-			this.ctrlSamples = ctrlSamples;
-			this.caseSamples = caseSamples;
+			this.caseIndexes = caseIndexes;
+			this.ctrlIndexes = ctrlIndexes;
 			}
 		
 		private double score(
 				final VariantContext ctx,
 				final Allele alt,
-				final List<Pedigree.Person> samples,
+				final int samples_indexes[],
 				final Function<Long,Integer> nAlt2score
 				) 
 			{
 			double score_a1 = 0;
 			
-			for(final Pedigree.Person p : samples) {
-				final Genotype g = ctx.getGenotype(p.getId());
+			for(final int  idx : samples_indexes) {
+				final Genotype g = ctx.getGenotype(idx);
 				if(g==null || g.isFiltered()) continue;
 				score_a1 +=nAlt2score.apply( g.getAlleles().stream().filter(A->A.equals(alt)).count());
 				}
@@ -170,15 +179,15 @@ public class VcfEpistatis01 extends Launcher {
 					{
 					if(a1.isReference()) continue;
 					double score_a1 = 0;
-					score_a1 += score(ctx1,a1,this.ctrlSamples,CTRLS_nAlt2score);
-					score_a1 += score(ctx1,a1,this.caseSamples,CASES_nAlt2score);
+					score_a1 += score(ctx1,a1,this.ctrlIndexes,CTRLS_nAlt2score);
+					score_a1 += score(ctx1,a1,this.caseIndexes,CASES_nAlt2score);
 					
 					for(final Allele a2 : ctx2.getAlleles())//faster then getAlternateAlleles
 						{
 						if(a2.isReference()) continue;
 						double score_a2 = score_a1;
-						score_a2 += score(ctx2,a2,this.ctrlSamples,CTRLS_nAlt2score);
-						score_a2 += score(ctx2,a2,this.caseSamples,CASES_nAlt2score);
+						score_a2 += score(ctx2,a2,this.ctrlIndexes,CTRLS_nAlt2score);
+						score_a2 += score(ctx2,a2,this.caseIndexes,CASES_nAlt2score);
 						if(this.result == null || this.result.score< score_a2)
 							{
 							final Result nr = new Result(ctx1,a1,this.startIndex,ctx2,a2,i,score_a2);
@@ -226,6 +235,45 @@ public class VcfEpistatis01 extends Launcher {
 				}
 			
 			VCFFileReader vcfFileReader = new VCFFileReader(vcfFile,false);
+			final VCFHeader header =  vcfFileReader.getFileHeader();
+
+			
+			final Pedigree pedigree;
+			if(this.pedigreeFile!=null)
+				{
+				pedigree = new Pedigree.Parser().parse(this.pedigreeFile);
+				}
+			else
+				{
+				pedigree = new Pedigree.Parser().parse(header);
+				}
+			
+			
+			pedigree.verifyPersonsHaveUniqueNames();
+			final Map<String,Integer> sample2index = header.getSampleNameToOffset();
+			
+			final  int caseIndexes[] = pedigree.getAffected().stream().
+					filter(P->sample2index.containsKey(P.getId())).
+					mapToInt(P->sample2index.get(P.getId())).
+					sorted().
+					toArray();
+
+			
+			final int ctrlIndexes[] = new ArrayList<>(pedigree.getUnaffected()).stream().
+					filter(P->sample2index.containsKey(P.getId())).
+					mapToInt(P->sample2index.get(P.getId())).
+					sorted().
+					toArray();
+			
+				
+			if( caseIndexes.length==0 || ctrlIndexes.length==0 )
+					{
+					LOG.error("empty ped or no case/ctrl");
+					vcfFileReader.close();
+					return -1;
+					}
+
+			
 			if(this.load_variants_in_memory) {
 				LOG.info("loading variants in memory");
 				tmpIndexFile = null;
@@ -254,31 +302,12 @@ public class VcfEpistatis01 extends Launcher {
 			
 
 			
-			final VCFHeader header =  vcfFileReader.getFileHeader();
 			vcfFileReader.close();
 			LOG.info("Number of variants: "+variantsCount);
 			
-			final Pedigree pedigree;
-			if(this.pedigreeFile!=null)
-				{
-				pedigree = new Pedigree.Parser().parse(this.pedigreeFile);
-				}
-			else
-				{
-				pedigree = new Pedigree.Parser().parse(header);
-				}
 			
 			
-			pedigree.verifyPersonsHaveUniqueNames();
 			
-			
-			final List<Pedigree.Person> ctrlSamples = new ArrayList<>(pedigree.getUnaffected());
-			final List<Pedigree.Person> caseSamples = new ArrayList<>(pedigree.getAffected());
-			if( ctrlSamples.isEmpty() || caseSamples.isEmpty() )
-					{
-					LOG.error("empty ped or no case/ctrl");
-					return -1;
-					}
 			
 			Result bestResult =null;
 			int x= this.start_index_at;
@@ -294,7 +323,9 @@ public class VcfEpistatis01 extends Launcher {
 							inMemoryVariants == null? 
 									VcfList.fromFile(vcfFile,tmpIndexFile):
 									new Vector<>(inMemoryVariants)
-							,x,ctrlSamples,caseSamples
+							,x,
+							caseIndexes,
+							ctrlIndexes
 							)
 							);
 					++x;

@@ -50,6 +50,7 @@ import javax.xml.transform.stream.StreamSource;
 
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -85,7 +86,7 @@ private Marshaller marshaller;
 @Parameter(names={"-o","--out"},description="Output SVG file or stdout")
 private File outputFile=null;
 @Parameter(names={"--tmpDir"},description="Tmp Directory")
-private File tmpFile=new File(System.getProperty("java.io.tmpdir"));
+private File tmpFile= IOUtils.getDefaultTmpDir();
 @Parameter(names={"--maxRecordsInRam"},description="Max Records in RAM")
 private int maxRecordsInRam=50000;
 
@@ -173,7 +174,7 @@ private gov.nih.nlm.ncbi.blast.ObjectFactory _ignore_for_javac=null;
 			sortingCollection = SortingCollection.newInstance(Iteration.class, new BlastIterationCodec(),
 					hitComparator, 
 					this.maxRecordsInRam,
-					this.tmpFile
+					this.tmpFile.toPath()
 					);
 			rx=xmlInputFactory.createXMLEventReader(new FileReader(args.get(0)));
 			

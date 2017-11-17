@@ -522,7 +522,7 @@ public class CompareBams  extends Launcher
 					new MatchCodec(),
 					new MatchOrderer(),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			this.samSequenceDictAreTheSame=true;
 			database.setDestructiveIteration(true);

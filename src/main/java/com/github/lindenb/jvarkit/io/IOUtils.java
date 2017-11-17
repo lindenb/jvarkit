@@ -112,6 +112,12 @@ public class IOUtils {
 			}
 		}*/
 	
+    /** Returns a default tmp directory. */
+    public static File getDefaultTmpDir() {
+    	return new File(System.getProperty("java.io.tmpdir","."));
+    	}
+	
+	
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
 		InputStream fin=null;

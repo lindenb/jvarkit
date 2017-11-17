@@ -53,6 +53,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/269854](https://www.biostars.org/p/269854)
  * [https://www.biostars.org/p/277820](https://www.biostars.org/p/277820)
  * [https://www.biostars.org/p/250212](https://www.biostars.org/p/250212)
+ * [https://www.biostars.org/p/284083](https://www.biostars.org/p/284083)
 
 
 ## Compilation
@@ -305,6 +306,16 @@ note: things like 'AF' are not fixed.
 
 ```
 $ wget -q -O - "https://raw.githubusercontent.com/CostaLab/practical_SS2015/598ea0dddf2ef073a55ae21bc6d39ac2172eb617/data_analysis/organisms/escherichia_coli/O157H7_Sakai/IonTorrentPGM_mem/SRX185723/SRR566635/SRR566635-snps.vcf" | java -jar dist/vcffilterjdk.jar -e 'return new VariantContextBuilder(variant).genotypes(variant.getGenotypes().stream().map(G->!G.isCalled()?GenotypeBuilder.createMissing(G.getSampleName(),2):G).map(G->G.isCalled() && G.getPloidy()==1?new GenotypeBuilder(G).alleles(Arrays.asList(G.getAllele(0),G.getAllele(0))).make():G).collect(Collectors.toList())).attribute("AC",variant.getGenotypes().stream().mapToInt(G->G.isCalled() && G.getPloidy()==1 && !G.getAllele(0).isReference()?2:G.getAlleles().size()).sum()).attribute("AN",variant.getGenotypes().stream().mapToInt(G->G.isCalled() && G.getPloidy()==1 ?2:G.getAlleles().size()).sum()).make();'
+```
+
+## Example
+
+set DP missing in genotypes when only AD is present:
+
+```
+curl -s "http://www.icbi.at/svnsimplex/CommonBioCommands/tags/simplex-1.0/CommonBioCommands/testdata/vcf/AMS1_converted_filtered_short_chr1.vcf" |\
+awk '/^#CHROM/ {printf("##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"\">\n");} {print;}' | \
+java -jar dist/vcffilterjdk.jar  -e 'List<Genotype> gl = variant.getGenotypes().stream().map(G->{int ad[]=G.getAD();if(ad==null || ad.length==0) return G; int c= Arrays.stream(ad).sum(); return new GenotypeBuilder(G).DP(c).make();}).collect(Collectors.toList());return new VariantContextBuilder(variant).genotypes(gl).make();'
 ```
 
 

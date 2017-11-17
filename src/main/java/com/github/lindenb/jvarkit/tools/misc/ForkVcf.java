@@ -134,11 +134,11 @@ public class ForkVcf
 	private File manifestFile = null;
 
 
-        @Parameter(names={"-T","--tmpDir"},description="mp directory")
-        private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+    @Parameter(names={"-T","--tmpDir"},description="mp directory")
+    private File tmpDir = IOUtils.getDefaultTmpDir();
 
-        @Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
-        private int maxRecordsInRam =50000;
+    @Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
+    private int maxRecordsInRam =50000;
 
 	private final static String REPLACE_GROUPID="__GROUPID__";
 
@@ -316,12 +316,13 @@ public class ForkVcf
 			manifestWriter=null;
 			return RETURN_OK;
 			}
-		catch(Exception err) {
+		catch(final Exception err) {
+			LOG.error(err);
 			for (final SplitGroup g : groups) {
 				CloserUtil.close(g);
 				if(in!=null) g.getFile().delete();
 			}
-			return wrapException(err);
+			return -1;
 		} finally {
 			if(vcfBuffer!=null) vcfBuffer.dispose();
 			CloserUtil.close(r);

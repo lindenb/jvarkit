@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -157,7 +158,7 @@ public class CompareBamAndBuild  extends Launcher
 
 	
 	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+	private File tmpDir = IOUtils.getDefaultTmpDir();
 
 	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
 	private int maxRecordsInRam =50000;
@@ -401,7 +402,7 @@ public class CompareBamAndBuild  extends Launcher
 						new MatchCodec(),
 						new MatchOrdererInSortingCollection(),
 						this.maxRecordsInRam,
-						this.tmpDir
+						this.tmpDir.toPath()
 						);
 				
 				database.setDestructiveIteration(true);

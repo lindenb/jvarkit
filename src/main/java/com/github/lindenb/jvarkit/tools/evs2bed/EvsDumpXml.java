@@ -395,7 +395,7 @@ public class EvsDumpXml
 						new SnpStringCodec(),
 						new SnpDataComparator(),
 						this.writingSortingCollection.getMaxRecordsInRam(),
-						this.writingSortingCollection.getTmpDirectories()
+						this.writingSortingCollection.getTmpPaths()
 						);
 				this.sortingCollection.setDestructiveIteration(true);
 				}

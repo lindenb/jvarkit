@@ -126,7 +126,12 @@ Reads group are affected if a specific variant is found in the 'position file'.
 If two samples share the same group, the read group is AMBIGOUS.
 If the read is unmapped, the read group is UNMAPPED.
 If no sample is affected to a read, the read group will be UNAFFECTED;
- 
+
+## see also:
+
+* [https://www.biostars.org/p/283969](https://www.biostars.org/p/283969)  " How to extract reads with a known variant form a bam file"
+
+
 ## Example
 
 the positions file

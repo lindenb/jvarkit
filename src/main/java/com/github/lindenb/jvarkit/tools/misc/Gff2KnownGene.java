@@ -317,7 +317,7 @@ public class Gff2KnownGene extends Launcher {
 					new GffLineCodec(),
 					comparator,
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			sorting.setDestructiveIteration(true);
 			String line;
