@@ -36,6 +36,7 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
@@ -211,17 +212,8 @@ public class BamStats04 extends Launcher
 						}
 					mean/=counts.length;
 					
-	                final double median_depth;
-	                final int mid_x= counts.length/2;
-	                if(counts.length%2==0)
-	                        {
-	                        median_depth =  (counts[mid_x-1]+counts[mid_x])/2.0;
-	                        }
-	                else
-	                        {
-	                        median_depth =  counts[mid_x];
-	                        }
-	
+	                final double median_depth = Percentile.median().evaluate(counts);
+	                
 					
 					pw.println(
 							bedLine.getContig()+"\t"+

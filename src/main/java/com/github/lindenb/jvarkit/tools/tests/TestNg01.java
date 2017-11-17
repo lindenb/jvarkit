@@ -112,8 +112,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -130,31 +128,6 @@ class TestNg01 {
 	
 	private Properties properties = new Properties();
 	
-	private static class VcfBuilder
-		{
-		private final VCFHeader header =new VCFHeader();
-		private final List<VariantContext> variants = new ArrayList<>();
-		VcfBuilder()
-			{
-			
-			}
-		public VcfBuilder add(final VariantContext ctx)
-			{
-			this.variants.add(ctx);
-			return this;
-			}
-		public VcfBuilder write(final File out)
-			{
-			final VariantContextWriter w= new VariantContextWriterBuilder().
-					setOutputFile(out).
-					build();
-			w.writeHeader(this.header);
-			for(final VariantContext ctx:this.variants) w.add(ctx);
-			w.close();
-			return this;
-			}
-
-		}
 	
 	@BeforeClass
     public void setup() throws IOException {
@@ -752,6 +725,12 @@ class TestNg01 {
     public void testBamToWig() throws IOException{    
 		final File output =new File(TEST_RESULTS_DIR,"jeter.wig");
     	Assert.assertEquals(0,new Bam2Wig().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		TOY_BAM
+        		}));
+    	Assert.assertEquals(0,new Bam2Wig().instanceMain(new String[]{
+    			"--region","ref:10-30",
+    			"-w","3","-s","1","--percentile","MEDIAN",
         		"-o",output.getPath(),
         		TOY_BAM
         		}));

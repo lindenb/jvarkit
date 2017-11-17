@@ -1,6 +1,6 @@
 # Bam2Wig
 
-Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
+Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
 
 
 ## Usage
@@ -8,27 +8,58 @@ Bam to fixedStep Wiggle converter. Parses the cigar String to get the depth. Mem
 ```
 Usage: bam2wig [options] Files
   Options:
+    -bg, --bedgraph
+      Produce a BED GRAPH instead of a WIGGLE file.
+      Default: false
+    --display
+      What kind of data should we display ?
+      Default: COVERAGE
+      Possible Values: [COVERAGE, CLIPPING, INSERTION, DELETION, READ_GROUPS, CASE_CTRL]
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
       for a complete syntax.
       Default: Accept All/ Filter out nothing
+    -f, --format
+      `Printf` Format for the values. see 
+      https://docs.oracle.com/javase/tutorial/java/data/numberformat.html . 
+      Use "%.01f" to print an integer. "%e" for scientific notation.
+      Default: %.3f
     -t, --header
-      print a UCSC custom track header
+      print a UCSC custom track header: something lile track type=track_type 
+      name="__REPLACE_WIG_NAME__" description="__REPLACE_WIG_DESC__". Use 
+      `sed` to replace the tokens. e.g: `sed 
+      '/^track/s/__REPLACE_WIG_NAME__/My data/'`
       Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    -i, --integer
-      cast to integer
-      Default: false
-    -d, --mindepth
-      minimal depth before setting depth to zero
+    --region, --interval
+      Limit analysis to this interval. An interval as the following syntax : 
+      "chrom:start-end" or "chrom:middle+extend"  or 
+      "chrom:start-end+extend".A program might use a Reference sequence to fix 
+      the chromosome name (e.g: 1->chr1)
+    --mindepth, --mindp
+      When using display READ_GROUPS, What is the minimal read depth that 
+      should be considered ?
       Default: 0
     -o, --output
       Output file. Optional . Default: stdout
+    --partition
+      When using display READ_GROUPS, how should we partition the ReadGroup ?
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    --pedigree, -ped
+      Pedigree file for CASE_CTRL. A pedigree is a text file delimited with 
+      tabs. No header. Columns are (1) Family (2) Individual-ID (3) Father Id 
+      or '0' (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) 
+      Status : 0 unaffected, 1 affected,-9 unknown
+    --percentile
+      How to group data in the sliding window ?
+      Default: AVERAGE
+      Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
     --version
       print version and exit
     -s, --windowShift
@@ -37,9 +68,6 @@ Usage: bam2wig [options] Files
     -w, --windowSize
       window size
       Default: 100
-    -g, --zerolength
-      minimal zero-coverage length before writing a new header
-      Default: 200
 
 ```
 
@@ -49,6 +77,7 @@ Usage: bam2wig [options] Files
  * bam
  * wig
  * wiggle
+ * bed
 
 
 ## Compilation
@@ -94,6 +123,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Nov 15 19:35:51 2017 +0100 ; bam2wig + ped ; https://github.com/lindenb/jvarkit/commit/244b5369fe9fcd87dfc1ec1f93c5607301fb8d08
+Wed Nov 15 17:24:52 2017 +0100 ; adding Percentile, rewritten bam2wig, tests ; https://github.com/lindenb/jvarkit/commit/ecd0a198cb13ef05744c08b651a28448d360ef1d
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
 Fri May 5 21:02:19 2017 +0200 ; git move usage builder ; https://github.com/lindenb/jvarkit/commit/cc2f3aea9ca8fbb617b7f57a15b3294b6d6680e5
 Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
@@ -130,11 +161,36 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Input
+
+input is stdin; or  one or more BAM file sorted on coordinate; or a file ending with '.list' and containing the PATH to some bam files.
+
+About Wiggle: [https://genome.ucsc.edu/goldenpath/help/wiggle.html](https://genome.ucsc.edu/goldenpath/help/wiggle.html)
+
+About BedGraph: [https://genome.ucsc.edu/goldenpath/help/bedgraph.html](https://genome.ucsc.edu/goldenpath/help/bedgraph.html)
+
+## Memory
+
+warning: the program is memory consuming, it allocates on array of integer of the size of your longest contig.
+
+## History:
+
+20171115: removed cast_to_integer replaced by 'format', added percentile. Removed options --zerolength and --mindepth.
+
+## Aggregators:
+
+* COVERAGE :  coverage, all sample merged
+* CLIPPING : consider only clipped base
+* INSERTION: consider only Cigar events I. Only one base in the reference is flagged
+* DELETION: consider Cigar events 'N' and 'D':
+* READ_GROUPS : Number of 'samples' having a depth greater than 'min-depth'
+* CASE_CTRL: ratio median(coverage-cases)/median(coverage-controls)
+
 ## Example
 the input file
 
 ```bash
-java -jar dist/bam2wig.jar -w 1 -s 3 -i -t -L OFF examples/toy.bam
+java -jar dist/bam2wig.jar -w 1 -s 3   examples/toy.bam
 ```
 
 ```

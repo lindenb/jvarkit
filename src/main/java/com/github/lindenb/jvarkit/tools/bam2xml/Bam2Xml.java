@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.ProgressLoggerInterface;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -222,7 +223,18 @@ public class Bam2Xml extends Launcher
 		private ProgressLoggerInterface progress;
 		private XMLStreamWriter w;
 		private SAMFileHeader header;
-		public SAMXMLWriter(XMLStreamWriter w,final SAMFileHeader header) throws XMLStreamException
+		
+		private void writeText(final XMLStreamWriter w,final String tag,Object o) throws XMLStreamException
+			{
+			if(o==null) return;
+			final String s=String.valueOf(o);
+			if(StringUtil.isBlank(s)) return;
+			w.writeStartElement(tag);
+			w.writeCharacters(s);
+			w.writeEndElement();
+			}
+		
+		public SAMXMLWriter(final XMLStreamWriter w,final SAMFileHeader header) throws XMLStreamException
 			{
 			this.w=w;
 			this.header=header;
@@ -248,54 +260,55 @@ public class Bam2Xml extends Launcher
 	        		{
 	        		w.writeStartElement("contig");
 	        		w.writeAttribute("index", String.valueOf(ssr.getSequenceIndex()));
-	        		if(ssr.getAssembly()!=null) w.writeAttribute("assembly", String.valueOf(ssr.getAssembly()));
-	        		if(ssr.getSpecies()!=null) w.writeAttribute("species", String.valueOf(ssr.getSpecies()));
-	        		w.writeAttribute("length", String.valueOf(ssr.getSequenceLength()));
-	        		if(ssr.getMd5()!=null) w.writeAttribute("md5",ssr.getMd5());
-	        		w.writeCharacters(ssr.getSequenceName());
+	        		w.writeAttribute("name",ssr.getSequenceName());
+	        		writeText(w,"assembly", String.valueOf(ssr.getAssembly()));
+	        		writeText(w,"species", String.valueOf(ssr.getSpecies()));
+	        		writeText(w,"length", String.valueOf(ssr.getSequenceLength()));
+	        		writeText(w,"md5",ssr.getMd5());
 	        		w.writeEndElement();
 	        		}
 	        	w.writeEndElement();
 	        	}
-	        
-	        w.writeStartElement("read-groups");
-	        for(final SAMReadGroupRecord g: header.getReadGroups())
-		       	{
-	        	w.writeEmptyElement("read-group");
-	        	w.writeAttribute("id",g.getId());
-	        	if(g.getSample()!=null) w.writeAttribute("sample",g.getSample());
-	        	if(g.getDescription()!=null) w.writeAttribute("description",g.getDescription());
-	        	if(g.getFlowOrder()!=null) w.writeAttribute("flow-order",g.getFlowOrder());
-	        	if(g.getKeySequence()!=null) w.writeAttribute("key-sequence",g.getKeySequence());
-	        	if(g.getPlatform()!=null) w.writeAttribute("platform",g.getPlatform());
-	        	if(g.getPlatformModel()!=null) w.writeAttribute("platform-model",g.getPlatformModel());
-	        	if(g.getPlatformUnit()!=null) w.writeAttribute("platform-unit",g.getPlatformUnit());
-	        	if(g.getProgramGroup()!=null) w.writeAttribute("program-group",g.getProgramGroup());
-	        	if(g.getLibrary()!=null) w.writeAttribute("library",g.getLibrary());
-	        	if(g.getSequencingCenter()!=null) w.writeAttribute("center",g.getSequencingCenter());
-	        	if(g.getPredictedMedianInsertSize()!=null) w.writeAttribute("insert-size",String.valueOf(g.getPredictedMedianInsertSize()));
-	        	if(g.getRunDate()!=null) w.writeAttribute("run-date",String.valueOf(g.getRunDate()));
-		       	}
-	        w.writeEndElement();
-	        
-	        w.writeStartElement("program-records");
-	        for(final SAMProgramRecord sp:header.getProgramRecords())
-	        	{
-	        	w.writeStartElement("program-record");
-	        	w.writeAttribute("id",sp.getId());
-	        	if(sp.getPreviousProgramGroupId()!=null) w.writeAttribute("prev-group-id",sp.getPreviousProgramGroupId());
-	        	if(sp.getProgramName()!=null) w.writeAttribute("name",sp.getProgramName());
-	        	if(sp.getProgramVersion()!=null) w.writeAttribute("version",sp.getProgramVersion());
-	        	if(sp.getCommandLine()!=null)  w.writeCharacters(sp.getCommandLine());
-	        	w.writeEndElement();
-	        	}
-	        w.writeEndElement();
+	        if(!header.getReadGroups().isEmpty()) {
+		        w.writeStartElement("read-groups");
+		        for(final SAMReadGroupRecord g: header.getReadGroups())
+			       	{
+		        	w.writeStartElement("read-group");
+		        	w.writeAttribute("id",g.getId());
+		        	writeText(w,"sample",g.getSample());
+		        	writeText(w,"description",g.getDescription());
+		        	writeText(w,"flow-order",g.getFlowOrder());
+		        	writeText(w,"key-sequence",g.getKeySequence());
+		        	writeText(w,"platform",g.getPlatform());
+		        	writeText(w,"platform-model",g.getPlatformModel());
+		        	writeText(w,"platform-unit",g.getPlatformUnit());
+		        	writeText(w,"program-group",g.getProgramGroup());
+		        	writeText(w,"library",g.getLibrary());
+		        	writeText(w,"center",g.getSequencingCenter());
+		        	writeText(w,"insert-size",g.getPredictedMedianInsertSize());
+		        	writeText(w,"run-date",g.getRunDate());
+			       	w.writeEndElement();
+			       	}
+		        w.writeEndElement();
+		        }
+	        if(!header.getProgramRecords().isEmpty()) {
+		        w.writeStartElement("program-records");
+		        for(final SAMProgramRecord sp:header.getProgramRecords())
+		        	{
+		        	w.writeStartElement("program-record");
+		        	w.writeAttribute("id",sp.getId());
+		        	if(sp.getPreviousProgramGroupId()!=null) w.writeAttribute("prev-group-id",sp.getPreviousProgramGroupId());
+		        	if(sp.getProgramName()!=null) w.writeAttribute("name",sp.getProgramName());
+		        	if(sp.getProgramVersion()!=null) w.writeAttribute("version",sp.getProgramVersion());
+		        	if(sp.getCommandLine()!=null)  w.writeCharacters(sp.getCommandLine());
+		        	w.writeEndElement();
+		        	}
+		        w.writeEndElement();
+		        }
 	        
 	        for(final String comm: header.getComments())
 	        	{
-	        	w.writeStartElement("comment");
-	        	 w.writeCharacters(comm);
-	        	w.writeEndElement();
+	        	writeText(w,"comment",comm);
 	        	}
 	      
 	        
@@ -303,12 +316,9 @@ public class Bam2Xml extends Launcher
 
 			}
 		
-	    private void writeCharacters(String tag,Object value) throws XMLStreamException
+	    private void writeCharacters(final String tag,Object value) throws XMLStreamException
 		    	{
-		    	if(value==null) return;
-		    	w.writeStartElement(tag);
-		    	w.writeCharacters(String.valueOf(value));
-		    	w.writeEndElement();
+	    		writeText(w, tag, value);
 		    	}
 
 		

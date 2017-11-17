@@ -85,8 +85,9 @@ public class IntervalParser {
 	}
 	
 	/** specifying 'chr1' would return this whole contig */
-	public void setContigNameIsWholeContig(final boolean contigAloneIsWholeContig) {
+	public IntervalParser setContigNameIsWholeContig(final boolean contigAloneIsWholeContig) {
 		this.contigAloneIsWholeContig = contigAloneIsWholeContig;
+		return this;
 		}
 
 	public boolean isContigAloneIsWholeContig() {
