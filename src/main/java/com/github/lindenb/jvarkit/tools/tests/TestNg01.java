@@ -89,6 +89,8 @@ import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.trap.TrapIndexer;
 import com.github.lindenb.jvarkit.tools.trap.VcfTrap;
+import com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf;
+import com.github.lindenb.jvarkit.tools.vcf2sql.VcfToSql;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcfamalgation.VcfXmlAmalgamation;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
@@ -1040,4 +1042,22 @@ class TestNg01 {
     	list.close();
     	Assert.assertTrue(indexFile.delete());
     	}
+    @Test(dataProvider="all_vcfs")
+    public void testVcfToRdf(final String path) throws IOException {
+    	final File outvcf =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VcfToRdf().instanceMain(new String[]{
+        		"-o",outvcf.getPath(),
+        		path
+        		}));
+    	Assert.assertTrue(outvcf.delete());
+		}
+    @Test(dataProvider="all_vcfs")
+    public void testVcfToSql(final String path) throws IOException {
+    	final File outvcf =new File(TEST_RESULTS_DIR,"jeter.vcf");
+    	Assert.assertEquals(0,new VcfToSql().instanceMain(new String[]{
+        		"-o",outvcf.getPath(),
+        		path
+        		}));
+    	Assert.assertTrue(outvcf.delete());
+		}
 }
