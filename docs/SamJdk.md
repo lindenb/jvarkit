@@ -16,11 +16,11 @@ Usage: samjdk [options] Files
       method. 
       Default: false
     -e, --expression
-      javascript expression
+      java expression
     -X, --fail
       Save dicarded reads in that file
     -f, --file
-      javascript file. Either option -e or -f is required.
+      java file. Either option -e or -f is required.
     -h, --help
       print help and exit
     --helpFormat
@@ -116,6 +116,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Sun Nov 19 13:42:31 2017 +0100 ; adding message + checking https://github.com/lindenb/jvarkit/issues/90 ; https://github.com/lindenb/jvarkit/commit/5535f01de81b929284420ba1cf34b15247f13363
 Sun Nov 19 13:39:53 2017 +0100 ; adding message + checking https://github.com/lindenb/jvarkit/issues/90 ; https://github.com/lindenb/jvarkit/commit/6cee6caca575f1dee3efe872fb93908b2455be32
 Thu Nov 16 11:26:49 2017 +0100 ; samjdk + biostars:283969 ; https://github.com/lindenb/jvarkit/commit/3b48be1b9558518e8c694508844b219904ea7d4f
 Fri Nov 10 20:29:31 2017 +0100 ; message about read order in samjdk ; https://github.com/lindenb/jvarkit/commit/5345f8eebe59d1dbb4ff21357e6a9b6da857b2c6

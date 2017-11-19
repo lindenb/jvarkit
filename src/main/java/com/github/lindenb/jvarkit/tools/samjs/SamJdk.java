@@ -305,9 +305,9 @@ public class SamJdk
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
-	@Parameter(names={"-e","--expression"},description="javascript expression")
+	@Parameter(names={"-e","--expression"},description="java expression")
 	private String scriptExpr=null;
-	@Parameter(names={"-f","--file"},description="javascript file. Either option -e or -f is required.")
+	@Parameter(names={"-f","--file"},description="java file. Either option -e or -f is required.")
 	private File scriptFile =null;
 	private SAMFileWriter failingReadsWriter=null;
 	
