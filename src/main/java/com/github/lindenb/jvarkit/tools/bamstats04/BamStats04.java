@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.IntUnaryOperator;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -103,6 +104,9 @@ public class BamStats04 extends Launcher
 	@Parameter(names={"-R","--ref"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+" If set, a column with the GC% will be added")
 	private File faidxFile = null;
 
+	/** map depth to 0 if depth <= MIN_COVERAGE */
+	private final IntUnaryOperator depthAdjuster = (D)->(D<=this.MIN_COVERAGE?0:D);
+	
 	@Override
 		public int doWork(final List<String> args) {
 			if(this.bedFile==null || !this.bedFile.exists()) {
@@ -203,16 +207,18 @@ public class BamStats04 extends Launcher
 					
 					Arrays.sort(counts);
 					
-					int count_no_coverage=0;
-					double mean=0;
-					for(final int cov:counts)
-						{
-						if(cov<=MIN_COVERAGE) ++count_no_coverage;
-						mean+=cov;
-						}
-					mean/=counts.length;
+					final int count_no_coverage=(int)Arrays.stream(counts).
+							filter(D->this.depthAdjuster.applyAsInt(D)<=0).
+							count()
+							;
 					
-	                final double median_depth = Percentile.median().evaluate(counts);
+					final double mean= Percentile.average().evaluate(Arrays.stream(counts).
+							map(this.depthAdjuster)
+							);
+					
+	                final double median_depth = Percentile.median().evaluate(Arrays.stream(counts).
+							map(this.depthAdjuster)
+							);
 	                
 					
 					pw.println(
