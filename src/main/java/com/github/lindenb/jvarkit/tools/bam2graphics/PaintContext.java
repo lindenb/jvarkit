@@ -161,7 +161,7 @@ public class PaintContext extends Launcher
 					{
 					SAMRecord rec=iter.next();
 					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.getNotPrimaryAlignmentFlag()) continue;
+					if(rec.isSecondaryAlignment()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
 					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 					for(int i1= Math.max(interval.start+1,rec.getAlignmentStart());

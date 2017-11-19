@@ -245,7 +245,7 @@ public class BamStats01
 				}
 			
 			
-			if(!rec.getNotPrimaryAlignmentFlag())
+			if(!rec.isSecondaryAlignment())
 				{
 				this.increment(Category.PRIMARY_ALIGNMENT);
 				}

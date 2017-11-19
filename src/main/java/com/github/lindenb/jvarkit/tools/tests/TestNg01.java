@@ -46,6 +46,7 @@ import org.testng.annotations.*;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
+import com.github.lindenb.jvarkit.tools.bamstats04.BamStats04;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar59647;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
@@ -121,6 +122,7 @@ class TestNg01 {
 	static final File TEST_RESULTS_DIR= new File("test-results");
 	static final File JETER_VCF = new File(TEST_RESULTS_DIR,"jeter.vcf");
 	static final String TOY_FA="src/test/resources/toy.fa";
+	static final String TOY_BED_GZ="src/test/resources/toy.bed.gz";
 	static final String TOY_VCF_GZ="src/test/resources/toy.vcf.gz";
 	static final String TOY_BAM="src/test/resources/toy.bam";
 	static final String TOY_DICT="src/test/resources/toy.dict";
@@ -1060,4 +1062,17 @@ class TestNg01 {
         		}));
     	Assert.assertTrue(outvcf.delete());
 		}
+
+    @Test
+    public void testBamStats04() throws IOException {
+    	final File output =new File(TEST_RESULTS_DIR,"jeter.tsv");
+    	Assert.assertEquals(0,new BamStats04().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-R",TOY_FA,
+        		"-B",TOY_BED_GZ,
+        		TOY_BAM
+        		}));
+    	Assert.assertTrue(output.delete());
+		}
+
 }
