@@ -307,7 +307,7 @@ public class SamJdk
 
 	@Parameter(names={"-e","--expression"},description="javascript expression")
 	private String scriptExpr=null;
-	@Parameter(names={"-f","--file"},description="javascript file. Either option -e or -f are required.")
+	@Parameter(names={"-f","--file"},description="javascript file. Either option -e or -f is required.")
 	private File scriptFile =null;
 	private SAMFileWriter failingReadsWriter=null;
 	
