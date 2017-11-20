@@ -109,7 +109,7 @@ public class BamStats05 extends Launcher
 	@Parameter(names={"-B","--bed"},description="bed file (columns: chrom start end GENE)",required=true)
 	private File BEDILE = null;
 	
-	@Parameter(names={"--groupby"},description="Group Reads by")
+	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
 	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)

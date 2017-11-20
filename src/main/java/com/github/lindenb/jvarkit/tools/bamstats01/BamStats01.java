@@ -149,7 +149,7 @@ public class BamStats01
 	@Parameter(names={"-q","--qual"},description="min mapping quality")
 	private double minMappingQuality = 30.0 ;
 	
-	@Parameter(names={"--groupby"},description="Group Reads by")
+	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
 	

@@ -113,7 +113,7 @@ public class TView implements Closeable
 	private boolean hideHomRef=false;
 	@Parameter(names={"--hideNoCall"},description="Hide NO_CALL variations")
 	private boolean hideNoCall=false;
-	@Parameter(names={"--groupby"},description="Group Reads by")
+	@Parameter(names={"--groupby"},description="Group Reads by. " +SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 	@Parameter(names={"--noconsensus"},description="Hide Consensus line")
 	private boolean hideConsensus=false;

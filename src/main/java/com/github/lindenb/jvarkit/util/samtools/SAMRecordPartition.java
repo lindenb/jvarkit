@@ -51,6 +51,8 @@ public enum SAMRecordPartition
 	any
 	;
 	
+	public static final String OPT_DESC="Data partitioning using the SAM Read Group (see https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can be any combination of sample, library.... ";
+	
 	/** return the label of the partition for this SAMRecord, result can be null */
 	public String getPartion(final SAMRecord rec)	{
 		if(this.equals(any)) return "all";

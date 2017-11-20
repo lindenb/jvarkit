@@ -169,7 +169,7 @@ public class Bam2Wig extends Launcher
 	private boolean bedGraph= false;
 	@Parameter(names={"--display"},description="What kind of data should we display ?")
 	private WHAT whatDisplay= WHAT.COVERAGE;
-	@Parameter(names={"--partition"},description="When using display READ_GROUPS, how should we partition the ReadGroup ?")
+	@Parameter(names={"--partition"},description="When using display READ_GROUPS, how should we partition the ReadGroup ? "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition= SAMRecordPartition.sample;
 	@Parameter(names={"--mindepth","--mindp"},description="When using display READ_GROUPS, What is the minimal read depth that should be considered ?")
 	private int min_depth=0;

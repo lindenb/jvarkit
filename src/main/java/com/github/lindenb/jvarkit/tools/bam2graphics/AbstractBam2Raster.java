@@ -43,7 +43,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 	private static final Logger LOG = Logger.build(AbstractBam2Raster.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected File outputFile = null;
-	@Parameter(names={"--groupby"},description="Group Reads by")
+	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	protected SAMRecordPartition groupBy=SAMRecordPartition.sample;
 	@Parameter(names={"-r","--region"},description="Restrict to that region. "+IntervalParser.OPT_DESC,required=true)
 	protected String regionStr = null;

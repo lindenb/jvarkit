@@ -429,8 +429,8 @@ public class IOUtils {
      */
 	public static LinkedHashSet<String> unrollFiles(java.util.Collection<String> inputs)
 		{
-		LinkedHashSet<String> vcfFiles= new LinkedHashSet<>(inputs.size()+1);
-		for(String file : inputs)
+		final LinkedHashSet<String> vcfFiles= new LinkedHashSet<>(inputs.size()+1);
+		for(final String file : inputs)
 			{
 			if(file.isEmpty())
 				{
