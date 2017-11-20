@@ -50,6 +50,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/275714](https://www.biostars.org/p/275714)
  * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
  * [https://www.biostars.org/p/279942](https://www.biostars.org/p/279942)
+ * [https://www.biostars.org/p/284852](https://www.biostars.org/p/284852)
 
 
 ## Compilation
@@ -443,6 +444,13 @@ stream().filter(R->!R.getReadUnmappedFlag()).
 });
 ```
 
+## Example
 
+print information about reads overlaping the base 'rotavirus:200' and the tag 'XS'
+
+
+```
+$ samtools view -h ~/src/gatk-ui/testdata/S1.bam "rotavirus:200-200" | java -jar dist/bioalcidaejdk.jar -F SAM -e 'stream().forEach(record->{final String contig= "rotavirus"; final int mutpos = 200; if(record.getReadUnmappedFlag()) return ;if(!record.getContig().equals(contig)) return ;if(record.getEnd() < mutpos) return ;if(record.getStart() > mutpos) return ; int readpos = record.getReadPositionAtReferencePosition(mutpos); if(readpos<1) return ; readpos--; final byte[] bases= record.getReadBases();println(record.getReadName()+" "+record.getContig()+" "+record.getStart()+" "+record.getEnd()+" base["+mutpos+"]="+(char)bases[readpos]+" XS="+record.getAttribute("XS"));});'
+```
 
 

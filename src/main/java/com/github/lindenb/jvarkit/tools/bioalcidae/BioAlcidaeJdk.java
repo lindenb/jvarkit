@@ -385,7 +385,14 @@ stream().filter(R->!R.getReadUnmappedFlag()).
 });
 ```
 
+## Example
 
+print information about reads overlaping the base 'rotavirus:200' and the tag 'XS'
+
+
+```
+$ samtools view -h ~/src/gatk-ui/testdata/S1.bam "rotavirus:200-200" | java -jar dist/bioalcidaejdk.jar -F SAM -e 'stream().forEach(record->{final String contig= "rotavirus"; final int mutpos = 200; if(record.getReadUnmappedFlag()) return ;if(!record.getContig().equals(contig)) return ;if(record.getEnd() < mutpos) return ;if(record.getStart() > mutpos) return ; int readpos = record.getReadPositionAtReferencePosition(mutpos); if(readpos<1) return ; readpos--; final byte[] bases= record.getReadBases();println(record.getReadName()+" "+record.getContig()+" "+record.getStart()+" "+record.getEnd()+" base["+mutpos+"]="+(char)bases[readpos]+" XS="+record.getAttribute("XS"));});'
+```
 
 END_DOC
 */
@@ -394,7 +401,7 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars={264894,275714,279535,279942}
+	biostars={264894,275714,279535,279942,284852}
 	)
 public class BioAlcidaeJdk
 	extends Launcher
