@@ -121,7 +121,7 @@ public class TView implements Closeable
 	private int numCoverageRows=10;
 	@Parameter(names={"-layout","--layout"},description="Layout reads")
 	private LayoutReads layoutReads=LayoutReads.pileup;
-	@Parameter(names={"-kg","--knownGens"},description="Tabix indexed UCSC knownGene File",hidden=true)
+	@Parameter(names={"-kg","--knownGenes"},description="Tabix indexed UCSC knownGene File",hidden=true)
 	private String knownGeneUri = null;
 
 	

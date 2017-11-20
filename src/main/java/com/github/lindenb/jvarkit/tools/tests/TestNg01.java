@@ -24,6 +24,7 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.tests;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,8 +41,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import javax.imageio.ImageIO;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
 import org.testng.Assert;
 import org.testng.annotations.*;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
@@ -111,6 +119,8 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IterableAdapter;
@@ -143,6 +153,49 @@ class TestNg01 {
 			in.close();
 			}
 		}
+	
+	private static void assertIsXml(final File f) {
+		boolean b=false; 
+		try {
+			Assert.assertTrue(f.exists(), "file "+f+" should exist");
+			final SAXParser sax=SAXParserFactory.newInstance().newSAXParser();
+			sax.parse(f, new DefaultHandler());
+			b= true;
+		}catch (final Exception e) {
+			b= false;
+		}
+		Assert.assertTrue(b,"file "+f+" should be xml");
+	}
+	
+	
+	private static void assertIsVcf(final File f) {
+		boolean b; 
+		try {
+			streamVcf(f).
+				flatMap(V->V.getGenotypes().stream()).
+				flatMap(G->G.getAlleles().stream());
+			b= true;
+		}catch (final Exception e) {
+			b= false;
+		}
+		Assert.assertTrue(b,"file "+f+" should be vcf");
+	}
+
+	
+	private static void assertIsBam(final File f) {
+		boolean b = false; 
+		 try {
+			 final SamReader r=SamReaderFactory.makeDefault().open(f);
+			 r.iterator().stream().forEach(R->R.getReadName());
+			 r.close();
+			b = true;
+		}catch (final Exception e) {
+			b = false;
+		}
+		Assert.assertTrue(b,"file "+f+" should be bam.");
+	}
+
+	
 	
 	@DataProvider(name = "all_vcfs")
 	public Object[][]  all_vcfs() {
@@ -407,6 +460,7 @@ class TestNg01 {
         		TOY_VCF_GZ
         	}));
         Assert.assertTrue( JETER_VCF.exists());
+        assertIsVcf(JETER_VCF);
         Assert.assertEquals(streamVcf(JETER_VCF).count(),1L);
     	}
     @Test(dataProvider="all_vcfs")
@@ -416,6 +470,7 @@ class TestNg01 {
         		"-n","1",
         		vcfPath
         	}));
+        assertIsVcf(JETER_VCF);
         Assert.assertEquals(streamVcf(JETER_VCF).count(),1L);
     	}
     @Test
@@ -426,6 +481,7 @@ class TestNg01 {
         		"--pedigree",PED01,
         		VCF01
         	}));
+        assertIsVcf(tmp);
         Assert.assertTrue(tmp.exists());
         Assert.assertTrue(
         		getVcfHeader(tmp).
@@ -444,8 +500,13 @@ class TestNg01 {
         		"--stopAfterFirst",
         		"-k",KNOWN_GENES01,
         		VCF01}));
-    	// Assert.assertTrue( svg.exists()); NO, name is changed
+    	final File svg2= new File(TEST_RESULTS_DIR,"jeter.1_861120_894679.svg");
+    	
+    	assertIsXml(svg2);
+    	
+    	Assert.assertTrue( svg2.delete());
     	}
+    
     @Test(dataProvider="all_vcfs")
     public void testVcfToHilbert(final String vcfPath) throws IOException{    
     	if(getVcfHeader(new File(vcfPath)).getNGenotypeSamples()==0) return;
@@ -577,6 +638,7 @@ class TestNg01 {
         		"-o",JETER_VCF.getPath(),
         		"-R",TOY_FA,
         		TOY_VCF_GZ}));
+    	assertIsVcf(JETER_VCF);
     	}
     @Test
     public void testCaseCtrlCanvas() throws IOException{    
@@ -586,6 +648,9 @@ class TestNg01 {
         		"-o",tmp.getPath(),
         		"--pedigree",PED01,
         		VCF01}));
+    	final BufferedImage img = ImageIO.read(tmp);
+    	Assert.assertTrue(img.getWidth()>0);
+    	Assert.assertTrue(img.getHeight()>0);
     	}
     @Test
     public void testVcfStats() throws IOException{    
@@ -603,6 +668,7 @@ class TestNg01 {
     	Assert.assertEquals(0,new VcfMoveFiltersToInfo().instanceMain(new String[]{
         		"-o",JETER_VCF.getPath(),
         		VCF01}));
+    	assertIsVcf(JETER_VCF);
     	Assert.assertTrue( JETER_VCF.exists());
     	}
     @Test(groups={"burden"},dependsOnMethods={"testVcfInjectPed"})
@@ -612,6 +678,7 @@ class TestNg01 {
         		"-o",JETER_VCF.getPath(),
         		input.getPath()
         		}));
+    	assertIsVcf(JETER_VCF);
     	Assert.assertTrue( JETER_VCF.exists());
     	}
     @Test
@@ -623,6 +690,7 @@ class TestNg01 {
         		"-B","src/test/resources/Uniqueness35bp.bigWig",
         		VCF01}));
     	Assert.assertTrue( JETER_VCF.exists());
+    	assertIsVcf(JETER_VCF);
     	Assert.assertTrue(streamVcf(JETER_VCF).
     			anyMatch(V->V.hasAttribute("Uniqueness35bp")
     			));
@@ -639,19 +707,21 @@ class TestNg01 {
         		input.getPath()
         		}));
     	Assert.assertTrue( output.exists());
+    	assertIsVcf(output);
     	Assert.assertFalse(streamVcf(output).anyMatch(V->V.getAlternateAlleles().size()>1));
     	}
     
     @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
     public void testVcfBurdenFilterExac() throws IOException{    
     		final File input =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
-    	
+
 	    	Assert.assertEquals(0,new VcfBurdenFilterExac().instanceMain(new String[]{
 	        		"-o",JETER_VCF.getPath(),
 	        		"--discardNotInExac",
 	        		"--exac","src/test/resources/ExAC.r1.sites.vep.vcf.gz",
 	        		input.getPath()
 	        		}));
+	    	assertIsVcf(JETER_VCF);
 	    	Assert.assertTrue( JETER_VCF.exists());
 	    	}
     @Test
@@ -667,6 +737,7 @@ class TestNg01 {
 	        		"-o",JETER_VCF.getPath(),
 	        		"-m",manifest.getPath(),
 	        		VCF01}));
+	    	assertIsVcf(JETER_VCF);
 	    	Assert.assertTrue( JETER_VCF.delete());
 	    	Assert.assertTrue( manifest.delete());
 	    	}
@@ -677,6 +748,7 @@ class TestNg01 {
 	        		"-o",JETER_VCF.getPath(),
 	        		input.getPath()
 	        		}));
+	    	assertIsVcf(JETER_VCF);
 	    	Assert.assertTrue( JETER_VCF.exists());
 	    	}
     @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
@@ -686,6 +758,7 @@ class TestNg01 {
 	        		"-o",JETER_VCF.getPath(),
 	        		input.getPath()
 	        		}));
+	    	assertIsVcf(JETER_VCF);
 	    	Assert.assertTrue( JETER_VCF.exists());
 	    	}
     @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
@@ -695,6 +768,7 @@ class TestNg01 {
 	        		"-o",JETER_VCF.getPath(),
 	        		input.getPath()
 	        		}));
+	    	assertIsVcf(JETER_VCF);
 	    	Assert.assertTrue( JETER_VCF.delete());
 	    	}
     @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
@@ -714,6 +788,7 @@ class TestNg01 {
 	        		"-T","DP",
 	        		TOY_VCF_GZ
 	        		}));
+	    	assertIsVcf(JETER_VCF);
 	    	Assert.assertTrue( JETER_VCF.delete());
 	    	}
     @Test
@@ -723,6 +798,7 @@ class TestNg01 {
         		"-o",output.getPath(),
         		TOY_VCF_GZ
         		}));
+    	assertIsXml(output);
     	Assert.assertTrue( output.delete());
     	}
     @Test
@@ -819,6 +895,7 @@ class TestNg01 {
         		"-R",TOY_FA,
         		TOY_BAM
         		}));
+    	assertIsVcf(output);
     	Assert.assertTrue( output.delete());
     	}
     @Test
@@ -965,6 +1042,7 @@ class TestNg01 {
 	        		(i==0?"--map":"--bed"),"./src/test/resources/toy.bed.gz",
 	        		TOY_VCF_GZ
 	        		}));
+	    	assertIsVcf(output);
 	    	Assert.assertTrue( output.delete());
 			}
     	}
