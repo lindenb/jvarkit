@@ -26,30 +26,41 @@ package com.github.lindenb.jvarkit.util.vcf;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.IStringConverter;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
 
 /** 
- * JEXL expression factory
+ * JEXL expression factory for Genotype
  */
-public class JexlVariantPredicate implements Predicate<VariantContext> {
+public class JexlGenotypePredicate implements BiPredicate<VariantContext,Genotype> {
 	private static long ID_GENERATOR=System.currentTimeMillis();
 	public static final String PARAMETER_DESCRIPTION = 
-			"A Java EXpression Language (JEXL) expressions to filter the variants from a VCF. " +
-			"Empty string will accept all variants. " +
-			"Expression returning a TRUE will accept the variant. "+
+			"A Java EXpression Language (JEXL) expressions to filter a genotye in a VCF. " +
+			"Empty string will accept all genotypes. " +
+			"Expression returning a TRUE will accept the genotypes. "+
 			"See https://gatkforums.broadinstitute.org/gatk/discussion/1255 "
 			;
 	
-	private static final Predicate<VariantContext> ACCEPT_ALL=new Predicate<VariantContext>() {
+	public static class Converter
+	implements IStringConverter<BiPredicate<VariantContext,Genotype>>
+		{
 		@Override
-		public boolean test(VariantContext t) {
+		public BiPredicate<VariantContext,Genotype> convert(final String expr) {
+			if(StringUtil.isBlank(expr)) return ACCEPT_ALL;
+			return create(expr);
+			}
+		}
+	
+	private static final BiPredicate<VariantContext,Genotype> ACCEPT_ALL=new BiPredicate<VariantContext, Genotype>() {
+		@Override
+		public boolean test(VariantContext t, Genotype u) {
 			return true;
 		}
 		@Override
@@ -59,39 +70,28 @@ public class JexlVariantPredicate implements Predicate<VariantContext> {
 			}
 	};
 	
-	public static class Converter
-	implements IStringConverter<Predicate<VariantContext> >
-		{
-		@Override
-		public Predicate<VariantContext> convert(final String expr) {
-			if(StringUtil.isBlank(expr)) return ACCEPT_ALL;
-			return create(expr);
-			}	
-		}
-
-	
-	public static Predicate<VariantContext> create(final String...exps) {
+	public static BiPredicate<VariantContext,Genotype> create(final String...exps) {
 		return create(Arrays.asList(exps));
 		}
-	public static Predicate<VariantContext> create(final List<String> exps) {
+	public static BiPredicate<VariantContext,Genotype> create(final List<String> exps) {
 		final List<String> expressions = exps.stream().
 				filter(S->!StringUtil.isBlank(S)).
 				collect(Collectors.toList());
 		if( expressions.isEmpty()) return ACCEPT_ALL;
 		
 		final List<String> dummyNames = expressions.stream().
-				map(S->"JEXL"+(++ID_GENERATOR)).
+				map(S->"JEXLGT"+(++ID_GENERATOR)).
 				collect(Collectors.toList());
-		return new JexlVariantPredicate(VariantContextUtils.initializeMatchExps(dummyNames, expressions));
+		return new JexlGenotypePredicate(VariantContextUtils.initializeMatchExps(dummyNames, expressions));
 	}
 	
 	private final List<JexlVCMatchExp> jexlVCMatchExps; 
-	private JexlVariantPredicate(final List<JexlVCMatchExp> jexlVCMatchExps) {
+	private JexlGenotypePredicate(final List<JexlVCMatchExp> jexlVCMatchExps) {
 		this.jexlVCMatchExps = jexlVCMatchExps;
 		}
 	@Override
-	public boolean test(final VariantContext ctx) {
-		return VariantContextUtils.match(ctx,this.jexlVCMatchExps).
+	public boolean test(final VariantContext ctx,Genotype gt) {
+		return VariantContextUtils.match(ctx,gt,this.jexlVCMatchExps).
 			values().
 			stream().
 			anyMatch(B->B.booleanValue());
@@ -105,4 +105,4 @@ public class JexlVariantPredicate implements Predicate<VariantContext> {
 					collect(Collectors.joining(";"))
 					;
 		}
-}
+	}

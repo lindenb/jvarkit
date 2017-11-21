@@ -13,6 +13,12 @@ Usage: xcontaminations [options] Files
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
       for a complete syntax.
       Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+    -gf, --genotype-filter
+      A Java EXpression Language (JEXL) expressions to filter a genotye in a 
+      VCF. Empty string will accept all genotypes. Expression returning a TRUE 
+      will accept the genotypes. See 
+      https://gatkforums.broadinstitute.org/gatk/discussion/1255 
+      Default: <empty string> (ACCEPT ALL)
     -h, --help
       print help and exit
     --helpFormat
@@ -20,9 +26,15 @@ Usage: xcontaminations [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --out
       Output file. Optional . Default: stdout
-    -sample, --sample-only
+    -sample, --sample, --sample-only
       Just use sample's name. Don't use lane/flowcell/etc... data.
       Default: false
+    -vf, --variant-filter
+      A Java EXpression Language (JEXL) expressions to filter the variants 
+      from a VCF. Empty string will accept all variants. Expression returning 
+      a TRUE will accept the variant. See 
+      https://gatkforums.broadinstitute.org/gatk/discussion/1255 
+      Default: <empty string> (ACCEPT ALL)
     --version
       print version and exit
 
@@ -80,6 +92,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 21 17:55:52 2017 +0100 ; working on xcontaminations... ; https://github.com/lindenb/jvarkit/commit/0519fdc041212457ffcdb427b28c477227c38a9e
 Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
 Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
 Thu May 11 10:59:12 2017 +0200 ; samcolortag ; https://github.com/lindenb/jvarkit/commit/dfd3239dc49af52966e2259bf0a5f52dd34aac8e

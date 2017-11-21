@@ -52,11 +52,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
@@ -64,6 +67,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -159,9 +164,13 @@ public class XContaminations extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
-	@Parameter(names={"-sample","--sample-only"},description="Just use sample's name. Don't use lane/flowcell/etc... data.")
+	@Parameter(names={"-sample","--sample","--sample-only"},description="Just use sample's name. Don't use lane/flowcell/etc... data.")
 	private boolean use_only_sample_name = false;
-
+	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
+	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
+	@Parameter(names={"-gf","--genotype-filter"},description=JexlGenotypePredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
+	private BiPredicate<VariantContext,Genotype> genotypeFilter = JexlGenotypePredicate.create("");
+	
 	private Set<File> bamFiles=new HashSet<File>();
 	
 	private static class SampleAlleles
@@ -455,40 +464,37 @@ public class XContaminations extends Launcher
 			while(in.hasNext())
 				{
 				final VariantContext ctx= progress.watch(in.next());
-				if(!ctx.isSNP() || !ctx.isBiallelic() || ctx.isSymbolic()) continue;
+				if(!ctx.isSNP() || ctx.isFiltered() || !ctx.isBiallelic() || ctx.isSymbolic() || !this.variantFilter.test(ctx)) continue;
 				
 				
-				final List<Genotype> genotypes  = ctx.getGenotypes().stream().
-						filter(G->G.isCalled() && G.isHom() && sampleNames.contains(G.getSampleName())).
-						collect(Collectors.toList());
+				final Map<String,Genotype> sample2gt  = ctx.getGenotypes().stream().
+						filter(G->G.isCalled() && !G.isFiltered() && G.isHom() && sample2samReader.containsKey(G.getSampleName()) && sampleNames.contains(G.getSampleName())).
+						filter(G->this.genotypeFilter.test(ctx, G)).
+						collect(Collectors.toMap(G->G.getSampleName(),G->G));
 				
-				if(genotypes.size()<2) continue;
+				if(sample2gt.size()<2) continue;
 				
-				final boolean isWorthScanning= genotypes.stream().
-						filter(G1->G1.isHom()).
-						anyMatch(G1->genotypes.stream().
-								filter(G2->G2.isHom()).
+				final boolean isWorthScanning= sample2gt.values().stream().
+						anyMatch(G1->sample2gt.values().stream().
 								filter(G2->G1.getSampleName().compareTo(G2.getSampleName())<0).
 								anyMatch(G2->!G1.sameGenotype(G2)));
 				
 				if(!isWorthScanning) continue;
 				
-				final Map<SampleIdentifier,Counter<Allele>> sample2allelesCount=new HashMap<>();
+				final Map<SampleIdentifier,Counter<Allele>> sample_identifier_2allelesCount=new HashMap<>();
 				
 				/* scan Reads for this Sample */
-				for(final String sampleName: sampleNames)
+				for(final String sampleName: sample2gt.keySet())
 					{
+					if(!sample2gt.containsKey(sampleName)) continue;
+					if(!sample2samReader.containsKey(sampleName)) continue;
 					//sample name is not in vcf header
-					if(!sample2samReader.containsKey(sampleName))
-						continue;
-					
-
-					
 					final SamReader samReader = sample2samReader.get(sampleName);
 					if(samReader==null) continue;
 					
-					final Genotype genotype = ctx.getGenotype(sampleName);
-					if(genotype==null || !genotype.isHom()) continue;
+					final Genotype genotype = sample2gt.get(sampleName);
+					if(genotype==null) continue;
+					
 					iter = samReader.query(
 							ctx.getContig(),
 							ctx.getStart(),
@@ -538,11 +544,11 @@ public class XContaminations extends Launcher
 							}
 
 						
-						Counter<Allele> sampleAlleles= sample2allelesCount.get(sampleIdentifier);
+						Counter<Allele> sampleAlleles= sample_identifier_2allelesCount.get(sampleIdentifier);
 						if(sampleAlleles==null)
 							{
 							sampleAlleles=new Counter<Allele>();
-							sample2allelesCount.put(sampleIdentifier, sampleAlleles);
+							sample_identifier_2allelesCount.put(sampleIdentifier, sampleAlleles);
 							}
 						sampleAlleles.incr( Allele.create((byte)base,false) );
 						}
@@ -552,32 +558,33 @@ public class XContaminations extends Launcher
 				
 				/* sum-up data for this SNP */
 			
-				for(final String sample1: sampleNames)
+				for(final String sample1: sample2gt.keySet())
 					{
-					final Genotype g1= ctx.getGenotype(sample1);
-					if(g1==null || g1.getPloidy()!=2 || !g1.isHom()) continue;
-					final Allele a1 = Allele.create(g1.getAllele(0).getBases(),false);
+					final Genotype g1= sample2gt.get(sample1);
+					final Allele a1 = Allele.create(g1.getAllele(0),true);
 					
 					
-					for(final String sample2: sampleNames)
+					for(final String sample2:  sample2gt.keySet())
 						{
 						if(sample1.compareTo(sample2)>=0) continue;
-						final Genotype g2= ctx.getGenotype(sample2);
-						if(g2==null || g2.getPloidy()!=2 || !g2.isHom() || g2.sameGenotype(g1)) continue;
-						final Allele a2 = Allele.create(g2.getAllele(0).getBases(),false);
+						final Genotype g2= sample2gt.get(sample2);
+						if(g2.sameGenotype(g1)) continue;
+						final Allele a2 = Allele.create(g2.getAllele(0),true);
 						
-						for(final SampleIdentifier sfcr1:sample2allelesCount.keySet())
+						for(final SampleIdentifier sfcr1:sample_identifier_2allelesCount.keySet())
 							{
 							if(!sfcr1.getSampleName().equals(sample1)) continue;
-							for(final SampleIdentifier sfcr2:sample2allelesCount.keySet())
+							final Counter<Allele> counter1 =  sample_identifier_2allelesCount.get(sfcr1);
+							if(counter1==null) continue;
+
+							
+							for(final SampleIdentifier sfcr2:sample_identifier_2allelesCount.keySet())
 								{
 								if(!sfcr2.getSampleName().equals(sample2)) continue;
 								
 								final SamplePair samplePair=new SamplePair(sfcr1, sfcr2);
 								
-								Counter<Allele> counter1 =  sample2allelesCount.get(sfcr1);
-								if(counter1==null) continue;
-								Counter<Allele> counter2 =  sample2allelesCount.get(sfcr2);
+								final Counter<Allele> counter2 =  sample_identifier_2allelesCount.get(sfcr2);
 								if(counter2==null) continue;
 								
 								
@@ -663,7 +670,8 @@ public class XContaminations extends Launcher
 			pw.print("reads_sample2_supporting_sample1");
 			pw.print('\t');
 			pw.print("reads_sample2_supporting_other");
-
+			pw.print('\t');
+			pw.print("FisherTest");
 			pw.println();
 			for(final SamplePair pair : contaminationTable.keySet())
 				{
@@ -697,6 +705,15 @@ public class XContaminations extends Launcher
 				pw.print(sampleAlleles.reads_sample2_supporting_sample1);
 				pw.print('\t');
 				pw.print(sampleAlleles.reads_sample2_supporting_other);
+				pw.print('\t');
+				
+				final FisherExactTest fisher = FisherExactTest.compute(
+						(int)sampleAlleles.reads_sample1_supporting_sample1,
+						(int)sampleAlleles.reads_sample1_supporting_sample2,
+						(int)sampleAlleles.reads_sample2_supporting_sample1,
+						(int)sampleAlleles.reads_sample2_supporting_sample2
+						);
+				pw.print(fisher.getAsDouble());
 				pw.println();
 				somethingPrinted=true;				
 				}
