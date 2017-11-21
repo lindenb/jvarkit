@@ -1,6 +1,6 @@
 # XContaminations
 
-For @AdrienLeger2 : cross contamination between samples in same lane
+For @AdrienLeger2 : cross contamination between samples.
 
 
 ## Usage
@@ -20,10 +20,22 @@ Usage: xcontaminations [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --out
       Output file. Optional . Default: stdout
+    -sample, --sample-only
+      Just use sample's name. Don't use lane/flowcell/etc... data.
+      Default: false
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * vcf
+ * contamination
+
 
 ## Compilation
 
@@ -99,6 +111,16 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+* loop over the variants in a vcf file.
+* for each variant we look at the HOM (HOM_REF or HOM_VAR) variants and we look at the BAM file to test how many reads from one sample could contain the reads from another sample.
+
+## Input
+
+First parameter is a VCF file or '-' for stdin.
+
+Other parameters are a list of bam file or a file ending with '.list' and containing the path to the bam files.
 
 
 ## Example

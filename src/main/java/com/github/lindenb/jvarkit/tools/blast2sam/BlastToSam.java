@@ -445,7 +445,7 @@ public class BlastToSam extends Launcher
 		boolean first=true;
 		for(final SAMRecord rec:si.records)
 			{
-			rec.setNotPrimaryAlignmentFlag(!first);
+			rec.setSecondaryAlignment(!first);
 			first=false;
 			w.addAlignment(rec);
 			}
@@ -767,11 +767,11 @@ public class BlastToSam extends Launcher
 			pair.completeFlags();
 			if(!pair.rec1.getReadUnmappedFlag())
 				{
-				pair.rec1.setNotPrimaryAlignmentFlag(i!=0);
+				pair.rec1.setSecondaryAlignment(i!=0);
 				}
 			if(!pair.rec2.getReadUnmappedFlag())
 				{
-				pair.rec2.setNotPrimaryAlignmentFlag(i!=0);
+				pair.rec2.setSecondaryAlignment(i!=0);
 				}
 			w.addAlignment(pair.rec1);
 			w.addAlignment(pair.rec2);

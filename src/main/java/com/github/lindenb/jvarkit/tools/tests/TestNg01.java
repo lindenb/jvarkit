@@ -651,6 +651,7 @@ class TestNg01 {
     	final BufferedImage img = ImageIO.read(tmp);
     	Assert.assertTrue(img.getWidth()>0);
     	Assert.assertTrue(img.getHeight()>0);
+    	Assert.assertTrue(tmp.delete());
     	}
     @Test
     public void testVcfStats() throws IOException{    

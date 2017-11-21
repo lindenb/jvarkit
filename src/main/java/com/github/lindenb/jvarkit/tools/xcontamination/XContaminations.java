@@ -29,8 +29,6 @@ History:
 package com.github.lindenb.jvarkit.tools.xcontamination;
 
 import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
@@ -38,10 +36,10 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -54,9 +52,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
@@ -68,6 +68,16 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
 BEGIN_DOC
+
+* loop over the variants in a vcf file.
+* for each variant we look at the HOM (HOM_REF or HOM_VAR) variants and we look at the BAM file to test how many reads from one sample could contain the reads from another sample.
+
+## Input
+
+First parameter is a VCF file or '-' for stdin.
+
+Other parameters are a list of bam file or a file ending with '.list' and containing the path to the bam files.
+
 
 ## Example
 
@@ -138,7 +148,10 @@ END_DOC
 
  */
 
-@Program(name="xcontaminations",description="For @AdrienLeger2 : cross contamination between samples in same lane")
+@Program(name="xcontaminations",
+	description="For @AdrienLeger2 : cross contamination between samples.",
+	keywords= {"sam","bam","vcf","contamination"}
+	)
 public class XContaminations extends Launcher
 	{
 	private static final Logger LOG=Logger.build(XContaminations.class).make();
@@ -146,8 +159,9 @@ public class XContaminations extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-sample","--sample-only"},description="Just use sample's name. Don't use lane/flowcell/etc... data.")
+	private boolean use_only_sample_name = false;
 
-	
 	private Set<File> bamFiles=new HashSet<File>();
 	
 	private static class SampleAlleles
@@ -162,36 +176,41 @@ public class XContaminations extends Launcher
 	
 	private static class SamplePair
 		{
-		SequencerFlowCellRunLaneSample sample1;
-		SequencerFlowCellRunLaneSample sample2;
-		SamplePair(SequencerFlowCellRunLaneSample s1,SequencerFlowCellRunLaneSample s2)
+		final SampleIdentifier sample1;
+		final SampleIdentifier sample2;
+		final int _hash;
+		SamplePair(
+				final SampleIdentifier s1,
+				final SampleIdentifier s2
+				)
 			{
-			if(s1.sampleName.compareTo(s2.sampleName)<0)
+			if(s1.getSampleName().compareTo(s2.getSampleName())<0)
 				{
-				sample1=s1;
-				sample2=s2;
+				this.sample1=s1;
+				this.sample2=s2;
 				}
 			else
 				{
-				sample1=s2;
-				sample2=s1;
+				this.sample1=s2;
+				this.sample2=s1;
 				}
-			}
-		@Override
-		public int hashCode() {
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + sample1.hashCode();
 			result = prime * result + sample2.hashCode();
-			return result;
+			this._hash = result;
+			}
+		@Override
+		public int hashCode() {
+			return this._hash;
 			}
 
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj) return true;
 			if (obj == null) return false;
 			if (getClass() != obj.getClass()) return false;
-			SamplePair other = (SamplePair) obj;
+			final SamplePair other = (SamplePair) obj;
 			if (!sample1.equals(other.sample1)) return false;
 			if (!sample2.equals(other.sample2)) return false;
 			return true;
@@ -202,25 +221,61 @@ public class XContaminations extends Launcher
 			}
 		}
 	
-	private static class SequencerFlowCellRunLaneSample
+	private static interface SampleIdentifier
 		{
-		String machine;
-		String flowCell;
-		int run;
-		int lane;
-		String sampleName;
-		
-		SequencerFlowCellRunLaneSample(ShortReadName name,String sampleName)
+		public String getSampleName();
+		public String getLabel();
+		}
+	
+	private static class SimpleSampleIdenfifier
+		implements SampleIdentifier
+		{
+		private final String sampleName;
+		SimpleSampleIdenfifier(final String sampleName) {
+			this.sampleName= sampleName;
+			}
+		@Override
+		public String getLabel() {
+			return sampleName;
+			}
+		@Override
+		public String getSampleName() {
+			return sampleName;
+			}
+		@Override
+		public int hashCode() {
+			return sampleName.hashCode();
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) return true;
+			if (obj == null) return false;
+			if (getClass() != obj.getClass()) return false;
+			return sampleName.equals(SimpleSampleIdenfifier.class.cast(obj).sampleName);
+			}
+		@Override
+		public String toString() {
+			return sampleName;
+			}
+		}
+	
+	private static class SequencerFlowCellRunLaneSample
+		implements SampleIdentifier
+		{
+		final String machine;
+		final String flowCell;
+		final int run;
+		final int lane;
+		final String sampleName;
+		private final int _hash;
+		SequencerFlowCellRunLaneSample(final ShortReadName name,final String sampleName)
 			{
 			this.machine=name.getInstrumentName();
 			this.flowCell=name.getFlowCellId();
 			this.run=Math.max(name.getRunId(),0);
 			this.lane=name.getFlowCellLane();
 			this.sampleName=sampleName;
-			}
-
-		@Override
-		public int hashCode() {
+			
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + flowCell.hashCode();
@@ -228,11 +283,16 @@ public class XContaminations extends Launcher
 			result = prime * result + machine.hashCode();
 			result = prime * result + sampleName.hashCode();
 			result = prime * result + run;
-			return result;
+			this._hash = result;
 			}
 
 		@Override
-		public boolean equals(Object obj) {
+		public int hashCode() {
+			return  _hash;
+			}
+
+		@Override
+		public boolean equals(final Object obj) {
 			if (this == obj) return true;
 			if (obj == null) return false;
 			if (getClass() != obj.getClass()) return false;
@@ -245,26 +305,28 @@ public class XContaminations extends Launcher
 			return true;
 			}
 		
-		public String getSequencingLabel()
+		@Override
+		public String getSampleName() {
+			return this.sampleName;
+			}
+		
+		@Override
+		public String getLabel()
 			{
 			return machine+":"+flowCell+":"+run+":"+lane;
 			}
 		
 		@Override
 		public String toString() {
-			return getSequencingLabel()+":"+sampleName;
+			return getLabel()+":"+sampleName;
 			}
 		}
 	
 	
 	
-	public void addBamFile(File bamFile)
-		{
-		this.bamFiles.add(bamFile);
-		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		if(args.size()<2)
 			{
@@ -272,9 +334,9 @@ public class XContaminations extends Launcher
 			return -1;
 			}
 		
-		for(String f:IOUtils.unrollFiles(args.subList(1, args.size())))
+		for(final String f:IOUtils.unrollFiles(args.subList(1, args.size())))
 			{
-			addBamFile(new File(f));
+			this.bamFiles.add(new File(f));
 			}
 			
 		if(this.bamFiles.isEmpty())
@@ -288,7 +350,7 @@ public class XContaminations extends Launcher
 		Map<String,SamReader> sample2samReader=new HashMap<>();
 
 		try {
-			SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			final SamReaderFactory srf= super.createSamReaderFactory();
 			
 			if(args.get(0).equals("-"))
 				{
@@ -301,7 +363,7 @@ public class XContaminations extends Launcher
 			
 			
 			VCFHeader vcfHeader=in.getHeader();
-			SAMSequenceDictionary dict1=vcfHeader.getSequenceDictionary();
+			final SAMSequenceDictionary dict1=vcfHeader.getSequenceDictionary();
 			if(dict1==null)
 				{
 				LOG.error("VCF is missing a SAM sequence dictionary");
@@ -315,12 +377,12 @@ public class XContaminations extends Launcher
 				return -1;
 				}
 			
-			for(File bamFile:this.bamFiles)
+			for(final File bamFile:this.bamFiles)
 				{
 				LOG.info("Opening "+bamFile);
-				SamReader samReader=srf.open(bamFile);
-				SAMFileHeader samHeader= samReader.getFileHeader();
-				SAMSequenceDictionary dict2=samHeader.getSequenceDictionary();
+				final SamReader samReader=srf.open(bamFile);
+				final SAMFileHeader samHeader= samReader.getFileHeader();
+				final SAMSequenceDictionary dict2=samHeader.getSequenceDictionary();
 				if(dict2==null)
 					{
 					samReader.close();
@@ -331,7 +393,7 @@ public class XContaminations extends Launcher
 				if(!SequenceUtil.areSequenceDictionariesEqual(dict1, dict2))
 					{
 					samReader.close();
-					LOG.error("VCF/BAM Not the same dictionaries");
+					LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(dict1, dict2));
 					return -1;
 					}
 				
@@ -342,10 +404,10 @@ public class XContaminations extends Launcher
 					return -1;
 					}
 				String sampleName=null;
-				for(SAMReadGroupRecord rgr:samHeader.getReadGroups())
+				for(final SAMReadGroupRecord rgr:samHeader.getReadGroups())
 					{
-					String s=rgr.getSample();
-					if(s==null ) continue;
+					final String s=rgr.getSample();
+					if(StringUtil.isBlank(s)) continue;
 					if(sampleName==null)
 						{
 						sampleName=s;
@@ -387,41 +449,34 @@ public class XContaminations extends Launcher
 			
 			sampleNames.retainAll(sample2samReader.keySet());
 			
-			Map<SamplePair,SampleAlleles> contaminationTable=new HashMap<>();
+			final Map<SamplePair,SampleAlleles> contaminationTable=new HashMap<>();
 			
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict1);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict1);
 			while(in.hasNext())
 				{
-				VariantContext ctx= progress.watch(in.next());
+				final VariantContext ctx= progress.watch(in.next());
 				if(!ctx.isSNP() || !ctx.isBiallelic() || ctx.isSymbolic()) continue;
 				
 				
-				boolean isWorthScanning=false;
-				/* scan Reads for this Sample */
-				for(String s1: sampleNames)
-					{
-					Genotype g1=ctx.getGenotype(s1);
-					if(g1==null || !g1.isHom()) continue;
-					/* scan Reads for this Sample */
-					for(String s2: sampleNames)
-						{
-						if(s1.compareTo(s2)>=0) continue;
-						Genotype g2=ctx.getGenotype(s2);
-						if(g2==null || !g2.isHom()) continue;
-						if(g1.sameGenotype(g2)) continue;
-						isWorthScanning=true;
-						break;
-						}
-					if(isWorthScanning) break;
-					}
+				final List<Genotype> genotypes  = ctx.getGenotypes().stream().
+						filter(G->G.isCalled() && G.isHom() && sampleNames.contains(G.getSampleName())).
+						collect(Collectors.toList());
+				
+				if(genotypes.size()<2) continue;
+				
+				final boolean isWorthScanning= genotypes.stream().
+						filter(G1->G1.isHom()).
+						anyMatch(G1->genotypes.stream().
+								filter(G2->G2.isHom()).
+								filter(G2->G1.getSampleName().compareTo(G2.getSampleName())<0).
+								anyMatch(G2->!G1.sameGenotype(G2)));
 				
 				if(!isWorthScanning) continue;
-
-				//Set<SequencerFlowCellRunLane> sequencerFlowCellRunLaneInThisContext=new HashSet<>();
-				Map<SequencerFlowCellRunLaneSample,Counter<Allele>> sample2allelesCount=new HashMap<>();
+				
+				final Map<SampleIdentifier,Counter<Allele>> sample2allelesCount=new HashMap<>();
 				
 				/* scan Reads for this Sample */
-				for(String sampleName: sampleNames)
+				for(final String sampleName: sampleNames)
 					{
 					//sample name is not in vcf header
 					if(!sample2samReader.containsKey(sampleName))
@@ -429,10 +484,10 @@ public class XContaminations extends Launcher
 					
 
 					
-					SamReader samReader = sample2samReader.get(sampleName);
+					final SamReader samReader = sample2samReader.get(sampleName);
 					if(samReader==null) continue;
 					
-					Genotype genotype = ctx.getGenotype(sampleName);
+					final Genotype genotype = ctx.getGenotype(sampleName);
 					if(genotype==null || !genotype.isHom()) continue;
 					iter = samReader.query(
 							ctx.getContig(),
@@ -443,110 +498,82 @@ public class XContaminations extends Launcher
 					
 					while(iter.hasNext())
 						{
-						SAMRecord record= iter.next();
+						final SAMRecord record= iter.next();
 						if(record.getReadUnmappedFlag()) continue;
 						if(this.filter.filterOut(record)) continue;
-						if(record.getReadPairedFlag())
-							{
-							if(!record.getProperPairFlag()) continue;
-							}
-						SAMReadGroupRecord srgr = record.getReadGroup();
 						
+						final SAMReadGroupRecord srgr = record.getReadGroup();
 						//not current sample
 						if(srgr==null) continue;
 						if(!sampleName.equals(srgr.getSample())) continue;
 						
-						ShortReadName readName = ShortReadName.parse(record);
-						if(!readName.isValid())
-							{
-							LOG.info("No a valid read name "+record.getReadName());
-							continue;
-							}
-						
-						
-						SequencerFlowCellRunLaneSample sequencerFlowCellRunLaneSample=
-								new SequencerFlowCellRunLaneSample(readName, sampleName);
-						
-						
-						
-						Cigar cigar=record.getCigar();
-						if(cigar==null) continue;
+						final Cigar cigar=record.getCigar();
+						if(cigar==null || cigar.isEmpty()) continue;
 						byte readSeq[]=record.getReadBases();
 						if(readSeq==null) continue;
-						int refPos1 = record.getAlignmentStart();
-						int readPos = 0; 
-						for(CigarElement ce: cigar.getCigarElements())
+						
+						int readPos = record.getReadPositionAtReferencePosition(ctx.getStart());
+						if(readPos<1) continue;
+						readPos--;
+						if(readPos>=readSeq.length) continue;
+						final char base = Character.toUpperCase((char)readSeq[readPos]);
+						
+						if(base=='N') continue;
+						
+						
+						final SampleIdentifier sampleIdentifier;
+						if(this.use_only_sample_name)
 							{
-							//beyond variant position ?
-							if(refPos1>ctx.getStart()) break;
-							CigarOperator op=ce.getOperator();
-							switch(op)
-								{
-								case I: readPos+=ce.getLength(); break;
-								case N://threw
-								case D: refPos1+=ce.getLength(); break;
-								case S: readPos+=ce.getLength(); break;
-								case H: break;
-								case P: break;
-								case M: case EQ: case X:
-									{
-									for(int i=0;i< ce.getLength();++i)
-										{
-										if( refPos1 == ctx.getStart())
-											{	
-											byte base =  readSeq[readPos];
-											if(!(base=='N' || base=='n'))
-												{
-												Counter<Allele> sampleAlleles= sample2allelesCount.get(sequencerFlowCellRunLaneSample);
-												if(sampleAlleles==null)
-													{
-													sampleAlleles=new Counter<Allele>();
-													sample2allelesCount.put(sequencerFlowCellRunLaneSample, sampleAlleles);
-
-													}
-
-												sampleAlleles.incr(
-													Allele.create(base,false)
-													);
-
-												}
-											}
-										refPos1++;
-										readPos++;
-										}
-									break;
-									}
-								default: throw new IllegalStateException();
-								}
+							sampleIdentifier = new SimpleSampleIdenfifier(sampleName);
 							}
+						else
+							{
+							final ShortReadName readName = ShortReadName.parse(record);
+							if(!readName.isValid())
+								{
+								LOG.info("No a valid read name "+record.getReadName());
+								continue;
+								}
+							sampleIdentifier = new SequencerFlowCellRunLaneSample(readName, sampleName);
+							}
+
+						
+						Counter<Allele> sampleAlleles= sample2allelesCount.get(sampleIdentifier);
+						if(sampleAlleles==null)
+							{
+							sampleAlleles=new Counter<Allele>();
+							sample2allelesCount.put(sampleIdentifier, sampleAlleles);
+							}
+						sampleAlleles.incr( Allele.create((byte)base,false) );
 						}
 					iter.close();
 					iter=null;
 					}/* end scan reads for this sample */
+				
 				/* sum-up data for this SNP */
 			
-				for(String sample1: sampleNames)
+				for(final String sample1: sampleNames)
 					{
-					Genotype g1= ctx.getGenotype(sample1);
-					if(g1==null || !g1.isHom()) continue;
-					Allele a1 = Allele.create(g1.getAllele(0).getBases(),false);
+					final Genotype g1= ctx.getGenotype(sample1);
+					if(g1==null || g1.getPloidy()!=2 || !g1.isHom()) continue;
+					final Allele a1 = Allele.create(g1.getAllele(0).getBases(),false);
 					
 					
-					for(String sample2: sampleNames)
+					for(final String sample2: sampleNames)
 						{
 						if(sample1.compareTo(sample2)>=0) continue;
-						Genotype g2= ctx.getGenotype(sample2);
-						if(g2==null || !g2.isHom() || g2.sameGenotype(g1)) continue;
-						Allele a2 = Allele.create(g2.getAllele(0).getBases(),false);
+						final Genotype g2= ctx.getGenotype(sample2);
+						if(g2==null || g2.getPloidy()!=2 || !g2.isHom() || g2.sameGenotype(g1)) continue;
+						final Allele a2 = Allele.create(g2.getAllele(0).getBases(),false);
 						
-						for(SequencerFlowCellRunLaneSample sfcr1:sample2allelesCount.keySet())
+						for(final SampleIdentifier sfcr1:sample2allelesCount.keySet())
 							{
-							if(!sfcr1.sampleName.equals(sample1)) continue;
-							for(SequencerFlowCellRunLaneSample sfcr2:sample2allelesCount.keySet())
+							if(!sfcr1.getSampleName().equals(sample1)) continue;
+							for(final SampleIdentifier sfcr2:sample2allelesCount.keySet())
 								{
-								if(!sfcr2.sampleName.equals(sample2)) continue;
+								if(!sfcr2.getSampleName().equals(sample2)) continue;
 								
-								SamplePair samplePair=new SamplePair(sfcr1, sfcr2);
+								final SamplePair samplePair=new SamplePair(sfcr1, sfcr2);
 								
 								Counter<Allele> counter1 =  sample2allelesCount.get(sfcr1);
 								if(counter1==null) continue;
@@ -562,9 +589,9 @@ public class XContaminations extends Launcher
 									if( contaminationTable.size()%10000==0) LOG.info("n(pairs)=" + contaminationTable.size() ); 
 									}
 								
-								for(Allele allele: counter1.keySet())
+								for(final Allele allele: counter1.keySet())
 									{
-									long n = counter1.count(allele);
+									final long n = counter1.count(allele);
 									if(allele.equals(a1))
 										{
 										sampleAlleles.reads_sample1_supporting_sample1 += n;
@@ -579,9 +606,9 @@ public class XContaminations extends Launcher
 										}
 									}
 								
-								for(Allele allele: counter2.keySet())
+								for(final Allele allele: counter2.keySet())
 									{
-									long n = counter2.count(allele);
+									final long n = counter2.count(allele);
 									if(allele.equals(a2))
 										{
 										sampleAlleles.reads_sample2_supporting_sample2 += n;
@@ -611,9 +638,20 @@ public class XContaminations extends Launcher
 			
 			/* we're done, print the result */
 			pw.print("#");
-			pw.print("Machine:FlowCell:Run:Lane-1\tsample1");
-			pw.print("\tMachine:FlowCell:Run:Lane-2\tsample2");
-			pw.print("\tsame.lane");
+			if(!this.use_only_sample_name) {
+				pw.print("Machine:FlowCell:Run:Lane-1\tsample1");
+				pw.print('\t');
+				}
+			pw.print("sample1");
+			pw.print('\t');
+			if(!this.use_only_sample_name) {
+				pw.print("\tMachine:FlowCell:Run:Lane-2");
+				pw.print('\t');
+				}
+			pw.print("sample2");
+			if(!this.use_only_sample_name) {
+				pw.print("\tsame.lane");
+				}
 			pw.print("\treads_sample1_supporting_sample1");
 			pw.print('\t');
 			pw.print("reads_sample1_supporting_sample2");
@@ -627,21 +665,27 @@ public class XContaminations extends Launcher
 			pw.print("reads_sample2_supporting_other");
 
 			pw.println();
-			for(SamplePair pair : contaminationTable.keySet())
+			for(final SamplePair pair : contaminationTable.keySet())
 				{
-				SampleAlleles sampleAlleles = contaminationTable.get(pair);
+				final SampleAlleles sampleAlleles = contaminationTable.get(pair);
 				if(sampleAlleles==null) continue;
 				
-				pw.print(pair.sample1.getSequencingLabel());
+				if(!this.use_only_sample_name) {
+					pw.print(pair.sample1.getLabel());
+					pw.print('\t');
+					}
+				pw.print(pair.sample1.getSampleName());
 				pw.print('\t');
-				pw.print(pair.sample1.sampleName);
+				if(!this.use_only_sample_name) {
+					pw.print(pair.sample2.getLabel());
+					pw.print('\t');
+					}
+				pw.print(pair.sample2.getSampleName());
 				pw.print('\t');
-				pw.print(pair.sample2.getSequencingLabel());
-				pw.print('\t');
-				pw.print(pair.sample2.sampleName);
-				pw.print('\t');
-				pw.print(pair.sample1.getSequencingLabel().equals(pair.sample2.getSequencingLabel())?1:0);
-				pw.print('\t');
+				if(!this.use_only_sample_name) {
+					pw.print(pair.sample1.getLabel().equals(pair.sample2.getLabel())?1:0);
+					pw.print('\t');
+					}
 				pw.print(sampleAlleles.reads_sample1_supporting_sample1);
 				pw.print('\t');
 				pw.print(sampleAlleles.reads_sample1_supporting_sample2);
@@ -654,12 +698,7 @@ public class XContaminations extends Launcher
 				pw.print('\t');
 				pw.print(sampleAlleles.reads_sample2_supporting_other);
 				pw.println();
-				somethingPrinted=true;
-						
-					
-				
-				
-				
+				somethingPrinted=true;				
 				}
 			pw.flush();
 			pw.close();

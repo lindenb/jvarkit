@@ -191,7 +191,8 @@ public class BamStats04 extends Launcher
 						dict=d;
 						}
 					else if(SequenceUtil.areSequenceDictionariesEqual(d, dict)) {
-						throw new JvarkitException.DictionariesAreNotTheSame(d, dict);
+						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(d, dict));
+						return -1;
 						}
 					}
 				

@@ -94,6 +94,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Nov 20 15:01:11 2017 +0100 ; adding partition for bamstats04, Partiton.OPT_DESC ; https://github.com/lindenb/jvarkit/commit/9f4e9dd12ffa66dc87e773bc7afa7040d507bfee
 Sun Nov 19 16:21:21 2017 +0100 ; bamstats04 : using percentil and median use MIN_DEPTH ; https://github.com/lindenb/jvarkit/commit/d407ea6d4a08938ef18fa445e5d1205f8d2de723
 Thu Nov 16 10:28:49 2017 +0100 ; simplifying bam2wig, minor changes in bam2xml ; https://github.com/lindenb/jvarkit/commit/c1708995bbd50a2e666eebd772d6dff02a4f2d62
 Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa

@@ -127,12 +127,17 @@ public static class ContigNotFoundInDictionary extends ContigNotFound
 /** exception two dicts are not the same */
 public static class DictionariesAreNotTheSame extends Error
 	{
-	public DictionariesAreNotTheSame(final SAMSequenceDictionary dict1,final SAMSequenceDictionary dict2) {
-		super("Two dictionaries are not the same:"+
+	public static String getMessage(final SAMSequenceDictionary dict1,final SAMSequenceDictionary dict2)
+		{
+		return "Two dictionaries are not the same:"+
 				dict1.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))
 				+"\nand\n"+
 				dict2.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))
-				);
+				;
+		}
+	
+	public DictionariesAreNotTheSame(final SAMSequenceDictionary dict1,final SAMSequenceDictionary dict2) {
+		super(getMessage(dict1,dict2));
 		}
 	}
 
