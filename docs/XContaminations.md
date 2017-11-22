@@ -1,6 +1,6 @@
 # XContaminations
 
-For @AdrienLeger2 : cross contamination between samples.
+For @AdrienLeger2 : cross contamination between samples by looking at the homozygous genotypes.
 
 
 ## Usage
@@ -8,6 +8,13 @@ For @AdrienLeger2 : cross contamination between samples.
 ```
 Usage: xcontaminations [options] Files
   Options:
+    -factor, --factor
+      Fail factor: set if (reads sample x supporting x) <= factor (reads 
+      sample x supporting y)
+      Default: 10
+    -ft, --fihser-treshold
+      Fisher Test treshold
+      Default: 1.0E-5
     -filter, --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
@@ -26,6 +33,9 @@ Usage: xcontaminations [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --out
       Output file. Optional . Default: stdout
+    -ov, --output-vcf
+      output results as a vcf file; only is --sample option is set.
+      Default: false
     -sample, --sample, --sample-only
       Just use sample's name. Don't use lane/flowcell/etc... data.
       Default: false
@@ -92,6 +102,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 21 20:52:32 2017 +0100 ; improving xcontamination, jexl for genotypes ; https://github.com/lindenb/jvarkit/commit/56c1304b97e85167cf78dfa0cf9737c1bf1f8287
 Tue Nov 21 17:55:52 2017 +0100 ; working on xcontaminations... ; https://github.com/lindenb/jvarkit/commit/0519fdc041212457ffcdb427b28c477227c38a9e
 Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
 Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
@@ -128,6 +139,10 @@ The current reference is:
 
 * loop over the variants in a vcf file.
 * for each variant we look at the HOM (HOM_REF or HOM_VAR) variants and we look at the BAM file to test how many reads from one sample could contain the reads from another sample.
+
+## History
+
+* 20171122: re-written, adding support to vcf output, genotypes and variant filters.
 
 ## Input
 
@@ -199,6 +214,46 @@ ND { printf("%f\n",N/T);}'; )
 $(foreach C,${CHROMS},$(eval $(call xcont,$C)))
 ```
 
+## Example
+
+vcf output:
+
+
+```
+$ java -jar dist/xcontaminations.jar -ov -sample -vf 'DP>100' mutations.vcf *.bam 
+```
+
+
+
+```
+##fileformat=VCFv4.2
+##FILTER=<ID=BADSAMPLES,Description="At least one pair of genotype fails the 'LE' test">
+##FILTER=<ID=XCONTAMINATION,Description="Fisher test is < 1.0E-5">
+##FORMAT=<ID=F,Number=1,Type=Float,Description="Fisher test. '-1' for unavailable.">
+##FORMAT=<ID=S1A,Number=1,Type=Character,Description="sample 1 allele">
+##FORMAT=<ID=S1S1,Number=1,Type=Integer,Description="reads sample 1 supporting sample 1">
+##FORMAT=<ID=S1S2,Number=1,Type=Integer,Description="reads sample 1 supporting sample 2">
+##FORMAT=<ID=S1SO,Number=1,Type=Integer,Description="reads sample 1 supporting others">
+##FORMAT=<ID=S2A,Number=1,Type=Character,Description="sample 2 allele">
+##FORMAT=<ID=S2S1,Number=1,Type=Integer,Description="reads sample 2 supporting sample 1">
+##FORMAT=<ID=S2S2,Number=1,Type=Integer,Description="reads sample 2 supporting sample 2">
+##FORMAT=<ID=S2SO,Number=1,Type=Integer,Description="reads sample 2 supporting others">
+##INFO=<ID=BADSAMPLES,Number=.,Type=String,Description="Samples founds failing the 'LE' test">
+##INFO=<ID=LE,Number=1,Type=Integer,Description="number of pair of genotypes having (S1S1<=S1S2 or S2S2<=S2S1).">
+##contig=<ID=rotavirus,length=1074>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1:S2	S1:S3	S1:S4	S2:S3	S2:S4	S3:S4
+rotavirus	51	.	A	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S4;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:235:0:19:G:71:0:9	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:204:0:14:G:71:0:9	1.00:A:261:0:13:G:71:0:9
+rotavirus	536	.	A	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	1.00:T:20:505:29:A:21:542:20	0.880:T:20:505:29:A:26:692:20	0.531:T:20:505:29:A:10:189:8	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	693	.	T	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	0.884:G:26:326:1:T:25:294:1	0.892:G:26:326:1:T:33:432:4	0.528:G:26:326:1:T:6:106:1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	799	.	A	C	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:273:0:24:C:420:0:31	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:291:0:29:C:420:0:31	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:C:0:420:31:A:0:86:8
+rotavirus	812	.	G	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:283:0:13:T:443:0:29	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:291:0:25:T:443:0:29	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:T:0:443:29:G:0:90:3
+rotavirus	833	.	G	A	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	1.00:A:0:261:24:G:0:302:26	1.00:A:0:261:24:G:0:430:25	1.00:A:0:261:24:G:0:85:4	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	916	.	A	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1,S4;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	0.188:T:16:295:0:A:23:269:0	0.530:T:16:295:0:A:28:405:0	0.091:T:16:295:0:A:10:86:0	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	1044	.	A	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S2,S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	0.265:A:123:7:0:T:144:15:0	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	0.712:T:15:144:0:A:17:139:0	0.251:T:15:144:0:A:2:56:0	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	1045	.	C	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:C:118:0:8:G:145:0:9	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:C:139:0:12:G:145:0:9	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:0:145:9:C:0:54:3
+rotavirus	1054	.	C	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S2;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	1.00:C:82:0:5:G:97:0:5	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:0:97:5:C:0:88:11	1.00:G:0:97:5:C:0:39:1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	1064	.	G	A	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S4;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:47:0:1:A:24:0:0	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:57:0:6:A:24:0:0	1.00:G:49:0:4:A:24:0:0
+```
 
 
 

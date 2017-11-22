@@ -30,6 +30,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.IStringConverter;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextUtils;
@@ -39,6 +41,7 @@ import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
  * JEXL expression factory
  */
 public class JexlVariantPredicate implements Predicate<VariantContext> {
+	private static final Logger LOG=Logger.build(JexlVariantPredicate.class).make();
 	private static long ID_GENERATOR=System.currentTimeMillis();
 	public static final String PARAMETER_DESCRIPTION = 
 			"A Java EXpression Language (JEXL) expressions to filter the variants from a VCF. " +
@@ -82,12 +85,20 @@ public class JexlVariantPredicate implements Predicate<VariantContext> {
 		final List<String> dummyNames = expressions.stream().
 				map(S->"JEXL"+(++ID_GENERATOR)).
 				collect(Collectors.toList());
-		return new JexlVariantPredicate(VariantContextUtils.initializeMatchExps(dummyNames, expressions));
+		try {
+			return new JexlVariantPredicate(VariantContextUtils.initializeMatchExps(dummyNames, expressions));
+			}
+		catch(final Throwable err) {
+			LOG.error(err);
+			throw new RuntimeException("Cannot compile :"+String.join(",", expressions),err);
+			}
 	}
 	
-	private final List<JexlVCMatchExp> jexlVCMatchExps; 
+	private final List<JexlVCMatchExp> jexlVCMatchExps;
+	
 	private JexlVariantPredicate(final List<JexlVCMatchExp> jexlVCMatchExps) {
 		this.jexlVCMatchExps = jexlVCMatchExps;
+		if(jexlVCMatchExps==null) throw new RuntimeException("jexlVCMatchExps is null");
 		}
 	@Override
 	public boolean test(final VariantContext ctx) {

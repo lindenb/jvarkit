@@ -38,7 +38,6 @@ import org.w3c.dom.Node;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 @SuppressWarnings("serial")
@@ -69,13 +68,31 @@ public static class FastaDictionaryMissing extends DictionaryMissing
 
 public static class VcfDictionaryMissing extends DictionaryMissing
 	{
+	public static String getMessage(final String path) {
+		return "A Sequence dictionary is missing for "+(path==null?"(null)":path)+". A VCF should have a set of `##contig` in its header. See also https://broadinstitute.github.io/picard/command-line-overview.html#UpdateVcfSequenceDictionary ";
+		}
+	
 	public VcfDictionaryMissing(final File file) {
 		this(file.getPath());
 		}
 	public VcfDictionaryMissing(final String file) {
-		super("A Sequence dictionary is missing for "+file+". A VCF should have a set of `##contig` in its header. See also https://broadinstitute.github.io/picard/command-line-overview.html#UpdateVcfSequenceDictionary ");
+		super(getMessage(file));
 		}
-}
+	}
+public static class BamDictionaryMissing extends DictionaryMissing
+	{
+	public static String getMessage(final String path) {
+		return "A Sequence dictionary is missing for "+(path==null?"(null)":path)+". A Bam should have a header with a set of lines starting with '@SQ' see https://samtools.github.io/hts-specs/SAMv1.pdf";
+		}
+	
+	public BamDictionaryMissing(final File file) {
+		this(file.getPath());
+		}
+	public BamDictionaryMissing(final String file) {
+		super(getMessage(file));
+		}
+	}
+
 
 public static class DuplicateVcfHeaderInfo extends Error
 	{
@@ -95,13 +112,13 @@ public static class DuplicateVcfHeaderInfo extends Error
 	}
 
 
-public static class SampleMissing extends DictionaryMissing
-{
-public SampleMissing(final String file) {
-	super(file);
+public static class SampleMissing extends Error
+	{
+	public SampleMissing(final String file) {
+		super(file);
+		}
 	}
-}
-	
+
 /** exception thrown when the user do something wrong */
 public static class UserError extends Error
 	{
