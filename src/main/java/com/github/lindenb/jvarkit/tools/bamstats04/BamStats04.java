@@ -31,11 +31,16 @@ package com.github.lindenb.jvarkit.tools.bamstats04;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.IntUnaryOperator;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -44,11 +49,15 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -59,29 +68,28 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 /**
 BEGIN_DOC
 
+## History
+
+* 2017-11-20: added new column 'partition'
+* 2017-11-20: can read more than one BAM File.
+
 ## Example
 
 ```
-$ java -jar dist/bamstats04.jar \
-	-B data.bed \
-	f.bam
-#chrom	start	end	length	mincov	maxcov	mean	nocoveragebp	percentcovered
-1	429665	429785	120	42	105	72.36666666666666	0	100
-1	430108	430144	36	9	9	9.0	0	100
-1	439811	439904	93	0	36	3.6451612903225805	21	77
-1	550198	550246	48	1325	1358	1344.4583333333333	0	100
-1	629855	629906	51	223	520	420.70588235294116	0	100
-1	689960	690029	69	926	1413	1248.9420289855072	0	100
-1	690852	690972	120	126	193	171.24166666666667	0	100
-1	787283	787406	123	212	489	333.9756097560976	0	100
-1	789740	789877	137	245	688	528.6715328467153	0	1
+$ java -jar dist/bamstats04.jar -B src/test/resources/toy.bed.gz src/test/resources/toy.bam 2> /dev/null | column -t 
+
+#chrom  start  end  length  sample  mincov  maxcov  meancov  mediancov  nocoveragebp  percentcovered
+ref     10     13   3       S1      3       3       3.0      3.0        0             100
+ref2    1      2    1       S1      2       2       2.0      2.0        0             100
+ref2    13     14   1       S1      6       6       6.0      6.0        0             100
+ref2    16     17   1       S1      6       6       6.0      6.0        0             100
 ```
 
 END_DOC
  */
 @Program(name="bamstats04",
 	description="Coverage statistics for a BED file.",
-	keywords={"bam","coverage","statistics","bed"}
+	keywords={"sam","bam","coverage","depth","statistics","bed"}
 	)
 public class BamStats04 extends Launcher
 	{
@@ -89,43 +97,111 @@ public class BamStats04 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-cov","--cov"},description="min coverage to say the position is not covered")
 	private int MIN_COVERAGE = 0 ;
-
 	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
-
 	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
 	private File bedFile = null;
-
 	@Parameter(names={"-R","--ref"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+" If set, a column with the GC% will be added")
 	private File faidxFile = null;
-
+	@Parameter(names={"-partition","--partition"},description="[20171120]"+SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition partition = SAMRecordPartition.sample;
+	
+	
+	/** map depth to 0 if depth <= MIN_COVERAGE */
+	private final IntUnaryOperator depthAdjuster = (D)->(D<=this.MIN_COVERAGE?0:D);
+	
+	private static class IntervalStat
+		{	
+		private final BedLine bedLine;
+		private final int counts[];
+		IntervalStat(final BedLine bedLine) {
+			this.bedLine = bedLine;
+			this.counts=new int[bedLine.getEnd()-bedLine.getStart()+1];
+			
+			Arrays.fill(this.counts, 0);
+			}
+		void visit(final SAMRecord rec) {
+			final Cigar cigar=rec.getCigar();
+			if(cigar==null) return;
+			int refpos1=rec.getAlignmentStart();
+    		for(final CigarElement ce:cigar)
+    			{
+    			final CigarOperator op=ce.getOperator();
+    			if(!op.consumesReferenceBases()) continue;
+    			if(op.consumesReadBases())
+    				{
+    				for(int i=0;i< ce.getLength();++i)
+		    			{
+						if(refpos1+i>= this.bedLine.getStart() && refpos1+i<= this.bedLine.getEnd())
+							{
+							this.counts[refpos1+i-this.bedLine.getStart()]++;
+							}
+	    				}
+    				}
+    			refpos1+=ce.getLength();
+    			if(refpos1>this.bedLine.getEnd()) break;
+    			}
+			}
+		
+		}
+	
 	@Override
 		public int doWork(final List<String> args) {
 			if(this.bedFile==null || !this.bedFile.exists()) {
-				LOG.error("undefined option -B");
+				LOG.error("undefined option -B (bed file)");
 				return -1;
 			}
+			if(args.isEmpty())  {
+				LOG.error("Bam files missing");
+				return -1;
+				}
+			final String NO_PARTITION="N/A";
 			BufferedReader bedIn=null;
-			SamReader samReader = null;
+			final List<SamReader> samReaders = new ArrayList<>(args.size());
 			PrintWriter pw = null;
 			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 			GenomicSequence genomicSequence=null;
 			try
 				{
-				
 				final BedLineCodec codec= new BedLineCodec();
 				
 				bedIn=IOUtils.openFileForBufferedReading(this.bedFile);
-				samReader = super.openSamReader(oneFileOrNull(args));
-				final SAMSequenceDictionary dict = samReader.getFileHeader().getSequenceDictionary();
+				SAMSequenceDictionary dict = null;
+				
+				for(final String filename: IOUtils.unrollFiles(args)) {
+					LOG.info(filename);
+					final SamReader samReader = super.openSamReader(filename);
+					if(!samReader.hasIndex()) {
+						LOG.error(filename+" is not indexed");
+						samReader.close();
+						return -1;
+						}
+					final SAMSequenceDictionary d = samReader.getFileHeader().getSequenceDictionary();
+						if(d==null) {
+						samReader.close();
+						LOG.error("SAM sequence dictionary missing in SAM Header");
+						return -1;
+						}
+					
+					samReaders.add(samReader);
+						
 					if(dict==null) {
-					LOG.error("SAM sequence dictionary missing ");
-					return -1;
+						dict=d;
+						}
+					else if(SequenceUtil.areSequenceDictionariesEqual(d, dict)) {
+						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(d, dict));
+						return -1;
+						}
 					}
+				
+				if(samReaders.isEmpty()) {
+					LOG.error("No Bam defined");
+					return -1;
+				}
+				
+				
 				
 				
 				if(this.faidxFile!=null) {
@@ -133,6 +209,7 @@ public class BamStats04 extends Launcher
 				}
 				pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 				pw.println("#chrom\tstart\tend\tlength\t"+
+					this.partition.name()+"\t"+
 					(indexedFastaSequenceFile==null?"":"gc_percent\t")+
 					"mincov\tmaxcov\tmeancov\tmediancov\tnocoveragebp\tpercentcovered");
 	
@@ -149,86 +226,100 @@ public class BamStats04 extends Launcher
 						return -1;
 						}
 					
+					if(bedLine.getStart()>bedLine.getEnd())
+						{
+						LOG.info("ignoring "+bedLine);
+						continue;
+						}
 					if(indexedFastaSequenceFile!=null && (genomicSequence==null || !genomicSequence.getChrom().equals(bedLine.getContig()))) {
 						genomicSequence = new GenomicSequence(indexedFastaSequenceFile, bedLine.getContig());
 						}
 					
-					/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
+					final Map<String, IntervalStat> sample2stats= new HashMap<>();
 					
-					
-					final int counts[]=new int[bedLine.getEnd()-bedLine.getStart()+1];
-					if(counts.length==0) continue;
-					Arrays.fill(counts, 0);
-					
-					
-					/**
-					 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
-		    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
-					 */
-					final SAMRecordIterator r=samReader.queryOverlapping(
-							bedLine.getContig(),
-							bedLine.getStart(),
-							bedLine.getEnd()
-							);
-					while(r.hasNext())
+					for(final SamReader samReader:samReaders) 
 						{
-						final SAMRecord rec=r.next();
-						if(rec.getReadUnmappedFlag()) continue;
-						if(this.filter.filterOut(rec)) continue;
-						if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
+						/**
+						 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
+			    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
+						 */
+						final SAMRecordIterator r=samReader.queryOverlapping(
+								bedLine.getContig(),
+								bedLine.getStart(),
+								bedLine.getEnd()
+								);
+						while(r.hasNext())
+							{
+							final SAMRecord rec=r.next();
+							if(rec.getReadUnmappedFlag()) continue;
+							if(this.filter.filterOut(rec)) continue;
+							if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
+							
+							
+							final String partition;
+							final SAMReadGroupRecord group = rec.getReadGroup();
+							if(group==null)
+								{
+								partition=NO_PARTITION;
+								}
+							else
+								{
+								final String name = this.partition.apply(group);
+								partition = (StringUtil.isBlank(name)?NO_PARTITION:name);
+								}
+							
+							IntervalStat stat= sample2stats.get(partition);
+							if(stat==null) 
+								{
+								stat = new IntervalStat(bedLine);
+								sample2stats.put(partition,stat);
+								}
+							stat.visit(rec);
+							}
 						
-						final Cigar cigar=rec.getCigar();
-						if(cigar==null) continue;
-			    		int refpos1=rec.getAlignmentStart();
-			    		for(final CigarElement ce:cigar)
-			    			{
-			    			final CigarOperator op=ce.getOperator();
-			    			if(!op.consumesReferenceBases()) continue;
-			    			if(op.consumesReadBases())
-			    				{
-			    				for(int i=0;i< ce.getLength();++i)
-		    		    			{
-									if(refpos1+i>= bedLine.getStart() && refpos1+i<=bedLine.getEnd())
-										{
-										counts[refpos1+i-bedLine.getStart()]++;
-										}
-				    				}
-			    				}
-			    			refpos1+=ce.getLength();
-			    			if(refpos1>bedLine.getEnd()) break;
-			    			}
+						r.close();
+						} // end of loop over sam Readers
+					
+					final Integer gcPercent = (genomicSequence==null?
+						null:
+						genomicSequence.getGCPercent(bedLine.getStart()-1,bedLine.getEnd())).getGCPercentAsInteger()
+						;
+					
+					
+					for(final String partitionName : sample2stats.keySet()) {
+						final IntervalStat stat = sample2stats.get(partitionName);
+						Arrays.sort(stat.counts);
+						
+						final int count_no_coverage=(int)Arrays.stream(stat.counts).
+								filter(D->this.depthAdjuster.applyAsInt(D)<=0).
+								count()
+								;
+						
+						final double mean= Percentile.average().evaluate(Arrays.stream(stat.counts).
+								map(this.depthAdjuster)
+								);
+						
+		                final double median_depth = Percentile.median().evaluate(Arrays.stream(stat.counts).
+								map(this.depthAdjuster)
+								);
+		                
+						
+						pw.println(
+								bedLine.getContig()+"\t"+
+								(bedLine.getStart()-1)+"\t"+
+								(bedLine.getEnd())+"\t"+
+								stat.counts.length+"\t"+
+								partitionName+"\t"+
+								(gcPercent==null? "":String.valueOf(gcPercent)+"\t")+
+								stat.counts[0]+"\t"+
+								stat.counts[stat.counts.length-1]+"\t"+
+								mean+"\t"+
+								median_depth+"\t"+
+								count_no_coverage+"\t"+
+								(int)(((stat.counts.length-count_no_coverage)/(double)stat.counts.length)*100.0)
+								);
+						
 						}
-					
-					r.close();
-					
-					Arrays.sort(counts);
-					
-					int count_no_coverage=0;
-					double mean=0;
-					for(final int cov:counts)
-						{
-						if(cov<=MIN_COVERAGE) ++count_no_coverage;
-						mean+=cov;
-						}
-					mean/=counts.length;
-					
-	                final double median_depth = Percentile.median().evaluate(counts);
-	                
-					
-					pw.println(
-							bedLine.getContig()+"\t"+
-							(bedLine.getStart()-1)+"\t"+
-							(bedLine.getEnd())+"\t"+
-							counts.length+"\t"+
-							(genomicSequence==null?
-								"":
-								String.valueOf((genomicSequence.getGCPercent(bedLine.getStart()-1,bedLine.getEnd())).getGCPercentAsInteger())+"\t")+
-							counts[0]+"\t"+
-							counts[counts.length-1]+"\t"+
-							mean+"\t"+median_depth+"\t"+
-							count_no_coverage+"\t"+
-							(int)(((counts.length-count_no_coverage)/(double)counts.length)*100.0)
-							);
 					}
 				pw.flush();
 				pw.close();pw=null;
@@ -245,7 +336,7 @@ public class BamStats04 extends Launcher
 			CloserUtil.close(indexedFastaSequenceFile);
 			CloserUtil.close(pw);
 			CloserUtil.close(bedIn);
-			CloserUtil.close(samReader);
+			CloserUtil.close(samReaders);
 			}
 		}
 	
@@ -253,6 +344,5 @@ public class BamStats04 extends Launcher
 		{
 		new BamStats04().instanceMainWithExit(args);
 		}
-
 }
 

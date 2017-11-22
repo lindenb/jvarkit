@@ -46,6 +46,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -209,8 +210,8 @@ public class BamToFastq
 	@Parameter(names={"-r","--repair"},description="repair: insert missing read")
 	private boolean repair_missing_read = false;
 	
-	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+	@Parameter(names={"-T","--tmpDir"},description="tmp directory")
+	private File tmpDir = IOUtils.getDefaultTmpDir();
 
 	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
 	private int maxRecordsInRam =50000;
@@ -314,7 +315,7 @@ public class BamToFastq
 					new MappedFastqCodec(),
 					new MappedFastqComparator(),
 					this.maxRecordsInRam,
-					this.tmpDir
+					this.tmpDir.toPath()
 					);
 			fastqCollection.setDestructiveIteration(true);
 

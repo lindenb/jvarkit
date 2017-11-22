@@ -113,7 +113,7 @@ public class MiniCaller extends Launcher
 	private int min_depth = 20 ;
     @Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
     private File fastaFile = null;
-	@Parameter(names={"--groupby"},description="Group Reads by")
+	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter readFilter  = SamFilterParser.buildDefault();

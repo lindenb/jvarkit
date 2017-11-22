@@ -107,8 +107,7 @@ public class SortVcfOnInfo extends Launcher
 
     
     public SortVcfOnInfo()
-	    {	
-	    	
+	    {
 	    }
     
     private class VcfLine
@@ -200,23 +199,22 @@ public class SortVcfOnInfo extends Launcher
     
 	private class VariantCodec extends AbstractDataCodec<VcfLine>
 		{
-		
 		@Override
-		public VcfLine decode(DataInputStream dis) throws IOException
+		public VcfLine decode(final DataInputStream dis) throws IOException
 			{
 			VcfLine cpl=new VcfLine();
 			try
 				{
 				cpl.line=readString(dis);
 				}
-			catch(IOException err)
+			catch(final IOException err)
 				{
 				return null;
 				}
 			return cpl;
 			}
 		@Override
-		public void encode(DataOutputStream dos, VcfLine s)
+		public void encode(final DataOutputStream dos, final VcfLine s)
 				throws IOException {
 			writeString(dos,s.line);
 			}
@@ -267,7 +265,7 @@ public class SortVcfOnInfo extends Launcher
 				}
 			
 			
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 	
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
@@ -284,7 +282,7 @@ public class SortVcfOnInfo extends Launcher
 					new VariantCodec(),
 					(V1,V2)->V1.compareTo(V2),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			sorted.setDestructiveIteration(true);
 			while(r.hasNext())
@@ -297,7 +295,7 @@ public class SortVcfOnInfo extends Launcher
 			
 			sorted.doneAdding();
 			progress.finish();
-			
+			LOG.info("now writing...");
 			iter =sorted.iterator();
 			while(iter.hasNext())
 				{
@@ -309,7 +307,7 @@ public class SortVcfOnInfo extends Launcher
 			w=null;
 			return 0;
 			} 
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -330,7 +328,7 @@ public class SortVcfOnInfo extends Launcher
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new SortVcfOnInfo().instanceMainWithExit(args);
 	}
 

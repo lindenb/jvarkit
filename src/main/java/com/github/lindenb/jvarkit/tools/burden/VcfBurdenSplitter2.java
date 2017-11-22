@@ -57,6 +57,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -100,7 +101,7 @@ public class VcfBurdenSplitter2
 	private int maxRecordsInRam=50000;
 			
 	@Parameter(names="--tmpDir",description="Temporary directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir","."));
+	private File tmpDir = IOUtils.getDefaultTmpDir();
 	
 	@Parameter(names={"-m","--manifestFile"},description="Manifest File")
 	private File manifestFile = null;
@@ -198,7 +199,7 @@ public class VcfBurdenSplitter2
 						new IntervalCodec(),
 						new IntervalComparator(),
 						this.maxRecordsInRam,
-						this.tmpDir
+						this.tmpDir.toPath()
 						);
 				this.sortingcollection.setDestructiveIteration(true);
 				}

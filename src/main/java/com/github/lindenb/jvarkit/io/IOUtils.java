@@ -112,6 +112,12 @@ public class IOUtils {
 			}
 		}*/
 	
+    /** Returns a default tmp directory. */
+    public static File getDefaultTmpDir() {
+    	return new File(System.getProperty("java.io.tmpdir","."));
+    	}
+	
+	
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
 		InputStream fin=null;
@@ -423,8 +429,8 @@ public class IOUtils {
      */
 	public static LinkedHashSet<String> unrollFiles(java.util.Collection<String> inputs)
 		{
-		LinkedHashSet<String> vcfFiles= new LinkedHashSet<>(inputs.size()+1);
-		for(String file : inputs)
+		final LinkedHashSet<String> vcfFiles= new LinkedHashSet<>(inputs.size()+1);
+		for(final String file : inputs)
 			{
 			if(file.isEmpty())
 				{

@@ -72,7 +72,7 @@ public class SamReadLengthDistribution extends Launcher
 	private static final Logger LOG = Logger.build(SamReadLengthDistribution.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"--groupby"},description="Group Reads by")
+	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition=SAMRecordPartition.sample;
 	
 	private final Map<String,Counter<Integer>> lengths=new TreeMap<>();

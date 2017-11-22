@@ -192,7 +192,7 @@ public class Biostar145820 extends Launcher
 					new RandSamRecordCodec(header),
 					new RandSamRecordComparator(), 
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			sorter.setDestructiveIteration(true);
 			while(iter.hasNext())

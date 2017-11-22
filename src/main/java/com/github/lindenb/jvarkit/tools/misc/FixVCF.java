@@ -59,6 +59,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -86,8 +87,8 @@ public class FixVCF
 	private static final Logger LOG = Logger.build(FixVCF.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+	@Parameter(names={"-T","--tmpDir"},description="tmp directory")
+	private File tmpDir = IOUtils.getDefaultTmpDir();
 	
 
 	@Override

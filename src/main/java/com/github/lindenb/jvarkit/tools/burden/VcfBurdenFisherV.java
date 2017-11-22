@@ -39,6 +39,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
@@ -142,7 +143,7 @@ public class VcfBurdenFisherV
 			private VCFHeader header2 = null;
 			CtxWriter(final VariantContextWriter delegate) {
 				super(delegate);
-				this.tmpDir = new File(System.getProperty("java.io.tmpdir"));
+				this.tmpDir = IOUtils.getDefaultTmpDir();
 				}
 			
 			@Override

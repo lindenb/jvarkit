@@ -57,6 +57,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Iso8601Date;
+import htsjdk.samtools.util.StringUtil;
 
 
 /**
@@ -304,9 +305,9 @@ public class SamJdk
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
-	@Parameter(names={"-e","--expression"},description="javascript expression")
+	@Parameter(names={"-e","--expression"},description="java expression")
 	private String scriptExpr=null;
-	@Parameter(names={"-f","--file"},description="javascript file")
+	@Parameter(names={"-f","--file"},description="java file. Either option -e or -f is required.")
 	private File scriptFile =null;
 	private SAMFileWriter failingReadsWriter=null;
 	
@@ -398,9 +399,14 @@ public class SamJdk
 				{
 				code = IOUtil.slurp(this.scriptFile);
 				}
-			else
+			else if(!StringUtil.isBlank(this.scriptExpr))
 				{
 				code = this.scriptExpr;
+				}
+			else
+				{
+				LOG.error("Option -e or -f are required. The content of those empty mut be not empty");
+				return -1;
 				}
 
 			final Random rand= new  Random(System.currentTimeMillis());

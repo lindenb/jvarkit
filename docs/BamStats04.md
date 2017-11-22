@@ -25,6 +25,12 @@ Usage: bamstats04 [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
+    -partition, --partition
+      [20171120]Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --ref
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary If set, a column with the 
@@ -37,8 +43,10 @@ Usage: bamstats04 [options] Files
 
 ## Keywords
 
+ * sam
  * bam
  * coverage
+ * depth
  * statistics
  * bed
 
@@ -86,6 +94,9 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Nov 20 15:01:11 2017 +0100 ; adding partition for bamstats04, Partiton.OPT_DESC ; https://github.com/lindenb/jvarkit/commit/9f4e9dd12ffa66dc87e773bc7afa7040d507bfee
+Sun Nov 19 16:21:21 2017 +0100 ; bamstats04 : using percentil and median use MIN_DEPTH ; https://github.com/lindenb/jvarkit/commit/d407ea6d4a08938ef18fa445e5d1205f8d2de723
+Thu Nov 16 10:28:49 2017 +0100 ; simplifying bam2wig, minor changes in bam2xml ; https://github.com/lindenb/jvarkit/commit/c1708995bbd50a2e666eebd772d6dff02a4f2d62
 Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa
 Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
 Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
@@ -133,22 +144,21 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## History
+
+* 2017-11-20: added new column 'partition'
+* 2017-11-20: can read more than one BAM File.
+
 ## Example
 
 ```
-$ java -jar dist/bamstats04.jar \
-	-B data.bed \
-	f.bam
-#chrom	start	end	length	mincov	maxcov	mean	nocoveragebp	percentcovered
-1	429665	429785	120	42	105	72.36666666666666	0	100
-1	430108	430144	36	9	9	9.0	0	100
-1	439811	439904	93	0	36	3.6451612903225805	21	77
-1	550198	550246	48	1325	1358	1344.4583333333333	0	100
-1	629855	629906	51	223	520	420.70588235294116	0	100
-1	689960	690029	69	926	1413	1248.9420289855072	0	100
-1	690852	690972	120	126	193	171.24166666666667	0	100
-1	787283	787406	123	212	489	333.9756097560976	0	100
-1	789740	789877	137	245	688	528.6715328467153	0	1
+$ java -jar dist/bamstats04.jar -B src/test/resources/toy.bed.gz src/test/resources/toy.bam 2> /dev/null | column -t 
+
+#chrom  start  end  length  sample  mincov  maxcov  meancov  mediancov  nocoveragebp  percentcovered
+ref     10     13   3       S1      3       3       3.0      3.0        0             100
+ref2    1      2    1       S1      2       2       2.0      2.0        0             100
+ref2    13     14   1       S1      6       6       6.0      6.0        0             100
+ref2    16     17   1       S1      6       6       6.0      6.0        0             100
 ```
 
 

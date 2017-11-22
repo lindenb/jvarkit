@@ -594,7 +594,7 @@ public static class DirectoryExists implements IValueValidator<File> {
 public static class TmpDirectoryArgs
 	{
 	@Parameter(names={"--tmpDir"},description="Temporary Directory.",validateValueWith=DirectoryExists.class)
-	public File tmpDir=new File(System.getProperty("java.io.tmpdir","."));
+	public File tmpDir = IOUtils.getDefaultTmpDir();
 	}
 
 
@@ -628,7 +628,7 @@ public class WritingSortingCollection
 		final List<File> L= new ArrayList<>(this.tmpDirs);
 		if(L.isEmpty() )
 			{
-			L.add(new File(System.getProperty("java.io.tmpdir")));
+			L.add(IOUtils.getDefaultTmpDir());
 			}
 		return L;
 		}

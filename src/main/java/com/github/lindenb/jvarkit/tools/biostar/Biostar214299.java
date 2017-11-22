@@ -71,7 +71,12 @@ Reads group are affected if a specific variant is found in the 'position file'.
 If two samples share the same group, the read group is AMBIGOUS.
 If the read is unmapped, the read group is UNMAPPED.
 If no sample is affected to a read, the read group will be UNAFFECTED;
- 
+
+## see also:
+
+* [https://www.biostars.org/p/283969](https://www.biostars.org/p/283969)  " How to extract reads with a known variant form a bam file"
+
+
 ## Example
 
 the positions file
@@ -136,7 +141,7 @@ public class Biostar214299 extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(this.positionFile==null) {
 			LOG.error("position File is not defined.");
 			return -1;
@@ -192,7 +197,7 @@ public class Biostar214299 extends Launcher
 						LOG.error("in "+line+" bases should be one letter an ATGC");
 						return -1;
 						}
-					if(position.base2sample.containsKey(bases)) {
+					if(position.base2sample.containsKey(bases.charAt(0))) {
 						LOG.error("in "+line+" bases already defined for this position");
 						return -1;
 					}

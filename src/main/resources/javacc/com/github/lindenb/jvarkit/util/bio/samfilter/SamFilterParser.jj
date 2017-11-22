@@ -314,7 +314,7 @@ public class SamFilterParser {
             }; }
 		private static Predicate<SAMRecord> notPrimaryAlignmentFlag() {
 		return new Predicate<SAMRecord>() {
-		 	@Override public boolean test(final SAMRecord rec) { return rec.getNotPrimaryAlignmentFlag();}
+		 	@Override public boolean test(final SAMRecord rec) { return rec.isSecondaryAlignment();}
 		}; }		
 		private static Predicate<SAMRecord> supplementaryAlignmentFlag() {
 		return new Predicate<SAMRecord>() {
@@ -396,7 +396,7 @@ TOKEN:
 | <MAPPED: (<ISGET>) ? ("Read")? "mapped" >
 | <MATEUNMAPPED: (<ISGET>)? "MateUnmapped"  >
 | <FAILSVENDORQUALITY: (<ISGET>) ? "FailsVendorQuality" >
-| <NOTPRIMARYALIGNMENT: (<ISGET>) ? "NotPrimaryAlignment" (<READFLAG>)?>
+| <NOTPRIMARYALIGNMENT: (<ISGET>) ? ("NotPrimaryAlignment"|"SecondaryAlignment") (<READFLAG>)?>
 | <SUPPLEMENTARYALIGNMENT: (<ISGET>) ? "SupplementaryAlignment" (<READFLAG>)?>
 | <PAIRED: (<ISGET>) ? ("Read")? "Paired" >
 | <CLIPPED: (<ISGET>) ? ("Read")? "Clipped" >

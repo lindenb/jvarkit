@@ -50,6 +50,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/275714](https://www.biostars.org/p/275714)
  * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
  * [https://www.biostars.org/p/279942](https://www.biostars.org/p/279942)
+ * [https://www.biostars.org/p/284852](https://www.biostars.org/p/284852)
 
 
 ## Compilation
@@ -95,6 +96,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Nov 20 19:15:20 2017 +0100 ; answer to https://www.biostars.org/p/284852/#284872 ; https://github.com/lindenb/jvarkit/commit/c202551f046c05d1f37dfbc997aeefc0d78d341a
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
 Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
 Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
@@ -443,6 +445,13 @@ stream().filter(R->!R.getReadUnmappedFlag()).
 });
 ```
 
+## Example
 
+print information about reads overlaping the base 'rotavirus:200' and the tag 'XS'
+
+
+```
+$ samtools view -h ~/src/gatk-ui/testdata/S1.bam "rotavirus:200-200" | java -jar dist/bioalcidaejdk.jar -F SAM -e 'stream().forEach(record->{final String contig= "rotavirus"; final int mutpos = 200; if(record.getReadUnmappedFlag()) return ;if(!record.getContig().equals(contig)) return ;if(record.getEnd() < mutpos) return ;if(record.getStart() > mutpos) return ; int readpos = record.getReadPositionAtReferencePosition(mutpos); if(readpos<1) return ; readpos--; final byte[] bases= record.getReadBases();println(record.getReadName()+" "+record.getContig()+" "+record.getStart()+" "+record.getEnd()+" base["+mutpos+"]="+(char)bases[readpos]+" XS="+record.getAttribute("XS"));});'
+```
 
 
