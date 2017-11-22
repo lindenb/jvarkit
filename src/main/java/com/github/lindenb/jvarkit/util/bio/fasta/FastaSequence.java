@@ -31,4 +31,9 @@ package com.github.lindenb.jvarkit.util.bio.fasta;
 public interface FastaSequence extends CharSequence {
 public String getName();
 public default int size() { return this.length();}
+public default byte[] toByteArray() {
+	final byte s[]=new byte[size()];
+	for(int i=0;i< s.length;++i) s[i]=(byte)charAt(i);
+	return s;
+	}
 }
