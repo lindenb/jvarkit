@@ -40,19 +40,30 @@ import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.BiPredicate;
+import java.util.function.DoublePredicate;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -76,6 +87,10 @@ BEGIN_DOC
 
 * loop over the variants in a vcf file.
 * for each variant we look at the HOM (HOM_REF or HOM_VAR) variants and we look at the BAM file to test how many reads from one sample could contain the reads from another sample.
+
+## History
+
+* 20171122: re-written, adding support to vcf output, genotypes and variant filters.
 
 ## Input
 
@@ -147,6 +162,46 @@ ND { printf("%f\n",N/T);}'; )
 $(foreach C,${CHROMS},$(eval $(call xcont,$C)))
 ```
 
+## Example
+
+vcf output:
+
+
+```
+$ java -jar dist/xcontaminations.jar -ov -sample -vf 'DP>100' mutations.vcf *.bam 
+```
+
+
+
+```
+##fileformat=VCFv4.2
+##FILTER=<ID=BADSAMPLES,Description="At least one pair of genotype fails the 'LE' test">
+##FILTER=<ID=XCONTAMINATION,Description="Fisher test is < 1.0E-5">
+##FORMAT=<ID=F,Number=1,Type=Float,Description="Fisher test. '-1' for unavailable.">
+##FORMAT=<ID=S1A,Number=1,Type=Character,Description="sample 1 allele">
+##FORMAT=<ID=S1S1,Number=1,Type=Integer,Description="reads sample 1 supporting sample 1">
+##FORMAT=<ID=S1S2,Number=1,Type=Integer,Description="reads sample 1 supporting sample 2">
+##FORMAT=<ID=S1SO,Number=1,Type=Integer,Description="reads sample 1 supporting others">
+##FORMAT=<ID=S2A,Number=1,Type=Character,Description="sample 2 allele">
+##FORMAT=<ID=S2S1,Number=1,Type=Integer,Description="reads sample 2 supporting sample 1">
+##FORMAT=<ID=S2S2,Number=1,Type=Integer,Description="reads sample 2 supporting sample 2">
+##FORMAT=<ID=S2SO,Number=1,Type=Integer,Description="reads sample 2 supporting others">
+##INFO=<ID=BADSAMPLES,Number=.,Type=String,Description="Samples founds failing the 'LE' test">
+##INFO=<ID=LE,Number=1,Type=Integer,Description="number of pair of genotypes having (S1S1<=S1S2 or S2S2<=S2S1).">
+##contig=<ID=rotavirus,length=1074>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1:S2	S1:S3	S1:S4	S2:S3	S2:S4	S3:S4
+rotavirus	51	.	A	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S4;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:235:0:19:G:71:0:9	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:204:0:14:G:71:0:9	1.00:A:261:0:13:G:71:0:9
+rotavirus	536	.	A	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	1.00:T:20:505:29:A:21:542:20	0.880:T:20:505:29:A:26:692:20	0.531:T:20:505:29:A:10:189:8	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	693	.	T	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	0.884:G:26:326:1:T:25:294:1	0.892:G:26:326:1:T:33:432:4	0.528:G:26:326:1:T:6:106:1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	799	.	A	C	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:273:0:24:C:420:0:31	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:A:291:0:29:C:420:0:31	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:C:0:420:31:A:0:86:8
+rotavirus	812	.	G	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:283:0:13:T:443:0:29	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:291:0:25:T:443:0:29	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:T:0:443:29:G:0:90:3
+rotavirus	833	.	G	A	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	1.00:A:0:261:24:G:0:302:26	1.00:A:0:261:24:G:0:430:25	1.00:A:0:261:24:G:0:85:4	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	916	.	A	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S1,S4;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	0.188:T:16:295:0:A:23:269:0	0.530:T:16:295:0:A:28:405:0	0.091:T:16:295:0:A:10:86:0	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	1044	.	A	T	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S2,S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	0.265:A:123:7:0:T:144:15:0	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	0.712:T:15:144:0:A:17:139:0	0.251:T:15:144:0:A:2:56:0	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	1045	.	C	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S3;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:C:118:0:8:G:145:0:9	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:C:139:0:12:G:145:0:9	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:0:145:9:C:0:54:3
+rotavirus	1054	.	C	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S2;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	1.00:C:82:0:5:G:97:0:5	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:0:97:5:C:0:88:11	1.00:G:0:97:5:C:0:39:1	-1.0:.:-1:-1:-1:.:-1:-1:-1
+rotavirus	1064	.	G	A	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S4;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:47:0:1:A:24:0:0	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:57:0:6:A:24:0:0	1.00:G:49:0:4:A:24:0:0
+```
 
 
 END_DOC
@@ -154,7 +209,7 @@ END_DOC
  */
 
 @Program(name="xcontaminations",
-	description="For @AdrienLeger2 : cross contamination between samples.",
+	description="For @AdrienLeger2 : cross contamination between samples by looking at the homozygous genotypes.",
 	keywords= {"sam","bam","vcf","contamination"}
 	)
 public class XContaminations extends Launcher
@@ -166,12 +221,18 @@ public class XContaminations extends Launcher
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 	@Parameter(names={"-sample","--sample","--sample-only"},description="Just use sample's name. Don't use lane/flowcell/etc... data.")
 	private boolean use_only_sample_name = false;
-	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
+	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
 	@Parameter(names={"-gf","--genotype-filter"},description=JexlGenotypePredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
 	private BiPredicate<VariantContext,Genotype> genotypeFilter = JexlGenotypePredicate.create("");
-	
-	private Set<File> bamFiles=new HashSet<File>();
+	@Parameter(names={"-ov","--output-vcf"},description="output results as a vcf file; only is --sample option is set.")
+	private boolean output_as_vcf= false;
+	@Parameter(names={"-ft","--fihser-treshold"},description="Fisher Test treshold")
+	private double fisher_treshold=1E-5;
+	@Parameter(names={"-factor","--factor"},description="Fail factor: set if (reads sample x supporting x) <= factor (reads sample x supporting y)")
+	private int fail_factor=10;
+
+	private DoublePredicate passFisher = (V) -> V < fisher_treshold;
 	
 	private static class SampleAlleles
 		{
@@ -181,6 +242,16 @@ public class XContaminations extends Launcher
 		long reads_sample2_supporting_sample1=0;
 		long reads_sample2_supporting_sample2=0;
 		long reads_sample2_supporting_other=0;
+		
+		public double getFisher() {
+			final FisherExactTest fisher = FisherExactTest.compute(
+					(int)this.reads_sample1_supporting_sample1,
+					(int)this.reads_sample1_supporting_sample2,
+					(int)this.reads_sample2_supporting_sample1,
+					(int)this.reads_sample2_supporting_sample2
+					);
+			return fisher.getAsDouble();
+			}
 		}
 	
 	private static class SamplePair
@@ -224,6 +295,11 @@ public class XContaminations extends Launcher
 			if (!sample2.equals(other.sample2)) return false;
 			return true;
 			}
+		/** used as sample's name in VCF header for VCF output */
+		public String getLabel() {
+			return sample1.getSampleName()+":"+sample2.getSampleName();
+		}
+		
 		@Override
 		public String toString() {
 			return "("+sample1+"/"+sample2+")";
@@ -271,11 +347,11 @@ public class XContaminations extends Launcher
 	private static class SequencerFlowCellRunLaneSample
 		implements SampleIdentifier
 		{
-		final String machine;
-		final String flowCell;
-		final int run;
-		final int lane;
-		final String sampleName;
+		private final String machine;
+		private final String flowCell;
+		private final int run;
+		private final int lane;
+		private final String sampleName;
 		private final int _hash;
 		SequencerFlowCellRunLaneSample(final ShortReadName name,final String sampleName)
 			{
@@ -305,7 +381,7 @@ public class XContaminations extends Launcher
 			if (this == obj) return true;
 			if (obj == null) return false;
 			if (getClass() != obj.getClass()) return false;
-			SequencerFlowCellRunLaneSample other = (SequencerFlowCellRunLaneSample) obj;
+			final SequencerFlowCellRunLaneSample other = (SequencerFlowCellRunLaneSample) obj;
 			if (lane != other.lane) return false;
 			if (run != other.run) return false;
 			if (!flowCell.equals(other.flowCell)) return false;
@@ -336,19 +412,20 @@ public class XContaminations extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		
+		if(this.output_as_vcf && !this.use_only_sample_name)
+			{
+			LOG.error("cannot write vcf if --sample is not set");
+			return -1;
+			}
 		if(args.size()<2)
 			{
 			LOG.error("Illegal Number of args");
 			return -1;
 			}
-		
-		for(final String f:IOUtils.unrollFiles(args.subList(1, args.size())))
-			{
-			this.bamFiles.add(new File(f));
-			}
+		final Set<File> bamFiles = IOUtils.unrollFiles(args.subList(1, args.size())).
+				stream().map(S->new File(S)).collect(Collectors.toSet());
 			
-		if(this.bamFiles.isEmpty())
+		if(bamFiles.isEmpty())
 			{
 			LOG.error("Undefined BAM file(s)");
 			return -1;
@@ -357,7 +434,7 @@ public class XContaminations extends Launcher
 		SAMRecordIterator iter=null;
 		VcfIterator in=null;
 		Map<String,SamReader> sample2samReader=new HashMap<>();
-
+		VariantContextWriter vcfw = null;
 		try {
 			final SamReaderFactory srf= super.createSamReaderFactory();
 			
@@ -375,18 +452,18 @@ public class XContaminations extends Launcher
 			final SAMSequenceDictionary dict1=vcfHeader.getSequenceDictionary();
 			if(dict1==null)
 				{
-				LOG.error("VCF is missing a SAM sequence dictionary");
+				LOG.error(JvarkitException.VcfDictionaryMissing.getMessage(args.get(0)));
 				return -1;
 				}
 			
-			Set<String> sampleNames= new HashSet<>(vcfHeader.getSampleNamesInOrder());
+			final Set<String> sampleNames= new HashSet<>(vcfHeader.getSampleNamesInOrder());
 			if( sampleNames.isEmpty())
 				{
 				LOG.error("VCF contains no sample");
 				return -1;
 				}
 			
-			for(final File bamFile:this.bamFiles)
+			for(final File bamFile:bamFiles)
 				{
 				LOG.info("Opening "+bamFile);
 				final SamReader samReader=srf.open(bamFile);
@@ -395,7 +472,7 @@ public class XContaminations extends Launcher
 				if(dict2==null)
 					{
 					samReader.close();
-					LOG.error("BAM is missing a SAM sequence dictionary");
+					LOG.error(JvarkitException.BamDictionaryMissing.getMessage(bamFile.getPath()));
 					return -1;
 					}
 				
@@ -409,7 +486,7 @@ public class XContaminations extends Launcher
 				if(!samReader.hasIndex())
 					{
 					samReader.close();
-					LOG.error("sam is not index");
+					LOG.error("sam is not indexed : "+bamFile);
 					return -1;
 					}
 				String sampleName=null;
@@ -458,6 +535,55 @@ public class XContaminations extends Launcher
 			
 			sampleNames.retainAll(sample2samReader.keySet());
 			
+
+			/* create a VCF is VCF output asked */
+			
+			final List<SamplePair> sampleListForVcf;
+			if(this.output_as_vcf)
+				{
+				vcfw = super.openVariantContextWriter(outputFile);
+				final Set<VCFHeaderLine> metaData = new HashSet<>();
+				metaData.add(new VCFFormatHeaderLine("S1S1", 1, VCFHeaderLineType.Integer,"reads sample 1 supporting sample 1"));
+				metaData.add(new VCFFormatHeaderLine("S1S2", 1, VCFHeaderLineType.Integer,"reads sample 1 supporting sample 2"));
+				metaData.add(new VCFFormatHeaderLine("S1SO", 1, VCFHeaderLineType.Integer,"reads sample 1 supporting others"));
+				
+				metaData.add(new VCFFormatHeaderLine("S2S1", 1, VCFHeaderLineType.Integer,"reads sample 2 supporting sample 1"));
+				metaData.add(new VCFFormatHeaderLine("S2S2", 1, VCFHeaderLineType.Integer,"reads sample 2 supporting sample 2"));
+				metaData.add(new VCFFormatHeaderLine("S2SO", 1, VCFHeaderLineType.Integer,"reads sample 2 supporting others"));
+				metaData.add(new VCFFormatHeaderLine("F", 1, VCFHeaderLineType.Float,"Fisher test. '-1' for unavailable."));
+				
+				metaData.add(new VCFFormatHeaderLine("S1A", 1, VCFHeaderLineType.Character,"sample 1 allele"));
+				metaData.add(new VCFFormatHeaderLine("S2A", 1, VCFHeaderLineType.Character,"sample 2 allele"));
+
+				
+				metaData.add(new VCFFilterHeaderLine("XCONTAMINATION","Fisher test is < "+fisher_treshold));
+				metaData.add(new VCFFilterHeaderLine("BADSAMPLES","At least one pair of genotype fails the 'LE' test"));
+				metaData.add(new VCFInfoHeaderLine("LE",1, VCFHeaderLineType.Integer,"number of pair of genotypes having (S1S1<=S1S2 or S2S2<=S2S1)."));
+				metaData.add(new VCFInfoHeaderLine("BADSAMPLES",VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,"Samples founds failing the 'LE' test"));
+				
+				
+				
+				sampleListForVcf = new ArrayList<>();
+				final List<String> sampleList=new ArrayList<>(sampleNames);
+				for(int x=0;x+1<sampleList.size();++x) {
+					for(int y=x+1;y<sampleList.size();++y) {
+						sampleListForVcf.add(new SamplePair(new SimpleSampleIdenfifier(sampleList.get(x)),new SimpleSampleIdenfifier(sampleList.get(y))));
+					}
+				}
+				
+				final VCFHeader header2 = new VCFHeader(metaData, sampleListForVcf.stream().
+						map(V->V.getLabel()).
+						sorted().collect(Collectors.toList())
+						);
+				header2.setSequenceDictionary(dict1);
+				vcfw.writeHeader(header2);
+				}
+			else
+				{
+				vcfw = null;
+				sampleListForVcf = null;
+				}
+			
 			final Map<SamplePair,SampleAlleles> contaminationTable=new HashMap<>();
 			
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict1);
@@ -473,20 +599,15 @@ public class XContaminations extends Launcher
 						collect(Collectors.toMap(G->G.getSampleName(),G->G));
 				
 				if(sample2gt.size()<2) continue;
+								
+				//at least one HOM_REF and one HOM_VAR
+				if(!(sample2gt.values().stream().anyMatch(G->G.isHomRef()) && sample2gt.values().stream().anyMatch(G->G.isHomVar()))) continue;
 				
-				final boolean isWorthScanning= sample2gt.values().stream().
-						anyMatch(G1->sample2gt.values().stream().
-								filter(G2->G1.getSampleName().compareTo(G2.getSampleName())<0).
-								anyMatch(G2->!G1.sameGenotype(G2)));
+				final Map<SampleIdentifier,Counter<Character>> sample_identifier_2allelesCount=new HashMap<>();
 				
-				if(!isWorthScanning) continue;
-				
-				final Map<SampleIdentifier,Counter<Allele>> sample_identifier_2allelesCount=new HashMap<>();
-				
-				/* scan Reads for this Sample */
+				/* scan Reads for those Genotype/Samples */
 				for(final String sampleName: sample2gt.keySet())
 					{
-					if(!sample2gt.containsKey(sampleName)) continue;
 					if(!sample2samReader.containsKey(sampleName)) continue;
 					//sample name is not in vcf header
 					final SamReader samReader = sample2samReader.get(sampleName);
@@ -505,8 +626,12 @@ public class XContaminations extends Launcher
 					while(iter.hasNext())
 						{
 						final SAMRecord record= iter.next();
+						if(record.getEnd()< ctx.getStart()) continue;
+						if(ctx.getEnd()< record.getStart()) continue;
+						
 						if(record.getReadUnmappedFlag()) continue;
 						if(this.filter.filterOut(record)) continue;
+					
 						
 						final SAMReadGroupRecord srgr = record.getReadGroup();
 						//not current sample
@@ -544,24 +669,42 @@ public class XContaminations extends Launcher
 							}
 
 						
-						Counter<Allele> sampleAlleles= sample_identifier_2allelesCount.get(sampleIdentifier);
+						Counter<Character> sampleAlleles= sample_identifier_2allelesCount.get(sampleIdentifier);
 						if(sampleAlleles==null)
 							{
-							sampleAlleles=new Counter<Allele>();
+							sampleAlleles=new Counter<Character>();
 							sample_identifier_2allelesCount.put(sampleIdentifier, sampleAlleles);
 							}
-						sampleAlleles.incr( Allele.create((byte)base,false) );
+						sampleAlleles.incr(base);
 						}
 					iter.close();
 					iter=null;
 					}/* end scan reads for this sample */
 				
-				/* sum-up data for this SNP */
+				
 			
+				
+				/* sum-up data for this SNP */
+				final VariantContextBuilder vcb;
+				final List<Genotype> genotypeList;
+				
+				if(this.output_as_vcf)
+					{
+					vcb = new VariantContextBuilder(args.get(0), ctx.getContig(), ctx.getStart(), ctx.getEnd(), ctx.getAlleles());
+					if(ctx.hasID()) vcb.id(ctx.getID());
+					genotypeList= new ArrayList<>();
+					}
+				else
+					{
+					vcb = null;
+					genotypeList = null;
+					}
+				
+				
 				for(final String sample1: sample2gt.keySet())
 					{
 					final Genotype g1= sample2gt.get(sample1);
-					final Allele a1 = Allele.create(g1.getAllele(0),true);
+					final char a1 = g1.getAllele(0).getBaseString().charAt(0);
 					
 					
 					for(final String sample2:  sample2gt.keySet())
@@ -569,34 +712,34 @@ public class XContaminations extends Launcher
 						if(sample1.compareTo(sample2)>=0) continue;
 						final Genotype g2= sample2gt.get(sample2);
 						if(g2.sameGenotype(g1)) continue;
-						final Allele a2 = Allele.create(g2.getAllele(0),true);
+						final char a2 =  g2.getAllele(0).getBaseString().charAt(0);
 						
-						for(final SampleIdentifier sfcr1:sample_identifier_2allelesCount.keySet())
+						for(final SampleIdentifier sfcr1: sample_identifier_2allelesCount.keySet())
 							{
 							if(!sfcr1.getSampleName().equals(sample1)) continue;
-							final Counter<Allele> counter1 =  sample_identifier_2allelesCount.get(sfcr1);
+							final Counter<Character> counter1 =  sample_identifier_2allelesCount.get(sfcr1);
 							if(counter1==null) continue;
 
 							
-							for(final SampleIdentifier sfcr2:sample_identifier_2allelesCount.keySet())
+							for(final SampleIdentifier sfcr2: sample_identifier_2allelesCount.keySet())
 								{
 								if(!sfcr2.getSampleName().equals(sample2)) continue;
 								
-								final SamplePair samplePair=new SamplePair(sfcr1, sfcr2);
+								final SamplePair samplePair = new SamplePair(sfcr1, sfcr2);
 								
-								final Counter<Allele> counter2 =  sample_identifier_2allelesCount.get(sfcr2);
+								final Counter<Character> counter2 =  sample_identifier_2allelesCount.get(sfcr2);
 								if(counter2==null) continue;
 								
 								
-								SampleAlleles sampleAlleles= contaminationTable.get(samplePair);
+								SampleAlleles sampleAlleles = contaminationTable.get(samplePair);
 								if(sampleAlleles==null)
 									{
 									sampleAlleles=new SampleAlleles();
 									contaminationTable.put(samplePair,sampleAlleles);
-									if( contaminationTable.size()%10000==0) LOG.info("n(pairs)=" + contaminationTable.size() ); 
+									if(!this.output_as_vcf && contaminationTable.size()%10000==0) LOG.info("n(pairs)=" + contaminationTable.size() ); 
 									}
-								
-								for(final Allele allele: counter1.keySet())
+
+								for(final Character allele: counter1.keySet())
 									{
 									final long n = counter1.count(allele);
 									if(allele.equals(a1))
@@ -613,7 +756,7 @@ public class XContaminations extends Launcher
 										}
 									}
 								
-								for(final Allele allele: counter2.keySet())
+								for(final Character allele: counter2.keySet())
 									{
 									final long n = counter2.count(allele);
 									if(allele.equals(a2))
@@ -629,102 +772,182 @@ public class XContaminations extends Launcher
 										sampleAlleles.reads_sample2_supporting_other += n;
 										}
 									}
-								
 								}
-							
-							
 							}
 						}
-				
 					}
+				
+				if(this.output_as_vcf) 
+					{
+					final Set<String> bad_samples=new TreeSet<>();
+					boolean fisher_flag=false;
+					int num_lt=0;
+					for(final SamplePair samplepair :sampleListForVcf)
+						{
+						final GenotypeBuilder gb = new GenotypeBuilder(samplepair.getLabel());
+						final SampleAlleles sampleAlleles = contaminationTable.get(samplepair);
+						if(sampleAlleles != null)
+							{
+							gb.attribute("S1S1", sampleAlleles.reads_sample1_supporting_sample1);
+							gb.attribute("S1S2", sampleAlleles.reads_sample1_supporting_sample2);
+							gb.attribute("S1SO", sampleAlleles.reads_sample1_supporting_other);
+							gb.attribute("S2S1", sampleAlleles.reads_sample2_supporting_sample1);
+							gb.attribute("S2S2", sampleAlleles.reads_sample2_supporting_sample2);
+							gb.attribute("S2SO", sampleAlleles.reads_sample2_supporting_other);
+							gb.attribute("S1A",sample2gt.get(samplepair.sample1.getSampleName()).getAllele(0).getDisplayString().charAt(0));
+							gb.attribute("S2A",sample2gt.get(samplepair.sample2.getSampleName()).getAllele(0).getDisplayString().charAt(0));
+							final double fisher = sampleAlleles.getFisher();
+							gb.attribute("F", fisher);
+							if(!this.passFisher.test(fisher)) {
+								fisher_flag=true;
+								}
+							
+							boolean bad_lt_flag=false;
+							if( sampleAlleles.reads_sample1_supporting_sample1 <= this.fail_factor*sampleAlleles.reads_sample1_supporting_sample2)
+								{
+								bad_samples.add(samplepair.sample1.getSampleName());
+								bad_lt_flag = true;
+								}
+							if(sampleAlleles.reads_sample2_supporting_sample2 <= this.fail_factor*sampleAlleles.reads_sample2_supporting_sample1) {
+								bad_samples.add(samplepair.sample2.getSampleName());
+								bad_lt_flag = true;
+								}
+							
+							if(bad_lt_flag)
+								{
+								num_lt++;
+								}
+							}
+						else
+							{
+							gb.attribute("S1S1", -1);
+							gb.attribute("S1S2", -1);
+							gb.attribute("S1SO", -1);
+							gb.attribute("S2S1", -1);
+							gb.attribute("S2S2", -1);
+							gb.attribute("S2SO", -1);
+							gb.attribute("S1A",'.');
+							gb.attribute("S2A",'.');
+
+							gb.attribute("F", -1f);
+							}
+						genotypeList.add(gb.make());
+						}
+					if(!bad_samples.isEmpty())
+						{
+						vcb.attribute("BADSAMPLES", new ArrayList<>(bad_samples));
+						}
+					vcb.attribute("LE", num_lt);
+					if(fisher_flag || !bad_samples.isEmpty()) 
+						{
+						if(fisher_flag) vcb.filter("XCONTAMINATION");
+						if(!bad_samples.isEmpty()) vcb.filter("BADSAMPLES");
+						}
+					else
+						{
+						vcb.passFilters();
+						}
+					vcb.genotypes(genotypeList);
+					vcfw.add(vcb.make());
+					
+					contaminationTable.clear();
+					}
+				
 				
 				}
 			progress.finish();
-			boolean somethingPrinted=false;
-			PrintWriter pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			
-			/* we're done, print the result */
-			pw.print("#");
-			if(!this.use_only_sample_name) {
-				pw.print("Machine:FlowCell:Run:Lane-1\tsample1");
-				pw.print('\t');
-				}
-			pw.print("sample1");
-			pw.print('\t');
-			if(!this.use_only_sample_name) {
-				pw.print("\tMachine:FlowCell:Run:Lane-2");
-				pw.print('\t');
-				}
-			pw.print("sample2");
-			if(!this.use_only_sample_name) {
-				pw.print("\tsame.lane");
-				}
-			pw.print("\treads_sample1_supporting_sample1");
-			pw.print('\t');
-			pw.print("reads_sample1_supporting_sample2");
-			pw.print('\t');
-			pw.print("reads_sample1_supporting_others");
-			pw.print('\t');
-			pw.print("reads_sample2_supporting_sample2");
-			pw.print('\t');
-			pw.print("reads_sample2_supporting_sample1");
-			pw.print('\t');
-			pw.print("reads_sample2_supporting_other");
-			pw.print('\t');
-			pw.print("FisherTest");
-			pw.println();
-			for(final SamplePair pair : contaminationTable.keySet())
+			
+			if(this.output_as_vcf)
 				{
-				final SampleAlleles sampleAlleles = contaminationTable.get(pair);
-				if(sampleAlleles==null) continue;
+				vcfw.close();
+				vcfw=null;
+				}
+			else
+				{
+				boolean somethingPrinted=false;
+				PrintWriter pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
 				
+				/* we're done, print the result */
+				pw.print("#");
 				if(!this.use_only_sample_name) {
-					pw.print(pair.sample1.getLabel());
+					pw.print("Machine:FlowCell:Run:Lane-1\tsample1");
 					pw.print('\t');
 					}
-				pw.print(pair.sample1.getSampleName());
+				pw.print("sample1");
 				pw.print('\t');
 				if(!this.use_only_sample_name) {
-					pw.print(pair.sample2.getLabel());
+					pw.print("\tMachine:FlowCell:Run:Lane-2");
 					pw.print('\t');
 					}
-				pw.print(pair.sample2.getSampleName());
-				pw.print('\t');
+				pw.print("sample2");
 				if(!this.use_only_sample_name) {
-					pw.print(pair.sample1.getLabel().equals(pair.sample2.getLabel())?1:0);
-					pw.print('\t');
+					pw.print("\tsame.lane");
 					}
-				pw.print(sampleAlleles.reads_sample1_supporting_sample1);
+				pw.print("\treads_sample1_supporting_sample1");
 				pw.print('\t');
-				pw.print(sampleAlleles.reads_sample1_supporting_sample2);
+				pw.print("reads_sample1_supporting_sample2");
 				pw.print('\t');
-				pw.print(sampleAlleles.reads_sample1_supporting_other);
+				pw.print("reads_sample1_supporting_others");
 				pw.print('\t');
-				pw.print(sampleAlleles.reads_sample2_supporting_sample2);
+				pw.print("reads_sample2_supporting_sample2");
 				pw.print('\t');
-				pw.print(sampleAlleles.reads_sample2_supporting_sample1);
+				pw.print("reads_sample2_supporting_sample1");
 				pw.print('\t');
-				pw.print(sampleAlleles.reads_sample2_supporting_other);
+				pw.print("reads_sample2_supporting_other");
 				pw.print('\t');
-				
-				final FisherExactTest fisher = FisherExactTest.compute(
-						(int)sampleAlleles.reads_sample1_supporting_sample1,
-						(int)sampleAlleles.reads_sample1_supporting_sample2,
-						(int)sampleAlleles.reads_sample2_supporting_sample1,
-						(int)sampleAlleles.reads_sample2_supporting_sample2
-						);
-				pw.print(fisher.getAsDouble());
+				pw.print("FisherTest");
+				pw.print('\t');
+				pw.print("Pass-Fisher");
 				pw.println();
-				somethingPrinted=true;				
+				for(final SamplePair pair : contaminationTable.keySet())
+					{
+					final SampleAlleles sampleAlleles = contaminationTable.get(pair);
+					if(sampleAlleles==null) continue;
+					
+					if(!this.use_only_sample_name) {
+						pw.print(pair.sample1.getLabel());
+						pw.print('\t');
+						}
+					pw.print(pair.sample1.getSampleName());
+					pw.print('\t');
+					if(!this.use_only_sample_name) {
+						pw.print(pair.sample2.getLabel());
+						pw.print('\t');
+						}
+					pw.print(pair.sample2.getSampleName());
+					pw.print('\t');
+					if(!this.use_only_sample_name) {
+						pw.print(pair.sample1.getLabel().equals(pair.sample2.getLabel())?1:0);
+						pw.print('\t');
+						}
+					pw.print(sampleAlleles.reads_sample1_supporting_sample1);
+					pw.print('\t');
+					pw.print(sampleAlleles.reads_sample1_supporting_sample2);
+					pw.print('\t');
+					pw.print(sampleAlleles.reads_sample1_supporting_other);
+					pw.print('\t');
+					pw.print(sampleAlleles.reads_sample2_supporting_sample2);
+					pw.print('\t');
+					pw.print(sampleAlleles.reads_sample2_supporting_sample1);
+					pw.print('\t');
+					pw.print(sampleAlleles.reads_sample2_supporting_other);
+					pw.print('\t');
+					final double fisher = sampleAlleles.getFisher();
+					pw.print(fisher);
+					pw.print('\t');
+					pw.print(this.passFisher.test(fisher)?".":"*");
+					pw.println();
+					somethingPrinted=true;				
+					}
+				pw.flush();
+				pw.close();
+				
+				if(!somethingPrinted)
+					{
+					LOG.warn("Warning: NO output");
+					}
 				}
-			pw.flush();
-			pw.close();
-			
-			if(!somethingPrinted)
-				{
-				System.err.println("Warning: NO output");
-				}
-			
 			return 0;
 			}
 		catch (Exception e) {
@@ -733,6 +956,7 @@ public class XContaminations extends Launcher
 			}
 		finally
 			{
+			CloserUtil.close(vcfw);			
 			CloserUtil.close(in);
 			CloserUtil.close(iter);
 			for(SamReader samReader:sample2samReader.values())
