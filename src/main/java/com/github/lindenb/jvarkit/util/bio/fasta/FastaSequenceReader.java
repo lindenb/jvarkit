@@ -85,18 +85,28 @@ public Iterable<FastaSequence> getSequencesIn(final File file)  {
 	}
 
 
+/** read one sequence in the fasta file. There must be one AND ONLY one sequence */
 public FastaSequence readOne(final File file) throws IOException {
-	CloseableIterator<FastaSequence> r= iterator(file);
-	if(!r.hasNext()) {
-		r.close();
-		throw new IOException("Expected one sequence in "+file+" but got none");
-	}
-	final FastaSequence seq = r.next();
-	if(r.hasNext()) {
-		r.close();
-		throw new IOException("Expected only one sequence in "+file+" but got none after "+seq.getName() );
-	}
-	return seq;
+	CloseableIterator<FastaSequence> r= null;
+	try
+		{
+		r =	this.iterator(file);
+		if(!r.hasNext()) {
+			r.close();r=null;
+			throw new IOException("Expected one sequence in "+file+" but got none");
+			}
+		final FastaSequence seq = r.next();
+		if(r.hasNext()) {
+			r.close();r=null;
+			throw new IOException("Expected only one sequence in "+file+" but got none after "+seq.getName() );
+			}
+		r.close();r=null;
+		return seq;
+		}
+	finally
+		{
+		CloserUtil.close(r);
+		}
 	}
 
 public List<FastaSequence> readAll(final File file) throws IOException {

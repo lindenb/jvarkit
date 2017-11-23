@@ -130,7 +130,7 @@ ifeq (${standalone},yes)
 else
 	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
 endif
-	echo '$$$$*' >> ${dist.dir}/$(1)
+	echo '"$$$$@"' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	# generate markdown if needed
 	-if [ -e "${tmp.dir}/markdown.flag" ] && [ "${TRAVIS}" != "true" ]  ; then \

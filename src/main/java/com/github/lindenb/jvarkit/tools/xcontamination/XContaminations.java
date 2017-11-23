@@ -332,7 +332,7 @@ public class XContaminations extends Launcher
 			return sampleName.hashCode();
 			}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj) return true;
 			if (obj == null) return false;
 			if (getClass() != obj.getClass()) return false;
@@ -871,20 +871,22 @@ public class XContaminations extends Launcher
 				/* we're done, print the result */
 				pw.print("#");
 				if(!this.use_only_sample_name) {
-					pw.print("Machine:FlowCell:Run:Lane-1\tsample1");
+					pw.print("Machine:FlowCell:Run:Lane-1");
 					pw.print('\t');
 					}
 				pw.print("sample1");
 				pw.print('\t');
 				if(!this.use_only_sample_name) {
-					pw.print("\tMachine:FlowCell:Run:Lane-2");
+					pw.print("Machine:FlowCell:Run:Lane-2");
 					pw.print('\t');
 					}
 				pw.print("sample2");
+				pw.print('\t');
 				if(!this.use_only_sample_name) {
-					pw.print("\tsame.lane");
+					pw.print("same.lane");
+					pw.print('\t');
 					}
-				pw.print("\treads_sample1_supporting_sample1");
+				pw.print("reads_sample1_supporting_sample1");
 				pw.print('\t');
 				pw.print("reads_sample1_supporting_sample2");
 				pw.print('\t');
