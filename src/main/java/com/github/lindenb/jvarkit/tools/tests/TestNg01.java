@@ -113,6 +113,7 @@ import com.github.lindenb.jvarkit.tools.vcflist.VcfOffsetsIndexFactory;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations;
+import com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -682,6 +683,18 @@ class TestNg01 {
     	assertIsVcf(JETER_VCF);
     	Assert.assertTrue( JETER_VCF.exists());
     	}
+    
+    @Test(dependsOnMethods={"testVcfInjectPed"})
+    public void testVcfFamilies() throws IOException{    
+    	final File input =new File(TEST_RESULTS_DIR,"tmp.ped.vcf");
+    	Assert.assertEquals(0,new VCFFamilies().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		input.getPath()
+        		}));
+    	assertIsVcf(JETER_VCF);
+    	Assert.assertTrue( JETER_VCF.exists());
+    	}
+    
     @Test
     public void testVcfBigWig() throws IOException{    
 
