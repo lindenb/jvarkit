@@ -1,5 +1,9 @@
 package com.github.lindenb.jvarkit.tools.cloneit;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -7,11 +11,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.Rebase;
+import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
+import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.IOUtil;
 
-public class AbstractCloneIt {
+public abstract class AbstractCloneIt extends Launcher {
 
 protected static class Range
 	{
@@ -42,6 +53,7 @@ protected interface Plasmid
 	public int length();
 	public String getName();
 	public List<Site> getSites();
+	public void digest(final List<Enzyme> rebase);
 	}
 
 protected interface InsertPlasmid extends Plasmid
@@ -143,7 +155,7 @@ protected interface SiteWithTreatment extends Site
 	}
 
 
-protected abstract class AbstractPlasmid 
+protected static abstract class AbstractPlasmid 
 	implements Plasmid
 	{
 	protected byte sequence[];
@@ -196,7 +208,8 @@ protected abstract class AbstractPlasmid
 	private boolean match(char e, char p) {
 		return false;
 		}
-	Plasmid digest(final List<Enzyme> rebase) {
+	@Override
+	public void digest(final List<Enzyme> rebase) {
 		this.sites.clear();
 		for(int i=0;i< this.length();i++) {
 			for(final Enzyme enz: rebase) {
@@ -211,11 +224,10 @@ protected abstract class AbstractPlasmid
 			}
 		
 		Collections.sort(this.sites,this.my_comparator);
-		return this;
 		}
 	}
 
-protected class VectorPlasmidImpl extends AbstractPlasmid implements VectorPlasmid
+protected static class VectorPlasmidImpl extends AbstractPlasmid implements VectorPlasmid
 	{
 	private Range polylinker;
 	@Override
@@ -223,7 +235,7 @@ protected class VectorPlasmidImpl extends AbstractPlasmid implements VectorPlasm
 		return this.polylinker;
 		}
 	}
-protected class InsertPlasmidImpl extends AbstractPlasmid implements InsertPlasmid
+protected static class InsertPlasmidImpl extends AbstractPlasmid implements InsertPlasmid
 	{
 	private Range polylinker5;
 	private Range polylinker3;
@@ -254,5 +266,96 @@ protected class SiteWithTreatmentImpl implements SiteWithTreatment
 	@Override
 	public boolean isTreated() { return this.treated;}
 	}
+
+public static abstract class BasicPlasmidLoader
+	{
+	protected int[] parse_intervals(final String s,int length,int expect) {
+		final String tokens[]=s.split("[,]");
+		if(tokens.length!=expect)
+			{
+			throw new JvarkitException.UserError("expected "+expect+ " number in "+s);
+			}
+		int pos[]=new int[tokens.length];
+		for(int i=0;i< tokens.length;++i) {
+			final int v;
+			try { v= Integer.parseInt(tokens[i]);}
+			catch(NumberFormatException err) {
+				throw new JvarkitException.UserError("bad coordinate in "+s);
+				}
+			if(v<1) throw new JvarkitException.UserError("bad coordinate "+v+"<1 in "+s);
+			if(v>length) throw new JvarkitException.UserError("bad coordinate "+v+">"+length+" in "+s);
+			if(i>0 && pos[i-1]>=v) throw new JvarkitException.UserError("bad coordinate "+v+" in "+s+" number should increase.");
+			pos[i]=v-1;
+		}
+		return pos;
+		}
+	
+	protected FastaSequence load(final File fastaFile) throws IOException
+		{
+		IOUtil.assertFileIsWritable(fastaFile);
+		FastaSequenceReader fsr=new FastaSequenceReader();
+		CloseableIterator<FastaSequence> r = fsr.iterator(fastaFile);
+		if(!r.hasNext())
+			{
+			throw new JvarkitException.UserError("no sequence found in "+fastaFile);
+			}
+		FastaSequence seq = r.next();
+		if(r.hasNext())
+			{
+			throw new JvarkitException.UserError("more than one sequence in "+fastaFile);
+			}
+		return seq;
+		}
+	}
+
+
+public static class VectorPlasmidLoader
+	extends BasicPlasmidLoader
+	{
+	@Parameter(names={"-vector","--vector"},description="Path to a fasta file containing one fasta file for the vector")
+	private File fastaFile;
+	@Parameter(names={"-vp","--vector-polylinker"},description="Vector polylinker. A group of 2 coordinates (1-based) for the begining and the inclusive end of the polylinker")
+	private String polylinker="";
+	
+	VectorPlasmid create() throws IOException{
+		FastaSequence f=this.load(this.fastaFile);
+		int pos[]=this.parse_intervals(this.polylinker, f.length(), 2);
+		VectorPlasmidImpl p=new VectorPlasmidImpl();
+		p.polylinker=new Range(pos[0], pos[1]);
+		p.sequence = f.toByteArray();
+		p.name = f.getName();
+		return p;
+		}
+
+	}
+
+public static class InsertPlasmidLoader
+	extends BasicPlasmidLoader
+	{
+	@Parameter(names={"-insert","--insert"},description="Path to a fasta file containing one fasta file for the insert")
+	private File fastaFile;
+	@Parameter(names={"-ip","--insert-polylinker"},description="Insert polylinker. A group of 4 coordinates (1-based) for the begining and the inclusive end of the polylinker")
+	private String polylinker="";
+	
+	InsertPlasmid create() throws IOException{
+		FastaSequence f=this.load(this.fastaFile);
+		int pos[]=this.parse_intervals(this.polylinker, f.length(),4);
+		InsertPlasmidImpl p=new InsertPlasmidImpl();
+		p.polylinker5=new Range(pos[0], pos[1]);
+		p.polylinker3=new Range(pos[2], pos[3]);
+		p.sequence = f.toByteArray();
+		p.name = f.getName();
+		return p;
+		}
+	}
+private final Rebase rebase = Rebase.createDefaultRebase();
+
+protected AbstractCloneIt() {
+	}
+
+protected Rebase getRebase() {
+	return rebase;
+	}
+
 
 }
