@@ -163,10 +163,7 @@ Should you cite **vcffilterjs** ? [https://github.com/mr-c/shouldacite/blob/mast
 
 The current reference is:
 
-[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+ * "bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).
 
 
 ## About the script

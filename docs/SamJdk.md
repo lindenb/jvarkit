@@ -116,6 +116,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Sun Nov 19 14:02:56 2017 +0100 ; java, not javascript ! ; https://github.com/lindenb/jvarkit/commit/927ad7ec8655ac50185117702f9a4a90b274bf78
 Sun Nov 19 13:42:31 2017 +0100 ; adding message + checking https://github.com/lindenb/jvarkit/issues/90 ; https://github.com/lindenb/jvarkit/commit/5535f01de81b929284420ba1cf34b15247f13363
 Sun Nov 19 13:39:53 2017 +0100 ; adding message + checking https://github.com/lindenb/jvarkit/issues/90 ; https://github.com/lindenb/jvarkit/commit/6cee6caca575f1dee3efe872fb93908b2455be32
 Thu Nov 16 11:26:49 2017 +0100 ; samjdk + biostars:283969 ; https://github.com/lindenb/jvarkit/commit/3b48be1b9558518e8c694508844b219904ea7d4f
@@ -150,10 +151,7 @@ Should you cite **samjdk** ? [https://github.com/mr-c/shouldacite/blob/master/sh
 
 The current reference is:
 
-[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+ * "bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).
 
 
 ## Motivation

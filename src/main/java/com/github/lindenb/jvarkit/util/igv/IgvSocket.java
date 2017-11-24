@@ -49,10 +49,9 @@ import java.util.List;
  *
  */
 public class IgvSocket
+	extends IgvConstants
 	implements Closeable
 	{
-	public static final int DEFAULT_PORT=60151;
-	public static final String DEFAULT_HOST="127.0.0.1";
 	
 	private String host=DEFAULT_HOST;
 	private int port=DEFAULT_PORT;
