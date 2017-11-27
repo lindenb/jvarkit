@@ -820,7 +820,7 @@ ${dist.dir}/htslib.jar :  $(addsuffix .java,$(addprefix ${src.dir}/com/github/li
 	mkdir -p $(dir $@)  "${tmp.dir}"
 	$(JAVAC) -d ${tmp.dir}  -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java $(filter %.java,$^)
 	$(JAVAH) -o "${generated.dir}/cpp/htslibjni.h" -jni -classpath "${tmp.dir}" $(subst /,.,$(subst ${src.dir}/,,$(basename $(filter %.java,$^))))
-	g++  -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fPIC -shared -I /home/lindenb/package/jdk1.8.0_152/include -I /home/lindenb/package/jdk1.8.0_152/include/linux $(addprefix -I,$(sort $(dir $(shell find "${JAVA_HOME}/include" -type f -name "*.h")))) -I ${this.dir}src/main/cpp/htslib -I "${generated.dir}/cpp"  -o ${dist.dir}/libhtslibjni.so  $(filter %.c,$^)
+	gcc -Wall -fPIC -shared -I /home/lindenb/package/jdk1.8.0_152/include -I /home/lindenb/package/jdk1.8.0_152/include/linux $(addprefix -I,$(sort $(dir $(shell find "${JAVA_HOME}/include" -type f -name "*.h")))) -I ${this.dir}src/main/cpp/htslib -I "${generated.dir}/cpp"  -o ${dist.dir}/libhtslibjni.so  $(filter %.c,$^)
 	${JAR} cf $@ -C ${tmp.dir} .
 	rm -rf "${tmp.dir}"
 	

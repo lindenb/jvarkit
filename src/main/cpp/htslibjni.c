@@ -17,24 +17,26 @@ static void* safeMalloc(size_t size) {
 	return ptr;
 	}
 
-#define C_NAME(STR) _c_ ## STR
-#define STR_TO_C(javaString) const char* C_NAME(javaString) = (*env)->GetStringUTFChars(env, javaString, 0)
+#define C_VAR(S) _c_ ## S
 
-#define STR_RELEASE(nativeString) (*env)->ReleaseStringUTFChars(env, javaString, C_NAME(javaString))
-	
+#define STR_J2C(S) const char* C_VAR(S) = ( const char *) (*env)->GetStringUTFChars(env, S, NULL)
+#define FREE_STR(S) (*env)->ReleaseStringUTFChars(env,S,C_VAR(S))
+
 #define CLASS(NAME)  Java_com_github_lindenb_jvarkit_htslib_HtsFile_ ##  NAME 
-jlong CLASS(_1open) (JNIEnv* env, jclass c, jstring filename, jstring mode) {
-	jlong f=0L;
-	STR_TO_C(filename);
-	/*STR_TO_C(mode);
+
+
+jlong CLASS(_1open) (JNIEnv *env, jclass clazz, jstring filename, jstring mode) {
+	STR_J2C(filename);
+	STR_J2C(mode);
 	htsFile* f= hts_open(C_VAR(filename),C_VAR(mode));
-	STR_RELEASE(filename);
-	STR_RELEASE(mode);*/
+	FREE_STR(filename);
+	FREE_STR(mode);
 	return (jlong)f;
 	}
 
 
 void CLASS(_1close) (JNIEnv* env, jclass c, jlong ptr) {
+	if(ptr<=0L) return;
 	hts_close((htsFile*)ptr);
 	}
 
@@ -42,7 +44,7 @@ void CLASS(_1close) (JNIEnv* env, jclass c, jlong ptr) {
 
 #define CLASS(NAME)  Java_com_github_lindenb_jvarkit_htslib_KString_ ##  NAME 
 
-jlong CLASS(_1create) (JNIEnv *env, jclass clazz) {
+jlong CLASS(_1create) (JNIEnv* env, jclass clazz) {
 	return (long)safeMalloc(sizeof(kstring_t));
 	}
 
@@ -56,7 +58,9 @@ jint CLASS(_len)(JNIEnv* env, jclass clazz, jlong ptr) {
 
 void CLASS(_release)(JNIEnv* env, jclass clazz, jlong ptr) {
 	kstring_t* ks = (kstring_t*)ptr;
+	if(ptr==0L) return;
 	free(ks->s);
 	free(ks);
 	}
+#undef CLASS
 
