@@ -18,7 +18,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMUtils;
 
 @Program(name="splitread",
-	description="TODO",keywords={"sam","bam"})
+	description="TODO",keywords={"sam","bam"},generate_doc=false)
 public class SplitRead extends Launcher{
 	private static final Logger LOG=Logger.build(SplitRead.class).make();
     @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

@@ -23,6 +23,7 @@ xjc.proxy=$(if ${http.proxy.host}${http.proxy.port}, -httpproxy "${http.proxy.ho
 ANT?=ant
 JAVAC?=javac
 JAVA?=java
+JAVAH?=javah
 JAVACC?=javacc
 JAR?=jar
 XJC?=xjc
@@ -801,6 +802,45 @@ $(word 1,${ga4gh.schemas.avpr}) : ${avro.libs}
 # end of ga4gh schema
 #
 #
+
+#
+# begin jni+htslib
+#
+#
+HTSLIB_VERSION=1.6
+
+htslib.jar : ${dist.dir}/libhtslibjni.so
+
+${dist.dir}/libhtslibjni.so : ${dist.dir}/htslib.jar
+	touch -c $@
+${dist.dir}/htslib.jar :  $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/htslib/,HtsFile KString)) \
+		${this.dir}src/main/cpp/htslib/libhts.so \
+		${this.dir}src/main/cpp/htslibjni.c
+	rm -rf "${tmp.dir}" "${dist.dir}/libhtslibjni.so"
+	mkdir -p $(dir $@)  "${tmp.dir}"
+	$(JAVAC) -d ${tmp.dir}  -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java $(filter %.java,$^)
+	$(JAVAH) -o "${generated.dir}/cpp/htslibjni.h" -jni -classpath "${tmp.dir}" $(subst /,.,$(subst ${src.dir}/,,$(basename $(filter %.java,$^))))
+	g++  -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fPIC -shared -I /home/lindenb/package/jdk1.8.0_152/include -I /home/lindenb/package/jdk1.8.0_152/include/linux $(addprefix -I,$(sort $(dir $(shell find "${JAVA_HOME}/include" -type f -name "*.h")))) -I ${this.dir}src/main/cpp/htslib -I "${generated.dir}/cpp"  -o ${dist.dir}/libhtslibjni.so  $(filter %.c,$^)
+	${JAR} cf $@ -C ${tmp.dir} .
+	rm -rf "${tmp.dir}"
+	
+
+${this.dir}src/main/cpp/htslib/libhts.so :  ${this.dir}src/main/cpp/htslib/Makefile
+	cd $(dir $@) && make
+${this.dir}src/main/cpp/htslib/Makefile:
+	rm -rf "$(dir $@)"
+	wget -O "${HTSLIB_VERSION}.tar.gz" "https://github.com/samtools/htslib/archive/${HTSLIB_VERSION}.tar.gz"
+	tar xfz "${HTSLIB_VERSION}.tar.gz"
+	mv -v "htslib-${HTSLIB_VERSION}" "$(dir $@)"
+	rm -vf "${HTSLIB_VERSION}.tar.gz"
+	touch -c "$@"
+
+#
+# end of jni+htslib
+#
+#
+
+
 
 include jfx.mk
 
