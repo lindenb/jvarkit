@@ -22,8 +22,8 @@ xjc.proxy=$(if ${http.proxy.host}${http.proxy.port}, -httpproxy "${http.proxy.ho
 
 ANT?=ant
 JAVAC?=javac
-JAVA?=java
 JAVAH?=javah
+JAVA?=java
 JAVACC?=javacc
 JAR?=jar
 XJC?=xjc
