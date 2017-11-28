@@ -51,6 +51,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
  * [https://www.biostars.org/p/279942](https://www.biostars.org/p/279942)
  * [https://www.biostars.org/p/284852](https://www.biostars.org/p/284852)
+ * [https://www.biostars.org/p/285803](https://www.biostars.org/p/285803)
 
 
 ## Compilation
@@ -96,6 +97,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Mon Nov 20 19:15:20 2017 +0100 ; answer to https://www.biostars.org/p/284852/#284872 ; https://github.com/lindenb/jvarkit/commit/c202551f046c05d1f37dfbc997aeefc0d78d341a
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
 Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
@@ -127,10 +129,7 @@ Should you cite **bioalcidaejdk** ? [https://github.com/mr-c/shouldacite/blob/ma
 
 The current reference is:
 
-[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+ * "bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).
 
 
 Bioinformatics file java-based reformatter. Something like awk for VCF, BAM, SAM...
@@ -452,6 +451,20 @@ print information about reads overlaping the base 'rotavirus:200' and the tag 'X
 
 ```
 $ samtools view -h ~/src/gatk-ui/testdata/S1.bam "rotavirus:200-200" | java -jar dist/bioalcidaejdk.jar -F SAM -e 'stream().forEach(record->{final String contig= "rotavirus"; final int mutpos = 200; if(record.getReadUnmappedFlag()) return ;if(!record.getContig().equals(contig)) return ;if(record.getEnd() < mutpos) return ;if(record.getStart() > mutpos) return ; int readpos = record.getReadPositionAtReferencePosition(mutpos); if(readpos<1) return ; readpos--; final byte[] bases= record.getReadBases();println(record.getReadName()+" "+record.getContig()+" "+record.getStart()+" "+record.getEnd()+" base["+mutpos+"]="+(char)bases[readpos]+" XS="+record.getAttribute("XS"));});'
+```
+
+## Example
+
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig()+"\t"+V.getStart()+"\t"+V.getReference().getDisplayString()+"\t"+V.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))+"\t"+V.getGenotypes().stream().map(G->G.getSampleName()+"="+G.getAlleles().stream().filter(A->A.isCalled()).map(A->A.getDisplayString()).collect(Collectors.joining("/"))).collect(Collectors.joining("\t")));});' src/test/resources/test_vcf01.vcf
+
+1   956852  C   T   S1= S2=T/T  S3=C/T  S4=C/T  S5=T/T  S6=C/T
+1   959155  G   A   S1= S2=G/A  S3=G/A  S4=G/A  S5=A/A  S6=G/A
+1   959169  G   C   S1= S2=G/C  S3=G/C  S4=G/C  S5=C/C  S6=G/C
+1   959231  G   A   S1= S2=G/A  S3=G/A  S4=G/A  S5=A/A  S6=G/A
+1   960409  G   C   S1= S2=G/C  S3=G/C  S4=G/C  S5=C/C  S6=G/C
+1   962210  A   G   S1=A/G  S2=A/G  S3=A/G  S4=A/G  S5= S6=A/G
 ```
 
 

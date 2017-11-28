@@ -370,7 +370,7 @@ public class GroupByGene
 						return C1.line.compareTo(C2.line);
 					},
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			sortingCollection.setDestructiveIteration(true);
 	

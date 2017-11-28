@@ -16,4 +16,6 @@ public @interface Program {
 	/** shall we generate the Markdown Documentation ? */
 	public boolean generate_doc() default true;
 	public com.github.lindenb.semontology.Term[] terms() default {};
+	/** bibliographic references for this paper, this paper was published in... */
+	public String[] references() default {};
 }

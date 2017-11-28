@@ -258,7 +258,8 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083}
+		biostars={266201,269854,277820,250212,284083},
+		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk
 	extends Launcher

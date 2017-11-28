@@ -347,8 +347,9 @@ END_DOC
 		description="Filtering VCF with javascript expressions",
 		keywords={"vcf","filter","javascript","json","nashorn"},
 		terms=Term.ID_0000003,
-		biostars={88921,233587,104021,213032,215885,243972,111924,196057,142215,229935,181358,184966,245802,7403,245181,
-				117974,242281,252580}
+		biostars={88921,233587,104021,213032,215885,243972,111924,196057,142215,229935,
+				181358,184966,245802,7403,245181,117974,242281,252580},
+		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VCFFilterJS
 	extends Launcher

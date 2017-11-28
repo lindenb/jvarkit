@@ -162,7 +162,8 @@ END_DOC
 @Program(
 		name="vcfgo",
 		description="Find the GO terms for VCF annotated with SNPEFF or VEP",
-		keywords={"vcf","go"})
+		keywords={"vcf","go"}
+		)
 public class VcfGeneOntology
 	extends Launcher
 	{

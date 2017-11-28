@@ -419,11 +419,27 @@ public static  class UsageBuider
 			sb.append("\n");
 			sb.append("The current reference is:\n");
 			sb.append("\n");
-			sb.append(hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
-			sb.append("\n");
-			sb.append("> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.\n");
-			sb.append("> "+hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
-			sb.append("\n");
+			
+			
+			final String references[]= (programdesc==null?new String[0]:programdesc.references());
+			
+			
+			if(references==null || references.length==0) {
+				sb.append(hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
+				sb.append("\n");
+				sb.append("> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.\n");
+				sb.append("> "+hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
+				sb.append("\n");
+				}
+			else
+				{
+				for(final String ref:references) {
+					sb.append(" * ");
+					sb.append(ref);
+					sb.append("\n");
+					}
+				sb.append("\n");
+				}
 			}
 		if( this.helpFormat.equals(HelpFormat.markdown) ) {
 			include(sb,clazz.getName());

@@ -22,6 +22,7 @@ xjc.proxy=$(if ${http.proxy.host}${http.proxy.port}, -httpproxy "${http.proxy.ho
 
 ANT?=ant
 JAVAC?=javac
+JAVAH?=javah
 JAVA?=java
 JAVACC?=javacc
 JAR?=jar
@@ -130,7 +131,7 @@ ifeq (${standalone},yes)
 else
 	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
 endif
-	echo '$$$$*' >> ${dist.dir}/$(1)
+	echo '"$$$$@"' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	# generate markdown if needed
 	-if [ -e "${tmp.dir}/markdown.flag" ] && [ "${TRAVIS}" != "true" ]  ; then \
@@ -176,7 +177,7 @@ GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenfisherh vcfburdenfisherv vcfbu
 gatk_apps:$(if ${gatk.jar},gatkwalkers,)
 	
 
-APPS= ${GALAXY_APPS} gatk_apps vcftrio   groupbygene \
+APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq lowresbam2raster bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	batchigvpictures	bedliftover \
@@ -449,6 +450,7 @@ $(eval $(call compile-htsjdk-cmd,vcftabixml,${jvarkit.package}.tools.vcftabixml.
 $(eval $(call compile-htsjdk-cmd,vcftail,${jvarkit.package}.tools.misc.VcfTail,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcftreepack,${jvarkit.package}.tools.treepack.VcfTreePack,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTrios,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcffamilies,${jvarkit.package}.tools.vcftrios.VCFFamilies,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${jcommander.jar} ${generated.dir}/java/org/uniprot/package-info.java ))
@@ -539,6 +541,7 @@ $(eval $(call compile-htsjdk-cmd,trapindexer,${jvarkit.package}.tools.trap.TrapI
 $(eval $(call compile-htsjdk-cmd,vcftrap,${jvarkit.package}.tools.trap.VcfTrap,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfepistatis01,${jvarkit.package}.tools.epistasis.VcfEpistatis01,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,subcloneit,${jvarkit.package}.tools.cloneit.SubCloneIt,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,igvreview,${jvarkit.package}.tools.igvreview.IgvReview,${jcommander.jar}))
 
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.burden.VcfBurdenEpistasis,${jcommander.jar}))
@@ -799,6 +802,45 @@ $(word 1,${ga4gh.schemas.avpr}) : ${avro.libs}
 # end of ga4gh schema
 #
 #
+
+#
+# begin jni+htslib
+#
+#
+HTSLIB_VERSION=1.6
+
+htslib.jar : ${dist.dir}/libhtslibjni.so
+
+${dist.dir}/libhtslibjni.so : ${dist.dir}/htslib.jar
+	touch -c $@
+${dist.dir}/htslib.jar :  $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/htslib/,HtsFile KString)) \
+		${this.dir}src/main/cpp/htslib/libhts.so \
+		${this.dir}src/main/cpp/htslibjni.c
+	rm -rf "${tmp.dir}" "${dist.dir}/libhtslibjni.so"
+	mkdir -p $(dir $@)  "${tmp.dir}"
+	$(JAVAC) -d ${tmp.dir}  -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java $(filter %.java,$^)
+	$(JAVAH) -o "${generated.dir}/cpp/htslibjni.h" -jni -classpath "${tmp.dir}" $(subst /,.,$(subst ${src.dir}/,,$(basename $(filter %.java,$^))))
+	gcc -Wall -fPIC -shared -I /home/lindenb/package/jdk1.8.0_152/include -I /home/lindenb/package/jdk1.8.0_152/include/linux $(addprefix -I,$(sort $(dir $(shell find "${JAVA_HOME}/include" -type f -name "*.h")))) -I ${this.dir}src/main/cpp/htslib -I "${generated.dir}/cpp"  -o ${dist.dir}/libhtslibjni.so  $(filter %.c,$^)
+	${JAR} cf $@ -C ${tmp.dir} .
+	rm -rf "${tmp.dir}"
+	
+
+${this.dir}src/main/cpp/htslib/libhts.so :  ${this.dir}src/main/cpp/htslib/Makefile
+	cd $(dir $@) && make
+${this.dir}src/main/cpp/htslib/Makefile:
+	rm -rf "$(dir $@)"
+	wget -O "${HTSLIB_VERSION}.tar.gz" "https://github.com/samtools/htslib/archive/${HTSLIB_VERSION}.tar.gz"
+	tar xfz "${HTSLIB_VERSION}.tar.gz"
+	mv -v "htslib-${HTSLIB_VERSION}" "$(dir $@)"
+	rm -vf "${HTSLIB_VERSION}.tar.gz"
+	touch -c "$@"
+
+#
+# end of jni+htslib
+#
+#
+
+
 
 include jfx.mk
 

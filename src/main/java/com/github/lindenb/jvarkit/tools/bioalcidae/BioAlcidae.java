@@ -469,7 +469,8 @@ END_DOC
 @Program(name="bioalcidae",
 	description="javascript version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","js","nashorn"},
-	biostars={276219,257346,183197,185162,153060,152016,152720,152820,218444,224402,241751,240452,248385,186610,242127,167389,187494,183197,152820,178004,156250,202400,183982,173201}
+	biostars={276219,257346,183197,185162,153060,152016,152720,152820,218444,224402,241751,240452,248385,186610,242127,167389,187494,183197,152820,178004,156250,202400,183982,173201},
+	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidae
 	extends Launcher

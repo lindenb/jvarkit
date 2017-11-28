@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.xcontamination;
 
@@ -227,12 +223,12 @@ public class XContaminations extends Launcher
 	private BiPredicate<VariantContext,Genotype> genotypeFilter = JexlGenotypePredicate.create("");
 	@Parameter(names={"-ov","--output-vcf"},description="output results as a vcf file; only is --sample option is set.")
 	private boolean output_as_vcf= false;
-	@Parameter(names={"-ft","--fihser-treshold"},description="Fisher Test treshold")
-	private double fisher_treshold=1E-5;
+	@Parameter(names={"-ft","--frasction-treshold"},description="FractionTreshold treshold")
+	private double fraction_treshold=1E-5;
 	@Parameter(names={"-factor","--factor"},description="Fail factor: set if (reads sample x supporting x) <= factor (reads sample x supporting y)")
 	private int fail_factor=10;
 
-	private DoublePredicate passFisher = (V) -> V < fisher_treshold;
+	private DoublePredicate passFractionTreshold  = (V) -> V > fraction_treshold;
 	
 	private static class SampleAlleles
 		{
@@ -243,6 +239,21 @@ public class XContaminations extends Launcher
 		long reads_sample2_supporting_sample2=0;
 		long reads_sample2_supporting_other=0;
 		
+		public double getFraction() {
+			final double t= 
+					  reads_sample1_supporting_sample1 +
+					  reads_sample1_supporting_sample2 +
+					  reads_sample2_supporting_sample1 +
+					  reads_sample2_supporting_sample2
+					  ;
+			final double n =  
+					reads_sample1_supporting_sample2 +
+					reads_sample2_supporting_sample1 
+					;
+			return n / t;
+			}
+		
+		@SuppressWarnings("unused")
 		public double getFisher() {
 			final FisherExactTest fisher = FisherExactTest.compute(
 					(int)this.reads_sample1_supporting_sample1,
@@ -332,7 +343,7 @@ public class XContaminations extends Launcher
 			return sampleName.hashCode();
 			}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj) return true;
 			if (obj == null) return false;
 			if (getClass() != obj.getClass()) return false;
@@ -550,13 +561,13 @@ public class XContaminations extends Launcher
 				metaData.add(new VCFFormatHeaderLine("S2S1", 1, VCFHeaderLineType.Integer,"reads sample 2 supporting sample 1"));
 				metaData.add(new VCFFormatHeaderLine("S2S2", 1, VCFHeaderLineType.Integer,"reads sample 2 supporting sample 2"));
 				metaData.add(new VCFFormatHeaderLine("S2SO", 1, VCFHeaderLineType.Integer,"reads sample 2 supporting others"));
-				metaData.add(new VCFFormatHeaderLine("F", 1, VCFHeaderLineType.Float,"Fisher test. '-1' for unavailable."));
+				metaData.add(new VCFFormatHeaderLine("FR", 1, VCFHeaderLineType.Float,"Fraction. '-1' for unavailable."));
 				
 				metaData.add(new VCFFormatHeaderLine("S1A", 1, VCFHeaderLineType.Character,"sample 1 allele"));
 				metaData.add(new VCFFormatHeaderLine("S2A", 1, VCFHeaderLineType.Character,"sample 2 allele"));
 
 				
-				metaData.add(new VCFFilterHeaderLine("XCONTAMINATION","Fisher test is < "+fisher_treshold));
+				metaData.add(new VCFFilterHeaderLine("XCONTAMINATION","Fraction test is > "+fraction_treshold));
 				metaData.add(new VCFFilterHeaderLine("BADSAMPLES","At least one pair of genotype fails the 'LE' test"));
 				metaData.add(new VCFInfoHeaderLine("LE",1, VCFHeaderLineType.Integer,"number of pair of genotypes having (S1S1<=S1S2 or S2S2<=S2S1)."));
 				metaData.add(new VCFInfoHeaderLine("BADSAMPLES",VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,"Samples founds failing the 'LE' test"));
@@ -780,7 +791,7 @@ public class XContaminations extends Launcher
 				if(this.output_as_vcf) 
 					{
 					final Set<String> bad_samples=new TreeSet<>();
-					boolean fisher_flag=false;
+					boolean fraction_flag=false;
 					int num_lt=0;
 					for(final SamplePair samplepair :sampleListForVcf)
 						{
@@ -796,10 +807,10 @@ public class XContaminations extends Launcher
 							gb.attribute("S2SO", sampleAlleles.reads_sample2_supporting_other);
 							gb.attribute("S1A",sample2gt.get(samplepair.sample1.getSampleName()).getAllele(0).getDisplayString().charAt(0));
 							gb.attribute("S2A",sample2gt.get(samplepair.sample2.getSampleName()).getAllele(0).getDisplayString().charAt(0));
-							final double fisher = sampleAlleles.getFisher();
-							gb.attribute("F", fisher);
-							if(!this.passFisher.test(fisher)) {
-								fisher_flag=true;
+							final double fraction = sampleAlleles.getFraction();
+							gb.attribute("FR", fraction);
+							if(!this.passFractionTreshold.test(fraction)) {
+								fraction_flag=true;
 								}
 							
 							boolean bad_lt_flag=false;
@@ -829,7 +840,7 @@ public class XContaminations extends Launcher
 							gb.attribute("S1A",'.');
 							gb.attribute("S2A",'.');
 
-							gb.attribute("F", -1f);
+							gb.attribute("FR", -1f);
 							}
 						genotypeList.add(gb.make());
 						}
@@ -838,9 +849,9 @@ public class XContaminations extends Launcher
 						vcb.attribute("BADSAMPLES", new ArrayList<>(bad_samples));
 						}
 					vcb.attribute("LE", num_lt);
-					if(fisher_flag || !bad_samples.isEmpty()) 
+					if(fraction_flag || !bad_samples.isEmpty()) 
 						{
-						if(fisher_flag) vcb.filter("XCONTAMINATION");
+						if(fraction_flag) vcb.filter("XCONTAMINATION");
 						if(!bad_samples.isEmpty()) vcb.filter("BADSAMPLES");
 						}
 					else
@@ -871,20 +882,22 @@ public class XContaminations extends Launcher
 				/* we're done, print the result */
 				pw.print("#");
 				if(!this.use_only_sample_name) {
-					pw.print("Machine:FlowCell:Run:Lane-1\tsample1");
+					pw.print("Machine:FlowCell:Run:Lane-1");
 					pw.print('\t');
 					}
 				pw.print("sample1");
 				pw.print('\t');
 				if(!this.use_only_sample_name) {
-					pw.print("\tMachine:FlowCell:Run:Lane-2");
+					pw.print("Machine:FlowCell:Run:Lane-2");
 					pw.print('\t');
 					}
 				pw.print("sample2");
+				pw.print('\t');
 				if(!this.use_only_sample_name) {
-					pw.print("\tsame.lane");
+					pw.print("same.lane");
+					pw.print('\t');
 					}
-				pw.print("\treads_sample1_supporting_sample1");
+				pw.print("reads_sample1_supporting_sample1");
 				pw.print('\t');
 				pw.print("reads_sample1_supporting_sample2");
 				pw.print('\t');
@@ -896,9 +909,9 @@ public class XContaminations extends Launcher
 				pw.print('\t');
 				pw.print("reads_sample2_supporting_other");
 				pw.print('\t');
-				pw.print("FisherTest");
+				pw.print("Fraction");
 				pw.print('\t');
-				pw.print("Pass-Fisher");
+				pw.print("Pass-Fraction");
 				pw.println();
 				for(final SamplePair pair : contaminationTable.keySet())
 					{
@@ -933,10 +946,10 @@ public class XContaminations extends Launcher
 					pw.print('\t');
 					pw.print(sampleAlleles.reads_sample2_supporting_other);
 					pw.print('\t');
-					final double fisher = sampleAlleles.getFisher();
-					pw.print(fisher);
+					final double fraction = sampleAlleles.getFraction();
+					pw.print(fraction);
 					pw.print('\t');
-					pw.print(this.passFisher.test(fisher)?".":"*");
+					pw.print(this.passFractionTreshold.test(fraction)?".":"*");
 					pw.println();
 					somethingPrinted=true;				
 					}

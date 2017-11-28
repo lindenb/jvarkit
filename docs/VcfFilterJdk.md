@@ -99,6 +99,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
 Tue Nov 7 17:21:21 2017 +0100 ; https://www.biostars.org/p/250212/ vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/d9b533e2389384f64f336111f4770c9ca7fd3ee0
 Wed Oct 25 09:48:05 2017 +0200 ; added counter<> to vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/282000fc2db2a3b69e7291a2ca74f2d88b6fbcb2
 Tue Oct 24 16:02:53 2017 +0200 ; fixing a bug from samoutput format, not defined as enum in htsjdk via https://www.biostars.org/p/247485/#279521 ; https://github.com/lindenb/jvarkit/commit/50ce395e37ba198aaff7d38d8b34475ed402965e
@@ -134,10 +135,7 @@ Should you cite **vcffilterjdk** ? [https://github.com/mr-c/shouldacite/blob/mas
 
 The current reference is:
 
-[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+ * "bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).
 
 
 

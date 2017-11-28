@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -13,12 +14,15 @@ import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.bio.Rebase;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.sun.javafx.scene.traversal.Algorithm;
 
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 
@@ -74,7 +78,7 @@ protected interface VectorPlasmid extends Plasmid
 
 
 
-protected interface Enzyme
+protected static interface Enzyme
 	{
 	public String getName();
 	public String getBases();
@@ -86,16 +90,18 @@ protected interface Enzyme
 	public default int getOverhangLength() { return get5_3()-get3_5();}
 	}
 
-protected class EnzymeImpl implements Enzyme
+protected static class EnzymeImpl implements Enzyme
 	{
 	final int _5_3;
 	final Rebase.Enzyme rebaseEnz;
+	final int _hash;
 	EnzymeImpl(final Rebase.Enzyme rebaseEnz) {
 		this.rebaseEnz = rebaseEnz;
 		final String decl = rebaseEnz.getDecl();
 		final int k = decl.indexOf('^');
 		if( k == -1) throw new IllegalArgumentException(decl+" missing ^");
 		this._5_3=k;//TODO
+		this._hash = decl.hashCode();
 		}
 	@Override
 	public String getName() {
@@ -123,7 +129,21 @@ protected class EnzymeImpl implements Enzyme
 	public int get5_3() {
 		return _5_3;
 		}
-	
+	@Override
+	public int hashCode() {
+		return this._hash;
+		}
+	@Override
+	public boolean equals(Object obj) {
+		if(obj==null) return false;
+		if(obj==this) return true;
+		if(!(obj instanceof Enzyme)) return false;
+		return this.getDeclaredBases().equals(Enzyme.class.cast(obj).getDeclaredBases());
+		}
+	@Override
+	public String toString() {
+		return rebaseEnz.toString();
+		}
 	}
 
 protected interface Site
@@ -160,8 +180,27 @@ protected static abstract class AbstractPlasmid
 	{
 	protected byte sequence[];
 	protected String name;
-	protected List<Site> sites = new ArrayList<>();
-	protected Comparator<Site> my_comparator = (S1,S2) -> Integer.compare(S1.getPosition(), S2.getPosition());
+	protected final List<Site> sites = new ArrayList<>();
+	protected final Comparator<Site> my_comparator = (S1,S2) -> Integer.compare(S1.getPosition(), S2.getPosition());
+	
+	private static class CompositeList<S> extends AbstractList<S>
+		{
+		final List<S> L;
+		final List<S> R;
+		CompositeList(final List<S> L,final List<S> R) {
+			this.L = L;
+			this.R = R;
+			}
+		@Override
+		public S get(int index) {
+			return (index<L.size()?L.get(index):R.get(index-L.size()));
+			}
+		@Override
+		public int size() {
+			return this.L.size() + this.R.size();
+			}
+		}
+	
 	
 	private class SiteImpl implements Site
 		{
@@ -206,7 +245,7 @@ protected static abstract class AbstractPlasmid
 		return (char)this.sequence[index];
 		}
 	private boolean match(char e, char p) {
-		return false;
+		return Rebase.compatible(p, e);
 		}
 	@Override
 	public void digest(final List<Enzyme> rebase) {
@@ -225,6 +264,9 @@ protected static abstract class AbstractPlasmid
 		
 		Collections.sort(this.sites,this.my_comparator);
 		}
+	
+
+	
 	}
 
 protected static class VectorPlasmidImpl extends AbstractPlasmid implements VectorPlasmid
@@ -292,19 +334,7 @@ public static abstract class BasicPlasmidLoader
 	
 	protected FastaSequence load(final File fastaFile) throws IOException
 		{
-		IOUtil.assertFileIsWritable(fastaFile);
-		FastaSequenceReader fsr=new FastaSequenceReader();
-		CloseableIterator<FastaSequence> r = fsr.iterator(fastaFile);
-		if(!r.hasNext())
-			{
-			throw new JvarkitException.UserError("no sequence found in "+fastaFile);
-			}
-		FastaSequence seq = r.next();
-		if(r.hasNext())
-			{
-			throw new JvarkitException.UserError("more than one sequence in "+fastaFile);
-			}
-		return seq;
+		return new FastaSequenceReader().readOne(fastaFile);
 		}
 	}
 
@@ -338,9 +368,9 @@ public static class InsertPlasmidLoader
 	private String polylinker="";
 	
 	InsertPlasmid create() throws IOException{
-		FastaSequence f=this.load(this.fastaFile);
-		int pos[]=this.parse_intervals(this.polylinker, f.length(),4);
-		InsertPlasmidImpl p=new InsertPlasmidImpl();
+		final FastaSequence f=this.load(this.fastaFile);
+		final int pos[]=this.parse_intervals(this.polylinker, f.length(),4);
+		final InsertPlasmidImpl p=new InsertPlasmidImpl();
 		p.polylinker5=new Range(pos[0], pos[1]);
 		p.polylinker3=new Range(pos[2], pos[3]);
 		p.sequence = f.toByteArray();

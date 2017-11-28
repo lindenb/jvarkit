@@ -1,7 +1,11 @@
 package com.github.lindenb.jvarkit.tools.cloneit;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.ParametersDelegate;
@@ -18,6 +22,8 @@ public class SubCloneIt extends AbstractCloneIt {
 	private float enzymeWeight=5f;
 	private InsertPlasmid insert=null;
 	private VectorPlasmid vector=null;
+	private boolean acceptPolymerase=false;
+	private boolean useCIAP=false;
 	
 private class HemiStrategy
 	{
@@ -31,71 +37,6 @@ private class Strategy
 	HemiStrategy riht;
 	}
 
-private class SearchV3
-	{
-	private int index=0;
-	private Enzyme enz;
-	private SearchV5 searchV5;
-	
-	List<Enzyme> getEnzymes() { return this.searchV5.enzymes;}
-	
-	void run(final SearchV5 searchV5) {
-		this.searchV5 = searchV5;
-		for(this.index=0;this.index<this.getEnzymes().size();++this.index)
-			{
-			this.enz = this.getEnzymes().get(this.index);
-			
-			vector.getSites().stream().
-				filter(S->S.getEnzyme().equals(this.enz)).
-				filter(S->S.getMaxPosition()<=vector.getPolylinker().getEnd()).forEach(S->{
-					});
-
-			}
-		}
-	}
-
-private class SearchV5
-	{
-	private List<Enzyme> enzymes;
-	private int index=0;
-	private Enzyme enz;
-	void run() {
-		final SearchV3 searchv3=new SearchV3();
-		for(this.index=0;this.index<this.enzymes.size();++this.index)
-			{
-			this.enz = this.enzymes.get(this.index);
-			vector.getSites().stream().
-				filter(S->S.getEnzyme().equals(enz)).
-				filter(S->S.getPosition()>=vector.getPolylinker().getStart()).
-				filter(S->S.getMaxPosition()<=vector.getPolylinker().getEnd()).forEach(S->{
-					searchv3.run(this);
-					});
-			}
-		}
-	}
-
-private List<Strategy> run() {
-	List<Enzyme> enzymes =new ArrayList<>();
-	for(final Enzyme e: enzymes)
-		{
-		long count_out = insert.getSites().stream().
-				filter(S->S.getEnzyme().equals(e)).
-				filter(S->S.getMaxPosition()< insert.getPolylinker5().getStart() /* todo || S.getPosition() > insert.getPolylinker3()*/).
-				count();
-		}
-	
-	
-	vector.getSites().stream().filter(S->S.getPosition()>0).forEach(SITE_V_5->{
-		
-		vector.getSites().stream().filter(S->S.getPosition()>SITE_V_5.getMaxPosition() && S.getPosition()<0).forEach(SITE_V_3->{
-			
-			
-			
-			});
-		
-		});
-	return null;//TODO
-	}
 
 @Override
 public int doWork(final List<String> args) {
@@ -118,6 +59,88 @@ public int doWork(final List<String> args) {
 		this.insert.digest(enzymes);
 		this.vector.digest(enzymes);
 
+		
+		final Set<Enzyme> badEnzymesV = this.vector.getSites().stream().
+				filter(S->S.getPosition()< this.vector.getPolylinker().getStart() || S.getPosition()> this.vector.getPolylinker().getEnd()).
+				map(S->S.getEnzyme()).
+				collect(Collectors.toSet())
+				;
+		
+		final Set<Enzyme> badEnzymesI = this.insert.getSites().stream().
+				filter(S->
+						S.getPosition()< this.insert.getPolylinker5().getStart() ||
+						S.getPosition()> this.insert.getPolylinker3().getEnd() ||
+						(S.getPosition()> this.insert.getPolylinker5().getEnd()  && S.getPosition()< this.insert.getPolylinker3().getStart())
+						).
+				map(S->S.getEnzyme()).
+				collect(Collectors.toSet())
+				;
+		
+		
+		
+		final List<Site> listV= this.vector.getSites().stream().
+				filter(S->S.getPosition()>=this.vector.getPolylinker().getStart()).
+				filter(S->S.getPosition()<=this.vector.getPolylinker().getEnd()).
+				filter(S->!badEnzymesV.contains(S.getEnzyme())).
+				collect(Collectors.toList());
+		
+		if(listV.isEmpty()) {
+			LOG.error("Can find any suitable enzyme in vector "+vector.getName());
+			return -1;
+		}
+		
+		final List<Site> listI5= this.insert.getSites().stream().
+				filter(S->S.getPosition()>=this.insert.getPolylinker5().getStart()).
+				filter(S->S.getPosition()<=this.insert.getPolylinker5().getEnd()).
+				filter(S->!badEnzymesI.contains(S.getEnzyme())).
+				collect(Collectors.toList());
+		
+		if(listI5.isEmpty()) {
+			LOG.error("Can find any suitable enzyme in insert 5' "+insert.getName());
+			return -1;
+			}
+		
+		final List<Site> listI3= this.insert.getSites().stream().
+				filter(S->S.getPosition()>=this.insert.getPolylinker3().getStart()).
+				filter(S->S.getPosition()<=this.insert.getPolylinker3().getEnd()).
+				filter(S->!badEnzymesI.contains(S.getEnzyme())).
+				collect(Collectors.toList());
+		
+		if(listI3.isEmpty()) {
+			LOG.error("Can find any suitable enzyme in insert 3' "+insert.getName());
+			return -1;
+			}
+		
+		listV.stream().forEach(siteV5->{
+		listV.stream().
+			filter(S->S.equals(siteV5) || S.getPosition()>siteV5.getMaxPosition()).
+			forEach(siteV3->{
+				
+				
+				
+			});
+			
+			
+		});
+		
+		for(final Site siteV5: listV) {
+			
+			for(final Site siteV3: listV) {
+				
+				for(final Site siteI5: listI5) {
+					
+					for(final Site siteI3: listI3) {
+						
+						
+						
+						}
+					
+					}
+
+				
+				}
+			
+			}
 		
 		
 		return 0;

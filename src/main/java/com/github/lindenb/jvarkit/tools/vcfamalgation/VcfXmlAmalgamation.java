@@ -84,7 +84,8 @@ END_DOC
 @Program(
 		name="vcfamalgamation",
 		description="Builds a complex VCF filtering engine using the Java Architecture for XML Binding  (JAXB) and the filters already defined in jvarkit.",
-		keywords={"vcf","jaxb","xml","filter"}
+		keywords={"vcf","jaxb","xml","filter"},
+		generate_doc=false
 		)
 public class VcfXmlAmalgamation extends Launcher {
 	private static final Logger LOG = Logger.build(VcfXmlAmalgamation.class).make();

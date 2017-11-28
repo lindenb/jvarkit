@@ -109,7 +109,8 @@ END_DOC
 @Program(name="samjs",
 	description="Filters a BAM using a javascript expression ( java nashorn engine  ).",
 	keywords={"sam","bam","nashorn","javascript","filter"},
-	biostars={75168,81750,75354,77802,103052,106900,150530,253774,256615}
+	biostars={75168,81750,75354,77802,103052,106900,150530,253774,256615},
+	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJavascript
 	extends Launcher
