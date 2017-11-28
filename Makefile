@@ -813,7 +813,7 @@ htslib.jar : ${dist.dir}/libhtslibjni.so
 
 ${dist.dir}/libhtslibjni.so : ${dist.dir}/htslib.jar
 	touch -c $@
-${dist.dir}/htslib.jar :  $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/htslib/,HtsFile KString)) \
+${dist.dir}/htslib.jar :  $(addsuffix .java,$(addprefix ${src.dir}/com/github/lindenb/jvarkit/htslib/,HtsFile KString Bcf1)) \
 		${this.dir}src/main/cpp/htslib/libhts.so \
 		${this.dir}src/main/cpp/htslibjni.c
 	rm -rf "${tmp.dir}" "${dist.dir}/libhtslibjni.so"

@@ -40,6 +40,10 @@ public class HtsFile extends CPtr implements Closeable {
 		setNull();
 		}
 	
+	public boolean readLine(char delim,final KString ks)  throws IOException {
+		return _getline(get(),delim,ks.get())!=-1;
+		}
+	
 	@Override
 	public void dispose() {
 		close();
@@ -48,6 +52,6 @@ public class HtsFile extends CPtr implements Closeable {
 		
 	private static native long _open(final String s,final String m);
 	private static native void _close(final long ptr);
-	
+	private static native int _getline(final long ptr,int delim,long ks);
 
 }

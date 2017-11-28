@@ -279,13 +279,20 @@ if(bases[readpos]==mutbase) return true;
 return false;
 ```
 
+### Example
+
+Remove  Double clipped reads
+
+```
+java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return true;final Cigar c=record.getCigar();if(c==null || c.numCigarElements()<2) return true; return !(c.getFirstCigarElement().getOperator().isClipping() && c.getLastCigarElement().getOperator().isClipping()) ;' input.bam
+```
 
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183,278902,279535,283969},
+	biostars={270879,274183,278902,279535,283969,286284},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJdk
@@ -295,21 +302,17 @@ public class SamJdk
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-X","--fail"},description="Save dicarded reads in that file")
 	private File failingReadsFile = null;
-
 	@Parameter(names={"-N","--limit"},description="limit to 'N' records (for debugging).")
 	private long LIMIT = -1L ;
-
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
-
 	@Parameter(names={"-e","--expression"},description="java expression")
 	private String scriptExpr=null;
 	@Parameter(names={"-f","--file"},description="java file. Either option -e or -f is required.")
 	private File scriptFile =null;
+	
 	private SAMFileWriter failingReadsWriter=null;
 	
 	@Parameter(names={"--nocode"},description=" Don't show the generated code")

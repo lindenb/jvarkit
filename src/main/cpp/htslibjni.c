@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <htslib/kstring.h>
+#include <htslib/vcf.h>
 #include <htslib/hts.h>
 #include "htslibjni.h"
 
@@ -45,11 +46,11 @@ void CLASS(_1close) (JNIEnv* env, jclass c, jlong ptr) {
 #define CLASS(NAME)  Java_com_github_lindenb_jvarkit_htslib_KString_ ##  NAME 
 
 jlong CLASS(_1create) (JNIEnv* env, jclass clazz) {
-	return (long)safeMalloc(sizeof(kstring_t));
+	return (jlong)safeMalloc(sizeof(kstring_t));
 	}
 
 jbyte CLASS(_1at)(JNIEnv* env, jclass clazz, jlong ptr, jint idx) {
-	return ks_str((kstring_t*)ptr)[idx];
+	return (jbyte)ks_str((kstring_t*)ptr)[idx];
 	}
 
 jint CLASS(_len)(JNIEnv* env, jclass clazz, jlong ptr) {
@@ -63,4 +64,23 @@ void CLASS(_release)(JNIEnv* env, jclass clazz, jlong ptr) {
 	free(ks);
 	}
 #undef CLASS
+
+
+#define CLASS(NAME)  Java_com_github_lindenb_jvarkit_htslib_Bcf1_ ##  NAME 
+
+jlong CLASS(_1create) (JNIEnv* env, jclass clazz) {
+	return (jlong)bcf_init();
+	}
+
+jboolean CLASS(_1is_1snp)(JNIEnv* env, jclass clazz, jlong adrs) {
+	return (jboolean)bcf_is_snp((bcf1_t*)adrs);
+	}
+
+void CLASS(_1destroy)(JNIEnv* env, jclass clazz, jlong adrs) {
+	bcf1_t* p = (bcf1_t*)adrs;
+	if(p==0L) return;
+	bcf_destroy(p);
+	}
+#undef CLASS
+
 
