@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.misc;
@@ -60,46 +57,31 @@ import htsjdk.samtools.util.CloserUtil;
 BEGIN_DOC
 
 
-
-
-
-
 ### Motivation
 
 Illuminadir scans folders , search for FASTQs and generate a structured summary of the files (xml or json).
 Currently only tested with HiSeq data.
 
+### History
 
-
+* 20171128: supports double indexing.
 
 ### Examples
- 
-
 
 ```
-
 $ find dir1 dir2 -type f -name "*.fastq.gz" |\
    java  -jar dist/illuminadir.jar | \
    xsltproc xml2script.xslt > script.bash
 (...)
-
 ```
-
-
-
-
 
 #### XML output
  
 The XML ouput looks like this:
 
-
-
-```
-
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <illumina>
-  <!--com.github.lindenb.jvarkit.tools.misc.IlluminaDirectory IN=[RUN62_XFC2DM8ACXX/data]    JSON=false VERBOSITY=INFO QUIET=false VALIDATION_STRINGENCY=STRICT COMPRESSION_LEVEL=5 MAX_RECORDS_IN_RAM=500000 CREATE_INDEX=false CREATE_MD5_FILE=false-->
   <directory path="RUN62_XFC2DM8ACXX/data">
     <samples>
       <sample name="SAMPLE1">
@@ -137,17 +119,12 @@ The XML ouput looks like this:
     </undetermined>
   </directory>
 </illumina>
-
 ```
-
-
 
 How to use that file ? here is a  example of **XSLT** stylesheet that can generate a **Makefile** to generate a **LaTex** about the number of reads per Lane/Sample/Index:
 
 
-
-```
-
+```xslt
 <?xml version='1.0'  encoding="ISO-8859-1"?>
 <xsl:stylesheet
 	xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
@@ -194,7 +171,6 @@ $(addsuffix .count, <xsl:value-of select="@md5filename"/>): <xsl:value-of select
 
 </xsl:template>
 </xsl:stylesheet>
-
 ```
 
 
@@ -202,19 +178,12 @@ $(addsuffix .count, <xsl:value-of select="@md5filename"/>): <xsl:value-of select
 
 
 ```
-
 $ xsltproc  illumina.xml illumina2makefile.xsl > Makefile
-
 ```
-
-
 
 output:
 
-
-
-```
-
+```makefile
 .PHONY:all clean
 
 all: report.pdf
@@ -247,21 +216,14 @@ $(addsuffix .count, 3369c3457d6603f06379b654cb78e696): RUN62_XFC2DM8ACXX/data/OU
 $(addsuffix .count, 832039fa00b5f40108848e48eb437e0b): RUN62_XFC2DM8ACXX/data/OUT/Sample_SAMPLE1/SAMPLE1_ATCACG_L008_R2_002.fastq.gz
 	gunzip -c $< | awk '(NR%4==1)' | wc -l  | xargs  printf "8\t2\t2\t359659451\t%s\tATCACG\tSAMPLE1\n"   > $@
 (....)
-
 ```
-
-
-
-
-
-
 
 ####  JSON output
 
-The JSON output looks loke this
+The JSON output looks like this
 
 
-```
+```json
 {"directory":"RUN62_XFC2DM8ACXX/data","samples":[{"sample":"SAMPLE1","files":[{
 "md5pair":"cd4b436ce7aff4cf669d282c6d9a7899","lane":8,"index":"ATCACG","split":2
 ,"forward":{"md5filename":"3369c3457d6603f06379b654cb78e696","path":"20131001_SN
@@ -282,20 +244,14 @@ size":354530831},"reverse":{"md5filename":"e937cbdf32020074e50d3332c67cf6b3","pa
 th":"20131001_SNL149_0062_XFC2DM8ACXX/data/OUT/Sample_SAMPLE1/SAMPLE1_ATCACG_L00
 8_R2_001.fastq.gz","side":2,"file-size":356908963}},{"md5pair":"0697846a504158ee
 f523c0f4ede85288","lane":7,"index":"ATCACG","split":2,"forward":{"md5filename":"
-
 ```
 
-
-
 It can be processed using a tool like [jsvelocity](https://github.com/lindenb/jsvelocity) to generate the same kind of Makefile:
-
 
 The velocity template for jsvelocity (https://github.com/lindenb/jsvelocity)
 
 
-
 ```
-
 #macro(maketarget $fastq)
 
 $(addsuffix .count, ${fastq.md5filename}): ${fastq.path}
@@ -347,26 +303,15 @@ clean:
 
 ```
 
-
-
 transform using jsvelocity:
-
-
 
 ```
 java -jar dist/jsvelocity.jar \
      -d all illumina.json \
       illumina.vm > Makefile
-
 ```
 
-
-
 output: same as above
-
-
-
-
 
 
 END_DOC
@@ -376,7 +321,8 @@ END_DOC
 
 @Program(name="illuminadir",
 	description="Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.",
-	keywords={"json","xml","illumina","fastq"})
+	keywords={"json","xml","illumina","fastq","workflow"}
+	)
 public class IlluminaDirectory
 	extends Launcher
 	{
@@ -386,9 +332,7 @@ public class IlluminaDirectory
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
-	@Parameter(names={"-J","--json"},description="Generate JSON output.")
+	@Parameter(names={"-J","-j","-json","--json"},description="Generate JSON output.")
 	private boolean JSON = false;
 	
 	private final Function<String, String> str2md5 = new StringToMd5();
@@ -500,7 +444,7 @@ public class IlluminaDirectory
     	FastQName forward;
     	FastQName reverse;
     	
-    	Pair(FastQName fq)
+    	Pair(final FastQName fq)
     		{
     		id=++ID_GENERATOR;
     		switch(fq.getSide())
@@ -592,7 +536,7 @@ public class IlluminaDirectory
     			}
 			}
     	
-    	void write(XMLStreamWriter w,String tagName,FastQName fastqFile) throws XMLStreamException
+    	void write(XMLStreamWriter w,final String tagName,final FastQName fastqFile) throws XMLStreamException
     		{
 			w.writeStartElement(tagName);
 			w.writeAttribute("md5filename",str2md5.apply(fastqFile.getFile().getPath()));
@@ -601,7 +545,7 @@ public class IlluminaDirectory
 			w.writeEndElement();
     		}
     	
-    	void write(XMLStreamWriter w) throws XMLStreamException
+    	void write(final XMLStreamWriter w) throws XMLStreamException
     		{
 			w.writeStartElement("fastq");
 			w.writeAttribute("id","p"+this.id);
@@ -667,7 +611,7 @@ public class IlluminaDirectory
 			w.writeAttribute("mother","undefined");
 			w.writeAttribute("sex","undefined");
 			
-			for(Pair p:this.pairs)
+			for(final Pair p:this.pairs)
 				{
 				p.write(w);
 				}
@@ -682,12 +626,10 @@ public class IlluminaDirectory
     		out.value(this.name);
     		out.name("files");
     		out.beginArray();
-    		
     		for(final Pair p: this.pairs)
     			{
     			p.json(out);
     			}
-    		
     		out.endArray();
     		out.endObject();
     		}
