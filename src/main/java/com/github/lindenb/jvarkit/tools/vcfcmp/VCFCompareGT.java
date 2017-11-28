@@ -237,7 +237,7 @@ public class VCFCompareGT extends Launcher
 					new VariantCodec(),
 					varcmp,
 					writingSortingCollection.getMaxRecordsInRam(),
-					writingSortingCollection.getTmpDirectories()
+					writingSortingCollection.getTmpPaths()
 					);
 			variants.setDestructiveIteration(true);
 			

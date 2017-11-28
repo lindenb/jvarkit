@@ -556,7 +556,7 @@ public class VCFCompare extends Launcher
 			variants=SortingCollection.newInstance(LineAndFile.class, new LineAndFileCodec(),
 					varcmp,
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			variants.setDestructiveIteration(true);
 

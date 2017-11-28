@@ -280,7 +280,7 @@ public class VcfDoest
 						new TranscriptInfoCodec(),
 						new TranscriptInfoCmp(),
 						this.writingSortingCollection.getMaxRecordsInRam(),
-						this.writingSortingCollection.getTmpDirectories()
+						this.writingSortingCollection.getTmpPaths()
 						);
 				
 				sorting.setDestructiveIteration(true);

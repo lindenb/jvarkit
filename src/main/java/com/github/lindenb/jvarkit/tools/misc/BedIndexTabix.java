@@ -176,7 +176,7 @@ public class BedIndexTabix
 		                        new BedDataCodec(),
 		                        comparator,
 		                        this.writingSortingCollection.getMaxRecordsInRam(),
-		                        this.writingSortingCollection.getTmpDirectories()
+		                        this.writingSortingCollection.getTmpPaths()
 		                        );
 				while(in.hasNext())
 					{

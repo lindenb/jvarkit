@@ -660,7 +660,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					new VariantCodec(),
 					new VariantComparator(dict),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			this.variants.setDestructiveIteration(true);
 			
@@ -709,7 +709,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					new MutationCodec(),
 					new MutationComparator(dict),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			mutations.setDestructiveIteration(true);
 			

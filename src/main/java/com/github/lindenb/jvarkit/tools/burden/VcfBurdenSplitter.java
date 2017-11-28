@@ -738,7 +738,7 @@ public class VcfBurdenSplitter
 							new KeyAndLineCodec(),
 							new KeyAndLineComparator(),
 							this.writingSortingCollection.maxRecordsInRam,
-							this.writingSortingCollection.getTmpDirectories()
+							this.writingSortingCollection.getTmpPaths()
 							);
 					sortingcollection.setDestructiveIteration(true);
 					}

@@ -348,7 +348,7 @@ public class VCFComposite extends Launcher {
 							new GeneAndVariantCodec(),
 							(A,B)->{int i=A.gene.compareTo(B.gene);if(i!=0) return i;return A.ctxLine.compareTo(B.ctxLine);},
 							this.writingSortingCollection.getMaxRecordsInRam(),
-							this.writingSortingCollection.getTmpDirectories()
+							this.writingSortingCollection.getTmpPaths()
 							);
 					sorting.setDestructiveIteration(true);
 					}

@@ -681,7 +681,7 @@ public class VCFMerge2
 					new VariantCodec(),
 					new VariantComparator(),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			array.setDestructiveIteration(true);
 			

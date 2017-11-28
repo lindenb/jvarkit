@@ -250,7 +250,7 @@ public class VcfGeneSplitter
 					new KeyAndLineCodec(),
 					new KeyAndLineComparator(),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			sortingcollection.setDestructiveIteration(true);
 			

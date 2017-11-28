@@ -172,7 +172,7 @@ public class CoverageNormalizer extends Launcher
 					new FloatCodec(),
 					new FloatCmp(),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			 median.setDestructiveIteration(true);
 			 dis=new DataInputStream(new GZIPInputStream(new FileInputStream(tmpFile1)));

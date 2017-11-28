@@ -86,9 +86,7 @@ public class FastqSplitInterleaved extends Launcher
 	private String fileB=null;
 
 	
-	private FastqSplitInterleaved()
-		{
-		
+	private FastqSplitInterleaved() {
 		}
 	
 

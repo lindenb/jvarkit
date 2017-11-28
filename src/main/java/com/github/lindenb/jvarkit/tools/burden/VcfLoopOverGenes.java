@@ -357,7 +357,7 @@ public class VcfLoopOverGenes extends Launcher {
 					new GeneLocCodec(),
 					(A,B)->A.compareTo(B),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 				sortingCollection.setDestructiveIteration(true);
 				

@@ -277,7 +277,7 @@ public class SortVcfOnRef2 extends Launcher
 					new VariantCodec(),
 					new VariantComparator(),
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			array.setDestructiveIteration(true);
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);

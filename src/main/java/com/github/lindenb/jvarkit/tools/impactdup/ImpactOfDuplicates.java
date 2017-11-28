@@ -233,7 +233,7 @@ public class ImpactOfDuplicates extends Launcher
     	        			}
     	            	},
                     this.sortingCollectionArgs.getMaxRecordsInRam(),
-                    this.sortingCollectionArgs.getTmpDirectories()
+                    this.sortingCollectionArgs.getTmpPaths()
                     );
         	
         	

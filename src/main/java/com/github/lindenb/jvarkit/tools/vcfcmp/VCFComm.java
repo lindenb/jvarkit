@@ -138,7 +138,7 @@ public class VCFComm extends AbstractVCFCompareBase {
 					new LineAndFileCodec(),
 					new LineAndFileComparator(),
 					super.sortingCollectionArgs.getMaxRecordsInRam(),
-					super.sortingCollectionArgs.getTmpDirectories()
+					super.sortingCollectionArgs.getTmpPaths()
 					);
 			variants.setDestructiveIteration(true);
 			

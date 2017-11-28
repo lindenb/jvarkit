@@ -196,7 +196,7 @@ public class BamStats02View
 					case DUPLICATE_READ: 
 					case READ_REVERSE_STRAND: 
 					case SUPPLEMENTARY_ALIGNMENT:
-					case NOT_PRIMARY_ALIGNMENT:
+					case SECONDARY_ALIGNMENT:
 						return null;
 					default:break;
 					}

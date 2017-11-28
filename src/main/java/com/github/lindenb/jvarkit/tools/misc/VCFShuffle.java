@@ -150,7 +150,7 @@ public class VCFShuffle extends Launcher
 						return o1.line.compareTo(o2.line);
 						},
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			shuffled.setDestructiveIteration(true);
 			String line;

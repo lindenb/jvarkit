@@ -193,7 +193,7 @@ public class VCFComparePredictions extends AbstractVCFCompareBase {
 					new AbstractVCFCompareBase.LineAndFileCodec(),
 					new AbstractVCFCompareBase.LineAndFileComparator(),
 					super.sortingCollectionArgs.getMaxRecordsInRam(),
-					super.sortingCollectionArgs.getTmpDirectories()
+					super.sortingCollectionArgs.getTmpPaths()
 					);
 			variants.setDestructiveIteration(true);
 			
