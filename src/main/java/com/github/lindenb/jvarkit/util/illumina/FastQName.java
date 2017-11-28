@@ -157,8 +157,12 @@ public class FastQName
 			fq.undetermined=true;
 			return fq;
 			}
-		
-		if(token_index>0 && tokens[token_index].matches("[ATGC]{4,9}"))
+		/** update 2017-11-28, index can contain an hyphen for double indexing eg. SX1R_1_CTGAAGCT-AGGCGAAG_L001_R1_001.fastq.gz*/
+		if(token_index>0 && 
+				(
+				 tokens[token_index].matches("[ATGC]{4,9}") ||
+				 tokens[token_index].matches("[ATGC]{4,9}\\-[ATGC]{4,9}")
+				 ))
 			{
 			fq.seqIndex=tokens[token_index];
 			token_index--;
@@ -170,7 +174,7 @@ public class FastQName
 			}
 			
 		
-		StringBuilder b=new StringBuilder();
+		final StringBuilder b=new StringBuilder();
 		for(int i=0;i<=token_index;++i)
 			{
 			if(i>0) b.append('_');

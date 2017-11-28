@@ -69,6 +69,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 10 19:31:29 2017 +0100 ; fix a bug in trapindexer ; https://github.com/lindenb/jvarkit/commit/83c4f8cbf9cdf85a1d310b4e661797ed6febe5bd
+Fri Nov 10 18:09:16 2017 +0100 ; trap indexer changed: cannot compact bases in one byte ; https://github.com/lindenb/jvarkit/commit/3f97e9b3475adb588499a47b67ad33b545732dd0
 Fri Nov 10 17:07:13 2017 +0100 ; samjdk with pair mode, added sortmethod, fixed trapindex, fat-jar ; https://github.com/lindenb/jvarkit/commit/7eba4eda059e4ddbef27544cd87910131cf1f4a9
 Tue Nov 7 10:25:46 2017 +0100 ; tools for trap-score.org ; https://github.com/lindenb/jvarkit/commit/54bf01ddbf3594f5a5b4aee149d67604df343af7
 Tue Nov 7 10:22:52 2017 +0100 ; tools for trap-score.org ; https://github.com/lindenb/jvarkit/commit/f4229a3e73f1be84e74e1ba3aad3d11fdbdaf541
