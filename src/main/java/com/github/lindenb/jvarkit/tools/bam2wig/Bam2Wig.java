@@ -704,8 +704,9 @@ public class Bam2Wig extends Launcher
 					samFiles.stream().forEach(F->{
 						final SAMSequenceDictionary dicti = SAMSequenceDictionaryExtractor.extractDictionary(F);
 						if(dicti==null) throw new JvarkitException.DictionaryMissing(F.getPath());
-						if(!SequenceUtil.areSequenceDictionariesEqual(dicti, dict0)) 
+						if(!SequenceUtil.areSequenceDictionariesEqual(dicti, dict0)) {
 							throw new JvarkitException.DictionariesAreNotTheSame(dict0,dicti);
+							}
 						});
 					for(final File bamFile: samFiles)
 						{

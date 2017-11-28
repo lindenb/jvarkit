@@ -76,13 +76,13 @@ public class FastqToFasta
 				}
 			FastqRecord fastq=r.next();
 			out.print(">");
-			if(!trim_after_space || (wsp=fastq.getReadHeader().indexOf(' '))==-1)
+			if(!trim_after_space || (wsp=fastq.getReadName().indexOf(' '))==-1)
 				{
-				out.println(fastq.getReadHeader());
+				out.println(fastq.getReadName());
 				}
 			else
 				{
-				out.println(fastq.getReadHeader().substring(0, wsp));
+				out.println(fastq.getReadName().substring(0, wsp));
 				}
 			
 			int readLen=fastq.getReadString().length();

@@ -84,7 +84,7 @@ public class FastqGrep
 	
 	private String getReadName(final FastqRecord r)
 		{
-		return getReadName(r.getReadHeader());
+		return getReadName(r.getReadName());
 		}
 	
 	private String getReadName(String s)

@@ -56,14 +56,14 @@ public class ConvertPhred64toFastq33 extends Launcher
 					throw new IOException("q="+(int)quals[i]);
 					}
 				}
-			String name=rec.getReadHeader();
+			String name=rec.getReadName();
 			int diez=name.indexOf('#');
 			if(diez!=-1) name=name.substring(0, diez);
 	        pw.print(FastqConstants.SEQUENCE_HEADER);
 	        pw.println(name);
 	        pw.println(rec.getReadString());
 	        pw.print(FastqConstants.QUALITY_HEADER);
-	        pw.println(rec.getBaseQualityHeader() == null || rec.getReadHeader().equals(rec.getBaseQualityHeader())? "" : rec.getBaseQualityHeader());
+	        pw.println(rec.getBaseQualityHeader() == null || rec.getReadName().equals(rec.getBaseQualityHeader())? "" : rec.getBaseQualityHeader());
 	        pw.println(new String(quals));
 			}
 		r.close();

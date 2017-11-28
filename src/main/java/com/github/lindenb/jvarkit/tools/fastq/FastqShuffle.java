@@ -235,7 +235,7 @@ public class FastqShuffle extends Launcher
 	
 	private static void writeFastqRecord(final DataOutputStream dos,final FastqRecord r)  throws IOException
 		{
-		dos.writeUTF(notNull(r.getReadHeader()));
+		dos.writeUTF(notNull(r.getReadName()));
 		dos.writeUTF(notNull(r.getReadString()));
 		dos.writeUTF(notNull(r.getBaseQualityHeader()));
 		dos.writeUTF(notNull(r.getBaseQualityString()));
@@ -255,7 +255,7 @@ public class FastqShuffle extends Launcher
 				new TwoReadsCodec(),
 				new TwoReadsCompare(),
 				this.writingSortingCollection.getMaxRecordsInRam(),
-				this.writingSortingCollection.getTmpDirectories()
+				this.writingSortingCollection.getTmpPaths()
 				);
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())
@@ -309,7 +309,7 @@ public class FastqShuffle extends Launcher
 				new OneReadCodec(),
 				new OneReadCompare(),
 				this.writingSortingCollection.getMaxRecordsInRam(),
-				this.writingSortingCollection.getTmpDirectories()
+				this.writingSortingCollection.getTmpPaths()
 				);
 		sorting.setDestructiveIteration(true);
 		while(r1.hasNext())

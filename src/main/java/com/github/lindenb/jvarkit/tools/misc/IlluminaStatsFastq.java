@@ -238,12 +238,12 @@ public class IlluminaStatsFastq
 						{
 						FastqRecord record=r.next();
 						++nReads;
-						if(record.getReadHeader().contains(":Y:"))
+						if(record.getReadName().contains(":Y:"))
 							{
 							count_read_fails_filter++;
 							continue;
 							}
-						else if(record.getReadHeader().contains(":N:"))
+						else if(record.getReadName().contains(":N:"))
 							{
 							count_read_doesnt_fail_filter++;
 							}
@@ -251,10 +251,10 @@ public class IlluminaStatsFastq
 						if(owner().COUNT_INDEX>0)
 							{
 							//index
-							int last_colon=record.getReadHeader().lastIndexOf(':');
-							if(last_colon!=-1 && last_colon+1< record.getReadHeader().length())
+							int last_colon=record.getReadName().lastIndexOf(':');
+							if(last_colon!=-1 && last_colon+1< record.getReadName().length())
 								{
-								String dnaIndex=record.getReadHeader().substring(last_colon+1).trim().toUpperCase();
+								String dnaIndex=record.getReadName().substring(last_colon+1).trim().toUpperCase();
 								if(this.DNARegex.matcher(dnaIndex).matches())
 									{
 									dnaIndexes.incr(dnaIndex);

@@ -155,9 +155,9 @@ public class FastqJavascript
 		private String name2;
 		private String qualities;
 		
-		Record(FastqRecord rec)
+		Record(final FastqRecord rec)
 			{
-			name=rec.getReadHeader();
+			name=rec.getReadName();
 			sequence=rec.getReadString();
 			name2=rec.getBaseQualityHeader();
 			qualities=rec.getBaseQualityString();

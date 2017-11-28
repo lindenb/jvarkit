@@ -16,6 +16,15 @@ Usage: concatsam [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -r, --region, --interval
+      Limit analysis to this interval. An interval as the following syntax : 
+      "chrom:start-end" or "chrom:middle+extend"  or 
+      "chrom:start-end+extend".A program might use a Reference sequence to fix 
+      the chromosome name (e.g: 1->chr1)
+    -merge, --merge
+      Don't really concatenate one sam after the other, use a 
+      htsjdk.samtools.MergingSamRecordIterator 
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --samoutputformat

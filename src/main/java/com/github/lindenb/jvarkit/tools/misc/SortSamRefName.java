@@ -146,7 +146,7 @@ public class SortSamRefName extends Launcher
 					bamRecordCodec,
 					refNameComparator,
 					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpDirectories()
+					this.writingSortingCollection.getTmpPaths()
 					);
 			sorter.setDestructiveIteration(true);
 			

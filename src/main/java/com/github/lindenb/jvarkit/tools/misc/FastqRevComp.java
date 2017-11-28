@@ -118,7 +118,7 @@ public class FastqRevComp extends Launcher
 			
 			
 			out.print(FastqConstants.SEQUENCE_HEADER);
-			out.println(fastq.getReadHeader());
+			out.println(fastq.getReadName());
 			s=fastq.getReadString();
 
 			if((this.only_R2 && nRec%2==1) || (this.only_R1 && nRec%2==0) ) //interleaced

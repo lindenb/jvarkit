@@ -93,7 +93,7 @@ public class PadEmptyFastq extends Launcher
 					}
 				
 				rec=new FastqRecord(
-						rec.getReadHeader(),
+						rec.getReadName(),
 						fillN,
 						rec.getBaseQualityHeader(),
 						fillQ

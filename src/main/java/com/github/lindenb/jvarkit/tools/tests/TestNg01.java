@@ -74,6 +74,7 @@ import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
+import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
 import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
@@ -298,6 +299,18 @@ class TestNg01 {
         	}));
         Assert.assertTrue( output.exists());
     	}
+    
+    @Test
+    public void testConcatSam() throws IOException{
+    	File output = new File(TEST_RESULTS_DIR,"jeter.sam");
+    
+        Assert.assertEquals(0,new ConcatSam().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		TOY_BAM
+        	}));
+        Assert.assertTrue( output.exists());
+    	}
+    
     @Test
     public void testGroupByGene() throws IOException{
     	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
