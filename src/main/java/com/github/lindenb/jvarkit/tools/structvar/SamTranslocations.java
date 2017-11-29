@@ -190,6 +190,7 @@ public class SamTranslocations extends Launcher {
 	private class XMLReport extends Report
 		{
 		private String prevPartition = null;
+		private int max_list_size = 0;
 		private final XMLStreamWriter w;
 		XMLReport(File filename,final SAMSequenceDictionary dict) throws IOException,XMLStreamException {
 			super(dict);
@@ -226,6 +227,7 @@ public class SamTranslocations extends Launcher {
 				}
 			w.writeEndElement();
 			w.writeStartElement("partitions");
+			this.w.writeAttribute("type", samRecordPartition.name());
 			}
 		
 		private void writeSplit(final String tag,int tid,int pos)  throws IOException,XMLStreamException {
@@ -246,6 +248,7 @@ public class SamTranslocations extends Launcher {
 		void write(final List<Event> events) throws IOException,XMLStreamException
 			{
 			if(events.isEmpty()) return;
+			this.max_list_size = Math.max(max_list_size, events.size());
 			final Event first=events.get(0);
 			if(!first.partition.equals(prevPartition)) 
 				{
@@ -255,7 +258,6 @@ public class SamTranslocations extends Launcher {
 					}
 				this.w.writeStartElement("partition");
 				this.w.writeAttribute("name", first.partition);
-				this.w.writeAttribute("partition-type", samRecordPartition.name());
 				
 				
 				
@@ -276,7 +278,14 @@ public class SamTranslocations extends Launcher {
 				this.w.writeEndElement();
 				}
 			w.writeEndElement();//partitions
-			w.writeEndElement();
+			
+			this.w.writeStartElement("summary");
+			this.w.writeEmptyElement("entry");
+				this.w.writeAttribute("key", "max-count");
+				this.w.writeAttribute("value",String.valueOf(this.max_list_size));
+			this.w.writeEndElement();//summary
+			
+			w.writeEndElement();//translocations
 			w.writeEndDocument();
 			w.flush();
 			w.close();

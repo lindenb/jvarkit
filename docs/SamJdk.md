@@ -72,6 +72,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/279535](https://www.biostars.org/p/279535)
  * [https://www.biostars.org/p/283969](https://www.biostars.org/p/283969)
  * [https://www.biostars.org/p/286284](https://www.biostars.org/p/286284)
+ * [https://www.biostars.org/p/286585](https://www.biostars.org/p/286585)
 
 
 ## Compilation
@@ -117,6 +118,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 28 11:44:41 2017 +0100 ; htslib + example in samjdk ; https://github.com/lindenb/jvarkit/commit/2508162bbfa50eb2242b56f4d40e37bdc3a9476d
 Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Sun Nov 19 14:02:56 2017 +0100 ; java, not javascript ! ; https://github.com/lindenb/jvarkit/commit/927ad7ec8655ac50185117702f9a4a90b274bf78
 Sun Nov 19 13:42:31 2017 +0100 ; adding message + checking https://github.com/lindenb/jvarkit/issues/90 ; https://github.com/lindenb/jvarkit/commit/5535f01de81b929284420ba1cf34b15247f13363
@@ -379,5 +381,10 @@ Remove  Double clipped reads
 ```
 java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return true;final Cigar c=record.getCigar();if(c==null || c.numCigarElements()<2) return true; return !(c.getFirstCigarElement().getOperator().isClipping() && c.getLastCigarElement().getOperator().isClipping()) ;' input.bam
 ```
+### Example
+
+get discordant reads
+
+$ java -jar dist/samjdk.jar -e 'return record.getReadPairedFlag() && !record.getReadUnmappedFlag() && !record.getMateUnmappedFlag() && !record.getReferenceName().equals(record.getMateReferenceName());'  in.bam
 
 
