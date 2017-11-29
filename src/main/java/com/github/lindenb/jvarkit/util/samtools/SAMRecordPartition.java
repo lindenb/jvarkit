@@ -35,6 +35,7 @@ import java.util.function.Function;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.util.StringUtil;
 
 /** how to group a read */
 public enum SAMRecordPartition
@@ -53,11 +54,24 @@ public enum SAMRecordPartition
 	
 	public static final String OPT_DESC="Data partitioning using the SAM Read Group (see https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can be any combination of sample, library.... ";
 	
+	
 	/** return the label of the partition for this SAMRecord, result can be null */
-	public String getPartion(final SAMRecord rec)	{
+	public String getPartion(final SAMRecord rec,final String defaultValue)	{
 		if(this.equals(any)) return "all";
-		return rec==null?null:this.apply(rec.getReadGroup());
+		return rec==null?null:this.apply(rec.getReadGroup(),defaultValue);
 	}	
+
+	/** return the label of the partition for this SAMRecord, result can be null */
+	public final String getPartion(final SAMRecord rec)	{
+		return getPartion(rec,null);
+	}	
+	
+	/** return the label of the partition for this read-group, result is defaultValue if partition is null or empty*/
+	public final String apply(final SAMReadGroupRecord rg,final String defaultValue)
+		{
+		final String p = this.apply(rg);
+		return StringUtil.isBlank(p)?defaultValue:p;
+		}
 	
 	/** return the label of the partition for this read-group, result can be null */
 	@Override

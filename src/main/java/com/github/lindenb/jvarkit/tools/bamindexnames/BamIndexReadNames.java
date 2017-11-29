@@ -140,7 +140,7 @@ public class BamIndexReadNames
 					new NameAndPosCodec() ,
 					new NameAndPosComparator(),
 					maxRecordsInRAM,
-					bamFile.getParentFile()
+					bamFile.getParentFile().toPath()
 					);
 			sorting.setDestructiveIteration(true);
 			if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)

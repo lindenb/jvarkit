@@ -542,6 +542,7 @@ $(eval $(call compile-htsjdk-cmd,vcftrap,${jvarkit.package}.tools.trap.VcfTrap,$
 $(eval $(call compile-htsjdk-cmd,vcfepistatis01,${jvarkit.package}.tools.epistasis.VcfEpistatis01,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,subcloneit,${jvarkit.package}.tools.cloneit.SubCloneIt,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,igvreview,${jvarkit.package}.tools.igvreview.IgvReview,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,samtranslocations,${jvarkit.package}.tools.structvar.SamTranslocations,${jcommander.jar}))
 
 
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.burden.VcfBurdenEpistasis,${jcommander.jar}))

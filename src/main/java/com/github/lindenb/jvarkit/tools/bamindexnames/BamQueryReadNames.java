@@ -172,22 +172,21 @@ public class BamQueryReadNames extends BaseBamIndexReadNames
 
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		PrintWriter notFoundStream=new PrintWriter(new NullOuputStream());
 		SamReader sfr=null;
 		SAMFileWriter bamw=null;
 		try
 			{
-			
-			
 			if(!(2==args.size() ||1==args.size()))
 				{
-				LOG.error(getMessageBundle("illegal.number.of.arguments"));
+				LOG.error("illegal.number.of.arguments");
 				return -1;
 				}
 			
 			if(this.notFoundFile==null)
 				{
+				notFoundStream.close();
 				notFoundStream=openFileOrStdoutAsPrintWriter(notFoundFile);
 				}
 			
@@ -333,6 +332,7 @@ public class BamQueryReadNames extends BaseBamIndexReadNames
 			CloserUtil.close(r);
 			
 			notFoundStream.flush();
+			notFoundStream.close();notFoundStream=null;
 			return 0;
 			}
 		catch(Exception err)

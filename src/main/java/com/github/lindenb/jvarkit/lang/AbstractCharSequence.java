@@ -34,7 +34,12 @@ public abstract class AbstractCharSequence
 	@Override
 	public int hashCode()
 		{
-		return getString().hashCode();
+        int hash=0;
+        int L=this.length();
+        for (int i = 0; i < L; i++) {
+        	hash = 31 * hash + (int)charAt(i);
+            }
+        return hash;
 		}
 	
 	public boolean hasStringValue(final String s)

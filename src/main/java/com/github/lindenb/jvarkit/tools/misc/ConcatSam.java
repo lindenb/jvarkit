@@ -205,7 +205,7 @@ public class ConcatSam extends Launcher
 			{
 			if(StringUtil.isBlank(this.intervalStr)) throw new IllegalStateException();
 			final SAMSequenceDictionary dict =r.getFileHeader().getSequenceDictionary();
-			if(dict==null) throw new JvarkitException.DictionaryMissing(r.getResourceDescription());
+			if(dict==null) throw new JvarkitException.BamDictionaryMissing(r.getResourceDescription());
 			final Interval i= new IntervalParser(dict).
 				setContigNameIsWholeContig(true).
 				parse(this.intervalStr);
@@ -222,12 +222,14 @@ public class ConcatSam extends Launcher
 			
 			if(args.isEmpty())
 				{
+				LOG.info("reading from stdin");
 				if(!StringUtil.isBlank(this.intervalStr)) {
 					throw new SAMException("cannot specify region for stdin ("+this.intervalStr+")");
 					}
 				final SamReader reader = srf.open(SamInputResource.of(System.in));
 				myIter.samReaders.add(reader);
 				myIter.delegate =  reader.iterator();
+				myIter.hasNext();//for try reading something to get an error if something is wrong
 				myIter.header = reader.getFileHeader();
 				}
 			else if(args.size()==1 && !(args.get(0).endsWith(".list") && this.isEnableUnrollList()))

@@ -29,6 +29,8 @@ History:
 package com.github.lindenb.jvarkit.lang;
 
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +45,16 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 @SuppressWarnings("serial")
 public class JvarkitException   {
 
+/** convert stack trace to String */
+public static String toString(final Throwable err) {
+	final StringWriter sw = new StringWriter();
+	final PrintWriter pw = new PrintWriter(sw);
+	if(err!=null) err.printStackTrace(pw);
+	pw.flush();
+	pw.close();
+	return sw.toString();
+	}
+	
 public static class ReferenceMissing extends Error
 	{
 	public ReferenceMissing(final String msg) {
