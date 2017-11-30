@@ -51,7 +51,7 @@ public class SamRecordJEXLFilter
 			"A JEXL Expression that will be used to filter out some sam-records (see https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). "+
 			"An expression should return a boolean value (true=exclude, false=keep the read). "
 			+ "An empty expression keeps everything. "
-			+ "The variable 'record' is the observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)."
+			+ "The variable 'record' is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html)."
 			;
     public static final String DEFAULT_FILTER = 
     		  "record.getMappingQuality()<1 || "
@@ -88,7 +88,6 @@ public class SamRecordJEXLFilter
 		{
 		@Override
 		public SamRecordFilter convert(final String expr) {
-			if(StringUtil.isBlank(expr)) return ACCEPT_ALL;
 			return create(expr);
 			}	
 		}
@@ -133,7 +132,7 @@ public class SamRecordJEXLFilter
 			}
 		public String toString()
 			{
-			return "(Accept all (Empty expression)";
+			return "'Accept all' (Empty expression)";
 			}
 		};
 	

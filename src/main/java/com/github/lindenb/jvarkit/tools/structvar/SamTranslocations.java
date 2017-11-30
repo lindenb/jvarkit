@@ -42,13 +42,13 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -61,12 +61,114 @@ import htsjdk.samtools.util.SortingCollection;
 
 BEGIN_DOC
 
+## converting to SVG
+
+with the following XSLT stylesheet (last updated : 2017-11-30 )
+
+```xslt
+<?xml version='1.0' encoding="UTF-8"?>
+<xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform' 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:svg="http://www.w3.org/2000/svg"
+	xmlns="http://www.w3.org/2000/svg"
+        xmlns:xlink="http://www.w3.org/1999/xlink"
+        xmlns:str="http://exslt.org/strings"
+        xmlns:math="http://exslt.org/math"
+	extension-element-prefixes="str math"
+	version='1.0'>
+<xsl:output method="xml"  encoding="UTF-8"/>
+<xsl:variable name="nsamples" select="count(translocations/partitions/partition)"/>
+<xsl:variable name="cols" select="floor(math:sqrt($nsamples))"/>
+<xsl:variable name="W" select="300"/>
+<xsl:variable name="max-count">
+  <xsl:for-each select="translocations/partitions/partition/event">
+    <xsl:sort select="@count" data-type="number" order="descending" />
+    <xsl:if test="position() = 1">
+      <xsl:value-of select="number(@count)" />
+    </xsl:if>
+  </xsl:for-each>
+</xsl:variable>
+
+
+
+<xsl:template match="translocations">
+
+<svg xmlns="http://www.w3.org/2000/svg">
+  <xsl:attribute name="width">
+  	<xsl:value-of select="$cols * $W"/>
+  </xsl:attribute>
+  <xsl:attribute name="height">
+  	<xsl:value-of select="($cols +1) * $W"/>
+  </xsl:attribute>
+  <style>
+        svg { fill:white;stroke:black;}
+  	circle {fill:red; opacity:0.3; stroke:none;}
+  	text {fill:gray;stroke:gray;font-size:10px;}
+  	.c0 {fill:gray;opacity:0.05;}
+  	.c1 {fill:white;opacity:0.05;}
+  </style>
+  <defs>
+  	<g id="dict">
+  		<xsl:apply-templates select="dictionary"/>
+  	</g>
+  </defs>
+  <g>
+  	<xsl:apply-templates select="partitions/partition"/>
+  </g>
+</svg>
+</xsl:template>
+
+
+<xsl:template match="dictionary">
+<xsl:apply-templates select="contig"/>
+<rect style="fill:none;stroke:gray;" x="0" y="0" width="{$W}"  height="{$W}">
+</rect>
+</xsl:template>
+
+<xsl:template match="contig">
+<xsl:variable name="clazz" select="concat('c',count(preceding-sibling::contig) mod 2)"/>
+<xsl:variable name="genomelen" select="number(../@length)"/>
+<xsl:variable name="x" select="(number(@index) div $genomelen) * $W"/>
+<xsl:variable name="h" select="(number(@length) div $genomelen) * $W"/>
+
+<rect class="{$clazz}"  x="0" y="{$x}" width="{$W}" height="{$h}">
+</rect>
+<rect class="{$clazz}"  y="0" x="{$x}" height="{$W}" width="{$h}">
+</rect>
+</xsl:template>
+
+
+<xsl:template match="partition">
+<xsl:variable name="idx" select="count(preceding-sibling::partition)"/>
+<xsl:variable name="dx" select="($idx mod $cols) * $W"/>
+<xsl:variable name="dy" select="floor(($idx div $cols)) * $W"/>
+<g>
+ <xsl:attribute name="transform">translate(<xsl:value-of select="$dx"/>,<xsl:value-of select="$dy"/>)</xsl:attribute>
+ <title><xsl:value-of select="@name"/></title>
+ <use x="0" y="0" href="#dict" />
+ <text x="1" y="10"><xsl:value-of select="@name"/></text>
+ <xsl:apply-templates select="event"/>
+ 
+</g>
+</xsl:template>
+
+<xsl:template match="event">
+<xsl:variable name="genomelen" select="number(../../../dictionary/@length)"/>
+<xsl:variable name="cx" select="(number(start/@index) div $genomelen) * $W"/>
+<xsl:variable name="cy" select="(number(end/@index) div $genomelen) * $W"/>
+<xsl:variable name="r" select="0.1 + (number(@count) div $max-count) * 20.0"/>
+<circle cx="{$cx}" cy="{$cy}" r="{$r}"/>
+<circle cx="{$cy}" cy="{$cx}" r="{$r}"/>
+</xsl:template>
+
+</xsl:stylesheet>
+```
+
 END_DOC
 */
 @Program(name="samtranslocations",
-	description="Explore translocations between two chromosomes",
-	keywords={"sam","bam"},
-	generate_doc=false
+	description="Explore translocations between two chromosomes using discordant paired-end reads.",
+	keywords={"sam","bam","xslt","xml"}
 	)
 public class SamTranslocations extends Launcher {
 	private static final Logger LOG = Logger.build(SamTranslocations.class).make();
@@ -74,8 +176,8 @@ public class SamTranslocations extends Launcher {
 	private File outputFile = null;
 	@Parameter(names={"--region","--interval"},description="Limit analysis to this interval. "+IntervalParser.OPT_DESC)
 	private String region_str=null;
-	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
+	@Parameter(names={"--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter samRecordFilter = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 	@Parameter(names={"-m","--min-events"},description="Minimal number of events for printing a result")
@@ -94,6 +196,7 @@ public class SamTranslocations extends Launcher {
 		int pos1;
 	    int tid2;
 	    int pos2;
+	    boolean clipped;
 	    long id;
 		Event() {
 			
@@ -131,6 +234,7 @@ public class SamTranslocations extends Launcher {
 			evt.pos1=dis.readInt();
 			evt.tid2=dis.readInt();
 			evt.pos2=dis.readInt();		
+			evt.clipped = dis.readBoolean();
 			evt.id = dis.readLong();
 			return evt;
 			}
@@ -141,6 +245,7 @@ public class SamTranslocations extends Launcher {
 			dos.writeInt(o.pos1);
 			dos.writeInt(o.tid2);
 			dos.writeInt(o.pos2);
+			dos.writeBoolean(o.clipped);
 			dos.writeLong(o.id);
 			}
 		@Override
@@ -266,6 +371,7 @@ public class SamTranslocations extends Launcher {
 			
 			this.w.writeStartElement("event");
 			this.w.writeAttribute("count", String.valueOf(events.size()));
+			this.w.writeAttribute("count-clipped",String.valueOf( events.stream().filter(E->E.clipped).count()));
 			writeSplit("start",first.tid1,first.pos1);
 			writeSplit("end",first.tid2,first.pos2);
 			this.w.writeEndElement();
@@ -349,6 +455,7 @@ public class SamTranslocations extends Launcher {
 					event.tid1 = tid2;
 					event.pos1 = roundPosition.apply(rec.getMateAlignmentStart());
 					}
+				event.clipped = rec.getCigar()!=null && rec.getCigar().isClipped();
 				events.add(event);
 				if(event.id%1000L==0) {
 					LOG.info("number of translocation events : "+event.id);
