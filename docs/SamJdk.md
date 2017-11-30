@@ -73,6 +73,8 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/283969](https://www.biostars.org/p/283969)
  * [https://www.biostars.org/p/286284](https://www.biostars.org/p/286284)
  * [https://www.biostars.org/p/286585](https://www.biostars.org/p/286585)
+ * [https://www.biostars.org/p/286851](https://www.biostars.org/p/286851)
+ * [https://www.biostars.org/p/286819](https://www.biostars.org/p/286819)
 
 
 ## Compilation
@@ -118,6 +120,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Nov 29 17:09:58 2017 +0100 ; adding samjdk / biostars answer ; https://github.com/lindenb/jvarkit/commit/9ed7b941944f653f5ca5cc822e069108ab8deaf6
 Tue Nov 28 11:44:41 2017 +0100 ; htslib + example in samjdk ; https://github.com/lindenb/jvarkit/commit/2508162bbfa50eb2242b56f4d40e37bdc3a9476d
 Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Sun Nov 19 14:02:56 2017 +0100 ; java, not javascript ! ; https://github.com/lindenb/jvarkit/commit/927ad7ec8655ac50185117702f9a4a90b274bf78
@@ -386,5 +389,21 @@ java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return true;final
 get discordant reads
 
 $ java -jar dist/samjdk.jar -e 'return record.getReadPairedFlag() && !record.getReadUnmappedFlag() && !record.getMateUnmappedFlag() && !record.getReferenceName().equals(record.getMateReferenceName());'  in.bam
+
+
+### Example
+
+exclude clipped reads:
+
+```
+java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.getCigar()==null || !record.getCigar().isClipped();'
+```
+
+###  Example
+
+BAM file for reads that map 100% identity
+
+java -jar  dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigarString().equals("100M") &&  (record.getIntegerAttribute("NM")==null || record.getIntegerAttribute("NM").intValue()==0);' in.bam
+
 
 

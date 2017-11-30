@@ -292,12 +292,28 @@ get discordant reads
 
 $ java -jar dist/samjdk.jar -e 'return record.getReadPairedFlag() && !record.getReadUnmappedFlag() && !record.getMateUnmappedFlag() && !record.getReferenceName().equals(record.getMateReferenceName());'  in.bam
 
+
+### Example
+
+exclude clipped reads:
+
+```
+java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.getCigar()==null || !record.getCigar().isClipped();'
+```
+
+###  Example
+
+BAM file for reads that map 100% identity
+
+java -jar  dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigarString().equals("100M") &&  (record.getIntegerAttribute("NM")==null || record.getIntegerAttribute("NM").intValue()==0);' in.bam
+
+
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183,278902,279535,283969,286284,286585},
+	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJdk
