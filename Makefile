@@ -398,7 +398,7 @@ $(eval $(call compile-htsjdk-cmd,splitbytile,${jvarkit.package}.tools.splitbytit
 $(eval $(call compile-htsjdk-cmd,splitread,${jvarkit.package}.tools.splitread.SplitRead,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,tview,${jvarkit.package}.tools.tview.TViewCmd,${jcommander.jar}))
 #$(eval $(call compile-cgi-cmd,tview.cgi))
-$(eval $(call compile-htsjdk-cmd,vcf2hilbert,${jvarkit.package}.tools.misc.VcfToHilbert,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcf2hilbert,${jvarkit.package}.tools.hilbert.VcfToHilbert,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2ps,${jvarkit.package}.tools.misc.VcfToPostscript,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2svg,${jvarkit.package}.tools.misc.VcfToSvg,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2rdf,${jvarkit.package}.tools.vcf2rdf.VcfToRdf,${jcommander.jar} ))

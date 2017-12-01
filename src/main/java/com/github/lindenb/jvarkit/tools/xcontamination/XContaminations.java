@@ -68,7 +68,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -213,8 +213,8 @@ public class XContaminations extends Launcher
 	private static final Logger LOG=Logger.build(XContaminations.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-filter","--filter"},description="[20171201](moved to jexl). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-sample","--sample","--sample-only"},description="Just use sample's name. Don't use lane/flowcell/etc... data.")
 	private boolean use_only_sample_name = false;
 	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
@@ -302,6 +302,7 @@ public class XContaminations extends Launcher
 			if (obj == null) return false;
 			if (getClass() != obj.getClass()) return false;
 			final SamplePair other = (SamplePair) obj;
+			if(this._hash!=other._hash) return false;
 			if (!sample1.equals(other.sample1)) return false;
 			if (!sample2.equals(other.sample2)) return false;
 			return true;

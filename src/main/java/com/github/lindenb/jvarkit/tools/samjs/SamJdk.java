@@ -308,12 +308,36 @@ BAM file for reads that map 100% identity
 java -jar  dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigarString().equals("100M") &&  (record.getIntegerAttribute("NM")==null || record.getIntegerAttribute("NM").intValue()==0);' in.bam
 
 
+### Example
+
+> .. modify the vcf so that a snp that is detected where the read depth is more than the average read depth at the sample will change to the reference allele.
+
+```
+VariantContextBuilder vcb=new VariantContextBuilder(variant);
+vcb.rmAttribute("AC");
+vcb.rmAttribute("AF");
+final double avgdp = variant.getGenotypes().stream().filter(G->G.hasDP()).mapToInt(G->G.getDP()).average().getAsDouble();
+vcb.genotypes(variant.getGenotypes().
+    stream().
+    map(G->{
+        if(!G.isCalled()) return G;
+        if(!G.hasDP()) return G;
+        if((double)G.getDP()> avgdp) return G;
+        final List<Allele> aL=new ArrayList<>();
+        while(aL.size()<G.getPloidy()) aL.add(variant.getReference());
+        return new GenotypeBuilder(G).alleles(aL).make();
+        }).
+    collect(Collectors.toList())
+    );
+return vcb.make();
+```
+
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819},
+	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,287057},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJdk

@@ -9,12 +9,17 @@ Find depth at specific position in a list of BAM files. My colleague Estelle ask
 Usage: findallcoverageatposition [options] Files
   Options:
     -filter, --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      [20171201](moved to jexl). A JEXL Expression that will be used to filter 
+      out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
     --groupby
-      Group Reads by
+      Group Reads by. Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -h, --help
@@ -31,6 +36,9 @@ Usage: findallcoverageatposition [options] Files
       -p chrom:pos . Multiple separated by space. Add this chrom/position. 
       Required 
       Default: <empty string>
+    -r, -R, --reference
+      [20171201]Indexed fasta Reference file. This file must be indexed with 
+      samtools faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
@@ -49,6 +57,7 @@ Usage: findallcoverageatposition [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/259223](https://www.biostars.org/p/259223)
+ * [https://www.biostars.org/p/250099](https://www.biostars.org/p/250099)
 
 
 ## Compilation
@@ -94,6 +103,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Nov 20 15:01:11 2017 +0100 ; adding partition for bamstats04, Partiton.OPT_DESC ; https://github.com/lindenb/jvarkit/commit/9f4e9dd12ffa66dc87e773bc7afa7040d507bfee
 Sun Jun 25 16:43:47 2017 +0200 ; loop over gene in region ; https://github.com/lindenb/jvarkit/commit/a491397b51bb7149fcdccad8c5dab9bdf6fd83fa
 Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
 Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d

@@ -12,14 +12,16 @@ Usage: xcontaminations [options] Files
       Fail factor: set if (reads sample x supporting x) <= factor (reads 
       sample x supporting y)
       Default: 10
-    -ft, --fihser-treshold
-      Fisher Test treshold
-      Default: 1.0E-5
     -filter, --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      A JEXL Expression that will be used to filter out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
+    -ft, --frasction-treshold
+      FractionTreshold treshold
+      Default: 1.0E-5
     -gf, --genotype-filter
       A Java EXpression Language (JEXL) expressions to filter a genotye in a 
       VCF. Empty string will accept all genotypes. Expression returning a TRUE 
@@ -102,6 +104,9 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Nov 27 17:33:11 2017 +0100 ; exploring jni+htslib ; https://github.com/lindenb/jvarkit/commit/509b01e22a04a34e96c77c0bd5b335c5d7fcec76
+Thu Nov 23 13:32:25 2017 +0100 ; fixing the bash wrapper after https://www.biostars.org/p/284083/#285575 ; https://github.com/lindenb/jvarkit/commit/7f811475a7648d24289702f49d53c89fb53761c9
+Wed Nov 22 14:51:23 2017 +0100 ; improving xcontaminations ; https://github.com/lindenb/jvarkit/commit/9cb1d093c18fd6f644be5905fb7d7f1cc496a8fc
 Tue Nov 21 20:52:32 2017 +0100 ; improving xcontamination, jexl for genotypes ; https://github.com/lindenb/jvarkit/commit/56c1304b97e85167cf78dfa0cf9737c1bf1f8287
 Tue Nov 21 17:55:52 2017 +0100 ; working on xcontaminations... ; https://github.com/lindenb/jvarkit/commit/0519fdc041212457ffcdb427b28c477227c38a9e
 Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0

@@ -22,11 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.hilbert;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -161,7 +159,6 @@ public class VcfToHilbert extends Launcher
             HilbertU(level-1);    this.lineRel(dist, 0);
             HilbertU(level-1);    this.lineRel(0, -dist);
             HilbertC(level-1);
-           
             }
      
 	//make D shaped rule

@@ -64,14 +64,15 @@ import java.util.function.Predicate;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -164,8 +165,8 @@ public class SAM4WebLogo extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-readFilter","--readFilter"},description=SamFilterParser.FILTER_DESCRIPTION)
-	private SamRecordFilter SamRecordFilter = SamFilterParser.buildAcceptAll();
+	@Parameter(names={"-readFilter","--readFilter"},description="[20171201](moved to jexl)"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
+	private SamRecordFilter SamRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
 	
 	private final Function<SAMRecord,Integer> readStart = rec -> 
 		 useClip ? rec.getUnclippedStart() : rec.getAlignmentStart() ;
@@ -185,7 +186,7 @@ public class SAM4WebLogo extends Launcher
 		
         final Cigar cigar=rec.getCigar();
         final Function<Integer,Character> read2base = IDX -> {
-        	byte bases[]=rec.getReadBases();
+        	final byte bases[]=rec.getReadBases();
         	if(SAMRecord.NULL_SEQUENCE.equals(bases)) return '?'; 
         	if(IDX<0 || IDX>=bases.length) return '?';
         	return (char)bases[IDX];
@@ -301,7 +302,7 @@ public class SAM4WebLogo extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		
-    	if(this.regionStr==null)
+    	if(StringUtil.isBlank(this.regionStr))
 			{
 			LOG.error("Undefined interval.");
 			return -1;

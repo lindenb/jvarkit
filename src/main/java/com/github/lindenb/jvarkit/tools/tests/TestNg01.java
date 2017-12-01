@@ -88,7 +88,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
-import com.github.lindenb.jvarkit.tools.misc.VcfToHilbert;
+import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
