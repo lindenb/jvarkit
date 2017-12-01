@@ -1,11 +1,11 @@
 # VCFAnnoBam
 
-Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. It uses the Cigar string instead of the start/end to get the voverage
+Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. 
 
 
 ## DEPRECATED
 
-useless: use DP/DP4 in the Genotypes
+useless: use DP/DP4 in the Genotypes, or use GATK variant annotator
 
 ## Usage
 
@@ -16,10 +16,12 @@ Usage: vcfannobam [options] Files
       min coverage to say the position is not covered
       Default: 0
     -filter, --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      A JEXL Expression that will be used to filter out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
     -h, --help
       print help and exit
     --helpFormat
@@ -27,6 +29,9 @@ Usage: vcfannobam [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
+    -tag, --tag
+      VCF info tag
+      Default: CAPTURE
     --version
       print version and exit
     -BAM
@@ -35,6 +40,15 @@ Usage: vcfannobam [options] Files
       BED File capture.
 
 ```
+
+
+## Keywords
+
+ * bam
+ * sam
+ * depth
+ * vcf
+
 
 ## Compilation
 

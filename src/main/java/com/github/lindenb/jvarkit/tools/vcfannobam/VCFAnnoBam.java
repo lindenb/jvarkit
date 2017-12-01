@@ -1,23 +1,44 @@
-/**
- * 
- */
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfannobam;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Pattern;
 
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -41,6 +62,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /**
 BEGIN_DOC
@@ -65,30 +87,24 @@ END_DOC
 
  */
 @Program(name="vcfannobam",
-	deprecatedMsg="useless: use DP/DP4 in the Genotypes",
-	description="Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. It uses the Cigar string instead of the start/end to get the voverage")
+	deprecatedMsg="useless: use DP/DP4 in the Genotypes, or use GATK variant annotator",
+	description="Annotate a VCF with the Coverage statistics of a BAM file+  BED file of capture. ",
+	keywords= {"bam","sam","depth","vcf"})
 public class VCFAnnoBam extends Launcher {
 	private static final Logger LOG = Logger.build(VCFAnnoBam.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-    @Parameter(names= {"-BED"}, description="BED File capture.",required=true)
+    @Parameter(names= {"-BED","--bed"}, description="BED File Exome capture.",required=true)
 	private File BEDILE=null;
-    
-	@Parameter(names= {"-BAM"}, description="indexed BAM File.")		
+	@Parameter(names= {"-BAM","--bam"}, description="indexed BAM File.")		
 	private List<File> BAMFILE=null;
-
-    
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
-
-
+	@Parameter(names={"-filter","--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names= {"-MIN_COV","--coverage"}, description="min coverage to say the position is not covered")		
 	private int MIN_COVERAGE=0;
-
-   
-    
+	@Parameter(names= {"-tag","--tag"}, description="VCF info tag")		
+	private String capture_tag="CAPTURE";
     
     private class Rgn
     	{
@@ -107,7 +123,7 @@ public class VCFAnnoBam extends Launcher {
     	@Override
     	public String toString()
     		{
-    		StringBuilder b=new StringBuilder();
+    		final StringBuilder b=new StringBuilder();
     		b.append(interval.getStart());
     		b.append('|');
     		b.append(interval.getEnd());
@@ -197,18 +213,18 @@ public class VCFAnnoBam extends Launcher {
 			r.close();
 			}
 		
-		Arrays.sort(counts);
-		
-		for(int cov:counts)
-			{
-			if(cov<=MIN_COVERAGE) rgn.count_no_coverage++;
-			rgn.mean+=cov;
-			}
-		rgn.mean/=counts.length;
-		rgn.min=counts[0];
-		rgn.max=counts[counts.length-1];
-		rgn.percent_covered=(int)(((counts.length-rgn.count_no_coverage)/(double)counts.length)*100.0);
-		rgn.processed=true;
+			Arrays.sort(counts);
+			
+			for(int cov:counts)
+				{
+				if(cov<=MIN_COVERAGE) rgn.count_no_coverage++;
+				rgn.mean+=cov;
+				}
+			rgn.mean/=counts.length;
+			rgn.min=counts[0];
+			rgn.max=counts[counts.length-1];
+			rgn.percent_covered=(int)(((counts.length-rgn.count_no_coverage)/(double)counts.length)*100.0);
+			rgn.processed=true;
 			
 			}
 	
@@ -235,38 +251,35 @@ public class VCFAnnoBam extends Launcher {
 						samHeader.getSequenceDictionary())
 						)
 					{
-					throw new RuntimeException("some same seq dir are incompatibles");
+					throw new JvarkitException.DictionariesAreNotTheSame(
+							firstHeader.getSequenceDictionary(),
+							samHeader.getSequenceDictionary());
 					}
 				}		
 			IntervalList intervalList=new IntervalList(firstHeader);
-			Pattern tab=Pattern.compile("[\t]");
 			LOG.info("read bed "+BEDILE);
 			bedIn=IOUtils.openFileForBufferedReading(BEDILE);
 			String line;
-
+			final BedLineCodec bedCodec=new BedLineCodec();
 			while((line=bedIn.readLine())!=null)
 				{
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				String tokens[]=tab.split(line,5);
-				if(tokens.length<3) throw new IOException("bad bed line in "+line+" "+this.BEDILE);
-				if(firstHeader.getSequenceDictionary().getSequence(tokens[0])==null)
+				final BedLine bed=bedCodec.decode(line);
+				if(bed==null) continue;
+				
+				if(firstHeader.getSequenceDictionary().getSequence(bed.getContig())==null)
 					{
 					LOG.error("error in BED +"+BEDILE+" : "+line+" chromosome is not in sequence dict of "+BAMFILE);
 					continue;
 					}
-				
-				int chromStart1= 1+Integer.parseInt(tokens[1]);//add one
-				int chromEnd1= Integer.parseInt(tokens[2]);
-				
-				Interval interval=new Interval(tokens[0], chromStart1, chromEnd1);
-				intervalList.add(interval);
+				intervalList.add(bed.toInterval());
 				}
 			bedIn.close();
 			bedIn=null;
 			intervalList=intervalList.sorted();
-			for(Interval interval:intervalList.uniqued())
+			for(final Interval interval:intervalList.uniqued())
 				{				
-				Rgn rgn=new Rgn();
+				final Rgn rgn=new Rgn();
 				rgn.interval=interval;
 				capture.put(rgn.interval, rgn);
 				}
@@ -275,7 +288,7 @@ public class VCFAnnoBam extends Launcher {
 			VCFHeader header=r.getHeader();
 			VCFHeader h2=new VCFHeader(header.getMetaDataInInputOrder(),header.getSampleNamesInOrder());
 			h2.addMetaDataLine(new VCFInfoHeaderLine(
-					"CAPTURE", 1,
+					this.capture_tag, 1,
 					VCFHeaderLineType.String,
 					"Capture stats: Format is (start|end|mean|min|max|length|not_covered|percent_covered) BAM files: "+BAMFILE+" CAPTURE:"+BEDILE));
 			w.writeHeader(h2);
@@ -283,7 +296,7 @@ public class VCFAnnoBam extends Launcher {
 			
 			while(r.hasNext())
 				{
-				VariantContext ctx=r.next();
+				final VariantContext ctx=r.next();
 				Interval interval=new Interval(ctx.getContig(), ctx.getStart(), ctx.getEnd());
 				Collection<Rgn> rgns=capture.getOverlapping(interval);
 				Iterator<Rgn> it=rgns.iterator();
@@ -292,14 +305,14 @@ public class VCFAnnoBam extends Launcher {
 					w.add(ctx);
 					continue;
 					}
-				Rgn rgn=it.next();
+				final Rgn rgn=it.next();
 				if(!rgn.processed)
 					{
 					//LOG.info("processing "+rgn.interval);
 					process(rgn,samReaders);
 					}
-				VariantContextBuilder b=new VariantContextBuilder(ctx);
-				b.attribute("CAPTURE", rgn.toString());
+				final VariantContextBuilder b=new VariantContextBuilder(ctx);
+				b.attribute(this.capture_tag, rgn.toString());
 				w.add(b.make());
 				}
 			return 0;
@@ -310,19 +323,19 @@ public class VCFAnnoBam extends Launcher {
 			}
 		finally
 			{
-			for(SamReader samReader:samReaders) CloserUtil.close(samReader);
+			for(final SamReader samReader:samReaders) CloserUtil.close(samReader);
 			}
 		}
 
     @Override
-    public int doWork(List<String> args) {
+    public int doWork(final List<String> args) {
     	return doVcfToVcf(args, outputFile);
     	}
     
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VCFAnnoBam().instanceMainWithExit(args);
 	}
 
