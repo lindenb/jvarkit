@@ -50,6 +50,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -227,7 +228,9 @@ public class XContaminations extends Launcher
 	private double fraction_treshold=1E-5;
 	@Parameter(names={"-factor","--factor"},description="Fail factor: set if (reads sample x supporting x) <= factor (reads sample x supporting y)")
 	private int fail_factor=10;
-
+	@Parameter(names={"-se","--save-every"},description="[20171203] In tab-delimited mode, if output file is defined save the result every x seconds.")
+	private long save_every_sec = -1;
+	
 	private DoublePredicate passFractionTreshold  = (V) -> V > fraction_treshold;
 	
 	private static class SampleAlleles
@@ -420,10 +423,105 @@ public class XContaminations extends Launcher
 		}
 	
 	
-	
+	private void saveToFile(final Map<SamplePair,SampleAlleles> contaminationTable) throws IOException{
+		PrintWriter pw = null;
+		try 
+			{
+			boolean somethingPrinted=false;
+			pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			
+			/* we're done, print the result */
+			pw.print("#");
+			if(!this.use_only_sample_name) {
+				pw.print("Machine:FlowCell:Run:Lane-1");
+				pw.print('\t');
+				}
+			pw.print("sample1");
+			pw.print('\t');
+			if(!this.use_only_sample_name) {
+				pw.print("Machine:FlowCell:Run:Lane-2");
+				pw.print('\t');
+				}
+			pw.print("sample2");
+			pw.print('\t');
+			if(!this.use_only_sample_name) {
+				pw.print("same.lane");
+				pw.print('\t');
+				}
+			pw.print("reads_sample1_supporting_sample1");
+			pw.print('\t');
+			pw.print("reads_sample1_supporting_sample2");
+			pw.print('\t');
+			pw.print("reads_sample1_supporting_others");
+			pw.print('\t');
+			pw.print("reads_sample2_supporting_sample2");
+			pw.print('\t');
+			pw.print("reads_sample2_supporting_sample1");
+			pw.print('\t');
+			pw.print("reads_sample2_supporting_other");
+			pw.print('\t');
+			pw.print("Fraction");
+			pw.print('\t');
+			pw.print("Pass-Fraction");
+			pw.println();
+			for(final SamplePair pair : contaminationTable.keySet())
+				{
+				final SampleAlleles sampleAlleles = contaminationTable.get(pair);
+				if(sampleAlleles==null) continue;
+				
+				if(!this.use_only_sample_name) {
+					pw.print(pair.sample1.getLabel());
+					pw.print('\t');
+					}
+				pw.print(pair.sample1.getSampleName());
+				pw.print('\t');
+				if(!this.use_only_sample_name) {
+					pw.print(pair.sample2.getLabel());
+					pw.print('\t');
+					}
+				pw.print(pair.sample2.getSampleName());
+				pw.print('\t');
+				if(!this.use_only_sample_name) {
+					pw.print(pair.sample1.getLabel().equals(pair.sample2.getLabel())?1:0);
+					pw.print('\t');
+					}
+				pw.print(sampleAlleles.reads_sample1_supporting_sample1);
+				pw.print('\t');
+				pw.print(sampleAlleles.reads_sample1_supporting_sample2);
+				pw.print('\t');
+				pw.print(sampleAlleles.reads_sample1_supporting_other);
+				pw.print('\t');
+				pw.print(sampleAlleles.reads_sample2_supporting_sample2);
+				pw.print('\t');
+				pw.print(sampleAlleles.reads_sample2_supporting_sample1);
+				pw.print('\t');
+				pw.print(sampleAlleles.reads_sample2_supporting_other);
+				pw.print('\t');
+				final double fraction = sampleAlleles.getFraction();
+				pw.print(fraction);
+				pw.print('\t');
+				pw.print(this.passFractionTreshold.test(fraction)?".":"*");
+				pw.println();
+				somethingPrinted=true;				
+				}
+			pw.flush();
+			pw.close();
+			pw=null;
+			
+			if(!somethingPrinted)
+				{
+				LOG.warn("Warning: NO output");
+				}
+			}
+		finally
+			{
+			CloserUtil.close(pw);
+			}
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
+		long last_save_ms = System.currentTimeMillis();
 		if(this.output_as_vcf && !this.use_only_sample_name)
 			{
 			LOG.error("cannot write vcf if --sample is not set");
@@ -513,7 +611,7 @@ public class XContaminations extends Launcher
 					else if(!sampleName.equals(s))
 						{
 						samReader.close();
-						LOG.error("Cannot handle more than one sample/bam");
+						LOG.error("Cannot handle more than one sample/bam  "+bamFile+" "+sampleName);
 						return -1;
 						}
 					}
@@ -532,7 +630,7 @@ public class XContaminations extends Launcher
 				if(sample2samReader.containsKey(sampleName))
 					{
 					samReader.close();
-					LOG.error("Cannot handle more than one bam/sample");
+					LOG.error("Cannot handle more than one bam/sample: "+bamFile+" "+sampleName);
 					return -1;
 					}
 				
@@ -602,7 +700,9 @@ public class XContaminations extends Launcher
 			while(in.hasNext())
 				{
 				final VariantContext ctx= progress.watch(in.next());
-				if(!ctx.isSNP() || ctx.isFiltered() || !ctx.isBiallelic() || ctx.isSymbolic() || !this.variantFilter.test(ctx)) continue;
+				if(!ctx.isSNP() || ctx.isFiltered() || !ctx.isBiallelic() || ctx.isSymbolic() || !this.variantFilter.test(ctx)) {
+					continue;
+				}
 				
 				
 				final Map<String,Genotype> sample2gt  = ctx.getGenotypes().stream().
@@ -634,7 +734,6 @@ public class XContaminations extends Launcher
 							ctx.getEnd(),
 							false
 							);
-					
 					while(iter.hasNext())
 						{
 						final SAMRecord record= iter.next();
@@ -653,7 +752,7 @@ public class XContaminations extends Launcher
 						final Cigar cigar=record.getCigar();
 						if(cigar==null || cigar.isEmpty()) continue;
 						byte readSeq[]=record.getReadBases();
-						if(readSeq==null) continue;
+						if(readSeq==null || readSeq.equals(SAMRecord.NULL_SEQUENCE_STRING)) continue;
 						
 						int readPos = record.getReadPositionAtReferencePosition(ctx.getStart());
 						if(readPos<1) continue;
@@ -864,12 +963,20 @@ public class XContaminations extends Launcher
 					
 					contaminationTable.clear();
 					}
-				
-				
+				else
+					{
+					final long now=System.currentTimeMillis();
+					if(	this.outputFile!=null && 
+						this.save_every_sec>-1L && 
+						last_save_ms+(this.save_every_sec*1000L)> now
+						) {
+						saveToFile(contaminationTable);
+						last_save_ms = now;
+						}
+					}
 				}
 			progress.finish();
-			
-			
+						
 			if(this.output_as_vcf)
 				{
 				vcfw.close();
@@ -877,94 +984,11 @@ public class XContaminations extends Launcher
 				}
 			else
 				{
-				boolean somethingPrinted=false;
-				PrintWriter pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
-				
-				/* we're done, print the result */
-				pw.print("#");
-				if(!this.use_only_sample_name) {
-					pw.print("Machine:FlowCell:Run:Lane-1");
-					pw.print('\t');
-					}
-				pw.print("sample1");
-				pw.print('\t');
-				if(!this.use_only_sample_name) {
-					pw.print("Machine:FlowCell:Run:Lane-2");
-					pw.print('\t');
-					}
-				pw.print("sample2");
-				pw.print('\t');
-				if(!this.use_only_sample_name) {
-					pw.print("same.lane");
-					pw.print('\t');
-					}
-				pw.print("reads_sample1_supporting_sample1");
-				pw.print('\t');
-				pw.print("reads_sample1_supporting_sample2");
-				pw.print('\t');
-				pw.print("reads_sample1_supporting_others");
-				pw.print('\t');
-				pw.print("reads_sample2_supporting_sample2");
-				pw.print('\t');
-				pw.print("reads_sample2_supporting_sample1");
-				pw.print('\t');
-				pw.print("reads_sample2_supporting_other");
-				pw.print('\t');
-				pw.print("Fraction");
-				pw.print('\t');
-				pw.print("Pass-Fraction");
-				pw.println();
-				for(final SamplePair pair : contaminationTable.keySet())
-					{
-					final SampleAlleles sampleAlleles = contaminationTable.get(pair);
-					if(sampleAlleles==null) continue;
-					
-					if(!this.use_only_sample_name) {
-						pw.print(pair.sample1.getLabel());
-						pw.print('\t');
-						}
-					pw.print(pair.sample1.getSampleName());
-					pw.print('\t');
-					if(!this.use_only_sample_name) {
-						pw.print(pair.sample2.getLabel());
-						pw.print('\t');
-						}
-					pw.print(pair.sample2.getSampleName());
-					pw.print('\t');
-					if(!this.use_only_sample_name) {
-						pw.print(pair.sample1.getLabel().equals(pair.sample2.getLabel())?1:0);
-						pw.print('\t');
-						}
-					pw.print(sampleAlleles.reads_sample1_supporting_sample1);
-					pw.print('\t');
-					pw.print(sampleAlleles.reads_sample1_supporting_sample2);
-					pw.print('\t');
-					pw.print(sampleAlleles.reads_sample1_supporting_other);
-					pw.print('\t');
-					pw.print(sampleAlleles.reads_sample2_supporting_sample2);
-					pw.print('\t');
-					pw.print(sampleAlleles.reads_sample2_supporting_sample1);
-					pw.print('\t');
-					pw.print(sampleAlleles.reads_sample2_supporting_other);
-					pw.print('\t');
-					final double fraction = sampleAlleles.getFraction();
-					pw.print(fraction);
-					pw.print('\t');
-					pw.print(this.passFractionTreshold.test(fraction)?".":"*");
-					pw.println();
-					somethingPrinted=true;				
-					}
-				pw.flush();
-				pw.close();
-				
-				if(!somethingPrinted)
-					{
-					LOG.warn("Warning: NO output");
-					}
+				saveToFile(contaminationTable);
 				}
 			return 0;
 			}
-		catch (Exception e) {
+		catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 			}
@@ -982,7 +1006,7 @@ public class XContaminations extends Launcher
 
 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new XContaminations().instanceMainWithExit(args);
 		}

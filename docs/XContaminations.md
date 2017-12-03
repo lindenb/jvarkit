@@ -13,7 +13,8 @@ Usage: xcontaminations [options] Files
       sample x supporting y)
       Default: 10
     -filter, --filter
-      A JEXL Expression that will be used to filter out some sam-records (see 
+      [20171201](moved to jexl). A JEXL Expression that will be used to filter 
+      out some sam-records (see 
       https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
       An expression should return a boolean value (true=exclude, false=keep 
       the read). An empty expression keeps everything. The variable 'record' 
@@ -41,6 +42,10 @@ Usage: xcontaminations [options] Files
     -sample, --sample, --sample-only
       Just use sample's name. Don't use lane/flowcell/etc... data.
       Default: false
+    -se, --save-every
+      [20171203] In tab-delimited mode, if output file is defined save the 
+      result every x seconds.
+      Default: -1
     -vf, --variant-filter
       A Java EXpression Language (JEXL) expressions to filter the variants 
       from a VCF. Empty string will accept all variants. Expression returning 
@@ -104,6 +109,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Dec 1 12:42:00 2017 +0100 ; biostars answer, adding --reference to findallcoverageatpos ; https://github.com/lindenb/jvarkit/commit/74e2d2f9f0d34ca5081915c65a7b7ea35f160ec5
 Mon Nov 27 17:33:11 2017 +0100 ; exploring jni+htslib ; https://github.com/lindenb/jvarkit/commit/509b01e22a04a34e96c77c0bd5b335c5d7fcec76
 Thu Nov 23 13:32:25 2017 +0100 ; fixing the bash wrapper after https://www.biostars.org/p/284083/#285575 ; https://github.com/lindenb/jvarkit/commit/7f811475a7648d24289702f49d53c89fb53761c9
 Wed Nov 22 14:51:23 2017 +0100 ; improving xcontaminations ; https://github.com/lindenb/jvarkit/commit/9cb1d093c18fd6f644be5905fb7d7f1cc496a8fc

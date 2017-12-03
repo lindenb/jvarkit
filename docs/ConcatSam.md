@@ -23,7 +23,8 @@ Usage: concatsam [options] Files
       the chromosome name (e.g: 1->chr1)
     -merge, --merge
       Don't really concatenate one sam after the other, use a 
-      htsjdk.samtools.MergingSamRecordIterator 
+      htsjdk.samtools.MergingSamRecordIterator. Similar to Picard 
+      MergeSamFiles 
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
@@ -86,6 +87,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 28 16:00:23 2017 +0100 ; improving concat sam: adding a factory fastq getReadHeader is deprecated , replace with getReadName adding test ; https://github.com/lindenb/jvarkit/commit/53ce7c69ba98c3b85d8d7ca08f8a11e321a5fe1d
 Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
 Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
 Mon Apr 24 17:49:35 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/d822a90a1eaba26a4d874472ccd45e689e8ba063
@@ -115,6 +117,14 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Examples
+
+```
+$ java -jar dist/concatsam.jar dir/*.bam
+$ java -jar dist/concatsam.jar --merge dir/*.bam
+$ java -jar dist/concatsam.jar --region 'ref:100-200' dir/*.bam
+```
 
 
 
