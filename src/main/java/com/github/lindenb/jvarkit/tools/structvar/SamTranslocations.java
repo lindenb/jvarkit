@@ -197,15 +197,15 @@ public class SamTranslocations extends Launcher {
 	    int tid2;
 	    int pos2;
 	    boolean clipped;
+	    int count_partitions=0;
 	    long id;
+	    
 		Event() {
 			
 			}
 		
-		int compare2(final Event o) {
-			int i= partition.compareTo(o.partition);
-			if(i!=0) return i;
-			i = tid1 - o.tid1;
+		int compareLoc(final Event o) {
+			int i = tid1 - o.tid1;
 			if(i!=0) return i;
 			i = pos1 - o.pos1;
 			if(i!=0) return i;
@@ -216,8 +216,19 @@ public class SamTranslocations extends Launcher {
 			return 0;
 			}
 		
-		int compare1(final Event o) {
-			int i= compare2(o);
+		int comparePartitonLoc(final Event o) {
+			final int i= partition.compareTo(o.partition);
+			if(i!=0) return i;
+			return compareLoc(o);
+			}
+		
+		int comparePartitonLocId(final Event o) {
+			final int i= comparePartitonLoc(o);
+			if(i!=0) return i;
+			return Long.compare(id, o.id);
+			}
+		int compareLocId(final Event o) {
+			final int i= compareLoc(o);
 			if(i!=0) return i;
 			return Long.compare(id, o.id);
 			}
@@ -235,6 +246,7 @@ public class SamTranslocations extends Launcher {
 			evt.tid2=dis.readInt();
 			evt.pos2=dis.readInt();		
 			evt.clipped = dis.readBoolean();
+			evt.count_partitions = dis.readInt();
 			evt.id = dis.readLong();
 			return evt;
 			}
@@ -246,6 +258,7 @@ public class SamTranslocations extends Launcher {
 			dos.writeInt(o.tid2);
 			dos.writeInt(o.pos2);
 			dos.writeBoolean(o.clipped);
+			dos.writeInt(o.count_partitions);
 			dos.writeLong(o.id);
 			}
 		@Override
@@ -269,7 +282,7 @@ public class SamTranslocations extends Launcher {
 		TextReport(final File filename,final SAMSequenceDictionary dict) throws IOException {
 			super(dict);
 			this.w= (filename==null?new PrintWriter(stdout()):IOUtils.openFileForPrintWriter(filename));
-			this.w.println("#"+ samRecordPartition.name() +"\tcontig1\tpos1\tcontig2\tpos2\tcount");
+			this.w.println("#"+ samRecordPartition.name() +"\tcontig1\tpos1\tcontig2\tpos2\tcount-events\tnumber_of_partition");
 			}
 		@Override
 		void write(final List<Event> events) throws IOException,XMLStreamException
@@ -282,7 +295,8 @@ public class SamTranslocations extends Launcher {
 				first.pos1+"\t"+
 				dict.getSequence(first.tid2).getSequenceName()+"\t"+
 				first.pos2+"\t"+
-				events.size()
+				events.size()+"\t"+
+				first.count_partitions
 				);
 			}
 		@Override
@@ -370,6 +384,7 @@ public class SamTranslocations extends Launcher {
 				}
 			
 			this.w.writeStartElement("event");
+			this.w.writeAttribute("num-partitions",String.valueOf(first.count_partitions));
 			this.w.writeAttribute("count", String.valueOf(events.size()));
 			this.w.writeAttribute("count-clipped",String.valueOf( events.stream().filter(E->E.clipped).count()));
 			writeSplit("start",first.tid1,first.pos1);
@@ -406,7 +421,8 @@ public class SamTranslocations extends Launcher {
 		}
 		long id_generator=0L;
 		ConcatSam.ConcatSamIterator samIter = null;
-		SortingCollection<Event> events = null;
+		SortingCollection<Event> eventsLoc = null;
+		SortingCollection<Event> eventsPartiton = null;
 		CloseableIterator<Event> evtIter=null;
 		try {
 			IntFunction<Integer> roundPosition = POS->POS-POS%round_loc;
@@ -417,15 +433,14 @@ public class SamTranslocations extends Launcher {
 				LOG.error("Not enough contigs in sequence dictionary. Expected at least 2.");
 				return -1;
 			}
- 			
 			
-			events = SortingCollection.newInstance(Event.class,
+			eventsLoc = SortingCollection.newInstance(Event.class,
 					new EventCodec(),
-					(E1,E2)->E1.compare1(E2),
+					(E1,E2)->E1.compareLocId(E2),
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpPaths()
 					);
-			events.setDestructiveIteration(true);
+			eventsLoc.setDestructiveIteration(true);
 			
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(dict).logger(LOG);
 			while(samIter.hasNext()) {
@@ -456,14 +471,41 @@ public class SamTranslocations extends Launcher {
 					event.pos1 = roundPosition.apply(rec.getMateAlignmentStart());
 					}
 				event.clipped = rec.getCigar()!=null && rec.getCigar().isClipped();
-				events.add(event);
+				eventsLoc.add(event);
 				if(event.id%1000L==0) {
 					LOG.info("number of translocation events : "+event.id);
 					}
 				}
 			progress.finish();
 			samIter.close();samIter=null;
-			events.doneAdding();
+			eventsLoc.doneAdding();
+			
+			
+			eventsPartiton = SortingCollection.newInstance(Event.class,
+					new EventCodec(),
+					(E1,E2)->E1.comparePartitonLocId(E2),
+					this.writingSortingCollection.getMaxRecordsInRam(),
+					this.writingSortingCollection.getTmpPaths()
+					);
+			eventsPartiton.setDestructiveIteration(true);
+
+			
+			evtIter = eventsLoc.iterator();
+			EqualRangeIterator<Event> eq=new EqualRangeIterator<>(evtIter, (E1,E2)->E1.compareLoc(E2));
+			while(eq.hasNext())
+				{
+				final List<Event> eventList = eq.next();
+				for(final Event evt:eventList) {
+					evt.count_partitions = eventList.size();
+					eventsPartiton.add(evt);
+					}				
+				}
+			eq.close();
+			eq=null;
+			evtIter.close();evtIter=null;
+			try { eventsLoc.cleanup();} catch(Throwable err){}
+			eventsLoc=null;
+			
 			final Report report;
 			if(this.xml_output)
 				{
@@ -474,8 +516,9 @@ public class SamTranslocations extends Launcher {
 				report = new TextReport(this.outputFile,dict);
 				}
 			
-			evtIter = events.iterator();
-			final EqualRangeIterator<Event> eq=new EqualRangeIterator<>(evtIter, (E1,E2)->E1.compare2(E2));
+			eventsPartiton.doneAdding();
+			evtIter = eventsPartiton.iterator();
+			eq=new EqualRangeIterator<>(evtIter, (E1,E2)->E1.comparePartitonLoc(E2));
 			while(eq.hasNext())
 				{
 				final List<Event> eventList = eq.next();
@@ -485,8 +528,8 @@ public class SamTranslocations extends Launcher {
 			report.close();
 			eq.close();
 			evtIter.close();evtIter=null;
-			events.cleanup();
-			events=null;
+			eventsPartiton.cleanup();
+			eventsPartiton=null;
 			return 0;
 		} catch(final Throwable err) {
 			LOG.error(err);
@@ -495,8 +538,8 @@ public class SamTranslocations extends Launcher {
 		finally
 			{
 			CloserUtil.close(evtIter);
-			if(events!=null) events.cleanup();
-			events=null;
+			if(eventsPartiton!=null) try {eventsPartiton.cleanup();} catch(Exception err){}
+			eventsPartiton=null;
 			CloserUtil.close(samIter);
 			}
 		}
