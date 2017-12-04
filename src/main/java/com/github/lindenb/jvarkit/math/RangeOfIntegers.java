@@ -31,7 +31,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class RangeOfIntegers {
-public static final String OPT_DESC="A range of is a list of integers is ascending order separated with semicolons. ";
+public static final String OPT_DESC="A 'range of integers' is a list of integers in ascending order separated with semicolons. ";
 /** generate RangeOfIntegers from a String with values separated with semicolons */
 public static class StringConverter 
 	implements com.beust.jcommander.IStringConverter<RangeOfIntegers>

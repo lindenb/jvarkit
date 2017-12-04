@@ -235,12 +235,13 @@ public class XContaminations extends Launcher
 	
 	private static class SampleAlleles
 		{
-		long reads_sample1_supporting_sample1=0;
-		long reads_sample1_supporting_sample2=0;
-		long reads_sample1_supporting_other=0;
-		long reads_sample2_supporting_sample1=0;
-		long reads_sample2_supporting_sample2=0;
-		long reads_sample2_supporting_other=0;
+		long reads_sample1_supporting_sample1 = 0L;
+		long reads_sample1_supporting_sample2 = 0L;
+		long reads_sample1_supporting_other = 0L;
+		long reads_sample2_supporting_sample1 = 0L;
+		long reads_sample2_supporting_sample2 = 0L;
+		long reads_sample2_supporting_other = 0L;
+		long number_of_comparaisons = 0L;
 		
 		public double getFraction() {
 			final double t= 
@@ -463,6 +464,8 @@ public class XContaminations extends Launcher
 			pw.print("Fraction");
 			pw.print('\t');
 			pw.print("Pass-Fraction");
+			pw.print('\t');
+			pw.print("count_comparison");
 			pw.println();
 			for(final SamplePair pair : contaminationTable.keySet())
 				{
@@ -501,6 +504,8 @@ public class XContaminations extends Launcher
 				pw.print(fraction);
 				pw.print('\t');
 				pw.print(this.passFractionTreshold.test(fraction)?".":"*");
+				pw.print('\t');
+				pw.print(sampleAlleles.number_of_comparaisons);
 				pw.println();
 				somethingPrinted=true;				
 				}
@@ -850,6 +855,8 @@ public class XContaminations extends Launcher
 									if(!this.output_as_vcf && contaminationTable.size()%10000==0) LOG.info("n(pairs)=" + contaminationTable.size() ); 
 									}
 
+								sampleAlleles.number_of_comparaisons++;
+								
 								for(final Character allele: counter1.keySet())
 									{
 									final long n = counter1.count(allele);

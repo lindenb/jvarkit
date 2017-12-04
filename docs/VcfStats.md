@@ -54,24 +54,24 @@ Usage: vcfstats [options] Files
       pipeline 
       Default: false
     --trancheAffected
-      tranches for the number of affected. A range of is a list of integers is 
-      ascending order separated with semicolons.
+      tranches for the number of affected. A 'range of integers' is a list of 
+      integers in ascending order separated with semicolons.
       Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/Inf[]
     --trancheAlts
-      tranches for the number of ALTs. A range of is a list of integers is 
-      ascending order separated with semicolons.
+      tranches for the number of ALTs. A 'range of integers' is a list of 
+      integers in ascending order separated with semicolons.
       Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/Inf[]
     --trancheDP
-      tranches for the DEPTH. A range of is a list of integers is ascending 
-      order separated with semicolons.
+      tranches for the DEPTH. A 'range of integers' is a list of integers in 
+      ascending order separated with semicolons.
       Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/600[, [600/700[, [700/800[, [800/900[, [900/1000[, [1000/2000[, [2000/3000[, [3000/4000[, [4000/5000[, [5000/10000[, [10000/20000[, [20000/30000[, [30000/40000[, [40000/50000[, [50000/100000[, [100000/Inf[]
     --trancheDistance
-      tranches for the distance between the variants. A range of is a list of 
-      integers is ascending order separated with semicolons.
+      tranches for the distance between the variants. A 'range of integers' is 
+      a list of integers in ascending order separated with semicolons.
       Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/Inf[]
     --trancheIndelSize
-      tranches for the Indel size A range of is a list of integers is 
-      ascending order separated with semicolons.
+      tranches for the Indel size A 'range of integers' is a list of integers 
+      in ascending order separated with semicolons.
       Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/15[, [15/20[, [20/50[, [50/100[, [100/Inf[]
     --vckey
       Variant Context Key. if defined, I will look at this key in the INFO 
