@@ -42,16 +42,22 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
+
+## Cited In
+
+* Suppl. material of: "The Mobile Element Locator Tool (MELT): population-scale mobile element discovery and biology". [http://genome.cshlp.org/content/27/11/1916.short](http://genome.cshlp.org/content/27/11/1916.short) Gardner et al. Genome Res. 2017. 27: 1916-1929 
 
 ## Example
 
@@ -74,10 +80,12 @@ r002	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
 END_DOC
 
 
+
+
  */
 @Program(name="biostar84452",
 	biostars=84452,
-	description="remove clipped bases from BAM",
+	description="remove clipped bases from a BAM file",
 	keywords={"sam","bam","clip"},
 	terms=Term.ID_0000015
 	)
@@ -86,7 +94,7 @@ public class Biostar84452 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar84452.class).make();
 	
 	
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
 	@ParametersDelegate
@@ -95,8 +103,8 @@ public class Biostar84452 extends Launcher
 	private String customTag=null;
 	
 	@Override
-	public int doWork(List<String> args) {
-		if(customTag!=null)
+	public int doWork(final List<String> args) {
+		if(!StringUtil.isBlank(this.customTag))
 			{
 			if(customTag.length()!=2 || !customTag.startsWith("X"))
 				{
@@ -115,37 +123,38 @@ public class Biostar84452 extends Launcher
 			
 			
 			long nChanged=0L;
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
+				final SAMRecord rec=progress.watch(iter.next());
 				if(rec.getReadUnmappedFlag())
 					{
 					sfw.addAlignment(rec);
 					continue;
 					}
 				
-				Cigar cigar=rec.getCigar();
+				final Cigar cigar=rec.getCigar();
 				if(cigar==null)
 					{
 					sfw.addAlignment(rec);
 					continue;
 					}
 				final String originalCigarSting = rec.getCigarString();
-				byte bases[]= rec.getReadBases();
+				final byte bases[]= rec.getReadBases();
 				if(bases==null)
 					{
 					sfw.addAlignment(rec);
 					continue;
 					}
 				
-				ArrayList<CigarElement> L=new ArrayList<CigarElement>();
-				ByteArrayOutputStream nseq=new ByteArrayOutputStream();
-				ByteArrayOutputStream nqual=new ByteArrayOutputStream();
+				final ArrayList<CigarElement> L=new ArrayList<CigarElement>();
+				final ByteArrayOutputStream nseq=new ByteArrayOutputStream();
+				final ByteArrayOutputStream nqual=new ByteArrayOutputStream();
 				
-				byte quals[]= rec.getBaseQualities();
+				final byte quals[]= rec.getBaseQualities();
 				int indexBases=0;
-				for(CigarElement ce:cigar.getCigarElements())
+				for(final CigarElement ce:cigar.getCigarElements())
 					{
 					switch(ce.getOperator())
 						{
@@ -187,15 +196,17 @@ public class Biostar84452 extends Launcher
 					continue;
 					}
 				++nChanged;
-				if(this.customTag!=null) rec.setAttribute(this.customTag,originalCigarSting);
+				if(!StringUtil.isBlank(this.customTag)) rec.setAttribute(this.customTag,originalCigarSting);
 				rec.setCigar(new Cigar(L));
 				rec.setReadBases(nseq.toByteArray());
 				if(quals.length!=0)  rec.setBaseQualities(nqual.toByteArray());
 				sfw.addAlignment(rec);
 				}
+			progress.finish();
+			iter.close();
 			LOG.info("Num records changed:"+nChanged);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -207,10 +218,8 @@ public class Biostar84452 extends Launcher
 			}
 		return 0;
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+	
+	public static void main(final String[] args)
 		{
 		new Biostar84452().instanceMainWithExit(args);
 		}

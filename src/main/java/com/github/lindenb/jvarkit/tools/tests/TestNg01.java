@@ -57,6 +57,7 @@ import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats04;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar59647;
+import com.github.lindenb.jvarkit.tools.biostar.Biostar84452;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
 import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac;
@@ -589,8 +590,18 @@ class TestNg01 {
         		}));
     	}
     
-    @Test
     
+    
+    @Test
+    public void testBiostar84452() throws IOException{    
+    	File tmp = new File(TEST_RESULTS_DIR, "tmp.bam");
+    	Assert.assertEquals(0,new Biostar84452().instanceMain(new String[]{
+        		"-o",tmp.getPath(),
+        		TOY_BAM
+        		}));
+    	Assert.assertTrue(tmp.delete());
+    	}
+    @Test
     public void testBiostar59647() throws IOException{    
     	File tmp = new File(TEST_RESULTS_DIR, "tmp.xml");
     	Assert.assertEquals(0,new Biostar59647().instanceMain(new String[]{
