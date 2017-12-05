@@ -1,4 +1,35 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 package com.github.lindenb.jvarkit.tools.splitbytitle;
+
+
+/**
+BEGIN_DOC
+
+
+END_DOC
+ */
 
 import java.io.File;
 import java.util.HashMap;
@@ -36,7 +67,7 @@ public class SplitByTile  extends Launcher
 		}	
     
     @Override
-    public int doWork(List<String> args) {
+    public int doWork(final List<String> args) {
     	if(OUTPUT==null || !OUTPUT.contains(TILEWORD) || !OUTPUT.endsWith(".bam"))
     		{
     		LOG.error("Bad OUPUT name "+OUTPUT+". must contain "+TILEWORD+" and ends with .bam");
@@ -44,8 +75,8 @@ public class SplitByTile  extends Launcher
     		}
     	
         SamReader samReader = null;
-        Map<Integer, SAMFileWriter> tile2writer=new HashMap<Integer, SAMFileWriter>();
-        Pattern colon=Pattern.compile("[\\:]");
+        final  Map<Integer, SAMFileWriter> tile2writer=new HashMap<Integer, SAMFileWriter>();
+        final  Pattern colon=Pattern.compile("[\\:]");
         SAMRecordIterator iter=null;
      
         
@@ -56,8 +87,8 @@ public class SplitByTile  extends Launcher
 			iter=samReader.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
-				String tokens[]=colon.split(rec.getReadName(),6);
+				final SAMRecord rec=iter.next();
+				final String tokens[]=colon.split(rec.getReadName(),6);
 				if(tokens.length<5)
 					{
 		    		LOG.error("Cannot get the 6th field in "+rec.getReadName());
@@ -70,7 +101,7 @@ public class SplitByTile  extends Launcher
 					}
 				catch (Exception e)
 					{
-					
+					tile=-1;
 					}
 				if(tile<0)
 					{
@@ -94,12 +125,12 @@ public class SplitByTile  extends Launcher
 				sfw.addAlignment(rec);
 				}
 			
-			for(SAMFileWriter sfw:tile2writer.values())
+			for(final SAMFileWriter sfw:tile2writer.values())
 				{
 				sfw.close();
 				}
 			} 
-    	catch (Exception e) {
+    	catch (final Exception e) {
     		LOG.error(e);
     		return -1;
 			}

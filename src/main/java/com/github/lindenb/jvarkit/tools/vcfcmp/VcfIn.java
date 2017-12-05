@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
@@ -204,7 +201,8 @@ END_DOC
 
 @Program(name="vcfin",
 	description="Only prints variants that are contained/not contained into another VCF",
-	keywords={"vcf","compare"}
+	keywords={"vcf","compare"},
+	biostars={287815}
 	)
 public class VcfIn extends Launcher
 	{
@@ -212,20 +210,14 @@ public class VcfIn extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-i","--inverse"},description="Print variant that are not part of the VCF-database.")
 	private boolean inverse = false;
-
 	@Parameter(names={"-t","--tabix"},description="Database is Tabix-ed")
 	private boolean databaseIsTabix = false;
-
 	@Parameter(names={"-A","--allalt"},description="ALL user ALT must be found in VCF-database ALT")
 	private boolean userAltInDatabase = false;
-
 	@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER if the variant is found in the database")
 	private String filterIn = "";
-
 	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER if the variant is NOT found in the database")
 	private String filterOut = "";
 
@@ -246,7 +238,7 @@ public class VcfIn extends Launcher
 		}
 	
 	@Override
-	protected VCFHeader addMetaData(VCFHeader header) {
+	protected VCFHeader addMetaData(final VCFHeader header) {
 		if(!this.filterIn.isEmpty()) {
 			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterIn,
 					"Variant overlapping database."));
@@ -320,7 +312,7 @@ public class VcfIn extends Launcher
 
 			this.addMetaData(header);
 			vcw.writeHeader(header);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict).logger(LOG);
 			
 			while(userVcfIn.hasNext())
 				{
@@ -348,7 +340,7 @@ public class VcfIn extends Launcher
 				}
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -372,7 +364,7 @@ public class VcfIn extends Launcher
 			this.addMetaData(header1);
 			vcw.writeHeader(header1);
 			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1.getSequenceDictionary()).logger(LOG);
 			
 			while(in2.hasNext() && !vcw.checkError())
 				{
@@ -399,7 +391,7 @@ public class VcfIn extends Launcher
 			progress.finish();
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -455,7 +447,7 @@ public class VcfIn extends Launcher
 				{
 				return this.scanFileSorted(w,databaseVcfUri, in);
 				}
-			} catch (Exception err) {
+			} catch (final Exception err) {
 				LOG.error(err);
 				return -1;
 			} finally
@@ -463,13 +455,9 @@ public class VcfIn extends Launcher
 			CloserUtil.close(in);
 			CloserUtil.close(w);
 			}
-		
-		
 		}
-	
-	
-	
-	public static void main(String[] args) {
+
+	public static void main(final String[] args) {
 		new VcfIn().instanceMainWithExit(args);
 	}
 	}

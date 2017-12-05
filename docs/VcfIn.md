@@ -44,6 +44,12 @@ Usage: vcfin [options] Files
  * compare
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/287815](https://www.biostars.org/p/287815)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

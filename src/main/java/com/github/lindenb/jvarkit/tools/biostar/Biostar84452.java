@@ -36,6 +36,7 @@ import java.util.List;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
@@ -77,6 +78,10 @@ $ grep r002 samtools-0.1.18/examples/toy.sam
 r002	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
 
 ```
+## See also
+
+* https://twitter.com/EugenomeUK/status/938031803612491776
+
 END_DOC
 
 
@@ -159,7 +164,7 @@ public class Biostar84452 extends Launcher
 					switch(ce.getOperator())
 						{
 						case S: indexBases+=ce.getLength(); break;
-						case H://cont
+						case H: //cont
 						case P: //cont
 						case N: //cont
 						case D:
@@ -181,14 +186,14 @@ public class Biostar84452 extends Launcher
 							}
 						default:
 							{
-							throw new RuntimeException("Unsupported Cigar opertator:"+ce.getOperator());
+							throw new SAMException("Unsupported Cigar opertator:"+ce.getOperator());
 							}
 						}
 					
 					}
 				if(indexBases!=bases.length)
 					{
-					throw new RuntimeException("ERRROR "+rec.getCigarString());
+					throw new SAMException("ERRROR "+rec.getCigarString());
 					}
 				if(L.size()==cigar.numCigarElements())
 					{
