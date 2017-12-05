@@ -186,6 +186,12 @@ public class SamTranslocations extends Launcher {
 	private int round_loc = 150;
 	@Parameter(names={"-x","--xml"},description="XML Output")
 	private boolean xml_output=false;
+	@Parameter(names={"-minp","--min-partition"},description="minimum number of 'partition' sharing the same event.")
+	private int min_shared_partitions = 1;
+	@Parameter(names={"-maxp","--max-partition"},description="maximum number of 'partition' sharing the same event. -1 = no limit.")
+	private int max_shared_partitions = -1;
+	
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 
@@ -495,6 +501,14 @@ public class SamTranslocations extends Launcher {
 			while(eq.hasNext())
 				{
 				final List<Event> eventList = eq.next();
+				
+				if(eventList.size()<this.min_shared_partitions) {
+					continue;
+				}
+				if(this.max_shared_partitions!=-1 && eventList.size()>this.max_shared_partitions) {
+					continue;
+				}
+ 				
 				for(final Event evt:eventList) {
 					evt.count_partitions = eventList.size();
 					eventsPartiton.add(evt);
@@ -503,7 +517,6 @@ public class SamTranslocations extends Launcher {
 			eq.close();
 			eq=null;
 			evtIter.close();evtIter=null;
-			try { eventsLoc.cleanup();} catch(Throwable err){}
 			eventsLoc=null;
 			
 			final Report report;
@@ -528,7 +541,7 @@ public class SamTranslocations extends Launcher {
 			report.close();
 			eq.close();
 			evtIter.close();evtIter=null;
-			eventsPartiton.cleanup();
+			if(eventsPartiton!=null) try {eventsPartiton.cleanup();} catch(Exception err){}
 			eventsPartiton=null;
 			return 0;
 		} catch(final Throwable err) {

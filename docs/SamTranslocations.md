@@ -31,6 +31,9 @@ Usage: samtranslocations [options] Files
       "chrom:start-end" or "chrom:middle+extend"  or 
       "chrom:start-end+extend".A program might use a Reference sequence to fix 
       the chromosome name (e.g: 1->chr1)
+    -maxp, --max-partition
+      maximum number of 'partition' sharing the same event. -1 = no limit.
+      Default: -1
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
@@ -39,6 +42,9 @@ Usage: samtranslocations [options] Files
       Default: 50000
     -m, --min-events
       Minimal number of events for printing a result
+      Default: 1
+    -minp, --min-partition
+      minimum number of 'partition' sharing the same event.
       Default: 1
     -o, --output
       Output file. Optional . Default: stdout
@@ -108,6 +114,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Dec 4 19:25:31 2017 +0100 ; num partitions ; https://github.com/lindenb/jvarkit/commit/95e327ffd1949326bc5989225dd58edf002b3038
 Thu Nov 30 12:18:26 2017 +0100 ; xslt-stylesheet for samtransloc ; https://github.com/lindenb/jvarkit/commit/4450d1e0dcbfcf2685404d401d149976f1cab6ca
 Wed Nov 29 17:09:58 2017 +0100 ; adding samjdk / biostars answer ; https://github.com/lindenb/jvarkit/commit/9ed7b941944f653f5ca5cc822e069108ab8deaf6
 Wed Nov 29 16:40:28 2017 +0100 ; sam transloc ; https://github.com/lindenb/jvarkit/commit/9b83677697adc04d1cd7411b2181fa933a47583d
