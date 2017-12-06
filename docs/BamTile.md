@@ -11,11 +11,22 @@ Usage: bamtile [options] Files
     --bamcompression
       Compression Level.
       Default: 5
+    -e, --exclude
+      [20171206]A JEXL Expression that will be used to filter out some 
+      sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: 'Accept all' (Empty expression)
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -n, --no-overlap
+      [20171206]No overlap, just the read close
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --samoutputformat
@@ -32,6 +43,12 @@ Usage: bamtile [options] Files
 
  * bam
  * sam
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/287915](https://www.biostars.org/p/287915)
 
 
 ## Compilation
@@ -109,6 +126,10 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## See also
+
+* https://twitter.com/sjackman/status/584418230791340032
 
 ## Example
 

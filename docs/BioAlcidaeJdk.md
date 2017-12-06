@@ -97,6 +97,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Nov 27 17:33:11 2017 +0100 ; exploring jni+htslib ; https://github.com/lindenb/jvarkit/commit/509b01e22a04a34e96c77c0bd5b335c5d7fcec76
 Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Mon Nov 20 19:15:20 2017 +0100 ; answer to https://www.biostars.org/p/284852/#284872 ; https://github.com/lindenb/jvarkit/commit/c202551f046c05d1f37dfbc997aeefc0d78d341a
 Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc

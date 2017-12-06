@@ -117,10 +117,13 @@ import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
+import com.github.lindenb.jvarkit.tools.misc.BamTile;
 import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+
+
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -1186,6 +1189,16 @@ class TestNg01 {
         		"-o",output.getPath(),
         		"-R",TOY_FA,
         		"-B",TOY_BED_GZ,
+        		TOY_BAM
+        		}));
+    	Assert.assertTrue(output.delete());
+		}
+    
+    @Test
+    public void testBamTile() throws IOException {
+    	final File output =new File(TEST_RESULTS_DIR,"jeter.bam");
+    	Assert.assertEquals(0,new BamTile().instanceMain(new String[]{
+        		"-o",output.getPath(),
         		TOY_BAM
         		}));
     	Assert.assertTrue(output.delete());

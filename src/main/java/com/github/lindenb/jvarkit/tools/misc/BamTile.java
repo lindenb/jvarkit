@@ -38,6 +38,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
@@ -46,9 +47,14 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /**
 BEGIN_DOC
+
+## See also
+
+* https://twitter.com/sjackman/status/584418230791340032
 
 ## Example
 
@@ -138,7 +144,8 @@ END_DOC
 @Program(
 		name="bamtile",
 		description="Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target.",
-		keywords={"bam","sam"}
+		keywords={"bam","sam"},
+		biostars=287915
 		)
 public class BamTile
 	extends Launcher
@@ -150,10 +157,16 @@ public class BamTile
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names={"-e","--exclude"},description="[20171206]"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
+	private SamRecordFilter filterOut = SamRecordJEXLFilter.buildAcceptAll();
+	@Parameter(names={"-n","--no-overlap"},description="[20171206]No overlap, just the read close ")
+	private boolean no_overlap  = false;
+
+	
 	
 	public BamTile()
-			{
-			}
+		{
+		}
 
 	@Override
 	public int doWork(final List<String> args)
@@ -184,8 +197,6 @@ public class BamTile
 			sfw =  this.writingBamArgs.openSAMFileWriter(this.outputFile,header2, true);
 			
 			
-			
-			
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
 			iter=sfr.iterator();
 			final LinkedList<SAMRecord> buffer=new LinkedList<>();
@@ -196,14 +207,26 @@ public class BamTile
 					{
 					rec= progress.watch(iter.next());
 					if(rec.getReadUnmappedFlag()) continue;
+					if(this.filterOut.filterOut(rec)) continue;
 					if(!buffer.isEmpty())
 						{
 						final SAMRecord last= buffer.getLast();
-						if( last.getReferenceIndex()==rec.getReferenceIndex() &&
-							last.getAlignmentStart()<=rec.getAlignmentStart() &&
-							last.getAlignmentEnd()>=rec.getAlignmentEnd())
+						if(this.no_overlap)
 							{
-							continue;
+							if(last.getReferenceIndex()==rec.getReferenceIndex()  && 
+							   last.getEnd()>=rec.getStart())
+								{
+								continue;
+								}
+							}
+						else
+							{
+							if( last.getReferenceIndex()==rec.getReferenceIndex() &&
+								last.getAlignmentStart()<=rec.getAlignmentStart() &&
+								last.getAlignmentEnd()>=rec.getAlignmentEnd())
+								{
+								continue;
+								}
 							}
 						}
 					}
@@ -218,7 +241,7 @@ public class BamTile
 				buffer.add(rec);
 				
 				
-				if(buffer.size()>2)
+				if(!this.no_overlap && buffer.size()>2)
 					{
 					final int index = buffer.size();
 					final SAMRecord prev =  buffer.get(index-3);
@@ -236,7 +259,6 @@ public class BamTile
 						{
 						buffer.remove(index-3);
 						}
-					
 					}
 				while(buffer.size()>3)
 					{
@@ -245,6 +267,9 @@ public class BamTile
 				
 				}
 			progress.finish();
+			sfw.close();sfw=null;
+			iter.close();iter=null;
+			sfr.close();sfr=null;
 			LOG.info("done");
 			return  RETURN_OK;
 			}
@@ -261,12 +286,7 @@ public class BamTile
 			}
 		}
 				
-	
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new BamTile().instanceMainWithExit(args);
 		}
