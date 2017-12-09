@@ -52,6 +52,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/279942](https://www.biostars.org/p/279942)
  * [https://www.biostars.org/p/284852](https://www.biostars.org/p/284852)
  * [https://www.biostars.org/p/285803](https://www.biostars.org/p/285803)
+ * [https://www.biostars.org/p/288324](https://www.biostars.org/p/288324)
 
 
 ## Compilation
@@ -467,5 +468,43 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig(
 1   960409  G   C   S1= S2=G/C  S3=G/C  S4=G/C  S5=C/C  S6=G/C
 1   962210  A   G   S1=A/G  S2=A/G  S3=A/G  S4=A/G  S5= S6=A/G
 ```
+
+## Example
+
+'Merging of sequence chunks' [https://www.biostars.org/p/288324/#288466](https://www.biostars.org/p/288324/#288466)
+
+```java
+final Map<String,List<FastaSequence>> id2seqs= new HashMap<>();
+stream().forEach(S->{
+    String n = S.getName();
+    if(!id2seqs.containsKey(n)) id2seqs.put(n,new ArrayList<>());
+    id2seqs.get(n).add(S);
+    });
+
+for(final List<FastaSequence> seqs: id2seqs.values())
+{
+println(">"+seqs.get(0).getName());
+int len = seqs.stream().mapToInt(S->S.length()).max().getAsInt();
+for(int i=0;i< len;i++)
+    {
+    char c='\0';
+    for(FastaSequence s:seqs)
+        {
+        if(i>=s.length() || s.charAt(i)=='-'  ||  c==s.charAt(i)) continue;
+        if(c=='\0')
+            {
+            c=s.charAt(i);
+            }
+        else
+            {   
+            c='X';
+            }
+        }
+    print(c=='\0'?'-':c);
+    }
+println();
+}
+```
+
 
 

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -408,6 +408,44 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig(
 1   962210  A   G   S1=A/G  S2=A/G  S3=A/G  S4=A/G  S5= S6=A/G
 ```
 
+## Example
+
+'Merging of sequence chunks' [https://www.biostars.org/p/288324/#288466](https://www.biostars.org/p/288324/#288466)
+
+```java
+final Map<String,List<FastaSequence>> id2seqs= new HashMap<>();
+stream().forEach(S->{
+    String n = S.getName();
+    if(!id2seqs.containsKey(n)) id2seqs.put(n,new ArrayList<>());
+    id2seqs.get(n).add(S);
+    });
+
+for(final List<FastaSequence> seqs: id2seqs.values())
+{
+println(">"+seqs.get(0).getName());
+int len = seqs.stream().mapToInt(S->S.length()).max().getAsInt();
+for(int i=0;i< len;i++)
+    {
+    char c='\0';
+    for(FastaSequence s:seqs)
+        {
+        if(i>=s.length() || s.charAt(i)=='-'  ||  c==s.charAt(i)) continue;
+        if(c=='\0')
+            {
+            c=s.charAt(i);
+            }
+        else
+            {   
+            c='X';
+            }
+        }
+    print(c=='\0'?'-':c);
+    }
+println();
+}
+```
+
+
 END_DOC
 */
 
@@ -415,7 +453,7 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars={264894,275714,279535,279942,284852,285803},
+	biostars={264894,275714,279535,279942,284852,285803,288324},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidaeJdk
