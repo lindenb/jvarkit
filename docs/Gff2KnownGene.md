@@ -1,6 +1,6 @@
 # Gff2KnownGene
 
-Convert GFF3 format to UCSC knownGene format.
+Convert GFF3/GTF format to UCSC knownGene format.
 
 
 ## Usage
@@ -9,7 +9,7 @@ Convert GFF3 format to UCSC knownGene format.
 Usage: gff2kg [options] Files
   Options:
     -bin, --bin
-      Preppend with 'bin' column
+      Insert  UCSC 'bin' column as the first column.
       Default: false
     -h, --help
       print help and exit
@@ -27,6 +27,10 @@ Usage: gff2kg [options] Files
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
+    -trid, --trid
+      Transcript identifiers in the GTF/GFF (column N°3) used to identify a 
+      transcript. Multiple separated by a semicolon
+      Default: transcript;mRNA;snRNA;tRNA;snoRNA
     --version
       print version and exit
 
@@ -36,6 +40,7 @@ Usage: gff2kg [options] Files
 ## Keywords
 
  * gff
+ * ,gtf
  * knownGene
  * ucsc
  * convert
@@ -90,6 +95,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
 Wed Oct 4 17:05:37 2017 +0200 ; reading google scholar, answers to reviewers ; https://github.com/lindenb/jvarkit/commit/871a481468fbd1877f02bc171cf080c5e1d3190f
 Wed Oct 4 14:24:06 2017 +0200 ; https://www.biostars.org/p/276099 ; https://github.com/lindenb/jvarkit/commit/47371517ed135a6730d83da7a3cc5e5a3704e265
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
@@ -151,7 +157,6 @@ $	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_
 ```
 
 ## see also
-
 
   * Ensembl vs UCSC  [https://twitter.com/yokofakun/status/743751004785545218](https://twitter.com/yokofakun/status/743751004785545218)
 

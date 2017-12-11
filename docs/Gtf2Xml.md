@@ -1,6 +1,6 @@
 # Gtf2Xml
 
-Convert GTF to XML
+Convert GTF/GFF to XML
 
 
 ## Usage
@@ -8,6 +8,15 @@ Convert GTF to XML
 ```
 Usage: gtf2xml [options] Files
   Options:
+    -a, --attributes
+      Don't record attribute types.
+      Default: false
+    -d, --dict
+      Don't record contigs
+      Default: false
+    -f, --features
+      Don't record features types.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -15,9 +24,9 @@ Usage: gtf2xml [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
-    -T, --tmpDir
-      mp directory
-      Default: /tmp
+    -s, --sources
+      Don't record sources
+      Default: false
     --version
       print version and exit
 
@@ -28,6 +37,7 @@ Usage: gtf2xml [options] Files
 
  * xml
  * gtf
+ * gff
 
 
 ## Compilation

@@ -114,6 +114,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Dec 5 09:42:48 2017 +0100 ; samtransloc min/max ; https://github.com/lindenb/jvarkit/commit/77e5c5513897fdfc41b7b833db497a6738e55642
 Mon Dec 4 19:25:31 2017 +0100 ; num partitions ; https://github.com/lindenb/jvarkit/commit/95e327ffd1949326bc5989225dd58edf002b3038
 Thu Nov 30 12:18:26 2017 +0100 ; xslt-stylesheet for samtransloc ; https://github.com/lindenb/jvarkit/commit/4450d1e0dcbfcf2685404d401d149976f1cab6ca
 Wed Nov 29 17:09:58 2017 +0100 ; adding samjdk / biostars answer ; https://github.com/lindenb/jvarkit/commit/9ed7b941944f653f5ca5cc822e069108ab8deaf6

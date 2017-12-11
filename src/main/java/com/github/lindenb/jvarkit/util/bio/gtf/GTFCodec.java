@@ -1,249 +1,350 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2017 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.util.bio.gtf;
 
 
-import java.io.IOException;
-import java.net.URLDecoder;
+import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.readers.LineIterator;
 
-
-public class GTFCodec {
-	private final Pattern tab=Pattern.compile("[\t]");
-
+/**
+ * GFF/GTF Codec
+ * @author lindenb
+ *
+ */
+public class GTFCodec extends AsciiFeatureCodec<GTFLine>{
+	private static final Pattern tab=Pattern.compile("[\t]");
 	private static final String GFF_VERSION="##gff-version";
-	private GTFHeader header=null;
+	private GTFHeaderImpl header=null;
 
-	public static class GTFHeader
+	public static interface GTFHeader
+		{
+		public boolean isGff3();
+		public List<String> getLines();
+		}
+
+	
+	public static class GTFHeaderImpl implements GTFHeader
 		{
 		private final List<String> lines = new ArrayList<>();
-		private boolean is_gff3=false;
+		@Override
 		public boolean isGff3() {
-			return is_gff3;	
+				for(final String line:this.lines) {
+				if(line.startsWith(GFF_VERSION+" "))
+					{
+					final String version =line.substring(GFF_VERSION.length()).trim();
+					if(version.equals("3"))
+						{
+						return true;
+						}
+					}
+				}
+			return false;
+			}
+		@Override
+		public List<String> getLines() {
+			return this.lines;
+			}
+		@Override
+		public String toString() {
+			return String.join("\n", this.lines);
 			}
 		}
 
 	
-	
 	public GTFCodec() {
+		super(GTFLine.class);
 		}
 	
-	
-	
-	
-	public GTFLine decode(LineIterator r)throws IOException
+	@Override
+	public boolean canDecode(final String path) {
+		if(StringUtil.isBlank(path)) return false;
+		return true;
+		}
+
+	@Override
+	public GTFLine decode(final LineIterator r)
 		{
 		for(;;)
 			{
 			if(!r.hasNext()) return null;
-			String line=r.next();
+			final String line=r.next();
 			if(line.startsWith("#")) continue;
-			return decode(line);	
+			final GTFLine record =  decode(line);	
+			if(record==null) continue;
+			return record;
 			}
 		}
 		
-	
-	public GTFHeader readHeader(LineIterator r) throws IOException {
-		if(this.header!=null) throw new IOException("Reader already read");
-		this.header = new GTFHeader();
+	@Override
+	public GTFHeader readActualHeader(final LineIterator r) {
+		if(this.header!=null) throw new RuntimeIOException("Reader already read");
+		this.header = new GTFHeaderImpl();
 		while(r.hasNext() && r.peek().startsWith("#"))
 			{
-			final String line=r.next();
-			if(line.startsWith(GFF_VERSION+" "))
-				{
-				final String version =line.substring(GFF_VERSION.length()).trim();
-				if(version.equals("3"))
-					{
-					this.header.is_gff3=true;
-					}
-				}
-			this.header.lines.add(line);
+			
+			this.header.lines.add(r.next());
 			}
 		return this.header;
 		}
 		
-	private String unescape(String s) throws IOException
+		
+		
+	public GTFLine decode(final String line)
 		{
-		return URLDecoder.decode(s, "UTF-8");
-		}
-		
-	public IntervalTreeMap<List<GTFGene>> readAllAsIntervalTreeMap(final LineIterator iter) throws IOException {
-		IntervalTreeMap<List<GTFGene>> h=new IntervalTreeMap<>();
-		for(;;)
-			{
-			final List<GTFGene> L2 = nextGenesInContig(iter);
-			if(L2.isEmpty()) break;
-			for(final GTFGene gene:L2)
-				{
-				final Interval interval =new Interval(gene.getContig(),gene.getStart(),gene.getEnd());
-				List<GTFGene> x= h.get(interval);
-				if(x==null) {
-					x=new ArrayList<>();
-					h.put(interval, x);
-					}
-				x.add(gene);
-				}
-			}
-		return h;
-		}
-		
-	public List<GTFGene> readAll(final LineIterator iter) throws IOException {
-		final List<GTFGene> L = new ArrayList<>();
-		for(;;)
-			{
-			final List<GTFGene> L2 = nextGenesInContig(iter);
-			if(L2.isEmpty()) break;
-			L.addAll(L2);
-			}
-		return L;
-		}
-			
-	public List<GTFGene> nextGenesInContig(final LineIterator iter) throws IOException {
-		if(!iter.hasNext()) return Collections.emptyList();
-		final Map<String,List<GTFLine>> transcript2map = new HashMap<>();
-		String prevContig = null;
-		while(iter.hasNext())
-			{
-			final String line = iter.peek();
-			final GTFLine record = this.decode(line);
-			if(prevContig!=null && prevContig.equals(record.getContig())) {
-				break;
-				}
-			iter.next();//consumme
-			final String transcript_id = record.getAtts().get("transcript_id");
-			if( transcript_id == null ) continue;
-			List<GTFLine> lines = transcript2map.get(transcript_id);
-			if( lines ==null ) {
-				lines = new ArrayList<>();
-				transcript2map.put(transcript_id,lines);
-				}
-			lines.add(record);
-			prevContig = record.getContig();
-			}
-		
-		final List<GTFGene> list = new ArrayList<>(transcript2map.size());
-		Collections.sort(list, (A,B)->{
-			int i=A.getContig().compareTo(B.getContig());
-			if( i != 0 ) return i;
-			i = A.getStart() - B.getStart();
-			if( i !=0 ) return i;
-			i = A.getEnd() - B.getEnd();
-			return i;
-			});
-		return list;
-		}
-		
-	public GTFLine decode(final String line) throws IOException
-		{
+		/* non, on s'en fout à vrai dire...
 		if(this.header==null) {
-			throw new IOException("header was not parsed");
+			throw new RuntimeIOException("header was not parsed");
+		}*/
+		if(line.startsWith("#") || line.isEmpty()) return null;
+		return new GTFLineImpl(GTFCodec.tab.split(line));
 		}
-		final String tokens[]=this.tab.split(line);
-		if(tokens.length<8)
-			{	
-			throw new JvarkitException.TokenErrors("Expected 8 columns",tokens);
-			}
-		final GTFLine L=new GTFLine();
-		L.contig=tokens[0];
-		L.source= tokens[1];
-		L.type = tokens[2];
-		L.start = Integer.parseInt(tokens[3]);
-		L.end = Integer.parseInt(tokens[4]);
-		if(!tokens[5].equals(".")) L.score = (Double.parseDouble(tokens[5]));
-		L.strand = (tokens[6].charAt(0));
-		if(!tokens[7].equals(".")) L.phase=Integer.parseInt(tokens[7]);
-		final Map<String, String> attMap=new HashMap<>();
-		final String mapStr = tokens[8];
-		int k=0;
-		while( k < mapStr.length())
+	
+	
+	private static class GTFLineImpl implements GTFLine
+		{
+		final String tokens[];
+		final int start;
+		final int end;
+
+		public GTFLineImpl(final String tokens[])
 			{
-			if(Character.isWhitespace(mapStr.charAt(k))) {
-				++k;
-				continue;
+			this.tokens = tokens;
+			if(tokens.length<8)
+				{	
+				throw new JvarkitException.TokenErrors("Expected 8 columns",tokens);
 				}
-			char c= mapStr.charAt(k);
-			if(c==';') { ++k; continue;}
-			/* read KEY */
-			final StringBuilder sbk=new StringBuilder();
-			while( k < mapStr.length()) {
-				c= mapStr.charAt(k);
-				++k;
-				if(c=='=' || Character.isWhitespace(c))
-					{
-					break;
-					}
-				sbk.append(c);
-				}
-			/* SKIP WS */
-			while( k < mapStr.length() && Character.isWhitespace(mapStr.charAt(k))) {
-				++k;
-				continue;
-				}
-			/* EQUAL SIGN */
-			if( k < mapStr.length() && mapStr.charAt(k)=='=') {
-				++k;
-				}
-			/* SKIP WS */
-			while( k < mapStr.length() && Character.isWhitespace(mapStr.charAt(k))) {
-				++k;
-				continue;
-				}
-			/* read VALUE */
-			final StringBuilder sbv=new StringBuilder();
-			c=(k < mapStr.length()?mapStr.charAt(k):'\0');
-			// quoted string
-			if( c == '\"')
+			this.start = Integer.parseInt(tokens[3]);
+			this.end = Integer.parseInt(tokens[4]);
+			}
+		
+		@Override
+		public int hashCode() {
+			return Arrays.hashCode(this.tokens);
+			}
+		
+		@Override
+		public boolean equals(final Object obj) {
+			if(obj==this) return true;
+			if(obj==null || !(obj instanceof GTFLine)) return false;
+			return this.getLine().equals(GTFLine.class.cast(obj).getLine());
+		}
+		
+		private String get(int col) {
+			return this.tokens[col];
+		}
+		
+		public String getContig() {
+			return get(0);
+		}
+		
+		public String getSource() {
+			return get(1);
+		}
+		
+		public String getType() {
+			return get(2);
+		}
+		
+		public int getStart() {
+			return start;
+		}
+		
+		public int getEnd() {
+			return end;
+		}
+	
+		public Double getScore() {
+			return get(5).equals(".")?null:Double.parseDouble(get(5));
+		}
+	
+		public char getStrand() {
+			return get(6).charAt(0);
+		}
+	
+	
+		public int getPhase() {
+			return (get(7).equals(".")?GTFLine.NO_PHASE:Integer.parseInt(get(7)));
+		}
+		
+		@Override
+		public String getLine() {
+			return String.join("\t", this.tokens);
+			}
+		@Override
+		public Iterator<Entry<String, String>> iterator() {
+			return new AttIter(get(8));
+			}
+		
+		@Override
+		public String getAttribute(final String key) {
+			for(final Iterator<Map.Entry<String,String>> iter=this.iterator();iter.hasNext();)
 				{
-				++k;
-				while( k < mapStr.length()) {
+				final Map.Entry<String,String> kv = iter.next();
+				if(kv.getKey().equals(key)) return kv.getValue();
+				}
+			return null;
+			}
+		
+		@Override
+		public Map<String, String> getAttributes() {
+			final Map<String,String> hash = new LinkedHashMap<>();
+			for(final Iterator<Map.Entry<String,String>> iter=this.iterator();iter.hasNext();)
+				{
+				final Map.Entry<String,String> kv = iter.next();
+				hash.put(kv.getKey(), kv.getValue());
+				}
+			return hash;
+			}
+		
+		@Override
+		public String toString() {
+			return getLine();
+			}
+		}
+
+	private static class AttIter extends AbstractIterator<Map.Entry<String, String>> {
+		private final String mapStr;
+		private int k=0;
+		AttIter(final String mapStr)
+			{
+			this.mapStr = mapStr;
+			}
+		private void skipws() {
+			while( this.k < this.mapStr.length() &&
+				Character.isWhitespace(this.mapStr.charAt(this.k)))
+				{
+				++this.k;
+				}
+			}
+		
+		@Override
+		protected Entry<String, String> advance() {
+			skipws();
+			if(k>=this.mapStr.length()) return null;
+			for(;;)
+				{
+				skipws();
+				if(this.k>=this.mapStr.length()) return null;
+				char c= mapStr.charAt(k);
+				if(c==';') { ++k; continue;}
+				/* read KEY */
+				final StringBuilder sbk=new StringBuilder();
+				while( this.k < mapStr.length()) {
 					c= mapStr.charAt(k);
 					++k;
-					if(c=='\\')
-						{
-						c=(k < mapStr.length()?mapStr.charAt(k):'\0');
-						++k;
-						switch(c) {
-							case '"': sbv.append("\"");break;
-							case '\'': sbv.append("\'");break;
-							case 't': sbv.append("\t");break;
-							case 'n': sbv.append("\n");break;
-							default:break;
-							}
-						}
-					else if(c=='\"')
+					if(c=='=' || Character.isWhitespace(c))
 						{
 						break;
 						}
-					else
-						{
+					sbk.append(c);
+					}
+				/* SKIP WS */
+				skipws();
+				/* EQUAL SIGN */
+				if( this.k < mapStr.length() && mapStr.charAt(k)=='=') {
+					++k;
+					}
+				/* SKIP WS */
+				skipws();
+				
+				if( this.k >= mapStr.length())
+					{
+					if(sbk.length()==0) return null;
+					return new AbstractMap.SimpleEntry<String,String>(sbk.toString(),"");
+					}
+				
+				/* read VALUE */
+				final StringBuilder sbv=new StringBuilder();
+				c=(this.k < mapStr.length()?this.mapStr.charAt(this.k):'\0');
+				// quoted string
+				if( c == '\"')
+					{
+					++this.k;
+					while( this.k < mapStr.length()) {
+						c= mapStr.charAt(k);
+						++k;
+						if(c=='\\')
+							{
+							c=(k < mapStr.length()?mapStr.charAt(k):'\0');
+							++k;
+							switch(c) {
+								case '"': sbv.append("\"");break;
+								case '\'': sbv.append("\'");break;
+								case 't': sbv.append("\t");break;
+								case 'n': sbv.append("\n");break;
+								default:break;
+								}
+							}
+						else if(c=='\"')
+							{
+							break;
+							}
+						else
+							{
+							sbv.append(c);
+							}
+						}
+					}
+				else
+					{
+					while( this.k < this.mapStr.length()) {
+						c= this.mapStr.charAt(k);
+						++k;
+						if(c==';' || Character.isWhitespace(c))
+							{
+							break;
+							}
 						sbv.append(c);
 						}
 					}
-				}
-			else
-				{
-				while( k < mapStr.length()) {
-					c= mapStr.charAt(k);
-					++k;
-					if(c==';' || Character.isWhitespace(c))
-						{
-						break;
-						}
-					sbv.append(c);
+				final AbstractMap.SimpleEntry<String,String> entry= new AbstractMap.SimpleEntry<String,String>(sbk.toString(),sbv.toString());
+				skipws();
+				if( this.k < this.mapStr.length() && this.mapStr.charAt(this.k)==';')
+					{
+					this.k++;
+					skipws();
 					}
+				return entry;
 				}
-			attMap.put(sbk.toString(),sbv.toString());
 			}
-		L.atts=attMap;
-		return L;
 		}
+ 	
+	
 	}

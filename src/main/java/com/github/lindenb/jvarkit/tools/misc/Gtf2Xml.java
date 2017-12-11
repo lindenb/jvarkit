@@ -29,26 +29,27 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.LineIterator;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.StreamTokenizer;
-import java.io.StringReader;
-import java.net.URLDecoder;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -146,136 +147,88 @@ output:
 END_DOC
  */
 @Program(name="gtf2xml",
-	description="Convert GTF to XML",
-	keywords={"xml","gtf"})
+	description="Convert GTF/GFF to XML",
+	keywords={"xml","gtf","gff"})
 public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.build(FixVCF.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = new File(System.getProperty("java.io.tmpdir"));
-
-	private abstract class GffCodec
+	@Parameter(names={"-f","--features"},description="Don't record features types.")
+	private boolean disable_feature_type=false;
+	@Parameter(names={"-s","--sources"},description="Don't record sources")
+	private boolean disable_sources=false;
+	@Parameter(names={"-d","--dict"},description="Don't record contigs")
+	private boolean disable_dict=false;
+	@Parameter(names={"-a","--attributes"},description="Don't record attribute types.")
+	private boolean disable_att_keys=false;
+	
+	
+	
+	private final Map<String,Long> seqdict=new LinkedHashMap<>();
+	private final Set<String> att_keys=new HashSet<>();
+	private final Set<String> sources=new HashSet<>();
+	private final Set<String> types=new HashSet<>();
+	
+	private void write(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException,IOException
 		{
-		Map<String,Long> seqdict=new LinkedHashMap<>();
-		Set<String> att_keys=new HashSet<>();
-		Set<String> sources=new HashSet<>();
-		Set<String> types=new HashSet<>();
-		protected Pattern tab=Pattern.compile("[\t]");
-		protected Pattern semicolon=Pattern.compile("[;]");
-		void write(XMLStreamWriter w,String line) throws XMLStreamException,IOException
-			{
-			String tokens[] = this.tab.split(line);
-			if(tokens.length<8) throw new IOException("Expected at least 8 columns in "+line+" got "+tokens.length);
-			w.writeStartElement("feature");
-			
-			w.writeAttribute("chrom", tokens[0]);
-			w.writeAttribute("start", tokens[3]);
-			w.writeAttribute("end", tokens[4]);
-			
-			Long contifLength  = seqdict.get(tokens[0]);
-			if(contifLength==null) contifLength=0L;
-			seqdict.put(tokens[0],Math.max(Long.parseLong(tokens[4]), contifLength));
-			
-			if(!tokens[5].equals("."))  w.writeAttribute("score", tokens[5]);
-			if(!tokens[6].equals("."))  w.writeAttribute("strand", tokens[6]);
-			if(!tokens[1].equals("."))
-				{
-				w.writeAttribute("source", tokens[1]);
-				sources.add(tokens[1]);
-				}
-			if(!tokens[2].equals("."))
-				{
-				w.writeAttribute("type", tokens[2]);
-				types.add(tokens[2]);
-				}
-			if(!tokens[7].equals(".")) w.writeAttribute("phase", tokens[7]);
-			if(!tokens[8].equals("."))
-				{
-				w.writeStartElement("attributes");
-				writeAttributes(w,tokens[8]);
-				w.writeEndElement();
-				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
-			}
-		abstract void writeAttributes(XMLStreamWriter w,String attrString)  throws XMLStreamException,IOException;
-			
+		w.writeStartElement("feature");
 		
+		w.writeAttribute("chrom", line.getContig());
+		w.writeAttribute("start",String.valueOf(line.getStart()));
+		w.writeAttribute("end",String.valueOf(line.getEnd()));
+		if(!this.disable_dict) {
+			Long contifLength  = this.seqdict.get(line.getContig());
+			if(contifLength==null) contifLength=0L;
+			this.seqdict.put(line.getContig(),Math.max(line.getEnd(), contifLength));
+			}
+		if(line.getScore()!=null)  {
+			w.writeAttribute("score",String.valueOf(line.getScore()));
 		}
-	
-	private class DefaultCodec extends GffCodec
-		{
-		@Override
-		void writeAttributes(XMLStreamWriter w,String attrString) throws XMLStreamException,IOException
+		if(line.getStrand()!=GTFLine.NO_STRAND) {
+			w.writeAttribute("strand",String.valueOf(line.getStrand()));
+		}
+		if(!StringUtil.isBlank(line.getSource()))  {
+			if(!this.disable_sources) this.sources.add(line.getSource());
+			w.writeAttribute("source",line.getSource());
+		}
+		if(!StringUtil.isBlank(line.getType()))  {
+			if(!disable_feature_type) this.types.add(line.getType());
+			w.writeAttribute("type",line.getType());
+		}
+		if(line.getPhase()!=GTFLine.NO_PHASE) {
+			w.writeAttribute("phase",String.valueOf(line.getPhase()));
+			}
+		
+		w.writeStartElement("attributes");
+		for(final Iterator<Map.Entry<String, String>> kvr=line.iterator();
+				kvr.hasNext();
+				)
 			{
-			StreamTokenizer st=new StreamTokenizer(new StringReader(attrString));
-			st.wordChars('_', '_');
-			String key=null;
-			while(st.nextToken() != StreamTokenizer.TT_EOF)
-				{
-				String s=null;
-				switch(st.ttype)
-					{
-					case StreamTokenizer.TT_NUMBER: s=String.valueOf(st.nval);break;
-					case '"': case '\'' : case StreamTokenizer.TT_WORD: s=st.sval;break;
-					case ';':break;
-					default:break;
-					}
-				if(s==null) continue;
-				if(key==null)
-					{
-					key=s;
-					this.att_keys.add(key);
-					}
-				else 
-					{
-					w.writeStartElement(key);
-					w.writeCharacters(s);
-					w.writeEndElement();
-					key=null;
-					}
-				}
+			final Map.Entry<String, String> kv = kvr.next();
+			w.writeStartElement("attribute");
+			w.writeAttribute("key", kv.getKey());
+			if(!this.disable_att_keys) this.att_keys.add(kv.getKey());
+			w.writeCharacters(kv.getValue());
+			w.writeEndElement();
+			}
+		w.writeEndElement();
 			
-			}
-		}
-	
-	private class Gtf3Codec extends GffCodec
-		{
-		private String unescape(String s) throws IOException
-			{
-			return URLDecoder.decode(s, "UTF-8");
-			}
-		@Override
-		void writeAttributes(XMLStreamWriter w,String attrString) throws XMLStreamException,IOException
-			{
-			String atts[]  = semicolon.split(attrString);
-			for(String att: atts)
-				{
-				if(att.isEmpty()) continue;
-				int eq=att.indexOf("=");
-				if(eq<=0) throw new IOException("bad att "+att+" in "+attrString);
-				String key = att.substring(0,eq);
-				String value = att.substring(eq+1);
-				w.writeStartElement(key);
-				w.writeCharacters(unescape(value) );
-				w.writeEndElement();
-				this.att_keys.add(key);
-				}
-			}
-		}
-	public Gtf2Xml() {
+		w.writeEndElement();
+		w.writeCharacters("\n");
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 
-		BufferedReader r=null;
+		LineIterator r=null;
 		XMLStreamWriter w=null;
 		FileWriter fw=null;
 		try {
 			String inputName=oneFileOrNull(args);
-			r = super.openBufferedReader(inputName);
+			r = (StringUtil.isBlank(inputName)?
+					IOUtils.openStreamForLineIterator(stdin()):
+					IOUtils.openURIForLineIterator(inputName)
+					);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			if(this.outputFile==null)
 				{
@@ -285,96 +238,82 @@ public class Gtf2Xml extends Launcher{
 				{
 				w = xof.createXMLStreamWriter((fw=new FileWriter(this.outputFile)));
 				}
-			GffCodec codec = new DefaultCodec();
-			String headerLine=null;
+			final GTFCodec codec = new GTFCodec();
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("gtf");
-			while((headerLine=r.readLine())!=null)
-				{
-				if(!headerLine.startsWith("#")) break;
-				int ws = headerLine.indexOf(' ');
+			
+			final GTFCodec.GTFHeader header = codec.readActualHeader(r);
+			for(final String headerLine:header.getLines()) {
+				if(!headerLine.startsWith("#!")) continue;
+				final int ws = headerLine.indexOf(' ');
 				if(ws==-1) continue; //??
+				w.writeAttribute(
+						headerLine.substring(2, ws),
+						headerLine.substring(ws+1).trim());
 				
-				if(headerLine.startsWith("##gff-version "))
-					{
-					String version=headerLine.substring(ws+1).trim();
-					LOG.info("version "+version);
-					if(version.equals("3"))
-						{
-						codec = new Gtf3Codec();
-						}
-					w.writeAttribute("gff-version", version);
-					}
-				else if(headerLine.startsWith("#!"))
-					{
-					w.writeAttribute(
-							headerLine.substring(2, ws),
-							headerLine.substring(ws+1).trim());
-					}
-				else
-					{
-					LOG.warning("ignoring "+headerLine);
-					}
 				}
-			w.writeCharacters("\n");
-			
-			
 		
-			String line=null;
-			for(;;)
+			while(r.hasNext())
 				{
-				line=(headerLine!=null?headerLine:r.readLine());
-				headerLine=null;
-				if(line==null) break;
-				if(line.isEmpty()) continue;
-				codec.write(w,line);
+				final String line=r.next();
+				GTFLine gtfline = codec.decode(line);
+				if(gtfline==null) continue;
+				write(w,gtfline);
 				}
 			
-			
-			w.writeStartElement("attributes");
-			for(String k : codec.att_keys)
-				{
-				w.writeStartElement("attribute");
-				w.writeCharacters(k);
+			if(!this.disable_att_keys) {
+				w.writeStartElement("attributes");
+				for(String k : this.att_keys)
+					{
+					w.writeStartElement("attribute");
+					w.writeCharacters(k);
+					w.writeEndElement();
+					w.writeCharacters("\n");
+					}
 				w.writeEndElement();
 				w.writeCharacters("\n");
 				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
 			
-			w.writeStartElement("types");
-			for(String k : codec.types)
-				{
-				w.writeStartElement("type");
-				w.writeCharacters(k);
+			
+			if(!this.disable_feature_type) {
+				w.writeStartElement("types");
+				for(String k : this.types)
+					{
+					w.writeStartElement("type");
+					w.writeCharacters(k);
+					w.writeEndElement();
+					w.writeCharacters("\n");
+					}
 				w.writeEndElement();
 				w.writeCharacters("\n");
 				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
 			
-			
-			w.writeStartElement("sources");
-			for(String k : codec.sources)
-				{
-				w.writeStartElement("source");
-				w.writeCharacters(k);
+			if(!this.disable_sources) {
+				w.writeStartElement("sources");
+				for(final String k : this.sources)
+					{
+					w.writeStartElement("source");
+					w.writeCharacters(k);
+					w.writeEndElement();
+					w.writeCharacters("\n");
+					}
 				w.writeEndElement();
 				w.writeCharacters("\n");
 				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
 
-			w.writeStartElement("dict");
-			for(String k : codec.seqdict.keySet())
-				{
-				w.writeEmptyElement("chrom");
-				w.writeAttribute("name",k);
-				w.writeAttribute("length", String.valueOf(codec.seqdict.get(k)));
+			
+			if(!this.disable_dict) {
+				w.writeStartElement("dict");
+				for(final String k : this.seqdict.keySet())
+					{
+					w.writeEmptyElement("chrom");
+					w.writeAttribute("name",k);
+					w.writeAttribute("length", String.valueOf(this.seqdict.get(k)));
+					w.writeCharacters("\n");
+					}
+				w.writeEndElement();
 				w.writeCharacters("\n");
 				}
-			w.writeEndElement();
-			w.writeCharacters("\n");
 
 			
 			w.writeEndElement();

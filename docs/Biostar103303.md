@@ -71,6 +71,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 14 16:13:41 2017 +0100 ; epsitatis01, strange bug in htsjdk https://github.com/samtools/htsjdk/issues/1026 ; https://github.com/lindenb/jvarkit/commit/871a7cc3ed14df5d5b6cf19ef9bef87160795c16
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
 Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
 Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26

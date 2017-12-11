@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -34,6 +30,8 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SortingCollection;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.LineIterator;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -41,16 +39,26 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -88,7 +96,6 @@ $	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_
 
 ## see also
 
-
   * Ensembl vs UCSC  [https://twitter.com/yokofakun/status/743751004785545218](https://twitter.com/yokofakun/status/743751004785545218)
 
 
@@ -96,29 +103,60 @@ $	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_
 END_DOC
  */
 @Program(name="gff2kg",
-		description="Convert GFF3 format to UCSC knownGene format.",
-		keywords={"gff","knownGene","ucsc","convert"},
+		description="Convert GFF3/GTF format to UCSC knownGene format.",
+		keywords={"gff",",gtf","knownGene","ucsc","convert"},
 		biostars=276099
 		)
 public class Gff2KnownGene extends Launcher {
 	private static final Logger LOG = Logger.build(Gff2KnownGene.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-bin","--bin"},description="Preppend with 'bin' column")
+	@Parameter(names={"-bin","--bin"},description="Insert  UCSC 'bin' column as the first column.")
 	private boolean writeBin = false;
+	@Parameter(names={"-trid","--trid"},description="Transcript identifiers in the GTF/GFF (column N°3) used to identify a transcript. Multiple separated by a semicolon ")
+	private String transcriptIdentifiersStr = "transcript;mRNA;snRNA;tRNA;snoRNA";
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
 	
 	private static final String NO_TRANSCRIPT_NAME="\0\0NOTRANSCRIPT";
+	private final static Pattern semicolon=Pattern.compile(";");
+	private final GTFCodec gtfCodec = new GTFCodec();
+
 	
-	private static class GffLine {
-		final String line;
-		private Interval interval = null;
-		private String transcript = null;
-		GffLine(final String line) {
-			this.line=line;
-		}
+	private class GffLine {
+		final GTFLine delegate;
+		private final Interval interval;
+		private final String transcript;
+		GffLine(final GTFLine delegate) {
+			this.delegate=delegate;
+			final Map<String, String> map = delegate.getAttributes();
+			this.interval = new Interval(
+					delegate.getContig(),
+					delegate.getStart(),
+					delegate.getEnd()
+					);
+			String tmptranscript=null;
+			for(final Map.Entry<String, String> kv:map.entrySet())
+				{
+				if(StringUtil.isBlank(kv.getKey()))continue;
+				if(StringUtil.isBlank(kv.getValue()))continue;
+				
+				if(kv.getKey().equals("transcript_id"))
+					{
+					tmptranscript = kv.getValue();
+					break;
+					}
+				if(kv.getKey().equals("Parent") &&
+						kv.getValue().startsWith("transcript:"))
+					{
+					tmptranscript=kv.getValue().substring(11);
+					break;
+					}
+				}
+			this.transcript=(StringUtil.isBlank(tmptranscript)?NO_TRANSCRIPT_NAME:tmptranscript);
+			}
 		
 		boolean hasTranscript()
 		{
@@ -126,46 +164,17 @@ public class Gff2KnownGene extends Launcher {
 		}
 		
 		
-		private boolean decode() {
-			final Pattern tab=Pattern.compile("[\t]");
-			
-			final String tokens[]=tab.split(line);
-			if(tokens.length<9) throw new RuntimeIOException("not enough columns in gff3 line "+line);
-			this.interval = new Interval(tokens[0],
-					Integer.parseInt(tokens[3]),
-					Integer.parseInt(tokens[4])
-					);
-			final Pattern semicolon=Pattern.compile(";");
-			final String metainfo[] = semicolon.split(tokens[8]);
-			for(final String meta:metainfo) {
-				 Map.Entry<String,String> kv = split(meta);
-				
-				if(kv.getKey().equals("transcript_id")) {
-					this.transcript = kv.getValue();
-					break;
-				}
-			}
-			if(transcript==null) {
-				//LOG.warn("no transcript_id found in gff3 line "+line+" meta:\n\t"+String.join("\n\t",metainfo));
-				this.transcript=NO_TRANSCRIPT_NAME;
-				return false;
-			}
-			return true;
-		}
-		
 		public String getContig() {
-			if(interval==null) decode();
-			return interval.getContig();
+			return delegate.getContig();
 		}
 		
 		public String getTranscript() {
-			if(transcript==null) decode();
 			return transcript;
 		}
 		
 		@Override
 		public String toString() {
-			return line;
+			return delegate.getLine();
 		}
 	}
 	
@@ -177,22 +186,24 @@ public class Gff2KnownGene extends Launcher {
 			if(i!=0) return i;
 			i= o1.getTranscript().compareTo(o2.getTranscript());
 			if(i!=0) return i;
-			return o1.line.compareTo(o2.line);
+			return o1.delegate.getLine().compareTo(o2.delegate.getLine());
 			}
-	}
+		}
 	
-	private static class GffLineCodec extends AbstractDataCodec<GffLine> {
+	private class GffLineCodec extends AbstractDataCodec<GffLine> {
+		
+		
 		@Override
 		public GffLine decode(final DataInputStream dis) throws IOException {
 			try {
-				return new GffLine(readString(dis));
-			} catch (Exception e) {
+				return new GffLine(Gff2KnownGene.this.gtfCodec.decode(readString(dis)));
+			} catch (final Exception e) {
 			return null;
 			}
 		}
 		@Override
-		public void encode(DataOutputStream dos, final GffLine line) throws IOException {
-			writeString(dos, line.line);
+		public void encode(final DataOutputStream dos, final GffLine line) throws IOException {
+			writeString(dos, line.delegate.getLine());
 		}
 		@Override
 		public AbstractDataCodec<GffLine> clone() {
@@ -206,112 +217,25 @@ public class Gff2KnownGene extends Launcher {
     	return GenomicIndexUtil.regionToBin(beg, end);
     }
 
-	private  static Map.Entry<String,String> split(String s){
-		s=s.trim();
-		int x=0;
-		final StringBuilder key = new StringBuilder();
-		while(x<s.length() && (s.charAt(x)=='_' || Character.isLetter(s.charAt(x)) || Character.isDigit(s.charAt(x))))
-			{
-			key.append(s.charAt(x));
-			x++;
-			}
-		while(x<s.length() && Character.isWhitespace(s.charAt(x))) {
-			if(s.charAt(x)=='=') {
-				++x;
-				break;
-			}
-			++x;
-			}
-		
-		String value = s.substring(x).trim();
-		if(value.startsWith("\"") && value.endsWith("\"")) {
-			final StringBuilder sb=new StringBuilder(value.length());
-			
-			for(int i=1;i<value.length()-1;++i){
-				if(value.charAt(i)=='\\') {
-					if(i+1<value.length()-1)
-						{
-						i++;
-						switch(value.charAt(i)) {
-						case '"': sb.append("\"");break;
-						case '\'': sb.append("\'");break;
-						case 't': sb.append("\t");break;
-						case 'n': sb.append("\n");break;
-						default:break;
-						}
-						}
-					continue;
-				} else
-				{
-					 sb.append(value.charAt(i));
-				}
-			}
-			
-			value=sb.toString();
-		}
-		return new AbstractMap.SimpleEntry<String,String>(key.toString(),value);
-	}
-
-	/*
-	private abstract class GffCodec
-		{
-		Map<String,Long> seqdict=new LinkedHashMap<>();
-		Set<String> att_keys=new HashSet<>();
-		Set<String> sources=new HashSet<>();
-		Set<String> types=new HashSet<>();
-		protected Pattern tab=Pattern.compile("[\t]");
-		protected Pattern semicolon=Pattern.compile("[;]");
-		
-	
-	private class DefaultCodec extends GffCodec
-		{
-		@Override
-		void writeAttributes(XMLStreamWriter w,String attrString) throws XMLStreamException,IOException
-			{
-			StreamTokenizer st=new StreamTokenizer(new StringReader(attrString));
-			st.wordChars('_', '_');
-			String key=null;
-			while(st.nextToken() != StreamTokenizer.TT_EOF)
-				{
-				String s=null;
-				switch(st.ttype)
-					{
-					case StreamTokenizer.TT_NUMBER: s=String.valueOf(st.nval);break;
-					case '"': case '\'' : case StreamTokenizer.TT_WORD: s=st.sval;break;
-					case ';':break;
-					default:break;
-					}
-				if(s==null) continue;
-				if(key==null)
-					{
-					key=s;
-					this.att_keys.add(key);
-					}
-				else 
-					{
-					w.writeStartElement(key);
-					w.writeCharacters(s);
-					w.writeEndElement();
-					key=null;
-					}
-				}
-			
-			}
-		}
-		*/
 
 	@Override
 	public int doWork(final List<String> args) {
-		BufferedReader in =null;
+		LineIterator in =null;
 		EqualRangeIterator<GffLine> eq = null;
 		CloseableIterator<GffLine> iter = null;
 		SortingCollection<GffLine> sorting = null;
 		PrintWriter pw = null;
+		final Set<String> transcriptIdentifiersSet = 
+				new HashSet<>(Arrays.asList(semicolon.split(this.transcriptIdentifiersStr)));
+		
 		final GffLineComparator comparator = new GffLineComparator();
 		try {
-			in = super.openBufferedReader(oneFileOrNull(args));
-			
-			
+			final String input = oneFileOrNull(args);
+			in = (input==null?
+					IOUtils.openStdinForLineIterator():
+					IOUtils.openURIForLineIterator(input)
+					);
+						
 			sorting = SortingCollection.newInstance(
 					GffLine.class,
 					new GffLineCodec(),
@@ -320,14 +244,20 @@ public class Gff2KnownGene extends Launcher {
 					this.writingSortingCollection.getTmpPaths()
 					);
 			sorting.setDestructiveIteration(true);
-			String line;
 			int nRead=0;
-			while((line=in.readLine())!=null)
+			this.gtfCodec.readActualHeader(in);
+			
+			while(in.hasNext())
 			{
 				++nRead;
+				final String line = in.next();
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				final GffLine gffLine = new GffLine(line);
-				if(!gffLine.hasTranscript()) continue;
+				final GTFLine delegate = this.gtfCodec.decode(line);
+				final GffLine gffLine = new GffLine(delegate);
+				if(!gffLine.hasTranscript()) {
+					
+					continue;
+				}
 				sorting.add(gffLine);
 				if(nRead %50000==0) LOG.info("Read "+nRead+" lines. Last: "+line);
 
@@ -354,11 +284,9 @@ public class Gff2KnownGene extends Launcher {
 				final GffLine first = L.get(0);
 				final String contig = first.getContig();
 				final String name  =  first.getTranscript();
-				String tokens[] = tab.split(first.line);
-				final String strand  =  tokens[6];
-				final String meta  =  tokens[8];
-				if(!(strand.equals("+") || strand.equals("-"))) {
-					LOG.error("Bad strand in "+first.line);
+				final char strand  =  first.delegate.getStrand();
+				if(!(strand=='+' || strand=='-')) {
+					LOG.error("Bad strand in "+first.delegate.getLine());
 					return -1;
 				}
 				final List<Interval> exons= new ArrayList<>();
@@ -366,8 +294,6 @@ public class Gff2KnownGene extends Launcher {
 				final List<Interval> cds= new ArrayList<>();
 				
 				for(final GffLine item: L) {
-					item.decode();//force decode components
-					tokens = tab.split(item.line);
 					if(!contig.equals(item.getContig())) {
 						LOG.error("Conflict in contig!!");
 						return -1;
@@ -376,40 +302,37 @@ public class Gff2KnownGene extends Launcher {
 						LOG.error("Conflict in name!!");
 						return -1;
 					}
-					if(tokens[2].equals("gene")) {
+					if(item.delegate.getType().equals("gene")) {
 						continue;
 					}
 					
-					else if(tokens[2].equals("transcript")) {
-						if(tx!=null)
+					else if((transcriptIdentifiersSet.contains(item.delegate.getType()))) {
+						if(tx!=null && !tx.equals(item.interval))
 							{
 							LOG.error("Transcript found twice for "+name);
 							return -1;
 							}
 						tx = item.interval;
 						continue;
-					}
+					} 
 					
-					else if(tokens[2].equals("exon")) {
+					
+					else if(item.delegate.getType().equals("exon")) {
 						exons.add( item.interval);
+						
 						continue;
 					}
 					
-					else if(tokens[2].equals("CDS")) {
+					else if(item.delegate.getType().equals("CDS")) {
 						cds.add( item.interval);
 						continue;
 					}
 				}
 			
-			exons.sort(new Comparator<Interval>() {
-				@Override
-				public int compare(Interval o1, Interval o2) {
-					return o1.getStart()-o2.getStart();
-				}
-			});
+			exons.sort((o1,o2)->o1.getStart()-o2.getStart());
 			
 			if(tx==null) {
-				LOG.warn("tx is null for "+name+" "+first);
+				LOG.warn("main transcript not found for "+name+" "+first);
 				continue;
 				}
 			
@@ -459,8 +382,9 @@ public class Gff2KnownGene extends Launcher {
 			}
 			pw.print("\t");
 			
-			for(final String metainfo:semicolon.split(meta)) {
-				final Map.Entry<String, String> entry = split(metainfo);
+			for(final Iterator<Map.Entry<String,String>> metainfoiter = first.delegate.iterator();
+					metainfoiter.hasNext();)  {
+				final Map.Entry<String, String> entry = metainfoiter.next();
 				if(entry==null) continue;
 				final String s=entry.getKey();
 				if(s.equals("gene_id") ||
@@ -473,7 +397,8 @@ public class Gff2KnownGene extends Launcher {
 				   s.equals("havana_transcript") ||
 				   s.equals("transcript_name") ||
 				   s.equals("protein_id") ||
-				   s.equals("ccdsid")
+				   s.equals("ccdsid") ||
+				   s.equals("Parent")
 				   ) {
 					pw.print(entry.getValue());
 					pw.print(";");
@@ -486,12 +411,12 @@ public class Gff2KnownGene extends Launcher {
 			
 			eq.close();
 			iter.close();iter=null;
-			sorting.cleanup();sorting=null;
+			sorting=null;
 			pw.flush();pw.close();pw=null;
 			
 			LOG.info("done");
 			return RETURN_OK;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 			}
@@ -500,17 +425,13 @@ public class Gff2KnownGene extends Launcher {
 			CloserUtil.close(pw);
 			CloserUtil.close(in);
 			CloserUtil.close(iter);
-			if(sorting!=null) sorting.cleanup();
 			CloserUtil.close(sorting);
 			}
 		}
 		
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new Gff2KnownGene().instanceMainWithExit(args);
 		}
-
-
-	
 
 	}
