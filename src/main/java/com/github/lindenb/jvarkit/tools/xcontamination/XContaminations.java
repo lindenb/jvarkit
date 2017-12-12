@@ -230,6 +230,10 @@ public class XContaminations extends Launcher
 	private int fail_factor=10;
 	@Parameter(names={"-se","--save-every"},description="[20171203] In tab-delimited mode, if output file is defined save the result every x seconds.")
 	private long save_every_sec = -1;
+	@Parameter(names={"-singleton","--singleton"},description="[20171212] R. Redon's idea: we're not sure that the contamination comes from the watched pair."
+			+ ". With this option, we're sure that there is only one HOM_VAR on the line.")
+	private boolean use_singleton = false;
+
 	
 	private DoublePredicate passFractionTreshold  = (V) -> V > fraction_treshold;
 	
@@ -710,6 +714,7 @@ public class XContaminations extends Launcher
 				}
 				
 				
+				
 				final Map<String,Genotype> sample2gt  = ctx.getGenotypes().stream().
 						filter(G->G.isCalled() && !G.isFiltered() && G.isHom() && sample2samReader.containsKey(G.getSampleName()) && sampleNames.contains(G.getSampleName())).
 						filter(G->this.genotypeFilter.test(ctx, G)).
@@ -717,6 +722,12 @@ public class XContaminations extends Launcher
 				
 				if(sample2gt.size()<2) continue;
 								
+				// singleton check
+				if(this.use_singleton && sample2gt.values().stream().filter(G->G.isHomVar()).count()!=1L)
+					{
+					continue;
+					}
+				
 				//at least one HOM_REF and one HOM_VAR
 				if(!(sample2gt.values().stream().anyMatch(G->G.isHomRef()) && sample2gt.values().stream().anyMatch(G->G.isHomVar()))) continue;
 				

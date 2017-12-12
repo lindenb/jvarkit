@@ -46,6 +46,11 @@ Usage: xcontaminations [options] Files
       [20171203] In tab-delimited mode, if output file is defined save the 
       result every x seconds.
       Default: -1
+    -singleton, --singleton
+      [20171212] R. Redon's idea: we're not sure that the contamination comes 
+      from the watched pair.. With this option, we're sure that there is only 
+      one HOM_VAR on the line.
+      Default: false
     -vf, --variant-filter
       A Java EXpression Language (JEXL) expressions to filter the variants 
       from a VCF. Empty string will accept all variants. Expression returning 
@@ -109,6 +114,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Dec 4 14:27:04 2017 +0100 ; xcontamination with count ; https://github.com/lindenb/jvarkit/commit/a161a8a92fc38f28e91fd2164a29dcf52b07f658
+Sun Dec 3 14:10:21 2017 +0100 ; new option for xcontimation ; https://github.com/lindenb/jvarkit/commit/e943ce31e8c93d48790681923c08cb74e55074a7
 Fri Dec 1 12:42:00 2017 +0100 ; biostars answer, adding --reference to findallcoverageatpos ; https://github.com/lindenb/jvarkit/commit/74e2d2f9f0d34ca5081915c65a7b7ea35f160ec5
 Mon Nov 27 17:33:11 2017 +0100 ; exploring jni+htslib ; https://github.com/lindenb/jvarkit/commit/509b01e22a04a34e96c77c0bd5b335c5d7fcec76
 Thu Nov 23 13:32:25 2017 +0100 ; fixing the bash wrapper after https://www.biostars.org/p/284083/#285575 ; https://github.com/lindenb/jvarkit/commit/7f811475a7648d24289702f49d53c89fb53761c9
