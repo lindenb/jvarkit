@@ -231,7 +231,7 @@ public class XContaminations extends Launcher
 	@Parameter(names={"-se","--save-every"},description="[20171203] In tab-delimited mode, if output file is defined save the result every x seconds.")
 	private long save_every_sec = -1;
 	@Parameter(names={"-singleton","--singleton"},description="[20171212] R. Redon's idea: we're not sure that the contamination comes from the watched pair."
-			+ ". With this option, we're sure that there is only one HOM_VAR on the line.")
+			+ ". With this option, we're sure that there is only one HOM_VAR on the line and no HET.")
 	private boolean use_singleton = false;
 
 	
@@ -723,7 +723,10 @@ public class XContaminations extends Launcher
 				if(sample2gt.size()<2) continue;
 								
 				// singleton check
-				if(this.use_singleton && sample2gt.values().stream().filter(G->G.isHomVar()).count()!=1L)
+				if(this.use_singleton && (
+					sample2gt.values().stream().anyMatch(G->G.isHet()) ||
+					sample2gt.values().stream().filter(G->G.isHomVar()).count()!=1L
+					))
 					{
 					continue;
 					}

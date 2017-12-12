@@ -49,7 +49,7 @@ Usage: xcontaminations [options] Files
     -singleton, --singleton
       [20171212] R. Redon's idea: we're not sure that the contamination comes 
       from the watched pair.. With this option, we're sure that there is only 
-      one HOM_VAR on the line.
+      one HOM_VAR on the line and no HET.
       Default: false
     -vf, --variant-filter
       A Java EXpression Language (JEXL) expressions to filter the variants 
@@ -114,6 +114,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Dec 12 15:54:41 2017 +0100 ; adding option singleton for xcontamination ; https://github.com/lindenb/jvarkit/commit/3ccec16db34a4be4be68975a6bea5d696a655117
 Mon Dec 4 14:27:04 2017 +0100 ; xcontamination with count ; https://github.com/lindenb/jvarkit/commit/a161a8a92fc38f28e91fd2164a29dcf52b07f658
 Sun Dec 3 14:10:21 2017 +0100 ; new option for xcontimation ; https://github.com/lindenb/jvarkit/commit/e943ce31e8c93d48790681923c08cb74e55074a7
 Fri Dec 1 12:42:00 2017 +0100 ; biostars answer, adding --reference to findallcoverageatpos ; https://github.com/lindenb/jvarkit/commit/74e2d2f9f0d34ca5081915c65a7b7ea35f160ec5
