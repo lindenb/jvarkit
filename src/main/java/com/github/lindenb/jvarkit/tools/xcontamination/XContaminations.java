@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -705,7 +705,7 @@ public class XContaminations extends Launcher
 			
 			final Map<SamplePair,SampleAlleles> contaminationTable=new HashMap<>();
 			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict1);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict1).logger(LOG);
 			while(in.hasNext())
 				{
 				final VariantContext ctx= progress.watch(in.next());
@@ -713,27 +713,63 @@ public class XContaminations extends Launcher
 					continue;
 				}
 				
+				int count_homref=0;
+				int count_homvar=0;
+				int count_het=0;
 				
-				
-				final Map<String,Genotype> sample2gt  = ctx.getGenotypes().stream().
-						filter(G->G.isCalled() && !G.isFiltered() && G.isHom() && sample2samReader.containsKey(G.getSampleName()) && sampleNames.contains(G.getSampleName())).
-						filter(G->this.genotypeFilter.test(ctx, G)).
-						collect(Collectors.toMap(G->G.getSampleName(),G->G));
+				final Map<String,Genotype> sample2gt = new HashMap<>();
+				for(int gidx=0;gidx < ctx.getNSamples();++gidx) {
+					final Genotype G = ctx.getGenotype(gidx);
+					if(!G.isCalled()) continue;
+					if(G.isHet())
+						{
+						count_het++;// here because in use_singleton we must be sure that there is only one hom_var
+						if(this.use_singleton && count_het>0) break;
+						}
+					else if(G.isHomVar())
+						{
+						count_homvar++;// here because in use_singleton we must be sure that there is only one hom_var
+						if(this.use_singleton && count_homvar>1) break;
+						}
+					
+					if(G.isFiltered()) continue;
+					if(!sample2samReader.containsKey(G.getSampleName())) continue;
+					if(!sampleNames.contains(G.getSampleName())) continue;
+					if(!this.genotypeFilter.test(ctx, G)) continue;
+					sample2gt.put(G.getSampleName(), G);
+				}
+				if(this.use_singleton && count_het>0) continue;
+				if(this.use_singleton && count_homvar>1) continue;
 				
 				if(sample2gt.size()<2) continue;
+				
+				
+				//reset and recount
+				count_homref =0;
+				count_homvar =0;
+				count_het = 0;
+				for(final String sampleName:sample2gt.keySet()) {
+					final Genotype G = ctx.getGenotype(sampleName);
+					switch(G.getType()) {
+						case HOM_REF :  count_homref++;break;
+						case HOM_VAR :  count_homvar++;break;
+						case HET :  count_het++;break;
+						default:break;
+						}
+					}
+				
+				
 								
 				// singleton check
-				if(this.use_singleton && (
-					sample2gt.values().stream().anyMatch(G->G.isHet()) ||
-					sample2gt.values().stream().filter(G->G.isHomVar()).count()!=1L
-					))
+				if(this.use_singleton && ( count_het>0 || count_homvar!=1 ))
 					{
 					continue;
 					}
-				
 				//at least one HOM_REF and one HOM_VAR
-				if(!(sample2gt.values().stream().anyMatch(G->G.isHomRef()) && sample2gt.values().stream().anyMatch(G->G.isHomVar()))) continue;
+				if(count_homref==0) continue;
+				if(count_homvar==0) continue;
 				
+						
 				final Map<SampleIdentifier,Counter<Character>> sample_identifier_2allelesCount=new HashMap<>();
 				
 				/* scan Reads for those Genotype/Samples */

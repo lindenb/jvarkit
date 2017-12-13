@@ -30,7 +30,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
+import java.util.Set;
 import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -501,16 +503,17 @@ public class SamTranslocations extends Launcher {
 			while(eq.hasNext())
 				{
 				final List<Event> eventList = eq.next();
+				final int n_partitions = eventList.stream().map(E->E.partition).collect(Collectors.toSet()).size();
 				
-				if(eventList.size()<this.min_shared_partitions) {
+				if(n_partitions<this.min_shared_partitions) {
 					continue;
 				}
-				if(this.max_shared_partitions!=-1 && eventList.size()>this.max_shared_partitions) {
+				if(this.max_shared_partitions!=-1 && n_partitions>this.max_shared_partitions) {
 					continue;
 				}
  				
 				for(final Event evt:eventList) {
-					evt.count_partitions = eventList.size();
+					evt.count_partitions = n_partitions;
 					eventsPartiton.add(evt);
 					}				
 				}

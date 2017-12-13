@@ -34,6 +34,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.FilterOutputStream;
@@ -129,6 +130,23 @@ public class IOUtils {
 			CloserUtil.close(fin);
 			}
 		}
+	
+	/** copy one file to another*/
+	public static void copyTo(final File fin,final File fout) throws IOException
+		{
+		if(fin.equals(fout)) {
+			throw new IllegalArgumentException("copyTo src=dest:"+fin);
+			}
+		OutputStream fous=null;
+		try {
+			fous = Files.newOutputStream(fout.toPath());
+			copyTo(fin,fous);
+		} finally {
+			CloserUtil.close(fous);
+			}
+		}
+
+	
 	
 	public static void copyTo(final File f,final Writer fous) throws IOException
 		{

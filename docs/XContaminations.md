@@ -114,6 +114,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Dec 12 18:31:25 2017 +0100 ; xcontaminations not het with singleton ; https://github.com/lindenb/jvarkit/commit/e26cd04dbc64f1a62390854584ac98f71faae40b
 Tue Dec 12 15:54:41 2017 +0100 ; adding option singleton for xcontamination ; https://github.com/lindenb/jvarkit/commit/3ccec16db34a4be4be68975a6bea5d696a655117
 Mon Dec 4 14:27:04 2017 +0100 ; xcontamination with count ; https://github.com/lindenb/jvarkit/commit/a161a8a92fc38f28e91fd2164a29dcf52b07f658
 Sun Dec 3 14:10:21 2017 +0100 ; new option for xcontimation ; https://github.com/lindenb/jvarkit/commit/e943ce31e8c93d48790681923c08cb74e55074a7
