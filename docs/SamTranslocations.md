@@ -1,6 +1,6 @@
 # SamTranslocations
 
-Explore translocations between two chromosomes using discordant paired-end reads.
+Explore balanced translocations between two chromosomes using discordant paired-end reads.
 
 
 ## Usage
@@ -14,7 +14,7 @@ Usage: samtranslocations [options] Files
       An expression should return a boolean value (true=exclude, false=keep 
       the read). An empty expression keeps everything. The variable 'record' 
       is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
-      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
+      Default: 'Accept all' (Empty expression)
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
@@ -31,34 +31,13 @@ Usage: samtranslocations [options] Files
       "chrom:start-end" or "chrom:middle+extend"  or 
       "chrom:start-end+extend".A program might use a Reference sequence to fix 
       the chromosome name (e.g: 1->chr1)
-    -maxp, --max-partition
-      maximum number of 'partition' sharing the same event. -1 = no limit.
-      Default: -1
-    --maxRecordsInRam
-      When writing  files that need to be sorted, this will specify the number 
-      of records stored in RAM before spilling to disk. Increasing this number 
-      reduces the number of file  handles needed to sort a file, and increases 
-      the amount of RAM needed
-      Default: 50000
-    -m, --min-events
-      Minimal number of events for printing a result
-      Default: 1
-    -minp, --min-partition
-      minimum number of 'partition' sharing the same event.
-      Default: 1
+    -md, --max-distance
+      Max distance between forward-reverse
+      Default: 1000
     -o, --output
       Output file. Optional . Default: stdout
-    -r, --round
-      Round locations to LOC=LOC-LOC%round
-      Default: 150
-    --tmpDir
-      tmp working directory. Default: java.io.tmpDir
-      Default: []
     --version
       print version and exit
-    -x, --xml
-      XML Output
-      Default: false
 
 ```
 
@@ -114,6 +93,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Dec 13 17:22:37 2017 +0100 ; fixing xcontamination+singleton ; https://github.com/lindenb/jvarkit/commit/0ad0c272832570db1c2aa4f1c5fdbc46faac70e1
 Tue Dec 5 09:42:48 2017 +0100 ; samtransloc min/max ; https://github.com/lindenb/jvarkit/commit/77e5c5513897fdfc41b7b833db497a6738e55642
 Mon Dec 4 19:25:31 2017 +0100 ; num partitions ; https://github.com/lindenb/jvarkit/commit/95e327ffd1949326bc5989225dd58edf002b3038
 Thu Nov 30 12:18:26 2017 +0100 ; xslt-stylesheet for samtransloc ; https://github.com/lindenb/jvarkit/commit/4450d1e0dcbfcf2685404d401d149976f1cab6ca
@@ -144,107 +124,8 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## converting to SVG
+## History
 
-with the following XSLT stylesheet (last updated : 2017-11-30 )
-
-```xslt
-<?xml version='1.0' encoding="UTF-8"?>
-<xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform' 
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:svg="http://www.w3.org/2000/svg"
-	xmlns="http://www.w3.org/2000/svg"
-        xmlns:xlink="http://www.w3.org/1999/xlink"
-        xmlns:str="http://exslt.org/strings"
-        xmlns:math="http://exslt.org/math"
-	extension-element-prefixes="str math"
-	version='1.0'>
-<xsl:output method="xml"  encoding="UTF-8"/>
-<xsl:variable name="nsamples" select="count(translocations/partitions/partition)"/>
-<xsl:variable name="cols" select="floor(math:sqrt($nsamples))"/>
-<xsl:variable name="W" select="300"/>
-<xsl:variable name="max-count">
-  <xsl:for-each select="translocations/partitions/partition/event">
-    <xsl:sort select="@count" data-type="number" order="descending" />
-    <xsl:if test="position() = 1">
-      <xsl:value-of select="number(@count)" />
-    </xsl:if>
-  </xsl:for-each>
-</xsl:variable>
-
-
-
-<xsl:template match="translocations">
-
-<svg xmlns="http://www.w3.org/2000/svg">
-  <xsl:attribute name="width">
-  	<xsl:value-of select="$cols * $W"/>
-  </xsl:attribute>
-  <xsl:attribute name="height">
-  	<xsl:value-of select="($cols +1) * $W"/>
-  </xsl:attribute>
-  <style>
-        svg { fill:white;stroke:black;}
-  	circle {fill:red; opacity:0.3; stroke:none;}
-  	text {fill:gray;stroke:gray;font-size:10px;}
-  	.c0 {fill:gray;opacity:0.05;}
-  	.c1 {fill:white;opacity:0.05;}
-  </style>
-  <defs>
-  	<g id="dict">
-  		<xsl:apply-templates select="dictionary"/>
-  	</g>
-  </defs>
-  <g>
-  	<xsl:apply-templates select="partitions/partition"/>
-  </g>
-</svg>
-</xsl:template>
-
-
-<xsl:template match="dictionary">
-<xsl:apply-templates select="contig"/>
-<rect style="fill:none;stroke:gray;" x="0" y="0" width="{$W}"  height="{$W}">
-</rect>
-</xsl:template>
-
-<xsl:template match="contig">
-<xsl:variable name="clazz" select="concat('c',count(preceding-sibling::contig) mod 2)"/>
-<xsl:variable name="genomelen" select="number(../@length)"/>
-<xsl:variable name="x" select="(number(@index) div $genomelen) * $W"/>
-<xsl:variable name="h" select="(number(@length) div $genomelen) * $W"/>
-
-<rect class="{$clazz}"  x="0" y="{$x}" width="{$W}" height="{$h}">
-</rect>
-<rect class="{$clazz}"  y="0" x="{$x}" height="{$W}" width="{$h}">
-</rect>
-</xsl:template>
-
-
-<xsl:template match="partition">
-<xsl:variable name="idx" select="count(preceding-sibling::partition)"/>
-<xsl:variable name="dx" select="($idx mod $cols) * $W"/>
-<xsl:variable name="dy" select="floor(($idx div $cols)) * $W"/>
-<g>
- <xsl:attribute name="transform">translate(<xsl:value-of select="$dx"/>,<xsl:value-of select="$dy"/>)</xsl:attribute>
- <title><xsl:value-of select="@name"/></title>
- <use x="0" y="0" href="#dict" />
- <text x="1" y="10"><xsl:value-of select="@name"/></text>
- <xsl:apply-templates select="event"/>
- 
-</g>
-</xsl:template>
-
-<xsl:template match="event">
-<xsl:variable name="genomelen" select="number(../../../dictionary/@length)"/>
-<xsl:variable name="cx" select="(number(start/@index) div $genomelen) * $W"/>
-<xsl:variable name="cy" select="(number(end/@index) div $genomelen) * $W"/>
-<xsl:variable name="r" select="0.1 + (number(@count) div $max-count) * 20.0"/>
-<circle cx="{$cx}" cy="{$cy}" r="{$r}"/>
-<circle cx="{$cy}" cy="{$cx}" r="{$r}"/>
-</xsl:template>
-
-</xsl:stylesheet>
-```
+* 2017-12-13 :  refactoring for balanced translocation.
 
 
