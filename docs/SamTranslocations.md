@@ -93,6 +93,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Dec 13 21:48:52 2017 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/6ca9f3ad0a3b67636fc0db414f0e5b3e966cf598
 Wed Dec 13 20:21:10 2017 +0100 ; new samtransloc ; https://github.com/lindenb/jvarkit/commit/1aa0d6c70ae478d3393bc5180f6f51d0769dddc1
 Wed Dec 13 17:22:37 2017 +0100 ; fixing xcontamination+singleton ; https://github.com/lindenb/jvarkit/commit/0ad0c272832570db1c2aa4f1c5fdbc46faac70e1
 Tue Dec 5 09:42:48 2017 +0100 ; samtransloc min/max ; https://github.com/lindenb/jvarkit/commit/77e5c5513897fdfc41b7b833db497a6738e55642

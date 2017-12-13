@@ -162,7 +162,6 @@ public class SamTranslocations extends Launcher {
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(dict).logger(LOG);
 			while(forwardPeekIterator.hasNext()) {
 				final SAMRecord rec = progress.watch(forwardPeekIterator.next());
-				if(rec.getReadNegativeStrandFlag()) continue;// searching for -->
 				final String partition = this.samRecordPartition.getPartion(rec, "N/A");
 				PartitionState partitionState = partition2state.get(partition);
 				if(partitionState==null) {
@@ -177,6 +176,9 @@ public class SamTranslocations extends Launcher {
 						}
 					continue;
 					}
+				
+				if(rec.getReadNegativeStrandFlag()) continue;// searching for -->
+
 				final  List<SAMRecord> recordList=new ArrayList<>();
 				recordList.add(rec);
 				
