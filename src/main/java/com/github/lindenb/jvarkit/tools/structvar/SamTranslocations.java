@@ -44,6 +44,7 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
 import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
@@ -140,11 +141,15 @@ public class SamTranslocations extends Launcher {
 			pw.print('\t');
 			pw.print("chrom1-end");
 			pw.print('\t');
+			pw.print("middle1\tstrand_plus_before_mid1_count\tstrand_plus_before_mid1_percent\tstrand_minus_after_mid1_count\tstrand_minus_after_mid1_percent");
+			pw.print('\t');
 			pw.print("chrom2");
 			pw.print('\t');
 			pw.print("chrom2-start");
 			pw.print('\t');
 			pw.print("chrom2-end");
+			pw.print('\t');
+			pw.print("middle2\tstrand_plus_before_mid2_count\tstrand_plus_before_mid2_percent\tstrand_minus_after_mid2_count\tstrand_minus_after_mid2_percent");
 			pw.print('\t');
 			pw.print("count-reads");
 			pw.print('\t');
@@ -208,27 +213,67 @@ public class SamTranslocations extends Launcher {
 					}
 				
 				if(recordList.size()<2) continue;
-				if(recordList.stream().filter(R->R.getReadNegativeStrandFlag()).count()==0) {
-					continue;
-				}
-				if(recordList.stream().filter(R->R.getMateNegativeStrandFlag()).count()==0) {
-					continue;
-				}
-				if(recordList.stream().filter(R->!R.getMateNegativeStrandFlag()).count()==0) {
-					continue;
-				}
+								
+				// chrom start stuff
+				final List<SAMRecord> listF1=  recordList.stream().
+							filter(R->!R.getReadNegativeStrandFlag()).
+							collect(Collectors.toList());
+				final List<SAMRecord> listR1=  recordList.stream().
+						filter(R->R.getReadNegativeStrandFlag()).
+						collect(Collectors.toList());
+				if(listR1.isEmpty()) continue;
+				
+				
+				final int start1 = (int)Percentile.median().evaluate(listF1.stream().mapToInt(R->R.getEnd()));
+				final int end1 =   (int)Percentile.median().evaluate(listR1.stream().mapToInt(R->R.getStart()));
+				final int mid1= (start1+end1)/2;
+			
+				// chrom end stuff
+				final List<SAMRecord> listF2=  recordList.stream().
+							filter(R->!R.getMateNegativeStrandFlag()).
+							collect(Collectors.toList());
+				final List<SAMRecord> listR2=  recordList.stream().
+						filter(R->R.getMateNegativeStrandFlag()).
+						collect(Collectors.toList());
+				if(listF2.isEmpty()) continue;
+				if(listR2.isEmpty()) continue;
+				
+				final int mid2= (int)Percentile.median().evaluate(listF2.stream().mapToInt(R->R.getMateAlignmentStart()));
+
+				
 				
 				pw.print(rec.getReferenceName());
 				pw.print('\t');
-				pw.print(recordList.stream().filter(R->!R.getReadNegativeStrandFlag()).mapToInt(R->R.getEnd()).max().getAsInt());
+				pw.print(listF1.stream().mapToInt(R->R.getEnd()).max().getAsInt());
 				pw.print('\t');
-				pw.print(recordList.stream().filter(R->R.getReadNegativeStrandFlag()).mapToInt(R->R.getStart()).min().getAsInt());
+				pw.print(listR1.stream().mapToInt(R->R.getStart()).min().getAsInt());
 				pw.print('\t');
+				pw.print(mid1);
+				pw.print('\t');
+				pw.print(listF1.stream().filter(R->R.getEnd()<=mid1).count());
+				pw.print('\t');
+				pw.print((int)(100.0*(listF1.stream().filter(R->R.getEnd()<=mid1).count())/listF1.size()));
+				pw.print('\t');
+				pw.print(listR1.stream().filter(R->R.getStart()>=mid1).count());
+				pw.print('\t');
+				pw.print((int)(100.0*(listR1.stream().filter(R->R.getStart()>=mid1).count())/listR1.size()));
+				pw.print('\t');
+				
 				pw.print(rec.getMateReferenceName());
 				pw.print('\t');
 				pw.print(recordList.stream().mapToInt(R->R.getMateAlignmentStart()).min().getAsInt());
 				pw.print('\t');
 				pw.print(recordList.stream().mapToInt(R->R.getMateAlignmentStart()).max().getAsInt());
+				pw.print('\t');
+				pw.print(mid2);
+				pw.print('\t');
+				pw.print(listF2.stream().filter(R->R.getMateAlignmentStart()<=mid2).count());
+				pw.print('\t');
+				pw.print((int)(100.0*(listF2.stream().filter(R->R.getMateAlignmentStart()<=mid2).count())/listF2.size()));
+				pw.print('\t');
+				pw.print(listR2.stream().filter(R->R.getMateAlignmentStart()>=mid2).count());
+				pw.print('\t');
+				pw.print((int)(100.0*(listR2.stream().filter(R->R.getMateAlignmentStart()>=mid2).count())/listR2.size()));
 				pw.print('\t');
 				pw.print(recordList.size());
 				pw.print('\t');
