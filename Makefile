@@ -214,7 +214,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver vcftrap
+	vcfamalgamation vcfserver tviewserver vcftrap prettysam
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -378,6 +378,7 @@ $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.Re
 $(eval $(call compile-htsjdk-cmd,sam2json,${jvarkit.package}.tools.misc.SamToJson,${jcommander.jar} ${gson.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam2psl,${jvarkit.package}.tools.misc.SamToPsl,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam2tsv,${jvarkit.package}.tools.sam2tsv.Sam2Tsv,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,prettysam,${jvarkit.package}.tools.sam2tsv.PrettySam,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam4weblogo,${jvarkit.package}.tools.sam4weblogo.SAM4WebLogo,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samclipindelfraction,${jvarkit.package}.tools.misc.SamClipIndelFraction,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samextractclip,${jvarkit.package}.tools.structvar.SamExtractClip,${jcommander.jar} ))

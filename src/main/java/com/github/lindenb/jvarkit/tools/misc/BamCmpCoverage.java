@@ -28,27 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.QueryInterval;
-import htsjdk.samtools.SAMReadGroupRecord;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.FilteringSamIterator;
-import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.SequenceUtil;
-
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
@@ -58,26 +37,24 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.BufferedList;
 import com.github.lindenb.jvarkit.util.Hershey;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
-import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 /**
 
@@ -100,12 +77,19 @@ $ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
 
 END_DOC
 */
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 
 
 /**
@@ -139,26 +123,22 @@ public class BamCmpCoverage extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-w","--width"},description="image width")
 	private int imgageSize = 1000 ;
-
 	@Parameter(names={"-m","--minDepth"},description="min depth")
 	private int minDepth = 0 ;
-
 	@Parameter(names={"-M","--maxDepth"},description="max depth")
 	private int maxDepth = 1000 ;
-
 	@Parameter(names={"-r","--region"},description="restrict to region")
 	private String regionStr = null;
-
-	
 	@Parameter(names={"-b","--bed"},description="restrict to region")
 	private File bedFile = null;
+	@Parameter(names={"--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter samRecordFilter = SamRecordJEXLFilter.buildDefault();
+	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter= SamFilterParser.buildDefault();
+	
 	
 	private double sampleWidth=0;
 	private double marginWidth=0;
@@ -301,7 +281,7 @@ public class BamCmpCoverage extends Launcher
 			}
 		}
 	
-	private void paint(BitSampleMatrix g,final Depth depth)
+	private void paint(final BitSampleMatrix g,final Depth depth)
 		{
 		final int sampleUnit= this.maxDepth-this.minDepth;
 		
@@ -325,7 +305,7 @@ public class BamCmpCoverage extends Launcher
 		}
 	
 	
-	private void readBedFile(File bedFile)
+	private void readBedFile(final File bedFile)
 		{
 		if(this.intervals==null)
 			{
@@ -334,33 +314,26 @@ public class BamCmpCoverage extends Launcher
 		try
 			{
 			LOG.info("Reading "+bedFile);
+			final BedLineCodec bedLineCodec = new BedLineCodec();
 			BufferedReader r=IOUtils.openFileForBufferedReading(bedFile);
 			String line;
-			Pattern tab=Pattern.compile("[\t]");
 			while((line=r.readLine())!=null)
 				{
-				if(line.startsWith("#") || line.isEmpty()) continue;
-				String tokens[]=tab.split(line);
-				if(tokens.length<3)
-					{
-					throw new IOException("Bad bed line in "+bedFile+" "+line);
-					}
-				Interval interval=new Interval(tokens[0],
-						Integer.parseInt(tokens[1])+1,
-						Integer.parseInt(tokens[2])
-						);
-				intervals.put(interval,true);
+				final BedLine bedLine = bedLineCodec.decode(line);
+				if(bedLine==null) continue;
+				this.intervals.put(bedLine.toInterval(),true);
 				}
 			CloserUtil.close(r);
 			}
-		catch(IOException err)
+		catch(final IOException err)
 			{
+			LOG.error(err);
 			throw new RuntimeException(err);	
 			}
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		if(outputFile==null)
 			{
@@ -396,184 +369,39 @@ public class BamCmpCoverage extends Launcher
 			return -1;
 			}
 		
-		Set<File> files=new HashSet<File>();
 		try
 			{
-		
-			final SamReaderFactory srf=SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+			final ConcatSam.Factory concatSamFactory = new ConcatSam.Factory();
+			final SamReaderFactory srf= concatSamFactory.getSamReaderFactory();
 			srf.disable(SamReaderFactory.Option.EAGERLY_DECODE);
 			srf.disable(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS);
 			srf.disable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS);
-			for(final String arg: args)
+			
+			if(this.regionStr!=null)
 				{
-				File f=new File(arg);
-				if(f.getName().endsWith(".list"))
-					{
-					LOG.info("Reading BAM list from "+f);
-					BufferedReader in=IOUtils.openFileForBufferedReading(f);
-					String line;
-					while((line=in.readLine())!=null)
-						{
-						if(line.trim().isEmpty() || line.startsWith("#")) continue;
-						files.add(new File(line));
-						}
-					in.close();
-					}
-				else
-					{
-					files.add(f);
-					}
-				}
-			if(files.isEmpty())
-				{
-				LOG.error("No BAM defined");
-				return -1;
+				concatSamFactory.addInterval(this.regionStr);
 				}
 			
-			final Comparator<SAMRecord> comparator= (samRecord1,samRecord2)->
-				{
-				final int refIndex1 = samRecord1.getReferenceIndex();
-		        final int refIndex2 = samRecord2.getReferenceIndex();
-		        if (refIndex1 == -1) {
-		            return (refIndex2 == -1? 0: 1);
-		        } else if (refIndex2 == -1) {
-		            return -1;
-		        }
-		        final int cmp = refIndex1 - refIndex2;
-		        if (cmp != 0)
-		        	{
-		            return cmp;
-		        	}
-		        return samRecord1.getAlignmentStart() - samRecord2.getAlignmentStart();
-				};
-			List<SamReader> readers=new ArrayList<SamReader>(files.size());
-			List<CloseableIterator<SAMRecord>> iterators=new ArrayList<CloseableIterator<SAMRecord>>(files.size());
 			
 			
-			Set<String> samples=new TreeSet<String>();
-			SAMSequenceDictionary dict=null;
+			ConcatSam.ConcatSamIterator concatIter = concatSamFactory.open(args);
 			
-			/* will be initialized below once, if needed */
-			QueryInterval queryIntervalArray[]=null;
 			
-			//scan samples names
-			for(final File bamFile:files)
-				{
-				SamReader r= srf.open(bamFile);
-				readers.add(r);
-				
-				SAMFileHeader h=r.getFileHeader();
-				if(h.getSortOrder()!=SortOrder.coordinate)
-					{
-					r.close();
-					LOG.error("file "+bamFile+" not sorted on coordinate");
-					return -1;
-					}
-				if(dict==null)
-					{
-					dict=h.getSequenceDictionary();
-					}
-				else if(!SequenceUtil.areSequenceDictionariesEqual(dict,h.getSequenceDictionary()))
-					{
-					throw new JvarkitException.DictionariesAreNotTheSame(dict,h.getSequenceDictionary());
-					}
-				
-				//fill query interval once
-				List<QueryInterval> queryIntervals=new ArrayList<>();
-				if(regionStr!=null && queryIntervalArray==null)
-					{
-					int colon=regionStr.indexOf(':');
-					String chrom;
-					int chromStart;
-					int chromEnd;
-
-					if(colon==-1)
-						{
-						chrom=regionStr;
-						}
-					else
-						{
-						chrom=regionStr.substring(0,colon);
-						}
-					
-					SAMSequenceRecord ssr= dict.getSequence(chrom);
-					if(ssr==null)
-						{
-						LOG.error("Chromosome "+chrom+" not present in dictionary");
-						return -1;
-						}
-					int hyphen=regionStr.indexOf('-', colon+1);
-					if(hyphen!=-1)
-						{
-						chromStart=Integer.parseInt(regionStr.substring(colon+1,hyphen));
-						chromEnd=Integer.parseInt(regionStr.substring(hyphen+1));
-						}
-					else
-						{
-						chromStart = 0;
-						chromEnd = ssr.getSequenceLength()-1;
-						}
-					if(chromStart<0 || chromEnd<chromStart)
-						{
-						LOG.error("bad position in "+regionStr);
-						return -1;
-						}
-					
-					queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),chromStart,chromEnd));
-					}
-				
-				if(this.intervals!=null  && queryIntervalArray==null)
-					{
-					for(Interval interval:this.intervals.keySet())
-						{
-						SAMSequenceRecord ssr= dict.getSequence(interval.getContig());
-						if(ssr==null)
-							{
-							LOG.error("Chromosome "+interval.getContig()+" not present in dictionary");
-							return -1;
-							}
-						queryIntervals.add(new QueryInterval(ssr.getSequenceIndex(),interval.getStart(),interval.getEnd()));
-						}
-					}	
-				
-				if( !queryIntervals.isEmpty() && queryIntervalArray==null)
-					{
-					Collections.sort(queryIntervals);
-					queryIntervalArray = queryIntervals.toArray(new QueryInterval[queryIntervals.size()]);
-					}
-				
-				for(final SAMReadGroupRecord rg:h.getReadGroups())
-					{
-					final String sample=rg.getSample();
-					if(sample==null) continue;
-					samples.add(sample);
-					}
-				CloseableIterator<SAMRecord> reciterator=null;
-				if(queryIntervalArray==null)
-					{
-					reciterator=r.iterator();
-					}
-				else
-					{
-					reciterator=r.query(queryIntervalArray, false);
-					}
-					
-				reciterator = new FilteringSamIterator(reciterator,filter);
-				iterators.add(reciterator);
-				}
-			//free GC
-			queryIntervalArray=null;
 			
+			final SAMSequenceDictionary dict=concatIter.getFileHeader().getSequenceDictionary();
+			
+			final Set<String> samples= 
+					concatIter.getFileHeader().
+					getReadGroups().
+					stream().
+					map(RG->this.samRecordPartition.apply(RG,"N/A")).
+					collect(Collectors.toSet());
+						
 			LOG.info("Samples:"+samples.size());
 			for(String sample:samples)
 				{
 				this.sample2column.put(sample, this.sample2column.size());
 				}
-			
-			//create merging sam-reader
-			MergingSamRecordIterator iter=new MergingSamRecordIterator(
-					comparator,iterators);
-			
 			
 			//create image
 			LOG.info("Creating image "+this.imgageSize+"x"+this.imgageSize);
@@ -645,30 +473,24 @@ public class BamCmpCoverage extends Launcher
 			//int prev_tid=-1;
 			BufferedList<Depth> depthList=new BufferedList<Depth>();
 			g.setColor(Color.BLACK);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict).logger(LOG);
 			LOG.info("Scanning bams...");
-			while(iter.hasNext())
+			while(concatIter.hasNext())
 				{
-				final SAMRecord rec=iter.next();
-				if(this.filter.filterOut(rec)) continue;
-				progress.watch(rec);
-
-				SAMReadGroupRecord gr=rec.getReadGroup();
-				if(gr==null) continue;
-				String sample=gr.getSample();
-				if(sample==null) continue;
-				int sample_id= this.sample2column.get(sample);
+				final SAMRecord rec=progress.watch(concatIter.next());
+				if(this.samRecordFilter.filterOut(rec)) continue;
+				final String sample= this.samRecordPartition.getPartion(rec, "N/A");
+				final int sample_id= this.sample2column.get(sample);
 				
-				Cigar cigar= rec.getCigar();
-				if(cigar==null) continue;
+				final Cigar cigar= rec.getCigar();
+				if(cigar==null || cigar.isEmpty()) continue;
 				int refPos=rec.getAlignmentStart();
 				
 				
 				/* cleanup front pos */
 				while(!depthList.isEmpty())
 					{
-					Depth front=depthList.getFirst();
-
+					final Depth front=depthList.getFirst();
 					
 					if(front.tid!=rec.getReferenceIndex().intValue() ||
 						front.pos < refPos )
@@ -683,12 +505,9 @@ public class BamCmpCoverage extends Launcher
 						}		
 					}
 				
-				
-				
-				
-				for(CigarElement ce:cigar.getCigarElements())
+				for(final CigarElement ce:cigar.getCigarElements())
 					{
-					CigarOperator op=ce.getOperator();
+					final CigarOperator op=ce.getOperator();
 					if(!op.consumesReferenceBases()) continue;
 					if(op.consumesReadBases())
 						{
@@ -755,7 +574,7 @@ public class BamCmpCoverage extends Launcher
 				paint(bitMatrix,depthList.remove(0));
 				}
 			progress.finish();
-			iter.close();
+			concatIter.close();concatIter=null;
 			
 			//paint bitset
 
@@ -770,8 +589,6 @@ public class BamCmpCoverage extends Launcher
 				}
 			
 			g.dispose();
-			//close readers
-			for(SamReader r:readers) r.close();
 			
 			//save file
 			LOG.info("saving " + this.outputFile);

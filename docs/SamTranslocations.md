@@ -15,6 +15,10 @@ Usage: samtranslocations [options] Files
       the read). An empty expression keeps everything. The variable 'record' 
       is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
       Default: 'Accept all' (Empty expression)
+    -fd, --fuzzy-distance
+      Max distance between two read to test if they both end at the same ~ 
+      position. 
+      Default: 10
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
@@ -33,7 +37,7 @@ Usage: samtranslocations [options] Files
       the chromosome name (e.g: 1->chr1)
     -md, --max-distance
       Max distance between forward-reverse
-      Default: 1000
+      Default: 50
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -93,6 +97,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Dec 13 22:11:30 2017 +0100 ; fix bug sam transloc ; https://github.com/lindenb/jvarkit/commit/4d73544f9bc965685a4c6edfe22a3755b21504d1
 Wed Dec 13 21:48:52 2017 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/6ca9f3ad0a3b67636fc0db414f0e5b3e966cf598
 Wed Dec 13 20:21:10 2017 +0100 ; new samtransloc ; https://github.com/lindenb/jvarkit/commit/1aa0d6c70ae478d3393bc5180f6f51d0769dddc1
 Wed Dec 13 17:22:37 2017 +0100 ; fixing xcontamination+singleton ; https://github.com/lindenb/jvarkit/commit/0ad0c272832570db1c2aa4f1c5fdbc46faac70e1

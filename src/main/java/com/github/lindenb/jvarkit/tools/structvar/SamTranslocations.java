@@ -24,29 +24,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.IntFunction;
-import java.util.stream.Collectors;
-
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
-import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.iterator.FilterIterator;
 import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIterator;
@@ -54,18 +41,14 @@ import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIteratorImpl;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.SortingCollection;
 /**
 
 BEGIN_DOC
@@ -76,7 +59,6 @@ BEGIN_DOC
 
 END_DOC
 */
-@SuppressWarnings("unused")
 @Program(name="samtranslocations",
 	description="Explore balanced translocations between two chromosomes using discordant paired-end reads.",
 	keywords={"sam","bam","xslt","xml"}
@@ -93,7 +75,11 @@ public class SamTranslocations extends Launcher {
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 
 	@Parameter(names={"-md","--max-distance"},description="Max distance between forward-reverse")
-	private int max_distance = 1000;
+	private int max_distance = 50;
+	@Parameter(names={"-fd","--fuzzy-distance"},description="Max distance between two read to test if they both end at the same ~ position.")
+	private int fully_distance = 10;
+
+	private int min_count_forward = 5;
 
 	private static class PartitionState
 		{
@@ -115,7 +101,7 @@ public class SamTranslocations extends Launcher {
 		ForwardPeekIterator<SAMRecord> forwardPeekIterator = null;
 		try {
 			
-			samIter = new ConcatSam.Factory().setInterval(this.region_str).open(args);
+			samIter = new ConcatSam.Factory().addInterval(this.region_str).open(args);
 			final SAMSequenceDictionary dict = samIter.getFileHeader().getSequenceDictionary();
 			if(dict.size()<2) {
 				LOG.error("Not enough contigs in sequence dictionary. Expected at least 2.");
@@ -179,107 +165,127 @@ public class SamTranslocations extends Launcher {
 				
 				if(rec.getReadNegativeStrandFlag()) continue;// searching for -->
 
-				final  List<SAMRecord> recordList=new ArrayList<>();
-				recordList.add(rec);
 				
+				//find forward records
+				final  List<SAMRecord> positiveStrandList=new ArrayList<>();
+				positiveStrandList.add(rec);
 				int x=0;
 				for(;;)
 					{
 					final SAMRecord rec2 = forwardPeekIterator.peek(x);
 					if(rec2==null) {
 						break;
-					}
+						}
 					if(!rec.getReferenceIndex().equals(rec2.getReferenceIndex())) {
 						break;
 						}
 					if(rec2.getStart()-rec.getEnd()>this.max_distance) {
 						break;
 						}
-					if(!partition.equals(this.samRecordPartition.getPartion(rec2, "N/A"))) {
-						++x;						
-						continue;
-						}
-					
-					if(!rec2.getMateReferenceName().equals(rec.getMateReferenceName())) {
+					if(rec2.getReadNegativeStrandFlag() ||
+						Math.abs(rec2.getEnd()-rec.getEnd()) > this.fully_distance ||
+						!rec2.getMateReferenceName().equals(rec.getMateReferenceName())
+						)
+						{
 						++x;
 						continue;
 						}
-					if(Math.abs(rec2.getMateAlignmentStart()-rec.getMateAlignmentStart())>this.max_distance) {
-						++x;
-						continue;
-						}
-					
-					recordList.add(rec2);
+					positiveStrandList.add(rec2);
 					partitionState.last_rec = rec2;
+					++x;
+					
+					}
+				if(positiveStrandList.size()<this.min_count_forward)
+					{
+					partitionState.last_rec=null;
+					continue;
+					}
+				//find reverse records
+
+				x=0;
+				final  List<SAMRecord> negativeStrandList=new ArrayList<>();
+
+				for(;;)
+					{
+					final SAMRecord rec2 = forwardPeekIterator.peek(x);
+					if(rec2==null) {
+						break;
+						}
+					if(!rec.getReferenceIndex().equals(rec2.getReferenceIndex())) {
+						break;
+						}
+					if(rec2.getStart()-rec.getEnd()>this.max_distance) {
+						break;
+						}
+					if(!rec2.getReadNegativeStrandFlag() ||
+						(rec2.getStart() < rec.getEnd() && (rec.getEnd() - rec2.getStart()) > this.fully_distance ) ||
+						!rec2.getMateReferenceName().equals(rec.getMateReferenceName())
+						)
+						{
+						++x;
+						continue;
+						}
+					negativeStrandList.add(rec2);
 					++x;
 					}
 				
-				if(recordList.size()<2) continue;
+				if(negativeStrandList.size()<this.min_count_forward)
+					{
+					partitionState.last_rec=null;
+					continue;
+					}
 								
-				// chrom start stuff
-				final List<SAMRecord> listF1=  recordList.stream().
-							filter(R->!R.getReadNegativeStrandFlag()).
-							collect(Collectors.toList());
-				final List<SAMRecord> listR1=  recordList.stream().
-						filter(R->R.getReadNegativeStrandFlag()).
-						collect(Collectors.toList());
-				if(listR1.isEmpty()) continue;
 				
 				
-				final int start1 = (int)Percentile.median().evaluate(listF1.stream().mapToInt(R->R.getEnd()));
-				final int end1 =   (int)Percentile.median().evaluate(listR1.stream().mapToInt(R->R.getStart()));
+				final int start1 = (int)Percentile.median().evaluate(positiveStrandList.stream().mapToInt(R->R.getEnd()));
+				final int end1 =   (int)Percentile.median().evaluate(negativeStrandList.stream().mapToInt(R->R.getStart()));
 				final int mid1= (start1+end1)/2;
 			
-				// chrom end stuff
-				final List<SAMRecord> listF2=  recordList.stream().
-							filter(R->!R.getMateNegativeStrandFlag()).
-							collect(Collectors.toList());
-				final List<SAMRecord> listR2=  recordList.stream().
-						filter(R->R.getMateNegativeStrandFlag()).
-						collect(Collectors.toList());
-				if(listF2.isEmpty()) continue;
-				if(listR2.isEmpty()) continue;
 				
-				final int mid2= (int)Percentile.median().evaluate(listF2.stream().mapToInt(R->R.getMateAlignmentStart()));
+				final int mid2= (int)Percentile.median().evaluate(negativeStrandList.stream().mapToInt(R->R.getMateAlignmentStart()));
 
 				
 				
 				pw.print(rec.getReferenceName());
 				pw.print('\t');
-				pw.print(listF1.stream().mapToInt(R->R.getEnd()).max().getAsInt());
+				pw.print(positiveStrandList.stream().mapToInt(R->R.getEnd()).max().getAsInt());
 				pw.print('\t');
-				pw.print(listR1.stream().mapToInt(R->R.getStart()).min().getAsInt());
+				pw.print(negativeStrandList.stream().mapToInt(R->R.getStart()).min().getAsInt());
 				pw.print('\t');
 				pw.print(mid1);
 				pw.print('\t');
-				pw.print(listF1.stream().filter(R->R.getEnd()<=mid1).count());
+				pw.print(positiveStrandList.stream().filter(R->R.getEnd()<=mid1).count());
 				pw.print('\t');
-				pw.print((int)(100.0*(listF1.stream().filter(R->R.getEnd()<=mid1).count())/listF1.size()));
+				pw.print((int)(100.0*(positiveStrandList.stream().filter(R->R.getEnd()<=mid1).count())/positiveStrandList.size()));
 				pw.print('\t');
-				pw.print(listR1.stream().filter(R->R.getStart()>=mid1).count());
+				pw.print(negativeStrandList.stream().filter(R->R.getStart()>=mid1).count());
 				pw.print('\t');
-				pw.print((int)(100.0*(listR1.stream().filter(R->R.getStart()>=mid1).count())/listR1.size()));
+				pw.print((int)(100.0*(negativeStrandList.stream().filter(R->R.getStart()>=mid1).count())/positiveStrandList.size()));
 				pw.print('\t');
 				
 				pw.print(rec.getMateReferenceName());
 				pw.print('\t');
-				pw.print(recordList.stream().mapToInt(R->R.getMateAlignmentStart()).min().getAsInt());
+				pw.print(negativeStrandList.stream().mapToInt(R->R.getMateAlignmentStart()).min().getAsInt());
 				pw.print('\t');
-				pw.print(recordList.stream().mapToInt(R->R.getMateAlignmentStart()).max().getAsInt());
+				pw.print(negativeStrandList.stream().mapToInt(R->R.getMateAlignmentStart()).max().getAsInt());
 				pw.print('\t');
 				pw.print(mid2);
 				pw.print('\t');
-				pw.print(listF2.stream().filter(R->R.getMateAlignmentStart()<=mid2).count());
+				pw.print(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()<=mid2).count());
 				pw.print('\t');
-				pw.print((int)(100.0*(listF2.stream().filter(R->R.getMateAlignmentStart()<=mid2).count())/listF2.size()));
+				pw.print((int)(100.0*(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()<=mid2).count())/negativeStrandList.size()));
 				pw.print('\t');
-				pw.print(listR2.stream().filter(R->R.getMateAlignmentStart()>=mid2).count());
+				pw.print(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()>=mid2).count());
 				pw.print('\t');
-				pw.print((int)(100.0*(listR2.stream().filter(R->R.getMateAlignmentStart()>=mid2).count())/listR2.size()));
+				pw.print((int)(100.0*(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()>=mid2).count())/negativeStrandList.size()));
 				pw.print('\t');
-				pw.print(recordList.size());
+				pw.print(positiveStrandList.size()+negativeStrandList.size());
 				pw.print('\t');
-				pw.print(recordList.stream().filter(R->R.getCigar()!=null && R.getCigar().isClipped()).count());
+				pw.print(
+						positiveStrandList.stream().filter(R->R.getCigar()!=null && R.getCigar().isClipped()).count()
+						+
+						negativeStrandList.stream().filter(R->R.getCigar()!=null && R.getCigar().isClipped()).count()
+						);
 				pw.print('\t');
 				pw.print(partition);
 				pw.println();

@@ -10,11 +10,19 @@ Usage: bamcmpcoverage [options] Files
   Options:
     -b, --bed
       restrict to region
-    -filter, --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+    --filter
+      A JEXL Expression that will be used to filter out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
+    --groupby
+      Group Reads by. Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -h, --help
       print help and exit
     --helpFormat

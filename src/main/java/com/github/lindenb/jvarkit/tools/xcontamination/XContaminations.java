@@ -807,7 +807,7 @@ public class XContaminations extends Launcher
 						final Cigar cigar=record.getCigar();
 						if(cigar==null || cigar.isEmpty()) continue;
 						byte readSeq[]=record.getReadBases();
-						if(readSeq==null || readSeq.equals(SAMRecord.NULL_SEQUENCE_STRING)) continue;
+						if(readSeq==null || readSeq.length==0) continue;
 						
 						int readPos = record.getReadPositionAtReferencePosition(ctx.getStart());
 						if(readPos<1) continue;

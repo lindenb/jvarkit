@@ -32,12 +32,14 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.MergingSamRecordIterator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -150,7 +152,7 @@ public class ConcatSam extends Launcher
 	
 	public static class Factory
 		{
-		private String intervalStr = null;
+		private final List<String> intervalStrList = new ArrayList<>();
 		private SamReaderFactory samReaderFactory;
 		private boolean enableUnrollList=true;
 		private boolean concatenate=false;
@@ -180,11 +182,18 @@ public class ConcatSam extends Launcher
 			}
 		
 		
+		
+		@Deprecated
+		/* deprecated use addInterval */
 		public Factory setInterval(final String intervalStr) {
-			this.intervalStr = intervalStr;
-			return this;
+			return addInterval(intervalStr);
 			}
 		
+		public Factory addInterval(final String intervalStr) {
+			this.intervalStrList.add(intervalStr);
+			return this;
+			}
+
 		public Factory setSamReaderFactory(final SamReaderFactory samReaderFactory) {
 			this.samReaderFactory = samReaderFactory;
 			return this;
@@ -194,23 +203,26 @@ public class ConcatSam extends Launcher
 			return samReaderFactory;
 			}
 		
-		private String fixContig(final String contig,final SAMSequenceDictionary dict) 
-			{
-			return ContigNameConverter.fromOneDictionary(dict).
-					setOnNotFound(ContigNameConverter.OnNotFound.RAISE_EXCEPTION).
-					apply(contig);
-			}
 		
-		private Interval getRegionAsInterval(final SamReader r) 
+		private QueryInterval[] getRegionsAsQueryIntervalArray(final SamReader r) 
 			{
-			if(StringUtil.isBlank(this.intervalStr)) throw new IllegalStateException();
-			final SAMSequenceDictionary dict =r.getFileHeader().getSequenceDictionary();
-			if(dict==null) throw new JvarkitException.BamDictionaryMissing(r.getResourceDescription());
-			final Interval i= new IntervalParser(dict).
-				setContigNameIsWholeContig(true).
-				parse(this.intervalStr);
-			if(i==null) throw new IllegalArgumentException("Cannot parse interval "+this.intervalStr);
-			return i;
+			final List<QueryInterval> queryIntervals=new ArrayList<>();
+			for(final String intervalStr:this.intervalStrList)
+				{
+				if(StringUtil.isBlank(intervalStr)) throw new IllegalStateException();
+				final SAMSequenceDictionary dict =r.getFileHeader().getSequenceDictionary();
+				if(dict==null) throw new JvarkitException.BamDictionaryMissing(r.getResourceDescription());
+				final Interval i= new IntervalParser(dict).
+					setContigNameIsWholeContig(true).
+					parse(intervalStr);
+				if(i==null) throw new IllegalArgumentException("Cannot parse interval "+intervalStr);
+				final int referenceIndex = dict.getSequenceIndex(i.getContig());
+				if(referenceIndex<0) throw new IllegalArgumentException("tid<0 ??! for "+i);
+				queryIntervals.add(new QueryInterval(referenceIndex, i.getStart(), i.getEnd()));
+				}
+			Collections.sort(queryIntervals);
+			
+			return queryIntervals.toArray(QueryInterval.optimizeIntervals(new QueryInterval[queryIntervals.size()]));
 			}
 
 		
@@ -223,8 +235,8 @@ public class ConcatSam extends Launcher
 			if(args.isEmpty())
 				{
 				LOG.info("reading from stdin");
-				if(!StringUtil.isBlank(this.intervalStr)) {
-					throw new SAMException("cannot specify region for stdin ("+this.intervalStr+")");
+				if(!this.intervalStrList.isEmpty()) {
+					throw new SAMException("cannot specify regions for stdin ("+this.intervalStrList+")");
 					}
 				final SamReader reader = srf.open(SamInputResource.of(System.in));
 				myIter.samReaders.add(reader);
@@ -237,19 +249,14 @@ public class ConcatSam extends Launcher
 				final SamReader reader =  srf.open(SamInputResource.of(args.get(0)));
 				myIter.samReaders.add(reader);
 				myIter.header = reader.getFileHeader();
-				if(StringUtil.isBlank(this.intervalStr))
+				if(this.intervalStrList.isEmpty())
 					{
 					myIter.delegate = reader.iterator();
 					}
 				else
 					{
-					final Interval interval = getRegionAsInterval(reader);
-					myIter.delegate = reader.query(
-							interval.getContig(),
-							interval.getStart(),
-							interval.getEnd(),
-							false
-							);
+					final QueryInterval intervals[] = getRegionsAsQueryIntervalArray(reader);
+					myIter.delegate = reader.query( intervals, false);
 					}
 				}
 			else
@@ -298,7 +305,7 @@ public class ConcatSam extends Launcher
 				
 				final Map<SamReader,CloseableIterator<SAMRecord>> reader2iter= new HashMap<>();
 						
-				if(StringUtil.isBlank(this.intervalStr))
+				if(this.intervalStrList.isEmpty())
 					{
 					for(final SamReader sr:myIter.samReaders)
 						{
@@ -309,13 +316,8 @@ public class ConcatSam extends Launcher
 					{
 					for(final SamReader sr:myIter.samReaders)
 						{
-						final Interval interval = getRegionAsInterval(sr);
-						reader2iter.put(sr, sr.query(
-								fixContig(interval.getContig(),dict0),
-								interval.getStart(),
-								interval.getEnd(),
-								false
-								));
+						final QueryInterval intervals[] = getRegionsAsQueryIntervalArray(sr);
+						reader2iter.put(sr, sr.query(intervals,false));
 						}
 					}
 				myIter.merginIterators.addAll(reader2iter.values());
