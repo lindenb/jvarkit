@@ -60,7 +60,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -209,7 +208,9 @@ public class ConcatSam extends Launcher
 			final List<QueryInterval> queryIntervals=new ArrayList<>();
 			for(final String intervalStr:this.intervalStrList)
 				{
-				if(StringUtil.isBlank(intervalStr)) throw new IllegalStateException();
+				if(StringUtil.isBlank(intervalStr)) {
+					throw new IllegalStateException("empty string in "+this.intervalStrList);
+				}
 				final SAMSequenceDictionary dict =r.getFileHeader().getSequenceDictionary();
 				if(dict==null) throw new JvarkitException.BamDictionaryMissing(r.getResourceDescription());
 				final Interval i= new IntervalParser(dict).
@@ -345,9 +346,12 @@ public class ConcatSam extends Launcher
 		ConcatSamIterator iter = null;
 		try
 			{
-			Factory factory = new Factory().
-					setConcatenate(!this.merging).
-					setInterval(this.region_str);
+			final Factory factory = new Factory().
+					setConcatenate(!this.merging)
+					;
+			if(!StringUtil.isBlank(this.region_str)) {
+				factory.addInterval(region_str);
+				}
 			
 			iter = factory.open(args);
 			

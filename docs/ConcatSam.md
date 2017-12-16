@@ -87,6 +87,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Dec 15 17:59:36 2017 +0100 ; pretty sam ; https://github.com/lindenb/jvarkit/commit/9a76f347cbc5392c52b21eb12179d38efcf1d9d1
+Wed Nov 29 16:40:28 2017 +0100 ; sam transloc ; https://github.com/lindenb/jvarkit/commit/9b83677697adc04d1cd7411b2181fa933a47583d
 Tue Nov 28 16:00:23 2017 +0100 ; improving concat sam: adding a factory fastq getReadHeader is deprecated , replace with getReadName adding test ; https://github.com/lindenb/jvarkit/commit/53ce7c69ba98c3b85d8d7ca08f8a11e321a5fe1d
 Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
 Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612

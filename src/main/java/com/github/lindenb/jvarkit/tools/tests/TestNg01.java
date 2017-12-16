@@ -31,6 +31,7 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,13 +43,11 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.imageio.ImageIO;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.testng.Assert;
 import org.testng.annotations.*;
-import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
@@ -94,6 +93,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
+import com.github.lindenb.jvarkit.tools.sam2tsv.PrettySam;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
@@ -119,6 +119,11 @@ import com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.tools.misc.BamTile;
 import com.github.lindenb.jvarkit.util.Algorithms;
+import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
+import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -1204,4 +1209,63 @@ class TestNg01 {
     	Assert.assertTrue(output.delete());
 		}
 
+    @Test
+    public void testRefGenomeFactoryForDAS() throws IOException {
+    	final ReferenceGenomeFactory rgf=new ReferenceGenomeFactory();
+    	rgf.setBufferSize(10);
+    	final ReferenceGenome ref=rgf.openDAS(new URL("http://genome.cse.ucsc.edu/cgi-bin/das/hg19"));
+    	Assert.assertTrue(ref.size()>23);
+    	ReferenceContig contig = ref.getContig("1");
+    	Assert.assertNotNull(contig);
+    	Assert.assertEquals(contig.getContig(),"1");
+    	Assert.assertEquals(contig.length(),249250621);
+    	contig = ref.getContig("M");
+    	Assert.assertNotNull(contig);
+    	Assert.assertEquals(contig.getContig(),"M");
+    	Assert.assertEquals(contig.length(),16571);
+    	
+    	String dna="gatcacaggtctatcacc";
+    	for(int i=0;i< dna.length();++i)
+    		{
+        	Assert.assertEquals(dna.charAt(i),contig.charAt(i));
+    		}
+    	dna="cttaaataagacatcacgatg";
+    	for(int i=0;i< dna.length();++i)
+			{
+	    	Assert.assertEquals(dna.charAt(i),contig.charAt(contig.length()-dna.length()+i));
+			}
+    	ref.close();
+    }
+    
+    @Test
+    public void testRefGenomeFactoryForFile() throws IOException {
+    	final ReferenceGenomeFactory rgf=new ReferenceGenomeFactory();
+    	rgf.setBufferSize(2);
+    	final ReferenceGenome ref=rgf.open(TOY_FA);
+    	final FastaSequenceReader fsr = new FastaSequenceReader();
+    	final List<FastaSequence> seqs = fsr.readAll(new File(TOY_FA));
+    	Assert.assertEquals(seqs.size(),ref.size());
+    	for(int i=0;i< seqs.size();i++)
+    		{
+        	Assert.assertEquals(ref.getContig(i).length(),seqs.get(i).length());
+        	Assert.assertEquals(ref.getContig(i).getContig(),seqs.get(i).getName());
+        	for(int x=0;x<ref.getContig(i).length();++x) {
+            	Assert.assertEquals(ref.getContig(i).charAt(x),seqs.get(i).charAt(x));
+        		}
+    		}
+
+    	ref.close();
+		}
+    @Test
+    public void testPrettySam() throws IOException {
+    	final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
+    	Assert.assertEquals(0,new PrettySam().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-R",TOY_FA,
+        		TOY_BAM
+        		}));
+    	Assert.assertTrue(output.delete());
+		}
+    
+    	
 }
