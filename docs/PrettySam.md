@@ -79,6 +79,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Sat Dec 16 16:01:41 2017 +0100 ; optimize for long reads ; https://github.com/lindenb/jvarkit/commit/f12cae9419d2156141ee79175d236bbf07804906
 Fri Dec 15 21:57:44 2017 +0100 ; sam pretty ; https://github.com/lindenb/jvarkit/commit/19cb4d756b0f5006ff85c9afb5c4c83e466ef13c
 Fri Dec 15 17:59:36 2017 +0100 ; pretty sam ; https://github.com/lindenb/jvarkit/commit/9a76f347cbc5392c52b21eb12179d38efcf1d9d1
 ```

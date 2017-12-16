@@ -196,6 +196,8 @@ public class PrettySam extends Launcher {
 		CigarOperator cigaroperator = null;
 		}
 
+	private final Function<Boolean, String> isNegativeStrandToString = NEGATIVE ->
+		(this.disable_unicode?(NEGATIVE?"<--":"-->"):(NEGATIVE?"\u2190":"\u2192"));
 	
 	public class PrettySAMWriter implements SAMFileWriter
 		{
@@ -401,17 +403,17 @@ public class PrettySam extends Launcher {
 					{
 					label(margin1,"Unclipped-End");pw.println(this.fmt.format(rec.getUnclippedEnd()));
 					}
-				label(margin1,"Strand");pw.println(rec.getReadNegativeStrandFlag()?"-":"+");
+				label(margin1,"Strand");pw.println(isNegativeStrandToString.apply(rec.getReadNegativeStrandFlag()));
 				}
 			if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag() && rec.getMateReferenceIndex()>=0)
 				{
-				if(rec.getInferredInsertSize()!=0)
+				if(!rec.getReadUnmappedFlag() && rec.getInferredInsertSize()!=0)
 					{
 					label(margin1,"Insert-Size");pw.println(this.fmt.format(rec.getInferredInsertSize()));
 					}
 				label(margin1,"Mate-Contig");pw.println(rec.getMateReferenceName()+"  (index:"+rec.getMateReferenceIndex()+")");
 				label(margin1,"Mate-Start");pw.println(this.fmt.format(rec.getMateAlignmentStart()));
-				label(margin1,"Mate-Strand");pw.println(rec.getMateNegativeStrandFlag()?"-":"+");
+				label(margin1,"Mate-Strand");pw.println(isNegativeStrandToString.apply(rec.getMateNegativeStrandFlag()));
 				}
 			if(this.header!=null && rec.hasAttribute(SAMProgramRecord.PROGRAM_GROUP_ID_TAG)) {
 				final String pgId = rec.getStringAttribute(SAMProgramRecord.PROGRAM_GROUP_ID_TAG);
