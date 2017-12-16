@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -40,11 +39,13 @@ import java.util.regex.Pattern;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.Cigar;
@@ -173,8 +174,8 @@ public class PrettySam extends Launcher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File refFile = null;
+	@Parameter(names={"-r","-R","--reference"},description=ReferenceGenomeFactory.OPT_DESCRIPTION,converter=ReferenceGenomeFactory.class)
+	private ReferenceGenome referenceGenome = null;
 	@Parameter(names={"--no-unicode"},description="disable unicode to display ascii histogram")
 	private boolean disable_unicode=false;
 	@Parameter(names={"--trim"},description="trim long string to this length. <1 = do not trim.")
@@ -207,8 +208,8 @@ public class PrettySam extends Launcher {
 		private SAMSequenceDictionary samDict=null;
 		private SAMSequenceDictionary faidxDict=null;
 		private long nLine=0;
-		private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-		private GenomicSequence genomicSequence=null;
+		private ReferenceGenome referenceGenome=null;
+		private ReferenceContig genomicSequence=null;
 		private final Map<String,String> tags = new HashMap<>();
 		private final Map<String,String> readgroupAtt2def = new HashMap<>();
 		private ContigNameConverter contigNameConverter=null;
@@ -309,25 +310,17 @@ public class PrettySam extends Launcher {
 		
 
 		
-		public PrettySAMWriter setReferenceFile(final File f) throws IOException{
-			if(f==null) return null;
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			this.genomicSequence=null;
-			this.contigNameConverter=null;
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(f);
-			this.faidxDict = this.indexedFastaSequenceFile.getSequenceDictionary();
-			return this;
-			}
 		
 		private char getReferenceAt(final String contig,int refpos) {
-			if(this.indexedFastaSequenceFile==null || this.contigNameConverter==null) return 'N';
+			if(PrettySam.this.referenceGenome==null || this.contigNameConverter==null) return 'N';
 			final String normContig = this.contigNameConverter.apply(contig);
 			if(normContig==null) return 'N';
-			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(normContig))
+			if(this.genomicSequence==null || !this.genomicSequence.getContig().equals(normContig))
 				{
-				this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, normContig);
+				this.genomicSequence = PrettySam.this.referenceGenome.getContig(normContig);
+				if(this.genomicSequence==null) return 'N';
 				}
-			if((refpos-1)>=this.genomicSequence.length())return 'N';
+			if((refpos-1)<0 || (refpos-1)>=this.genomicSequence.length())return 'N';
 			return this.genomicSequence.charAt(refpos-1);
 			}
 		
@@ -342,6 +335,12 @@ public class PrettySam extends Launcher {
 		public void writeHeader(final SAMFileHeader header) {
 			this.header = header;
 			this.samDict = this.header.getSequenceDictionary();
+			
+			if(PrettySam.this.referenceGenome!=null) {
+				this.faidxDict = PrettySam.this.referenceGenome.getDictionary();
+				}
+
+			
 			if(this.samDict!=null && this.faidxDict!=null) {
 				this.contigNameConverter  = ContigNameConverter.fromDictionaries(this.samDict, this.faidxDict);
 				this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
@@ -580,7 +579,7 @@ public class PrettySam extends Launcher {
 									break;
 							case 4: label(margin2,"Qual");break;
 							case 2:
-								if(cigar==null || cigar.isEmpty()|| this.indexedFastaSequenceFile==null) continue;
+								if(cigar==null || cigar.isEmpty()|| PrettySam.this.referenceGenome==null) continue;
 								label(margin2,"Ref ("+this.fmt.format(align.stream().
 										skip(x).
 										mapToInt(B->B.refpos).
@@ -591,7 +590,7 @@ public class PrettySam extends Launcher {
 								if(cigar==null || cigar.isEmpty()) continue;
 								label(margin2,"Op");break;
 							case 1:
-								if(cigar==null || cigar.isEmpty() || this.indexedFastaSequenceFile==null) continue;
+								if(cigar==null || cigar.isEmpty() || PrettySam.this.referenceGenome==null) continue;
 								label(margin2,"Mid");break;
 							case 5: label(margin2,"Ref-Pos");break;
 							default:break;
@@ -647,7 +646,7 @@ public class PrettySam extends Launcher {
 								case 3: c = base.cigaroperator.name().charAt(0);break;
 								case 1:
 									c= base.cigaroperator.isAlignment()?
-											(base.refbase==base.readbase?'|':' ')
+											(Character.toUpperCase(base.refbase)==Character.toUpperCase(base.readbase)?'|':' ')
 											: ' ';
 									break;
 								case 5: {
@@ -750,7 +749,7 @@ public class PrettySam extends Launcher {
 		@Override
 		public void close() {
 			pw.close();
-			CloserUtil.close(this.indexedFastaSequenceFile);
+			CloserUtil.close(this.referenceGenome);
 			this.genomicSequence=null;
 			}
 		}
@@ -764,7 +763,6 @@ public class PrettySam extends Launcher {
 			r= super.openSamReader(oneFileOrNull(args));
 			out = new PrettySAMWriter(super.openFileOrStdoutAsPrintWriter(this.outputFile));
 			out.writeHeader(r.getFileHeader());
-			out.setReferenceFile(this.refFile);
 			iter = r.iterator();
 			while(iter.hasNext())
 				{

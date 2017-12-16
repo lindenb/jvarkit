@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.function.BiFunction;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -43,6 +42,7 @@ import javax.xml.stream.events.XMLEvent;
 import com.beust.jcommander.IStringConverter;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -51,32 +51,141 @@ import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 
 public class ReferenceGenomeFactory
 implements IStringConverter<ReferenceGenome>  {
+private static final Logger LOG = Logger.build(ReferenceGenomeFactory.class).make();
+
+	
+public static final String OPT_DESCRIPTION="Indexed Reference. "+
+			"It can be a the path to fasta file that must be indexed with samtools faidx and with picard CreateSequenceDictionary."
+			+ " It can also be a BioDAS dsn url like http://genome.cse.ucsc.edu/cgi-bin/das/hg19/ . BiasDAS references are slower but allow to work without a local reference file.";
+
+/** jcommander stuff */
+@Override
+public ReferenceGenome convert(final String opt) {
+		try {
+			return this.open(opt);
+			}
+		catch(final IOException err) {
+			LOG.error(err);
+			throw new RuntimeIOException(err);
+			}
+	}
+
+private final int DEFAULT_HALF_BUFFER_CAPACITY=1000000;
+private int half_buffer_capacity=DEFAULT_HALF_BUFFER_CAPACITY;
+private boolean return_N_on_indexOutOfRange=false;
+private boolean debug=false;
+
+public ReferenceGenomeFactory setBufferSize(int size) {
+	this.half_buffer_capacity =Math.max(1,size);
+	return this;
+}
+
+public int getBufferSize() {
+	return this.half_buffer_capacity;
+	}
+
+public ReferenceGenomeFactory setReturnBaseNOnIndexOutOfRange(boolean b) {
+	this.return_N_on_indexOutOfRange = b;
+	return this;
+}
+
+public boolean isReturnBaseNOnIndexOutOfRange() {
+	return return_N_on_indexOutOfRange;
+}
+
+public ReferenceGenomeFactory setDebug(boolean b) {
+	this.debug = b;
+	return this;
+}
+
+public boolean isDebug() {
+	return debug;
+}
+
+private abstract class AbstractReferenceGenome
+	implements ReferenceGenome
+	{
+	protected SAMSequenceDictionary dictionary =null ;
+	private ReferenceContig last_contig = null;
+	
+
+	protected abstract ReferenceContig create(final SAMSequenceRecord ssr);
+	
+	@Override
+	public final ReferenceContig getContig(final String contigName) {
+		if(this.last_contig!=null && last_contig.getContig().equals(contigName)) {
+			return this.last_contig;
+			}
+		final SAMSequenceRecord ssr=getDictionary().getSequence(contigName);
+		if(ssr==null) return null;
+		this.last_contig= create(ssr);
+		return this.last_contig;
+		}
+
+	
+	@Override
+	public SAMSequenceDictionary getDictionary() {
+		return this.dictionary;
+		}
+	@Override
+	public int hashCode() {
+		return getSource().hashCode();
+		}
+	
+	@Override
+	public boolean equals(final Object obj) {
+		return obj==this;
+		}
+	
+	@Override
+	public String toString() {
+		return getSource();
+		}
+	}
 
 private abstract class AbstractReferenceContigImpl
 	extends AbstractCharSequence
 	implements ReferenceContig
 	{
+	private final SAMSequenceRecord samSequenceRecord;
 	private byte buffer[]=null;
 	private int buffer_pos=-1;
-	private int half_buffer_capacity=1000000;
+	private final int half_buffer_capacity=ReferenceGenomeFactory.this.getBufferSize();
 	
 	protected abstract  byte[] refill(int start0,int end0);
 	
+	protected AbstractReferenceContigImpl(final SAMSequenceRecord ssr) {
+		this.samSequenceRecord = ssr;
+	}
+	
 	@Override
-	public char charAt(int index0) {
-		if(index0 >= length())
+	public final SAMSequenceRecord getSAMSequenceRecord() {
+		return this.samSequenceRecord;
+		}
+	
+	@Override
+	public final char charAt(int index0) {
+		if(index0<0 || index0 >= length())
 			{
+			if(ReferenceGenomeFactory.this.isReturnBaseNOnIndexOutOfRange()) {
+				if(isDebug()) LOG.debug("index out of range "+index0);
+				return 'N';
+				}
 			throw new IndexOutOfBoundsException("index:"+index0);
 			}
 		if(buffer!=null && index0>=buffer_pos && index0-buffer_pos < buffer.length)
 			{
 			return (char)buffer[index0-buffer_pos];
 			}
-		int minStart=Math.max(0, index0-half_buffer_capacity);
-		int maxEnd=Math.min(minStart+2*half_buffer_capacity,this.length());
+		final int minStart=Math.max(0, index0-half_buffer_capacity);
+		final int maxEnd=Math.min(minStart+2*half_buffer_capacity,this.length());
+		if(isDebug()) {
+			LOG.debug("Refill "+minStart+" to "+maxEnd);
+			}
 		this.buffer=refill(minStart,maxEnd);
 		this.buffer_pos=minStart;
 		return (char)buffer[index0-minStart];
@@ -84,17 +193,15 @@ private abstract class AbstractReferenceContigImpl
 	}
 	
 private  class ReferenceGenomeImpl
-	implements ReferenceGenome
+	extends AbstractReferenceGenome
 	{
 	private  class ReferenceContigImpl
 		extends AbstractReferenceContigImpl
 		{
-		final SAMSequenceRecord ssr;
 		final ReferenceSequence referenceSequence;
 
-		
 		ReferenceContigImpl(final SAMSequenceRecord ssr) {
-			this.ssr = ssr;
+			super(ssr);
 			this.referenceSequence  = ReferenceGenomeImpl.this.indexedFastaSequenceFile.getSequence(ssr.getSequenceName());
 			if(this.referenceSequence==null) throw new IllegalStateException();
 			}
@@ -107,52 +214,30 @@ private  class ReferenceGenomeImpl
 					Math.min(maxEnd,this.length())
 					).getBases();
 			}
-			
-		@Override
-		public SAMSequenceRecord getSAMSequenceRecord() {
-			return this.ssr;
-			}
+		
 		}
 	
 	private final File fastaFile;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile;
-	private SAMSequenceDictionary dictionary;
-	private ReferenceContigImpl lastContig =null;
 	ReferenceGenomeImpl(final File fastaFile) throws IOException
 		{
 		this.fastaFile = fastaFile;
 		IOUtil.assertFileIsReadable(fastaFile);
 		this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(fastaFile);
-		this.dictionary = this.indexedFastaSequenceFile.getSequenceDictionary();
+		super.dictionary = this.indexedFastaSequenceFile.getSequenceDictionary();
 		if(this.dictionary==null) {
 			throw new JvarkitException.FastaDictionaryMissing(fastaFile);
 			}
-		}
-	@Override
-	public SAMSequenceDictionary getDictionary() {
-		return this.dictionary;
 		}
 	@Override
 	public String getSource() {
 		return this.fastaFile.toString();
 		}
 	@Override
-	public String toString() {
-		return getSource();
+	protected ReferenceContig create(SAMSequenceRecord ssr) {
+		return new ReferenceContigImpl(ssr);
 		}
 	
-	@Override
-	public ReferenceContig getContig(final String contigName) {
-		if(this.lastContig!=null && lastContig.getContig().equals(contigName)) {
-			return this.lastContig;
-			}
-		final SAMSequenceRecord ssr=getDictionary().getSequence(contigName);
-		this.lastContig=null;
-		if(ssr==null) return null;
-		final ReferenceContigImpl rci = new ReferenceContigImpl(ssr);
-		this.lastContig= rci;
-		return rci;
-		}
 	@Override
 	public void close() throws IOException {
 		CloserUtil.close(this.indexedFastaSequenceFile);
@@ -160,46 +245,19 @@ private  class ReferenceGenomeImpl
 	}
 
 
-public ReferenceGenome open(final String ref) throws IOException
-	{
-	return (IOUtil.isUrl(ref))?
-		openDAS(new URL(ref)):
-		openFastaFile(new File(ref))
-		;
-	}
-
-public ReferenceGenome openFastaFile(final File fastaFile) throws IOException
-	{
-	return new ReferenceGenomeImpl(fastaFile);
-	}
-
-/** open a DAS URL */
-public ReferenceGenome openDAS(final URL dasUrl) throws IOException
-	{
-	return new DasGenomeImpl(dasUrl.toString());
-	}
 
 
-private class DasGenomeImpl implements ReferenceGenome
+private class DasGenomeImpl extends AbstractReferenceGenome
 	{
 	final String basedasurl;
 	final XMLInputFactory xmlInputFactory =XMLInputFactory.newFactory();
-	final SAMSequenceDictionary dict = new SAMSequenceDictionary();
-	private DasContig last_contig = null;
 	
 	private class DasContig extends AbstractReferenceContigImpl
 		{
-		final SAMSequenceRecord ssr;
 		DasContig(final SAMSequenceRecord ssr) {
-			this.ssr= ssr;
+			super(ssr);
 			}
-		@Override
-		public SAMSequenceRecord getSAMSequenceRecord() {
-			return this.ssr;
-			}
-		
-		
-		
+				
 		@Override
 		protected byte[] refill(int start0, int end0) {
 			InputStream in = null;
@@ -208,13 +266,14 @@ private class DasGenomeImpl implements ReferenceGenome
 				final String dna_url = DasGenomeImpl.this.basedasurl+"/dna?segment="+
 						URLEncoder.encode(getContig(), "UTF-8")+","+
 						(start0+1)+","+end0;
+				if(isDebug()) LOG.debug(dna_url);
 				final QName DNA= new QName("DNA");
 				in = new URL(dna_url).openStream();
 				xef = DasGenomeImpl.this.xmlInputFactory.createXMLEventReader(in);
 				while(xef.hasNext())
 					{
 					XMLEvent evt=xef.nextEvent();
-					if(evt.isStartElement() && evt.asStartElement().equals(DNA)) 
+					if(evt.isStartElement() && evt.asStartElement().getName().equals(DNA)) 
 						{
 						ByteArrayOutputStream baos = new ByteArrayOutputStream(Math.max(1,end0-start0));
 						while(xef.hasNext())
@@ -246,6 +305,7 @@ private class DasGenomeImpl implements ReferenceGenome
 				}
 			catch(final Exception err)
 				{
+				LOG.error(err);
 				throw new RuntimeIOException(err);
 				}
 			finally
@@ -260,13 +320,17 @@ private class DasGenomeImpl implements ReferenceGenome
 	DasGenomeImpl(String base) throws IOException {
 		if(!base.endsWith("/")) base+="/";
 		this.basedasurl = base;
+		super.dictionary=new SAMSequenceDictionary();
 		InputStream in = null;
 		XMLEventReader xef = null;
 		try {
 			final QName SEGMENT= new QName("SEGMENT");
 			final QName ATT_ID= new QName("id");
 			final QName ATT_STOP= new QName("stop");
+			final QName ATT_END= new QName("end");
+			final QName ATT_LENGTH= new QName("length");
 			final String entry_points_url = this.basedasurl+"entry_points"; 
+			if(isDebug()) LOG.debug("parsing "+entry_points_url);
 			in = new URL(entry_points_url).openStream();
 			xef = this.xmlInputFactory.createXMLEventReader(in);
 			while(xef.hasNext())
@@ -279,13 +343,18 @@ private class DasGenomeImpl implements ReferenceGenome
 				if(att==null) throw new XMLStreamException(entry_points_url+":cannot get @id", SE.getLocation());
 				final String id = att.getValue();
 				att= SE.getAttributeByName(ATT_STOP);
-				if(att==null) throw new XMLStreamException(entry_points_url+":cannot get @stop", SE.getLocation());
+				if(att==null) att=SE.getAttributeByName(ATT_END);
+				if(att==null) att=SE.getAttributeByName(ATT_LENGTH);
+				if(att==null) throw new XMLStreamException(entry_points_url+":cannot get @stop / @length / @end", SE.getLocation());
 				final int length = Integer.parseInt(att.getValue());
-				this.dict.addSequence(new SAMSequenceRecord(id, length));
+				if(length<=0) throw new XMLStreamException("bad end "+length, SE.getLocation());
+				super.dictionary.addSequence(new SAMSequenceRecord(id, length));
 				}
+			if(isDebug()) LOG.debug("dict in "+entry_points_url+" size : "+this.dictionary.size());
 			}
 		catch(final XMLStreamException err)
 			{
+			LOG.error(err);
 			throw new IOException(err);
 			}
 		finally
@@ -299,60 +368,36 @@ private class DasGenomeImpl implements ReferenceGenome
 	public String getSource() {
 		return this.basedasurl;
 		}
-	@Override
-	public String toString() {
-		return getSource();
-		}
 	
 	@Override
-	public SAMSequenceDictionary getDictionary() {
-		return this.dict;
+	protected ReferenceContig create(SAMSequenceRecord ssr) {
+		return new DasContig(ssr);
 		}
 	
-	@Override
-	public ReferenceContig getContig(String contigName) {
-		if(last_contig!=null && last_contig.getContig().equals(contigName)) {
-			return last_contig;
-			}
-		final SAMSequenceRecord ssr = this.getDictionary().getSequence(contigName);
-		if(ssr==null) return null;
-		last_contig = new DasContig(ssr);
-		return last_contig;
-		}
 	@Override
 	public void close() throws IOException {
 		
 		}
 	}
 
-// http://genome.cse.ucsc.edu/cgi-bin/das/hg19/entry_points
-private void xxx_das(String dasurl) throws Exception {
-	if(!dasurl.endsWith("/")) dasurl+="/";
-	String entry_points_url = dasurl+"entry_points"; 
-	XMLInputFactory xif=XMLInputFactory.newFactory();
-	InputStream in = new URL(entry_points_url).openStream();
-	XMLEventReader xef = xif.createXMLEventReader(in);
-	final SAMSequenceDictionary dict=new SAMSequenceDictionary();
-	BiFunction<StartElement,String,String> required_attribute = (SE,ATT)->{
-		final Attribute att = SE.getAttributeByName(new QName(ATT));
-		if(att==null) throw new RuntimeException("Cannot find @"+ATT+" in "+SE.getName()+" at "+SE.getLocation());
-		return att.getValue();
-		};
-	while(xef.hasNext())
-		{
-		final XMLEvent evt=xef.nextEvent();
-		if(evt.isStartElement())
-			{
-			StartElement SE=evt.asStartElement();
-			if(SE.getName().getLocalPart().equals("SEGMENT"))
-				{
-				final String id = required_attribute.apply(SE,"id");
-				final int length = Integer.parseInt(required_attribute.apply(SE,"stop"));
-				dict.addSequence(new SAMSequenceRecord(id, length));
-				}
-			}
-		}
-	xef.close();
-	in.close();
+/** open any kind of reference */
+public ReferenceGenome open(final String ref) throws IOException
+	{
+	if(StringUtil.isBlank(ref)) throw new IllegalArgumentException("null/empty arg");
+	return (IOUtil.isUrl(ref))?
+		openDAS(new URL(ref)):
+		openFastaFile(new File(ref))
+		;
+	}
+/** open a FASTA reference */
+public ReferenceGenome openFastaFile(final File fastaFile) throws IOException
+	{
+	return new ReferenceGenomeImpl(fastaFile);
+	}
+
+/** open a DAS URL */
+public ReferenceGenome openDAS(final URL dasUrl) throws IOException
+	{
+	return new DasGenomeImpl(dasUrl.toString());
 	}
 }
