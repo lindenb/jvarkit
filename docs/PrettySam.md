@@ -13,11 +13,17 @@ Usage: prettysam [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --no-unicode
+      disable unicode to display ascii histogram
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --trim
+      trim long string to this length. <1 = do not trim.
+      Default: 50
     --version
       print version and exit
 
@@ -73,6 +79,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Dec 15 21:57:44 2017 +0100 ; sam pretty ; https://github.com/lindenb/jvarkit/commit/19cb4d756b0f5006ff85c9afb5c4c83e466ef13c
 Fri Dec 15 17:59:36 2017 +0100 ; pretty sam ; https://github.com/lindenb/jvarkit/commit/9a76f347cbc5392c52b21eb12179d38efcf1d9d1
 ```
 
@@ -98,6 +105,10 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## About long reads
+
+The htsjdk currently (2012-12-16) doesn't support more th 65635 cigar operations.
 
 ## Example
 
