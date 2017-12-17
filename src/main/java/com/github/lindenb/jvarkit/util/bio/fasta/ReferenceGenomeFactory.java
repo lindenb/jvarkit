@@ -58,9 +58,9 @@ implements IStringConverter<ReferenceGenome>  {
 private static final Logger LOG = Logger.build(ReferenceGenomeFactory.class).make();
 
 	
-public static final String OPT_DESCRIPTION="Indexed Reference. "+
+public static final String OPT_DESCRIPTION="Indexed Genome Reference. "+
 			"It can be a the path to fasta file that must be indexed with samtools faidx and with picard CreateSequenceDictionary."
-			+ " It can also be a BioDAS dsn url like http://genome.cse.ucsc.edu/cgi-bin/das/hg19/ . BiasDAS references are slower but allow to work without a local reference file.";
+			+ " It can also be a BioDAS dsn url like `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BiasDAS references are slower, but allow to work without a local reference file.";
 
 /** jcommander stuff */
 @Override
@@ -74,10 +74,32 @@ public ReferenceGenome convert(final String opt) {
 			}
 	}
 
-private final int DEFAULT_HALF_BUFFER_CAPACITY=1000000;
+private final int DEFAULT_HALF_BUFFER_CAPACITY = 1_000_000;
 private int half_buffer_capacity=DEFAULT_HALF_BUFFER_CAPACITY;
-private boolean return_N_on_indexOutOfRange=false;
-private boolean debug=false;
+private boolean return_N_on_indexOutOfRange = false;
+private boolean debug = false;
+private boolean throwOnContigNotFound = false;
+private boolean neverReturnNullContig = false;
+
+/** never return a null contig if it's not in the dict, instead return a 0-length contig that will always return 'N' for 'charAt(idx)' */
+public ReferenceGenomeFactory setNeverReturnNullContig(boolean neverReturnNullContig) {
+	this.neverReturnNullContig = neverReturnNullContig;
+	return this;
+	}
+
+public boolean isNeverReturnNullContig() {
+	return neverReturnNullContig;
+	}
+
+/** throw an exception if contig is not found */
+public ReferenceGenomeFactory setThrowOnContigNotFound(boolean throwOnContigNotFound) {
+	this.throwOnContigNotFound = throwOnContigNotFound;
+	return this;
+	}
+
+public boolean isThrowOnContigNotFound() {
+	return throwOnContigNotFound;
+	}
 
 public ReferenceGenomeFactory setBufferSize(int size) {
 	this.half_buffer_capacity =Math.max(1,size);
@@ -106,27 +128,55 @@ public boolean isDebug() {
 	return debug;
 }
 
+private class NullReferenceContig
+	extends AbstractCharSequence
+	implements ReferenceContig
+	{
+	private final SAMSequenceRecord ssr;
+	NullReferenceContig(final String name) {
+		this.ssr = new SAMSequenceRecord(name, 0);
+		}
+	@Override
+	public SAMSequenceRecord getSAMSequenceRecord() {
+		return this.ssr;
+		}
+	@Override
+	public char charAt(int index) {
+		return 'N';
+		}
+	}
+
+
+/** base class for a ReferenceGenome */
 private abstract class AbstractReferenceGenome
 	implements ReferenceGenome
 	{
 	protected SAMSequenceDictionary dictionary =null ;
 	private ReferenceContig last_contig = null;
-	
 
 	protected abstract ReferenceContig create(final SAMSequenceRecord ssr);
 	
 	@Override
 	public final ReferenceContig getContig(final String contigName) {
-		if(this.last_contig!=null && last_contig.getContig().equals(contigName)) {
+		if(this.last_contig!=null && last_contig.hasName(contigName)) {
 			return this.last_contig;
 			}
 		final SAMSequenceRecord ssr=getDictionary().getSequence(contigName);
-		if(ssr==null) return null;
+		if(ssr==null) {
+			if(isNeverReturnNullContig()) {
+				if(isDebug()) LOG.warn("returning non-null contig for "+contigName);
+				this.last_contig =  new NullReferenceContig(contigName);
+				return this.last_contig;
+			}
+			if(isThrowOnContigNotFound()) {
+				throw new JvarkitException.ContigNotFoundInDictionary(contigName, getDictionary());
+				}
+			return null;
+		}
 		this.last_contig= create(ssr);
 		return this.last_contig;
 		}
 
-	
 	@Override
 	public SAMSequenceDictionary getDictionary() {
 		return this.dictionary;

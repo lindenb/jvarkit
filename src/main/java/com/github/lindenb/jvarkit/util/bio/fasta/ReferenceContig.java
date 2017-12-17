@@ -29,7 +29,13 @@ import htsjdk.samtools.util.Locatable;
 
 public interface ReferenceContig
 	extends CharSequence,Locatable{
+
 public SAMSequenceRecord getSAMSequenceRecord();
+
+/** return true if contig is compatible with 'name' */
+public default boolean hasName(final String name) {
+	return getContig().equals(name);
+	}
 
 @Override
 public	default String getContig() {

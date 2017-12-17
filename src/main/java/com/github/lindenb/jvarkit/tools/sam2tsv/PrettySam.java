@@ -59,7 +59,6 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.ProgressLoggerInterface;
@@ -174,18 +173,38 @@ public class PrettySam extends Launcher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-r","-R","--reference"},description=ReferenceGenomeFactory.OPT_DESCRIPTION,converter=ReferenceGenomeFactory.class)
-	private ReferenceGenome referenceGenome = null;
+	@Parameter(names={"-r","-R","--reference"},description=ReferenceGenomeFactory.OPT_DESCRIPTION)
+	private String referenceUri = null ;
 	@Parameter(names={"--no-unicode"},description="disable unicode to display ascii histogram")
 	private boolean disable_unicode=false;
 	@Parameter(names={"--trim"},description="trim long string to this length. <1 = do not trim.")
 	private int trim_long_string_length=50;
+	@Parameter(names={"-noclip","--noclip","--no-clipping"},description="hide clipped bases")
+	private boolean hide_clipping = false;
+	@Parameter(names={"-cN","--collapse-N"},description="collapse cigar operator 'N'")
+	private boolean collapse_N_operator = false;
+	@Parameter(names={"-cD","--collapse-ND"},description="collapse cigar operator 'D'")
+	private boolean collapse_D_operator = false;
+	@Parameter(names={"-nT","--no-attributes"},description="hide attributes table")
+	private boolean hide_attribute_table = false;
+	@Parameter(names={"-nA","--no-alignment"},description="hide alignment")
+	private boolean hide_alignment = false;
+	@Parameter(names={"-nS","--no-suppl"},description="hide supplementary alignements")
+	private boolean hide_supplementary_align = false;
+	@Parameter(names={"-nP","--no-program-record"},description="hide program record")
+	private boolean hide_program_record = false;
+	@Parameter(names={"-nR","--no-read-group"},description="hide read group")
+	private boolean hide_read_group = false;
+	@Parameter(names={"-nC","--no-cigar"},description="hide cigar string")
+	private boolean hide_cigar_string = false;
 
-	
+
 	
 	private static char HISTOGRAM_CHARS[] = new char[]{'\u2581', '\u2582', '\u2583', '\u2584', '\u2585', '\u2586', '\u2587', '\u2588'};
     private static final Pattern SEMICOLON_PAT = Pattern.compile("[;]");
     private static final Pattern COMMA_PAT = Pattern.compile("[,]");
+	private ReferenceGenome referenceGenome = null;
+
 	
 	private static class Base
 		{
@@ -218,19 +237,19 @@ public class PrettySam extends Launcher {
 			this.pw = pw;
 			
 			// READ GROUP ATTRIBUTE
-			this.readgroupAtt2def.put("ID","read group id tag");
-			this.readgroupAtt2def.put("CN","sequencing center tag");
-			this.readgroupAtt2def.put("DS","description tag");
-			this.readgroupAtt2def.put("DT","date run produced tag");
-			this.readgroupAtt2def.put("FO","flow order tag");
-			this.readgroupAtt2def.put("KS","key sequence tag");
-			this.readgroupAtt2def.put("LB","library tag");
-			this.readgroupAtt2def.put("PG","program group tag");
-			this.readgroupAtt2def.put("PI","predicted median insert size tag");
-			this.readgroupAtt2def.put("PL","platform tag");
-			this.readgroupAtt2def.put("PM","platform model tag");
-			this.readgroupAtt2def.put("PU","platform unit tag");
-			this.readgroupAtt2def.put("SM","read group sample tag");
+			this.readgroupAtt2def.put("ID","Read group id");
+			this.readgroupAtt2def.put("CN","Sequencing Center");
+			this.readgroupAtt2def.put("DS","Description");
+			this.readgroupAtt2def.put("DT","Date run produced");
+			this.readgroupAtt2def.put("FO","Flow order");
+			this.readgroupAtt2def.put("KS","Key sequence");
+			this.readgroupAtt2def.put("LB","Library");
+			this.readgroupAtt2def.put("PG","Program group");
+			this.readgroupAtt2def.put("PI","Predicted median insert size");
+			this.readgroupAtt2def.put("PL","Platform");
+			this.readgroupAtt2def.put("PM","platform model");
+			this.readgroupAtt2def.put("PU","Platform unit");
+			this.readgroupAtt2def.put("SM","Sample");
 			
 			// ATTRIBUTE
 			tags.put("AM","The smallest template-independent mapping quality of segments in the rest");
@@ -312,11 +331,10 @@ public class PrettySam extends Launcher {
 		
 		
 		private char getReferenceAt(final String contig,int refpos) {
-			if(PrettySam.this.referenceGenome==null || this.contigNameConverter==null) return 'N';
-			final String normContig = this.contigNameConverter.apply(contig);
-			if(normContig==null) return 'N';
-			if(this.genomicSequence==null || !this.genomicSequence.getContig().equals(normContig))
-				{
+			if(this.genomicSequence==null || !this.genomicSequence.hasName(contig)) {
+				if(PrettySam.this.referenceGenome==null || this.contigNameConverter==null) return 'N';
+				final String normContig = this.contigNameConverter.apply(contig);
+				if(normContig==null) return 'N';
 				this.genomicSequence = PrettySam.this.referenceGenome.getContig(normContig);
 				if(this.genomicSequence==null) return 'N';
 				}
@@ -352,7 +370,7 @@ public class PrettySam extends Launcher {
 		private String trimToLen(final Object o) {
 			final String s = String.valueOf(o);
 			if(PrettySam.this.trim_long_string_length<1) return s;
-			return s.length()+3>PrettySam.this.trim_long_string_length?
+			return s.length()-3 > PrettySam.this.trim_long_string_length?
 					s.substring(0, PrettySam.this.trim_long_string_length)
 					+"...":s;
 			}
@@ -414,7 +432,8 @@ public class PrettySam extends Launcher {
 				label(margin1,"Mate-Start");pw.println(this.fmt.format(rec.getMateAlignmentStart()));
 				label(margin1,"Mate-Strand");pw.println(isNegativeStrandToString.apply(rec.getMateNegativeStrandFlag()));
 				}
-			if(this.header!=null && rec.hasAttribute(SAMProgramRecord.PROGRAM_GROUP_ID_TAG)) {
+			if(!PrettySam.this.hide_program_record &&
+				this.header!=null && rec.hasAttribute(SAMProgramRecord.PROGRAM_GROUP_ID_TAG)) {
 				final String pgId = rec.getStringAttribute(SAMProgramRecord.PROGRAM_GROUP_ID_TAG);
 				final SAMProgramRecord programrec = StringUtil.isBlank(pgId)?null:this.header.getProgramRecord(pgId);
 				if(programrec!=null) {
@@ -423,27 +442,28 @@ public class PrettySam extends Launcher {
 					for(Map.Entry<String,String> entry:programrec.getAttributes())
 						{
 						label(margin2,entry.getKey());
-						pw.println(entry.getValue());
+						pw.printf("%10s\n",entry.getValue());
 						}					
-					}
-					
-			}
-			final SAMReadGroupRecord grouprec = rec.getReadGroup();
-			if(grouprec!=null )
-				{
-				label(margin1,"Read Group");
-				pw.println();
-				label(margin2,"ID");
-				pw.println(grouprec.getId());
-				for(Map.Entry<String,String> entry:grouprec.getAttributes())
+					}		
+				}
+			if(!PrettySam.this.hide_read_group) {
+				final SAMReadGroupRecord grouprec = rec.getReadGroup();
+				if(grouprec!=null )
 					{
-					final String def = this.readgroupAtt2def.get(entry.getKey());
-					label(margin2,entry.getKey());
-					pw.print(entry.getValue());
-					if(!StringUtil.isBlank(def)) {
-						pw.print("    \""+def+"\"");
-						}
+					label(margin1,"Read Group");
 					pw.println();
+					label(margin2,"ID");
+					pw.printf("%10s\n",grouprec.getId());
+					for(Map.Entry<String,String> entry:grouprec.getAttributes())
+						{
+						final String def = this.readgroupAtt2def.get(entry.getKey());
+						label(margin2,entry.getKey());
+						pw.printf("%10s",entry.getValue());
+						if(!StringUtil.isBlank(def)) {
+							pw.print("    \""+def+"\"");
+							}
+						pw.println();
+						}
 					}
 				}
 			
@@ -451,27 +471,29 @@ public class PrettySam extends Launcher {
 			pw.println(this.fmt.format(rec.getReadLength()));
 			
 			final Cigar cigar=rec.getCigar();
-			if(cigar!=null && !cigar.isEmpty())
-				{
-				label(margin1,"Cigar");
-				if(rec.getCigarString().length()<=50)
+			if(!PrettySam.this.hide_cigar_string) {
+				if(cigar!=null && !cigar.isEmpty())
 					{
-					pw.println(rec.getCigarString()+" (N="+cigar.numCigarElements()+")");
-					}
-				else
-					{
-					pw.println("N="+cigar.numCigarElements());
-					int x=0;
-					while(x<cigar.numCigarElements())
+					label(margin1,"Cigar");
+					if(rec.getCigarString().length()<=50)
 						{
-						for(int y=0;y< margin2;++y) pw.print(" ");
-						for(int y=0;y< 30 && x<cigar.numCigarElements();++y)
+						pw.println(rec.getCigarString()+" (N="+cigar.numCigarElements()+")");
+						}
+					else
+						{
+						pw.println("N="+cigar.numCigarElements());
+						int x=0;
+						while(x<cigar.numCigarElements())
 							{
-							final CigarElement ce = cigar.getCigarElement(x);
-							pw.print(String.valueOf(+ce.getLength())+ce.getOperator().name());
-							++x;
+							for(int y=0;y< margin2;++y) pw.print(" ");
+							for(int y=0;y< 30 && x<cigar.numCigarElements();++y)
+								{
+								final CigarElement ce = cigar.getCigarElement(x);
+								pw.print(String.valueOf(+ce.getLength())+ce.getOperator().name());
+								++x;
+								}
+							pw.println();
 							}
-						pw.println();
 						}
 					}
 				}
@@ -479,15 +501,19 @@ public class PrettySam extends Launcher {
 			final List<Base> align = new ArrayList<>();
 			final String bases = rec.getReadString();
 			final String quals = rec.getBaseQualityString();
-
-			if(rec.getReadUnmappedFlag() || cigar==null || cigar.isEmpty())
+			
+			if(PrettySam.this.hide_alignment)
+				{
+				//nothing
+				}
+			else if(rec.getReadUnmappedFlag() || cigar==null || cigar.isEmpty())
 				{
 				for(int i=0;i< bases.length();i++)
 					{
 					final Base b=new Base();
 					b.readpos=i;
 					b.refbase = ' ';
-					b.readpos = -1;
+					b.refpos=-1;
 					b.cigaroperator = CigarOperator.P;
 					b.readbase = (bases!=null && i>=0 && i<bases.length()?bases.charAt(i):'*');
 					b.readqual = (quals!=null && i>=0 && i<quals.length()?quals.charAt(i):'?');
@@ -517,15 +543,29 @@ public class PrettySam extends Launcher {
 						case P: break;
 						case D: case N:
 							{
-							final Base b=new Base();
-							b.cigaroperator = op;
-							b.refpos  = refpos;
-							b.refbase = pos2ref.apply(refpos);
-							b.readbase = '^';
-							b.readqual = '\0';
-							b.readpos = -1;
-							align.add(b);
-							refpos+=ce.getLength();
+							for(int i=0;i< ce.getLength();++i)
+								{
+								final Base b=new Base();
+								b.cigaroperator = op;
+								b.refpos  = refpos;
+								//b.refbase = pos2ref.apply(refpos); <- later because time consumming
+								b.readbase = '-';
+								b.readqual = '\0';
+								b.readpos = -1;
+								if(i>0 && (
+										(PrettySam.this.collapse_D_operator && op.equals(CigarOperator.D)) ||
+										(PrettySam.this.collapse_N_operator && op.equals(CigarOperator.N))
+										))
+									{
+									//ignore
+									}
+								else
+									{
+									b.refbase = pos2ref.apply(refpos);
+									align.add(b);
+									}
+								refpos++;
+								}
 							break;
 							}
 						case X:case EQ:case M:case S:case H:case I:
@@ -543,7 +583,7 @@ public class PrettySam extends Launcher {
 								if(op.equals(CigarOperator.I))
 									{
 									b.refpos = -1;
-									b.refbase  = '^';
+									b.refbase  = '-';
 									}
 								else
 									{
@@ -551,15 +591,26 @@ public class PrettySam extends Launcher {
 									b.refbase  = pos2ref.apply(refpos);
 									refpos++;
 									}
-								align.add(b);
+								
+								if(op.isClipping() && PrettySam.this.hide_clipping)
+									{
+									// nothing
+									}
+								else
+									{
+									align.add(b);
+									}
 								}
 							break;
 							}
 						}
 					}
 				}
-			
-			if(!align.isEmpty())
+			if(PrettySam.this.hide_alignment)
+				{
+				//nothing
+				}
+			else if(!align.isEmpty())
 				{
 				label(margin1,"Sequence");
 				pw.println();
@@ -588,10 +639,10 @@ public class PrettySam extends Launcher {
 								break;
 							case 3:
 								if(cigar==null || cigar.isEmpty()) continue;
-								label(margin2,"Op");break;
+								label(margin2,"Cigar-Operator");break;
 							case 1:
 								if(cigar==null || cigar.isEmpty() || PrettySam.this.referenceGenome==null) continue;
-								label(margin2,"Mid");break;
+								label(margin2,"Middle");break;
 							case 5: label(margin2,"Ref-Pos");break;
 							default:break;
 							}
@@ -603,8 +654,7 @@ public class PrettySam extends Launcher {
 							switch(side)
 								{
 								case 0:{
-									if(base.cigaroperator==CigarOperator.N || base.cigaroperator==CigarOperator.D ||
-											base.readqual=='\0')
+									if(base.cigaroperator==CigarOperator.N || base.cigaroperator==CigarOperator.D )
 										{
 										c='-';
 										}
@@ -643,11 +693,14 @@ public class PrettySam extends Launcher {
 										}
 									break;
 									}
-								case 3: c = base.cigaroperator.name().charAt(0);break;
+								case 3: c = base.cigaroperator.name().charAt(0);
+									break;
 								case 1:
 									c= base.cigaroperator.isAlignment()?
-											(Character.toUpperCase(base.refbase)==Character.toUpperCase(base.readbase)?'|':' ')
-											: ' ';
+											(
+											Character.toUpperCase(base.refbase)==Character.toUpperCase(base.readbase)?'|':' ')
+											: ' '
+											;
 									break;
 								case 5: {
 									if(y%10==0 && base.refpos>0)
@@ -674,7 +727,9 @@ public class PrettySam extends Launcher {
 					pw.println();
 					}
 				}
-			if(!rec.getAttributes().isEmpty()) {
+			if(!PrettySam.this.hide_attribute_table && 
+				!rec.getAttributes().isEmpty()
+				) {
 				label(margin1,"Tags");
 				pw.println();
 				
@@ -697,51 +752,48 @@ public class PrettySam extends Launcher {
 					pw.print(getTagDescription(tav.tag));
 					pw.println("\"");
 					}
-			}
+				}
 			
-		if(rec.hasAttribute("SA"))
-			{
-			label(margin1,"Suppl. Alignments");
-			pw.println();
-
-			final List<List<String>> salist = new ArrayList<>();
-	        final String semiColonStrs[] = SEMICOLON_PAT.split(rec.getStringAttribute("SA"));
-	        for (int i = 0; i < semiColonStrs.length; ++i) {
-	            final String semiColonStr = semiColonStrs[i];
-	            if (semiColonStr.isEmpty()) continue;
-	            final String commaStrs[] = COMMA_PAT.split(semiColonStr);
-	            if (commaStrs.length != 6) continue;
-	            // cigar too long ?
-	            if(commaStrs[3].length()>53) commaStrs[3]=trimToLen(commaStrs[3]);
-	            salist.add(Arrays.asList(commaStrs));
-	        	}
-	        final String labels[]=new String[]{"CONTIG","POS","STRAND","CIGAR","QUAL","NM"};
-	        final int collen[] = new int[labels.length];
-	        for(int i=0;i<labels.length;++i)
-	        	{
-	        	final int colidx=i;
-	        	collen[i] = Math.max(
-	        			salist.stream().mapToInt(L->L.get(colidx).length()).max().getAsInt(),
-	        			labels[i].length());
-	        	}
-	        int y=-1;
-	        while(y<salist.size())
-		        {
-	        	for(int x=0;x<margin2;++x) pw.print(" ");
-				for(int i=0;i<labels.length;i++)
-					{
-					String s = (y==-1?labels[i]:salist.get(y).get(i));
-					while(s.length()<collen[i]) s+=" ";
-					if(i>0) pw.print(" | ");
-					pw.print(s);
-					}
-				++y;
+			if(!PrettySam.this.hide_supplementary_align && rec.hasAttribute("SA"))
+				{
+				label(margin1,"Suppl. Alignments");
 				pw.println();
-		        }
-	        
-			}	
-			
-			
+	
+				final List<List<String>> salist = new ArrayList<>();
+		        final String semiColonStrs[] = SEMICOLON_PAT.split(rec.getStringAttribute("SA"));
+		        for (int i = 0; i < semiColonStrs.length; ++i) {
+		            final String semiColonStr = semiColonStrs[i];
+		            if (semiColonStr.isEmpty()) continue;
+		            final String commaStrs[] = COMMA_PAT.split(semiColonStr);
+		            if (commaStrs.length != 6) continue;
+		            // cigar too long ?
+		            if(commaStrs[3].length()>53) commaStrs[3]=trimToLen(commaStrs[3]);
+		            salist.add(Arrays.asList(commaStrs));
+		        	}
+		        final String labels[]=new String[]{"CONTIG","POS","STRAND","CIGAR","QUAL","NM"};
+		        final int collen[] = new int[labels.length];
+		        for(int i=0;i<labels.length;++i)
+		        	{
+		        	final int colidx=i;
+		        	collen[i] = Math.max(
+		        			salist.stream().mapToInt(L->L.get(colidx).length()).max().getAsInt(),
+		        			labels[i].length());
+		        	}
+		        int y=-1;
+		        while(y<salist.size())
+			        {
+		        	for(int x=0;x<margin2;++x) pw.print(" ");
+					for(int i=0;i<labels.length;i++)
+						{
+						String s = (y==-1?labels[i]:salist.get(y).get(i));
+						while(s.length()<collen[i]) s+=" ";
+						if(i>0) pw.print(" | ");
+						pw.print(s);
+						}
+					++y;
+					pw.println();
+			        }
+				}	
 			pw.println("<<<<< "+nLine);
 			pw.flush();
 			}
@@ -761,6 +813,15 @@ public class PrettySam extends Launcher {
 		try 
 			{
 			r= super.openSamReader(oneFileOrNull(args));
+			if(this.referenceUri!=null)
+				{
+				this.referenceGenome  = new ReferenceGenomeFactory().
+						open(this.referenceUri);
+				}
+			else
+				{
+				this.referenceGenome = null;
+				}			
 			out = new PrettySAMWriter(super.openFileOrStdoutAsPrintWriter(this.outputFile));
 			out.writeHeader(r.getFileHeader());
 			iter = r.iterator();

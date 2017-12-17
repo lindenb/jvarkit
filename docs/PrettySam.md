@@ -8,22 +8,49 @@ Pretty SAM alignments
 ```
 Usage: prettysam [options] Files
   Options:
+    -cN, --collapse-N
+      collapse cigar operator 'N'
+      Default: false
+    -cD, --collapse-ND
+      collapse cigar operator 'D'
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -nA, --no-alignment
+      hide alignment
+      Default: false
+    -nT, --no-attributes
+      hide attributes table
+      Default: false
+    -nC, --no-cigar
+      hide cigar string
+      Default: false
+    -noclip, --noclip, --no-clipping
+      hide clipped bases
+      Default: false
+    -nP, --no-program-record
+      hide program record
+      Default: false
+    -nR, --no-read-group
+      hide read group
+      Default: false
+    -nS, --no-suppl
+      hide supplementary alignements
+      Default: false
     --no-unicode
       disable unicode to display ascii histogram
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -r, -R, --reference
-      Indexed Reference. It can be a the path to fasta file that must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary. It 
-      can also be a BioDAS dsn url like 
-      http://genome.cse.ucsc.edu/cgi-bin/das/hg19/ . BiasDAS references are 
-      slower but allow to work without a local reference file.
+      Indexed Genome Reference. It can be a the path to fasta file that must 
+      be indexed with samtools faidx and with picard CreateSequenceDictionary. 
+      It can also be a BioDAS dsn url like 
+      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BiasDAS references are 
+      slower, but allow to work without a local reference file.
     --trim
       trim long string to this length. <1 = do not trim.
       Default: 50
@@ -82,6 +109,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Sat Dec 16 19:00:54 2017 +0100 ; use das a ref dict ; https://github.com/lindenb/jvarkit/commit/8df0196c191f5b546a123dcb1328ddf8c79d049d
 Sat Dec 16 17:52:51 2017 +0100 ; writing ref contig factory ; https://github.com/lindenb/jvarkit/commit/9f3ae5b2f90a4b211016af9421241cbf8ae25d8d
 Sat Dec 16 16:01:41 2017 +0100 ; optimize for long reads ; https://github.com/lindenb/jvarkit/commit/f12cae9419d2156141ee79175d236bbf07804906
 Fri Dec 15 21:57:44 2017 +0100 ; sam pretty ; https://github.com/lindenb/jvarkit/commit/19cb4d756b0f5006ff85c9afb5c4c83e466ef13c
