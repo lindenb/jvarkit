@@ -782,7 +782,7 @@ public class PrettySam extends Launcher {
 				};
 			
 			if(!PrettySam.this.hide_attribute_table && 
-				!rec.getAttributes().stream().map(T->T.tag).filter(tagFilter).findAny().isPresent()
+				rec.getAttributes().stream().map(T->T.tag).filter(tagFilter).findAny().isPresent()
 				) {
 				label(margin1,"Tags");
 				pw.println();

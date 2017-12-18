@@ -112,6 +112,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Dec 18 10:24:33 2017 +0100 ; colors ; https://github.com/lindenb/jvarkit/commit/979df33b759b68e4e6e6e615ddc1d7808a02faca
 Sun Dec 17 13:31:21 2017 +0100 ; pretty sam fix ; https://github.com/lindenb/jvarkit/commit/7fe1838781866f6685bff80f0b1cace09d30839c
 Sat Dec 16 19:00:54 2017 +0100 ; use das a ref dict ; https://github.com/lindenb/jvarkit/commit/8df0196c191f5b546a123dcb1328ddf8c79d049d
 Sat Dec 16 17:52:51 2017 +0100 ; writing ref contig factory ; https://github.com/lindenb/jvarkit/commit/9f3ae5b2f90a4b211016af9421241cbf8ae25d8d
