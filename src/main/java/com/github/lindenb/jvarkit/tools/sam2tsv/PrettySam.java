@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
@@ -68,7 +69,7 @@ BEGIN_DOC
 
 ## About long reads
 
-The htsjdk currently (2012-12-16) doesn't support more th 65635 cigar operations.
+The htsjdk currently (2012-12-16) doesn't support more than 65635 cigar operations.
 
 ## Example
 
@@ -197,10 +198,47 @@ public class PrettySam extends Launcher {
 	private boolean hide_read_group = false;
 	@Parameter(names={"-nC","--no-cigar"},description="hide cigar string")
 	private boolean hide_cigar_string = false;
+	@Parameter(names={"-color","--colors"},description="using ansi escape colors")
+	private boolean with_colors = false;
 
+
+	private enum AnsiColor {
+    	BLACK (30),
+    	RED (31),
+    	GREEN (32),
+    	YELLOW (33),
+    	BLUE (34),
+    	MAGENTA (35),
+    	CYAN (36),
+    	WHITE (37)
+		;
+    	
+    	AnsiColor(final int opcode) {
+    		this.opcode=opcode;
+    		}
+    	final int opcode;
+    	static String base(char c) {
+    		final AnsiColor a;
+    		switch(Character.toUpperCase(c)) {
+				case 'N': a = WHITE; break;
+				case 'A': a = RED;break;
+				case 'T': a = GREEN;break;
+				case 'G': a = YELLOW;break;
+				case 'C': a = BLUE;break;
+				default: a  = MAGENTA;break;
+    			}
+    		return ANSI_ESCAPE+a.opcode+"m" + c + ANSI_RESET;
+    		}
+    	}
 
 	
-	private static char HISTOGRAM_CHARS[] = new char[]{'\u2581', '\u2582', '\u2583', '\u2584', '\u2585', '\u2586', '\u2587', '\u2588'};
+	public static final String ANSI_ESCAPE = "\u001B[";
+	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
+	private static String HISTOGRAM_CHARS[] = new String[]{
+			"\u2581", "\u2582", "\u2583", "\u2584", "\u2585", 
+			"\u2586", "\u2587", "\u2588"
+			};
+	
     private static final Pattern SEMICOLON_PAT = Pattern.compile("[;]");
     private static final Pattern COMMA_PAT = Pattern.compile("[,]");
 	private ReferenceGenome referenceGenome = null;
@@ -219,6 +257,12 @@ public class PrettySam extends Launcher {
 	private final Function<Boolean, String> isNegativeStrandToString = NEGATIVE ->
 		(this.disable_unicode?(NEGATIVE?"<--":"-->"):(NEGATIVE?"\u2190":"\u2192"));
 	
+	private String baseToString(final char C) {
+		if(!this.with_colors) return String.valueOf(C);
+		return AnsiColor.base(C);
+		};
+
+		
 	public class PrettySAMWriter implements SAMFileWriter
 		{
 		private final NumberFormat fmt = new DecimalFormat("#,###");
@@ -245,7 +289,7 @@ public class PrettySam extends Launcher {
 			this.readgroupAtt2def.put("KS","Key sequence");
 			this.readgroupAtt2def.put("LB","Library");
 			this.readgroupAtt2def.put("PG","Program group");
-			this.readgroupAtt2def.put("PI","Predicted median insert size");
+			this.readgroupAtt2def.put("PI","Predicted Median Insert size");
 			this.readgroupAtt2def.put("PL","Platform");
 			this.readgroupAtt2def.put("PM","platform model");
 			this.readgroupAtt2def.put("PU","Platform unit");
@@ -270,7 +314,7 @@ public class PrettySam extends Launcher {
 			tags.put("FS","Segment suffix");
 			tags.put("FZ","Flow signal intensities");
 			tags.put("GC","Reserved for backwards compatibility reasons");
-			tags.put("GQ","Reserved for backwards compatibility ttreasons");
+			tags.put("GQ","Reserved for backwards compatibility reasons");
 			tags.put("GS","Reserved for backwards compatibility reasons");
 			tags.put("H0","Number of perfect hits");
 			tags.put("H1","Number of 1-difference hits (see also NM)");
@@ -643,35 +687,37 @@ public class PrettySam extends Launcher {
 							case 1:
 								if(cigar==null || cigar.isEmpty() || PrettySam.this.referenceGenome==null) continue;
 								label(margin2,"Middle");break;
-							case 5: label(margin2,"Ref-Pos");break;
+							case 5: 
+								if(rec.getReadUnmappedFlag() || cigar==null || cigar.isEmpty() || PrettySam.this.referenceGenome==null) continue;
+								label(margin2,"Ref-Pos");break;
 							default:break;
 							}
 						for(int y=0;y<FASTA_LEN && x+y<align.size();++y)
 							{
 							final Base base = align.get(x+y);
 							if(y!=0 && y%10==0) pw.print(" ");
-							final char c;
+							final String c;
 							switch(side)
 								{
 								case 0:{
 									if(base.cigaroperator==CigarOperator.N || base.cigaroperator==CigarOperator.D )
 										{
-										c='-';
+										c="-";
 										}
 									else
 										{
-										c =  base.readbase;
+										c =  baseToString(base.readbase);
 										}
 									break;
 									}
 								case 4: {
 									if(base.cigaroperator==CigarOperator.N || base.cigaroperator==CigarOperator.D || base.readqual=='\0')
 										{
-										c=' ';
+										c=" ";
 										}
 									else if(PrettySam.this.disable_unicode)
 										{
-										c= base.readqual;
+										c= String.valueOf(base.readqual);
 										}
 									else
 										{
@@ -685,21 +731,21 @@ public class PrettySam extends Launcher {
 								case 2: {
 									if(base.cigaroperator==CigarOperator.INSERTION)
 										{
-										c='-';
+										c="-";
 										}
 									else
 										{
-										c =  base.refbase;
+										c = baseToString( base.refbase);
 										}
 									break;
 									}
-								case 3: c = base.cigaroperator.name().charAt(0);
+								case 3: c = String.valueOf(base.cigaroperator.name().charAt(0));
 									break;
 								case 1:
 									c= base.cigaroperator.isAlignment()?
 											(
-											Character.toUpperCase(base.refbase)==Character.toUpperCase(base.readbase)?'|':' ')
-											: ' '
+											Character.toUpperCase(base.refbase)==Character.toUpperCase(base.readbase)?"|":" ")
+											: " "
 											;
 									break;
 								case 5: {
@@ -716,7 +762,7 @@ public class PrettySam extends Launcher {
 										}
 									continue;
 									}
-								default : c='?'; break;
+								default : c="?"; break;
 								}
 							pw.print(c);
 							}
@@ -727,17 +773,23 @@ public class PrettySam extends Launcher {
 					pw.println();
 					}
 				}
+			
+			final Predicate<String> tagFilter= T->{
+				if(T.equals("SA")) return false;
+				if(T.equals("RG")) return false;
+				if(T.equals(SAMProgramRecord.PROGRAM_GROUP_ID_TAG)) return false;
+				return true;
+				};
+			
 			if(!PrettySam.this.hide_attribute_table && 
-				!rec.getAttributes().isEmpty()
+				!rec.getAttributes().stream().map(T->T.tag).filter(tagFilter).findAny().isPresent()
 				) {
 				label(margin1,"Tags");
 				pw.println();
 				
 				for(final SAMRecord.SAMTagAndValue tav: rec.getAttributes())
 					{
-					if(tav.tag.equals("SA")) continue;
-					if(tav.tag.equals("RG")) continue;
-					if(tav.tag.equals(SAMProgramRecord.PROGRAM_GROUP_ID_TAG)) continue;
+					if(!tagFilter.test(tav.tag)) continue;
 					label(margin2,tav.tag);
 					pw.print(" ");
 					if(tav.value!=null && tav.value.getClass().isArray())
@@ -746,7 +798,7 @@ public class PrettySam extends Launcher {
 						}
 					else
 						{
-						pw.print(trimToLen(tav.value));
+						pw.printf("%10s",trimToLen(tav.value));
 						}
 					pw.print("   \"");
 					pw.print(getTagDescription(tav.tag));
