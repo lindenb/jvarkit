@@ -55,7 +55,10 @@ import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 
 public class KnownGene implements Iterable<Integer>,Feature
 	{
-	public static final String OPT_KNOWNGENE_DESC="UCSC knownGene URI. Beware chromosome names are formatted the same as your REFERENCE. A typical KnownGene file is http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz ."
+	public static final String OPT_KNOWNGENE_DESC=
+			"UCSC knownGene File/URL."
+			+ " The knowGene format is a compact alternative to GFF/GTF because one transcript is described using only one line."
+			+ "	Beware chromosome names are formatted the same as your REFERENCE. A typical KnownGene file is http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz ."
 			+ "If you only have a gff file, you can try to generate a knownGene file with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)";
 	
 	/** returns the UCSC URL for knownGene for the given UCSC build e.g: 'hg19' */
@@ -69,6 +72,14 @@ public class KnownGene implements Iterable<Integer>,Feature
 		{
 		return getUri("hg19");
 		}
+	
+	public enum PosType {
+		INTERGENIC,
+		UTR5,
+		EXON,
+		INTRON,
+		UTR3
+	}
 	
 	private String name;
 	private String chrom;
@@ -108,6 +119,20 @@ public class KnownGene implements Iterable<Integer>,Feature
 		{
 		return getCdsStart()==getCdsEnd();
 		}
+	
+	/** returns position type for given genomic position , never null*/
+	public PosType getPositionTypeAt(int genomic0)
+		{
+		if(genomic0<this.getTxStart() || genomic0>=this.getTxEnd()) return PosType.INTERGENIC;
+		if(genomic0 < this.getCdsStart()) return isPositiveStrand()?PosType.UTR5:PosType.UTR3;
+		if(genomic0 >= this.getCdsEnd()) return isPositiveStrand()?PosType.UTR3:PosType.UTR5;
+		for(int eidx=0;eidx< this.getExonCount();++eidx)
+			{
+			if(getExonStart(eidx)<=genomic0 && genomic0<getExonEnd(eidx)) return PosType.EXON;
+			}
+		return PosType.INTRON;
+		}
+	
 	
 	/** get transcript length (cumulative exons sizes )*/
 	public int getTranscriptLength() {

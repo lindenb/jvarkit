@@ -24,21 +24,27 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
+import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
@@ -48,6 +54,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -62,7 +69,10 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.ProgressLoggerInterface;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 /**
 BEGIN_DOC
@@ -164,6 +174,53 @@ $ java -jar dist/prettysam.jar -R ref.fa S1.bam
 <<<<< 2
 ```
 
+## Displaying genes:
+
+```
+$ wget -O knownGene.txt.gz "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz"
+$ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/wgEncodeUwRepliSeqBg02esG1bAlnRep1.bam" |\
+	java -jar dist/prettysam.jar  -R "http://genome.cse.ucsc.edu/cgi-bin/das/hg19/" -kg knownGene.txt.gz
+
+(...)
+
+>>>>> 724
+          Read-Name : SOLEXA-1GA-2_2_FC20EMB:5:4:549:957
+               Flag : 0
+               MAPQ : 25
+             Contig : chr1  (index:0)
+              Start : 1,115,507
+                End : 1,115,542
+             Strand : -->
+        Read-Length : 36
+              Cigar : 36M (N=1)
+           Sequence : 
+                Read (0) : GGCCGGACCT GGAGGGGGCA GAAAGAGCCT CCGCAA
+                  Middle : |||||||||| |||||||||| |||||||||| | || |
+         Ref (1,115,507) : ggccggacct ggagggggca gaaagagcct ctgcca
+          Cigar-Operator : MMMMMMMMMM MMMMMMMMMM MMMMMMMMMM MMMMMM
+                    Qual : TRGI^WDHH` RHIMOILGEF G@C>D>GC@= D@=A>@
+                 Ref-Pos : 1115507    1115517    1115527    1115537   
+      uc001acy.2(+) type : EEEEEEEEEE EEEEEEEEEE EEEEEEEEEE EEEEEE
+                cDNA-Pos : 293        303        313        323       
+                 Pep-Pos : 98         101        105        108       
+              Amino-Acid : lyProAspLe uGluGlyAla GluArgAlaS erAlaT
+      uc010nyg.1(+) type : EEEEEEEEEE EEEEEEEEEE EEEEEEEEEE EEEEEE
+                cDNA-Pos : 293        303        313        323       
+                 Pep-Pos : 98         101        105        108       
+              Amino-Acid : lyProAspLe uGluGlyAla GluArgAlaS erAlaT
+      uc001acz.2(+) type : EEEEEEEEEE EEEEEEEEEE EEEEEEEEEE EEEEEE
+                cDNA-Pos : 74         84         94         104       
+                 Pep-Pos : 25         28         32         35        
+              Amino-Acid : lyProAspLe uGluGlyAla GluArgAlaS erAlaT
+
+               Tags : 
+                      X1 :           1   "Reserved for end users"
+                      MD :      31C2A1   "String for mismatching positions"
+                      NM :           1   "Edit distance to the reference"
+<<<<< 724
+```
+
+
 END_DOC
  */
 @Program(name="prettysam",
@@ -200,6 +257,10 @@ public class PrettySam extends Launcher {
 	private boolean hide_cigar_string = false;
 	@Parameter(names={"-color","--colors"},description="using ansi escape colors")
 	private boolean with_colors = false;
+	@Parameter(names={"-kg","--knowngenes"},description="[20171219]"+KnownGene.OPT_KNOWNGENE_DESC+" Memory intensive: the file is loaded in memory.")
+	private String knownGeneUri = null;
+	@Parameter(names={"-u","--unstranslated"},description="[20171219]Show untranslated regions (used with option -kg)")
+	private boolean show_untranslated_region=false;
 
 
 	private enum AnsiColor {
@@ -242,7 +303,6 @@ public class PrettySam extends Launcher {
     private static final Pattern SEMICOLON_PAT = Pattern.compile("[;]");
     private static final Pattern COMMA_PAT = Pattern.compile("[,]");
 	private ReferenceGenome referenceGenome = null;
-
 	
 	private static class Base
 		{
@@ -254,6 +314,28 @@ public class PrettySam extends Launcher {
 		CigarOperator cigaroperator = null;
 		}
 
+	private static class AminoAcid
+		{
+		KnownGene.PosType posType=null;
+		char pepSymbol='\0';
+		int  refpos1=-1;
+		int cdnapos0 = -1;
+		int pepPos1=-1;
+		@Override
+		public String toString() {
+			return "refpos "+refpos1+" cdnapos0 "+cdnapos0;
+			}
+		}
+	private static class KnownGeneInfo
+		{
+		final KnownGene gene;
+		final Map<Integer,AminoAcid> refpos1topep = new HashMap<>(1000);
+		KnownGeneInfo(final KnownGene gene) {
+			this.gene = gene;
+			}
+		AminoAcid get(int pos1) { return this.refpos1topep.get(pos1);}
+		}
+	
 	private final Function<Boolean, String> isNegativeStrandToString = NEGATIVE ->
 		(this.disable_unicode?(NEGATIVE?"<--":"-->"):(NEGATIVE?"\u2190":"\u2192"));
 	
@@ -276,7 +358,8 @@ public class PrettySam extends Launcher {
 		private final Map<String,String> tags = new HashMap<>();
 		private final Map<String,String> readgroupAtt2def = new HashMap<>();
 		private ContigNameConverter contigNameConverter=null;
-		
+		private final IntervalTreeMap<List<KnownGeneInfo>> knownGenes = new IntervalTreeMap<>();
+
 		public PrettySAMWriter(PrintWriter pw) {
 			this.pw = pw;
 			
@@ -373,17 +456,22 @@ public class PrettySam extends Launcher {
 		
 
 		
+		private ReferenceContig getReferenceContigFor(final String contig) {
+			if(this.genomicSequence==null || !this.genomicSequence.hasName(contig)) {
+				if(PrettySam.this.referenceGenome==null || this.contigNameConverter==null) {
+					return null;
+					}
+				final String normContig = this.contigNameConverter.apply(contig);
+				if(normContig==null) return null;
+				this.genomicSequence = PrettySam.this.referenceGenome.getContig(normContig);
+				}
+			return this.genomicSequence;
+			}
 		
 		private char getReferenceAt(final String contig,int refpos) {
-			if(this.genomicSequence==null || !this.genomicSequence.hasName(contig)) {
-				if(PrettySam.this.referenceGenome==null || this.contigNameConverter==null) return 'N';
-				final String normContig = this.contigNameConverter.apply(contig);
-				if(normContig==null) return 'N';
-				this.genomicSequence = PrettySam.this.referenceGenome.getContig(normContig);
-				if(this.genomicSequence==null) return 'N';
-				}
-			if((refpos-1)<0 || (refpos-1)>=this.genomicSequence.length())return 'N';
-			return this.genomicSequence.charAt(refpos-1);
+			final ReferenceContig refcontig = getReferenceContigFor(contig);
+			if(refcontig==null || (refpos-1)<0 || (refpos-1)>=refcontig.length())return 'N';
+			return refcontig.charAt(refpos-1);
 			}
 		
 		@Override
@@ -398,6 +486,7 @@ public class PrettySam extends Launcher {
 			this.header = header;
 			this.samDict = this.header.getSequenceDictionary();
 			
+			
 			if(PrettySam.this.referenceGenome!=null) {
 				this.faidxDict = PrettySam.this.referenceGenome.getDictionary();
 				}
@@ -407,10 +496,48 @@ public class PrettySam extends Launcher {
 				this.contigNameConverter  = ContigNameConverter.fromDictionaries(this.samDict, this.faidxDict);
 				this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 				}
+			
+			/* load known genes */
+			if(PrettySam.this.knownGeneUri!=null) {
+				if(this.samDict==null)
+					{
+					LOG.warn("won't load "+PrettySam.this.knownGeneUri+" because there is no dict in sam file");
+					}
+				else
+					{
+					LOG.info("loading "+knownGeneUri);
+					BufferedReader r=null;
+					try {
+						final Pattern tab = Pattern.compile("[\t]");
+						r = IOUtils.openURIForBufferedReading(PrettySam.this.knownGeneUri);
+						r.lines().
+							filter(S->!StringUtil.isBlank(S) || S.startsWith("#")).
+							map(S->new KnownGene(tab.split(S))).
+							filter(K->getReferenceContigFor(K.getContig())!=null).
+							forEach(K->{
+								final Interval i = new Interval(K.getContig(),K.getStart(),K.getEnd());
+								List<KnownGeneInfo> L = this.knownGenes.get(i);
+								if(L==null) {L=new ArrayList<>();this.knownGenes.put(i,L);}
+								L.add(new KnownGeneInfo(K));
+							});
+						}
+					catch(IOException err)
+						{
+						throw new RuntimeIOException(err);
+						}
+					finally
+						{
+						CloserUtil.close(r);
+						}
+					}
+				}
+
+			
 			pw.flush();
 			}
 		
-		private void label(int cols,final String s) { pw.printf("%"+cols+"s : ",s); }
+		private void label(int cols,final String s) { pw.printf("%"+cols+"."+cols+"s : ",s); }
+		
 		private String trimToLen(final Object o) {
 			final String s = String.valueOf(o);
 			if(PrettySam.this.trim_long_string_length<1) return s;
@@ -656,6 +783,64 @@ public class PrettySam extends Launcher {
 				}
 			else if(!align.isEmpty())
 				{
+				final List<KnownGeneInfo> knownGenes= this.knownGenes.getOverlapping(rec).stream().flatMap(L->L.stream()).collect(Collectors.toList());
+				final ReferenceContig referenceContig = getReferenceContigFor(rec.getContig());
+
+				if(!knownGenes.isEmpty()) {
+					for(final KnownGeneInfo kgInfo  : knownGenes)
+						{
+						kgInfo.refpos1topep.clear();
+						for(int x1=rec.getUnclippedStart();x1<=rec.getUnclippedEnd();++x1)
+							{
+							if(x1<=1) continue;
+							if(referenceContig!=null && x1>referenceContig.length()) continue;
+							if(kgInfo.gene.getStart()>x1) continue;
+							if(kgInfo.gene.getEnd()<x1) break;
+							final AminoAcid aa = new AminoAcid();
+							aa.posType = kgInfo.gene.getPositionTypeAt(x1-1);
+							if(!PrettySam.this.show_untranslated_region && !aa.posType.equals(KnownGene.PosType.EXON)) continue;
+							aa.refpos1 = x1;
+							kgInfo.refpos1topep.put(x1, aa);
+							}
+						if(referenceContig!=null)
+							{
+							final KnownGene.CodingRNA cDna= kgInfo.gene.getCodingRNA(referenceContig);
+							for(final AminoAcid aa:kgInfo.refpos1topep.values())
+								{
+								aa.cdnapos0 = cDna.convertGenomicToRnaCoordinate(aa.refpos1-1);
+								}
+							
+							if(!kgInfo.gene.isNonCoding())
+								{
+								final KnownGene.Peptide pep = cDna.getPeptide();
+								for(int y=0;y< pep.length();++y)
+									{
+									final String aa3letter = GeneticCode.aminoAcidTo3Letters(pep.charAt(y));
+									if(aa3letter==null) continue;
+									final int codonpos[] = pep.convertToGenomicCoordinates(y);
+									Arrays.sort(codonpos);
+									for(int codonidx=0;codonidx< codonpos.length;++codonidx)
+										{
+										final AminoAcid aa = kgInfo.get(codonpos[codonidx]+1);
+										if(aa==null) continue;
+										aa.pepPos1 = y+1;
+										if(kgInfo.gene.isPositiveStrand())
+											{
+											aa.pepSymbol=aa3letter.charAt(codonidx);
+											}
+										else
+											{
+											aa.pepSymbol=aa3letter.charAt(2-codonidx);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				
+				
+				
 				label(margin1,"Sequence");
 				pw.println();
 				int x=0;
@@ -767,11 +952,122 @@ public class PrettySam extends Launcher {
 							pw.print(c);
 							}
 						pw.println();
-						
 						}
+				
+					
+					/** printing genes and peptide ... */
+					for(final KnownGeneInfo kginfo: knownGenes)
+						{
+						final Map<Integer,AminoAcid> lineInfo = align.stream().
+								skip(x).
+								limit(FASTA_LEN).
+								filter(B->B.refpos>0 && B.refpos>=kginfo.gene.getStart() && B.refpos<=kginfo.gene.getEnd()).
+								map(B->kginfo.get(B.refpos)).
+								filter(AA->AA!=null).
+								collect(Collectors.toMap(AA->AA.refpos1,AA->AA))
+								;
+						if(lineInfo.isEmpty()) continue;
+						
+						for(int side=0;side<4;++side)
+							{
+							/* print HEADER */
+							final String label ;
+							switch(side)
+								{
+								case 0: label = kginfo.gene.getName()+(kginfo.gene.isPositiveStrand()?"(+)":"(-)")+" type";break;
+								case 1:
+									if(!lineInfo.values().stream().anyMatch(A->A.cdnapos0>=0)) continue;
+									label="cDNA-Pos";
+									break;
+								case 2: 
+									if(!lineInfo.values().stream().anyMatch(A->A.pepPos1>0)) continue;
+									label="Pep-Pos";
+									break;
+								case 3: 
+									if(!lineInfo.values().stream().anyMatch(A->Character.isLetter(A.pepSymbol))) continue;
+									label="Amino-Acid";
+									break;
+								default: label="";break;
+								}
+							label(margin2,label);
+							
+							/* print CDNA/PEPE DAATA */
+							for(int y=0;y<FASTA_LEN && x+y<align.size();++y)
+								{
+								if(y!=0 && y%10==0) pw.print(" ");
+								final String c;
+								final Base base = align.get(x+y);
+								if(base.refpos==-1 || !lineInfo.containsKey(base.refpos))
+									{
+									c=" ";
+									}
+								else
+									{
+									final AminoAcid aa=lineInfo.get(base.refpos);
+									switch(side)
+										{
+										case 0:
+											{
+											switch(aa.posType)
+												{
+												case EXON: c = "E"; break;
+												case INTRON: c = "I"; break;
+												case UTR3: c = "3";break;
+												case UTR5: c = "5";break;
+												default: c=" ";break;
+												}
+											break;
+											}
+										case 1:
+											{
+											if(y%10==0 && base.refpos>0 && aa.cdnapos0>=0)
+												{
+												String s=String.valueOf(aa.cdnapos0+1);
+												while(s.length()<10) s+=" ";
+												pw.print(s);
+												y+=(s.length()-1);/* -1 pour boucle for */
+												}
+											else
+												{
+												pw.print(" ");
+												}
+											continue;
+											}
+										case 2:
+											{
+											if(y%10==0 && base.refpos>0 && aa.pepPos1>0)
+												{
+												String s=String.valueOf(aa.pepPos1);
+												while(s.length()<10) s+=" ";
+												pw.print(s);
+												y+=(s.length()-1);/* -1 pour boucle for */
+												}
+											else
+												{
+												pw.print(" ");
+												}
+											continue;
+											}
+										case 3:
+											{
+											c = String.valueOf(Character.isLetter(aa.pepSymbol)?aa.pepSymbol:' ');
+											break;
+											}
+										default: c= " "; break;
+										}
+									}
+								pw.print(c);
+								}
+							pw.println();
+							}
+						}
+
 					x+=FASTA_LEN;
 					pw.println();
 					}
+				// protein stuff below
+				
+				
 				}
 			
 			final Predicate<String> tagFilter= T->{
@@ -880,6 +1176,7 @@ public class PrettySam extends Launcher {
 			while(iter.hasNext())
 				{
 				out.addAlignment(iter.next());
+				if(out.pw.checkError()) break;
 				}
 			out.close();out=null;
 			return 0;

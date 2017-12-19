@@ -22,6 +22,15 @@ Usage: prettysam [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -kg, --knowngenes
+      [20171219]UCSC knownGene File/URL. The knowGene format is a compact 
+      alternative to GFF/GTF because one transcript is described using only 
+      one line.	Beware chromosome names are formatted the same as your 
+      REFERENCE. A typical KnownGene file is 
+      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
+      .If you only have a gff file, you can try to generate a knownGene file 
+      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html) 
+      Memory intensive: the file is loaded in memory.
     -nA, --no-alignment
       hide alignment
       Default: false
@@ -57,6 +66,9 @@ Usage: prettysam [options] Files
     --trim
       trim long string to this length. <1 = do not trim.
       Default: 50
+    -u, --unstranslated
+      [20171219]Show untranslated regions (used with option -kg)
+      Default: false
     --version
       print version and exit
 
@@ -112,6 +124,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Dec 18 10:28:57 2017 +0100 ; fix tags ; https://github.com/lindenb/jvarkit/commit/727b6dee603f4563d327522c8d12af92278e648c
 Mon Dec 18 10:24:33 2017 +0100 ; colors ; https://github.com/lindenb/jvarkit/commit/979df33b759b68e4e6e6e615ddc1d7808a02faca
 Sun Dec 17 13:31:21 2017 +0100 ; pretty sam fix ; https://github.com/lindenb/jvarkit/commit/7fe1838781866f6685bff80f0b1cace09d30839c
 Sat Dec 16 19:00:54 2017 +0100 ; use das a ref dict ; https://github.com/lindenb/jvarkit/commit/8df0196c191f5b546a123dcb1328ddf8c79d049d
@@ -240,5 +253,52 @@ $ java -jar dist/prettysam.jar -R ref.fa S1.bam
                       XS :  0   "Reserved for end users"
 <<<<< 2
 ```
+
+## Displaying genes:
+
+```
+$ wget -O knownGene.txt.gz "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz"
+$ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/wgEncodeUwRepliSeqBg02esG1bAlnRep1.bam" |\
+	java -jar dist/prettysam.jar  -R "http://genome.cse.ucsc.edu/cgi-bin/das/hg19/" -kg knownGene.txt.gz
+
+(...)
+
+>>>>> 724
+          Read-Name : SOLEXA-1GA-2_2_FC20EMB:5:4:549:957
+               Flag : 0
+               MAPQ : 25
+             Contig : chr1  (index:0)
+              Start : 1,115,507
+                End : 1,115,542
+             Strand : -->
+        Read-Length : 36
+              Cigar : 36M (N=1)
+           Sequence : 
+                Read (0) : GGCCGGACCT GGAGGGGGCA GAAAGAGCCT CCGCAA
+                  Middle : |||||||||| |||||||||| |||||||||| | || |
+         Ref (1,115,507) : ggccggacct ggagggggca gaaagagcct ctgcca
+          Cigar-Operator : MMMMMMMMMM MMMMMMMMMM MMMMMMMMMM MMMMMM
+                    Qual : TRGI^WDHH` RHIMOILGEF G@C>D>GC@= D@=A>@
+                 Ref-Pos : 1115507    1115517    1115527    1115537   
+      uc001acy.2(+) type : EEEEEEEEEE EEEEEEEEEE EEEEEEEEEE EEEEEE
+                cDNA-Pos : 293        303        313        323       
+                 Pep-Pos : 98         101        105        108       
+              Amino-Acid : lyProAspLe uGluGlyAla GluArgAlaS erAlaT
+      uc010nyg.1(+) type : EEEEEEEEEE EEEEEEEEEE EEEEEEEEEE EEEEEE
+                cDNA-Pos : 293        303        313        323       
+                 Pep-Pos : 98         101        105        108       
+              Amino-Acid : lyProAspLe uGluGlyAla GluArgAlaS erAlaT
+      uc001acz.2(+) type : EEEEEEEEEE EEEEEEEEEE EEEEEEEEEE EEEEEE
+                cDNA-Pos : 74         84         94         104       
+                 Pep-Pos : 25         28         32         35        
+              Amino-Acid : lyProAspLe uGluGlyAla GluArgAlaS erAlaT
+
+               Tags : 
+                      X1 :           1   "Reserved for end users"
+                      MD :      31C2A1   "String for mismatching positions"
+                      NM :           1   "Edit distance to the reference"
+<<<<< 724
+```
+
 
 
