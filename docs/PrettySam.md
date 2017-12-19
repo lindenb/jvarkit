@@ -124,6 +124,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Dec 19 15:45:53 2017 +0100 ; pretty sam + knownGene ; https://github.com/lindenb/jvarkit/commit/bc31eba58deb8e473dbef04f57468417b395729b
 Mon Dec 18 10:28:57 2017 +0100 ; fix tags ; https://github.com/lindenb/jvarkit/commit/727b6dee603f4563d327522c8d12af92278e648c
 Mon Dec 18 10:24:33 2017 +0100 ; colors ; https://github.com/lindenb/jvarkit/commit/979df33b759b68e4e6e6e615ddc1d7808a02faca
 Sun Dec 17 13:31:21 2017 +0100 ; pretty sam fix ; https://github.com/lindenb/jvarkit/commit/7fe1838781866f6685bff80f0b1cace09d30839c

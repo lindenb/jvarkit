@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -39,10 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.regex.Pattern;
-
-import htsjdk.tribble.readers.LineIterator;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -51,24 +48,38 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordCoordinateComparator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.MergingIterator;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.MergingSamRecordIterator;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /**
 BEGIN_DOC
+
+## History
+
+* 2017-12-09 : currently rewriting everything... do not use...
+
 ## Example
 
 ```bash
@@ -92,46 +103,61 @@ public class GcPercentAndDepth extends Launcher
 	private int windowStep=50;
 	@Parameter(names="-m",description=" min depth ")
 	private int min_depth=0;
-	private SAMSequenceDictionary firstSamDict=null;
-	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names="-R",description=ReferenceGenomeFactory.OPT_DESCRIPTION)
 	private File refFile=null;
 	@Parameter(names="-B",description=" (file.bed) (optional). If not defined: use whole genome. Warning memory consumming: must alloc sizeof(int)*win.size()*num(samples).")
 	private File bedFile=null;
 	@Parameter(names="-n",description=" skip window if Reference contains one 'N'.")
 	private boolean skip_if_contains_N=false;
-	@Parameter(names="-N",description=" (file) . chrom.name.helper .")
-	private String chromNameFile=null;
 	@Parameter(names="-x",description=" don't print genomic index.")
 	private boolean hide_genomic_index=false;
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-filter","--filter"},description="[20171219]"+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
+	@Parameter(names={"-partition","--partition"},description="[20171219]"+SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition partition = SAMRecordPartition.sample;
+	//@Parameter(names={"-percentile","--percentile"},description="[20171219] data percentile method")
+	//private Percentile percentile = Percentile.average();
+	
+	
+	private SAMSequenceDictionary samSequenceDictionary=null;
 
 	
 	/** A bed segment from the catpure */
 	private class RegionCaptured
-		implements Comparable<RegionCaptured>,Iterable<RegionCaptured.SlidingWindow>
+		implements Locatable,
+			Comparable<RegionCaptured>,Iterable<RegionCaptured.SlidingWindow>
 		{
-		int tid;
-		int start0;
-		int end0;
+		final SAMSequenceRecord ssr;
+		final int start0;
+		final int end0;
+		
+		RegionCaptured(final SAMSequenceRecord ssr,int start0,int end0)
+			{
+			this.ssr = ssr;
+			this.start0 = start0;
+			this.end0 = end0;
+			}
 		
 		public SAMSequenceRecord getSAMSequenceRecord()
 			{
-			return firstSamDict.getSequence(this.tid);
+			return this.ssr;
 			}
 		
-		public String getChromosome()
+		@Override
+		public String getContig()
 			{
 			return getSAMSequenceRecord().getSequenceName();
 			}
 		
+		@Override
 		public int getStart()
 			{
-			return this.start0;
+			return this.start0+1;
 			}
+		@Override
 		public int getEnd()
 			{
-			return this.end0;
+			return this.end0+1;
 			}
 
 		public int length()
@@ -140,9 +166,9 @@ public class GcPercentAndDepth extends Launcher
 			}
 		
 		@Override
-		public int compareTo(RegionCaptured o)
+		public int compareTo(final RegionCaptured o)
 			{
-			int i=tid-o.tid;
+			int i=this.ssr.getSequenceIndex()-o.ssr.getSequenceIndex();
 			if(i!=0) return i;
 			i=start0-o.start0;
 			if(i!=0) return i;
@@ -153,7 +179,7 @@ public class GcPercentAndDepth extends Launcher
 		
 		@Override
 		public String toString() {
-			return "roi:"+getChromosome()+":"+getStart()+"-"+getEnd();
+			return "roi:"+getContig()+":"+getStart()+"-"+getEnd();
 			}
 		
 		Iterator<SlidingWindow> windows()
@@ -168,36 +194,21 @@ public class GcPercentAndDepth extends Launcher
 			}
 		
 		private class MyIter
-			implements Iterator<SlidingWindow>
+			extends AbstractIterator<SlidingWindow>
 			{
-			int index_in_roi=0;
-			private SlidingWindow make()
-				{
-				return new SlidingWindow(index_in_roi);
-				}
-			@Override
-			public boolean hasNext()
-				{
-				return make().isValid();
-				}
-			@Override
-			public SlidingWindow next()
-				{
-				SlidingWindow w=make();
-				if(!w.isValid()) throw new IllegalStateException();
-				this.index_in_roi++;
-				return w;
-				}
+			private int index_in_roi=0;
 			
 			@Override
-			public void remove()
-				{
-				throw new UnsupportedOperationException();
+			protected SlidingWindow advance() {
+				final SlidingWindow sw =  new SlidingWindow(index_in_roi);
+				if(!sw.isValid()) return null;
+				++index_in_roi;
+				return sw;
 				}
 			}
 		
 		/** a Sliding window from the RegionCaptured */
-		public class SlidingWindow
+		public class SlidingWindow implements Locatable
 			{
 			int index_in_roi;
 			private SlidingWindow(int index_in_roi)
@@ -208,22 +219,28 @@ public class GcPercentAndDepth extends Launcher
 			public long getGenomicIndex()
 				{
 				long n=0;
-				for(int t=0;t< RegionCaptured.this.tid;++t)
+				for(final SAMSequenceRecord x: GcPercentAndDepth.this.samSequenceDictionary.getSequences())
 					{
-					n+= firstSamDict.getSequence(t).getSequenceLength();
+					if(x.getSequenceName().equals(this.getContig()))
+						{
+						break;
+						}
+					n+= x.getSequenceLength();
 					}
 				n+= this.getStart();
 				return n;
 				}
-			
-			public String getChromosome()
+			@Override
+			public String getContig()
 				{
-				return RegionCaptured.this.getChromosome();
+				return RegionCaptured.this.getContig();
 				}
+			@Override
 			public int getStart()
 				{
-				return index_in_roi*windowStep + RegionCaptured.this.start0;
+				return 1 + index_in_roi*windowStep + RegionCaptured.this.start0;
 				}
+			@Override
 			public int getEnd()
 				{
 				return Math.min(
@@ -237,11 +254,11 @@ public class GcPercentAndDepth extends Launcher
 				}
 			boolean isValid()
 				{
-				if(getStart() >= RegionCaptured.this.getEnd())
+				if(getStart() > RegionCaptured.this.getEnd())
 					{
 					return false;
 					}
-				if(getStart()+windowSize<   RegionCaptured.this.getEnd())
+				if(getStart()+windowSize <=   RegionCaptured.this.getEnd())
 					{
 					return true;
 					}
@@ -255,21 +272,20 @@ public class GcPercentAndDepth extends Launcher
 				}
 			@Override
 			public String toString() {
-				return "win:"+getChromosome()+":"+getStart()+"-"+getEnd()+" "+this.index_in_roi;
+				return "win:"+getContig()+":"+getStart()+"-"+getEnd()+" "+this.index_in_roi;
 				}
 			}
 		}
 	
 	
 	/** constructor */
-	private GcPercentAndDepth()
+	public GcPercentAndDepth()
 		{
 		}
 	
 	
-	
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
 		
 		if(this.windowSize<=0)
@@ -283,9 +299,9 @@ public class GcPercentAndDepth extends Launcher
 			return -1;
 			}
 		
-		if(refFile==null)
+		if(this.refFile==null)
 			{
-			LOG.error("Undefined REF file");
+			LOG.error("Undefined REF File");
 			return -1;
 			}
 		
@@ -294,42 +310,21 @@ public class GcPercentAndDepth extends Launcher
 			LOG.error("Illegal Number of arguments.");
 			return -1;
 			}
-		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+		ReferenceGenome indexedFastaSequenceFile= null;
+				
 		List<SamReader> readers=new ArrayList<SamReader>();
 
 		PrintWriter out=null;
 		try
 			{
-			Map<String,String> resolveChromName=new HashMap<String, String>();
-
-			LOG.info("Loading "+refFile);
-			indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
-			SAMSequenceDictionary dict= indexedFastaSequenceFile.getSequenceDictionary();
-			if(dict==null)
+			LOG.info("Loading "+this.refFile);
+			indexedFastaSequenceFile=	new ReferenceGenomeFactory().
+					openFastaFile(this.refFile);
+			this.samSequenceDictionary = indexedFastaSequenceFile.getDictionary();
+			if(this.samSequenceDictionary==null)
 				{
-				LOG.error("Cannot get sequence dictionary for "+refFile+". "+
-						"picard.dictionary.needed");
+				LOG.error("Cannot get sequence dictionary for "+this.refFile);
 				return -1;
-				}
-			/* load chrom aliases */
-			if(chromNameFile!=null)
-				{
-				LOG.info("Reading "+chromNameFile);
-				LineIterator r=IOUtils.openURIForLineIterator(chromNameFile);
-				while(r.hasNext())
-					{
-					String line=r.next();
-					if(line.isEmpty()) continue;
-					String tokens[]=line.split("[\t]");
-					if(tokens.length<2)
-						{
-						LOG.warning("Bad conversion line (column count<2) in "+line);
-						continue;
-						}
-					resolveChromName.put(tokens[0], tokens[1]);
-					resolveChromName.put(tokens[1], tokens[0]);
-					}
-				CloserUtil.close(r);
 				}
 			
 			out= super.openFileOrStdoutAsPrintWriter(outPutFile);
@@ -344,29 +339,27 @@ public class GcPercentAndDepth extends Launcher
 				final SamReader samFileReaderScan= super.openSamReader(args.get(optind));
 				readers.add(samFileReaderScan);
 				
-				SAMFileHeader header= samFileReaderScan.getFileHeader();
-				if(firstSamDict==null)
+				final SAMFileHeader header= samFileReaderScan.getFileHeader();
+				if(!SequenceUtil.areSequenceDictionariesEqual(this.samSequenceDictionary, header.getSequenceDictionary()))
 					{
-					firstSamDict=header.getSequenceDictionary();
-					}
-				else if(!SequenceUtil.areSequenceDictionariesEqual(firstSamDict, header.getSequenceDictionary()))
-					{
-					LOG.error("not.the.same.sequence.dictionaries");
+					LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(this.samSequenceDictionary, header.getSequenceDictionary()));
 					return -1;
 					}
 				
-				for(SAMReadGroupRecord g: header.getReadGroups())
+				for(final SAMReadGroupRecord g: header.getReadGroups())
 					{
-					if(g.getSample()==null || g.getSample().isEmpty())
+					final String sample = this.partition.apply(g);
+					if(StringUtil.isBlank(sample))
 						{
 						LOG.warning("Read group "+g.getId()+" has no sample in merged dictionary");
 						continue;
 						}
-					all_samples.add(g.getSample());
+					all_samples.add(sample);
 					}
 				}
 			
-			LOG.info("NSample:"+all_samples.size());
+			
+			LOG.info("N "+this.partition.name()+"="+all_samples.size());
 			
 			/* print header */
 			out.print("#");
@@ -382,7 +375,7 @@ public class GcPercentAndDepth extends Launcher
 			out.print("end");
 			out.print("\t");
 			out.print("GCPercent");
-			for(String sample:all_samples)
+			for(final String sample:all_samples)
 				{
 				out.print("\t");
 				out.print(sample);
@@ -390,173 +383,119 @@ public class GcPercentAndDepth extends Launcher
 			out.println();
 			
 			
-			List<RegionCaptured> regionsCaptured=new ArrayList<RegionCaptured>();
+			final List<RegionCaptured> regionsCaptured=new ArrayList<RegionCaptured>();
 			if(bedFile!=null)
 				{
-				int N=0;
 				LOG.info("Reading BED:" +bedFile);
-				Pattern tab=Pattern.compile("[\t]");
-				LineIterator r=IOUtils.openFileForLineIterator(bedFile);
-				while(r.hasNext())
-					{
-					String line=r.next();
-					if(line.startsWith("#") || line.startsWith("browser") || line.startsWith("track") || line.isEmpty()) continue;
-					String tokens[]=tab.split(line,4);
-					if(tokens.length<3)
-						{
-						LOG.warning("No enough column in "+line+" "+bedFile);
-						continue;
-						}
-					RegionCaptured roi=new RegionCaptured();
-					roi.tid=dict.getSequenceIndex(tokens[0]);
-					if(roi.tid==-1)
-						{
-						String altName= resolveChromName.get(tokens[0]);
-						if(altName!=null)
-								{
-							LOG.info(tokens[0]+" was resolved to "+altName);
-								roi.tid=firstSamDict.getSequenceIndex(altName);
-								}
-						else
-								{
-							LOG.warning("Cannot resolve "+tokens[0]+ " from "+new ArrayList<String>(resolveChromName.keySet()));
-								}
-						}
-					
-					
-					if(roi.tid==-1)
-						{
-						LOG.warning("not in reference: chromosome "+tokens[0]+" in \""+line+"\" "+bedFile);
-						continue;
-						}
-					roi.start0=Integer.parseInt(tokens[1]);
-					roi.end0=Integer.parseInt(tokens[2]);
-					regionsCaptured.add(roi);
-					++N;
-					}
+				final BedLineCodec bedLineCodec =new BedLineCodec();
+				
+				BufferedReader r=IOUtils.openFileForBufferedReading(bedFile);
+				r.lines().
+					filter(L->!L.startsWith("#")).
+					filter(L->!StringUtil.isBlank(L)).
+					map(L->bedLineCodec.decode(L)).
+					filter(B->B!=null).
+					forEach(B->{
+						final SAMSequenceRecord ssr= this.samSequenceDictionary.getSequence(B.getContig());
+						if(ssr==null)
+							{
+							LOG.warning("Cannot resolve "+B.getContig());
+							return;
+							}
+							
+						final RegionCaptured roi=new RegionCaptured(
+								ssr,
+								B.getStart()-1,
+								B.getEnd()
+								);
+						regionsCaptured.add(roi);
+						});
 				CloserUtil.close(r);
-				LOG.info("end Reading BED:" +bedFile+"  N="+N);
+				LOG.info("end Reading BED:" +bedFile);
 				Collections.sort(regionsCaptured);
 				}
 			else
 				{
 				LOG.info("No capture, peeking everything");
-				for(SAMSequenceRecord ssr:this.firstSamDict.getSequences())
+				for(final SAMSequenceRecord ssr:this.samSequenceDictionary.getSequences())
 					{
-					RegionCaptured roi=new RegionCaptured();
-					roi.tid=ssr.getSequenceIndex();
-					roi.start0=0;
-					roi.end0=ssr.getSequenceLength();
+					final RegionCaptured roi=new RegionCaptured(ssr,0,ssr.getSequenceLength());
 					regionsCaptured.add(roi);
 					}
 				}
 			
 			
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(firstSamDict);
-			GenomicSequence genomicSequence=null;
-			for(RegionCaptured roi:regionsCaptured)
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.samSequenceDictionary).logger(LOG);
+			ReferenceContig genomicSequence=null;
+			for(final RegionCaptured roi:regionsCaptured)
 				{
-				if(out.checkError()) break;
-				String chromName=roi.getChromosome();
-				
-				if(genomicSequence==null || !genomicSequence.getChrom().equals(chromName))
+				if(genomicSequence==null || !genomicSequence.hasName(roi.getContig()))
 					{
-					String altChromName=resolveChromName.get(chromName);
-					if(altChromName!=null && genomicSequence!=null && genomicSequence.getChrom().equals(altChromName))
+					genomicSequence= indexedFastaSequenceFile.getContig(roi.getContig());
+					if(genomicSequence==null)
 						{
-						//ok, good chrom
-						}
-					else if(indexedFastaSequenceFile.getSequenceDictionary().getSequence(chromName)!=null)
-						{
-						genomicSequence=new GenomicSequence(indexedFastaSequenceFile,chromName);
-						}
-					else if(altChromName!=null  && indexedFastaSequenceFile.getSequenceDictionary().getSequence(altChromName)!=null)
-						{
-						genomicSequence=new GenomicSequence(indexedFastaSequenceFile,altChromName);
-						}
-					else
-						{
-						
-						LOG.error(
-								"when looking for genomic sequence "+ "chrom.missing.in.sequence.dictionary" +" "+
-										chromName+
-								" conversions available:"+resolveChromName);
+						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(roi.getContig(), this.samSequenceDictionary));
 						return -1;
 						}
 					}
 				Map<String,int[]> sample2depth=new HashMap<String,int[]>();
 				Map<String,Double> sample2meanDepth=new HashMap<String,Double>();
-				for(String sample:all_samples)
+				for(final String sample:all_samples)
 					{
 					int depth[]=new int[roi.length()];
 					Arrays.fill(depth, 0);
 					sample2depth.put(sample, depth);
 					}
 				List<CloseableIterator<SAMRecord>> iterators = new ArrayList<CloseableIterator<SAMRecord>>();
-				for(SamReader r:readers)
+				for(final SamReader r:readers)
 					{
-					iterators.add(r.query(roi.getChromosome(), roi.getStart()+1, roi.getEnd(), false));
+					iterators.add(r.query(roi.getContig(), roi.getStart(), roi.getEnd(), false));
 					}
 				
-				Iterator<SAMRecord> merginIter=null;
-				
-				merginIter=null;
-				if(iterators.isEmpty())
-					{
-					merginIter=Collections.emptyIterator();
-					}
-				else if(iterators.size()==1)
-					{
-					merginIter=iterators.get(0);
-					}
-				else
-					{
-					merginIter=new MergingSamRecordIterator(iterators);
-					}
+				final MergingIterator<SAMRecord> merginIter=
+						new MergingIterator<>(new SAMRecordCoordinateComparator(),iterators);
+					
 				while(merginIter.hasNext())
 					{
 					final SAMRecord rec=merginIter.next();
 					if(rec.getReadUnmappedFlag()) continue;
 					if(this.filter.filterOut(rec)) continue;
 										
-					SAMReadGroupRecord g=rec.getReadGroup();
-					if(g==null) continue;
-					progress.watch(rec);
-					String sample=g.getSample();
+					final String sample= this.partition.getPartion(rec,null);
 					if(sample==null ) continue;
-					int depth[]=sample2depth.get(sample);
+					
+					final int depth[]=sample2depth.get(sample);
 					if(depth==null) continue;
-					Cigar cigar=rec.getCigar();
+					final Cigar cigar=rec.getCigar();
 					if(cigar==null) continue;
 					
 					int refpos1=rec.getAlignmentStart();
 					
-					for(CigarElement ce: cigar.getCigarElements())
+					for(final CigarElement ce: cigar.getCigarElements())
 						{
-						CigarOperator op = ce.getOperator();
+						final CigarOperator op = ce.getOperator();
 						if(!op.consumesReferenceBases() ) continue;
 						if(op.consumesReadBases())
 							{
 							for(int i=0;i< ce.getLength();++i)
 								{
-								int pos0 = (refpos1+i-1);
-								if(pos0< roi.getStart()) continue;
-								if(pos0>= roi.getEnd()) continue;
-								depth[pos0-roi.getStart()]++;
+								if(refpos1+i < roi.getStart()) continue;
+								if(refpos1+i > roi.getEnd()) break;
+								depth[refpos1+i-roi.getStart()]++;
 								}
 							}
 						refpos1 += ce.getLength();
 						}
 					}
-				CloserUtil.close(merginIter);
+				merginIter.close();
 				
-				for(RegionCaptured.SlidingWindow win: roi)
+				for(final RegionCaptured.SlidingWindow win: roi)
 					{
 					double total=0f;
 					int countN=0;
-					for(int pos=win.getStart();pos<win.getEnd();++pos)
+					for(int pos1=win.getStart();pos1<=win.getEnd();++pos1)
 						{
-						switch(genomicSequence.charAt(pos))
+						switch(genomicSequence.charAt(pos1-1))
 							{
 							case 'c':case 'C':
 							case 'g':case 'G':		
@@ -574,7 +513,7 @@ public class GcPercentAndDepth extends Launcher
 					
 					int max_depth_for_win=0;
 					sample2meanDepth.clear();
-					for(String sample:all_samples)
+					for(final String sample:all_samples)
 						{
 						int depth[]=sample2depth.get(sample);
 						double sum=0;
@@ -594,9 +533,9 @@ public class GcPercentAndDepth extends Launcher
 						out.print(win.getGenomicIndex());
 						out.print("\t");
 						}
-					out.print(win.getChromosome());
+					out.print(win.getContig());
 					out.print("\t");
-					out.print(win.getStart());
+					out.print(win.getStart()-1);
 					out.print("\t");
 					out.print(win.getEnd());
 					out.print("\t");
@@ -610,7 +549,6 @@ public class GcPercentAndDepth extends Launcher
 					out.println();
 					}
 				}
-				
 			progress.finish();
 			out.flush();
 			return 0;
@@ -628,7 +566,7 @@ public class GcPercentAndDepth extends Launcher
 			}	
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new GcPercentAndDepth().instanceMainWithExit(args);
 		}
 	}

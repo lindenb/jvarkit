@@ -148,8 +148,12 @@ public static class ContigNotFound extends Error
 /** exception thrown when we cannot find a contig in a dict */
 public static class ContigNotFoundInDictionary extends ContigNotFound
 	{
+	public static String getMessage(final String contig,final SAMSequenceDictionary dict)
+		{
+		return ("Cannot find contig \""+contig+"\" in dictionary:["+dict.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))+"]");
+		}
 	public ContigNotFoundInDictionary(final String contig,final SAMSequenceDictionary dict) {
-		super("Cannot find contig \""+contig+"\" in dictionary:["+dict.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))+"]");
+		super(getMessage(contig,dict));
 		}
 	}
 
