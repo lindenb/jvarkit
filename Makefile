@@ -214,7 +214,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver vcftrap prettysam
+	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -439,6 +439,7 @@ $(eval $(call compile-htsjdk-cmd,vcfregulomedb,${jvarkit.package}.tools.misc.Vcf
 $(eval $(call compile-htsjdk-cmd,vcfrenamechr,${jvarkit.package}.tools.misc.ConvertVcfChromosomes,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfrenamesamples,${jvarkit.package}.tools.misc.VcfRenameSamples,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfresetvcf,${jvarkit.package}.tools.misc.VcfRemoveGenotypeIfInVcf,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfremoveunusedalt,${jvarkit.package}.tools.misc.VcfRemoveUnusedAlt,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfremovegenotypejs,${jvarkit.package}.tools.misc.VcfRemoveGenotypeJs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfsetdict,${jvarkit.package}.tools.misc.VcfSetSequenceDictionary,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfmakedict,${jvarkit.package}.tools.misc.VcfCreateDictionary,${jcommander.jar}))
