@@ -70,7 +70,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
-
+Tue Dec 19 19:36:40 2017 +0100 ; VcfRemoveUnusedAlt ; https://github.com/lindenb/jvarkit/commit/ce5bb48bf7ee51d8d70a0f779f08556ee07c82f3
 ```
 
 </details>

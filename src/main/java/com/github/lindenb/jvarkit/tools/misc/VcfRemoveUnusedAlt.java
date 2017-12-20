@@ -101,6 +101,7 @@ public class VcfRemoveUnusedAlt extends Launcher {
 			private class CtxWriter extends DelegateVariantContextWriter
 				{
 				private VCFHeader header;
+				private long nChanges = 0L;
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
 					}
@@ -146,11 +147,14 @@ public class VcfRemoveUnusedAlt extends Launcher {
 					if(toRemove.isEmpty()) {
 						super.add(ctx);
 						}
+					
 					final Set<Integer> indices= toRemove.stream().
 							map(A->ctx.getAlleleIndex(A)).
 							collect(Collectors.toSet());
 					if(indices.contains(0)) throw new IllegalStateException();
 					if(indices.contains(-1)) throw new IllegalStateException();
+					
+					
 					final VariantContextBuilder gb=new VariantContextBuilder(ctx);
 					gb.alleles(
 							ctx.getAlleles().
@@ -158,15 +162,17 @@ public class VcfRemoveUnusedAlt extends Launcher {
 							filter(A->!toRemove.contains(A)).
 							collect(Collectors.toList())
 							);
+					
 					for(final VCFInfoHeaderLine vcfInfoHeaderLine:this.header.getInfoHeaderLines()) {
-						if(!(vcfInfoHeaderLine.getCountType()==VCFHeaderLineCount.A ||
-							 vcfInfoHeaderLine.getCountType()==VCFHeaderLineCount.R))
-							{
-							continue;
+						switch(vcfInfoHeaderLine.getCountType())
+							{	
+							case A: case R: break;
+							default: continue;
 							}
+						
 						if(!ctx.hasAttribute(vcfInfoHeaderLine.getID())) continue;
 						final List<Object> att = new ArrayList<>(ctx.getAttributeAsList(vcfInfoHeaderLine.getID()));
-						final List<Object> newatt = new ArrayList<>(att); 
+						final List<Object> newatt = new ArrayList<>(att.size()); 
 
 						if(vcfInfoHeaderLine.getCountType()==VCFHeaderLineCount.R)
 							{
@@ -191,20 +197,21 @@ public class VcfRemoveUnusedAlt extends Launcher {
 							}
 						gb.attribute(vcfInfoHeaderLine.getID(),newatt);
 						}
+					this.nChanges++;
 					super.add(gb.make());
 					}
-				
+				@Override
+				public void close() {
+					LOG.info("number of changes "+this.nChanges);
+					super.close();
+					}
 				}
 
 			@Override
 			public VariantContextWriter open(final VariantContextWriter delegate) {
 				return new CtxWriter(delegate);
 				}
-			
-			
-		}
-	
-		
+			}
 		
 		public VcfRemoveUnusedAlt()
 			{
@@ -215,12 +222,10 @@ public class VcfRemoveUnusedAlt extends Launcher {
 				final String inputName, 
 				final VcfIterator in,
 				final VariantContextWriter delegate) {
-	
 			try
 				{
 				final VariantContextWriter out  = this.component.open(delegate);
 				out.writeHeader(in.getHeader());
-				
 				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
 				while(in.hasNext())
 					{
@@ -241,7 +246,6 @@ public class VcfRemoveUnusedAlt extends Launcher {
 		public int doWork(final List<String> args) {
 			return doVcfToVcf(args,this.output);
 			}
-		
 	
 		public static void main(final String[] args)
 			{

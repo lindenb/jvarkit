@@ -177,7 +177,7 @@ public class SamRetrieveSeqAndQual extends Launcher
 	private static final Logger LOG = Logger.build(SamRetrieveSeqAndQual.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File bamOut = null;
 	@Parameter(names={"-F"},description=" (fastq / fastqF) required",required=true)
 	private File fastqFin = null;
@@ -274,7 +274,7 @@ public class SamRetrieveSeqAndQual extends Launcher
 				
 				if(sortOrder==SAMFileHeader.SortOrder.queryname)
 					{
-					while(currFastq[fastq_index]==null || normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)<0)
+					while(currFastq[fastq_index]==null || normalizeFastqName(currFastq[fastq_index].getReadName()).compareTo(readName)<0)
 						{
 						if(! fastqReaders[ fastq_index ].hasNext())
 							{
@@ -282,7 +282,7 @@ public class SamRetrieveSeqAndQual extends Launcher
 							return -1;
 							}
 						currFastq[fastq_index] = fastqReaders[ fastq_index ].next();
-						if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)>0)
+						if(normalizeFastqName(currFastq[fastq_index].getReadName()).compareTo(readName)>0)
 							{
 							LOG.error("Read Missing for "+readName);
 							return -1;
@@ -298,9 +298,9 @@ public class SamRetrieveSeqAndQual extends Launcher
 						}
 					currFastq[fastq_index] = fastqReaders[ fastq_index ].next();
 					}
-				if(normalizeFastqName(currFastq[fastq_index].getReadHeader()).compareTo(readName)!=0)
+				if(normalizeFastqName(currFastq[fastq_index].getReadName()).compareTo(readName)!=0)
 					{
-					LOG.error("Read Missing/Error for "+readName+" current:" + currFastq[fastq_index].getReadHeader());
+					LOG.error("Read Missing/Error for "+readName+" current:" + currFastq[fastq_index].getReadName());
 					return -1;
 					}
 				String fastqBases = currFastq[fastq_index].getReadString();
