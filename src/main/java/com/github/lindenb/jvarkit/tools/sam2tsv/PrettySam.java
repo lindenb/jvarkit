@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
@@ -74,6 +75,9 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
 /**
 BEGIN_DOC
 
@@ -221,6 +225,21 @@ $ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUw
 ```
 
 
+## Screenshots
+
+https://twitter.com/yokofakun/status/943132603539914752
+
+![https://twitter.com/yokofakun/status/943132603539914752](https://pbs.twimg.com/media/DRatlqCWkAACABt.jpg)
+
+https://twitter.com/yokofakun/status/942688906620887040
+
+![https://twitter.com/yokofakun/status/942688906620887040](https://pbs.twimg.com/media/DRUaf8jWkAAArio.jpg)
+
+https://twitter.com/yokofakun/status/941775073156968451
+
+![https://twitter.com/yokofakun/status/941775073156968451](https://pbs.twimg.com/media/DRHbAN9XUAEFqdg.jpg)
+
+
 END_DOC
  */
 @Program(name="prettysam",
@@ -261,6 +280,8 @@ public class PrettySam extends Launcher {
 	private String knownGeneUri = null;
 	@Parameter(names={"-u","--unstranslated"},description="[20171219]Show untranslated regions (used with option -kg)")
 	private boolean show_untranslated_region=false;
+	@Parameter(names={"-V","--variant","--vcf"},description="[20171220]Show VCF data. VCf must be indexed. if VCF has no genotype, the variant positions are shown, otherwise, the genotypes associated to the read will be show.")
+	private File vcfFile=null;
 
 
 	private enum AnsiColor {
@@ -304,6 +325,7 @@ public class PrettySam extends Launcher {
     private static final Pattern COMMA_PAT = Pattern.compile("[,]");
 	private ReferenceGenome referenceGenome = null;
 	
+	
 	private static class Base
 		{
 		char readbase='\0';
@@ -336,6 +358,15 @@ public class PrettySam extends Launcher {
 		AminoAcid get(int pos1) { return this.refpos1topep.get(pos1);}
 		}
 	
+	private static class VariantInfo
+		{
+		int ctx_start = -1;
+		int ctx_end = -1;
+		String label="";
+		char mutchar= '?';
+		//final Map<Integer,Character> refpos1tochar = new HashMap<>();
+		}
+	
 	private final Function<Boolean, String> isNegativeStrandToString = NEGATIVE ->
 		(this.disable_unicode?(NEGATIVE?"<--":"-->"):(NEGATIVE?"\u2190":"\u2192"));
 	
@@ -359,8 +390,10 @@ public class PrettySam extends Launcher {
 		private final Map<String,String> readgroupAtt2def = new HashMap<>();
 		private ContigNameConverter contigNameConverter=null;
 		private final IntervalTreeMap<List<KnownGeneInfo>> knownGenes = new IntervalTreeMap<>();
-
-		public PrettySAMWriter(PrintWriter pw) {
+		private VCFFileReader vcfFileReader = null;
+		
+		
+		public PrettySAMWriter(final PrintWriter pw) {
 			this.pw = pw;
 			
 			// READ GROUP ATTRIBUTE
@@ -374,7 +407,7 @@ public class PrettySam extends Launcher {
 			this.readgroupAtt2def.put("PG","Program group");
 			this.readgroupAtt2def.put("PI","Predicted Median Insert size");
 			this.readgroupAtt2def.put("PL","Platform");
-			this.readgroupAtt2def.put("PM","platform model");
+			this.readgroupAtt2def.put("PM","Platform model");
 			this.readgroupAtt2def.put("PU","Platform unit");
 			this.readgroupAtt2def.put("SM","Sample");
 			
@@ -496,6 +529,10 @@ public class PrettySam extends Launcher {
 				this.contigNameConverter  = ContigNameConverter.fromDictionaries(this.samDict, this.faidxDict);
 				this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 				}
+			/* load vcf file */
+			if(PrettySam.this.vcfFile!=null) {
+				this.vcfFileReader  = new VCFFileReader(PrettySam.this.vcfFile, true);
+			}
 			
 			/* load known genes */
 			if(PrettySam.this.knownGeneUri!=null) {
@@ -783,9 +820,81 @@ public class PrettySam extends Launcher {
 				}
 			else if(!align.isEmpty())
 				{
-				final List<KnownGeneInfo> knownGenes= this.knownGenes.getOverlapping(rec).stream().flatMap(L->L.stream()).collect(Collectors.toList());
-				final ReferenceContig referenceContig = getReferenceContigFor(rec.getContig());
+				final List<KnownGeneInfo> knownGenes= rec.getReadUnmappedFlag()?
+						Collections.emptyList():
+						this.knownGenes.getOverlapping(rec).stream().flatMap(L->L.stream()).collect(Collectors.toList())
+						;
+				final ReferenceContig referenceContig = rec.getReadUnmappedFlag()?
+							null:
+							getReferenceContigFor(rec.getContig());
+				
+				/** find variant info */
+				final List<VariantInfo> variantsInfo;
+				//vcf stuff
+				if(this.vcfFileReader!=null && !rec.getReadUnmappedFlag())
+					{
+					variantsInfo = new ArrayList<>();
+					final String sampleName= SAMRecordPartition.sample.getPartion(rec,null);
+					if(!StringUtil.isBlank(sampleName)) {
+						final CloseableIterator<VariantContext> iter = this.vcfFileReader.query(rec.getContig(),
+								rec.getUnclippedStart(), rec.getUnclippedEnd());
+						while(iter.hasNext())
+							{
+							final VariantInfo variantInfo = new VariantInfo();
+							variantInfo.mutchar = '*';
+							Genotype g = null;
+							final VariantContext ctx=iter.next();
+							if(ctx.hasGenotypes() && (g=ctx.getGenotype(sampleName))!=null)
+								{
+								variantInfo.label= g.getType().name();
+								if(g.isCalled()) {
+									variantInfo.label+=" "+
+										g.getAlleles().stream().
+										map(A->A.getDisplayString()).
+										map(S->S.length()<3?S:S.substring(0, 2)+"...").
+										collect(Collectors.joining("/"));
+									}
+								switch(g.getType())
+									{	
+									case HET: variantInfo.mutchar ='1';break;
+									case HOM_REF: variantInfo.mutchar ='0';break;
+									case HOM_VAR: variantInfo.mutchar ='2';break;
+									case MIXED : variantInfo.mutchar ='x';break;
+									case NO_CALL : variantInfo.mutchar ='.';break;
+									case UNAVAILABLE : variantInfo.mutchar= '?';break;
+									default : variantInfo.mutchar ='*';break;
+									}
+								}
+							else
+								{
+								variantInfo.label=
+										ctx.getAlternateAlleles().stream().
+										map(A->A.getDisplayString()).
+										map(S->S.length()<3?S:S.substring(0, 2)+"...").
+										collect(Collectors.joining("/"));
+								variantInfo.mutchar =  '*';
+								}
+							variantInfo.label += "("+fmt.format(ctx.getStart())+")";
+							
+							variantInfo.ctx_start = ctx.getStart();
+							
+							variantInfo.ctx_end=(ctx.hasAttribute("END")?
+									ctx.getAttributeAsInt("END",ctx.getEnd()):
+									ctx.getEnd()
+									);
+							
+							variantsInfo.add(variantInfo);
+							}
+						iter.close();
+						}
+					}
+				else
+					{
+					variantsInfo = Collections.emptyList();
+					}
 
+				
+				/** find gene info */
 				if(!knownGenes.isEmpty()) {
 					for(final KnownGeneInfo kgInfo  : knownGenes)
 						{
@@ -1062,11 +1171,42 @@ public class PrettySam extends Launcher {
 							}
 						}
 
+					
+					//begin variant stuff
+					for(final VariantInfo variantInfo : variantsInfo) {
+						if(!align.stream().
+								skip(x).
+								limit(FASTA_LEN).
+								filter(B->B.refpos>0 && B.refpos>=variantInfo.ctx_start && B.refpos<=variantInfo.ctx_end).
+								findAny().isPresent()) continue;
+
+						label(margin2,variantInfo.label);
+						/* print Variant */
+						for(int y=0;y<FASTA_LEN && x+y<align.size();++y)
+							{
+							if(y!=0 && y%10==0) pw.print(" ");
+							char c;
+							final Base base = align.get(x+y);
+							if(base.refpos==-1 || 
+								base.refpos< variantInfo.ctx_start|| 
+								base.refpos> variantInfo.ctx_end) {
+								c = ' ';
+								}
+							else
+								{
+								c = variantInfo.mutchar;
+								}
+							pw.print(c);
+							}
+						pw.println();
+						}
+					//end variant stuff
+
+					
 					x+=FASTA_LEN;
 					pw.println();
 					}
-				// protein stuff below
-				
+				// protein stuff end
 				
 				}
 			
@@ -1149,6 +1289,7 @@ public class PrettySam extends Launcher {
 		@Override
 		public void close() {
 			pw.close();
+			CloserUtil.close(this.vcfFileReader);
 			CloserUtil.close(this.referenceGenome);
 			this.genomicSequence=null;
 			}

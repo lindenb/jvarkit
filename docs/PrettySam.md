@@ -69,6 +69,10 @@ Usage: prettysam [options] Files
     -u, --unstranslated
       [20171219]Show untranslated regions (used with option -kg)
       Default: false
+    -V, --variant, --vcf
+      [20171220]Show VCF data. VCf must be indexed. if VCF has no genotype, 
+      the variant positions are shown, otherwise, the genotypes associated to 
+      the read will be show.
     --version
       print version and exit
 
@@ -300,6 +304,21 @@ $ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUw
                       NM :           1   "Edit distance to the reference"
 <<<<< 724
 ```
+
+
+## Screenshots
+
+https://twitter.com/yokofakun/status/943132603539914752
+
+![https://twitter.com/yokofakun/status/943132603539914752](https://pbs.twimg.com/media/DRatlqCWkAACABt.jpg)
+
+https://twitter.com/yokofakun/status/942688906620887040
+
+![https://twitter.com/yokofakun/status/942688906620887040](https://pbs.twimg.com/media/DRUaf8jWkAAArio.jpg)
+
+https://twitter.com/yokofakun/status/941775073156968451
+
+![https://twitter.com/yokofakun/status/941775073156968451](https://pbs.twimg.com/media/DRHbAN9XUAEFqdg.jpg)
 
 
 

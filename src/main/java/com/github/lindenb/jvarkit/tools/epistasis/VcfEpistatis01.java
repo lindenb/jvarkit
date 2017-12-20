@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.epistasis;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -68,7 +69,6 @@ public class VcfEpistatis01 extends Launcher {
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	
 	@Parameter(names={"-p","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
 	private File pedigreeFile = null;
 	@Parameter(names={"--memory"},description="Load all variants in memory")
@@ -79,6 +79,8 @@ public class VcfEpistatis01 extends Launcher {
 	private  int start_index_at=0;
 	@Parameter(names={"-jexl","--jexl"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = (CTX)->true;
+	@Parameter(names={"-score","--score"},description="[20171220] Output score. Default is printing the VCF.")
+	private boolean output_score = false;
 	
 	
 	private static final Function<Long,Integer> CTRLS_nAlt2score=(N)->{switch(N.intValue()){
@@ -294,7 +296,7 @@ public class VcfEpistatis01 extends Launcher {
 					setLogger(LOG).
 					setPredicate(variantFilter).
 					indexVcfFile(vcfFile,tmpIndexFile);
-				VcfList tmpList = VcfList.fromFile(vcfFile, tmpIndexFile);
+				final VcfList tmpList = VcfList.fromFile(vcfFile, tmpIndexFile);
 				variantsCount = tmpList.size();
 				tmpList.close();
 				inMemoryVariants = null;
@@ -306,9 +308,6 @@ public class VcfEpistatis01 extends Launcher {
 			LOG.info("Number of variants: "+variantsCount);
 			
 			
-			
-			
-			
 			Result bestResult =null;
 			int x= this.start_index_at;
 			while(x+1 < variantsCount)
@@ -316,8 +315,6 @@ public class VcfEpistatis01 extends Launcher {
 				final List<Runner> runners = new Vector<>(this.number_of_jobs);
 				while(x+1 < variantsCount && runners.size() < this.number_of_jobs)
 					{
-					
-					
 					LOG.info("starting "+x+"/"+variantsCount);
 					runners.add(new Runner(
 							inMemoryVariants == null? 
@@ -367,13 +364,22 @@ public class VcfEpistatis01 extends Launcher {
 						{
 						bestResult =rez;
 						
-						final VariantContextWriter w = openVariantContextWriter(this.outputFile);
-						final VCFHeader header2= new VCFHeader(header);
-						header2.addMetaDataLine(new VCFHeaderLine(VcfEpistatis01.class.getName(),bestResult.toString()));
-						w.writeHeader(header2);
-						w.add(bestResult.ctx1);
-						w.add(bestResult.ctx2);
-						w.close();
+						if(this.output_score) {
+							final PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+							pw.println(bestResult.score+ "\t"+bestResult.toString());
+							pw.flush();
+							pw.close();
+							}
+						else
+							{
+							final VariantContextWriter w = openVariantContextWriter(this.outputFile);
+							final VCFHeader header2= new VCFHeader(header);
+							header2.addMetaDataLine(new VCFHeaderLine(VcfEpistatis01.class.getName(),bestResult.toString()));
+							w.writeHeader(header2);
+							w.add(bestResult.ctx1);
+							w.add(bestResult.ctx2);
+							w.close();
+							}
 						}
 					}
 				LOG.info("best: "+bestResult);

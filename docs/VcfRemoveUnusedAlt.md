@@ -13,6 +13,9 @@ Usage: vcfremoveunusedalt [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -nospan, --nospan
+      Don't print the variant if the only remaining allele is '*'
+      Default: false
     -o, --out
       Output file. Optional . Default: stdout
     --version
@@ -70,6 +73,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Dec 20 09:20:51 2017 +0100 ; fix vcfremoveunusedalt ; https://github.com/lindenb/jvarkit/commit/02b15e77bdd681fafa9da32a5ee602f9a0345975
 Tue Dec 19 19:36:40 2017 +0100 ; VcfRemoveUnusedAlt ; https://github.com/lindenb/jvarkit/commit/ce5bb48bf7ee51d8d70a0f779f08556ee07c82f3
 ```
 

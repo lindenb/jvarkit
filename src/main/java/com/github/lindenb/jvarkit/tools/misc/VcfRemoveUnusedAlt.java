@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2015 creation
 
 */
 package com.github.lindenb.jvarkit.tools.misc;
@@ -61,6 +57,7 @@ import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -72,10 +69,23 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 /**
 BEGIN_DOC
 
+## Motivation
+
+when using gatk SelectVariants with sample names (-sn) some alleles specific of the samples than have been removed, remain in the vcf.
+
+## SNPEFF / VEP
+
+this tool remove unused annotations from SNPEFF(ANN=) and VEP.
+
 ## Example
 
 ```bash
+$ cat in.vcf
+(...)
+chr1	7358	.	ACTT	*,A	1313.61	PASS	AC=0,10;AF=0,0.005828;AN=1716
 
+$ java -jar dist/vcfremoveunusedalt.jar  in.vcf | grep -w 17358 -m1
+chr1	7358	.	ACTT	A	1313.61	PASS	AC=10;AF=0.005828;AN=1716
 ```
 END_DOC
 
@@ -92,15 +102,23 @@ public class VcfRemoveUnusedAlt extends Launcher {
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 	
+	
+	
 	@XmlType(name="vcfremoveunusedalt")
 	@XmlRootElement(name="vcfremoveunusedalt")
 	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
+			@Parameter(names={"-nospan","--nospan"},description="Don't print the variant if the only remaining allele is '*'")
+			private boolean no_span_allele =false;
+
+		
 			private class CtxWriter extends DelegateVariantContextWriter
 				{
+				private VcfTools vcfTools = null;
 				private VCFHeader header;
+				private final boolean no_span_allele = CtxWriterFactory.this.no_span_allele;
 				private long nChanges = 0L;
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
@@ -108,12 +126,17 @@ public class VcfRemoveUnusedAlt extends Launcher {
 				@Override
 				public void writeHeader(final VCFHeader header) {
 					this.header=header;
+					this.vcfTools = new VcfTools(header);
 					super.writeHeader(header);
 					}
 				
 				@Override
 				public void add(final VariantContext ctx) {
 					final List<Allele> alts = ctx.getAlternateAlleles();
+					if(this.no_span_allele && alts.size()==1 && alts.get(0).equals(Allele.SPAN_DEL)) {
+						return;
+						}
+					
 					final Set<Allele> toRemove= new HashSet<>();
 					if(ctx.getNSamples()==0) {
 						if(!ctx.hasAttribute(VCFConstants.ALLELE_COUNT_KEY))
@@ -144,8 +167,13 @@ public class VcfRemoveUnusedAlt extends Launcher {
 							}
 						}
 					
+					if(toRemove.size()==alts.size()) {
+						return;
+						}
+					
 					if(toRemove.isEmpty()) {
 						super.add(ctx);
+						return;
 						}
 					
 					final Set<Integer> indices= toRemove.stream().
@@ -156,12 +184,41 @@ public class VcfRemoveUnusedAlt extends Launcher {
 					
 					
 					final VariantContextBuilder gb=new VariantContextBuilder(ctx);
-					gb.alleles(
-							ctx.getAlleles().
+					final List<Allele> newAlleles = ctx.getAlleles().
 							stream().
 							filter(A->!toRemove.contains(A)).
 							collect(Collectors.toList())
-							);
+							;
+					if(this.no_span_allele && alts.size()==2 && alts.get(1).equals(Allele.SPAN_DEL)) {
+						return;
+						}
+					gb.alleles(newAlleles);
+					
+					
+					if(ctx.hasAttribute(this.vcfTools.getAnnPredictionParser().getTag()))
+						{
+						final Set<String> toRemoveStr = toRemove.stream().map(S->S.getDisplayString()).collect(Collectors.toSet());
+						final List<String> newpreds = 
+								this.vcfTools.getAnnPredictionParser().
+								getPredictions(ctx).stream().
+									filter(P->!toRemoveStr.contains(P.getAllele())).
+									map(P->P.getOriginalAttributeAsString()).
+									collect(Collectors.toList());
+						
+						gb.attribute(this.vcfTools.getAnnPredictionParser().getTag(),newpreds);
+						}
+					if(ctx.hasAttribute(this.vcfTools.getVepPredictionParser().getTag()))
+						{
+						final Set<String> toRemoveStr = toRemove.stream().map(S->S.getDisplayString()).collect(Collectors.toSet());
+						final List<String> newpreds = 
+								this.vcfTools.getVepPredictionParser().
+								getPredictions(ctx).stream().
+									filter(P->!toRemoveStr.contains(P.getAlleleStr())).
+									map(P->P.getOriginalAttributeAsString()).
+									collect(Collectors.toList());
+						
+						gb.attribute(this.vcfTools.getVepPredictionParser().getTag(),newpreds);
+						}
 					
 					for(final VCFInfoHeaderLine vcfInfoHeaderLine:this.header.getInfoHeaderLines()) {
 						switch(vcfInfoHeaderLine.getCountType())
