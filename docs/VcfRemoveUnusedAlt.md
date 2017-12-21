@@ -13,8 +13,11 @@ Usage: vcfremoveunusedalt [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    -nospan, --nospan
-      Don't print the variant if the only remaining allele is '*'
+    -neverspan, --neverspan
+      Remove ALL spanning deletions '*'. VCF must have no genotype.
+      Default: false
+    -onespan, --onespan
+      Don't print the variant if the only remaining allele is  '*'
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
@@ -73,6 +76,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Dec 20 15:17:02 2017 +0100 ; prettysam with VCF file ; https://github.com/lindenb/jvarkit/commit/b87d8f2413a2b5765b1560da800dbf3fe30c8701
 Wed Dec 20 09:20:51 2017 +0100 ; fix vcfremoveunusedalt ; https://github.com/lindenb/jvarkit/commit/02b15e77bdd681fafa9da32a5ee602f9a0345975
 Tue Dec 19 19:36:40 2017 +0100 ; VcfRemoveUnusedAlt ; https://github.com/lindenb/jvarkit/commit/ce5bb48bf7ee51d8d70a0f779f08556ee07c82f3
 ```
@@ -100,9 +104,22 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Motivation
+
+when using gatk SelectVariants with sample names (-sn) some alleles specific of the samples than have been removed, remain in the vcf.
+
+## SNPEFF / VEP
+
+this tool removes unused annotations from SNPEFF(ANN=) and VEP.
+
 ## Example
 
 ```bash
+$ cat in.vcf
+(...)
+chr1	7358	.	ACTT	*,A	1313.61	PASS	AC=0,10;AF=0,0.005828;AN=1716
 
+$ java -jar dist/vcfremoveunusedalt.jar  in.vcf | grep -w 17358 -m1
+chr1	7358	.	ACTT	A	1313.61	PASS	AC=10;AF=0.005828;AN=1716
 ```
 
