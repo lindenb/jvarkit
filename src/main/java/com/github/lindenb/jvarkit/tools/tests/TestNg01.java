@@ -86,6 +86,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef;
+import com.github.lindenb.jvarkit.tools.misc.VcfRemoveUnusedAlt;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
@@ -547,6 +548,16 @@ class TestNg01 {
         		"-o",JETER_VCF.getPath(),
         		vcfPath}));
     	}
+    
+    @Test(dataProvider="all_vcfs")
+    public void testVcfRemoveUnusedAlt(final String vcfPath) throws IOException{   
+    	File tmp = new File(TEST_RESULTS_DIR, "tmp.vcf");
+    	Assert.assertEquals(0,new VcfRemoveUnusedAlt().instanceMain(new String[]{
+        		"-o",tmp.getPath(),
+        		vcfPath}));
+    	assertIsVcf(tmp);
+    	Assert.assertTrue( tmp.delete());
+    	}
 
     
     @Test
@@ -686,6 +697,7 @@ class TestNg01 {
     	Assert.assertTrue(img.getHeight()>0);
     	Assert.assertTrue(tmp.delete());
     	}
+    
     @Test
     public void testVcfStats() throws IOException{    
     	final File tmp = new File(TEST_RESULTS_DIR, "jeter.zip");
@@ -696,6 +708,7 @@ class TestNg01 {
         		VCF01}));
     	Assert.assertTrue( tmp.exists());
     	}
+    
     @Test
     public void testVcfMoveFiltersToInfo() throws IOException{    
 
@@ -705,6 +718,7 @@ class TestNg01 {
     	assertIsVcf(JETER_VCF);
     	Assert.assertTrue( JETER_VCF.exists());
     	}
+    
     @Test(groups={"burden"},dependsOnMethods={"testVcfInjectPed"})
     public void testVcfFilterNotInPedigree() throws IOException{    
     	final File input =new File(TEST_RESULTS_DIR,"tmp.ped.vcf");
@@ -729,7 +743,6 @@ class TestNg01 {
     
     @Test
     public void testVcfBigWig() throws IOException{    
-
     	Assert.assertEquals(0,new VCFBigWig().instanceMain(new String[]{
         		"-o",JETER_VCF.getPath(),
         		"-T","Uniqueness35bp",
