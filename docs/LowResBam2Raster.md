@@ -21,7 +21,9 @@ Usage: lowresbam2raster [options] Files
       GC% Window size
       Default: 10
     --groupby
-      Group Reads by
+      Group Reads by. Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -h, --help
@@ -33,8 +35,10 @@ Usage: lowresbam2raster [options] Files
       hightligth those positions.
       Default: []
     -kg, --knownGene
-      UCSC knownGene URI. Beware chromosome names are formatted the same as 
-      your REFERENCE. A typical KnownGene file is 
+      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
+      GFF/GTF because one transcript is described using only one line.	Beware 
+      chromosome names are formatted the same as your REFERENCE. A typical 
+      KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)

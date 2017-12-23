@@ -145,6 +145,7 @@ public class Hershey
 			case '#': return " 12MXRLPW RULSW ROPVP ROSVS";//233
 			case '*': return "  9JZRLRX RMOWU RWOMU";//728
 			case '=': return "  6LXNPVP RNTVT";//226
+			case '+': return "  6LXRNRV RNRVR";//225
 			case '-': return "  3KYKRYR";//806
 			case '_': return "  3JZJZZZ";//998
 			case '[': return " 12MWPHP\\ RQHQ\\ RPHUH RP\\U\\";//1223
