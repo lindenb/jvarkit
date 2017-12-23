@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -75,7 +76,7 @@ when using gatk SelectVariants with sample names (-sn) some alleles specific of 
 
 ## SNPEFF / VEP
 
-this tool remove unused annotations from SNPEFF(ANN=) and VEP.
+this tool removes unused annotations from SNPEFF(ANN=) and VEP.
 
 ## Example
 
@@ -96,12 +97,11 @@ END_DOC
 	keywords={"vcf","genotype"}
 )
 public class VcfRemoveUnusedAlt extends Launcher {
-	private static final Logger LOG=Logger.build(VcfTail.class).make();
+	private static final Logger LOG=Logger.build(VcfRemoveUnusedAlt.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT,required=false)
 	private File output=null;
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
-	
 	
 	
 	@XmlType(name="vcfremoveunusedalt")
@@ -110,15 +110,17 @@ public class VcfRemoveUnusedAlt extends Launcher {
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
-			@Parameter(names={"-nospan","--nospan"},description="Don't print the variant if the only remaining allele is '*'")
+			@Parameter(names={"-onespan","--onespan"},description="Don't print the variant if the only remaining allele is  '"+Allele.SPAN_DEL_STRING+"'")
 			private boolean no_span_allele =false;
-
+			@Parameter(names={"-neverspan","--neverspan"},description="Remove ALL spanning deletions '"+Allele.SPAN_DEL_STRING+"'. VCF must have no genotype.")
+			private boolean never_span_allele =false;
 		
 			private class CtxWriter extends DelegateVariantContextWriter
 				{
 				private VcfTools vcfTools = null;
 				private VCFHeader header;
 				private final boolean no_span_allele = CtxWriterFactory.this.no_span_allele;
+				private final boolean never_span_allele = CtxWriterFactory.this.never_span_allele;
 				private long nChanges = 0L;
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
@@ -127,42 +129,55 @@ public class VcfRemoveUnusedAlt extends Launcher {
 				public void writeHeader(final VCFHeader header) {
 					this.header=header;
 					this.vcfTools = new VcfTools(header);
+					
+					if(this.never_span_allele && header.getNGenotypeSamples()>0)
+						{
+						throw new JvarkitException.UserError("cannot remove spanning allele where there are some genotypes");
+						}
+					
 					super.writeHeader(header);
 					}
 				
 				@Override
 				public void add(final VariantContext ctx) {
 					final List<Allele> alts = ctx.getAlternateAlleles();
-					if(this.no_span_allele && alts.size()==1 && alts.get(0).equals(Allele.SPAN_DEL)) {
+					if((this.no_span_allele || this.never_span_allele) && alts.size()==1 && alts.get(0).equals(Allele.SPAN_DEL)) {
 						return;
 						}
 					
+					
+					
 					final Set<Allele> toRemove= new HashSet<>();
 					if(ctx.getNSamples()==0) {
-						if(!ctx.hasAttribute(VCFConstants.ALLELE_COUNT_KEY))
+						
+						if(this.never_span_allele && alts.contains(Allele.SPAN_DEL))
 							{
-							super.add(ctx);
-							return;
+							toRemove.add(Allele.SPAN_DEL);
 							}
-						final List<Object> acStrList = ctx.getAttributeAsList(VCFConstants.ALLELE_COUNT_KEY);
-						if(acStrList.size()!=alts.size()) {
-							LOG.error("Illegal number of key "+VCFConstants.ALLELE_COUNT_KEY+" at "+ctx);
-							return;
-							}
-						for(int alt_idx=0;alt_idx< alts.size();++alt_idx)
+						
+						if(ctx.hasAttribute(VCFConstants.ALLELE_COUNT_KEY))
 							{
-							final Object o=acStrList.get(alt_idx);
-							final String ostr = String.valueOf(o);
-							if(o==null || ostr.equals(".") || ostr.equals("0") || Integer.parseInt(ostr)==0)
+							final List<Object> acStrList = ctx.getAttributeAsList(VCFConstants.ALLELE_COUNT_KEY);
+							if(acStrList.size()!=alts.size()) {
+								LOG.error("Illegal number of key "+VCFConstants.ALLELE_COUNT_KEY+" at "+ctx);
+								return;
+								}
+							for(int alt_idx=0;alt_idx< alts.size();++alt_idx)
 								{
-								toRemove.add(alts.get(alt_idx));
+								final Object o=acStrList.get(alt_idx);
+								final String ostr = String.valueOf(o);
+								if(o==null || ostr.equals(".") || ostr.equals("0") || Integer.parseInt(ostr)==0)
+									{
+									toRemove.add(alts.get(alt_idx));
+									}
 								}
 							}
 						}
 					else
 						{
 						for(final Allele alt:alts) {
-							if(ctx.getGenotypes().stream().anyMatch(G->G.getAlleles().contains(alt))) continue;
+							if(ctx.getGenotypes().stream().
+									anyMatch(G->G.getAlleles().contains(alt))) continue;
 							toRemove.add(alt);
 							}
 						}
@@ -194,7 +209,7 @@ public class VcfRemoveUnusedAlt extends Launcher {
 						}
 					gb.alleles(newAlleles);
 					
-					
+					// SnpEff AN
 					if(ctx.hasAttribute(this.vcfTools.getAnnPredictionParser().getTag()))
 						{
 						final Set<String> toRemoveStr = toRemove.stream().map(S->S.getDisplayString()).collect(Collectors.toSet());
@@ -207,6 +222,8 @@ public class VcfRemoveUnusedAlt extends Launcher {
 						
 						gb.attribute(this.vcfTools.getAnnPredictionParser().getTag(),newpreds);
 						}
+					
+					// VEP
 					if(ctx.hasAttribute(this.vcfTools.getVepPredictionParser().getTag()))
 						{
 						final Set<String> toRemoveStr = toRemove.stream().map(S->S.getDisplayString()).collect(Collectors.toSet());
