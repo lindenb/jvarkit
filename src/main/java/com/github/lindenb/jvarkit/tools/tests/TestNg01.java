@@ -80,6 +80,7 @@ import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.misc.FixVcfMissingGenotypes;
 import com.github.lindenb.jvarkit.tools.misc.Gff2KnownGene;
+import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
@@ -1280,5 +1281,31 @@ class TestNg01 {
     	Assert.assertTrue(output.delete());
 		}
     
-    	
+    @Test
+    public void testIlluminaReadName() throws IOException {
+    	IlluminaReadName.Parser parser= new IlluminaReadName.Parser();
+    	java.util.Optional<IlluminaReadName> n=parser.apply(
+    			"@EAS139:136:FC706VJ:2:2104:15343:197393 1:Y:18:ATCACG");
+    	Assert.assertTrue(n.isPresent());
+    	Assert.assertEquals(n.get().getInstrument(),"EAS139");
+    	Assert.assertEquals(n.get().getRunId(),136);
+    	Assert.assertEquals(n.get().getFlowCell(),"FC706VJ");
+    	Assert.assertEquals(n.get().getLane(),2);
+    	Assert.assertEquals(n.get().getTile(),2104);
+    	Assert.assertEquals(n.get().getX(),15343);
+    	Assert.assertEquals(n.get().getY(),197393);
+    	Assert.assertEquals(n.get().getIndex(),"ATCACG");
+
+    	 n=parser.apply(
+     			"@HWUSI-EAS100R:6:73:941:1973#0/1");
+     	Assert.assertTrue(n.isPresent());
+     	Assert.assertEquals(n.get().getInstrument(),"HWUSI-EAS100R");
+     	Assert.assertEquals(n.get().getLane(),6);
+     	Assert.assertEquals(n.get().getTile(),73);
+     	Assert.assertEquals(n.get().getX(),941);
+     	Assert.assertEquals(n.get().getY(),1973);
+     	
+	    n=parser.apply("@SEQ_ID");
+	  	Assert.assertFalse(n.isPresent());
+    	}
 }

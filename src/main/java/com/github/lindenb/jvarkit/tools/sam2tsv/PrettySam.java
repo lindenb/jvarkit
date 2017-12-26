@@ -595,8 +595,8 @@ public class PrettySam extends Launcher {
 			 new IlluminaReadName.Parser().apply(rec.getReadName()).
 			 	ifPresent(ilmn->{
 					label(margin2,"Instrument");pw.println(ilmn.getInstrument());
-					label(margin2,"Run");pw.println(ilmn.getRunId());
-					label(margin2,"FlowCell");pw.println(ilmn.getFlowCell());
+					if(ilmn.getRunId()>0) { label(margin2,"Run");pw.println(ilmn.getRunId());}
+					if(!StringUtil.isBlank(ilmn.getFlowCell())) { label(margin2,"FlowCell");pw.println(ilmn.getFlowCell());}
 					label(margin2,"Lane");pw.println(ilmn.getLane());
 					label(margin2,"Tile");pw.println(ilmn.getTile());
 					label(margin2,"X");pw.println(ilmn.getX());
@@ -661,12 +661,12 @@ public class PrettySam extends Launcher {
 					label(margin1,"Read Group");
 					pw.println();
 					label(margin2,"ID");
-					pw.printf("%10s\n",grouprec.getId());
+					pw.printf("%15s\n",grouprec.getId());
 					for(Map.Entry<String,String> entry:grouprec.getAttributes())
 						{
 						final String def = this.readgroupAtt2def.get(entry.getKey());
 						label(margin2,entry.getKey());
-						pw.printf("%10s",entry.getValue());
+						pw.printf("%15s",entry.getValue());
 						if(!StringUtil.isBlank(def)) {
 							pw.print("    \""+def+"\"");
 							}

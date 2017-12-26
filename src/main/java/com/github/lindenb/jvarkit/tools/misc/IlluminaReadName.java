@@ -27,9 +27,11 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 public class IlluminaReadName
 	{
+	private static final Pattern COLON  = Pattern.compile("[\\:]");
 	public enum Version {V1_4};
 	private String instrument=null;
 	private int runId=-1;
@@ -47,110 +49,106 @@ public class IlluminaReadName
 	public static class Parser implements Function<String, Optional<IlluminaReadName>>
 		{
 		private Version version = Version.V1_4;
+		private boolean isPositiveInteger(final String s) {
+			try {
+			return Integer.parseInt(s)>=0;	
+			}
+		catch(NumberFormatException err) {
+			return false;
+			}
+		} 
 		
-		private Optional<IlluminaReadName> parse_1_4(final String s) {
-
-			int i0=(s.startsWith("@")?1:0);
-			int i1=1;
-			IlluminaReadName irn=new IlluminaReadName();
-			i1=s.indexOf(':',i0);
-			if(i1==-1) return Optional.empty();
-			irn.instrument=s.substring(i0, i1);
+		private Optional<IlluminaReadName> parse_any(final String s) {
+			int blank=0;
+			for(blank=0;blank< s.length();blank++)
+				{
+				if(Character.isWhitespace(s.charAt(blank))) break;
+				}
+			String left=s.substring(0,blank);
+			String right=blank>=s.length()?"":s.substring(blank).trim();
 			
 			
-			i0=i1+1;
-			i1=s.indexOf(':',i0);
-			if(i1==-1) return Optional.empty();
-			irn.runId=Integer.parseInt(s.substring(i0, i1));
+			String tokens[] = COLON.split(left);
+			if(tokens[0].startsWith("@")) {
+				tokens[0]=tokens[0].substring(1);
+			}
 			
-			i0=i1+1;
-			i1=s.indexOf(':',i0);
-			if(i1==-1) return Optional.empty();
-			irn.flowCell=s.substring(i0, i1);
-
-			
-			i0=i1+1;
-			i1=s.indexOf(':',i0);
-			if(i1==-1) return Optional.empty();
-			String s2 = s.substring(i0, i1);
-			try
+			final IlluminaReadName irn=new IlluminaReadName();
+			switch(tokens.length)
 				{
-				irn.lane=Integer.parseInt(s2);
-				}
-			catch(final NumberFormatException err)
-				{
-				return Optional.empty();
-				}
-			
-			i0=i1+1;
-			i1=s.indexOf(':',i0);
-			if(i1==-1) return Optional.empty();
-			s2 = s.substring(i0, i1);
-			try
-				{
-				irn.tile=Integer.parseInt(s2);
-				}
-			catch(final NumberFormatException err)
-				{
-				return Optional.empty();
-				}
-			
-			i0=i1+1;
-			i1=s.indexOf(':',i0);
-			if(i1==-1) return Optional.empty();
-			s2 = s.substring(i0, i1);
-			try
-				{
-				irn.x=Integer.parseInt(s2);
-				}
-			catch(final NumberFormatException err)
-				{
-				return Optional.empty();
-				}
-			
-			i0=i1+1;
-			i1=s.indexOf(' ',i0);
-			if(i1==-1) i1=s.length();
-			s2 = s.substring(i0, i1);
-			try
-				{
-				irn.y=Integer.parseInt(s2);
-				}
-			catch(final NumberFormatException err)
-				{
-				return Optional.empty();
-				}
-			//no more metadata
-			if(i1==s.length())
-				{
-				return Optional.of(irn);
+				case 7:
+					{
+					if(!isPositiveInteger(tokens[1])) return Optional.empty();
+					if(!isPositiveInteger(tokens[3])) return Optional.empty();
+					if(!isPositiveInteger(tokens[4])) return Optional.empty();
+					if(!isPositiveInteger(tokens[5])) return Optional.empty();
+					if(!isPositiveInteger(tokens[6])) return Optional.empty();
+					irn.instrument=tokens[0];
+					irn.runId = Integer.parseInt(tokens[1]);
+					irn.flowCell=tokens[2];
+					irn.lane=Integer.parseInt(tokens[3]);
+					irn.tile=Integer.parseInt(tokens[4]);
+					irn.x=Integer.parseInt(tokens[5]);
+					irn.y=Integer.parseInt(tokens[6]);
+					break;
+					}
+				case 5:/* @HWUSI-EAS100R:6:73:941:1973#0/1 */
+					{
+					int hash=tokens[4].indexOf("#");
+					if(hash!=-1)
+						{
+						String tokens4right=tokens[4].substring(hash+1);
+						tokens[4]=tokens[4].substring(0, hash);
+						if(tokens4right.endsWith("/1")) {
+							irn.firstInPair=1;
+							}
+						else if(tokens4right.endsWith("/2")) {
+							irn.firstInPair=2;
+							}
+						}
+					if(!isPositiveInteger(tokens[1])) return Optional.empty();
+					if(!isPositiveInteger(tokens[2])) return Optional.empty();
+					if(!isPositiveInteger(tokens[3])) return Optional.empty();
+					if(!isPositiveInteger(tokens[4])) return Optional.empty();
+					irn.instrument=tokens[0];
+					irn.lane = Integer.parseInt(tokens[1]);
+					irn.tile=Integer.parseInt(tokens[2]);
+					irn.x=Integer.parseInt(tokens[3]);
+					irn.y=Integer.parseInt(tokens[4]);
+					break;
+					}
+				default: return Optional.empty();
 				}
 			
-			i0=i1+1;
-			switch(s.charAt(i0))
-				{
-				case '1':irn.firstInPair=1; break;
-				case '2':irn.firstInPair=2; break;
-				default: break;
+			if(right.isEmpty()) return Optional.of(irn);
+			tokens = COLON.split(right);
+			
+			if(tokens.length>0 && tokens[0].length()==1) {
+				switch(tokens[0].charAt(0))
+					{
+					case '1':irn.firstInPair=1; break;
+					case '2':irn.firstInPair=2; break;
+					default: break;
+					}
 				}
-			i1=i0+1;
 			
-			i0=i1+1;
-			switch(s.charAt(i0))
-				{
-				case 'Y':irn.fails_filter=true; break;
-				case 'N':irn.fails_filter=false; break;
-				default: break;
+			if(tokens.length>1 && tokens[1].length()==1) {
+				switch(tokens[1].charAt(0))
+					{
+					case 'Y':irn.fails_filter=true; break;
+					case 'N':irn.fails_filter=false; break;
+					default: break;
+					}
 				}
-			i1=i0+1;
 			
-			i0=i1+1;
-			i1=s.indexOf(':',i0);
-			if(i1==-1) return Optional.empty();
-			irn.flag=Integer.parseInt(s.substring(i0, i1));
+			if(tokens.length>2 && isPositiveInteger(tokens[2])) {
+				irn.flag=Integer.parseInt(tokens[2]);
+			}
 			
-			i0=i1+1;
-			irn.index=s.substring(i0);
+			if(tokens.length>3 ) {
+				irn.index=tokens[3];
+			}
+			
 			return Optional.of(irn);
 		}
 		
@@ -166,7 +164,7 @@ public class IlluminaReadName
 		public Optional<IlluminaReadName> apply(final String s) {
 			switch(getVersion())
 				{
-				case V1_4: return parse_1_4(s);
+				case V1_4: return parse_any(s);
 				default: throw new IllegalArgumentException("Cannot parse read name using version "+getVersion());
 				}
 			}
