@@ -62,9 +62,10 @@ END_DOC
 
 */
 @Program(
-		name="vcfwindowvariants",
+		name="variantsinwindow",
 		description="Annotate Number of Variants overlaping a sliding window.",
-		keywords={"vcf","annotation"}
+		keywords={"vcf","annotation"},
+		biostars=291144
 		)
 public class VariantsInWindow extends Launcher{
 	private static final Logger LOG = Logger.build(VariantsInWindow.class).make();
