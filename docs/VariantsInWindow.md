@@ -101,6 +101,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Thu Dec 28 20:09:49 2017 +0100 ; fix name from https://www.biostars.org/p/291144/#291145 ; https://github.com/lindenb/jvarkit/commit/d93b31743b4eaa7808ca8f02e89174c288c574cd
 Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
 ```
 

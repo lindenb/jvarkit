@@ -97,8 +97,11 @@ $(1)  : ${htsjdk.jars} \
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
 	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
 	cp -v "$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" "${tmp.dir}/$(dir $(subst .,/,$(2)))"
-	echo '### Printing javac version : it should be Oracle 1.8 (NOT OpenJDK). if Not, check your $$$${PATH}.'
-	${JAVAC} -version
+	echo '### Printing javac version : it should be Oracle 1.8 (you should avoid OpenJDK). if Not, check your $$$${PATH}.'
+	${JAVAC} -version 2> $$(addsuffix .jdkversion,$$@) && \
+		cat $$(addsuffix .jdkversion,$$@) && \
+		grep -E '1\.8\.[0-9_]+' $$(addsuffix .jdkversion,$$@) && \
+		rm $$(addsuffix .jdkversion,$$@)
 	#compile
 	${JAVAC} \
 		-J-Djvarkit.libs.jars='$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))' \
