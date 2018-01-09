@@ -71,9 +71,6 @@ END_DOC
 public class LumpyVcfToCircos extends Launcher {
 	
 	private static final Logger LOG = Logger.build(LumpyVcfToCircos.class).make();
-	private static final Allele DEL = Allele.create("<DEL>", false);
-	private static final Allele DUP = Allele.create("<DUP>", false);
-	private static final Allele INV = Allele.create("<INV>", false);
 	
 	@Parameter(names={"-o","--output"},description="output directory or zip file")
 	private File outputFile = null;
@@ -196,7 +193,7 @@ public class LumpyVcfToCircos extends Launcher {
 				}
 			final Genotype genotype = vc.getGenotype(sampleName);
 			final Allele alt = alts.get(0);
-			if(alt.equals(DEL))
+			if(alt.equals(LumpyConstants.DEL))
 				{
 				if(LumpyVcfToCircos.this.hide_del) return;
  				final SVDel sv = new SVDel();
@@ -208,7 +205,7 @@ public class LumpyVcfToCircos extends Launcher {
 				sv.end = vc.getAttributeAsInt("END", -1);
 				deletions.add(sv);
 				}
-			else if(alt.equals(INV))
+			else if(alt.equals(LumpyConstants.INV))
 				{
 				if(LumpyVcfToCircos.this.hide_inv) return;
 
@@ -221,7 +218,7 @@ public class LumpyVcfToCircos extends Launcher {
 				sv.end = vc.getAttributeAsInt("END", -1);
 				invertions.add(sv);
 				}
-			else if(alt.equals(DUP))
+			else if(alt.equals(LumpyConstants.DUP))
 				{
 				if(LumpyVcfToCircos.this.hide_dup) return;
 				final SVDup sv = new SVDup();
