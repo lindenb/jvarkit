@@ -54,6 +54,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/277820](https://www.biostars.org/p/277820)
  * [https://www.biostars.org/p/250212](https://www.biostars.org/p/250212)
  * [https://www.biostars.org/p/284083](https://www.biostars.org/p/284083)
+ * [https://www.biostars.org/p/292710](https://www.biostars.org/p/292710)
 
 
 ## Compilation
@@ -99,6 +100,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
 Tue Nov 7 17:21:21 2017 +0100 ; https://www.biostars.org/p/250212/ vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/d9b533e2389384f64f336111f4770c9ca7fd3ee0
 Wed Oct 25 09:48:05 2017 +0200 ; added counter<> to vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/282000fc2db2a3b69e7291a2ca74f2d88b6fbcb2
@@ -314,6 +316,14 @@ set DP missing in genotypes when only AD is present:
 curl -s "http://www.icbi.at/svnsimplex/CommonBioCommands/tags/simplex-1.0/CommonBioCommands/testdata/vcf/AMS1_converted_filtered_short_chr1.vcf" |\
 awk '/^#CHROM/ {printf("##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"\">\n");} {print;}' | \
 java -jar dist/vcffilterjdk.jar  -e 'List<Genotype> gl = variant.getGenotypes().stream().map(G->{int ad[]=G.getAD();if(ad==null || ad.length==0) return G; int c= Arrays.stream(ad).sum(); return new GenotypeBuilder(G).DP(c).make();}).collect(Collectors.toList());return new VariantContextBuilder(variant).genotypes(gl).make();'
+```
+
+## Example
+
+> How can I access the n-th item in the m-th sample"
+
+```
+$ java -jar dist/vcffilterjdk.jar -e 'Genotype G=variant.getGenotype(0); return G.hasAD() && G.getAD().length>1 &&  G.getAD()[1]>3;' input.vcf
 ```
 
 
