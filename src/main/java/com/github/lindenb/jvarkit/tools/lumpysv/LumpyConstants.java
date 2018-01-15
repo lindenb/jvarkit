@@ -24,6 +24,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.lumpysv;
 
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
 
 /**
  * Utilities for LUMPY-SV
@@ -32,4 +35,18 @@ public class LumpyConstants {
 	public static final Allele DEL = Allele.create("<DEL>", false);
 	public static final Allele DUP = Allele.create("<DUP>", false);
 	public static final Allele INV = Allele.create("<INV>", false);
+	
+	/** return true if the variant looks like a lumpy-sv header */
+	public static boolean isLumpyHeader(final VCFHeader header) {
+		final VCFFormatHeaderLine hL =header.getFormatHeaderLine("SU");
+		return hL!=null;
+		}
+	/** return true if the variant looks like a lumpy-sv variant */
+	public static boolean isLumpyVariant(final VariantContext ctx) {
+		return	ctx.getStructuralVariantType()!=null &&
+				ctx.getAlternateAlleles().size()==1 &&
+				ctx.getAlternateAllele(0).isSymbolic() &&
+				ctx.hasAttribute("SU")
+				;
+		}
 }

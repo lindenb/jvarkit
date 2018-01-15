@@ -55,6 +55,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/250212](https://www.biostars.org/p/250212)
  * [https://www.biostars.org/p/284083](https://www.biostars.org/p/284083)
  * [https://www.biostars.org/p/292710](https://www.biostars.org/p/292710)
+ * [https://www.biostars.org/p/293314](https://www.biostars.org/p/293314)
 
 
 ## Compilation
@@ -100,6 +101,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Jan 10 19:03:39 2018 +0100 ; https://www.biostars.org/p/292710 ; https://github.com/lindenb/jvarkit/commit/3dc0a07a64640742eafe3c75cc8f8958457eac53
 Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
 Tue Nov 7 17:21:21 2017 +0100 ; https://www.biostars.org/p/250212/ vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/d9b533e2389384f64f336111f4770c9ca7fd3ee0
@@ -326,5 +328,12 @@ java -jar dist/vcffilterjdk.jar  -e 'List<Genotype> gl = variant.getGenotypes().
 $ java -jar dist/vcffilterjdk.jar -e 'Genotype G=variant.getGenotype(0); return G.hasAD() && G.getAD().length>1 &&  G.getAD()[1]>3;' input.vcf
 ```
 
+## Example
+
+> Identifying variants differing between control/treatment
+
+```
+$ java -jar dist/vcffilterjdk.jar --body -e 'List<String> cases = null,controls=null;  public Object apply(final VariantContext variant) { if(cases==null) try {cases=IOUtil.slurpLines(new java.io.File("treat.txt")) ; controls= IOUtil.slurpLines(new java.io.File("control.txt")); } catch(Exception e) {throw new RuntimeIOException(e);}; for(final String S1:cases) {final Genotype G1=variant.getGenotype(S1); if(G1==null ||!G1.isCalled()) continue;for(final String S2:controls) {final Genotype G2=variant.getGenotype(S2); if(G2==null ||!G2.isCalled()) continue;   if(G1.sameGenotype(G2)) return false;}} return true;}' input.vcf```
+```
 
 

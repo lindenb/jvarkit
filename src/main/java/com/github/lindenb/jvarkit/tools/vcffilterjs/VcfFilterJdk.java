@@ -259,6 +259,13 @@ java -jar dist/vcffilterjdk.jar  -e 'List<Genotype> gl = variant.getGenotypes().
 $ java -jar dist/vcffilterjdk.jar -e 'Genotype G=variant.getGenotype(0); return G.hasAD() && G.getAD().length>1 &&  G.getAD()[1]>3;' input.vcf
 ```
 
+## Example
+
+> Identifying variants differing between control/treatment
+
+```
+$ java -jar dist/vcffilterjdk.jar --body -e 'List<String> cases = null,controls=null;  public Object apply(final VariantContext variant) { if(cases==null) try {cases=IOUtil.slurpLines(new java.io.File("treat.txt")) ; controls= IOUtil.slurpLines(new java.io.File("control.txt")); } catch(Exception e) {throw new RuntimeIOException(e);}; for(final String S1:cases) {final Genotype G1=variant.getGenotype(S1); if(G1==null ||!G1.isCalled()) continue;for(final String S2:controls) {final Genotype G2=variant.getGenotype(S2); if(G2==null ||!G2.isCalled()) continue;   if(G1.sameGenotype(G2)) return false;}} return true;}' input.vcf```
+```
 
 END_DOC
  */
@@ -266,7 +273,7 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083,292710},
+		biostars={266201,269854,277820,250212,284083,292710,293314},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk

@@ -8,6 +8,9 @@ Fisher Case /Controls per Variant
 ```
 Usage: vcfburdenfisherh [options] Files
   Options:
+    -gtf, --gtf, --gtFiltered
+      [20180115] Ignore FILTERed **Genotype**
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -17,12 +20,22 @@ Usage: vcfburdenfisherh [options] Files
       [20171031] Don't try to calculate things why variants already FILTERed 
       (faster) 
       Default: false
+    -lumpy-su-min, --lumpy-su-min
+      [20180115] if variant identified as LUMPy-SV variant. This is the 
+      minimal number of 'SU' to consider the genotype as a variant.
+      Default: 1
     -fisher, --minFisherPValue
       if p-value fisher(case/control vs have alt/have not alt) lower than 
       'fisher' the FILTER Column is Filled
       Default: 0.05
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --pedigree
+      [20180115] Pedigree file. Default: use the pedigree data in the VCF 
+      header.A pedigree is a text file delimited with tabs. No header. Columns 
+      are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or 
+      '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
+      affected,-9 unknown
     --version
       print version and exit
 
@@ -79,6 +92,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Jan 15 18:06:13 2018 +0100 ; lumpy-sv for fisherh ; https://github.com/lindenb/jvarkit/commit/20a748c5f793e938a175ddff98b2c3e811c95d0b
 Thu Nov 9 17:26:59 2017 +0100 ; fixing various thinsg, updated burdenfiltergene ; https://github.com/lindenb/jvarkit/commit/3a11227727666eedb1e6c77c8e16f124db9956e5
 Tue Oct 31 13:24:09 2017 +0100 ; fixing the doc of biostar59647, adding things to burdenxxx ; https://github.com/lindenb/jvarkit/commit/37006f2fdf22df564600680b1da139ac8432edd2
 Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
@@ -113,14 +127,14 @@ The current reference is:
 
 
 Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
-VCF header must contain a pedigree ( see VCFinjectPedigree ).
+VCF header must contain a pedigree ( see VCFinjectPedigree ) or a pedigree must be defined.
 
+## Lumpy-SV
 
+ * 20180115: this tools recognize lumpy-sv genotypes
 
 
 ### Output
-
-
 
 
 #### INFO column
@@ -129,27 +143,14 @@ VCF header must contain a pedigree ( see VCFinjectPedigree ).
  *  BurdenFisher : Fisher test
 
 
-
-
-
 #### FILTER column
-
 
  *  BurdenFisher :Fisher test doesn't meet  user's requirements
 
 
-
-
-
 ### see also
-
 
  *  VcfBurdenMAF
  *  VcfBurdenFilterExac
-
-
-
-
-
 
 

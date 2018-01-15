@@ -41,9 +41,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
-import org.eclipse.jetty.io.RuntimeIOException;
-
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -57,6 +56,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
@@ -189,6 +189,7 @@ public class VcfBurdenFisherH
 			private final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = CtxWriterFactory.this.caseControlExtractor;
 			private final boolean ignore_filtered_genotype = CtxWriterFactory.this.ignore_filtered_genotype;
 			private final int lumpy_SU_threshold =  CtxWriterFactory.this.lumpy_SU_threshold;
+			private boolean is_lumpy_vcf_header=false;
 			
 			CtxWriter(final VariantContextWriter delegate) {
 				super(delegate);
@@ -197,6 +198,7 @@ public class VcfBurdenFisherH
 			@Override
 			public void writeHeader(final VCFHeader header) {
 				final VCFHeader h2= new VCFHeader(header);
+				this.is_lumpy_vcf_header = LumpyConstants.isLumpyHeader(header);
 				h2.addMetaDataLine(this.fisherAlleleInfoHeader);
 				h2.addMetaDataLine(this.fisherAlleleFilterHeader);
 				h2.addMetaDataLine(this.fisherDetailInfoHeader);
@@ -228,10 +230,8 @@ public class VcfBurdenFisherH
 					return;
 					}
 				final boolean identified_as_lumpy= 
-						ctx.getStructuralVariantType()!=null &&
-						ctx.getAlternateAlleles().size()==1 &&
-						ctx.getAlternateAllele(0).isSymbolic() &&
-						ctx.hasAttribute("SU")
+						this.is_lumpy_vcf_header && 
+						LumpyConstants.isLumpyVariant(ctx)
 						;
 				boolean set_filter = true;
 				boolean found_one_alt_to_compute = false;
