@@ -758,12 +758,12 @@ public class Pedigree
 			return verbose;
 		}
 		
-		public java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> extract(final htsjdk.variant.vcf.VCFHeader header) {
-			final com.github.lindenb.jvarkit.util.Pedigree pedigree = Pedigree.newParser().parse(header);
-			if(pedigree.isEmpty())
-				{
-				throw new JvarkitException.PedigreeError("No pedigree found in header. use VcfInjectPedigree to add it");
-				}
+		/** extract affected/non-affected sample in pedigree that exists in VCF header samples */
+		public java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> extract(
+				final htsjdk.variant.vcf.VCFHeader header,
+				final com.github.lindenb.jvarkit.util.Pedigree pedigree
+				)
+			{
 			if(!pedigree.verifyPersonsHaveUniqueNames()) {
 				throw new JvarkitException.PedigreeError("I can't use this pedigree in a VCF because two samples have the same ID.");
 			}
@@ -789,6 +789,15 @@ public class Pedigree
 					);
 				}
 			return java.util.Collections.unmodifiableSet( individuals );
+		}
+		
+		public java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> extract(final htsjdk.variant.vcf.VCFHeader header) {
+			final com.github.lindenb.jvarkit.util.Pedigree pedigree = Pedigree.newParser().parse(header);
+			if(pedigree.isEmpty())
+				{
+				throw new JvarkitException.PedigreeError("No pedigree found in header. use VcfInjectPedigree to add it");
+				}
+			return extract(header,pedigree);			
 			}	
 		}
 	

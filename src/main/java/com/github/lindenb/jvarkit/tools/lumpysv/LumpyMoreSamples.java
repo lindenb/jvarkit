@@ -26,42 +26,46 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.lumpysv;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 
 /**
 BEGIN_DOC
@@ -76,8 +80,8 @@ BEGIN_DOC
 END_DOC
 */
 @Program(name="lumpymoresamples",
-		description="Lumpy to Circos",
-		keywords={"lumpy","circos","sv","vcf"},
+		description="TODO",
+		keywords={"lumpy","vcf"},
 		generate_doc=false
 		)
 public class LumpyMoreSamples extends Launcher {
@@ -89,12 +93,56 @@ public class LumpyMoreSamples extends Launcher {
 	@Parameter(names={"-b","--bam"},description="File containing list of bam, one path per line.",required=true)
 	private File bamFileList = null;
 	
-	private final Map<String,List<SamReader>> sample2samreaders = new HashMap<>();
+	
+	private int[] confidenceIntervalPos(final VariantContext ctx)
+		{
+		final List<Integer> L=ctx.getAttributeAsIntList("CIPOS", 0);
+		if(L.size()!=2) throw new IllegalArgumentException(L.toString());
+		return new int[] {L.get(0).intValue(),L.get(1).intValue()};
+		}
+	private int[] confidenceIntervalEnd(final VariantContext ctx)
+		{
+		final List<Integer> L=ctx.getAttributeAsIntList("CIEND", 0);
+		if(L.size()!=2) throw new IllegalArgumentException(L.toString());
+		return new int[] {L.get(0).intValue(),L.get(1).intValue()};
+		}
+
+	private static class SupportingReads
+		{		
+		int splitReads=0;
+		int pairedReads=0;
+		}
+	
+	private List<SAMRecord> extractSupportingReads(
+			final VariantContext ctx,
+			final String sample,
+			final SamReader reader,
+			QueryInterval intervals[]
+			) {
+		intervals = QueryInterval.optimizeIntervals(intervals);
+		final List<SAMRecord> L = new ArrayList<>();
+		final CloseableIterator<SAMRecord> iter= reader.query(intervals,false);
+		while(iter.hasNext())
+			{
+			final SAMRecord rec=iter.next();
+			if(rec.getReadUnmappedFlag()) continue;
+			if(rec.getDuplicateReadFlag()) continue;
+			if(rec.getCigar()==null || rec.getCigar().isEmpty()) continue;
+			final SAMReadGroupRecord rg = rec.getReadGroup();
+			if(rg==null) continue;
+			if(!sample.equals(rg.getSample())) continue;
+			L.add(rec);
+			}
+		iter.close();
+		return L;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 	VcfIterator r=null;
 	VariantContextWriter vcw=null;
+	final Map<String,SamReader> sample2samreaders = new HashMap<>();
+
 	try {
 		r = super.openVcfIterator(oneFileOrNull(args));
 		
@@ -109,7 +157,7 @@ public class LumpyMoreSamples extends Launcher {
 		final SamReaderFactory samReaderFactory = SamReaderFactory.
 				makeDefault().
 				validationStringency(ValidationStringency.LENIENT);
-		IOUtil.slurpLines(bamFileList).stream().forEach(F->{
+		IOUtil.slurpLines(this.bamFileList).stream().forEach(F->{
 			if(F.trim().isEmpty()) return;
 			final SamReader sr = samReaderFactory.open(SamInputResource.of(F));
 			final SAMFileHeader samHeader = sr.getFileHeader();
@@ -124,44 +172,125 @@ public class LumpyMoreSamples extends Launcher {
 			for(final SAMReadGroupRecord rg: samHeader.getReadGroups())
 				{
 				final String sample = rg.getSample();
-				List<SamReader> readers = this.sample2samreaders.get(sample);
-				if(readers==null) {
-					readers=new ArrayList<>();
-					this.sample2samreaders.put(sample,readers);
+				if(StringUtil.isBlank(sample)) continue;
+				final SamReader reader = sample2samreaders.get(sample);
+				if(reader==null) {
+					sample2samreaders.put(sample,reader);
 					}
-				readers.add(sr);
+				else if(reader==sr)
+					{
+					continue;
+					}
+				else
+					{
+					throw new JvarkitException.UserError("more than one sample per bam:"+F);
+					}
 				}
 			});
-		
-		final Set<String >genotypeSampleNames = new HashSet<>(headerIn.getSampleNamesInOrder());
-		genotypeSampleNames.addAll(this.sample2samreaders.keySet());
+		final Set<String> inVcfSampleNames = new HashSet<>(headerIn.getSampleNamesInOrder());
+		final Set<String> outVcfSampleNames = new HashSet<>(inVcfSampleNames);
+		outVcfSampleNames.addAll(sample2samreaders.keySet());
 		
 		final VCFHeader headerOut =
 				new VCFHeader(
 						headerIn.getMetaDataInInputOrder(),
-						genotypeSampleNames
+						outVcfSampleNames
 						);
-
+		
+		
+		final VCFFormatHeaderLine SU2= new VCFFormatHeaderLine("SU2",1,VCFHeaderLineType.Integer,"Number of pieces of evidence supporting the variant");
+		final VCFFormatHeaderLine PE2= new VCFFormatHeaderLine("PE2",1,VCFHeaderLineType.Integer,"Number of split reads supporting the variant");
+		final VCFFormatHeaderLine SR2= new VCFFormatHeaderLine("SR2",1,VCFHeaderLineType.Integer,"Number of paired-end reads supporting the variant");
+		headerOut.addMetaDataLine(SU2);
+		headerOut.addMetaDataLine(PE2);
+		headerOut.addMetaDataLine(SR2);
+		
 		vcw = super.openVariantContextWriter(this.outputFile);
 		vcw.writeHeader(headerOut);
 		while(r.hasNext())
 			{
 			final VariantContext ctx = r.next();
-			final List<Genotype> genotypes = new ArrayList<>(ctx.getGenotypes());
+			final StructuralVariantType sttype=ctx.getStructuralVariantType();
+			if(sttype==null) continue;
+			final int tid=dict.getSequenceIndex(ctx.getContig());
+
 			
-			for(final String sample:this.sample2samreaders.keySet())
+			final Map<String,Genotype> genotypeMap = new HashMap<>();
+			ctx.getGenotypes().stream().forEach(G->genotypeMap.put(G.getSampleName(),G));
+			
+			for(final String sample: sample2samreaders.keySet())
 				{
-				
+				final SamReader samReader = sample2samreaders.get(sample);
+				final SupportingReads sr = new SupportingReads();
+				switch(sttype)
+					{
+					case DEL:
+						{
+						int pos = ctx.getStart();
+						int ci[]=confidenceIntervalPos(ctx);
+						final QueryInterval left = new QueryInterval(tid,pos-ci[0],pos+ci[1]);
+						
+						int end = ctx.getEnd();
+						ci = confidenceIntervalEnd(ctx);
+						final QueryInterval right = new QueryInterval(tid,end-ci[0],end+ci[1]);
+						
+						
+						for(final SAMRecord rec: extractSupportingReads(ctx, sample, samReader, new QueryInterval[] {left,right}))
+							{
+							final Cigar cigar=rec.getCigar();
+							if(cigar.isLeftClipped())
+								{
+								final QueryInterval qi = new QueryInterval(tid,rec.getUnclippedStart(),rec.getStart()-1);
+								if(qi.overlaps(left))
+									{
+									sr.splitReads++;
+									if(rec.getReadPairedFlag()) sr.pairedReads++;
+									}
+								}
+							if(cigar.isRightClipped())
+								{
+								final QueryInterval qi = new QueryInterval(tid,rec.getEnd()+1,rec.getUnclippedEnd());
+								if(qi.overlaps(right))
+									{
+									sr.splitReads++;
+									if(rec.getReadPairedFlag()) sr.pairedReads++;
+									}
+								}
+							}
+						break;
+						}
+					default:break;
+					}
+				final GenotypeBuilder gb;
+				if(genotypeMap.containsKey(sample))
+					{
+					gb=new GenotypeBuilder(genotypeMap.get(sample));
+					}
+				else
+					{
+					gb = new GenotypeBuilder(sample,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+					}
+				gb.attribute(SR2.getID(), sr.splitReads);
+				gb.attribute(PE2.getID(), sr.pairedReads);
+				gb.attribute(SU2.getID(), 0);
+				genotypeMap.put(sample, gb.make());
 				}
 			
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-			vcb.genotypes(genotypes);
+			// add missing samples.
+			for(final String sampleName:outVcfSampleNames)
+				{
+				if(genotypeMap.containsKey(sampleName)) continue;
+				genotypeMap.put(sampleName, 
+						new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)).
+							make());
+				}
+			vcb.genotypes(genotypeMap.values());
 			
 			vcw.add(vcb.make());
 			}
 		r.close();r=null;
-		this.sample2samreaders.values().stream().
-			flatMap(L->L.stream()).
+		sample2samreaders.values().stream().
 			forEach(R->CloserUtil.close(R));
 		
 		LOG.info("done");

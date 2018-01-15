@@ -28,6 +28,7 @@ History:
 package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +40,8 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+
+import org.eclipse.jetty.io.RuntimeIOException;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -52,6 +55,7 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -71,14 +75,14 @@ BEGIN_DOC
 
 
 Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
-VCF header must contain a pedigree ( see VCFinjectPedigree ).
+VCF header must contain a pedigree ( see VCFinjectPedigree ) or a pedigree must be defined.
 
+## Lumpy-SV
 
+ * 20180115: this tools recognize lumpy-sv genotypes
 
 
 ### Output
-
-
 
 
 #### INFO column
@@ -87,28 +91,15 @@ VCF header must contain a pedigree ( see VCFinjectPedigree ).
  *  BurdenFisher : Fisher test
 
 
-
-
-
 #### FILTER column
-
 
  *  BurdenFisher :Fisher test doesn't meet  user's requirements
 
 
-
-
-
 ### see also
-
 
  *  VcfBurdenMAF
  *  VcfBurdenFilterExac
-
-
-
-
-
 
 END_DOC
 */
@@ -139,6 +130,15 @@ public class VcfBurdenFisherH
 		@XmlElement(name="ignore-filtered")
 		@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
 		private boolean ignoreFiltered=false;
+		@XmlElement(name="pedigree")
+		@Parameter(names={"-p","--pedigree"},description="[20180115] Pedigree file. Default: use the pedigree data in the VCF header." + Pedigree.OPT_DESCRIPTION)
+		private File pedigreeFile=null;
+		@XmlElement(name="ignore-filtered-genotype")
+		@Parameter(names={"-gtf","--gtf","--gtFiltered"},description="[20180115] Ignore FILTERed **Genotype**")
+		private boolean ignore_filtered_genotype=false;
+		@XmlElement(name="lumpy-su-min")
+		@Parameter(names={"-lumpy-su-min","--lumpy-su-min"},description="[20180115] if variant identified as LUMPy-SV variant. This is the minimal number of 'SU' to consider the genotype as a variant.")
+		private int lumpy_SU_threshold=1;
 
 		
 		@XmlTransient
@@ -187,7 +187,8 @@ public class VcfBurdenFisherH
 			private Set<Pedigree.Person> individualSet= null;
 			private final boolean ignoreFiltered = CtxWriterFactory.this.ignoreFiltered;
 			private final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = CtxWriterFactory.this.caseControlExtractor;
-
+			private final boolean ignore_filtered_genotype = CtxWriterFactory.this.ignore_filtered_genotype;
+			private final int lumpy_SU_threshold =  CtxWriterFactory.this.lumpy_SU_threshold;
 			
 			CtxWriter(final VariantContextWriter delegate) {
 				super(delegate);
@@ -199,19 +200,39 @@ public class VcfBurdenFisherH
 				h2.addMetaDataLine(this.fisherAlleleInfoHeader);
 				h2.addMetaDataLine(this.fisherAlleleFilterHeader);
 				h2.addMetaDataLine(this.fisherDetailInfoHeader);
-				this.individualSet = this.caseControlExtractor.apply(header);
+				if( CtxWriterFactory.this.pedigreeFile == null)
+					{
+					this.individualSet = this.caseControlExtractor.apply(header);
+					}
+				else
+					{
+					try {
+						this.individualSet = new Pedigree.CaseControlExtractor().extract(
+								header,
+								new Pedigree.Parser().parse( CtxWriterFactory.this.pedigreeFile)
+								);
+						}
+					catch(final IOException err)
+						{
+						throw new RuntimeIOException(err);
+						}
+					}
 				super.writeHeader(h2);
 				}
 			
 			@Override
 			public void add(final VariantContext ctx) {
-				
 				if(this.ignoreFiltered && ctx.isFiltered())
 					{
 					super.add(ctx);
 					return;
 					}
-				
+				final boolean identified_as_lumpy= 
+						ctx.getStructuralVariantType()!=null &&
+						ctx.getAlternateAlleles().size()==1 &&
+						ctx.getAlternateAllele(0).isSymbolic() &&
+						ctx.hasAttribute("SU")
+						;
 				boolean set_filter = true;
 				boolean found_one_alt_to_compute = false;
 				final List<String> infoData = new ArrayList<>(ctx.getAlleles().size());
@@ -235,19 +256,41 @@ public class VcfBurdenFisherH
 					for(final Pedigree.Person p: this.individualSet ) 	{
 						/* get genotype for this individual */
 						final Genotype genotype = ctx.getGenotype(p.getId());
-						/* individual is not in vcf header */
-						if(genotype==null || !genotype.isCalled() ) {
-							if(genotype==null) LOG.warn("Genotype is null for sample "+p.getId()+" not is pedigree!");
-							//no information , we consider that sample was called AND HOM REF
-							if(p.isAffected()) { count.case_miss_alt++; }
-							else { count.ctrl_miss_alt++; }
-							continue;
-						}
 						
-						/* loop over alleles */
-						final boolean genotype_contains_allele = genotype.getAlleles().stream().
-								anyMatch(A->A.equals(observed_alt));
+						final boolean genotype_contains_allele;
 						
+						if(identified_as_lumpy && !genotype.isCalled())
+							{
+							if(this.ignore_filtered_genotype && genotype.isFiltered())
+								{
+								if(p.isAffected()) { count.case_miss_alt++; }
+								else { count.ctrl_miss_alt++; }
+								continue;
+								}
+							if(!genotype.hasExtendedAttribute("SU"))
+								{
+								throw new JvarkitException.FileFormatError(
+										"Variant identified as lumpysv, but not attribute 'SU' defined in genotye "+genotype);
+								}
+							final int su_count = genotype.getAttributeAsInt("SU", 0);
+							genotype_contains_allele = su_count>= this.lumpy_SU_threshold;
+							}
+						else
+							{
+							/* individual is not in vcf header */
+							if(genotype==null || !genotype.isCalled() || (this.ignore_filtered_genotype && genotype.isFiltered())) {
+								if(genotype==null) LOG.warn("Genotype is null for sample "+p.getId()+" not is pedigree!");
+								//no information , we consider that sample was called AND HOM REF
+								if(p.isAffected()) { count.case_miss_alt++; }
+								else { count.ctrl_miss_alt++; }
+								continue;
+								}
+							
+							/* loop over alleles */
+							genotype_contains_allele = genotype.getAlleles().stream().
+									anyMatch(A->A.equals(observed_alt));
+							
+							}
 						
 						/* fisher */
 						if(genotype_contains_allele) {
