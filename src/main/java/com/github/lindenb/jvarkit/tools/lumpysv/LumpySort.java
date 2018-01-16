@@ -28,33 +28,44 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIterator;
+import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIteratorImpl;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFEncoder;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderVersion;
 
 
 /**
@@ -68,7 +79,7 @@ BEGIN_DOC
 END_DOC
  */
 @Program(name="lumpysort",
-description="Java based version of Lupy l_sort.py. Sort Lumpy-SV VCFs on disk.",
+description="sort and merge a set of Lumpy-SV VCF files.",
 keywords={"lumpy","vcf","sort"},
 generate_doc=false
 )
@@ -78,145 +89,141 @@ public class LumpySort
 	private static final Logger LOG = Logger.build(LumpySort.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names={"-f","--fraction"},description="Overlap fraction")
+	private double fraction_overlap = 0.8;
 	@ParametersDelegate
 	private Launcher.WritingSortingCollection sortingArgs = new Launcher.WritingSortingCollection();
 	
-	private final List<VCFUtils.CodecAndHeader> codecAndHeaders = new ArrayList<>();
+	/** encoder for VariantCtx -> line */
+	private VCFEncoder vcfEncoder = null;
+	/** encoder for line -> VariantCtx */
+	private final VCFCodec vcfCodec = new VCFCodec();
+	
 	
 	private class LumpyVar
-		implements Comparable<LumpyVar>
 		{
-		final int fileidx;
-		final String line;
-		private VariantContext ctx = null;
-		LumpyVar(final int fileidx,final String line)
+		private final VariantContext ctx;
+		boolean consummed = false;
+		LumpyVar(VariantContext ctx)
 			{
-			this.fileidx = fileidx;
-			this.line = line;
+			this.ctx = ctx;
 			}
-		VariantContext getCtx() {
-			if(ctx==null)
-				{
-				this.ctx= LumpySort.this.codecAndHeaders.get(this.fileidx).codec.decode(this.line);
-				}
-			return this.ctx;
+		private Set<String> getGenotypedSamples() {
+			return ctx.getGenotypes().stream().
+					filter(G->isAvailableGenotype(G)).
+					map(G->G.getSampleName()).
+					collect(Collectors.toSet());
+			}	
+		private Interval getInterval() {//TODO
+			if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
+			final List<Integer> ciposL= ctx.getAttributeAsIntList("CIPOS",0);
+			if(ciposL.size()!=2) throw new IllegalArgumentException("len(CIPOS)!=2 in "+ctx);
+			if(!ctx.hasAttribute("CIEND")) throw new IllegalArgumentException("No CIEND in "+ctx);
+			final List<Integer> ciendL= ctx.getAttributeAsIntList("CIEND",0);
+			if(ciendL.size()!=2) throw new IllegalArgumentException("len(CIEND)!=2 in "+ctx);
+
+			return new Interval(
+				ctx.getContig(),
+				ctx.getStart()+ciposL.get(0),
+				ctx.getEnd()+ciendL.get(1)
+				);
 			}
-		private String getSvType()
-			{
-			return getCtx().getAttributeAsString("SVTYPE","");
-			}
-		private String getContigLeft()
-			{
-			return getCtx().getContig();
-			}
-		
-		private String getContigRight()
-			{
-			if(getSvType().equals("BND"))
-				{
-				final String alleleStr = getCtx().getAlternateAllele(0).getDisplayString();
-				//eg: '[chr1:6660[N' or 'N]chr1:6619783]'.
-				int colon = alleleStr.indexOf(':');
-				if(colon==-1) throw new IllegalArgumentException("bad BND "+alleleStr);
-				int x=colon-1;
-				while(x>0)
-					{
-					if(alleleStr.charAt(x)=='[' || alleleStr.charAt(x)==']') break;
-					x--;
-					}	
-				return alleleStr.substring(x+1, colon);
-				}
+		private Interval getBndInterval() {
+			if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
+			final List<Integer> ciposL= ctx.getAttributeAsIntList("CIPOS",0);
+			if(ciposL.size()!=2) throw new IllegalArgumentException("len(CIPOS)!=2 in "+ctx);
+			if(!ctx.hasAttribute("CIEND")) throw new IllegalArgumentException("No CIEND in "+ctx);
+			final List<Integer> ciendL= ctx.getAttributeAsIntList("CIEND",0);
+			if(ciendL.size()!=2) throw new IllegalArgumentException("len(CIEND)!=2 in "+ctx);
+			
+			String cL;
+			int pL;
+			if(ctx.getStructuralVariantType()==StructuralVariantType.BND) {
+				final  Map.Entry<String,Integer> entry = LumpyConstants.getBnDContigAndPos(ctx.getAlternateAllele(0).getDisplayString());
+				cL = entry.getKey();
+				pL = entry.getValue();
+				} 
 			else
 				{
-				return getCtx().getContig();
+				cL = ctx.getContig();
+				pL = ctx.getEnd();
 				}
+			
+			return new Interval(
+				cL,
+				pL+ciposL.get(0),
+				pL+ciendL.get(1)
+				);	
+			}
+		boolean canMerge(final LumpyVar o)
+			{
+			if(this.consummed) return false;
+			if(o.consummed) return false;
+			// we cannot have common available variants between two ctx
+			final Set<String> commonSamples= new HashSet<String>(this.getGenotypedSamples());
+			commonSamples.retainAll(o.getGenotypedSamples());
+			
+			
+			if(!commonSamples.isEmpty()) {
+				return false;
+			}
+			if(this.compare1(o)!=0) return false;
+			
+			Interval L1 = this.getInterval();
+			Interval L2 = o.getInterval();
+			if(!LumpySort.this.overlap(L1,L2)) return false;
+			if(this.ctx.getStructuralVariantType()==StructuralVariantType.BND) {
+				L1 = this.getBndInterval();
+				L2 = o.getBndInterval();
+				if(!LumpySort.this.overlap(L1,L2)) return false;
+				}
+			
+			return true;
 			}
 		
 		private String getStrands()
 			{
-			return getCtx().getAttributeAsString("STRANDS","").substring(0,2);
+			String s= ctx.getAttributeAsString("STRANDS","");
+			int colon = s.indexOf(':');
+			return colon==-1?s:s.substring(0,2);
 			}
-		
-		private int _end()
-			{
-			if(getSvType().equals("BND"))
-				{
-				final String alleleStr = getCtx().getAlternateAllele(0).getDisplayString();
-				//eg: '[chr1:6660[N' or 'N]chr1:6619783]'.
-				int colon = alleleStr.indexOf(':');
-				if(colon==-1) throw new IllegalArgumentException("bad BND "+alleleStr);
-				int x=colon+1;
-				while(x<alleleStr.length())
-					{
-					if(alleleStr.charAt(x)=='[' || alleleStr.charAt(x)==']') break;
-					x++;
-					}	
-				return Integer.parseInt(alleleStr.substring(colon+1,x));
-				}
-			else
-				{
-				return getCtx().getEnd();
-				}
-			}
-		
-		private int getStartLeft() {
-			return  getCtx().getStart() +  getCtx().getAttributeAsIntList("CIPOS",0).get(0);
-		}
-		private int getEndLeft() {
-			return  getCtx().getStart() +  getCtx().getAttributeAsIntList("CIPOS",0).get(1);
-		}
-		
-		
-		private int getStartRight() {
-			return _end() +  getCtx().getAttributeAsIntList("CIEND",0).get(0);
-		}
-		private int getEndRight() {
-			return _end() +  getCtx().getAttributeAsIntList("CIEND",0).get(1);
-		}
-		
-		@Override
-		public int compareTo(final LumpyVar o) {
-			String s1 = this.getSvType();
-			String s2 = o.getSvType();
-			int i= s1.compareTo(s2);
+			
+		public int compare1(final LumpyVar o) {
+			StructuralVariantType st1= this.ctx.getStructuralVariantType();
+			StructuralVariantType st2= o.ctx.getStructuralVariantType();
+			int i= st1.compareTo(st2);
 			if(i!=0) return i;
 			//
-			s1 = this.getContigLeft();
-			s2 = o.getContigLeft();
-			i= s1.compareTo(s2);
+			String s1 = this.ctx.getContig();
+			String s2 = o.ctx.getContig();
+			i = s1.compareTo(s2);
 			if(i!=0) return i;
 			//
-			s1 = this.getContigRight();
-			s2 = o.getContigRight();
-			i= s1.compareTo(s2);
-			if(i!=0) return i;
+			if(st1.equals(StructuralVariantType.BND)) {
+				s1 = LumpyConstants.getBnDContig(this.ctx.getAlternateAllele(0).getDisplayString());
+				s2 = LumpyConstants.getBnDContig(o.ctx.getAlternateAllele(0).getDisplayString());
+				i = s1.compareTo(s2);
+				if(i!=0) return i;
+				}
 			//
 			s1 = this.getStrands();
 			s2 = o.getStrands();
-			i= s1.compareTo(s2);
+			i = s1.compareTo(s2);
 			if(i!=0) return i;
-			//
-			int i1 = this.getStartLeft();
-			int i2 = o.getStartLeft();
-			i = i1 - i2;
+			return 0;
+			}
+		
+		public int compare2(final LumpyVar o) {
+			int i = compare1(o);
 			if(i!=0) return i;
-			//
-			i1 = this.getEndLeft();
-			i2 = o.getEndLeft();
-			i = i1 - i2;
+			i = this.ctx.getStart() - o.ctx.getStart();
 			if(i!=0) return i;
-			//
-			i1 = this.getStartRight();
-			i2 = o.getStartRight();
-			i = i1 - i2;
-			if(i!=0) return i;
-			//
-			i1 = this.getEndRight();
-			i2 = o.getEndRight();
-			i = i1 - i2;
+			i = this.ctx.getEnd() - o.ctx.getEnd();
 			if(i!=0) return i;
 			
-			return line.compareTo(o.line);
+			String S1 = variantContextToLine(this.ctx);
+			String S2 = variantContextToLine(o.ctx);
+			return S1.compareTo(S2);
 			}
 		
 		}
@@ -226,27 +233,62 @@ public class LumpySort
 		{
 		@Override
 		public LumpyVar decode(final DataInputStream dis) throws IOException {
-			int i;
+			String line;
 			try
 				{
-				i = dis.readInt();
+				line = readString(dis);
 				}
 			catch(Exception err)
 				{
 				return null;
 				}
-			final String l= readString(dis);
-			return new LumpyVar(i, l);
+			return new LumpyVar(linetoVariantContext(line));
 			}
 		@Override
 		public void encode(final DataOutputStream dos, final  LumpyVar v) throws IOException {
-			dos.writeInt(v.fileidx);
-			writeString(dos, v.line);
+			writeString(dos,variantContextToLine(v.ctx));
 			}
 		@Override
 		public LumpyVarCodec clone() {
 			return new LumpyVarCodec();
 			}
+		}
+	
+	private VariantContext linetoVariantContext(final String line) {
+		return this.vcfCodec.decode(line);
+	}
+	private  String variantContextToLine(final VariantContext ctx) {
+		return this.vcfEncoder.encode(ctx);
+	}
+	private boolean overlap(final Interval i1,final Interval i2)
+		{
+		if(!i1.intersects(i2)) return false;
+		int L1 = i1.length();
+		int L2 = i2.length();
+		int  L3 = i1.getIntersectionLength(i2);
+		if(L3< (int)(this.fraction_overlap*L1)) return false;
+		if(L3< (int)(this.fraction_overlap*L2)) return false;
+		return true;
+		}
+	
+	private boolean isAvailableGenotype(final Genotype g)
+		{
+		if(!g.hasExtendedAttribute("SU")) {
+			return false;
+		}
+		final Object su  = g.getExtendedAttribute("SU", 0);
+		
+		if(su==null ) return false;
+		
+		int suv=(su instanceof Integer ?
+				Integer.class.cast(su).intValue():
+				Integer.parseInt(su.toString())
+				);
+		if(suv==0)
+			{
+			return false;
+			}
+		return true;
 		}
 	
 	@Override
@@ -262,113 +304,180 @@ public class LumpySort
 		return -1;
 		}
 	try {
+		final Set<VCFHeaderLine> metaData = new HashSet<>();
+		final Set<String> sampleNames = new TreeSet<>();
+
+		
+		for(final File vcfFile : inputs)
+			{
+			LOG.info("Reading Header of "+vcfFile);
+			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
+			final VCFHeader header = r.getFileHeader();
+			if(!LumpyConstants.isLumpyHeader(header))
+				{
+				LOG.error("doesn't look like a Lumpy-SV vcf header "+vcfFile);
+				r.close();
+				return -1;
+				}
+			
+			if(!header.hasGenotypingData()) {
+				LOG.error("No sample in "+vcfFile);
+				r.close();
+				return -1;
+				}
+			for(final String sampleName : header.getSampleNamesInOrder())
+				{
+				if(sampleNames.contains(sampleName)) {
+					LOG.error("Sample found twice "+sampleName+" in "+vcfFile);
+					r.close();
+					return -1;
+					}
+				sampleNames.add(sampleName);
+				}
+			metaData.addAll(
+					header.getMetaDataInInputOrder().
+					stream().filter(H->!H.getKey().equals("fileDate")).
+						collect(Collectors.toSet())
+					);
+			r.close();
+			}
+		final VCFHeader outHeader = new VCFHeader(
+			metaData,
+			sampleNames
+			);
+		final VCFHeaderVersion versions[]=VCFHeaderVersion.values();
+		this.vcfEncoder = new VCFEncoder(outHeader, false, true);
+		this.vcfCodec.setVCFHeader(
+				outHeader,
+				versions[versions.length-1]
+				);
 		sorting = SortingCollection.newInstance(
 				LumpyVar.class,
 				new LumpyVarCodec(),
-				(V1,V2)->V1.compareTo(V2),
+				(V1,V2)->V1.compare2(V2),
 				this.sortingArgs.getMaxRecordsInRam(),
 				this.sortingArgs.getTmpPaths()
 				);
 		sorting.setDestructiveIteration(true);
-		VCFHeader outHeader=null;
+
+		
 		for(final File vcfFile : inputs)
 			{
-			final Pattern tab = Pattern.compile("[\t]");
-			LOG.info("Read "+vcfFile);
-			vcfIn  = IOUtils.openFileForLineIterator(vcfFile);
-			VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(vcfIn);
-			this.codecAndHeaders.add(cah);
-			if(!LumpyConstants.isLumpyHeader(cah.header))
-				{
-				LOG.error("doesn't look like a Lumpy-SV vcf header "+vcfFile);
-				return -1;
-				}
-			if(outHeader==null) 
-				{
-				outHeader= new VCFHeader(
-						cah.header.getMetaDataInInputOrder().
-							stream().filter(H->!H.getKey().equals("fileDate")).
-							collect(Collectors.toSet()),
-						Collections.singletonList("VARIOUS")
-						);
-				outHeader.addMetaDataLine(new VCFInfoHeaderLine(
-						"SNAME",
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"Source sample name"
-						));
-				outHeader.addMetaDataLine(new VCFInfoHeaderLine(
-						"ALG",
-						1,
-						VCFHeaderLineType.String,
-						"Evidence PDF aggregation algorithm"
-						));
-				}
+			LOG.info("Read Variants of "+vcfFile);
+			int nVariant = 0;
+			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
 			
-			for(final String sample: cah.header.getSampleNamesInOrder())
-				{
-				outHeader.addMetaDataLine(new VCFHeaderLine("SAMPLE", "<ID="+sample+">"));
-				}
-			while(vcfIn.hasNext()) {
-				final String tokens[]=tab.split(vcfIn.next());
-				String infoStr = tokens[7];
-				if(infoStr.contains("SECONDARY")) continue;
-				if(!cah.header.getSampleNamesInOrder().isEmpty()) {
-					final StringBuilder sb=new StringBuilder(infoStr);
-					sb.append(";SNAME=");
-					sb.append(String.join(",", cah.header.getSampleNamesInOrder()));
-					infoStr = sb.toString();
+			final Set<String> missing =new HashSet<>(sampleNames);
+			missing.removeAll(r.getFileHeader().getSampleNamesInOrder());
+			
+			final CloseableIterator<VariantContext> iter = r.iterator();
+			while(iter.hasNext()) {
+				VariantContext ctx = iter.next();
+				final List<Genotype> gtList  = new ArrayList<>(ctx.getGenotypes());
+				for(final String sn:missing)
+					{
+					gtList.add(GenotypeBuilder.createMissing(sn, 2));
 					}
-				if(infoStr.startsWith("SVTYPE=BND")) {
-					final Map.Entry<String, Integer> bndCtgPos = LumpyConstants.getBnDContigAndPos(tokens[4]);
-					final String o_chr = bndCtgPos.getKey();
-					final int o_pos = bndCtgPos.getValue();
-					if(o_chr.equals(tokens[0]) && 
-							(infoStr.contains("--:")!=infoStr.contains("++:"))
-						)
-						{
-						final int neg_s = infoStr.indexOf("--:");
-
-                        if (neg_s > 0) {
-                        	final int neg_e = infoStr.indexOf(";",neg_s);
-                            final String pre = infoStr.substring(0,neg_s);
-                            final String mid = infoStr.substring(neg_s,neg_e);
-                            final String post=infoStr.substring(neg_e);
-                            infoStr = pre + "++:0," + mid + post;
-                        	}
-                        else
-                        	{
-                        	final int pos_s = infoStr.indexOf("++:");
-                            int pos_e = infoStr.indexOf(";",pos_s) ;
-                            final String pre = infoStr.substring(0,pos_s);
-                            final String  mid = infoStr.substring(pos_s,pos_e);
-                            final String post = infoStr.substring(pos_e);
-                            infoStr = pre + mid + ",--:0" + post;
-                        	}
-                        infoStr = "SVTYPE=INV" + infoStr.substring(10) + ";END=" + o_pos;
-                        tokens[4] = "<INV>";
-						}	
-					
-					}
-				tokens[7] = infoStr;
-				
-				sorting.add(new LumpyVar(
-						this.codecAndHeaders.size()-1,
-						String.join("\t", tokens)
-						));
+				ctx = new VariantContextBuilder(ctx).
+						genotypes(gtList).
+						rmAttribute("PRPOS").
+						make();
+				sorting.add(new LumpyVar(ctx));
+				nVariant++;
 				}
-			CloserUtil.close(vcfIn);vcfIn=null;
+			iter.close();
+			r.close();
+			LOG.info("Read Variants of "+vcfFile+" N="+nVariant);
 			}
+			
 		sorting.doneAdding();
-		CloseableIterator<LumpyVar> iter = sorting.iterator();
 		
+		final List<Allele> DIPLOID_NO_CALLS=Arrays.asList(Allele.NO_CALL,Allele.NO_CALL);
+		final CloseableIterator<LumpyVar> iter = sorting.iterator();
+		final ForwardPeekIterator<LumpyVar> fwdIter =  new ForwardPeekIteratorImpl<LumpySort.LumpyVar>(iter);
+
 		vcw = super.openVariantContextWriter(this.outputFile);
 		vcw.writeHeader(outHeader);
-		while(iter.hasNext())
+		for(;;)
 			{
-			vcw.add(iter.next().getCtx());
+			if(!fwdIter.hasNext()) break;
+			final LumpyVar first = fwdIter.next();
+			if(first.consummed) {
+				continue;
+			}
+			final List<LumpyVar> buffer = new ArrayList<>();
+			buffer.add(first);
+			for(int x=0;;++x)
+				{
+				final LumpyVar lv = fwdIter.peek(x);
+				if(lv==null){
+					break;
+				}
+				if(first.compare1(lv)!=0) 
+					{
+					break;
+					}
+				if(lv.consummed) continue;
+				if(lv.ctx.getStart()>first.ctx.getEnd()) {
+					break;
+					}
+				if(first.canMerge(lv))
+					{
+					buffer.add(lv);
+					}
+				else
+					{
+					}
+				}
+			
+			final int variantStart = buffer.stream().
+					mapToInt(V->V.ctx.getStart()).
+					min().getAsInt();
+			final int variantEnd = buffer.stream().
+					mapToInt(V->V.ctx.getEnd()).
+					max().getAsInt();
+			final VariantContextBuilder vcb = new VariantContextBuilder(
+					"lumpymerge",
+					first.ctx.getContig(),
+					variantStart,
+					variantEnd,
+					first.ctx.getAlleles()
+					);
+			vcb.attribute("END", variantEnd);
+			vcb.attribute("SVTYPE", first.ctx.getAttribute("SVTYPE"));
+			vcb.attribute("SVLEN", (int)Percentile.median().evaluate(buffer.stream().mapToInt(V->V.ctx.getEnd()-V.ctx.getStart())));
+			vcb.attribute("STRANDS",  first.getStrands());
+			vcb.attribute("CIPOS",Arrays.asList(0,0));
+			vcb.attribute("CIEND",Arrays.asList(0,0));
+
+			final Map<String,Genotype> sample2genotype = new HashMap<>(sampleNames.size());
+			
+			
+			buffer.stream().flatMap(V->V.ctx.getGenotypes().stream()).
+				filter(G->isAvailableGenotype(G)).
+				forEach(G->{
+				sample2genotype.put(G.getSampleName(), G);
+			});
+			
+			for(final String sn: sampleNames)
+				{
+				if(!sample2genotype.containsKey(sn))
+					{
+					sample2genotype.put(sn, new GenotypeBuilder(sn,DIPLOID_NO_CALLS).
+							attribute("SU",0).
+							attribute("SR",0).
+							attribute("PE",0).
+							make());
+					}	
+				}
+			
+			vcb.genotypes(sample2genotype.values());
+			vcw.add(vcb.make());
+
+			buffer.stream().forEach(V->{V.consummed=true;});
 			}
 		vcw.close();vcw=null;
+		fwdIter.close();
 		iter.close();
 		
 		return 0;
@@ -382,7 +491,7 @@ public class LumpySort
 		{
 		CloserUtil.close(vcfIn);
 		CloserUtil.close(vcw);
-		}
+		} 
 	}
 	 
 	public static void main(final String[] args) {

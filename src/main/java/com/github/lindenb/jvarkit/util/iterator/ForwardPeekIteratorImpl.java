@@ -42,12 +42,29 @@ public class ForwardPeekIteratorImpl<E>
 		this.delegate = delegate;
 		}
 	
-	private void fillTo(int index) {
-		while(this.stack.size()<=index && this.delegate.hasNext()) {
-			this.stack.add(this.delegate.next());
+	private void fillTo(final int index) {
+		while(this.stack.size()<=index && this.delegate.hasNext()) {			
+			final E N= this.delegate.next();
+			if(N==null) throw new NullPointerException("delegate returned null"); 
+			this.stack.add(N);
 			}
 		}
+	@Override
+	public boolean hasNext() {
+		if(!this.stack.isEmpty()) return true;
+		return this.delegate.hasNext();
+		}
 	
+	@Override
+	public E next() {
+		if(!this.stack.isEmpty())
+			{
+			return this.stack.remove(0);
+			}
+	
+		if(!this.delegate.hasNext()) throw new NoSuchElementException();
+		return this.delegate.next();
+		}
 	@Override
 	protected E advance() {
 		if(!this.stack.isEmpty())
@@ -72,7 +89,7 @@ public class ForwardPeekIteratorImpl<E>
 		}
 	
 	@Override
-	public E peek(int index) {
+	public E peek(final int index) {
 		fillTo(index);
 		return (index<this.stack.size()?this.stack.get(index):null);
 		}

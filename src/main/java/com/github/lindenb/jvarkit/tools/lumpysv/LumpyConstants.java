@@ -56,7 +56,7 @@ public class LumpyConstants {
 				ctx.hasAttribute("CIEND")
 				;
 		}
-	
+	/*
 	public static Interval getIntervalLeft(final VariantContext ctx)
 		{
 		if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
@@ -92,7 +92,7 @@ public class LumpyConstants {
 			pL+ciendL.get(0),
 			pL+ciendL.get(1)
 			);
-		}
+		}*/
 
 	
 	/** return Bnd contig and pos from a BnD ALT allele */

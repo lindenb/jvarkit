@@ -99,7 +99,7 @@ public class LumpyMerge
 			if(!this.ctx.getContig().equals(other.ctx.getContig())) return false;
 			if(this.ctx.getStructuralVariantType()!=other.ctx.getStructuralVariantType()) return false;
 			if(!this.getStrand().equals(other.getStrand())) return false;
-			
+			/*
 			Interval L1 = LumpyConstants.getIntervalLeft(this.ctx);
 			Interval L2 = LumpyConstants.getIntervalLeft(other.ctx);
 			if(!LumpyMerge.this.overlap(L1,L2)) return false;
@@ -109,7 +109,7 @@ public class LumpyMerge
 				L2 = LumpyConstants.getIntervalRight(other.ctx);
 				if(!LumpyMerge.this.overlap(L1,L2)) return false;
 				}
-			
+			*/
 			
 			
 			if(this.next!=null)
@@ -211,7 +211,7 @@ public class LumpyMerge
 					}
 				++countVariant;
 				final LumpyVar lCtx = new LumpyVar(ctx);
-				final Interval rgn = LumpyConstants.getIntervalLeft(ctx);
+				final Interval rgn = null;//LumpyConstants.getIntervalLeft(ctx);
 				boolean found=false;
 				for(final List<LumpyVar> L:intervalTreeMap.getOverlapping(rgn))
 					{
