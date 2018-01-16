@@ -167,6 +167,7 @@ public class LumpyMerge
 		final Set<String> sampleNames = new TreeSet<>();
 		for(final File vcfFile : inputs)
 			{
+			int countVariant = 0;
 			LOG.info("Read "+vcfFile);
 			vcfIn  = new VCFFileReader(vcfFile,false);
 			VCFHeader header = vcfIn.getFileHeader();
@@ -202,7 +203,13 @@ public class LumpyMerge
 					rmAttribute("PE").
 					rmAttribute("SR").
 					make();
-					
+				
+				if(!LumpyConstants.isLumpyVariant(ctx))
+					{
+					LOG.error("doesn't look like a Lumpy-SV variant "+ctx);
+					return -1;
+					}
+				++countVariant;
 				final LumpyVar lCtx = new LumpyVar(ctx);
 				final Interval rgn = LumpyConstants.getIntervalLeft(ctx);
 				boolean found=false;
@@ -228,11 +235,12 @@ public class LumpyMerge
 					if(L==null)
 						{
 						L=new ArrayList<>();
+						intervalTreeMap.put(rgn,L);
 						}
 					L.add(lCtx);
-					intervalTreeMap.put(rgn,L);
 					}
 				}
+			LOG.info(vcfFile+ " N:"+countVariant);
 			iter.next();
 			vcfIn.close();
 			}
@@ -256,11 +264,14 @@ public class LumpyMerge
 						attribute("SR",0).
 						attribute("PE",0).
 						make()));
-				final int variantEnd= varl.stream().mapToInt(V->V.ctx.getEnd()).max().getAsInt();
+				final int variantStart = varl.stream().mapToInt(V->V.ctx.getStart()).min().getAsInt();
+				//final int variantStart_x = varl.stream().mapToInt(V->V.ctx.getStart()).max().getAsInt();
+				//final int variantEnd_x = varl.stream().mapToInt(V->V.ctx.getEnd()).min().getAsInt();
+				final int variantEnd = varl.stream().mapToInt(V->V.ctx.getEnd()).max().getAsInt();
 				final VariantContextBuilder vcb = new VariantContextBuilder(
 						"lumpymerge",
 						first.ctx.getContig(),
-						varl.stream().mapToInt(V->V.ctx.getStart()).min().getAsInt(),
+						variantStart,
 						variantEnd,
 						first.ctx.getAlleles()
 						);
@@ -268,6 +279,11 @@ public class LumpyMerge
 				vcb.attribute("SVTYPE", first.ctx.getAttribute("SVTYPE"));
 				vcb.attribute("SVLEN", (int)Percentile.median().evaluate(varl.stream().mapToInt(V->V.ctx.getEnd()-V.ctx.getStart())));
 				vcb.attribute("STRANDS",  first.getStrand());
+				vcb.attribute("CIPOS",Arrays.asList(0,0));
+				vcb.attribute("CIEND",Arrays.asList(0,0));
+
+				
+				
 				
 				varl.stream().flatMap(V->V.ctx.getGenotypes().stream()).forEach(G->{
 					sample2genotype.put(G.getSampleName(), G);

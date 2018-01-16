@@ -52,7 +52,8 @@ public class LumpyConstants {
 		return	ctx.getStructuralVariantType()!=null &&
 				ctx.getAlternateAlleles().size()==1 &&
 				ctx.getAlternateAllele(0).isSymbolic() &&
-				ctx.hasAttribute("SU")
+				ctx.hasAttribute("CIPOS") && 
+				ctx.hasAttribute("CIEND")
 				;
 		}
 	
