@@ -93,7 +93,7 @@ END_DOC
 */
 @Program(
 		name="samaddpi",
-		description="add predicted median insert size 'PI' to SAM Read groups (RG).",
+		description="Add predicted median insert size 'PI' to SAM Read groups (RG).",
 		keywords= {"sam","bam"}
 		)
 public class SamAddPI extends Launcher

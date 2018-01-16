@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -49,13 +50,11 @@ import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import javafx.scene.control.Tab;
 
 
 /**
@@ -321,23 +320,9 @@ public class LumpySort
 					infoStr = sb.toString();
 					}
 				if(infoStr.startsWith("SVTYPE=BND")) {
-					int colon = tokens[4].indexOf(':');
-					int m = colon-1;
-					while(m>=0)
-						{
-						char c=infoStr.charAt(m);
-						if(c=='[' || c==']') break;
-						--m;
-						}
-					int n = colon+1;
-					while(n<tokens[4].length())
-						{
-						char c=infoStr.charAt(n);
-						if(c=='[' || c==']') break;
-						++n;
-						}
-					final String o_chr = infoStr.substring(m+1, colon);
-					final int o_pos = Integer.parseInt( infoStr.substring(colon+1,n));
+					final Map.Entry<String, Integer> bndCtgPos = LumpyConstants.getBnDContigAndPos(tokens[4]);
+					final String o_chr = bndCtgPos.getKey();
+					final int o_pos = bndCtgPos.getValue();
 					if(o_chr.equals(tokens[0]) && 
 							(infoStr.contains("--:")!=infoStr.contains("++:"))
 						)

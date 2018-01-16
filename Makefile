@@ -217,7 +217,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort
+	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpymerge samaddpi
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -271,6 +271,7 @@ $(eval $(call compile-htsjdk-cmd,lowresbam2raster,${jvarkit.package}.tools.bam2g
 $(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,samaddpi,${jvarkit.package}.tools.misc.SamAddPI,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bamindexnames.BamIndexReadNames,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames,${jcommander.jar}))
@@ -533,7 +534,7 @@ $(eval $(call compile-htsjdk-cmd,variantsinwindow,${jvarkit.package}.tools.misc.
 $(eval $(call compile-htsjdk-cmd,casectrlcanvas,${jvarkit.package}.tools.burden.CaseControlCanvas,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,knime2txt,${jvarkit.package}.tools.misc.KnimeToText,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,lumpyvcf2circos,${jvarkit.package}.tools.lumpysv.LumpyVcfToCircos,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,lumpysort,${jvarkit.package}.tools.lumpysv.LumpySort,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,lumpymerge,${jvarkit.package}.tools.lumpysv.LumpyMerge,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fastgenotypegvcfs,${jvarkit.package}.tools.gvcf.FastGenotypeGVCFs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,xsltstream,${jvarkit.package}.tools.misc.XsltStream,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfloopovergenes,${jvarkit.package}.tools.burden.VcfLoopOverGenes,${jcommander.jar}))
