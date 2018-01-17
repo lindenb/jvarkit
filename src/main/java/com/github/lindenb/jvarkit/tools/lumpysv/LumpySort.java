@@ -91,6 +91,11 @@ public class LumpySort
 	private File outputFile = null;
 	@Parameter(names={"-f","--fraction"},description="Overlap fraction")
 	private double fraction_overlap = 0.8;
+	@Parameter(names={"-slop","--slop"},description="slop for 'x' bases in both directions.")
+	private int slop_size = 0;
+	@Parameter(names={"-secondary","--secondary"},description="keep SECONDARY record. \"Secondary breakend in a multi-line variants\".")
+	private boolean keep_secondary = false;
+
 	@ParametersDelegate
 	private Launcher.WritingSortingCollection sortingArgs = new Launcher.WritingSortingCollection();
 	
@@ -114,7 +119,8 @@ public class LumpySort
 					map(G->G.getSampleName()).
 					collect(Collectors.toSet());
 			}	
-		private Interval getInterval() {//TODO
+		
+		private Interval getInterval() {
 			if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
 			final List<Integer> ciposL= ctx.getAttributeAsIntList("CIPOS",0);
 			if(ciposL.size()!=2) throw new IllegalArgumentException("len(CIPOS)!=2 in "+ctx);
@@ -124,8 +130,8 @@ public class LumpySort
 
 			return new Interval(
 				ctx.getContig(),
-				ctx.getStart()+ciposL.get(0),
-				ctx.getEnd()+ciendL.get(1)
+				Math.max(0,ctx.getStart() + ciposL.get(0) - LumpySort.this.slop_size),
+				ctx.getEnd() + ciendL.get(1) + LumpySort.this.slop_size
 				);
 			}
 		private Interval getBndInterval() {
@@ -151,10 +157,11 @@ public class LumpySort
 			
 			return new Interval(
 				cL,
-				pL+ciposL.get(0),
-				pL+ciendL.get(1)
+				Math.max(0,pL+ciposL.get(0) - LumpySort.this.slop_size),
+				pL+ciendL.get(1) + LumpySort.this.slop_size
 				);	
 			}
+		
 		boolean canMerge(final LumpyVar o)
 			{
 			if(this.consummed) return false;
@@ -260,6 +267,8 @@ public class LumpySort
 	private  String variantContextToLine(final VariantContext ctx) {
 		return this.vcfEncoder.encode(ctx);
 	}
+	
+	
 	private boolean overlap(final Interval i1,final Interval i2)
 		{
 		if(!i1.intersects(i2)) return false;
@@ -373,6 +382,9 @@ public class LumpySort
 			final CloseableIterator<VariantContext> iter = r.iterator();
 			while(iter.hasNext()) {
 				VariantContext ctx = iter.next();
+				if(!this.keep_secondary) {
+					if(ctx.hasAttribute("SECONDARY")) continue;
+					}
 				final List<Genotype> gtList  = new ArrayList<>(ctx.getGenotypes());
 				for(final String sn:missing)
 					{
