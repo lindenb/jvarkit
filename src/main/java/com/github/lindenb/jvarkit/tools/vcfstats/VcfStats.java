@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.tools.burden.MafCalculator;
+import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -66,6 +67,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
@@ -303,7 +305,7 @@ public class VcfStats extends Launcher
 			}
 
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj)
 				return true;
 			if (obj == null || getClass() != obj.getClass())
@@ -430,6 +432,7 @@ public class VcfStats extends Launcher
 		final Counter<String> consequences = new Counter<>();
 		final Counter<String> variantsPerContigs = new Counter<>();
 		final Counter<ContigBin> countBins = new Counter<>();
+		final Counter<StructuralVariantType> countStructuralVariations = new Counter<>();
 		
 		protected ContigPosRef prevCtx=null;
 
@@ -552,7 +555,18 @@ public class VcfStats extends Launcher
 							}
 						}
 					}
-				
+				final StructuralVariantType structuralVariantType= ctx.getStructuralVariantType();
+				if(ctx!=null)
+					{
+					if(
+						(genotype.isCalled() && !genotype.isHomRef()) ||
+						(LumpyConstants.isLumpyVariant(ctx) && genotype.hasExtendedAttribute("SU") && genotype.getAttributeAsInt("SU", 0)>0)
+						)
+						{
+						this.countStructuralVariations.incr(structuralVariantType);
+						}
+					
+					}
 				
 				
 				if(genotype.hasDP())
@@ -650,6 +664,12 @@ public class VcfStats extends Launcher
 			//distance
 			visitForDistance(ctx);
 			
+			final StructuralVariantType structuralVariantType= ctx.getStructuralVariantType();
+			if(ctx!=null)
+				{
+				this.countStructuralVariations.incr(structuralVariantType);
+				}
+
 			
 			final List<Allele> alternates = ctx.getAlternateAlleles();
 
@@ -1153,6 +1173,7 @@ public class VcfStats extends Launcher
 						+ "gnuplot");				
 
 				}
+			
 			if(!this.countDepth.isEmpty())
 				{
 					{
@@ -1589,6 +1610,86 @@ public class VcfStats extends Launcher
 						);
 				makefileWriter.println("'| gnuplot");
 				}
+			if(!this.countStructuralVariations.isEmpty())
+				{
+				final String filename= toTsv("countSV");
+				PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				for(final StructuralVariantType k: StructuralVariantType.values())
+					{
+					final long n=this.countStructuralVariations.count(k);
+					pw.println(k.name()+"\t"+n);
+					}
+				pw.flush();
+				pw.close();
+				
+				final String png= toPng(filename);
+				makefileWriter.println("ALL_TARGETS+=" + png);
+				makefileWriter.println(png+":"+filename);
+				makefileWriter.println("\techo '"
+						+ "set ylabel \"Number of Variants /" + this.countVariants+"\";"
+						+ "set yrange [0:];"
+						+ "set xlabel \"Structural Variation type\";"
+						+ "set xtic rotate by 90 right;"
+						+ "set size  ratio 0.618;"
+						+ "set title \"Structural Variations\";"
+						+ "set style fill solid border -1;"
+						+ "set key  off;"
+						+ "set datafile separator \"\t\";"
+						+ "set auto x;"
+						+ "set style histogram;"
+						+ "set style data histogram;"
+						+ "set terminal png truecolor;"
+						+ "set output \"$@\";"
+						+ "plot \"$<\" using 2:xtic(1) ti \"\";' | "
+						+ "gnuplot");				
+	
+				}
+			
+			if(!this.sample2stats.values().stream().anyMatch(P->P.countStructuralVariations.isEmpty()))
+				{
+				final String filename=toTsv("sample2sv");
+				
+				
+				PrintWriter pw = VcfStats.this.archiveFactory.openWriter(filename);
+				pw.println("Sample\t"+Arrays.stream(StructuralVariantType.values()).map(V->V.name()).collect(Collectors.joining("\t")));
+				for(final String sample: this.sample2stats.keySet())
+					{
+					pw.print(sample);
+					for(final StructuralVariantType svt: StructuralVariantType.values())
+						{
+						pw.print("\t"+this.sample2stats.get(sample).countStructuralVariations.count(svt));
+						}
+					pw.println();
+					}
+				pw.flush();
+				pw.close();
+				
+				final String png=toPng(filename);
+				makefileWriter.println("ALL_TARGETS+=" + png);
+				makefileWriter.println(png+":"+filename);
+	
+				makefileWriter.print("\techo 'set terminal png truecolor size ${SCREEN_WIDTH},${SCREEN_HEIGHT} ;"
+						+ "set title \"Sample/Structural Variation\";"
+						+ "set xlabel \"Sample\";"
+						+ "set key autotitle columnhead;"
+						+ "set xtic rotate by 90 right;"
+						+ "set ylabel \"Count\";"
+						+ "set yrange [0:];"
+						+ "set key invert reverse Left outside;"
+						+ "set datafile separator \"\t\";"
+						+ "set style fill solid border -1;"
+						+ "set style data histograms;set style histogram rowstacked;"
+						+ "set boxwidth 0.95;set output \"$@\";"
+						+ "plot \"$<\" using 2:xtic(1)");
+				int k=2;
+				for(final StructuralVariantType svt: StructuralVariantType.values())
+					{
+					makefileWriter.print((k==2?"":", \"\" using "+k)+" ti \""+svt.name()+"\"");
+					++k;
+					}
+				makefileWriter.println("' | gnuplot");
+				}
+			
 			
 			for(final SampleStat st:this.sample2stats.values())
 				{

@@ -116,6 +116,9 @@ public class LumpySort
 		{
 		private final VariantContext ctx;
 		boolean consummed = false;
+		private Interval _interval=null;
+		private Interval _bndinterval=null;
+		
 		LumpyVar(final VariantContext ctx)
 			{
 			this.ctx = ctx;
@@ -128,45 +131,51 @@ public class LumpySort
 			}	
 		
 		private Interval getInterval() {
-			if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
-			final List<Integer> ciposL= ctx.getAttributeAsIntList("CIPOS",0);
-			if(ciposL.size()!=2) throw new IllegalArgumentException("len(CIPOS)!=2 in "+ctx);
-			if(!ctx.hasAttribute("CIEND")) throw new IllegalArgumentException("No CIEND in "+ctx);
-			final List<Integer> ciendL= ctx.getAttributeAsIntList("CIEND",0);
-			if(ciendL.size()!=2) throw new IllegalArgumentException("len(CIEND)!=2 in "+ctx);
-
-			return new Interval(
-				ctx.getContig(),
-				Math.max(0,ctx.getStart() + ciposL.get(0) - LumpySort.this.slop_size),
-				ctx.getEnd() + ciendL.get(1) + LumpySort.this.slop_size
-				);
+			if(this._interval==null) {
+				if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
+				final List<Integer> ciposL= ctx.getAttributeAsIntList("CIPOS",0);
+				if(ciposL.size()!=2) throw new IllegalArgumentException("len(CIPOS)!=2 in "+ctx);
+				if(!ctx.hasAttribute("CIEND")) throw new IllegalArgumentException("No CIEND in "+ctx);
+				final List<Integer> ciendL= ctx.getAttributeAsIntList("CIEND",0);
+				if(ciendL.size()!=2) throw new IllegalArgumentException("len(CIEND)!=2 in "+ctx);
+	
+				this._interval =  new Interval(
+					ctx.getContig(),
+					Math.max(0,ctx.getStart() + ciposL.get(0) - LumpySort.this.slop_size),
+					ctx.getEnd() + ciendL.get(1) + LumpySort.this.slop_size
+					);
+				}
+			return this._interval;
 			}
 		private Interval getBndInterval() {
-			if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
-			final List<Integer> ciposL= ctx.getAttributeAsIntList("CIPOS",0);
-			if(ciposL.size()!=2) throw new IllegalArgumentException("len(CIPOS)!=2 in "+ctx);
-			if(!ctx.hasAttribute("CIEND")) throw new IllegalArgumentException("No CIEND in "+ctx);
-			final List<Integer> ciendL= ctx.getAttributeAsIntList("CIEND",0);
-			if(ciendL.size()!=2) throw new IllegalArgumentException("len(CIEND)!=2 in "+ctx);
-			
-			String cL;
-			int pL;
-			if(ctx.getStructuralVariantType()==StructuralVariantType.BND) {
-				final  Map.Entry<String,Integer> entry = LumpyConstants.getBnDContigAndPos(ctx.getAlternateAllele(0).getDisplayString());
-				cL = entry.getKey();
-				pL = entry.getValue();
-				} 
-			else
-				{
-				cL = ctx.getContig();
-				pL = ctx.getEnd();
+			if(this._bndinterval==null) {
+				if(!ctx.hasAttribute("CIPOS")) throw new IllegalArgumentException("No CIPOS in "+ctx);
+				final List<Integer> ciposL= ctx.getAttributeAsIntList("CIPOS",0);
+				if(ciposL.size()!=2) throw new IllegalArgumentException("len(CIPOS)!=2 in "+ctx);
+				if(!ctx.hasAttribute("CIEND")) throw new IllegalArgumentException("No CIEND in "+ctx);
+				final List<Integer> ciendL= ctx.getAttributeAsIntList("CIEND",0);
+				if(ciendL.size()!=2) throw new IllegalArgumentException("len(CIEND)!=2 in "+ctx);
+				
+				String cL;
+				int pL;
+				if(ctx.getStructuralVariantType()==StructuralVariantType.BND) {
+					final  Map.Entry<String,Integer> entry = LumpyConstants.getBnDContigAndPos(ctx.getAlternateAllele(0).getDisplayString());
+					cL = entry.getKey();
+					pL = entry.getValue();
+					} 
+				else
+					{
+					cL = ctx.getContig();
+					pL = ctx.getEnd();
+					}
+				
+				this._bndinterval =  new Interval(
+					cL,
+					Math.max(0,pL+ciposL.get(0) - LumpySort.this.slop_size),
+					pL+ciendL.get(1) + LumpySort.this.slop_size
+					);
 				}
-			
-			return new Interval(
-				cL,
-				Math.max(0,pL+ciposL.get(0) - LumpySort.this.slop_size),
-				pL+ciendL.get(1) + LumpySort.this.slop_size
-				);	
+			return this._bndinterval;
 			}
 		
 		boolean canMerge(final LumpyVar o)
@@ -235,8 +244,8 @@ public class LumpySort
 			i = this.ctx.getEnd() - o.ctx.getEnd();
 			if(i!=0) return i;
 			
-			String S1 = variantContextToLine(this.ctx);
-			String S2 = variantContextToLine(o.ctx);
+			final String S1 = variantContextToLine(this.ctx);
+			final String S2 = variantContextToLine(o.ctx);
 			return S1.compareTo(S2);
 			}
 		
