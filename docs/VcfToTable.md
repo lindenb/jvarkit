@@ -76,6 +76,12 @@ Usage: vcf2table [options] Files
  * visualization
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/293855](https://www.biostars.org/p/293855)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

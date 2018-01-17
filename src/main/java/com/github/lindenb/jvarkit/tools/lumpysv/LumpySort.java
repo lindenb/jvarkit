@@ -23,10 +23,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.lumpysv;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,7 +43,9 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIterator;
 import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIteratorImpl;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -54,6 +58,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
@@ -103,6 +108,9 @@ public class LumpySort
 	private boolean do_not_merge_ctx = false;
 	@Parameter(names={"-gt","--genotype"},description="genotypes with SU>0 will be called with ALT (haploid)")
 	private boolean do_genotype = false;
+	@Parameter(names={"-B","--bed"},description="restrict to variants overlapping this BED file.")
+	private File bedFile = null;
+
 	@ParametersDelegate
 	private Launcher.WritingSortingCollection sortingArgs = new Launcher.WritingSortingCollection();
 	
@@ -336,7 +344,22 @@ public class LumpySort
 	try {
 		final Set<VCFHeaderLine> metaData = new HashSet<>();
 		final Set<String> sampleNames = new TreeSet<>();
-
+		final IntervalTreeMap<Boolean> intervalTreeMapBed;
+		if(this.bedFile!=null)
+			{
+			intervalTreeMapBed = new IntervalTreeMap<>();
+			final BedLineCodec bedLineCodec = new BedLineCodec();
+			final BufferedReader br = IOUtils.openFileForBufferedReading(this.bedFile);
+			br.lines().
+				map(L->bedLineCodec.decode(L)).
+				filter(L->L!=null).
+				forEach(B->intervalTreeMapBed.put(B.toInterval(),true));
+			br.close();
+			}	
+		else
+			{
+			intervalTreeMapBed = null;
+			}
 		
 		for(final File vcfFile : inputs)
 			{
@@ -390,10 +413,11 @@ public class LumpySort
 				);
 		sorting.setDestructiveIteration(true);
 		long total_variants = 0L;
-
+		
 		
 		for(int idx=0;idx< inputs.size();++idx)
 			{
+			long millisecstart = System.currentTimeMillis();
 			final File vcfFile = inputs.get(idx);
 			LOG.info("Read "+(idx+1)+"/"+inputs.size()+" Variants of "+vcfFile);
 			int nVariant = 0;
@@ -413,6 +437,11 @@ public class LumpySort
 					if(ctx.hasAttribute("SECONDARY")) continue;
 					}
 				if(!this.variantFilter.test(ctx)) continue;
+				
+				if(intervalTreeMapBed!=null &&
+					!intervalTreeMapBed.containsOverlapping(ctx)) continue;
+					
+				
 				final List<Genotype> gtList  = new ArrayList<>(ctx.getGenotypes());
 				if(this.do_genotype)
 					{
@@ -442,11 +471,16 @@ public class LumpySort
 				}
 			iter.close();
 			r.close();
-			LOG.info("Read Variants of "+vcfFile+" N="+nVariant+" Total:"+total_variants);
+			LOG.info("Read Variants of "+vcfFile+" N="+nVariant+
+					" Total:"+total_variants + 
+					" That took: " + Duration.ofMillis(System.currentTimeMillis() -millisecstart )
+					);
 			System.gc();
 			}
-			
 		sorting.doneAdding();
+		
+		if(intervalTreeMapBed!=null) intervalTreeMapBed.clear();
+		System.gc();
 		
 		LOG.info("Writing output");
 		final List<Allele> ALLELES_NO_CALLS=

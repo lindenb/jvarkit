@@ -235,7 +235,9 @@ END_DOC
  */
 @Program(name="vcf2table",
 		description="convert a vcf to a table, to ease display in the terminal",
-		keywords={"vcf","table","visualization"})
+		keywords={"vcf","table","visualization"},
+		biostars=293855
+		)
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
 	private static final String DEFAULT_MARGIN=" ";
