@@ -327,7 +327,7 @@ public static  class UsageBuider
 			{
 			sb.append("# "+clazz.getSimpleName()+"\n\n");
 			
-			sb.append("![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png").append("\n\n");
+			sb.append("![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)").append("\n\n");
 			
 			if(programdesc!=null){
 				

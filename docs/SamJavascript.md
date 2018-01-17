@@ -1,6 +1,6 @@
 # SamJavascript
 
-![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
 Filters a BAM using a javascript expression ( java nashorn engine  ).
 
