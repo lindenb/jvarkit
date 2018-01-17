@@ -305,8 +305,9 @@ java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.getC
 
 BAM file for reads that map 100% identity
 
+```
 java -jar  dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigarString().equals("100M") &&  (record.getIntegerAttribute("NM")==null || record.getIntegerAttribute("NM").intValue()==0);' in.bam
-
+```
 
 ### Example
 

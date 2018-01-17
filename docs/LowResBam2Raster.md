@@ -99,6 +99,12 @@ Usage: lowresbam2raster [options] Files
  * knowngene
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/293741](https://www.biostars.org/p/293741)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -179,8 +185,15 @@ java -jar dist/lowresbam2raster.jar \
 	 -clip -srf "" -R ref.fasta  -kg knownGene.txt.gz
 ```
 
+## see also
+
+* https://twitter.com/yokofakun/status/951769190884610051
+
 ## Screenshot
 
 ![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
+
+![https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg](https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg)
+
 
 

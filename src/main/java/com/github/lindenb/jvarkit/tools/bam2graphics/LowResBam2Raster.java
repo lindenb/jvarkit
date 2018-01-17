@@ -86,16 +86,24 @@ java -jar dist/lowresbam2raster.jar \
 	 -clip -srf "" -R ref.fasta  -kg knownGene.txt.gz
 ```
 
+## see also
+
+* https://twitter.com/yokofakun/status/951769190884610051
+
 ## Screenshot
 
 ![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
+
+![https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg](https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg)
+
 
 END_DOC
 
 */
 @Program(name="lowresbam2raster",
 		description="Low Resolution BAM to raster graphics",
-		keywords={"bam","alignment","graphics","visualization","png","knowngene"}
+		keywords={"bam","alignment","graphics","visualization","png","knowngene"},
+		biostars= 293741
 		)
 public class LowResBam2Raster extends AbstractBam2Raster {
 	private static final Logger LOG = Logger.build(LowResBam2Raster.class).make();

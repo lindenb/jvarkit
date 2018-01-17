@@ -121,6 +121,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Dec 1 12:42:00 2017 +0100 ; biostars answer, adding --reference to findallcoverageatpos ; https://github.com/lindenb/jvarkit/commit/74e2d2f9f0d34ca5081915c65a7b7ea35f160ec5
 Thu Nov 30 10:36:07 2017 +0100 ; moving to read+jexl expression, new answer for samjdk on biostars ; https://github.com/lindenb/jvarkit/commit/f9615d4184c51a1546200e88a74ac1c6729b05a3
 Wed Nov 29 17:09:58 2017 +0100 ; adding samjdk / biostars answer ; https://github.com/lindenb/jvarkit/commit/9ed7b941944f653f5ca5cc822e069108ab8deaf6
 Tue Nov 28 11:44:41 2017 +0100 ; htslib + example in samjdk ; https://github.com/lindenb/jvarkit/commit/2508162bbfa50eb2242b56f4d40e37bdc3a9476d
@@ -405,8 +406,9 @@ java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.getC
 
 BAM file for reads that map 100% identity
 
+```
 java -jar  dist/samjdk.jar -e 'return !record.getReadUnmappedFlag() && record.getCigarString().equals("100M") &&  (record.getIntegerAttribute("NM")==null || record.getIntegerAttribute("NM").intValue()==0);' in.bam
-
+```
 
 ### Example
 

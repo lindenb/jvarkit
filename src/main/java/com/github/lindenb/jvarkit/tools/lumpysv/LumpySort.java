@@ -29,12 +29,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -46,6 +48,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -71,9 +74,8 @@ import htsjdk.variant.vcf.VCFHeaderVersion;
 /**
 BEGIN_DOC
 
-## See also:
+## Example
 
-  *  https://github.com/arq5x/lumpy-sv/blob/master/scripts/l_sort.py
 
 
 END_DOC
@@ -95,7 +97,12 @@ public class LumpySort
 	private int slop_size = 0;
 	@Parameter(names={"-secondary","--secondary"},description="keep SECONDARY record. \"Secondary breakend in a multi-line variants\".")
 	private boolean keep_secondary = false;
-
+	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
+	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
+	@Parameter(names={"-dm","--do-not-merge"},description="Do not merge genotypes, just sort")
+	private boolean do_not_merge_ctx = false;
+	@Parameter(names={"-gt","--genotype"},description="genotypes with SU>0 will be called with ALT (haploid)")
+	private boolean do_genotype = false;
 	@ParametersDelegate
 	private Launcher.WritingSortingCollection sortingArgs = new Launcher.WritingSortingCollection();
 	
@@ -104,12 +111,12 @@ public class LumpySort
 	/** encoder for line -> VariantCtx */
 	private final VCFCodec vcfCodec = new VCFCodec();
 	
-	
+	/** VariantContext wrapper */
 	private class LumpyVar
 		{
 		private final VariantContext ctx;
 		boolean consummed = false;
-		LumpyVar(VariantContext ctx)
+		LumpyVar(final VariantContext ctx)
 			{
 			this.ctx = ctx;
 			}
@@ -196,8 +203,8 @@ public class LumpySort
 			}
 			
 		public int compare1(final LumpyVar o) {
-			StructuralVariantType st1= this.ctx.getStructuralVariantType();
-			StructuralVariantType st2= o.ctx.getStructuralVariantType();
+			final StructuralVariantType st1= this.ctx.getStructuralVariantType();
+			final StructuralVariantType st2= o.ctx.getStructuralVariantType();
 			int i= st1.compareTo(st2);
 			if(i!=0) return i;
 			//
@@ -235,6 +242,7 @@ public class LumpySort
 		
 		}
 	
+	/** codec for Sorting collection */
 	private class LumpyVarCodec
 		extends AbstractDataCodec<LumpyVar>
 		{
@@ -245,7 +253,7 @@ public class LumpySort
 				{
 				line = readString(dis);
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
 				return null;
 				}
@@ -261,25 +269,29 @@ public class LumpySort
 			}
 		}
 	
+	/** variant decoder */
 	private VariantContext linetoVariantContext(final String line) {
 		return this.vcfCodec.decode(line);
 	}
+	
+	/** encoder variant decoder */
 	private  String variantContextToLine(final VariantContext ctx) {
 		return this.vcfEncoder.encode(ctx);
 	}
 	
-	
+	/** returns true two interval overlap with fraction_overlap  */
 	private boolean overlap(final Interval i1,final Interval i2)
 		{
 		if(!i1.intersects(i2)) return false;
-		int L1 = i1.length();
-		int L2 = i2.length();
-		int  L3 = i1.getIntersectionLength(i2);
+		final int L1 = i1.length();
+		final int L2 = i2.length();
+		final int  L3 = i1.getIntersectionLength(i2);
 		if(L3< (int)(this.fraction_overlap*L1)) return false;
 		if(L3< (int)(this.fraction_overlap*L2)) return false;
 		return true;
 		}
 	
+	/** returns true if there is a SU greater than 0 */
 	private boolean isAvailableGenotype(final Genotype g)
 		{
 		if(!g.hasExtendedAttribute("SU")) {
@@ -293,7 +305,7 @@ public class LumpySort
 				Integer.class.cast(su).intValue():
 				Integer.parseInt(su.toString())
 				);
-		if(suv==0)
+		if(suv<=0)
 			{
 			return false;
 			}
@@ -368,16 +380,22 @@ public class LumpySort
 				this.sortingArgs.getTmpPaths()
 				);
 		sorting.setDestructiveIteration(true);
+		long total_variants = 0L;
 
 		
-		for(final File vcfFile : inputs)
+		for(int idx=0;idx< inputs.size();++idx)
 			{
-			LOG.info("Read Variants of "+vcfFile);
+			final File vcfFile = inputs.get(idx);
+			LOG.info("Read "+(idx+1)+"/"+inputs.size()+" Variants of "+vcfFile);
 			int nVariant = 0;
 			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
 			
-			final Set<String> missing =new HashSet<>(sampleNames);
-			missing.removeAll(r.getFileHeader().getSampleNamesInOrder());
+			final List<Genotype> missing =new ArrayList<>(sampleNames.size());
+			for(final String sn:sampleNames)
+				{
+				if(r.getFileHeader().getSampleNamesInOrder().contains(sn)) continue;
+				missing.add(GenotypeBuilder.createMissing(sn, 2));
+				}
 			
 			final CloseableIterator<VariantContext> iter = r.iterator();
 			while(iter.hasNext()) {
@@ -385,26 +403,48 @@ public class LumpySort
 				if(!this.keep_secondary) {
 					if(ctx.hasAttribute("SECONDARY")) continue;
 					}
+				if(!this.variantFilter.test(ctx)) continue;
 				final List<Genotype> gtList  = new ArrayList<>(ctx.getGenotypes());
-				for(final String sn:missing)
+				if(this.do_genotype)
 					{
-					gtList.add(GenotypeBuilder.createMissing(sn, 2));
+					for(int gi=0;gi< gtList.size();gi++)
+						{
+						Genotype g= gtList.get(gi);
+						if(!isAvailableGenotype(g)) continue;
+						final GenotypeBuilder gb = new GenotypeBuilder(g.getSampleName(), ctx.getAlternateAlleles());
+						gb.attributes(g.getExtendedAttributes());
+						gtList.set(gi, gb.make());
+						}
 					}
+				
+				
+				gtList.addAll(missing);
+				
 				ctx = new VariantContextBuilder(ctx).
 						genotypes(gtList).
 						rmAttribute("PRPOS").
 						make();
+				
+				
+				
 				sorting.add(new LumpyVar(ctx));
 				nVariant++;
+				total_variants++;
 				}
 			iter.close();
 			r.close();
-			LOG.info("Read Variants of "+vcfFile+" N="+nVariant);
+			LOG.info("Read Variants of "+vcfFile+" N="+nVariant+" Total:"+total_variants);
+			System.gc();
 			}
 			
 		sorting.doneAdding();
 		
-		final List<Allele> DIPLOID_NO_CALLS=Arrays.asList(Allele.NO_CALL,Allele.NO_CALL);
+		LOG.info("Writing output");
+		final List<Allele> ALLELES_NO_CALLS=
+				this.do_genotype
+				? Collections.singletonList(Allele.NO_CALL)
+				: Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)
+				;
 		final CloseableIterator<LumpyVar> iter = sorting.iterator();
 		final ForwardPeekIterator<LumpyVar> fwdIter =  new ForwardPeekIteratorImpl<LumpySort.LumpyVar>(iter);
 
@@ -414,6 +454,12 @@ public class LumpySort
 			{
 			if(!fwdIter.hasNext()) break;
 			final LumpyVar first = fwdIter.next();
+			if(this.do_not_merge_ctx)
+				{
+				vcw.add(first.ctx);
+				continue;
+				}
+			
 			if(first.consummed) {
 				continue;
 			}
@@ -475,7 +521,7 @@ public class LumpySort
 				{
 				if(!sample2genotype.containsKey(sn))
 					{
-					sample2genotype.put(sn, new GenotypeBuilder(sn,DIPLOID_NO_CALLS).
+					sample2genotype.put(sn, new GenotypeBuilder(sn,ALLELES_NO_CALLS).
 							attribute("SU",0).
 							attribute("SR",0).
 							attribute("PE",0).
