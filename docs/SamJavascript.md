@@ -1,5 +1,7 @@
 # SamJavascript
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png
+
 Filters a BAM using a javascript expression ( java nashorn engine  ).
 
 
@@ -103,6 +105,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Mon Aug 7 15:05:18 2017 +0200 ; samjdk ; https://github.com/lindenb/jvarkit/commit/93cb0448be4d6deb253b21620d1da63ad2be9475
 Wed Jun 7 16:15:41 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/8ed068b24f8b7a949e10999c5b219401827c03b0
 Sat May 20 16:46:01 2017 +0200 ; plot case ctrl ; https://github.com/lindenb/jvarkit/commit/f03530037d4b72cb515cfdf36cfd604c3654a760

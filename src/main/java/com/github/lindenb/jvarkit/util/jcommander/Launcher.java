@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -326,6 +326,8 @@ public static  class UsageBuider
 		if(this.helpFormat.equals(HelpFormat.markdown))  
 			{
 			sb.append("# "+clazz.getSimpleName()+"\n\n");
+			
+			sb.append("![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png").append("\n\n");
 			
 			if(programdesc!=null){
 				
