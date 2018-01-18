@@ -42,7 +42,6 @@ import java.util.stream.Collectors;
 
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -79,6 +78,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -89,9 +89,17 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
 BEGIN_DOC
 
+## Input
+
+input is a set of VCF file or a file ending with '.list' and containing one line per VCF path.
+
 ## Example
 
-
+```
+$ find DIR -name "*.vcf" > vcf.list
+$ mkdir -p BDB
+$ java -jar dist/lumpysort.jar --bdb BDB/  vcf.list > merged.ved
+```
 
 END_DOC
  */
@@ -106,7 +114,7 @@ public class LumpySort
 	private static final Logger LOG = Logger.build(LumpySort.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-f","--fraction"},description="Overlap fraction")
+	@Parameter(names={"-f","--fraction"},description="Required Overlap fraction between two intervals.")
 	private double fraction_overlap = 0.8;
 	@Parameter(names={"-slop","--slop"},description="slop for 'x' bases in both directions.")
 	private int slop_size = 0;
@@ -120,10 +128,8 @@ public class LumpySort
 	private boolean do_genotype = false;
 	@Parameter(names={"-B","--bed"},description="restrict to variants overlapping this BED file.")
 	private File bedFile = null;
-	@Parameter(names={"-bdb","--bdb"},description="Berkeley DB home",required=true)
+	@Parameter(names={"-bdb","--bdb"},description="Berkeley DB working directory. It must exists and must be writeable.",required=true)
 	private File bdbHomeDir = null;
-	@ParametersDelegate
-	private Launcher.WritingSortingCollection sortingArgs = new Launcher.WritingSortingCollection();
 	
 	/** encoder for VariantCtx -> line */
 	private VCFEncoder vcfEncoder = null;
@@ -156,12 +162,12 @@ public class LumpySort
 	
 	
 
-	
+	/** berkeley DB 'key' object */
 	private static class KeySorter
 		{
 		StructuralVariantType st;
 		String contig1;
-		String contig2;
+		String contig2;/* for BnD  variant */
 		int start;
 		int end;
 		long id;
@@ -173,7 +179,7 @@ public class LumpySort
 			if(i!=0) return i;
 			//
 			if(st.equals(StructuralVariantType.BND)) {
-				i = contig2.compareTo(o.contig2);
+				i = this.contig2.compareTo(o.contig2);
 				if(i!=0) return i;
 				}
 			return 0;
@@ -191,27 +197,29 @@ public class LumpySort
 			}
 		}
 	
+	/** berkeley DB 'key' comparator */
 	public static class KeySorterComparator implements Comparator<byte[]>
 		{
-		private KeySorterBinding binding = new KeySorterBinding();
-		private KeySorter make(byte[] o1)
+		private final KeySorterBinding binding = new KeySorterBinding();
+		private KeySorter make(final byte[] o1)
 			{
-			TupleInput in = new TupleInput(o1);
-			KeySorter ks=binding.entryToObject(in);
+			final TupleInput in = new TupleInput(o1);
+			final KeySorter ks = this.binding.entryToObject(in);
 			try{in.close();}catch(Exception err) {}
 			return ks;
 			}
 		@Override
-		public int compare(byte[] o1, byte[] o2) {
+		public int compare(final byte[] o1, final byte[] o2) {
 			return make(o1).compare2(make(o2));
 			}
 		}
 	
+	/** berkeley DB 'key' bdinding -> DataEntry */
 	private static class KeySorterBinding extends TupleBinding<KeySorter>
 		{
-		private StructuralVariantType sttypes[]=StructuralVariantType.values();
+		private final StructuralVariantType sttypes[]=StructuralVariantType.values();
 		@Override
-		public void objectToEntry(KeySorter key, TupleOutput out) {
+		public void objectToEntry(final KeySorter key, final TupleOutput out) {
 			out.writeByte((byte)key.st.ordinal());
 			out.writeString(key.contig1);
 			if(key.st.equals(StructuralVariantType.BND)) {
@@ -222,8 +230,8 @@ public class LumpySort
 			out.writeLong(key.id);
 			}
 		@Override
-		public KeySorter entryToObject(TupleInput in) {
-			KeySorter ks= new KeySorter();
+		public KeySorter entryToObject(final TupleInput in) {
+			final KeySorter ks= new KeySorter();
 			ks.st = this.sttypes[(int)in.readByte()];
 			ks.contig1= in.readString();
 			if(ks.st.equals(StructuralVariantType.BND)) {
@@ -321,7 +329,7 @@ public class LumpySort
 					cL = ctx.getContig();
 					pL = ctx.getEnd();
 					}
-				
+			
 				this._bndinterval =  new Interval(
 					cL,
 					Math.max(0,pL+ciposL.get(0) - LumpySort.this.slop_size),
@@ -383,17 +391,8 @@ public class LumpySort
 	/** returns true if there is a SU greater than 0 */
 	private boolean isAvailableGenotype(final Genotype g)
 		{
-		if(!g.hasExtendedAttribute("SU")) {
-			return false;
-		}
-		final Object su  = g.getExtendedAttribute("SU", 0);
-		
-		if(su==null ) return false;
-		
-		int suv=(su instanceof Integer ?
-				Integer.class.cast(su).intValue():
-				Integer.parseInt(su.toString())
-				);
+		@SuppressWarnings("deprecation")
+		final int suv  = g.getAttributeAsInt("SU", 0);
 		if(suv<=0)
 			{
 			return false;
@@ -415,7 +414,8 @@ public class LumpySort
 		return -1;
 		}
 	try {
-		
+		IOUtil.assertDirectoryIsWritable(this.bdbHomeDir);
+
 		final Set<VCFHeaderLine> metaData = new HashSet<>();
 		final Set<String> sampleNames = new TreeSet<>();
 		final IntervalTreeMap<Boolean> intervalTreeMapBed;
@@ -471,6 +471,15 @@ public class LumpySort
 			}
 		final VCFInfoHeaderLine nSampleInfoHeaderLine = new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of affected samples.");
 		metaData.add(nSampleInfoHeaderLine);
+		final VCFFormatHeaderLine chromStartFormatHeaderLine = new VCFFormatHeaderLine(
+				"CB", 1, VCFHeaderLineType.Integer,"Original Variant POS");
+		metaData.add(chromStartFormatHeaderLine);
+		final VCFFormatHeaderLine chromEndFormatHeaderLine = new VCFFormatHeaderLine(
+				"CE", 1, VCFHeaderLineType.Integer,"Original Variant END");
+		metaData.add(chromEndFormatHeaderLine);
+
+		
+		
 		final VCFHeader outHeader = new VCFHeader(
 			metaData,
 			sampleNames
@@ -484,21 +493,20 @@ public class LumpySort
 		
 		
 		/* open BDB env */
-		IOUtil.assertDirectoryIsWritable(this.bdbHomeDir);
 		final Transaction txn=null;
-		final EnvironmentConfig envCfg= new EnvironmentConfig();
-		envCfg.setAllowCreate(true);
-		envCfg.setReadOnly(false);
-		environment = new Environment(this.bdbHomeDir, envCfg);
-		final DatabaseConfig config=new DatabaseConfig();
+		environment = new Environment(this.bdbHomeDir, 
+				new EnvironmentConfig().
+					setAllowCreate(true).
+					setReadOnly(false)
+			);
 		
-		config.setBtreeComparator(KeySorterComparator.class);
-		config.setAllowCreate(true);
-		config.setReadOnly(false);
-		config.setTemporary(true);
-		
-		
-		variantsDb1 = environment.openDatabase(txn,"variants1",config);
+		variantsDb1 = environment.openDatabase(txn,"variants1",
+			new DatabaseConfig().
+				setBtreeComparator(KeySorterComparator.class).
+				setAllowCreate(true).
+				setReadOnly(false).
+				setTemporary(true)
+			);
 		
 		long total_variants = 0L;
 		
@@ -507,7 +515,7 @@ public class LumpySort
 
 		for(int idx=0;idx< inputs.size();++idx)
 			{
-			long millisecstart = System.currentTimeMillis();
+			final long millisecstart = System.currentTimeMillis();
 			final File vcfFile = inputs.get(idx);
 			int nVariant = 0;
 			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
@@ -532,16 +540,24 @@ public class LumpySort
 					
 				
 				final List<Genotype> gtList  = new ArrayList<>(ctx.getGenotypes());
-				if(this.do_genotype)
+				
+				for(int gi=0;gi< gtList.size();gi++)
 					{
-					for(int gi=0;gi< gtList.size();gi++)
+					Genotype g= gtList.get(gi);
+					final GenotypeBuilder gb;
+					
+					if(this.do_genotype && isAvailableGenotype(g))
 						{
-						Genotype g= gtList.get(gi);
-						if(!isAvailableGenotype(g)) continue;
-						final GenotypeBuilder gb = new GenotypeBuilder(g.getSampleName(), ctx.getAlternateAlleles());
+						gb = new GenotypeBuilder(g.getSampleName(), ctx.getAlternateAlleles());
 						gb.attributes(g.getExtendedAttributes());
-						gtList.set(gi, gb.make());
 						}
+					else
+						{
+						gb = new GenotypeBuilder(g);
+						}
+					gb.attribute(chromStartFormatHeaderLine.getID(), ctx.getStart());
+					gb.attribute(chromEndFormatHeaderLine.getID(), ctx.getEnd());
+					gtList.set(gi, gb.make());
 					}
 				
 				
@@ -592,8 +608,6 @@ public class LumpySort
 		vcw = super.openVariantContextWriter(this.outputFile);
 		vcw.writeHeader(outHeader);
 		
-		
-		
 		for(;;)
 			{
 			final DatabaseEntry key = new DatabaseEntry();
@@ -616,7 +630,7 @@ public class LumpySort
 			final DatabaseEntry key2 = new DatabaseEntry();
 			final DatabaseEntry data2 = new DatabaseEntry();
 
-			Cursor cursor2=cursor.dup(true);
+			final Cursor cursor2=cursor.dup(true);
 			for(;;)
 				{
 				status = cursor2.getNext(key2, data2, LockMode.DEFAULT);
@@ -677,7 +691,10 @@ public class LumpySort
 			vcb.attribute("SVLEN", (int)Percentile.median().evaluate(buffer.stream().mapToInt(V->V.ctx.getEnd()-V.ctx.getStart())));
 			vcb.attribute("CIPOS",Arrays.asList(variantStartB-variantStartA,variantStartC-variantStartB));
 			vcb.attribute("CIEND",Arrays.asList(variantEndB-variantEndA,variantEndC-variantEndB));
-			
+			vcb.attribute("SU",buffer.stream().flatMap(V->V.ctx.getGenotypes().stream()).mapToInt(G->G.getAttributeAsInt("SU", 0)).sum());
+			vcb.attribute("SR",buffer.stream().flatMap(V->V.ctx.getGenotypes().stream()).mapToInt(G->G.getAttributeAsInt("SR", 0)).sum());
+			vcb.attribute("PE",buffer.stream().flatMap(V->V.ctx.getGenotypes().stream()).mapToInt(G->G.getAttributeAsInt("PE", 0)).sum());
+
 			
 			
 			final Map<String,Genotype> sample2genotype = new HashMap<>(sampleNames.size());
