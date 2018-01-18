@@ -24,42 +24,50 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.lumpysv;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIterator;
-import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIteratorImpl;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.sleepycat.bind.tuple.TupleBinding;
+import com.sleepycat.bind.tuple.TupleInput;
+import com.sleepycat.bind.tuple.TupleOutput;
+import com.sleepycat.je.Cursor;
+import com.sleepycat.je.Database;
+import com.sleepycat.je.DatabaseConfig;
+import com.sleepycat.je.DatabaseEntry;
+import com.sleepycat.je.Environment;
+import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.LockMode;
+import com.sleepycat.je.OperationStatus;
+import com.sleepycat.je.Transaction;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -73,7 +81,9 @@ import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFHeaderVersion;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 
 /**
@@ -110,7 +120,8 @@ public class LumpySort
 	private boolean do_genotype = false;
 	@Parameter(names={"-B","--bed"},description="restrict to variants overlapping this BED file.")
 	private File bedFile = null;
-
+	@Parameter(names={"-bdb","--bdb"},description="Berkeley DB home",required=true)
+	private File bdbHomeDir = null;
 	@ParametersDelegate
 	private Launcher.WritingSortingCollection sortingArgs = new Launcher.WritingSortingCollection();
 	
@@ -119,17 +130,130 @@ public class LumpySort
 	/** encoder for line -> VariantCtx */
 	private final VCFCodec vcfCodec = new VCFCodec();
 	
+	
+	
+	/** berkeleyDB LumpyVar encoder */
+	private  class LumpyVarBinding extends TupleBinding<LumpyVar>
+		{
+		@Override
+		public LumpyVar entryToObject(final TupleInput in) {
+			long id=in.readLong();
+			int L=in.readInt();
+			byte array[]=new byte[L];
+			in.readFast(array);
+			final LumpyVar v= new LumpyVar(linetoVariantContext(new String(array)),id);
+			return v;
+			}
+		@Override
+		public void objectToEntry(final LumpyVar v,final TupleOutput out) {
+			out.writeLong(v.id);
+			final String line = variantContextToLine(v.ctx);
+			final byte array[]=line.getBytes();
+			out.writeInt(array.length);
+			out.write(array);
+			}
+		}
+	
+	
+
+	
+	private static class KeySorter
+		{
+		StructuralVariantType st;
+		String contig1;
+		String contig2;
+		int start;
+		int end;
+		long id;
+		public int compare1(final KeySorter o) {
+			int i= st.compareTo(o.st);
+			if(i!=0) return i;
+			//
+			i = this.contig1.compareTo(o.contig1);
+			if(i!=0) return i;
+			//
+			if(st.equals(StructuralVariantType.BND)) {
+				i = contig2.compareTo(o.contig2);
+				if(i!=0) return i;
+				}
+			return 0;
+			}
+		public int compare2(final KeySorter o) {
+			int i= compare1(o);
+			if(i!=0) return i;
+			//
+			i = this.start -o.start;
+			if(i!=0) return i;
+			//
+			i = this.end -o.end;
+			if(i!=0) return i;
+			return Long.compare(id, o.id);
+			}
+		}
+	
+	public static class KeySorterComparator implements Comparator<byte[]>
+		{
+		private KeySorterBinding binding = new KeySorterBinding();
+		private KeySorter make(byte[] o1)
+			{
+			TupleInput in = new TupleInput(o1);
+			KeySorter ks=binding.entryToObject(in);
+			try{in.close();}catch(Exception err) {}
+			return ks;
+			}
+		@Override
+		public int compare(byte[] o1, byte[] o2) {
+			return make(o1).compare2(make(o2));
+			}
+		}
+	
+	private static class KeySorterBinding extends TupleBinding<KeySorter>
+		{
+		private StructuralVariantType sttypes[]=StructuralVariantType.values();
+		@Override
+		public void objectToEntry(KeySorter key, TupleOutput out) {
+			out.writeByte((byte)key.st.ordinal());
+			out.writeString(key.contig1);
+			if(key.st.equals(StructuralVariantType.BND)) {
+				out.writeString(key.contig2);
+				}
+			out.writeInt(key.start);
+			out.writeInt(key.end);
+			out.writeLong(key.id);
+			}
+		@Override
+		public KeySorter entryToObject(TupleInput in) {
+			KeySorter ks= new KeySorter();
+			ks.st = this.sttypes[(int)in.readByte()];
+			ks.contig1= in.readString();
+			if(ks.st.equals(StructuralVariantType.BND)) {
+				ks.contig2= in.readString();
+				}
+			else
+				{
+				ks.contig2= ks.contig1;
+				}
+			ks.start = in.readInt();
+			ks.end = in.readInt();
+			ks.id = in.readLong();
+			return ks;
+			}	
+		}
+	
+	
 	/** VariantContext wrapper */
 	private class LumpyVar
 		{
 		private final VariantContext ctx;
-		boolean consummed = false;
+		private final long id;
 		private Interval _interval=null;
 		private Interval _bndinterval=null;
+		private KeySorter _sortKey = null;
 		
-		LumpyVar(final VariantContext ctx)
+		LumpyVar(final VariantContext ctx,final long id)
 			{
 			this.ctx = ctx;
+			this.id=id;
 			}
 		private Set<String> getGenotypedSamples() {
 			return ctx.getGenotypes().stream().
@@ -137,6 +261,27 @@ public class LumpySort
 					map(G->G.getSampleName()).
 					collect(Collectors.toSet());
 			}	
+		
+		private KeySorter getSortKey() {
+			if(_sortKey==null) {
+				final Function<String,String> normalize=C->C.startsWith("chr")?C.substring(3):C;
+				final Interval rgn = getInterval() ;
+				_sortKey = new KeySorter();
+				_sortKey.st = this.ctx.getStructuralVariantType();
+				_sortKey.contig1 = normalize.apply(rgn.getContig());
+				if(_sortKey.st.equals(StructuralVariantType.BND)) {
+					_sortKey.contig2 = normalize.apply(LumpyConstants.getBnDContig(this.ctx.getAlternateAllele(0).getDisplayString()));
+					}
+				else
+					{
+					_sortKey.contig2 = _sortKey.contig1;
+					}
+				_sortKey.start = rgn.getStart();
+				_sortKey.end = rgn.getEnd();
+				_sortKey.id=this.id;
+				}
+			return _sortKey;
+			}
 		
 		private Interval getInterval() {
 			if(this._interval==null) {
@@ -188,8 +333,6 @@ public class LumpySort
 		
 		boolean canMerge(final LumpyVar o)
 			{
-			if(this.consummed) return false;
-			if(o.consummed) return false;
 			// we cannot have common available variants between two ctx
 			final Set<String> commonSamples= new HashSet<String>(this.getGenotypedSamples());
 			commonSamples.retainAll(o.getGenotypedSamples());
@@ -198,7 +341,6 @@ public class LumpySort
 			if(!commonSamples.isEmpty()) {
 				return false;
 			}
-			if(this.compare1(o)!=0) return false;
 			
 			Interval L1 = this.getInterval();
 			Interval L2 = o.getInterval();
@@ -212,79 +354,9 @@ public class LumpySort
 			return true;
 			}
 		
-		private String getStrands()
-			{
-			String s= ctx.getAttributeAsString("STRANDS","");
-			int colon = s.indexOf(':');
-			return colon==-1?s:s.substring(0,2);
-			}
-			
-		public int compare1(final LumpyVar o) {
-			final StructuralVariantType st1= this.ctx.getStructuralVariantType();
-			final StructuralVariantType st2= o.ctx.getStructuralVariantType();
-			int i= st1.compareTo(st2);
-			if(i!=0) return i;
-			//
-			String s1 = this.ctx.getContig();
-			String s2 = o.ctx.getContig();
-			i = s1.compareTo(s2);
-			if(i!=0) return i;
-			//
-			if(st1.equals(StructuralVariantType.BND)) {
-				s1 = LumpyConstants.getBnDContig(this.ctx.getAlternateAllele(0).getDisplayString());
-				s2 = LumpyConstants.getBnDContig(o.ctx.getAlternateAllele(0).getDisplayString());
-				i = s1.compareTo(s2);
-				if(i!=0) return i;
-				}
-			//
-			s1 = this.getStrands();
-			s2 = o.getStrands();
-			i = s1.compareTo(s2);
-			if(i!=0) return i;
-			return 0;
-			}
-		
-		public int compare2(final LumpyVar o) {
-			int i = compare1(o);
-			if(i!=0) return i;
-			i = this.ctx.getStart() - o.ctx.getStart();
-			if(i!=0) return i;
-			i = this.ctx.getEnd() - o.ctx.getEnd();
-			if(i!=0) return i;
-			
-			final String S1 = variantContextToLine(this.ctx);
-			final String S2 = variantContextToLine(o.ctx);
-			return S1.compareTo(S2);
-			}
 		
 		}
 	
-	/** codec for Sorting collection */
-	private class LumpyVarCodec
-		extends AbstractDataCodec<LumpyVar>
-		{
-		@Override
-		public LumpyVar decode(final DataInputStream dis) throws IOException {
-			String line;
-			try
-				{
-				line = readString(dis);
-				}
-			catch(final Exception err)
-				{
-				return null;
-				}
-			return new LumpyVar(linetoVariantContext(line));
-			}
-		@Override
-		public void encode(final DataOutputStream dos, final  LumpyVar v) throws IOException {
-			writeString(dos,variantContextToLine(v.ctx));
-			}
-		@Override
-		public LumpyVarCodec clone() {
-			return new LumpyVarCodec();
-			}
-		}
 	
 	/** variant decoder */
 	private VariantContext linetoVariantContext(final String line) {
@@ -333,7 +405,8 @@ public class LumpySort
 	public int doWork(final List<String> args) {
 	VariantContextWriter vcw = null;
 	LineIterator vcfIn= null;
-	SortingCollection<LumpyVar> sorting = null;
+	Environment environment = null;
+	Database variantsDb1=null;
 	final List<File> inputs = IOUtil.unrollFiles(
 			args.stream().map(S->new File(S)).collect(Collectors.toList()),
 			".vcf",".vcf.gz");
@@ -342,6 +415,7 @@ public class LumpySort
 		return -1;
 		}
 	try {
+		
 		final Set<VCFHeaderLine> metaData = new HashSet<>();
 		final Set<String> sampleNames = new TreeSet<>();
 		final IntervalTreeMap<Boolean> intervalTreeMapBed;
@@ -361,9 +435,10 @@ public class LumpySort
 			intervalTreeMapBed = null;
 			}
 		
-		for(final File vcfFile : inputs)
+		for(int idx=0;idx< inputs.size();++idx)
 			{
-			LOG.info("Reading Header of "+vcfFile);
+			final File vcfFile = inputs.get(idx);
+			LOG.info("Read header "+(idx+1)+"/"+inputs.size());
 			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
 			final VCFHeader header = r.getFileHeader();
 			if(!LumpyConstants.isLumpyHeader(header))
@@ -394,6 +469,8 @@ public class LumpySort
 					);
 			r.close();
 			}
+		final VCFInfoHeaderLine nSampleInfoHeaderLine = new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of affected samples.");
+		metaData.add(nSampleInfoHeaderLine);
 		final VCFHeader outHeader = new VCFHeader(
 			metaData,
 			sampleNames
@@ -404,22 +481,34 @@ public class LumpySort
 				outHeader,
 				versions[versions.length-1]
 				);
-		sorting = SortingCollection.newInstance(
-				LumpyVar.class,
-				new LumpyVarCodec(),
-				(V1,V2)->V1.compare2(V2),
-				this.sortingArgs.getMaxRecordsInRam(),
-				this.sortingArgs.getTmpPaths()
-				);
-		sorting.setDestructiveIteration(true);
+		
+		
+		/* open BDB env */
+		IOUtil.assertDirectoryIsWritable(this.bdbHomeDir);
+		final Transaction txn=null;
+		final EnvironmentConfig envCfg= new EnvironmentConfig();
+		envCfg.setAllowCreate(true);
+		envCfg.setReadOnly(false);
+		environment = new Environment(this.bdbHomeDir, envCfg);
+		final DatabaseConfig config=new DatabaseConfig();
+		
+		config.setBtreeComparator(KeySorterComparator.class);
+		config.setAllowCreate(true);
+		config.setReadOnly(false);
+		config.setTemporary(true);
+		
+		
+		variantsDb1 = environment.openDatabase(txn,"variants1",config);
+		
 		long total_variants = 0L;
 		
-		
+		final LumpyVarBinding lumpVarBinding = new LumpyVarBinding();
+		final KeySorterBinding keySorterBinding = new KeySorterBinding();
+
 		for(int idx=0;idx< inputs.size();++idx)
 			{
 			long millisecstart = System.currentTimeMillis();
 			final File vcfFile = inputs.get(idx);
-			LOG.info("Read "+(idx+1)+"/"+inputs.size()+" Variants of "+vcfFile);
 			int nVariant = 0;
 			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
 			
@@ -463,21 +552,30 @@ public class LumpySort
 						rmAttribute("PRPOS").
 						make();
 				
+				final LumpyVar lvar = new LumpyVar(ctx,total_variants);
+				final DatabaseEntry key = new DatabaseEntry();
+				final DatabaseEntry data = new DatabaseEntry();
 				
-				
-				sorting.add(new LumpyVar(ctx));
+				lumpVarBinding.objectToEntry(lvar, data);
+				keySorterBinding.objectToEntry(lvar.getSortKey(), key);
+				if(variantsDb1.put(txn, key, data)!=OperationStatus.SUCCESS)
+					{
+					r.close();
+					LOG.error("insertion failed");
+					return -1;
+					}
 				nVariant++;
 				total_variants++;
 				}
 			iter.close();
 			r.close();
-			LOG.info("Read Variants of "+vcfFile+" N="+nVariant+
+
+			LOG.info("Read  "+(idx+1)+"/"+inputs.size()+" variants of "+vcfFile+" N="+nVariant+
 					" Total:"+total_variants + 
 					" That took: " + Duration.ofMillis(System.currentTimeMillis() -millisecstart )
 					);
 			System.gc();
 			}
-		sorting.doneAdding();
 		
 		if(intervalTreeMapBed!=null) intervalTreeMapBed.clear();
 		System.gc();
@@ -488,69 +586,100 @@ public class LumpySort
 				? Collections.singletonList(Allele.NO_CALL)
 				: Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)
 				;
-		final CloseableIterator<LumpyVar> iter = sorting.iterator();
-		final ForwardPeekIterator<LumpyVar> fwdIter =  new ForwardPeekIteratorImpl<LumpySort.LumpyVar>(iter);
+		final Cursor cursor = variantsDb1.openCursor(txn, null);
+
 
 		vcw = super.openVariantContextWriter(this.outputFile);
 		vcw.writeHeader(outHeader);
+		
+		
+		
 		for(;;)
 			{
-			if(!fwdIter.hasNext()) break;
-			final LumpyVar first = fwdIter.next();
+			final DatabaseEntry key = new DatabaseEntry();
+			final DatabaseEntry data = new DatabaseEntry();
+			OperationStatus status = cursor.getNext(key, data, LockMode.DEFAULT);
+			if(!status.equals(OperationStatus.SUCCESS)) break;
+			final LumpyVar first = lumpVarBinding.entryToObject(data);
 			if(this.do_not_merge_ctx)
 				{
 				vcw.add(first.ctx);
 				continue;
 				}
+
+			final KeySorter keySorter1 = keySorterBinding.entryToObject(key);
+
 			
-			if(first.consummed) {
-				continue;
-			}
 			final List<LumpyVar> buffer = new ArrayList<>();
 			buffer.add(first);
-			for(int x=0;;++x)
+			
+			final DatabaseEntry key2 = new DatabaseEntry();
+			final DatabaseEntry data2 = new DatabaseEntry();
+
+			Cursor cursor2=cursor.dup(true);
+			for(;;)
 				{
-				final LumpyVar lv = fwdIter.peek(x);
-				if(lv==null){
-					break;
-				}
-				if(first.compare1(lv)!=0) 
+				status = cursor2.getNext(key2, data2, LockMode.DEFAULT);
+				if(!status.equals(OperationStatus.SUCCESS)) break;
+				final KeySorter keySorter2 = keySorterBinding.entryToObject(key2);
+
+				if(keySorter1.compare1(keySorter2)!=0) 
 					{
 					break;
 					}
-				if(lv.consummed) continue;
+				
+				final LumpyVar lv = lumpVarBinding.entryToObject(data2);
 				if(lv.ctx.getStart()>first.ctx.getEnd()) {
 					break;
 					}
 				if(first.canMerge(lv))
 					{
 					buffer.add(lv);
-					}
-				else
-					{
+					cursor2.delete();
 					}
 				}
+			cursor2.close();
 			
-			final int variantStart = buffer.stream().
+			
+			cursor.delete();//delete 'first'
+			
+			
+			
+			final int variantStartA = buffer.stream().
 					mapToInt(V->V.ctx.getStart()).
 					min().getAsInt();
-			final int variantEnd = buffer.stream().
+			final int variantStartB = (int)buffer.stream().
+					mapToInt(V->V.ctx.getStart()).
+					average().getAsDouble();
+			final int variantStartC = buffer.stream().
+					mapToInt(V->V.ctx.getStart()).
+					max().getAsInt();
+			
+			final int variantEndA = buffer.stream().
+					mapToInt(V->V.ctx.getEnd()).
+					min().getAsInt();
+			final int variantEndB = (int)buffer.stream().
+					mapToInt(V->V.ctx.getEnd()).
+					average().getAsDouble();
+			final int variantEndC = buffer.stream().
 					mapToInt(V->V.ctx.getEnd()).
 					max().getAsInt();
+			
 			final VariantContextBuilder vcb = new VariantContextBuilder(
 					"lumpymerge",
 					first.ctx.getContig(),
-					variantStart,
-					variantEnd,
+					variantStartB,
+					variantEndB,
 					first.ctx.getAlleles()
 					);
-			vcb.attribute("END", variantEnd);
+			vcb.attribute("END", variantEndB);
 			vcb.attribute("SVTYPE", first.ctx.getAttribute("SVTYPE"));
 			vcb.attribute("SVLEN", (int)Percentile.median().evaluate(buffer.stream().mapToInt(V->V.ctx.getEnd()-V.ctx.getStart())));
-			vcb.attribute("STRANDS",  first.getStrands());
-			vcb.attribute("CIPOS",Arrays.asList(0,0));
-			vcb.attribute("CIEND",Arrays.asList(0,0));
-
+			vcb.attribute("CIPOS",Arrays.asList(variantStartB-variantStartA,variantStartC-variantStartB));
+			vcb.attribute("CIEND",Arrays.asList(variantEndB-variantEndA,variantEndC-variantEndB));
+			
+			
+			
 			final Map<String,Genotype> sample2genotype = new HashMap<>(sampleNames.size());
 			
 			
@@ -559,6 +688,8 @@ public class LumpySort
 				forEach(G->{
 				sample2genotype.put(G.getSampleName(), G);
 			});
+			
+			vcb.attribute(nSampleInfoHeaderLine.getID(), sample2genotype.size());
 			
 			for(final String sn: sampleNames)
 				{
@@ -574,13 +705,12 @@ public class LumpySort
 			
 			vcb.genotypes(sample2genotype.values());
 			vcw.add(vcb.make());
-
-			buffer.stream().forEach(V->{V.consummed=true;});
 			}
+		cursor.close();
 		vcw.close();vcw=null;
-		fwdIter.close();
-		iter.close();
 		
+		variantsDb1.close();variantsDb1=null;
+		environment.close();environment=null;
 		return 0;
 		}
 	catch(final Exception err)
@@ -592,6 +722,8 @@ public class LumpySort
 		{
 		CloserUtil.close(vcfIn);
 		CloserUtil.close(vcw);
+		CloserUtil.close(variantsDb1);
+		CloserUtil.close(environment);
 		} 
 	}
 	 
