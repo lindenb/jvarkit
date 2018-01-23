@@ -1,5 +1,7 @@
 # VcfStats
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Produce VCF statitics
 
 
@@ -136,6 +138,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Jan 17 15:25:41 2018 +0100 ; add doc, support for lumpy ; https://github.com/lindenb/jvarkit/commit/89020a4dc4140909b0bc6a1dae20f798ef4d3e10
 Tue Nov 14 16:13:41 2017 +0100 ; epsitatis01, strange bug in htsjdk https://github.com/samtools/htsjdk/issues/1026 ; https://github.com/lindenb/jvarkit/commit/871a7cc3ed14df5d5b6cf19ef9bef87160795c16
 Tue Jul 18 23:00:49 2017 +0200 ; gen scan in vcfstats, dict ; https://github.com/lindenb/jvarkit/commit/f49878cdedc9fdb934a27f63416cb072e744a7b0
 Tue Jul 18 15:02:27 2017 +0200 ; gen scan in vcfstats ; https://github.com/lindenb/jvarkit/commit/b7fe9f09ecda344a370a888f36e5eca25a6a761e

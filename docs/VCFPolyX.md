@@ -1,5 +1,7 @@
 # VCFPolyX
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Number of repeated REF bases around POS.
 
 
@@ -17,14 +19,23 @@ Usage: vcfpolyx [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -onf, --on-not-found
+      Contig converter. I will do my best to convert the contig names (e.g 
+      'chr1' -> '1'): But what should I do when comparing two dictionaries 
+      with different notations
+      Default: SKIP
+      Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
     -o, --output
       Output file. Optional . Default: stdout
     --outputbcf
       Output bcf (for streams)
       Default: false
   * -R, --reference
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      Indexed Genome Reference. It can be a the path to fasta file that must 
+      be indexed with samtools faidx and with picard CreateSequenceDictionary. 
+      It can also be a BioDAS dsn url like 
+      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BioDAS references are 
+      slower, but allow to work without a local reference file.
     --skip-filtered
       Don't spend some time to calculate the tag if the variant is FILTERed
       Default: false
