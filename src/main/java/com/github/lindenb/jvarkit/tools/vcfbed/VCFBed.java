@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -40,6 +41,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -48,8 +51,11 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -170,12 +176,15 @@ public class VCFBed extends Launcher
 			
 			@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Ignore FILTERed Variants (should be faster)")
 			private boolean ignoreFILTERed=false;
-
+			@Parameter(names={"-x","--extend"},description="[20180123]if nothing was found in the BED file, extends the interval by 'x' bases and try again. Ignore if <1. Require that the VCF file has a Dictionary (##contig lines)")
+			private int extend_by=0;
+			@Parameter(names={"-mx","--max-extend"},description="[20180123] used with option 'x': don't extend to more than 'max' bases.")
+			private int max_extend_by=1000;
 			
 			private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
 			private IndexedBedReader bedReader =null;
 			private Chunk parsedFormat=null;
-			
+			private ContigNameConverter contigNameConverter = null;
 			
 			private class CtxWriter extends DelegateVariantContextWriter
 				{
@@ -189,16 +198,20 @@ public class VCFBed extends Launcher
 				private VCFFilterHeaderLine filterOverlap = null;
 				private VCFFilterHeaderLine filterNoOverlap = null;
 				private VCFInfoHeaderLine infoHeader = null;
-				
+				private final int extend_by = CtxWriterFactory.this.extend_by;
+				private final int max_extend_by = CtxWriterFactory.this.max_extend_by;
+				private SAMSequenceDictionary vcfDict=null;
 				
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
 					}
 				
 				private CtxWriterFactory getOwner() { return CtxWriterFactory.this;}
+				
 				@Override
 				public void writeHeader(final VCFHeader header) {
 					final File srcbedfile = this.tabixFile==null?this.treeMapFile:this.tabixFile;
+					this.vcfDict = header.getSequenceDictionary();
 					final VCFHeader h2=new VCFHeader(header);
 					this.infoHeader= 
 							new VCFInfoHeaderLine(
@@ -232,58 +245,85 @@ public class VCFBed extends Launcher
 						{
 						super.add(ctx);
 						return;
-						}	
+						}
+					
+					final String normalizedContig = getOwner().contigNameConverter.apply(ctx.getContig());
+					if(StringUtil.isBlank(normalizedContig)) {
+						super.add(ctx);
+						return;
+						}
+					Interval theInterval = new Interval(
+							normalizedContig,
+							ctx.getStart(),
+							ctx.getEnd()
+							);
+					
 					boolean found_overlap=false;
 					final Set<String> annotations=new HashSet<String>();
-					
-					if(getOwner().intervalTreeMap!=null) {
-						for(final Set<BedLine> bedLines :getOwner().intervalTreeMap.getOverlapping(ctx)) {
-							for(final BedLine bedLine:bedLines) {
-							final String newannot=getOwner().parsedFormat.toString(bedLine);
-							found_overlap=true;
-							if(!StringUtil.isBlank(newannot))
-								{
-								annotations.add(VCFUtils.escapeInfoField(newannot));
-								}
-							}
-						  }
-						}
-					else
-						{
-						CloseableIterator<BedLine> iter = null;
-						try {
-							iter = getOwner().bedReader.iterator(
-									ctx.getContig(),
-									ctx.getStart()-1,
-									ctx.getEnd()+1
-									);
-							while(iter.hasNext())
-								{
-								final BedLine bedLine = iter.next();
-								
-								if(!ctx.getContig().equals(bedLine.getContig())) continue;
-								if(ctx.getStart() > bedLine.getEnd() ) continue;
-								if(ctx.getEnd() < bedLine.getStart() ) continue;
-				
-								found_overlap=true;
-			
+					while(!found_overlap) {
+						if(getOwner().intervalTreeMap!=null) {
+							for(final Set<BedLine> bedLines :getOwner().intervalTreeMap.getOverlapping(theInterval)) {
+								for(final BedLine bedLine:bedLines) {
 								final String newannot=getOwner().parsedFormat.toString(bedLine);
-								if(!newannot.isEmpty())
+								found_overlap=true;
+								if(!StringUtil.isBlank(newannot))
+									{
 									annotations.add(VCFUtils.escapeInfoField(newannot));
+									}
 								}
-							CloserUtil.close(iter);
+							  }
 							}
-						catch(final IOException ioe)
+						else
 							{
-							LOG.error(ioe);
-							throw new RuntimeIOException(ioe);
-							}
-						finally
-							{
-							CloserUtil.close(iter);
-							}
-						}
+							CloseableIterator<BedLine> iter = null;
+							try {
+								iter = getOwner().bedReader.iterator(
+										theInterval.getContig(),
+										theInterval.getStart()-1,
+										theInterval.getEnd()+1
+										);
+								while(iter.hasNext())
+									{
+									final BedLine bedLine = iter.next();
+									
+									if(!theInterval.getContig().equals(bedLine.getContig())) continue;
+									if(theInterval.getStart() > bedLine.getEnd() ) continue;
+									if(theInterval.getEnd() < bedLine.getStart() ) continue;
 					
+									found_overlap=true;
+				
+									final String newannot=getOwner().parsedFormat.toString(bedLine);
+									if(!newannot.isEmpty())
+										annotations.add(VCFUtils.escapeInfoField(newannot));
+									}
+								CloserUtil.close(iter);
+								}
+							catch(final IOException ioe)
+								{
+								LOG.error(ioe);
+								throw new RuntimeIOException(ioe);
+								}
+							finally
+								{
+								CloserUtil.close(iter);
+								}
+							}
+						// can we extend the current interval
+						if(found_overlap) break;
+						if(this.extend_by<1) break;
+						if(this.vcfDict==null || this.vcfDict.isEmpty()) break;
+						final SAMSequenceRecord ssr = this.vcfDict.getSequence(theInterval.getContig());
+						if(ssr==null || (theInterval.getStart()<=1 && theInterval.getEnd()>= ssr.getSequenceLength())) break;
+						
+						theInterval = new Interval(
+								theInterval.getContig(),
+								Math.max(1, theInterval.getStart() - this.extend_by),
+								Math.min(ssr.getSequenceLength(), theInterval.getEnd() + this.extend_by)
+								);
+						if(ctx.getStart() - theInterval.getStart() > this.max_extend_by) break;
+						if(theInterval.getEnd()  - ctx.getEnd() > this.max_extend_by) break;
+						
+						}// end of while
 					final String filterToSet;
 					if(found_overlap && this.filterOverlap!=null) {
 						filterToSet =  this.filterOverlap.getID();
@@ -416,6 +456,7 @@ public class VCFBed extends Launcher
 					try 
 						{
 						this.bedReader= new IndexedBedReader(this.tabixFile);
+						this.contigNameConverter = ContigNameConverter.fromContigSet(this.bedReader.getContigs());
 						}
 					catch(IOException err)
 						{
@@ -428,12 +469,19 @@ public class VCFBed extends Launcher
 					try {
 						this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(this.treeMapFile);
 						LOG.info("Number of items in "+this.treeMapFile+" "+this.intervalTreeMap.size());
+						this.contigNameConverter = ContigNameConverter.fromContigSet(this.intervalTreeMap.keySet().
+								stream().
+								map(I->I.getContig()).
+								collect(Collectors.toSet())
+								);
 						}
 					catch(final Exception err) {
 						LOG.error(err);
 						return -1;
 						}
 					}
+				
+				this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 				
 				if(this.infoName==null || this.infoName.trim().isEmpty())
 					{

@@ -1,5 +1,7 @@
 # VCFBed
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Transfer information from a BED to a VCF
 
 
@@ -10,6 +12,11 @@ Usage: vcfbed [options] Files
   Options:
     -B, --bed
       Tribble or Tabix bed file
+    -x, --extend
+      [20180123]if nothing was found in the BED file, extends the interval by 
+      'x' bases and try again. Ignore if <1. Require that the VCF file has a 
+      Dictionary (##contig lines)
+      Default: 0
     -fn, --filternooverlap
       if defined, set this as a FILTER column if not any BED line overlap a 
       variant 
@@ -31,6 +38,9 @@ Usage: vcfbed [options] Files
     -m, --map
       unindexed bed file, will be loaded in memory (faster than tribble/tabix 
       but memory consumming)
+    -mx, --max-extend
+      [20180123] used with option 'x': don't extend to more than 'max' bases.
+      Default: 1000
     -o, --output
       Output file. Optional . Default: stdout
     -T, --tag
@@ -98,6 +108,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Nov 14 16:13:41 2017 +0100 ; epsitatis01, strange bug in htsjdk https://github.com/samtools/htsjdk/issues/1026 ; https://github.com/lindenb/jvarkit/commit/871a7cc3ed14df5d5b6cf19ef9bef87160795c16
 Tue Oct 31 15:34:21 2017 +0100 ; vcf2bed: moved to java bean + tests ; https://github.com/lindenb/jvarkit/commit/9c33582909b867705e38c9efb7065cd51c2886b2
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
 Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
