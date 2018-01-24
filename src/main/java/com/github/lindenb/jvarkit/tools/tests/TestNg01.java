@@ -1098,7 +1098,7 @@ class TestNg01 {
 	    	Assert.assertEquals(0,new VCFBed().instanceMain(new String[]{
 	        		"-o",output.getPath(),
 	        		"-T","VCFBED",
-	        		"-f","chr${1}",
+	        		"-e","\"chr\"+bed.get(0)+\":\"+bed.getStart()",
 	        		(i==0?"--map":"--bed"),"./src/test/resources/toy.bed.gz",
 	        		TOY_VCF_GZ
 	        		}));

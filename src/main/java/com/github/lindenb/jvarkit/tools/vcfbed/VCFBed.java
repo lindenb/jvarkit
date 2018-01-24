@@ -30,15 +30,22 @@ package com.github.lindenb.jvarkit.tools.vcfbed;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
+
+import org.apache.commons.jexl2.Expression;
+import org.apache.commons.jexl2.JexlContext;
+import org.apache.commons.jexl2.JexlException;
 
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -61,6 +68,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -115,7 +123,7 @@ Another example:
 
 ```
 $ tabix -h dbsnp138_00-All.vcf.gz "19:58864565-58865165" | sed '/^[^#]/s/^/chr/' |\
-java -jar dist/vcfbed.jar -m your.bed -f '${1}|${2}|${3}|${4}&${5}'
+java -jar dist/vcfbed.jar -m your.bed -e 'bed.get(0)+"|"+bed.get(1)+"|"+bed.get(2)+"|"+bed.get(3)+"&"+bed.get(4)'
 
 ##INFO=<ID=VCFBED,Number=.,Type=String,Description="metadata added from your.bed . Format was ${1}|${2}|${3}|${4}&${5}">
 (...)
@@ -141,13 +149,46 @@ public class VCFBed extends Launcher
 
 	private static final Logger LOG = Logger.build(VCFBed.class).make();
 
+	
+	
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
-	
+	private File outputFile = null;	
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
+	
+	
+	private static final Map<String,Function<BedLine,Object>> MAPPER=new HashMap<>();
+	static {
+		MAPPER.put("bed",R->R);
+		MAPPER.put("line",R->R.join());
+		};
+	
+	private static class BedJEXLContext
+		implements JexlContext
+		{
+		final BedLine bedLine;
+		BedJEXLContext(final BedLine bedLine) {
+			this.bedLine = bedLine;
+			}
+		@Override
+		public Object get(final String name) {
+			final Function<BedLine,Object> fun = MAPPER.get(name);
+			return (fun!=null?fun.apply(this.bedLine):null);
+			}
+		@Override
+		public boolean has(final String key) {
+			return MAPPER.containsKey(key);
+			}
+		@Override
+		public void set(final String key, Object arg1) {
+			throw new UnsupportedOperationException();
+			}
+		@Override
+		public String toString() {
+			return "JexlContext for SAMRecord "+this.bedLine;
+			}
+		}
 	
 	
 	@XmlType(name="vcfbed")
@@ -156,8 +197,8 @@ public class VCFBed extends Launcher
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
-			@Parameter(names={"-f","--format"},description="format pattern ${xx} will be replaced by column xx in the bed line. Empty lines will be ignored (no tag) but the FILTERs will be set.")
-			private String formatPattern = "${1}:${2}-${3}";
+			@Parameter(names={"-e","--expr","--jexl"},description="[20180124]A JEXL Expression returning a string (see https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java )")
+			private String formatPattern = "bed.get(0)+\":\"+bed.get(1)+\"-\"+bed.get(2)";
 		
 			@Parameter(names={"-T","--tag"},description="use the following INFO tag name")
 			private String infoName = "VCFBED";
@@ -183,8 +224,8 @@ public class VCFBed extends Launcher
 			
 			private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
 			private IndexedBedReader bedReader =null;
-			private Chunk parsedFormat=null;
 			private ContigNameConverter contigNameConverter = null;
+			private Expression jexlExpr = null;
 			
 			private class CtxWriter extends DelegateVariantContextWriter
 				{
@@ -202,11 +243,26 @@ public class VCFBed extends Launcher
 				private final int max_extend_by = CtxWriterFactory.this.max_extend_by;
 				private SAMSequenceDictionary vcfDict=null;
 				
+				
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
+					
 					}
 				
 				private CtxWriterFactory getOwner() { return CtxWriterFactory.this;}
+				
+				
+				private String bedLineToString(final BedLine bedLine) {
+					final Object o;
+					try {
+						o = getOwner().jexlExpr.evaluate(new BedJEXLContext(bedLine));
+						}
+					catch(final JexlException err) {
+						throw new RuntimeException("Cannot evaluate JEXL expression \""+getOwner().formatPattern+"\" with BedRecord :"+bedLine);
+						}
+					if(o==null) return null;
+					return String.valueOf(o);
+					}
 				
 				@Override
 				public void writeHeader(final VCFHeader header) {
@@ -264,7 +320,7 @@ public class VCFBed extends Launcher
 						if(getOwner().intervalTreeMap!=null) {
 							for(final Set<BedLine> bedLines :getOwner().intervalTreeMap.getOverlapping(theInterval)) {
 								for(final BedLine bedLine:bedLines) {
-								final String newannot=getOwner().parsedFormat.toString(bedLine);
+								final String newannot= this.bedLineToString(bedLine);
 								found_overlap=true;
 								if(!StringUtil.isBlank(newannot))
 									{
@@ -292,8 +348,8 @@ public class VCFBed extends Launcher
 					
 									found_overlap=true;
 				
-									final String newannot=getOwner().parsedFormat.toString(bedLine);
-									if(!newannot.isEmpty())
+									final String newannot= this.bedLineToString(bedLine);
+									if(!StringUtil.isBlank(newannot))
 										annotations.add(VCFUtils.escapeInfoField(newannot));
 									}
 								CloserUtil.close(iter);
@@ -358,51 +414,7 @@ public class VCFBed extends Launcher
 					}
 				}
 			
-			private Chunk parseFormat(final String s)
-				{
-				if(StringUtil.isBlank(s)) return null;
-				if(s.startsWith("${"))
-					{
-					final int j=s.indexOf('}',2);
-					if(j==-1) throw new IllegalArgumentException("bad format in \""+s+"\".");
-					try
-						{
-						final int col=Integer.parseInt(s.substring(2, j).trim());
-						if(col<1) throw new IllegalArgumentException("bad number "+s);
-						final ColChunk c=new ColChunk(col-1);
-						c.next=parseFormat(s.substring(j+1));
-						return c;
-						}
-					catch(final Exception err)
-						{
-						 throw new IllegalArgumentException("bad format in \""+s+"\".",err);
-						}
-					}
-				else if(s.startsWith("$"))
-					{
-					int j=1;
-					while(j<s.length() && Character.isDigit(s.charAt(j)))
-						{
-						++j;
-						}
-					int col=Integer.parseInt(s.substring(1, j).trim());
-					if(col<1) throw new IllegalArgumentException();
-					ColChunk c=new ColChunk(col-1);
-					c.next=parseFormat(s.substring(j));
-					return c;
-					}
-				int i=0;
-				final StringBuilder sb=new StringBuilder();
-				while(i< s.length() && s.charAt(i)!='$')
-					{
-					sb.append(s.charAt(i));
-					i++;
-					}
-				final PlainChunk c=new PlainChunk(sb.toString());
-				c.next=parseFormat(s.substring(i));
-				return c;
-				}
-
+	
 			/** reads a Bed file and convert it to a IntervalTreeMap<Bedline> */
 			private htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.util.bio.bed.BedLine>> 
 				readBedFileAsIntervalTreeMap(final java.io.File file) throws java.io.IOException
@@ -489,10 +501,14 @@ public class VCFBed extends Launcher
 					return -1;
 					}
 				
-				LOG.info("parsing "+this.formatPattern);
-				this.parsedFormat=parseFormat(formatPattern);
-				if(this.parsedFormat==null) this.parsedFormat=new PlainChunk("");
-				LOG.info("format for "+this.formatPattern+" :"+this.parsedFormat);
+				LOG.info("parsing JEXL expression: "+this.formatPattern);
+				try {
+					this.jexlExpr =VariantContextUtils.engine.get().createExpression(this.formatPattern);
+					} 
+				catch(final JexlException err) {
+					LOG.error("Cannot compile JEXL expression", err);
+					return -1;
+					}
 				return 0;
 				}
 			
@@ -506,50 +522,9 @@ public class VCFBed extends Launcher
 				CloserUtil.close(this.bedReader);
 				this.bedReader = null;
 				this.intervalTreeMap=null;
-				this.parsedFormat = null;		
+				this.jexlExpr=null;
 				}
 			}
-
-	
-
-	
-	private static abstract class Chunk
-		{
-		public abstract String toString(BedLine tokens);
-		public Chunk next=null;
-		}
-	
-	private static class PlainChunk extends Chunk
-		{
-		final String s;
-		PlainChunk(final String s){this.s=s;}
-		public String toString(final BedLine tokens)
-			{
-			return s+(next==null?"":next.toString(tokens));
-			}
-		@Override
-		public String toString() {
-			return "plain-text:\""+this.s+"\""+(this.next==null?"":";"+this.next.toString());
-			}
-		}
-	private static class ColChunk extends Chunk
-		{
-		final int index;
-		ColChunk(final int index){ this.index=index;}
-		public String toString(final BedLine tokens)
-			{
-			String s= tokens.get(index);
-			if(s==null) s="";
-			return s+(next==null?"":next.toString(tokens));
-			}
-		@Override
-		public String toString() {
-			return "column:${"+(index+1)+"}"+(this.next==null?"":";"+this.next.toString());
-			}
-		}
-
-	
-	
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final  VcfIterator iter, final  VariantContextWriter delegate)
