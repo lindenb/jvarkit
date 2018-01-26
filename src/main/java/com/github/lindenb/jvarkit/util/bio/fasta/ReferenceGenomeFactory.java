@@ -57,6 +57,10 @@ public class ReferenceGenomeFactory
 implements IStringConverter<ReferenceGenome>  {
 private static final Logger LOG = Logger.build(ReferenceGenomeFactory.class).make();
 
+public static final String OPT_DESCRIPTION_FILE_ONLY="Indexed Genome Reference. "+
+		"A fasta file that must be indexed with samtools faidx and with picard CreateSequenceDictionary."
+		;
+
 	
 public static final String OPT_DESCRIPTION="Indexed Genome Reference. "+
 			"It can be a the path to fasta file that must be indexed with samtools faidx and with picard CreateSequenceDictionary."
