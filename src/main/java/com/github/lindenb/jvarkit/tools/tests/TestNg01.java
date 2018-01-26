@@ -32,6 +32,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +51,7 @@ import org.testng.Assert;
 import org.testng.annotations.*;
 import org.xml.sax.helpers.DefaultHandler;
 
+import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
@@ -1098,7 +1100,7 @@ class TestNg01 {
 	    	Assert.assertEquals(0,new VCFBed().instanceMain(new String[]{
 	        		"-o",output.getPath(),
 	        		"-T","VCFBED",
-	        		"-f","chr${1}",
+	        		"-e","\"chr\"+bed.get(0)+\":\"+bed.getStart()",
 	        		(i==0?"--map":"--bed"),"./src/test/resources/toy.bed.gz",
 	        		TOY_VCF_GZ
 	        		}));
@@ -1308,4 +1310,23 @@ class TestNg01 {
 	    n=parser.apply("@SEQ_ID");
 	  	Assert.assertFalse(n.isPresent());
     	}
+    
+    @Test
+    public void testBackLocate() throws IOException {
+	    	final File tmp1 = new File(TEST_RESULTS_DIR,"jeter0.txt");
+		final PrintWriter pw = new PrintWriter(tmp1);
+		pw.println("NOTCH2\tP1090M");
+		pw.flush();
+		pw.close();
+	    	
+	    	final File output =new File(TEST_RESULTS_DIR,"jeter1.txt");
+	    	Assert.assertEquals(0,new BackLocate().instanceMain(new String[]{
+	        		"-o",output.getPath(),
+	        		"-R","http://genome.cse.ucsc.edu/cgi-bin/das/hg19/",
+	        		tmp1.getPath()
+	        		}));
+	    	Assert.assertTrue(Files.lines(output.toPath()).anyMatch(S->S.contains("120480548")));
+	    	Assert.assertTrue(tmp1.delete());
+	    	Assert.assertTrue(output.delete());
+		}
 }

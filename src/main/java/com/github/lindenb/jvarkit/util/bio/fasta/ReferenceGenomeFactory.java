@@ -404,6 +404,7 @@ private class DasGenomeImpl extends AbstractReferenceGenome
 				if(length<=0) throw new XMLStreamException("bad end "+length, SE.getLocation());
 				super.dictionary.addSequence(new SAMSequenceRecord(id, length));
 				}
+			ContigNameConverter.setDefaultAliases(this.dictionary);
 			if(isDebug()) LOG.debug("dict in "+entry_points_url+" size : "+this.dictionary.size());
 			}
 		catch(final XMLStreamException err)

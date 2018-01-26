@@ -556,9 +556,9 @@ public class VcfStats extends Launcher
 						}
 					}
 				final StructuralVariantType structuralVariantType= ctx.getStructuralVariantType();
-				if(ctx!=null)
+				if(structuralVariantType!=null)
 					{
-					if(
+					if( 
 						(genotype.isCalled() && !genotype.isHomRef()) ||
 						(LumpyConstants.isLumpyVariant(ctx) && genotype.hasExtendedAttribute("SU") && genotype.getAttributeAsInt("SU", 0)>0)
 						)
@@ -665,7 +665,7 @@ public class VcfStats extends Launcher
 			visitForDistance(ctx);
 			
 			final StructuralVariantType structuralVariantType= ctx.getStructuralVariantType();
-			if(ctx!=null)
+			if(structuralVariantType!=null)
 				{
 				this.countStructuralVariations.incr(structuralVariantType);
 				}

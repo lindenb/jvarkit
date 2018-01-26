@@ -29,12 +29,13 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import javax.xml.bind.annotation.XmlTransient;
+
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -45,10 +46,14 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
@@ -91,25 +96,26 @@ public class VCFPolyX extends Launcher
 		{
 		@Parameter(names={"-n","--filter"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
 		private int filterTrehsold = -1 ;
-	
 		@Parameter(names={"-t","--tag"},description="Tag used in INFO and FILTER columns.")
 		private String polyXtag = "POLYX";
-	
-		@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-		private File faidx = null;
-		
+		@Parameter(names={"-R","--reference"},description=ReferenceGenomeFactory.OPT_DESCRIPTION,required=true)
+		private String referenceUri = null;
 		@Parameter(names={"--skip-filtered"},description="Don't spend some time to calculate the tag if the variant is FILTERed")
 		private boolean skip_filtered=false;
+		@Parameter(names={"-onf","--on-not-found"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
+		private OnNotFound onNotFound=OnNotFound.SKIP;
 
-	
-		private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+
+		
+		@XmlTransient
+		private ReferenceGenome referenceGenome = null;
 		
 		CtxWriterFactory() {
 			
 			}
 		
 		public void setReference(final File faidx) {
-			this.faidx = faidx;
+			this.referenceUri = faidx.getPath();
 			}
 		
 		public void setTag(final String polyXtag) {
@@ -122,37 +128,39 @@ public class VCFPolyX extends Launcher
 		
 		@Override
 		public int initialize() {
-			if(this.polyXtag.trim().isEmpty()) {
+			if(StringUtil.isBlank(this.polyXtag)) {
 				LOG.error("Empty tag");
 				return -1;
 				}
-			if(this.faidx==null)
+			if(StringUtil.isBlank(this.referenceUri))
 				{
 				LOG.error("Undefined Reference");
 				return -1;
 				}
-			LOG.info("opening reference "+faidx);
+			LOG.info("opening reference "+this.referenceUri);
 			try {
-				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
-			} catch (final FileNotFoundException e) {
+				this.referenceGenome =new ReferenceGenomeFactory().
+						open(this.referenceUri);
+			} catch (final IOException e) {
 				LOG.error(e);
 				return -1;
 				}
 			return 0;
 			}
+		
 		@Override
 		public VariantContextWriter open(final VariantContextWriter delegate) {
 			return new DelegateVariantContextWriter(delegate)
 					{
-					private GenomicSequence genomicSequence=null;
+					private ReferenceContig genomicContig = null;
 					private VCFFilterHeaderLine filterHeaderLine = null;
 					private VCFInfoHeaderLine infoHeaderLine = null;
 					private final boolean skip_filtered =  CtxWriterFactory.this.skip_filtered;
+					private final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(CtxWriterFactory.this.referenceGenome.getDictionary()).
+								setOnNotFound(CtxWriterFactory.this.onNotFound);
 					@Override
 					public void writeHeader(final VCFHeader header) {
-
 						final VCFHeader h2=new VCFHeader(header);
-						
 						
 						this.infoHeaderLine = new VCFInfoHeaderLine(
 								CtxWriterFactory.this.polyXtag.trim(),
@@ -172,42 +180,52 @@ public class VCFPolyX extends Launcher
 							h2.addMetaDataLine(this.filterHeaderLine);
 							}
 
-						getDelegate().writeHeader(h2);						
+						super.writeHeader(h2);						
 						}
 					
 					@Override
 					public void add(final VariantContext ctx) {
-						
 						if(this.skip_filtered && ctx.isFiltered())
 							{
 							super.add(ctx);
 							return;
 							}
 						
+						final String normalizedContig = this.contigNameConverter.apply(ctx.getContig());
+						if(normalizedContig==null) {
+							super.add(ctx);
+							return;
+							}
+						
+						if(this.genomicContig==null || !this.genomicContig.hasName(normalizedContig))
+							{
+							LOG.info("loading chromosome "+normalizedContig);
+							this.genomicContig= CtxWriterFactory.this.referenceGenome.getContig(normalizedContig);
+							if(this.genomicContig==null) {
+								super.add(ctx);
+								return;
+								}
+							}
+						
 						final VariantContextBuilder b = new VariantContextBuilder(ctx);
 
 						
-						if(this.genomicSequence==null || !ctx.getContig().equals(genomicSequence.getChrom()))
-							{
-							LOG.info("loading chromosome "+ctx.getContig());
-							this.genomicSequence=new GenomicSequence(CtxWriterFactory.this.indexedFastaSequenceFile, ctx.getContig());
-							}
 						int pos0=ctx.getStart()-1;
 						int count=1;
-						char c0=Character.toUpperCase(genomicSequence.charAt(pos0));
+						char c0=Character.toUpperCase(this.genomicContig.charAt(pos0));
 						//go left
 						pos0--;
-						while(pos0>=0 && c0==Character.toUpperCase(genomicSequence.charAt(pos0)))
+						while(pos0>=0 && c0==Character.toUpperCase(this.genomicContig.charAt(pos0)))
 							{
 							++count;
 							pos0--;
 							}
 						//go right
 						pos0=ctx.getEnd()-1;
-						c0=Character.toUpperCase(this.genomicSequence.charAt(pos0));
+						c0=Character.toUpperCase(this.genomicContig.charAt(pos0));
 						pos0++;
-						while(pos0< genomicSequence.getSAMSequenceRecord().getSequenceLength()
-							&& c0==Character.toUpperCase(genomicSequence.charAt(pos0)))
+						while(pos0< genomicContig.length()
+							&& c0==Character.toUpperCase(genomicContig.charAt(pos0)))
 							{
 							++count;
 							++pos0;
@@ -226,15 +244,15 @@ public class VCFPolyX extends Launcher
 					@Override
 					public void close() {
 						super.close();
-						genomicSequence=null;
+						genomicContig=null;
 						}
 					};
 			}
 		
 		@Override
 		public void close() throws IOException {
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			indexedFastaSequenceFile=null;
+			CloserUtil.close(this.referenceGenome);
+			this.referenceGenome=null;
 			}
 		}
 	
@@ -277,8 +295,7 @@ public class VCFPolyX extends Launcher
 			if(this.component.initialize()!=0) {
 				return -1;
 				}
-			
-			this.writingVcfArgs.dictionary(this.component.indexedFastaSequenceFile.getSequenceDictionary());
+			this.writingVcfArgs.dictionary(this.component.referenceGenome.getDictionary());
 			return doVcfToVcf(args,outputFile);
 		} catch (Exception e) {
 			LOG.error(e);

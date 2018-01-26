@@ -1,5 +1,7 @@
 # VcfToTable
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 convert a vcf to a table, to ease display in the terminal
 
 
@@ -125,6 +127,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Jan 17 17:33:15 2018 +0100 ; add doc, support for lumpy ; https://github.com/lindenb/jvarkit/commit/72ff9cede569ffc1382cdf0cf84f3c513bad34ba
 Mon Nov 13 11:51:02 2017 +0100 ; switched to htsjdk 2.13.0 ; https://github.com/lindenb/jvarkit/commit/0beed2c5cc069aa5e9198c4873e9da1275c8d4c8
 Wed Nov 8 09:00:21 2017 +0100 ; changed igv to custom url ; https://github.com/lindenb/jvarkit/commit/7972f506165e45c3b1300aecd00d1109b52d57dc
 Tue Nov 7 16:33:40 2017 +0100 ; Hyperlinks to IGV ; https://github.com/lindenb/jvarkit/commit/b41b49dfc9e1948eb76085c343b69a4ac0520f16

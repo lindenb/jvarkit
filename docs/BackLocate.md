@@ -1,5 +1,7 @@
 # BackLocate
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Mapping a mutation on a protein back to the genome.
 
 
@@ -31,8 +33,11 @@ Usage: backlocate [options] Files
       print mRNA & protein sequences
       Default: false
   * -R, --reference
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      Indexed Genome Reference. It can be a the path to fasta file that must 
+      be indexed with samtools faidx and with picard CreateSequenceDictionary. 
+      It can also be a BioDAS dsn url like 
+      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BioDAS references are 
+      slower, but allow to work without a local reference file.
     --version
       print version and exit
 
@@ -97,6 +102,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Jan 16 16:53:30 2018 +0100 ; added samAddPi , lumpy-sv merge, ref to jvarkit ; https://github.com/lindenb/jvarkit/commit/3f2ca8fed91617367bec5bbb8fb704e4ecdf586b
 Mon Nov 6 18:36:08 2017 +0100 ; add biostars 15992 ; https://github.com/lindenb/jvarkit/commit/c392165274dfd88b211ca6ddd8e45db5cb5fb78f
 Thu Jul 6 19:24:32 2017 +0200 ; recompile ; https://github.com/lindenb/jvarkit/commit/c50120a6e41e990cbf57b6f06c9a9116a6926829
 Mon Jun 26 17:29:03 2017 +0200 ; burden ; https://github.com/lindenb/jvarkit/commit/a3b7abf21d07f0366e81816ebbb2cce26b2341e7

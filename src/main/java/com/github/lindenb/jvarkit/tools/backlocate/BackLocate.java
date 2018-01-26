@@ -25,9 +25,9 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.backlocate;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.readers.LineIterator;
 
@@ -48,10 +48,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 /**
  BEGIN_DOC
@@ -129,16 +131,16 @@ public class BackLocate
 	@Parameter(names={"-x","--kgxref"},description="UCSC kgXRef URI")
 	private String kgXRef = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
 
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File indexedRefFile=null;
+	@Parameter(names={"-R","--reference"},description=ReferenceGenomeFactory.OPT_DESCRIPTION,required=true)
+	private String indexedRefUri=null;
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 
 	
 
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-	private GenomicSequence genomicSeq=null;
+	private ReferenceGenome referenceGenome = null;
+	private ReferenceContig genomicContig = null;
 	private final Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
 	private final Map<String,KnownGene> knwonGenes=new HashMap<>();
 	/** get a genetic code from a chromosome name (either std or mitochondrial */
@@ -152,9 +154,9 @@ public class BackLocate
 	static private class RNASequence extends AbstractCharSequence
 		{
 		final List<Integer> genomicPositions=new ArrayList<Integer>();
-		final GenomicSequence genomic;
+		final ReferenceContig genomic;
 		final char strand;
-		RNASequence(final GenomicSequence genomic,final char strand)
+		RNASequence(final ReferenceContig genomic,final char strand)
 			{
 			this.genomic=genomic;
 			this.strand=strand;
@@ -217,17 +219,18 @@ public class BackLocate
 		
 	        		
 	        		
-		if(genomicSeq==null ||
-	               !gene.getChromosome().equals(genomicSeq.getChrom()) 
-	               )
-        	{
-        	LOG.info("fetch genome");
-        	this.genomicSeq= new GenomicSequence(this.indexedFastaSequenceFile, gene.getContig());
-        	}
-        	
-	        		
-	        		
-	        		
+		if(this.genomicContig==null ||
+		   !this.genomicContig.hasName(gene.getContig())
+	       )
+	        	{
+	        	LOG.info("fetch genome");
+	        	this.genomicContig= this.referenceGenome.getContig(gene.getContig());
+	        	if(this.genomicContig==null) {
+	        		LOG.warn("No contig "+gene.getContig()+" in reference genome.");
+	        		return;
+	        		}
+	        	}
+        	    		
 	     if(gene.isPositiveStrand())
     		{    		
     		int exon_index=0;
@@ -242,7 +245,7 @@ public class BackLocate
 					
 					if(wildRNA==null)
 						{
-						wildRNA=new RNASequence(genomicSeq,'+');
+						wildRNA=new RNASequence(this.genomicContig,'+');
 						}
 
     				wildRNA.genomicPositions.add(i);
@@ -274,7 +277,7 @@ public class BackLocate
     				
     				if(wildRNA==null)
 						{
-						wildRNA=new RNASequence(genomicSeq,'-');
+						wildRNA=new RNASequence(this.genomicContig,'-');
 						}
     				
     				
@@ -453,9 +456,9 @@ public class BackLocate
 	
 	private void loadKnownGenesFromUri(String kgURI) throws IOException
 		{
-		if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
+		if(this.referenceGenome.getDictionary()==null)
 			{
-			throw new JvarkitException.FastaDictionaryMissing("No sequence dictionary in "+this.indexedRefFile);
+			throw new JvarkitException.FastaDictionaryMissing("No sequence dictionary in "+this.indexedRefUri);
 			}
 		
 		LOG.info("loading genes");
@@ -469,7 +472,7 @@ public class BackLocate
 			final String tokens[]=tab.split(line);
 			final KnownGene g=new KnownGene(tokens);
 			final Interval rgn=new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd());
-			if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(rgn.getContig())==null)
+			if(this.referenceGenome.getDictionary().getSequence(rgn.getContig())==null)
 				{
 				if(!unknown.contains(g.getContig()))
 					{
@@ -516,19 +519,20 @@ public class BackLocate
 	public int doWork(List<String> args) {
 		PrintStream out=null;
 		try {			
-		
-			if(this.indexedRefFile==null)
+			if(StringUtil.isBlank(this.indexedRefUri))
 				{
 				throw new JvarkitException.CommandLineError("Reference file was not provided");
 				}
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.indexedRefFile);
+			this.referenceGenome = 
+					new ReferenceGenomeFactory().		
+					open(this.indexedRefUri);
 			
-			if(knownGeneURI==null)
+			if(StringUtil.isBlank(this.knownGeneURI))
 				{
 				throw new JvarkitException.CommandLineError("Undefined knwonGeneURI");
 				}
 			
-			if(kgXRef==null)
+			if(StringUtil.isBlank(this.kgXRef))
 				{
 				throw new JvarkitException.CommandLineError("Undefined kgXref");
 				}
@@ -577,16 +581,16 @@ public class BackLocate
 			if(args.isEmpty())
 				{
 				LOG.info("reading from stdin");
-				LineIterator in=IOUtils.openStdinForLineIterator();
+				final LineIterator in=IOUtils.openStdinForLineIterator();
 				this.run(out,in);
 				CloserUtil.close(in);
 				}
 			else
 				{
-				for(String filename:args)
+				for(final String filename:args)
 					{
 					LOG.info("reading from "+filename);
-					LineIterator in=IOUtils.openURIForLineIterator(filename);
+					final LineIterator in=IOUtils.openURIForLineIterator(filename);
 					this.run(out,in);
 					CloserUtil.close(in);
 					}
@@ -599,13 +603,13 @@ public class BackLocate
 			}
 		finally
 			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			this.indexedFastaSequenceFile=null;
+			CloserUtil.close(this.referenceGenome);
+			this.referenceGenome=null;
 			CloserUtil.close(out);
 			}	
 		}
 		
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new BackLocate().instanceMainWithExit(args);
 		}

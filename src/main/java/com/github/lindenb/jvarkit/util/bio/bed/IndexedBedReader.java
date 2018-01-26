@@ -43,7 +43,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -120,6 +122,11 @@ public class IndexedBedReader
 		{
 		checkOpen();
 		return this.reader.query(chrom, start, end);
+		}
+	
+	/** return distinct contigs in this bed */
+	public Set<String> getContigs() {
+		return new LinkedHashSet<>(this.reader.getContigs());
 		}
 	
 	public List<BedLine> getLines(final String chrom,final int start,final int end,final Predicate<BedLine> predicate) throws IOException

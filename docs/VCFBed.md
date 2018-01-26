@@ -1,5 +1,7 @@
 # VCFBed
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Transfer information from a BED to a VCF
 
 
@@ -10,16 +12,23 @@ Usage: vcfbed [options] Files
   Options:
     -B, --bed
       Tribble or Tabix bed file
+    -e, --expr, --jexl
+      [20180124]A JEXL Expression returning a string (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java 
+      ) 
+      Default: bed.get(0)+":"+bed.get(1)+"-"+bed.get(2)
+    -x, --extend
+      [20180123]if nothing was found in the BED file, extends the interval by 
+      'x' bases and try again. Ignore if <1. Require that the VCF file has a 
+      Dictionary (##contig lines)
+      Default: 0
     -fn, --filternooverlap
       if defined, set this as a FILTER column if not any BED line overlap a 
       variant 
     -fo, --filteroverlap
       if defined, set this as a FILTER column if one or more BED line overlap 
       a variant
-    -f, --format
-      format pattern ${xx} will be replaced by column xx in the bed line. 
-      Empty lines will be ignored (no tag) but the FILTERs will be set.
-      Default: ${1}:${2}-${3}
     -h, --help
       print help and exit
     --helpFormat
@@ -31,6 +40,9 @@ Usage: vcfbed [options] Files
     -m, --map
       unindexed bed file, will be loaded in memory (faster than tribble/tabix 
       but memory consumming)
+    -mx, --max-extend
+      [20180123] used with option 'x': don't extend to more than 'max' bases.
+      Default: 1000
     -o, --output
       Output file. Optional . Default: stdout
     -T, --tag
@@ -98,6 +110,9 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Jan 24 20:57:31 2018 +0100 ; vcfbed: use jex instead of cutsom parser ; https://github.com/lindenb/jvarkit/commit/3823c4e1e85daebb098f2c03b4cdd5c6cfea5b6c
+Wed Jan 24 17:21:24 2018 +0100 ; vcfbed: extends+loop ; https://github.com/lindenb/jvarkit/commit/459fe47a4a91f6e198afe02bac678520c69ffac7
+Tue Nov 14 16:13:41 2017 +0100 ; epsitatis01, strange bug in htsjdk https://github.com/samtools/htsjdk/issues/1026 ; https://github.com/lindenb/jvarkit/commit/871a7cc3ed14df5d5b6cf19ef9bef87160795c16
 Tue Oct 31 15:34:21 2017 +0100 ; vcf2bed: moved to java bean + tests ; https://github.com/lindenb/jvarkit/commit/9c33582909b867705e38c9efb7065cd51c2886b2
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
 Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
@@ -187,7 +202,7 @@ Another example:
 
 ```
 $ tabix -h dbsnp138_00-All.vcf.gz "19:58864565-58865165" | sed '/^[^#]/s/^/chr/' |\
-java -jar dist/vcfbed.jar -m your.bed -f '${1}|${2}|${3}|${4}&${5}'
+java -jar dist/vcfbed.jar -m your.bed -e 'bed.get(0)+"|"+bed.get(1)+"|"+bed.get(2)+"|"+bed.get(3)+"&"+bed.get(4)'
 
 ##INFO=<ID=VCFBED,Number=.,Type=String,Description="metadata added from your.bed . Format was ${1}|${2}|${3}|${4}&${5}">
 (...)
