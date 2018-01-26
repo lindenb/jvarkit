@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.math;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.stream.DoubleStream;
 
 
 /* see also http://trove4j.sourceforge.net/javadocs/gnu/trove/list/array/TDoubleArrayList.html */
@@ -101,7 +102,10 @@ public class DoubleArray
 		{
 		return new DoubleArray(this);
 		}
-		
+	
+	public DoubleStream stream() {
+		return Arrays.stream(this._array, 0, _len);
+	}
 	
 	public double getMin()
 		{

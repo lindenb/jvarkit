@@ -110,6 +110,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Jan 24 20:57:31 2018 +0100 ; vcfbed: use jex instead of cutsom parser ; https://github.com/lindenb/jvarkit/commit/3823c4e1e85daebb098f2c03b4cdd5c6cfea5b6c
 Wed Jan 24 17:21:24 2018 +0100 ; vcfbed: extends+loop ; https://github.com/lindenb/jvarkit/commit/459fe47a4a91f6e198afe02bac678520c69ffac7
 Tue Nov 14 16:13:41 2017 +0100 ; epsitatis01, strange bug in htsjdk https://github.com/samtools/htsjdk/issues/1026 ; https://github.com/lindenb/jvarkit/commit/871a7cc3ed14df5d5b6cf19ef9bef87160795c16
 Tue Oct 31 15:34:21 2017 +0100 ; vcf2bed: moved to java bean + tests ; https://github.com/lindenb/jvarkit/commit/9c33582909b867705e38c9efb7065cd51c2886b2

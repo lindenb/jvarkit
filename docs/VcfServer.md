@@ -1,5 +1,7 @@
 # VcfServer
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Web Server displaying VCF file. A web interface for vcf2table
 
 

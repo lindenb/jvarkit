@@ -175,6 +175,16 @@ public static ContigNameConverter fromFile(final File mappingFile)
 	
 }
 
+private static class GRCh37Ensembl2Ucsc extends MapBasedContigNameConverter
+	{
+	GRCh37Ensembl2Ucsc() {
+		for(int i=1;i<=22;++i) map.put(String.valueOf(i),"chr"+i);
+		map.put("X","chrX");map.put("Y","chrY");map.put("MT","chrM");
+		}
+	@Override
+	public String getName() {return "GRCh37Ensembl2Ucsc";}
+}
+
 private static class GRCh37Ucsc2Ensembl extends MapBasedContigNameConverter
 	{
 	GRCh37Ucsc2Ensembl() {

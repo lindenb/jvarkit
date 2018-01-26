@@ -399,6 +399,19 @@ private class DasGenomeImpl extends AbstractReferenceGenome
 				final int length = Integer.parseInt(att.getValue());
 				if(length<=0) throw new XMLStreamException("bad end "+length, SE.getLocation());
 				super.dictionary.addSequence(new SAMSequenceRecord(id, length));
+				if(id.matches("[0-9]+"))
+					{
+					super.dictionary.addSequenceAlias(id, "chr"+id);
+					}
+				else if(id.equals("X")) {
+					super.dictionary.addSequenceAlias(id, "chrX");
+					}
+				else if(id.equals("Y")) {
+					super.dictionary.addSequenceAlias(id, "chrY");
+					}
+				else if(id.equals("MT")) {
+					super.dictionary.addSequenceAlias(id, "chrM");
+					}
 				}
 			if(isDebug()) LOG.debug("dict in "+entry_points_url+" size : "+this.dictionary.size());
 			}
