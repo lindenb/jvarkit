@@ -354,5 +354,43 @@ private static class OneDictionary extends ContigNameConverter
 		return "OneDictionary";
 		}
 	}
-
+/** add common known contig aliases to the dict */
+public static void setDefaultAliases(final SAMSequenceDictionary dict ) {
+	final Set<String> contigs = dict.getSequences().stream().map(C->C.getSequenceName()).collect(Collectors.toSet());
+	for(String C: contigs)
+		{
+		if(C.startsWith("chr"))
+			{
+			if(C.equals("chrX") && dict.getSequence("X")==null) {
+				dict.addSequenceAlias(C, "X");
+				}
+			else if(C.equals("chrY") && dict.getSequence("Y")==null) {
+				dict.addSequenceAlias(C, "Y");
+				}
+			else if(C.equals("chrM") || C.equals("chrMT")) {
+				if(dict.getSequence("MT")==null) dict.addSequenceAlias(C, "MT");
+				if(dict.getSequence("M")==null) dict.addSequenceAlias(C, "M");
+				}
+			else if(C.substring(3).matches("[0-9]+") && dict.getSequence(C.substring(3))==null) {
+				dict.addSequenceAlias(C, C.substring(3));
+				}
+			}
+		else
+			{
+			if(C.equals("X") && dict.getSequence("chrX")==null) {
+				dict.addSequenceAlias(C, "chrX");
+				}
+			else if(C.equals("Y") && dict.getSequence("chrY")==null) {
+				dict.addSequenceAlias(C, "chrY");
+				}
+			else if(C.equals("M") || C.equals("MT")) {
+				if(dict.getSequence("chrM")==null) dict.addSequenceAlias(C, "chrM");
+				if(dict.getSequence("chrMT")==null) dict.addSequenceAlias(C, "chrMT");
+				}
+			else if(C.matches("[0-9]+") && dict.getSequence("chr"+C)==null) {
+				dict.addSequenceAlias(C, "chr"+C);
+				}
+			}
+		}
+	}
 }
