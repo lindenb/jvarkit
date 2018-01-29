@@ -188,8 +188,9 @@ public class ConcatSam extends Launcher
 			return addInterval(intervalStr);
 			}
 		
+		/** add this interval string; Will be ignored if it is blank */
 		public Factory addInterval(final String intervalStr) {
-			this.intervalStrList.add(intervalStr);
+			if(!StringUtil.isBlank(intervalStr)) this.intervalStrList.add(intervalStr);
 			return this;
 			}
 
@@ -209,7 +210,7 @@ public class ConcatSam extends Launcher
 			for(final String intervalStr:this.intervalStrList)
 				{
 				if(StringUtil.isBlank(intervalStr)) {
-					throw new IllegalStateException("empty string in "+this.intervalStrList);
+					throw new IllegalStateException("empty interval string in "+this.intervalStrList);
 				}
 				final SAMSequenceDictionary dict =r.getFileHeader().getSequenceDictionary();
 				if(dict==null) throw new JvarkitException.BamDictionaryMissing(r.getResourceDescription());

@@ -73,8 +73,13 @@ public static class FastaDictionaryMissing extends DictionaryMissing
 	public FastaDictionaryMissing(final File file) {
 		this(file.getPath());
 		}
+	
+	public static String getMessage(final String file) {
+		return "A Sequence dictionary is missing for "+file+". A reference should have an associated .dict and .fai file. See http://gatkforums.broadinstitute.org/gatk/discussion/1601 .";
+		}
+	
 	public FastaDictionaryMissing(final String file) {
-		super("A Sequence dictionary is missing for "+file+". A reference should have an associated .dict and .fai file. See http://gatkforums.broadinstitute.org/gatk/discussion/1601 .");
+		super(getMessage(file));
 		}
 	}
 

@@ -84,6 +84,7 @@ private boolean return_N_on_indexOutOfRange = false;
 private boolean debug = false;
 private boolean throwOnContigNotFound = false;
 private boolean neverReturnNullContig = false;
+private boolean disableDefaultAliase = false;
 
 /** never return a null contig if it's not in the dict, instead return a 0-length contig that will always return 'N' for 'charAt(idx)' */
 public ReferenceGenomeFactory setNeverReturnNullContig(boolean neverReturnNullContig) {
@@ -131,6 +132,16 @@ public ReferenceGenomeFactory setDebug(boolean b) {
 public boolean isDebug() {
 	return debug;
 }
+public ReferenceGenomeFactory setDisableDefaultAliases(boolean b) {
+	this.disableDefaultAliase = b;
+	return this;
+}
+
+public boolean isDisableDefaultAliases() {
+	return disableDefaultAliase;
+}
+
+
 
 private class NullReferenceContig
 	extends AbstractCharSequence
@@ -279,8 +290,11 @@ private  class ReferenceGenomeImpl
 		IOUtil.assertFileIsReadable(fastaFile);
 		this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(fastaFile);
 		super.dictionary = this.indexedFastaSequenceFile.getSequenceDictionary();
-		if(this.dictionary==null) {
+		if(super.dictionary==null) {
 			throw new JvarkitException.FastaDictionaryMissing(fastaFile);
+			}
+		if(!ReferenceGenomeFactory.this.isDisableDefaultAliases()) {
+			ContigNameConverter.setDefaultAliases(super.dictionary);
 			}
 		}
 	@Override
@@ -404,7 +418,9 @@ private class DasGenomeImpl extends AbstractReferenceGenome
 				if(length<=0) throw new XMLStreamException("bad end "+length, SE.getLocation());
 				super.dictionary.addSequence(new SAMSequenceRecord(id, length));
 				}
-			ContigNameConverter.setDefaultAliases(this.dictionary);
+			if(!ReferenceGenomeFactory.this.isDisableDefaultAliases()) {
+				ContigNameConverter.setDefaultAliases(this.dictionary);
+				}
 			if(isDebug()) LOG.debug("dict in "+entry_points_url+" size : "+this.dictionary.size());
 			}
 		catch(final XMLStreamException err)

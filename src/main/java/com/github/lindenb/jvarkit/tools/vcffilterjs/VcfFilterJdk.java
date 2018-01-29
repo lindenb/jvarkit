@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -61,6 +62,8 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Iso8601Date;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -553,6 +556,21 @@ public class VcfFilterJdk
 		{
 		protected final Map<String,Object> userData = new HashMap<>();
 		protected final VCFHeader header;
+		
+		/** Utility: Predicate for filtering the genotypes having at least one ALT allele */
+		public final Predicate<Genotype> genotypeHasAltAllele = G->{
+			if(G==null) return false;
+			final List<Allele> alleles = G.getAlleles();
+			for(int i=0;i< alleles.size();i++)
+				{
+				final Allele a=alleles.get(i);
+				if(a.isNoCall()) continue;
+				if(a.isReference()) continue;
+				return true;
+				}
+			return false;
+			};
+		
 		protected AbstractFilter(final VCFHeader header) {
 			super(header);
 			this.header = header;

@@ -36,6 +36,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.IntUnaryOperator;
 
 import com.beust.jcommander.Parameter;
@@ -57,6 +59,7 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -166,7 +169,7 @@ public class BamStats04 extends Launcher
 			try
 				{
 				final BedLineCodec codec= new BedLineCodec();
-				
+				final Set<String> all_partitions = new TreeSet<>();
 				bedIn=IOUtils.openFileForBufferedReading(this.bedFile);
 				SAMSequenceDictionary dict = null;
 				
@@ -178,10 +181,31 @@ public class BamStats04 extends Launcher
 						samReader.close();
 						return -1;
 						}
-					final SAMSequenceDictionary d = samReader.getFileHeader().getSequenceDictionary();
-						if(d==null) {
+					final SAMFileHeader samFileheader= samReader.getFileHeader();
+					if(samFileheader==null)
+						{
+						LOG.error("SAM file is missing a header "+filename);
+						return -1;
+						}
+					
+					final List<SAMReadGroupRecord> readGroups = samFileheader.getReadGroups();
+					
+					if(readGroups==null || readGroups.isEmpty())
+						{
+						LOG.warn("No Read group (RG) in the header of "+filename);
+						all_partitions.add(NO_PARTITION);
+						}
+					else
+						{
+						for(final SAMReadGroupRecord rg: readGroups)
+							{
+							all_partitions.add(this.partition.apply(rg,NO_PARTITION));
+							}
+						}
+					final SAMSequenceDictionary d = samFileheader.getSequenceDictionary();
+					if(d==null) {
 						samReader.close();
-						LOG.error("SAM sequence dictionary missing in SAM Header");
+						LOG.error(JvarkitException.BamDictionaryMissing.getMessage(filename));
 						return -1;
 						}
 					
@@ -235,7 +259,10 @@ public class BamStats04 extends Launcher
 						genomicSequence = new GenomicSequence(indexedFastaSequenceFile, bedLine.getContig());
 						}
 					
-					final Map<String, IntervalStat> sample2stats= new HashMap<>();
+					final Map<String, IntervalStat> sample2stats= new HashMap<>(all_partitions.size());
+					for(final String rgId:all_partitions) {
+						sample2stats.put(rgId, new IntervalStat(bedLine));
+						}
 					
 					for(final SamReader samReader:samReaders) 
 						{

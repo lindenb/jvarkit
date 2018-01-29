@@ -38,7 +38,10 @@ public ReferenceContig getContig(final String contigName);
 public default ReferenceContig getContig(final int id) {
 	return getContig(getDictionary().getSequence(id).getSequenceName());
 }
-
+public default boolean hasContig(final String name)
+	{
+	return getDictionary().getSequence(name)!=null;
+	}
 public default int size() { return getDictionary().size();}
 public default boolean isEmpty() { return getDictionary().isEmpty();}
 public String getSource();

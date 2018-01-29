@@ -35,7 +35,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -354,43 +356,53 @@ private static class OneDictionary extends ContigNameConverter
 		return "OneDictionary";
 		}
 	}
-/** add common known contig aliases to the dict */
-public static void setDefaultAliases(final SAMSequenceDictionary dict ) {
+/** add common known contig aliases to the dict.  eg chr1->1, 2 -> chr2
+ * @return the dict
+ */
+public static SAMSequenceDictionary setDefaultAliases(final SAMSequenceDictionary dict ) {
 	final Set<String> contigs = dict.getSequences().stream().map(C->C.getSequenceName()).collect(Collectors.toSet());
-	for(String C: contigs)
+	final BiConsumer<String, String> alias = (S1,S2)->{
+		if(contigs.contains(S2)) return;
+		dict.addSequenceAlias(S1, S2);
+		};
+	final Predicate<String> isNumber = (S)->!S.isEmpty() && 
+			S.chars().allMatch(ASCII->Character.isDigit(ASCII));
+		
+	for(final String C: contigs)
 		{
 		if(C.startsWith("chr"))
 			{
-			if(C.equals("chrX") && dict.getSequence("X")==null) {
-				dict.addSequenceAlias(C, "X");
+			if(C.equals("chrX")) {
+				alias.accept(C, "X");
 				}
-			else if(C.equals("chrY") && dict.getSequence("Y")==null) {
-				dict.addSequenceAlias(C, "Y");
+			else if(C.equals("chrY")) {
+				alias.accept(C, "Y");
 				}
 			else if(C.equals("chrM") || C.equals("chrMT")) {
-				if(dict.getSequence("MT")==null) dict.addSequenceAlias(C, "MT");
-				if(dict.getSequence("M")==null) dict.addSequenceAlias(C, "M");
+				alias.accept(C, "MT");
+				alias.accept(C, "M");
 				}
-			else if(C.substring(3).matches("[0-9]+") && dict.getSequence(C.substring(3))==null) {
-				dict.addSequenceAlias(C, C.substring(3));
+			else if(isNumber.test(C.substring(3))) {
+				alias.accept(C,C.substring(3));
 				}
 			}
 		else
 			{
-			if(C.equals("X") && dict.getSequence("chrX")==null) {
-				dict.addSequenceAlias(C, "chrX");
+			if(C.equals("X")) {
+				alias.accept(C,"chrX");
 				}
-			else if(C.equals("Y") && dict.getSequence("chrY")==null) {
-				dict.addSequenceAlias(C, "chrY");
+			else if(C.equals("Y")) {
+				alias.accept(C,"chrY");
 				}
 			else if(C.equals("M") || C.equals("MT")) {
-				if(dict.getSequence("chrM")==null) dict.addSequenceAlias(C, "chrM");
-				if(dict.getSequence("chrMT")==null) dict.addSequenceAlias(C, "chrMT");
+				alias.accept(C,"chrM");
+				alias.accept(C,"chrMT");
 				}
-			else if(C.matches("[0-9]+") && dict.getSequence("chr"+C)==null) {
-				dict.addSequenceAlias(C, "chr"+C);
+			else if(isNumber.test(C)) {
+				alias.accept(C,"chr"+C);
 				}
 			}
 		}
+	return dict;
 	}
 }
