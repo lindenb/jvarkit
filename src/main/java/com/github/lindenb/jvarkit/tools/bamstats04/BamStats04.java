@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.IntUnaryOperator;
@@ -46,11 +47,13 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -66,13 +69,13 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 
 /**
 BEGIN_DOC
 
 ## History
 
+* 2018-01-29: fixed bug from previous release (no data produced if no read). Added BioDas Resource.
 * 2017-11-20: added new column 'partition'
 * 2017-11-20: can read more than one BAM File.
 
@@ -100,14 +103,14 @@ public class BamStats04 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-cov","--cov"},description="min coverage to say the position is not covered")
+	@Parameter(names={"-cov","--cov"},description="min coverage to say the position is not covered. Use with care: any depth below this treshold will be trimmed to zero.")
 	private int MIN_COVERAGE = 0 ;
 	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
 	private File bedFile = null;
-	@Parameter(names={"-R","--ref"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+" If set, a column with the GC% will be added")
-	private File faidxFile = null;
+	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added." + ReferenceGenomeFactory.OPT_DESCRIPTION)
+	private String faidxUri = null;
 	@Parameter(names={"-partition","--partition"},description="[20171120]"+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
 	
@@ -164,8 +167,8 @@ public class BamStats04 extends Launcher
 			BufferedReader bedIn=null;
 			final List<SamReader> samReaders = new ArrayList<>(args.size());
 			PrintWriter pw = null;
-			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-			GenomicSequence genomicSequence=null;
+			ReferenceGenome referenceGenome = null;
+			ReferenceContig referenceContig = null;
 			try
 				{
 				final BedLineCodec codec= new BedLineCodec();
@@ -226,15 +229,13 @@ public class BamStats04 extends Launcher
 				}
 				
 				
-				
-				
-				if(this.faidxFile!=null) {
-					indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxFile);
+				if(!StringUtil.isBlank(this.faidxUri)) {
+					referenceGenome = new ReferenceGenomeFactory().open(this.faidxUri);
 				}
 				pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 				pw.println("#chrom\tstart\tend\tlength\t"+
 					this.partition.name()+"\t"+
-					(indexedFastaSequenceFile==null?"":"gc_percent\t")+
+					(referenceGenome==null?"":"gc_percent\t")+
 					"mincov\tmaxcov\tmeancov\tmediancov\tnocoveragebp\tpercentcovered");
 	
 			
@@ -255,8 +256,8 @@ public class BamStats04 extends Launcher
 						LOG.info("ignoring "+bedLine);
 						continue;
 						}
-					if(indexedFastaSequenceFile!=null && (genomicSequence==null || !genomicSequence.getChrom().equals(bedLine.getContig()))) {
-						genomicSequence = new GenomicSequence(indexedFastaSequenceFile, bedLine.getContig());
+					if(referenceGenome!=null && (referenceContig==null || !referenceContig.hasName(bedLine.getContig()))) {
+						referenceContig = referenceGenome.getContig(bedLine.getContig());
 						}
 					
 					final Map<String, IntervalStat> sample2stats= new HashMap<>(all_partitions.size());
@@ -307,10 +308,10 @@ public class BamStats04 extends Launcher
 						r.close();
 						} // end of loop over sam Readers
 					
-					final Integer gcPercent = (genomicSequence==null?
-						null:
-						genomicSequence.getGCPercent(bedLine.getStart()-1,bedLine.getEnd())).getGCPercentAsInteger()
-						;
+					final OptionalInt gcPercentInt = (referenceContig==null?
+						OptionalInt.empty():
+						referenceContig.getGCPercent(bedLine.getStart()-1,bedLine.getEnd()).getGCPercentAsInteger()
+						);
 					
 					
 					for(final String partitionName : sample2stats.keySet()) {
@@ -331,13 +332,18 @@ public class BamStats04 extends Launcher
 								);
 		                
 						
-						pw.println(
+						pw.print(
 								bedLine.getContig()+"\t"+
 								(bedLine.getStart()-1)+"\t"+
 								(bedLine.getEnd())+"\t"+
 								stat.counts.length+"\t"+
-								partitionName+"\t"+
-								(gcPercent==null? "":String.valueOf(gcPercent)+"\t")+
+								partitionName+"\t"
+								);
+						if(referenceGenome!=null) {
+							if(gcPercentInt.isPresent()) pw.print(gcPercentInt.getAsInt());
+							pw.print("\t");
+							}
+						pw.println(
 								stat.counts[0]+"\t"+
 								stat.counts[stat.counts.length-1]+"\t"+
 								mean+"\t"+
@@ -360,7 +366,7 @@ public class BamStats04 extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(indexedFastaSequenceFile);
+			CloserUtil.close(referenceGenome);
 			CloserUtil.close(pw);
 			CloserUtil.close(bedIn);
 			CloserUtil.close(samReaders);

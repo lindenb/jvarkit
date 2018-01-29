@@ -24,12 +24,30 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.fasta;
 
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.Locatable;
 
 public interface ReferenceContig
 	extends CharSequence,Locatable{
 
+	
+	public static interface GCPercent extends Locatable
+		{
+		public int getAllCount();
+		public int getGCCount();
+		public int getATCount();
+		/** return true if getAllCount==0 */
+		public boolean isEmpty();
+		/** return GC% as double between 0 and 1  */
+		public OptionalDouble getGCPercent();
+		/** return GC% as int between 0 and 100 . return -1 if interval isEmpty */
+		public OptionalInt getGCPercentAsInteger();
+		}
+	
+	
 public SAMSequenceRecord getSAMSequenceRecord();
 
 /** return true if contig is compatible with 'name' */
@@ -55,4 +73,13 @@ public default int getStart() {
 public default int getEnd() {
 	return this.length();
 	}
+
+/** return GC%
+ * 
+ * @param start 0 based start pos
+ * @param end 0 based end pos
+ * @return a GC% object
+ */
+public GCPercent getGCPercent(int start0,int end0);
+
 }

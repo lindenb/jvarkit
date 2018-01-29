@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -151,6 +153,7 @@ private class NullReferenceContig
 	NullReferenceContig(final String name) {
 		this.ssr = new SAMSequenceRecord(name, 0);
 		}
+	
 	@Override
 	public SAMSequenceRecord getSAMSequenceRecord() {
 		return this.ssr;
@@ -158,6 +161,47 @@ private class NullReferenceContig
 	@Override
 	public char charAt(int index) {
 		return 'N';
+		}
+	@Override
+	public GCPercent getGCPercent(final int start, final int end) {
+		return new GCPercent() {
+			@Override
+			public int getATCount() {
+				return 0;
+				}
+			@Override
+			public OptionalInt getGCPercentAsInteger() {
+				return OptionalInt.empty();
+				}
+			@Override
+			public boolean isEmpty() {
+				return true;
+				}
+			@Override
+			public int getGCCount() {
+				return 0;
+				}
+			@Override
+			public OptionalDouble getGCPercent() {
+				return OptionalDouble.empty();
+				}
+			@Override
+			public int getStart() {
+				return start+1;
+				}
+			@Override
+			public int getEnd() {
+				return end;
+				}
+			@Override
+			public String getContig() {
+				return NullReferenceContig.this.getContig();
+				}
+			@Override
+			public int getAllCount() {
+				return 1+end-start;
+				}
+			};
 		}
 	}
 
@@ -212,10 +256,85 @@ private abstract class AbstractReferenceGenome
 		}
 	}
 
+
+private static class GCPercentImpl implements ReferenceContig.GCPercent
+	{
+	final String contig;
+	final int start1;
+	final int end1;
+	int count=0;
+	int count_gc=0;
+	int count_at=0;
+	
+	GCPercentImpl(String contig,int s1,int e1) {
+		this.contig = contig;
+		this.start1=s1;
+		this.end1=e1;
+		}
+	@Override public int getAllCount() { return this.count;}
+	@Override public int getGCCount() { return this.count_gc;}
+	@Override public int getATCount(){ return this.count_at;}
+	@Override
+	public boolean isEmpty() { return this.count == 0; }
+	@Override
+	public OptionalDouble getGCPercent() {
+		return ( this.count==0? 
+				OptionalDouble.empty():
+				OptionalDouble.of(this.count_gc/(double)this.count))
+				;
+		}
+	@Override
+	public OptionalInt getGCPercentAsInteger() {
+		return ( this.count==0?
+				OptionalInt.empty():
+				OptionalInt.of((int)(getGCPercent().getAsDouble()*100.0)));
+		}
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + count;
+		result = prime * result + count_at;
+		result = prime * result + count_gc;
+		return result;
+	}
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null || !(obj instanceof GCPercentImpl)) {
+			return false;
+			}
+		final GCPercentImpl other = (GCPercentImpl) obj;
+		return	this.count==other.count &&
+				this.count_at==other.count_at &&
+				this.count_gc==other.count_gc;
+		}
+	@Override
+	public String toString() {
+		return "gc_percent("+this.count_gc+"/"+this.count+")="+this.getGCPercent();
+		}
+	@Override
+	public String getContig() {
+		return this.contig;
+		}
+	@Override
+	public int getStart() {
+		return this.start1;
+		}
+	@Override
+	public int getEnd() {
+		return this.end1;
+		}
+}
+
+
 private abstract class AbstractReferenceContigImpl
 	extends AbstractCharSequence
 	implements ReferenceContig
 	{
+	private final ReferenceGenome owner;
 	private final SAMSequenceRecord samSequenceRecord;
 	private byte buffer[]=null;
 	private int buffer_pos=-1;
@@ -223,10 +342,20 @@ private abstract class AbstractReferenceContigImpl
 	
 	protected abstract  byte[] refill(int start0,int end0);
 	
-	protected AbstractReferenceContigImpl(final SAMSequenceRecord ssr) {
+	protected AbstractReferenceContigImpl(final ReferenceGenome owner,final SAMSequenceRecord ssr) {
+		this.owner=owner;
 		this.samSequenceRecord = ssr;
 	}
 	
+	@Override
+	public boolean hasName(final String name) {
+		if(this.getContig().equals(name)) return true;
+		final SAMSequenceRecord ssr2 = this.owner.getDictionary().getSequence(name);
+		if(ssr2==null) return false;
+		if(ssr2==this.samSequenceRecord) return true;
+		return ssr2.getSequenceName().equals(this.getContig());
+		}
+
 	@Override
 	public final SAMSequenceRecord getSAMSequenceRecord() {
 		return this.samSequenceRecord;
@@ -255,6 +384,28 @@ private abstract class AbstractReferenceContigImpl
 		this.buffer_pos=minStart;
 		return (char)buffer[index0-minStart];
 		}
+	
+	@Override
+	public GCPercent getGCPercent(final int start,final int end) {
+		final int L=this.length();
+		final GCPercentImpl gcp = new GCPercentImpl(
+				this.getContig(),
+				start+1,
+				Math.min(end, L)
+				);
+		for(int i=start;i< end && i< L;++i) {
+			gcp.count++;
+			switch(this.charAt(i)) {
+				case 'c': case 'C':
+				case 'g': case 'G':
+				case 's': case 'S':gcp.count_gc++; break;
+				case 'a': case 'A':
+				case 't': case 'T':
+				case 'w': case 'W':gcp.count_at++; break;
+				}
+			}
+		return gcp;
+		}
 	}
 	
 private  class ReferenceGenomeImpl
@@ -266,7 +417,7 @@ private  class ReferenceGenomeImpl
 		final ReferenceSequence referenceSequence;
 
 		ReferenceContigImpl(final SAMSequenceRecord ssr) {
-			super(ssr);
+			super(ReferenceGenomeImpl.this,ssr);
 			this.referenceSequence  = ReferenceGenomeImpl.this.indexedFastaSequenceFile.getSequence(ssr.getSequenceName());
 			if(this.referenceSequence==null) throw new IllegalStateException();
 			}
@@ -310,6 +461,7 @@ private  class ReferenceGenomeImpl
 	public void close() throws IOException {
 		CloserUtil.close(this.indexedFastaSequenceFile);
 		}
+	
 	}
 
 
@@ -323,7 +475,7 @@ private class DasGenomeImpl extends AbstractReferenceGenome
 	private class DasContig extends AbstractReferenceContigImpl
 		{
 		DasContig(final SAMSequenceRecord ssr) {
-			super(ssr);
+			super(DasGenomeImpl.this,ssr);
 			}
 				
 		@Override
@@ -441,7 +593,7 @@ private class DasGenomeImpl extends AbstractReferenceGenome
 		}
 	
 	@Override
-	protected ReferenceContig create(SAMSequenceRecord ssr) {
+	protected ReferenceContig create(final SAMSequenceRecord ssr) {
 		return new DasContig(ssr);
 		}
 	
