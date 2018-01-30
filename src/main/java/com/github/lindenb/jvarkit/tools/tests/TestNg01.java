@@ -39,6 +39,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -51,6 +53,7 @@ import org.testng.Assert;
 import org.testng.annotations.*;
 import org.xml.sax.helpers.DefaultHandler;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
@@ -137,6 +140,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactor
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -180,6 +184,48 @@ class TestNg01 {
 			b= false;
 		}
 		Assert.assertTrue(b,"file "+f+" should be xml");
+	}
+	
+	private static void assertTableIsConsitent(final File f,Predicate<String> ignoreLine) {
+		final Pattern tab=Pattern.compile("[\t]");
+		BufferedReader r=null;
+		try {
+			Assert.assertTrue(f.exists(), "file "+f+" should exist");
+			r= IOUtils.openFileForBufferedReading(f);
+			int nCols=-1;
+			int nRow=0;
+			String line;
+			while((line=r.readLine())!=null)
+				{
+				if(ignoreLine!=null && ignoreLine.test(line)) continue;
+				nRow++;
+				final String tokens[]=tab.split(line);
+				final int c= tokens.length;
+				if(nRow==1)
+					{
+					nCols = c;
+					}
+				else 
+					{
+					if(nCols!=c)
+						{
+						for(int i=0;i< tokens.length;i++)
+							{
+							System.err.println("$"+(i+1)+":"+tokens[i]);
+							}
+						}
+					Assert.assertEquals(nCols,c,"Line "+line+" expected "+nCols+" tokens but got "+c);
+					}
+				}
+			}
+		catch (final Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+			}
+		finally
+			{
+			CloserUtil.close(r);
+			}
 	}
 	
 	
@@ -326,12 +372,13 @@ class TestNg01 {
     
     @Test
     public void testGroupByGene() throws IOException{
-    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
+    	final File output = new File(TEST_RESULTS_DIR,"jeter.txt");
     
         Assert.assertEquals(0,new GroupByGene().instanceMain(new String[]{
         		"-o",output.getPath(),
         		VCF01
         	}));
+        assertTableIsConsitent(output, null);
         Assert.assertTrue( output.exists());
     	}
 
@@ -1208,10 +1255,12 @@ class TestNg01 {
     	final File output =new File(TEST_RESULTS_DIR,"jeter.tsv");
     	Assert.assertEquals(0,new BamStats04().instanceMain(new String[]{
         		"-o",output.getPath(),
+        		"--cov","0","--cov","10","--cov","20",
         		"-R",TOY_FA,
         		"-B",TOY_BED_GZ,
         		TOY_BAM
         		}));
+    	assertTableIsConsitent(output,null);
     	Assert.assertTrue(output.delete());
 		}
     

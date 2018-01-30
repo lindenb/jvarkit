@@ -128,7 +128,7 @@ endif
 	${JAR} cfm ${dist.dir}/$(1)$(if ${standalone},-fat).jar ${tmp.mft}  -C ${tmp.dir} .
 	#create bash executable
 	echo '#!/bin/bash' > ${dist.dir}/$(1)
-	echo -n '${JAVA} -Djvarkit.log.name=$(1) -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhtt.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhtt.proxyPort=${http.proxy.port}) ' >> ${dist.dir}/$(1)
+	echo -n '${JAVA} -Djvarkit.log.name=$(1) -Dfile.encoding=UTF8 -Xmx500m $(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host})  $(if ${http.proxy.port},-Dhttp.proxyPort=${http.proxy.port}) ' >> ${dist.dir}/$(1)
 ifeq (${standalone},yes)
 	echo -n ' -jar "${dist.dir}/$(1)-fat.jar" '  >> ${dist.dir}/$(1)
 else
@@ -241,7 +241,10 @@ burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenm
 
 ${dist.dir}/testsng.jar:testsng
 tests: ${testng.jars} ${dist.dir}/testsng.jar
-	-${JAVA} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" org.testng.TestNG -parallel false \
+	-${JAVA} \
+		$(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host} -Dhttps.proxyHost=${http.proxy.host}) \
+		$(if ${http.proxy.port},-Dhttp.proxyPort=${http.proxy.port} -Dhttps.proxyPort=${http.proxy.port}) \
+		-cp "$(subst $(SPACE),:,$(filter %.jar,$^))" org.testng.TestNG -parallel false \
 		-suitename "jvarkit" -testname "jvarkit" \
 		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
 	rm -vf ${dist.dir}/testsng.jar

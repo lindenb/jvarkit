@@ -28,6 +28,7 @@ import java.io.Closeable;
 import java.util.function.Function;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 
 public interface ReferenceGenome extends
 	Closeable,
@@ -35,16 +36,32 @@ public interface ReferenceGenome extends
 public SAMSequenceDictionary getDictionary();
 public ReferenceContig getContig(final String contigName);
 
+/** convert contig name using aliases of the SAMSequenceDictionary, return null if there is no alias */
+public default String convertContig(final String srcName)
+	{
+	final SAMSequenceRecord rec = getDictionary().getSequence(srcName);
+	return rec==null?null:rec.getSequenceName();
+	}
+
+/** returns a ReferenceContig by tid or null if it doesn't exist */
 public default ReferenceContig getContig(final int id) {
 	return getContig(getDictionary().getSequence(id).getSequenceName());
 }
+
+/** return true if there is a contig with this name or alias */
 public default boolean hasContig(final String name)
 	{
 	return getDictionary().getSequence(name)!=null;
 	}
+
+/** return the dictionary size */
 public default int size() { return getDictionary().size();}
+
+/** return true if there is the dictionary is empty */
 public default boolean isEmpty() { return getDictionary().isEmpty();}
+
 public String getSource();
+
 @Override
 public default ReferenceContig apply(final String contigName) {
 		return getContig(contigName);

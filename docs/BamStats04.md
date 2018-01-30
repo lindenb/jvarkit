@@ -13,8 +13,9 @@ Usage: bamstats04 [options] Files
   * -B, --bed
       Bed File. Required
     -cov, --cov
-      min coverage to say the position is not covered
-      Default: 0
+      add this min coverage value to ask wether the position is not covered. 
+      Use with care: any depth below this treshold will be trimmed to zero.
+      Default: []
     -f, --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
@@ -34,9 +35,12 @@ Usage: bamstats04 [options] Files
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --ref
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary If set, a column with the 
-      GC% will be added
+      [20180126]If set, a column with the GC% will be added.Indexed Genome 
+      Reference. It can be a the path to fasta file that must be indexed with 
+      samtools faidx and with picard CreateSequenceDictionary. It can also be 
+      a BioDAS dsn url like `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . 
+      BioDAS references are slower, but allow to work without a local 
+      reference file.
     --version
       print version and exit
 
@@ -96,6 +100,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Jan 29 20:00:36 2018 +0100 ; bam stats04 && biodas ; https://github.com/lindenb/jvarkit/commit/e15805c76fe308fba91d44feefe04a5895b99144
+Mon Jan 29 16:03:39 2018 +0100 ; fix bug in bamstats04 found by @EricCharp: no output for segment without any read ; https://github.com/lindenb/jvarkit/commit/4f33881195371896cfe107521ef5722e75015f6b
 Tue Nov 21 17:55:52 2017 +0100 ; working on xcontaminations... ; https://github.com/lindenb/jvarkit/commit/0519fdc041212457ffcdb427b28c477227c38a9e
 Mon Nov 20 15:01:11 2017 +0100 ; adding partition for bamstats04, Partiton.OPT_DESC ; https://github.com/lindenb/jvarkit/commit/9f4e9dd12ffa66dc87e773bc7afa7040d507bfee
 Sun Nov 19 16:21:21 2017 +0100 ; bamstats04 : using percentil and median use MIN_DEPTH ; https://github.com/lindenb/jvarkit/commit/d407ea6d4a08938ef18fa445e5d1205f8d2de723
@@ -149,6 +155,8 @@ The current reference is:
 
 ## History
 
+* 2018-01-30: allow multiple values for '-cov'
+* 2018-01-29: fixed bug from previous release (no data produced if no read). Added BioDas Resource.
 * 2017-11-20: added new column 'partition'
 * 2017-11-20: can read more than one BAM File.
 

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.bamstats04;
@@ -75,6 +71,7 @@ BEGIN_DOC
 
 ## History
 
+* 2018-01-30: allow multiple values for '-cov'
 * 2018-01-29: fixed bug from previous release (no data produced if no read). Added BioDas Resource.
 * 2017-11-20: added new column 'partition'
 * 2017-11-20: can read more than one BAM File.
@@ -103,8 +100,8 @@ public class BamStats04 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-cov","--cov"},description="min coverage to say the position is not covered. Use with care: any depth below this treshold will be trimmed to zero.")
-	private int MIN_COVERAGE = 0 ;
+	@Parameter(names={"-cov","--cov"},description="add this min coverage value to ask wether the position is not covered. Use with care: any depth below this treshold will be trimmed to zero.")
+	private List<Integer> minCoverages = new ArrayList<>() ;
 	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
@@ -115,8 +112,6 @@ public class BamStats04 extends Launcher
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
 	
 	
-	/** map depth to 0 if depth <= MIN_COVERAGE */
-	private final IntUnaryOperator depthAdjuster = (D)->(D<=this.MIN_COVERAGE?0:D);
 	
 	private static class IntervalStat
 		{	
@@ -125,7 +120,6 @@ public class BamStats04 extends Launcher
 		IntervalStat(final BedLine bedLine) {
 			this.bedLine = bedLine;
 			this.counts=new int[bedLine.getEnd()-bedLine.getStart()+1];
-			
 			Arrays.fill(this.counts, 0);
 			}
 		void visit(final SAMRecord rec) {
@@ -163,6 +157,12 @@ public class BamStats04 extends Launcher
 				LOG.error("Bam files missing");
 				return -1;
 				}
+			
+			if(this.minCoverages.isEmpty())
+				{
+				this.minCoverages.add(0);
+				}
+			
 			final String NO_PARTITION="N/A";
 			BufferedReader bedIn=null;
 			final List<SamReader> samReaders = new ArrayList<>(args.size());
@@ -233,10 +233,24 @@ public class BamStats04 extends Launcher
 					referenceGenome = new ReferenceGenomeFactory().open(this.faidxUri);
 				}
 				pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-				pw.println("#chrom\tstart\tend\tlength\t"+
-					this.partition.name()+"\t"+
-					(referenceGenome==null?"":"gc_percent\t")+
-					"mincov\tmaxcov\tmeancov\tmediancov\tnocoveragebp\tpercentcovered");
+				pw.print(
+					"#chrom\tstart\tend\tlength\t"+
+					this.partition.name()+
+					(referenceGenome==null?"":"\tgc_percent")
+					);
+				
+				pw.print("\tmincov\tmaxcov");
+				
+				for(final int MIN_COVERAGE:this.minCoverages)
+					{
+					pw.print(
+							"\tmeancov_"+MIN_COVERAGE+
+							"\tmediancov_"+MIN_COVERAGE+
+							"\tnocoveragebp_"+MIN_COVERAGE+
+							"\tpercentcovered_"+MIN_COVERAGE
+							);
+					}
+				pw.println();
 	
 			
 				String line=null;
@@ -318,40 +332,52 @@ public class BamStats04 extends Launcher
 						final IntervalStat stat = sample2stats.get(partitionName);
 						Arrays.sort(stat.counts);
 						
-						final int count_no_coverage=(int)Arrays.stream(stat.counts).
-								filter(D->this.depthAdjuster.applyAsInt(D)<=0).
-								count()
-								;
-						
-						final double mean= Percentile.average().evaluate(Arrays.stream(stat.counts).
-								map(this.depthAdjuster)
-								);
-						
-		                final double median_depth = Percentile.median().evaluate(Arrays.stream(stat.counts).
-								map(this.depthAdjuster)
-								);
-		                
-						
 						pw.print(
 								bedLine.getContig()+"\t"+
 								(bedLine.getStart()-1)+"\t"+
 								(bedLine.getEnd())+"\t"+
 								stat.counts.length+"\t"+
-								partitionName+"\t"
+								partitionName
 								);
 						if(referenceGenome!=null) {
-							if(gcPercentInt.isPresent()) pw.print(gcPercentInt.getAsInt());
 							pw.print("\t");
+							if(gcPercentInt.isPresent()) pw.print(gcPercentInt.getAsInt());
+							
 							}
-						pw.println(
-								stat.counts[0]+"\t"+
-								stat.counts[stat.counts.length-1]+"\t"+
-								mean+"\t"+
-								median_depth+"\t"+
-								count_no_coverage+"\t"+
-								(int)(((stat.counts.length-count_no_coverage)/(double)stat.counts.length)*100.0)
-								);
+						pw.print(
+							"\t"+
+							stat.counts[0]+"\t"+
+							stat.counts[stat.counts.length-1]
+							);
 						
+						for(final int MIN_COVERAGE:this.minCoverages)
+							{
+							/** map depth to 0 if depth <= MIN_COVERAGE */
+							final IntUnaryOperator depthAdjuster = (D)->(D<=MIN_COVERAGE?0:D);
+	
+							
+							final int count_no_coverage=(int)Arrays.stream(stat.counts).
+									filter(D-> depthAdjuster.applyAsInt(D)<=0).
+									count()
+									;
+							
+							final double mean= Percentile.average().evaluate(Arrays.stream(stat.counts).
+									map(depthAdjuster)
+									);
+							
+			                final double median_depth = Percentile.median().evaluate(Arrays.stream(stat.counts).
+									map(depthAdjuster)
+									);
+			                
+							
+							pw.print("\t"+
+									mean+"\t"+
+									median_depth+"\t"+
+									count_no_coverage+"\t"+
+									(int)(((stat.counts.length-count_no_coverage)/(double)stat.counts.length)*100.0)
+									);
+							}
+						pw.println();
 						}
 					}
 				pw.flush();
