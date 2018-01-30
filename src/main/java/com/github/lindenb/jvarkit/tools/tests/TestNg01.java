@@ -85,6 +85,7 @@ import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.misc.FixVcfMissingGenotypes;
 import com.github.lindenb.jvarkit.tools.misc.Gff2KnownGene;
+import com.github.lindenb.jvarkit.tools.misc.GoUtils;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
@@ -803,6 +804,36 @@ class TestNg01 {
     	Assert.assertTrue(streamVcf(JETER_VCF).
     			anyMatch(V->V.hasAttribute("Uniqueness35bp")
     			));
+    	Assert.assertTrue( JETER_VCF.delete());
+    	
+    	
+    	final File xml = new File(TEST_RESULTS_DIR,"tmp.bw.xml");
+    	PrintWriter pw = new PrintWriter(xml);
+		pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+		pw.println("<registry>");
+		pw.println("<bigwig>");
+		pw.println("<uri>src/test/resources/Uniqueness35bp.bigWig</uri>");
+		pw.println("<tag>Uniqueness35bp</tag>");
+		pw.println("<description>test</description>");
+		pw.println("</bigwig>");
+		pw.println("</registry>");
+		pw.flush();
+		pw.close();
+    	assertIsXml(xml);
+    	
+    	
+    	Assert.assertEquals(0,new VCFBigWig().instanceMain(new String[]{
+        		"-o",JETER_VCF.getPath(),
+        		"-B",xml.getPath(),
+        		VCF01}));
+    	Assert.assertTrue( JETER_VCF.exists());
+    	assertIsVcf(JETER_VCF);
+    	Assert.assertTrue(streamVcf(JETER_VCF).
+    			anyMatch(V->V.hasAttribute("Uniqueness35bp")
+    			));
+    	Assert.assertTrue( JETER_VCF.delete());
+    	Assert.assertTrue( xml.delete());
+    	
     	}
     
 
@@ -1378,4 +1409,18 @@ class TestNg01 {
 	    	Assert.assertTrue(tmp1.delete());
 	    	Assert.assertTrue(output.delete());
 		}
+    
+    @Test
+    public void testGoUtils() throws IOException {
+	    	final File output = new File(TEST_RESULTS_DIR,"jeter0.txt");
+		
+	    	Assert.assertEquals(0,new GoUtils().instanceMain(new String[]{
+	        		"-A","GO:0005216",
+	        		"-R","is_a",
+	    			"-o",output.getPath()
+	        		}));
+	    	assertTableIsConsitent(output, null);
+	    	Assert.assertTrue(output.delete());
+		}
+    
 }

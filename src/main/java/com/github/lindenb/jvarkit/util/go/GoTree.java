@@ -1,13 +1,41 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2018 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.util.go;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.namespace.QName;
@@ -20,23 +48,61 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ns.RDF;
+
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 public class GoTree
 	{
+	private static Logger LOG=Logger.build(GoTree.class).make(); 
+
 	private static final String NS="http://www.geneontology.org/dtds/go.dtd#";
-	private static final String PREFIX="http://www.geneontology.org/go#";
+	public static final String GO_RDF_URL="http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz";
+	public static final String GO_URL_OPT_DESC="Gene ontology URI. Formatted as RDF.";
+	
+	public static enum RelType
+		{
+		is_a,negatively_regulates,part_of,positively_regulates,regulates
+		}
+	
 	public static interface Term
 		{
+		/** get accession number */
 		public String getAcn();
-		public String getLabel();
+		/** return name like 'maltose catabolic process' GO:0000025 */
+		public String getName();
 		public Set<Term> getParents();
+		public Set<String> getSynonyms();
+		public String getDefinition();
 		public Set<Term> getChildren();
-		public boolean isDescendantOf(String acn);
-		public boolean hasDescendant(String acn);
+		public boolean isDescendantOf(Term other);
+		public List<DbXRef> getDbXRefs();
 
 		//public Set<Term> getAllParents();
 		//public Set<Term> getAllChildren();
 		}
+	
+	public static interface DbXRef
+		{
+		public String getDatabaseSymbol();
+		public String getReference();
+		}
+	private static class DbXRefImpl implements DbXRef
+		{
+		private String symbol=null;
+		private String reference=null;
+		public String getDatabaseSymbol()
+			{
+			return symbol;
+			}
+		public String getReference()
+			{
+			return reference;
+			}
+		}
+	
 	
 	private GoTree()
 		{
@@ -44,64 +110,87 @@ public class GoTree
 	
 	public int size()
 		{
-		return uri2term.size();
+		return acn2term.size();
 		}
 	
-	public List<? extends Term> getTerms() 
+	public Collection<Term> getTerms() 
 		{
-		return new ArrayList<Term>(uri2term.values());
+		return Collections.unmodifiableCollection(this.acn2term.values());
 		}
 	
 	public void dump()
 		{
-		for(String s: uri2term.keySet())
+		for(final Term t: this.getTerms())
 			{
-			Term t=uri2term.get(s);
-			System.out.println(s+" "+t.getAcn()+" "+t.getLabel()+" "+t.getChildren()+" "+t.getParents());
+			System.out.println(t.getAcn()+" "+t.getName()+" "+t.getChildren()+" "+t.getParents());
 			}
 		}
 	
 	
-	private HashMap<String, TermImpl> uri2term=new HashMap<String, TermImpl>();
+	private final HashMap<String, TermImpl> acn2term=new HashMap<String, TermImpl>();
 	
 	private class TermImpl implements Term
 		{
 		String accession;
 		String name;
-		Set<String> parents=new HashSet<String>();
-		Set<String> children=new HashSet<String>();
+		String definition = null;
+		Set<String> synonyms = null;
+		List<DbXRef> dbxrefs = null;
+		final Set<TermImpl> parents=new HashSet<>();
+		final Set<TermImpl> children=new HashSet<>();
+		
+		TermImpl(final String accession) {
+			int hash=accession.indexOf('#');
+			if(hash!=-1)
+				{
+				this.accession=accession.substring(hash+1);
+				}
+			else
+				{
+				this.accession = accession;
+				}
+			this.name= this.accession;
+			}
+		@Override
+		public Set<String> getSynonyms()
+			{
+			return this.synonyms==null?
+					Collections.emptySet():
+					Collections.unmodifiableSet(this.synonyms)
+					;
+			}
 		
 		@Override
 		public String getAcn() {
 			return accession;
 			}
 		@Override
-		public String getLabel() {
+		public String getName() {
 			return name;
-			}	
+			}
+		@Override
+		public String getDefinition() {
+			return StringUtil.isBlank(definition)?getName():this.definition;
+			}
 		
-		private Set<Term> convert(Set<String> S1)
+		public List<DbXRef> getDbXRefs()
 			{
-			Set<Term> S2=new HashSet<Term>(S1.size());
-			for(String s:S1)
-				{
-				Term t=uri2term.get(s);
-				if(t==null) continue;
-				S2.add(t);
-				}
-			return S2;
+			return this.dbxrefs==null?
+					Collections.emptyList():
+					Collections.unmodifiableList(this.dbxrefs)
+					;
 			}
 		
 		@Override
 		public Set<Term> getChildren()
 			{
-			return convert(children);
+			return Collections.unmodifiableSet(this.children);
 			}
 		
 		@Override
 		public Set<Term> getParents()
 			{
-			return convert(parents);
+			return Collections.unmodifiableSet(this.parents);
 			}
 		/*
 		private void _getAllChildren(Set<String> seen)
@@ -143,29 +232,13 @@ public class GoTree
 			}*/
 		
 		@Override
-		public boolean isDescendantOf(String parentAcn)
+		public boolean isDescendantOf(final Term parentNode)
 			{
-			if(parentAcn.equals(this.accession)) return true;
-			if(!parentAcn.startsWith(PREFIX)) parentAcn=PREFIX+parentAcn;
-			for(String p:this.parents)
+			if(parentNode==this || getAcn().equals(parentNode.getAcn())) return true;
+			if(this.parents==null) return false;
+			for(final Term pNode:this.parents)
 				{
-				TermImpl pNode=uri2term.get(p);
-				if(pNode==null || pNode==this) continue;
-				if(pNode.isDescendantOf(parentAcn)) return true;
-				}
-			return false;
-			}
-		
-		@Override
-		public boolean hasDescendant(String descendantAcn)
-			{
-			if(descendantAcn.equals(this.accession)) return true;
-			if(!descendantAcn.startsWith(PREFIX)) descendantAcn=PREFIX+descendantAcn;
-			for(String p:this.children)
-				{
-				TermImpl pNode=uri2term.get(p);
-				if(pNode==null || pNode==this) continue;
-				if(pNode.hasDescendant(descendantAcn)) return true;
+				if(pNode.isDescendantOf(parentNode)) return true;
 				}
 			return false;
 			}
@@ -173,18 +246,15 @@ public class GoTree
 		@Override
 		public int hashCode()
 			{
-			return accession.hashCode();
+			return this.accession.hashCode();
 			}
 		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			TermImpl other = (TermImpl) obj;
-			return accession.equals(other.accession);
+		public boolean equals(final Object obj) {
+			if (this == obj) return true;
+			if (obj == null) return false;
+			if (getClass() != obj.getClass()) return false;
+			final TermImpl other = (TermImpl) obj;
+			return this.accession.equals(other.accession);
 			}
 		@Override
 		public String toString() {
@@ -192,125 +262,321 @@ public class GoTree
 			}
 		}
 	
-	public Term getTermByAccession(String s)
+	public Term getTermByAccession(final String s)
 		{
-		if(!s.startsWith(PREFIX)) s=PREFIX+s;
-		return (Term)uri2term.get(s);
+		return this.acn2term.get(s);
+		}
+	
+	/** search term by name or accession or synonyms, ignoring case */
+	public Term getTermByName(final String s)
+		{
+		for(final TermImpl t:this.acn2term.values())
+			{
+			if(t.accession.equalsIgnoreCase(s)) return t;
+			if(t.name!=null && t.name.equalsIgnoreCase(s)) return t;
+			if(t.synonyms!=null)
+				{
+				for(final String syn:t.synonyms)
+					{
+					if(syn.equalsIgnoreCase(s)) return t;
+					}
+				}
+			}
+		return null;
 		}
 		
-	private static final QName rdfAbout=new QName("http://www.w3.org/1999/02/22-rdf-syntax-ns#","about","rdf");
-	private static final QName rdfRsrc=new QName("http://www.w3.org/1999/02/22-rdf-syntax-ns#","resource","rdf");
-	private void parseTerm(StartElement root,XMLEventReader r) throws IOException,XMLStreamException
-		{
-		
-		Attribute aboutAtt=root.getAttributeByName(rdfAbout);
-		if(aboutAtt==null)
-			{
-			throw new IOException("no rdf:about");
-			}
-		TermImpl term=uri2term.get(aboutAtt.getValue());
-		
-		if(term==null)
-			{
-			term=new TermImpl();
-			term.accession=aboutAtt.getValue();
-			if(term.accession.startsWith(PREFIX))
-				{
-				term.accession=term.accession.substring(PREFIX.length());
-				}
-			term.name=term.accession;
-			uri2term.put(aboutAtt.getValue(),term);
-			}
-		while(r.hasNext())
-			{
-			XMLEvent evt=r.nextEvent();
-			if(evt.isStartElement())
-				{
-				StartElement E=evt.asStartElement();
-				QName qN=E.getName();
-				if( NS.equals(qN.getNamespaceURI()))
-					{
-					if(qN.getLocalPart().equals("accession"))
-						{
-						term.accession=r.getElementText();
-						}
-					else if(qN.getLocalPart().equals("name"))
-						{
-						term.name=r.getElementText();
-						}
-					else if(qN.getLocalPart().equals("is_a"))
-						{
-						Attribute rsrc=E.getAttributeByName(rdfRsrc);
-						if(rsrc==null) throw new IOException("att missing "+rdfRsrc+" for "+aboutAtt.getValue());
-							
-						String parentUri=rsrc.getValue();
-						term.parents.add(parentUri);
-						TermImpl parentTerm=this.uri2term.get(parentUri);
-						if(parentTerm==null)
-							{
-							parentTerm=new TermImpl();
-							parentTerm.accession=parentUri;
-							if(parentTerm.accession.startsWith(PREFIX))
-								{
-								parentTerm.accession=parentTerm.accession.substring(PREFIX.length());
-								}
-							parentTerm.name=parentTerm.accession;
-							uri2term.put(parentUri,parentTerm);
-							}
-						parentTerm.children.add(aboutAtt.getValue());							
-						}
-					}
-				
-				}
-			else if(evt.isEndElement())
-				{
-				EndElement E=evt.asEndElement();
-				QName qN=E.getName();
-				if(qN.getLocalPart().equals("term") && NS.equals(qN.getNamespaceURI()))
-					{
-					break;
-					}
-				}
-			}
-	
-		}	
-	
+	@Deprecated
 	public static GoTree parse(Reader xmlIn) throws IOException,XMLStreamException
 		{
-		GoTree tree=new GoTree();
-		XMLInputFactory fact=XMLInputFactory.newFactory();
-		fact.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
-		XMLEventReader r=fact.createXMLEventReader(xmlIn);
-		while(r.hasNext())
-			{
-			XMLEvent evt=r.nextEvent();
-			if(evt.isStartElement())
-				{
-				StartElement E=evt.asStartElement();
-				QName qN=E.getName();
-				if(qN.getLocalPart().equals("term") && NS.equals(qN.getNamespaceURI()))
-					{
-					tree.parseTerm(E,r);
-					}
-				}
-			}
-		r.close();
-		return tree;
+		return new Parser().parse(xmlIn);
 		}
-	
+	@Deprecated
 	public static GoTree parse(File file) throws IOException,XMLStreamException
 		{
-		BufferedReader r=IOUtils.openFileForBufferedReading(file);
-		GoTree t=parse(r);
-		r.close();
-		return t;
+		return new Parser().parse(file);
 		}
+	@Deprecated
 	public static GoTree parse(String uri) throws IOException,XMLStreamException
 		{
-		BufferedReader r=IOUtils.openURIForBufferedReading(uri);
-		GoTree t=parse(r);
-		r.close();
-		return t;
+		return new Parser().parse(uri);
+		}
+	
+	public static class Parser
+		{
+		private static final QName rdfAbout=new QName(RDF.NS,"about",RDF.pfx);
+		private static final QName rdfRsrc=new QName(RDF.NS,"resource",RDF.pfx);
+		private static final QName parseType=new QName(RDF.NS,"parseType",RDF.pfx);
+		
+		private final Map<String,TermImpl> uri2term = new HashMap<>();
+		private final List<IsA> isAList=new ArrayList<>();
+		private boolean ignore_synonyms=false;
+		private boolean ignore_definitions=false;
+		private boolean ignore_dbxref=false;
+		private boolean debug=false;
+		private Set<RelType> userRelTypes = new HashSet<>(Arrays.asList(RelType.values()));
+		
+		
+		/** set accepted relations */
+		public Parser setRelations(final Set<RelType> userRelTypes) {
+			this.userRelTypes = new HashSet<>(userRelTypes);
+			return this;
+			}
+		
+		
+		public Parser setIgnoreDbXRef(boolean ignore_dbxref) {
+			this.ignore_dbxref = ignore_dbxref;
+			return this;
+			}
+		
+		public Parser setIgnoreDefinitions(boolean ignore_definitions) {
+			this.ignore_definitions = ignore_definitions;
+			return this;
+		}
+		
+		public Parser setIgnoreSynonyms(boolean ignore_synonyms) {
+			this.ignore_synonyms = ignore_synonyms;
+			return this;
+			}
+		
+		public Parser setDebug(boolean d) {
+			this.debug = d;
+			return this;
+			}
+		
+		private static class IsA
+			{
+			final TermImpl term;
+			final String parentUri;
+			final RelType relType;
+			IsA(final TermImpl term,final String parentUri,final RelType relType)
+				{
+				this.term = term;
+				this.parentUri = parentUri;
+				this.relType=relType;
+				}
+			}
+		
+		private DbXRef parseDbXRefRDF(
+				final StartElement root,
+				final XMLEventReader r) throws IOException,XMLStreamException
+			{
+			final Attribute parseTypeAtt=root.getAttributeByName(parseType);
+			if(parseTypeAtt==null)
+				{
+				throw new XMLStreamException("no rdf:parseType",root.getLocation());
+				}
+			if(!parseTypeAtt.getValue().equals("Resource")) {
+				throw new XMLStreamException("no rdf:parseType=Resource",root.getLocation());
+				}
+			final DbXRefImpl xref = new DbXRefImpl();
+			while(r.hasNext())
+				{
+				XMLEvent evt=r.nextEvent();
+				if(evt.isStartElement())
+					{
+					final StartElement E=evt.asStartElement();
+					final QName qN=E.getName();
+					if( NS.equals(qN.getNamespaceURI()))
+						{
+						final String localName = qN.getLocalPart();
+						if(localName.equals("database_symbol"))
+							{
+							xref.symbol=r.getElementText();
+							}
+						else if(localName.equals("reference"))
+							{
+							xref.reference=r.getElementText();
+							}
+						}
+					
+					}
+				else if(evt.isEndElement())
+					{
+					final EndElement E=evt.asEndElement();
+					final QName qN=E.getName();
+					if(qN.getLocalPart().equals("dbxref") && NS.equals(qN.getNamespaceURI()))
+						{
+						break;
+						}
+					}
+				}
+			if(StringUtil.isBlank(xref.symbol)) return null;
+			if(StringUtil.isBlank(xref.reference)) return null;
+			return xref;
+			}
+		
+		
+		private RelType findRelTypeByName(final String s)
+			{
+			for(RelType rt:this.userRelTypes)
+				{
+				if(s.equals(rt.name())) return rt;
+				}
+			return null;
+			}
+		
+		private void parseRDFTerm(
+				final GoTree tree,
+				final StartElement root,
+				final XMLEventReader r) throws IOException,XMLStreamException
+			{
+			final Attribute aboutAtt=root.getAttributeByName(rdfAbout);
+			if(aboutAtt==null)
+				{
+				throw new XMLStreamException("no rdf:about",root.getLocation());
+				}
+			final String termUri=aboutAtt.getValue();
+			if(this.debug) LOG.debug("found term "+termUri);
+			/* term exists  ? */
+			if(this.uri2term.containsKey(termUri))
+				{
+				throw new XMLStreamException("Term URI defined twice:"+termUri,root.getLocation());
+				}
+			boolean obsolete_flag=false;
+			final TermImpl term = tree.new TermImpl(termUri);
+				
+			while(r.hasNext())
+				{
+				XMLEvent evt=r.nextEvent();
+				if(evt.isStartElement())
+					{
+					final StartElement E=evt.asStartElement();
+					final QName qN=E.getName();
+					if( NS.equals(qN.getNamespaceURI()))
+						{
+						final String localName = qN.getLocalPart();
+						RelType reltype=null;
+						if(localName.equals("accession"))
+							{
+							term.accession=r.getElementText();
+							}
+						else if(localName.equals("name"))
+							{
+							term.name=r.getElementText();
+							}
+						else if(localName.equals("synonym") && !this.ignore_synonyms)
+							{
+							if(term.synonyms==null) term.synonyms=new HashSet<>();
+							term.synonyms.add(r.getElementText());
+							}
+						else if(localName.equals("definition") && !this.ignore_definitions)
+							{
+							term.definition=r.getElementText();
+							}
+						else if((reltype = findRelTypeByName(localName))!=null)
+							{
+							final Attribute rsrc=E.getAttributeByName(rdfRsrc);
+							if(rsrc==null) throw new XMLStreamException("att missing "+rdfRsrc+" for "+aboutAtt.getValue(),evt.getLocation());
+							final String parentUri=rsrc.getValue();
+							if(parentUri.startsWith("http://www.geneontology.org/go#obsolete")) {
+								obsolete_flag=true;
+								}
+							if(!obsolete_flag)
+								{
+								this.isAList.add(new IsA(term, parentUri,reltype));
+								}
+							}
+						else if(localName.equals("dbxref"))
+							{
+							final DbXRef xref = parseDbXRefRDF(E,r);
+							if(!this.ignore_dbxref && xref!=null && !obsolete_flag)
+								{
+								if(term.dbxrefs==null) term.dbxrefs=new ArrayList<>();
+								term.dbxrefs.add(xref);
+								}
+							}
+						}
+					
+					}
+				else if(evt.isEndElement())
+					{
+					final EndElement E=evt.asEndElement();
+					final QName qN=E.getName();
+					if(qN.getLocalPart().equals("term") && 
+					  NS.equals(qN.getNamespaceURI()))
+						{
+						if(!obsolete_flag) 
+							{
+							this.uri2term.put(termUri, term);
+							}
+						break;
+						}
+					}
+				}
+		
+			}	
+		
+		public GoTree parse(final Reader xmlIn) throws IOException,XMLStreamException
+			{
+			final GoTree tree=new GoTree();
+			XMLInputFactory fact=XMLInputFactory.newFactory();
+			fact.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
+			XMLEventReader r=fact.createXMLEventReader(xmlIn);
+			while(r.hasNext())
+				{
+				final XMLEvent evt=r.nextEvent();
+				if(evt.isStartElement())
+					{
+					final StartElement E=evt.asStartElement();
+					final QName qN=E.getName();
+					if(qN.getLocalPart().equals("term") && 
+						NS.equals(qN.getNamespaceURI()))
+						{
+						this.parseRDFTerm(tree,E,r);
+						}
+					}
+				}
+			r.close();
+			for(final TermImpl t:this.uri2term.values()) {
+				tree.acn2term.put(t.getAcn(), t);
+				}
+			
+			for(final IsA isa:this.isAList)
+				{
+				final TermImpl parentTerm = this.uri2term.get(isa.parentUri);
+				if(parentTerm==null) {
+					LOG.warning("Cannot find uri :"+isa.parentUri);
+					continue;
+					}
+				parentTerm.children.add(isa.term);
+				isa.term.parents.add(parentTerm);
+				}
+			if(this.debug)
+				{
+				LOG.debug("tree size: "+tree.acn2term.size());
+				}
+			this.uri2term.clear();
+			this.isAList.clear();
+			return tree;
+			}
+		
+		
+		public GoTree parse(final File file) throws IOException,XMLStreamException
+			{
+			Reader r=null;
+			try
+				{
+				r=IOUtils.openFileForReader(file);
+				return parse(r);
+				}
+			finally
+				{
+				CloserUtil.close(r);
+				}
+			}
+		public GoTree parse(final String uri) throws IOException,XMLStreamException
+			{
+			Reader r=null;
+			try
+				{
+				r=new InputStreamReader(IOUtils.openURIForReading(uri),"UTF-8");
+				return parse(r);
+				}
+			finally
+				{
+				CloserUtil.close(r);
+				}
+			}
 		}
 	
 	}

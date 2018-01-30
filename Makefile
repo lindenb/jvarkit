@@ -200,7 +200,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	sortvcfonref2	splitbam3	splitbytile	splitread \
 	vcf2hilbert	vcf2ps	vcf2rdf	vcf2sql	vcf2xml	vcfannobam	 \
 	vcfbiomart	vcfcadd	vcfcmppred	vcfcomm	vcfcompare	vcfcomparegt \
-	vcfconcat	vcfcutsamples	vcffilterdoid		vcfgo \
+	vcfconcat	vcfcutsamples	vcffilterdoid	 \
 	vcfjaspar	vcfliftover	vcfmerge	vcfmulti2one \
 	vcfrebase	vcfregistry.cgi	vcfregulomedb	vcfrenamechr	vcfrenamesamples \
 	vcfresetvcf	vcfsetdict	vcfmakedict vcfshuffle	vcfsimulator	vcfstats vcfcombinetwosnvs vcfstripannot \
@@ -217,7 +217,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi
+	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -533,6 +533,7 @@ $(eval $(call compile-htsjdk-cmd,vcfgnomad,${jvarkit.package}.tools.gnomad.VcfGn
 $(eval $(call compile-htsjdk-cmd,vcfcomposite,${jvarkit.package}.tools.vcfcomposite.VCFComposite,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfannotwithbeacon,${jvarkit.package}.tools.ga4gh.VcfAnnotWithBeacon,${jcommander.jar} ${gson.jar} ${berkeleydb.jar} ${httpclient.libs} ))
 $(eval $(call compile-htsjdk-cmd,vcf2table,${jvarkit.package}.tools.misc.VcfToTable,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,goutils,${jvarkit.package}.tools.misc.GoUtils,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,variantsinwindow,${jvarkit.package}.tools.misc.VariantsInWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,casectrlcanvas,${jvarkit.package}.tools.burden.CaseControlCanvas,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,knime2txt,${jvarkit.package}.tools.misc.KnimeToText,${jcommander.jar}))
