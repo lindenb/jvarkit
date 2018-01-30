@@ -46,11 +46,11 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
@@ -71,6 +71,7 @@ BEGIN_DOC
 
 ## History
 
+* 2018-01-30: now using a jexl parser
 * 2018-01-30: allow multiple values for '-cov'
 * 2018-01-29: fixed bug from previous release (no data produced if no read). Added BioDas Resource.
 * 2017-11-20: added new column 'partition'
@@ -102,8 +103,8 @@ public class BamStats04 extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-cov","--cov"},description="add this min coverage value to ask wether the position is not covered. Use with care: any depth below this treshold will be trimmed to zero.")
 	private List<Integer> minCoverages = new ArrayList<>() ;
-	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
 	private File bedFile = null;
 	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added." + ReferenceGenomeFactory.OPT_DESCRIPTION)

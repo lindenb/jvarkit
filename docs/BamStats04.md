@@ -16,11 +16,13 @@ Usage: bamstats04 [options] Files
       add this min coverage value to ask wether the position is not covered. 
       Use with care: any depth below this treshold will be trimmed to zero.
       Default: []
-    -f, --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+    -f, --filter, --jexl
+      A JEXL Expression that will be used to filter out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
     -h, --help
       print help and exit
     --helpFormat
@@ -100,6 +102,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Jan 30 11:07:05 2018 +0100 ; mulitple cov for bamstats04 ; https://github.com/lindenb/jvarkit/commit/1d1d0417182140ee387a99303c7c7a222f37118f
 Mon Jan 29 20:00:36 2018 +0100 ; bam stats04 && biodas ; https://github.com/lindenb/jvarkit/commit/e15805c76fe308fba91d44feefe04a5895b99144
 Mon Jan 29 16:03:39 2018 +0100 ; fix bug in bamstats04 found by @EricCharp: no output for segment without any read ; https://github.com/lindenb/jvarkit/commit/4f33881195371896cfe107521ef5722e75015f6b
 Tue Nov 21 17:55:52 2017 +0100 ; working on xcontaminations... ; https://github.com/lindenb/jvarkit/commit/0519fdc041212457ffcdb427b28c477227c38a9e
@@ -155,6 +158,7 @@ The current reference is:
 
 ## History
 
+* 2018-01-30: now using a jexl parser
 * 2018-01-30: allow multiple values for '-cov'
 * 2018-01-29: fixed bug from previous release (no data produced if no read). Added BioDas Resource.
 * 2017-11-20: added new column 'partition'
