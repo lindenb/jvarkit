@@ -1,5 +1,7 @@
 # VcfFilterJdk
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filtering VCF with in-memory-compiled java expressions
 
 
@@ -56,6 +58,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/284083](https://www.biostars.org/p/284083)
  * [https://www.biostars.org/p/292710](https://www.biostars.org/p/292710)
  * [https://www.biostars.org/p/293314](https://www.biostars.org/p/293314)
+ * [https://www.biostars.org/p/295902](https://www.biostars.org/p/295902)
 
 
 ## Compilation
@@ -101,6 +104,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Jan 29 16:03:39 2018 +0100 ; fix bug in bamstats04 found by @EricCharp: no output for segment without any read ; https://github.com/lindenb/jvarkit/commit/4f33881195371896cfe107521ef5722e75015f6b
+Mon Jan 15 19:05:48 2018 +0100 ; fix package import, add misc biostars ; https://github.com/lindenb/jvarkit/commit/17f54d19a261f1ff7010742a68b5f13047cd3c1e
 Wed Jan 10 19:03:39 2018 +0100 ; https://www.biostars.org/p/292710 ; https://github.com/lindenb/jvarkit/commit/3dc0a07a64640742eafe3c75cc8f8958457eac53
 Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
 Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
@@ -334,6 +339,20 @@ $ java -jar dist/vcffilterjdk.jar -e 'Genotype G=variant.getGenotype(0); return 
 
 ```
 $ java -jar dist/vcffilterjdk.jar --body -e 'List<String> cases = null,controls=null;  public Object apply(final VariantContext variant) { if(cases==null) try {cases=IOUtil.slurpLines(new java.io.File("treat.txt")) ; controls= IOUtil.slurpLines(new java.io.File("control.txt")); } catch(Exception e) {throw new RuntimeIOException(e);}; for(final String S1:cases) {final Genotype G1=variant.getGenotype(S1); if(G1==null ||!G1.isCalled()) continue;for(final String S2:controls) {final Genotype G2=variant.getGenotype(S2); if(G2==null ||!G2.isCalled()) continue;   if(G1.sameGenotype(G2)) return false;}} return true;}' input.vcf```
+```
+
+## Example
+
+> Retain sites where atleast 80% of the individuals had at least depth DP >= 10 and GQ>=20 irrespective of the reference or non-reference allele
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filter(G->G.getDP()>=10 && G.getGQ()>=20).count()/(double)variant.getNSamples() > 0.8;' input.vcf
+```
+
+> Retain sites where at least one sample has the non-reference allele with DP>= 10 and GQ >= 20.
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().anyMatch(G->G.getDP()>=10 && G.getGQ()>=20 && G.getAlleles().stream().anyMatch(A->A.isCalled() && !A.isReference())) ;'
 ```
 
 

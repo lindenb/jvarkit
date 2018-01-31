@@ -1,5 +1,7 @@
 # BioAlcidaeJdk
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 java-based version of awk for bioinformatics
 
 
@@ -54,6 +56,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/285803](https://www.biostars.org/p/285803)
  * [https://www.biostars.org/p/288324](https://www.biostars.org/p/288324)
  * [https://www.biostars.org/p/293237](https://www.biostars.org/p/293237)
+ * [https://www.biostars.org/p/295040](https://www.biostars.org/p/295040)
 
 
 ## Compilation
@@ -517,5 +520,14 @@ stream().
   map(V->V.getType().name()+" "+V.getContig()).
   collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->{println(K+" : "+V);});
 ```
+
+## Example
+
+> Print Minimum Depth from a VCF
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString()+"\t"+V.getGenotypes().stream().filter(G->G.hasDP()).mapToInt(G->G.getDP()).min().orElse(-1));});' input.vcf
+```
+
 
 
