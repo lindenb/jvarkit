@@ -60,7 +60,7 @@ public class GoTree
 
 	private static final String NS="http://www.geneontology.org/dtds/go.dtd#";
 	public static final String GO_RDF_URL="http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz";
-	public static final String GO_URL_OPT_DESC="Gene ontology URI. Formatted as RDF.";
+	public static final String GO_URL_OPT_DESC="Gene ontology URI. Formatted as RDF+XML. Can be gzipped.";
 	
 	public static enum RelType
 		{
@@ -116,7 +116,13 @@ public class GoTree
 					termTo.equals(other.termTo)
 					);
 			}
-		
+		@Override
+		public String toString() {
+			return this.termFrom.getAcn()+"["+this.termFrom.getName()+"] -- "+
+					this.reltype.name()+ " --> "+
+					this.termTo.getAcn()+"["+this.termTo.getName()
+					;
+			}
 		}
 	
 	public static interface Term
@@ -125,11 +131,15 @@ public class GoTree
 		public String getAcn();
 		/** return name like 'maltose catabolic process' GO:0000025 */
 		public String getName();
+		/** return true if getRelations() is not empty */
+		public boolean hasRelations();
+		
 		public Set<String> getSynonyms();
 		public String getDefinition();
 		public Set<Relation> getRelations();
 		public boolean isDescendantOf(Term other);
 		public List<DbXRef> getDbXRefs();
+		
 		}
 	
 	public static interface DbXRef
@@ -213,7 +223,7 @@ public class GoTree
 		public String getDefinition() {
 			return StringUtil.isBlank(definition)?getName():this.definition;
 			}
-		
+		@Override
 		public List<DbXRef> getDbXRefs()
 			{
 			return this.dbxrefs==null?
@@ -221,6 +231,12 @@ public class GoTree
 					Collections.unmodifiableList(this.dbxrefs)
 					;
 			}
+		@Override
+		public boolean hasRelations()
+			{
+			return !this.relations.isEmpty();
+			}
+		
 		@Override
 		public Set<Relation> getRelations() {
 			return Collections.unmodifiableSet(this.relations);
@@ -264,6 +280,8 @@ public class GoTree
 	/** search term by name or accession or synonyms, ignoring case */
 	public Term getTermByName(final String s)
 		{
+		final Term t0 = getTermByAccession(s);
+		if(t0!=null) return t0;
 		for(final TermImpl t:this.acn2term.values())
 			{
 			if(t.accession.equalsIgnoreCase(s)) return t;
@@ -489,6 +507,12 @@ public class GoTree
 					if(qN.getLocalPart().equals("term") && 
 					  NS.equals(qN.getNamespaceURI()))
 						{
+						/* found this, no name, linked nowhere... */
+						if(StringUtil.isBlank(term.name))
+							{
+							obsolete_flag = true;
+							}
+						
 						if(!obsolete_flag) 
 							{
 							this.uri2term.put(termUri, term);
@@ -532,7 +556,11 @@ public class GoTree
 					LOG.warning("Cannot find uri :"+isa.parentUri);
 					continue;
 					}
-				
+				if(isa.term.equals(parentTerm))
+					{
+					LOG.warning("self/self relation ??"+isa.parentUri);
+					continue;
+					}
 				isa.term.relations.add(
 						new RelationImpl(isa.term, isa.relType,parentTerm)
 						);

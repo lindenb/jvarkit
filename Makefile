@@ -556,6 +556,7 @@ $(eval $(call compile-htsjdk-cmd,igvreview,${jvarkit.package}.tools.igvreview.Ig
 $(eval $(call compile-htsjdk-cmd,samtranslocations,${jvarkit.package}.tools.structvar.SamTranslocations,${jcommander.jar}))
 
 
+$(eval $(call compile-htsjdk-cmd,vcfburdengoenrichment,${jvarkit.package}.tools.burden.VcfBurdenGoEnrichment,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.epistasis.VcfGeneEpistasis,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfoptimizeped4skat,${jvarkit.package}.tools.skat.VcfOptimizePedForSkat,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.skat.VcfSkatSlidingWindow,${jcommander.jar}))
