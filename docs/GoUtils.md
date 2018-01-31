@@ -84,7 +84,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
-
+Tue Jan 30 16:58:48 2018 +0100 ; remove vcfgo add goutils ; https://github.com/lindenb/jvarkit/commit/56f4134f30af3b5585db3db5baaeda9c34989762
 ```
 
 </details>

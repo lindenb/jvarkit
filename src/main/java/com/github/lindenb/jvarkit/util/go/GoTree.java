@@ -67,21 +67,69 @@ public class GoTree
 		is_a,negatively_regulates,part_of,positively_regulates,regulates
 		}
 	
+	public static interface Relation
+		{
+		public RelType getType();
+		public Term getTo();
+		}
+	
+	
+	private static class RelationImpl implements Relation
+		{
+		final TermImpl termFrom;
+		final RelType reltype;
+		final TermImpl termTo;
+		RelationImpl(final TermImpl termFrom,final RelType reltype,final TermImpl termTo)
+			{
+			this.termFrom = termFrom;
+			this.reltype = reltype;
+			this.termTo = termTo;
+			}
+		@Override
+		public Term getTo() {
+			return termTo;
+			}
+		@Override
+		public RelType getType() {
+			return reltype;
+			}
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + termFrom.hashCode();
+			result = prime * result + reltype.hashCode();
+			result = prime * result + termTo.hashCode();
+			return result;
+			}
+		@Override
+		public boolean equals(final Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			final RelationImpl other = (RelationImpl) obj;
+			return (reltype == other.reltype &&
+					termFrom.equals(other.termFrom) &&
+					termTo.equals(other.termTo)
+					);
+			}
+		
+		}
+	
 	public static interface Term
 		{
 		/** get accession number */
 		public String getAcn();
 		/** return name like 'maltose catabolic process' GO:0000025 */
 		public String getName();
-		public Set<Term> getParents();
 		public Set<String> getSynonyms();
 		public String getDefinition();
-		public Set<Term> getChildren();
+		public Set<Relation> getRelations();
 		public boolean isDescendantOf(Term other);
 		public List<DbXRef> getDbXRefs();
-
-		//public Set<Term> getAllParents();
-		//public Set<Term> getAllChildren();
 		}
 	
 	public static interface DbXRef
@@ -118,14 +166,6 @@ public class GoTree
 		return Collections.unmodifiableCollection(this.acn2term.values());
 		}
 	
-	public void dump()
-		{
-		for(final Term t: this.getTerms())
-			{
-			System.out.println(t.getAcn()+" "+t.getName()+" "+t.getChildren()+" "+t.getParents());
-			}
-		}
-	
 	
 	private final HashMap<String, TermImpl> acn2term=new HashMap<String, TermImpl>();
 	
@@ -136,8 +176,9 @@ public class GoTree
 		String definition = null;
 		Set<String> synonyms = null;
 		List<DbXRef> dbxrefs = null;
-		final Set<TermImpl> parents=new HashSet<>();
-		final Set<TermImpl> children=new HashSet<>();
+		//final Set<TermImpl> parents=new HashSet<>();
+		//final Set<TermImpl> children=new HashSet<>();
+		final Set<RelationImpl> relations = new HashSet<>();
 		
 		TermImpl(final String accession) {
 			int hash=accession.indexOf('#');
@@ -180,65 +221,18 @@ public class GoTree
 					Collections.unmodifiableList(this.dbxrefs)
 					;
 			}
-		
 		@Override
-		public Set<Term> getChildren()
-			{
-			return Collections.unmodifiableSet(this.children);
+		public Set<Relation> getRelations() {
+			return Collections.unmodifiableSet(this.relations);
 			}
-		
-		@Override
-		public Set<Term> getParents()
-			{
-			return Collections.unmodifiableSet(this.parents);
-			}
-		/*
-		private void _getAllChildren(Set<String> seen)
-			{
-			for(String s:this.children)
-				{
-				TermImpl t=uri2term.get(s);
-				if(t==null) continue;
-				seen.add(s);
-				t._getAllChildren(seen);
-				}
-			}
-		
-		private void _getAllParents(Set<String> seen)
-			{
-			for(String s:this.parents)
-				{
-				TermImpl t=uri2term.get(s);
-				if(t==null) continue;
-				seen.add(s);
-				t._getAllParents(seen);
-				}
-			}
-		
-		
-		public Set<Term> getAllChildren()
-			{
-			Set<String> seen=new HashSet<String>();
-			_getAllChildren(seen);
-			return convert(seen);
-			}
-		
-		//@Override
-		public Set<Term> getAllParents()
-			{
-			Set<String> seen=new HashSet<String>();
-			_getAllParents(seen);
-			return convert(seen);
-			}*/
 		
 		@Override
 		public boolean isDescendantOf(final Term parentNode)
 			{
 			if(parentNode==this || getAcn().equals(parentNode.getAcn())) return true;
-			if(this.parents==null) return false;
-			for(final Term pNode:this.parents)
+			for(final RelationImpl rel:this.relations)
 				{
-				if(pNode.isDescendantOf(parentNode)) return true;
+				if(rel.getTo().isDescendantOf(parentNode)) return true;
 				}
 			return false;
 			}
@@ -538,8 +532,11 @@ public class GoTree
 					LOG.warning("Cannot find uri :"+isa.parentUri);
 					continue;
 					}
-				parentTerm.children.add(isa.term);
-				isa.term.parents.add(parentTerm);
+				
+				isa.term.relations.add(
+						new RelationImpl(isa.term, isa.relType,parentTerm)
+						);
+				
 				}
 			if(this.debug)
 				{
