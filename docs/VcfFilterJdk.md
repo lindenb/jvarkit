@@ -59,6 +59,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/292710](https://www.biostars.org/p/292710)
  * [https://www.biostars.org/p/293314](https://www.biostars.org/p/293314)
  * [https://www.biostars.org/p/295902](https://www.biostars.org/p/295902)
+ * [https://www.biostars.org/p/296145](https://www.biostars.org/p/296145)
 
 
 ## Compilation
@@ -104,6 +105,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Jan 31 16:41:33 2018 +0100 ; cont, playing with collectors ; https://github.com/lindenb/jvarkit/commit/8fcd946496834555873b511195a14ccf4b17466e
 Mon Jan 29 16:03:39 2018 +0100 ; fix bug in bamstats04 found by @EricCharp: no output for segment without any read ; https://github.com/lindenb/jvarkit/commit/4f33881195371896cfe107521ef5722e75015f6b
 Mon Jan 15 19:05:48 2018 +0100 ; fix package import, add misc biostars ; https://github.com/lindenb/jvarkit/commit/17f54d19a261f1ff7010742a68b5f13047cd3c1e
 Wed Jan 10 19:03:39 2018 +0100 ; https://www.biostars.org/p/292710 ; https://github.com/lindenb/jvarkit/commit/3dc0a07a64640742eafe3c75cc8f8958457eac53
@@ -354,5 +356,13 @@ java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filte
 ```
 java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().anyMatch(G->G.getDP()>=10 && G.getGQ()>=20 && G.getAlleles().stream().anyMatch(A->A.isCalled() && !A.isReference())) ;'
 ```
+
+## Example
+
+creating a simple GUI for **vcffilterjdk** using [zenity](https://en.wikipedia.org/wiki/Zenity)
+
+see [https://gist.github.com/lindenb/4465c0e822b175f3428029526beef80c](https://gist.github.com/lindenb/4465c0e822b175f3428029526beef80c) , [https://www.biostars.org/p/296145/](https://www.biostars.org/p/296145/)
+
+![capture](https://gist.githubusercontent.com/lindenb/4465c0e822b175f3428029526beef80c/raw/3510261585a1fc8858c2fb54caba2d1c43d72918/Screenshot_A.png)
 
 

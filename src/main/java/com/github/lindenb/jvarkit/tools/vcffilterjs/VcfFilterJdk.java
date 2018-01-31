@@ -284,13 +284,21 @@ java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().filte
 java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().anyMatch(G->G.getDP()>=10 && G.getGQ()>=20 && G.getAlleles().stream().anyMatch(A->A.isCalled() && !A.isReference())) ;'
 ```
 
+## Example
+
+creating a simple GUI for **vcffilterjdk** using [zenity](https://en.wikipedia.org/wiki/Zenity)
+
+see [https://gist.github.com/lindenb/4465c0e822b175f3428029526beef80c](https://gist.github.com/lindenb/4465c0e822b175f3428029526beef80c) , [https://www.biostars.org/p/296145/](https://www.biostars.org/p/296145/)
+
+![capture](https://gist.githubusercontent.com/lindenb/4465c0e822b175f3428029526beef80c/raw/3510261585a1fc8858c2fb54caba2d1c43d72918/Screenshot_A.png)
+
 END_DOC
  */
 @Program(
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083,292710,293314,295902},
+		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk
