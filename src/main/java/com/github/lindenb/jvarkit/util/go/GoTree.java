@@ -36,7 +36,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -47,13 +49,21 @@ import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.RDF;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 
+/**
+ * Gene Ontology tree
+ * @author lindenb
+ *
+ */
 public class GoTree
 	{
 	private static Logger LOG=Logger.build(GoTree.class).make(); 
@@ -66,13 +76,57 @@ public class GoTree
 		{
 		is_a,negatively_regulates,part_of,positively_regulates,regulates
 		}
-	
+	private static final Set<RelType> REL_TYPE_SET = Arrays.asList(RelType.values()).stream().collect(Collectors.toSet());
+
 	public static interface Relation
 		{
 		public RelType getType();
 		public Term getTo();
 		}
 	
+	public static class RelTypeConverter implements IStringConverter<Set<RelType>>
+		{
+		@Override
+		public Set<RelType> convert(final String s) {
+			if(StringUtil.isBlank(s))
+				{
+				return REL_TYPE_SET;
+				}
+			final Set<RelType> rt = new HashSet<>();
+			for(final String token:s.split("[,; |]"))
+				{
+				if(StringUtil.isBlank(token)) continue;
+				final Optional<RelType> f = REL_TYPE_SET.stream().
+						filter(T->T.name().equalsIgnoreCase(token)).
+						findFirst();
+				if(!f.isPresent())
+					{
+					throw new JvarkitException.UserError(
+						"undefined GO:rel "+token+" available are: " +
+						REL_TYPE_SET
+						);
+					}
+				
+				rt.add(f.get());
+				}
+			if(rt.isEmpty()) return REL_TYPE_SET;
+			return rt;
+			}
+		}
+	
+	public static class ReadingGo
+		{
+		@Parameter(names={"-go","--go","--gene-ontology"},description=GoTree.GO_URL_OPT_DESC)
+		public String goUri = GoTree.GO_RDF_URL;
+		@Parameter(names={"-go-relations","--go-relations"},description="limit the gene ontology tree to those relationships. empty: all possible relationships. ",converter=RelTypeConverter.class)
+		public Set<RelType> relTypes = REL_TYPE_SET;
+		
+		public Parser createParser()
+			{
+			return new Parser().
+					setRelations(this.relTypes);
+			}
+		}
 	
 	private static class RelationImpl implements Relation
 		{
@@ -139,7 +193,8 @@ public class GoTree
 		public Set<Relation> getRelations();
 		public boolean isDescendantOf(Term other);
 		public List<DbXRef> getDbXRefs();
-		
+		/** get Min depth, root/all is '0' */
+		public int getMinDepth();
 		}
 	
 	public static interface DbXRef
@@ -266,6 +321,22 @@ public class GoTree
 			final TermImpl other = (TermImpl) obj;
 			return this.accession.equals(other.accession);
 			}
+		
+		public int getMinDepth()
+			{
+			if(!hasRelations()) return 0;
+			int d=-1;
+			for(final RelationImpl rel:this.relations)
+				{
+				int d2 = 1 + rel.getTo().getMinDepth();
+				if(d==-1 || d>d2)
+					{
+					d=d2;
+					}
+				}
+			return d;
+			}
+		
 		@Override
 		public String toString() {
 			return accession;
@@ -325,15 +396,14 @@ public class GoTree
 		private boolean ignore_definitions=false;
 		private boolean ignore_dbxref=false;
 		private boolean debug=false;
-		private Set<RelType> userRelTypes = new HashSet<>(Arrays.asList(RelType.values()));
+		private Set<RelType> userRelTypes = GoTree.REL_TYPE_SET;
 		
 		
 		/** set accepted relations */
 		public Parser setRelations(final Set<RelType> userRelTypes) {
-			this.userRelTypes = new HashSet<>(userRelTypes);
+			this.userRelTypes = (userRelTypes==null? GoTree.REL_TYPE_SET:new HashSet<>(userRelTypes));
 			return this;
 			}
-		
 		
 		public Parser setIgnoreDbXRef(boolean ignore_dbxref) {
 			this.ignore_dbxref = ignore_dbxref;

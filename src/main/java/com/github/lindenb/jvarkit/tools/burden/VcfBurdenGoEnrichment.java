@@ -37,12 +37,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
+import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -50,6 +55,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
@@ -66,6 +72,8 @@ BEGIN_DOC
 ```make
 all:dist/vcfburdengoenrichment.jar go.rdf.xml.gz goa.txt input.vcf input.ped
 	java -jar $< \
+	     --zero \
+		 -vf 'vc.isSNP() && vc.isNotFiltered()' \
 		 --pedigree  $(word 5,$^) \
 		 --go $(word 2,$^) \
 		 --genes $(word 3,$^) \
@@ -82,7 +90,7 @@ END_DOC
 */
 @Program(
 		name="vcfburdengoenrichment",
-		description="",
+		description="Case/Control enrichment of Gene Ontology terms from a VCF file.",
 		keywords={"gene","vcf","vep","go"},
 		generate_doc=false
 		)
@@ -93,27 +101,40 @@ public class VcfBurdenGoEnrichment
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-go","--go"},description=GoTree.GO_URL_OPT_DESC)
-	private String goUri = GoTree.GO_RDF_URL;
 	@Parameter(names={"-G","--genes"},description="Gene association file: tab delimited, two columns: (1) gene name (2) GO term ACN .",required=true)
 	private File geneFile = null;
 	@Parameter(names={"-p","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
 	private File pedFile = null;
+	@Parameter(names={"-zero","--zero"},description="in the output show GO terms that were never seen.")
+	private boolean show_never_seeen_term = false;
+	@ParametersDelegate
+	private GoTree.ReadingGo readingGo = new GoTree.ReadingGo();
+	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
+	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
+	@Parameter(names={"-gf","--genotype-filter"},description=JexlGenotypePredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
+	private BiPredicate<VariantContext,Genotype> genotypeFilter = JexlGenotypePredicate.create("");
 
 
 	
-	
+	/** wrapper of GoTerm, like a DOM tree */
 	private class Node
 		{
+		/** go term */
 		final GoTree.Term goTerm;
+		/** number of genes directly linked to this term */
+		int numGenes = 0;
+		/** flag for node visitor */
 		boolean visited=false;
+		/** counts */
 		long unaffected_ref = 0L;
 		long unaffected_alt = 0L;
 		long affected_ref = 0L;
 		long affected_alt = 0L;
+		/** fisher-test value */
 		private Double _fisher=null;
-		
+		/** parent nodes */
 		final Set<Node> parents = new HashSet<>();
+		
 		Node(final GoTree.Term goTerm)
 			{
 			this.goTerm = goTerm;
@@ -123,7 +144,7 @@ public class VcfBurdenGoEnrichment
 			return goTerm.hashCode();
 			}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if(obj==this) return true;
 			return goTerm.equals(Node.class.cast(obj).goTerm);
 			}
@@ -153,6 +174,16 @@ public class VcfBurdenGoEnrichment
 					affected_alt
 				));
 			}
+		
+		long sum() {
+			return
+				this.unaffected_ref + 
+				this.unaffected_alt + 
+				this.affected_ref + 
+				this.affected_alt 
+				;
+			}
+		
 		double fisher() {
 			if(this._fisher==null)
 				{
@@ -167,15 +198,13 @@ public class VcfBurdenGoEnrichment
 			}
 		}
 	
-	
 	public VcfBurdenGoEnrichment()
 		{
 		}
 	
-	 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtil.isBlank(this.goUri)) {
+		if(StringUtil.isBlank(this.readingGo.goUri)) {
 			LOG.error("Undefined GOs uri.");
 			return -1;
 			}
@@ -184,12 +213,13 @@ public class VcfBurdenGoEnrichment
 			LOG.error("Undefined gene file option.");
 			return -1;
 			}
-			
+		
 		try {
-			final GoTree gotree = new GoTree.Parser().
-					setIgnoreDbXRef(true).
-					//setIgnoreSynonyms(true). WE need synonyms with GOA.
-					parse(this.goUri);
+			final GoTree gotree = 
+				this.readingGo.createParser().
+				setIgnoreDbXRef(true).
+				//setIgnoreSynonyms(true). WE need synonyms with GOA.
+				parse(this.readingGo.goUri);
 			
 			List<GoTree.Term> terms = new ArrayList<>(gotree.getTerms());
 			final Map<GoTree.Term,Node> term2node = new HashMap<>();
@@ -201,7 +231,6 @@ public class VcfBurdenGoEnrichment
 					{
 					final GoTree.Term t= terms.get(i);
 					
-					
 					if(!t.hasRelations())
 						{
 						term2node.put(t,new Node(t));
@@ -210,8 +239,6 @@ public class VcfBurdenGoEnrichment
 					else if(t.getRelations().stream().
 							allMatch(L->term2node.containsKey(L.getTo())))
 						{
-
-						
 						final Node n = new Node(t);
 						n.parents.addAll(
 							t.getRelations().stream().
@@ -230,11 +257,11 @@ public class VcfBurdenGoEnrichment
 			terms=null;
 			
 			final Map<String,Set<Node>> gene2node = new HashMap<>();
-			BufferedReader r= IOUtils.openFileForBufferedReading(this.geneFile);
+			final BufferedReader r= IOUtils.openFileForBufferedReading(this.geneFile);
 			String line;
 			while((line=r.readLine())!=null) {
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				int t=line.indexOf('\t');
+				final int t=line.indexOf('\t');
 				if(t==-1) {
 					r.close();
 					LOG.error("tab missing in "+line+" of "+this.geneFile);
@@ -261,16 +288,18 @@ public class VcfBurdenGoEnrichment
 					LOG.error("Don't know this node in "+line+" of "+this.geneFile);
 					return -1;
 					}
+				
 				Set<Node> nodes = gene2node.get(gene);
 				if(nodes==null) {
 					nodes= new HashSet<>();
 					gene2node.put(gene, nodes);
 					}
+				node.numGenes++;
 				nodes.add(node);
 				};
 			r.close();
 			
-			VcfIterator iter = openVcfIterator(oneFileOrNull(args));
+			final VcfIterator iter = openVcfIterator(oneFileOrNull(args));
 			final VCFHeader header = iter.getHeader();
 			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
 			final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
@@ -278,7 +307,7 @@ public class VcfBurdenGoEnrichment
 			final Set<Pedigree.Person> persons;
 			if(this.pedFile!=null)
 				{
-				final Pedigree pedigree = Pedigree.newParser().parse(pedFile);
+				final Pedigree pedigree = Pedigree.newParser().parse(this.pedFile);
 				persons = new Pedigree.CaseControlExtractor().extract(header, pedigree);
 				}
 			else
@@ -286,11 +315,14 @@ public class VcfBurdenGoEnrichment
 				persons = new Pedigree.CaseControlExtractor().extract(header);
 				}
 			
-			if(!persons.stream().anyMatch(P->P.isAffected())) {
+			final Set<Pedigree.Person> affected = persons.stream().filter(P->P.isAffected()).collect(Collectors.toSet());
+			final Set<Pedigree.Person> unaffected = persons.stream().filter(P->P.isUnaffected()).collect(Collectors.toSet());
+			
+			if(affected.isEmpty()) {
 				LOG.error("No Affected individual");
 				return -1;
 			}
-			if(!persons.stream().anyMatch(P->P.isUnaffected())) {
+			if(unaffected.isEmpty()) {
 				LOG.error("No unaffected individual");
 				return -1;
 			}
@@ -302,13 +334,25 @@ public class VcfBurdenGoEnrichment
 					"Gene",
 					"HGNC",
 					"HGNC_ID",					
-					"SYMBOL",					
+					"SYMBOL",				
 					"RefSeq"					
 					);
+			
+			final Predicate<Genotype> isWildGenotype = G->{
+				if(G==null) return false;
+				return G.isHomRef();
+				};
+			final Predicate<Genotype> isAltGenotype = G->{
+				if(G==null) return false;
+				return G.isCalled() && !G.isHomRef();
+				};
+			
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 			while(iter.hasNext())
 				{
 				final VariantContext ctx = progress.watch(iter.next());
+				if(!this.variantFilter.test(ctx)) continue;
+				
 				final Set<String> genes = new HashSet<>();
 				
 				for(final String predStr: ctx.getAttributeAsList(vepParser.getTag()).stream().map(O->String.class.cast(O)).collect(Collectors.toList()))
@@ -341,48 +385,58 @@ public class VcfBurdenGoEnrichment
 
 				nodes.stream().forEach(N->N.resetVisitedFlag());
 				final long unaffected_ref = 
-						persons.stream().
-						filter(P->P.isUnaffected()).
+						unaffected.stream().
 						map(P->ctx.getGenotype(P.getId())).
-						filter(G->G!=null && G.isCalled() && G.getAlleles().stream().allMatch(A->A.isReference())).
+						filter(G->this.genotypeFilter.test(ctx, G)).
+						filter(isWildGenotype).
 						count();
 						
 				final long unaffected_alt  = 
-						persons.stream().
+						unaffected.stream().
 						filter(P->P.isUnaffected()).
 						map(P->ctx.getGenotype(P.getId())).
-						filter(G->G!=null && G.isCalled() && G.getAlleles().stream().anyMatch(A->A.isNonReference())).
+						filter(G->this.genotypeFilter.test(ctx, G)).
+						filter(isAltGenotype).
 						count()
 						;
 				final long affected_ref = 
-						persons.stream().
-						filter(P->P.isAffected()).
+						affected.stream().
 						map(P->ctx.getGenotype(P.getId())).
-						filter(G->G!=null && G.isCalled() && G.getAlleles().stream().allMatch(A->A.isReference())).
+						filter(G->this.genotypeFilter.test(ctx, G)).
+						filter(isWildGenotype).
 						count();
 				final long affected_alt   = 
-						persons.stream().
-						filter(P->P.isAffected()).
+						affected.stream().
 						map(P->ctx.getGenotype(P.getId())).
-						filter(G->G!=null && G.isCalled() && G.getAlleles().stream().anyMatch(A->A.isNonReference())).
+						filter(G->this.genotypeFilter.test(ctx, G)).
+						filter(isAltGenotype).
 						count()
 						;
 				nodes.stream().forEach(N->N.visit(unaffected_ref, unaffected_alt, affected_ref, affected_alt));
-				}			
+				}
 			iter.close();
 			progress.finish();
 			
 			final PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			
+			pw.println("#go_term\tfisher\tname\tgo_term_depth\tcount_genes_in_this_node"
+					+ "\tunaffected_ref_gt"
+					+ "\tunaffected_alt_gt"
+					+ "\taffected_ref_gt"
+					+ "\taffected_alt_gt"
+					);
 			term2node.values().stream().
-				filter(N->N.unaffected_ref+N.unaffected_alt+N.affected_ref+N.affected_alt>0L).
+				filter(N->this.show_never_seeen_term || N.sum()>0L).
 				sorted((n1,n2)->Double.compare(n2.fisher(), n1.fisher())).
 				forEach(N->{
 					pw.print(N.goTerm.getAcn());
 					pw.print('\t');
 					pw.print(N.fisher());
+					pw.print("\t");
+					pw.print(N.goTerm.getName().replaceAll("[ \',\\-]+", "_"));
+					pw.print("\t");
+					pw.print(N.goTerm.getMinDepth());
 					pw.print('\t');
-					pw.print(N.goTerm.getName());
+					pw.print(N.numGenes);
 					pw.print('\t');
 					pw.print(N.unaffected_ref);
 					pw.print('\t');
