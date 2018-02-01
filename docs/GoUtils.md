@@ -13,9 +13,19 @@ Usage: goutils [options] Files
     -A, --accession
       User Go Terms accession numbers or name
       Default: []
-    -G, --go, --gourl
-      Gene ontology URI. Formatted as RDF.
+    -af, --accession-file
+      File containing accession numbers
+    -action, --action
+      What shoud I do ? default is dump as table
+      Default: dump_table
+      Possible Values: [dump_table, dump_gexf]
+    -go, --go, --gene-ontology
+      Gene ontology URI. Formatted as RDF+XML. Can be gzipped.
       Default: http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz
+    -go-relations, --go-relations
+      limit the gene ontology tree to those relationships. empty: all possible 
+      relationships. 
+      Default: [is_a, regulates, negatively_regulates, part_of, positively_regulates]
     -h, --help
       print help and exit
     --helpFormat
@@ -26,9 +36,6 @@ Usage: goutils [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -R, --rel
-      use those GO relationships. Default: all
-      Default: []
     --version
       print version and exit
 

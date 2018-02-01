@@ -23,17 +23,25 @@ SOFTWARE.
 
 */package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.PrintWriter;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Function;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.gexf.GexfConstants;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.go.GoTree;
-import com.github.lindenb.jvarkit.util.go.GoTree.RelType;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -127,104 +135,290 @@ public class GoUtils
 	extends Launcher
 	{
 	private static Logger LOG=Logger.build(GoUtils.class).make(); 
-		
+	private enum Action{dump_table,dump_gexf};
+	
+	/** wraps a Go:Term */
+	private static class UserTerm
+		{
+		final GoTree.Term term;
+		UserTerm(final GoTree.Term term)
+			{
+			this.term = term;
+			}
+		@Override
+		public int hashCode() {
+			return this.term.hashCode();
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if(obj==this) return true;
+			if(obj==null) return false;
+			return this.term.equals(UserTerm.class.cast(obj).term);
+			}
+		@Override
+		public String toString() {
+			return this.term.toString();
+			}
+		}
+	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-	@Parameter(names= {"-G","--go","--gourl"},description=GoTree.GO_URL_OPT_DESC)
-	private String goRdfUri = GoTree.GO_RDF_URL;
+	@Parameter(names={"-action","--action"},description=
+			"What shoud I do ? default is dump as table")
+	private Action action = Action.dump_table;
+	@ParametersDelegate
+	private GoTree.ReadingGo readingGo = new GoTree.ReadingGo();
 	@Parameter(names= {"-A","--accession",},description="User Go Terms accession numbers or name")
 	private Set<String> userAccStrings = new HashSet<>();
-	@Parameter(names= {"-R","--rel",},description="use those GO relationships. Default: all")
-	private Set<String> relationTypesStr = new HashSet<>();
+	@Parameter(names= {"-af","--accession-file",},description="File containing accession numbers")
+	private File accessionFile=null;
 	@Parameter(names= {"-i","--inverse",},description="inverse the result")
 	private boolean inverse=false;
     
+	private GoTree mainGoTree=null;
+	
 	public GoUtils() {
 	}
+	
+	private GoTree.Term findTerm(final String s)
+		{
+		GoTree.Term t= this.mainGoTree.getTermByAccession(s);
+		if(t==null)
+			{
+			t= this.mainGoTree.getTermByName(s);
+			}
+		return t;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {			
 		PrintWriter out=null;
 		try
 			{
-			if(!args.isEmpty())
-				{
-				LOG.error("too many arguments");
-				return -1;
-				}
-			final Set<GoTree.RelType> relTypes;
-			if(this.relationTypesStr.isEmpty())
-				{
-				relTypes=new HashSet<>(Arrays.asList(RelType.values()));
-				}
-			else
-				{
-				relTypes = this.relationTypesStr.stream().
-						map(S->GoTree.RelType.valueOf(S)).
-						collect(Collectors.toSet());
-				}
-			LOG.info("using rels:"+relTypes);
-			LOG.info("parsing "+this.goRdfUri);
-			final GoTree gotree=new GoTree.Parser().
+			
+			this.mainGoTree = this.readingGo.createParser().
 					setDebug(false).
-					setRelations(relTypes).
-					parse(this.goRdfUri);
-			final Set<GoTree.Term> userTerms = new HashSet<>();
+					parse(this.readingGo.goUri);
+			
+			final Map<GoTree.Term,UserTerm> userTerms = new HashMap<>();
 			for(final String s:this.userAccStrings)
 				{
 				if(StringUtil.isBlank(s)) continue;
-				GoTree.Term t= gotree.getTermByAccession(s);
+				final GoTree.Term t= this.findTerm(s);
 				if(t==null)
 					{
-					t= gotree.getTermByName(s);
+					LOG.error("cannot find user term "+s);
+					return -1;
+					}
+				userTerms.put(t,new UserTerm(t));
+				}
+			
+			if(this.accessionFile!=null)
+				{
+				final BufferedReader r=IOUtils.openFileForBufferedReading(this.accessionFile);
+				String line;
+				while((line=r.readLine())!=null) {
+					if(line.isEmpty() || line.startsWith("#")) continue;
+					int last=0;
+					for(last=0;last< line.length();++last) {
+						if(Character.isWhitespace(last)) break;
+						}
+					final String s= line.substring(0, last);
+					GoTree.Term t=  this.findTerm(s);
 					if(t==null)
-						{		
-						LOG.error("cannot find user term "+s);
+							{
+							r.close();
+							LOG.error("In "+this.accessionFile+" cannot find user term "+s);
+							return -1;
+							}
+					final UserTerm ut = new UserTerm(t);
+					userTerms.put(t,ut);
+					}
+				r.close();
+				}
+			
+			
+			switch(this.action)
+				{
+				case dump_gexf:
+						{
+							
+						final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+						XMLStreamWriter w= null;
+						FileWriter fw=null;
+						
+						if(this.outputFile==null)
+							{
+							w=xof.createXMLStreamWriter(stdout(), "UTF-8");
+							}
+						else
+							{
+							w=xof.createXMLStreamWriter((fw=new FileWriter(this.outputFile)));
+							}
+						final Function<GoTree.Term,String> term2str=T->T.getAcn().replaceAll("[\\:_#]+", "_");
+						w.writeStartDocument("UTF-8", "1.0");
+						w.writeStartElement("gexf");
+						w.writeAttribute("xmlns", GexfConstants.XMLNS);
+						w.writeAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+						w.writeAttribute("xmlns:viz", GexfConstants.XMLNS_VIZ);
+						w.writeAttribute("xsi:schemaLocation",GexfConstants.XSI_SCHEMA_LOCATION);
+						w.writeAttribute("version", GexfConstants.VERSION);
+						w.writeStartElement("meta");
+						  w.writeStartElement("creator");
+						  w.writeCharacters(getClass().getName()+" by Pierre Lindenbaum");
+						  w.writeEndElement();
+						 
+						  w.writeStartElement("description");
+						  w.writeCharacters("");
+						  w.writeEndElement();
+						
+						w.writeEndElement();//meta
+						  w.writeStartElement("graph");
+						  w.writeAttribute("mode", "static");
+						  w.writeAttribute("defaultedgetype", "directed");
+						  
+						  w.writeStartElement("attributes");
+						  w.writeAttribute("class", "node");
+						  w.writeAttribute("mode", "static");
+						  w.writeEndElement();//attributes
+							
+						  w.writeStartElement("attributes");                                                                                     
+						  w.writeAttribute("class", "edge");
+						  w.writeAttribute("mode", "static");
+							  
+				          w.writeEmptyElement("attribute");
+							w.writeAttribute("id", "0");
+							w.writeAttribute("title", "description");
+							w.writeAttribute("type", "string");
+					      
+							w.writeEmptyElement("attribute");
+							w.writeAttribute("id", "1");
+							w.writeAttribute("title", "accesion");
+							w.writeAttribute("type", "string");
+						  
+							
+				          w.writeEndElement();//attributes
+						  
+				
+						  w.writeStartElement("nodes");
+						  for(final GoTree.Term term:this.mainGoTree.getTerms())
+						 	{
+							w.writeStartElement("node");
+							w.writeAttribute("id",term2str.apply(term));
+							
+							w.writeAttribute("label",term.getName());
+							
+							w.writeStartElement("attvalues");
+							
+							  w.writeEmptyElement("attvalue");
+								w.writeAttribute("for", "0");
+								w.writeAttribute("value",term.getDefinition());
+	
+							  w.writeEmptyElement("attvalue");
+								w.writeAttribute("for", "1");
+								w.writeAttribute("value",term.getAcn());
+							
+							w.writeEndElement();//attvalues
+							
+							// viz:size
+							w.writeEmptyElement("viz:size");
+								w.writeAttribute("value","1");
+							// viz:color
+							w.writeEmptyElement("viz:color");
+								w.writeAttribute("r","255");
+								w.writeAttribute("g","255");
+								w.writeAttribute("b","255");
+								w.writeAttribute("a","1.0");
+							
+							w.writeEndElement();//node
+						 	}
+						  w.writeEndElement();//nodes
+						
+						  
+						  w.writeStartElement("edges");
+						  for(final GoTree.Term term: this.mainGoTree.getTerms())
+						 	{
+							for(final GoTree.Relation rel: term.getRelations())
+								{
+								w.writeStartElement("edge");
+								w.writeAttribute("id","E"+term2str.apply(term)+"_"+term2str.apply(rel.getTo()));
+								w.writeAttribute("type","directed");
+								w.writeAttribute("source",term2str.apply(term));
+								w.writeAttribute("target",term2str.apply(rel.getTo()));
+								
+								w.writeAttribute("weight",String.valueOf(1));
+								w.writeEndElement();
+								}
+						 	}
+						  w.writeEndElement();//edges
+						  
+						  w.writeEndElement();//graph
+				
+						
+						w.writeEndElement();//gexf
+						w.writeEndDocument();
+						w.flush();
+						if(fw!=null)
+							{
+							fw.flush();
+							CloserUtil.close(fw);
+							}
+						else
+							{
+							System.out.flush();
+							}
+					break;	
+					}
+				case dump_table://through
+				default:
+					{
+					if(!args.isEmpty())
+						{
+						LOG.error("too many arguments");
 						return -1;
 						}
-					}
-				userTerms.add(t);
-				}
-			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			out.println("#ACN\tNAME\tDEFINITION");
-			for(final GoTree.Term t:gotree.getTerms())
-				{
-				boolean keep=false;
-				
-				if(userTerms.isEmpty())
-					{
-					keep=true;
-					}
-				else
-					{
-					for(final GoTree.Term userTerm:userTerms)
+					out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+					out.println("#ACN\tNAME\tDEFINITION");
+					for(final GoTree.Term t:this.mainGoTree.getTerms())
 						{
-						if(t.isDescendantOf(userTerm))
+						boolean keep=false;
+						
+						if(userTerms.isEmpty())
 							{
 							keep=true;
-							break;
+							}
+						else
+							{
+							for(final GoTree.Term userTerm:userTerms.keySet())
+								{
+								if(t.isDescendantOf(userTerm))
+									{
+									keep=true;
+									break;
+									}
+								}
+							}
+						
+						if(this.inverse) keep=!keep;
+						if(keep)
+							{
+							out.print(t.getAcn());
+							out.print('\t');
+							out.print(t.getName());
+							out.print('\t');
+							out.print(t.getDefinition());
+							out.println();
 							}
 						}
-					}
-				
-				if(this.inverse) keep=!keep;
-				if(keep)
-					{
-					out.print(t.getAcn());
-					out.print('\t');
-					out.print(t.getName());
-					out.print('\t');
-					out.print(t.getDefinition());
-					out.println();
+					
+					out.flush();
+					out.close();
+					break;
 					}
 				}
-			
-			out.flush();
-			out.close();
-			
-			return 0;
-			}
+				
+				return 0;
+				}
 		catch(final Exception err) {
 			LOG.error(err);
 			return -1;

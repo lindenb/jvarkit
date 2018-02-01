@@ -1,5 +1,7 @@
 # PubmedOrcidGraph
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Creates a graph from Pubmed and Authors' Orcid identifiers
 
 

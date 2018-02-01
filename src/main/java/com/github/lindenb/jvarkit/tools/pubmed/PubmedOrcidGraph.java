@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2015 creation
 
 */
 package com.github.lindenb.jvarkit.tools.pubmed;
@@ -72,6 +68,7 @@ import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Transaction;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.gexf.GexfConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -745,10 +742,10 @@ public class PubmedOrcidGraph
 			
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("gexf");
-			w.writeAttribute("xmlns", "http://www.gexf.net/1.2draft");
+			w.writeAttribute("xmlns",GexfConstants.XMLNS);
 			w.writeAttribute("xmlns:xsi","http://www.w3.org/2001/XMLSchema-instance");
-			w.writeAttribute("xsi:schemaLocation","http://www.gexf.net/1.2draft http://www.gexf.net/1.2draft/gexf.xsd");
-			w.writeAttribute("version", "1.2");
+			w.writeAttribute("xsi:schemaLocation",GexfConstants.XSI_SCHEMA_LOCATION);
+			w.writeAttribute("version", GexfConstants.VERSION);
 			
 			
 			/* meta */
