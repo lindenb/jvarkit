@@ -23,6 +23,7 @@ SOFTWARE.
 
 */package com.github.lindenb.jvarkit.tools.misc;
 
+import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
@@ -45,6 +46,7 @@ import com.github.lindenb.jvarkit.util.go.GoTree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -129,7 +131,7 @@ END_DOC
 @Program(
 		name="goutils",
 		description="Gene Ontology Utils. Retrieves terms from Gene Ontology",
-		keywords={"geneontology","go"}
+		keywords={"geneontology","go","gexf"}
 		)
 public class GoUtils
 	extends Launcher
@@ -141,16 +143,23 @@ public class GoUtils
 	private static class UserTerm
 		{
 		final GoTree.Term term;
+		final int _hash;
+		/** color in GEXF */
+		Color vizColor = null;
+		/** size in GEXF */
+		Double vizSize=null;
+
 		UserTerm(final GoTree.Term term)
 			{
 			this.term = term;
+			this._hash = term.hashCode();
 			}
 		@Override
 		public int hashCode() {
-			return this.term.hashCode();
+			return this._hash;
 			}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if(obj==this) return true;
 			if(obj==null) return false;
 			return this.term.equals(UserTerm.class.cast(obj).term);
@@ -170,7 +179,10 @@ public class GoUtils
 	private GoTree.ReadingGo readingGo = new GoTree.ReadingGo();
 	@Parameter(names= {"-A","--accession",},description="User Go Terms accession numbers or name")
 	private Set<String> userAccStrings = new HashSet<>();
-	@Parameter(names= {"-af","--accession-file",},description="File containing accession numbers")
+	@Parameter(names= {"-af","--accession-file",},
+			description="File containing accession numbers. One per line. "
+					+ "After the first white space one can define optional attributes for gexf:"
+					+ "`color=<COLOR>;size=<SIZE>")
 	private File accessionFile=null;
 	@Parameter(names= {"-i","--inverse",},description="inverse the result")
 	private boolean inverse=false;
@@ -215,24 +227,54 @@ public class GoUtils
 			
 			if(this.accessionFile!=null)
 				{
+				final ColorUtils colorUtils = new ColorUtils();
 				final BufferedReader r=IOUtils.openFileForBufferedReading(this.accessionFile);
 				String line;
 				while((line=r.readLine())!=null) {
 					if(line.isEmpty() || line.startsWith("#")) continue;
 					int last=0;
 					for(last=0;last< line.length();++last) {
-						if(Character.isWhitespace(last)) break;
+						if(Character.isWhitespace(line.charAt(last))) break;
 						}
 					final String s= line.substring(0, last);
 					GoTree.Term t=  this.findTerm(s);
 					if(t==null)
 							{
 							r.close();
-							LOG.error("In "+this.accessionFile+" cannot find user term "+s);
+							LOG.error("In "+this.accessionFile+" cannot find user term \""+s+"\"");
 							return -1;
 							}
 					final UserTerm ut = new UserTerm(t);
 					userTerms.put(t,ut);
+					switch(this.action)
+						{
+						
+						case dump_gexf:
+								{
+								for(final String left: line.substring(last).trim().split("[ \t;]+"))
+									{
+									if(left.isEmpty())
+										{
+										// cont
+										}
+									else if(left.startsWith("color=") && ut.vizColor==null)
+										{
+										ut.vizColor = colorUtils.parse(left.substring(6));
+										}
+									else if(left.startsWith("size=") && ut.vizSize==null)
+										{
+										ut.vizSize = Double.parseDouble(left.substring(5));
+										}
+									else
+										{
+										LOG.warning("Ignoring unknown modifier "+left +" in "+line);
+										}
+									}
+								break;
+								}
+						default:break;
+						}
+					
 					}
 				r.close();
 				}
@@ -242,7 +284,6 @@ public class GoUtils
 				{
 				case dump_gexf:
 						{
-							
 						final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 						XMLStreamWriter w= null;
 						FileWriter fw=null;
@@ -269,7 +310,7 @@ public class GoUtils
 						  w.writeEndElement();
 						 
 						  w.writeStartElement("description");
-						  w.writeCharacters("");
+						  w.writeCharacters("Gene Ontology Tree to Gexf :"+getProgramCommandLine());
 						  w.writeEndElement();
 						
 						w.writeEndElement();//meta
@@ -278,12 +319,12 @@ public class GoUtils
 						  w.writeAttribute("defaultedgetype", "directed");
 						  
 						  w.writeStartElement("attributes");
-						  w.writeAttribute("class", "node");
+						  w.writeAttribute("class", "edge");
 						  w.writeAttribute("mode", "static");
 						  w.writeEndElement();//attributes
 							
 						  w.writeStartElement("attributes");                                                                                     
-						  w.writeAttribute("class", "edge");
+						  w.writeAttribute("class", "node");
 						  w.writeAttribute("mode", "static");
 							  
 				          w.writeEmptyElement("attribute");
@@ -291,18 +332,39 @@ public class GoUtils
 							w.writeAttribute("title", "description");
 							w.writeAttribute("type", "string");
 					      
-							w.writeEmptyElement("attribute");
+						  w.writeEmptyElement("attribute");
 							w.writeAttribute("id", "1");
-							w.writeAttribute("title", "accesion");
+							w.writeAttribute("title", "accession");
 							w.writeAttribute("type", "string");
-						  
+
+					      w.writeEmptyElement("attribute");
+							w.writeAttribute("id", "2");
+							w.writeAttribute("title", "userTerm");
+							w.writeAttribute("type", "boolean");
+	
+					      w.writeEmptyElement("attribute");
+							w.writeAttribute("id", "3");
+							w.writeAttribute("title", "parentOfUserTerm");
+							w.writeAttribute("type", "boolean");
+						
+					      w.writeEmptyElement("attribute");
+							w.writeAttribute("id", "4");
+							w.writeAttribute("title", "childOffUserTerm");
+							w.writeAttribute("type", "boolean");
+
 							
-				          w.writeEndElement();//attributes
+							
+							
+						 w.writeEndElement();//attributes
+				          
+				          
 						  
 				
 						  w.writeStartElement("nodes");
+						  w.writeAttribute("count",String.valueOf(this.mainGoTree.size()));
 						  for(final GoTree.Term term:this.mainGoTree.getTerms())
 						 	{
+							final UserTerm ut = userTerms.get(term);
 							w.writeStartElement("node");
 							w.writeAttribute("id",term2str.apply(term));
 							
@@ -317,25 +379,50 @@ public class GoUtils
 							  w.writeEmptyElement("attvalue");
 								w.writeAttribute("for", "1");
 								w.writeAttribute("value",term.getAcn());
+								
+							  w.writeEmptyElement("attvalue");
+								w.writeAttribute("for", "2");
+								w.writeAttribute("value",String.valueOf(ut!=null));
+							
+							  w.writeEmptyElement("attvalue");
+								w.writeAttribute("for", "3");//is parent of any user term
+								w.writeAttribute("value",String.valueOf(userTerms.keySet().stream().anyMatch(T->T.isDescendantOf(term))));
+							  
+							w.writeEmptyElement("attvalue");
+								w.writeAttribute("for", "4");//is child of any user term
+								w.writeAttribute("value",String.valueOf(userTerms.keySet().stream().anyMatch(T->term.isDescendantOf(T))));
+
+
 							
 							w.writeEndElement();//attvalues
 							
-							// viz:size
+							double viz_size = 1.0;
+							if(ut!=null) {
+								if(ut.vizSize!=null)
+									{
+									viz_size = ut.vizSize;
+									}
+								if(ut.vizColor!=null)
+									{
+									// viz:color
+									w.writeEmptyElement("viz:color");
+										w.writeAttribute("r",String.valueOf(ut.vizColor.getRed()));
+										w.writeAttribute("g",String.valueOf(ut.vizColor.getGreen()));
+										w.writeAttribute("b",String.valueOf(ut.vizColor.getBlue()));
+										w.writeAttribute("a",String.valueOf("1.0"));
+									}
+								}
 							w.writeEmptyElement("viz:size");
-								w.writeAttribute("value","1");
-							// viz:color
-							w.writeEmptyElement("viz:color");
-								w.writeAttribute("r","255");
-								w.writeAttribute("g","255");
-								w.writeAttribute("b","255");
-								w.writeAttribute("a","1.0");
-							
+								w.writeAttribute("value",String.valueOf(viz_size));
 							w.writeEndElement();//node
 						 	}
 						  w.writeEndElement();//nodes
 						
 						  
 						  w.writeStartElement("edges");
+						  w.writeAttribute("count",String.valueOf(this.mainGoTree.getTerms().stream().
+								  mapToInt(N->N.getRelations().size()).sum()
+								  ));
 						  for(final GoTree.Term term: this.mainGoTree.getTerms())
 						 	{
 							for(final GoTree.Relation rel: term.getRelations())
@@ -345,8 +432,28 @@ public class GoUtils
 								w.writeAttribute("type","directed");
 								w.writeAttribute("source",term2str.apply(term));
 								w.writeAttribute("target",term2str.apply(rel.getTo()));
-								
+								w.writeAttribute("label",rel.getType().name());
 								w.writeAttribute("weight",String.valueOf(1));
+								
+								final Color vizColor;
+								switch(rel.getType())
+									{
+									case negatively_regulates:vizColor = Color.RED; break;
+									case positively_regulates:vizColor = Color.GREEN; break;
+									case regulates:vizColor = Color.ORANGE; break;
+									case part_of: vizColor = Color.BLUE; break;
+									case is_a://cont
+									default: vizColor = Color.BLACK; break;
+									}
+								
+								// viz:color
+								w.writeEmptyElement("viz:color");
+									w.writeAttribute("r",String.valueOf(vizColor.getRed()));
+									w.writeAttribute("g",String.valueOf(vizColor.getGreen()));
+									w.writeAttribute("b",String.valueOf(vizColor.getBlue()));
+									w.writeAttribute("a",String.valueOf("1.0"));
+									
+								
 								w.writeEndElement();
 								}
 						 	}

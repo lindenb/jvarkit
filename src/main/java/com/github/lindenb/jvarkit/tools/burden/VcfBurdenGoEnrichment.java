@@ -84,7 +84,16 @@ go.rdf.xml.gz:
 goa.txt:
 	wget -q -O - "http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD" | gunzip -c | grep -v '^!' | cut -f3,5 | sort | uniq > $@
 ```
-	
+
+## Note to self:
+
+import into gephi:
+
+```
+grep -v "#" input.go.txt| awk '{if($2<1E-4) printf("%s\tsize=%f;color=red;\n",$1,-log($2)/log(10)+1);}' > jeter.txt && \
+java -jar dist/goutils.jar --action dump_gexf -f jeter.txt > out.gexf
+```
+
 
 END_DOC
 */
@@ -134,14 +143,16 @@ public class VcfBurdenGoEnrichment
 		private Double _fisher=null;
 		/** parent nodes */
 		final Set<Node> parents = new HashSet<>();
+		final int _hash;
 		
 		Node(final GoTree.Term goTerm)
 			{
 			this.goTerm = goTerm;
+			this._hash = goTerm.hashCode();
 			}
 		@Override
 		public int hashCode() {
-			return goTerm.hashCode();
+			return this._hash;
 			}
 		@Override
 		public boolean equals(final Object obj) {
@@ -150,6 +161,7 @@ public class VcfBurdenGoEnrichment
 			}
 		void resetVisitedFlag() 
 			{
+			if(!this.visited) return;
 			this.visited=false;
 			this.parents.stream().forEach(N->N.resetVisitedFlag());
 			}
@@ -383,28 +395,16 @@ public class VcfBurdenGoEnrichment
 						collect(Collectors.toSet());
 				if(nodes.isEmpty()) continue;
 
-				nodes.stream().forEach(N->N.resetVisitedFlag());
-				final long unaffected_ref = 
-						unaffected.stream().
-						map(P->ctx.getGenotype(P.getId())).
-						filter(G->this.genotypeFilter.test(ctx, G)).
-						filter(isWildGenotype).
-						count();
+				
 						
 				final long unaffected_alt  = 
 						unaffected.stream().
-						filter(P->P.isUnaffected()).
 						map(P->ctx.getGenotype(P.getId())).
 						filter(G->this.genotypeFilter.test(ctx, G)).
 						filter(isAltGenotype).
 						count()
 						;
-				final long affected_ref = 
-						affected.stream().
-						map(P->ctx.getGenotype(P.getId())).
-						filter(G->this.genotypeFilter.test(ctx, G)).
-						filter(isWildGenotype).
-						count();
+				
 				final long affected_alt   = 
 						affected.stream().
 						map(P->ctx.getGenotype(P.getId())).
@@ -412,11 +412,33 @@ public class VcfBurdenGoEnrichment
 						filter(isAltGenotype).
 						count()
 						;
+				/* no informative */
+				if( unaffected_alt + affected_alt == 0L) {
+					continue;
+				}
+				
+				final long affected_ref = 
+						affected.stream().
+						map(P->ctx.getGenotype(P.getId())).
+						filter(G->this.genotypeFilter.test(ctx, G)).
+						filter(isWildGenotype).
+						count();
+				
+				final long unaffected_ref = 
+						unaffected.stream().
+						map(P->ctx.getGenotype(P.getId())).
+						filter(G->this.genotypeFilter.test(ctx, G)).
+						filter(isWildGenotype).
+						count();
+						
+				
+				nodes.stream().forEach(N->N.resetVisitedFlag());
+
 				nodes.stream().forEach(N->N.visit(unaffected_ref, unaffected_alt, affected_ref, affected_alt));
 				}
 			iter.close();
 			progress.finish();
-			
+			LOG.info("Calculating Fisher and dumping.. please wait");
 			final PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			pw.println("#go_term\tfisher\tname\tgo_term_depth\tcount_genes_in_this_node"
 					+ "\tunaffected_ref_gt"
@@ -426,7 +448,7 @@ public class VcfBurdenGoEnrichment
 					);
 			term2node.values().stream().
 				filter(N->this.show_never_seeen_term || N.sum()>0L).
-				sorted((n1,n2)->Double.compare(n2.fisher(), n1.fisher())).
+				sorted((n1,n2)->Double.compare(n1.fisher(), n2.fisher())).
 				forEach(N->{
 					pw.print(N.goTerm.getAcn());
 					pw.print('\t');

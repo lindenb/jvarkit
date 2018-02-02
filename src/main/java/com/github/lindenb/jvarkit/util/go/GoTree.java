@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -64,7 +65,7 @@ import htsjdk.samtools.util.StringUtil;
  * @author lindenb
  *
  */
-public class GoTree
+public class GoTree implements Iterable<GoTree.Term>
 	{
 	private static Logger LOG=Logger.build(GoTree.class).make(); 
 
@@ -78,6 +79,17 @@ public class GoTree
 		}
 	private static final Set<RelType> REL_TYPE_SET = Arrays.asList(RelType.values()).stream().collect(Collectors.toSet());
 
+	public static enum Division
+		{
+		cellular_component("GO:0005575"),biological_process("GO:0008150"),molecular_function("GO:0003674");
+		private final String acn;
+		Division(final String acn) { this.acn=acn;}
+		/** get accession number */
+		public String getAcn() { return this.acn;}
+		}
+	private static final Set<Division> DIVISION_SET = Arrays.asList(Division.values()).stream().collect(Collectors.toSet());
+
+	
 	public static interface Relation
 		{
 		public RelType getType();
@@ -114,16 +126,51 @@ public class GoTree
 			}
 		}
 	
+	
+	public static class DivisionConverter implements IStringConverter<Set<Division>>
+		{
+		@Override
+		public Set<Division> convert(final String s) {
+			if(StringUtil.isBlank(s))
+				{
+				return DIVISION_SET;
+				}
+			final Set<Division> ds = new HashSet<>();
+			for(final String token:s.split("[,; |]"))
+				{
+				if(StringUtil.isBlank(token)) continue;
+				final Optional<Division> f = DIVISION_SET.stream().
+						filter(T->T.name().equalsIgnoreCase(token)).
+						findFirst();
+				if(!f.isPresent())
+					{
+					throw new JvarkitException.UserError(
+						"undefined division "+token+" available are: " +
+								DIVISION_SET
+						);
+					}
+				
+				ds.add(f.get());
+				}
+			if(ds.isEmpty()) return DIVISION_SET;
+			return ds;
+			}
+		}
+
+	
 	public static class ReadingGo
 		{
 		@Parameter(names={"-go","--go","--gene-ontology"},description=GoTree.GO_URL_OPT_DESC)
 		public String goUri = GoTree.GO_RDF_URL;
 		@Parameter(names={"-go-relations","--go-relations"},description="limit the gene ontology tree to those relationships. empty: all possible relationships. ",converter=RelTypeConverter.class)
 		public Set<RelType> relTypes = REL_TYPE_SET;
-		
+		@Parameter(names={"-go-divisions","--go-divisions"},description="limit the gene ontology tree to those divisions. empty: all possible divisions. ",converter=DivisionConverter.class)
+		public Set<Division> divisions = DIVISION_SET;
+
 		public Parser createParser()
 			{
 			return new Parser().
+					setDivisions(this.divisions).
 					setRelations(this.relTypes);
 			}
 		}
@@ -133,11 +180,19 @@ public class GoTree
 		final TermImpl termFrom;
 		final RelType reltype;
 		final TermImpl termTo;
+		final private int _hash;
 		RelationImpl(final TermImpl termFrom,final RelType reltype,final TermImpl termTo)
 			{
 			this.termFrom = termFrom;
 			this.reltype = reltype;
 			this.termTo = termTo;
+			
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + termFrom.hashCode();
+			result = prime * result + reltype.hashCode();
+			result = prime * result + termTo.hashCode();
+			this._hash = result;
 			}
 		@Override
 		public Term getTo() {
@@ -149,12 +204,7 @@ public class GoTree
 			}
 		@Override
 		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + termFrom.hashCode();
-			result = prime * result + reltype.hashCode();
-			result = prime * result + termTo.hashCode();
-			return result;
+			return this._hash;
 			}
 		@Override
 		public boolean equals(final Object obj) {
@@ -231,6 +281,11 @@ public class GoTree
 		return Collections.unmodifiableCollection(this.acn2term.values());
 		}
 	
+	@Override
+	public Iterator<Term> iterator() {
+		return getTerms().iterator();
+		}
+	
 	
 	private final HashMap<String, TermImpl> acn2term=new HashMap<String, TermImpl>();
 	
@@ -245,15 +300,15 @@ public class GoTree
 		//final Set<TermImpl> children=new HashSet<>();
 		final Set<RelationImpl> relations = new HashSet<>();
 		
-		TermImpl(final String accession) {
-			int hash=accession.indexOf('#');
+		TermImpl(final String uri) {
+			int hash=uri.indexOf('#');
 			if(hash!=-1)
 				{
-				this.accession=accession.substring(hash+1);
+				this.accession=uri.substring(hash+1);
 				}
 			else
 				{
-				this.accession = accession;
+				this.accession = uri;
 				}
 			this.name= this.accession;
 			}
@@ -397,11 +452,17 @@ public class GoTree
 		private boolean ignore_dbxref=false;
 		private boolean debug=false;
 		private Set<RelType> userRelTypes = GoTree.REL_TYPE_SET;
+		private Set<Division> userDivisions = GoTree.DIVISION_SET;
 		
 		
 		/** set accepted relations */
 		public Parser setRelations(final Set<RelType> userRelTypes) {
 			this.userRelTypes = (userRelTypes==null? GoTree.REL_TYPE_SET:new HashSet<>(userRelTypes));
+			return this;
+			}
+		/** set accepted divisions */
+		public Parser setDivisions(final Set<Division> userRelTypes) {
+			this.userDivisions = (userRelTypes==null? GoTree.DIVISION_SET:new HashSet<>(userRelTypes));
 			return this;
 			}
 		
@@ -636,6 +697,28 @@ public class GoTree
 						);
 				
 				}
+			
+			if(!this.userDivisions.equals(DIVISION_SET))
+				{
+				final Set<String> toRemove=new HashSet<>();
+				for(final Term term:tree.acn2term.values())
+					{
+					boolean keep=false;
+					for(final Division div:this.userDivisions)
+						{
+						final Term root= tree.getTermByAccession(div.getAcn());
+						if(root==null) throw new JvarkitException.UserError("cannot find "+div+" in go tree !");
+						if(root.equals(term) ||root.isDescendantOf(term) /* 'all'*/ || term.isDescendantOf(root))
+							{
+							keep=true;
+							break;
+							}
+						}
+					if(!keep) toRemove.add(term.getAcn());
+					}
+				for(final String acn:toRemove) tree.acn2term.remove(acn);
+				}
+			
 			if(this.debug)
 				{
 				LOG.debug("tree size: "+tree.acn2term.size());

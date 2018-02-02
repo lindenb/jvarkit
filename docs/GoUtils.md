@@ -14,7 +14,9 @@ Usage: goutils [options] Files
       User Go Terms accession numbers or name
       Default: []
     -af, --accession-file
-      File containing accession numbers
+      File containing accession numbers. One per line. After the first white 
+      space one can define optional attributes for 
+      gexf:`color=<COLOR>;size=<SIZE> 
     -action, --action
       What shoud I do ? default is dump as table
       Default: dump_table
@@ -22,10 +24,14 @@ Usage: goutils [options] Files
     -go, --go, --gene-ontology
       Gene ontology URI. Formatted as RDF+XML. Can be gzipped.
       Default: http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz
+    -go-divisions, --go-divisions
+      limit the gene ontology tree to those divisions. empty: all possible 
+      divisions. 
+      Default: [cellular_component, molecular_function, biological_process]
     -go-relations, --go-relations
       limit the gene ontology tree to those relationships. empty: all possible 
       relationships. 
-      Default: [is_a, regulates, negatively_regulates, part_of, positively_regulates]
+      Default: [part_of, regulates, positively_regulates, is_a, negatively_regulates]
     -h, --help
       print help and exit
     --helpFormat
@@ -46,6 +52,7 @@ Usage: goutils [options] Files
 
  * geneontology
  * go
+ * gexf
 
 
 ## Compilation
@@ -91,6 +98,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Thu Feb 1 20:12:45 2018 +0100 ; gexf stuff ; https://github.com/lindenb/jvarkit/commit/be48262f5a29156b623afcee9078bd1ef6613935
 Tue Jan 30 16:58:48 2018 +0100 ; remove vcfgo add goutils ; https://github.com/lindenb/jvarkit/commit/56f4134f30af3b5585db3db5baaeda9c34989762
 ```
 
