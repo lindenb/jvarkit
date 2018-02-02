@@ -109,6 +109,8 @@ x6      0       ref2    14      30      1X22=   *       0       0       TAATTAAG
 
 This tool was cited in Extensive sequencing of seven human genomes to characterize benchmark reference materials Sci Data. 2016; 3: 160025..
 
+END_DOC
+
 */
 
 @Program(name="samfixcigar",
