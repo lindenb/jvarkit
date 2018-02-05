@@ -1,5 +1,7 @@
 # PrettySam
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Pretty SAM alignments
 
 
@@ -158,10 +160,7 @@ Should you cite **prettysam** ? [https://github.com/mr-c/shouldacite/blob/master
 
 The current reference is:
 
-[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+ * PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853798.v1](https://doi.org/10.6084/m9.figshare.5853798.v1)
 
 
 ## About long reads

@@ -236,6 +236,7 @@ END_DOC
 @Program(name="vcf2table",
 		description="convert a vcf to a table, to ease display in the terminal",
 		keywords={"vcf","table","visualization"},
+		references="Vcf2table : a VCF prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853801](https://doi.org/10.6084/m9.figshare.5853801)",
 		biostars=293855
 		)
 public class VcfToTable extends Launcher {

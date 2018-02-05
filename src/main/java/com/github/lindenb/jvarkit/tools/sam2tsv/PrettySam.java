@@ -244,7 +244,8 @@ END_DOC
  */
 @Program(name="prettysam",
 description="Pretty SAM alignments",
-keywords={"sam","bam",}
+references="PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853798.v1](https://doi.org/10.6084/m9.figshare.5853798.v1)",
+keywords={"sam","bam"}
 )
 public class PrettySam extends Launcher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();
