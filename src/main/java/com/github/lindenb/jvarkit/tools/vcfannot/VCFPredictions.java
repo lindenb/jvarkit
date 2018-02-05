@@ -35,11 +35,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -52,12 +53,17 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
@@ -155,28 +161,24 @@ END_DOC
 public class VCFPredictions extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFPredictions.class).make();
-
+	private enum OutputSyntax {Native,Vep,SnpEff };
 	private IntervalTreeMap<List<KnownGene>> knownGenes=null;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceGenome referenceGenome = null;
 	
-
-
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-
-	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
+	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String kgURI =KnownGene.getDefaultUri();
 
 	@Parameter(names={"-soacn","--printsoacn"},description="Print SO:term accession rather than label")
 	private boolean print_SO_ACN = false;
 
-	@Parameter(names={"-vep","--vep"},description="Variant Effect Predictor output Syntax")
-	private boolean vepSyntax = false;
+	@Parameter(names={"-os","--output-syntax","--syntax"},description="[20180122]output formatting syntax. SnpEff is still not complete.")
+	private OutputSyntax outputSyntax = OutputSyntax.Native;
 
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File referenceFile = null;
+	@Parameter(names={"-R","--reference"},description="[20180122](moved to faidx/DAS). "+ReferenceGenomeFactory.OPT_DESCRIPTION,required=true)
+	private String referenceGenomeSource = null;
 
 	
 	private static class MutedSequence extends DelegateCharSequence
@@ -195,7 +197,7 @@ public class VCFPredictions extends Launcher
 		@Override
 		public char charAt(final int i)
 			{
-			Character c= pos2char.get(i);
+			final Character c= pos2char.get(i);
 			return c==null?getDelegate().charAt(i):c;
 			}
 		
@@ -204,7 +206,7 @@ public class VCFPredictions extends Launcher
 	
 	private static class ProteinCharSequence extends DelegateCharSequence
 		{
-		private GeneticCode geneticCode;
+		private final GeneticCode geneticCode;
 		ProteinCharSequence(final GeneticCode geneticCode,final CharSequence cDNA)
 			{
 			super(cDNA);
@@ -246,57 +248,94 @@ public class VCFPredictions extends Launcher
 		public String toString()
 			{
 			final StringBuilder b=new StringBuilder();
-			if(VCFPredictions.this.vepSyntax) {
-				boolean first=true;
-				//Allele|Feature|Feature_type|Consequence|CDS_position|Protein_position|Amino_acids|Codons
-				b.append(alt2==null?"":alt2.getBaseString());
-				b.append('|');
-				b.append(kg==null?"":kg.getName());
-				b.append('|');
-				b.append("Transcript");
-				b.append('|');
-				for(final SequenceOntologyTree.Term t:seqont)
-					{
-					if(!first) b.append('&');
-					first=false;
-					b.append(t.getLabel().replaceAll("[ ]","_"));
-						
-					}
-				b.append('|');
-				b.append(position_cds==null?"":String.valueOf(position_cds+1));
-				b.append('|');
-				b.append(position_protein==null?"":String.valueOf(position_protein));
-				b.append('|');
-				b.append(wildAA.isEmpty() && mutAA.isEmpty()?"":wildAA+"/"+mutAA);
-				b.append('|');
-				b.append(wildCodon.isEmpty() && mutCodon.isEmpty()?"":wildCodon+"/"+mutCodon);
-				}
-			else {
-			b.append(kg==null?"":kg.getName());
-			b.append('|');
-			b.append(position_cds==null?"":String.valueOf(position_cds));
-			b.append('|');
-			b.append(position_protein==null?"":String.valueOf(position_protein));
-			b.append('|');
-			b.append(wildCodon.isEmpty() && mutCodon.isEmpty()?"":wildCodon+"/"+mutCodon);
-			b.append('|');
-			b.append(wildAA.isEmpty() && mutAA.isEmpty()?"":wildAA+"/"+mutAA);
-			b.append("|");
-			boolean first=true;
-			for(final SequenceOntologyTree.Term t:seqont)
+			switch(VCFPredictions.this.outputSyntax)
 				{
-				if(!first) b.append('&');
-				first=false;
-				if(print_SO_ACN)
+				case Vep:
 					{
-					b.append(t.getAcn());
+					//Allele|Feature|Feature_type|Consequence|CDS_position|Protein_position|Amino_acids|Codons
+					b.append(alt2==null?"":alt2.getBaseString());
+					b.append('|');
+					b.append(kg==null?"":kg.getName());
+					b.append('|');
+					b.append("Transcript");
+					b.append('|');
+					b.append(this.seqont.stream().map(T->T.getLabel().
+							replaceAll("[ ]", "_")).
+							collect(Collectors.joining("&")));
+					b.append('|');
+					b.append(position_cds==null?"":String.valueOf(position_cds+1));
+					b.append('|');
+					b.append(position_protein==null?"":String.valueOf(position_protein));
+					b.append('|');
+					b.append(wildAA.isEmpty() && mutAA.isEmpty()?"":wildAA+"/"+mutAA);
+					b.append('|');
+					b.append(wildCodon.isEmpty() && mutCodon.isEmpty()?"":wildCodon+"/"+mutCodon);
+					break;
 					}
-				else
+				case SnpEff:
 					{
-					b.append(t.getLabel().replaceAll("[ ]","_"));
+					b.append(alt2==null?"":alt2.getBaseString());
+					b.append('|');
+					b.append(this.seqont.stream().map(T->T.getLabel().
+							replaceAll("[ ]", "_")).
+							collect(Collectors.joining("&")));
+					b.append('|');
+					b.append("MODIFIER");//impact 
+					b.append(kg==null?"":kg.getName());// gene name
+					b.append('|');
+					b.append(kg==null?"":kg.getName()); //gene id
+					b.append('|');//
+					b.append("transcript");//Feature_Type
+					b.append(kg==null?"":kg.getName());//Feature_ID
+					b.append('|');
+					b.append("protein_coding");//Transcript_BioType
+					b.append('|');
+					b.append("");//RAnk
+					b.append('|');
+					b.append("");//HGVS.c //TODO
+					b.append('|');
+					b.append("");//HGVS.p 
+					b.append('|');
+					b.append("");//cDNA.pos / cDNA.length 
+					b.append('|');
+					b.append("");//CDS.pos / CDS.length 
+					b.append('|');
+					b.append("");//AA.pos / AA.length 
+					b.append('|');
+					b.append("");//Distance 
+					b.append('|');
+					b.append("");//ERRORS / WARNINGS / INFO
+					break;
+					}
+				default:
+					{
+					b.append(kg==null?"":kg.getName());
+					b.append('|');
+					b.append(position_cds==null?"":String.valueOf(position_cds));
+					b.append('|');
+					b.append(position_protein==null?"":String.valueOf(position_protein));
+					b.append('|');
+					b.append(wildCodon.isEmpty() && mutCodon.isEmpty()?"":wildCodon+"/"+mutCodon);
+					b.append('|');
+					b.append(wildAA.isEmpty() && mutAA.isEmpty()?"":wildAA+"/"+mutAA);
+					b.append("|");
+					boolean first=true;
+					for(final SequenceOntologyTree.Term t:seqont)
+						{
+						if(!first) b.append('&');
+						first=false;
+						if(print_SO_ACN)
+							{
+							b.append(t.getAcn());
+							}
+						else
+							{
+							b.append(t.getLabel().replaceAll("[ ]","_"));
+							}
+						}
+					break;
 					}
 				}
-			}
 			return b.toString();
 			}
 		
@@ -306,40 +345,54 @@ public class VCFPredictions extends Launcher
 		{
 		BufferedReader in=null;
 		try {
-			if (this.indexedFastaSequenceFile.getSequenceDictionary() == null) {
-				throw new IOException(
-						"Cannot get sequence dictionary for reference");
+			if (this.referenceGenome.getDictionary() == null) {
+				throw new JvarkitException.FastaDictionaryMissing(this.referenceGenomeSource);
 			}
+			int n_ignored=0;
 			int n_genes = 0;
 			this.knownGenes = new IntervalTreeMap<>();
 			LOG.info("loading genes");
+
+			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
+			contigNameConverter.setOnNotFound(OnNotFound.SKIP);
+			
 			in = IOUtils.openURIForBufferedReading(this.kgURI);
 			String line;
 			final Pattern tab = Pattern.compile("[\t]");
 			while ((line = in.readLine()) != null) {
-				if (line.isEmpty())
+				if (StringUtil.isBlank(line))
 					continue;
 				final String tokens[] = tab.split(line);
 				final KnownGene g = new KnownGene(tokens);
-				if (this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(g.getContig()) == null) {
+				final String normalizedContig = contigNameConverter.apply(g.getContig());
+				if(StringUtil.isBlank(normalizedContig)) {
+					++n_ignored;
+					continue;
+				}
+				
+				if (this.referenceGenome.getDictionary().getSequence(normalizedContig) == null) {
+					++n_ignored;
 					continue;
 				}
 				final int extend_gene_search = 5000; // because we want to set
 														// SO:5KB_upstream_variant
 
-				final Interval interval = new Interval(g.getContig(),
-						Math.max(1, g.getTxStart() + 1 - extend_gene_search), g.getTxEnd() + extend_gene_search);
+				final Interval interval = new Interval(
+						normalizedContig,
+						Math.max(1, g.getTxStart() + 1 - extend_gene_search),
+						g.getTxEnd() + extend_gene_search
+						);
 				List<KnownGene> L= this.knownGenes.get(interval);
 				if(L==null) {
 					L=new ArrayList<>(2);
 					this.knownGenes.put(interval, L);
 				}
-				
+				++n_genes;
 				L.add(g);
 			}
 			in.close();
 			in = null;
-			LOG.info("genes:" + n_genes);
+			LOG.info("genes:" + n_genes+" (ignored: "+n_ignored+")");
 			}
 		finally {
 			CloserUtil.close(in);
@@ -370,41 +423,57 @@ public class VCFPredictions extends Launcher
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final VcfIterator r, VariantContextWriter w)
-			 {
-		GenomicSequence genomicSequence=null;
+		{
+		ReferenceContig genomicSequence=null;
 		try {
-		LOG.info("opening REF:"+this.referenceFile);
-		this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
+		LOG.info("opening REF:"+this.referenceGenomeSource);
+		this.referenceGenome=new ReferenceGenomeFactory().
+				open(this.referenceGenomeSource);
 		loadKnownGenesFromUri();
 		final VCFHeader header=(VCFHeader)r.getHeader();
 		
+		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
+		contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 		
 		final VCFHeader h2=new VCFHeader(header);
 		addMetaData(h2);
 		
-		
-		if(this.vepSyntax)
+		switch(this.outputSyntax)
 			{
-			h2.addMetaDataLine(new VCFInfoHeaderLine("CSQ",
-					VCFHeaderLineCount.UNBOUNDED,
-					VCFHeaderLineType.String,
-					"Consequence type as predicted by VEP"+
-					". Format: Allele|Feature|Feature_type|Consequence|CDS_position|Protein_position|Amino_acids|Codons"
-					));
-			}
-		else
-			{
-			final StringBuilder format=new StringBuilder();
-			for(FORMAT1 f:FORMAT1.values())
+			case Vep:
 				{
-				if(format.length()>0) format.append("|"); 
-				 format.append(f.name()); 
+				h2.addMetaDataLine(new VCFInfoHeaderLine("CSQ",
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"Consequence type as predicted by VEP"+
+						". Format: Allele|Feature|Feature_type|Consequence|CDS_position|Protein_position|Amino_acids|Codons"
+						));
+				break;
 				}
-			
-			h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,
-					"Prediction from "+getClass().getSimpleName()+
-					". Format: "+format
-					));
+			case SnpEff:
+				{
+				h2.addMetaDataLine(new VCFInfoHeaderLine("ANN",
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO'"
+						));
+				break;
+				}
+			default:
+				{
+				final StringBuilder format=new StringBuilder();
+				for(FORMAT1 f:FORMAT1.values())
+					{
+					if(format.length()>0) format.append("|"); 
+					 format.append(f.name()); 
+					}
+				
+				h2.addMetaDataLine(new VCFInfoHeaderLine(TAG, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,
+						"Prediction from "+getClass().getSimpleName()+
+						". Format: "+format
+						));
+				break;
+				}
 			}
 		
         w.writeHeader(h2);
@@ -435,16 +504,19 @@ public class VCFPredictions extends Launcher
 		while(r.hasNext())
 			{
 			final VariantContext ctx=progress.watch(r.next());
-			
+			final String normalizedContig=contigNameConverter.apply(ctx.getContig());
 			final List<KnownGene> genes=new ArrayList<>();
 			
-			for(final List<KnownGene> l2: this.knownGenes.getOverlapping(new Interval(
-					ctx.getContig(),
-					ctx.getStart(),
-					ctx.getEnd() //1-based
-					)))
-				{
-				genes.addAll(l2);
+			
+			if(!StringUtil.isBlank(normalizedContig)) {
+				for(final List<KnownGene> l2: this.knownGenes.getOverlapping(new Interval(
+						normalizedContig,
+						ctx.getStart(),
+						ctx.getEnd() //1-based
+						)))
+					{
+					genes.addAll(l2);
+					}
 				}
 			final List<Annotation> ctx_annotations=new ArrayList<Annotation>();
 			if(genes==null || genes.isEmpty())
@@ -456,10 +528,11 @@ public class VCFPredictions extends Launcher
 				}
 			else
 				{
-				if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getContig()))
+				if(genomicSequence==null || !genomicSequence.hasName(normalizedContig))
 					{
-					LOG.info("getting genomic Sequence for "+ctx.getContig());
-					genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ctx.getContig());
+					LOG.info("getting genomic Sequence for "+normalizedContig);
+					genomicSequence= this.referenceGenome.getContig(normalizedContig);
+					if(genomicSequence==null) throw new JvarkitException.ContigNotFoundInDictionary(normalizedContig, this.referenceGenome.getDictionary());
 					}
 				
 				for(final KnownGene gene:genes)
@@ -469,7 +542,12 @@ public class VCFPredictions extends Launcher
             		
 					for(final Allele alt2:ctx.getAlternateAlleles())
 						{
-						if(alt2.isSymbolic()) continue;
+						if(alt2.isNoCall()) continue;
+						if(alt2.isSymbolic())
+							{
+							LOG.warn("symbolic allele are not handled... "+alt2.getDisplayString());
+							continue;
+							}
 						if(alt2.isReference()) continue;
 						final Annotation annotations=new Annotation();
 						annotations.kg=gene;
@@ -807,7 +885,14 @@ public class VCFPredictions extends Launcher
 				}
 			
 			final VariantContextBuilder vb=new VariantContextBuilder(ctx);
-			vb.attribute((this.vepSyntax?"CSQ":TAG), info.toArray());
+			final String thetag;
+			switch(this.outputSyntax)
+				{
+				case Vep : thetag="CSQ"; break;
+				case SnpEff : thetag="ANN"; break;
+				default: thetag=TAG;break;
+				}
+			vb.attribute(thetag, info.toArray());
 			w.add(vb.make());
 			}
 		
@@ -816,13 +901,13 @@ public class VCFPredictions extends Launcher
 			LOG.error(err);
 			return -1;
 		} finally {
-			CloserUtil.close(this.indexedFastaSequenceFile);
+			CloserUtil.close(this.referenceGenome);
 		}
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
-			if(this.referenceFile==null) 
+		if(StringUtil.isBlank(this.referenceGenomeSource))
 			{
 			LOG.error("Reference undefined.");
 			return -1;
@@ -835,7 +920,7 @@ public class VCFPredictions extends Launcher
 		return doVcfToVcf(args,outputFile);
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VCFPredictions().instanceMainWithExit(args);
 		}

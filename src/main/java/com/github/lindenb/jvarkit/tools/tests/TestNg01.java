@@ -690,6 +690,7 @@ class TestNg01 {
     	final Set<SequenceOntologyTree.Term> terms = term.getAllDescendants();
     	Assert.assertNotNull(term);
     	Assert.assertTrue(terms.size()>1);
+    	Assert.assertTrue(terms.contains(term));
     	
     	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
         		"-o",output.getPath(),
@@ -706,6 +707,7 @@ class TestNg01 {
     	Assert.assertEquals(0,new VcfFilterSequenceOntology().instanceMain(new String[]{
         		"-o",output.getPath(),
         		"-A",acn,
+        		"--rmatt",
         		"--invert",
         		VCF01
         		}));
@@ -1416,7 +1418,7 @@ class TestNg01 {
 		
 	    	Assert.assertEquals(0,new GoUtils().instanceMain(new String[]{
 	        		"-A","GO:0005216",
-	        		"-R","is_a",
+	        		"-go-relations","is_a",
 	    			"-o",output.getPath()
 	        		}));
 	    	assertTableIsConsitent(output, null);

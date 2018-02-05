@@ -1,5 +1,7 @@
 # VcfFilterSequenceOntology
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.<
 
 
@@ -13,6 +15,11 @@ Usage: vcffilterso [options] Files
       Default: []
     -f, --acnfile
       file of SO accession numbers
+    -fg, --filter-genotype
+      [20180205] Experimental. Filter genotypes having NO ALT allele carrying 
+      a matching prediction.Only works when I can extract a valid Allele from 
+      a prediction. Use with care. Idea is to FILTER out genotype '0/2' of 
+      multialleleic variant where only '0/1' is of interest.
     -fi, --filterin
       Do not discard variant but add this FILTER its' prediction is found in 
       the database
@@ -27,23 +34,22 @@ Usage: vcffilterso [options] Files
       What kind of help
       Possible Values: [usage, markdown, xml]
     -i, --invert
-      invert selection (if one of the user's term is found, do not accept the 
-      variant 
+      invert SO:Term selection
       Default: false
     -d, --noreasoning
-      disable reasoning, don't use term's children.
+      disable reasoning: do not use SO term's children.
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
     -owluri, --owluri
-      If not empty, don't use the internal SO ontology but load a OWL 
-      description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl
+      Experimental. If not empty, don't use the internal SO ontology but load 
+      a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl
       Default: <empty string>
-    -r, --rmatt
-      Do not remove the variant itself, just remove the mismatching 
-      Prediction: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK
+    -r, --rmatt, --remove-attribute
+      Do not remove the variant itself, just remove the mismatching Prediction 
+      in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK
       Default: false
-    -R, --rmnoatt
+    -R, --rmnoatt, --remove-variant-if-no-INFO
       remove the variant if option -r was used and the is no more attribute
       Default: false
     -S, --showacn
@@ -208,6 +214,7 @@ SO:0001599	3D_polypeptide_structure_variant
 
 ## History
 
+ * 2018 redesigned a large part of the code
  * 2017 moved to jcommander
 
 

@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -99,7 +100,7 @@ public class SnpEffPredictionParser implements PredictionParser
 			return;
 			}
 		description=description.substring(i+chunck.length()).replace('(','|').replaceAll("[ \'\\.)\\[\\]]+","").trim();
-		String tokens[]=pipe.split(description);
+		final String tokens[]=pipe.split(description);
 		for(i=0;i< tokens.length;++i)
 			{
 			final String col=tokens[i];
@@ -158,8 +159,9 @@ public class SnpEffPredictionParser implements PredictionParser
 			{
 			return parseOnePrediction( o.toString());
 			}
-		final String tokens[]=pipe.split(String.class.cast(o).trim());
-		return new SnpEffPrediction(tokens);
+		final String ostr = String.class.cast(o).trim();
+		final String tokens[]=pipe.split(ostr);
+		return new SnpEffPrediction(ostr,tokens);
 		}
 	
 	
@@ -174,9 +176,11 @@ public class SnpEffPredictionParser implements PredictionParser
 	public class SnpEffPrediction
 		implements Prediction
 		{
+		private final String originalAttributeAsString;
 		private final String tokens[];
-		SnpEffPrediction(final String tokens[])
+		SnpEffPrediction(final String originalAttributeAsString,final String tokens[])
 			{
+			this.originalAttributeAsString = originalAttributeAsString;
 			this.tokens=tokens;
 			}
 		/** get column by name, may return null. Returns null if column is empty */
@@ -197,7 +201,10 @@ public class SnpEffPredictionParser implements PredictionParser
 			if(s==null || !s.startsWith("ENST")) return null;
 			return s;
 			}
-		
+		public String getOriginalAttributeAsString()
+			{
+			return originalAttributeAsString;
+			}
 		
 		private AAChange getAAChange()
 			{
@@ -250,21 +257,29 @@ public class SnpEffPredictionParser implements PredictionParser
 				}
 			return hash;
 			}
+		public String getSOTermsString()
+			{
+			return	getByCol("Effect");
+			}
+		
+		public Set<String> getSOTermsStrings()
+			{
+			final String EFF=getSOTermsString();
+			if(StringUtil.isBlank(EFF)) return Collections.emptySet();
+			return Collections.singleton(EFF);
+			}
 		
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
-			final Set<SequenceOntologyTree.Term> set=new HashSet<SequenceOntologyTree.Term>();
-			String EFF=getByCol("Effect");
-			if(EFF==null) return set;
-			for(final SequenceOntologyTree.Term t: SnpEffPredictionParser.this.soTree.getTerms())
-				{
-				if(t.getLabel().equals(EFF))
-					{
-					set.add(t);
-					//break ?
-					}
-				}
-			return set;
+			final String EFF=getSOTermsString();
+			if(StringUtil.isBlank(EFF)) return Collections.emptySet();
+			
+			final SequenceOntologyTree.Term t = SnpEffPredictionParser.this.soTree.getTermByLabel(EFF);
+			if(t==null) {
+				LOG.warn("Cannot get snpeff prediction \""+EFF+"\" in Sequence Ontology");
+				return Collections.emptySet();
+			}
+			return Collections.singleton(t);
 			}
 
 

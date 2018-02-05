@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +59,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 
 /**Sequence ontology tree */
 public class SequenceOntologyTree
+	implements Iterable<SequenceOntologyTree.Term>
 	{
 
 	private static SequenceOntologyTree INSTANCE=null;
@@ -84,12 +86,14 @@ public class SequenceOntologyTree
 	private class TermImpl implements Term
 		{
 		final String accession;
+		final int _hash;
 		String label;
 		final Set<Term> parents=new HashSet<>();
 		final Set<Term> children=new HashSet<>();
 		
 		TermImpl(final String accession,final String label) {
 			this.accession = accession;
+			this._hash = accession.hashCode();
 			this.label = label;/* may be null */
 		}
 		/** get URL "http://purl.obolibrary.org/obo/..."  */
@@ -133,7 +137,7 @@ public class SequenceOntologyTree
 		@Override
 		public int hashCode()
 			{
-			return accession.hashCode();
+			return this._hash;
 			}
 		@Override
 		public boolean equals(final Object obj) {
@@ -227,6 +231,12 @@ public class SequenceOntologyTree
 	public Collection<? extends Term> getTerms()
 		{
 		return Collections.unmodifiableCollection(this.acn2term.values());
+		}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public Iterator<Term> iterator() {
+		return ( Iterator<Term>)getTerms().iterator();
 		}
 	
 	public String getLastUpdated()

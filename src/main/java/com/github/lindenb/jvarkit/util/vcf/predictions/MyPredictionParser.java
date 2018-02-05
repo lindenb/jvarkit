@@ -125,16 +125,18 @@ public class MyPredictionParser implements PredictionParser
 			}
 		final String s=String.class.cast(o).trim();
 		final String tokens[]=pipe.split(s);
-		return new MyPrediction(tokens);
+		return new MyPrediction(s,tokens);
 		}
 	
 	
 	public class MyPrediction
 		implements Prediction
 		{
-		private String tokens[];
-		MyPrediction(String tokens[])
+		private final String originalInfoStr;
+		private final String tokens[];
+		MyPrediction(final String originalInfoStr,final String tokens[])
 			{
+			this.originalInfoStr = originalInfoStr;
 			this.tokens=tokens;
 			}			
 		private String getByCol(VCFPredictions.FORMAT1 col)
@@ -253,6 +255,10 @@ public class MyPredictionParser implements PredictionParser
 			return set;
 			}
 
+		public String getOriginalAttributeAsString() {
+			return this.originalInfoStr;
+		}
+		
 		
 	@Override
 	public String toString() {

@@ -1,5 +1,7 @@
 # VCFPredictions
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Basic Variant Effect prediction using ucsc-known gene
 
 
@@ -13,24 +15,30 @@ Usage: vcfpredictions [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-  * -k, --knownGene
-      UCSC knownGene URI. Beware chromosome names are formatted the same as 
-      your REFERENCE. A typical KnownGene file is 
+    -k, --knownGene
+      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
+      GFF/GTF because one transcript is described using only one line.	Beware 
+      chromosome names are formatted the same as your REFERENCE. A typical 
+      KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
     -o, --output
       Output file. Optional . Default: stdout
+    -os, --output-syntax, --syntax
+      [20180122]output formatting syntax. SnpEff is still not complete.
+      Default: Native
+      Possible Values: [Native, Vep, SnpEff]
     -soacn, --printsoacn
       Print SO:term accession rather than label
       Default: false
   * -R, --reference
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
-    -vep, --vep
-      Variant Effect Predictor output Syntax
-      Default: false
+      [20180122](moved to faidx/DAS). Indexed Genome Reference. It can be a 
+      the path to fasta file that must be indexed with samtools faidx and with 
+      picard CreateSequenceDictionary. It can also be a BioDAS dsn url like 
+      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BioDAS references are 
+      slower, but allow to work without a local reference file.
     --version
       print version and exit
 

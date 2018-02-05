@@ -35,10 +35,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -49,11 +50,18 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -144,6 +152,7 @@ SO:0001599	3D_polypeptide_structure_variant
 
 ## History
 
+ * 2018 redesigned a large part of the code
  * 2017 moved to jcommander
 
 
@@ -174,10 +183,10 @@ public class VcfFilterSequenceOntology
 		implements VariantContextWriterFactory
 			{
 			
-			@Parameter(names={"-i","--invert"},description="invert selection (if one of the user's term is found, do not accept the variant")
-			private boolean invert = false;
+			@Parameter(names={"-i","--invert"},description="invert SO:Term selection")
+			private boolean invertSoTerms = false;
 		
-			@Parameter(names={"-d","--noreasoning"},description="disable reasoning, don't use term's children.")
+			@Parameter(names={"-d","--noreasoning"},description="disable reasoning: do not use SO term's children.")
 			private boolean disableReasoning = false;
 		
 			@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER its' prediction is found in the database")
@@ -186,11 +195,11 @@ public class VcfFilterSequenceOntology
 			@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER its' prediction is NOT found in the database")
 			private String filterOut = "";
 		
-			@Parameter(names={"-r","--rmatt"},description="Do not remove the variant itself, just remove the mismatching Prediction: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK")
+			@Parameter(names={"-r","--rmatt","--remove-attribute"},description="Do not remove the variant itself, just remove the mismatching Prediction in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK")
 			private boolean removeUnusedAttribute = false;
 		
-			@Parameter(names={"-R","--rmnoatt"},description="remove the variant if option -r was used and the is no more attribute")
-			private boolean removeIfNoMoreAttribute = false;
+			@Parameter(names={"-R","--rmnoatt","--remove-variant-if-no-INFO"},description="remove the variant if option -r was used and the is no more attribute")
+			private boolean removeVariantIfNoMoreAttribute = false;
 		
 			@XmlElement(name="accession")
 			@Parameter(names={"-A","--acn","--accession"},description="add this SO:ACN. e.g.: 'SO:0001818' Protein altering variant [http://www.sequenceontology.org/miso/current_svn/term/SO:0001818](http://www.sequenceontology.org/miso/current_svn/term/SO:0001818)")
@@ -200,8 +209,14 @@ public class VcfFilterSequenceOntology
 			@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers")
 			private File userAcnFile = null;
 		
+			@XmlElement(name="filter-genotypes")
+			@Parameter(names={"-fg","--filter-genotype"},description="[20180205] Experimental. Filter genotypes having NO ALT allele carrying a matching prediction."
+					+ "Only works when I can extract a valid Allele from a prediction. Use with care. "
+					+ "Idea is to FILTER out genotype '0/2' of multialleleic variant where only '0/1' is of interest.")
+			private String filterGenotypesStr=null;
+
 			@XmlTransient
-			@Parameter(names={"-owluri","--owluri"},description="If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl")
+			@Parameter(names={"-owluri","--owluri"},description="Experimental. If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl")
 			private String owluri = "";
 			
 			@XmlTransient
@@ -215,16 +230,228 @@ public class VcfFilterSequenceOntology
 			
 			private class CtxWriter extends DelegateVariantContextWriter
 				{
-				private VepPredictionParser vepParser = null;
-				private SnpEffPredictionParser snpEffparser= null;
-				private MyPredictionParser myPredParser= null;
-				private AnnPredictionParser annPredParser= null;
-				private final Set<String> user_terms_strings=new HashSet<>();
+				private final List<AbstractPredictionHandler> predictionHandlers = new ArrayList<>();				
+				private final boolean removeVariantIfNoMoreAttribute = CtxWriterFactory.this.removeVariantIfNoMoreAttribute;
+				private final boolean removeUnusedAttribute = CtxWriterFactory.this.removeUnusedAttribute;
+				private final String filterGenotypesStr = CtxWriterFactory.this.filterGenotypesStr;
+				private final String filterIn = CtxWriterFactory.this.filterIn;
+				private final String filterOut = CtxWriterFactory.this.filterOut;
 
+				private abstract class AbstractPredictionHandler
+					{
+					final List<Object> predStrings = new ArrayList<>();
+					final Set<Allele> matching_alleles = new HashSet<>();
+					boolean keepFlag = false;
+					abstract boolean isValid();
+					abstract String getTag();
+					
+					AbstractPredictionHandler reset(final VariantContext ctx) {
+						this.predStrings.clear();
+						this.keepFlag = false;
+						this.matching_alleles.clear();
+						this.matching_alleles.add(ctx.getReference());
+						return this;
+						}
+					boolean supportFilterAlleles() { return false;}
+					abstract AbstractPredictionHandler visit(final VariantContext ctx,final VariantContextBuilder vcb);
+					void updateInfo(final VariantContext ctx,final VariantContextBuilder vcb)
+						{
+						if(CtxWriter.this.removeUnusedAttribute) {
+							vcb.rmAttribute(this.getTag());
+							if(!this.predStrings.isEmpty()) {
+								vcb.attribute(this.getTag(), this.predStrings);
+								}
+							}
+						}
+					AbstractPredictionHandler updateAlleles(
+							final VariantContext ctx,
+							final Set<String> invalidSamples
+							)
+						{
+						if(!supportFilterAlleles()) return this;
+						if(StringUtil.isBlank(filterGenotypesStr)) return this;
+						for(final Genotype gt:ctx.getGenotypes())
+							{
+							if(gt.isNoCall() || gt.isHomRef() || gt.isFiltered() || invalidSamples.contains(gt.getSampleName()))
+								{
+								continue;
+								}
+							if(gt.getAlleles().stream().
+								filter(A->A.isCalled() && !A.isReference()).
+								anyMatch(A->this.matching_alleles.contains(A)))
+								{
+								continue;
+								}
+							invalidSamples.add(gt.getSampleName());
+							}
+						return this;
+						}
+					}
+				/** handler for VEP */
+				private class VepPredictionHandler extends AbstractPredictionHandler
+					{
+					private final VepPredictionParser parser;
+					VepPredictionHandler(final VCFHeader header)
+						{
+						this.parser =new VepPredictionParserFactory().
+								header(header).get().
+								sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+						}
+					@Override
+					String getTag() {
+						return this.parser.getTag();
+						}
+					@Override
+					boolean isValid() { return this.parser.isValid();}
+					@Override
+					boolean supportFilterAlleles() {
+						return true;
+						}
+					AbstractPredictionHandler visit(final VariantContext ctx,final VariantContextBuilder vcb)
+						{
+						if(!ctx.hasAttribute(this.getTag())) return this;
+						for(final VepPredictionParser.VepPrediction pred : this.parser.getPredictions(ctx))
+							{
+
+							if(pred==null) continue;
+							if(hasUserTemLabel(pred.getSOTerms()))
+								{
+								if(pred.getAllele()!=null) this.matching_alleles.add(pred.getAllele());
+								this.keepFlag=true;
+								if(CtxWriter.this.removeUnusedAttribute) {
+									this.predStrings.add(pred.getOriginalAttributeAsString());
+									}
+								}
+							else
+								{
+								//nothing
+								}
+							}
+						updateInfo(ctx,vcb);
+						return this;
+						}
+					}
+				
+				/** handler for SNPEFF */
+				private class SnpEffPredictionHandler extends AbstractPredictionHandler
+					{
+					private final SnpEffPredictionParser parser;
+					SnpEffPredictionHandler(final VCFHeader header)
+						{
+						this.parser =new SnpEffPredictionParserFactory().
+								header(header).get().
+								sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+						}
+					@Override
+					String getTag() {
+						return this.parser.getTag();
+						}
+					@Override
+					boolean isValid() { return this.parser.isValid();}
+					@Override
+					AbstractPredictionHandler visit(final VariantContext ctx,final VariantContextBuilder vcb)
+						{
+						if(!ctx.hasAttribute(this.getTag())) return this;
+						for(final SnpEffPredictionParser.SnpEffPrediction pred : this.parser.getPredictions(ctx))
+							{
+							if(pred==null) continue;
+							if(hasUserTemLabel(pred.getSOTerms()))
+								{
+								this.keepFlag=true;
+								if(CtxWriter.this.removeUnusedAttribute) {
+									this.predStrings.add(pred.getOriginalAttributeAsString());
+									}
+								}
+							}
+						updateInfo(ctx,vcb);
+						return this;
+						}
+					}
+				/** handler for my Prediction */
+				private class MyPredictionHandler extends AbstractPredictionHandler
+					{
+					private final MyPredictionParser parser;
+					private final boolean _is_valid;
+					MyPredictionHandler(final VCFHeader header)
+						{
+						this.parser = new MyPredictionParser(header).
+								sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+						this._is_valid = header.getInfoHeaderLine(this.parser.getTag())!=null;
+						}
+					@Override
+					String getTag() {
+						return this.parser.getTag();
+						}
+					@Override
+					boolean isValid() { return _is_valid;}
+					@Override
+					AbstractPredictionHandler visit(final VariantContext ctx,final VariantContextBuilder vcb)
+						{
+						if(!ctx.hasAttribute(this.getTag())) return this;
+						for(final MyPredictionParser.MyPrediction pred : this.parser.getPredictions(ctx))
+							{
+							if(pred==null) continue;
+							if(hasUserTemLabel(pred.getSOTerms()))
+								{
+								this.keepFlag=true;
+								if(CtxWriter.this.removeUnusedAttribute) {
+									this.predStrings.add(pred.getOriginalAttributeAsString());
+									}
+								}
+							}
+						updateInfo(ctx,vcb);
+						return this;
+						}
+					}
+				
+				/** prediction for ANN person */
+				private class AnnPredictionHandler extends AbstractPredictionHandler
+					{
+					private final AnnPredictionParser parser;
+					AnnPredictionHandler(final VCFHeader header)
+						{
+						this.parser = new AnnPredictionParserFactory().header(header).get().
+								sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+						}
+					@Override
+					String getTag() {
+						return this.parser.getTag();
+						}
+					@Override
+					boolean isValid() { return this.parser.isValid();}
+					@Override
+					boolean supportFilterAlleles() {
+						return true;
+						}
+					
+					AbstractPredictionHandler visit(final VariantContext ctx,final VariantContextBuilder vcb)
+						{
+						if(!ctx.hasAttribute(this.getTag())) return this;
+						for(final AnnPredictionParser.AnnPrediction pred : this.parser.getPredictions(ctx))
+							{
+							if(pred==null) continue;
+							if(hasUserTemLabel(pred.getSOTerms()))
+								{
+								if(!StringUtil.isBlank(pred.getAllele()))
+									{
+									this.matching_alleles.add(Allele.create(pred.getAllele(),false));
+									}
+								this.keepFlag=true;
+								if(CtxWriter.this.removeUnusedAttribute) {
+									this.predStrings.add(pred.getOriginalAttributeAsString());
+									}
+								}
+							}
+						updateInfo(ctx,vcb);
+						return this;
+						}
+					}
+				
 				
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
 					}
+				
 				@Override
 				public void writeHeader(final VCFHeader header) {
 					final VCFHeader header2= new VCFHeader(header);
@@ -241,155 +468,78 @@ public class VcfFilterSequenceOntology
 						header2.addMetaDataLine(new VCFFilterHeaderLine(CtxWriterFactory.this.filterOut,
 								"Variant non having SO terms :" + termlist));
 						}
-					this.user_terms_strings.addAll( CtxWriterFactory.this.user_terms.stream().
-							map(T->T.getLabel()).
-							collect(Collectors.toSet())
-							);
 					
-					this.vepParser =new VepPredictionParserFactory().header(header).get().sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
-					this.snpEffparser= new SnpEffPredictionParserFactory().header(header).get().sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
-					Objects.requireNonNull(this.snpEffparser);
-					this.myPredParser= new MyPredictionParser(header).sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
-					this.annPredParser= new AnnPredictionParserFactory().header(header).get().sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
+					if(!StringUtil.isBlank(this.filterGenotypesStr))
+						{
+						header2.addMetaDataLine(new VCFFormatHeaderLine(
+								VCFConstants.GENOTYPE_FILTER_KEY,
+								1,VCFHeaderLineType.String,
+								"Genotype was filterered by vcffilterso : "+this.filterGenotypesStr
+								));
+						}
+					
+					AbstractPredictionHandler ph = new VepPredictionHandler(header);
+					if(ph.isValid()) this.predictionHandlers.add(ph);
+					ph = new SnpEffPredictionHandler(header);
+					if(ph.isValid()) this.predictionHandlers.add(ph);
+					ph = new MyPredictionHandler(header);
+					if(ph.isValid()) this.predictionHandlers.add(ph);
+					ph = new AnnPredictionHandler(header);
+					if(ph.isValid()) this.predictionHandlers.add(ph);
 					
 					super.writeHeader(header2);
 					}
+				
 				@Override
 				public void add(final VariantContext ctx) {
-					boolean keep=false;
-					List<Object> snpEffPredStrings = null;
-					List<Object> vepPredStrings = null;
-					List<Object> myPredStrings = null;
-					List<Object> annPredStrings = null;
-					Objects.requireNonNull(this.snpEffparser);
-					Objects.requireNonNull(this.snpEffparser.getTag());
-					/* handle SNP EFF */
-					if(ctx.hasAttribute(this.snpEffparser.getTag())) {
-						snpEffPredStrings = new ArrayList<>(ctx.getAttributeAsList(snpEffparser.getTag()));
-						int x=0;
-						while(x<snpEffPredStrings.size()){
-							final Object predStr = snpEffPredStrings.get(x);
-							final SnpEffPredictionParser.SnpEffPrediction pred = this.snpEffparser.parseOnePrediction(predStr);
-							if(pred!=null && hasUserTem(pred.getSOTerms()))
-								{
-								keep=true;
-								++x;
-								}
-							else
-								{
-								snpEffPredStrings.remove(x);
-								}
-							}
+					boolean keep=true;
+					if(this.predictionHandlers.isEmpty()) {
+						keep = false;
 						}
-					
-					/* handle VEP */
-					if(ctx.hasAttribute(vepParser.getTag()) && (CtxWriterFactory.this.removeUnusedAttribute || !keep)) {
-						vepPredStrings = new ArrayList<>(ctx.getAttributeAsList(vepParser.getTag()));
-						int x=0;
-						while(x<vepPredStrings.size()){
-							final Object predStr = vepPredStrings.get(x);
-							final VepPredictionParser.VepPrediction pred = vepParser.parseOnePrediction(ctx, predStr);
-							if(pred!=null && hasUserTemLabel(pred.getSOTermsStrings()))
-								{
-								keep=true;
-								++x;
-								}
-							else
-								{
-								vepPredStrings.remove(x);
-								}
-							}
-						}
-					/* handle MyPredictionParser */
-					if(ctx.hasAttribute(myPredParser.getTag()) && (CtxWriterFactory.this.removeUnusedAttribute || !keep)) {
-						myPredStrings = new ArrayList<>(ctx.getAttributeAsList(myPredParser.getTag()));
-						int x=0;
-						while(x<myPredStrings.size()){
-							final Object predStr = myPredStrings.get(x);
-							final MyPredictionParser.MyPrediction pred = myPredParser.parseOnePrediction(predStr);
-							if(pred!=null && hasUserTem(pred.getSOTerms()))
-								{
-								keep=true;
-								++x;
-								}
-							else
-								{
-								myPredStrings.remove(x);
-								}
-							}
-						}
-					
-					/* handle ANN */
-					if(ctx.hasAttribute(annPredParser.getTag()) && (CtxWriterFactory.this.removeUnusedAttribute || !keep)) {
-						annPredStrings = new ArrayList<>(ctx.getAttributeAsList(annPredParser.getTag()));
-						int x=0;
-						while(x<annPredStrings.size()){
-							final Object predStr = annPredStrings.get(x);
-							final AnnPredictionParser.AnnPrediction pred = annPredParser.parseOnePrediction(predStr);
-							if(pred!=null && hasUserTemLabel(pred.getSOTermsStrings()))
-								{
-								keep=true;
-								++x;
-								}
-							else
-								{
-								annPredStrings.remove(x);
-								}
-							}
-						}
-					
-					if(CtxWriterFactory.this.removeUnusedAttribute)
+					final Set<String> invalidSamples ;
+					if(StringUtil.isBlank(this.filterGenotypesStr))
 						{
-						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-						int count=0;
-						if(snpEffPredStrings!=null) {
-							vcb.rmAttribute(snpEffparser.getTag());
-							vcb.attribute(snpEffparser.getTag(), snpEffPredStrings);
-							count += snpEffPredStrings.size();
-							}
-						if(vepPredStrings!=null) {
-							vcb.rmAttribute(vepParser.getTag());
-							vcb.attribute(vepParser.getTag(), vepPredStrings);
-							count += vepPredStrings.size();
-							}
-						if(myPredStrings!=null) {
-							vcb.rmAttribute(myPredParser.getTag());
-							vcb.attribute(myPredParser.getTag(), myPredStrings);
-							count += myPredStrings.size();
-							}
-						if(annPredStrings!=null) {
-							vcb.rmAttribute(annPredParser.getTag());
-							vcb.attribute(annPredParser.getTag(), annPredStrings);
-							count += annPredStrings.size();
-							}
-						
-						if( count == 0  && CtxWriterFactory.this.removeIfNoMoreAttribute) 
-							{
-							addVariant(vcb.make(),false);
-							}
-						else
-							{
-							addVariant(vcb.make(),true);
-							}
+						invalidSamples = Collections.emptySet();
 						}
 					else
 						{
-						addVariant(ctx,keep);
+						invalidSamples = new HashSet<>();
 						}
+					
+					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+					for(final AbstractPredictionHandler handler:this.predictionHandlers) {
+						handler.reset(ctx).visit(ctx,vcb).updateAlleles(ctx, invalidSamples);
 					}
-				
-				private void addVariant(final VariantContext ctx,boolean keep)
-					{
-					if(CtxWriterFactory.this.invert) keep=!keep;
-					if(!CtxWriterFactory.this.filterIn.isEmpty())
+					
+					
+					if(this.removeUnusedAttribute)
+						{
+						if( this.removeVariantIfNoMoreAttribute && 
+							this.predictionHandlers.stream().allMatch(P->P.predStrings.isEmpty())){
+							keep=false;
+							}
+						}
+					
+					if(keep && this.predictionHandlers.stream().allMatch(P->!P.keepFlag))
+						{
+						keep=false;
+						}
+					
+					if(!invalidSamples.isEmpty())
+						{
+						vcb.genotypes(ctx.getGenotypes().stream().
+								map(G->invalidSamples.contains(G.getSampleName())?
+								new GenotypeBuilder(G).filter(this.filterGenotypesStr).make():
+								G).collect(Collectors.toList()));
+						}
+					
+					if(!StringUtil.isBlank(this.filterIn))
 						{
 						if(keep){
-							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-							vcb.filter(CtxWriterFactory.this.filterIn);
+							vcb.filter(this.filterIn);
 							super.add(vcb.make());
 							}
 						else if( !ctx.filtersWereApplied()) {
-							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 							vcb.passFilters();
 							super.add(vcb.make());
 							}
@@ -398,9 +548,8 @@ public class VcfFilterSequenceOntology
 							super.add(ctx);
 							}
 						}
-					else  if(!CtxWriterFactory.this.filterOut.isEmpty()) {
+					else  if(!StringUtil.isBlank(this.filterOut)) {
 						if(keep && !ctx.filtersWereApplied()) {
-							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 							vcb.passFilters();
 							super.add(vcb.make());
 							}
@@ -409,7 +558,6 @@ public class VcfFilterSequenceOntology
 							}
 						else
 							{
-							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 							vcb.filter(CtxWriterFactory.this.filterOut);
 							super.add(vcb.make());
 							}
@@ -417,7 +565,7 @@ public class VcfFilterSequenceOntology
 					else
 						{
 						if(keep) {
-							super.add(ctx);
+							super.add(vcb.make());
 							} else
 							{
 								/* don't print */
@@ -425,25 +573,21 @@ public class VcfFilterSequenceOntology
 						}
 					}
 				
-				private boolean hasUserTem(final Set<SequenceOntologyTree.Term> ctxTerms)
+				private boolean hasUserTemLabel(final Collection<SequenceOntologyTree.Term> ctxTerms)
 					{
+					if(ctxTerms==null || ctxTerms.isEmpty()) return false;
 					return ctxTerms.
 							stream().
 							anyMatch(S->user_terms.contains(S));
-					}
-				private boolean hasUserTemLabel(final Collection<String> ctxTerms)
-					{
-					return ctxTerms.
-							stream().
-							anyMatch(S->user_terms_strings.contains(S));
 					}				
 				}
 			
 			@Override
 			public int initialize() {
+				
 				try {
 					this.sequenceOntologyTree = readSequenceOntologyTree(this.owluri);
-				} catch(IOException err)
+				} catch(final IOException err)
 					{
 					LOG.error(err);
 					return -1;
@@ -456,26 +600,42 @@ public class VcfFilterSequenceOntology
 					try {
 						this.parseAccessionsFile(this.userAcnFile);
 						} 
-					catch(IOException err)
+					catch(final IOException err)
 						{
 						LOG.error(err);
 						return -1;
 						}
 					}
-				
-				
-				this.userTermsAsString.stream().
+				final Function<String,SequenceOntologyTree.Term> acn2term = (ACN)->{
+					final SequenceOntologyTree.Term T = this.sequenceOntologyTree.getTermByAcn(ACN);
+					if(T==null)
+						{
+						throw new JvarkitException.UserError("Unknown SO:Accession \""+ACN+"\"");
+						}
+					return T;
+					};
+				final Set<SequenceOntologyTree.Term> tmpSet1 = new HashSet<>();
+					this.userTermsAsString.stream().
 					map(S->S.trim()).
 					filter(S->!S.isEmpty()).
-					forEach(acn->{
-						final SequenceOntologyTree.Term t= this.sequenceOntologyTree.getTermByAcn(acn);
-						if(t==null)
-							{
-							throw new JvarkitException.UserError("Unknown SO:Accession \""+acn+"\"");
-							}
-						this.user_terms.add(t);
-						if(reasoning) this.user_terms.addAll(t.getAllDescendants());					
+					map(acn2term).
+					forEach(t->{
+						tmpSet1.add(t);
+						if(reasoning) tmpSet1.addAll(t.getAllDescendants());					
 					});
+				
+				
+				if(this.invertSoTerms)
+					{
+					final Set<SequenceOntologyTree.Term> tmpSet2 = new HashSet<>(this.sequenceOntologyTree.getTerms());
+					tmpSet2.removeAll(tmpSet1);
+					this.user_terms.addAll(tmpSet2);
+					
+					}
+				else
+					{
+					this.user_terms.addAll(tmpSet1);
+					}
 				
 				if(this.user_terms.isEmpty())
 					{
@@ -487,19 +647,13 @@ public class VcfFilterSequenceOntology
 				
 				this.userTermsAsString.clear();//we don't need this anymore
 
-				if(this.invert && this.removeUnusedAttribute) {
-					LOG.error("Option invert cannot be used when Option removeUnusedAttribute is set");
-					return -1;
-				}				
+						
 				
-				if(!this.filterIn.isEmpty() && !this.filterOut.isEmpty()) {
+				if(!StringUtil.isBlank(this.filterIn) && !StringUtil.isBlank(this.filterOut)) {
 					LOG.error("Option filterIn && filterOut both defined.");
 					return -1;
 				}
-				if((this.invert) && (!this.filterIn.isEmpty() || !this.filterOut.isEmpty())) {
-					LOG.error("Option invert cannot be used when Option filterIn or filterOut is defined.");
-					return -1;
-				}
+				
 				return 0;
 				}
 			
@@ -546,10 +700,15 @@ public class VcfFilterSequenceOntology
 		return 0;
 		}
 			
-		
+	/** return SequenceOntologyTree
+	 * 
+	 * @param owluri if null, use getInstance
+	 * @return a SequenceOntologyTree
+	 * @throws IOException
+	 */
 	private static SequenceOntologyTree readSequenceOntologyTree(final String owluri) throws IOException {
-		if( !(owluri==null || owluri.trim().isEmpty()) ) {
-			LOG.info("loading so tree from "+owluri);
+		if(!StringUtil.isBlank(owluri)) {
+			LOG.info("loading 'SO' tree from "+owluri);
 			SequenceOntologyTree sequenceOntologyTree = SequenceOntologyTree.fromUri(owluri.trim());
 			LOG.info("Done loading SO.");
 			return sequenceOntologyTree;
@@ -571,6 +730,7 @@ public class VcfFilterSequenceOntology
 					{
 					pw.println(t.getAcn()+"\t"+t.getLabel());
 					}
+				pw.flush();
 				pw.close();
 				return 0;
 				}
