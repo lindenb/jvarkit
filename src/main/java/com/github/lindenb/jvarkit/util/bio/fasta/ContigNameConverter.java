@@ -125,10 +125,18 @@ public static  ContigNameConverter getIdentity() {
 private static class MapBasedContigNameConverter extends ContigNameConverter
 	{
 	protected String name="Untitled";
-	protected final Map<String,String> map=new HashMap<>();
+	protected final Map<String,String> map;
+	
+	MapBasedContigNameConverter() {
+		this.map=new HashMap<>();
+		}
+	void put(final String src,final String dest) {
+		this.map.put(src, dest);
+		this.map.put(dest, dest);
+		}
 	@Override
 	protected String find(final String contig) {
-		return this.map.get(contig);
+		return this.map.getOrDefault(contig,contig);
 		}
 	@Override
 	public String getName() {
@@ -176,22 +184,20 @@ public static ContigNameConverter fromFile(final File mappingFile)
 	}
 	
 }
-
-private static class GRCh37Ensembl2Ucsc extends MapBasedContigNameConverter
+public static ContigNameConverter createConvertToUcsc()
 	{
-	GRCh37Ensembl2Ucsc() {
-		for(int i=1;i<=22;++i) map.put(String.valueOf(i),"chr"+i);
-		map.put("X","chrX");map.put("Y","chrY");map.put("MT","chrM");
-		}
-	@Override
-	public String getName() {return "GRCh37Ensembl2Ucsc";}
-}
+	final MapBasedContigNameConverter map = new MapBasedContigNameConverter();
+	for(int i=1;i<=22;++i) map.put(String.valueOf(i),"chr"+i);
+	map.put("X","chrX");map.put("Y","chrY");map.put("MT","chrM");
+	return map;
+	}
+
 
 private static class GRCh37Ucsc2Ensembl extends MapBasedContigNameConverter
 	{
 	GRCh37Ucsc2Ensembl() {
-		for(int i=1;i<=22;++i) map.put("chr"+i, String.valueOf(i));
-		map.put("chrX","X");map.put("chrY","Y");map.put("chrM","MT");
+		for(int i=1;i<=22;++i) this.put("chr"+i, String.valueOf(i));
+		this.put("chrX","X");this.put("chrY","Y");this.put("chrM","MT");
 		}
 	@Override
 	public String getName() {return "GRCh37UcscToEnsembl";}
