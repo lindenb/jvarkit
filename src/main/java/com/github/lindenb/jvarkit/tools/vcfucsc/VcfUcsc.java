@@ -45,6 +45,7 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -169,7 +170,10 @@ public class VcfUcsc extends Launcher
 	private String jdbcuri="jdbc:mysql://genome-mysql.cse.ucsc.edu";
 	@Parameter(names={"-x","--extend"},description="Extend variant coordinates by 'x' bases.")
 	private int extend_bases = 0;
-
+	@Parameter(names={"-fi","--filterIn"},description="Set this FILTER if any item is found in the database")
+	private String filterIn=null;
+	@Parameter(names={"-fo","--filterOut"},description="Set this FILTER if no item is found in the database")
+	private String filterOut=null;
 	
 	private Connection connection=null;
 	private boolean has_bin_column=false;
@@ -263,7 +267,6 @@ public class VcfUcsc extends Launcher
 			{
 			TAG= this.infoTag;
 			}
-		ResultSet row=null;
 		VCFHeader header=in.getHeader();
 		
 		final VCFHeader h2=new VCFHeader(header);
@@ -273,6 +276,22 @@ public class VcfUcsc extends Launcher
 				VCFHeaderLineType.String,
 				database+"."+table)
 				);
+		
+		if(!StringUtil.isBlank(this.filterIn))
+			{
+			h2.addMetaDataLine(new VCFFilterHeaderLine(
+					this.filterIn,
+					"Set by "+this.getClass().getName()
+					));
+			}
+		else if(!StringUtil.isBlank(this.filterOut))
+			{
+			h2.addMetaDataLine(new VCFFilterHeaderLine(
+					this.filterOut,
+					"Set by "+this.getClass().getName()
+					));
+			}
+		
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		out.writeHeader(h2);
@@ -323,17 +342,28 @@ public class VcfUcsc extends Launcher
 					}
 				else
 					{
-					final PreparedStatement pstmt = bin2pstmt.get(0);//alread defined
+					final PreparedStatement pstmt = bin2pstmt.get(0);//already defined
 					initPstmt(pstmt,ctx.getContig(),start0,end0);
 					select(atts,pstmt);
 					}
-				if(atts.isEmpty())
+				if(atts.isEmpty() && StringUtil.isBlank(this.filterIn) && StringUtil.isBlank(this.filterOut))
 					{
 					out.add(ctx);
 					continue;
 					}
+				
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.attribute(TAG,atts.toArray());
+				if(!StringUtil.isBlank(this.filterIn) &&  !atts.isEmpty())
+					{
+					vcb.filter(this.filterIn);
+					}
+				else if(!StringUtil.isBlank(this.filterOut) &&  atts.isEmpty())
+					{
+					vcb.filter(this.filterOut);
+					}
+				if(!atts.isEmpty()) {
+					vcb.attribute(TAG,atts.toArray());
+					}
 				out.add(vcb.make());
 				}
 			progress.finish();
@@ -346,12 +376,11 @@ public class VcfUcsc extends Launcher
 			}
 		finally
 			{
-			for(PreparedStatement pstmt: bin2pstmt.values()) 
+			for(final PreparedStatement pstmt: bin2pstmt.values()) 
 				{
 				CloserUtil.close(pstmt);
 				}
 			bin2pstmt.clear();
-			CloserUtil.close(row);
 			}
 		}
 
@@ -372,6 +401,12 @@ public class VcfUcsc extends Launcher
 				return -1;
 				}
 
+			if(!StringUtil.isBlank(this.filterIn) && !StringUtil.isBlank(this.filterOut))
+				{
+				LOG.error("both filters in/out defined.");
+				return -1;
+				}
+			
 			
 			String s = this.expressionStr;
 			while(!s.isEmpty())

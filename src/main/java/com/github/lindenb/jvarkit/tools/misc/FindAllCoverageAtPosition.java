@@ -55,6 +55,7 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -298,6 +299,7 @@ public class FindAllCoverageAtPosition extends Launcher
 					while(iter.hasNext())
 						{
 						final SAMRecord rec=iter.next();
+						if(rec.getReadUnmappedFlag()) continue;
 						if(this.filter.filterOut(rec)) continue;
 						final Cigar cigar=rec.getCigar();
 						if(cigar==null) continue;
@@ -307,7 +309,7 @@ public class FindAllCoverageAtPosition extends Launcher
 						if(rg!=null)
 							{
 							String sn= groupBy.apply(rg);
-							if(sn!=null && !sn.trim().isEmpty())
+							if(!StringUtil.isBlank(sn))
 								{
 								sampleName=sn;
 								}
@@ -412,7 +414,7 @@ public class FindAllCoverageAtPosition extends Launcher
 						}
 					}//end of loop over mutations
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
 				LOG.error(err);
 				throw err;

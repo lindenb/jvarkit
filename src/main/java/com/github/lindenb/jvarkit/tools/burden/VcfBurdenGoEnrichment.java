@@ -268,6 +268,7 @@ public class VcfBurdenGoEnrichment
 				}
 			terms=null;
 			
+			final Set<String> unknownAcn = new HashSet<>();
 			final Map<String,Set<Node>> gene2node = new HashMap<>();
 			final BufferedReader r= IOUtils.openFileForBufferedReading(this.geneFile);
 			String line;
@@ -287,10 +288,14 @@ public class VcfBurdenGoEnrichment
 					}
 
 				//using getTermByName because found sysnonym in GOA
-				final GoTree.Term term= gotree.getTermByName(line.substring(t+1).trim());
-				if(term==null)
+				final String termAcn = line.substring(t+1).trim();
+				if(unknownAcn.contains(termAcn)) continue;
+				
+				final GoTree.Term term= gotree.getTermByName(termAcn);
+				if(term==null && !unknownAcn.contains(termAcn))
 					{
-					LOG.warning("Don't know this GO term in "+line+" of "+this.geneFile+". Could be obsolete or synonym. Skipping.");
+					unknownAcn.add(termAcn);
+					LOG.warning("Don't know this GO term in "+line+" of "+this.geneFile+". Could be obsolete, synonym, go specific division. Skipping.");
 					continue;
 					}
 				final Node node = term2node.get(term);
@@ -309,6 +314,7 @@ public class VcfBurdenGoEnrichment
 				node.numGenes++;
 				nodes.add(node);
 				};
+			unknownAcn.clear();//clean up
 			r.close();
 			
 			final VcfIterator iter = openVcfIterator(oneFileOrNull(args));
