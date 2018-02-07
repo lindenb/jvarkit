@@ -1029,21 +1029,22 @@ public class VCFUtils
     		acL.add(ac);
     		}
     	
-    	final int AN= (int)ctx.getGenotypes().stream().filter(G->!G.isFiltered()).
+    	final int AN= (int)ctx.getGenotypes().stream().
+    			filter(G->G.isCalled() && !G.isFiltered()).
 				mapToInt(G->G.getAlleles().size()).sum()
 				;
     	
     	if(ctx.hasAttribute(VCFConstants.ALLELE_COUNT_KEY)) {
     		vcb.rmAttribute(VCFConstants.ALLELE_COUNT_KEY);
-    		if(AN>0 /* yes AN */) vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,acL);
+    		if(!acL.isEmpty())  vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,acL);
     		}
     	if(ctx.hasAttribute(VCFConstants.ALLELE_NUMBER_KEY)) {
     		vcb.rmAttribute(VCFConstants.ALLELE_NUMBER_KEY);
-    		if(AN>0 /* yes AN */)vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,AN);
+    		vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,AN);
     		}
     	if(ctx.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY)) {
     		vcb.rmAttribute(VCFConstants.ALLELE_FREQUENCY_KEY);
-    		if(AN>0)
+    		if(AN>0 && !acL.isEmpty())
 	    		{
 	    		final List<Double> afL = new ArrayList<>(acL.size());
 	    		for(int x=0;x< acL.size();++x)

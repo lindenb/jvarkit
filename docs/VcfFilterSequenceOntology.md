@@ -14,7 +14,7 @@ Usage: vcffilterso [options] Files
       add this SO:ACN. e.g.: 'SO:0001818' Protein altering variant [http://www.sequenceontology.org/miso/current_svn/term/SO:0001818](http://www.sequenceontology.org/miso/current_svn/term/SO:0001818)
       Default: []
     -f, --acnfile
-      file of SO accession numbers
+      file of SO accession numbers, one per line
     -fg, --filter-genotype
       [20180205] Experimental. Filter genotypes having NO ALT allele carrying 
       a matching prediction.Only works when I can extract a valid Allele from 
@@ -48,7 +48,9 @@ Usage: vcffilterso [options] Files
       Default: <empty string>
     -r, --rmatt, --remove-attribute
       Do not remove the variant itself, just remove the mismatching Prediction 
-      in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK
+      in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK. Use with care, 
+      it's not always possible to find the allele corresponding to an 
+      annotation. 
       Default: false
     -R, --rmnoatt, --remove-variant-if-no-INFO
       remove the variant if option -r was used and the is no more attribute
@@ -114,6 +116,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Feb 7 11:55:03 2018 +0100 ; add converter to algorithms , improve old VEP parser, improve vcffilterso ; https://github.com/lindenb/jvarkit/commit/dffc8f0df7b5b0e271a2bdcdb5cc8b2792cda3d9
 Mon Feb 5 16:49:25 2018 +0100 ; dev... ; https://github.com/lindenb/jvarkit/commit/2aa034d55daeacef151532e8c659c2a596ede119
 Thu Sep 21 17:14:45 2017 +0200 ; moving to factories ; https://github.com/lindenb/jvarkit/commit/dede8184edc7e773732bdd393f47f204fd900d79
 Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c

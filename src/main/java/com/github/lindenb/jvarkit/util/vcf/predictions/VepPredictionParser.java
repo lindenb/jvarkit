@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -192,10 +193,12 @@ public class VepPredictionParser implements PredictionParser
 		{
 		private final String source;
 		private final String tokens[];
+		private final List<Allele> alleles;
 		VepPrediction(final String tokens[],final String source,final VariantContext ctx)
 			{
 			this.source=source;
 			this.tokens=tokens;
+			this.alleles = Collections.unmodifiableList(ctx.getAlleles());
 			/** special case for ALT, can be '-' */
 			Integer idx_allele = VepPredictionParser.this.col2col.get("Allele");
 			if(	idx_allele!=null && 
@@ -239,12 +242,56 @@ public class VepPredictionParser implements PredictionParser
 			{
 			return getByCol("Allele");
 			}
-	
+		/** return the 'ALLELE_NUM' String or null if not found */
+		public String getAlleleNum()
+			{
+			return getByCol("ALLELE_NUM");
+			}
 		
 		public Allele getAllele()
 			{
-			final String s= getAlleleStr();
-			return s==null?null:Allele.create(s, false);
+			String s = getAlleleNum();
+			if(!StringUtil.isBlank(s))
+				{
+				int allele_num;
+				try {
+					allele_num = Integer.parseInt(s);
+				} catch(NumberFormatException err) {
+					return null;
+					}
+				if(allele_num<=0 /* yes <= */ || allele_num>= this.alleles.size()) {
+					return null;
+					}
+				return alleles.get(allele_num);
+				}
+			
+			
+			s= getAlleleStr();
+			if(!StringUtil.isBlank(s))
+				{
+				Allele a= Allele.create(s, false);
+				if(s.equals("<indel>")) return a;
+				
+				if(!this.alleles.contains(a)) {
+					if(!this.alleles.isEmpty() &&
+						this.alleles.get(0).isReference() &&
+						!this.alleles.get(0).isSymbolic()
+						)
+						{
+						/* 'cannot find allele G in [T*, TG]' */
+						a= Allele.create( this.alleles.get(0).getDisplayString()+s, false);
+						}
+					/*
+					if(!this.alleles.contains(a))
+						{
+						//LOG.warn("cannot find allele "+s+" / "+a+" in "+this.alleles);
+						}
+						*/
+					}
+				return a;
+				}
+			
+			return null;
 			}
 		
 		

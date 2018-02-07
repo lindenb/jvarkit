@@ -239,8 +239,8 @@ galaxy: ${GALAXY_APPS}
 burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcfmovefilterstoinfo
 
 
-${dist.dir}/testsng.jar:testsng
-tests: ${testng.jars} ${dist.dir}/testsng.jar
+${dist.dir}/testsng.jar:
+tests: ${testng.jars} ${dist.dir}/testsng.jar test2
 	-${JAVA} \
 		$(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host} -Dhttps.proxyHost=${http.proxy.host}) \
 		$(if ${http.proxy.port},-Dhttp.proxyPort=${http.proxy.port} -Dhttps.proxyPort=${http.proxy.port}) \

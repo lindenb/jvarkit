@@ -95,6 +95,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Feb 5 16:49:25 2018 +0100 ; dev... ; https://github.com/lindenb/jvarkit/commit/2aa034d55daeacef151532e8c659c2a596ede119
 Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
 Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
 Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d

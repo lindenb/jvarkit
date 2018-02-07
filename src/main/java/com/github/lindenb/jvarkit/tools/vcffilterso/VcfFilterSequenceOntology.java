@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -197,7 +198,7 @@ public class VcfFilterSequenceOntology
 			@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER its' prediction is NOT found in the database")
 			private String filterOut = "";
 		
-			@Parameter(names={"-r","--rmatt","--remove-attribute"},description="Do not remove the variant itself, just remove the mismatching Prediction in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK")
+			@Parameter(names={"-r","--rmatt","--remove-attribute"},description="Do not remove the variant itself, just remove the mismatching Prediction in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK.")
 			private boolean removeUnusedAttribute = false;
 		
 			@Parameter(names={"-R","--rmnoatt","--remove-variant-if-no-INFO"},description="remove the variant if option -r was used and the is no more attribute")
@@ -208,14 +209,16 @@ public class VcfFilterSequenceOntology
 			private List<String> userTermsAsString = new ArrayList<>();
 		
 			@XmlElement(name="accession-file")
-			@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers")
+			@Parameter(names={"-f","--acnfile"},description="file of SO accession numbers, one per line")
 			private File userAcnFile = null;
 		
 			@XmlElement(name="filter-genotypes")
 			@Parameter(names={"-fg","--filter-genotype"},description="[20180205] Experimental. Filter genotypes having NO ALT allele carrying a matching prediction."
 					+ "Only works when I can extract a valid Allele from a prediction. Use with care. "
 					+ "Idea is to FILTER out genotype '0/2' of multialleleic variant where only '0/1' is of interest."
-					+ "Special FILTER named '"+GT_FILTER_RESET_TO_NOCALL+"' will set the Genotype to NO_CALL.")
+					+ "Special FILTER named '"+GT_FILTER_RESET_TO_NOCALL+"' will set the Genotype to NO_CALL. "
+					+ "Use with care, it's not always possible to find the allele corresponding to an annotation."
+					)
 			private String filterGenotypesStr=null;
 
 			@XmlTransient
@@ -297,7 +300,9 @@ public class VcfFilterSequenceOntology
 							if(pred==null) continue;
 							if(hasUserTemLabel(pred.getSOTerms()))
 								{
-								if(pred.getAllele()!=null) this.matching_alleles.add(pred.getAllele());
+								if(isRecodingGenotypes()) {
+									if(pred.getAllele()!=null) this.matching_alleles.add(pred.getAllele());
+									}
 								this.keepFlag=true;
 								if(CtxWriter.this.removeUnusedAttribute) {
 									this.predStrings.add(pred.getOriginalAttributeAsString());
@@ -342,9 +347,10 @@ public class VcfFilterSequenceOntology
 							if(pred==null) continue;
 							if(hasUserTemLabel(pred.getSOTerms()))
 								{
-								final Allele alt = pred.getAllele();
-								if(alt!=null) this.matching_alleles.add(alt);
-								
+								if(isRecodingGenotypes()) {
+									final Allele alt = pred.getAllele();
+									if(alt!=null) this.matching_alleles.add(alt);
+									}
 								this.keepFlag=true;
 								if(CtxWriter.this.removeUnusedAttribute) {
 									this.predStrings.add(pred.getOriginalAttributeAsString());
@@ -420,7 +426,7 @@ public class VcfFilterSequenceOntology
 							if(pred==null) continue;
 							if(hasUserTemLabel(pred.getSOTerms()))
 								{
-								if(!StringUtil.isBlank(pred.getAllele()))
+								if(isRecodingGenotypes() && !StringUtil.isBlank(pred.getAllele()))
 									{
 									this.matching_alleles.add(Allele.create(pred.getAllele(),false));
 									}
@@ -495,7 +501,7 @@ public class VcfFilterSequenceOntology
 					}
 					
 					/* FILTER genotypes having NO causal ATL allele */
-					if(!StringUtil.isBlank(this.filterGenotypesStr) && 
+					if(isRecodingGenotypes() && 
 							!this.predictionHandlers.isEmpty()) {
 						/* samples to be FILTERED */
 						final Set<String> invalidSamples = new HashSet<>(ctx.getNSamples());
@@ -520,7 +526,6 @@ public class VcfFilterSequenceOntology
 									}
 								}
 							if(!sample_is_ok) {
-								
 								invalidSamples.add(sample);
 								}
 							}
@@ -590,7 +595,7 @@ public class VcfFilterSequenceOntology
 						}
 					
 					final VariantContext ctx3;
-					 if(GT_FILTER_RESET_TO_NOCALL.equals(this.filterGenotypesStr))
+					if(GT_FILTER_RESET_TO_NOCALL.equals(this.filterGenotypesStr))
 					 	{
 						ctx3 = VCFUtils.recalculateAttributes(vcb.make());
 					 	}
@@ -635,16 +640,22 @@ public class VcfFilterSequenceOntology
 						}
 					}
 				final Function<String,SequenceOntologyTree.Term> acn2term = (ACN)->{
-					final SequenceOntologyTree.Term T = this.sequenceOntologyTree.getTermByAcn(ACN);
+					SequenceOntologyTree.Term T = this.sequenceOntologyTree.getTermByAcn(ACN);
 					if(T==null)
 						{
-						throw new JvarkitException.UserError("Unknown SO:Accession \""+ACN+"\"");
+						T = this.sequenceOntologyTree.getTermByLabel(ACN);
+						}
+					if(T==null)
+						{
+						throw new JvarkitException.UserError("Unknown SO:Accession/label \""+ACN+"\"");
 						}
 					return T;
 					};
 				final Set<SequenceOntologyTree.Term> tmpSet1 = new HashSet<>();
 					this.userTermsAsString.stream().
 					map(S->S.trim()).
+					filter(S->!S.isEmpty()).
+					flatMap(S->Arrays.stream(S.split("[,;& \t]"))).
 					filter(S->!S.isEmpty()).
 					map(acn2term).
 					forEach(t->{
@@ -693,6 +704,10 @@ public class VcfFilterSequenceOntology
 			@Override
 			public void close() throws IOException {
 				}
+			
+			private boolean isRecodingGenotypes() {
+				return !StringUtil.isBlank(this.filterGenotypesStr);
+			}
 			
 			private void parseAccessionsFile(final File f) throws IOException
 				{
