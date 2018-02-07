@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -73,6 +72,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
@@ -90,7 +90,7 @@ BEGIN_DOC
 
 ## Examples
 
-### Example 1
+### Example 
 
 list the variants having a "*feature_elongation*"  ( SO:0001907  ) http://www.sequenceontology.org/browser/current_release/term/SO:0001907
 
@@ -105,7 +105,7 @@ grep -v "##"
 chr10	1142208	.	T	C	3404.30	.	AC=8;AF=1.00;AN=8;CSQ=intron_variant|||ENSG00000047056|WDR37|ENST00000263150|||,downstream_gene_variant|||ENSG00000047056|WDR37|ENST00000436154|||,intron_variant|||ENSG00000047056|WDR37|ENST00000358220|||,stop_lost|Tga/Cga|* / R|ENSG00000047056|WDR37|ENST00000381329|9/9||;DP=122;Dels=0.00;EFF=DOWNSTREAM(MODIFIER||||208|WDR37|protein_coding|CODING|ENST00000436154|),INTRON(MODIFIER||||494|WDR37|protein_coding|CODING|ENST00000263150|9),INTRON(MODIFIER||||494|WDR37|protein_coding|CODING|ENST00000358220|9),STOP_LOST(HIGH|MISSENSE|Tga/Cga|*250R|249|WDR37|protein_coding|CODING|ENST00000381329|);FS=0.000;HRun=0;HaplotypeScore=2.6747;MQ=36.00;MQ0=0;QD=27.90	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
 ```
 
-### Example 2
+### Example 
 
 invert the query:
 
@@ -125,7 +125,8 @@ chr20	36779424	.	G	A	128.76	.	AC=1;AF=0.13;AN=8;BaseQRankSum=0.610;CSQ=non_codin
 chrX	17819377	.	T	C	7515.25	.	AC=8;AF=1.00;AN=8;CSQ=downstream_gene_variant|||ENSG00000248906||ENST00000509491|||,missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000360011|3/3|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000331511|3/3|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000415486|3/3|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000451717|2/2|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000545871|3/3|unknown(0)|tolerated(1);DP=319;Dels=0.00;EFF=DOWNSTREAM(MODIFIER|||||RP3-389A20.4|processed_transcript|NON_CODING|ENST00000509491|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M202V|480|RAI2|protein_coding|CODING|ENST00000415486|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000331511|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000360011|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000451717|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000545871|);FS=0.000;HRun=1;HaplotypeScore=7.7850;MQ=36.33;MQ0=0;QD=23.56	GT:AD:DP:GQ:PL	1/1:0,125:126:99:2343,237,0	1/1:0,26:26:78.14:837,78,0	1/1:0,90:92:99:2640,244,0	1/1:0,74:75:99:1695,171,0
 ```
 
-<h:h4>Example 3</h:h4>
+### Example 
+
 list the available SO:terms:
 
 ```
@@ -152,7 +153,7 @@ SO:0001599	3D_polypeptide_structure_variant
 
 ## History
 
- * 2018 redesigned a large part of the code
+ * 2018-02-07 refactored a large part of the code
  * 2017 moved to jcommander
 
 
@@ -167,6 +168,7 @@ public class VcfFilterSequenceOntology
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfFilterSequenceOntology.class).make();
+	private static final String GT_FILTER_RESET_TO_NOCALL="NO_CALL";
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -212,7 +214,8 @@ public class VcfFilterSequenceOntology
 			@XmlElement(name="filter-genotypes")
 			@Parameter(names={"-fg","--filter-genotype"},description="[20180205] Experimental. Filter genotypes having NO ALT allele carrying a matching prediction."
 					+ "Only works when I can extract a valid Allele from a prediction. Use with care. "
-					+ "Idea is to FILTER out genotype '0/2' of multialleleic variant where only '0/1' is of interest.")
+					+ "Idea is to FILTER out genotype '0/2' of multialleleic variant where only '0/1' is of interest."
+					+ "Special FILTER named '"+GT_FILTER_RESET_TO_NOCALL+"' will set the Genotype to NO_CALL.")
 			private String filterGenotypesStr=null;
 
 			@XmlTransient
@@ -263,29 +266,7 @@ public class VcfFilterSequenceOntology
 								}
 							}
 						}
-					AbstractPredictionHandler updateAlleles(
-							final VariantContext ctx,
-							final Set<String> invalidSamples
-							)
-						{
-						if(!supportFilterAlleles()) return this;
-						if(StringUtil.isBlank(filterGenotypesStr)) return this;
-						for(final Genotype gt:ctx.getGenotypes())
-							{
-							if(gt.isNoCall() || gt.isHomRef() || gt.isFiltered() || invalidSamples.contains(gt.getSampleName()))
-								{
-								continue;
-								}
-							if(gt.getAlleles().stream().
-								filter(A->A.isCalled() && !A.isReference()).
-								anyMatch(A->this.matching_alleles.contains(A)))
-								{
-								continue;
-								}
-							invalidSamples.add(gt.getSampleName());
-							}
-						return this;
-						}
+					
 					}
 				/** handler for VEP */
 				private class VepPredictionHandler extends AbstractPredictionHandler
@@ -343,6 +324,10 @@ public class VcfFilterSequenceOntology
 								sequenceOntologyTree(CtxWriterFactory.this.sequenceOntologyTree);
 						}
 					@Override
+					boolean supportFilterAlleles() {
+						return true;
+						}
+					@Override
 					String getTag() {
 						return this.parser.getTag();
 						}
@@ -357,6 +342,9 @@ public class VcfFilterSequenceOntology
 							if(pred==null) continue;
 							if(hasUserTemLabel(pred.getSOTerms()))
 								{
+								final Allele alt = pred.getAllele();
+								if(alt!=null) this.matching_alleles.add(alt);
+								
 								this.keepFlag=true;
 								if(CtxWriter.this.removeUnusedAttribute) {
 									this.predStrings.add(pred.getOriginalAttributeAsString());
@@ -469,7 +457,8 @@ public class VcfFilterSequenceOntology
 								"Variant non having SO terms :" + termlist));
 						}
 					
-					if(!StringUtil.isBlank(this.filterGenotypesStr))
+					if(!StringUtil.isBlank(this.filterGenotypesStr) &&
+						!GT_FILTER_RESET_TO_NOCALL.equals(this.filterGenotypesStr))
 						{
 						header2.addMetaDataLine(new VCFFormatHeaderLine(
 								VCFConstants.GENOTYPE_FILTER_KEY,
@@ -492,85 +481,124 @@ public class VcfFilterSequenceOntology
 				
 				@Override
 				public void add(final VariantContext ctx) {
-					boolean keep=true;
-					if(this.predictionHandlers.isEmpty()) {
-						keep = false;
+					boolean variant_has_one_matching_pred = true;
+					if(this.predictionHandlers.isEmpty() && !this.removeUnusedAttribute) {
+						variant_has_one_matching_pred = false;
 						}
-					final Set<String> invalidSamples ;
-					if(StringUtil.isBlank(this.filterGenotypesStr))
-						{
-						invalidSamples = Collections.emptySet();
-						}
-					else
-						{
-						invalidSamples = new HashSet<>();
-						}
+					
 					
 					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+					
+					/* loop over each handler to detect the matching predictions */
 					for(final AbstractPredictionHandler handler:this.predictionHandlers) {
-						handler.reset(ctx).visit(ctx,vcb).updateAlleles(ctx, invalidSamples);
+						handler.reset(ctx).visit(ctx,vcb);
 					}
 					
-					
-					if(this.removeUnusedAttribute)
-						{
-						if( this.removeVariantIfNoMoreAttribute && 
-							this.predictionHandlers.stream().allMatch(P->P.predStrings.isEmpty())){
-							keep=false;
+					/* FILTER genotypes having NO causal ATL allele */
+					if(!StringUtil.isBlank(this.filterGenotypesStr) && 
+							!this.predictionHandlers.isEmpty()) {
+						/* samples to be FILTERED */
+						final Set<String> invalidSamples = new HashSet<>(ctx.getNSamples());
+						/* loop over each genotype */
+						for(final String sample: ctx.getSampleNames())
+							{
+							boolean sample_is_ok = false;
+							for(final AbstractPredictionHandler handler:this.predictionHandlers) {							
+								if(!handler.supportFilterAlleles()) continue;
+								final Genotype gt = ctx.getGenotype(sample);
+								if(gt==null || gt.isNoCall() || gt.isHomRef() || gt.isFiltered())
+									{
+									sample_is_ok = true;
+									break;
+									}
+								if(gt.getAlleles().stream().
+									filter(A->A.isCalled() && !A.isReference()).
+									anyMatch(A->handler.matching_alleles.contains(A)))
+									{
+									sample_is_ok = true;
+									break;
+									}
+								}
+							if(!sample_is_ok) {
+								
+								invalidSamples.add(sample);
+								}
 							}
-						}
-					
-					if(keep && this.predictionHandlers.stream().allMatch(P->!P.keepFlag))
-						{
-						keep=false;
-						}
-					
-					if(!invalidSamples.isEmpty())
-						{
+						final Function<Genotype,Genotype> convertGt = G->{
+							/* sample is not invalid */
+							if(!invalidSamples.contains(G.getSampleName()))
+								{
+								return G;
+								}
+							/* sample is invalid and we reset to NO_CALL (./.) */
+							else if(GT_FILTER_RESET_TO_NOCALL.equals(this.filterGenotypesStr))
+								{
+								return GenotypeBuilder.createMissing(G.getSampleName(), G.getPloidy());
+								}
+							/* sample is invalid and we set the GT FILTER */
+							else
+								{
+								
+								return new GenotypeBuilder(G).filter(this.filterGenotypesStr).make();
+								}	
+							};
+						
+						/* update genotypes */
 						vcb.genotypes(ctx.getGenotypes().stream().
-								map(G->invalidSamples.contains(G.getSampleName())?
-								new GenotypeBuilder(G).filter(this.filterGenotypesStr).make():
-								G).collect(Collectors.toList()));
+								map(convertGt).
+								collect(Collectors.toList()));
 						}
+					
+					/* all attributes have been removed ? should we keep this variant ?*/
+					if( this.removeUnusedAttribute &&
+						this.predictionHandlers.stream().allMatch(P->P.predStrings.isEmpty())
+						)
+						{
+						if(this.removeVariantIfNoMoreAttribute) return;
+						variant_has_one_matching_pred=false;
+						}
+					
+					/* all handlers failed */
+					if(variant_has_one_matching_pred && 
+						!this.removeUnusedAttribute &&
+						this.predictionHandlers.stream().allMatch(P->!P.keepFlag))
+						{
+						variant_has_one_matching_pred=false;
+						}
+					
 					
 					if(!StringUtil.isBlank(this.filterIn))
 						{
-						if(keep){
+						if(variant_has_one_matching_pred){
 							vcb.filter(this.filterIn);
-							super.add(vcb.make());
 							}
 						else if( !ctx.filtersWereApplied()) {
 							vcb.passFilters();
-							super.add(vcb.make());
-							}
-						else
-							{
-							super.add(ctx);
 							}
 						}
 					else  if(!StringUtil.isBlank(this.filterOut)) {
-						if(keep && !ctx.filtersWereApplied()) {
+						if(variant_has_one_matching_pred && !ctx.filtersWereApplied()) {
 							vcb.passFilters();
-							super.add(vcb.make());
 							}
-						else if(keep){
-							super.add(ctx);
-							}
-						else
-							{
+						else if(!variant_has_one_matching_pred) {
 							vcb.filter(CtxWriterFactory.this.filterOut);
-							super.add(vcb.make());
 							}
 						}
-					else
+					else if(!variant_has_one_matching_pred)
 						{
-						if(keep) {
-							super.add(vcb.make());
-							} else
-							{
-								/* don't print */
-							}
+						return ;
 						}
+					
+					final VariantContext ctx3;
+					 if(GT_FILTER_RESET_TO_NOCALL.equals(this.filterGenotypesStr))
+					 	{
+						ctx3 = VCFUtils.recalculateAttributes(vcb.make());
+					 	}
+					 else
+					 	{
+						ctx3= vcb.make(); 
+					 	}
+					super.add(ctx3);
 					}
 				
 				private boolean hasUserTemLabel(final Collection<SequenceOntologyTree.Term> ctxTerms)

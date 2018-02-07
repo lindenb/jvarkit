@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -56,7 +57,76 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 public class SnpEffPredictionParser implements PredictionParser
 	{
 	private static final Logger LOG=Logger.build(SnpEffPredictionParser.class).make();
-
+	private static final Map<String,String> EFF2SO= new HashMap<>() ;
+	{{{
+		// https://github.com/pcingola/SnpEff/blob/master/src/main/java/org/snpeff/snpEffect/EffectType.java
+		EFF2SO.put("CHROMOSOME_LARGE_DELETION","chromosome_number_variation");
+		EFF2SO.put("CHROMOSOME_LARGE_DUPLICATION","duplication");
+		EFF2SO.put("CHROMOSOME_LARGE_INVERSION","inversion");
+		EFF2SO.put("CHROMOSOME","chromosome");
+		EFF2SO.put("CHROMOSOME_ELONGATION","feature_elongation");
+		EFF2SO.put("CODON_CHANGE","coding_sequence_variant");
+		EFF2SO.put("CODON_CHANGE_PLUS_CODON_INSERTION","disruptive_inframe_insertion");
+		EFF2SO.put("CODON_CHANGE_PLUS_CODON_DELETION","disruptive_inframe_deletion");
+		EFF2SO.put("CODON_DELETION","conservative_inframe_deletion");
+		EFF2SO.put("CODON_INSERTION","conservative_inframe_insertion");
+		EFF2SO.put("DOWNSTREAM","downstream_gene_variant");
+		EFF2SO.put("EXON","exon_region");
+		EFF2SO.put("EXON_DELETED","exon_loss_variant");
+		EFF2SO.put("EXON_DELETED_PARTIAL","exon_loss_variant");
+		EFF2SO.put("EXON_DUPLICATION","duplication");
+		EFF2SO.put("EXON_DUPLICATION_PARTIAL","duplication");
+		EFF2SO.put("EXON_INVERSION","inversion");
+		EFF2SO.put("EXON_INVERSION_PARTIAL","inversion");
+		EFF2SO.put("FEATURE_FUSION","feature_fusion");
+		EFF2SO.put("FRAME_SHIFT","frameshift_variant");
+		EFF2SO.put("GENE","gene_variant");
+		EFF2SO.put("GENE_INVERSION","inversion");
+		EFF2SO.put("GENE_DELETED","feature_ablation");
+		EFF2SO.put("GENE_DUPLICATION","duplication");
+		EFF2SO.put("GENE_FUSION","gene_fusion");
+		EFF2SO.put("GENE_FUSION_HALF","transcript_ablation");
+		EFF2SO.put("GENE_FUSION_REVERESE","bidirectional_gene_fusion");
+		EFF2SO.put("GENE_REARRANGEMENT","rearranged_at_DNA_level");
+		EFF2SO.put("INTERGENIC","intergenic_region");
+		EFF2SO.put("INTERGENIC_CONSERVED","conserved_intergenic_variant");
+		EFF2SO.put("INTRON","intron_variant");
+		EFF2SO.put("INTRON_CONSERVED","conserved_intron_variant");
+		EFF2SO.put("INTRAGENIC","intragenic_variant");
+		EFF2SO.put("MICRO_RNA","miRNA");
+		EFF2SO.put("MOTIF","TF_binding_site_variant");
+		EFF2SO.put("MOTIF_DELETED","TFBS_ablation");
+		EFF2SO.put("NEXT_PROT","sequence_feature");
+		EFF2SO.put("NON_SYNONYMOUS_CODING","missense_variant");
+		EFF2SO.put("NON_SYNONYMOUS_START","initiator_codon_variant");
+		EFF2SO.put("NON_SYNONYMOUS_STOP","stop_retained_variant");
+		EFF2SO.put("PROTEIN_PROTEIN_INTERACTION_LOCUS","protein_protein_contact");
+		EFF2SO.put("PROTEIN_STRUCTURAL_INTERACTION_LOCUS","structural_interaction_variant");
+		EFF2SO.put("RARE_AMINO_ACID","rare_amino_acid_variant");
+		EFF2SO.put("REGULATION","regulatory_region_variant");
+		EFF2SO.put("SPLICE_SITE_ACCEPTOR","splice_acceptor_variant");
+		EFF2SO.put("SPLICE_SITE_DONOR","splice_donor_variant");
+		EFF2SO.put("SPLICE_SITE_REGION","splice_region_variant");
+		EFF2SO.put("SPLICE_SITE_BRANCH","splice_branch_variant");
+		EFF2SO.put("SPLICE_SITE_BRANCH_U12","splice_branch_variant");
+		EFF2SO.put("START_LOST","start_lost");
+		EFF2SO.put("START_GAINED","5_prime_UTR_premature_start_codon_gain_variant");
+		EFF2SO.put("STOP_GAINED","stop_gained");
+		EFF2SO.put("STOP_LOST","stop_lost");
+		EFF2SO.put("SYNONYMOUS_CODING","synonymous_variant");
+		EFF2SO.put("SYNONYMOUS_STOP","stop_retained_variant");
+		EFF2SO.put("SYNONYMOUS_START","initiator_codon_variant");
+		EFF2SO.put("TRANSCRIPT","non_coding_transcript_variant");
+		EFF2SO.put("TRANSCRIPT_DELETED","transcript_ablation");
+		EFF2SO.put("TRANSCRIPT_DUPLICATION","duplication");
+		EFF2SO.put("TRANSCRIPT_INVERSION","inversion");
+		EFF2SO.put("UPSTREAM","upstream_gene_variant");
+		EFF2SO.put("UTR_3_PRIME","3_prime_UTR_variant");
+		EFF2SO.put("UTR_3_DELETED","3_prime_UTR_truncation");
+		EFF2SO.put("UTR_5_PRIME","5_prime_UTR_variant");
+		EFF2SO.put("UTR_5_DELETED","5_prime_UTR_truncation");		
+	}}}
+		
 	private final Map<String, Integer> col2col=new HashMap<String, Integer>();
 	private final Pattern pipe=Pattern.compile("[\\|\\(\\)]");
 	private String tag;
@@ -266,22 +336,50 @@ public class SnpEffPredictionParser implements PredictionParser
 			{
 			final String EFF=getSOTermsString();
 			if(StringUtil.isBlank(EFF)) return Collections.emptySet();
-			return Collections.singleton(EFF);
+			
+			final String EFF2;
+			if(EFF2SO.containsKey(EFF)) {
+				EFF2 = EFF2SO.get(EFF);
+				}
+			else
+				{
+				EFF2 =EFF.toLowerCase();
+				}
+			return Collections.singleton(EFF2);
 			}
 		
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
-			final String EFF=getSOTermsString();
-			if(StringUtil.isBlank(EFF)) return Collections.emptySet();
+			final Set<String> EFFs=getSOTermsStrings();
+			if(EFFs.isEmpty()) return Collections.emptySet();
 			
-			final SequenceOntologyTree.Term t = SnpEffPredictionParser.this.soTree.getTermByLabel(EFF);
-			if(t==null) {
-				LOG.warn("Cannot get snpeff prediction \""+EFF+"\" in Sequence Ontology");
-				return Collections.emptySet();
-			}
-			return Collections.singleton(t);
-			}
+			final Set<SequenceOntologyTree.Term> set=new HashSet<>(EFFs.size());
 
+			for(final String EFF: EFFs) {
+				final SequenceOntologyTree.Term t = SnpEffPredictionParser.this.soTree.getTermByLabel(EFF);
+				if(t==null) {
+					LOG.warn("Cannot get snpeff prediction \""+EFF+"\" in Sequence Ontology");
+					}
+				set.add(t);
+				}
+			return set;
+			}
+		
+		/** form : Codon_Change e.g: Tga/Cga */
+		public String getCodonChange() {
+			return getByCol("Codon_Change");
+		}
+		
+		/** return ALT allele if found in Codon_Change ( e.g: Tga/Cga), may be null */
+		public Allele getAllele()  {
+			String s = getCodonChange();
+			if(StringUtil.isBlank(s)) return null;
+			final int slash = s.indexOf("/");
+			if(slash==-1) return null;
+			s = s.substring(slash+1).replaceAll("[^A-Z]+","");// remove all lower case
+			if(StringUtil.isBlank(s)) return null;
+			return Allele.create(s,false);
+			}
 
 		
 		@Override

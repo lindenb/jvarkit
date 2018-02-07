@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -65,13 +66,27 @@ public class Algorithms {
 				final Comparator<T> comparator
 	            )
 	    {
+	    return lower_bound(dataVector,first,last,select,comparator,A->A);
+	    }
+
+	/** C+ lower_bound */
+	public  static <T,U> int lower_bound(
+				final List<T> dataVector,
+				int first, 
+				final int last,
+				final U select,
+				final Comparator<U> comparator,
+				final Function<T,U> extractor
+	            )
+	    {
 	    int len = last - first;
 	    while (len > 0)
 	            {
 	            final int half = len / 2;
 	            final int middle = first + half;
 
-	            final T mid  = dataVector.get(middle);
+	            final T midObject  = dataVector.get(middle);
+	            final U mid = extractor.apply(midObject);
 	            if (lower_than(mid,select,comparator))
 	                    {
 	                    first = middle + 1;
@@ -85,6 +100,7 @@ public class Algorithms {
 	    return first;
 	    }
 
+	
 	/** C+ upper_bound */
 	public  static <T extends Comparable<T>> int upper_bound(
 			final List<T> dataVector,
@@ -94,7 +110,7 @@ public class Algorithms {
 		return upper_bound(dataVector,0,dataVector.size(), select,(A,B)->A.compareTo(B));
 		}
 
-
+	
 	/** C+ upper_bound */
 	public static <T> int upper_bound(
 			final List<T> dataVector,
@@ -104,13 +120,27 @@ public class Algorithms {
 			final Comparator<T> comparator
 	        )
 	    {
+		return upper_bound(dataVector,first,last,select,comparator,A->A);
+	    }
+
+	/** C+ upper_bound */
+	public static <T,U> int upper_bound(
+			final List<T> dataVector,
+			int first,
+			final int last,
+			final U select,
+			final Comparator<U> comparator,
+			final Function<T,U> extractor
+	        )
+	    {
 	    int len = last - first;
 	    while (len > 0)
 	            {
 	    		final int half = len / 2;
 	    		final int middle = first + half;
 
-	            final T mid = dataVector.get(middle);
+	            final T midObject = dataVector.get(middle);
+	            final U mid = extractor.apply(midObject);
 	            if (lower_than(select,mid,comparator))
 	                    {
 	                    len = half;

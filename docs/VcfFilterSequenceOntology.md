@@ -19,7 +19,8 @@ Usage: vcffilterso [options] Files
       [20180205] Experimental. Filter genotypes having NO ALT allele carrying 
       a matching prediction.Only works when I can extract a valid Allele from 
       a prediction. Use with care. Idea is to FILTER out genotype '0/2' of 
-      multialleleic variant where only '0/1' is of interest.
+      multialleleic variant where only '0/1' is of interest.Special FILTER 
+      named 'NO_CALL' will set the Genotype to NO_CALL.
     -fi, --filterin
       Do not discard variant but add this FILTER its' prediction is found in 
       the database
@@ -113,6 +114,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Feb 5 16:49:25 2018 +0100 ; dev... ; https://github.com/lindenb/jvarkit/commit/2aa034d55daeacef151532e8c659c2a596ede119
 Thu Sep 21 17:14:45 2017 +0200 ; moving to factories ; https://github.com/lindenb/jvarkit/commit/dede8184edc7e773732bdd393f47f204fd900d79
 Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
 Mon Sep 11 14:48:00 2017 +0200 ; adding tests, add test files for gnomad ; https://github.com/lindenb/jvarkit/commit/bc90c3c76e38e677a2fe824ce29bd7705dde3bd0
@@ -152,7 +154,7 @@ The current reference is:
 
 ## Examples
 
-### Example 1
+### Example 
 
 list the variants having a "*feature_elongation*"  ( SO:0001907  ) http://www.sequenceontology.org/browser/current_release/term/SO:0001907
 
@@ -167,7 +169,7 @@ grep -v "##"
 chr10	1142208	.	T	C	3404.30	.	AC=8;AF=1.00;AN=8;CSQ=intron_variant|||ENSG00000047056|WDR37|ENST00000263150|||,downstream_gene_variant|||ENSG00000047056|WDR37|ENST00000436154|||,intron_variant|||ENSG00000047056|WDR37|ENST00000358220|||,stop_lost|Tga/Cga|* / R|ENSG00000047056|WDR37|ENST00000381329|9/9||;DP=122;Dels=0.00;EFF=DOWNSTREAM(MODIFIER||||208|WDR37|protein_coding|CODING|ENST00000436154|),INTRON(MODIFIER||||494|WDR37|protein_coding|CODING|ENST00000263150|9),INTRON(MODIFIER||||494|WDR37|protein_coding|CODING|ENST00000358220|9),STOP_LOST(HIGH|MISSENSE|Tga/Cga|*250R|249|WDR37|protein_coding|CODING|ENST00000381329|);FS=0.000;HRun=0;HaplotypeScore=2.6747;MQ=36.00;MQ0=0;QD=27.90	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
 ```
 
-### Example 2
+### Example 
 
 invert the query:
 
@@ -187,7 +189,8 @@ chr20	36779424	.	G	A	128.76	.	AC=1;AF=0.13;AN=8;BaseQRankSum=0.610;CSQ=non_codin
 chrX	17819377	.	T	C	7515.25	.	AC=8;AF=1.00;AN=8;CSQ=downstream_gene_variant|||ENSG00000248906||ENST00000509491|||,missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000360011|3/3|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000331511|3/3|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000415486|3/3|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000451717|2/2|unknown(0)|tolerated(1),missense_variant|Atg/Gtg|M/V|ENSG00000131831|RAI2|ENST00000545871|3/3|unknown(0)|tolerated(1);DP=319;Dels=0.00;EFF=DOWNSTREAM(MODIFIER|||||RP3-389A20.4|processed_transcript|NON_CODING|ENST00000509491|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M202V|480|RAI2|protein_coding|CODING|ENST00000415486|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000331511|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000360011|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000451717|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atg/Gtg|M252V|530|RAI2|protein_coding|CODING|ENST00000545871|);FS=0.000;HRun=1;HaplotypeScore=7.7850;MQ=36.33;MQ0=0;QD=23.56	GT:AD:DP:GQ:PL	1/1:0,125:126:99:2343,237,0	1/1:0,26:26:78.14:837,78,0	1/1:0,90:92:99:2640,244,0	1/1:0,74:75:99:1695,171,0
 ```
 
-<h:h4>Example 3</h:h4>
+### Example 
+
 list the available SO:terms:
 
 ```
@@ -214,7 +217,7 @@ SO:0001599	3D_polypeptide_structure_variant
 
 ## History
 
- * 2018 redesigned a large part of the code
+ * 2018-02-07 refactored a large part of the code
  * 2017 moved to jcommander
 
 
