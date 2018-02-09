@@ -57,6 +57,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/288324](https://www.biostars.org/p/288324)
  * [https://www.biostars.org/p/293237](https://www.biostars.org/p/293237)
  * [https://www.biostars.org/p/295040](https://www.biostars.org/p/295040)
+ * [https://www.biostars.org/p/297983](https://www.biostars.org/p/297983)
 
 
 ## Compilation
@@ -102,6 +103,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Jan 31 16:41:33 2018 +0100 ; cont, playing with collectors ; https://github.com/lindenb/jvarkit/commit/8fcd946496834555873b511195a14ccf4b17466e
 Sat Jan 13 14:50:49 2018 +0100 ; https://www.biostars.org/p/293237/#293240 ; https://github.com/lindenb/jvarkit/commit/4e046ea7bb1ce92c278e7434890d23700ddc665d
 Sat Dec 9 12:42:29 2017 +0100 ; bioalcidaejdk ; https://github.com/lindenb/jvarkit/commit/d6c57c61cf17b1068983c8747a4b3a2272f4c3aa
 Mon Nov 27 17:33:11 2017 +0100 ; exploring jni+htslib ; https://github.com/lindenb/jvarkit/commit/509b01e22a04a34e96c77c0bd5b335c5d7fcec76
@@ -529,5 +531,23 @@ stream().
 $ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString()+"\t"+V.getGenotypes().stream().filter(G->G.hasDP()).mapToInt(G->G.getDP()).min().orElse(-1));});' input.vcf
 ```
 
+## Example
+
+
+>  remove sequences with non-canonical nucleotides from fasta file
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(F->java.util.regex.Pattern.matches("^[ATGCatgc]+$",F)).forEach(S->println(">"+S.getName()+"\n"+S));' input.fa
+```
+
+## Example
+
+> 
+Parse BAM by insertion size and get genomic coordinates
+ https://bioinformatics.stackexchange.com/questions/3492/parse-bam-by-insertion-size-and-get-genomic-coordinates
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>100 && (C.getOperator().equals(CigarOperator.N) || C.getOperator().equals(CigarOperator.D)))).forEach(R->println(R.getContig()+"\t"+R.getStart()+"\t"+R.getEnd()));' input.bam
+```
 
 

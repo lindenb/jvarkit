@@ -462,6 +462,24 @@ stream().
 $ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString()+"\t"+V.getGenotypes().stream().filter(G->G.hasDP()).mapToInt(G->G.getDP()).min().orElse(-1));});' input.vcf
 ```
 
+## Example
+
+
+>  remove sequences with non-canonical nucleotides from fasta file
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(F->java.util.regex.Pattern.matches("^[ATGCatgc]+$",F)).forEach(S->println(">"+S.getName()+"\n"+S));' input.fa
+```
+
+## Example
+
+> 
+Parse BAM by insertion size and get genomic coordinates
+ https://bioinformatics.stackexchange.com/questions/3492/parse-bam-by-insertion-size-and-get-genomic-coordinates
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>100 && (C.getOperator().equals(CigarOperator.N) || C.getOperator().equals(CigarOperator.D)))).forEach(R->println(R.getContig()+"\t"+R.getStart()+"\t"+R.getEnd()));' input.bam
+```
 
 END_DOC
 */
@@ -470,7 +488,7 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040},
+	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,297983},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidaeJdk
@@ -565,6 +583,7 @@ public class BioAlcidaeJdk
 				final PrintWriter pw = new PrintWriter(codeWriter);
 				pw.println("import java.util.*;");
 				pw.println("import java.util.stream.*;");
+				pw.println("import java.util.regex.*;");
 				pw.println("import java.util.function.*;");
 				pw.println("import htsjdk.samtools.*;");
 				pw.println("import htsjdk.samtools.util.*;");

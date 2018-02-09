@@ -137,7 +137,7 @@ endif
 	echo '"$$$$@"' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	# generate markdown if needed
-	-if [ -e "${tmp.dir}/markdown.flag" ] && [ "${TRAVIS}" != "true" ]  ; then \
+	-if [ -e "${tmp.dir}/markdown.flag" ] && [ "${TRAVIS}" != "true" ] && [ "${standalone}" != "yes" ] ; then \
 		touch ${tmp.dir}/githistory; \
 		(git log --pretty=format:"%ad ; %s ; https://github.com/lindenb/jvarkit/commit/%H" HEAD -- $(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) > ${tmp.dir}/githistory || true  ) ; \
 		${JAVA} -jar "${dist.dir}/$(1)$(if ${standalone},-fat).jar" --help --helpFormat markdown | sed -e '/__INCLUDE_GIT_HISTORY__/ r ${tmp.dir}/githistory' -e 's/__INCLUDE_GIT_HISTORY__//' > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ;\
@@ -239,8 +239,9 @@ galaxy: ${GALAXY_APPS}
 burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcfmovefilterstoinfo
 
 
-${dist.dir}/testsng.jar:
-tests: ${testng.jars} ${dist.dir}/testsng.jar test2
+${dist.dir}/testsng.jar: testsng
+tests: ${testng.jars} ${dist.dir}/testsng.jar
+
 	-${JAVA} \
 		$(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host} -Dhttps.proxyHost=${http.proxy.host}) \
 		$(if ${http.proxy.port},-Dhttp.proxyPort=${http.proxy.port} -Dhttps.proxyPort=${http.proxy.port}) \
@@ -248,7 +249,7 @@ tests: ${testng.jars} ${dist.dir}/testsng.jar test2
 		-suitename "jvarkit" -testname "jvarkit" \
 		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
 	rm -vf ${dist.dir}/testsng.jar
-	
+
 
 #bigwig
 $(eval $(call compile-htsjdk-cmd,vcfbigwig,${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${jcommander.jar} ${bigwig.jars}))

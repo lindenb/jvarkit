@@ -28,6 +28,9 @@ History:
 */
 package com.github.lindenb.jvarkit.util.bio.fasta;
 
+import java.io.PrintStream;
+import java.io.PrintWriter;
+
 public interface FastaSequence extends CharSequence {
 public String getName();
 public default int size() { return this.length();}
@@ -35,5 +38,27 @@ public default byte[] toByteArray() {
 	final byte s[]=new byte[size()];
 	for(int i=0;i< s.length;++i) s[i]=(byte)charAt(i);
 	return s;
+	}
+public default FastaSequence writeFasta(final PrintStream out) {
+	out.print('>');
+	out.print(getName());
+	for(int i=0;i< size();i++)
+		{
+		if(i%60==0) out.println();
+		out.print(charAt(i));
+		}
+	out.println();
+	return this;
+	}
+public default FastaSequence writeFasta(final PrintWriter out) {
+	out.print('>');
+	out.print(getName());
+	for(int i=0;i< size();i++)
+		{
+		if(i%60==0) out.println();
+		out.print(charAt(i));
+		}
+	out.println();
+	return this;
 	}
 }
