@@ -15,12 +15,6 @@ Usage: vcffilterso [options] Files
       Default: []
     -f, --acnfile
       file of SO accession numbers, one per line
-    -fg, --filter-genotype
-      [20180205] Experimental. Filter genotypes having NO ALT allele carrying 
-      a matching prediction.Only works when I can extract a valid Allele from 
-      a prediction. Use with care. Idea is to FILTER out genotype '0/2' of 
-      multialleleic variant where only '0/1' is of interest.Special FILTER 
-      named 'NO_CALL' will set the Genotype to NO_CALL.
     -fi, --filterin
       Do not discard variant but add this FILTER its' prediction is found in 
       the database
@@ -48,9 +42,7 @@ Usage: vcffilterso [options] Files
       Default: <empty string>
     -r, --rmatt, --remove-attribute
       Do not remove the variant itself, just remove the mismatching Prediction 
-      in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK. Use with care, 
-      it's not always possible to find the allele corresponding to an 
-      annotation. 
+      in the INFO column: e.g: CSQ=OK,OK,NO,OK -> CSQ=OK,OK,OK.
       Default: false
     -R, --rmnoatt, --remove-variant-if-no-INFO
       remove the variant if option -r was used and the is no more attribute
@@ -116,6 +108,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Wed Feb 7 17:53:34 2018 +0100 ; cont testing ; https://github.com/lindenb/jvarkit/commit/007bf447db01ad10eb4ea701b283bacc07e41a10
 Wed Feb 7 11:55:03 2018 +0100 ; add converter to algorithms , improve old VEP parser, improve vcffilterso ; https://github.com/lindenb/jvarkit/commit/dffc8f0df7b5b0e271a2bdcdb5cc8b2792cda3d9
 Mon Feb 5 16:49:25 2018 +0100 ; dev... ; https://github.com/lindenb/jvarkit/commit/2aa034d55daeacef151532e8c659c2a596ede119
 Thu Sep 21 17:14:45 2017 +0200 ; moving to factories ; https://github.com/lindenb/jvarkit/commit/dede8184edc7e773732bdd393f47f204fd900d79

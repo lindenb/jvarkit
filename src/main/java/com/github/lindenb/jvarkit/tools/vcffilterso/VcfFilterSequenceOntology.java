@@ -213,7 +213,7 @@ public class VcfFilterSequenceOntology
 			private File userAcnFile = null;
 		
 			@XmlElement(name="filter-genotypes")
-			@Parameter(names={"-fg","--filter-genotype"},description="[20180205] Experimental. Filter genotypes having NO ALT allele carrying a matching prediction."
+			@Parameter(hidden=true,names={"-fg","--filter-genotype"},description="[20180205] Experimental. Filter genotypes having NO ALT allele carrying a matching prediction."
 					+ "Only works when I can extract a valid Allele from a prediction. Use with care. "
 					+ "Idea is to FILTER out genotype '0/2' of multialleleic variant where only '0/1' is of interest."
 					+ "Special FILTER named '"+GT_FILTER_RESET_TO_NOCALL+"' will set the Genotype to NO_CALL. "
@@ -793,7 +793,7 @@ public class VcfFilterSequenceOntology
 		}
 		
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfFilterSequenceOntology().instanceMainWithExit(args);
 		}

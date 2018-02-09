@@ -1,0 +1,8 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >  
+<suite name="SuiteAll" verbose="1">
+    <test name="TestAll">  
+        <packages>  
+            <package name="com.github.lindenb.jvarkit.util"/>
+        </packages>  
+    </test>  
+</suite>
