@@ -55,7 +55,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -64,6 +63,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;

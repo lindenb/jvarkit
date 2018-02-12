@@ -51,8 +51,8 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;

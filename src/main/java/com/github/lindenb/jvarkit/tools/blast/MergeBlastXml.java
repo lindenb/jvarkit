@@ -51,7 +51,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.EqualRangeIterator;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;

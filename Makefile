@@ -253,7 +253,10 @@ tests2: ${testng.jars} ${htsjdk.jars}
 	rm -rf "${tmp.dir}"
 	mkdir -p "${tmp.dir}"
 	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath src/test/java:src/main/java `find src/test/java -type f -name "*.java"`
-	${JAVA} -cp "$(subst $(SPACE),:,$(filter %.jar,$^)):${tmp.dir}"  org.testng.TestNG -parallel false -d "test-output" ./src/test/resources/testng.xml
+	${JAVA} \
+		$(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host} -Dhttps.proxyHost=${http.proxy.host}) \
+		$(if ${http.proxy.port},-Dhttp.proxyPort=${http.proxy.port} -Dhttps.proxyPort=${http.proxy.port}) \
+		-cp "$(subst $(SPACE),:,$(filter %.jar,$^)):${tmp.dir}"  org.testng.TestNG -parallel false -d "test-output" ./src/test/resources/testng.xml
 	rm -rf "${tmp.dir}"
 
 
