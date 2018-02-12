@@ -38,6 +38,6 @@ import java.util.Iterator;
  */
 public interface FastqReader extends Iterator<FastqRecord>, Closeable
 	{
-    public void setValidationStringency( ValidationStringency validationStringency);
+    public void setValidationStringency( final ValidationStringency validationStringency);
     public ValidationStringency getValidationStringency();
 	}

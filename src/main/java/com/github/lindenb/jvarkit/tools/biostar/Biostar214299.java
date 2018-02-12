@@ -110,6 +110,10 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        77      *       0       0       *       
 rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       *       0       0       TATTTCTCCTTAAGCCTGTGTTTTATTGCATCAAATCTTTTTTCAAACTGCTCATAACGAGATTTCCACT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 ```
 
+## History:
+
+* 20180212: fixing bug https://github.com/lindenb/jvarkit/issues/95
+
 END_DOC
  */
 @Program(name="biostar214299",
@@ -137,7 +141,7 @@ public class Biostar214299 extends Launcher
 		{
 		//String contig;
 		int refpos;
-		Map<Character,String> base2sample = new HashMap<>();
+		final Map<Character,String> base2sample = new HashMap<>();
 		}
 	
 	@Override
@@ -272,7 +276,8 @@ public class Biostar214299 extends Launcher
 					sfw.addAlignment(rec);
 					continue;
 				}
-				final Map<Integer,Position> index2pos= snps.stream().collect(Collectors.toMap(P->P.refpos,P->P));
+				final Map<Integer,Position> index2pos= snps.stream().
+						collect(Collectors.toMap(P->P.refpos,P->P));
 				final Set<String> selectedSamples = new HashSet<>();
 				
 				final byte bases[] =rec.getReadBases();
@@ -287,13 +292,18 @@ public class Biostar214299 extends Launcher
 				for(final CigarElement ce:cigar.getCigarElements())
 					{
 					final CigarOperator op = ce.getOperator();
-					if(op.consumesReferenceBases() && op.consumesReferenceBases()) 
+					final boolean consummeReadBaseOrSoftClip= 
+							op.consumesReadBases() || 
+							op.equals(CigarOperator.S);
+					
+					if(op.consumesReferenceBases() && consummeReadBaseOrSoftClip) 
 						{
 						for(int i=0;i< ce.getLength();++i){
 							final int nowRefPos1 = (refPos1+i);
 							final int nowReadPos0 = (readPos0+i);
 							final Position position = index2pos.get(nowRefPos1);
 							if(position==null) continue;
+							if(nowReadPos0>= bases.length) continue;
 							final char base = (char)Character.toUpperCase(bases[nowReadPos0]);
 							final String sample = position.base2sample.get(base);
 							if(sample==null) continue;
@@ -301,11 +311,12 @@ public class Biostar214299 extends Launcher
 							
 							index2pos.remove(nowRefPos1);
 							if(index2pos.isEmpty()) break;
-							
 							}
 						}
 					if(op.consumesReferenceBases()) refPos1+=ce.getLength();
-					if(op.consumesReadBases()) readPos0+=ce.getLength();
+					if(consummeReadBaseOrSoftClip  ||  op.equals(CigarOperator.H)) {
+						readPos0+=ce.getLength();
+						}
 					}
 				if(selectedSamples.isEmpty())  {
 					rec.setAttribute("RG",UNAFFECTED_SAMPLE);

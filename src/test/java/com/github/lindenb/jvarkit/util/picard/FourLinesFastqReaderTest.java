@@ -1,20 +1,44 @@
 package com.github.lindenb.jvarkit.util.picard;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.StringReader;
+import java.io.File;
+import java.io.IOException;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 
 public class FourLinesFastqReaderTest
+	extends TestUtils
 	{
-	@Test()
-	public void test1() throws Exception
+	@DataProvider(name = "src1")
+		public Object[][] createData1() {
+		 return new ParamCombiner().
+			 initList(collectAllFastq()).
+			 build();
+		}
+
+	
+	 
+	@Test(dataProvider="src1")
+	public void test1(final String input) throws IOException
+		{
+		final FourLinesFastqReader r=new FourLinesFastqReader(new File(input));
+		while(r.hasNext())
+			{
+			FastqRecord rec = r.next();
+			Assert.assertNotNull(rec);
+			}
+		r.close();
+		}
+
+	
+	public void test2() throws Exception
 		{
 		final String fastqs=
 				"@IL31_4368:1:1:996:8507/2\n" + 
@@ -41,7 +65,5 @@ public class FourLinesFastqReaderTest
 		Assert.assertFalse(rec.getReadString().isEmpty());
 		Assert.assertFalse(r.hasNext());
 		r.close();
-		
-	
 		}
 	}

@@ -5,6 +5,7 @@
             <package name="com.github.lindenb.jvarkit.util"/>
             <package name="com.github.lindenb.jvarkit.util.so"/>
             <package name="com.github.lindenb.jvarkit.util.vcf"/>
+            <package name="com.github.lindenb.jvarkit.util.picard"/>
             <package name="com.github.lindenb.jvarkit.util.iterator"/>
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>

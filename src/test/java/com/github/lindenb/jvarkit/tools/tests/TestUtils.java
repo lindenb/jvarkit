@@ -121,5 +121,8 @@ protected Object[] collectAllSamOrBam() {
 protected Object[] collectAllFasta() {
 	return _collectAllFiles((D,N)->N.endsWith(".fa") || N.endsWith(".fasta"));
 	}
+protected Object[] collectAllFastq() {
+	return _collectAllFiles((D,N)->N.endsWith(".fq") || N.endsWith(".fq.gz") || N.endsWith(".fastq") || N.endsWith(".fastq.gz"));
+	}
 
 }
