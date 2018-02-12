@@ -129,7 +129,6 @@ public class Biostar214299 extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-
 	@Parameter(names={"-p","--positions"},description="Position file. A Tab delimited file containing the following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample name.",required=true)
 	private File positionFile = null;
 	
@@ -257,11 +256,11 @@ public class Biostar214299 extends Launcher
 			
 			
 			sfw = this.writingBamArgs.openSAMFileWriter(this.outputFile,newHeader, true);
-			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
-			final SAMRecordIterator iter=sfr.iterator();
+			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header).logger(LOG);
+			final SAMRecordIterator iter = sfr.iterator();
 			while(iter.hasNext())
 				{
-				final SAMRecord rec=progress.watch(iter.next());
+				final SAMRecord rec = progress.watch(iter.next());
 				rec.setAttribute("RG",null);
 				if(rec.getReadUnmappedFlag()) {
 					rec.setAttribute("RG",UNMAPPED);
@@ -269,7 +268,7 @@ public class Biostar214299 extends Launcher
 					continue;
 				}
 				
-				final Cigar cigar=rec.getCigar();
+				final Cigar cigar = rec.getCigar();
 				final Collection<Position> snps =  positionsTreeMap.getContained(new Interval(rec.getContig(),rec.getUnclippedStart(),rec.getUnclippedEnd()));
 				if(snps== null || snps.isEmpty()) {
 					rec.setAttribute("RG",UNAFFECTED_SAMPLE);

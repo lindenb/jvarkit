@@ -8,6 +8,7 @@
             <package name="com.github.lindenb.jvarkit.util.picard"/>
             <package name="com.github.lindenb.jvarkit.util.iterator"/>
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>
+            <package name="com.github.lindenb.jvarkit.tools.biostar"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>
         </packages>  
     </test>  

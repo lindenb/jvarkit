@@ -90,6 +90,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Feb 12 17:50:16 2018 +0100 ; fixing bug https://github.com/lindenb/jvarkit/issues/95 ; https://github.com/lindenb/jvarkit/commit/75eb6710cd228d26d80cbfb3c3ea8bdbcbdf6bff
 Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
 Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
