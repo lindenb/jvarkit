@@ -1,5 +1,7 @@
 # VcfBurdenSplitter
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Split VCF Using a Burden Splitter (by gene, transcript, etc..)
 
 
@@ -127,6 +129,8 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Mon Feb 12 12:22:38 2018 +0100 ; testng + moving equal_range iterator ; https://github.com/lindenb/jvarkit/commit/090fef45b2149f8cb3ef01d194ee338ae1666f4c
+Tue Nov 28 17:25:53 2017 +0100 ; fixing deprecated stuff ; https://github.com/lindenb/jvarkit/commit/0d8cb015156050a9449c6839d33e1f2712eeb4f0
 Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
 Mon May 15 20:31:18 2017 +0200 ; fix make ; https://github.com/lindenb/jvarkit/commit/a735fd34f45bf7fa74803a0c641779857d2fa90e
 Mon May 15 20:23:58 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bb4421e107f53c95efdcad8fb54f022f9642312c
