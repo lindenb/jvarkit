@@ -93,6 +93,7 @@ http.proxy.port=124567
 <summary>Git History</summary>
 
 ```
+Tue Feb 13 17:29:52 2018 +0100 ; updating vep rest, adding test ; https://github.com/lindenb/jvarkit/commit/b12dda8f0583a9545955e607a42dc22d680f7e60
 Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
 Wed Apr 19 17:58:48 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/95f05cfd4e04f5013c22274c49db7bcc4cbbb1c8
 Mon Apr 11 16:50:27 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/d84fc3f2d5da92ed230e79702df31c190bb0fb02
