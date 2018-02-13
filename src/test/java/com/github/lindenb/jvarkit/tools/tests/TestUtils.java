@@ -1,17 +1,124 @@
 package com.github.lindenb.jvarkit.tools.tests;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.Vector;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class TestUtils {
+import org.testng.Assert;
+import org.testng.annotations.AfterTest;
 
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceDictionaryCodec;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.reference.FastaSequenceIndex;
+import htsjdk.samtools.reference.FastaSequenceIndexCreator;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+
+public class TestUtils {
+	private final List<Path> deletePathsAtExit = new Vector<>();
+	private final List<File> deleteFilesAtExit = new Vector<>();
+
+	
+private static class FastaCreator
+	{
+	private final Random random = new Random();
+	
+	private int nContigs = 3;
+	private int minLen = 100;
+	private int maxLen = 10000;
+	private boolean chrPrefix=false;
+	public File build() throws IOException {
+		File outFile = File.createTempFile("tmp.", ".fa");
+		PrintWriter pw= new PrintWriter(outFile);
+		SAMSequenceDictionary dict=new SAMSequenceDictionary();
+		for(int i=0;i< this.nContigs;i++)
+			{
+			int len = minLen + random.nextInt(maxLen-minLen);
+			final String name=(chrPrefix?"chr":"")+(i+1);
+			final SAMSequenceRecord ssr = new SAMSequenceRecord(name, len);
+			dict.addSequence(ssr);
+			pw.write(">"+name);
+			for(int x=0;x<len;++x) 
+				{
+				if(x%100==0) pw.write('\n');
+				final char base;
+				switch(random.nextInt(4)) {
+					case 0: base='A';break;
+					case 1: base='C';break;
+					case 2: base='G';break;
+					case 3: base='T';break;
+					default: base='N';break;
+					}
+				pw.write(base);
+				}
+			pw.write('\n');
+			}
+		pw.flush();
+		pw.close();
+		FastaSequenceIndexCreator.buildFromFasta(outFile.toPath());
+		ReferenceSequenceFileFactory.getFastaIndexFileName(outFile.toPath()).toFile().deleteOnExit();
+		File dictFile = new File(outFile.getParentFile(),outFile.getName()+".dict");
+		dictFile.deleteOnExit();
+		BufferedWriter bw = new BufferedWriter(new PrintWriter(dictFile));
+		SAMSequenceDictionaryCodec codec=  new SAMSequenceDictionaryCodec(bw);
+		codec.encode(dict);
+		bw.flush();
+		bw.close();
+		return outFile;
+		}
+	}	
+	
+private static class BamCreator
+	{
+	private final Random random = new Random();
+	private File ref= null;
+	private SortOrder sortOrder = SortOrder.coordinate;
+	private int nRecords=10000;
+	
+	public File build() throws IOException {
+		
+
+		SAMSequenceDictionary dict=new SAMSequenceDictionary();
+		SAMFileWriterFactory swf = new SAMFileWriterFactory();
+		File outFile = File.createTempFile("tmp.", ".bam");
+		outFile.deleteOnExit();
+		SAMFileHeader header = new SAMFileHeader(dict);
+		header.setSortOrder(this.sortOrder);
+		
+		SAMFileWriter sfw = swf.makeBAMWriter(header, false, outFile);
+		for(int i=0;i< nRecords;i++)
+			{
+			
+			}
+		sfw.close();
+		
+		return outFile;
+		}
+	}
+	
+	
 protected static class ParamCombiner
 	{
 	private List<List<Object>> data = new ArrayList<>();
+	
 	
 	public ParamCombiner() {
 		
@@ -123,6 +230,39 @@ protected Object[] collectAllFasta() {
 	}
 protected Object[] collectAllFastq() {
 	return _collectAllFiles((D,N)->N.endsWith(".fq") || N.endsWith(".fq.gz") || N.endsWith(".fastq") || N.endsWith(".fastq.gz"));
+	}
+protected synchronized File createTmpFile(final String suffix) throws IOException {
+	return deleteOnExit(File.createTempFile("tmp.", suffix));
+	}
+
+
+protected synchronized File deleteOnExit(final File f) {
+	if(f!=null) this.deleteFilesAtExit.add(f);
+	return f;
+	}
+
+protected synchronized Path deleteOnExit(final Path p) {
+	if(p!=null) this.deletePathsAtExit.add(p);
+	return p;
+	}
+@AfterTest
+public synchronized void removeTmpFiles() {
+	for(final File f:this.deleteFilesAtExit) f.delete();
+	for(final Path f:this.deletePathsAtExit) try {
+		Files.delete(f);
+		} catch(IOException err) {}
+	}
+
+protected void assertIsValidBam(File bamFile) throws IOException {
+	final SamReader sr= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT).open(bamFile);
+	sr.iterator().stream().count();
+	sr.close();
+	}
+protected void assertIsNotEmpty(final File f) throws IOException {
+	final FileReader fr=new FileReader(f);
+	int c=0;while(fr.read()!=-1) c++;
+	fr.close();
+	Assert.assertNotEquals(c, 0);
 	}
 
 }

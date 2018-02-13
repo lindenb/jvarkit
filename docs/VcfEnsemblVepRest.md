@@ -1,5 +1,7 @@
 # VcfEnsemblVepRest
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Annotate a VCF with ensembl REST API
 
 
@@ -8,15 +10,16 @@ Annotate a VCF with ensembl REST API
 ```
 Usage: vcfensemblvep [options] Files
   Options:
-    -x, --base64
-      save whole XML document as xml base 64
-      Default: false
     -n, --batchSize
-      batch size
+      batch size. How many variant to send in one HTTP query
       Default: 100
     -e, --extension
       Path extension
       Default: /vep/homo_sapiens/region
+    -format, --format
+      [20180213] Output format
+      Default: standard
+      Possible Values: [standard, details, base64, snpeff]
     -h, --help
       print help and exit
     --helpFormat
@@ -32,6 +35,9 @@ Usage: vcfensemblvep [options] Files
       Default: false
     --version
       print version and exit
+    -nofail
+      [20180213] Do not fail on network error
+      Default: false
 
 ```
 
@@ -153,5 +159,9 @@ gunzip -c  | java -jar dist/vcfensemblvep.jar | grep -v '^#' | cut -f 1,2,4,5,8
 1	54353	C	A	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|A|SO:0001627&SO:0001619,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|A|SO:0001632
 
 ```
+
+## History
+
+* 2018-02-13: removed XSD, parsing DOM. Added SNPEFF output (but it's incomplete for now...)
 
 

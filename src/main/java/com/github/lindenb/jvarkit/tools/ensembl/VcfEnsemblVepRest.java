@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.ensembl;
 
@@ -33,9 +30,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -45,8 +52,6 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Unmarshaller;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Transformer;
@@ -54,18 +59,17 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
-
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.ensembl.vep.*;
+
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 
 import com.beust.jcommander.Parameter;
@@ -74,7 +78,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -114,6 +117,10 @@ gunzip -c  | java -jar dist/vcfensemblvep.jar | grep -v '^#' | cut -f 1,2,4,5,8
 
 ```
 
+## History
+
+* 2018-02-13: removed XSD, parsing DOM. Added SNPEFF output (but it's incomplete for now...)
+
 END_DOC
 
 
@@ -126,7 +133,7 @@ public class VcfEnsemblVepRest
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfEnsemblVepRest.class).make();
-
+	enum OutputFormat {standard,details,base64,snpeff};
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
@@ -137,27 +144,465 @@ public class VcfEnsemblVepRest
 	@Parameter(names={"-e","--extension"},description="Path extension")
 	private String extension = "/vep/homo_sapiens/region";
 
-	@Parameter(names={"-n","--batchSize"},description="batch size")
+	@Parameter(names={"-n","--batchSize"},description="batch size. How many variant to send in one HTTP query")
 	private int batchSize = 100 ;
 
-	@Parameter(names={"-x","--base64"},description="save whole XML document as xml base 64")
-	private boolean xmlBase64 = false;
+	@Parameter(names={"-format","--format"},description="[20180213] Output format")
+	private OutputFormat outputFormat = OutputFormat.standard;
 
 	@Parameter(names={"-T","--tee"},description="'Tee' xml response to stderr")
 	private boolean teeResponse = false;
+	@Parameter(names={"-nofail"},description="[20180213] Do not fail on network error")
+	private boolean ignoreNetworkErrors = false;
 
+	
+	
 	public static final String TAG="VEPTRCSQ";
-	@SuppressWarnings("unused")
-	private static final ObjectFactory _fool_javac=null;
-	private Unmarshaller unmarshaller=null;
+
 	private DocumentBuilder documentBuilder;
 	private Transformer xmlSerializer;
 	private CloseableHttpClient httpClient = null;
 	
 	
-	private static String createInputContext(VariantContext ctx)
+	private static final Set<String> INTERGENIC_CONSEQUENCES_ATTRIBUTES =
+			Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
+			"impact","variant_allele"
+			)));
+	private static final Set<String> REGULATORY_FEATURES_ATTRIBUTES =
+			Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
+				"biotype","impact","regulatory_feature_id","variant_allele"
+			)));
+	
+	private static final Set<String> COLOCATED_VARIANT_ATTRIBUTES =
+			Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
+			"afr_allele",
+			"afr_maf",
+			"allele_string",
+			"amr_allele",
+			"amr_maf",
+			"eas_allele",
+			"eas_maf",
+			"end",
+			"eur_allele",
+			"eur_maf",
+			"gnomad_afr_allele",
+			"gnomad_afr_maf",
+			"gnomad_allele",
+			"gnomad_amr_allele",
+			"gnomad_amr_maf",
+			"gnomad_asj_allele",
+			"gnomad_asj_maf",
+			"gnomad_eas_allele",
+			"gnomad_eas_maf",
+			"gnomad_fin_allele",
+			"gnomad_fin_maf",
+			"gnomad_maf",
+			"gnomad_nfe_allele",
+			"gnomad_nfe_maf",
+			"gnomad_oth_allele",
+			"gnomad_oth_maf",
+			"gnomad_sas_allele",
+			"gnomad_sas_maf",
+			"id",
+			"minor_allele",
+			"minor_allele_freq",
+			"sas_allele",
+			"sas_maf",
+			"seq_region_name",
+			"start",
+			"strand"
+			)));
+
+	
+	private static final Set<String> PREDICTION_ATTRIBUTES=
+		Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
+			"allele_string",
+			"assembly_name",
+			"end",
+			"id",
+			"input",
+			"most_severe_consequence",
+			"seq_region_name",
+			"start",
+			"strand"
+			)));
+	
+	
+	private static final Set<String> TRANSCRIPT_ATTRIBUTES=
+		Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
+			"amino_acids",
+			"biotype",
+			"canonical",
+			"ccds",
+			"cdna_end",
+			"cdna_start",
+			"cds_end",
+			"cds_start",
+			"codons",
+			"distance",
+			"exon",
+			"gene_id",
+			"gene_symbol",
+			"gene_symbol_source",
+			"hgvsc",
+			"hgvsp",
+			"hgnc_id",
+			"impact",
+			"intron",
+			"polyphen_prediction",
+			"polyphen_score",
+			"protein_id",
+			"protein_end",
+			"protein_start",
+			"sift_prediction",
+			"sift_score",
+			"strand",
+			"transcript_id",
+			"variant_allele"
+			)));
+	
+	
+	private abstract class AbstractAttributeEater
 		{
-		StringBuilder sb=new StringBuilder();
+		private final Map<String,String> hash=new HashMap<>();
+		protected AbstractAttributeEater(final Set<String> KNOWN_ATTRIBUTES,final Element root) {
+			if(root.hasAttributes())
+				{
+				NamedNodeMap attMap = root.getAttributes();
+				for(int i=0;i< attMap.getLength();i++) {
+					final Attr att = (Attr)attMap.item(i);
+				
+					if(!KNOWN_ATTRIBUTES.contains(att.getName()))
+						{
+						LOG.warn("unknow <"+root.getNodeName()+"> attribute @"+att.getName());
+						continue;
+						}	
+					this.hash.put(att.getName(), att.getValue());
+					}
+				}
+			}
+		String get(final String key) {
+			return hash.getOrDefault(key, "");
+			}
+		}
+	
+	private class IntergenicConsequences extends AbstractAttributeEater
+		{
+		IntergenicConsequences(final Element root)
+			{
+			super(INTERGENIC_CONSEQUENCES_ATTRIBUTES,root);
+			}
+		}
+	
+	private class RegulatoryFeature extends AbstractAttributeEater
+		{
+		RegulatoryFeature(final Element root)
+			{
+			super(REGULATORY_FEATURES_ATTRIBUTES,root);
+			}
+		
+		public String getInfoString()
+			{
+			switch(VcfEnsemblVepRest.this.outputFormat) {
+				case standard:
+					return REGULATORY_FEATURES_ATTRIBUTES.stream().
+							map(ATT->this.get(ATT)).
+							collect(Collectors.joining("|"));
+				case details:
+					return REGULATORY_FEATURES_ATTRIBUTES.stream().
+							map(ATT->ATT+"|"+this.get(ATT)).
+							collect(Collectors.joining("|"));
+				default: throw new IllegalStateException();
+				}
+			}
+		}
+
+	
+	private class ColocatedVariant extends AbstractAttributeEater
+		{
+		ColocatedVariant(final Element root)
+			{
+			super(COLOCATED_VARIANT_ATTRIBUTES,root);
+			}
+		
+		public String getInfoString()
+			{
+			switch(VcfEnsemblVepRest.this.outputFormat) {
+				case standard:
+					return COLOCATED_VARIANT_ATTRIBUTES.stream().
+							map(ATT->this.get(ATT)).
+							collect(Collectors.joining("|"));
+				case details:
+					return COLOCATED_VARIANT_ATTRIBUTES.stream().
+							map(ATT->ATT+"|"+this.get(ATT)).
+							collect(Collectors.joining("|"));
+				default: throw new IllegalStateException();
+				}
+			}
+		}
+	
+	private class TranscriptConsequence extends AbstractAttributeEater
+		{
+		private final List<String> consequenceTerms = new ArrayList<>();
+		private final List<String> refseq_transcript_ids = new ArrayList<>();
+		private final List<String> trembls = new ArrayList<>();
+		private final List<String> uniparcs = new ArrayList<>();
+		private final List<String> swissprots = new ArrayList<>();
+		private final List<String> flags = new ArrayList<>();
+		TranscriptConsequence(final Element root) {
+			super(TRANSCRIPT_ATTRIBUTES,root);
+			
+			for(Node c1 = root.getFirstChild();c1!=null;c1=c1.getNextSibling())
+				{
+				if(c1.getNodeType()!=Node.ELEMENT_NODE) continue;
+				final Element e1 = Element.class.cast(c1);
+				if(e1.getNodeName().equals("consequence_terms"))
+					{
+					final String termstr = e1.getTextContent();
+					if(StringUtil.isBlank(termstr)) continue;
+					this.consequenceTerms.add(termstr);
+					}
+				else if(e1.getNodeName().equals("refseq_transcript_ids"))
+					{
+					final String termstr = e1.getTextContent();
+					if(StringUtil.isBlank(termstr)) continue;
+					this.refseq_transcript_ids.add(termstr);
+					}
+				else if(e1.getNodeName().equals("trembl"))
+					{
+					final String termstr = e1.getTextContent();
+					if(StringUtil.isBlank(termstr)) continue;
+					this.trembls.add(termstr);
+					}	
+				else if(e1.getNodeName().equals("swissprot"))
+					{
+					final String termstr = e1.getTextContent();
+					if(StringUtil.isBlank(termstr)) continue;
+					this.swissprots.add(termstr);
+					}
+				else if(e1.getNodeName().equals("uniparc"))
+					{
+					final String termstr = e1.getTextContent();
+					if(StringUtil.isBlank(termstr)) continue;
+					this.uniparcs.add(termstr);
+					}
+				else if(e1.getNodeName().equals("flags"))
+					{
+					final String termstr = e1.getTextContent();
+					if(StringUtil.isBlank(termstr)) continue;
+					this.flags.add(termstr);
+					}
+				else
+					{
+					LOG.warning("unknown element <"+e1.getNodeName()+"> under <"+root.getNodeName()+">");
+					}
+				}
+			}
+		
+		public String getInfoString()
+			{
+			switch(VcfEnsemblVepRest.this.outputFormat) {
+				case details:
+					{
+					final StringBuilder sb=new StringBuilder();
+					for(final String keyTranscript: TRANSCRIPT_ATTRIBUTES) {
+						sb.append(keyTranscript);
+						sb.append("|");
+						sb.append(this.get(keyTranscript));
+						sb.append("|");
+						}
+					sb.append("so|");
+					sb.append(String.join("&", this.consequenceTerms));
+					sb.append("|refseq_transcript_ids|");
+					sb.append(String.join("&", this.refseq_transcript_ids));
+					sb.append("|trembl|");
+					sb.append(String.join("&", this.trembls));
+					sb.append("|uniparc|");
+					sb.append(String.join("&", this.uniparcs));
+					sb.append("|swissprot|");
+					sb.append(String.join("&", this.swissprots));
+					return sb.toString();
+					}
+				case standard: 
+					{
+					final StringBuilder sb=new StringBuilder();
+					for(final String keyTranscript: TRANSCRIPT_ATTRIBUTES) {
+						sb.append(this.get(keyTranscript));
+						sb.append("|");
+						}
+					sb.append(String.join("&", this.consequenceTerms));
+					sb.append("|");
+					sb.append(String.join("&", this.refseq_transcript_ids));
+					return sb.toString();
+					}
+				case snpeff:
+					{
+					/* eg:
+					 * A|synonymous_variant|LOW|THSD1|ENSG000001820|transcript|ENST0000026132|protein_coding|2/17|c.96G>A|p.Arg32Arg|175/9145|96/3057|32/1018
+					 */
+					final StringBuilder sb=new StringBuilder();
+					sb.append(get("variant_allele"));sb.append("|");
+					sb.append(String.join("&", this.consequenceTerms));sb.append("|");
+					sb.append("MODIFIER");sb.append("|");/////TODO
+					sb.append(get("gene_symbol"));sb.append("|");
+					sb.append(get("gene_id"));sb.append("|");
+					sb.append(super.hash.containsKey("transcript_id")?"transcript":"");sb.append("|");/////TODO
+					sb.append(get("transcript_id"));sb.append("|");
+					sb.append(get("biotype"));sb.append("|");
+					sb.append("");sb.append("|");//TODO 2/17
+					sb.append("");sb.append("|");//TODO c.96G>A
+					sb.append("");sb.append("|");//TODO p.Arg32Arg
+					sb.append("");sb.append("|");//TODO 175/9145
+					sb.append("");sb.append("|");//TODO 96/3057
+					sb.append("");//TODO 32/1018
+					return sb.toString();
+					}
+				default: throw new IllegalStateException();
+				}
+			}
+
+		}
+	
+	private class EnsVepPrediction extends AbstractAttributeEater
+		{
+		// input user string
+		final List<TranscriptConsequence> transcriptConsequences = new ArrayList<>();
+		final List<ColocatedVariant> colocatedVariants = new ArrayList<>();
+		final List<RegulatoryFeature> regulatoryFeatures = new ArrayList<>();
+		final List<IntergenicConsequences> intergenic_consequences = new ArrayList<>();
+		
+		EnsVepPrediction(final Element root) {
+			super(PREDICTION_ATTRIBUTES,root);
+			
+			for(Node c1 = root.getFirstChild();c1!=null;c1=c1.getNextSibling())
+				{
+				if(c1.getNodeType()!=Node.ELEMENT_NODE) continue;
+				final Element e1 = Element.class.cast(c1);
+				if(e1.getNodeName().equals("transcript_consequences"))
+					{
+					this.transcriptConsequences.add(parseTranscriptConsequence(e1));
+					}
+				else if(e1.getNodeName().equals("colocated_variants"))
+					{
+					this.colocatedVariants.add(parseColocatedVariant(e1));
+					}
+				else if(e1.getNodeName().equals("regulatory_feature_consequences"))
+					{
+					this.regulatoryFeatures.add(new RegulatoryFeature(e1));
+					}
+				else if(e1.getNodeName().equals("intergenic_consequences"))
+					{
+					this.intergenic_consequences.add(new IntergenicConsequences(e1));
+					}
+				else
+					{
+					LOG.warn("unknow element <"+e1.getNodeName()+">  under <"+root.getNodeName()+">");
+					}
+				}
+			}
+		
+		String getInput() { return this.get("input");}
+		
+		public List<String> getInfoStringList()
+			{
+			switch(VcfEnsemblVepRest.this.outputFormat) {
+				case standard: 
+				case snpeff:
+				case details:
+					{
+					return transcriptConsequences.stream().
+							map(T->T.getInfoString()).
+							collect(Collectors.toList());
+					}
+				default: throw new IllegalStateException();
+				}
+			}
+		public List<String> getCollocatedVariantStringList()
+			{
+			switch(VcfEnsemblVepRest.this.outputFormat) {
+				case standard: 
+				case details:
+					{
+					return this.colocatedVariants.stream().
+							map(T->T.getInfoString()).
+							collect(Collectors.toList());
+					}
+				case snpeff:
+					{
+					return Collections.emptyList();
+					}
+				default: throw new IllegalStateException();
+				}
+			}
+		public List<String> getRegulationStringList()
+			{
+			switch(VcfEnsemblVepRest.this.outputFormat) {
+				case standard: 
+				case details:
+					{
+					return this.regulatoryFeatures.stream().
+							map(T->T.getInfoString()).
+							collect(Collectors.toList());
+					}
+				case snpeff:
+					{
+					return Collections.emptyList();
+					}
+				default: throw new IllegalStateException();
+				}
+			}
+
+		}
+	
+	private ColocatedVariant parseColocatedVariant(final Element root) {
+		return new ColocatedVariant(root);
+		}
+	
+	private TranscriptConsequence parseTranscriptConsequence(final Element root) {
+		final TranscriptConsequence pred = new TranscriptConsequence(root);
+		
+		return pred;
+		}
+	
+	private EnsVepPrediction parseVepPrediction(final Element root) {
+		final EnsVepPrediction pred = new EnsVepPrediction(root);
+		
+		return pred;
+		}
+	
+	private List<EnsVepPrediction> parseVepPredictions(final Document dom) {
+		final List<EnsVepPrediction> preds = new ArrayList<>();
+		final Element root= dom.getDocumentElement();
+		if(root==null) {
+			if(ignoreNetworkErrors) {
+				LOG.error("empty dom");
+				return Collections.emptyList();
+				}
+			throw new IllegalStateException("empty dom");
+			}
+		if(!root.getNodeName().equals("opt")) {
+			final String msg = "root is not <opt> but <"+root.getNodeName()+">";
+			if(ignoreNetworkErrors) {
+				LOG.error( msg);
+				return Collections.emptyList();
+				}
+			throw new IllegalStateException( msg);
+		}
+		for(Node c1 = root.getFirstChild();c1!=null;c1=c1.getNextSibling())
+			{
+			if(c1.getNodeType()!=Node.ELEMENT_NODE) continue;
+			final Element e1 = Element.class.cast(c1);
+			if(e1.getNodeName().equals("data"))
+				{
+				preds.add(parseVepPrediction(e1));
+				}	
+			}
+		return preds;
+		}
+	
+	private static String createInputContext(final VariantContext ctx)
+		{
+		final StringBuilder sb=new StringBuilder();
 		sb.append(ctx.getContig()).
 			append(" ").
 			append(ctx.getStart()).
@@ -167,7 +612,7 @@ public class VcfEnsemblVepRest
 			append(ctx.getReference().getBaseString()).
 			append(" ")
 			;
-		List<Allele> alts=ctx.getAlternateAlleles();
+		final List<Allele> alts=ctx.getAlternateAlleles();
 		if(alts.isEmpty())
 			{
 			sb.append(".");
@@ -183,45 +628,43 @@ public class VcfEnsemblVepRest
 		sb.append(" . . .");
 		return sb.toString();
 		}
-	
-	private static String empty(Object s)
-		{
-		return s==null || String.valueOf(s).trim().isEmpty()?"":String.valueOf(s);
-		}
-	
+		
 	private long lastMillisec=-1L;
-	private Object generic_vep(List<VariantContext> contexts,boolean xml_answer) throws IOException
+	
+	/** send a pool of variants to VEP, returns the DOM document */
+	private Document callVepToDom(final List<VariantContext> contexts,boolean xml_answer) throws IOException
 		{
 		LOG.info("Running VEP "+contexts.size());
 		InputStream response =null;
-		javax.xml.transform.Source inputSource=null;
 		HttpPost httpPost = null;
 		try {
 		    if ( this.lastMillisec!=-1L && this.lastMillisec+ 5000<  System.currentTimeMillis())
 		    	{
+		    	LOG.debug("waiting");
 		    	try {Thread.sleep(1000);} catch(Exception err){}
 		    	}
 				 
 		    httpPost = new HttpPost(this.server + this.extension);
 			 
-			 
-			 StringBuilder queryb=new StringBuilder();
+			 final StringBuilder queryb=new StringBuilder();
 			 queryb.append("{ \"variants\" : [");
 			 for(int i=0;i< contexts.size();++i)
 			 	{
-				VariantContext ctx=contexts.get(i);
+				final VariantContext ctx=contexts.get(i);
 				if(i>0) queryb.append(",");
 				queryb.append("\"").
 					append(createInputContext(ctx)).
 					append("\"");
 			 	}
 			 queryb.append("]");
-			 for(String s: new String[]{"canonical","ccds","domains","hgvs","numbers","protein","xref_refseq"})
+			 for(final String s: new String[]{
+					 "canonical","ccds","domains","hgvs","numbers",
+					 "protein","xref_refseq","tsl","uniprot"})
 			 	{
 				 queryb.append(",\"").append(s).append("\":1");
 			 	}
 			 queryb.append("}");
-			 byte postBody[] = queryb.toString().getBytes();
+			 final byte postBody[] = queryb.toString().getBytes();
 
 			 httpPost.setHeader("Content-Type",ContentType.APPLICATION_JSON.getMimeType());
 			 httpPost.setHeader("Accept",ContentType.TEXT_XML.getMimeType());
@@ -236,7 +679,7 @@ public class VcfEnsemblVepRest
 			  
 			 if(responseCode != 200)
 			 	{
-				throw new RuntimeException("Response code was not 200. Detected response was "+responseCode);
+				throw new RuntimeIOException("Response code was not 200. Detected response was "+responseCode);
 			 	}
 
 			 
@@ -248,22 +691,16 @@ public class VcfEnsemblVepRest
 				 response = new TeeInputStream(response,stderr(),false);
 				 }
 			 
-			
-			  
-			if(xml_answer)
-				{
-				return documentBuilder.parse(response);
-				}
-			else
-				{
-				inputSource =new StreamSource(response);
-				return unmarshaller.unmarshal(inputSource, Opt.class).getValue();
-				}
-			
+			final Document dom = documentBuilder.parse(response);
+			return dom;
 			} 
-		catch (Exception e)
+		catch (final Throwable err)
 			{
-			throw new IOException(e);
+			if(this.ignoreNetworkErrors) {
+				LOG.error(err);
+				return documentBuilder.newDocument();
+				}
+			throw new IOException(err);
 			}
 		finally
 			{
@@ -273,76 +710,139 @@ public class VcfEnsemblVepRest
 			}
 		}
 	
-	private Opt vep(List<VariantContext> contexts) throws IOException
+	private List<EnsVepPrediction> vep(final List<VariantContext> contexts) throws IOException
 		{
-		return (Opt)generic_vep(contexts,false);
+		return parseVepPredictions(callVepToDom(contexts,false));
 		}
 	private Document vepxml(List<VariantContext> contexts) throws IOException
 		{
-		return (Document)generic_vep(contexts,true);
+		return callVepToDom(contexts,true);
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 	try {
 		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-		this.documentBuilder=dbf.newDocumentBuilder();
-		
-		final JAXBContext context = JAXBContext.newInstance("org.ensembl.vep");
-		this.unmarshaller=context.createUnmarshaller();
-		
+		this.documentBuilder=dbf.newDocumentBuilder();		
 		TransformerFactory trf=TransformerFactory.newInstance();
 		this.xmlSerializer = trf.newTransformer();
 		
 		/** create http client */
-		this.httpClient = HttpClients.createDefault();
+		this.httpClient = HttpClients.createSystem();//createDefault();
+		
 		return doVcfToVcf(args, this.outputFile);
 		}
 	catch(Exception err) {
 		LOG.error(err);
 		return -1;
-	}
+		}
 	finally 
 		{
-		this.unmarshaller=null;
 		CloserUtil.close(this.httpClient);
 		this.httpClient=null;
-			
 		}
 	}
 		
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator vcfIn, VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName, final VcfIterator vcfIn, final VariantContextWriter out) {
 	    try {
-		final java.util.Base64.Encoder  base64Encoder=java.util.Base64.getEncoder();
-		final SequenceOntologyTree soTree= SequenceOntologyTree.getInstance();
-		VCFHeader header=vcfIn.getHeader();
-		List<VariantContext> buffer=new ArrayList<>(this.batchSize+1);
-		VCFHeader h2= new VCFHeader(header);
+		final java.util.Base64.Encoder  base64Encoder;
+		final VCFHeader header=vcfIn.getHeader();
+		final List<VariantContext> buffer=new ArrayList<>(this.batchSize+1);
+		final VCFHeader h2= new VCFHeader(header);
 		addMetaData(h2);
-		
-		if(!xmlBase64)
+		final String tagName1;
+		final String tagName2;
+		final String tagReg;
+		switch(this.outputFormat)
 			{
-			h2.addMetaDataLine(new VCFInfoHeaderLine(
-					TAG,
-					VCFHeaderLineCount.UNBOUNDED,
-					VCFHeaderLineType.String,
-					"VEP Transcript Consequences. Format :(biotype|cdnaStart|cdnaEnd|cdsStart|cdsEnd|geneId|geneSymbol|geneSymbolSource|hgnc|strand|transcript|variantAllele|so_acns)"
-					));
-			}
-		else
-			{
-			h2.addMetaDataLine(new VCFInfoHeaderLine(
-					TAG,
-					1,
-					VCFHeaderLineType.String,
-					"VEP xml answer encoded as base 64"
-					));
+			case base64:
+				{
+				tagName1 = TAG+"_base64";
+				tagName2 = null;
+				tagReg = null;
+				base64Encoder = java.util.Base64.getEncoder();
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagName1,
+						1,
+						VCFHeaderLineType.String,
+						"VEP xml answer encoded as base 64"
+						));
+				break;
+				}
+			case snpeff:
+				{
+				tagName1 = "ANN";
+				tagName2 = null;
+				tagReg = null;
+				base64Encoder = null;
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagName1,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO'"
+						));
+				LOG.warn("ANN/snpeff output is not fully implemented");
+				break;
+				}
+			case details:
+				{
+				tagName1 = TAG+"X";
+				tagName2 = TAG+ "X_COLOCATED_VARIANTS";
+				tagReg = TAG+ "X_REG";
+				base64Encoder = null;
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagName1,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"VEP Transcript Consequences. Format :("+TRANSCRIPT_ATTRIBUTES.stream().map(S->S.toUpperCase()+"|"+S.toLowerCase()).collect(Collectors.joining("|"))+"|SO|so|REFSEQ|refseq)"
+						));
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagName2,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"VEP Colocated variants.  Format :("+COLOCATED_VARIANT_ATTRIBUTES.stream().map(S->S.toUpperCase()+"|"+S.toLowerCase()).collect(Collectors.joining("|"))+")"
+						));
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagReg,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"VEP Regulatory Features  Format :("+REGULATORY_FEATURES_ATTRIBUTES.stream().map(S->S.toUpperCase()+"|"+S.toLowerCase()).collect(Collectors.joining("|"))+")"
+						));
+				break;
+				}
+			case standard:
+				{
+				tagName1 = TAG;
+				tagName2 = TAG+ "_COLOCATED_VARIANTS";
+				tagReg = TAG+"_REG";
+				base64Encoder = null;
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagName1,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"VEP Transcript Consequences. Format :("+String.join("|",TRANSCRIPT_ATTRIBUTES)+"|so_acns)"
+						));
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagName2,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"VEP Colocated variants.  Format :("+String.join("|",COLOCATED_VARIANT_ATTRIBUTES)+")"
+						));
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						tagReg,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"VEP Colocated variants.  Format :("+String.join("|",REGULATORY_FEATURES_ATTRIBUTES)+")"
+						));
+				break;
+				}
+			default: throw new IllegalArgumentException();
 			}
 		
 		out.writeHeader(h2);
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 		for(;;)
 			{
 			VariantContext ctx=null;
@@ -354,141 +854,119 @@ public class VcfEnsemblVepRest
 				{
 				if(!buffer.isEmpty())
 					{
-					if(!xmlBase64)
+					switch(this.outputFormat)
 						{
-						Opt opt = vep(buffer);
-						for(VariantContext ctx2:buffer)
+						case base64:
 							{
-							VariantContextBuilder vcb=new VariantContextBuilder(ctx2);
-							final String inputStr = createInputContext(ctx2);
-							Data mydata=null;
-							for(Data data:opt.getData())
-								{
-								if(!inputStr.equals(data.getInput())) continue;
-								mydata=data;
-								break;
-								}
-							if(mydata==null)
-								{
-								LOG.info("No Annotation found for "+inputStr);
-								out.add(ctx2);
-								continue;
-								}
-							List<String> infoList=new ArrayList<>();
-							List<TranscriptConsequences> csql=mydata.getTranscriptConsequences();
-							for(int i=0;i< csql.size();++i)
-								{
-								TranscriptConsequences csq= csql.get(i);
-								StringBuilder sb=new StringBuilder();
-								sb.append(empty(csq.getBiotype())).append("|").
-									append(empty(csq.getCdnaStart())).append("|").
-									append(empty(csq.getCdnaEnd())).append("|").
-									append(empty(csq.getCdsStart())).append("|").
-									append(empty(csq.getCdsEnd())).append("|").
-									append(empty(csq.getGeneId())).append("|").
-									append(empty(csq.getGeneSymbol())).append("|").
-									append(empty(csq.getGeneSymbolSource())).append("|").
-									append(empty(csq.getHgncId())).append("|").
-									append(empty(csq.getStrand())).append("|").
-									append(empty(csq.getTranscriptId())).append("|").
-									append(empty(csq.getVariantAllele())).append("|")
-										;
-								List<String> terms=csq.getConsequenceTerms();
-								for(int j=0;j< terms.size();++j)
-									{
-									if(j>0) sb.append("&");
-									SequenceOntologyTree.Term term = soTree.getTermByLabel(terms.get(j));
-									if(term==null)
-										{
-										sb.append(terms.get(j));
-										LOG.warn("No SO:Term found for "+terms.get(j));
-										}
-									else
-										{
-										sb.append(term.getAcn());
-										}
-									}
-								infoList.add(sb.toString());
-								}
-							if(!infoList.isEmpty())
-								{
-								vcb.attribute(TAG, infoList);
-								}
+							final Document opt = vepxml(buffer);
+							final Element root= opt.getDocumentElement();
+							if(!root.getNodeName().equals("opt"))
+								throw new IOException("Bad root node "+root.getNodeName());
 							
-							out.add(vcb.make());
-							}
-						}//end of not(XML base 64)
-					else
-						{
-						Document opt = vepxml(buffer);
-						Element root= opt.getDocumentElement();
-						if(!root.getNodeName().equals("opt"))
-							throw new IOException("Bad root node "+root.getNodeName());
-						
-						for(VariantContext ctx2:buffer)
-							{
-							String inputStr = createInputContext(ctx2);							
-							Document newdom=null;
-							
-							//loop over <data/>
-							for(Node dataNode =root.getFirstChild();
-									dataNode!=null;
-									dataNode=dataNode.getNextSibling())
+							for(final VariantContext ctx2:buffer)
 								{
-								if(dataNode.getNodeType()!=Node.ELEMENT_NODE) continue;
-								Attr att = Element.class.cast(dataNode).getAttributeNode("input");
-								if(att==null)
+								String inputStr = createInputContext(ctx2);							
+								Document newdom=null;
+								
+								//loop over <data/>
+								for(Node dataNode =root.getFirstChild();
+										dataNode!=null;
+										dataNode=dataNode.getNextSibling())
 									{
-									LOG.warn("no @input in <data/>");
-									continue;
+									if(dataNode.getNodeType()!=Node.ELEMENT_NODE) continue;
+									final Attr att = Element.class.cast(dataNode).getAttributeNode("input");
+									if(att==null)
+										{
+										LOG.warn("no @input in <data/>");
+										continue;
+										}
+	
+									if(!att.getValue().equals(inputStr)) continue;
+									if(newdom==null)
+										{
+										newdom = this.documentBuilder.newDocument();
+										newdom.appendChild(newdom.createElement("opt"));
+										}
+									newdom.getDocumentElement().appendChild(newdom.importNode(dataNode, true));
 									}
-
-								if(!att.getValue().equals(inputStr)) continue;
 								if(newdom==null)
 									{
-									newdom = this.documentBuilder.newDocument();
-									newdom.appendChild(newdom.createElement("opt"));
+									LOG.warn("No Annotation found for "+inputStr);
+									out.add(ctx2);
+									continue;
 									}
-								newdom.getDocumentElement().appendChild(newdom.importNode(dataNode, true));
+								final StringWriter sw=new StringWriter();
+								try {
+									this.xmlSerializer.transform(
+											new DOMSource(newdom),
+											new StreamResult(sw)
+											);
+									} 
+								catch(final TransformerException err)
+									{
+									throw new IOException(err);
+									}
+								final VariantContextBuilder vcb=new VariantContextBuilder(ctx2);
+								vcb.attribute(TAG,base64Encoder.encodeToString(sw.toString().getBytes()).
+										replaceAll("[\\s=]", ""));
+								out.add(vcb.make());
 								}
-							if(newdom==null)
-								{
-								LOG.warn("No Annotation found for "+inputStr);
-								out.add(ctx2);
-								continue;
-								}
-							StringWriter sw=new StringWriter();
-							try {
-								this.xmlSerializer.transform(
-										new DOMSource(newdom),
-										new StreamResult(sw)
-										);
-								} 
-							catch (TransformerException err)
-								{
-								throw new IOException(err);
-								}
-							VariantContextBuilder vcb=new VariantContextBuilder(ctx2);
-							vcb.attribute(TAG,base64Encoder.encodeToString(sw.toString().getBytes()).
-									replaceAll("[\\s=]", ""));
-							out.add(vcb.make());
+							break;
 							}
-						}//end of XML base 64
-					}
+						case snpeff:
+						case details:
+						default:
+							{
+							final List<EnsVepPrediction> predlist = vep(buffer);
+							for(final VariantContext ctx2:buffer)
+								{
+								final String inputStr = createInputContext(ctx2);
+								final Optional<EnsVepPrediction> optmydata = 
+										predlist.stream().
+										filter(P->inputStr.equals(P.getInput())).
+										findFirst()
+										;
+								if(!optmydata.isPresent())
+									{
+									LOG.info("No Annotation found for "+inputStr);
+									out.add(ctx2);
+									continue;
+									}
+								final List<String> infoList = optmydata.get().getInfoStringList();
+								final List<String> otherVariantsList=  optmydata.get().getCollocatedVariantStringList();
+								final List<String> regulatoryList=  optmydata.get().getRegulationStringList();
+								
+								final VariantContextBuilder vcb=new VariantContextBuilder(ctx2);
+								
+								if(!infoList.isEmpty()) {
+									vcb.attribute(tagName1, infoList);
+									}
+								if(!otherVariantsList.isEmpty()) {
+									vcb.attribute(tagName2, otherVariantsList);
+									}
+								if(!regulatoryList.isEmpty()) {
+									vcb.attribute(tagReg, regulatoryList);
+									}
+								out.add(vcb.make());
+								}
+							break;
+							}//end of not(XML base 64)
+						}//end if switch output format
+					} // end of if buffer is not empty
 				if(ctx==null) break;
 				buffer.clear();
 				}
-			if(out.checkError()) break;
 			}
 		progress.finish();
 		return RETURN_OK;
-	    } catch(Exception err)
-	    	{
-	    	LOG.error(err);
-	    	return -1;
-	    	}
-	
-		}
+	    } 
+	catch(final Exception err)
+    	{
+    	LOG.error(err);
+    	return -1;
+    	}
+
+	}
 	
 	
 	public static void main(String[] args) {

@@ -7,7 +7,6 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 public class Sam2TsvTest extends TestUtils {
@@ -24,13 +23,13 @@ public class Sam2TsvTest extends TestUtils {
 	public void test01(final String inBam,String inFasta) 
 		throws IOException
 		{
-		final File out = File.createTempFile(".tmp.", ".bam");
-		final BioAlcidaeJdk cmd =new BioAlcidaeJdk();
-		Assert.assertEquals(0,cmd.instanceMain(new String[] {
+		final File out = createTmpFile(".bam");
+		final Sam2Tsv cmd =new Sam2Tsv();
+		Assert.assertEquals(cmd.instanceMain(new String[] {
 			"-R",inFasta,
 			"-o",out.getPath(),
 			inBam
-			}));
-		Assert.assertTrue(out.delete());
+			}),0);
+		assertIsNotEmpty(out);
 		}
 }

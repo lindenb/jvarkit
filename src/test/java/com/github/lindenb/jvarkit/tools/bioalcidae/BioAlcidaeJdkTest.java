@@ -23,14 +23,14 @@ public class BioAlcidaeJdkTest extends TestUtils
 	
 	private void simpleTest(final String inputFile,final String script) throws IOException
 		{
-		final File out = File.createTempFile(".tmp.", ".txt");
+		final File out = createTmpFile(".txt");
 		final BioAlcidaeJdk cmd =new BioAlcidaeJdk();
 		Assert.assertEquals(0,cmd.instanceMain(new String[] {
 			"-e",script,
 			"-o",out.getPath(),
 			inputFile
 			}));
-		Assert.assertTrue(out.delete());
+		assertIsNotEmpty(out);
 		}
 
 	@Test(dataProvider="src1")

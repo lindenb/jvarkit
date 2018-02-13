@@ -249,7 +249,7 @@ tests: ${testng.jars} ${dist.dir}/testsng.jar
 		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
 	rm -vf ${dist.dir}/testsng.jar
 
-tests2: ${testng.jars} ${htsjdk.jars}
+tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs}
 	rm -rf "${tmp.dir}"
 	mkdir -p "${tmp.dir}"
 	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath src/test/java:src/main/java `find src/test/java -type f -name "*.java"`
@@ -478,7 +478,7 @@ $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.S
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallersonesample,${jvarkit.package}.tools.vcfcmp.VcfCompareCallersOneSample,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samretrieveseqandqual,${jvarkit.package}.tools.misc.SamRetrieveSeqAndQual,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,${jcommander.jar} api.ensembl.vep ${httpclient.libs}))
+$(eval $(call compile-htsjdk-cmd,vcfensemblvep,${jvarkit.package}.tools.ensembl.VcfEnsemblVepRest,${jcommander.jar} ${httpclient.libs}))
 $(eval $(call compile-htsjdk-cmd,vcfgroupbypop,${jvarkit.package}.tools.misc.VcfGroupByPopulation,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallers,${jvarkit.package}.tools.vcfcmp.VcfCompareCallers,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile,${jcommander.jar}))
@@ -690,9 +690,9 @@ api.ncbi.dbsnp:
 
 
 ## API Ensembl
-api.ensembl.vep :
-	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p org.ensembl.vep  ./src/main/resources/xsd/ensembl/vep.xsd
+#api.ensembl.vep :
+#	mkdir -p ${generated.dir}/java
+#	${XJC} -d ${generated.dir}/java  -p org.ensembl.vep  ./src/main/resources/xsd/ensembl/vep.xsd
 
 
 api.samfilter:

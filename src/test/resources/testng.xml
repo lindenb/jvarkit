@@ -3,11 +3,14 @@
     <test name="TestAll">  
         <packages>  
             <package name="com.github.lindenb.jvarkit.util"/>
+            <package name="com.github.lindenb.jvarkit.util.bio.fasta"/>
             <package name="com.github.lindenb.jvarkit.util.so"/>
             <package name="com.github.lindenb.jvarkit.util.vcf"/>
             <package name="com.github.lindenb.jvarkit.util.picard"/>
             <package name="com.github.lindenb.jvarkit.util.iterator"/>
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>
+            <package name="com.github.lindenb.jvarkit.tools.ensembl"/>
+            <package name="com.github.lindenb.jvarkit.tools.sam2tsv"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>
         </packages>  
     </test>  

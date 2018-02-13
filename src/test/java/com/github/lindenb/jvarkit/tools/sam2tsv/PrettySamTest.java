@@ -22,13 +22,13 @@ public class PrettySamTest extends TestUtils {
 	public void test01(final String inBam,String inFasta) 
 		throws IOException
 		{
-		final File out = File.createTempFile(".tmp.", ".txt");
+		final File out = super.createTmpFile(".txt");
 		final PrettySam cmd =new PrettySam();
 		Assert.assertEquals(cmd.instanceMain(new String[] {
 			"-R",inFasta,
 			"-o",out.getPath(),
 			inBam
 			}),0);
-		Assert.assertTrue(out.delete());
+		assertIsNotEmpty(out);
 		}
 }

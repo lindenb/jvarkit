@@ -8,7 +8,7 @@ import org.testng.annotations.Test;
 public class MergingIteratorTest {
 @Test
 public void test1() {
-	MergingIterator<Integer> iter = new MergingIterator<>(
+	final MergingIterator<Integer> iter = new MergingIterator<>(
 			Integer::compare,
 			Arrays.asList(
 					Arrays.asList(1,3,5,7,9).iterator(),
@@ -26,6 +26,17 @@ public void test1() {
 			}
 		}
 	Assert.assertFalse(iter.hasNext());
+	iter.close();
+	}
+@Test(expectedExceptions= {IllegalStateException.class})
+public void test2() {
+	final MergingIterator<Integer> iter = new MergingIterator<>(
+			Integer::compare,
+			Arrays.asList(
+					Arrays.asList(10,9).iterator(),
+					Arrays.asList(4,2).iterator()
+			));
+	while(iter.hasNext()) iter.next();
 	iter.close();
 	}
 }
