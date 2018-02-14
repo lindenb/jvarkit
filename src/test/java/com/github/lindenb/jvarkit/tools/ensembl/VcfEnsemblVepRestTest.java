@@ -99,7 +99,7 @@ public class VcfEnsemblVepRestTest extends TestUtils {
 			"-o",out.getPath(),
 			inVcfFile.getPath()
 			}));
-		
+		Assert.assertEquals(variantStream(inVcfFile).count(),variantStream(out).count());
 		}
 
 	

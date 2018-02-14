@@ -15,7 +15,7 @@ public class VcfTailTest  extends TestUtils {
 	public Object[][] createData1() {
 		return new ParamCombiner().
 			initList(collectAllVcfs()).
-			product(0,1,2,3,4,5,10).
+			product(0,1,5,1000).
 			build();
 	}
 
@@ -30,6 +30,8 @@ public void test01(final String inputFile,int num)
 		"-o",out.getPath(),
 		inputFile
 		}));
+	Assert.assertTrue(variantStream(out).count() <=num);
+	
 	}
 
 	

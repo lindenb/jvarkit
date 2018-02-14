@@ -14,6 +14,7 @@ import java.util.Random;
 import java.util.Vector;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
@@ -31,6 +32,10 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.FastaSequenceIndex;
 import htsjdk.samtools.reference.FastaSequenceIndexCreator;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
 
 public class TestUtils {
 	private final List<Path> deletePathsAtExit = new Vector<>();
@@ -263,6 +268,11 @@ protected void assertIsNotEmpty(final File f) throws IOException {
 	int c=0;while(fr.read()!=-1) c++;
 	fr.close();
 	Assert.assertNotEquals(c, 0);
+	}
+protected Stream<VariantContext> variantStream(final File vcfFile ) {
+	final VCFFileReader r = new VCFFileReader(vcfFile,false);
+	final CloseableIterator<VariantContext> iter = r.iterator();
+	return iter.stream().onClose(()->{CloserUtil.close(iter);CloserUtil.close(r);});
 	}
 
 }

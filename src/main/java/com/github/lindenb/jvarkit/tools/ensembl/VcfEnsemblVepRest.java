@@ -25,18 +25,19 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.ensembl;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -54,11 +55,15 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Source;
+import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
+
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
@@ -66,10 +71,8 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 
 import com.beust.jcommander.Parameter;
@@ -88,32 +91,21 @@ BEGIN_DOC
 ## Example
 
 ```bash
-$ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr1.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf.gz" |\
-gunzip -c  | java -jar dist/vcfensemblvep.jar | grep -v '^#' | cut -f 1,2,4,5,8
 
+ $ wget -q -O - "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr1.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf.gz"  |\
+  	gunzip -c  |\
+  	java -jar dist/vcfensemblvep.jar  -n 10 | grep -v '^#' | cut -f 1,2,4,5,8 | head
 
-1	10583	G	A	VEPTRCSQ=processed_transcript|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000456328|A|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000488147|A|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000541675|A|SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000450305|A|SO:0001631,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000515242|A|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000538476|A|SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000518655|A|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000438504|A|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000423562|A|SO:0001632
-1	10611	C	G	VEPTRCSQ=processed_transcript|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000456328|G|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000488147|G|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000541675|G|SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000450305|G|SO:0001631,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000515242|G|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000538476|G|SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000518655|G|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000438504|G|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000423562|G|SO:0001632
-1	13302	C	T	VEPTRCSQ=processed_transcript|550|550|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000456328|T|SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000488147|T|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000541675|T|SO:0001632,transcribed_unprocessed_pseudogene|342|342|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000450305|T|SO:0001792&SO:0001619,transcribed_unprocessed_pseudogene|543|543|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000515242|T|SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000538476|T|SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000518655|T|SO:0001627&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000438504|T|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000423562|T|SO:0001632
-1	13327	G	C	VEPTRCSQ=processed_transcript|575|575|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000456328|C|SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000488147|C|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000541675|C|SO:0001632,transcribed_unprocessed_pseudogene|367|367|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000450305|C|SO:0001792&SO:0001619,transcribed_unprocessed_pseudogene|568|568|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000515242|C|SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000538476|C|SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000518655|C|SO:0001627&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000438504|C|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000423562|C|SO:0001632
-1	13957	TC	T	VEPTRCSQ=processed_transcript|1206|1206|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000456328||SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000488147||SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000541675||SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000450305||SO:0001632,transcribed_unprocessed_pseudogene|1199|1199|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000515242||SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000538476||SO:0001632,transcribed_unprocessed_pseudogene|1032|1032|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000518655||SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000438504||SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000423562||SO:0001632
-1	13980	T	C	VEPTRCSQ=processed_transcript|1228|1228|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000456328|C|SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000488147|C|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000541675|C|SO:0001632,transcribed_unprocessed_pseudogene|||||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000450305|C|SO:0001632,transcribed_unprocessed_pseudogene|1221|1221|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000515242|C|SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000538476|C|SO:0001632,transcribed_unprocessed_pseudogene|1054|1054|||ENSG00000223972|DDX11L1|HGNC|37102|1|ENST00000518655|C|SO:0001792&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000438504|C|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000423562|C|SO:0001632
-1	30923	G	T	VEPTRCSQ=lincRNA|||||ENSG00000243485|MIR1302-10|HGNC|38233|1|ENST00000473358|T|SO:0001627&SO:0001619,lincRNA|||||ENSG00000243485|MIR1302-10|HGNC|38233|1|ENST00000469289|T|SO:0001627&SO:0001619,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000488147|T|SO:0001631,lincRNA|||||ENSG00000237613|FAM138A|HGNC|32334|-1|ENST00000417324|T|SO:0001632,miRNA|||||ENSG00000243485|MIR1302-10|HGNC|38233|1|ENST00000607096|T|SO:0001632,lincRNA|||||ENSG00000237613|FAM138A|HGNC|32334|-1|ENST00000461467|T|SO:0001632,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000538476|T|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000438504|T|SO:0001631,unprocessed_pseudogene|||||ENSG00000227232|WASH7P|HGNC|38034|-1|ENST00000423562|T|SO:0001631
-1	46402	C	CTGT	.
-1	47190	G	GA	.
-1	51476	T	C	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|C|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|C|SO:0001631
-1	51479	T	A	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|A|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|A|SO:0001631
-1	51914	T	G	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|G|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|G|SO:0001631
-1	51935	C	T	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|T|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|T|SO:0001631
-1	51954	G	C	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|C|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|C|SO:0001631
-1	52058	G	C	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|C|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|C|SO:0001631
-1	52144	T	A	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|A|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|A|SO:0001631
-1	52185	TTAA	T	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647||SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857||SO:0001631
-1	52238	T	G	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|G|SO:0001631,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|G|SO:0001631
-[INFO/VcfEnsemblVepRest] 2015-03-19 17:19:04 "done: N=20"
-[INFO/VcfEnsemblVepRest] 2015-03-19 17:19:04 "Number of Variants:0"
-1	53234	CAT	C	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647||SO:0001627&SO:0001619,unprocessed_pseudogene|763|764|||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857||SO:0001792&SO:0001619
-1	54353	C	A	VEPTRCSQ=unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000594647|A|SO:0001627&SO:0001619,unprocessed_pseudogene|||||ENSG00000268020|OR4G4P|HGNC|14822|1|ENST00000606857|A|SO:0001632
+1	10583	G	A	AA=.;AC=314;AF=0.14;AFR_AF=0.04;AMR_AF=0.17;AN=2184;ASN_AF=0.13;AVGPOST=0.7707;ERATE=0.0161;EUR_AF=0.21;LDAF=0.2327;RSQ=0.4319;SNPSOURCE=LOWCOV;THETA=0.0046;VEPREST_COLOCATED_VARIANTS=allele_string|G/A|end|10583|id|rs58108140|seq_region_name|1|start|10583|strand|1;VEPREST_TRANSCRIPT=biotype|unprocessed_pseudogene|distance|3780|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000423562|variant_allele|A|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|3780|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000438504|variant_allele|A|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|1427|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000450305|variant_allele|A|consequences|upstream_gene_variant,biotype|processed_transcript|canonical|1|distance|1286|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000456328|variant_allele|A|consequences|upstream_gene_variant,biotype|unprocessed_pseudogene|distance|3821|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000488147|variant_allele|A|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|1289|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000515242|variant_allele|A|consequences|upstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|1291|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000518655|variant_allele|A|consequences|upstream_gene_variant,biotype|unprocessed_pseudogene|distance|3828|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000538476|variant_allele|A|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|distance|3780|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000541675|variant_allele|A|consequences|downstream_gene_variant;VT=SNP
+1	10611	C	G	AA=.;AC=41;AF=0.02;AFR_AF=0.01;AMR_AF=0.03;AN=2184;ASN_AF=0.01;AVGPOST=0.9330;ERATE=0.0048;EUR_AF=0.02;LDAF=0.0479;RSQ=0.3475;SNPSOURCE=LOWCOV;THETA=0.0077;VEPREST_COLOCATED_VARIANTS=allele_string|C/G|end|10611|id|rs189107123|seq_region_name|1|start|10611|strand|1;VEPREST_TRANSCRIPT=biotype|unprocessed_pseudogene|distance|3752|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000423562|variant_allele|G|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|3752|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000438504|variant_allele|G|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|1399|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000450305|variant_allele|G|consequences|upstream_gene_variant,biotype|processed_transcript|canonical|1|distance|1258|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000456328|variant_allele|G|consequences|upstream_gene_variant,biotype|unprocessed_pseudogene|distance|3793|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000488147|variant_allele|G|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|1261|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000515242|variant_allele|G|consequences|upstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|1263|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000518655|variant_allele|G|consequences|upstream_gene_variant,biotype|unprocessed_pseudogene|distance|3800|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000538476|variant_allele|G|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|distance|3752|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000541675|variant_allele|G|consequences|downstream_gene_variant;VT=SNP
+1	13302	C	T	AA=.;AC=249;AF=0.11;AFR_AF=0.21;AMR_AF=0.08;AN=2184;ASN_AF=0.02;AVGPOST=0.8895;ERATE=0.0058;EUR_AF=0.14;LDAF=0.1573;RSQ=0.6281;SNPSOURCE=LOWCOV;THETA=0.0048;VEPREST_COLOCATED_VARIANTS=allele_string|C/G/T|end|13302|id|rs75241669|seq_region_name|1|start|13302|strand|1;VEPREST_TRANSCRIPT=biotype|unprocessed_pseudogene|distance|1061|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000423562|variant_allele|T|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|1061|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000438504|variant_allele|T|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|342|cdna_start|342|exon|5/6|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000450305.2:n.342C>T|impact|MODIFIER|strand|1|transcript_id|ENST00000450305|variant_allele|T|consequences|non_coding_transcript_exon_variant,biotype|processed_transcript|canonical|1|cdna_end|550|cdna_start|550|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000456328.2:n.550C>T|impact|MODIFIER|strand|1|transcript_id|ENST00000456328|variant_allele|T|consequences|non_coding_transcript_exon_variant,biotype|unprocessed_pseudogene|distance|1102|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000488147|variant_allele|T|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|543|cdna_start|543|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000515242.2:n.543C>T|impact|MODIFIER|strand|1|transcript_id|ENST00000515242|variant_allele|T|consequences|non_coding_transcript_exon_variant,biotype|transcribed_unprocessed_pseudogene|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000518655.2:n.482-101C>T|impact|MODIFIER|intron|2/3|strand|1|transcript_id|ENST00000518655|variant_allele|T|consequences|intron_variant&non_coding_transcript_variant,biotype|unprocessed_pseudogene|distance|1109|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000538476|variant_allele|T|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|distance|1061|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000541675|variant_allele|T|consequences|downstream_gene_variant;VT=SNP
+1	13327	G	C	AA=.;AC=59;AF=0.03;AFR_AF=0.02;AMR_AF=0.03;AN=2184;ASN_AF=0.02;AVGPOST=0.9698;ERATE=0.0012;EUR_AF=0.04;LDAF=0.0359;RSQ=0.6482;SNPSOURCE=LOWCOV;THETA=0.0204;VEPREST_TRANSCRIPT=biotype|unprocessed_pseudogene|distance|1036|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000423562|variant_allele|C|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|1036|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000438504|variant_allele|C|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|367|cdna_start|367|exon|5/6|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000450305.2:n.367G>C|impact|MODIFIER|strand|1|transcript_id|ENST00000450305|variant_allele|C|consequences|non_coding_transcript_exon_variant,biotype|processed_transcript|canonical|1|cdna_end|575|cdna_start|575|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000456328.2:n.575G>C|impact|MODIFIER|strand|1|transcript_id|ENST00000456328|variant_allele|C|consequences|non_coding_transcript_exon_variant,biotype|unprocessed_pseudogene|distance|1077|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000488147|variant_allele|C|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|568|cdna_start|568|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000515242.2:n.568G>C|impact|MODIFIER|strand|1|transcript_id|ENST00000515242|variant_allele|C|consequences|non_coding_transcript_exon_variant,biotype|transcribed_unprocessed_pseudogene|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000518655.2:n.482-76G>C|impact|MODIFIER|intron|2/3|strand|1|transcript_id|ENST00000518655|variant_allele|C|consequences|intron_variant&non_coding_transcript_variant,biotype|unprocessed_pseudogene|distance|1084|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000538476|variant_allele|C|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|distance|1036|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000541675|variant_allele|C|consequences|downstream_gene_variant;VT=SNP
+1	13957	TC	T	AA=TC;AC=35;AF=0.02;AFR_AF=0.02;AMR_AF=0.02;AN=2184;ASN_AF=0.01;AVGPOST=0.8711;ERATE=0.0065;EUR_AF=0.02;LDAF=0.0788;RSQ=0.2501;THETA=0.0100;VEPREST_COLOCATED_VARIANTS=allele_string|C/-|end|13958|id|rs201747181|seq_region_name|1|start|13958|strand|1;VEPREST_TRANSCRIPT=biotype|unprocessed_pseudogene|distance|405|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000423562|variant_allele|-|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|405|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000438504|variant_allele|-|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|288|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000450305|variant_allele|-|consequences|downstream_gene_variant,biotype|processed_transcript|canonical|1|cdna_end|1206|cdna_start|1206|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvs_offset|4|hgvsc|ENST00000456328.2:n.1210del|impact|MODIFIER|strand|1|transcript_id|ENST00000456328|variant_allele|-|consequences|non_coding_transcript_exon_variant,biotype|unprocessed_pseudogene|distance|446|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000488147|variant_allele|-|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|1199|cdna_start|1199|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvs_offset|4|hgvsc|ENST00000515242.2:n.1203del|impact|MODIFIER|strand|1|transcript_id|ENST00000515242|variant_allele|-|consequences|non_coding_transcript_exon_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|1032|cdna_start|1032|exon|4/4|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvs_offset|4|hgvsc|ENST00000518655.2:n.1036del|impact|MODIFIER|strand|1|transcript_id|ENST00000518655|variant_allele|-|consequences|non_coding_transcript_exon_variant,biotype|unprocessed_pseudogene|distance|453|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000538476|variant_allele|-|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|distance|405|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000541675|variant_allele|-|consequences|downstream_gene_variant;VT=INDEL
+1	13980	T	C	AA=.;AC=45;AF=0.02;AFR_AF=0.01;AMR_AF=0.02;AN=2184;ASN_AF=0.02;AVGPOST=0.9221;ERATE=0.0034;EUR_AF=0.02;LDAF=0.0525;RSQ=0.3603;SNPSOURCE=LOWCOV;THETA=0.0139;VEPREST_TRANSCRIPT=biotype|unprocessed_pseudogene|distance|383|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000423562|variant_allele|C|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|383|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000438504|variant_allele|C|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|distance|310|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|impact|MODIFIER|strand|1|transcript_id|ENST00000450305|variant_allele|C|consequences|downstream_gene_variant,biotype|processed_transcript|canonical|1|cdna_end|1228|cdna_start|1228|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000456328.2:n.1228T>C|impact|MODIFIER|strand|1|transcript_id|ENST00000456328|variant_allele|C|consequences|non_coding_transcript_exon_variant,biotype|unprocessed_pseudogene|distance|424|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000488147|variant_allele|C|consequences|downstream_gene_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|1221|cdna_start|1221|exon|3/3|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000515242.2:n.1221T>C|impact|MODIFIER|strand|1|transcript_id|ENST00000515242|variant_allele|C|consequences|non_coding_transcript_exon_variant,biotype|transcribed_unprocessed_pseudogene|cdna_end|1054|cdna_start|1054|exon|4/4|gene_id|ENSG00000223972|gene_symbol|DDX11L1|gene_symbol_source|HGNC|hgnc_id|37102|hgvsc|ENST00000518655.2:n.1054T>C|impact|MODIFIER|strand|1|transcript_id|ENST00000518655|variant_allele|C|consequences|non_coding_transcript_exon_variant,biotype|unprocessed_pseudogene|distance|431|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000538476|variant_allele|C|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|distance|383|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000541675|variant_allele|C|consequences|downstream_gene_variant;VT=SNP
+1	30923	G	T	AA=T;AC=1584;AF=0.73;AFR_AF=0.48;AMR_AF=0.80;AN=2184;ASN_AF=0.89;AVGPOST=0.7335;ERATE=0.0183;EUR_AF=0.73;LDAF=0.6576;RSQ=0.5481;SNPSOURCE=LOWCOV;THETA=0.0162;VEPREST_COLOCATED_VARIANTS=afr_allele|T|afr_maf|0.6687|allele_string|G/T|amr_allele|T|amr_maf|0.9164|eas_allele|T|eas_maf|0.996|end|30923|eur_allele|T|eur_maf|0.9364|id|rs806731|minor_allele|G|minor_allele_freq|0.1276|sas_allele|T|sas_maf|0.9233|seq_region_name|1|start|30923|strand|1;VEPREST_TRANSCRIPT=biotype|lincRNA|canonical|1|distance|3631|gene_id|ENSG00000237613|gene_symbol|FAM138A|gene_symbol_source|HGNC|hgnc_id|32334|impact|MODIFIER|strand|-1|transcript_id|ENST00000417324|variant_allele|T|consequences|downstream_gene_variant,biotype|unprocessed_pseudogene|distance|1553|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000423562|variant_allele|T|consequences|upstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|1553|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000438504|variant_allele|T|consequences|upstream_gene_variant,biotype|lincRNA|distance|4322|gene_id|ENSG00000237613|gene_symbol|FAM138A|gene_symbol_source|HGNC|hgnc_id|32334|impact|MODIFIER|strand|-1|transcript_id|ENST00000461467|variant_allele|T|consequences|downstream_gene_variant,biotype|lincRNA|gene_id|ENSG00000243485|gene_symbol|MIR1302-10|gene_symbol_source|HGNC|hgnc_id|38233|hgvsc|ENST00000469289.1:n.402-53G>T|impact|MODIFIER|intron|1/1|strand|1|transcript_id|ENST00000469289|variant_allele|T|consequences|intron_variant&non_coding_transcript_variant,biotype|lincRNA|canonical|1|gene_id|ENSG00000243485|gene_symbol|MIR1302-10|gene_symbol_source|HGNC|hgnc_id|38233|hgvsc|ENST00000473358.1:n.591-53G>T|impact|MODIFIER|intron|2/2|strand|1|transcript_id|ENST00000473358|variant_allele|T|consequences|intron_variant&non_coding_transcript_variant,biotype|unprocessed_pseudogene|distance|1353|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000488147|variant_allele|T|consequences|upstream_gene_variant,biotype|unprocessed_pseudogene|distance|1117|gene_id|ENSG00000227232|gene_symbol|WASH7P|gene_symbol_source|HGNC|hgnc_id|38034|impact|MODIFIER|strand|-1|transcript_id|ENST00000538476|variant_allele|T|consequences|upstream_gene_variant,biotype|miRNA|distance|420|gene_id|ENSG00000243485|gene_symbol|MIR1302-10|gene_symbol_source|HGNC|hgnc_id|38233|impact|MODIFIER|strand|1|transcript_id|ENST00000607096|variant_allele|T|consequences|downstream_gene_variant;VT=SNP
+1	46402	C	CTGT	AA=.;AC=8;AF=0.0037;AFR_AF=0.01;AN=2184;ASN_AF=0.0017;AVGPOST=0.8325;ERATE=0.0072;LDAF=0.0903;RSQ=0.0960;THETA=0.0121;VEPREST_COLOCATED_VARIANTS=allele_string|-/TGT|end|46402|id|rs199681827|seq_region_name|1|start|46403|strand|1;VEPREST_INTERGENIC_CSQ=impact|MODIFIER|variant_allele|TGT|consequences|intergenic_variant;VT=INDEL
+1	47190	G	GA	AA=G;AC=29;AF=0.01;AFR_AF=0.06;AMR_AF=0.0028;AN=2184;AVGPOST=0.9041;ERATE=0.0041;LDAF=0.0628;RSQ=0.2883;THETA=0.0153;VEPREST_COLOCATED_VARIANTS=allele_string|-/A|end|47190|id|rs200430748|seq_region_name|1|start|47191|strand|1;VEPREST_INTERGENIC_CSQ=impact|MODIFIER|variant_allele|A|consequences|intergenic_variant;VT=INDEL
+1	51476	T	C	AA=C;AC=18;AF=0.01;AFR_AF=0.01;AMR_AF=0.01;AN=2184;ASN_AF=0.01;AVGPOST=0.9819;ERATE=0.0021;EUR_AF=0.01;LDAF=0.0157;RSQ=0.5258;SNPSOURCE=LOWCOV;THETA=0.0103;VEPREST_TRANSCRIPT=biotype|unprocessed_pseudogene|distance|1573|gene_id|ENSG00000268020|gene_symbol|OR4G4P|gene_symbol_source|HGNC|hgnc_id|14822|impact|MODIFIER|strand|1|transcript_id|ENST00000594647|variant_allele|C|consequences|upstream_gene_variant,biotype|unprocessed_pseudogene|canonical|1|distance|997|gene_id|ENSG00000268020|gene_symbol|OR4G4P|gene_symbol_source|HGNC|hgnc_id|14822|impact|MODIFIER|strand|1|transcript_id|ENST00000606857|variant_allele|C|consequences|upstream_gene_variant;VT=SNP
 
 ```
 
@@ -127,456 +119,154 @@ END_DOC
  */
 @Program(name="vcfensemblvep",
 	description="Annotate a VCF with ensembl REST API",
-	keywords={"vcf","annotation","rest","ensembl"}
+	keywords={"vcf","annotation","rest","ensembl","xml","xslt","xsl"}
 )
 public class VcfEnsemblVepRest 
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfEnsemblVepRest.class).make();
-	enum OutputFormat {standard,details,base64,snpeff};
+	private static final String DEFAULT_XSLT_TEMPLATE = "<?xml version=\'1.0\' encoding=\"UTF-8\"?>\n" + 
+			"<xsl:stylesheet xmlns:xsl=\'http://www.w3.org/1999/XSL/Transform\' version=\'1.0\'>\n" + 
+			"<xsl:output method=\"text\"/>\n" + 
+			"\n" + 
+			"<xsl:template match=\"/\">\n" + 
+			"  <xsl:apply-templates select=\"*\"/>\n" + 
+			"</xsl:template>\n" + 
+			"\n" + 
+			"<xsl:template match=\"opt\">\n" + 
+			"  <xsl:apply-templates select=\"data\"/>\n" + 
+			"</xsl:template>\n" + 
+			"\n" + 
+			"<xsl:template match=\"data\">\n" + 
+			" <xsl:if test=\"transcript_consequences\">\n" + 
+			" <xsl:text>VEPREST_TRANSCRIPT=</xsl:text>\n" + 
+			" <xsl:for-each select=\"transcript_consequences\">\n" + 
+			"   <xsl:if test=\"position()&gt;1\">,</xsl:if>\n" + 
+			"   <xsl:apply-templates select=\".\"/>\n" + 
+			" </xsl:for-each>\n" + 
+			"<xsl:text>\n" + 
+			"</xsl:text>\n" + 
+			" </xsl:if>\n" + 
+			" \n" + 
+			" <xsl:if test=\"colocated_variants\">\n" + 
+			" <xsl:text>VEPREST_COLOCATED_VARIANTS=</xsl:text>\n" + 
+			" <xsl:for-each select=\"colocated_variants\">\n" + 
+			"   <xsl:if test=\"position()&gt;1\">,</xsl:if>\n" + 
+			"   <xsl:apply-templates select=\".\"/>\n" + 
+			" </xsl:for-each>\n" + 
+			"<xsl:text>\n" + 
+			"</xsl:text>\n" + 
+			" </xsl:if>\n" + 
+			" \n" + 
+			" <xsl:if test=\"intergenic_consequences\">\n" + 
+			" <xsl:text>VEPREST_INTERGENIC_CSQ=</xsl:text>\n" + 
+			" <xsl:for-each select=\"intergenic_consequences\">\n" + 
+			"   <xsl:if test=\"position()&gt;1\">,</xsl:if>\n" + 
+			"   <xsl:apply-templates select=\".\"/>\n" + 
+			" </xsl:for-each>\n" + 
+			"<xsl:text>\n" + 
+			"</xsl:text>\n" + 
+			" </xsl:if>\n" + 
+			" <xsl:if test=\"regulatory_feature_consequences\">\n" + 
+			" <xsl:text>VEPREST_REGULATORY_CSQ=</xsl:text>\n" + 
+			" <xsl:for-each select=\"regulatory_feature_consequences\">\n" + 
+			"   <xsl:if test=\"position()&gt;1\">,</xsl:if>\n" + 
+			"   <xsl:apply-templates select=\".\"/>\n" + 
+			" </xsl:for-each>\n" + 
+			"<xsl:text>\n" + 
+			"</xsl:text>\n" + 
+			" </xsl:if>\n" + 
+			" \n" + 
+			"</xsl:template>\n" + 
+			"\n" + 
+			"<xsl:template match=\"transcript_consequences|intergenic_consequences|regulatory_feature_consequences\">\n" + 
+			"<xsl:for-each select=\"@*\">\n" + 
+			"   <xsl:if test=\"position()&gt;1\">|</xsl:if>\n" + 
+			"   <xsl:value-of select=\"name(.)\"/>\n" + 
+			"   <xsl:text>|</xsl:text>\n" + 
+			"   <xsl:value-of select=\".\"/>\n" + 
+			" </xsl:for-each>\n" + 
+			" <xsl:if test=\"consequence_terms\">\n" + 
+			" <xsl:text>|consequences|</xsl:text>\n" + 
+			" <xsl:for-each select=\"consequence_terms\">\n" + 
+			"   <xsl:if test=\"position()&gt;1\">&amp;</xsl:if>\n" + 
+			"   <xsl:apply-templates select=\".\"/>\n" + 
+			" </xsl:for-each>\n" + 
+			" </xsl:if>\n" + 
+			"</xsl:template>\n" + 
+			"\n" + 
+			"<xsl:template match=\"colocated_variants\">\n" + 
+			"<xsl:for-each select=\"@*\">\n" + 
+			"   <xsl:if test=\"position()&gt;1\">|</xsl:if>\n" + 
+			"   <xsl:value-of select=\"name(.)\"/>\n" + 
+			"   <xsl:text>|</xsl:text>\n" + 
+			"   <xsl:value-of select=\".\"/>\n" + 
+			" </xsl:for-each>\n" + 
+			"</xsl:template>\n" + 
+			"\n" + 
+			"</xsl:stylesheet>\n"
+			;
+	private static final String DEFAULT_TAGS="VEPREST_TRANSCRIPT,VEPREST_COLOCATED_VARIANTS,VEPREST_INTERGENIC_CSQ,VEPREST_REGULATORY_CSQ";
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-
-	@Parameter(names={"-s","--server"},description="REST server")
+	@Parameter(names={"-s","--server"},description="Ensemble REST server url.")
 	private String server = "http://grch37.rest.ensembl.org";
 
-	@Parameter(names={"-e","--extension"},description="Path extension")
+	@Parameter(names={"-e","--extension"},description="REST server URL Path extension")
 	private String extension = "/vep/homo_sapiens/region";
 
 	@Parameter(names={"-n","--batchSize"},description="batch size. How many variant to send in one HTTP query")
 	private int batchSize = 100 ;
 
-	@Parameter(names={"-format","--format"},description="[20180213] Output format")
-	private OutputFormat outputFormat = OutputFormat.standard;
-
+	@Parameter(names={"-x","--xslt","--template"},description="[20180214] XSLT stylesheet template that will be used to transform the XML response from ensembl to a set of lines."
+			+ "Each line in the generated document must starts with a tag (TAG=...) defined with the --tag section. "
+			+ "Empty lines or lines starting with a hash will be ignored. "
+			+ "The XSL output method must be text. "
+			+ "The processed node is a <data> node in the Rest response. "
+			+ "Example at: https://gist.github.com/lindenb/12dea8e701d18280e8cb0b65270064f6 ."
+			+ "Default XSL template is:\n\t"+DEFAULT_XSLT_TEMPLATE)
+	private File xslTemplateFile = null;
+	
+	@Parameter(names={"-t","--tags","--tag"},description="[20180214] comma/space separated of tag that will be generated by the XSL stylesheet.")
+	private  String tagListString  = DEFAULT_TAGS;
+	
 	@Parameter(names={"-T","--tee"},description="'Tee' xml response to stderr")
 	private boolean teeResponse = false;
 	@Parameter(names={"-nofail"},description="[20180213] Do not fail on network error")
 	private boolean ignoreNetworkErrors = false;
 
-	
-	
-	public static final String TAG="VEPTRCSQ";
 
 	private DocumentBuilder documentBuilder;
-	private Transformer xmlSerializer;
+	private Transformer xsltTransformer = null;
 	private CloseableHttpClient httpClient = null;
+	private final Set<String> outputTags = new HashSet<>();
 	
 	
-	private static final Set<String> INTERGENIC_CONSEQUENCES_ATTRIBUTES =
-			Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
-			"impact","variant_allele"
-			)));
-	private static final Set<String> REGULATORY_FEATURES_ATTRIBUTES =
-			Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
-				"biotype","impact","regulatory_feature_id","variant_allele"
-			)));
-	
-	private static final Set<String> COLOCATED_VARIANT_ATTRIBUTES =
-			Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
-			"afr_allele",
-			"afr_maf",
-			"allele_string",
-			"amr_allele",
-			"amr_maf",
-			"eas_allele",
-			"eas_maf",
-			"end",
-			"eur_allele",
-			"eur_maf",
-			"gnomad_afr_allele",
-			"gnomad_afr_maf",
-			"gnomad_allele",
-			"gnomad_amr_allele",
-			"gnomad_amr_maf",
-			"gnomad_asj_allele",
-			"gnomad_asj_maf",
-			"gnomad_eas_allele",
-			"gnomad_eas_maf",
-			"gnomad_fin_allele",
-			"gnomad_fin_maf",
-			"gnomad_maf",
-			"gnomad_nfe_allele",
-			"gnomad_nfe_maf",
-			"gnomad_oth_allele",
-			"gnomad_oth_maf",
-			"gnomad_sas_allele",
-			"gnomad_sas_maf",
-			"id",
-			"minor_allele",
-			"minor_allele_freq",
-			"sas_allele",
-			"sas_maf",
-			"seq_region_name",
-			"start",
-			"strand"
-			)));
-
-	
-	private static final Set<String> PREDICTION_ATTRIBUTES=
-		Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
-			"allele_string",
-			"assembly_name",
-			"end",
-			"id",
-			"input",
-			"most_severe_consequence",
-			"seq_region_name",
-			"start",
-			"strand"
-			)));
-	
-	
-	private static final Set<String> TRANSCRIPT_ATTRIBUTES=
-		Collections.unmodifiableSet(new LinkedHashSet<String>(Arrays.asList(
-			"amino_acids",
-			"biotype",
-			"canonical",
-			"ccds",
-			"cdna_end",
-			"cdna_start",
-			"cds_end",
-			"cds_start",
-			"codons",
-			"distance",
-			"exon",
-			"gene_id",
-			"gene_symbol",
-			"gene_symbol_source",
-			"hgvsc",
-			"hgvsp",
-			"hgnc_id",
-			"impact",
-			"intron",
-			"polyphen_prediction",
-			"polyphen_score",
-			"protein_id",
-			"protein_end",
-			"protein_start",
-			"sift_prediction",
-			"sift_score",
-			"strand",
-			"transcript_id",
-			"variant_allele"
-			)));
-	
-	
-	private abstract class AbstractAttributeEater
+	private class EnsVepPrediction
 		{
-		private final Map<String,String> hash=new HashMap<>();
-		protected AbstractAttributeEater(final Set<String> KNOWN_ATTRIBUTES,final Element root) {
-			if(root.hasAttributes())
+		final String input;
+		final Map<String,Set<String>> tag2infoLines;
+		EnsVepPrediction(final String input)
+			{
+			this.input = input;
+			this.tag2infoLines = new HashMap<>(VcfEnsemblVepRest.this.outputTags.size());
+			for(final String tag:VcfEnsemblVepRest.this.outputTags)
 				{
-				NamedNodeMap attMap = root.getAttributes();
-				for(int i=0;i< attMap.getLength();i++) {
-					final Attr att = (Attr)attMap.item(i);
-				
-					if(!KNOWN_ATTRIBUTES.contains(att.getName()))
-						{
-						LOG.warn("unknow <"+root.getNodeName()+"> attribute @"+att.getName());
-						continue;
-						}	
-					this.hash.put(att.getName(), att.getValue());
-					}
+				this.tag2infoLines.put(tag, new HashSet<>());
 				}
-			}
-		String get(final String key) {
-			return hash.getOrDefault(key, "");
-			}
+			}	
 		}
 	
-	private class IntergenicConsequences extends AbstractAttributeEater
-		{
-		IntergenicConsequences(final Element root)
-			{
-			super(INTERGENIC_CONSEQUENCES_ATTRIBUTES,root);
-			}
-		}
 	
-	private class RegulatoryFeature extends AbstractAttributeEater
-		{
-		RegulatoryFeature(final Element root)
-			{
-			super(REGULATORY_FEATURES_ATTRIBUTES,root);
-			}
-		
-		public String getInfoString()
-			{
-			switch(VcfEnsemblVepRest.this.outputFormat) {
-				case standard:
-					return REGULATORY_FEATURES_ATTRIBUTES.stream().
-							map(ATT->this.get(ATT)).
-							collect(Collectors.joining("|"));
-				case details:
-					return REGULATORY_FEATURES_ATTRIBUTES.stream().
-							map(ATT->ATT+"|"+this.get(ATT)).
-							collect(Collectors.joining("|"));
-				default: throw new IllegalStateException();
-				}
-			}
-		}
-
 	
-	private class ColocatedVariant extends AbstractAttributeEater
-		{
-		ColocatedVariant(final Element root)
-			{
-			super(COLOCATED_VARIANT_ATTRIBUTES,root);
-			}
-		
-		public String getInfoString()
-			{
-			switch(VcfEnsemblVepRest.this.outputFormat) {
-				case standard:
-					return COLOCATED_VARIANT_ATTRIBUTES.stream().
-							map(ATT->this.get(ATT)).
-							collect(Collectors.joining("|"));
-				case details:
-					return COLOCATED_VARIANT_ATTRIBUTES.stream().
-							map(ATT->ATT+"|"+this.get(ATT)).
-							collect(Collectors.joining("|"));
-				default: throw new IllegalStateException();
-				}
-			}
-		}
-	
-	private class TranscriptConsequence extends AbstractAttributeEater
-		{
-		private final List<String> consequenceTerms = new ArrayList<>();
-		private final List<String> refseq_transcript_ids = new ArrayList<>();
-		private final List<String> trembls = new ArrayList<>();
-		private final List<String> uniparcs = new ArrayList<>();
-		private final List<String> swissprots = new ArrayList<>();
-		private final List<String> flags = new ArrayList<>();
-		TranscriptConsequence(final Element root) {
-			super(TRANSCRIPT_ATTRIBUTES,root);
-			
-			for(Node c1 = root.getFirstChild();c1!=null;c1=c1.getNextSibling())
-				{
-				if(c1.getNodeType()!=Node.ELEMENT_NODE) continue;
-				final Element e1 = Element.class.cast(c1);
-				if(e1.getNodeName().equals("consequence_terms"))
-					{
-					final String termstr = e1.getTextContent();
-					if(StringUtil.isBlank(termstr)) continue;
-					this.consequenceTerms.add(termstr);
-					}
-				else if(e1.getNodeName().equals("refseq_transcript_ids"))
-					{
-					final String termstr = e1.getTextContent();
-					if(StringUtil.isBlank(termstr)) continue;
-					this.refseq_transcript_ids.add(termstr);
-					}
-				else if(e1.getNodeName().equals("trembl"))
-					{
-					final String termstr = e1.getTextContent();
-					if(StringUtil.isBlank(termstr)) continue;
-					this.trembls.add(termstr);
-					}	
-				else if(e1.getNodeName().equals("swissprot"))
-					{
-					final String termstr = e1.getTextContent();
-					if(StringUtil.isBlank(termstr)) continue;
-					this.swissprots.add(termstr);
-					}
-				else if(e1.getNodeName().equals("uniparc"))
-					{
-					final String termstr = e1.getTextContent();
-					if(StringUtil.isBlank(termstr)) continue;
-					this.uniparcs.add(termstr);
-					}
-				else if(e1.getNodeName().equals("flags"))
-					{
-					final String termstr = e1.getTextContent();
-					if(StringUtil.isBlank(termstr)) continue;
-					this.flags.add(termstr);
-					}
-				else
-					{
-					LOG.warning("unknown element <"+e1.getNodeName()+"> under <"+root.getNodeName()+">");
-					}
-				}
-			}
-		
-		public String getInfoString()
-			{
-			switch(VcfEnsemblVepRest.this.outputFormat) {
-				case details:
-					{
-					final StringBuilder sb=new StringBuilder();
-					for(final String keyTranscript: TRANSCRIPT_ATTRIBUTES) {
-						sb.append(keyTranscript);
-						sb.append("|");
-						sb.append(this.get(keyTranscript));
-						sb.append("|");
-						}
-					sb.append("so|");
-					sb.append(String.join("&", this.consequenceTerms));
-					sb.append("|refseq_transcript_ids|");
-					sb.append(String.join("&", this.refseq_transcript_ids));
-					sb.append("|trembl|");
-					sb.append(String.join("&", this.trembls));
-					sb.append("|uniparc|");
-					sb.append(String.join("&", this.uniparcs));
-					sb.append("|swissprot|");
-					sb.append(String.join("&", this.swissprots));
-					return sb.toString();
-					}
-				case standard: 
-					{
-					final StringBuilder sb=new StringBuilder();
-					for(final String keyTranscript: TRANSCRIPT_ATTRIBUTES) {
-						sb.append(this.get(keyTranscript));
-						sb.append("|");
-						}
-					sb.append(String.join("&", this.consequenceTerms));
-					sb.append("|");
-					sb.append(String.join("&", this.refseq_transcript_ids));
-					return sb.toString();
-					}
-				case snpeff:
-					{
-					/* eg:
-					 * A|synonymous_variant|LOW|THSD1|ENSG000001820|transcript|ENST0000026132|protein_coding|2/17|c.96G>A|p.Arg32Arg|175/9145|96/3057|32/1018
-					 */
-					final StringBuilder sb=new StringBuilder();
-					sb.append(get("variant_allele"));sb.append("|");
-					sb.append(String.join("&", this.consequenceTerms));sb.append("|");
-					sb.append("MODIFIER");sb.append("|");/////TODO
-					sb.append(get("gene_symbol"));sb.append("|");
-					sb.append(get("gene_id"));sb.append("|");
-					sb.append(super.hash.containsKey("transcript_id")?"transcript":"");sb.append("|");/////TODO
-					sb.append(get("transcript_id"));sb.append("|");
-					sb.append(get("biotype"));sb.append("|");
-					sb.append("");sb.append("|");//TODO 2/17
-					sb.append("");sb.append("|");//TODO c.96G>A
-					sb.append("");sb.append("|");//TODO p.Arg32Arg
-					sb.append("");sb.append("|");//TODO 175/9145
-					sb.append("");sb.append("|");//TODO 96/3057
-					sb.append("");//TODO 32/1018
-					return sb.toString();
-					}
-				default: throw new IllegalStateException();
-				}
-			}
-
-		}
-	
-	private class EnsVepPrediction extends AbstractAttributeEater
-		{
-		// input user string
-		final List<TranscriptConsequence> transcriptConsequences = new ArrayList<>();
-		final List<ColocatedVariant> colocatedVariants = new ArrayList<>();
-		final List<RegulatoryFeature> regulatoryFeatures = new ArrayList<>();
-		final List<IntergenicConsequences> intergenic_consequences = new ArrayList<>();
-		
-		EnsVepPrediction(final Element root) {
-			super(PREDICTION_ATTRIBUTES,root);
-			
-			for(Node c1 = root.getFirstChild();c1!=null;c1=c1.getNextSibling())
-				{
-				if(c1.getNodeType()!=Node.ELEMENT_NODE) continue;
-				final Element e1 = Element.class.cast(c1);
-				if(e1.getNodeName().equals("transcript_consequences"))
-					{
-					this.transcriptConsequences.add(parseTranscriptConsequence(e1));
-					}
-				else if(e1.getNodeName().equals("colocated_variants"))
-					{
-					this.colocatedVariants.add(parseColocatedVariant(e1));
-					}
-				else if(e1.getNodeName().equals("regulatory_feature_consequences"))
-					{
-					this.regulatoryFeatures.add(new RegulatoryFeature(e1));
-					}
-				else if(e1.getNodeName().equals("intergenic_consequences"))
-					{
-					this.intergenic_consequences.add(new IntergenicConsequences(e1));
-					}
-				else
-					{
-					LOG.warn("unknow element <"+e1.getNodeName()+">  under <"+root.getNodeName()+">");
-					}
-				}
-			}
-		
-		String getInput() { return this.get("input");}
-		
-		public List<String> getInfoStringList()
-			{
-			switch(VcfEnsemblVepRest.this.outputFormat) {
-				case standard: 
-				case snpeff:
-				case details:
-					{
-					return transcriptConsequences.stream().
-							map(T->T.getInfoString()).
-							collect(Collectors.toList());
-					}
-				default: throw new IllegalStateException();
-				}
-			}
-		public List<String> getCollocatedVariantStringList()
-			{
-			switch(VcfEnsemblVepRest.this.outputFormat) {
-				case standard: 
-				case details:
-					{
-					return this.colocatedVariants.stream().
-							map(T->T.getInfoString()).
-							collect(Collectors.toList());
-					}
-				case snpeff:
-					{
-					return Collections.emptyList();
-					}
-				default: throw new IllegalStateException();
-				}
-			}
-		public List<String> getRegulationStringList()
-			{
-			switch(VcfEnsemblVepRest.this.outputFormat) {
-				case standard: 
-				case details:
-					{
-					return this.regulatoryFeatures.stream().
-							map(T->T.getInfoString()).
-							collect(Collectors.toList());
-					}
-				case snpeff:
-					{
-					return Collections.emptyList();
-					}
-				default: throw new IllegalStateException();
-				}
-			}
-
-		}
-	
-	private ColocatedVariant parseColocatedVariant(final Element root) {
-		return new ColocatedVariant(root);
-		}
-	
-	private TranscriptConsequence parseTranscriptConsequence(final Element root) {
-		final TranscriptConsequence pred = new TranscriptConsequence(root);
-		
-		return pred;
-		}
-	
-	private EnsVepPrediction parseVepPrediction(final Element root) {
-		final EnsVepPrediction pred = new EnsVepPrediction(root);
-		
-		return pred;
-		}
-	
-	private List<EnsVepPrediction> parseVepPredictions(final Document dom) {
-		final List<EnsVepPrediction> preds = new ArrayList<>();
+	private Map<String,EnsVepPrediction> parseVepPredictions(final Document dom) {
+		final Map<String,EnsVepPrediction> preds = new HashMap<>();
 		final Element root= dom.getDocumentElement();
 		if(root==null) {
 			if(ignoreNetworkErrors) {
 				LOG.error("empty dom");
-				return Collections.emptyList();
+				return Collections.emptyMap();
 				}
 			throw new IllegalStateException("empty dom");
 			}
@@ -584,7 +274,7 @@ public class VcfEnsemblVepRest
 			final String msg = "root is not <opt> but <"+root.getNodeName()+">";
 			if(ignoreNetworkErrors) {
 				LOG.error( msg);
-				return Collections.emptyList();
+				return Collections.emptyMap();
 				}
 			throw new IllegalStateException( msg);
 		}
@@ -594,8 +284,54 @@ public class VcfEnsemblVepRest
 			final Element e1 = Element.class.cast(c1);
 			if(e1.getNodeName().equals("data"))
 				{
-				preds.add(parseVepPrediction(e1));
-				}	
+				if(!e1.hasAttribute("input"))
+					{
+					LOG.warning("found <data> without @input");
+					continue;
+					}	
+				try
+					{
+					final EnsVepPrediction pred = new EnsVepPrediction(e1.getAttribute("input"));
+
+					final StringWriter sw = new StringWriter();
+					final StreamResult result = new StreamResult(sw);
+					this.xsltTransformer.transform(new DOMSource(e1), result);
+					sw.close();
+					final BufferedReader br= new BufferedReader(new StringReader(sw.toString()));
+					String line;
+					while((line=br.readLine())!=null) {
+						if(StringUtil.isBlank(line) || line.startsWith("#")) continue;
+						final int eq = line.indexOf("=");
+						if(eq==-1 ) throw new TransformerException("Cannot find '=' in "+line);
+						final String tag = line.substring(0,eq);
+						if(!pred.tag2infoLines.containsKey(tag))
+							{
+							throw new TransformerException("unknown tag '"+tag+"' in "+line+". Defined are "+pred.tag2infoLines.keySet());
+							}
+						final String value=line.substring(eq+1).trim();
+						if(StringUtil.isBlank(value)) continue;
+						if(value.contains(" ") || value.contains("\t")) {
+							throw new TransformerException("spaces in value: '"+line+"'.");
+							}
+						pred.tag2infoLines.get(tag).add(value);
+						}
+					br.close();
+					if(preds.containsKey(pred.input))
+						{
+						LOG.error("duplicate data/@input: "+pred.input+" in XML");
+						}
+					preds.put(pred.input,pred);
+					}
+				catch(final Exception err)
+					{
+					final String msg= "XSLT Transformation failed : "+err.getMessage();
+					if(ignoreNetworkErrors) {
+						LOG.error( msg,err);
+						continue;
+						}
+					throw new IllegalStateException(msg,err);
+					}
+				}
 			}
 		return preds;
 		}
@@ -609,7 +345,7 @@ public class VcfEnsemblVepRest
 			append(" ").
 			append(!ctx.hasID()?".":ctx.getID()).
 			append(" ").
-			append(ctx.getReference().getBaseString()).
+			append(ctx.getReference().getDisplayString()).
 			append(" ")
 			;
 		final List<Allele> alts=ctx.getAlternateAlleles();
@@ -622,7 +358,7 @@ public class VcfEnsemblVepRest
 			for(int j=0;j< alts.size();++j )
 				{
 				if(j>0) sb.append(",");
-				sb.append(alts.get(j).getBaseString());
+				sb.append(alts.get(j).getDisplayString());
 				}
 			}
 		sb.append(" . . .");
@@ -710,29 +446,50 @@ public class VcfEnsemblVepRest
 			}
 		}
 	
-	private List<EnsVepPrediction> vep(final List<VariantContext> contexts) throws IOException
+	private Map<String,EnsVepPrediction> vep(final List<VariantContext> contexts) throws IOException
 		{
 		return parseVepPredictions(callVepToDom(contexts,false));
-		}
-	private Document vepxml(List<VariantContext> contexts) throws IOException
-		{
-		return callVepToDom(contexts,true);
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 	try {
-		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		this.outputTags.addAll(Arrays.stream(this.tagListString.split("[, \t;]+")).filter(S->!StringUtil.isBlank(S)).collect(Collectors.toSet()));
+		for(final String tag:this.outputTags)
+			{
+			if(!tag.matches("[A-Za-z][A-Za-z0-9_]*"))
+				{
+				LOG.error("Bad tag name "+tag);
+				return -1;
+				}
+			}
+		if(this.outputTags.isEmpty()) {
+			LOG.error("no output tag defined");
+			return -1;
+		}
+			
+		
+		final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		this.documentBuilder=dbf.newDocumentBuilder();		
-		TransformerFactory trf=TransformerFactory.newInstance();
-		this.xmlSerializer = trf.newTransformer();
+		final  TransformerFactory trf=TransformerFactory.newInstance();
+		final Source stylesheetSource;
+		if(this.xslTemplateFile!=null)
+			{
+			stylesheetSource = new StreamSource(this.xslTemplateFile); 
+			}
+		else
+			{
+			stylesheetSource = new StreamSource(new StringReader(DEFAULT_XSLT_TEMPLATE)); 
+			}
+		final Templates templates = trf.newTemplates(stylesheetSource);
+		this.xsltTransformer = templates.newTransformer();
 		
 		/** create http client */
 		this.httpClient = HttpClients.createSystem();//createDefault();
 		
 		return doVcfToVcf(args, this.outputFile);
 		}
-	catch(Exception err) {
+	catch(final Exception err) {
 		LOG.error(err);
 		return -1;
 		}
@@ -747,100 +504,20 @@ public class VcfEnsemblVepRest
 	@Override
 	protected int doVcfToVcf(final String inputName, final VcfIterator vcfIn, final VariantContextWriter out) {
 	    try {
-		final java.util.Base64.Encoder  base64Encoder;
 		final VCFHeader header=vcfIn.getHeader();
 		final List<VariantContext> buffer=new ArrayList<>(this.batchSize+1);
 		final VCFHeader h2= new VCFHeader(header);
 		addMetaData(h2);
-		final String tagName1;
-		final String tagName2;
-		final String tagReg;
-		switch(this.outputFormat)
+		for(final String tag:this.outputTags)
 			{
-			case base64:
-				{
-				tagName1 = TAG+"_base64";
-				tagName2 = null;
-				tagReg = null;
-				base64Encoder = java.util.Base64.getEncoder();
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagName1,
-						1,
-						VCFHeaderLineType.String,
-						"VEP xml answer encoded as base 64"
-						));
-				break;
-				}
-			case snpeff:
-				{
-				tagName1 = "ANN";
-				tagName2 = null;
-				tagReg = null;
-				base64Encoder = null;
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagName1,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO'"
-						));
-				LOG.warn("ANN/snpeff output is not fully implemented");
-				break;
-				}
-			case details:
-				{
-				tagName1 = TAG+"X";
-				tagName2 = TAG+ "X_COLOCATED_VARIANTS";
-				tagReg = TAG+ "X_REG";
-				base64Encoder = null;
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagName1,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"VEP Transcript Consequences. Format :("+TRANSCRIPT_ATTRIBUTES.stream().map(S->S.toUpperCase()+"|"+S.toLowerCase()).collect(Collectors.joining("|"))+"|SO|so|REFSEQ|refseq)"
-						));
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagName2,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"VEP Colocated variants.  Format :("+COLOCATED_VARIANT_ATTRIBUTES.stream().map(S->S.toUpperCase()+"|"+S.toLowerCase()).collect(Collectors.joining("|"))+")"
-						));
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagReg,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"VEP Regulatory Features  Format :("+REGULATORY_FEATURES_ATTRIBUTES.stream().map(S->S.toUpperCase()+"|"+S.toLowerCase()).collect(Collectors.joining("|"))+")"
-						));
-				break;
-				}
-			case standard:
-				{
-				tagName1 = TAG;
-				tagName2 = TAG+ "_COLOCATED_VARIANTS";
-				tagReg = TAG+"_REG";
-				base64Encoder = null;
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagName1,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"VEP Transcript Consequences. Format :("+String.join("|",TRANSCRIPT_ATTRIBUTES)+"|so_acns)"
-						));
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagName2,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"VEP Colocated variants.  Format :("+String.join("|",COLOCATED_VARIANT_ATTRIBUTES)+")"
-						));
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
-						tagReg,
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"VEP Colocated variants.  Format :("+String.join("|",REGULATORY_FEATURES_ATTRIBUTES)+")"
-						));
-				break;
-				}
-			default: throw new IllegalArgumentException();
+			h2.addMetaDataLine(new VCFInfoHeaderLine(
+					tag,
+					VCFHeaderLineCount.UNBOUNDED,
+					VCFHeaderLineType.String,
+					"__CUSTOM_DESCRIPTION__"+tag
+					));
 			}
-		
+				
 		out.writeHeader(h2);
 		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 		for(;;)
@@ -854,104 +531,34 @@ public class VcfEnsemblVepRest
 				{
 				if(!buffer.isEmpty())
 					{
-					switch(this.outputFormat)
+					final Map<String,EnsVepPrediction> input2pred = vep(buffer);
+					for(final VariantContext ctx2:buffer)
 						{
-						case base64:
+						final String inputStr = createInputContext(ctx2);
+						final EnsVepPrediction pred= input2pred.get(inputStr);
+						
+						final VariantContextBuilder vcb=new VariantContextBuilder(ctx2);
+						for(final String tag:this.outputTags)
 							{
-							final Document opt = vepxml(buffer);
-							final Element root= opt.getDocumentElement();
-							if(!root.getNodeName().equals("opt"))
-								throw new IOException("Bad root node "+root.getNodeName());
-							
-							for(final VariantContext ctx2:buffer)
-								{
-								String inputStr = createInputContext(ctx2);							
-								Document newdom=null;
-								
-								//loop over <data/>
-								for(Node dataNode =root.getFirstChild();
-										dataNode!=null;
-										dataNode=dataNode.getNextSibling())
-									{
-									if(dataNode.getNodeType()!=Node.ELEMENT_NODE) continue;
-									final Attr att = Element.class.cast(dataNode).getAttributeNode("input");
-									if(att==null)
-										{
-										LOG.warn("no @input in <data/>");
-										continue;
-										}
-	
-									if(!att.getValue().equals(inputStr)) continue;
-									if(newdom==null)
-										{
-										newdom = this.documentBuilder.newDocument();
-										newdom.appendChild(newdom.createElement("opt"));
-										}
-									newdom.getDocumentElement().appendChild(newdom.importNode(dataNode, true));
-									}
-								if(newdom==null)
-									{
-									LOG.warn("No Annotation found for "+inputStr);
-									out.add(ctx2);
-									continue;
-									}
-								final StringWriter sw=new StringWriter();
-								try {
-									this.xmlSerializer.transform(
-											new DOMSource(newdom),
-											new StreamResult(sw)
-											);
-									} 
-								catch(final TransformerException err)
-									{
-									throw new IOException(err);
-									}
-								final VariantContextBuilder vcb=new VariantContextBuilder(ctx2);
-								vcb.attribute(TAG,base64Encoder.encodeToString(sw.toString().getBytes()).
-										replaceAll("[\\s=]", ""));
-								out.add(vcb.make());
-								}
-							break;
+							vcb.rmAttribute(tag);
 							}
-						case snpeff:
-						case details:
-						default:
+						
+						if(pred==null)
 							{
-							final List<EnsVepPrediction> predlist = vep(buffer);
-							for(final VariantContext ctx2:buffer)
-								{
-								final String inputStr = createInputContext(ctx2);
-								final Optional<EnsVepPrediction> optmydata = 
-										predlist.stream().
-										filter(P->inputStr.equals(P.getInput())).
-										findFirst()
-										;
-								if(!optmydata.isPresent())
-									{
-									LOG.info("No Annotation found for "+inputStr);
-									out.add(ctx2);
-									continue;
-									}
-								final List<String> infoList = optmydata.get().getInfoStringList();
-								final List<String> otherVariantsList=  optmydata.get().getCollocatedVariantStringList();
-								final List<String> regulatoryList=  optmydata.get().getRegulationStringList();
-								
-								final VariantContextBuilder vcb=new VariantContextBuilder(ctx2);
-								
-								if(!infoList.isEmpty()) {
-									vcb.attribute(tagName1, infoList);
-									}
-								if(!otherVariantsList.isEmpty()) {
-									vcb.attribute(tagName2, otherVariantsList);
-									}
-								if(!regulatoryList.isEmpty()) {
-									vcb.attribute(tagReg, regulatoryList);
-									}
-								out.add(vcb.make());
-								}
-							break;
-							}//end of not(XML base 64)
-						}//end if switch output format
+							LOG.info("No Annotation found for "+inputStr);
+							out.add(vcb.make());
+							continue;
+							}
+						
+						for(final String tag:this.outputTags)
+							{
+							final Set<String> info = pred.tag2infoLines.get(tag);
+							if(info==null || info.isEmpty()) continue;
+							vcb.attribute(tag, new ArrayList<>(info));
+							}
+						
+						out.add(vcb.make());
+						} // end of loop over variants
 					} // end of if buffer is not empty
 				if(ctx==null) break;
 				buffer.clear();
