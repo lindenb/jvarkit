@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -16,8 +17,13 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
+import org.testng.annotations.Test;
+import org.xml.sax.helpers.DefaultHandler;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -26,6 +32,7 @@ import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamFiles;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -34,13 +41,16 @@ import htsjdk.samtools.reference.FastaSequenceIndexCreator;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 
 public class TestUtils {
 	private final List<Path> deletePathsAtExit = new Vector<>();
 	private final List<File> deleteFilesAtExit = new Vector<>();
+	protected final Random random = new Random();
 
+	
 	
 private static class FastaCreator
 	{
@@ -230,6 +240,18 @@ protected Object[] collectAllSamOrBam() {
 	return _collectAllFiles((D,N)->N.endsWith(".sam") || N.endsWith(".bam"));
 	}
 
+protected Object[] collectIndexedBams() {
+	return _collectAllFiles((D,N)->{
+		if(!N.endsWith(".bam")) return false; 
+		if(SamFiles.findIndex(Paths.get(D.getPath(),N))==null)
+			{
+			return false;
+			}
+		return true;
+		});
+	}
+
+
 protected Object[] collectAllFasta() {
 	return _collectAllFiles((D,N)->N.endsWith(".fa") || N.endsWith(".fasta"));
 	}
@@ -251,6 +273,7 @@ protected synchronized Path deleteOnExit(final Path p) {
 	return p;
 	}
 @AfterTest
+@Test(enabled = false)
 public synchronized void removeTmpFiles() {
 	for(final File f:this.deleteFilesAtExit) f.delete();
 	for(final Path f:this.deletePathsAtExit) try {
@@ -263,6 +286,33 @@ protected void assertIsValidBam(File bamFile) throws IOException {
 	sr.iterator().stream().count();
 	sr.close();
 	}
+
+protected void assertIsXml(final File f) {
+	Exception err=null; 
+	try {
+		Assert.assertTrue(f.exists(), "file "+f+" should exist");
+		final SAXParser sax=SAXParserFactory.newInstance().newSAXParser();
+		sax.parse(f, new DefaultHandler());
+		
+	}catch (final Exception e) {
+		err= e;
+		}
+	Assert.assertNull(err,"file "+f+" should be xml : "+err);
+	}
+
+protected void assertIsVcf(final File f) {
+	Exception err=null; 
+	try {
+		variantStream(f).
+			flatMap(V->V.getGenotypes().stream()).
+			flatMap(G->G.getAlleles().stream());
+		
+	}catch (final Exception e) {
+		err= e;
+	}
+	Assert.assertNull(err,"file "+f+" should be vcf : "+err);
+}
+
 protected void assertIsNotEmpty(final File f) throws IOException {
 	final FileReader fr=new FileReader(f);
 	int c=0;while(fr.read()!=-1) c++;
