@@ -214,7 +214,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils
+	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils gb2gff
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -246,10 +246,10 @@ tests: ${testng.jars} ${dist.dir}/testsng.jar
 		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
 	rm -vf ${dist.dir}/testsng.jar
 
-tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs}
+tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb
 	rm -rf "${tmp.dir}"
 	mkdir -p "${tmp.dir}"
-	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath src/test/java:src/main/java `find src/test/java -type f -name "*.java"`
+	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${generated.dir}/java:src/test/java:src/main/java `find src/test/java -type f -name "*.java"`
 	${JAVA} \
 		$(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host} -Dhttps.proxyHost=${http.proxy.host}) \
 		$(if ${http.proxy.port},-Dhttp.proxyPort=${http.proxy.port} -Dhttps.proxyPort=${http.proxy.port}) \
@@ -326,6 +326,7 @@ $(eval $(call compile_biostar_cmd,234230,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,251649,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
+$(eval $(call compile-htsjdk-cmd,gb2gff,${jvarkit.package}.tools.genbank.GenbankToGff3,${jcommander.jar} api.ncbi.gb ))
 $(eval $(call compile-htsjdk-cmd,blastmapannots,${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations,${jcommander.jar} api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
 $(eval $(call compile-htsjdk-cmd,blastn2snp,${jvarkit.package}.tools.blast.BlastNToSnp,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,reduceblast,${jvarkit.package}.tools.blast.ReduceBlast,${jcommander.jar} api.ncbi.blast ))

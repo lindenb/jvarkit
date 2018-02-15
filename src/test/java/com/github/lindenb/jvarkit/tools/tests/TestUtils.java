@@ -129,7 +129,40 @@ private static class BamCreator
 		}
 	}
 	
+
+protected static class CommandBuilder
+	{
+	private final List<String> args = new ArrayList<>();
 	
+	
+	public CommandBuilder add(final Object...ss) {
+		for(final Object s :ss) this.args.add(String.valueOf(s));
+		return this;
+		}
+	public CommandBuilder split(final String ss) {
+		for(final String s: ss.split("[ \t]+")) {
+			if(s.isEmpty()) continue;
+			this.args.add(s);
+			}
+		return this;
+		}
+	public CommandBuilder dump() {
+		for(int i=0;i< args.size();++i)
+		{
+			System.err.println("["+(i+1)+"] \""+args.get(i)+"\"");
+		}
+		return this;
+	}
+	public String[] make() {
+		return args.toArray(new String[args.size()]);
+		}
+	}
+
+/** create a new CommandBuilder */
+static protected CommandBuilder newCmd() {
+	return new CommandBuilder();
+}
+
 protected static class ParamCombiner
 	{
 	private List<List<Object>> data = new ArrayList<>();
@@ -314,10 +347,8 @@ protected void assertIsVcf(final File f) {
 }
 
 protected void assertIsNotEmpty(final File f) throws IOException {
-	final FileReader fr=new FileReader(f);
-	int c=0;while(fr.read()!=-1) c++;
-	fr.close();
-	Assert.assertNotEquals(c, 0);
+	Assert.assertNotNull(f,"File is null");
+	Assert.assertFalse(f.length()==0L,"file "+f+" is empty");
 	}
 protected Stream<VariantContext> variantStream(final File vcfFile ) {
 	final VCFFileReader r = new VCFFileReader(vcfFile,false);
