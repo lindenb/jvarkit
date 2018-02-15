@@ -50,7 +50,9 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.testng.Assert;
-import org.testng.annotations.*;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -58,8 +60,6 @@ import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
-import com.github.lindenb.jvarkit.tools.bamstats04.BamStats04;
-import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar59647;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar84452;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
@@ -78,6 +78,8 @@ import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
 import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
+import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
+import com.github.lindenb.jvarkit.tools.misc.BamTile;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
 import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
@@ -90,18 +92,14 @@ import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq;
 import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
-import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef;
 import com.github.lindenb.jvarkit.tools.misc.VcfRemoveUnusedAlt;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
-import com.github.lindenb.jvarkit.tools.misc.VcfTail;
-import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
-import com.github.lindenb.jvarkit.tools.sam2tsv.PrettySam;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
@@ -125,7 +123,6 @@ import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
-import com.github.lindenb.jvarkit.tools.misc.BamTile;
 import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
@@ -136,13 +133,10 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
-
-
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -383,84 +377,9 @@ class TestNg01 {
         Assert.assertTrue( output.exists());
     	}
 
-    @Test(dataProvider="all_vcfs")
-    public void testBioAlcidaeJdkVcf(final String vcfPath) throws IOException{
-    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
     
-        Assert.assertEquals(0,new BioAlcidaeJdk().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-e","print(stream().count());",
-        		vcfPath
-        	}));
-        
-        Assert.assertEquals(
-        		Long.parseLong(IOUtil.slurp(output).trim()),
-        		streamVcf(new File(vcfPath)).count()
-        		);
-        Assert.assertTrue( output.delete());
-    	}
     
-    @Test
-    public void testBioAlcidaeJdkFasta() throws IOException{
-    	final File fasta = new File(TEST_RESULTS_DIR,"jeter.fa");
-		PrintWriter pw = new PrintWriter(fasta);
-		int n = 100;
-		for(int i=0;i< n;++i)
-			{
-			pw.println(">G"+i+"\nGAATTC\nGAATT");
-			}
-		pw.flush();
-		pw.close();
-		
-    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
     
-        Assert.assertEquals(0,new BioAlcidaeJdk().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-e","print(stream().count());",
-        		fasta.getPath()
-        	}));
-        Assert.assertEquals( n ,  Integer.parseInt(IOUtil.slurp(output).trim()));
-        Assert.assertTrue( output.delete());
-        Assert.assertTrue( fasta.delete());
-    	}
-    
-    @Test
-    public void testBioAlcidaeJdkFastq() throws IOException{
-    	final File fastq = new File(TEST_RESULTS_DIR,"jeter.fq");
-		PrintWriter pw = new PrintWriter(fastq);
-		int n = 100;
-		for(int i=0;i< n;++i)
-			{
-			pw.println("@G"+i+"\nGAATTC\n+\n######");
-			}
-		pw.flush();
-		pw.close();
-		
-    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
-    
-        Assert.assertEquals(0,new BioAlcidaeJdk().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-e","print(stream().count());",
-        		fastq.getPath()
-        	}));
-        Assert.assertEquals( n ,  Integer.parseInt(IOUtil.slurp(output).trim()));
-        Assert.assertTrue( output.delete());
-        Assert.assertTrue( fastq.delete());
-    	}
-    
-    @Test
-    public void testBioAlcidaeJdkSam() throws IOException{
-    	final File output = new File(TEST_RESULTS_DIR,"jeter.txt");
-    
-        Assert.assertEquals(0,new BioAlcidaeJdk().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-e","print(stream().count());",
-        		TOY_BAM
-        	}));
-        Assert.assertEquals( 12 ,  Integer.parseInt(IOUtil.slurp(output).trim()));
-        Assert.assertTrue( output.delete());
-    	}
-
     
     @Test(dataProvider="all_vcfs")
     public void testVcfFiltrerJdkVcf(final String vcfPath) throws IOException{
@@ -527,27 +446,7 @@ class TestNg01 {
         	}));
         Assert.assertTrue( JETER_VCF.exists());
     	}
-    @Test(dataProvider="all_vcfs")
-    public void testVcfHead(final String vcfPath) throws IOException{    
-        Assert.assertEquals(0,new VcfHead().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
-        		"-n","1",
-        		TOY_VCF_GZ
-        	}));
-        Assert.assertTrue( JETER_VCF.exists());
-        assertIsVcf(JETER_VCF);
-        Assert.assertEquals(streamVcf(JETER_VCF).count(),1L);
-    	}
-    @Test(dataProvider="all_vcfs")
-    public void testVcfTail(final String vcfPath) throws IOException{    
-        Assert.assertEquals(0,new VcfTail().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
-        		"-n","1",
-        		vcfPath
-        	}));
-        assertIsVcf(JETER_VCF);
-        Assert.assertEquals(streamVcf(JETER_VCF).count(),1L);
-    	}
+
     @Test
     public void testVcfInjectPed() throws IOException{ 
     	final File tmp=new File(TEST_RESULTS_DIR,"tmp.ped.vcf");
@@ -1283,19 +1182,6 @@ class TestNg01 {
     	Assert.assertTrue(outvcf.delete());
 		}
 
-    @Test
-    public void testBamStats04() throws IOException {
-    	final File output =new File(TEST_RESULTS_DIR,"jeter.tsv");
-    	Assert.assertEquals(0,new BamStats04().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"--cov","0","--cov","10","--cov","20",
-        		"-R",TOY_FA,
-        		"-B",TOY_BED_GZ,
-        		TOY_BAM
-        		}));
-    	assertTableIsConsitent(output,null);
-    	Assert.assertTrue(output.delete());
-		}
     
     @Test
     public void testBamTile() throws IOException {
@@ -1353,16 +1239,6 @@ class TestNg01 {
     		}
 
     	ref.close();
-		}
-    @Test
-    public void testPrettySam() throws IOException {
-    	final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
-    	Assert.assertEquals(0,new PrettySam().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-R",TOY_FA,
-        		TOY_BAM
-        		}));
-    	Assert.assertTrue(output.delete());
 		}
     
     @Test

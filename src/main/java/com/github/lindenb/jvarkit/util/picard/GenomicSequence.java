@@ -41,7 +41,6 @@ import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
  * chromosome of a picard IndexedFastaSequenceFile
  *
  */
-@Deprecated//use ReferenceGenomeFactory
 public class GenomicSequence
 	extends AbstractCharSequence
 	implements ChromosomeSequence
