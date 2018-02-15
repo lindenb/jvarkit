@@ -13,6 +13,7 @@
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>
             <package name="com.github.lindenb.jvarkit.tools.biostar"/>
             <package name="com.github.lindenb.jvarkit.tools.ensembl"/>
+            <package name="com.github.lindenb.jvarkit.tools.genbank"/>
             <package name="com.github.lindenb.jvarkit.tools.sam2tsv"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>
         </packages>  

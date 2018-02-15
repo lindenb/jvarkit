@@ -101,13 +101,13 @@ public class Biostar86480 extends Launcher
 	
 	
 	private void digest(
-			String seqName,
+			final String seqName,
 			int position0,
 			final List<Character> sequence,
-			PrintStream out
+			final PrintStream out
 			)
 		{
-		for(Rebase.Enzyme enzyme:this.rebase)
+		for(final Rebase.Enzyme enzyme:this.rebase)
 			{
 			if(enzyme.size()>sequence.size()) continue;
 			for(int strand=0;strand<2;++strand)
@@ -197,7 +197,7 @@ public class Biostar86480 extends Launcher
 		}
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		if(!onlyEnz.isEmpty())
 			{
@@ -207,11 +207,11 @@ public class Biostar86480 extends Launcher
 				Rebase.Enzyme enz=this.rebase.getEnzymeByName(e);
 				if(enz==null)
 					{
-					System.err.println("Cannot find enzyme "+enz +" in RE list.");
-					System.err.println("Current list is:");
-					for(Rebase.Enzyme E: this.rebase)
+					LOG.error("Cannot find enzyme "+e +" in RE list.");
+					LOG.error("Current list is:");
+					for(final Rebase.Enzyme E: this.rebase)
 						{
-						System.err.println("\t"+E);
+						LOG.error("\t"+E);
 						}
 					return -1;
 					}
@@ -230,7 +230,7 @@ public class Biostar86480 extends Launcher
 				}
 			else
 				{
-				for(String arg:args)
+				for(final String arg:args)
 					{
 					LOG.info("Opening "+arg);
 					final Reader in=IOUtils.openURIForBufferedReading(arg);

@@ -51,6 +51,7 @@ import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -121,15 +122,21 @@ public class IOUtils {
 	
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
+		copyTo(f.toPath(),fous);
+		}
+	
+	public static void copyTo(final Path path,final OutputStream fous) throws IOException
+		{
 		InputStream fin=null;
 		try {
-			fin =Files.newInputStream(f.toPath());
+			fin =Files.newInputStream(path);
 			copyTo(fin,fous);
 			fous.flush();
 		} finally {
 			CloserUtil.close(fin);
 			}
 		}
+	
 	
 	/** copy one file to another*/
 	public static void copyTo(final File fin,final File fout) throws IOException
@@ -146,18 +153,22 @@ public class IOUtils {
 			}
 		}
 
-	
-	
-	public static void copyTo(final File f,final Writer fous) throws IOException
+	public static void copyTo(final Path path,final Writer fous) throws IOException
 		{
-		FileReader fin=null;
+		Reader fin=null;
 		try {
-			fin =new FileReader(f);
+			fin = Files.newBufferedReader(path);
 			copyTo(fin,fous);
 			fous.flush();
 		} finally {
 			CloserUtil.close(fin);
 			}
+		}
+
+	
+	public static void copyTo(final File f,final Writer fous) throws IOException
+		{
+		copyTo(f.toPath(),fous);
 		}
 	
 	public static void copyTo(final InputStream in,final File f) throws IOException

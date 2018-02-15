@@ -435,17 +435,6 @@ class TestNg01 {
     	}));
     Assert.assertTrue( tmp.exists());
 	}
-    
-    @Test
-    public void testVcfPolyX() throws IOException{
-        Assert.assertEquals(0,new VCFPolyX().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
-        		"-R",TOY_FA,
-        		"-n","1",
-        		TOY_VCF_GZ
-        	}));
-        Assert.assertTrue( JETER_VCF.exists());
-    	}
 
     @Test
     public void testVcfInjectPed() throws IOException{ 
@@ -548,19 +537,7 @@ class TestNg01 {
     		filter(F->F.getName().startsWith(prefix) && F.getName().endsWith(".vcf")).
     		forEach(F->F.delete());
     	}
-    @Test
-    public void testBiostar86480() throws IOException{    
-    	File tmp = new File(TEST_RESULTS_DIR, "tmp.txt");
-    	Assert.assertEquals(0,new Biostar86480().instanceMain(new String[]{
-        		"-o",tmp.getPath(),
-        		"-E","EcoRI",
-        		"-E","BamHI",
-        		TOY_FA
-        		}));
-    	}
-    
-    
-    
+   
     @Test
     public void testBiostar84452() throws IOException{    
     	File tmp = new File(TEST_RESULTS_DIR, "tmp.bam");
@@ -570,15 +547,7 @@ class TestNg01 {
         		}));
     	Assert.assertTrue(tmp.delete());
     	}
-    @Test
-    public void testBiostar59647() throws IOException{    
-    	File tmp = new File(TEST_RESULTS_DIR, "tmp.xml");
-    	Assert.assertEquals(0,new Biostar59647().instanceMain(new String[]{
-        		"-o",tmp.getPath(),
-        		"-R",TOY_FA,
-        		TOY_BAM
-        		}));
-    	}
+
     @Test
     public void testVcfFilterSo() throws IOException{   
     	File output = new File(TEST_RESULTS_DIR, "jeter.filrerso.vcf");
