@@ -656,7 +656,8 @@ api.ncbi.elink:
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.elink -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/eLink_020511.dtd"
 
 
-api.ncbi.gb:
+api.ncbi.gb: ${generated.dir}/java/gov/nih/nlm/ncbi/gb/ObjectFactory.java
+${generated.dir}/java/gov/nih/nlm/ncbi/gb/ObjectFactory.java :
 	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/gb
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.gb -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"

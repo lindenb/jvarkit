@@ -887,16 +887,7 @@ class TestNg01 {
     	Assert.assertTrue( output.delete());
     	Assert.assertTrue( input.delete());
     	}
-    @Test
-    public void testSAM4WebLogo() throws IOException{   
-		final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
-    	Assert.assertEquals(0,new SAM4WebLogo().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-r","ref2:10-20",
-        		TOY_BAM
-        		}));
-    	Assert.assertTrue( output.delete());
-    	}
+   
     @Test
     public void testMiniCaller() throws IOException{   
 		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");

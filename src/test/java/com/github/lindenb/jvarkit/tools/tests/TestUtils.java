@@ -135,6 +135,11 @@ protected static class CommandBuilder
 	private final List<String> args = new ArrayList<>();
 	
 	
+	public CommandBuilder addIf(boolean b,final Object...ss) {
+		if(b) add(ss);
+		return this;
+		}
+	
 	public CommandBuilder add(final Object...ss) {
 		for(final Object s :ss) this.args.add(String.valueOf(s));
 		return this;
