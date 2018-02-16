@@ -58,6 +58,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/293237](https://www.biostars.org/p/293237)
  * [https://www.biostars.org/p/295040](https://www.biostars.org/p/295040)
  * [https://www.biostars.org/p/297983](https://www.biostars.org/p/297983)
+ * [https://www.biostars.org/p/299255](https://www.biostars.org/p/299255)
 
 
 ## Compilation
@@ -97,32 +98,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Jan 31 16:41:33 2018 +0100 ; cont, playing with collectors ; https://github.com/lindenb/jvarkit/commit/8fcd946496834555873b511195a14ccf4b17466e
-Sat Jan 13 14:50:49 2018 +0100 ; https://www.biostars.org/p/293237/#293240 ; https://github.com/lindenb/jvarkit/commit/4e046ea7bb1ce92c278e7434890d23700ddc665d
-Sat Dec 9 12:42:29 2017 +0100 ; bioalcidaejdk ; https://github.com/lindenb/jvarkit/commit/d6c57c61cf17b1068983c8747a4b3a2272f4c3aa
-Mon Nov 27 17:33:11 2017 +0100 ; exploring jni+htslib ; https://github.com/lindenb/jvarkit/commit/509b01e22a04a34e96c77c0bd5b335c5d7fcec76
-Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
-Mon Nov 20 19:15:20 2017 +0100 ; answer to https://www.biostars.org/p/284852/#284872 ; https://github.com/lindenb/jvarkit/commit/c202551f046c05d1f37dfbc997aeefc0d78d341a
-Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
-Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
-Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
-Mon Oct 9 15:02:56 2017 +0200 ; adding tests, fixing doc ; https://github.com/lindenb/jvarkit/commit/d413e4841552cb4aa7d8eaa444704ea54e9321bd
-Mon Oct 2 15:17:44 2017 +0200 ; https://www.biostars.org/p/275714/#275724 ; https://github.com/lindenb/jvarkit/commit/2f0f3e815c57c55ef971dc7c44912d16d8e06c93
-Thu Sep 28 12:59:36 2017 +0200 ; add import sequence in bioalcidae ; https://github.com/lindenb/jvarkit/commit/57f2867e62d4acde5c99ae73b658e6a0a4652b53
-Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
-Thu Jul 27 16:58:18 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a8aaf2d7df89f44442b36ee1120ee4dd5c1e36e6
-Wed Jul 12 17:06:39 2017 +0200 ; bioalcidaejdk / vcfstats ; https://github.com/lindenb/jvarkit/commit/c610681de3f3ba3f34efe9076a01484580d0d0f3
-Wed Jul 12 10:53:03 2017 +0200 ; bioalcidaejdk + fastq ; https://github.com/lindenb/jvarkit/commit/313ed6b8c913984622e0af33af4ad697fcb5e31a
-Wed Jul 12 10:16:50 2017 +0200 ; bioalcidaejdk ; https://github.com/lindenb/jvarkit/commit/7fd3f7f6a9576ffde4d46eaaffa652d265e6c38d
-```
-
-</details>
 
 ## Contribute
 
@@ -542,12 +517,20 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(F->java.util.regex.Patter
 
 ## Example
 
-> 
-Parse BAM by insertion size and get genomic coordinates
- https://bioinformatics.stackexchange.com/questions/3492/parse-bam-by-insertion-size-and-get-genomic-coordinates
+> Parse BAM by insertion size and get genomic coordinates
+
+https://bioinformatics.stackexchange.com/questions/3492/parse-bam-by-insertion-size-and-get-genomic-coordinates
 
 ```
 $ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>100 && (C.getOperator().equals(CigarOperator.N) || C.getOperator().equals(CigarOperator.D)))).forEach(R->println(R.getContig()+"\t"+R.getStart()+"\t"+R.getEnd()));' input.bam
+```
+
+## Example
+
+Print BED file with NM attributes
+
+```
+java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.hasAttribute("NM")).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getIntegerAttribute("NM")));'
 ```
 
 
