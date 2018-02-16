@@ -22,8 +22,12 @@ import javax.xml.parsers.SAXParserFactory;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.xml.sax.helpers.DefaultHandler;
+
+import com.github.lindenb.jvarkit.tools.tests.TestUtils.ParamCombiner;
+import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -49,7 +53,7 @@ public class TestUtils {
 	private final List<Path> deletePathsAtExit = new Vector<>();
 	private final List<File> deleteFilesAtExit = new Vector<>();
 	protected final Random random = new Random();
-
+	protected final NcbiApiKey ncbiApiKey = new NcbiApiKey();
 	
 	
 private static class FastaCreator
@@ -262,6 +266,14 @@ private List<File> _collectFiles(final File dir, FilenameFilter filter) {
 		}
 	return list;
 	}
+
+
+@DataProvider(name = "all-vcf-files")
+public Object[][] createAllVcfsData() {
+	return new ParamCombiner().
+		initList(collectAllVcfs()).
+		build();
+		}
 
 protected Object[] _collectAllFiles( FilenameFilter filter) {
 	return _collectFiles(new File("./src/test/resources/"),filter).

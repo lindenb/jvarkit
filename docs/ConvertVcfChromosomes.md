@@ -1,7 +1,13 @@
 # ConvertVcfChromosomes
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Convert the names of the chromosomes in a VCF file
 
+
+## DEPRECATED
+
+use `bcftools annotate` with `--rename-chrs file`
 
 ## Usage
 
@@ -73,26 +79,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ConvertVcfChromosomes.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ConvertVcfChromosomes.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Wed Apr 19 17:58:48 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/95f05cfd4e04f5013c22274c49db7bcc4cbbb1c8
-Thu Mar 30 17:38:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bba625df69e00a0aa54de192cdce6fda110a65b4
-Wed Feb 3 14:41:34 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/dea087858303eb791d6e68178742f1fbae2092f0
-Sat Jan 23 14:55:35 2016 +0100 ; factory builder ; https://github.com/lindenb/jvarkit/commit/d70912b7dbbca748cf4d45a0ba44a6bc70f804d7
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Mon Dec 16 14:37:29 2013 +0100 ; rename chromosomes ; https://github.com/lindenb/jvarkit/commit/dfab75cb8c06e47e9989e59df62ec8f3242934c4
-Mon Dec 16 13:56:10 2013 +0100 ; rename chromosomes ; https://github.com/lindenb/jvarkit/commit/5fd05685b9d1cd8b00fae6dc51eb50a41811b6fb
-```
-
-</details>
-
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -114,6 +100,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Deprecated
+
+use `bcftools annotate` with `--rename-chrs file`
+
+> rename chromosomes according to the map in file, with "old_name new_name\n" pairs separated by whitespaces, each on a separate line. 
 
 ## Example
 

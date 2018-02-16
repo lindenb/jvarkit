@@ -45,6 +45,11 @@ import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
+## Deprecated
+
+use `bcftools annotate` with `--rename-chrs file`
+
+> rename chromosomes according to the map in file, with "old_name new_name\n" pairs separated by whitespaces, each on a separate line. 
 
 ## Example
 
@@ -165,7 +170,8 @@ END_DOC
  */
 @Program(name="vcfrenamechr",
 	description="Convert the names of the chromosomes in a VCF file",
-	keywords={"vcf","contig","chromosome","convert"}
+	keywords={"vcf","contig","chromosome","convert"},
+	deprecatedMsg="use `bcftools annotate` with `--rename-chrs file`"
 	)
 public class ConvertVcfChromosomes extends com.github.lindenb.jvarkit.util.jcommander.Launcher {
 	private static final Logger LOG = Logger.build(ConvertVcfChromosomes.class).make();

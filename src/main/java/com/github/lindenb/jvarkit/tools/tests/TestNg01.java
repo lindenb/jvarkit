@@ -307,30 +307,7 @@ class TestNg01 {
         Assert.assertTrue( output.exists());
     	}
     
-    @Test
-    public void testVcfRename() throws IOException {
-    	File output = new File(TEST_RESULTS_DIR,"jeter.vcf");
-    	File mapFile = new File(TEST_RESULTS_DIR,"jeter.tsv");
-    	PrintWriter pw = new PrintWriter(mapFile);
-    	
-    	
-    	BufferedReader br=new BufferedReader(new FileReader(TOY_FA+".fai"));
-    	br.lines().map(L->L.split("\t")[0]).
-    		map(L->L+"\tnew"+L).
-    		forEach(L->pw.println(L));
-    	br.close();
-    	pw.flush();pw.close();
-    	
-        Assert.assertEquals(0,new ConvertVcfChromosomes().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"--mapping",mapFile.getPath(),
-        		TOY_VCF_GZ
-        	}));
-        Assert.assertTrue( getVcfHeader(output).getContigLines().stream().allMatch(C->C.getID().startsWith("new")));
-        Assert.assertTrue(streamVcf(output).allMatch(V->V.getContig().startsWith("new")));
-        Assert.assertTrue( output.delete());
-        Assert.assertTrue( mapFile.delete());
-    	}
+   
     
     @Test(dataProvider="all_vcfs")
     public void testVcfCreateSequenceDictionary(final String vcfPath) throws IOException{

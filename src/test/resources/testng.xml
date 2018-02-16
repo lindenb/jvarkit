@@ -14,6 +14,7 @@
             <package name="com.github.lindenb.jvarkit.tools.biostar"/>
             <package name="com.github.lindenb.jvarkit.tools.ensembl"/>
             <package name="com.github.lindenb.jvarkit.tools.genbank"/>
+            <package name="com.github.lindenb.jvarkit.tools.pubmed"/>
             <package name="com.github.lindenb.jvarkit.tools.sam2tsv"/>
             <package name="com.github.lindenb.jvarkit.tools.sam4weblogo"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>

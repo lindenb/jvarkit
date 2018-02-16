@@ -28,7 +28,8 @@ public class GenBankToGff3Test extends TestUtils{
 		final File gbxml = createTmpFile(".xml");
 		final InputStream xmlin = IOUtils.openURIForReading(NcbiConstants.efetch()+
 				"?db=nuccore&id="+acns+"&rettype=gbwithparts&retmode=xml"
-				);
+						+ super.ncbiApiKey.getAmpParamValue());
+				
 		IOUtils.copyTo(xmlin, gbxml);
 		xmlin.close();
 		assertIsXml(gbxml);
