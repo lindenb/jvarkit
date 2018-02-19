@@ -370,16 +370,6 @@ class TestNg01 {
     	}
     
     @Test
-    public void testSamJdk() throws IOException{
-    	File tmp = new File(TEST_RESULTS_DIR,"jeter.sam");
-    	Assert.assertEquals(0,new SamJdk().instanceMain(new String[]{
-        		"-o",tmp.getPath(),
-        		"-e","return record.getStart()%2==0;",
-        		TOY_BAM
-        	}));
-        Assert.assertTrue( tmp.exists());
-    	}
-    @Test
     public void testBamToRaster() throws IOException{
     	File tmp = new File(TEST_RESULTS_DIR,"jeter.png");
     	Assert.assertEquals(0,new Bam2Raster().instanceMain(new String[]{

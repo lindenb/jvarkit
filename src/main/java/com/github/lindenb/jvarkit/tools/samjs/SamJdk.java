@@ -333,6 +333,18 @@ vcb.genotypes(variant.getGenotypes().
 return vcb.make();
 ```
 
+### Example:
+
+https://bioinformatics.stackexchange.com/questions/3565/
+
+> Subset smaller BAM to contain several thousand rows from multiple chromosomes
+
+```
+$ java -jar dist/samjdk.jar --body -e \
+  'Map<String,Integer> c=new HashMap<>(); public Object apply(SAMRecord r) {int n=c.getOrDefault(r.getContig(),0);if(n>=5000) return false; c.put(r.getContig(),n+1); return r;}' \
+ input.bam
+```
+
 END_DOC
 */
 @Program(name="samjdk",

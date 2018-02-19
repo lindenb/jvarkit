@@ -284,6 +284,15 @@ public Object[][] createAllVcfsData() {
 		build();
 		}
 
+
+@DataProvider(name = "all-sam-or-bam-files")
+public Object[][] createAllSamOrBamData() {
+	return new ParamCombiner().
+		initList(collectAllSamOrBam()).
+		build();
+		}
+
+
 protected Object[] _collectAllFiles( FilenameFilter filter) {
 	return _collectFiles(new File("./src/test/resources/"),filter).
 			stream().

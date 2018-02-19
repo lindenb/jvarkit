@@ -1,5 +1,7 @@
 # SamJdk
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filters a BAM using a java expression compiled in memory.
 
 
@@ -115,36 +117,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samjs/SamJdk.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri Dec 1 12:42:00 2017 +0100 ; biostars answer, adding --reference to findallcoverageatpos ; https://github.com/lindenb/jvarkit/commit/74e2d2f9f0d34ca5081915c65a7b7ea35f160ec5
-Thu Nov 30 10:36:07 2017 +0100 ; moving to read+jexl expression, new answer for samjdk on biostars ; https://github.com/lindenb/jvarkit/commit/f9615d4184c51a1546200e88a74ac1c6729b05a3
-Wed Nov 29 17:09:58 2017 +0100 ; adding samjdk / biostars answer ; https://github.com/lindenb/jvarkit/commit/9ed7b941944f653f5ca5cc822e069108ab8deaf6
-Tue Nov 28 11:44:41 2017 +0100 ; htslib + example in samjdk ; https://github.com/lindenb/jvarkit/commit/2508162bbfa50eb2242b56f4d40e37bdc3a9476d
-Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
-Sun Nov 19 14:02:56 2017 +0100 ; java, not javascript ! ; https://github.com/lindenb/jvarkit/commit/927ad7ec8655ac50185117702f9a4a90b274bf78
-Sun Nov 19 13:42:31 2017 +0100 ; adding message + checking https://github.com/lindenb/jvarkit/issues/90 ; https://github.com/lindenb/jvarkit/commit/5535f01de81b929284420ba1cf34b15247f13363
-Sun Nov 19 13:39:53 2017 +0100 ; adding message + checking https://github.com/lindenb/jvarkit/issues/90 ; https://github.com/lindenb/jvarkit/commit/6cee6caca575f1dee3efe872fb93908b2455be32
-Thu Nov 16 11:26:49 2017 +0100 ; samjdk + biostars:283969 ; https://github.com/lindenb/jvarkit/commit/3b48be1b9558518e8c694508844b219904ea7d4f
-Fri Nov 10 20:29:31 2017 +0100 ; message about read order in samjdk ; https://github.com/lindenb/jvarkit/commit/5345f8eebe59d1dbb4ff21357e6a9b6da857b2c6
-Fri Nov 10 17:07:13 2017 +0100 ; samjdk with pair mode, added sortmethod, fixed trapindex, fat-jar ; https://github.com/lindenb/jvarkit/commit/7eba4eda059e4ddbef27544cd87910131cf1f4a9
-Wed Oct 25 09:48:05 2017 +0200 ; added counter<> to vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/282000fc2db2a3b69e7291a2ca74f2d88b6fbcb2
-Wed Oct 25 09:07:39 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/22be73c425473ed5b4839038f2091d454b96c2f0
-Tue Oct 24 18:09:10 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f385f736efe12ab781498662a46f08887e61b048
-Fri Oct 20 09:53:19 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/76b0e511e054e438c38d2157bbc0e148480288bb
-Wed Oct 4 08:45:59 2017 +0200 ; answer to bioinfo-se for samjdk ; https://github.com/lindenb/jvarkit/commit/6e147ce66a28fa3758be3b65898b9237dccdca41
-Mon Oct 2 09:16:12 2017 +0200 ; answer bioinformatics-se ; https://github.com/lindenb/jvarkit/commit/5a796015b9797e2803d01763a3d4c3cc80861c09
-Fri Sep 22 20:46:51 2017 +0200 ; https://www.biostars.org/p/274183/#274186 ; https://github.com/lindenb/jvarkit/commit/b2de07ddab29f1e6f5dc5e5dda4b746bcf1d19b5
-Wed Sep 6 14:49:24 2017 +0200 ; fixing typos, starting to generate VariantContextWriterFactory for spring xml ; https://github.com/lindenb/jvarkit/commit/cf023e059af85f6c266c56a8f7db6ff78e4a5134
-Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
-Mon Aug 7 15:05:18 2017 +0200 ; samjdk ; https://github.com/lindenb/jvarkit/commit/93cb0448be4d6deb253b21620d1da63ad2be9475
-```
-
-</details>
 
 ## Contribute
 
@@ -432,6 +404,18 @@ vcb.genotypes(variant.getGenotypes().
     collect(Collectors.toList())
     );
 return vcb.make();
+```
+
+### Example:
+
+https://bioinformatics.stackexchange.com/questions/3565/
+
+> Subset smaller BAM to contain several thousand rows from multiple chromosomes
+
+```
+$ java -jar dist/samjdk.jar --body -e \
+  'Map<String,Integer> c=new HashMap<>(); public Object apply(SAMRecord r) {int n=c.getOrDefault(r.getContig(),0);if(n>=5000) return false; c.put(r.getContig(),n+1); return r;}' \
+ input.bam
 ```
 
 

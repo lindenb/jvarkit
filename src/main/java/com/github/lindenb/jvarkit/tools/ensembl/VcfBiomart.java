@@ -30,7 +30,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -40,7 +39,6 @@ import java.util.stream.Collectors;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
@@ -72,15 +70,11 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
 
 
 /**
@@ -161,6 +155,8 @@ public class VcfBiomart extends Launcher
 	private String serviceUrl="http://grch37.ensembl.org/biomart/martservice";
 	@Parameter(names={"-tee","--tee"},description="'Tee' response to stderr")
 	private boolean teeResponse = false;
+	@Parameter(names={"-label","--label","--labels"},description="Add the field label in the INFO attribute 'label1|value1|label2|value2'")
+	private boolean printLabels = false;
 
 	private class FilterColumn
 		{
@@ -214,7 +210,8 @@ public class VcfBiomart extends Launcher
 
 			final VCFHeader header= iter.getHeader();
 			StringBuilder desc=new StringBuilder("Biomart query. Format: ");
-			desc.append(String.join("|", this.attributes));
+			
+			desc.append(this.attributes.stream().map(S->this.printLabels?S+"|"+S:S).collect(Collectors.joining("|")));
 			
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
@@ -230,6 +227,8 @@ public class VcfBiomart extends Launcher
 			while(iter.hasNext())
 				{
 				final VariantContext ctx = progress.watch(iter.next());
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				vcb.rmAttribute(this.TAG);
 				
 				this.filterColumnContig.set(ctx.getContig());
 				this.filterColumnStart.set(String.valueOf(ctx.getStart()));
@@ -239,14 +238,9 @@ public class VcfBiomart extends Launcher
 						new DOMSource(this.domQuery),
 						new StreamResult(domToStr)
 						);
-				
-				String escapedQuery = domToStr.toString().
-						replace("\n"," ").
-						replaceAll("[ \t]+"," ")
-						;
-				
+								
 				final URIBuilder builder = new URIBuilder(this.serviceUrl);
-				builder.addParameter("query", escapedQuery);
+				builder.addParameter("query", domToStr.toString());
 				
 				//System.err.println("\nwget -O - 'http://grch37.ensembl.org/biomart/martservice?query="+escapedQuery+"'\n");
 				//escapedQuery = URLEncoder.encode(escapedQuery,"UTF-8");
@@ -270,18 +264,25 @@ public class VcfBiomart extends Launcher
 						 lines().
 						 filter(L->!StringUtil.isBlank(L)).
 						 filter(L->!L.equals("[success]")).
-						 map(L->escapeInfo(String.join("|",tab.split(L)))).
+						 map(L->tab.split(L)).
+						 map(T->{
+							final StringBuilder sb=new StringBuilder();
+							for(int i=0; i< this.attributes.size();i++)
+								{
+								if(i>0) sb.append("|");
+								if(this.printLabels) sb.append(escapeInfo(this.attributes.get(i))).append("|");
+								sb.append(i< T.length?escapeInfo(T[i]):"");
+								}	
+							return sb.toString();
+						 }).
 						 collect(Collectors.toCollection(LinkedHashSet::new));
 				CloserUtil.close(br);
 				CloserUtil.close(response);
 				CloserUtil.close(httpResponse);
-				if(infoAtts.isEmpty())
+				if(!infoAtts.isEmpty())
 					{
-					out.add(ctx);
-					continue;
+					vcb.attribute(this.TAG, new ArrayList<>(infoAtts));
 					}
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				vcb.attribute(TAG, new ArrayList<>(infoAtts));
 				out.add(vcb.make());
 				}
 			progress.finish();

@@ -21,6 +21,9 @@ Usage: vcfbiomart [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -label, --label, --labels
+      Add the field label in the INFO attribute 'label1|value1|label2|value2'
+      Default: false
     -u, --url, --mart
        (url) biomart service url. See 
       http://grch37.ensembl.org/info/data/biomart/biomart_restful.html 
