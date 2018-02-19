@@ -1,5 +1,7 @@
 # VcfBiomart
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 BiomartQueries with VCF
 
 
@@ -8,35 +10,36 @@ BiomartQueries with VCF
 ```
 Usage: vcfbiomart [options] Files
   Options:
+    -C, --contig, --chrom
+      @name attribute <Filter> in the <Query> xml document.
+      Default: chromosome_name
+    -E, --end
+       (int) column index (1-based) for end . Optional
+      Default: end
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -u, --url, --mart
+       (url) biomart service url. See 
+      http://grch37.ensembl.org/info/data/biomart/biomart_restful.html 
+      Default: http://grch37.ensembl.org/biomart/martservice
     -o, --output
       Output file. Optional . Default: stdout
-    --version
-      print version and exit
-    -C
-       (int) column index (1-based) for chromosome . Optional
-      Default: -1
-    -E
-       (int) column index (1-based) for end . Optional
-      Default: -1
-    -S
+    -S, --start
        (int) column index (1-based) for start . Optional
-      Default: -1
-    -T
+      Default: start
+    -T, --tag
        (string) VCF output tag.
       Default: BIOMART
-    -X
-       (XML-file) XML biomart template.
-    -n
-       (int) batch size.);
-      Default: 200
-    -u
-       (url) biomart service url
-      Default: http://www.biomart.org/biomart/martservice/result
+    -tee, --tee
+      'Tee' response to stderr
+      Default: false
+    --version
+      print version and exit
+  * -X, --xml
+       (XML-file) XML biomart template. <Query>...</Query>
 
 ```
 
@@ -84,24 +87,7 @@ http.proxy.port=124567
 ```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfbiomart/VcfBiomart.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfbiomart/VcfBiomart.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri May 19 17:10:13 2017 +0200 ; cont doc ; https://github.com/lindenb/jvarkit/commit/d2aea1eaa554d0498b197fb8fac01893b10ceb83
-Tue May 16 12:40:09 2017 +0200 ; doc ; https://github.com/lindenb/jvarkit/commit/ce1caf182662dc4690ec9c90e8fdd567fafa7a1e
-Wed May 3 17:57:20 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/db456cbf0b6586ea60a4fe8ea05a5af7457d5d6e
-Tue Jun 16 17:40:00 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f394e306c86bd45240d165c69748acf44f0b38ec
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Thu Dec 26 21:35:12 2013 +0100 ; vcf biomart ; https://github.com/lindenb/jvarkit/commit/0350d93620b2c35ed68fc8f10c99f9d2e6205680
-```
-
-</details>
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ensembl/VcfBiomart.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ensembl/VcfBiomart.java)
 
 ## Contribute
 
@@ -124,114 +110,54 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+##History
+
+* rewritten 2018-02-19
+
 ##Example
 
-Let's annotate a VCF with the gene-ncbi/gene-start/gene-end/gene-ncbiGeneId .
-
-From Ensembl, we've downloaded the following XML file:
+the XML query:
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Query>
 <Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
 			
 	<Dataset name = "hsapiens_gene_ensembl" interface = "default" >
-		<Attribute name = "chromosome_name" />
+		<Filter name = "end" value = "10000000"/>
+		<Filter name = "start" value = "1000000"/>
+		<Filter name = "chromosome_name" value = "4"/>
+		<Attribute name = "ensembl_gene_id" />
+		<Attribute name = "ensembl_transcript_id" />
 		<Attribute name = "start_position" />
 		<Attribute name = "end_position" />
-		<Attribute name = "entrezgene" />
+		<Attribute name = "external_transcript_name" />
+		<Attribute name = "transcription_start_site" />
+		<Attribute name = "transcript_start" />
+		<Attribute name = "transcript_end" />
 	</Dataset>
 </Query>
 ```
-This file is used  as follow:
 
-```bash
-$  curl -s "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\
-  sed 's/chr//g' |\
- java -jar dist/vcfbiomart.jar -X mart.xml -T NCBIGENE  -C 1 -S 2 -E 3 |\
- grep NCBIGENE
+the XML file above contains three fields that will be used/replaced to query the position of a variant:
 
-##INFO=<ID=NCBIGENE,Number=.,Type=String,Description="Biomart query. Format:chromosome_name|start_position|end_position|entrezgene">
-1	145273345	.	T	C	289.85	.	NCBIGENE=1|145209119|145291972|388677,1|145209145|145319796|	GT:AD:DP:GQ:PL	0/0:226,22:250:99:0,158,4259	0/1:224,24:250:5.77:6,0,5314	0/1:219,28:249:57.30:57,0,5027	0/1:215,34:250:99:269,0,3796
-10	1142208	.	T	C	3404.30	.	NCBIGENE=10|1095478|1178237|22884	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
-10	135210791	.	T	C	65.41	.	NCBIGENE=10|135204338|135233999|,10|135207598|135234811|92170	GT:AD:DP:GQ:PL	0/0:4,0:4:9:0,9,84	1/1:0,3:3:6.02:74,6,0	1/1:0,1:1:3.01:37,3,0	0/0:3,0:3:9.02:0,9,100
-```
-###XML attributes: @chrom/@start/@end.
-By adding the attributes chrom=true, start=true end=true the column for chrom/start/end can be specified in the XML
-```XML
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE Query>
-<Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
-			
-	<Dataset name = "hsapiens_gene_ensembl" interface = "default" >
-		<Attribute name = "chromosome_name" chrom="true"/>
-		<Attribute name = "start_position" start="true"/>
-		<Attribute name = "end_position" end="true" />
-		<Attribute name = "entrezgene" />
-	</Dataset>
-</Query>
-```
-```bash
-$  curl -s "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\
-  sed 's/chr//g' |\
- java -jar dist/vcfbiomart.jar -X mart.xml -T NCBIGENE  |\
- grep NCBIGENE
-
-##INFO=<ID=NCBIGENE,Number=.,Type=String,Description="Biomart query. Format:chromosome_name|start_position|end_position|entrezgene">
-1	145273345	.	T	C	289.85	.	NCBIGENE=1|145209119|145291972|388677,1|145209145|145319796|	GT:AD:DP:GQ:PL	0/0:226,22:250:99:0,158,4259	0/1:224,24:250:5.77:6,0,5314	0/1:219,28:249:57.30:57,0,5027	0/1:215,34:250:99:269,0,3796
-10	1142208	.	T	C	3404.30	.	NCBIGENE=10|1095478|1178237|22884	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
-10	135210791	.	T	C	65.41	.	NCBIGENE=10|135204338|135233999|,10|135207598|135234811|92170	GT:AD:DP:GQ:PL	0/0:4,0:4:9:0,9,84	1/1:0,3:3:6.02:74,6,0	1/1:0,1:1:3.01:37,3,0	0/0:3,0:3:9.02:0,9,100
-```
-###Hiding columns: @visible=false
-By adding the attribute visible=false, some columns can be removed from the result.
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE Query>
-<Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
-			
-	<Dataset name = "hsapiens_gene_ensembl" interface = "default" >
-		<Attribute name = "chromosome_name" chrom="true" visible="false"/>
-		<Attribute name = "start_position" start="true" visible="false"/>
-		<Attribute name = "end_position" end="true" visible="false"/>
-		<Attribute name = "entrezgene" />
-	</Dataset>
-</Query>
+	<Filter name = "end" value = "10000000"/>
+	<Filter name = "start" value = "1000000"/>
+	<Filter name = "chromosome_name" value = "4"/>
 ```
 
-```bash
-$  curl -s "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\
-  sed 's/chr//g' |\
- java -jar dist/vcfbiomart.jar -X mart.xml -T NCBIGENE  |\
- grep NCBIGENE
+running the query:
 
-##INFO=<ID=NCBIGENE,Number=.,Type=String,Description="Biomart query. Format:entrezgene">
-1	145273345	.	T	C	289.85	.	NCBIGENE=388677	GT:AD:DP:GQ:PL	0/0:226,22:250:99:0,158,4259	0/1:224,24:250:5.77:6,0,5314	0/1:219,28:249:57.30:57,0,5027	0/1:215,34:250:99:269,0,3796
-10	1142208	.	T	C	3404.30	.	NCBIGENE=22884	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
-10	135210791	.	T	C	65.41	.	NCBIGENE=92170	GT:AD:DP:GQ:PL	0/0:4,0:4:9:0,9,84	1/1:0,3:3:6.02:74,6,0	1/1:0,1:1:3.01:37,3,0	0/0:3,0:3:9.02:0,9,100
-```
-if all the attributes are set to visible=false, the INFO is set to 'Flag'
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE Query>
-<Query  virtualSchemaName = "default" formatter = "TSV" header = "0" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
-			
-	<Dataset name = "hsapiens_gene_ensembl" interface = "default" >
-		<Attribute name = "chromosome_name" chrom="true" visible="false"/>
-		<Attribute name = "start_position" start="true" visible="false"/>
-		<Attribute name = "end_position" end="true" visible="false"/>
-		<Attribute name = "entrezgene" visible="false"/>
-	</Dataset>
-</Query>
+java  dist/vcfbiomart.jar -X query.xml input.vcf
 ```
 
-```bash
-$  curl -s "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\
-  sed 's/chr//g' |\
- java -jar dist/vcfbiomart.jar -X mart.xml -T NCBIGENE  |\
- grep NCBIGENE
-
-##INFO=<ID=NCBIGENE,Number=0,Type=Flag,Description="Biomart query.">
-1	145273345	.	T	C	289.85	.	NCBIGENE	GT:AD:DP:GQ:PL	0/0:226,22:250:99:0,158,4259	0/1:224,24:250:5.77:6,0,5314	0/1:219,28:249:57.30:57,0,5027	0/1:215,34:250:99:269,0,3796
-10	1142208	.	T	C	3404.30	.	NCBIGENE	GT:AD:DP:GQ:PL	1/1:1,37:39:87.16:940,87,0	1/1:0,29:29:78.20:899,78,0	1/1:0,24:24:66.14:729,66,0	1/1:0,30:30:75.18:836,75,0
-10	135210791	.	T	C	65.41	.	NCBIGENE	GT:AD:DP:GQ:PL	0/0:4,0:4:9:0,9,84	1/1:0,3:3:6.02:74,6,0	1/1:0,1:1:3.01:37,3,0	0/0:3,0:3:9.02:0,9,100
 ```
+##INFO=<ID=BIOMART,Number=.,Type=String,Description="Biomart query. Format: ensembl_gene_id|ensembl_transcript_id|start_position|end_position|external_transcript_name|transcription_start_site|transcript_start|transcript_end">
+(...)
+(...)A|||||4113|;BIOMART=ENSG00000183873|ENST00000414099|38589548|38691164|SCN5A-004|38674840|38589548|38674840,ENSG00000183873|ENST00000423572|38589548|38691164|SCN5A-003|38674853|38589553|38674853,ENSG00000183873|ENST00000413689|38589548|38691164|SCN5A-001|38691163|38589553|38691163,ENSG00000183873|ENST00000333535|38589548|38691164|SCN5A-014|38691119|38589557|38691119,ENSG00000183873|ENST00000455624|38589548|38691164|SCN5A-002|38674823|38590619|38674823,ENSG00000183873|ENST00000450102|38589548|38691164|SCN5A-008|38674840|38591459|38674840,ENSG00000183873|ENST00000449557|38589548|38691164|SCN5A-010|38674807|38591812|38674807,ENSG00000183873|ENST00000464652|38589548|38691164|SCN5A-011|38596040|38594472|38596040,ENSG00000183873|ENST00000491944|38589548|38691164|SCN5A-005|38691164|38655519|38691164,ENSG00000183873|ENST00000476683|38589548|38691164|SCN5A-013|38674711|38671333|38674711,ENSG00000183873|ENST00000327956|38589548|38691164|SCN5A-006|38687267|38674602|38687267,ENSG00000183873|ENST00000451551|38589548|38691164|SCN5A-203|38691164|38589553|38691164,ENSG00000183873|ENST00000443581|38589548|38691164|SCN5A-202|38691163|38589553|38691163,ENSG00000183873|ENST00000425664|38589548|38691164|SCN5A-201|38691163|38589553|38691163;(...)
+(...)
+```
+
 

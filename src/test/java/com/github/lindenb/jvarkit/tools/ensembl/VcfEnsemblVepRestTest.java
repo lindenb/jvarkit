@@ -58,16 +58,8 @@ public class VcfEnsemblVepRestTest extends TestUtils {
 		
 		}
 	
-	@DataProvider(name = "src2")
-	public Object[][] createData2() {
-		return new Object[][] {
-			{"1",43_996_511,"CGCGAGCGCGAGGGGAGCGCGCGGCTGGAGCTGGCGCGGGAGCGGCGGGAGCGGTGGCGGCGGCAGAGGCGGCGGCTCCAGCTTCGGCTCC"},
-			{"22",41_756_126,"CTAGAAAATAAACTTGTGCACTTTGACCTCTGTCCCCGAGATGT"},
-			{"MT",5_881,"AGCCATTTTACCTCACCCCCACTGATGTTC"}
-		};
-		}
 		
-	@Test(dataProvider="src2")
+	@Test(dataProvider="genomic-segments")
 	public void test02(final String contig,int chromStart,String dna) 
 		throws IOException
 		{

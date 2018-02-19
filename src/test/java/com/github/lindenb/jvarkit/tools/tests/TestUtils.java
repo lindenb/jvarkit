@@ -268,6 +268,15 @@ private List<File> _collectFiles(final File dir, FilenameFilter filter) {
 	}
 
 
+@DataProvider(name = "genomic-segments")
+public Object[][] createSomeGenomicSegments() {
+	return new Object[][] {
+		{"1",43_996_511,"CGCGAGCGCGAGGGGAGCGCGCGGCTGGAGCTGGCGCGGGAGCGGCGGGAGCGGTGGCGGCGGCAGAGGCGGCGGCTCCAGCTTCGGCTCC"},
+		{"22",41_756_126,"CTAGAAAATAAACTTGTGCACTTTGACCTCTGTCCCCGAGATGT"},
+		{"MT",5_881,"AGCCATTTTACCTCACCCCCACTGATGTTC"}
+	};
+	}
+
 @DataProvider(name = "all-vcf-files")
 public Object[][] createAllVcfsData() {
 	return new ParamCombiner().

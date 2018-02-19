@@ -422,7 +422,7 @@ $(eval $(call compile-htsjdk-cmd,vcf2sql,${jvarkit.package}.tools.vcf2sql.VcfToS
 $(eval $(call compile-htsjdk-cmd,vcf2xml,${jvarkit.package}.tools.vcf2xml.Vcf2Xml,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfannobam,${jvarkit.package}.tools.vcfannobam.VCFAnnoBam,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfbed,${jvarkit.package}.tools.vcfbed.VCFBed,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfbiomart,${jvarkit.package}.tools.vcfbiomart.VcfBiomart,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfbiomart,${jvarkit.package}.tools.ensembl.VcfBiomart,${jcommander.jar} ${httpclient.libs}))
 $(eval $(call compile-htsjdk-cmd,vcfcadd,${jvarkit.package}.tools.misc.VcfCadd,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfnocall2homref,${jvarkit.package}.tools.misc.VcfNoCallToHomRef,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcmppred,${jvarkit.package}.tools.vcfcmp.VCFComparePredictions,${jcommander.jar}))
