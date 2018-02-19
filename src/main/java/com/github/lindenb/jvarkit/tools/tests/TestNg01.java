@@ -60,9 +60,7 @@ import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
-import com.github.lindenb.jvarkit.tools.biostar.Biostar59647;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar84452;
-import com.github.lindenb.jvarkit.tools.biostar.Biostar86480;
 import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterGenes;
@@ -82,7 +80,6 @@ import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.misc.BamTile;
 import com.github.lindenb.jvarkit.tools.misc.BamToSql;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
-import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
 import com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.misc.FixVcfMissingGenotypes;
@@ -90,7 +87,6 @@ import com.github.lindenb.jvarkit.tools.misc.Gff2KnownGene;
 import com.github.lindenb.jvarkit.tools.misc.GoUtils;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq;
-import com.github.lindenb.jvarkit.tools.misc.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef;
@@ -100,9 +96,6 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
-import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
-import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
-import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.trap.TrapIndexer;
 import com.github.lindenb.jvarkit.tools.trap.VcfTrap;
@@ -316,17 +309,6 @@ class TestNg01 {
         Assert.assertEquals(0,new VcfCreateDictionary().instanceMain(new String[]{
         		"-o",output.getPath(),
         		vcfPath
-        	}));
-        Assert.assertTrue( output.exists());
-    	}
-    @Test
-    public void testSam2Tsv() throws IOException{
-    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
-    
-        Assert.assertEquals(0,new Sam2Tsv().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-R",TOY_FA,
-        		TOY_BAM
         	}));
         Assert.assertTrue( output.exists());
     	}
