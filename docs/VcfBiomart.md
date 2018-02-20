@@ -52,6 +52,7 @@ Usage: vcfbiomart [options] Files
  * vcf
  * ensembl
  * biomart
+ * annotation
 
 
 ## Compilation
@@ -113,11 +114,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-##History
+## History
 
 * rewritten 2018-02-19
 
-##Example
+## Example
 
 the XML query:
 

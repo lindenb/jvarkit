@@ -345,12 +345,22 @@ $ java -jar dist/samjdk.jar --body -e \
  input.bam
 ```
 
+### Example:
+
+>  getting a list of alignment with a particular bam tag from a bam file 
+
+```bash
+$ java -jar dist/samjdk.jar --body \
+     -e 'Set<String> xc = null;  public Object apply( SAMRecord R) { if(xc==null) try {xc=new HashSet<>(IOUtil.slurpLines(new java.io.File("needed.txt")));} catch(Exception e) {throw new RuntimeIOException(e);} String att= R.getStringAttribute("XC"); return att!=null && xc.contains(att);}' \
+     input.bam
+```
+
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
-	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,287057},
+	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,287057,299673},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJdk

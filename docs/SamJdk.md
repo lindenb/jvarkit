@@ -78,6 +78,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/286851](https://www.biostars.org/p/286851)
  * [https://www.biostars.org/p/286819](https://www.biostars.org/p/286819)
  * [https://www.biostars.org/p/287057](https://www.biostars.org/p/287057)
+ * [https://www.biostars.org/p/299673](https://www.biostars.org/p/299673)
 
 
 ## Compilation
@@ -416,6 +417,16 @@ https://bioinformatics.stackexchange.com/questions/3565/
 $ java -jar dist/samjdk.jar --body -e \
   'Map<String,Integer> c=new HashMap<>(); public Object apply(SAMRecord r) {int n=c.getOrDefault(r.getContig(),0);if(n>=5000) return false; c.put(r.getContig(),n+1); return r;}' \
  input.bam
+```
+
+### Example:
+
+>  getting a list of alignment with a particular bam tag from a bam file 
+
+```bash
+$ java -jar dist/samjdk.jar --body \
+     -e 'Set<String> xc = null;  public Object apply( SAMRecord R) { if(xc==null) try {xc=new HashSet<>(IOUtil.slurpLines(new java.io.File("needed.txt")));} catch(Exception e) {throw new RuntimeIOException(e);} String att= R.getStringAttribute("XC"); return att!=null && xc.contains(att);}' \
+     input.bam
 ```
 
 

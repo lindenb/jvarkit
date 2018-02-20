@@ -272,35 +272,6 @@ class TestNg01 {
 		r.close();
 		return h;
 	 	}
-	
-    @Test(dataProvider="all_vcfs")
-    public void testVcf2Table(final String vcfPath) {
-    	File output = new File(TEST_RESULTS_DIR,"jeter.txt");
-        Assert.assertEquals(0,new VcfToTable().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		vcfPath
-        	}));
-        Assert.assertTrue( output.exists());
-    	}
-    @Test
-    public void testVcfSetSequenceDictionary() throws IOException {
-    	File output = new File(TEST_RESULTS_DIR,"jeter.vcf");
-    	File dict = new File(TEST_RESULTS_DIR,"jeter.dict");
-    	PrintWriter pw = new PrintWriter(dict);
-    	BufferedReader br=new BufferedReader(new FileReader(TOY_DICT));
-    	br.lines().map(L->L.replace("\tSN:", "\tSN:chr")).forEach(L->pw.println(L));
-    	br.close();
-    	pw.flush();pw.close();
-    	
-        Assert.assertEquals(0,new VcfSetSequenceDictionary().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-R",dict.getPath(),
-        		TOY_VCF_GZ
-        	}));
-        Assert.assertTrue( output.exists());
-    	}
-    
-   
     
     @Test(dataProvider="all_vcfs")
     public void testVcfCreateSequenceDictionary(final String vcfPath) throws IOException{
@@ -568,16 +539,7 @@ class TestNg01 {
     	Assert.assertTrue(tmp.delete());
     	}
     
-    @Test
-    public void testVcfStats() throws IOException{    
-    	final File tmp = new File(TEST_RESULTS_DIR, "jeter.zip");
-
-    	Assert.assertEquals(0,new VcfStats().instanceMain(new String[]{
-        		"-o",tmp.getPath(),
-        		"--pedigree",PED01,
-        		VCF01}));
-    	Assert.assertTrue( tmp.exists());
-    	}
+   
     
     @Test
     public void testVcfMoveFiltersToInfo() throws IOException{    
@@ -848,16 +810,7 @@ class TestNg01 {
     	assertIsVcf(output);
     	Assert.assertTrue( output.delete());
     	}
-    @Test
-    public void testVCFTrios() throws IOException{   
-		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
-    	Assert.assertEquals(0,new VCFTrios().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-p",PED01,
-        		VCF01
-        		}));
-    	Assert.assertTrue( output.delete());
-    	}
+    
     @Test
     public void testVcfMultiToOne() throws IOException{   
 		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");

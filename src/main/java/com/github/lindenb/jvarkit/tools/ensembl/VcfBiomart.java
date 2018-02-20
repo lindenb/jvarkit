@@ -80,11 +80,11 @@ import org.apache.http.impl.client.HttpClients;
 /**
 BEGIN_DOC
 
-##History
+## History
 
 * rewritten 2018-02-19
 
-##Example
+## Example
 
 the XML query:
 
@@ -135,7 +135,7 @@ END_DOC
 @Program(
 		name="vcfbiomart",
 		description="BiomartQueries with VCF",
-		keywords={"vcf","ensembl","biomart"})
+		keywords={"vcf","ensembl","biomart","annotation"})
 public class VcfBiomart extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfBiomart.class).make();

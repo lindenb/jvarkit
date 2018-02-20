@@ -113,7 +113,7 @@ public class VcfVcf extends Launcher
 				while(iter.hasNext())
 					{
 					VariantContext ctx3=iter.next();
-					if(!ctx3.getChr().equals(ctx1.getStart())) continue;
+					if(!ctx3.getContig().equals(ctx1.getContig())) continue;
 					if(ctx3.getStart()!=ctx1.getStart()) continue;
 					if(ctx3.getEnd()!=ctx1.getEnd()) continue;
 					
