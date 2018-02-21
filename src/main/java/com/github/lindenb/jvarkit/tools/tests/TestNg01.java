@@ -374,21 +374,6 @@ class TestNg01 {
         		);
     	}
     
-    @Test
-    public void testVcfToSvg() throws IOException{    
-    	File svg = new File(TEST_RESULTS_DIR,"jeter.__SEGMENT__.svg");
-    	Assert.assertTrue(svg.getName().contains("__SEGMENT__"));
-    	Assert.assertEquals(0,new VcfToSvg().instanceMain(new String[]{
-        		"-o",svg.getPath(),
-        		"--stopAfterFirst",
-        		"-k",KNOWN_GENES01,
-        		VCF01}));
-    	final File svg2= new File(TEST_RESULTS_DIR,"jeter.1_861120_894679.svg");
-    	
-    	assertIsXml(svg2);
-    	
-    	Assert.assertTrue( svg2.delete());
-    	}
     
     @Test(dataProvider="all_vcfs")
     public void testVcfToHilbert(final String vcfPath) throws IOException{    
