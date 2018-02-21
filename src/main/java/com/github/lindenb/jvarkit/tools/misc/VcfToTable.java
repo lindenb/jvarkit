@@ -710,6 +710,8 @@ public class VcfToTable extends Launcher {
 		private boolean hideInfo=false;
 		@Parameter(names={"--hidePredictions"},description="[20170808] hide SNPEFF/VEP table.")
 		private boolean hidePredictions=false;
+		@Parameter(names={"--hideGTypes"},description="[20180221] hide Genotype.Type table")
+		private boolean hideGTypes=false;
 		@Parameter(names={"--format"},description="[20171020] output format.")
 		private OutputFormat outputFormat=OutputFormat.text;
 		@Parameter(names={"--no-html-header"},description="[20171023] ignore html header for HTML output.")
@@ -1128,6 +1130,23 @@ public class VcfToTable extends Launcher {
 					t.removeEmptyColumns();
 					this.writeTable(margin, t);
 					}
+				
+				if(!getOwner().hideGTypes && vc.hasGenotypes()) {
+					final Table t=new Table("Type","Count","%").
+							setCaption("Genotype Types");
+					vc.getGenotypes().stream().map(G->G.getType()).
+						collect(Collectors.groupingBy(  Function.identity(), Collectors.counting())).
+							entrySet().
+							stream().
+							sorted((A,B)->B.getValue().compareTo(A.getValue())).
+							map(E->new Object[] {(Object)E.getKey().name(),(Object)E.getValue(),(Object)new Integer((int)(100.0*(E.getValue()/(double)vc.getNSamples())))}).
+							forEach(R->t.addRow(R))
+							;
+					
+					t.removeEmptyColumns();
+					this.writeTable(margin, t);
+					}
+				
 				if(!getOwner().hideGenotypes && vc.hasGenotypes())
 					{
 					//margin = margin+ DEFAULT_MARGIN;
@@ -1588,6 +1607,9 @@ public class VcfToTable extends Launcher {
 		}
 		public void setUserCustomUrl(final String userCustomUrl) {
 			this.userCustomUrl = userCustomUrl;
+		}
+		public void setHideGTypes(boolean hideGTypes) {
+			this.hideGTypes = hideGTypes;
 		}
 		
 		@Override

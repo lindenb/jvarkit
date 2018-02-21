@@ -28,6 +28,9 @@ Usage: vcf2table [options] Files
     --hideFilters
       [20170808] hide Filters table.
       Default: false
+    --hideGTypes
+      [20180221] hide Genotype.Type table
+      Default: false
     -g, --hideGenotypes
       Hide All genotypes
       Default: false
@@ -121,43 +124,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToTable.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToTable.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Jan 17 17:33:15 2018 +0100 ; add doc, support for lumpy ; https://github.com/lindenb/jvarkit/commit/72ff9cede569ffc1382cdf0cf84f3c513bad34ba
-Mon Nov 13 11:51:02 2017 +0100 ; switched to htsjdk 2.13.0 ; https://github.com/lindenb/jvarkit/commit/0beed2c5cc069aa5e9198c4873e9da1275c8d4c8
-Wed Nov 8 09:00:21 2017 +0100 ; changed igv to custom url ; https://github.com/lindenb/jvarkit/commit/7972f506165e45c3b1300aecd00d1109b52d57dc
-Tue Nov 7 16:33:40 2017 +0100 ; Hyperlinks to IGV ; https://github.com/lindenb/jvarkit/commit/b41b49dfc9e1948eb76085c343b69a4ac0520f16
-Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
-Sat Oct 28 18:04:34 2017 +0200 ; vcf server ; https://github.com/lindenb/jvarkit/commit/1ba12c148566055ec896ddec9b7c2d7674cf8236
-Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
-Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
-Thu Oct 26 17:33:55 2017 +0200 ; added urls to vcf2table ; https://github.com/lindenb/jvarkit/commit/6afd4dbbd062d175325f1cda7006f112e35a719c
-Mon Oct 23 16:48:52 2017 +0200 ; vcf2table html output ; https://github.com/lindenb/jvarkit/commit/a30f3c2551dd1809ed7c311e8e276bfab4fb166a
-Sun Oct 22 21:49:32 2017 +0200 ; xml + vcf2table ; https://github.com/lindenb/jvarkit/commit/cbd605b37c5b360683935779e46cc37fcc667fee
-Wed Aug 23 06:06:58 2017 +0200 ; vcf2table check genotypes ; https://github.com/lindenb/jvarkit/commit/1ff08305fab2b5b099a04ce8af13c6bac8fdee9c
-Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Thu Jul 13 20:16:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/85b6c9c196e9a065dfd47bee37fe50238af41660
-Thu Jun 29 17:31:10 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1aac040bed918f89b1ce68b2c8f7a0c6d5cfddd0
-Wed Jun 21 15:32:51 2017 +0200 ; zuuut ; https://github.com/lindenb/jvarkit/commit/f726d8cf6a35eff8b022185f1d7176bc76eb3f9f
-Wed Jun 21 15:27:13 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/034f57d0e8d0399c12b290385d89e498e6138e1d
-Tue Jun 13 20:17:49 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/dee134846758d645476f9388d2ae1a13f53b741f
-Fri Jun 9 09:31:08 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/756ee58a387e69115b7d0a79bd16daa5df2266fc
-Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
-Wed May 17 09:23:56 2017 +0200 ; vcf2table ; https://github.com/lindenb/jvarkit/commit/86bfd0b9d8a2f3606560ad41822e6e20f112095a
-Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
-Fri May 12 10:49:17 2017 +0200 ; pedigree in vcf2table ; https://github.com/lindenb/jvarkit/commit/8873f4bd7904964d186c926e78956b5ea5602952
-Fri May 12 10:45:17 2017 +0200 ; pedigree in vcf2table ; https://github.com/lindenb/jvarkit/commit/cd2b0ab7842fa286b27099455c75a7f885e07386
-Thu May 11 20:58:29 2017 +0200 ; vcf2table ; https://github.com/lindenb/jvarkit/commit/a1aa58df16db6cee97297c0bd505cc3650c1b638
-Thu May 11 20:56:40 2017 +0200 ; vcf2table ; https://github.com/lindenb/jvarkit/commit/48e7523e800a0300c40dd6d0bac4b9d4fd43bc84
-Thu May 11 17:32:23 2017 +0200 ; vcf2table ; https://github.com/lindenb/jvarkit/commit/453621542766e5bae3498f1641168c277a693183
-```
-
-</details>
 
 ## Contribute
 
