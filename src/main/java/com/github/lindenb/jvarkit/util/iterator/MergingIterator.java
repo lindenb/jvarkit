@@ -77,9 +77,12 @@ public class MergingIterator<T>
 		if(smallest_index!=-1)
 			{
 			this.buffer.get(smallest_index).next();//consumme
-			if(lastForChecking!=null &&  this.comparator.compare(smallest, lastForChecking)<0)
+			if(this.lastForChecking!=null &&  this.comparator.compare(smallest, lastForChecking)<0)
 				{
-				throw new IllegalStateException("Data are not ordered... got "+ smallest_index+" after "+lastForChecking);
+				throw new IllegalStateException("Data are not ordered... got "+ 
+						smallest+" after "+lastForChecking +" comparator(curr,previous) returns: "+
+						this.comparator.compare(smallest, lastForChecking)
+						);
 				}
 			lastForChecking = smallest;	
 			return smallest;

@@ -1,6 +1,8 @@
 # Biostar78285
 
-Extract regions of genome that have 0 coverage See http://www.biostars.org/p/78285/
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
+Extract BAMs coverage as a VCF file.
 
 
 ## Usage
@@ -8,18 +10,32 @@ Extract regions of genome that have 0 coverage See http://www.biostars.org/p/782
 ```
 Usage: biostar78285 [options] Files
   Options:
+    -B, --bed, --capture
+      Limit analysis to this bed file
     -f, --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      A JEXL Expression that will be used to filter out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -m, --min-depth
+      Min depth tresholds.
+      Default: []
     -o, --output
       Output file. Optional . Default: stdout
+    --partition
+      When using display READ_GROUPS, how should we partition the ReadGroup ? 
+      Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     --version
       print version and exit
 
@@ -78,29 +94,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78285.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78285.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Wed Apr 19 10:40:28 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/971b090382a1b0b96e250030a5c8e7be500593b7
-Mon Dec 28 20:23:04 2015 +0100 ; sam2axt ; https://github.com/lindenb/jvarkit/commit/a2edef74730256e93d244e440a79e7362d647795
-Mon Mar 9 14:47:06 2015 +0100 ; moving vcf2sql to mysql ; https://github.com/lindenb/jvarkit/commit/f2813fc2fbf434da37526f038b60181564881c8e
-Mon Mar 9 10:52:57 2015 +0100 ; rewrote biostar78285  (regions with 0 coverage) with htsjdk #tweet ; https://github.com/lindenb/jvarkit/commit/3b1521878efdbf6b5966b461438e4344633966a3
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Tue Nov 26 12:29:03 2013 +0100 ; unclipped start -> align start ; https://github.com/lindenb/jvarkit/commit/3944b21281c2b4afc1ef682f0abe020b26940e37
-Tue Aug 6 18:54:07 2013 +0200 ; biostar + cigar ; https://github.com/lindenb/jvarkit/commit/218d1fa11e545c30b1b0a93198a7f5ec701c3c88
-Tue Aug 6 17:31:26 2013 +0200 ; samlocusiterator for Biostar78285 ; https://github.com/lindenb/jvarkit/commit/25fad045dc0c4a118aa3b59049fa6b1c2c46880c
-Tue Aug 6 15:04:00 2013 +0200 ; ops ; https://github.com/lindenb/jvarkit/commit/96ada2e69fb2a5c3b51cabcf849768610d614d91
-Tue Aug 6 14:51:11 2013 +0200 ; biostar78285 ; https://github.com/lindenb/jvarkit/commit/43f1fe3d2f6ee4c1ec159034ca552f2839074611
-```
-
-</details>
-
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -125,11 +118,31 @@ The current reference is:
 ## Example
 
 ```bash
- $ java -jar dist/biostar78285.jar  sorted.bam 
- 	
-
-seq1	1569	1575
-seq2	1567	1584
+$ java -jar dist/biostar78285.jar -m 5 -m 10 ~/src/gatk-ui/testdata/S*.bam 
+##fileformat=VCFv4.2
+##FILTER=<ID=DP_LT_10,Description="All  genotypes have DP< 10">
+##FILTER=<ID=DP_LT_5,Description="All  genotypes have DP< 5">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth; some reads may have been filtered">
+##INFO=<ID=FRACT_DP_LT_10,Number=1,Type=Float,Description="Fraction of  genotypes having DP< 10">
+##INFO=<ID=FRACT_DP_LT_5,Number=1,Type=Float,Description="Fraction of  genotypes having DP< 5">
+##INFO=<ID=NUM_DP_LT_10,Number=1,Type=Integer,Description="Number of  genotypes having DP< 10">
+##INFO=<ID=NUM_DP_LT_5,Number=1,Type=Integer,Description="Number of  genotypes having DP< 5">
+##contig=<ID=rotavirus,length=1074>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2	S3	S4
+rotavirus	1	.	N	.	.	DP_LT_10	DP=17;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=0.5;NUM_DP_LT_10=4;NUM_DP_LT_5=2	GT:DP	./.:5	./.:5	./.:3	./.:4
+rotavirus	2	.	N	.	.	DP_LT_10	DP=21;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=0.5;NUM_DP_LT_10=4;NUM_DP_LT_5=2	GT:DP	./.:9	./.:4	./.:5	./.:3
+rotavirus	3	.	N	.	.	DP_LT_10;DP_LT_5	DP=11;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=1.0;NUM_DP_LT_10=4;NUM_DP_LT_5=4	GT:DP	./.:4	./.:2	./.:4	./.:1
+rotavirus	4	.	N	.	.	DP_LT_10	DP=16;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=0.5;NUM_DP_LT_10=4;NUM_DP_LT_5=2	GT:DP	./.:4	./.:5	./.:6	./.:1
+rotavirus	5	.	N	.	.	DP_LT_10	DP=18;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=0.5;NUM_DP_LT_10=4;NUM_DP_LT_5=2	GT:DP	./.:5	./.:2	./.:7	./.:4
+rotavirus	6	.	N	.	.	DP_LT_10	DP=14;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=0.75;NUM_DP_LT_10=4;NUM_DP_LT_5=3	GT:DP	./.:3	./.:3	./.:8	./.:0
+rotavirus	7	.	N	.	.	DP_LT_10	DP=15;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=0.75;NUM_DP_LT_10=4;NUM_DP_LT_5=3	GT:DP	./.:8	./.:2	./.:4	./.:1
+rotavirus	8	.	N	.	.	DP_LT_10;DP_LT_5	DP=10;FRACT_DP_LT_10=1.0;FRACT_DP_LT_5=1.0;NUM_DP_LT_10=4;NUM_DP_LT_5=4	GT:DP	./.:3	./.:3	./.:3	./.:1
 ```
+
+## History
+
+* 20180227: moved output to VCF, printing everything, adding optional BED
 
 
