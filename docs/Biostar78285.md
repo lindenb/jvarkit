@@ -118,7 +118,7 @@ The current reference is:
 ## Example
 
 ```bash
-$ java -jar dist/biostar78285.jar -m 5 -m 10 ~/src/gatk-ui/testdata/S*.bam 
+$ java -jar dist/biostar78285.jar -m 5 -m 10 S*.bam 
 ##fileformat=VCFv4.2
 ##FILTER=<ID=DP_LT_10,Description="All  genotypes have DP< 10">
 ##FILTER=<ID=DP_LT_5,Description="All  genotypes have DP< 5">

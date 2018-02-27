@@ -42,6 +42,7 @@ import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.MergingIterator;
 import com.github.lindenb.jvarkit.util.iterator.FilterIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -90,7 +91,7 @@ BEGIN_DOC
 ## Example
 
 ```bash
-$ java -jar dist/biostar78285.jar -m 5 -m 10 ~/src/gatk-ui/testdata/S*.bam 
+$ java -jar dist/biostar78285.jar -m 5 -m 10 S*.bam 
 ##fileformat=VCFv4.2
 ##FILTER=<ID=DP_LT_10,Description="All  genotypes have DP< 10">
 ##FILTER=<ID=DP_LT_5,Description="All  genotypes have DP< 5">
@@ -190,27 +191,28 @@ public class Biostar78285 extends Launcher
 		    		}
 		    	
 				}
+			if(samReaders.isEmpty()) {
+				LOG.error("no bam");
+				return -1;
+				}	
 			if(dict==null) {
-				LOG.error("no bam or no dictionary");
+				LOG.error("no dictionary");
 				return -1;
 				}
+			
+			
 			
 			final QueryInterval intervals[];
 			if(captureBed!=null)
 				{
+				ContigNameConverter.setDefaultAliases(dict);
 				final List<QueryInterval> L = new ArrayList<>();
 				final BedLineCodec codec= new BedLineCodec();
 				final LineIterator li = IOUtils.openFileForLineIterator(this.captureBed);
 				while(li.hasNext()) {
 					final BedLine bed = codec.decode(li.next());
 					if(bed==null) continue;
-					final int tid;
-					if((tid=dict.getSequenceIndex(bed.getContig()))==-1)
-						{
-						LOG.error("not in dictionary :"+bed);
-						return -1;
-						}
-					final QueryInterval q= new QueryInterval(tid, bed.getStart(),  bed.getEnd());
+					final QueryInterval q= bed.toQueryInterval(dict);
 					L.add(q);
 					}
 				CloserUtil.close(li);
@@ -244,11 +246,11 @@ public class Biostar78285 extends Launcher
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, 
 					VCFConstants.DEPTH_KEY
 					);
-			metaData.add(new VCFInfoHeaderLine("AVERAGE_DP",1,VCFHeaderLineType.Float, "Mean depth"));
+			metaData.add(new VCFInfoHeaderLine("AVG_DP",1,VCFHeaderLineType.Float, "Mean depth"));
 			metaData.add(new VCFInfoHeaderLine("MEDIAN_DP",1,VCFHeaderLineType.Float, "Median depth"));
-			metaData.add(new VCFInfoHeaderLine("MIN_DP",1,VCFHeaderLineType.Float, "Min depth"));
-			metaData.add(new VCFInfoHeaderLine("MAX_DP",1,VCFHeaderLineType.Float, "Max depth"));
-
+			metaData.add(new VCFInfoHeaderLine("MIN_DP",1,VCFHeaderLineType.Integer, "Min depth"));
+			metaData.add(new VCFInfoHeaderLine("MAX_DP",1,VCFHeaderLineType.Integer, "Max depth"));
+			metaData.add(new VCFHeaderLine(Biostar78285.class.getSimpleName()+".SamFilter",this.filter.toString()));
 			for(final Integer treshold: this.minDepthTresholds)
 				{
 				metaData.add(new VCFFilterHeaderLine("DP_LT_"+treshold, "All  genotypes have DP< "+treshold));
@@ -264,11 +266,11 @@ public class Biostar78285 extends Launcher
 			
 			
 			final SAMRecordCoordinateComparator samRecordCoordinateComparator = new SAMRecordCoordinateComparator();
-			final PeekableIterator<SAMRecord> peekIter = new PeekableIterator<>(new FilterIterator<>(
+			final PeekableIterator<SAMRecord> peekIter = new PeekableIterator<>(
 					new MergingIterator<>(
 						(R1,R2)->samRecordCoordinateComparator.fileOrderCompare(R1, R2),
 						samIterators
-						),R->!R.getReadUnmappedFlag() && !this.filter.filterOut(R))
+						)
 					);
 			
 			for(final SAMSequenceRecord ssr: dict.getSequences()) {
@@ -289,9 +291,9 @@ public class Biostar78285 extends Launcher
 					capturePos = null;
 					}
 				final List<SAMRecord> buffer = new ArrayList<>(); 
-				for(int pos=1;pos <= ssr.getSequenceLength();++pos)
+				for( int ssr_pos=1;ssr_pos <= ssr.getSequenceLength();++ssr_pos)
 					{
-					if(capturePos!=null && !capturePos.overlappers(pos, pos).hasNext()) continue;
+					if(capturePos!=null && !capturePos.overlappers(ssr_pos, ssr_pos).hasNext()) continue;
 	
 					while(peekIter.hasNext())
 						{
@@ -301,21 +303,24 @@ public class Biostar78285 extends Launcher
 							peekIter.next();//consumme
 							continue;
 							}
-						if(rec.getReferenceIndex()< ssr.getSequenceIndex())
+						if(this.filter.filterOut(rec))
 							{
 							peekIter.next();//consumme
 							continue;
+							}
+						if(rec.getReferenceIndex()< ssr.getSequenceIndex())
+							{
+							throw new IllegalStateException("should not happen");
 							}
 						if(rec.getReferenceIndex() > ssr.getSequenceIndex())
 							{
 							break;
 							}
-						if(rec.getAlignmentEnd() < pos)
+						if(rec.getAlignmentEnd() < ssr_pos)
 							{
-							peekIter.next();//consumme
-							continue;
+							throw new IllegalStateException("should not happen");
 							}
-						if(rec.getAlignmentStart() > pos)
+						if(rec.getAlignmentStart() > ssr_pos)
 							{
 							break;
 							}
@@ -327,7 +332,7 @@ public class Biostar78285 extends Launcher
 						{
 						final SAMRecord R = buffer.get(x);
 						if(R.getReferenceIndex()!=ssr.getSequenceIndex() || 
-							R.getAlignmentEnd()<pos)
+							R.getAlignmentEnd()<ssr_pos)
 							{
 							buffer.remove(x);
 							}
@@ -337,26 +342,25 @@ public class Biostar78285 extends Launcher
 							}
 						}
 					
-					
 					final Counter<String> count = new Counter<>();
 					for(final SAMRecord rec:buffer)
 						{
-						if(rec.getReferenceIndex()!=ssr.getSequenceIndex()) continue;
-						if(rec.getAlignmentEnd() < pos) continue;
-						if(rec.getAlignmentStart() > pos) continue;
+						if(rec.getReferenceIndex()!=ssr.getSequenceIndex()) throw new IllegalStateException("should not happen");
+						if(rec.getAlignmentEnd() < ssr_pos) continue;
+						if(rec.getAlignmentStart() > ssr_pos) continue;
 						final Cigar cigar=rec.getCigar();
 						if(cigar==null) continue;
 			    		int refpos = rec.getAlignmentStart();
 			    		final String sample = this.partition.getPartion(rec,DEFAULT_PARTITION); 
 			    		for(final CigarElement ce:cigar.getCigarElements())
 			    			{
-			    			if(refpos > pos) break;
+			    			if(refpos > ssr_pos) break;
 			    			final CigarOperator op=ce.getOperator();
 			    			if(op.consumesReferenceBases())
 			    				{	
 			    				if(op.consumesReadBases())
 			    					{
-			    					if(refpos>=pos &&  pos <= refpos+ce.getLength())
+			    					if(refpos<=ssr_pos &&  ssr_pos <= refpos+ce.getLength())
 			    		    			{
 			    						count.incr(sample);
 			    						break;
@@ -373,8 +377,8 @@ public class Biostar78285 extends Launcher
 					
 					
 					vcb.chr(ssr.getSequenceName());
-					vcb.start(pos);
-					vcb.stop(pos);
+					vcb.start(ssr_pos);
+					vcb.stop(ssr_pos);
 					vcb.alleles(refAlleles);
 					vcb.attribute(VCFConstants.DEPTH_KEY, count.getTotal());
 					vcb.genotypes(samples.stream().
@@ -408,10 +412,10 @@ public class Biostar78285 extends Launcher
 						final int array[] =  samples.stream().
 							mapToInt(S->(int)count.count(S)).
 							toArray();
-						vcb.attribute("AVERAGE_DP",Percentile.average().evaluate(array));
+						vcb.attribute("AVG_DP",Percentile.average().evaluate(array));
 						vcb.attribute("MEDIAN_DP",Percentile.median().evaluate(array));
-						vcb.attribute("MIN_DP",Percentile.min().evaluate(array));
-						vcb.attribute("MAX_DP",Percentile.max().evaluate(array));
+						vcb.attribute("MIN_DP",(int)Percentile.min().evaluate(array));
+						vcb.attribute("MAX_DP",(int)Percentile.max().evaluate(array));
 						}
 					
 					if(filters.isEmpty())

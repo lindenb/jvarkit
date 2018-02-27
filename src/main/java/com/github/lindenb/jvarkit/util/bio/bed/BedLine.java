@@ -26,7 +26,12 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.bio.bed;
 
 import java.util.Arrays;
+import java.util.Objects;
 
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+
+import htsjdk.samtools.QueryInterval;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Interval;
 import htsjdk.tribble.Feature;
 
@@ -65,6 +70,16 @@ public class BedLine
 		return new Interval(getContig(), getStart(), getEnd());
 	}
 
+	/** convert this bed line to QueryInterval using the provided SAMSequenceDictionary */
+	public QueryInterval toQueryInterval(final SAMSequenceDictionary dict) {
+		final int tid = Objects.requireNonNull(dict, "SAMSequenceDictionary is null!").getSequenceIndex(getContig());
+		if( tid == -1) {
+			throw new JvarkitException.ContigNotFoundInDictionary(getContig(), dict);
+		}
+		return new QueryInterval(tid, getStart(), getEnd());
+	}
+	
+	
 	public String get(final int index)
 		{
 		return (index<this.tokens.length?this.tokens[index]:null);
