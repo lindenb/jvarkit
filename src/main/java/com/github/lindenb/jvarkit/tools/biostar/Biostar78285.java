@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -243,12 +244,16 @@ public class Biostar78285 extends Launcher
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, 
 					VCFConstants.DEPTH_KEY
 					);
-			
+			metaData.add(new VCFInfoHeaderLine("AVERAGE_DP",1,VCFHeaderLineType.Float, "Mean depth"));
+			metaData.add(new VCFInfoHeaderLine("MEDIAN_DP",1,VCFHeaderLineType.Float, "Median depth"));
+			metaData.add(new VCFInfoHeaderLine("MIN_DP",1,VCFHeaderLineType.Float, "Min depth"));
+			metaData.add(new VCFInfoHeaderLine("MAX_DP",1,VCFHeaderLineType.Float, "Max depth"));
+
 			for(final Integer treshold: this.minDepthTresholds)
 				{
 				metaData.add(new VCFFilterHeaderLine("DP_LT_"+treshold, "All  genotypes have DP< "+treshold));
-				metaData.add(new VCFInfoHeaderLine("NUM_DP_LT_"+treshold,1,VCFHeaderLineType.Integer, "Number of  genotypes having DP< "+treshold));
-				metaData.add(new VCFInfoHeaderLine("FRACT_DP_LT_"+treshold,1,VCFHeaderLineType.Float, "Fraction of  genotypes having DP< "+treshold));
+				metaData.add(new VCFInfoHeaderLine("NUM_DP_LT_"+treshold,1,VCFHeaderLineType.Integer, "Number of genotypes having DP< "+treshold));
+				metaData.add(new VCFInfoHeaderLine("FRACT_DP_LT_"+treshold,1,VCFHeaderLineType.Float, "Fraction of genotypes having DP< "+treshold));
 				}
 			
 			final List<Allele> refAlleles = Collections.singletonList(Allele.create("N", true));
@@ -392,8 +397,23 @@ public class Biostar78285 extends Launcher
 						if(!samples.isEmpty())
 							{
 							vcb.attribute("FRACT_DP_LT_"+treshold, count_lt/(float)samples.size());
+							
+							
+							
+
 							}	
 						}
+					if(!samples.isEmpty())
+						{
+						final int array[] =  samples.stream().
+							mapToInt(S->(int)count.count(S)).
+							toArray();
+						vcb.attribute("AVERAGE_DP",Percentile.average().evaluate(array));
+						vcb.attribute("MEDIAN_DP",Percentile.median().evaluate(array));
+						vcb.attribute("MIN_DP",Percentile.min().evaluate(array));
+						vcb.attribute("MAX_DP",Percentile.max().evaluate(array));
+						}
+					
 					if(filters.isEmpty())
 						{
 						vcb.passFilters();
