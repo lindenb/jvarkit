@@ -44,6 +44,7 @@ import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.iterator.FilterIterator;
 import com.github.lindenb.jvarkit.util.iterator.MergingIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -255,7 +256,8 @@ public class Biostar78285 extends Launcher
 					{
 					iter = samReader.queryOverlapping(intervals);
 					}
-				samIterators.add(iter);
+				
+				samIterators.add(new FilterIterator<SAMRecord>(iter,R->!R.getReadUnmappedFlag() && !filter.filterOut(R)));
 				}
 			
 			if(this.refFile!=null) {
