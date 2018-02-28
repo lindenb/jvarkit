@@ -1,0 +1,12 @@
+@HD	VN:1.5	SO:unsorted
+@SQ	SN:RF01	LN:3302	M5:59dccb944425dd61f895a564ad7b56a7	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF02	LN:2687	M5:2c9c1ac1b7468ffaae96ad91c095c8b5	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF03	LN:2592	M5:d41f980f20d9cefbfd11ba2c1078f078	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF04	LN:2362	M5:935a2ad8d2f573d50b8c427f3b2f7c5d	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF05	LN:1579	M5:cdbaf0c352b44a79bef98daba1940d8a	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF06	LN:1356	M5:bdad6ae494bde13504d6988f2c7d94cd	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF07	LN:1074	M5:fa90eeb699fb6090b8f94611f19ac219	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF08	LN:1059	M5:4f8b3f714dc2327655941e6386c96b3b	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF09	LN:1062	M5:b221800f99aa2dc42258c0011ec228c8	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF10	LN:751	M5:f504f07ea3564b984207376aa02d8d00	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
+@SQ	SN:RF11	LN:666	M5:7a7cf2c7813f2e8bd74be383014202ca	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus

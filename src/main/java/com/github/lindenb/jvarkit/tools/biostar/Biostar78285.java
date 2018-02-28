@@ -193,6 +193,7 @@ public class Biostar78285 extends Launcher
 			final SamReaderFactory samReaderFactory = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
 			
 			for(final File bamFile: bamFiles) {
+				LOG.info("Opening "+bamFile);
 				final SamReader samReader = samReaderFactory.open(bamFile);
 				samReaders.add(samReader);
 				final SAMFileHeader header=samReader.getFileHeader();
@@ -237,8 +238,9 @@ public class Biostar78285 extends Launcher
 			
 			
 			final QueryInterval intervals[];
-			if(captureBed!=null)
+			if(this.captureBed!=null)
 				{
+				LOG.info("Opening "+this.captureBed);
 				ContigNameConverter.setDefaultAliases(dict);
 				final List<QueryInterval> L = new ArrayList<>();
 				final BedLineCodec codec= new BedLineCodec();
@@ -258,6 +260,7 @@ public class Biostar78285 extends Launcher
 				}
 			for(final SamReader samReader : samReaders)
 				{
+				LOG.info("querying "+samReader.getResourceDescription());
 				final CloseableIterator<SAMRecord> iter;
 				if(intervals==null)
 					{
@@ -272,6 +275,7 @@ public class Biostar78285 extends Launcher
 				}
 			
 			if(this.refFile!=null) {
+				LOG.info("opening "+refFile);
 				indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.refFile);
 				final SAMSequenceDictionary refdict = indexedFastaSequenceFile.getSequenceDictionary();
 				ContigNameConverter.setDefaultAliases(refdict);
@@ -438,10 +442,12 @@ public class Biostar78285 extends Launcher
 			    					if(refpos<=ssr_pos &&  ssr_pos <= refpos+ce.getLength())
 			    		    			{
 			    						final PosInfo posInfo = count.get(sample);
-			    						posInfo.dp++;
-			    						if(rec.getReadNegativeStrandFlag()) {
-			    							posInfo.negative_strand++;
-			    							}
+			    						if(posInfo!=null) {
+				    						posInfo.dp++;
+				    						if(rec.getReadNegativeStrandFlag()) {
+				    							posInfo.negative_strand++;
+				    							}
+				    						}
 			    						break;
 		    		    				}
 			    					}
