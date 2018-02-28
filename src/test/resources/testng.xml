@@ -17,6 +17,7 @@
             <package name="com.github.lindenb.jvarkit.tools.pubmed"/>
             <package name="com.github.lindenb.jvarkit.tools.sam2tsv"/>
             <package name="com.github.lindenb.jvarkit.tools.sam4weblogo"/>
+            <package name="com.github.lindenb.jvarkit.tools.samfixcigar"/>
             <package name="com.github.lindenb.jvarkit.tools.samjs"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfstats"/>

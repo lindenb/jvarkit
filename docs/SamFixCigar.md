@@ -78,34 +78,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samfixcigar/SamFixCigar.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samfixcigar/SamFixCigar.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Wed May 3 17:57:20 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/db456cbf0b6586ea60a4fe8ea05a5af7457d5d6e
-Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
-Fri Dec 4 12:12:44 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/bfa0325927a7be363feecc143ef1d8a3de71f483
-Mon Aug 3 17:26:56 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/e6847fb4aed7052f90af7d0ef807428b8cde6209
-Mon Aug 3 16:46:56 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/df0f84e8b4484053de0f0114b231a4275f70da2b
-Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
-Tue Feb 24 16:43:03 2015 +0100 ; vcfin : code rewrittern. picky with ALT alleles. #tweet ; https://github.com/lindenb/jvarkit/commit/65ef7741539e89c7a1a1f9cca28c13d531902c96
-Fri May 23 15:32:54 2014 +0200 ; continue move to htsjdk ; https://github.com/lindenb/jvarkit/commit/b5a8a3bce5ecd952abffb7aae6223d1e03a9809e
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Wed Dec 4 18:47:34 2013 +0100 ; cgi samtools ; https://github.com/lindenb/jvarkit/commit/6955114d9332e56f5dce94a319100dbf1facf666
-Wed Nov 27 20:00:16 2013 +0100 ; abstract bam filter ; https://github.com/lindenb/jvarkit/commit/6da95f7c2f27ea15634c8f3504cdc71495020248
-Tue Nov 26 13:09:46 2013 +0100 ; N in refernce ; https://github.com/lindenb/jvarkit/commit/872ba6ed568911415a092ac9a8a472e247a055bb
-Tue Nov 26 12:29:03 2013 +0100 ; unclipped start -> align start ; https://github.com/lindenb/jvarkit/commit/3944b21281c2b4afc1ef682f0abe020b26940e37
-Tue Nov 26 11:19:24 2013 +0100 ; sam fix cigar ; https://github.com/lindenb/jvarkit/commit/63e09d3de1662f9ebbb8885c9ca28984a829a9af
-```
-
-</details>
-
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)

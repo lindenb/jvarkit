@@ -293,6 +293,14 @@ public Object[][] createAllSamOrBamData() {
 		build();
 		}
 
+@DataProvider(name = "all-one-bam-and-ref")
+public Object[][] createOneBamAndRefData() {
+	return new Object[][] {
+		{"./src/test/resources/toy.bam","./src/test/resources/toy.fa"}
+	};
+}
+
+
 
 protected Object[] _collectAllFiles( FilenameFilter filter) {
 	return _collectFiles(new File("./src/test/resources/"),filter).

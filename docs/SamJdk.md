@@ -79,6 +79,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/286819](https://www.biostars.org/p/286819)
  * [https://www.biostars.org/p/287057](https://www.biostars.org/p/287057)
  * [https://www.biostars.org/p/299673](https://www.biostars.org/p/299673)
+ * [https://www.biostars.org/p/301080](https://www.biostars.org/p/301080)
 
 
 ## Compilation
@@ -364,7 +365,9 @@ java -jar dist/samjdk.jar -e 'if(record.getReadUnmappedFlag()) return true;final
 
 get discordant reads
 
+```
 $ java -jar dist/samjdk.jar -e 'return record.getReadPairedFlag() && !record.getReadUnmappedFlag() && !record.getMateUnmappedFlag() && !record.getReferenceName().equals(record.getMateReferenceName());'  in.bam
+```
 
 
 ### Example
@@ -421,7 +424,7 @@ $ java -jar dist/samjdk.jar --body -e \
 
 ### Example:
 
->  getting a list of alignment with a particular bam tag from a bam file 
+>  getting a list of alignment with a particular bam tag from a bam file
 
 ```bash
 $ java -jar dist/samjdk.jar --body \

@@ -31,23 +31,25 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
-import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.MergingIterator;
-import com.github.lindenb.jvarkit.util.iterator.FilterIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
@@ -65,6 +67,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -78,6 +81,7 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -136,22 +140,40 @@ public class Biostar78285 extends Launcher
 	private SamRecordFilter filter = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-B","--bed","--capture"},description="Limit analysis to this bed file")
 	private File captureBed = null;
-	@Parameter(names={"--partition"},description="When using display READ_GROUPS, how should we partition the ReadGroup ? "+SAMRecordPartition.OPT_DESC)
+	@Parameter(names={"-PosInfo-partition"},description="When using display READ_GROUPS, how should we partition the ReadGroup ? "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition= SAMRecordPartition.sample;
 	@Parameter(names={"-m","--min-depth"},description="Min depth tresholds.")
 	private List<Integer> minDepthTresholds = new ArrayList<>();
+	@Parameter(names={"-R","--reference"},description="Optional. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private File refFile = null;
+	@Parameter(names={"-gcw","--gc-percent-window","--gcw"},description="GC% window size. (if REF is defined)")
+	private int gc_percent_window=20;
 
+	private static class PosInfo
+		{
+		final String sample;
+		int dp=0;
+		int negative_strand =0;
+		PosInfo(final String sample) {
+			this.sample = sample;
+			}
+		}
 	
-
+	
     @Override
 	public int doWork(final List<String> args) {
+    	if(this.gc_percent_window<1) {
+    		LOG.error("Bad GC% window size:"+this.gc_percent_window);
+    		return -1;
+    	}
+    	
 		final List<File> bamFiles = IOUtil.unrollFiles(args.stream().map(F->new File(F)).collect(Collectors.toCollection(HashSet::new)), ".bam");
 		SAMSequenceDictionary dict=null;
 		final List<SamReader> samReaders  = new ArrayList<>(); 
 		final List<CloseableIterator<SAMRecord>> samIterators  = new ArrayList<>(); 
 		final TreeSet<String> samples = new TreeSet<>(); 
 		final String DEFAULT_PARTITION = "UNDEFINED_PARTITION";
-		
+		IndexedFastaSequenceFile indexedFastaSequenceFile = null;
     	VariantContextWriter out=null;
 		try
 			{
@@ -236,6 +258,20 @@ public class Biostar78285 extends Launcher
 				samIterators.add(iter);
 				}
 			
+			if(this.refFile!=null) {
+				indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.refFile);
+				final SAMSequenceDictionary refdict = indexedFastaSequenceFile.getSequenceDictionary();
+				ContigNameConverter.setDefaultAliases(refdict);
+				if(refdict==null) {
+					throw new JvarkitException.FastaDictionaryMissing(this.refFile);
+					}
+				 if(!SequenceUtil.areSequenceDictionariesEqual(dict, refdict))
+		    		{
+		    		LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(dict,refdict));
+		    		return -1;
+		    		}
+				}
+			
 			out = openVariantContextWriter(this.outputFile);
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
@@ -246,6 +282,10 @@ public class Biostar78285 extends Launcher
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, 
 					VCFConstants.DEPTH_KEY
 					);
+			
+			metaData.add(new VCFFormatHeaderLine("DF",1,VCFHeaderLineType.Integer,"Number of Reads on plus strand"));
+			metaData.add(new VCFFormatHeaderLine("DR",1,VCFHeaderLineType.Integer,"Number of Reads on minus strand"));
+			
 			metaData.add(new VCFInfoHeaderLine("AVG_DP",1,VCFHeaderLineType.Float, "Mean depth"));
 			metaData.add(new VCFInfoHeaderLine("MEDIAN_DP",1,VCFHeaderLineType.Float, "Median depth"));
 			metaData.add(new VCFInfoHeaderLine("MIN_DP",1,VCFHeaderLineType.Integer, "Min depth"));
@@ -256,6 +296,11 @@ public class Biostar78285 extends Launcher
 				metaData.add(new VCFFilterHeaderLine("DP_LT_"+treshold, "All  genotypes have DP< "+treshold));
 				metaData.add(new VCFInfoHeaderLine("NUM_DP_LT_"+treshold,1,VCFHeaderLineType.Integer, "Number of genotypes having DP< "+treshold));
 				metaData.add(new VCFInfoHeaderLine("FRACT_DP_LT_"+treshold,1,VCFHeaderLineType.Float, "Fraction of genotypes having DP< "+treshold));
+				}
+			
+			if(indexedFastaSequenceFile!=null)
+				{
+				metaData.add(new VCFInfoHeaderLine("GC_PERCENT",1,VCFHeaderLineType.Integer, "GC% window_size:"+this.gc_percent_window));
 				}
 			
 			final List<Allele> refAlleles = Collections.singletonList(Allele.create("N", true));
@@ -273,7 +318,9 @@ public class Biostar78285 extends Launcher
 						)
 					);
 			
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(dict);
 			for(final SAMSequenceRecord ssr: dict.getSequences()) {
+				
 				final IntervalTree<Boolean> capturePos;
 				if(intervals!=null)
 					{
@@ -290,11 +337,22 @@ public class Biostar78285 extends Launcher
 					{
 					capturePos = null;
 					}
+				
+				final GenomicSequence genomicSequence;
+				if(indexedFastaSequenceFile!=null && indexedFastaSequenceFile.getSequenceDictionary().getSequence(ssr.getSequenceName())!=null) {
+					genomicSequence = new GenomicSequence(indexedFastaSequenceFile, ssr.getSequenceName());
+				} else {
+					genomicSequence = null;
+				}
+					
+				
 				final List<SAMRecord> buffer = new ArrayList<>(); 
 				for( int ssr_pos=1;ssr_pos <= ssr.getSequenceLength();++ssr_pos)
 					{
 					if(capturePos!=null && !capturePos.overlappers(ssr_pos, ssr_pos).hasNext()) continue;
-	
+					
+					progress.watch(ssr.getSequenceName(), ssr_pos);
+					
 					while(peekIter.hasNext())
 						{
 						final SAMRecord rec = peekIter.peek();
@@ -342,7 +400,11 @@ public class Biostar78285 extends Launcher
 							}
 						}
 					
-					final Counter<String> count = new Counter<>();
+					final Map<String,PosInfo> count = 
+							samples.stream().
+							map(S->new PosInfo(S)).
+							collect(Collectors.toMap(P->P.sample, Function.identity()));
+						
 					for(final SAMRecord rec:buffer)
 						{
 						if(rec.getReferenceIndex()!=ssr.getSequenceIndex()) throw new IllegalStateException("should not happen");
@@ -362,7 +424,11 @@ public class Biostar78285 extends Launcher
 			    					{
 			    					if(refpos<=ssr_pos &&  ssr_pos <= refpos+ce.getLength())
 			    		    			{
-			    						count.incr(sample);
+			    						final PosInfo posInfo = count.get(sample);
+			    						posInfo.dp++;
+			    						if(rec.getReadNegativeStrandFlag()) {
+			    							posInfo.negative_strand++;
+			    							}
 			    						break;
 		    		    				}
 			    					}
@@ -379,18 +445,32 @@ public class Biostar78285 extends Launcher
 					vcb.chr(ssr.getSequenceName());
 					vcb.start(ssr_pos);
 					vcb.stop(ssr_pos);
-					vcb.alleles(refAlleles);
-					vcb.attribute(VCFConstants.DEPTH_KEY, count.getTotal());
-					vcb.genotypes(samples.stream().
-							map(S->new GenotypeBuilder(S, NO_CALLS).
-									DP((int)count.count(S)).
+					if(genomicSequence==null) {
+						vcb.alleles(refAlleles);
+						} else {
+						vcb.alleles(Collections.singletonList(Allele.create((byte)genomicSequence.charAt(ssr_pos-1),true)));
+						final GenomicSequence.GCPercent gcp = genomicSequence.getGCPercent(
+							Math.max((ssr_pos-1)-this.gc_percent_window,0),
+							Math.min(ssr_pos+this.gc_percent_window,ssr.getSequenceLength())
+							);
+						if(!gcp.isEmpty()) {
+							vcb.attribute("GC_PERCENT",gcp.getGCPercentAsInteger());
+							}
+						}
+					
+					vcb.attribute(VCFConstants.DEPTH_KEY, (int)count.values().stream().mapToInt(S->S.dp).sum());
+					vcb.genotypes(count.values().stream().
+							map(C->new GenotypeBuilder(C.sample, NO_CALLS).
+									DP((int)C.dp).
+									attribute("DR",C.negative_strand).
+									attribute("DF",C.dp-C.negative_strand).
 									make()).
 							collect(Collectors.toList()));
 					
 					for(final Integer treshold: this.minDepthTresholds)
 						{
-						final int count_lt = (int) samples.stream().
-								filter(S->count.count(S)<treshold).
+						final int count_lt = (int) count.values().stream().
+								filter(S->S.dp<treshold).
 								count()
 								;
 						if(count_lt == samples.size())
@@ -401,16 +481,12 @@ public class Biostar78285 extends Launcher
 						if(!samples.isEmpty())
 							{
 							vcb.attribute("FRACT_DP_LT_"+treshold, count_lt/(float)samples.size());
-							
-							
-							
-
 							}	
 						}
 					if(!samples.isEmpty())
 						{
-						final int array[] =  samples.stream().
-							mapToInt(S->(int)count.count(S)).
+						final int array[] =  count.values().stream().
+							mapToInt(S->S.dp).
 							toArray();
 						vcb.attribute("AVG_DP",Percentile.average().evaluate(array));
 						vcb.attribute("MEDIAN_DP",Percentile.median().evaluate(array));
@@ -430,7 +506,7 @@ public class Biostar78285 extends Launcher
 					}
 				
 				}
-			
+			progress.finish();
 			peekIter.close();
 
 			out.close();
@@ -447,6 +523,7 @@ public class Biostar78285 extends Launcher
 			CloserUtil.close(out);
 			CloserUtil.close(samIterators);
 			CloserUtil.close(samReaders);
+			CloserUtil.close(indexedFastaSequenceFile);
 			}
 		}
 	/**

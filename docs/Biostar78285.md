@@ -19,6 +19,9 @@ Usage: biostar78285 [options] Files
       the read). An empty expression keeps everything. The variable 'record' 
       is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
       Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
+    -gcw, --gc-percent-window, --gcw
+      GC% window size. (if REF is defined)
+      Default: 20
     -h, --help
       print help and exit
     --helpFormat
@@ -29,15 +32,18 @@ Usage: biostar78285 [options] Files
       Default: []
     -o, --output
       Output file. Optional . Default: stdout
-    --partition
+    -R, --reference
+      Optional. Indexed fasta Reference file. This file must be indexed with 
+      samtools faidx and with picard CreateSequenceDictionary
+    --version
+      print version and exit
+    -PosInfo-partition
       When using display READ_GROUPS, how should we partition the ReadGroup ? 
       Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
       be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
-    --version
-      print version and exit
 
 ```
 
