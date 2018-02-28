@@ -250,7 +250,7 @@ public class Biostar78285 extends Launcher
 					L.add(q);
 					}
 				CloserUtil.close(li);
-				intervals = L.toArray(new QueryInterval[L.size()]);
+				intervals = QueryInterval.optimizeIntervals(L.toArray(new QueryInterval[L.size()]));
 				}
 			else
 				{
