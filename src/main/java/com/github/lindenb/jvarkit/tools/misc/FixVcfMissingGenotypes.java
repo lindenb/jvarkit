@@ -74,6 +74,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 BEGIN_DOC
 
+## Slow
+
+This tool remains slow because there is a random-access in the bam for each './.' genotype.
+
+You can always try to speed-up things by breaking your VCF in multiple regions and process them in parallel.
+
+## Examples
+
+
 ### Example
 
 ```
