@@ -262,7 +262,6 @@ public class PubmedCodingLanguages
 		});
 
 		this.languages.add(new ProgLanguageImpl("scala").flagHasNotCommon());
-		this.languages.add(new ProgLanguageImpl("matlab"));
 		this.languages.add(new ProgLanguageImpl("makefile","gnu make").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("mongodb").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("sql").flagHasNotCommon());
@@ -284,7 +283,7 @@ public class PubmedCodingLanguages
 		this.languages.add(new ProgLanguageImpl("haskell").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("lua").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("clojure").flagHasNotCommon());
-		this.languages.add(new ProgLanguageImpl("mathlab"));
+		this.languages.add(new ProgLanguageImpl("mathlab","matlab"));
 		this.languages.add(new ProgLanguageImpl("groovy").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("javascript"));
 		this.languages.add(new ProgLanguageImpl("nodejs").flagHasNotCommon());
