@@ -278,7 +278,7 @@ public class PubmedCodingLanguages
 				return super.match(s);
 				}
 			});
-		this.languages.add(new ProgLanguageImpl("c#"));
+		this.languages.add(new ProgLanguageImpl("c#").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("objective-c").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("haskell").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("lua").flagHasNotCommon());
