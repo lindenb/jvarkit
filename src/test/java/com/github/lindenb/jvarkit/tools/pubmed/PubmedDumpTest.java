@@ -16,8 +16,7 @@ public Object[][] getQueries() {
 		};
 	}
 
-@Test(dataProvider="src1")
-public void test01(final String query ) throws IOException {
+protected File dumpAsXml(final String query ) throws IOException {
 	final File out = createTmpFile(".xml");
 	Assert.assertEquals(
 		new PubmedDump().instanceMain(newCmd().
@@ -25,6 +24,13 @@ public void test01(final String query ) throws IOException {
 		add(query).
 		make()
 		),0);
+	assertIsXml(out);
+	return out;
+	}
+
+@Test(dataProvider="src1")
+public void test01(final String query ) throws IOException {
+	final File out = dumpAsXml(query);
 	assertIsXml(out);
 	}
 }

@@ -79,6 +79,7 @@ import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 
 /** 
 BEGIN_DOC
@@ -98,7 +99,7 @@ The output is a GEXF file for gephi.
 using pubmed efetch output
 
 ```
-java -jar dist/pubmeddump.jar "orcid[AUID]"  |\
+java -jar dist/pubmeddump.jar --skip "MeshHeadingList ChemicalList GrantList InvestigatorList CommentsCorrectionsList ISSN DateRevised AffiliationInfo Language PublicationTypeList  ArticleDate PubmedData Abstract MedlineJournalInfo CoiStatement KeywordList Pagination ELocationID "   "orcid[AUID]" |\
 java -jar dist/pubmedorcidgraph.jar -D BDB 
 ```
 
@@ -293,7 +294,7 @@ public class PubmedOrcidGraph
 	private static class AuthorBinding extends TupleBinding<Author>
 		{
 		@Override
-		public Author entryToObject(TupleInput in) {
+		public Author entryToObject(final TupleInput in) {
 			final Author a=new Author();
 			a.foreName = in.readString();
 			a.lastName = in.readString();
@@ -317,6 +318,28 @@ public class PubmedOrcidGraph
 		}
 	private final AuthorBinding authorBinding = new AuthorBinding();
 	
+	
+	/** extract text from stream. Cannot use XMLEventReader.getTextContent() 
+	 * when a public title contains some tag like '<sup>'
+	 */
+	private String textContent(final XMLEventReader r) throws XMLStreamException
+		{
+		final StringBuilder sb=new StringBuilder();
+		while(r.hasNext())
+			{
+			final XMLEvent evt = r.nextEvent();
+			if(evt.isEndElement()) break;
+			else if(evt.isStartElement())
+				{
+				sb.append(textContent(r));
+				}
+			else if(evt.isCharacters())
+				{
+				sb.append(evt.asCharacters().getData());
+				}
+			}
+		return sb.toString();
+		}
 	
 	private Author parseAuthor(XMLEventReader r,final String pmid,int depth)  throws XMLStreamException
 		{
@@ -395,7 +418,7 @@ public class PubmedOrcidGraph
 				}
 			}
 		}
-		catch(Exception err) {
+		catch(final Exception err) {
 			LOG.error(err);
 			}
 		 finally {
@@ -411,7 +434,7 @@ public class PubmedOrcidGraph
 				final DatabaseEntry data=new DatabaseEntry();
 				c=this.authorDatabase.openCursor(txn, null);
 				while(c.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS) {
-					Author au  = this.authorBinding.entryToObject(data);
+					final Author au  = this.authorBinding.entryToObject(data);
 					if(au.reviewed) continue;
 					if(au.depth>=maxdepth) continue;
 					if(authorToScan==null || authorToScan.depth>au.depth) {
@@ -444,7 +467,7 @@ public class PubmedOrcidGraph
 			final Article article=new Article();
 
 			boolean PubDate=false;
-			List<Author> authors = new ArrayList<>();
+			final List<Author> authors = new ArrayList<>();
 			while(r.hasNext()) {
 				final XMLEvent evt=r.nextEvent();
 				
@@ -458,7 +481,7 @@ public class PubmedOrcidGraph
 						article.ISOAbbreviation=r.getElementText();
 					}
 					else if(article.ArticleTitle==null && eltName.equals("ArticleTitle")) {
-						article.ArticleTitle=r.getElementText();
+						article.ArticleTitle = this.textContent(r);
 					}
 					else if(eltName.equals("PubDate")) {
 						PubDate=true;
@@ -558,7 +581,7 @@ public class PubmedOrcidGraph
 					{
 					LOG.debug("Author already in database : "+au.orcid);
 					final Author other=this.authorBinding.entryToObject(data);
-					if(!other.lastName.isEmpty() && !au.lastName.isEmpty() && 
+					if(!StringUtil.isBlank(other.lastName) && !StringUtil.isBlank(au.lastName) && 
 							collator.compare(au.lastName,other.lastName)!=0)
 						{
 						this.errPrintWriter.println("Conflict\t"+au.orcid+"\t"+au.foreName+"\t"+other.foreName);
@@ -638,7 +661,7 @@ public class PubmedOrcidGraph
 			in = new URL(urlstr).openStream();
 			r= createXMLInputFactory().createXMLEventReader(in);
 			while(r.hasNext()) {
-				XMLEvent evt=r.nextEvent();
+				final XMLEvent evt=r.nextEvent();
 				if(evt.isStartElement() && evt.asStartElement().getName().getLocalPart().equals("WebEnv")) {
 					WebEnv = r.getElementText();
 					}
@@ -648,7 +671,7 @@ public class PubmedOrcidGraph
 				if(QueryKey!=null && WebEnv!=null) break;
 				}
 			}
-		catch(Exception err) {
+		catch(final Exception err) {
 			LOG.error(err);
 			}
 		finally

@@ -1,5 +1,7 @@
 # PubmedDump
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Dump XML results from pubmed/Eutils
 
 
@@ -22,6 +24,10 @@ Usage: pubmeddump [options] Files
       java property file ${HOME}/.ncbi.properties and key api_key
     -o, --output
       Output file. Optional . Default: stdout
+    -skip, --skip
+      [20180302] Optional set of elements names to be ignored in the output. 
+      Spaces or comma separated. .eg: 'AuthorList PubmedData '
+      Default: <empty string>
     --version
       print version and exit
 
@@ -78,24 +84,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedDump.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedDump.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri Nov 3 09:47:30 2017 +0100 ; updated code for ncbi api_key ; https://github.com/lindenb/jvarkit/commit/1a6c7673fd0ec2473433d78e24b1cbd6cfe6e4ca
-Thu Nov 2 19:54:56 2017 +0100 ; added NCBI API key ; https://github.com/lindenb/jvarkit/commit/fa13648014a42cd307b25f8661385e9f62d42bea
-Sun Sep 3 00:12:21 2017 +0200 ; fix https://github.com/lindenb/jvarkit/issues/86 ; https://github.com/lindenb/jvarkit/commit/28ae7e722db261d7d337e066f52bfb9d88e53733
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
-Thu Jul 28 09:48:29 2016 +0200 ; NCBI moved API to https ; https://github.com/lindenb/jvarkit/commit/d207e023a06d2ae7afd2e05d2f1369b8a713974b
-Mon Dec 14 12:21:36 2015 +0100 ; pubmed dump ; https://github.com/lindenb/jvarkit/commit/7e900346355242e82aabb953fc6aa343d7a4a814
-Tue Aug 5 12:09:43 2014 +0200 ; bam index read names ; https://github.com/lindenb/jvarkit/commit/749748d92fd5868fb36d01334502192a5a767fe5
-```
-
-</details>
 
 ## Contribute
 

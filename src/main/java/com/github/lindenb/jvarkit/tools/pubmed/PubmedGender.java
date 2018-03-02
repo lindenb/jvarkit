@@ -153,7 +153,9 @@ $ java -jar dist/pubmeddump.jar "Lindenbaum[Author] Nantes" 2> /dev/null  | java
  
  END_DOC
  */
-@Program(name="pubmedgender",keywords={"pubmed","gender","ncbi","xml"},description="Add gender-related attributes in the Author tag of pubmed xml. ")
+@Program(name="pubmedgender",
+	keywords={"pubmed","gender","ncbi","xml"},
+	description="Add gender-related attributes in the Author tag of pubmed xml. ")
 public class PubmedGender
 	extends Launcher
 	{
@@ -179,7 +181,7 @@ public class PubmedGender
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		final String inputName= oneFileOrNull(args);
 		if(this.dataFile==null || !this.dataFile.exists()) {
 			LOG.error("Undefined option -d");
@@ -330,7 +332,7 @@ public class PubmedGender
 			w.flush();w.close();w=null;
 			out.flush();out.close();out=null;
 			return 0;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 		} finally {

@@ -1,5 +1,7 @@
 # PubmedCodingLanguages
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Programming language use distribution from recent programs / articles
 
 
@@ -8,6 +10,10 @@ Programming language use distribution from recent programs / articles
 ```
 Usage: pubmedcodinglang [options] Files
   Options:
+    -c, --common
+      [20180302] only common languages. What is a 'common' language ? well .. 
+      it's subjective...
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -72,20 +78,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedCodingLanguages.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedCodingLanguages.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
-Sat May 6 17:54:19 2017 +0200 ; annotation for doc ; https://github.com/lindenb/jvarkit/commit/96e67e3b4ae4f94abb36d784d36d726005f255a0
-Thu May 4 21:35:21 2017 +0200 ; pubmed language ; https://github.com/lindenb/jvarkit/commit/d2c84d54252d2761acfd7def17dc3e3f2a494037
-Thu May 4 19:30:23 2017 +0200 ; biostar 251002 ; https://github.com/lindenb/jvarkit/commit/8466bf5d0f758724b956f2632c00da65c1ac12f8
-```
-
-</details>
 
 ## Contribute
 
@@ -158,5 +150,9 @@ plot 'table.txt' using 2:xtic(1), for [i=3:N] '' using i;
 
 
 ![https://pbs.twimg.com/media/C_AZTzFXoAUpiuI.jpg:large](https://pbs.twimg.com/media/C_AZTzFXoAUpiuI.jpg:large)
+
+## See also
+
+* https://gist.github.com/lindenb/83196adbb034ef5874086d10dd9772ac 
 
 

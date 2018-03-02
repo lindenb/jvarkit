@@ -577,7 +577,7 @@ public class PubmedMap
 		}
 		
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new PubmedMap().instanceMainWithExit(args);
 	}
 }
