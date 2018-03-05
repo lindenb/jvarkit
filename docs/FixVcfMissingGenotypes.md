@@ -17,6 +17,10 @@ Usage: fixvcfmissinggenotypes [options] Files
     -d, --depth
       minimal depth before setting a genotype to HOM_REF
       Default: 10
+    --disable-vc-attribute-recalc
+      When genotypes are removed/changed, Dd not recalculate variant 
+      attributes like DP, AF, AC, AN...
+      Default: false
     -filter, --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
@@ -37,6 +41,14 @@ Usage: fixvcfmissinggenotypes [options] Files
     -T, --tag
       FORMAT 'Tag' for fixed genotype
       Default: FXG
+    --vc-attribute-recalc-ignore-filtered
+      When recalculating variant attributes like DP AF, AC, AN, ignore 
+      FILTERed **Genotypes**
+      Default: false
+    --vc-attribute-recalc-ignore-missing
+      Ignore missing VCF headers (DP, AF, AC, AN). Default behavior: adding 
+      VCF header if they're missing
+      Default: false
     --version
       print version and exit
 

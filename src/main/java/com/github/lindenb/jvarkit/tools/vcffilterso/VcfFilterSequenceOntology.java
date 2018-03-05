@@ -74,6 +74,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
@@ -221,13 +222,17 @@ public class VcfFilterSequenceOntology
 					)
 			private String filterGenotypesStr=null;
 
+			@ParametersDelegate
+			private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
+
+			
 			@XmlTransient
 			@Parameter(names={"-owluri","--owluri"},description="Experimental. If not empty, don't use the internal SO ontology but load a OWL description of the ontology. Tested with https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/releases/so-xp.owl/so-xp-simple.owl")
 			private String owluri = "";
 			
 			@XmlTransient
 			private SequenceOntologyTree sequenceOntologyTree = SequenceOntologyTree.createDefault();
-			
+
 			
 			/* all sequence terms */
 			@XmlTransient
@@ -482,6 +487,7 @@ public class VcfFilterSequenceOntology
 					ph = new AnnPredictionHandler(header);
 					if(ph.isValid()) this.predictionHandlers.add(ph);
 					
+					CtxWriterFactory.this.recalculator.setHeader(header2);
 					super.writeHeader(header2);
 					}
 				
@@ -597,7 +603,7 @@ public class VcfFilterSequenceOntology
 					final VariantContext ctx3;
 					if(GT_FILTER_RESET_TO_NOCALL.equals(this.filterGenotypesStr))
 					 	{
-						ctx3 = VCFUtils.recalculateAttributes(vcb.make());
+						ctx3 = CtxWriterFactory.this.recalculator.apply(vcb.make());
 					 	}
 					 else
 					 	{

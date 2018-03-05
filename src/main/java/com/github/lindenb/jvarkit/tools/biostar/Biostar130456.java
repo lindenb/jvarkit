@@ -47,11 +47,13 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.semontology.Term;
 
@@ -87,8 +89,7 @@ END_DOC
 @Program(
 		name="biostar130456",
 		description="Individual VCF files from main VCF file",
-		biostars=130456,
-		terms=Term.ID_0000015
+		biostars=130456
 		)
 public class Biostar130456 extends Launcher
 	{
@@ -107,6 +108,8 @@ public class Biostar130456 extends Launcher
 
 	@Parameter(names={"-z","--homref"},description="remove homzygote REF/REF")
 	private boolean remove_homref = false;
+	@ParametersDelegate
+	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
 	
 	
@@ -126,6 +129,8 @@ public class Biostar130456 extends Launcher
 				out = openFileOrStdoutAsPrintStream(outputFile);
 				in = super.openVcfIterator(inputName);
 				final VCFHeader header=in.getHeader();
+				this.recalculator.setHeader(header);
+				
 				final Set<String> samples = new HashSet<String>(header.getSampleNamesInOrder());
 				final Map<String,VariantContextWriter> sample2writer=new HashMap<String,VariantContextWriter>(samples.size());
 	
@@ -148,6 +153,7 @@ public class Biostar130456 extends Launcher
 					if(fout.getParentFile()!=null) fout.getParentFile().mkdirs();
 					final VariantContextWriter w= VCFUtils.createVariantContextWriter(fout);
 					w.writeHeader(h2);
+					
 					sample2writer.put(sample, w);
 					}
 				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
@@ -167,7 +173,7 @@ public class Biostar130456 extends Launcher
 						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 						final GenotypeBuilder gb=new GenotypeBuilder(g);
 						vcb.genotypes(Collections.singletonList(gb.make()));
-						final VariantContext ctx2= vcb.make();
+						final VariantContext ctx2= this.recalculator.apply(vcb.make());
 						w.add(ctx2);
 						}
 					}

@@ -55,7 +55,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 
@@ -114,6 +114,8 @@ public class VcfCutSamples
 	
 	@ParametersDelegate
 	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
+	@ParametersDelegate
+	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
 	
 	public VcfCutSamples()
@@ -190,7 +192,7 @@ public class VcfCutSamples
 		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
 		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 
-		
+		this.recalculator.setHeader(header2);
 		out.writeHeader(header2);
 		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		while(in.hasNext())
@@ -215,7 +217,7 @@ public class VcfCutSamples
 			alleles.add(ctx.getReference());
 			vb.alleles(alleles);
 			vb.genotypes(genotypes);
-			out.add(VCFUtils.recalculateAttributes(vb.make()));
+			out.add(this.recalculator.apply(vb.make()));
 			}
 		progress.finish();
 		return 0;

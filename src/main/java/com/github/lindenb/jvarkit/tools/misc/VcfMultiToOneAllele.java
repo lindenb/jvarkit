@@ -57,7 +57,7 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
@@ -139,7 +139,10 @@ public class VcfMultiToOneAllele
 		private ReplaceWith replaceWith=ReplaceWith.REF;
 		@Parameter(names={"--disableHomVarAlt"},description="by default is a genotype is homvar for an external ALT ('2/2'), it will be set to ./. (no call). Setting this option will replace the current allele.")
 		private boolean disableHomVarAlt=true;
-	
+		@ParametersDelegate
+		private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
+
+		
 		private class CtxWriter extends DelegateVariantContextWriter
 			{
 			private VcfTools tools;
@@ -180,7 +183,8 @@ public class VcfMultiToOneAllele
 							metaData,
 							sample_names
 							);
-					}				
+					}	
+				CtxWriterFactory.this.recalculator.setHeader(this.header2);
 				super.writeHeader(this.header2);
 				}
 			
@@ -263,7 +267,7 @@ public class VcfMultiToOneAllele
 								}
 							vcb.genotypes(makeGenotypes(ctx, sample_names, the_allele, replaceAlleleWith));
 							}
-						super.add(VCFUtils.recalculateAttributes(vcb.make()));
+						super.add(CtxWriterFactory.this.recalculator.apply(vcb.make()));
 						}
 					}
 				

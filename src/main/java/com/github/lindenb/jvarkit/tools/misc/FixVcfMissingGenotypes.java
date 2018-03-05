@@ -60,9 +60,10 @@ import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -153,6 +154,8 @@ public class FixVcfMissingGenotypes extends Launcher
 	private boolean fixDP=false;
 	@Parameter(names={"--filtered"},description="Mark fixed genotypes as FILTERED with this FILTER")
 	private String fixedGenotypesAreFiltered=null;
+	@ParametersDelegate
+	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
 	
 	/** return DP at given position */
@@ -245,8 +248,9 @@ public class FixVcfMissingGenotypes extends Launcher
 			h2.addMetaDataLine(new VCFFormatHeaderLine(this.fixedTag,1,VCFHeaderLineType.Integer,"Genotype was set as homozygous (min depth ="+this.minDepth+")"));
 			
 			
-			SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 			
+			this.recalculator.setHeader(h2);
 			out.writeHeader(h2);
 			while(in.hasNext())
 				{
@@ -298,7 +302,7 @@ public class FixVcfMissingGenotypes extends Launcher
 					{
 					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.genotypes(genotypes);
-					out.add(VCFUtils.recalculateAttributes(vcb.make()));
+					out.add(this.recalculator.apply(vcb.make()));
 					}
 				else
 					{

@@ -1002,64 +1002,6 @@ public class VCFUtils
 			}
 		return attributes;
 		}
-    
-    /** if we remove, update genotype in a variant, lets recalculate the following fields:
-     * VCFConstants.DEPTH_KEY, ALLELE_COUNT_KEY, ALLELE_NUMBER_KEY, ALLELE_FREQUENCY_KEY
-     *  
-     *  */
-    public static VariantContext recalculateAttributes(final VariantContext ctx) {
-    	final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-    	
-    	
-    	
-    	if(ctx.hasAttribute(VCFConstants.DEPTH_KEY)) {
-    		vcb.rmAttribute(VCFConstants.DEPTH_KEY);
-    		if(ctx.getGenotypes().stream().filter(G->G.hasDP()).findAny().isPresent()) {
-	    		vcb.attribute(VCFConstants.DEPTH_KEY,
-	    			ctx.getGenotypes().stream().filter(G->G.hasDP() && !G.isFiltered()).mapToInt(G->G.getDP()).sum()
-	    			);
-	    		}
-    		}
-    	final List<Integer> acL=new ArrayList<>();
-    	for(final Allele alt:ctx.getAlternateAlleles())
-    		{
-    		final int ac= (int)ctx.getGenotypes().stream().filter(G->!G.isFiltered()).
-    			mapToLong(G->G.getAlleles().stream().filter(A->A.equals(alt)).count()).sum()
-    			;
-    		acL.add(ac);
-    		}
-    	
-    	final int AN= (int)ctx.getGenotypes().stream().
-    			filter(G->G.isCalled() && !G.isFiltered()).
-				mapToInt(G->G.getAlleles().size()).sum()
-				;
-    	
-    	if(ctx.hasAttribute(VCFConstants.ALLELE_COUNT_KEY)) {
-    		vcb.rmAttribute(VCFConstants.ALLELE_COUNT_KEY);
-    		if(!acL.isEmpty())  vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,acL);
-    		}
-    	if(ctx.hasAttribute(VCFConstants.ALLELE_NUMBER_KEY)) {
-    		vcb.rmAttribute(VCFConstants.ALLELE_NUMBER_KEY);
-    		vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,AN);
-    		}
-    	if(ctx.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY)) {
-    		vcb.rmAttribute(VCFConstants.ALLELE_FREQUENCY_KEY);
-    		if(AN>0 && !acL.isEmpty())
-	    		{
-	    		final List<Double> afL = new ArrayList<>(acL.size());
-	    		for(int x=0;x< acL.size();++x)
-	    			{
-	    			afL.add(acL.get(x)/(double)AN);
-	    			}
-	    		vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,afL);
-	    		}
-    		}	
-    	
-    	
-    	return vcb.make();
-    }
-    
-    
     /**
      * Implementation of a VcfIterator
      * wrapping a VCFFileReader

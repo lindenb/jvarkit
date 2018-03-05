@@ -23,12 +23,13 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.semontology.Term;
 
@@ -87,6 +88,8 @@ public class Biostar86363 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar86363.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@ParametersDelegate
+	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
 	
 	
@@ -109,6 +112,7 @@ public class Biostar86363 extends Launcher
 		VCFHeader h=in.getHeader();
 		final List<String> vcf_samples=h.getSampleNamesInOrder();
 		h.addMetaDataLine(new VCFFormatHeaderLine("GR", 1, VCFHeaderLineType.Integer, "(1) = Genotype was reset by "+getProgramName()));
+		this.recalculator.setHeader(h);
 		out.writeHeader(h);
 		while(in.hasNext())
 			{
@@ -139,7 +143,7 @@ public class Biostar86363 extends Launcher
 					
 					}
 				vcb.genotypes(genotypes);
-				ctx=VCFUtils.recalculateAttributes(vcb.make());
+				ctx=this.recalculator.apply(vcb.make());
 				}
 			out.add(ctx);
 			}

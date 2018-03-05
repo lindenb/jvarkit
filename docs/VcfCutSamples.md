@@ -1,5 +1,7 @@
 # VcfCutSamples
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Select/Exclude some samples from a VCF
 
 
@@ -12,6 +14,10 @@ use bcftools or gatk SelectVariants
 ```
 Usage: vcfcutsamples [options] Files
   Options:
+    --disable-vc-attribute-recalc
+      When genotypes are removed/changed, Dd not recalculate variant 
+      attributes like DP, AF, AC, AN...
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -30,6 +36,14 @@ Usage: vcfcutsamples [options] Files
     -S, --samples
       Sample name
       Default: []
+    --vc-attribute-recalc-ignore-filtered
+      When recalculating variant attributes like DP AF, AC, AN, ignore 
+      FILTERed **Genotypes**
+      Default: false
+    --vc-attribute-recalc-ignore-missing
+      Ignore missing VCF headers (DP, AF, AC, AN). Default behavior: adding 
+      VCF header if they're missing
+      Default: false
     --vcfcreateindex
       VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
       Default: false
@@ -91,30 +105,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfCutSamples.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfCutSamples.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Thu Jul 13 20:16:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/85b6c9c196e9a065dfd47bee37fe50238af41660
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Fri Apr 14 19:04:29 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/706521d87839a7527e6bf8a3a63452713c2b2535
-Wed Feb 10 17:20:35 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/7207a57a0af4612b86064e027a232e1e51cb144c
-Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
-Fri May 15 18:07:33 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/346bd7d374bfe8f2c969de98ed176060b234f0e1
-Wed May 13 18:06:28 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/840f289630f04c24db877d06f90404ff7c2b9639
-Mon Mar 2 10:41:47 2015 +0100 ; vcfcut sample support for knime ; https://github.com/lindenb/jvarkit/commit/3065a6ef9847520f04fb7644107472fcc9f2bfb8
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Wed Dec 18 22:05:30 2013 +0100 ; blast to sam ; https://github.com/lindenb/jvarkit/commit/f02fd713666717adebb6de5890c8a87cddd869ad
-Thu Dec 12 16:49:38 2013 +0100 ; vcf cut samples & stats ; https://github.com/lindenb/jvarkit/commit/350287a672873076beab8c0e9b2e5b1c39581995
-```
-
-</details>
 
 ## Contribute
 

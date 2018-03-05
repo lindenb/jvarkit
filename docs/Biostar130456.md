@@ -1,5 +1,7 @@
 # Biostar130456
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Individual VCF files from main VCF file
 
 
@@ -8,6 +10,10 @@ Individual VCF files from main VCF file
 ```
 Usage: biostar130456 [options] Files
   Options:
+    --disable-vc-attribute-recalc
+      When genotypes are removed/changed, Dd not recalculate variant 
+      attributes like DP, AF, AC, AN...
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -22,6 +28,14 @@ Usage: biostar130456 [options] Files
       output file pattern. Must contain the word __SAMPLE__
     -x, --uncalled
       remove uncalled genotypes
+      Default: false
+    --vc-attribute-recalc-ignore-filtered
+      When recalculating variant attributes like DP AF, AC, AN, ignore 
+      FILTERed **Genotypes**
+      Default: false
+    --vc-attribute-recalc-ignore-missing
+      Ignore missing VCF headers (DP, AF, AC, AN). Default behavior: adding 
+      VCF header if they're missing
       Default: false
     --version
       print version and exit
@@ -71,23 +85,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar130456.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar130456.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
-Thu Apr 6 18:34:56 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/883b4ba4b693661663694256f16b137e371147fa
-Wed Mar 30 17:45:00 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ef77dce3c82c470017916555304df6a470fbdad4
-Thu Nov 26 17:41:15 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/899c60335614350d463be66ec21e994b34dc55be
-Mon Oct 5 16:45:29 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/49db236991055dbd990d55732a3c312b8204d508
-Mon Jun 8 17:24:41 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f9a941d604f378ff40a32666c8381cb2450c7cfa
-Tue Feb 10 21:55:45 2015 +0100 ; biostar130456 split multi vcf #tweet ; https://github.com/lindenb/jvarkit/commit/06008a80769b17d7b72c31a93eb5dacb180e1b69
-```
-
-</details>
 
 ## Contribute
 

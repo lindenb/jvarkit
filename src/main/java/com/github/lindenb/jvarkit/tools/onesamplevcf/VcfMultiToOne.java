@@ -51,12 +51,14 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /*
@@ -219,7 +221,8 @@ public class VcfMultiToOne extends Launcher
 	private boolean discard_non_available = false;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
+	@ParametersDelegate
+	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 	
 
 	public static final String DEFAULT_VCF_SAMPLE_NAME="SAMPLE";
@@ -331,6 +334,7 @@ public class VcfMultiToOne extends Launcher
 					metaData,
 					Collections.singleton(DEFAULT_VCF_SAMPLE_NAME)
 					);
+			recalculator.setHeader(h2);
 			
 			out= super.openVariantContextWriter(this.outputFile);
 			out.writeHeader(h2);
@@ -377,7 +381,7 @@ public class VcfMultiToOne extends Launcher
 						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 						vcb.attribute(DEFAULT_SAMPLE_FILETAGID,inputFiles.get(best_idx));
 						vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
-						out.add(VCFUtils.recalculateAttributes(vcb.make()));
+						out.add(this.recalculator.apply(vcb.make()));
 						}
 					continue;
 					}
@@ -402,7 +406,7 @@ public class VcfMultiToOne extends Launcher
 					
 					
 					vcb.genotypes(gb.make());
-					out.add(VCFUtils.recalculateAttributes(vcb.make()));
+					out.add(this.recalculator.apply(vcb.make()));
 					}
 				}
 			progress.finish();
