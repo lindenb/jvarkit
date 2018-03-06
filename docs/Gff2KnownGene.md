@@ -1,5 +1,7 @@
 # Gff2KnownGene
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Convert GFF3/GTF format to UCSC knownGene format.
 
 
@@ -89,24 +91,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGene.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGene.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
-Wed Oct 4 17:05:37 2017 +0200 ; reading google scholar, answers to reviewers ; https://github.com/lindenb/jvarkit/commit/871a481468fbd1877f02bc171cf080c5e1d3190f
-Wed Oct 4 14:24:06 2017 +0200 ; https://www.biostars.org/p/276099 ; https://github.com/lindenb/jvarkit/commit/47371517ed135a6730d83da7a3cc5e5a3704e265
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Mon Apr 10 17:44:58 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1a3303b52707e9ba8c9b913e0f82d2735698d24e
-Fri Jun 17 13:56:39 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/865252a44fc018f46b4280788cec65a1383dcc18
-Mon Apr 4 14:06:56 2016 +0200 ; gff 2 kg ; https://github.com/lindenb/jvarkit/commit/c2b5d3b3881ec64d79f7fc48c9c339d6c29f16e1
-```
-
-</details>
 
 ## Contribute
 

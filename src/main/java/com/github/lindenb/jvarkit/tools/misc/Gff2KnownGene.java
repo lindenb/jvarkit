@@ -24,23 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import htsjdk.samtools.GenomicIndexUtil;
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.samtools.util.SortingCollection;
-import htsjdk.samtools.util.StringUtil;
-import htsjdk.tribble.readers.LineIterator;
-
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Paths;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -49,13 +37,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
@@ -63,6 +49,14 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+
+import htsjdk.samtools.GenomicIndexUtil;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.SortingCollection;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.LineIterator;
 
 /**
 BEGIN_DOC
@@ -277,8 +271,6 @@ public class Gff2KnownGene extends Launcher {
 					return i;
 					}
 				});
-			final Pattern tab = Pattern.compile("[\t]");
-			final Pattern semicolon=Pattern.compile(";");
 			while(eq.hasNext()) {
 				final List<GffLine> L = eq.next();
 				final GffLine first = L.get(0);

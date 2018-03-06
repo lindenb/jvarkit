@@ -22,7 +22,19 @@ public class GenBankToGff3Test extends TestUtils{
 			{"NC_014415.1"}//small eukaryote
 			};
 	}
-		
+	
+	private void testXml(final File gbxml) throws IOException
+		{
+		final File out = createTmpFile(".txt");
+		Assert.assertEquals(
+			new GenbankToGff3().instanceMain(newCmd().
+			add("-o").add(out).
+			add(gbxml).
+			make()
+			),0);
+		assertIsNotEmpty(out);
+		}
+	
 	@Test(dataProvider="src1")
 	public void test1(final String acns) throws IOException {
 		final File gbxml = createTmpFile(".xml");
@@ -33,14 +45,20 @@ public class GenBankToGff3Test extends TestUtils{
 		IOUtils.copyTo(xmlin, gbxml);
 		xmlin.close();
 		assertIsXml(gbxml);
-		
-		final File out = createTmpFile(".txt");
-		Assert.assertEquals(
-			new GenbankToGff3().instanceMain(newCmd().
-			add("-o").add(out).
-			add(gbxml).
-			make()
-			),0);
-		assertIsNotEmpty(out);
+		testXml(gbxml);
 		}
+	
+	@DataProvider(name = "src2")
+	public Object[][] createData2() {
+		return new Object[][]{
+			{SRC_TEST_RESOURCE+"/rotavirus_rf.gb.xml"}
+			};
+	}
+	
+	@Test(dataProvider="src2")
+	public void test2(final String xmlfile) throws IOException {
+		testXml(new File(xmlfile));
+		}
+	
+	
 }

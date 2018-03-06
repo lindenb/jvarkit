@@ -292,13 +292,25 @@ see [https://gist.github.com/lindenb/4465c0e822b175f3428029526beef80c](https://g
 
 ![capture](https://gist.githubusercontent.com/lindenb/4465c0e822b175f3428029526beef80c/raw/3510261585a1fc8858c2fb54caba2d1c43d72918/Screenshot_A.png)
 
+
+## Example
+
+updating AF and MAF fields:
+
+```
+$ gunzip -c  input.vcf.gz |\
+ awk '/^#CHROM/ {printf("##INFO=<ID=MAF,Number=1,Type=Float,Description=\"Min Allele Frequency\">\n##INFO=<ID=AF,Number=A,Type=Float,Description=\"Allele Frequency\">\n");} {print}' |\
+ java -jar dist/vcffilterjdk.jar -e 'VariantContextBuilder vcb = new VariantContextBuilder(variant); float ac = variant.getAttributeAsInt("AN",0); if(ac>0) { List<Float> af = variant.getAttributeAsIntList("AC",0).stream().map(N->N/ac).collect(Collectors.toList());vcb.attribute("AF",af);vcb.attribute("MAF",af.stream().mapToDouble(X->X.floatValue()).min().orElse(-1.0) );} return vcb.make();'
+```
+
+
 END_DOC
  */
 @Program(
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145},
+		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk

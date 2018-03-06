@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.biostar;
@@ -47,13 +44,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.XMLConstants;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.parsers.SAXParserFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import javax.xml.transform.sax.SAXSource;
 
 import org.xml.sax.InputSource;
+import org.xml.sax.XMLReader;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -64,7 +65,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 import com.github.lindenb.jvarkit.util.svg.SVG;
-import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -91,7 +91,6 @@ END_DOC
 @Program(name="biostar95652",
 	keywords={"genbank","svg","tree","evolution"},
 	description="Drawing a schematic genomic context tree.",
-	terms=Term.ID_0000015,
 	biostars=95652)
 public class Biostar95652 extends Launcher
 	{
@@ -172,7 +171,7 @@ public class Biostar95652 extends Launcher
 				
 				w.writeStartElement("a");
 				w.writeAttribute("xlink", XLINK, "href",
-						"http://www.ncbi.nlm.nih.gov/Structure/cdd/cddsrv.cgi?uid="+r.domain.cdd
+						"https://www.ncbi.nlm.nih.gov/Structure/cdd/cddsrv.cgi?uid="+r.domain.cdd
 						);
 				
 				w.writeEmptyElement("rect");
@@ -324,7 +323,7 @@ public class Biostar95652 extends Launcher
 				
 				w.writeStartElement("a");
 				w.writeAttribute("xlink", XLINK, "href",
-						"http://www.ncbi.nlm.nih.gov/protein/"+protein.locus
+						"https://www.ncbi.nlm.nih.gov/protein/"+protein.locus
 						);
 				r.x+= Biostar95652.this.organismWidth;
 				r.width=Biostar95652.this.acnWidth-10;
@@ -361,8 +360,16 @@ public class Biostar95652 extends Launcher
 				}
 			
 			JAXBContext context = JAXBContext.newInstance("gov.nih.nlm.ncbi.gb");
-			Unmarshaller unmarshaller=context.createUnmarshaller();
-			for(String arg:args)
+			final Unmarshaller unmarshaller=context.createUnmarshaller();
+			//  https://stackoverflow.com/questions/31293624
+			try {
+				unmarshaller.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "all");
+				}
+			catch(final Throwable err)
+				{
+				LOG.warn(err);
+				}
+			for(final String arg:args)
 				{
 				String uri=
 						NcbiConstants.efetch()+
@@ -371,7 +378,13 @@ public class Biostar95652 extends Launcher
 						this.ncbiApiKey.getAmpParamValue();
 				
 				LOG.info("Reading from "+uri);
-				GBSet gbset=(GBSet)unmarshaller.unmarshal(new InputSource(uri));
+				
+				// https://stackoverflow.com/questions/24460892/
+				SAXParserFactory spf = SAXParserFactory.newInstance();
+			    spf.setValidating(false); // Not required for JAXB/XInclude
+			    final XMLReader xr = spf.newSAXParser().getXMLReader();
+			    final SAXSource source = new SAXSource(xr, new InputSource(uri));
+				GBSet gbset=(GBSet)unmarshaller.unmarshal(source);
 				if(gbset.getGBSeq().isEmpty())
 					{
 					LOG.info("Nothing in "+uri);
@@ -462,7 +475,7 @@ public class Biostar95652 extends Launcher
 			PrintStream ps = super.openFileOrStdoutAsPrintStream(outputFile);
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.TRUE);
-			XMLStreamWriter w=xof.createXMLStreamWriter(System.out, "UTF-8");
+			XMLStreamWriter w=xof.createXMLStreamWriter(ps, "UTF-8");
 			w.writeStartDocument("UTF-8", "1.0");
 			w.writeStartElement("svg");
 			w.writeDefaultNamespace(SVG.NS);

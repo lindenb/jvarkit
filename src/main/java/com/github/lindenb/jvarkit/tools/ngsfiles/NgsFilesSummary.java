@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.ngsfiles;
 
@@ -43,6 +40,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -75,7 +73,10 @@ SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.samtools.vc
 END_DOC
 
  */
-@Program(name="ngsfilessummary",description="Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)")
+@Program(name="ngsfilessummary",
+	description="Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples.",
+	keywords= {"sam","bam","vcf","util"}
+		)
 public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	{
 	private static final Logger LOG = Logger.build(NgsFilesSummary.class).make();
@@ -117,14 +118,22 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     	try {
 			r = super.openSamReader(f.getPath());
 			SAMFileHeader h=r.getFileHeader();
-			if(h!=null && h.getReadGroups()!=null)
+			if(h!=null && 
+					h.getReadGroups()!=null && 
+					h.getReadGroups().isEmpty())
 				{
-				for(SAMReadGroupRecord rg: h.getReadGroups())
+				for(final SAMReadGroupRecord rg: h.getReadGroups())
 					{
 					String sample=rg.getSample();
-					if(sample==null || sample.isEmpty()) continue;
+					if(StringUtil.isBlank(sample)) {
+						sample = "_NO_SAMPLE_RG_";
+						}
 					print(sample,InfoType.BAM, f);
 					}
+				}
+			else
+				{
+				print("_NO_READ_GROUP_",InfoType.BAM, f);
 				}
 			} 
     	catch (final Exception e)
@@ -138,11 +147,11 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     	}
    
    @Override
-   protected void readFastq(File f)
+   protected void readFastq(final File f)
 		{
     	//File parent=f.getParentFile();
     	//if(parent==null || super.VERBOSITY==Log.LogLevel.) return;
-    	FastQName fq=FastQName.parse(f);
+    	final FastQName fq=FastQName.parse(f);
     	
 		
 		if(!fq.isValid())
@@ -155,7 +164,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 		}
     
    @Override
-   protected void readVCF(File f)
+   protected void readVCF(final File f)
 		{
     	if(!f.canRead()) return;
     	LOG.debug("readVCF  "+f);
@@ -169,12 +178,12 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     		
     		r=new VcfIteratorImpl(in);
         	VCFHeader header=r.getHeader();
-        	for(String sample:header.getSampleNamesInOrder())
+        	for(final String sample:header.getSampleNamesInOrder())
 	        	{
 	        	print(sample,InfoType.VCF, f);
 	    		}
     		}
-    	catch(Exception err)
+    	catch(final Exception err)
     		{
     		LOG.error(err);
     		}
@@ -204,14 +213,12 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			this.printWriter = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			if(args.isEmpty())
 				{
-				LOG.info("Reading from stdin");
 				scan(new BufferedReader(new InputStreamReader(stdin())));
 				}
 			else
 				{
 				for(final String filename:args)
 					{
-					LOG.info("Reading from "+filename);
 					final BufferedReader r=IOUtils.openURIForBufferedReading(filename);
 					scan(r);
 					r.close();
@@ -222,7 +229,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			this.printWriter=null;
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -233,10 +240,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			}
 		}
 	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new NgsFilesSummary().instanceMainWithExit(args);
 
 	}

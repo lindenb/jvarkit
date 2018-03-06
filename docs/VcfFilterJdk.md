@@ -60,6 +60,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/293314](https://www.biostars.org/p/293314)
  * [https://www.biostars.org/p/295902](https://www.biostars.org/p/295902)
  * [https://www.biostars.org/p/296145](https://www.biostars.org/p/296145)
+ * [https://www.biostars.org/p/302217](https://www.biostars.org/p/302217)
 
 
 ## Compilation
@@ -99,37 +100,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdk.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Jan 31 16:41:33 2018 +0100 ; cont, playing with collectors ; https://github.com/lindenb/jvarkit/commit/8fcd946496834555873b511195a14ccf4b17466e
-Mon Jan 29 16:03:39 2018 +0100 ; fix bug in bamstats04 found by @EricCharp: no output for segment without any read ; https://github.com/lindenb/jvarkit/commit/4f33881195371896cfe107521ef5722e75015f6b
-Mon Jan 15 19:05:48 2018 +0100 ; fix package import, add misc biostars ; https://github.com/lindenb/jvarkit/commit/17f54d19a261f1ff7010742a68b5f13047cd3c1e
-Wed Jan 10 19:03:39 2018 +0100 ; https://www.biostars.org/p/292710 ; https://github.com/lindenb/jvarkit/commit/3dc0a07a64640742eafe3c75cc8f8958457eac53
-Fri Nov 24 17:13:18 2017 +0100 ; igvreviewer, publication in bioinformatics ; https://github.com/lindenb/jvarkit/commit/05b75cd538d590709756e98c736a062231638ccb
-Fri Nov 17 18:02:19 2017 +0100 ; sample index in epsistasis, fixing things, IOUtils.fefaultTempDir, https://www.biostars.org/p/284083/#284376 ; https://github.com/lindenb/jvarkit/commit/779eceb21e86814e0e419c7cd3b91fcc606c5c40
-Tue Nov 7 17:21:21 2017 +0100 ; https://www.biostars.org/p/250212/ vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/d9b533e2389384f64f336111f4770c9ca7fd3ee0
-Wed Oct 25 09:48:05 2017 +0200 ; added counter<> to vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/282000fc2db2a3b69e7291a2ca74f2d88b6fbcb2
-Tue Oct 24 16:02:53 2017 +0200 ; fixing a bug from samoutput format, not defined as enum in htsjdk via https://www.biostars.org/p/247485/#279521 ; https://github.com/lindenb/jvarkit/commit/50ce395e37ba198aaff7d38d8b34475ed402965e
-Fri Sep 22 14:56:29 2017 +0200 ; moving vcffilterjdk to factories ; https://github.com/lindenb/jvarkit/commit/64926d712c13592b362c6984df9f594c3cacb9f9
-Fri Sep 1 23:02:59 2017 +0200 ; add ref biostars ; https://github.com/lindenb/jvarkit/commit/18efbc16e3ec3f21d67da19dc0a43e4f5c709649
-Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Wed Jul 12 17:06:39 2017 +0200 ; bioalcidaejdk / vcfstats ; https://github.com/lindenb/jvarkit/commit/c610681de3f3ba3f34efe9076a01484580d0d0f3
-Tue Jul 11 17:57:33 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1f248bc7f1fd8a0824bb65a4c67eb052d5a6e381
-Mon Jul 10 17:46:14 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/27c06b3b85d6783e15c1c259657e6c8391bf67a3
-Fri Jul 7 18:36:14 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c5dc2be25578f7cbc60c0f5425bacf4450893c92
-Thu Jul 6 17:31:09 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a0eaa65f9197fd51d1c495c7ed3c65f43a06aa9c
-Thu Jul 6 08:59:44 2017 +0200 ; Merge branch 'master' of https://github.com/lindenb/jvarkit ; https://github.com/lindenb/jvarkit/commit/f2a4a4b605404820e4b1528767667491e5b09848
-Thu Jul 6 08:59:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ceac76152254e17cb692a830ba8b5be2d2320f04
-Wed Jul 5 19:55:44 2017 +0200 ; improve VcfFilterJdk ; https://github.com/lindenb/jvarkit/commit/fcca3944fae3d439f3d5ea3adbf48be64c377577
-Wed Jul 5 11:08:10 2017 +0200 ; vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/b25cc45aa3a057f0dad46f0d83669bc88cc95e0c
-```
-
-</details>
 
 ## Contribute
 
@@ -364,5 +334,17 @@ creating a simple GUI for **vcffilterjdk** using [zenity](https://en.wikipedia.o
 see [https://gist.github.com/lindenb/4465c0e822b175f3428029526beef80c](https://gist.github.com/lindenb/4465c0e822b175f3428029526beef80c) , [https://www.biostars.org/p/296145/](https://www.biostars.org/p/296145/)
 
 ![capture](https://gist.githubusercontent.com/lindenb/4465c0e822b175f3428029526beef80c/raw/3510261585a1fc8858c2fb54caba2d1c43d72918/Screenshot_A.png)
+
+
+## Example
+
+updating AF and MAF fields:
+
+```
+$ gunzip -c  input.vcf.gz |\
+ awk '/^#CHROM/ {printf("##INFO=<ID=MAF,Number=1,Type=Float,Description=\"Min Allele Frequency\">\n##INFO=<ID=AF,Number=A,Type=Float,Description=\"Allele Frequency\">\n");} {print}' |\
+ java -jar dist/vcffilterjdk.jar -e 'VariantContextBuilder vcb = new VariantContextBuilder(variant); float ac = variant.getAttributeAsInt("AN",0); if(ac>0) { List<Float> af = variant.getAttributeAsIntList("AC",0).stream().map(N->N/ac).collect(Collectors.toList());vcb.attribute("AF",af);vcb.attribute("MAF",af.stream().mapToDouble(X->X.floatValue()).min().orElse(-1.0) );} return vcb.make();'
+```
+
 
 

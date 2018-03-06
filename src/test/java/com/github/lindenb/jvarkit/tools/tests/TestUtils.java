@@ -51,6 +51,7 @@ import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 public class TestUtils {
+	protected final String SRC_TEST_RESOURCE="./src/test/resources";
 	private final List<Path> deletePathsAtExit = new Vector<>();
 	private final List<File> deleteFilesAtExit = new Vector<>();
 	protected final Random random = new Random();
@@ -246,7 +247,7 @@ protected static class ParamCombiner
 		}
 	}
 	
-private List<File> _collectFiles(final File dir, FilenameFilter filter) {
+protected List<File> _collectFiles(final File dir,final FilenameFilter filter) {
 	List<File> list = new ArrayList<>();
 	if(dir==null || !dir.isDirectory()) return list;
 	File child[] = dir.listFiles(filter);
@@ -296,14 +297,14 @@ public Object[][] createAllSamOrBamData() {
 @DataProvider(name = "all-one-bam-and-ref")
 public Object[][] createOneBamAndRefData() {
 	return new Object[][] {
-		{"./src/test/resources/toy.bam","./src/test/resources/toy.fa"}
+		{SRC_TEST_RESOURCE +"/toy.bam",SRC_TEST_RESOURCE+"/toy.fa"}
 	};
 }
 
 
 
-protected Object[] _collectAllFiles( FilenameFilter filter) {
-	return _collectFiles(new File("./src/test/resources/"),filter).
+protected Object[] _collectAllFiles( final FilenameFilter filter) {
+	return _collectFiles(new File(SRC_TEST_RESOURCE),filter).
 			stream().
 			map(F->(Object)F.getPath()).
 			toArray(i->new Object[i]);

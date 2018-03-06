@@ -1,6 +1,8 @@
 # NgsFilesSummary
 
-Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..)
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
+Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples.
 
 
 ## Usage
@@ -19,6 +21,15 @@ Usage: ngsfilessummary [options] Files
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * vcf
+ * util
+
 
 ## Compilation
 
@@ -57,24 +68,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ngsfiles/NgsFilesSummary.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/ngsfiles/NgsFilesSummary.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Sep 11 14:48:00 2017 +0200 ; adding tests, add test files for gnomad ; https://github.com/lindenb/jvarkit/commit/bc90c3c76e38e677a2fe824ce29bd7705dde3bd0
-Fri Jun 2 16:31:30 2017 +0200 ; circos / lumpy ; https://github.com/lindenb/jvarkit/commit/7bddffca3899196e568fb5e1a479300c0038f74f
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Tue Apr 25 15:40:45 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/16aeb209fda502b60dd75689b85d1304f469775b
-Fri Jan 22 23:49:23 2016 +0100 ; vcfiterator is now an interface ; https://github.com/lindenb/jvarkit/commit/9f9b9314c4b31b21044c5911a7e79e1b3fb0af7a
-Fri May 23 15:32:54 2014 +0200 ; continue move to htsjdk ; https://github.com/lindenb/jvarkit/commit/b5a8a3bce5ecd952abffb7aae6223d1e03a9809e
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Wed Apr 30 15:37:14 2014 +0200 ; ngs file scanner ; https://github.com/lindenb/jvarkit/commit/33ad856503853ac2415cc7213642ec631b06b95d
-```
-
-</details>
 
 ## Contribute
 
