@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -46,9 +48,11 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 
 /**
@@ -59,11 +63,9 @@ BEGIN_DOC
 VCF files should be sorted using the same order as the sequence dictionary (see picard SortVcf).
 
 
-
 ### Example
 
 list variants found with gatk AND samtools, keep the variants with http://www.sequenceontology.org/browser/current_release/term/SO:0001818 , remove variants found in a previous alignment (samtools or gatk)
-
 
 
 ```
@@ -80,7 +82,6 @@ gunzip -c NEWALIGN/{S}.gatk.vcf.gz |\
         awk -v S=${S} -F '      ' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",S,$1,$2,$3,$4,$5,$8);}' 
 done
 ```
-
 
 
 
@@ -212,8 +213,8 @@ public class VcfIn extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-i","--inverse"},description="Print variant that are not part of the VCF-database.")
 	private boolean inverse = false;
-	@Parameter(names={"-t","--tabix"},description="Database is Tabix-ed")
-	private boolean databaseIsTabix = false;
+	@Parameter(names={"-t","--tabix","--tribble","--indexed"},description="Database is indexed with tabix or tribble")
+	private boolean databaseIsIndexed = false;
 	@Parameter(names={"-A","--allalt"},description="ALL user ALT must be found in VCF-database ALT")
 	private boolean userAltInDatabase = false;
 	@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER if the variant is found in the database")
@@ -225,6 +226,18 @@ public class VcfIn extends Launcher
 		{
 		}
 		
+	
+	private boolean sameContext(			
+			final VariantContext ctx1,
+			final VariantContext ctx2
+			)
+		{
+		return ctx1.getContig().equals(ctx2.getContig()) &&
+				ctx1.getStart() == ctx2.getStart() &&
+				ctx1.getEnd() == ctx2.getEnd() &&
+				ctx1.getReference().equals(ctx2.getReference())
+				;
+		}
 	
 	private boolean allUserAltFoundInDatabase(
 			final VariantContext userVariants,
@@ -294,6 +307,7 @@ public class VcfIn extends Launcher
 			)
 		{
 		EqualRangeVcfIterator equalRangeDbIter=null;
+		EqualRangeIterator<VariantContext> equalRangeUserVcf = null;
 		try
 			{
 			final VCFHeader header = new VCFHeader(userVcfIn.getHeader());
@@ -301,43 +315,40 @@ public class VcfIn extends Launcher
 			/// NO need if(dict1==null)
 			if(userVcfDict==null)
 				{
-				LOG.error("NO SAM sequence Dict in user VCF");
+				LOG.error(JvarkitException.VcfDictionaryMissing.getMessage("user file"));
 				return -1;
 				}
-			final Comparator<VariantContext> vcfComparator =
+			final Comparator<VariantContext> userVcfComparator =
 					VCFUtils.createTidPosComparator(userVcfDict)
 					;
 			equalRangeDbIter = new EqualRangeVcfIterator(
-					VCFUtils.createVcfIterator(databaseVcfUri),vcfComparator);
+					VCFUtils.createVcfIterator(databaseVcfUri),userVcfComparator);
 
 			this.addMetaData(header);
 			vcw.writeHeader(header);
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict).logger(LOG);
 			
-			while(userVcfIn.hasNext())
+			equalRangeUserVcf = new EqualRangeIterator<>(userVcfIn, userVcfComparator);
+			
+			while(equalRangeUserVcf.hasNext())
 				{
-				final VariantContext ctx = progress.watch(userVcfIn.next());
+				final List<VariantContext> ctxList = equalRangeUserVcf.next();
+				progress.watch(ctxList.get(0));
+				
 				//fill both contextes
-				final List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctx));
+				final List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctxList.get(0)));
 				
-				int i=0;
-				while(i< dbContexes.size())
+				for(final VariantContext userCtx:ctxList)
 					{
-					if( dbContexes.get(i).getReference().equals(ctx.getReference()) &&
-						allUserAltFoundInDatabase(ctx, dbContexes.get(i)))
-						{
-						++i;
-						}
-					else
-						{
-						dbContexes.remove(i);
-						}
+					boolean keep = dbContexes.stream().
+							filter(V->sameContext(userCtx,V)).
+							anyMatch(V->allUserAltFoundInDatabase(userCtx,V))
+							;
+					addVariant(vcw,userCtx,keep);
 					}
-				
-				final boolean keep=!dbContexes.isEmpty();
-				addVariant(vcw,ctx,keep);
 				if(vcw.checkError()) break;
 				}
+			equalRangeUserVcf.close();
 			return RETURN_OK;
 			}
 		catch(final Exception err)
@@ -352,14 +363,17 @@ public class VcfIn extends Launcher
 			CloserUtil.close(vcw);
 			}
 		}
-	/* public for knime */
-	private int scanUsingTabix(final VariantContextWriter vcw,final String databaseVcfUri,final VcfIterator in2)
+
+	private int scanUsingTabix(
+			final VariantContextWriter vcw,
+			final String databaseFile,
+			final VcfIterator in2
+			)
 		{
-		TabixVcfFileReader tabix=null;
+		VCFFileReader tabix=null;
 		try
 			{
-			LOG.info("opening "+databaseVcfUri+" as tabix");
-			tabix =  new TabixVcfFileReader(databaseVcfUri);
+			tabix =  new VCFFileReader(new File(databaseFile),true);
 			final VCFHeader header1= new VCFHeader(in2.getHeader());
 			this.addMetaData(header1);
 			vcw.writeHeader(header1);
@@ -369,21 +383,21 @@ public class VcfIn extends Launcher
 			while(in2.hasNext() && !vcw.checkError())
 				{
 				final VariantContext userCtx= progress.watch(in2.next());
-				
-				final Iterator<VariantContext> iter= tabix.iterator(userCtx.getContig(),
+				final CloseableIterator<VariantContext> iter= tabix.query(
+						userCtx.getContig(),
 						Math.max(1,userCtx.getStart()-1),
-						userCtx.getEnd()+1);
+						userCtx.getEnd()+1
+						);
 				boolean keep=false;
 				while(iter.hasNext())
 					{
 					final VariantContext dbctx= iter.next();
-					if(! dbctx.getContig().equals(userCtx.getContig())) continue;
-					if(dbctx.getStart()!=userCtx.getStart()) continue;
-					if(! dbctx.getReference().equals(userCtx.getReference())) continue;
+					if(!sameContext(userCtx,dbctx)) continue;
 					if(!allUserAltFoundInDatabase(userCtx, dbctx)) continue;
 					keep=true;
 					break;
 					}
+				iter.close();
 				
 				addVariant(vcw,userCtx,keep);
 				if(vcw.checkError()) break;
@@ -427,7 +441,7 @@ public class VcfIn extends Launcher
 			}
 		else
 			{
-			LOG.error("illegal.number.of.arguments");
+			LOG.error("illegal number of arguments");
 			return -1;
 			}
 
@@ -439,7 +453,7 @@ public class VcfIn extends Launcher
 					VCFUtils.createVcfIterator(userVcfUri)
 					);
 			w= super.openVariantContextWriter(outputFile);
-			if(this.databaseIsTabix)
+			if(this.databaseIsIndexed)
 				{
 				return this.scanUsingTabix(w,databaseVcfUri, in);
 				}

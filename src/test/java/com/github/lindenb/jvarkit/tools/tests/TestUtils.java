@@ -285,6 +285,12 @@ public Object[][] createAllVcfsData() {
 		initList(collectAllVcfs()).
 		build();
 		}
+@DataProvider(name = "all-indexed-vcf-files")
+public Object[][] createAllIndexedVcfsData() {
+	return new ParamCombiner().
+		initList(collectIndexedVcf()).
+		build();
+		}
 
 
 @DataProvider(name = "all-sam-or-bam-files")
@@ -301,6 +307,12 @@ public Object[][] createOneBamAndRefData() {
 	};
 }
 
+@DataProvider(name = "all-dictionaries")
+public Object[][] createAllDictData() {
+	return new ParamCombiner().
+		initList(_collectAllFiles((D,F)->F.endsWith(".dict"))).
+		build();
+		}
 
 
 protected Object[] _collectAllFiles( final FilenameFilter filter) {
@@ -328,6 +340,21 @@ protected Object[] collectIndexedBams() {
 		return true;
 		});
 	}
+
+protected Object[] collectIndexedVcf() {
+	return _collectAllFiles((D,N)->{
+		if(N.endsWith(".vcf"))
+			{
+			return Files.exists(Paths.get(D.getPath(),N+".idx"));
+			}
+		if(N.endsWith(".vcf.gz"))
+			{
+			return Files.exists(Paths.get(D.getPath(),N+".tbi"));
+			}
+		return false;
+		});
+	}
+
 
 
 protected Object[] collectAllFasta() {

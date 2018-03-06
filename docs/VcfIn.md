@@ -1,5 +1,7 @@
 # VcfIn
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Only prints variants that are contained/not contained into another VCF
 
 
@@ -30,7 +32,7 @@ Usage: vcfin [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -t, --tabix
-      Database is Tabix-ed
+      Database is indexed with tabix or tribble
       Default: false
     --version
       print version and exit
@@ -88,34 +90,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfcmp/VcfIn.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfcmp/VcfIn.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
-Tue May 16 12:40:09 2017 +0200 ; doc ; https://github.com/lindenb/jvarkit/commit/ce1caf182662dc4690ec9c90e8fdd567fafa7a1e
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
-Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
-Wed Mar 9 13:28:34 2016 +0100 ; optional_galaxy ; https://github.com/lindenb/jvarkit/commit/945f4438dd88a791b72e1c27ac5325d37402aeec
-Mon Feb 15 15:07:02 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/c5af7d1bd367562b3578d427d24ec62856835d38
-Thu Feb 11 12:04:33 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/b2f5bad7fffa73507214428af6c64e0e50f67bb8
-Wed Jan 27 10:28:45 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/95e09679de0f2aa66a36d488e7a4cbc9550badab
-Mon Jul 6 16:14:07 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ee95fe6971b5655c61d7feb22e8fa877201a9ca6
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Thu Mar 12 16:57:07 2015 +0100 ; tool to compare VCF with one sample called with multiple methods #tweet ; https://github.com/lindenb/jvarkit/commit/351c259dc9f1d8bebab19b3dc57fc6a610257542
-Tue Feb 24 16:45:26 2015 +0100 ; vcfin : code rewrittern. picky with ALT alleles. #tweet ; https://github.com/lindenb/jvarkit/commit/172effb60350ca9857c002d41f69ad39a5fe6dac
-Tue Feb 24 16:43:03 2015 +0100 ; vcfin : code rewrittern. picky with ALT alleles. #tweet ; https://github.com/lindenb/jvarkit/commit/65ef7741539e89c7a1a1f9cca28c13d531902c96
-Mon Jan 26 10:41:44 2015 +0100 ; vcfin: changed -v to -i ; https://github.com/lindenb/jvarkit/commit/3b89c58d93ff2a42ccbc20cb44e63ac66377ac65
-Mon May 12 15:27:08 2014 +0200 ; moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/fd30a81154a16835b5bab3d8e1ef90c9fee6bdcb
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Tue Feb 4 17:51:57 2014 +0100 ; vcfin. Passer chercher du pain avant de rentrer ; https://github.com/lindenb/jvarkit/commit/6902c2223643e5f97eb5d276eeeead6c58f3a081
-```
-
-</details>
-
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -141,11 +115,9 @@ The current reference is:
 VCF files should be sorted using the same order as the sequence dictionary (see picard SortVcf).
 
 
-
 ### Example
 
 list variants found with gatk AND samtools, keep the variants with http://www.sequenceontology.org/browser/current_release/term/SO:0001818 , remove variants found in a previous alignment (samtools or gatk)
-
 
 
 ```
@@ -162,7 +134,6 @@ gunzip -c NEWALIGN/{S}.gatk.vcf.gz |\
         awk -v S=${S} -F '      ' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",S,$1,$2,$3,$4,$5,$8);}' 
 done
 ```
-
 
 
 

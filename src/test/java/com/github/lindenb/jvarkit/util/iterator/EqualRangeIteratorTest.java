@@ -52,4 +52,31 @@ public void test3() {
 	iter.next();
 	iter.close();
 	}
+
+
+@Test
+public void testNextTarget() {
+	List<Integer> array = Arrays.asList(1,2,2,2,4,4);
+	EqualRangeIterator<Integer> iter = new EqualRangeIterator<>(array.iterator(),Integer::compareTo);
+	Assert.assertTrue(iter.hasNext());
+	
+	List<Integer>  L1= iter.next(2);
+	Assert.assertEquals(L1.size(), 3);
+	Assert.assertEquals(L1.get(0).intValue(), 2);
+	
+	L1= iter.next(1);
+	Assert.assertTrue(L1.isEmpty());
+
+	L1= iter.next(3);
+	Assert.assertTrue(L1.isEmpty());
+	
+	L1= iter.next(4);
+	Assert.assertEquals(L1.size(),2);
+	
+	L1= iter.next(5);
+	Assert.assertTrue(L1.isEmpty());
+	
+	iter.close();
+	}
+
 }

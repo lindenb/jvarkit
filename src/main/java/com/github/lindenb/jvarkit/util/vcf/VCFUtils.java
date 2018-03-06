@@ -61,7 +61,6 @@ import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.AbstractVCFCodec;
@@ -79,7 +78,9 @@ import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 public class VCFUtils
 	{	
@@ -583,30 +584,26 @@ public class VCFUtils
 	private static class _DictCompareCtx
 		implements Comparator<VariantContext>
 		{
-		final SAMSequenceDictionary dict;
-		_DictCompareCtx(final SAMSequenceDictionary dict) {this.dict=dict;}
-		
-		private int tid(final String chrom)
+		final ContigDictComparator contigDictComparator;
+		_DictCompareCtx(final SAMSequenceDictionary dict)
 			{
-			int t= dict.getSequenceIndex(chrom);
-			if(t==-1) throw new IllegalArgumentException("chromosome \""+chrom+"\" is missing in dictionary");
-			return t;
+			this.contigDictComparator= new ContigDictComparator(dict);
 			}
+		
+		
 		@Override
 		public int compare(
 				final VariantContext ctx1,
 				final VariantContext ctx2
 				)
 			{			
-			int i0 = tid(ctx1.getContig());
-			int i1 = tid(ctx2.getContig());
-			if(i0 != i1) return i0-i1;
+			int i = this.contigDictComparator.compare(ctx1.getContig(), ctx2.getContig());
+			if(i!=0) return i;
 				
-			i0 = ctx1.getStart();
-			i1 = ctx2.getStart();
-			if(i0 != i1) return i0-i1;
+			i = Integer.compare(ctx1.getStart() , ctx2.getStart());
+			if(i!=0) return i;
 			
-			int i = ctx1.getReference().compareTo(ctx2.getReference()); 
+			i = ctx1.getReference().compareTo(ctx2.getReference()); 
 			if(i!=0) return i;
 			return 0;
 			}
@@ -630,14 +627,14 @@ public class VCFUtils
 		_DictCompareCtxTidPos(final SAMSequenceDictionary dict) {
 			this.dict=dict;
 			if(this.dict==null) {
-				throw new RuntimeException("No Sequence Dictionary provided. '##contig' Missing in VCF header ?");
+				throw new JvarkitException.VcfDictionaryMissing("No Sequence Dictionary provided.");
 				}
 			}
 		
 		private int tid(final String chrom)
 			{
-			int t= dict.getSequenceIndex(chrom);
-			if(t==-1) throw new IllegalArgumentException("chromosome \""+chrom+"\" is missing in dictionary");
+			int t= this.dict.getSequenceIndex(chrom);
+			if(t==-1) throw new JvarkitException.ContigNotFoundInDictionary(chrom,this.dict);
 			return t;
 			}
 		@Override
