@@ -33,6 +33,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -511,4 +512,17 @@ protected File createRandomPedigreeFromFile(final String vcfFile) throws IOExcep
 	pw.close();
 	return pedFile;
 	}
+
+protected File sortBamOnQueryName(final Path bamFile,final Predicate<SAMRecord> pred) throws IOException {
+	File sortedBam = this.createTmpFile(".bam");
+	SamReader sr = SamReaderFactory.makeDefault().open(bamFile);
+	SAMFileHeader outHeader= sr.getFileHeader().clone();
+	outHeader.setSortOrder(SortOrder.queryname);
+	SAMFileWriter w=new SAMFileWriterFactory().makeBAMWriter(outHeader, false, sortedBam);
+	sr.iterator().stream().filter(R->pred==null?true:pred.test(R)).forEach(R->w.addAlignment(R));
+	w.close();
+	sr.close();
+	return sortedBam;
+	}
+
 }

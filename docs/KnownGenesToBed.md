@@ -1,5 +1,7 @@
 # KnownGenesToBed
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 converts UCSC knownGenes file to BED.
 
 
@@ -86,24 +88,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBed.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBed.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
-Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
-Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
-Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26
-Tue Apr 26 17:21:33 2016 +0200 ; vcfbuffer ; https://github.com/lindenb/jvarkit/commit/3300512769fd3bb2ee4430c9474367b06f2edc7c
-Tue Mar 15 17:46:54 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/c6755f8e5679ad2e50cb6c12f32fbf98cc781cf5
-Tue Jul 21 22:29:46 2015 +0200 ; dup exon ; https://github.com/lindenb/jvarkit/commit/169db650dc281e76a8b0c40e4516bea806f4df2b
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Tue Mar 11 17:29:11 2014 +0100 ; kg2bed  bedliftover etc... ; https://github.com/lindenb/jvarkit/commit/71c0a6b173a9417b3c9ac3bc6ccd612efdf0fdb0
-```
-
-</details>
 
 ## Contribute
 
