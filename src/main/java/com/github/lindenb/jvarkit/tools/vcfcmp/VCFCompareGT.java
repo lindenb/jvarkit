@@ -39,8 +39,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import htsjdk.variant.variantcontext.Allele;
@@ -50,6 +52,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -59,18 +62,19 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 
 /**
 BEGIN_DOC
+
+## Input
+
+input is a set of VCF files or a file with '.list' suffix with the path (one path per line).
 
 ## Example
 
@@ -140,7 +144,7 @@ public class VCFCompareGT extends Launcher
 	private class PosComparator implements Comparator<Variant>
 		{
 		@Override
-		public int compare(Variant v1, Variant v2) {
+		public int compare(final Variant v1,final  Variant v2) {
 			int i=v1.chrom.compareTo(v2.chrom);
 			if(i!=0) return i;
 			i=v1.start - v2.start;
@@ -156,7 +160,7 @@ public class VCFCompareGT extends Launcher
 	private class VariantComparator extends PosComparator
 		{
 		@Override
-		public int compare(Variant v1, Variant v2) {
+		public int compare(final Variant v1,final  Variant v2) {
 			int i=super.compare(v1, v2);
 			if(i!=0) return i;
 			i=v1.sampleName.compareTo(v2.sampleName);
@@ -213,22 +217,26 @@ public class VCFCompareGT extends Launcher
 		}
 	
 	
-	private VCFCompareGT()
+	public VCFCompareGT()
 		{
 		}
 	
 
-
 	@Override
-	public int doWork(final List<String> args) {
-		if(args.isEmpty())
+	public int doWork(final List<String> arguments) {
+		final List<File> inputVcfFiles  = new ArrayList<>(
+				IOUtil.unrollFiles(arguments.stream().map(F->new File(F)).collect(Collectors.toCollection(HashSet::new)),
+				".vcf","vcf.gz"
+				));
+		if(inputVcfFiles.isEmpty())
 			{
-			System.err.println("VCF missing.");
+			LOG.error("VCF missing.");
 			return -1;
 			}
+		
 		VariantComparator varcmp=new VariantComparator();
 		SortingCollection<Variant> variants = null;
-		Set<String> sampleNames=new LinkedHashSet<String>();
+		final Set<String> sampleNames=new LinkedHashSet<>();
 		try
 			{
 			
@@ -241,16 +249,17 @@ public class VCFCompareGT extends Launcher
 					);
 			variants.setDestructiveIteration(true);
 			
-			Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
+			final Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			metaData.add(new VCFHeaderLine(getClass().getSimpleName(),"version:"+getVersion()+" command:"+getProgramCommandLine()));
 			
 			
-			for(int i=0;i< args.size();++i)
+			for(int i=0;i< inputVcfFiles.size();++i)
 				{
-				File vcfFile=new File(args.get(i));
+				final File vcfFile= inputVcfFiles.get(i);
 				LOG.info("Opening "+vcfFile);
-				VcfIterator iter= new VcfIteratorImpl(IOUtils.openFileForReading(vcfFile));
-				VCFHeader header=iter.getHeader();
+				final VCFFileReader vcfFileReader = new VCFFileReader(vcfFile,false);
+				final CloseableIterator<VariantContext> iter = vcfFileReader.iterator();
+				final VCFHeader header = vcfFileReader.getFileHeader();
 				sampleNames.addAll(header.getSampleNamesInOrder());
 				
 				metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"_"+((i)+1),"File: "+vcfFile.getPath()));
@@ -259,17 +268,17 @@ public class VCFCompareGT extends Launcher
 				long nLines=0;
 				while(iter.hasNext())
 					{
-					VariantContext var=iter.next();
+					final VariantContext var=iter.next();
 					
 					if(nLines++%10000==0)
 						{
-						LOG.info(args.get(i)+" "+nLines);
+						LOG.info(vcfFile+" "+nLines);
 						}
-					if(var.getReference()==null || var.getReference().isSymbolic()) continue;
+					if(!var.isVariant()) continue;
 					if(!var.hasGenotypes()) continue;
-					for(Genotype genotype:var.getGenotypes())
+					for(final Genotype genotype:var.getGenotypes())
 						{
-						Variant rec=new Variant();
+						final Variant rec=new Variant();
 						if(!genotype.isAvailable()) continue;
 						if(!genotype.isCalled()) continue;
 						if(genotype.isNoCall()) continue;
@@ -280,7 +289,7 @@ public class VCFCompareGT extends Launcher
 						rec.start=var.getStart();
 						rec.end=var.getEnd();
 						
-						rec.ref=var.getReference().getBaseString();
+						rec.ref=var.getReference().getDisplayString();
 						if(var.hasID())
 							{
 							rec.id=var.getID();
@@ -293,24 +302,23 @@ public class VCFCompareGT extends Launcher
 							{
 							rec.gq=genotype.getGQ();
 							}	
-						List<Allele> alleles=genotype.getAlleles();
+						final List<Allele> alleles=genotype.getAlleles();
 						if(alleles==null) continue;
 						if(alleles.size()==1)
 							{
-							rec.a1=alleles.get(0).getBaseString().toUpperCase();
+							rec.a1=alleles.get(0).getDisplayString().toUpperCase();
 							rec.a2=rec.a1;
 							}
 						else if(alleles.size()==2)
 							{
-							rec.a1=alleles.get(0).getBaseString().toUpperCase();
-							rec.a2=alleles.get(1).getBaseString().toUpperCase();
+							rec.a1=alleles.get(0).getDisplayString().toUpperCase();
+							rec.a2=alleles.get(1).getDisplayString().toUpperCase();
 							if(rec.a1.compareTo(rec.a2)>0)
 								{
 								String tmp=rec.a2;
 								rec.a2=rec.a1;
 								rec.a1=tmp;
 								}
-							
 							}
 						else
 							{
@@ -320,15 +328,16 @@ public class VCFCompareGT extends Launcher
 						}
 					}
 				iter.close();
+				vcfFileReader.close();
 				}
 			variants.doneAdding();
 		
 			LOG.info("Done Adding");
 			
-			Set<String> newSampleNames=new HashSet<String>();
-			for(int i=0;i< args.size();++i)
+			final Set<String> newSampleNames=new HashSet<>();
+			for(int i=0;i< inputVcfFiles.size();++i)
 				{
-				for(String sample:sampleNames)
+				for(final String sample:sampleNames)
 					{
 					newSampleNames.add(sample+"_"+((i)+1));
 					}
@@ -346,133 +355,120 @@ public class VCFCompareGT extends Launcher
 
 			
 			
-			VCFHeader header=new VCFHeader(
+			final VCFHeader header=new VCFHeader(
 					metaData,
 					new ArrayList<String>(newSampleNames));
 			
-			VariantContextWriter w= VCFUtils.createVariantContextWriterToStdout();
+			final VariantContextWriter w= super.openVariantContextWriter(outputFile);
 			w.writeHeader(header);
-			List<Variant> row=new ArrayList<Variant>();
+			
 			final PosComparator posCompare=new PosComparator();
-			CloseableIterator<Variant> iter=variants.iterator();
-			for(;;)
+			final EqualRangeIterator<Variant> iter=new EqualRangeIterator<>(variants.iterator(),posCompare);
+			while(iter.hasNext())
 				{
-				Variant rec=null;
-				if(iter.hasNext())
+				final List<Variant> row= iter.next();
+				/** this sample is not always the same */
+				final Set<String> samplesModified=new TreeSet<>();
+				/** the number of sample is different from vcflist.size() */
+				final Set<String> samplesCreates=new TreeSet<>();
+				final Counter<String> samplesSeen=new Counter<>();
+				for(int x=0;x< row.size();++x)
 					{
-					rec=iter.next();
-					}
-				if(rec==null || (!row.isEmpty() && posCompare.compare(row.get(0),rec)!=0))
-					{
-					if(!row.isEmpty())
+					final Variant var1=row.get(x);
+					samplesSeen.incr(var1.sampleName);
+					for(int y=x+1;y< row.size();++y)
 						{
-						Set<String> samplesModified=new TreeSet<String>();
-						Set<String> samplesCreates=new TreeSet<String>();
-						Counter<String> samplesSeen=new Counter<String>();
-						for(int x=0;x< row.size();++x)
-							{
-							Variant var1=row.get(x);
-							samplesSeen.incr(var1.sampleName);
-							for(int y=x+1;y< row.size();++y)
-								{
-								Variant var2=row.get(y);
-								if(!var2.sampleName.equals(var1.sampleName)) continue;
-								if(var1.a1.equals(var2.a1) && var1.a2.equals(var2.a2) ) continue;
-								samplesModified.add(var1.sampleName);
-								}
-							}
-						
-						for(String sampleName:samplesSeen.keySet())
-							{
-							if(samplesSeen.count(sampleName)!=args.size())
-								{
-								samplesCreates.add(sampleName);
-								}
-							}
-						
-						
-						Variant first=row.get(0);
-						Set<Allele> alleles=new HashSet<Allele>();
-						alleles.add(Allele.create(first.ref, true));
-						for(Variant var:row)
-							{
-							alleles.add(Allele.create(var.a1, var.a1.equalsIgnoreCase(var.ref)));
-							alleles.add(Allele.create(var.a2, var.a2.equalsIgnoreCase(var.ref)));
-							}
-						
-						
-						VariantContextBuilder b=new VariantContextBuilder(
-								getClass().getName(),
-								first.chrom,
-								first.start,
-								first.end,
-								alleles
-								);
-						//build genotypes
-						List<Genotype> genotypes=new ArrayList<Genotype>();
-						for(Variant var:row)
-							{
-							//alleles for this genotype
-							List<Allele> galleles=new ArrayList<Allele>();
-							galleles.add(Allele.create(var.a1, var.a1.equalsIgnoreCase(var.ref)));
-							galleles.add(Allele.create(var.a2, var.a2.equalsIgnoreCase(var.ref)));
-							
-							GenotypeBuilder gb=new GenotypeBuilder();
-							gb.DP(var.dp);
-							gb.alleles(galleles);
-							gb.name(var.sampleName+"_"+var.file_index);
-							gb.GQ(var.gq);
-							
-							gb.attribute(GenpotypeChangedKey,samplesModified.contains(var.sampleName)?1:0);
-							gb.attribute(GenpotypeCreated,samplesCreates.contains(var.sampleName)?1:0);
-							
-							genotypes.add(gb.make());
-							
-							
-							
-							}
-						b.genotypes(genotypes);
-						b.id(first.id);
-						
-						
-						if(!(samplesModified.isEmpty() && samplesCreates.isEmpty()))
-							{
-							Set<String> set2=new TreeSet<String>(samplesModified);
-							set2.addAll(samplesCreates);
-							b.attribute(GenpotypeDiff, set2.toArray());
-							}
-						
-						
-						if(!only_print_modified || !(samplesModified.isEmpty() && samplesCreates.isEmpty()))
-							{
-							w.add(b.make());
-							}
-						row.clear();
+						final Variant var2=row.get(y);
+						if(!var2.sampleName.equals(var1.sampleName)) continue;
+						if(var1.a1.equals(var2.a1) && var1.a2.equals(var2.a2) ) continue;
+						samplesModified.add(var1.sampleName);
 						}
-					if(rec==null) break;
 					}
-				row.add(rec);
+				
+				for(final String sampleName:samplesSeen.keySet())
+					{
+					if(samplesSeen.count(sampleName)!=inputVcfFiles.size())
+						{
+						samplesCreates.add(sampleName);
+						}
+					}
+				
+				
+				final Variant first=row.get(0);
+				final Set<Allele> alleles=new HashSet<>();
+				alleles.add(Allele.create(first.ref, true));
+				for(final Variant var:row)
+					{
+					alleles.add(Allele.create(var.a1, var.a1.equalsIgnoreCase(var.ref)));
+					alleles.add(Allele.create(var.a2, var.a2.equalsIgnoreCase(var.ref)));
+					}
+				
+				
+				final VariantContextBuilder b=new VariantContextBuilder(
+						getClass().getName(),
+						first.chrom,
+						first.start,
+						first.end,
+						alleles
+						);
+				//build genotypes
+				final List<Genotype> genotypes=new ArrayList<Genotype>();
+				for(Variant var:row)
+					{
+					//alleles for this genotype
+					List<Allele> galleles=new ArrayList<Allele>();
+					galleles.add(Allele.create(var.a1, var.a1.equalsIgnoreCase(var.ref)));
+					galleles.add(Allele.create(var.a2, var.a2.equalsIgnoreCase(var.ref)));
+					
+					final GenotypeBuilder gb=new GenotypeBuilder();
+					gb.DP(var.dp);
+					gb.alleles(galleles);
+					gb.name(var.sampleName+"_"+var.file_index);
+					gb.GQ(var.gq);
+					
+					gb.attribute(GenpotypeChangedKey,samplesModified.contains(var.sampleName)?1:0);
+					gb.attribute(GenpotypeCreated,samplesCreates.contains(var.sampleName)?1:0);
+					
+					genotypes.add(gb.make());
+					
+					
+					}
+				b.genotypes(genotypes);
+				b.id(first.id);
+				
+				
+				if(!(samplesModified.isEmpty() && samplesCreates.isEmpty()))
+					{
+					Set<String> set2=new TreeSet<String>(samplesModified);
+					set2.addAll(samplesCreates);
+					b.attribute(GenpotypeDiff, set2.toArray());
+					}
+				
+				
+				if(!only_print_modified || !(samplesModified.isEmpty() && samplesCreates.isEmpty()))
+					{
+					w.add(b.make());
+					}
+						
 				}
 			iter.close();
 			
 			w.close();
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			if(variants!=null) variants.cleanup();
+			if(variants!=null) try {variants.cleanup();}catch(Exception err) {}
 			}
 		return 0;
 		}
 
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+
+	public static void main(final String[] args)
 		{
 		new VCFCompareGT().instanceMainWithExit(args);
 		}

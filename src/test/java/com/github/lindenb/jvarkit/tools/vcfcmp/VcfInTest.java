@@ -5,15 +5,12 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.misc.VCFShuffle;
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
