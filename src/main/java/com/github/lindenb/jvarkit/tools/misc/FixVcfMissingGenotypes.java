@@ -131,14 +131,13 @@ END_DOC
 
 
 @Program(name="fixvcfmissinggenotypes",
-description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.",
-biostars={119007,263309,276811},
+description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref.",
+biostars={119007,263309,276811,302581},
 keywords={"sam","bam","vcf"}
 )
 public class FixVcfMissingGenotypes extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FixVcfMissingGenotypes.class).make();
-
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -150,14 +149,14 @@ public class FixVcfMissingGenotypes extends Launcher
 	private SamRecordFilter filter  = SamFilterParser.buildDefault();
 	@Parameter(names={"-T","--tag"},description="FORMAT 'Tag' for fixed genotype")
 	private String fixedTag = "FXG";
-	@Parameter(names={"--fixDP"},description="Update/create DP field even if genotype is called but there is no DP")
+	@Parameter(names={"--fixDP"},description="Update/create DP field even if a genotype is called but there is no DP")
 	private boolean fixDP=false;
 	@Parameter(names={"--filtered"},description="Mark fixed genotypes as FILTERED with this FILTER")
 	private String fixedGenotypesAreFiltered=null;
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
-	
+
 	/** return DP at given position */
 	private int fetchDP(final VariantContext ctx,final String sample,List<SamReader> samReaders)
 		{

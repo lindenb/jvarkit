@@ -11,6 +11,7 @@
             <package name="com.github.lindenb.jvarkit.tools.bamstats04"/>
             <package name="com.github.lindenb.jvarkit.tools.bam2xml"/>
             <package name="com.github.lindenb.jvarkit.tools.bam2graphics"/>
+            <package name="com.github.lindenb.jvarkit.tools.bamindexnames"/>
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>
             <package name="com.github.lindenb.jvarkit.tools.biostar"/>
             <package name="com.github.lindenb.jvarkit.tools.cmpbams"/>

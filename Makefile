@@ -381,7 +381,6 @@ $(eval $(call compile-htsjdk-cmd,ngsfilessummary,${jvarkit.package}.tools.ngsfil
 $(eval $(call compile-htsjdk-cmd,noemptyvcf,${jvarkit.package}.tools.misc.NoEmptyVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,nozerovariationvcf,${jvarkit.package}.tools.misc.NoZeroVariationVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pademptyfastq,${jvarkit.package}.tools.misc.PadEmptyFastq,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,paintcontext,${jvarkit.package}.tools.bam2graphics.PaintContext,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmeddump,${jvarkit.package}.tools.pubmed.PubmedDump,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedcodinglang,${jvarkit.package}.tools.pubmed.PubmedCodingLanguages,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedgender,${jvarkit.package}.tools.pubmed.PubmedGender,${jcommander.jar}))

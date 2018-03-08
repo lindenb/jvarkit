@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,12 +26,15 @@ package com.github.lindenb.jvarkit.util.picard;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+
 import com.github.lindenb.jvarkit.io.IOUtils;
 
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SortingCollection;
 
 public abstract class AbstractDataCodec<T>
@@ -47,6 +50,8 @@ public abstract class AbstractDataCodec<T>
 	@Override
 	public abstract AbstractDataCodec<T> clone();
 	
+	
+	
 	@Override
 	public T decode()
 		{
@@ -54,9 +59,13 @@ public abstract class AbstractDataCodec<T>
 			{
 			return decode(this.dis);
 			}
-		catch(IOException err)
+		catch(final EOFException err)
 			{
-			throw new RuntimeException(err);
+			return null;
+			}
+		catch(final IOException err)
+			{
+			throw new RuntimeIOException(err);
 			}
 		}
 	
@@ -67,9 +76,9 @@ public abstract class AbstractDataCodec<T>
 			{
 			encode(this.dos,object);
 			}
-		catch(IOException err)
+		catch(final IOException err)
 			{
-			throw new RuntimeException(err);
+			throw new RuntimeIOException(err);
 			}
 		}
 	

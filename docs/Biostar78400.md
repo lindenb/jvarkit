@@ -1,5 +1,7 @@
 # Biostar78400
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 add the read group info to the sam file on a per lane basis
 
 
@@ -45,6 +47,14 @@ Usage: biostar78400 [options] Files
  * read-group
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/78400](https://www.biostars.org/p/78400)
+ * [https://www.biostars.org/p/302798](https://www.biostars.org/p/302798)
+ * [https://www.biostars.org/p/202358](https://www.biostars.org/p/202358)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -82,29 +92,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78400.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78400.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d
-Wed Apr 19 10:40:28 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/971b090382a1b0b96e250030a5c8e7be500593b7
-Tue Jul 26 08:53:18 2016 +0200 ; fix bug https://github.com/lindenb/jvarkit/issues/59 ; https://github.com/lindenb/jvarkit/commit/8b78fc53d6b40eb0b32264b05fd9d465467eaa94
-Tue Jul 19 08:41:16 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cb9a8f435beb0ff3db6ae0e45459d5a9eac5d4c3
-Wed Jan 6 17:39:57 2016 +0100 ; VcfMultiToOneInfo ; https://github.com/lindenb/jvarkit/commit/4bea71a6d15bdb12288d2c34ffc43892004476c9
-Mon Dec 14 17:18:02 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/9b271459821d8061aa07e98bc7f30232597f47c9
-Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Wed Aug 7 19:39:25 2013 +0200 ; biostar78400 ; https://github.com/lindenb/jvarkit/commit/6bac83632d0646999f4fca2dba75fa83c91add99
-```
-
-</details>
 
 ## Contribute
 

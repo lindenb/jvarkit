@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then the missing genotypes is said hom-ref.
+After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref.
 
 
 ## Usage
@@ -29,7 +29,7 @@ Usage: fixvcfmissinggenotypes [options] Files
     --filtered
       Mark fixed genotypes as FILTERED with this FILTER
     --fixDP
-      Update/create DP field even if genotype is called but there is no DP
+      Update/create DP field even if a genotype is called but there is no DP
       Default: false
     -h, --help
       print help and exit
@@ -68,6 +68,7 @@ Usage: fixvcfmissinggenotypes [options] Files
  * [https://www.biostars.org/p/119007](https://www.biostars.org/p/119007)
  * [https://www.biostars.org/p/263309](https://www.biostars.org/p/263309)
  * [https://www.biostars.org/p/276811](https://www.biostars.org/p/276811)
+ * [https://www.biostars.org/p/302581](https://www.biostars.org/p/302581)
 
 
 ## Compilation
