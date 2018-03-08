@@ -15,8 +15,11 @@ import java.util.Random;
 import java.util.Vector;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import javax.imageio.ImageIO;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
@@ -47,6 +50,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
@@ -423,6 +427,19 @@ protected void assertIsNotEmpty(final File f) throws IOException {
 	Assert.assertNotNull(f,"File is null");
 	Assert.assertFalse(f.length()==0L,"file "+f+" is empty");
 	}
+
+protected void assertIsImage(final File f) throws IOException {
+	Assert.assertNotNull(f,"File is null");
+	try {
+		ImageIO.read(f);
+		}
+	catch(Throwable err)
+		{
+		Assert.fail(f.getPath()+" is not an image");
+		}
+	}
+
+
 protected Stream<VariantContext> variantStream(final File vcfFile ) {
 	final VCFFileReader r = new VCFFileReader(vcfFile,false);
 	final CloseableIterator<VariantContext> iter = r.iterator();
@@ -524,5 +541,17 @@ protected File sortBamOnQueryName(final Path bamFile,final Predicate<SAMRecord> 
 	sr.close();
 	return sortedBam;
 	}
-
+protected List<Interval> randomIntervalsFromDict(final File dictFile,int n) throws IOException{
+	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(dictFile);
+	List<Interval> rgns = new ArrayList<>();
+	while(n>0)
+		{
+		final SAMSequenceRecord ssr = dict.getSequence(random.nextInt(dict.size()));
+		int L = 1 + random.nextInt( ssr.getSequenceLength()-1);
+		int start = random.nextInt(ssr.getSequenceLength() -L);
+		rgns.add(new Interval(ssr.getSequenceName(), start, start+L));
+		n--;
+		}
+	return rgns;
+	}
 }

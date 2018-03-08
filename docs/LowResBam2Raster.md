@@ -1,5 +1,7 @@
 # LowResBam2Raster
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Low Resolution BAM to raster graphics
 
 
@@ -142,19 +144,6 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2graphics/LowResBam2Raster.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2graphics/LowResBam2Raster.java)
-
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 12:36:56 2017 +0200 ; lowres bam2raster ; https://github.com/lindenb/jvarkit/commit/317f3f1511faa2b4b0cc498db0b26a1b1a4c8fb7
-Wed May 24 12:24:00 2017 +0200 ; lowres bam2raster ; https://github.com/lindenb/jvarkit/commit/28e8b5122b13f7cd55b2ca0894c59f0f295b1f3e
-Tue May 23 23:01:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3e06d9a32812f3e48cfd92d9e1031fff5ddbc383
-Tue May 23 18:35:23 2017 +0200 ; lowres bam2raster ; https://github.com/lindenb/jvarkit/commit/e39a8f964b4bb11b28700c37ce1f2a7ba16b4653
-```
-
-</details>
 
 ## Contribute
 
