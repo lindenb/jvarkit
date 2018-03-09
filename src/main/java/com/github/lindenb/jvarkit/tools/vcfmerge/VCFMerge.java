@@ -94,8 +94,6 @@ BEGIN_DOC
 ## Example
 
 
-
-
 ```bash
 $  find ./ -name "*.vcf.gz" | xargs java -jar dist/vcfmerge.jar   > out.vcf
 ```
@@ -107,16 +105,14 @@ END_DOC
 	deprecatedMsg="use GATK combineVariants.",
 	keywords={"vcf","sort"}
 	)
-public class VCFMerge2
+public class VCFMerge
 	extends Launcher
 	{
 
-	private static final Logger LOG = Logger.build(VCFMerge2.class).make();
-
+	private static final Logger LOG = Logger.build(VCFMerge.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-s","--sorted"},description="files are known to be ROD sorted")
 	private boolean filesAreSorted = false;
@@ -146,8 +142,8 @@ public class VCFMerge2
 	private List<VCFHandler> vcfHandlers=new ArrayList<VCFHandler>();
 	
 	
-	/** moving to public for knime */
-	public VCFMerge2()
+
+	public VCFMerge()
 		{
 		}
 	
@@ -187,7 +183,7 @@ public class VCFMerge2
 		
 		boolean same(final VariantOfFile var)
 			{
-			return VCFMerge2.this.compareChromPosRef.compare(this.parse(),var.parse())==0;
+			return VCFMerge.this.compareChromPosRef.compare(this.parse(),var.parse())==0;
 			}
 		
 
@@ -196,7 +192,7 @@ public class VCFMerge2
 			{
 			final VariantContext vc1=parse();
 			final VariantContext vc2=var.parse();
-			final int i= VCFMerge2.this.compareChromPosRef.compare(vc1, vc2);
+			final int i= VCFMerge.this.compareChromPosRef.compare(vc1, vc2);
 			if(i!=0) return i;
 			return fileIndex - var.fileIndex;
 			}
@@ -447,7 +443,7 @@ public class VCFMerge2
 		
 		PeekVCF(final String uri) throws IOException {
 			this.uri = uri;
-			if(StringUtil.isBlank(VCFMerge2.this.regionStr))
+			if(StringUtil.isBlank(VCFMerge.this.regionStr))
 				{
 				this.reader = new VCFFileReader(new File(uri),false);
 				this.header = this.reader.getFileHeader();
@@ -459,7 +455,7 @@ public class VCFMerge2
 				this.header = this.reader.getFileHeader();
 				final IntervalParser intervalParser=new IntervalParser(this.header.getSequenceDictionary());
 				intervalParser.setContigNameIsWholeContig(true);
-				final Interval rgn = intervalParser.parse(VCFMerge2.this.regionStr);
+				final Interval rgn = intervalParser.parse(VCFMerge.this.regionStr);
 				this.iter0  = this.reader.query(rgn.getContig(), rgn.getStart(), rgn.getEnd());
 				}
 			this.iter = new PeekableIterator<>(this.iter0); 
@@ -478,7 +474,7 @@ public class VCFMerge2
 				else
 					{
 					// compare with first item in buffer
-					final int i = VCFMerge2.this.compareChromPos.compare(
+					final int i = VCFMerge.this.compareChromPos.compare(
 							ctx,
 							this.buffer.get(0) 
 							);
@@ -495,7 +491,7 @@ public class VCFMerge2
 						}
 					}
 				}
-			Collections.sort(this.buffer, VCFMerge2.this.compareChromPosRef);
+			Collections.sort(this.buffer, VCFMerge.this.compareChromPosRef);
 			return buffer;
 			}
 		List<VariantContext> peek()
@@ -503,7 +499,7 @@ public class VCFMerge2
 			final List<VariantContext> L = priv_peek();
 			if(L.isEmpty() || L.size()==1) return L;
 			return L.stream().
-					filter(V->V==L.get(0) /* compare ptr */|| VCFMerge2.this.compareChromPosRef.compare(L.get(0),V)==0).
+					filter(V->V==L.get(0) /* compare ptr */|| VCFMerge.this.compareChromPosRef.compare(L.get(0),V)==0).
 					collect(Collectors.toList());
 			}
 		
@@ -712,10 +708,10 @@ public class VCFMerge2
 					throw new JvarkitException.DictionariesAreNotTheSame(global_dictionary, dict1);
 					}
 				final Predicate<VariantOfFile> accept;
-				if(!StringUtil.isBlank(VCFMerge2.this.regionStr)) {
+				if(!StringUtil.isBlank(VCFMerge.this.regionStr)) {
 					final IntervalParser intervalParser=new IntervalParser(dict1);
 					intervalParser.setContigNameIsWholeContig(true);
-					final Interval rgn = intervalParser.parse(VCFMerge2.this.regionStr);
+					final Interval rgn = intervalParser.parse(VCFMerge.this.regionStr);
 					accept = (VOL)->{
 						final VariantContext ctx = VOL.parse();
 						return rgn.intersects(new Interval(ctx.getContig(), ctx.getStart(),ctx.getEnd()));
@@ -815,7 +811,7 @@ public class VCFMerge2
 
 	public static void main(final String[] args)
 		{
-		new VCFMerge2().instanceMainWithExit(args);
+		new VCFMerge().instanceMainWithExit(args);
 		}
 	
 	}

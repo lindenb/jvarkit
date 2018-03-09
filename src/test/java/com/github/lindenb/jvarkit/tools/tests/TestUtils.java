@@ -593,5 +593,14 @@ protected void assertTsvTableIsConsitent(final File f,Predicate<String> ignoreLi
 		{
 		CloserUtil.close(r);
 		}
-}
+	}
+
+protected long wc(File f) throws IOException
+	{
+	final BufferedReader br = IOUtils.openFileForBufferedReading(f);
+	final long n=br.lines().count();
+	br.close();
+	return n;
+	}
+
 }

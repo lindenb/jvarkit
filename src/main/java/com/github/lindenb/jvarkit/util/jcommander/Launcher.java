@@ -368,11 +368,10 @@ public static  class UsageBuider
 			sb.append("\n");
 			sb.append("### Requirements / Dependencies\n");
 			sb.append("\n");
-			sb.append("* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
+			sb.append("* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
 			sb.append("* GNU Make >= 3.81\n");
 			sb.append("* curl/wget\n");
 			sb.append("* git\n");
-			sb.append("* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with \"libxml 20706, libxslt 10126 and libexslt 815\")\n");
 			sb.append("\n");
 			sb.append("\n");
 			sb.append("### Download and Compile\n");
@@ -401,10 +400,19 @@ public static  class UsageBuider
 			sb.append("```\n");
 			
 			sb.append("## Source code \n\n");
+			
 			sb.append(hyperlink("https://github.com/lindenb/jvarkit/tree/master/src/main/java/"+
 				clazz.getName().replace('.','/')+".java")+"\n");
 			sb.append("\n");
 			
+			final File unitTestFile = new File("src/test/java/"+clazz.getName().replace('.','/')+"Test.java");
+			if(unitTestFile.exists()) {
+				sb.append("### Unit Tests\n\n");
+				sb.append(hyperlink("https://github.com/lindenb/jvarkit/tree/master/src/test/java/"+
+						clazz.getName().replace('.','/')+"Test.java")+"\n");
+				sb.append("\n");
+			}
+			sb.append("\n");
 			sb.append("## Contribute\n");
 			sb.append("\n");
 			sb.append("- Issue Tracker: "+hyperlink("http://github.com/lindenb/jvarkit/issues")+"\n");

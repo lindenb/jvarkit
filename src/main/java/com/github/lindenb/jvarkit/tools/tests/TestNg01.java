@@ -767,22 +767,6 @@ class TestNg01 {
     	Assert.assertTrue( output.delete());
     	Assert.assertTrue( input.delete());
     	}
-    @Test
-    public void testFindAVariation() throws IOException{   
-		final File input =new File(TEST_RESULTS_DIR,"jeter.path.txt");
-    	PrintWriter pw=new PrintWriter(input);
-    	pw.println(TOY_VCF_GZ);
-    	pw.flush();
-    	pw.close();
-		final File output =new File(TEST_RESULTS_DIR,"jeter.txt");
-    	Assert.assertEquals(0,new FindAVariation().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-p","ref2:14",
-        		input.getPath()
-        		}));
-    	Assert.assertTrue( output.delete());
-    	Assert.assertTrue( input.delete());
-    	}
    
     @Test
     public void testMiniCaller() throws IOException{   

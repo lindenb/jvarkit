@@ -16,7 +16,7 @@ public Object[][] createData1() {
 		{SRC_TEST_RESOURCE+"/ExAC.r1.sites.vep.vcf.gz"},
 		{SRC_TEST_RESOURCE+"/gnomad.genomes.r2.0.1.sites.1.vcf.gz"},
 		{SRC_TEST_RESOURCE+"/gnomad.exomes.r2.0.1.sites.vcf.gz"},
-		{SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz"},
+		{SRC_TEST_RESOURCE+"/rotavirus_rf.ann.vcf.gz"},
 		};
 	}
 
@@ -29,6 +29,7 @@ public void test01(final String vcf) throws IOException {
 			add(vcf).
 			make()
 			),0);
+	Assert.assertTrue(wc(out)>1L);
 	assertTsvTableIsConsitent(out, null);
 	}
 }

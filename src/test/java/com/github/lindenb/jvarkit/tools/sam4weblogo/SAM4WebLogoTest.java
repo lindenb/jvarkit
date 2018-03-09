@@ -9,9 +9,7 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
+import htsjdk.samtools.util.Interval;
 
 
 public class SAM4WebLogoTest extends TestUtils
@@ -22,19 +20,24 @@ public class SAM4WebLogoTest extends TestUtils
 			initList(collectIndexedBams()).
 			build();
 		}
-	@Test(dataProvider="src1")
-	public void test1(final String inBam) throws IOException {
+	private void basetest(final String inBam,String params) throws IOException {
 		final File out = createTmpFile(".txt");
-		final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(new File(inBam));
-		if(dict==null || dict.isEmpty()) return;
-		final SAMSequenceRecord ssr = dict.getSequence(this.random.nextInt(dict.size()));
-		final int pos= this.random.nextInt(ssr.getSequenceLength());
-		Assert.assertEquals(0,new SAM4WebLogo().instanceMain(newCmd().add(
-        		"-o",out.getPath(),
-        		"-r",ssr.getSequenceName()+":"+pos+"-"+Math.min(pos+this.random.nextInt(ssr.getSequenceLength()),ssr.getSequenceLength()),
-        		inBam
-        		).addIf(random.nextBoolean(),"-c").
-				make()));
+		final Interval interval = super.randomIntervalsFromDict(new File(inBam), 1).get(0);
+		Assert.assertEquals(new SAM4WebLogo().instanceMain(newCmd().add(
+				"-o",out.getPath(),
+				"-r",interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd()).
+				split(params).
+				add(inBam).
+				make()),0);
 		assertIsNotEmpty(out);
+		}
+	
+	@Test(dataProvider="src1")
+	public void testNoClip(final String inBam) throws IOException {
+		basetest(inBam,"");
+		}
+	@Test(dataProvider="src1")
+	public void testClip(final String inBam) throws IOException {
+		basetest(inBam,"-c");
 		}
 	}
