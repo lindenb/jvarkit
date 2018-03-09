@@ -1,8 +1,8 @@
 package com.github.lindenb.jvarkit.tools.tests;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -15,8 +15,7 @@ import java.util.Random;
 import java.util.Vector;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
@@ -29,7 +28,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.xml.sax.helpers.DefaultHandler;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils.ParamCombiner;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -44,7 +43,6 @@ import htsjdk.samtools.SamFiles;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.reference.FastaSequenceIndex;
 import htsjdk.samtools.reference.FastaSequenceIndexCreator;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -554,4 +552,46 @@ protected List<Interval> randomIntervalsFromDict(final File dictFile,int n) thro
 		}
 	return rgns;
 	}
+
+protected void assertTsvTableIsConsitent(final File f,Predicate<String> ignoreLine) {
+	final Pattern tab=Pattern.compile("[\t]");
+	BufferedReader r=null;
+	try {
+		Assert.assertTrue(f.exists(), "file "+f+" should exist");
+		r= IOUtils.openFileForBufferedReading(f);
+		int nCols=-1;
+		int nRow=0;
+		String line;
+		while((line=r.readLine())!=null)
+			{
+			if(ignoreLine!=null && ignoreLine.test(line)) continue;
+			nRow++;
+			final String tokens[]=tab.split(line);
+			final int c= tokens.length;
+			if(nRow==1)
+				{
+				nCols = c;
+				}
+			else 
+				{
+				if(nCols!=c)
+					{
+					for(int i=0;i< tokens.length;i++)
+						{
+						System.err.println("$"+(i+1)+":"+tokens[i]);
+						}
+					}
+				Assert.assertEquals(nCols,c,"Line "+line+" expected "+nCols+" tokens but got "+c);
+				}
+			}
+		}
+	catch (final Exception e) {
+		e.printStackTrace();
+		Assert.fail();
+		}
+	finally
+		{
+		CloserUtil.close(r);
+		}
+}
 }

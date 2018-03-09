@@ -14,7 +14,8 @@ public class Sam2TsvTest extends TestUtils {
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][] {
-			{"./src/test/resources/toy.bam","./src/test/resources/toy.fa"}
+			{SRC_TEST_RESOURCE+"/toy.bam",SRC_TEST_RESOURCE+"/toy.fa"},
+			{SRC_TEST_RESOURCE+"/S1.bam",SRC_TEST_RESOURCE+"/rotavirus_rf.fa"}
 		};
 	}
 	
@@ -23,13 +24,12 @@ public class Sam2TsvTest extends TestUtils {
 	public void test01(final String inBam,String inFasta) 
 		throws IOException
 		{
-		final File out = createTmpFile(".bam");
-		final Sam2Tsv cmd =new Sam2Tsv();
-		Assert.assertEquals(cmd.instanceMain(new String[] {
+		final File out = createTmpFile(".tsv");
+		Assert.assertEquals(new Sam2Tsv().instanceMain(new String[] {
 			"-R",inFasta,
 			"-o",out.getPath(),
 			inBam
 			}),0);
-		assertIsNotEmpty(out);
+		assertTsvTableIsConsitent(out,null);
 		}
 }

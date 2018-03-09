@@ -273,7 +273,7 @@ public class GroupByGene
 	private Set<GeneName> getGenes(final VcfTools vcfTools,final VariantContext ctx)
 		{
 		final Set<GeneName> set=new HashSet<GeneName>();
-		for(VepPredictionParser.VepPrediction pred: vcfTools.getVepPredictions(ctx))
+		for(final VepPredictionParser.VepPrediction pred: vcfTools.getVepPredictions(ctx))
 			{
 			String s=pred.getGeneName();
 			if(s!=null)  set.add(new GeneName(s,"vep_gene_name"));
