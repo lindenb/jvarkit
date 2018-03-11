@@ -31,11 +31,14 @@ import org.xml.sax.helpers.DefaultHandler;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
+import htsjdk.samtools.BAMIndex;
+import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -47,6 +50,7 @@ import htsjdk.samtools.reference.FastaSequenceIndexCreator;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -601,6 +605,64 @@ protected long wc(File f) throws IOException
 	final long n=br.lines().count();
 	br.close();
 	return n;
+	}
+
+protected File addClippingToBam(final File bamFile) throws IOException {
+	final String bases = "ATGC";
+	File clippedBam = this.createTmpFile(".bam");
+	SamReader sr = SamReaderFactory.makeDefault().open(bamFile);
+	SAMFileHeader inHeader = sr.getFileHeader();
+	boolean createIndex = sr.hasIndex() && inHeader.getSortOrder().equals(SortOrder.coordinate);
+	if(createIndex) {
+		this.deleteFilesAtExit.add(new File(bamFile.getParentFile(),IOUtil.basename(clippedBam) + BAMIndex.BAMIndexSuffix));
+		}
+	final SAMFileWriter w=new SAMFileWriterFactory().
+			setCreateIndex(createIndex).
+			makeBAMWriter(inHeader, true, clippedBam);
+	sr.iterator().stream().map(R->{
+		if(R.getReadUnmappedFlag() || R.getCigar()==null) return R;
+		if(R.getCigar().isClipped()) return R;
+		if(R.getBaseQualities().equals(SAMRecord.NULL_QUALS)) return R;
+		if(R.getBaseQualityString().equals(SAMRecord.NULL_QUALS_STRING)) return R;
+		for(int side=0;side<2;side++) {
+			
+			final String cigar;
+			boolean hard = this.random.nextBoolean();
+			final int clipLen = 1+this.random.nextInt(100);
+			final StringBuilder seq = new StringBuilder();
+			final StringBuilder qual = new StringBuilder();
+			
+			if(hard) {
+				cigar = String.valueOf(clipLen)+"H";
+				} 
+			else
+				{
+				cigar = String.valueOf(clipLen)+"S";
+				
+				
+				for(int x=0;x<clipLen;++x) {
+					seq.append(bases.charAt(this.random.nextInt(bases.length())));
+					qual.append("#");
+					}
+				}
+			if(side==0) {
+				R.setReadString(seq.toString()+R.getReadString());
+				R.setBaseQualityString(qual.toString()+R.getBaseQualityString());
+				R.setCigarString(cigar+R.getCigarString());
+				}
+			else
+				{
+				R.setCigarString(R.getCigarString()+cigar);
+				R.setReadString(R.getReadString()+seq.toString());
+				R.setBaseQualityString(R.getBaseQualityString()+qual.toString());
+				}
+			}
+		return R;
+		}).forEach(R->w.addAlignment(R));
+	w.close();
+	sr.close();
+	assertIsValidBam(bamFile);
+	return bamFile;
 	}
 
 }

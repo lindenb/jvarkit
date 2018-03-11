@@ -28,7 +28,7 @@ public class Sam2TsvTest extends TestUtils {
 		Assert.assertEquals(new Sam2Tsv().instanceMain(new String[] {
 			"-R",inFasta,
 			"-o",out.getPath(),
-			inBam
+			addClippingToBam(new File(inBam)).getPath()
 			}),0);
 		assertTsvTableIsConsitent(out,null);
 		}

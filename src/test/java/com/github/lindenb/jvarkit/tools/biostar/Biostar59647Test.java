@@ -14,7 +14,7 @@ public class Biostar59647Test extends TestUtils{
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][]{
-			{"./src/test/resources/toy.bam","./src/test/resources/toy.fa"}
+			{SRC_TEST_RESOURCE+"/toy.bam",SRC_TEST_RESOURCE+"/toy.fa"}
 			};
 	}
 		
