@@ -35,8 +35,10 @@ import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -519,6 +521,10 @@ public class BioAlcidaeJdk
 	private boolean hideGeneratedCode=false;
 	@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
 	private boolean user_code_is_body=false;
+	@Parameter(names={"--import"},description="[20180312] add/import those java packages/classes in the code header. "
+			+ "Multiple separated by space/colon/comma. .eg: 'java.util.StringBuilder java.awt.*' . "
+			+ "	Useful if those packages are not already defined in the default code.")
+	private String extraImport = "";
 
 	
 	@SuppressWarnings("unused")
@@ -543,6 +549,8 @@ public class BioAlcidaeJdk
     	private boolean user_code_is_body=false;
     	private boolean hideGeneratedCode = false;
     	private Constructor<H> ctor=null;
+    	private Set<String> extraImportSet = new HashSet<>();
+
     	
     	public abstract int execute(final String inputFile,final PrintStream out) throws Exception;
     	protected abstract Class<H> getHandlerClass();
@@ -600,6 +608,20 @@ public class BioAlcidaeJdk
 				pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
 				pw.println("import javax.annotation.Generated;");
 				pw.println("import htsjdk.variant.vcf.*;");
+				
+				pw.println("/** begin user's packages */");
+				for(final String p:this.extraImportSet)
+					{
+					if(StringUtil.isBlank(p)) continue;
+					pw.print("import ");
+					pw.print(p);
+					
+					pw.println(";");
+					
+					}
+				pw.println("/** end user's packages */");
+				
+				
 
 				pw.println("@Generated(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
 				pw.println("public class "+javaClassName+" extends "+ baseClass +" {");
@@ -952,7 +974,9 @@ public class BioAlcidaeJdk
 			abstractFactory.scriptFile = this.scriptFile;
 			abstractFactory.user_code_is_body = this.user_code_is_body ;
 			abstractFactory.hideGeneratedCode = this.hideGeneratedCode ;
-			
+			abstractFactory.extraImportSet.addAll(
+					Arrays.asList(this.extraImport.split("[ ,;]+"))
+					);//blank will be ignored
 			
 			try
 				{

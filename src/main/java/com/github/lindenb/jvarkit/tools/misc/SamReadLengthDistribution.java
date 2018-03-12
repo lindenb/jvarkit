@@ -39,6 +39,7 @@ import java.util.TreeMap;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -59,7 +60,9 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 /**
 BEGIN_DOC
 
+## Input
 
+input is a set of bam file or a file with suffix '.list' containing the path to the bam
 
 END_DOC
  */
@@ -78,17 +81,13 @@ public class SamReadLengthDistribution extends Launcher
 	private final Map<String,Counter<Integer>> lengths=new TreeMap<>();
 	private int max_length=0;
 	
-    private SamReadLengthDistribution()
+    public SamReadLengthDistribution()
     	{
     	}		
-   
-    
-
-    
 
     private void scan(final SamReader in) throws IOException
     	{
-    	SAMRecordIterator iter=in.iterator();
+    	final SAMRecordIterator iter=in.iterator();
     	while(iter.hasNext())
 			{
     		final SAMRecord rec = iter.next();
@@ -115,6 +114,7 @@ public class SamReadLengthDistribution extends Launcher
 		this.lengths.clear();
 		this.max_length=0;
 		SamReader r= null;
+		PrintWriter out = null;
 		try
 			{
 			final Set<String> args = IOUtils.unrollFiles(inputs);
@@ -135,7 +135,7 @@ public class SamReadLengthDistribution extends Launcher
 					r.close();
 					}
 				}
-			final PrintWriter out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			out.print("#ReadLength");
 			for(final String sample:this.lengths.keySet())
 				{
@@ -157,17 +157,17 @@ public class SamReadLengthDistribution extends Launcher
 			
 			out.flush();
 			out.close();
-			LOG.info("done");
+			out = null;
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-
+			CloserUtil.close(out);
 			}
 		}
 	

@@ -31,7 +31,6 @@ public void test01(final String inputFile,int num)
 		inputFile
 		}));
 	Assert.assertTrue(variantStream(out).count() <=num);
-	
 	}
 
 	

@@ -23,6 +23,12 @@ Usage: bioalcidaejdk [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    --import
+      [20180312] add/import those java packages/classes in the code header. 
+      Multiple separated by space/colon/comma. .eg: 'java.util.StringBuilder 
+      java.awt.*' . 	Useful if those packages are not already defined in the 
+      default code.
+      Default: <empty string>
     --nocode
        Don't show the generated code
       Default: false
