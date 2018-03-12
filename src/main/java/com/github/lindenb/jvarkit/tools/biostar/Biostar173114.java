@@ -31,6 +31,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -87,7 +88,8 @@ END_DOC
 
 
 @Program(name="biostar173114",terms=Term.ID_0000015,
-	description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/")
+	description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/",
+	keywords= {"sam","bam"})
 public class Biostar173114 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar173114.class).make();
@@ -118,6 +120,7 @@ public class Biostar173114 extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(keepQualities) keepSequence=true;
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
 		SAMRecordIterator iter=null;
@@ -125,11 +128,12 @@ public class Biostar173114 extends Launcher
 			{
 			sfr = super.openSamReader(oneFileOrNull(args));
 			sfw = this.writingBamArgs.openSAMFileWriter(this.outputFile,sfr.getFileHeader(), true);
+			
 			iter = sfr.iterator();
-			//final SAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(sfr.getFileHeader()).logger(LOG);
 			long nReads = 0;
 			while (iter.hasNext()) {
-				final SAMRecord record = iter.next();
+				final SAMRecord record = progress.watch(iter.next());
 
 				
 				if(!this.keepAttributes)
@@ -173,6 +177,9 @@ public class Biostar173114 extends Launcher
 					}
 				sfw.addAlignment(record);
 				}
+			progress.finish();
+			sfw.close();
+			sfw = null;
 			LOG.info("done");
 			return RETURN_OK;
 		}
@@ -189,7 +196,7 @@ public class Biostar173114 extends Launcher
 			}
 		}
 	
-	public static void main(String[] args)throws Exception
+	public static void main(final String[] args)throws Exception
 		{
 		new Biostar173114().instanceMainWithExit(args);
 		}

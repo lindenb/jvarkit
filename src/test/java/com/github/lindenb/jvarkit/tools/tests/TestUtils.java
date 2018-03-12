@@ -393,8 +393,10 @@ public synchronized void removeTmpFiles() {
 		} catch(IOException err) {}
 	}
 
-protected void assertIsValidBam(File bamFile) throws IOException {
-	final SamReader sr= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT).open(bamFile);
+protected void assertIsValidBam(final File bamFile) throws IOException {
+	final SamReader sr= SamReaderFactory.makeDefault().
+			validationStringency(ValidationStringency.SILENT).
+			open(bamFile);
 	sr.iterator().stream().count();
 	sr.close();
 	}

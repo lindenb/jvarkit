@@ -90,8 +90,12 @@ plot(T[T$CLIP>0,])
 
 END_DOC
  */
-@Program(name="Samclipindelfraction",description="Extract clipping/indel fraction from BAM")
-
+@Program(
+		name="Samclipindelfraction",
+		description="Extract clipping/indel fraction from BAM",
+		deprecatedMsg="This tool can be replace with Bioalcidaejdk",
+		keywords={"sam","bam","clip"}
+		)
 public class SamClipIndelFraction extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamClipIndelFraction.class).make();
@@ -124,19 +128,18 @@ public class SamClipIndelFraction extends Launcher
 			long count_clipped_right_reads=0L;
 			long count_unclipped_reads=0L;
 			long count_unmapped_reads=0L;
-			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(sfr.getFileHeader().getSequenceDictionary());
+			SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(sfr.getFileHeader()).logger(LOG);
 			Counter<Integer> counter=new Counter<>();
 			iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord record=iter.next();
-				progress.watch(record);
+				final SAMRecord record=progress.watch(iter.next());
 				if(record.getReadUnmappedFlag())
 					{
 					++count_unmapped_reads;
 					continue;
 					}
-				Cigar cigar=record.getCigar();
+				final Cigar cigar=record.getCigar();
 				int left_clip_length=0;
 				int right_clip_length=0;
 				int deletion_N_length=0;
@@ -147,8 +150,8 @@ public class SamClipIndelFraction extends Launcher
 				
 				for(int i=0;i<  cigar.numCigarElements();++i)
 					{
-					CigarElement ce= cigar.getCigarElement(i);
-					CigarOperator op = ce.getOperator();
+					final CigarElement ce= cigar.getCigarElement(i);
+					final CigarOperator op = ce.getOperator();
 					
 					switch(op)
 						{
@@ -255,7 +258,7 @@ public class SamClipIndelFraction extends Launcher
 				}
 			pw.println("\tCOUNT\tFRACTION_OF_MAPPED_READS");
 			
-			for(Integer size: new TreeSet<Integer>(counter.keySet()))
+			for(final Integer size: new TreeSet<Integer>(counter.keySet()))
 				{
 				pw.print(size);
 				pw.print('\t');
@@ -268,7 +271,7 @@ public class SamClipIndelFraction extends Launcher
 			pw=null;
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -280,10 +283,8 @@ public class SamClipIndelFraction extends Launcher
 			CloserUtil.close(pw);
 			}
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+	
+	public static void main(final String[] args) {
 		new SamClipIndelFraction().instanceMainWithExit(args);
 
 	}

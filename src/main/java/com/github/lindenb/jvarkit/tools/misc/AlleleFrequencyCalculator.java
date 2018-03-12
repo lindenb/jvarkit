@@ -89,7 +89,6 @@ public class AlleleFrequencyCalculator extends Launcher
 
 	public AlleleFrequencyCalculator()
 		{
-		
 		}
 	@Override
 	public int doWork(final List<String> args)
@@ -114,13 +113,13 @@ public class AlleleFrequencyCalculator extends Launcher
 				final Allele alt=ctx.getAltAlleleWithHighestAlleleCount();
 				if(alt==null) continue;
 				
-				GenotypesContext genotypes=ctx.getGenotypes();
+				final GenotypesContext genotypes=ctx.getGenotypes();
 				if(genotypes==null) continue;
 				int total_ctn=0;
 				int alt_ctn=0;
 				for(int i=0;i< genotypes.size();++i)
 					{
-					Genotype g=genotypes.get(i);
+					final Genotype g=genotypes.get(i);
 					for(final Allele allele: g.getAlleles())
 						{
 						if(allele.equals(ref))
@@ -155,11 +154,12 @@ public class AlleleFrequencyCalculator extends Launcher
 				out.println();
 				}
 			out.flush();
-			
+			out.close();
+			out = null;
 			
 		return RETURN_OK;
 		}
-	catch(Exception err)
+	catch(final Exception err)
 		{
 		LOG.error(err);
 		return -1;
