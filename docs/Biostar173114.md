@@ -128,7 +128,7 @@ The current reference is:
 
 
 ```
- $ java -jar dist/biostar173114.jar --formatout sam  my.bam  | samtools view -h | head -n 100
+ $ java -jar dist/biostar173114.jar --keepSequence    my.bam  
 
 @HD	VN:1.5	GO:none	SO:coordinate
 @SQ	SN:rotavirus	LN:1074
