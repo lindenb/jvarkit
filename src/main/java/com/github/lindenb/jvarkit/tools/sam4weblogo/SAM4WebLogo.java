@@ -68,7 +68,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -149,8 +148,7 @@ END_DOC
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
 	biostars=73021,
-	keywords={"sam","bam","visualization","logo"},
-	terms= Term.ID_0000015
+	keywords={"sam","bam","visualization","logo"}
 	)
 public class SAM4WebLogo extends Launcher
 	{

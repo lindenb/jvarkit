@@ -50,7 +50,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC 
@@ -59,7 +58,7 @@ BEGIN_DOC
 
 ```bash
 $ curl -sL "https://raw.githubusercontent.com/suryasaha/Pred_cutoff/60a6f980c9940dfb6e381c5394918f27cb14564f/data/Xylella-RpoH.aln" |\
-  java -jar dist-1.128/biostar139647.jar
+  java -jardist/biostar139647.jar
 
 @HD	VN:1.4	SO:unsorted
 @SQ	SN:chrUn	LN:42
@@ -99,7 +98,7 @@ END_DOC
 
 @Program(name="biostar139647",
 	description="Convert alignment in Fasta/Clustal format to SAM/BAM file",
-	biostars= 139647,terms=Term.ID_0000015
+	biostars= 139647
 	)
 public class Biostar139647 extends Launcher
 	{
@@ -128,17 +127,16 @@ public class Biostar139647 extends Launcher
 		@Override
 		public String toString()
 			{
-			StringBuilder b=new StringBuilder(align_length);
+			final StringBuilder b=new StringBuilder(align_length);
 			for(int i=0;i< align_length;++i) b.append(at(i));
 			return b.toString();
 			}
 		}
 	
 	
-	
 	private abstract class Sequence extends AbstractSequence
 		{
-		StringBuilder seq=new StringBuilder();
+		final StringBuilder seq=new StringBuilder();
 		char at(int index)
 			{
 			return(index< 0 || index >=seq.length()?CLIPPING:Character.toUpperCase(seq.charAt(index)));
@@ -273,12 +271,12 @@ public class Biostar139647 extends Launcher
 				LOG.error("Undefined input format");
 				return -1;
 				}
-			SAMFileHeader header=new SAMFileHeader();
-			SAMSequenceDictionary dict=new SAMSequenceDictionary();
+			final SAMFileHeader header=new SAMFileHeader();
+			final SAMSequenceDictionary dict=new SAMSequenceDictionary();
 			dict.addSequence(new SAMSequenceRecord(REF,this.align_length));
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(dict);
-			SAMProgramRecord pgr=header.createProgramRecord();
+			final SAMProgramRecord pgr=header.createProgramRecord();
 			pgr.setProgramName(getProgramName());
 			pgr.setProgramVersion(getVersion());
 			if(getProgramCommandLine().trim().isEmpty())
@@ -291,11 +289,11 @@ public class Biostar139647 extends Launcher
 				}
 			w = this.writingBamArgs.openSAMFileWriter(this.outputFile, header, false);
 			
-			DefaultSAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
-			for(String seqName: this.sample2sequence.keySet())
+			final DefaultSAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
+			for(final  String seqName: this.sample2sequence.keySet())
 				{
-				AlignSequence shortRead = this.sample2sequence.get(seqName);
-				SAMRecord rec = samRecordFactory.createSAMRecord(header);
+				final  AlignSequence shortRead = this.sample2sequence.get(seqName);
+				final  SAMRecord rec = samRecordFactory.createSAMRecord(header);
 				
 				
 				rec.setReadName(seqName);
@@ -355,14 +353,14 @@ public class Biostar139647 extends Launcher
 				rec.setReferenceName(REF);
 				rec.setReadString(dna.toString());
 				rec.setCigar(new Cigar(cigars));
+				rec.setAttribute("PG", pgr.getId());
 				
 				w.addAlignment(rec);
 				}
 			
-			LOG.info("Done");
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -375,7 +373,7 @@ public class Biostar139647 extends Launcher
 		}
 	
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new Biostar139647().instanceMainWithExit(args);
 	}
 }

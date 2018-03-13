@@ -5,7 +5,6 @@ import htsjdk.samtools.util.CloserUtil;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -16,10 +15,11 @@ import org.broad.igv.bbfile.WigItem;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -41,20 +41,17 @@ END_DOC
 @Program(name="biostar105754",
 	description="bigwig : peak distance from specific genomic region",
 	biostars=105754,
-	keywords={"wig","bigwig"},
-	terms=Term.ID_0000015
+	keywords={"wig","bigwig"}
 	)
 public class Biostar105754 extends Launcher
 	{
 
 	private static final Logger LOG = Logger.build(Biostar105754.class).make();
 	
-	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
-	
-	@Parameter(names={"-B","--bigwig"},description="Big Wig file")
+	@Parameter(names={"-B","--bigwig"},description="Big Wig file",required=true)
 	private String bigWigFile = null;
 
 	
@@ -76,32 +73,27 @@ public class Biostar105754 extends Launcher
 		}
 	
 	
-			private PrintWriter out=null;
-			private org.broad.igv.bbfile.BBFileReader bbFileReader=null;
-			private final long EXTEND_SHIFT=1000000;//
-			private final long MAX_CHROM_END=Integer.MAX_VALUE-EXTEND_SHIFT;
+		private PrintWriter out=null;
+		private org.broad.igv.bbfile.BBFileReader bbFileReader=null;
+		private final long EXTEND_SHIFT=1000000;//
+		private final long MAX_CHROM_END=Integer.MAX_VALUE-EXTEND_SHIFT;
 	
 		
-		private void run(BufferedReader r)
+		private void run(final BufferedReader r)
 			throws IOException
 			{
+			final BedLineCodec codec = new BedLineCodec();
 			String line;
-			final Pattern tab=Pattern.compile("[\t]");
 			while((line=r.readLine())!=null && !this.out.checkError())
 				{
-				if(line.startsWith("#"))
+				final BedLine bedLine =codec.decode(line);
+				if(bedLine==null)
 					{
 					continue;
 					}
-				String tokens[]=tab.split(line,4);
-				if(tokens.length<3)
-					{
-					System.err.println("Bad BED line: "+line);
-					continue;
-					}
-				String chrom=tokens[0];
-				int chromStart0=Integer.parseInt(tokens[1]);
-				int chromEnd0=Integer.parseInt(tokens[2]);
+				final String chrom = bedLine.getContig() ;
+				int chromStart0 = bedLine.getStart()-1;
+				int chromEnd0 = bedLine.getEnd();
 				if(chrom.isEmpty() || chromStart0<0L || chromEnd0<chromStart0)
 					{
 					System.err.println("Bad BED line: "+line);
@@ -167,56 +159,55 @@ public class Biostar105754 extends Launcher
 			}
 		
 		@Override
-		public int doWork(List<String> args) {
-				if(this.bigWigFile==null)
+	public int doWork(final List<String> args) {
+			if(this.bigWigFile==null)
+				{
+				LOG.error("Big wig file undefined option");
+				return -1;
+				}
+			
+			try
+				{
+				LOG.info("Opening "+this.bigWigFile);
+				this.bbFileReader=new BBFileReader(this.bigWigFile);
+				if(!this.bbFileReader.isBigWigFile())
 					{
-					LOG.error("Big wig file undefined option");
+					LOG.error("File "+this.bigWigFile+" is not a bigwig file");
 					return -1;
 					}
-				
-				try
+				this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
+				if(args.isEmpty())
 					{
-					LOG.info("Opening "+this.bigWigFile);
-					this.bbFileReader=new BBFileReader(this.bigWigFile);
-					if(!this.bbFileReader.isBigWigFile())
+					final BufferedReader r= IOUtils.openStdinForBufferedReader();
+					run(r);
+					CloserUtil.close(r);
+					}
+				else
+					{
+					for(final String filename : args)
 						{
-						LOG.error("File "+this.bigWigFile+" is not a bigwig file");
-						return -1;
-						}
-					this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
-					if(args.isEmpty())
-						{
-						BufferedReader r= new BufferedReader(new InputStreamReader(stdin()));
+						final BufferedReader r= IOUtils.openURIForBufferedReading(filename);
 						run(r);
 						CloserUtil.close(r);
 						}
-					else
-						{
-						for(final String filename : args)
-							{
-							LOG.info("Reading BED from "+filename);
-							final BufferedReader r= IOUtils.openURIForBufferedReading(filename);
-							run(r);
-							CloserUtil.close(r);
-							}
-						}
-					this.out.flush();
-					this.out.close();
-					return RETURN_OK;
 					}
-				catch(final Exception err)
-					{
-					LOG.error(err);
-					return -1;
-					}
-				finally
-					{
-					CloserUtil.close(bbFileReader);
-					CloserUtil.close(this.out);
-					bbFileReader=null;
-					this.out=null;
-					}
+				this.out.flush();
+				this.out.close();
+				return RETURN_OK;
 				}
+			catch(final Exception err)
+				{
+				LOG.error(err);
+				return -1;
+				}
+			finally
+				{
+				CloserUtil.close(bbFileReader);
+				CloserUtil.close(this.out);
+				bbFileReader=null;
+				this.out=null;
+				}
+			}
 			
 	public static void main(String[] args) {
 		new Biostar105754().instanceMainWithExit(args);
