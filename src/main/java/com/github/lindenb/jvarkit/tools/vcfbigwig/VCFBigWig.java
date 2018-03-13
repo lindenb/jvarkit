@@ -158,7 +158,7 @@ public class VCFBigWig extends Launcher
 		
 		public String getDescription() { return
 				StringUtil.isBlank(this.description)?
-					getPath():org.broad.igv.bbfile.BBFileReader.
+					getPath():
 					this.description
 					;}
 		
