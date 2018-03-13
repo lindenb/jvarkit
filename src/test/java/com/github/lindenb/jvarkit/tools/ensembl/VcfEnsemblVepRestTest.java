@@ -59,7 +59,7 @@ public class VcfEnsemblVepRestTest extends TestUtils {
 		}
 	
 		
-	@Test(dataProvider="genomic-segments")
+	@Test(dataProvider="genomic-segments",timeOut=180*1000)
 	public void test02(final String contig,int chromStart,String dna) 
 		throws IOException
 		{
