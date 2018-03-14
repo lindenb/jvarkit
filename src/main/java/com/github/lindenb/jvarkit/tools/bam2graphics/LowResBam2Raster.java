@@ -89,12 +89,16 @@ java -jar dist/lowresbam2raster.jar \
 ## see also
 
 * https://twitter.com/yokofakun/status/951769190884610051
+* https://twitter.com/yokofakun/status/973836167522279425
+* 
 
 ## Screenshot
 
 ![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
 
 ![https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg](https://pbs.twimg.com/media/DTVcmGYW4AAmiZp.jpg)
+
+![https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg](https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg)
 
 
 END_DOC

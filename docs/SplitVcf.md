@@ -1,6 +1,8 @@
 # SplitVcf
 
-split a vcf...
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
+split a vcf using a named list of intervals...
 
 
 ## Usage
@@ -21,7 +23,7 @@ Usage: splitvcf [options] Files
       record is duplicated)
       Default: false
   * -o, --out
-      Output file (or stdout). Name must contain '__GROUPID__'
+      Output filename. Name must contain '__GROUPID__'
     -u, --unmapped
       unmapped interval name
       Default: OTHER
@@ -40,11 +42,10 @@ Usage: splitvcf [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -74,19 +75,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SplitVcf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SplitVcf.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/SplitVcfTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/SplitVcfTest.java)
 
-```
-Fri May 19 17:10:13 2017 +0200 ; cont doc ; https://github.com/lindenb/jvarkit/commit/d2aea1eaa554d0498b197fb8fac01893b10ceb83
-Tue May 9 20:36:16 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/517cc3660251857061fa955cce5c8e07362c5bee
-Fri Mar 31 17:08:11 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/f78937d19c4b038e69a32fbcfa2aeab8fd8417c6
-Wed Jun 8 12:51:03 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3a139dad3aa0c899b4a84c9a0d2908d47ecccd58
-Fri Jun 3 19:44:07 2016 +0200 ; splitvcf ; https://github.com/lindenb/jvarkit/commit/802aa5e2bc96303bf0b64e3188f1a277764db453
-```
-
-</details>
 
 ## Contribute
 
@@ -113,8 +105,10 @@ The current reference is:
 
 ```
 $ cat groups.txt
+
 G1	10:112583204-112583210
 G2	11
+G3	12:1234-1235 13:20-30
 ```
 
 
@@ -123,11 +117,9 @@ $ java -jar dist/splitvcf.jar  -o tmp__GROUPID__.vcf.gz -g groups.txt in.vcf
 $ ls tmp*
 tmpG1.vcf.gz
 tmpG2.vcf.gz
+tmpG3.vcf.gz
 tmpOTHER.vcf.gz
 ```
 
-## See also
-
-* https://github.com/lindenb/jvarkit/wiki/SplitBam3
 
 

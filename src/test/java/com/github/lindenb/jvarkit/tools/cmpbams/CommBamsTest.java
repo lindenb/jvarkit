@@ -23,5 +23,4 @@ public void test1(final String bampath) throws Exception
 		sortedBam2.getPath(),
 		}),0);	
 	}
-	
 }

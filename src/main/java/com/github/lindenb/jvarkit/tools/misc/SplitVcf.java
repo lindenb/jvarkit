@@ -68,8 +68,10 @@ BEGIN_DOC
 
 ```
 $ cat groups.txt
+
 G1	10:112583204-112583210
 G2	11
+G3	12:1234-1235 13:20-30
 ```
 
 
@@ -78,18 +80,16 @@ $ java -jar dist/splitvcf.jar  -o tmp__GROUPID__.vcf.gz -g groups.txt in.vcf
 $ ls tmp*
 tmpG1.vcf.gz
 tmpG2.vcf.gz
+tmpG3.vcf.gz
 tmpOTHER.vcf.gz
 ```
 
-## See also
-
-* https://github.com/lindenb/jvarkit/wiki/SplitBam3
 
 END_DOC
  
  */
 @Program(name="splitvcf",
-description="split a vcf...",
+description="split a vcf using a named list of intervals...",
 keywords={"vcf"})
 public class SplitVcf
 	extends Launcher
@@ -103,7 +103,10 @@ public class SplitVcf
 
 	
 	
-	@Parameter(names={"-g","--groupfile"},description="Chromosome group file. Intervals are 1-based. If undefined, splitvcf will use the sequence dictionary to output one vcf per contig.")
+	@Parameter(names={"-g","--groupfile"},description=
+			"Chromosome group file. Intervals are 1-based. "
+			+ "If undefined, splitvcf will use the sequence dictionary to output one vcf per contig."
+			)
 	private File chromGroupFile = null;
 	
 	@Parameter(names={"-u","--unmapped"},description="unmapped interval name")
@@ -112,7 +115,8 @@ public class SplitVcf
 	@Parameter(names={"-m","--multi"},description="if set, allow one variant to be mapped on multiple chromosome group (the record is duplicated)")
 	private boolean multiIntervalEnabled = false;
 
-	@Parameter(names={"-o","--out"},description="Output file (or stdout). Name must contain '__GROUPID__' ",required=true)
+	@Parameter(names={"-o","--out"},description="Output filename. Name must contain '__GROUPID__' ",
+			required=true)
 	private File outputFile = null;
 	
 	
@@ -252,7 +256,7 @@ public class SplitVcf
 			in = openVcfIterator(inputName);
 			final SAMSequenceDictionary samSequenceDictionary = in.getHeader().getSequenceDictionary();
 			if(samSequenceDictionary==null) {
-				throw new JvarkitException.UserError("samSequenceDictionary missing in input VCF.");
+				throw new JvarkitException.VcfDictionaryMissing(inputName==null?"<input>":inputName);
 			}
 			
 			
@@ -287,7 +291,7 @@ public class SplitVcf
 						if (colon == -1) {
 							final SAMSequenceRecord ssr = samSequenceDictionary.getSequence(segment);
 							if (ssr == null) {
-								throw new JvarkitException.UserError("Unknown chromosome , not in dict \"" + segment + "\"");
+								throw new JvarkitException.ContigNotFoundInDictionary(segment,samSequenceDictionary);
 							}
 							sequence = segment;
 							start = 1;

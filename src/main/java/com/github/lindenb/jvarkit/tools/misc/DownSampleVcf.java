@@ -37,10 +37,8 @@ import java.util.Random;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -64,7 +62,7 @@ END_DOC
 
 @Program(
 	name="downsamplevcf",
-	description="DownSample a VCF",
+	description="DownSample a VCF. Will keep 'n' random variants in a vcf.",
 	keywords={"vcf"}
 	)
 public class DownSampleVcf extends Launcher
@@ -72,59 +70,47 @@ public class DownSampleVcf extends Launcher
 	private final Logger LOG=Logger.build(DownSampleVcf.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected File outputFile = null;
-
-	@Parameter(names="-n",description="output size")
+	@Parameter(names="-n",description="output size. keep 'n' random variants in the input vcf")
 	private int reservoir_size=10;
-	@Parameter(names="-N",description=" random seed")
-
-	private long seed=System.currentTimeMillis();
+	@Parameter(names="-N",description="random seed. -1==use current time")
+	private long seed=-1L;
 	
-	private DownSampleVcf()
-		{
-		}
-	
-
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-		final Random rand=new Random(this.seed);
-		final List<VariantContext>  buffer=new ArrayList<VariantContext>(this.reservoir_size);
+	protected int doVcfToVcf(final String inputName, final VcfIterator in, final VariantContextWriter out) {
+		final Random rand=new Random(this.seed==-1L?System.currentTimeMillis():this.seed);
+		final List<VariantContext>  buffer=new ArrayList<>(this.reservoir_size);
 		final VCFHeader h2=new VCFHeader(in.getHeader());
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader());
+		super.addMetaData(h2);
+		final SAMSequenceDictionaryProgress progess=
+				new SAMSequenceDictionaryProgress(in.getHeader()).
+				logger(LOG);
 		out.writeHeader(h2);
 		if(this.reservoir_size!=0)
 			{
 			while(in.hasNext())
 				{	
+				final VariantContext ctx = progess.watch(in.next());
 				if(buffer.size() < this.reservoir_size)
 					{
-					buffer.add(progess.watch(in.next()));
+					buffer.add(ctx);
 					}
 				else
 					{
-					buffer.set(rand.nextInt(buffer.size()), progess.watch(in.next()));
+					buffer.set(rand.nextInt(buffer.size()), ctx);
 					}
 				}
 			
 			}
-		for(VariantContext ctx:buffer)
-			{
-			out.add(ctx);
-			}
+		buffer.stream().forEach(V->out.add(V));
 		progess.finish();
-		LOG.info("done");
 		return 0;
 		}
 	@Override
-	public int doWork(List<String> args) {
-		
+	public int doWork(final List<String> args) {
 		return doVcfToVcf(args, outputFile);
 		}
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new DownSampleVcf().instanceMainWithExit(args);
 		}

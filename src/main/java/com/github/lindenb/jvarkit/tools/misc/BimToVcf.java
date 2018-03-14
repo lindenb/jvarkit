@@ -60,14 +60,12 @@ BEGIN_DOC
 
 
 
-
 ### Contig conversion
 
 chromosome 23 is converted to X or chrX, chromosome 24 is converted to Y or chrY, chromosome 25 is ignored, chromosome 26 is converted to chrM or MT.
 
 
 ### Example
-
 
 
 ```
@@ -92,25 +90,20 @@ $ java -jar dist/bim2vcf.jar -R human_g1k_v37.fasta input.bim
 ```
 
 
-
-
-
-
-
-
 END_DOC
 */
 
 
-@Program(name="bim2vcf",description="convert a .bim to a .vcf")
+@Program(name="bim2vcf",
+	description="convert a .bim to a .vcf . For @FlorianeS44",
+	keywords= {"bim","vcf"}
+)
 public class BimToVcf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BimToVcf.class).make();
 
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File REF = null;
@@ -270,7 +263,7 @@ public class BimToVcf extends Launcher
 			r.close();r=null;
 			w.close();w=null;
 			return RETURN_OK;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 		} finally {

@@ -24,8 +24,7 @@ public void test01(final String inputFile,int num)
 	throws IOException
 	{
 	final File out = super.createTmpFile(".vcf");
-	final VcfTail cmd =new VcfTail();
-	Assert.assertEquals(0,cmd.instanceMain(new String[] {
+	Assert.assertEquals(0,new VcfTail().instanceMain(new String[] {
 		"-n",String.valueOf(num),
 		"-o",out.getPath(),
 		inputFile
