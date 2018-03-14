@@ -1,5 +1,7 @@
 # Gtf2Xml
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Convert GTF/GFF to XML
 
 
@@ -44,11 +46,10 @@ Usage: gtf2xml [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -78,18 +79,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gtf2Xml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gtf2Xml.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/Gtf2XmlTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/Gtf2XmlTest.java)
 
-```
-Sun May 21 20:02:10 2017 +0200 ; instanceMain -> instanceMainWithExit ; https://github.com/lindenb/jvarkit/commit/4fa41d198fe7e063c92bdedc333cbcdd2b8240aa
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Mon Apr 10 17:44:58 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1a3303b52707e9ba8c9b913e0f82d2735698d24e
-Tue Aug 11 17:25:02 2015 +0200 ; backlocate : potential alt codons ; https://github.com/lindenb/jvarkit/commit/1c7bc5e674136947586779a2aac53e576db4a67f
-```
-
-</details>
 
 ## Contribute
 
@@ -121,6 +114,7 @@ $ curl  "ftp://ftp.ensembl.org/pub/release-81/gff3/homo_sapiens/Homo_sapiens.GRC
 
 ```
 output: 
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <gtf gff-version="3" genome-build="GRCh38.p3" genome-version="GRCh38" genome-date="2013-12" genome-build-accession="NCBI:GCA_000001405.18" genebuild-last-updated="2015-06">

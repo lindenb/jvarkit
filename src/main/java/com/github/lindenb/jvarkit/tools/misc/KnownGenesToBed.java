@@ -96,7 +96,6 @@ public class KnownGenesToBed extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-
 	@Parameter(names={"-i","--intron"},description="Hide Introns")
 	private boolean hide_introns = false;
 
@@ -112,6 +111,7 @@ public class KnownGenesToBed extends Launcher
 	@Parameter(names={"-t","--transcript"},description="Hide Transcript")
 	private boolean hide_transcripts = false;
 
+	
 	private PrintStream out;
 	
 	

@@ -558,64 +558,8 @@ class TestNg01 {
     	Assert.assertTrue( JETER_VCF.exists());
     	}
     
-    @Test
-    public void testVcfBigWig() throws IOException{    
-    	Assert.assertEquals(0,new VCFBigWig().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
-        		"-T","Uniqueness35bp",
-        		"-B","src/test/resources/Uniqueness35bp.bigWig",
-        		VCF01}));
-    	Assert.assertTrue( JETER_VCF.exists());
-    	assertIsVcf(JETER_VCF);
-    	Assert.assertTrue(streamVcf(JETER_VCF).
-    			anyMatch(V->V.hasAttribute("Uniqueness35bp")
-    			));
-    	Assert.assertTrue( JETER_VCF.delete());
-    	
-    	
-    	final File xml = new File(TEST_RESULTS_DIR,"tmp.bw.xml");
-    	PrintWriter pw = new PrintWriter(xml);
-		pw.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-		pw.println("<registry>");
-		pw.println("<bigwig>");
-		pw.println("<uri>src/test/resources/Uniqueness35bp.bigWig</uri>");
-		pw.println("<tag>Uniqueness35bp</tag>");
-		pw.println("<description>test</description>");
-		pw.println("</bigwig>");
-		pw.println("</registry>");
-		pw.flush();
-		pw.close();
-    	assertIsXml(xml);
-    	
-    	
-    	Assert.assertEquals(0,new VCFBigWig().instanceMain(new String[]{
-        		"-o",JETER_VCF.getPath(),
-        		"-B",xml.getPath(),
-        		VCF01}));
-    	Assert.assertTrue( JETER_VCF.exists());
-    	assertIsVcf(JETER_VCF);
-    	Assert.assertTrue(streamVcf(JETER_VCF).
-    			anyMatch(V->V.hasAttribute("Uniqueness35bp")
-    			));
-    	Assert.assertTrue( JETER_VCF.delete());
-    	Assert.assertTrue( xml.delete());
-    	
-    	}
     
 
-    @Test(groups={"burden"},dependsOnMethods={"testVcfInjectPed"})
-    public void testVcfMultiToOneAllele() throws IOException{   
-    	final File input =new File(TEST_RESULTS_DIR,"tmp.ped.vcf");
-    	final File output =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
-    	Assert.assertEquals(0,new VcfMultiToOneAllele().instanceMain(new String[]{
-    			"--samples",
-        		"-o",output.getPath(),
-        		input.getPath()
-        		}));
-    	Assert.assertTrue( output.exists());
-    	assertIsVcf(output);
-    	Assert.assertFalse(streamVcf(output).anyMatch(V->V.getAlternateAlleles().size()>1));
-    	}
     
     @Test(groups={"burden"},dependsOnMethods={"testVcfMultiToOneAllele"})
     public void testVcfBurdenFilterExac() throws IOException{    
@@ -697,16 +641,7 @@ class TestNg01 {
 	    	assertIsVcf(JETER_VCF);
 	    	Assert.assertTrue( JETER_VCF.delete());
 	    	}
-    @Test
-    public void testVcf2Xml() throws IOException{    
-		final File output =new File(TEST_RESULTS_DIR,"vcf.xml");
-    	Assert.assertEquals(0,new Vcf2Xml().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		TOY_VCF_GZ
-        		}));
-    	assertIsXml(output);
-    	Assert.assertTrue( output.delete());
-    	}
+    
     @Test
     public void testBamToWig() throws IOException{    
 		final File output =new File(TEST_RESULTS_DIR,"jeter.wig");

@@ -159,11 +159,9 @@ public class BamTile
 	private File outputFile = null;
 	@Parameter(names={"-e","--exclude"},description="[20171206]"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
 	private SamRecordFilter filterOut = SamRecordJEXLFilter.buildAcceptAll();
-	@Parameter(names={"-n","--no-overlap"},description="[20171206]No overlap, just the read close ")
+	@Parameter(names={"-n","--no-overlap"},description="[20171206]No overlap, just the read close to each other")
 	private boolean no_overlap  = false;
 
-	
-	
 	public BamTile()
 		{
 		}

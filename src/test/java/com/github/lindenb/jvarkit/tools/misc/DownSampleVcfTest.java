@@ -21,5 +21,4 @@ public class DownSampleVcfTest extends TestUtils {
         	}),0);
         Assert.assertTrue(variantStream(output).count()<=10L);
     	}
-
 }

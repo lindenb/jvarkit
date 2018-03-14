@@ -47,6 +47,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
@@ -65,6 +66,7 @@ $ curl  "ftp://ftp.ensembl.org/pub/release-81/gff3/homo_sapiens/Homo_sapiens.GRC
 
 ```
 output: 
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <gtf gff-version="3" genome-build="GRCh38.p3" genome-version="GRCh38" genome-date="2013-12" genome-build-accession="NCBI:GCA_000001405.18" genebuild-last-updated="2015-06">
@@ -161,7 +163,10 @@ public class Gtf2Xml extends Launcher{
 	private boolean disable_dict=false;
 	@Parameter(names={"-a","--attributes"},description="Don't record attribute types.")
 	private boolean disable_att_keys=false;
+	@ParametersDelegate
+	private GTFCodec.FormatChooser formatChooser = new  GTFCodec.FormatChooser();
 	
+
 	
 	
 	private final Map<String,Long> seqdict=new LinkedHashMap<>();
@@ -238,7 +243,7 @@ public class Gtf2Xml extends Launcher{
 				{
 				w = xof.createXMLStreamWriter((fw=new FileWriter(this.outputFile)));
 				}
-			final GTFCodec codec = new GTFCodec();
+			final GTFCodec codec = this.formatChooser.makeCodec();
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("gtf");
 			
