@@ -36,6 +36,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -55,7 +56,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /*
 BEGIN_DOC
@@ -70,19 +71,21 @@ END_DOC
 
  */
 @Program(name="biostar145820",
-	description="subsample BAM to fixed number of alignments.",
+	description="subsample/shuffle BAM to fixed number of alignments.",
 	biostars=145820,
-	terms=Term.ID_0000015
+	keywords= {"sam","bam","shuffle"}
 	)
 public class Biostar145820 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar145820.class).make();
 
+	@Parameter(names={"-f","--filter","--jexl"},description = SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter filter  = SamRecordJEXLFilter.buildAcceptAll();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-n"},description=" number of reads. -1: all reads")
+	@Parameter(names={"-n"},description=" number of reads. negative: all reads, shuffle output.")
 	private long count=-1L;
 
 	
@@ -100,9 +103,9 @@ public class Biostar145820 extends Launcher
 	private static class RandSamRecordComparator
 		implements Comparator<RandSamRecord>
 		{
-		SAMRecordQueryNameComparator secondCompare =new SAMRecordQueryNameComparator();
+		final SAMRecordQueryNameComparator secondCompare =new SAMRecordQueryNameComparator();
 		@Override
-		public int compare(RandSamRecord o1, RandSamRecord o2)
+		public int compare(final RandSamRecord o1,final RandSamRecord o2)
 			{
 			long i = (long)o1.rand_index - (long)o2.rand_index;
 			if(i!=0L) return (i<0?-1:1);
@@ -114,9 +117,9 @@ public class Biostar145820 extends Launcher
 		implements SortingCollection.Codec<RandSamRecord>
 		{
 	    private final BinaryCodec binaryCodec = new BinaryCodec();
-	    private BAMRecordCodec bamRecordCodec;
-	    private SAMFileHeader header;
-		RandSamRecordCodec(SAMFileHeader header)
+	    private final BAMRecordCodec bamRecordCodec;
+	    private final SAMFileHeader header;
+		RandSamRecordCodec(final SAMFileHeader header)
 			{
 			this.header=header;
 			this.bamRecordCodec=new BAMRecordCodec(this.header);
@@ -127,12 +130,12 @@ public class Biostar145820 extends Launcher
 			{
 			int r;
 			  try {
-		             r = this.binaryCodec.readInt();
+		          r = this.binaryCodec.readInt();
 		        }
-		     catch (Exception e) {
+		     catch (final Exception e) {
 		            return null;
 		        }
-			  RandSamRecord o =new RandSamRecord();
+			  final RandSamRecord o =new RandSamRecord();
 			  o.rand_index=r;
 			  o.samRecord = this.bamRecordCodec.decode();
 			  return o;
@@ -162,11 +165,6 @@ public class Biostar145820 extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.count<-1L) // -1 == infinite
-			{
-			LOG.error("Bad count:"+count);
-			return -1;
-			}
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
 		SAMFileWriter samWriter=null;
@@ -174,20 +172,21 @@ public class Biostar145820 extends Launcher
 		CloseableIterator<RandSamRecord> iter2=null;
 		try
 			{
-			
-			samReader = super.openSamReader(oneFileOrNull(args));
+			final String input = oneFileOrNull(args);
+			samReader = super.openSamReader(input);
 			
 			final SAMFileHeader header=samReader.getFileHeader().clone();
 						
 			header.setSortOrder(SortOrder.unsorted);
 			header.addComment("Processed with "+getProgramName()+" : "+getProgramCommandLine());
 			
-			samWriter = writingBamArgs.openSAMFileWriter(outputFile, header, true);
 			
+			
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader()).logger(LOG);
 			iter=samReader.iterator();
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader().getSequenceDictionary());
+
 			
-			SortingCollection<RandSamRecord> sorter=SortingCollection.newInstance(
+			final SortingCollection<RandSamRecord> sorter=SortingCollection.newInstance(
 					RandSamRecord.class,
 					new RandSamRecordCodec(header),
 					new RandSamRecordComparator(), 
@@ -197,36 +196,34 @@ public class Biostar145820 extends Launcher
 			sorter.setDestructiveIteration(true);
 			while(iter.hasNext())
 				{
-				RandSamRecord r=new RandSamRecord();
+				final SAMRecord rec = progress.watch(iter.next());
+				if(this.filter.filterOut(rec)) {
+					continue;
+				}
+				final RandSamRecord r=new RandSamRecord();
 				r.rand_index  = random.nextInt();
-				r.samRecord =  progress.watch(iter.next());
+				r.samRecord =  progress.watch(rec);
 
 				sorter.add(r);
 				}
 			iter.close();iter=null;
-			
 			sorter.doneAdding();
 			iter2=sorter.iterator();
-			if(count==-1)
-				{
-				while(iter2.hasNext())
-					{
-					samWriter.addAlignment(iter2.next().samRecord);
-					}
-				}
-			else
-				{
-				while(iter2.hasNext() && count>0)
-					{
-					samWriter.addAlignment(iter2.next().samRecord);
-					count--;
-					}
-				}
+			
+			samWriter = writingBamArgs.openSAMFileWriter(outputFile, header, true);
+
+			final SAMFileWriter finalw = samWriter;
+			
+			iter2.stream().
+				limit(this.count<0L?Long.MAX_VALUE-1:this.count).
+				map(R->R.samRecord).
+				forEach(R->finalw.addAlignment(R));
+				
 			iter2.close();iter2=null;
 			sorter.cleanup();
 			progress.finish();
 			}
-		catch (Exception e)
+		catch(final Exception e)
 			{
 			LOG.error(e);
 			return -1;

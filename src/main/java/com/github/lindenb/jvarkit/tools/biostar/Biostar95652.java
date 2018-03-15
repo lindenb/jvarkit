@@ -367,7 +367,7 @@ public class Biostar95652 extends Launcher
 				}
 			catch(final Throwable err)
 				{
-				LOG.warn(err);
+				LOG.warn("Ignoring :" +err.getMessage());
 				}
 			for(final String arg:args)
 				{

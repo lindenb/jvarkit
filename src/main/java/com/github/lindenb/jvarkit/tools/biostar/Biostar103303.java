@@ -63,7 +63,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
 
 /** 
 
@@ -81,8 +80,9 @@ END_DOC
 */
 
 @Program(name="biostar103303",
-description="Calculate Percent Spliced In (PSI).", biostars=103303,
-terms=Term.ID_0000015)
+description="Calculate Percent Spliced In (PSI).",
+biostars=103303
+)
 public class Biostar103303 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar103303.class).make();

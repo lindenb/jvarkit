@@ -122,6 +122,8 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	private boolean hideArchOfSupplAlign =false;
 	@Parameter(names={"-printNames","--printNames"},description="Print Read Names (for debugging)")
 	private boolean printReadNames=false;
+	@Parameter(names={"-hideInsert","--hideInsertions"},description="Hide insertions")
+	private boolean hideInsertions=false;
 
 	
 	private final int featureHeight=5;
@@ -132,6 +134,16 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	public LowResBam2Raster() {
 		super.spaceYbetweenFeatures=1;
 		super.minDistanceBetweenPairs=10;
+		}
+	
+	private static class InsertSizeAt
+		{
+		final int ref;
+		final int size;
+		InsertSizeAt(int ref,final CigarElement ce) {
+			this.ref=ref;
+			this.size = ce.getLength();
+			}
 		}
 	
 	private static class Arc
@@ -679,7 +691,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 								ymid
 								));
 						
-						final Set<Integer> refposOfInsertions = new HashSet<>();
+						final Map<Integer,InsertSizeAt> refposOfInsertions = new HashMap<>();
 
 						/* loop over read R1 and read R2 */
 						for(int R=0;R<2;++R)
@@ -699,21 +711,23 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 									supplementaryArcs.add(arc);
 									}
 								}
-							//collect insertions
 							final Cigar cigar = rec.getCigar();
-							if(cigar!=null)
-								{
-								int ref = rec.getAlignmentStart();
-								for(final CigarElement ce:cigar.getCigarElements())
+							if(!hideInsertions) {
+								//collect insertions
+								if(cigar!=null)
 									{
-									final CigarOperator op = ce.getOperator();
-									if(op.equals(CigarOperator.INSERTION))
+									int ref = rec.getAlignmentStart();
+									for(final CigarElement ce:cigar.getCigarElements())
 										{
-										refposOfInsertions.add(ref);
-										}
-									if(op.consumesReferenceBases())
-										{
-										ref+=ce.getLength();
+										final CigarOperator op = ce.getOperator();
+										if(op.equals(CigarOperator.INSERTION))
+											{
+											refposOfInsertions.put(ref,new InsertSizeAt(ref,ce));
+											}
+										if(op.consumesReferenceBases())
+											{
+											ref+=ce.getLength();
+											}
 										}
 									}
 								}
@@ -802,9 +816,9 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							}
 						
 						// paint insertions
-						for(final Integer refpos: refposOfInsertions) {
-							Shape triange= createTriange(
-									pos2pixel.apply(refpos),
+						for(final InsertSizeAt inssizeat: refposOfInsertions.values()) {
+							final Shape triange= createTriange(
+									pos2pixel.apply(inssizeat.ref),
 									y+featureHeight/2,
 									featureHeight,
 									Math.PI/2.0);

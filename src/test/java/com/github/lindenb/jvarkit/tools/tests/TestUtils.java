@@ -23,7 +23,10 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.xml.sax.helpers.DefaultHandler;
@@ -39,6 +42,7 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordFactory;
+import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -384,13 +388,20 @@ protected synchronized Path deleteOnExit(final Path p) {
 	if(p!=null) this.deletePathsAtExit.add(p);
 	return p;
 	}
-@AfterTest
-@Test(enabled = false)
+
+@BeforeClass
+public synchronized void startup() {
+	System.err.println("[TEST] starting "+this.getClass().getSimpleName());
+}
+
+@AfterClass
 public synchronized void removeTmpFiles() {
 	for(final File f:this.deleteFilesAtExit) f.delete();
 	for(final Path f:this.deletePathsAtExit) try {
 		Files.delete(f);
 		} catch(IOException err) {}
+	System.err.println("[TEST] end "+this.getClass().getSimpleName());
+
 	}
 
 protected void assertIsValidBam(final File bamFile) throws IOException {
@@ -601,8 +612,17 @@ protected void assertTsvTableIsConsitent(final File f,Predicate<String> ignoreLi
 		}
 	}
 
-protected long wc(File f) throws IOException
+protected long wc(final File f) throws IOException
 	{
+	if(f.getName().endsWith(".bam") || f.getName().endsWith(".sam")) {
+		SamReader sr = SamReaderFactory.makeDefault().open(f);
+		SAMRecordIterator iter =sr.iterator();
+		final long n= iter.stream().count();
+		iter.close();
+		sr.close();
+		return n;
+		}
+	
 	final BufferedReader br = IOUtils.openFileForBufferedReading(f);
 	final long n=br.lines().count();
 	br.close();

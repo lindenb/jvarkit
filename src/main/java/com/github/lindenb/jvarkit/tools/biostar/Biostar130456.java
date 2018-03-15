@@ -155,7 +155,7 @@ public class Biostar130456 extends Launcher
 					
 					sample2writer.put(sample, w);
 					}
-				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 				while(in.hasNext())
 					{
 					final VariantContext ctx= progress.watch(in.next());
@@ -198,7 +198,7 @@ public class Biostar130456 extends Launcher
 				}
 			}
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new Biostar130456().instanceMainWithExit(args);
 		}

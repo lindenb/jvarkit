@@ -37,7 +37,7 @@ public void test01(final String vcfpath) throws IOException {
 		final File vcfIn2 = new File(vcfOut.replaceAll("__SAMPLE__", s));
 		assertIsVcf(vcfIn2);
 		final VCFFileReader r2= new VCFFileReader(vcfIn2,false);
-		List<String> samples2 = r2.getFileHeader().getSampleNamesInOrder();
+		final List<String> samples2 = r2.getFileHeader().getSampleNamesInOrder();
 		r2.close();
 		Assert.assertTrue(samples2.size()==1);
 		Assert.assertEquals(samples2.get(0), s);

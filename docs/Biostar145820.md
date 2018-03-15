@@ -1,6 +1,8 @@
 # Biostar145820
 
-subsample BAM to fixed number of alignments.
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
+subsample/shuffle BAM to fixed number of alignments.
 
 
 ## Usage
@@ -11,6 +13,13 @@ Usage: biostar145820 [options] Files
     --bamcompression
       Compression Level.
       Default: 5
+    -f, --filter, --jexl
+      A JEXL Expression that will be used to filter out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: 'Accept all' (Empty expression)
     -h, --help
       print help and exit
     --helpFormat
@@ -34,10 +43,18 @@ Usage: biostar145820 [options] Files
     --version
       print version and exit
     -n
-       number of reads. -1: all reads
+       number of reads. negative: all reads, shuffle output.
       Default: -1
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * shuffle
+
 
 
 ## See also in Biostars
@@ -49,11 +66,10 @@ Usage: biostar145820 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -83,21 +99,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar145820.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar145820.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar145820Test.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar145820Test.java)
 
-```
-Wed Jun 14 17:01:36 2017 +0200 ; fast genotype gvcf ; https://github.com/lindenb/jvarkit/commit/d77e93940ad9a7f8144527332067b663b55a10f6
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
-Thu Apr 6 18:34:56 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/883b4ba4b693661663694256f16b137e371147fa
-Fri Jul 17 12:26:30 2015 +0200 ; all sample in shuffle ; https://github.com/lindenb/jvarkit/commit/fae29109c7b3e24a7dc9329d7d4eea06ee95a0f7
-Tue Jun 9 18:34:58 2015 +0200 ; biostar 145820 ; https://github.com/lindenb/jvarkit/commit/d31e94729837485c0eeaa8bf00300fee7dd25b88
-```
-
-</details>
 
 ## Contribute
 

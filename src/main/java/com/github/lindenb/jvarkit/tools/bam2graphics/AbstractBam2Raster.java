@@ -156,11 +156,11 @@ public abstract class AbstractBam2Raster extends Launcher{
 		}
 	protected  Shape createTriange(double cx,double cy,double r,double angle)
 		{
-		GeneralPath gp = new GeneralPath();
+		final GeneralPath gp = new GeneralPath();
 		for(int i=0;i< 3;++i)
 			{
-			double x= cx + Math.cos(angle)*r;
-			double y= cy + Math.sin(angle)*r;
+			final double x= cx + Math.cos(angle)*r;
+			final double y= cy + Math.sin(angle)*r;
 			if(i==0) 
 				{
 				gp.moveTo(x, y);

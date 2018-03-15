@@ -77,12 +77,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.semontology.Term;
 
 @Program(name="biostar140111",
 	description="How to obtain human genotype data from dpSNP ftp?",
-	biostars=140111,
-	terms=Term.ID_0000015
+	biostars=140111
 	)
 public class Biostar140111 extends Launcher
 	{
