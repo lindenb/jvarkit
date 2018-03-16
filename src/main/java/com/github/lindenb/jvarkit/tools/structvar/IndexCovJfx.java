@@ -133,7 +133,8 @@ public class IndexCovJfx extends Application{
 	private Launcher.UsageBuider usageBuider=null;
 	@Parameter(description = "Files")
 	private List<String> args = new ArrayList<>();
-
+	@Parameter(names="--testng",description = "testng",hidden=true)
+	private boolean this_is_a_unit_test = false;
 	
 	private class Sample
 		{
@@ -176,11 +177,15 @@ public class IndexCovJfx extends Application{
 			if(s.startsWith("chr")) s=s.substring(3);
 			return s;
  			}
+		boolean hasContig(final String s) {
+			return getContig().equals(s) &&
+				normContig(this.getContig()).equals(normContig(s));
+		}
 		
 		boolean overlaps(final String c,int p)
 			{
 			if(p<getStart() || p>getEnd()) return false;
-			if(normContig(c).equals(normContig(getContig()))) return true;
+			if(hasContig(c)) return true;
 			return false;
 			}
 		
@@ -379,7 +384,9 @@ public class IndexCovJfx extends Application{
 					adjustScollPane();
 					canvasSrollPane.requestFocus();
 					repaintCanvas();
-					
+					if(this.this_is_a_unit_test) {
+						Platform.exit();
+					}
 				});
 
 				canvasSrollPane.setOnKeyPressed(e -> {
@@ -643,12 +650,13 @@ public class IndexCovJfx extends Application{
 			catch(Exception err) {
 				LOG.error(err);
 				return;
-			 }
+			 	}
 			int x=0;
 			while(x<this.visibleIndexCovRows.size())
 				{
 				final IndexCovRow row = this.visibleIndexCovRows.get(x);
-				if(row.overlaps(contig,pos)) {
+				if(row.overlaps(contig,pos) ||
+						row.hasContig(contig) && row.getStart()> pos) {
 					this.canvasSrollPane.setHvalue(x*CHUNK_WIDTH);
 					repaintCanvas();
 					return;
