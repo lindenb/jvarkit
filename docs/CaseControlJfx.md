@@ -1,5 +1,7 @@
 # CaseControlJfx
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 display jfx chart of case/control maf from a VCF and a pedigree
 
 
@@ -76,11 +78,10 @@ Usage: casectrljfx [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -110,19 +111,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlJfx.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/CaseControlJfx.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri May 5 21:02:19 2017 +0200 ; git move usage builder ; https://github.com/lindenb/jvarkit/commit/cc2f3aea9ca8fbb617b7f57a15b3294b6d6680e5
-Fri May 5 16:23:26 2017 +0200 ; case control jfx ; https://github.com/lindenb/jvarkit/commit/8b0607230be7fcaf7fa355702e2512ffb2719c9d
-Fri May 5 16:22:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/70b9b966cf6d65c7711e44064d77f3c8a93f2435
-Fri May 5 15:49:14 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/5a0bd0f72610e6a2347d65505df66e89e3916dbb
-Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26
-```
-
-</details>
 
 ## Contribute
 
