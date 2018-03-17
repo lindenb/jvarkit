@@ -61,6 +61,7 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -69,11 +70,13 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Screen;
@@ -126,8 +129,11 @@ public class IndexCovJfx extends Application{
 	private final Map<String,Color> contig2color = new HashMap<>();
 	private final int CHUNK_WIDTH=100;
 	private final Hershey hershey = new Hershey();
-	private double deletionTreshold = 0.4;
-	private double duplicationTreshold = 1.9;
+	private static final float DEFAULT_deletionTreshold = 0.4f;
+	private static final float DEFAULT_duplicationTreshold = 1.9f;
+	private Spinner<Double> deletionSpinner; 
+	private Spinner<Double> duplicationSpinner; 
+	
 	
 	@ParametersDelegate
 	private Launcher.UsageBuider usageBuider=null;
@@ -315,28 +321,12 @@ public class IndexCovJfx extends Application{
 				
 				
 				final VBox root = new VBox();
-				MenuBar menuBar = new MenuBar();
+				final MenuBar menuBar = new MenuBar();
 			    Menu menu = new Menu("Tools");
 			    MenuItem item=new MenuItem("Goto");
 			    item.setOnAction(AE->askGoto());
 			    menu.getItems().add(item);
 			    menu.getItems().add(new SeparatorMenuItem());
-			    Menu menu2 = new Menu("DEL Tresholds");
-			    menu.getItems().add(menu2);
-			    for(double y=0.9;y>=0;y-=0.05) {
-			    	final double y2=y;
-			    	final MenuItem submenu = new MenuItem("DEL <= "+String.format("%.2f", y));
-			    	submenu.setOnAction(AE->setDelTreshold(y2));
-			    	menu2.getItems().add(submenu);
-			    	}
-			    menu2= new Menu("DUP Tresholds");
-			    menu.getItems().add(menu2);
-			    for(double y=1.1;y<=2.0;y+=0.05) {
-			    	final double y2=y;
-			    	final MenuItem submenu = new MenuItem("DUP >= "+String.format("%.2f", y));
-			    	submenu.setOnAction(AE->setDupTreshold(y2));
-			    	menu2.getItems().add(submenu);
-			    	}
 			    item=new MenuItem("Cleanup: remove data > DEL && data < DUP");
 			    item.setOnAction(AE->askCleanup());
 			    menu.getItems().add(item);
@@ -362,6 +352,23 @@ public class IndexCovJfx extends Application{
 			    item.setOnAction(AE->{Platform.exit();});
 			    menuBar.getMenus().add(menu);
 			    root.getChildren().add(menuBar);
+			    
+			    final HBox toolboxPane = new HBox();
+			    Label label = new Label("DEL when \u2264 :");
+			    toolboxPane.getChildren().add(label);
+			    this.deletionSpinner = new Spinner<>(0.0,0.9,DEFAULT_deletionTreshold,0.05);
+			    label.setLabelFor(this.deletionSpinner);
+			    this.deletionSpinner.valueProperty().addListener((a,b,c)->repaintCanvas());
+			    toolboxPane.getChildren().add(this.deletionSpinner );
+			    
+			    label = new Label("DUP when \u2265 :");
+			    toolboxPane.getChildren().add(label);
+			    this.duplicationSpinner = new Spinner<>(1.1,10.0,DEFAULT_duplicationTreshold,0.05);
+			    this.duplicationSpinner.valueProperty().addListener((a,b,c)->repaintCanvas());
+			    label.setLabelFor(this.duplicationSpinner);
+			    toolboxPane.getChildren().add(this.duplicationSpinner );
+			    root.getChildren().add(toolboxPane);
+			    
 				
 				//HBox hbox = new HBox(sampleListView,this.canvasSrollPane);
 				GridPane grid = new GridPane();
@@ -417,6 +424,16 @@ public class IndexCovJfx extends Application{
 				}
 		
 			}
+		
+		private float getDeletionTreshold() {
+			Double d=this.deletionSpinner.getValue();
+			return d==null?DEFAULT_deletionTreshold:d.floatValue();
+		}
+		
+		private float getDuplicationTreshold() {
+			Double d=this.duplicationSpinner.getValue();
+			return d==null?DEFAULT_duplicationTreshold:d.floatValue();
+		}
 	
 		private  void repaintCanvas() {
 			
@@ -475,14 +492,14 @@ public class IndexCovJfx extends Application{
 				gc.setStroke(Color.DARKGRAY);
 				
 				
-				hershey.paint(gc, String.valueOf(row.getContig()),
+				this.hershey.paint(gc, String.valueOf(row.getContig()),
 						x+1, y,
 						CHUNK_WIDTH-2,
 						11
 						);
 				y+=12;
 				gc.setStroke(Color.BLACK);
-				hershey.paint(gc,
+				this.hershey.paint(gc,
 						NumberFormat.getNumberInstance(Locale.US).format(row.getStart()),
 						x+1, y,
 						CHUNK_WIDTH-2,
@@ -494,7 +511,8 @@ public class IndexCovJfx extends Application{
 				
 				final double topY= y;
 				final double sampleHeight = (canvas.getHeight()-topY)/samplesIndices.length;
-
+				final float delLimit = this.getDeletionTreshold();
+				final float dupLimit = this.getDuplicationTreshold();
 				
 				for(int sampleIdx:samplesIndices)
 					{
@@ -508,7 +526,7 @@ public class IndexCovJfx extends Application{
 							x_v1-sample_x,
 							sampleHeight
 							);
-						if(v<=this.deletionTreshold) {
+						if(v <= delLimit ) {
 							gc.setStroke(Color.DARKGRAY);
 							this.hershey.paint(gc,
 									this.sampleNames.get(sampleIdx).name , 
@@ -531,7 +549,7 @@ public class IndexCovJfx extends Application{
 								sample_x-x_v1,
 								sampleHeight
 								);
-						if(v>=this.duplicationTreshold)
+						if(v >= dupLimit)
 							{
 							gc.setStroke(Color.DARKGRAY);
 							this.hershey.paint(gc,
@@ -568,9 +586,13 @@ public class IndexCovJfx extends Application{
 			}
 		/** remove data > DEL && data < DUP */
 		private void askCleanup() {
+			final float delLimit = this.getDeletionTreshold();
+			final float dupLimit = this.getDuplicationTreshold();
 			final Alert alert = new Alert(AlertType.CONFIRMATION);
 			alert.setTitle("Confirmation Dialog");
-			alert.setHeaderText("Keep with tresholds DEL:"+this.deletionTreshold+"  DUP: "+this.duplicationTreshold);
+			alert.setHeaderText("Keep with tresholds DEL:" + 
+					delLimit +"  DUP: "+ dupLimit
+					);
 			alert.setContentText("This will remove some data. Are you ok with this?");
 
 			final Optional<ButtonType> result = alert.showAndWait();
@@ -578,8 +600,8 @@ public class IndexCovJfx extends Application{
 			this.visibleIndexCovRows.removeIf(R->{
 				for(float v: R.folds)
 					{
-					if(v<=deletionTreshold) return false;
-					if(v>=duplicationTreshold) return false;
+					if(v<=delLimit) return false;
+					if(v>=dupLimit) return false;
 					}
 				return true;
 				});
@@ -588,9 +610,16 @@ public class IndexCovJfx extends Application{
 		
 		/** remove data > DEL && data < DUP for all samples*/
 		private void askEveryWhere() {
+			final float delLimit = this.getDeletionTreshold();
+			final float dupLimit = this.getDuplicationTreshold();
+
 			final Alert alert = new Alert(AlertType.CONFIRMATION);
 			alert.setTitle("Confirmation Dialog");
-			alert.setHeaderText("Keep with tresholds DEL:"+this.deletionTreshold+"  DUP: "+this.duplicationTreshold);
+			alert.setHeaderText(
+					"Keep with tresholds DEL:" +
+					delLimit+"  DUP: " + 
+					dupLimit
+					);
 			alert.setContentText("This will remove some data. Are you ok with this?");
 
 			final Optional<ButtonType> result = alert.showAndWait();
@@ -600,7 +629,7 @@ public class IndexCovJfx extends Application{
 				int count=0;
 				for(final float v: R.folds)
 					{
-					if(v<deletionTreshold) 
+					if(v <= delLimit) 
 						{
 						count++;
 						}
@@ -609,7 +638,7 @@ public class IndexCovJfx extends Application{
 				count=0;
 				for(final float v: R.folds)
 					{
-					if(v>duplicationTreshold)
+					if(v >= dupLimit)
 						{
 						count++;
 						}
@@ -665,16 +694,12 @@ public class IndexCovJfx extends Application{
 				}
 			LOG.error("Not found "+result.get());
 			}
-		private void setDelTreshold(double v) {
-			this.deletionTreshold = v;
-			repaintCanvas();
-		}
-		private void setDupTreshold(double v) {
-			this.duplicationTreshold = v;
-			repaintCanvas();
-		}
+		
 		
 		private void goToNextInteresting(int direction) {
+			final float delLimit = this.getDeletionTreshold();
+			final float dupLimit = this.getDuplicationTreshold();
+
 			int x = (int)(this.canvasSrollPane.getHvalue()/(double)CHUNK_WIDTH);
 			for(;;)
 				{
@@ -684,7 +709,7 @@ public class IndexCovJfx extends Application{
 				
 				for(float v:row.folds)
 					{
-					if(v <=this.deletionTreshold || v>=this.duplicationTreshold)
+					if(v <= delLimit || v >= dupLimit)
 						{
 						this.canvasSrollPane.setHvalue(x*CHUNK_WIDTH);
 						repaintCanvas();
