@@ -41,6 +41,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -60,6 +61,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -71,6 +73,7 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -79,6 +82,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 /**
@@ -184,7 +188,7 @@ public class IndexCovJfx extends Application{
 			return s;
  			}
 		boolean hasContig(final String s) {
-			return getContig().equals(s) &&
+			return getContig().equals(s)  ||
 				normContig(this.getContig()).equals(normContig(s));
 		}
 		
@@ -229,16 +233,22 @@ public class IndexCovJfx extends Application{
 				Platform.exit();
 				return;
 				}
-			
 			BufferedReader r = null;
 			try {
+				final File inputFile ;
 				if(this.args.isEmpty())
 					{
-					r = IOUtils.openStdinForBufferedReader();
+					// open gui
+					final FileChooser fc = new FileChooser();
+					inputFile = fc.showOpenDialog(null);
+					if( inputFile==null) {
+						Platform.exit();
+						return;
+						}
 					}
 				else if(this.args.size()==1)
 					{
-					r = IOUtils.openFileForBufferedReading(new File(this.args.get(0)));
+					inputFile = new File(this.args.get(0));
 					}
 				else
 					{
@@ -246,9 +256,14 @@ public class IndexCovJfx extends Application{
 					Platform.exit();
 					return;
 					}
+				
+				r = IOUtils.openFileForBufferedReading(inputFile);
 				String line = r.readLine();
 				if(line==null) {
-					LOG.error("Cannot read first line.");
+					new  Alert(AlertType.ERROR,
+							"Cannot read first line of "+inputFile,
+							ButtonType.OK).
+						showAndWait();
 					Platform.exit();
 					return;
 					}
@@ -257,7 +272,10 @@ public class IndexCovJfx extends Application{
 					!tokens[0].equals("#chrom") ||
 					!tokens[1].equals("start") ||
 					!tokens[2].equals("end")) {
-					LOG.error("bad first line "+line);
+					new  Alert(AlertType.ERROR,
+							"bad first line "+line+" in "+inputFile,
+							ButtonType.OK).
+						showAndWait();
 					Platform.exit();
 					return;
 					}
@@ -272,13 +290,13 @@ public class IndexCovJfx extends Application{
 				this.sampleListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 				//this.sampleListView.setPrefWidth(200);
 				
-				
+				final SmartComparator smartCmp = new SmartComparator();
 				this.visibleIndexCovRows.addAll(r.lines().
 					filter(L->!StringUtil.isBlank(L)).
 					map(L->Arrays.asList(tab.split(L))).
 					map(T->new IndexCovRow(T)).
 					sorted((A,B)->{
-						int i=  A.getContig().compareTo(B.getContig());
+						int i=  smartCmp.compare(A.getContig(),B.getContig());
 						if(i!=0) return i;
 						return A.getStart() - B.getStart();
 					}).
@@ -298,8 +316,6 @@ public class IndexCovJfx extends Application{
 						lastContig=row.getContig();
 						}
 					}
-				
-		        
 				
 				this.canvas = new Canvas(
 						screen.getWidth()-200, 
@@ -325,6 +341,7 @@ public class IndexCovJfx extends Application{
 			    Menu menu = new Menu("Tools");
 			    MenuItem item=new MenuItem("Goto");
 			    item.setOnAction(AE->askGoto());
+			    item.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.CONTROL_DOWN));
 			    menu.getItems().add(item);
 			    menu.getItems().add(new SeparatorMenuItem());
 			    item=new MenuItem("Cleanup: remove data > DEL && data < DUP");
@@ -367,8 +384,22 @@ public class IndexCovJfx extends Application{
 			    this.duplicationSpinner.valueProperty().addListener((a,b,c)->repaintCanvas());
 			    label.setLabelFor(this.duplicationSpinner);
 			    toolboxPane.getChildren().add(this.duplicationSpinner );
-			    root.getChildren().add(toolboxPane);
 			    
+			    
+			    label = new Label(" Jump to :");
+			    toolboxPane.getChildren().add(label);
+			    final TextField jumpToTextField = new TextField();
+			    jumpToTextField.setPromptText("chrom:pos");
+			    jumpToTextField.setPrefColumnCount(15);
+			    toolboxPane.getChildren().add(jumpToTextField);
+			    label.setLabelFor(jumpToTextField);
+			    jumpToTextField.setOnAction(AE->askGoto(jumpToTextField.getText()));
+				final Button goButton = new Button("Go");
+				toolboxPane.getChildren().add(goButton);
+				goButton.setOnAction(AE->askGoto(jumpToTextField.getText()));
+			    
+				
+				root.getChildren().add(toolboxPane);
 				
 				//HBox hbox = new HBox(sampleListView,this.canvasSrollPane);
 				GridPane grid = new GridPane();
@@ -416,6 +447,10 @@ public class IndexCovJfx extends Application{
 				}
 			catch(final Exception err) {
 				LOG.error(err);
+				new  Alert(AlertType.ERROR,
+						"Error "+err,
+						ButtonType.OK).
+					showAndWait();
 				Platform.exit();
 				return;
 				}
@@ -656,28 +691,39 @@ public class IndexCovJfx extends Application{
 		}
 		
 		private void askGoto() {
-			TextInputDialog dialog = new TextInputDialog("Enter position");
+			final TextInputDialog dialog = new TextInputDialog("Enter position");
 			dialog.setTitle("Go To...");
 			dialog.setHeaderText("Enter a position");
 			dialog.setContentText("chrom:pos");
 			// Traditional way to get the response value.
-			Optional<String> result = dialog.showAndWait();
+			final Optional<String> result = dialog.showAndWait();
 			if (!result.isPresent()){
-				LOG.error("No input");
+				new  Alert(AlertType.WARNING,
+						"No input",
+						ButtonType.OK).
+					showAndWait();
 				return;
 				}
-			int colon = result.get().indexOf(':');
+			askGoto(result.get());
+		}
+		
+		private void askGoto(final String textField) {
+			
+			int colon = textField.indexOf(':');
 			if(colon<=0) return;
-			final String contig =  result.get().substring(0, colon).trim();
+			final String contig =  textField.substring(0, colon).trim();
 			final int pos;
 			try {
-				pos = Integer.parseInt( result.get().
+				pos = Integer.parseInt( textField.
 						substring(colon+1).
 						replaceAll("[, ]", "").
 						trim());
 				}
-			catch(Exception err) {
-				LOG.error(err);
+			catch(final Exception err) {
+				new  Alert(AlertType.ERROR,
+						"Bad input \""+textField+"\"",
+						ButtonType.OK).
+					showAndWait();
 				return;
 			 	}
 			int x=0;
@@ -685,14 +731,19 @@ public class IndexCovJfx extends Application{
 				{
 				final IndexCovRow row = this.visibleIndexCovRows.get(x);
 				if(row.overlaps(contig,pos) ||
-						row.hasContig(contig) && row.getStart()> pos) {
+						(row.hasContig(contig) && row.getStart()>= pos)
+						) 
+					{
 					this.canvasSrollPane.setHvalue(x*CHUNK_WIDTH);
 					repaintCanvas();
 					return;
 					}
 				++x;
 				}
-			LOG.error("Not found "+result.get());
+			new  Alert(AlertType.ERROR,
+					"Not found \""+textField+"\"",
+					ButtonType.OK).
+				showAndWait();
 			}
 		
 		
@@ -718,7 +769,7 @@ public class IndexCovJfx extends Application{
 					}
 				
 				}
-		}
+			}
 		
 		public static void main(String[] args) {
 			Application.launch(args);
