@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.structvar;
 import java.io.BufferedReader;
 import java.io.File;
 import java.text.NumberFormat;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -43,6 +45,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -53,6 +56,7 @@ import htsjdk.samtools.util.StringUtil;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Rectangle2D;
@@ -68,6 +72,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.SelectionMode;
@@ -126,6 +131,7 @@ public class IndexCovJfx extends Application{
 
 	
 	private final ObservableList<Sample> sampleNames = FXCollections.observableArrayList();
+	private final List<IndexCovRow> orignalndexCovRows = new ArrayList<>();
 	private final ObservableList<IndexCovRow> visibleIndexCovRows = FXCollections.observableArrayList();
 	private Canvas canvas = null;
 	private ScrollPane canvasSrollPane = null;
@@ -133,7 +139,7 @@ public class IndexCovJfx extends Application{
 	private final Map<String,Color> contig2color = new HashMap<>();
 	private final int CHUNK_WIDTH=100;
 	private final Hershey hershey = new Hershey();
-	private static final float DEFAULT_deletionTreshold = 0.4f;
+	private static final float DEFAULT_deletionTreshold = 0.6f;// not 0.4 !
 	private static final float DEFAULT_duplicationTreshold = 1.9f;
 	private Spinner<Double> deletionSpinner; 
 	private Spinner<Double> duplicationSpinner; 
@@ -159,6 +165,18 @@ public class IndexCovJfx extends Application{
 			}
 		}
 	
+	private abstract class SampleCov
+		{
+		public abstract int getSampleIndex();
+		public abstract float getFold();
+		public boolean isDeletion() {
+			return getFold()  <= IndexCovJfx.this.getDeletionTreshold();
+			}
+		public boolean isDuplication() {
+			return getFold()  >= IndexCovJfx.this.getDuplicationTreshold();
+			}
+		}
+	
 	private class IndexCovRow
 		implements Locatable
 		{
@@ -166,6 +184,24 @@ public class IndexCovJfx extends Application{
 		final int start;
 		final int end;
 		final float folds[];
+		
+		private class SampleCovImpl
+			extends SampleCov
+			{
+			final int sample_index;
+			SampleCovImpl(int sample_index) {
+				this.sample_index = sample_index;
+				}
+			@Override
+			public int getSampleIndex() {
+				return this.sample_index;
+				}
+			@Override
+			public float getFold() {
+				return IndexCovRow.this.folds[this.sample_index];
+				}
+			}
+		
 		IndexCovRow(final List<String> tokens) {
 			this.contig = tokens.get(0);
 			this.start = Integer.parseInt(tokens.get(1));
@@ -175,6 +211,24 @@ public class IndexCovJfx extends Application{
 				this.folds[i-3] = Float.parseFloat(tokens.get(i));
 				}
 			}
+		public SampleCov get(int i) {
+			return new SampleCovImpl(i);
+			}
+		
+		public List<SampleCov> getFolds() {
+			return new AbstractList<SampleCov>()
+					{
+					@Override
+					public int size() {
+						return IndexCovRow.this.folds.length;
+						}
+					@Override
+					public SampleCov get(int index) {
+						return IndexCovRow.this.get(index);
+						}
+					};
+				}
+		
 		@Override
 		public String getContig() { return contig; }
 		@Override
@@ -198,11 +252,15 @@ public class IndexCovJfx extends Application{
 			if(hasContig(c)) return true;
 			return false;
 			}
-		
+		boolean overlaps(final String c,int S,int E)
+			{
+			if(E<getStart() || S>getEnd()) return false;
+			if(hasContig(c)) return true;
+			return false;
+			}
 		}
 	
-	public IndexCovJfx()
-	{
+	public IndexCovJfx() {
 		this.usageBuider = new Launcher.UsageBuider(this.getClass());
 	}
 	
@@ -220,9 +278,6 @@ public class IndexCovJfx extends Application{
 
 			final Pattern tab = Pattern.compile("[\t]");
 			final JCommander jCommander = new JCommander(this);
-			
-			
-
 			
 			final List<String> unammed=this.getParameters().getUnnamed();
 			jCommander.parse(unammed.toArray(new String[unammed.size()]));
@@ -287,11 +342,14 @@ public class IndexCovJfx extends Application{
 						);
 				
 				this.sampleListView = new ListView<>(this.sampleNames);
-				this.sampleListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+				final MultipleSelectionModel<Sample> sampleSelectionModel = this.sampleListView.getSelectionModel();
+				sampleSelectionModel.setSelectionMode(SelectionMode.MULTIPLE);
+			
+				
 				//this.sampleListView.setPrefWidth(200);
 				
 				final SmartComparator smartCmp = new SmartComparator();
-				this.visibleIndexCovRows.addAll(r.lines().
+				this.orignalndexCovRows.addAll(r.lines().
 					filter(L->!StringUtil.isBlank(L)).
 					map(L->Arrays.asList(tab.split(L))).
 					map(T->new IndexCovRow(T)).
@@ -302,6 +360,8 @@ public class IndexCovJfx extends Application{
 					}).
 					collect(Collectors.toList())
 					);
+				
+				this.visibleIndexCovRows.addAll(orignalndexCovRows);
 				
 				String lastContig=null;
 				for(final IndexCovRow row: this.visibleIndexCovRows) 
@@ -318,7 +378,7 @@ public class IndexCovJfx extends Application{
 					}
 				
 				this.canvas = new Canvas(
-						screen.getWidth()-200, 
+						screen.getWidth()-400, 
 						screen.getHeight()-200
 						);
 				
@@ -344,14 +404,40 @@ public class IndexCovJfx extends Application{
 			    item.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.CONTROL_DOWN));
 			    menu.getItems().add(item);
 			    menu.getItems().add(new SeparatorMenuItem());
+			    //
 			    item=new MenuItem("Cleanup: remove data > DEL && data < DUP");
 			    item.setOnAction(AE->askCleanup());
 			    menu.getItems().add(item);
-			    
+			    //
 			    item=new MenuItem("Cleanup: remove ALL samples <= DEL or ALL samples >= DUP");
 			    item.setOnAction(AE->askEveryWhere());
 			    menu.getItems().add(item);
+			    //
+			    item=new MenuItem("Cleanup: keep selected samples having <= DEL or ALL samples >= DUP");
+			    item.setOnAction(AE->filterForSampleSet(false));
+			    menu.getItems().add(item);
+			    //
+			    item=new MenuItem("Cleanup: keep selected samples having <= DEL or ALL samples >= DUP and only those samples.");
+			    item.setOnAction(AE->filterForSampleSet(true));
+			    menu.getItems().add(item);
+			    //
+			    item=new MenuItem("Filter: Keep data overlapping BED file");
+			    item.setOnAction(AE->filterBed(false));
+			    menu.getItems().add(item);
+			    //
+			    item=new MenuItem("Filter: Keep data NOT overlapping BED file");
+			    item.setOnAction(AE->filterBed(true));
+			    menu.getItems().add(item);
+
+			    //
+			    item=new MenuItem("Revert: Restore original data");
+			    item.setOnAction(AE->doRestoreOriginalData());
+			    item.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN));
+			    menu.getItems().add(item);
+			    
 			    menu.getItems().add(new SeparatorMenuItem());
+
+			    
 			    
 			    item=new MenuItem("Next Interesting");
 			    item.setOnAction(AE->goToNextInteresting(1));
@@ -402,7 +488,7 @@ public class IndexCovJfx extends Application{
 				root.getChildren().add(toolboxPane);
 				
 				//HBox hbox = new HBox(sampleListView,this.canvasSrollPane);
-				GridPane grid = new GridPane();
+				final GridPane grid = new GridPane();
 				grid.setHgap(10);
 				grid.setVgap(10);
 				grid.setPadding(new Insets(5, 5, 5, 5));
@@ -420,14 +506,14 @@ public class IndexCovJfx extends Application{
 						);
 				primaryStage.setOnShown(E->{
 					adjustScollPane();
-					canvasSrollPane.requestFocus();
+					this.canvasSrollPane.requestFocus();
 					repaintCanvas();
 					if(this.this_is_a_unit_test) {
 						Platform.exit();
 					}
 				});
 
-				canvasSrollPane.setOnKeyPressed(e -> {
+				this.canvasSrollPane.setOnKeyPressed(e -> {
 				    if (e.getCode() == KeyCode.LEFT) {
 				    	canvasSrollPane.setHvalue(Math.max(canvasSrollPane.getHmin(), canvasSrollPane.getHvalue()-CHUNK_WIDTH));
 				    }
@@ -440,10 +526,16 @@ public class IndexCovJfx extends Application{
 		        primaryStage.setScene(scene);
 		        primaryStage.show();
 		        
-		        this.sampleListView.getSelectionModel().selectedItemProperty().addListener(E->{
+		        /*sampleSelectionModel.selectedItemProperty().addListener(E->{
 		        	repaintCanvas();
 					});
-		        this.sampleListView.getSelectionModel().selectedItemProperty().addListener(E->repaintCanvas());
+		        sampleSelectionModel.selectedItemProperty().addListener(E->repaintCanvas());*/
+		        sampleSelectionModel.getSelectedIndices().addListener(new ListChangeListener<Integer>() {
+		        	@Override
+		        	public void onChanged(Change<? extends Integer> c) {
+		        		repaintCanvas();
+		        		}
+		        	});
 				}
 			catch(final Exception err) {
 				LOG.error(err);
@@ -460,7 +552,7 @@ public class IndexCovJfx extends Application{
 		
 			}
 		
-		private float getDeletionTreshold() {
+		float getDeletionTreshold() {
 			Double d=this.deletionSpinner.getValue();
 			return d==null?DEFAULT_deletionTreshold:d.floatValue();
 		}
@@ -470,23 +562,26 @@ public class IndexCovJfx extends Application{
 			return d==null?DEFAULT_duplicationTreshold:d.floatValue();
 		}
 	
-		private  void repaintCanvas() {
-			
-			final int samplesIndices[];
+		/** get selected indices, never null, never empty */
+		private int[] getSamplesIndices() {
 			if(this.sampleListView.getSelectionModel().isEmpty())
 				{
-				samplesIndices = IntStream.range(0, this.sampleNames.size()).
+				return IntStream.range(0, this.sampleNames.size()).
 						toArray();
 				}
 			else
 				{
-				samplesIndices = this.sampleListView.
+				return this.sampleListView.
 						getSelectionModel().
 						getSelectedIndices().stream().
 						mapToInt(I->I.intValue()).
 						toArray();
 				}
-			
+			}
+		
+		private  void repaintCanvas() {
+			final NumberFormat numberFormat =  NumberFormat.getNumberInstance(Locale.US);
+			final int samplesIndices[]  = this.getSamplesIndices();
 			
 			final GraphicsContext gc = canvas.getGraphicsContext2D();
 			gc.setFill(Color.WHITESMOKE);
@@ -535,13 +630,20 @@ public class IndexCovJfx extends Application{
 				y+=12;
 				gc.setStroke(Color.BLACK);
 				this.hershey.paint(gc,
-						NumberFormat.getNumberInstance(Locale.US).format(row.getStart()),
+						numberFormat.format(row.getStart()),
 						x+1, y,
 						CHUNK_WIDTH-2,
 						11
 						);
 				y+=12;
-				
+				gc.setStroke(Color.BLACK);
+				this.hershey.paint(gc,
+						numberFormat.format(row.getEnd()),
+						x+1, y,
+						CHUNK_WIDTH-2,
+						11
+						);
+				y+=12;
 
 				
 				final double topY= y;
@@ -690,6 +792,7 @@ public class IndexCovJfx extends Application{
 			repaintCanvas();
 		}
 		
+		/** show dialog with textfield and invoke askGoto(string) */
 		private void askGoto() {
 			final TextInputDialog dialog = new TextInputDialog("Enter position");
 			dialog.setTitle("Go To...");
@@ -708,8 +811,7 @@ public class IndexCovJfx extends Application{
 		}
 		
 		private void askGoto(final String textField) {
-			
-			int colon = textField.indexOf(':');
+			final int colon = textField.indexOf(':');
 			if(colon<=0) return;
 			final String contig =  textField.substring(0, colon).trim();
 			final int pos;
@@ -771,7 +873,165 @@ public class IndexCovJfx extends Application{
 				}
 			}
 		
-		public static void main(String[] args) {
+		/**
+		 * use the sample selection. Filter for CNV specific for those samples
+		 */
+		private void filterForSampleSet(boolean specific) {
+			final Set<Integer> selectedIndices = IntStream.of(this.getSamplesIndices()).
+					mapToObj(I->I).
+					collect(Collectors.toSet());
+			
+			if( selectedIndices.size() == this.sampleNames.size() ||
+				selectedIndices.isEmpty()
+				) {
+				final Alert alert = new Alert(
+						AlertType.WARNING,
+						"No Sample selected",
+						ButtonType.OK);
+				
+				alert.showAndWait();
+				return;	
+				}
+			final float delLimit = this.getDeletionTreshold();
+			final float dupLimit = this.getDuplicationTreshold();
+
+			final Alert alert = new Alert(AlertType.CONFIRMATION);
+			alert.setTitle("Confirmation Dialog");
+			alert.setHeaderText(
+					"Keep Specific for "+
+					selectedIndices.size() + " samples "+ 
+					" with tresholds DEL:" +
+					delLimit+"  DUP: " + 
+					dupLimit
+					);
+			alert.setContentText("This will remove some data. Are you ok with this?");
+
+			final Optional<ButtonType> result = alert.showAndWait();
+			if (result.get() != ButtonType.OK) return;
+			
+			
+			
+			
+			this.visibleIndexCovRows.removeIf(R->{
+				int count_in=0;
+				int count_out=0;
+				for(int x=0;x< R.folds.length;++x)
+					{
+					final float v  = R.folds[x];
+					if(v <= delLimit) 
+						{
+						if(selectedIndices.contains(x))
+							{
+							count_in++;
+							}
+						else
+							{
+							count_out++;
+							}
+						
+						}
+					}
+				if(count_in==selectedIndices.size()) {
+					if(!specific || count_out==0) {
+						return false;
+						}
+					}
+				count_in=0;
+				count_out=0;
+				for(int x=0;x< R.folds.length;++x)
+					{
+					final float v  = R.folds[x];
+					if(v >= dupLimit)
+						{
+						if(selectedIndices.contains(x))
+						{
+						count_in++;
+						}
+					else
+						{
+						count_out++;
+						}
+					}
+					}
+				if(count_in==selectedIndices.size()) {
+					if(!specific || count_out==0) {
+						return false;
+						}
+					}
+				return true;
+				});
+			adjustScollPane();
+			}
+		
+		/*
+		private Double askPercent() {
+			final TextInputDialog dialog = new TextInputDialog("Enter percentage of samples");
+			dialog.setTitle("Go To...");
+			dialog.setHeaderText("Enter a percentage of samples 0<=x<=100");
+			dialog.setContentText(" 0<=x<=100");
+			// Traditional way to get the response value.
+			final Optional<String> result = dialog.showAndWait();
+			if (!result.isPresent()){
+				new  Alert(AlertType.WARNING,
+						"No input",
+						ButtonType.OK).
+					showAndWait();
+				return null;
+				}
+			Integer p;
+			try {
+			p = new Integer(result.get());
+			} catch(NumberFormatException err) {
+				p = null;
+			}
+			if(p==null || p.intValue()<0 || p.intValue()>100) {
+				return null;
+			}
+			return p.intValue()/100.0;
+			}*/
+		
+		private void doRestoreOriginalData() {
+			this.visibleIndexCovRows.clear();
+			this.visibleIndexCovRows.addAll(this.orignalndexCovRows);
+			this.canvasSrollPane.setHvalue(0.0);
+			adjustScollPane();
+		}
+		
+		
+		private void filterBed(boolean filterOut) {
+			final FileChooser fc = new FileChooser();
+			fc.setSelectedExtensionFilter(
+					new FileChooser.ExtensionFilter("Bed file","bed","bed.gz"));
+			final File bed=fc.showOpenDialog(null);
+			if(bed==null) return;
+			BufferedReader r=null;
+			final BedLineCodec bedLineCodec = new BedLineCodec();
+			try {
+				r = IOUtils.openFileForBufferedReading(bed);
+				r.lines().
+					filter(L->!StringUtil.isBlank(L)).
+					map(L->bedLineCodec.decode(L)).
+					filter(B->B!=null).
+					forEach(B->{
+						this.visibleIndexCovRows.removeIf(R->R.overlaps(
+								B.getContig(),B.getStart(),B.getEnd()
+								) == filterOut
+						);
+					});
+				repaintCanvas();	
+				
+			} catch(Exception err) {
+				LOG.error(err);
+			}
+			finally
+				{
+				CloserUtil.close(r);
+				}
+			
+			
+		}
+		
+		public static void main(final String[] args) {
 			Application.launch(args);
 			}
 

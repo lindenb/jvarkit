@@ -214,7 +214,8 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils gb2gff indexcovjfx
+	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils gb2gff \
+	indexcovjfx indexcov2vcf
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -510,6 +511,7 @@ $(eval $(call compile-htsjdk-cmd,vcfderby01,${jvarkit.package}.tools.burden.VcfD
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,casectrljfx,${jvarkit.package}.tools.burden.CaseControlJfx,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,indexcovjfx,${jvarkit.package}.tools.structvar.IndexCovJfx,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,indexcov2vcf,${jvarkit.package}.tools.structvar.IndexCovToVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter2,${jvarkit.package}.tools.burden.VcfBurdenSplitter2,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherh,${jvarkit.package}.tools.burden.VcfBurdenFisherH,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherv,${jvarkit.package}.tools.burden.VcfBurdenFisherV,${jcommander.jar}))

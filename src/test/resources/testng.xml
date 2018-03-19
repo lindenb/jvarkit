@@ -8,6 +8,7 @@
             <package name="com.github.lindenb.jvarkit.util.vcf"/>
             <package name="com.github.lindenb.jvarkit.util.picard"/>
             <package name="com.github.lindenb.jvarkit.util.iterator"/>
+            <package name="com.github.lindenb.jvarkit.lang"/>
             <package name="com.github.lindenb.jvarkit.tools.bamstats04"/>
             <package name="com.github.lindenb.jvarkit.tools.bam2xml"/>
             <package name="com.github.lindenb.jvarkit.tools.bam2graphics"/>
