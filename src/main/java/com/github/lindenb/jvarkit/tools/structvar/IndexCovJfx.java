@@ -258,6 +258,10 @@ public class IndexCovJfx extends Application{
 			if(hasContig(c)) return true;
 			return false;
 			}
+		public boolean isJustBefore(final IndexCovRow next) {
+			return hasContig(next.getContig()) &&
+					this.getEnd()>=next.getStart() && this.getEnd()< next.getEnd();
+			}
 		}
 	
 	public IndexCovJfx() {
@@ -644,6 +648,13 @@ public class IndexCovJfx extends Application{
 						11
 						);
 				y+=12;
+				
+				if(row_idx+1< this.visibleIndexCovRows.size() &&  
+					row.isJustBefore(this.visibleIndexCovRows.get(row_idx+1)))
+					{
+					gc.setFill(Color.BLACK);
+					gc.fillOval(x+CHUNK_WIDTH-2.5, 0, 2.5, 2.5);
+					}
 
 				
 				final double topY= y;
