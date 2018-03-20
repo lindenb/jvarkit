@@ -51,7 +51,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -63,6 +62,24 @@ import htsjdk.variant.vcf.VCFHeader;
 BEGIN_DOC
 
 ## The XML config
+
+root is `<config>`
+
+under config , we can find some `<filter>` , `<maf>` and `<handlers>`
+
+A filter looks like `<filter id="abc">javascript expression filter the data </filter>` with the variable `variant`.
+The script should return 'true' to accept the variant.
+
+
+ `<maf id="abcd"/>` can have an @attribute `attribute` that will be the INFO field that contains the attribute
+ otherwise it's considered a MAF extractor counting the genotypes.
+
+ `<handlers name="abcd"/>`  can have a `<filter>` or a reference to a filter `<filter ref='filter-id'>`
+ `<handlers name="abcd"/>`  should have a `<case>` and a `<"ctrl">`
+ 
+ 
+ `<case>` and a `<"ctrl">` both tags can have a @ref linking to a  `<maf>`. If there is no ref, then we use a MAF extractor counting the genotypes.
+
 
 ```xml
 
@@ -78,7 +95,6 @@ END_DOC
 	name="casectrlplot",
 	description="Plot CASE/CTRL data from VCF files",
 	keywords={"maf","burden","case","control","plot","chart","vcf"},
-	terms=Term.ID_0000018,
 	generate_doc=false
 	)
 public class CaseControlPlot extends Launcher
@@ -292,7 +308,7 @@ public class CaseControlPlot extends Launcher
 			{
 			if(n1.getNodeType()!=Node.ELEMENT_NODE) continue;
 			Element e1=Element.class.cast(n1);
-			if(!e1.getNodeName().equals("handlers")) continue;
+			if(!e1.getNodeName().equals("handler")) continue;
 			final CaseControlExtractor extractor = new CaseControlExtractor();
 			extractor.name  = e1.getAttribute("name");
 			if(StringUtil.isBlank(extractor.name)) throw new JvarkitException.XmlDomError(e1,"@name missing");
@@ -328,7 +344,8 @@ public class CaseControlPlot extends Launcher
 						}
 					extractor.variantPredicate = extractor.variantPredicate.and(expr);
 					}
-				else if(e2.getNodeName().equals("case") || e2.getNodeName().equals("ctrl"))
+				else if(e2.getNodeName().equals("case") || 
+						e2.getNodeName().equals("ctrl"))
 					{
 					final MafExtractor mafextractor;
 					if(e2.hasAttribute("ref"))

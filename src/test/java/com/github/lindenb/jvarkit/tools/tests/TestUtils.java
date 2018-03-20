@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.tests;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -17,6 +18,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import javax.imageio.ImageIO;
 import javax.xml.parsers.SAXParser;
@@ -569,7 +572,21 @@ protected List<Interval> randomIntervalsFromDict(final File dictFile,int n) thro
 		}
 	return rgns;
 	}
-
+protected boolean assertZip(final File f) {
+	FileInputStream is = null;
+	try {
+		is=new FileInputStream(f);
+		ZipInputStream zin = new ZipInputStream(is);
+		zin.close();
+		return true;
+	} catch(IOException err) {
+		return false;
+	}
+	finally {
+		CloserUtil.close(is);
+	}
+	
+}
 protected void assertTsvTableIsConsitent(final File f,Predicate<String> ignoreLine) {
 	final Pattern tab=Pattern.compile("[\t]");
 	BufferedReader r=null;
