@@ -73,27 +73,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 BEGIN_DOC
 
+## Input
 
-Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+Variants in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+
 VCF header must contain a pedigree ( see VCFinjectPedigree ) or a pedigree must be defined.
 
 ## Lumpy-SV
 
  * 20180115: this tools recognize lumpy-sv genotypes
-
-
-### Output
-
-
-#### INFO column
-
-
- *  BurdenFisher : Fisher test
-
-
-#### FILTER column
-
- *  BurdenFisher :Fisher test doesn't meet  user's requirements
 
 
 ### see also

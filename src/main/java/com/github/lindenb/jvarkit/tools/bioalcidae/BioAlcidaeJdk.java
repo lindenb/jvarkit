@@ -491,6 +491,38 @@ Print BED file with NM attributes
 java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.hasAttribute("NM")).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getIntegerAttribute("NM")));'
 ```
 
+## Example
+
+ Extract all genotype counts from phased data in vcf files
+
+```
+$ wget -q -O - "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" |\
+gunzip -c |\
+java -jar dist/bioalcidaejdk.jar -F VCF -e 'stream().forEach(V->println(V.getContig()+" "+V.getStart()+" " +V.getReference().getDisplayString()+" "+V.getGenotypes().stream().map(G->G.getAlleles().stream().map(A->String.valueOf(V.getAlleleIndex(A))).collect(Collectors.joining(G.isPhased()?"|":"/"))).collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))));'
+
+22 16050075 A {0|0=2503, 0|1=1}
+22 16050115 G {0|0=2472, 1|0=16, 0|1=16}
+22 16050213 C {0|0=2467, 1|0=18, 0|1=18, 1|1=1}
+22 16050319 C {0|0=2503, 1|0=1}
+22 16050527 C {0|0=2503, 0|1=1}
+22 16050568 C {0|0=2502, 0|1=2}
+22 16050607 G {0|0=2499, 1|0=3, 0|1=2}
+22 16050627 G {0|0=2502, 1|0=2}
+22 16050646 G {0|0=2503, 1|0=1}
+22 16050654 A {0|0=1834, 1|0=3, 0|1=6, 0|2=48, 2|0=37, 0|3=255, 3|0=258, 4|0=6, 0|4=12, 2|3=1, 3|2=1, 3|3=41, 4|3=2}
+22 16050655 G {0|0=2503, 1|0=1}
+22 16050678 C {0|0=2502, 0|1=2}
+22 16050679 G {0|0=2503, 1|0=1}
+22 16050688 C {0|0=2503, 1|0=1}
+22 16050732 C {0|0=2503, 0|1=1}
+22 16050739 TA {0|0=2467, 1|0=18, 0|1=18, 1|1=1}
+22 16050758 T {0|0=2503, 0|1=1}
+22 16050783 A {0|0=2466, 0|1=13, 1|0=24, 1|1=1}
+22 16050840 C {0|0=2478, 1|0=11, 0|1=15}
+22 16050847 T {0|0=2498, 1|0=2, 0|1=4}
+```
+
+
 END_DOC
 */
 
@@ -498,7 +530,7 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,297983,299255},
+	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,297983,299255,304780},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidaeJdk

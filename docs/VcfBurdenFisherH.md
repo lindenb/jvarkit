@@ -1,5 +1,7 @@
 # VcfBurdenFisherH
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Fisher Case /Controls per Variant
 
 
@@ -53,11 +55,10 @@ Usage: vcfburdenfisherh [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -87,22 +88,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFisherH.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFisherH.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFisherHTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFisherHTest.java)
 
-```
-Mon Jan 15 18:06:13 2018 +0100 ; lumpy-sv for fisherh ; https://github.com/lindenb/jvarkit/commit/20a748c5f793e938a175ddff98b2c3e811c95d0b
-Thu Nov 9 17:26:59 2017 +0100 ; fixing various thinsg, updated burdenfiltergene ; https://github.com/lindenb/jvarkit/commit/3a11227727666eedb1e6c77c8e16f124db9956e5
-Tue Oct 31 13:24:09 2017 +0100 ; fixing the doc of biostar59647, adding things to burdenxxx ; https://github.com/lindenb/jvarkit/commit/37006f2fdf22df564600680b1da139ac8432edd2
-Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
-Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
-Tue May 9 20:36:16 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/517cc3660251857061fa955cce5c8e07362c5bee
-Thu Apr 21 10:39:25 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7adf87adc987efbe89def5c530f5a84be0c841d4
-Mon Apr 18 17:34:40 2016 +0200 ; cnot burden ; https://github.com/lindenb/jvarkit/commit/e0403a175b479d9e8bec1ced1e3f35715f404ad8
-```
-
-</details>
 
 ## Contribute
 
@@ -125,27 +114,15 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Input
 
-Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+Variants in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
+
 VCF header must contain a pedigree ( see VCFinjectPedigree ) or a pedigree must be defined.
 
 ## Lumpy-SV
 
  * 20180115: this tools recognize lumpy-sv genotypes
-
-
-### Output
-
-
-#### INFO column
-
-
- *  BurdenFisher : Fisher test
-
-
-#### FILTER column
-
- *  BurdenFisher :Fisher test doesn't meet  user's requirements
 
 
 ### see also

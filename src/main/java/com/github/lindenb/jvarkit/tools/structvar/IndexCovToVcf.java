@@ -39,8 +39,11 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -109,6 +112,8 @@ public class IndexCovToVcf extends Launcher {
 	private float duplicationTreshold = 1.9f;
 	@Parameter(names={"-del","--deletion"},description="Deletion treshold")
 	private float deletionTreshold = 0.6f;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private File refFile = null;
 	
 	
 	public IndexCovToVcf() {
@@ -133,6 +138,19 @@ public class IndexCovToVcf extends Launcher {
 		BufferedReader r = null;
 		VariantContextWriter vcw  = null;
 		try {
+			final SAMSequenceDictionary dict;
+			if(this.refFile==null) {
+				dict = null;
+			} else
+			{
+				dict= SAMSequenceDictionaryExtractor.extractDictionary(this.refFile);
+				if(dict==null) {
+					LOG.error("Cannot find dict in "+this.refFile);
+					return -1;
+				}
+			}
+			
+			
 			r = super.openBufferedReader(oneFileOrNull(args));
 			String line = r.readLine();
 			if(line==null) {		
@@ -174,6 +192,10 @@ public class IndexCovToVcf extends Launcher {
 			final List<String> samples = Arrays.asList(tokens). subList(3,tokens.length);
 			final VCFHeader vcfHeader = new VCFHeader(metaData, samples);
 			
+			if(dict!=null) {
+				vcfHeader.setSequenceDictionary(dict);
+			}
+			
 			vcw = super.openVariantContextWriter(outputFile);
 			vcw.writeHeader(vcfHeader);
 			
@@ -198,6 +220,17 @@ public class IndexCovToVcf extends Launcher {
 				final int chromEnd = Integer.parseInt(tokens[2]);
 				vcb.stop(chromEnd);
 				vcb.attribute(VCFConstants.END_KEY, chromEnd);
+				
+				if(dict!=null) {
+					final SAMSequenceRecord ssr = dict.getSequence(tokens[0]);
+					if(ssr==null) {
+						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(tokens[0],dict));
+						return -1;
+					}
+					if(chromEnd>ssr.getSequenceLength()) {
+						LOG.warn("WARNING sequence length in "+line+" is greater than in dictionary ");
+					}
+				}
 				
 				int count_dup=0;
 				int count_del=0;
