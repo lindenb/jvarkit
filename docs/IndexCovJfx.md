@@ -114,8 +114,11 @@ chr1    48498  65498   1.08      0.996     1.28      1.44      1.52      1.57   
 
 ![https://pbs.twimg.com/media/DYbK3f1X0AECEfw.jpg:large](https://pbs.twimg.com/media/DYbK3f1X0AECEfw.jpg:large)
 
+![https://pbs.twimg.com/media/DYqwDMpW0AAsDc_.jpg](https://pbs.twimg.com/media/DYqwDMpW0AAsDc_.jpg)
+
 ## See also
 
+* https://twitter.com/yokofakun/status/975786108297596929
 * https://pbs.twimg.com/media/DYbK3f1X0AECEfw.jpg
 * https://github.com/brentp/goleft/tree/master/indexcov
 

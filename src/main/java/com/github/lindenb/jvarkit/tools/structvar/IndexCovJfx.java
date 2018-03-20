@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import javafx.application.Application;
@@ -114,8 +115,11 @@ chr1    48498  65498   1.08      0.996     1.28      1.44      1.52      1.57   
 
 ![https://pbs.twimg.com/media/DYbK3f1X0AECEfw.jpg:large](https://pbs.twimg.com/media/DYbK3f1X0AECEfw.jpg:large)
 
+![https://pbs.twimg.com/media/DYqwDMpW0AAsDc_.jpg](https://pbs.twimg.com/media/DYqwDMpW0AAsDc_.jpg)
+
 ## See also
 
+* https://twitter.com/yokofakun/status/975786108297596929
 * https://pbs.twimg.com/media/DYbK3f1X0AECEfw.jpg
 * https://github.com/brentp/goleft/tree/master/indexcov
 
@@ -1019,19 +1023,24 @@ public class IndexCovJfx extends Application{
 			final BedLineCodec bedLineCodec = new BedLineCodec();
 			try {
 				r = IOUtils.openFileForBufferedReading(bed);
-				r.lines().
+				final List<Interval> intervals = r.lines().
 					filter(L->!StringUtil.isBlank(L)).
 					map(L->bedLineCodec.decode(L)).
 					filter(B->B!=null).
-					forEach(B->{
-						this.visibleIndexCovRows.removeIf(R->R.overlaps(
-								B.getContig(),B.getStart(),B.getEnd()
-								) == filterOut
-						);
-					});
+					map(B->B.toInterval()).
+					collect(Collectors.toList())
+					;
+				r.close();r=null;
+				
+				this.visibleIndexCovRows.removeIf(R->
+						intervals.stream().anyMatch(B->R.overlaps(
+						B.getContig(),B.getStart(),B.getEnd()
+						) == filterOut
+						));
+					
 				repaintCanvas();	
 				
-			} catch(Exception err) {
+			} catch(final Exception err) {
 				LOG.error(err);
 			}
 			finally
