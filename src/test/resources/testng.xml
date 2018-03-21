@@ -34,6 +34,7 @@
             <package name="com.github.lindenb.jvarkit.tools.vcfmerge"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfstats"/>
             <package name="com.github.lindenb.jvarkit.tools.vcftrios"/>
+            <package name="com.github.lindenb.jvarkit.tools.vcfucsc"/>
         </packages>  
     </test>  
 </suite>

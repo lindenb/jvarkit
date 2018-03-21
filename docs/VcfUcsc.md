@@ -19,6 +19,10 @@ Usage: vcfucsc [options] Files
     -x, --extend
       Extend variant coordinates by 'x' bases.
       Default: 0
+    -fi, --filterIn
+      Set this FILTER if any item is found in the database
+    -fo, --filterOut
+      Set this FILTER if no item is found in the database
     -h, --help
       print help and exit
     --helpFormat
@@ -50,11 +54,10 @@ Usage: vcfucsc [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -84,27 +87,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfucsc/VcfUcsc.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfucsc/VcfUcsc.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfucsc/VcfUcscTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfucsc/VcfUcscTest.java)
 
-```
-Fri Jun 16 12:34:13 2017 +0200 ; xsltstream ; https://github.com/lindenb/jvarkit/commit/e94b85ebca08b23419359bf15e134a6f63823582
-Fri Jun 16 09:26:28 2017 +0200 ; old ; https://github.com/lindenb/jvarkit/commit/a26808647296127b65d358c382c6aa6acf3bb3a8
-Thu Jun 15 16:49:33 2017 +0200 ; vcfucsc ; https://github.com/lindenb/jvarkit/commit/66a41f0f51e057fa3b5c1281ff3d6539b12ae6f5
-Thu Jun 15 15:30:26 2017 +0200 ; update vcfcalledwithanothermethod, vcfucsc ; https://github.com/lindenb/jvarkit/commit/0efbf47c1a7be8ee9b0a6e2e1dbfd82ae0f8508f
-Sat Jun 3 23:36:42 2017 +0200 ; cleanup ; https://github.com/lindenb/jvarkit/commit/9574b7c9b25ef9d209f086f00e800481520cea67
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
-Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Mon Feb 3 18:12:01 2014 +0100 ; lundi. je rentre en velo ? il pleut... ; https://github.com/lindenb/jvarkit/commit/66c43aa46b61bbc7f037b1799be5871e82794ab2
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Sun Jan 5 16:10:56 2014 +0100 ; vcf set dict ; https://github.com/lindenb/jvarkit/commit/f023bc9b0685266627a260c67813e7b76d42bef1
-```
-
-</details>
 
 ## Contribute
 
