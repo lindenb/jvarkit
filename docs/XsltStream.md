@@ -1,5 +1,7 @@
 # XsltStream
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 XSLT transformation for large XML files. xslt is only applied on a given subset of nodes.
 
 
@@ -51,11 +53,10 @@ Usage: xsltstream [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -85,20 +86,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/XsltStream.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/XsltStream.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Thu Nov 9 17:26:59 2017 +0100 ; fixing various thinsg, updated burdenfiltergene ; https://github.com/lindenb/jvarkit/commit/3a11227727666eedb1e6c77c8e16f124db9956e5
-Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
-Sun Sep 3 00:12:21 2017 +0200 ; fix https://github.com/lindenb/jvarkit/issues/86 ; https://github.com/lindenb/jvarkit/commit/28ae7e722db261d7d337e066f52bfb9d88e53733
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Fri Jun 16 16:37:03 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a34b590f797066d50ccc6f22c372e4a3a7143be1
-Fri Jun 16 12:34:13 2017 +0200 ; xsltstream ; https://github.com/lindenb/jvarkit/commit/e94b85ebca08b23419359bf15e134a6f63823582
-```
-
-</details>
 
 ## Contribute
 
@@ -364,6 +351,62 @@ RCV000256207
 RCV000000913	
 RCV000000914	
 RCV000006518
+```
+
+## Example
+
+convert drugbank xml to TSV
+
+```xslt
+<?xml version='1.0'  encoding="UTF-8" ?>
+<xsl:stylesheet xmlns:d="http://www.drugbank.ca" xmlns:xsl='http://www.w3.org/1999/XSL/Transform' version='1.0'>
+<xsl:output method="text"/>
+
+<xsl:template match="d:drugbank">
+<xsl:apply-templates select="d:drug"/>
+</xsl:template>
+
+<xsl:template match="d:drug">
+<xsl:value-of select="d:name/text()"/>
+<xsl:text>	</xsl:text>
+<xsl:for-each select="d:groups/d:group">
+	<xsl:if test='position()>1'>-&gt;</xsl:if>
+	<xsl:value-of select="./text()"/>
+</xsl:for-each>
+<xsl:text>	</xsl:text>
+<xsl:for-each select="d:calculated-properties/d:property[d:kind/text()='InChIKey']/d:value">
+	<xsl:if test='position()>1'> </xsl:if>
+	<xsl:value-of select="./text()"/>
+</xsl:for-each>
+<xsl:text>	</xsl:text>
+<xsl:for-each select="d:external-identifiers/d:external-identifier[d:resource/text()='ChEMBL']/d:identifier">
+	<xsl:if test='position()>1'> </xsl:if>
+	<xsl:value-of select="./text()"/>
+</xsl:for-each>
+<xsl:text>	</xsl:text>
+<xsl:for-each select="d:external-identifiers/d:external-identifier[d:resource/text()='PubChem Compound']/d:identifier">
+	<xsl:if test='position()>1'> </xsl:if>
+	<xsl:value-of select="./text()"/>
+</xsl:for-each>
+<xsl:text>	</xsl:text>
+<xsl:for-each select="d:external-identifiers/d:external-identifier[d:resource/text()='PubChem Substance']/d:identifier">
+	<xsl:if test='position()>1'> </xsl:if>
+	<xsl:value-of select="./text()"/>
+</xsl:for-each>
+<xsl:text>
+</xsl:text>
+</xsl:template>
+
+</xsl:stylesheet>
+```
+
+and
+
+```
+$ java -jar dist/xsltstream.jar \
+	-n '{http://www.drugbank.ca}drug' \
+	-t drugbank2tsv.xsl \
+	full_database.xml
 ```
 
 
