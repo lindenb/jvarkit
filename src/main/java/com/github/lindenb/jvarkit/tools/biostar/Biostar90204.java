@@ -38,10 +38,11 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.semontology.Term;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -79,20 +80,22 @@ END_DOC
 */
 @Program(name="biostar90204",
 	keywords={"sam","bam","split","util"},
-			terms=Term.ID_0000015,
-	description="Bam version of linux split. See also http://www.biostars.org/p/90204/",biostars=90204)
+	description="Bam version of linux split.",
+	biostars=90204
+	)
 public class Biostar90204 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar90204.class).make();
 
-	@Parameter(names="-p",description="(prefix) output file prefix.")
+	@Parameter(names= {"-p","--prefix"},description="(prefix) output file prefix.")
 	private String prefix="_splitbam";
-	@Parameter(names="-a",description="suffix length")
+	@Parameter(names= {"-a","--padding"},description="'0' padding length")
 	private int suffix_length=2;
-	@Parameter(names="-M",description=" manifest file. Optional")
+	@Parameter(names= {"-M","--manifest","-o"},description="Manifest file. Optional")
 	private File manifestFile=null;
-	
-	@Parameter(names="-n",description="Records per file")
+	@Parameter(names={"--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter samRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
+	@Parameter(names= {"-n","--count"},description="Number of records per file.")
 	private long record_per_file=-1L;
 
 	
@@ -100,21 +103,19 @@ public class Biostar90204 extends Launcher
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
 	
-	private  Biostar90204() {
-		}
+	Biostar90204() { }
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
-		
-		if(suffix_length<0)
+		if(this.suffix_length<0)
 			{
-			LOG.error("Bad value of suffix_length:"+suffix_length);
+			LOG.error("Bad value of suffix_length:"+ this.suffix_length);
 			return -1;
 			}
-		if(record_per_file<1L)
+		if(this.record_per_file<1L)
 			{
-			LOG.error("Bad value of record_per_file:"+record_per_file);
+			LOG.error("Bad value of record_per_file:"+this.record_per_file);
 			return -1;
 			}
 		
@@ -133,7 +134,7 @@ public class Biostar90204 extends Launcher
 			long nReads=0L;
 			iter=samFileReader.iterator();
 			
-			if(manifestFile!=null)
+			if(this.manifestFile!=null)
 				{
 				manifest.close();
 				manifest=new PrintWriter(manifestFile);
@@ -141,18 +142,19 @@ public class Biostar90204 extends Launcher
 			
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
+				final SAMRecord rec=iter.next();
+				if(this.samRecordFilter.filterOut(rec)) continue;
 				++nReads;
 				if(sfw==null)
 					{
 					split_file_number++;
-					String pathname=this.prefix+"."+String.format("%0"+suffix_length+"d", split_file_number)+".bam";
-					File out=new File(pathname);
+					final String pathname=(this.prefix.isEmpty()?"":this.prefix+".")+String.format("%0"+suffix_length+"d", split_file_number)+".bam";
+					final File out=new File(pathname);
 					LOG.info("Opening "+out);
 					manifest.write(pathname);
 					manifest.write("\t"+(nReads)+"\t");
 					
-					SAMFileHeader header2=header.clone();
+					final SAMFileHeader header2=header.clone();
 					header2.addComment("SPLIT:"+split_file_number);
 					header2.addComment("SPLIT:Starting from Read"+nReads);
 					
@@ -176,7 +178,7 @@ public class Biostar90204 extends Launcher
 				}
 			manifest.flush();
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -190,12 +192,9 @@ public class Biostar90204 extends Launcher
 			}
 		return 0;
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-		new Biostar90204().instanceMainWithExit(args);
 
+	public static void main(final String[] args) {
+		new Biostar90204().instanceMainWithExit(args);
 	}
 
 }

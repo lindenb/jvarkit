@@ -728,7 +728,6 @@ public int doWork(final List<String> args) {
 		{
 		if(server!=null)
 			{
-			
 			server.destroy();
 			}
 		}

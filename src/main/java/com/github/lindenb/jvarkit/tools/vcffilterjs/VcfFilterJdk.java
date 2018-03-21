@@ -303,6 +303,63 @@ $ gunzip -c  input.vcf.gz |\
  java -jar dist/vcffilterjdk.jar -e 'VariantContextBuilder vcb = new VariantContextBuilder(variant); float ac = variant.getAttributeAsInt("AN",0); if(ac>0) { List<Float> af = variant.getAttributeAsIntList("AC",0).stream().map(N->N/ac).collect(Collectors.toList());vcb.attribute("AF",af);vcb.attribute("MAF",af.stream().mapToDouble(X->X.floatValue()).min().orElse(-1.0) );} return vcb.make();'
 ```
 
+## Example
+
+Set attribute "AA=at|..."  to upper case in vcf file
+
+```
+java -jar dist/vcffilterjdk.jar -e 'if(!variant.hasAttribute("AA")) return variant; String AA= variant.getAttributeAsString("AA",""); int pipe=AA.indexOf("|"); AA= AA.substring(0,pipe).toUpperCase()+AA.substring(pipe); return new VariantContextBuilder(variant).attribute("AA",AA).make();'
+```
+
+## Example
+
+select LUMPY-SV familial structural variations
+
+
+run with the option '--body'
+
+```java
+private final List<Set<String>> sampleSetList = Arrays.asList(
+		new HashSet<>(Arrays.asList("S1","S2")),
+		new HashSet<>(Arrays.asList("S3","S4","S5")),
+		new HashSet<>(Arrays.asList("S6","S7","S8","S9"))
+		);
+
+private boolean isSV(final Genotype g) {
+	if(g.getAttributeAsInt("SU",0)>0) return true;
+	if(g.getAttributeAsInt("SR",0)>0) return true;
+	return false;	
+	}
+
+
+private boolean validateSet(final VariantContext V,final Set<String> sampleSet) {
+	if(sampleSet.stream().
+		map(N->V.getGenotype(N)).
+		anyMatch(G->!isSV(G)) )
+		{
+		return false;
+		}
+
+	if(V.getGenotypes().stream().
+		filter(G->!sampleSet.contains(G.getSampleName())).
+		anyMatch(G->isSV(G)))
+		{
+		return false;
+		}
+	return true;
+	}
+
+
+@Override
+public Object apply(final VariantContext V) {
+	for(final Set<String> sampleSet : this.sampleSetList)
+		{
+		if(validateSet(V,sampleSet)) return true;
+		}
+	return false;
+	}
+```
+
 
 END_DOC
  */
@@ -310,7 +367,7 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217},
+		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,304979},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk

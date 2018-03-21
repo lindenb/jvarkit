@@ -17,7 +17,6 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -29,8 +28,7 @@ END_DOC
 @Program(name="biostar77828",
 description="Divide the human genome among X cores, taking into account gaps",
 		biostars=77828,
-		keywords={"workflow","reference","parallel"},
-		terms=Term.ID_0000015
+		keywords={"workflow","reference","parallel"}
 		)
 public class Biostar77828 extends Launcher
 	{
