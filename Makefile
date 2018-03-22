@@ -215,7 +215,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
 	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils gb2gff \
-	indexcovjfx indexcov2vcf
+	indexcovjfx indexcov2vcf samcustomsortjdk
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
@@ -553,6 +553,7 @@ $(eval $(call compile-htsjdk-cmd,xsltstream,${jvarkit.package}.tools.misc.XsltSt
 $(eval $(call compile-htsjdk-cmd,vcfloopovergenes,${jvarkit.package}.tools.burden.VcfLoopOverGenes,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcffilterjdk,${jvarkit.package}.tools.vcffilterjs.VcfFilterJdk,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samjdk,${jvarkit.package}.tools.samjs.SamJdk,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,samcustomsortjdk,${jvarkit.package}.tools.samjs.SamCustomSortJdk,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,optimizer,${jvarkit.package}.tools.optimizer.Optimizer,${jcommander.jar} ${gson.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfamalgamation,${jvarkit.package}.tools.vcfamalgation.VcfXmlAmalgamation,${jcommander.jar} ${gson.jar}  ${bigwig.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfserver,${jvarkit.package}.tools.vcfserver.VcfServer,${jcommander.jar} ${jetty.jars}))

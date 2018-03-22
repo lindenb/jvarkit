@@ -66,6 +66,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/297983](https://www.biostars.org/p/297983)
  * [https://www.biostars.org/p/299255](https://www.biostars.org/p/299255)
  * [https://www.biostars.org/p/304780](https://www.biostars.org/p/304780)
+ * [https://www.biostars.org/p/305174](https://www.biostars.org/p/305174)
 
 
 ## Compilation
@@ -573,6 +574,16 @@ java -jar dist/bioalcidaejdk.jar -F VCF -e 'stream().forEach(V->println(V.getCon
 22 16050783 A {0|0=2466, 0|1=13, 1|0=24, 1|1=1}
 22 16050840 C {0|0=2478, 1|0=11, 0|1=15}
 22 16050847 T {0|0=2498, 1|0=2, 0|1=4}
+```
+
+## Example
+
+> How to get percent identity from bam file ?
+
+using the edit distance 'NM' 
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().map(R->R.getReadUnmappedFlag()?0:(int)(100.0*(R.getReadLength()-R.getIntegerAttribute("NM"))/(double)R.getReadLength())).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->{println(K+"\t"+V);});' input.bam
 ```
 
 

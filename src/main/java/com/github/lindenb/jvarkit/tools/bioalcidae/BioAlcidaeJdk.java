@@ -522,6 +522,16 @@ java -jar dist/bioalcidaejdk.jar -F VCF -e 'stream().forEach(V->println(V.getCon
 22 16050847 T {0|0=2498, 1|0=2, 0|1=4}
 ```
 
+## Example
+
+> How to get percent identity from bam file ?
+
+using the edit distance 'NM' 
+
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().map(R->R.getReadUnmappedFlag()?0:(int)(100.0*(R.getReadLength()-R.getIntegerAttribute("NM"))/(double)R.getReadLength())).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->{println(K+"\t"+V);});' input.bam
+```
+
 
 END_DOC
 */
@@ -530,7 +540,8 @@ END_DOC
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
-	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,297983,299255,304780},
+	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,
+			297983,299255,304780,305174},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidaeJdk
