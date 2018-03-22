@@ -16,14 +16,15 @@ public class SamJdkTest extends TestUtils {
 		return new ParamCombiner().
 			initList(collectAllSamOrBam()).
 			product(
-				"return R1.getMappingQuality() - R2.getMappingQuality();"
+					"return !record.getReadUnmappedFlag() && record.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>=1000 && (C.getOperator()==CigarOperator.N || C.getOperator()==CigarOperator.D));",
+					"if(record.getReadUnmappedFlag()) return true;final Cigar c=record.getCigar();if(c==null || c.numCigarElements()<2) return true; return !(c.getFirstCigarElement().getOperator().isClipping() && c.getLastCigarElement().getOperator().isClipping());"
 				).
 			build();
 		}
 	@Test(dataProvider="src1")
 	public void test1(final String inBam,final String expr) throws IOException {
 		final File out = createTmpFile(".bam");
-		Assert.assertEquals(0,new SamCustomSortJdk().instanceMain(newCmd().add(
+		Assert.assertEquals(0,new SamJdk().instanceMain(newCmd().add(
         		"-o",out.getPath(),
         		"-e",expr,
         		inBam
