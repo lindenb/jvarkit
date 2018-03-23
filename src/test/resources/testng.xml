@@ -29,6 +29,7 @@
             <package name="com.github.lindenb.jvarkit.tools.structvar"/>
             <package name="com.github.lindenb.jvarkit.tools.tview"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>
+            <package name="com.github.lindenb.jvarkit.tools.vcf2sql"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfbigwig"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfcmp"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfmerge"/>

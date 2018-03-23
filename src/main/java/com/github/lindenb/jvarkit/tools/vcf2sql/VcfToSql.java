@@ -104,7 +104,8 @@ genotype -> allele[label=a2_id];
 ```
 END_DOC
 */
-@Program(name="vcf2sql",description="Generate the SQL code to insert a VCF into mysql",
+@Program(name="vcf2sql",
+		description="Generate the SQL code to insert a VCF into mysql",
 		keywords={"vcf","sql"}
 		)
 public class VcfToSql extends Launcher
@@ -114,20 +115,14 @@ public class VcfToSql extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-s","--schema"},description="Print Schema")
 	private boolean print_schema = false;
-
 	@Parameter(names={"-d","--drop"},description="Add Drop Tables Statement")
 	private boolean drop_tables = false;
-
 	@Parameter(names={"-n","--noinfo"},description="ignore INFO column")
 	private boolean ignore_info = false;
-
 	@Parameter(names={"-f","--nofilter"},description="ignore FILTER column")
 	private boolean ignore_filter = false;
-
     private PrintWriter outputWriter =null;
     
     private class SelectStmt
@@ -806,7 +801,7 @@ public class VcfToSql extends Launcher
 	
     
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try
 			{
 			if(this.print_schema)
@@ -869,7 +864,8 @@ public class VcfToSql extends Launcher
 			}
 		catch(final Exception err)
 			{
-			return wrapException(err);
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -879,7 +875,7 @@ public class VcfToSql extends Launcher
     
 
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfToSql().instanceMainWithExit(args);
 		}

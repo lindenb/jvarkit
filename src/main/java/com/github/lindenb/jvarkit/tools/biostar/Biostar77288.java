@@ -45,7 +45,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -62,10 +61,6 @@ curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/pr
 ```
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/biostar77288.png)
 
-```bash
-$ java -jar dist/sam4weblogo.jar IN=in.bam   REGION="1:630-719" |\
-	java -jar dist/biostar77288.jar  SEQLOGO=true > result.svg
-```
 
 END_DOC
 
@@ -73,8 +68,7 @@ END_DOC
 @Program(name="biostar77288",
 	description="Low resolution sequence alignment visualization",
 	biostars=77288,
-	keywords={"bam","sam","visualization","svg","alignment"},
-	terms=Term.ID_0000015
+	keywords={"bam","sam","visualization","svg","alignment"}
 	)
 public class Biostar77288 extends Launcher
     {
@@ -314,7 +308,7 @@ public class Biostar77288 extends Launcher
 			}
         }
     
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
 		new Biostar77288().instanceMainWithExit(args);
 		}
     }
