@@ -63,6 +63,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -164,11 +165,13 @@ public class VcfGnomad extends Launcher{
 		@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when the variant is found in nomad")
 		private String inGnomadFilterName=null;
 		
+		@XmlElement(name="filter-in-gnomad")
+		@Parameter(names={"-filtered-in-gnomad","--filtered-in-gnomad"},description="[20180326] if not empty, add this FILTER when the **Gnomad** variant is FILTERED.")
+		private String filteredInGnomadFilterName="FILTERED_IN_GNOMAD";
 		
 		@XmlElement(name="allele-concordance")
 		@Parameter(names={"-ac","--alleleconcordance"},description="ALL Alt allele must be found in gnomad before setting a FILTER")
 		private boolean alleleconcordance=false;
-		
 		
 		@XmlElement(name="ac")
 		@Parameter(names={"--noAlleleCount"},description="do Not Insert AC /Allele Count")
@@ -203,7 +206,7 @@ public class VcfGnomad extends Launcher{
 			final boolean is_AC;
 			final VCFHeaderLineType lineType;
 			final List<Object> attributes=new ArrayList<>();
-			InfoField(String tag, OmeType ome,boolean is_AC,final VCFHeaderLineType lineType) {
+			InfoField(final String tag, final OmeType ome,final boolean is_AC,final VCFHeaderLineType lineType) {
 				this.tag=tag;
 				this.ome=ome;
 				this.is_AC = is_AC;
@@ -381,7 +384,11 @@ public class VcfGnomad extends Launcher{
 			private final List<InfoField> infoFields=new ArrayList<>();
 			private String prevContig=null;
 			private final ManifestEntry ome2manifest[]=new ManifestEntry[OmeType.values().length];
-
+			private final VCFFilterHeaderLine filterWasFilteredInGnomad = 
+					StringUtil.isBlank(CtxWriterFactory.this.filteredInGnomadFilterName)?
+					null:
+					new VCFFilterHeaderLine("VARIANT_WAS_FILTERED_IN_GNOMAD", "Variant was filtered in any way in gnomad.")
+					;
 
 			CtxWriter(final VariantContextWriter delegate) {
 				super(delegate);
@@ -412,6 +419,7 @@ public class VcfGnomad extends Launcher{
 					{
 					h2.addMetaDataLine(infoField.makeVCFInfoHeaderLine());
 					}
+				h2.addMetaDataLine(this.filterWasFilteredInGnomad);
 				super.writeHeader(h2);
 				}
 			
@@ -481,7 +489,7 @@ public class VcfGnomad extends Launcher{
 					}
 				
 				boolean setfilter=false;
-				
+				boolean filtered_in_gnomad = false;
 				// lopp over exome and genome data
 				for(int i=0;i< this.ome2manifest.length;++i) {
 					final ManifestEntry entry = this.ome2manifest[i];
@@ -489,6 +497,11 @@ public class VcfGnomad extends Launcher{
 					
 					final VariantContext ctx2=entry.findMatching(normalizeVariantContig(ctx));
 					if(ctx2==null) continue;
+					
+					if(ctx2.isFiltered()) {
+						filtered_in_gnomad = true;
+					}
+					
 					for(final InfoField infoField: infoFields)
 						{
 						if(infoField.ome!=entry.omeType) continue;
@@ -511,6 +524,10 @@ public class VcfGnomad extends Launcher{
 				if(setfilter && CtxWriterFactory.this.inGnomadFilterName!=null)
 					{
 					vcb.filter(CtxWriterFactory.this.inGnomadFilterName);
+					}
+				/* add FILTER if variant was filtered in GNOMAD */
+				if(filtered_in_gnomad && this.filterWasFilteredInGnomad!=null) {
+					vcb.filter(this.filterWasFilteredInGnomad.getID());
 					}
 				for(final InfoField infoField: this.infoFields)
 					{
