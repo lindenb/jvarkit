@@ -533,6 +533,12 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().map(R->R.getReadUnmappedFlag()?0
 ```
 
 
+## Example
+
+sliding windows of 1000 variant, shift by 500 variants
+
+java -jar bioalcidaejdk.jar -e 'String prevContig=null; Consumer<List<VariantContext>> dump = (L)->{if(L.isEmpty()) return;System.out.println(L.get(0).getContig()+"\t"+(L.get(0).getStart()-1)+"\t"+L.get(L.size()-1).getEnd());}; final List<VariantContext> buffer=new ArrayList<>();while(iter.hasNext()) {VariantContext vc=iter.next();if(!vc.getContig().equals(prevContig)) {dump.accept(buffer);buffer.clear();prevContig=vc.getContig();} buffer.add(vc);if(buffer.size()>=1000) {dump.accept(buffer);buffer.subList(0,500).clear();}} dump.accept(buffer);' in.vcf
+
 END_DOC
 */
 

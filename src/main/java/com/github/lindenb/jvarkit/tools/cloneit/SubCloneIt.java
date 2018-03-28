@@ -49,7 +49,8 @@ public int doWork(final List<String> args) {
 		final List<Enzyme> enzymes = getRebase().stream().
 				filter(E->E.isPalindromic()).
 				filter(E->E.getWeight()>this.enzymeWeight).
-				map(E->new EnzymeImpl(E)).collect(Collectors.toList());
+				map(E->new EnzymeImpl(E)).
+				collect(Collectors.toList());
 		if(enzymes.isEmpty()) {
 			LOG.error("enzyme list is empty");
 			return -1;

@@ -573,6 +573,7 @@ $(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.s
 $(eval $(call compile-htsjdk-cmd,vcfskat,${jvarkit.package}.tools.skat.VcfSkat,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))
 $(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}  ${bigwig.jars}))
+$(eval $(call compile-htsjdk-cmd,simpleplot,${jvarkit.package}.tools.misc.SimplePlot,${jcommander.jar}))
 
 
 
