@@ -11,9 +11,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.Vector;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -27,14 +29,19 @@ import javax.xml.parsers.SAXParserFactory;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterGroups;
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeGroups;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
 import htsjdk.samtools.BAMIndex;
@@ -63,6 +70,10 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.embed.swing.JFXPanel;
+import javafx.stage.Stage;
 
 public class TestUtils {
 	protected final String SRC_TEST_RESOURCE="./src/test/resources";
@@ -704,4 +715,111 @@ protected File addClippingToBam(final File bamFile) throws IOException {
 	return bamFile;
 	}
 
+private static JfxDaemon JFX_DAEMON_INSTANCE = null;
+
+public static class JfxDaemon
+	extends Application
+	{
+	@Override
+	public void init() throws Exception {
+		JFX_DAEMON_INSTANCE = this;
+		super.init();
+		}
+	@Override
+	public void start(final Stage primaryStage) throws Exception {
+		primaryStage.hide();
+		System.err.println("Started");
+		}
+	@Override
+	public void stop() throws Exception {
+		JFX_DAEMON_INSTANCE = null;
+		super.stop();
+		}
+	public  <T extends JfxLauncher> int test(
+			final Class<T> appClass,
+			final String...args)
+		{
+		final List<String> argsL = Arrays.asList(args);
+		final Runnable action;
+		final JfxLauncher instance;
+		try
+			{
+			instance=appClass.getConstructor().newInstance();
+			}
+		catch(Exception err)
+			{
+			err.printStackTrace();
+			return -1;
+			}
+		instance.setArcArgvSupplier(()->argsL);
+		try
+			{
+			instance.init();
+			}
+		catch(Exception err)
+			{
+			err.printStackTrace();
+			return -1;
+			}
+		action = ()->{
+			try
+				{
+				instance.start(new Stage());
+				}
+			catch(final Exception err)
+				{
+				err.printStackTrace();
+				}
+			
+			};
+		
+		//http://news.kynosarges.org/2014/05/01/simulating-platform-runandwait/
+		final CountDownLatch doneLatch = new CountDownLatch(1);
+		Platform.runLater(() -> {
+			try {
+				action.run();
+			} finally {
+				doneLatch.countDown();
+			}
+		});
+	
+		try {
+			doneLatch.await();
+		} catch (final InterruptedException e) {
+			// ignore exception
+		}
+	
+		return JfxLauncher.getExitStatus();
+		}
+	}
+//@BeforeGroups
+public void createJfxDaemon() {
+	if(JFX_DAEMON_INSTANCE!=null) return;
+	System.err.println("Create JFX app");
+	Platform.setImplicitExit(false);
+	Platform.runLater(()->{
+		Application.launch(JfxDaemon.class);
+		});
+	System.err.println("Create JFX app: done");
+	}
+
+void disposeJfxDaemon() {
+	System.err.println("Dispose JFX app");
+	Platform.setImplicitExit(true);
+	Platform.exit();
+	JFX_DAEMON_INSTANCE = null;
+	}
+
+public <T extends JfxLauncher> int testJfxApplication(
+		final Class<T> appClass,
+		final String...args
+		)
+		{
+		createJfxDaemon();
+		if(JFX_DAEMON_INSTANCE==null) {
+			Assert.fail("NO RUNNING INSTANCE OF JDX DAEMON");
+			return -1;
+			}
+		return JFX_DAEMON_INSTANCE.test(appClass, args);
+		}
 }

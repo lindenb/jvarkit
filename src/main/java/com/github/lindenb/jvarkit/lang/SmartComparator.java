@@ -26,7 +26,34 @@ package com.github.lindenb.jvarkit.lang;
 import java.math.BigInteger;
 import java.util.Comparator;
 
+/**
+ * SmartComparator. Default is NOT case sensitive
+ *
+ */
 public class SmartComparator implements Comparator<String> {
+	private boolean case_sensitive = false;
+	
+	public SmartComparator() {
+		}
+	private SmartComparator(final SmartComparator cp) {
+		this.case_sensitive = cp.case_sensitive;
+	}
+	
+	/** clone the comparator and return a case-sensitive one */
+	public SmartComparator caseSensitive() {
+		final SmartComparator copy = new SmartComparator(this);
+		copy.case_sensitive = true;
+		return copy;
+		}
+	
+	public boolean isCaseSensitive() {
+		return case_sensitive;
+		}
+	
+	private char tr(final char c) {
+		return this.case_sensitive ? c : Character.toUpperCase(c);
+		}
+	
 	@Override
     public int compare(final String a, final String b)
         {
@@ -43,8 +70,8 @@ public class SmartComparator implements Comparator<String> {
             if(i[0] == a.length()) return -1;
             if(i[1] == b.length()) return 1;
 
-            c[0] = Character.toUpperCase(a.charAt(i[0]));
-            c[1] = Character.toUpperCase(b.charAt(i[1]));
+            c[0] = tr(a.charAt(i[0]));
+            c[1] = tr(b.charAt(i[1]));
 
             //search for integer
             if( Character.isDigit(c[0]) &&

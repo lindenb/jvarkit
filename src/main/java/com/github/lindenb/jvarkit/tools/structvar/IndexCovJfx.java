@@ -39,14 +39,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -130,7 +127,7 @@ END_DOC
 		description="display indexcov data in a jfx client",
 		keywords={"cnv","jfx","duplication","deletion","sv"}
 		)
-public class IndexCovJfx extends Application{
+public class IndexCovJfx extends JfxLauncher {
 	private static final Logger LOG = Logger.build(IndexCovJfx.class).make();
 
 	
@@ -148,13 +145,6 @@ public class IndexCovJfx extends Application{
 	private Spinner<Double> deletionSpinner; 
 	private Spinner<Double> duplicationSpinner; 
 	
-	
-	@ParametersDelegate
-	private Launcher.UsageBuider usageBuider=null;
-	@Parameter(description = "Files")
-	private List<String> args = new ArrayList<>();
-	@Parameter(names="--testng",description = "testng",hidden=true)
-	private boolean this_is_a_unit_test = false;
 	
 	private class Sample
 		{
@@ -269,7 +259,6 @@ public class IndexCovJfx extends Application{
 		}
 	
 	public IndexCovJfx() {
-		this.usageBuider = new Launcher.UsageBuider(this.getClass());
 	}
 	
 	private Color ligther(final Color c) {
@@ -281,284 +270,269 @@ public class IndexCovJfx extends Application{
 		return new Color(g,g,g,1);
 	}
 	@Override
-	public void start(final Stage primaryStage) throws Exception {
-			final Rectangle2D screen=Screen.getPrimary().getVisualBounds();
+public int doWork(final Stage primaryStage,final List<String> args) {
+		final Rectangle2D screen=Screen.getPrimary().getVisualBounds();
 
-			final Pattern tab = Pattern.compile("[\t]");
-			final JCommander jCommander = new JCommander(this);
-			
-			final List<String> unammed=this.getParameters().getUnnamed();
-			jCommander.parse(unammed.toArray(new String[unammed.size()]));
-			
-			if(this.usageBuider.shouldPrintUsage())
+		final Pattern tab = Pattern.compile("[\t]");
+		
+		BufferedReader r = null;
+		try {
+			final File inputFile ;
+			if(args.isEmpty())
 				{
-				this.usageBuider.usage(jCommander);
-				Platform.exit();
-				return;
+				// open gui
+				final FileChooser fc = new FileChooser();
+				inputFile = fc.showOpenDialog(null);
+				if( inputFile==null) {
+					return 0;
+					}
 				}
-			BufferedReader r = null;
-			try {
-				final File inputFile ;
-				if(this.args.isEmpty())
-					{
-					// open gui
-					final FileChooser fc = new FileChooser();
-					inputFile = fc.showOpenDialog(null);
-					if( inputFile==null) {
-						Platform.exit();
-						return;
-						}
-					}
-				else if(this.args.size()==1)
-					{
-					inputFile = new File(this.args.get(0));
-					}
-				else
-					{
-					LOG.error("Illegal Number of arguments: " + this.args);
-					Platform.exit();
-					return;
-					}
-				
-				r = IOUtils.openFileForBufferedReading(inputFile);
-				String line = r.readLine();
-				if(line==null) {
-					new  Alert(AlertType.ERROR,
-							"Cannot read first line of "+inputFile,
-							ButtonType.OK).
-						showAndWait();
-					Platform.exit();
-					return;
-					}
-				String tokens[] = tab.split(line);
-				if(tokens.length<4 ||
-					!tokens[0].equals("#chrom") ||
-					!tokens[1].equals("start") ||
-					!tokens[2].equals("end")) {
-					new  Alert(AlertType.ERROR,
-							"bad first line "+line+" in "+inputFile,
-							ButtonType.OK).
-						showAndWait();
-					Platform.exit();
-					return;
-					}
-				this.sampleNames.addAll(Arrays.asList(tokens).
-						subList(3,tokens.length).
-						stream().
-						map(S->new Sample(S)).
-						collect(Collectors.toList())
-						);
-				
-				this.sampleListView = new ListView<>(this.sampleNames);
-				final MultipleSelectionModel<Sample> sampleSelectionModel = this.sampleListView.getSelectionModel();
-				sampleSelectionModel.setSelectionMode(SelectionMode.MULTIPLE);
+			else if(args.size()==1)
+				{
+				inputFile = new File(args.get(0));
+				}
+			else
+				{
+				LOG.error("Illegal Number of arguments: " + args);
+				return -1;
+				}
 			
-				
-				//this.sampleListView.setPrefWidth(200);
-				
-				final SmartComparator smartCmp = new SmartComparator();
-				this.orignalndexCovRows.addAll(r.lines().
-					filter(L->!StringUtil.isBlank(L)).
-					map(L->Arrays.asList(tab.split(L))).
-					map(T->new IndexCovRow(T)).
-					sorted((A,B)->{
-						int i=  smartCmp.compare(A.getContig(),B.getContig());
-						if(i!=0) return i;
-						return A.getStart() - B.getStart();
-					}).
-					collect(Collectors.toList())
-					);
-				
-				this.visibleIndexCovRows.addAll(orignalndexCovRows);
-				
-				String lastContig=null;
-				for(final IndexCovRow row: this.visibleIndexCovRows) 
-					{
-					if(lastContig==null || !lastContig.equals(row.getContig()))
-						{
-						this.contig2color.put(row.getContig(),
-								this.contig2color.size()%2==0?
-								gray(0.96):
-								gray(0.98)
-								);
-						lastContig=row.getContig();
-						}
-					}
-				
-				this.canvas = new Canvas(
-						screen.getWidth()-400, 
-						screen.getHeight()-200
-						);
-				
-				this.canvasSrollPane =new ScrollPane(canvas);
-				
-				this.canvasSrollPane.setFitToHeight(true);
-				this.canvasSrollPane.setFitToWidth(true);
-				this.canvasSrollPane.setHbarPolicy(ScrollBarPolicy.ALWAYS);
-				this.canvasSrollPane.setHmin(0);
-				// NOT HERE: see adjustScollPane();
-				//this.canvasSrollPane.setHmax(this.visibleIndexCovRows.size()*CHUNK_WIDTH);
-				//this.canvasSrollPane.setHvalue(0);
-				
-				this.canvasSrollPane.hvalueProperty().addListener(E->repaintCanvas());
-				
-				
-				
-				final VBox root = new VBox();
-				final MenuBar menuBar = new MenuBar();
-			    Menu menu = new Menu("Tools");
-			    MenuItem item=new MenuItem("Goto");
-			    item.setOnAction(AE->askGoto());
-			    item.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.CONTROL_DOWN));
-			    menu.getItems().add(item);
-			    menu.getItems().add(new SeparatorMenuItem());
-			    //
-			    item=new MenuItem("Cleanup: remove data > DEL && data < DUP");
-			    item.setOnAction(AE->askCleanup());
-			    menu.getItems().add(item);
-			    //
-			    item=new MenuItem("Cleanup: remove ALL samples <= DEL or ALL samples >= DUP");
-			    item.setOnAction(AE->askEveryWhere());
-			    menu.getItems().add(item);
-			    //
-			    item=new MenuItem("Cleanup: keep selected samples having <= DEL or ALL samples >= DUP");
-			    item.setOnAction(AE->filterForSampleSet(false));
-			    menu.getItems().add(item);
-			    //
-			    item=new MenuItem("Cleanup: keep selected samples having <= DEL or ALL samples >= DUP and only those samples.");
-			    item.setOnAction(AE->filterForSampleSet(true));
-			    menu.getItems().add(item);
-			    //
-			    item=new MenuItem("Filter: Keep data overlapping BED file");
-			    item.setOnAction(AE->filterBed(false));
-			    menu.getItems().add(item);
-			    //
-			    item=new MenuItem("Filter: Keep data NOT overlapping BED file");
-			    item.setOnAction(AE->filterBed(true));
-			    menu.getItems().add(item);
-
-			    //
-			    item=new MenuItem("Revert: Restore original data");
-			    item.setOnAction(AE->doRestoreOriginalData());
-			    item.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN));
-			    menu.getItems().add(item);
-			    
-			    menu.getItems().add(new SeparatorMenuItem());
-
-			    
-			    
-			    item=new MenuItem("Next Interesting");
-			    item.setOnAction(AE->goToNextInteresting(1));
-			    item.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN));
-			    menu.getItems().add(item);
-			    item=new MenuItem("Previous Interesting");
-			    item.setOnAction(AE->goToNextInteresting(-1));
-			    item.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN));
-			    menu.getItems().add(item);
-
-			    
-			    menu.getItems().add(new SeparatorMenuItem());
-			    item=new MenuItem("Quit");
-			    menu.getItems().add(item);
-			    item.setOnAction(AE->{Platform.exit();});
-			    menuBar.getMenus().add(menu);
-			    root.getChildren().add(menuBar);
-			    
-			    final HBox toolboxPane = new HBox();
-			    Label label = new Label("DEL when \u2264 :");
-			    toolboxPane.getChildren().add(label);
-			    this.deletionSpinner = new Spinner<>(0.0,0.9,DEFAULT_deletionTreshold,0.05);
-			    label.setLabelFor(this.deletionSpinner);
-			    this.deletionSpinner.valueProperty().addListener((a,b,c)->repaintCanvas());
-			    toolboxPane.getChildren().add(this.deletionSpinner );
-			    
-			    label = new Label("DUP when \u2265 :");
-			    toolboxPane.getChildren().add(label);
-			    this.duplicationSpinner = new Spinner<>(1.1,10.0,DEFAULT_duplicationTreshold,0.05);
-			    this.duplicationSpinner.valueProperty().addListener((a,b,c)->repaintCanvas());
-			    label.setLabelFor(this.duplicationSpinner);
-			    toolboxPane.getChildren().add(this.duplicationSpinner );
-			    
-			    
-			    label = new Label(" Jump to :");
-			    toolboxPane.getChildren().add(label);
-			    final TextField jumpToTextField = new TextField();
-			    jumpToTextField.setPromptText("chrom:pos");
-			    jumpToTextField.setPrefColumnCount(15);
-			    toolboxPane.getChildren().add(jumpToTextField);
-			    label.setLabelFor(jumpToTextField);
-			    jumpToTextField.setOnAction(AE->askGoto(jumpToTextField.getText()));
-				final Button goButton = new Button("Go");
-				toolboxPane.getChildren().add(goButton);
-				goButton.setOnAction(AE->askGoto(jumpToTextField.getText()));
-			    
-				
-				root.getChildren().add(toolboxPane);
-				
-				//HBox hbox = new HBox(sampleListView,this.canvasSrollPane);
-				final GridPane grid = new GridPane();
-				grid.setHgap(10);
-				grid.setVgap(10);
-				grid.setPadding(new Insets(5, 5, 5, 5));
-				grid.add(this.sampleListView, 0,0, 1,1);
-				grid.add(this.canvasSrollPane, 1,0, 9,1);
-						        
-				
-				//final StackPane root = new StackPane();
-				root.getChildren().add(grid);
-				
-				final Scene scene = new Scene(root);
-				primaryStage.setTitle(IndexCovJfx.class.getSimpleName()+
-						" " + this.sampleNames.size()+" Sample(s) " +
-						this.visibleIndexCovRows.size()+" Point(s)."
-						);
-				primaryStage.setOnShown(E->{
-					adjustScollPane();
-					this.canvasSrollPane.requestFocus();
-					repaintCanvas();
-					if(this.this_is_a_unit_test) {
-						Platform.exit();
-					}
-				});
-
-				this.canvasSrollPane.setOnKeyPressed(e -> {
-				    if (e.getCode() == KeyCode.LEFT) {
-				    	canvasSrollPane.setHvalue(Math.max(canvasSrollPane.getHmin(), canvasSrollPane.getHvalue()-CHUNK_WIDTH));
-				    }
-				    if (e.getCode() == KeyCode.RIGHT) {
-				    	canvasSrollPane.setHvalue(Math.min(canvasSrollPane.getHmax(), canvasSrollPane.getHvalue()+CHUNK_WIDTH));
-				    }
-				});
-				
-				
-		        primaryStage.setScene(scene);
-		        primaryStage.show();
-		        
-		        /*sampleSelectionModel.selectedItemProperty().addListener(E->{
-		        	repaintCanvas();
-					});
-		        sampleSelectionModel.selectedItemProperty().addListener(E->repaintCanvas());*/
-		        sampleSelectionModel.getSelectedIndices().addListener(new ListChangeListener<Integer>() {
-		        	@Override
-		        	public void onChanged(Change<? extends Integer> c) {
-		        		repaintCanvas();
-		        		}
-		        	});
-				}
-			catch(final Exception err) {
-				LOG.error(err);
+			r = IOUtils.openFileForBufferedReading(inputFile);
+			String line = r.readLine();
+			if(line==null) {
 				new  Alert(AlertType.ERROR,
-						"Error "+err,
+						"Cannot read first line of "+inputFile,
 						ButtonType.OK).
 					showAndWait();
-				Platform.exit();
-				return;
+				return -1;
 				}
-			finally {
-				CloserUtil.close(r);
+			String tokens[] = tab.split(line);
+			if(tokens.length<4 ||
+				!tokens[0].equals("#chrom") ||
+				!tokens[1].equals("start") ||
+				!tokens[2].equals("end")) {
+				new  Alert(AlertType.ERROR,
+						"bad first line "+line+" in "+inputFile,
+						ButtonType.OK).
+					showAndWait();
+				return -1;
 				}
+			this.sampleNames.addAll(Arrays.asList(tokens).
+					subList(3,tokens.length).
+					stream().
+					map(S->new Sample(S)).
+					collect(Collectors.toList())
+					);
+			
+			this.sampleListView = new ListView<>(this.sampleNames);
+			final MultipleSelectionModel<Sample> sampleSelectionModel = this.sampleListView.getSelectionModel();
+			sampleSelectionModel.setSelectionMode(SelectionMode.MULTIPLE);
 		
+			
+			//this.sampleListView.setPrefWidth(200);
+			
+			final SmartComparator smartCmp = new SmartComparator();
+			this.orignalndexCovRows.addAll(r.lines().
+				filter(L->!StringUtil.isBlank(L)).
+				map(L->Arrays.asList(tab.split(L))).
+				map(T->new IndexCovRow(T)).
+				sorted((A,B)->{
+					int i=  smartCmp.compare(A.getContig(),B.getContig());
+					if(i!=0) return i;
+					return A.getStart() - B.getStart();
+				}).
+				collect(Collectors.toList())
+				);
+			
+			this.visibleIndexCovRows.addAll(orignalndexCovRows);
+			
+			String lastContig=null;
+			for(final IndexCovRow row: this.visibleIndexCovRows) 
+				{
+				if(lastContig==null || !lastContig.equals(row.getContig()))
+					{
+					this.contig2color.put(row.getContig(),
+							this.contig2color.size()%2==0?
+							gray(0.96):
+							gray(0.98)
+							);
+					lastContig=row.getContig();
+					}
+				}
+			
+			this.canvas = new Canvas(
+					screen.getWidth()-400, 
+					screen.getHeight()-200
+					);
+			
+			this.canvasSrollPane =new ScrollPane(canvas);
+			
+			this.canvasSrollPane.setFitToHeight(true);
+			this.canvasSrollPane.setFitToWidth(true);
+			this.canvasSrollPane.setHbarPolicy(ScrollBarPolicy.ALWAYS);
+			this.canvasSrollPane.setHmin(0);
+			// NOT HERE: see adjustScollPane();
+			//this.canvasSrollPane.setHmax(this.visibleIndexCovRows.size()*CHUNK_WIDTH);
+			//this.canvasSrollPane.setHvalue(0);
+			
+			this.canvasSrollPane.hvalueProperty().addListener(E->repaintCanvas());
+			
+			
+			
+			final VBox root = new VBox();
+			final MenuBar menuBar = new MenuBar();
+		    Menu menu = new Menu("Tools");
+		    MenuItem item=new MenuItem("Goto");
+		    item.setOnAction(AE->askGoto());
+		    item.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.CONTROL_DOWN));
+		    menu.getItems().add(item);
+		    menu.getItems().add(new SeparatorMenuItem());
+		    //
+		    item=new MenuItem("Cleanup: remove data > DEL && data < DUP");
+		    item.setOnAction(AE->askCleanup());
+		    menu.getItems().add(item);
+		    //
+		    item=new MenuItem("Cleanup: remove ALL samples <= DEL or ALL samples >= DUP");
+		    item.setOnAction(AE->askEveryWhere());
+		    menu.getItems().add(item);
+		    //
+		    item=new MenuItem("Cleanup: keep selected samples having <= DEL or ALL samples >= DUP");
+		    item.setOnAction(AE->filterForSampleSet(false));
+		    menu.getItems().add(item);
+		    //
+		    item=new MenuItem("Cleanup: keep selected samples having <= DEL or ALL samples >= DUP and only those samples.");
+		    item.setOnAction(AE->filterForSampleSet(true));
+		    menu.getItems().add(item);
+		    //
+		    item=new MenuItem("Filter: Keep data overlapping BED file");
+		    item.setOnAction(AE->filterBed(false));
+		    menu.getItems().add(item);
+		    //
+		    item=new MenuItem("Filter: Keep data NOT overlapping BED file");
+		    item.setOnAction(AE->filterBed(true));
+		    menu.getItems().add(item);
+
+		    //
+		    item=new MenuItem("Revert: Restore original data");
+		    item.setOnAction(AE->doRestoreOriginalData());
+		    item.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN));
+		    menu.getItems().add(item);
+		    
+		    menu.getItems().add(new SeparatorMenuItem());
+
+		    
+		    
+		    item=new MenuItem("Next Interesting");
+		    item.setOnAction(AE->goToNextInteresting(1));
+		    item.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN));
+		    menu.getItems().add(item);
+		    item=new MenuItem("Previous Interesting");
+		    item.setOnAction(AE->goToNextInteresting(-1));
+		    item.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN));
+		    menu.getItems().add(item);
+
+		    
+		    menu.getItems().add(new SeparatorMenuItem());
+		    item=new MenuItem("Quit");
+		    menu.getItems().add(item);
+		    item.setOnAction(AE->{Platform.exit();});
+		    menuBar.getMenus().add(menu);
+		    root.getChildren().add(menuBar);
+		    
+		    final HBox toolboxPane = new HBox();
+		    Label label = new Label("DEL when \u2264 :");
+		    toolboxPane.getChildren().add(label);
+		    this.deletionSpinner = new Spinner<>(0.0,0.9,DEFAULT_deletionTreshold,0.05);
+		    label.setLabelFor(this.deletionSpinner);
+		    this.deletionSpinner.valueProperty().addListener((a,b,c)->repaintCanvas());
+		    toolboxPane.getChildren().add(this.deletionSpinner );
+		    
+		    label = new Label("DUP when \u2265 :");
+		    toolboxPane.getChildren().add(label);
+		    this.duplicationSpinner = new Spinner<>(1.1,10.0,DEFAULT_duplicationTreshold,0.05);
+		    this.duplicationSpinner.valueProperty().addListener((a,b,c)->repaintCanvas());
+		    label.setLabelFor(this.duplicationSpinner);
+		    toolboxPane.getChildren().add(this.duplicationSpinner );
+		    
+		    
+		    label = new Label(" Jump to :");
+		    toolboxPane.getChildren().add(label);
+		    final TextField jumpToTextField = new TextField();
+		    jumpToTextField.setPromptText("chrom:pos");
+		    jumpToTextField.setPrefColumnCount(15);
+		    toolboxPane.getChildren().add(jumpToTextField);
+		    label.setLabelFor(jumpToTextField);
+		    jumpToTextField.setOnAction(AE->askGoto(jumpToTextField.getText()));
+			final Button goButton = new Button("Go");
+			toolboxPane.getChildren().add(goButton);
+			goButton.setOnAction(AE->askGoto(jumpToTextField.getText()));
+		    
+			
+			root.getChildren().add(toolboxPane);
+			
+			//HBox hbox = new HBox(sampleListView,this.canvasSrollPane);
+			final GridPane grid = new GridPane();
+			grid.setHgap(10);
+			grid.setVgap(10);
+			grid.setPadding(new Insets(5, 5, 5, 5));
+			grid.add(this.sampleListView, 0,0, 1,1);
+			grid.add(this.canvasSrollPane, 1,0, 9,1);
+					        
+			
+			//final StackPane root = new StackPane();
+			root.getChildren().add(grid);
+			
+			final Scene scene = new Scene(root);
+			primaryStage.setTitle(IndexCovJfx.class.getSimpleName()+
+					" " + this.sampleNames.size()+" Sample(s) " +
+					this.visibleIndexCovRows.size()+" Point(s)."
+					);
+			primaryStage.setOnShown(E->{
+				adjustScollPane();
+				this.canvasSrollPane.requestFocus();
+				repaintCanvas();
+				if(this.isUnitText()) {
+					Platform.exit();
+				}
+			});
+
+			this.canvasSrollPane.setOnKeyPressed(e -> {
+			    if (e.getCode() == KeyCode.LEFT) {
+			    	canvasSrollPane.setHvalue(Math.max(canvasSrollPane.getHmin(), canvasSrollPane.getHvalue()-CHUNK_WIDTH));
+			    }
+			    if (e.getCode() == KeyCode.RIGHT) {
+			    	canvasSrollPane.setHvalue(Math.min(canvasSrollPane.getHmax(), canvasSrollPane.getHvalue()+CHUNK_WIDTH));
+			    }
+			});
+			
+			
+	        primaryStage.setScene(scene);
+	        primaryStage.show();
+	        
+	        /*sampleSelectionModel.selectedItemProperty().addListener(E->{
+	        	repaintCanvas();
+				});
+	        sampleSelectionModel.selectedItemProperty().addListener(E->repaintCanvas());*/
+	        sampleSelectionModel.getSelectedIndices().addListener(new ListChangeListener<Integer>() {
+	        	@Override
+	        	public void onChanged(Change<? extends Integer> c) {
+	        		repaintCanvas();
+	        		}
+	        	});
 			}
+		catch(final Exception err) {
+			LOG.error(err);
+			new  Alert(AlertType.ERROR,
+					"Error "+err,
+					ButtonType.OK).
+				showAndWait();
+			return -1;
+			}
+		finally {
+			CloserUtil.close(r);
+			}
+		return 0;
+		}
 		
 		float getDeletionTreshold() {
 			Double d=this.deletionSpinner.getValue();
@@ -662,7 +636,7 @@ public class IndexCovJfx extends Application{
 
 				
 				final double topY= y;
-				final double sampleHeight = (canvas.getHeight()-topY)/samplesIndices.length;
+				final double sampleHeight = Math.min(50.0,(canvas.getHeight()-topY)/samplesIndices.length);
 				final float delLimit = this.getDeletionTreshold();
 				final float dupLimit = this.getDuplicationTreshold();
 				

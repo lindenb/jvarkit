@@ -26,10 +26,13 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.DoubleConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -37,13 +40,13 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -64,6 +67,7 @@ import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.BarChart;
+import javafx.scene.chart.BubbleChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.Chart;
 import javafx.scene.chart.NumberAxis;
@@ -71,6 +75,7 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.StackedBarChart;
 import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Series;
 import javafx.scene.image.WritableImage;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -86,8 +91,19 @@ $ gunzip -c in.vcf.gz | grep -v "^#" | cut -f 1 | sort | uniq -c | java -jar dis
 $ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t HISTOGRAM
 $ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM
 
-
 ``` 
+
+### Example
+
+plot base=function(position) in a fastq:
+
+```
+gunzip -c src/test/resources/S1.R1.fq.gz | \
+	awk '(NR%4==2) {L=length($0);for(i=1;i<=L;i++) printf("%d\t%s\n",i,substr($0,i,1));}' |\
+	sort | uniq -c |\
+	java -jar dist/simpleplot.jar -su -t STACKED_XYV --xlabel "Position"
+```
+ 
  
 END_DOC
  */
@@ -95,8 +111,32 @@ END_DOC
 description="simple figure plotter using java JFX. You'd better use gnuplot or R.",
 keywords={"char","figure","jfx"})
 
-public class SimplePlot extends Application {
+public class SimplePlot extends JfxLauncher {
 	private static final Logger LOG = Logger.build(SimplePlot.class).make();
+	
+	private static class MinMax
+		implements DoubleConsumer
+		{
+		Double min = null;
+		Double max = null;
+		@Override
+		public void accept(double value) {
+			if(min==null) {
+				min=max=value;
+				}
+			else
+				{
+				min=Math.min(min, value);
+				max=Math.max(max, value);
+				}
+			}
+		boolean isEmpty() { return this.min==null;}
+		double distance() { return max-min;}
+		public NumberAxis toAxis() {
+			return new NumberAxis(this.min, this.max, distance()/10.0);
+		}
+		}
+	
 	
 	/** base generator for a Chart Maker */
 	private abstract class ChartSupplier
@@ -105,6 +145,56 @@ public class SimplePlot extends Application {
 		private SAMSequenceDictionary _dict = null;
 		protected Pattern delimiter = Pattern.compile("[\t]");
 		private ContigNameConverter _ctgConverter = null;
+		
+		protected <V> Map<String,V> createMapWithStringKey()
+			{
+			if(input_is_sort_uniq)
+				{
+				return new TreeMap<>(new SmartComparator().caseSensitive());
+				}
+			else
+				{
+				return new LinkedHashMap<>();
+				}
+			}
+
+		
+		protected <T> void updateAxisX(final Axis<T> axis) {
+			if(!StringUtil.isBlank(xlabel))
+			{
+				axis.setLabel(xlabel);
+			}
+		}
+		
+		protected <T> void updateAxisY(final Axis<T> axis) {
+			if(!StringUtil.isBlank(ylabel))
+			{
+				axis.setLabel(ylabel);
+			}
+		}
+		
+		/** 1st = count as Doube, 2nd=remains */
+		protected Object[] parseSortUniq(final String line) {
+			int i=0;
+			//skip ws
+			while(i<line.length() && Character.isWhitespace(line.charAt(i))) i++;
+			
+			//read count
+			final StringBuilder sb = new StringBuilder();
+			while(i<line.length() && Character.isDigit(line.charAt(i)))
+				{
+				sb.append(line.charAt(i));
+				i++;
+				}
+			if(sb.length()==0) return null;
+			Double val = this.parseDouble.apply(sb.toString());
+			if(val==null || val.doubleValue()<0.0) return null;
+			i++; //skip one whitespace
+			if(i>=line.length()) return null;
+			return new Object[] {val,line.substring(i)};
+			}
+		
+		
 		protected final Function<String,Double> parseDouble = (S)->{
 			try {
 				if(StringUtil.isBlank(S)) return null;
@@ -161,8 +251,7 @@ public class SimplePlot extends Application {
 						return c;
 						}).
 					collect(Collectors.toList());
-				Double minY=null;
-				Double maxY=null;
+				final MinMax minmaxY = new MinMax();
 				for(;;) {
 					final String line = lineSupplier.get();
 					if(line==null) break;
@@ -199,23 +288,16 @@ public class SimplePlot extends Application {
 										
 					final XYChart.Data<Number,Number> data  = new XYChart.Data<>(x, yVal);
 					chroms.get(ssr.getSequenceIndex()).getData().add(data);
-					if(minY==null )
-						{
-						minY=maxY=yVal;
-						}
-					else
-						{
-						if(yVal<minY) minY=yVal;
-						if(yVal>maxY) maxY=yVal;
-						}
+					minmaxY.accept(yVal);
+					
 					}
-				if(minY==null || maxY==null || chroms.isEmpty()) {
+				if(minmaxY.isEmpty() || chroms.isEmpty()) {
 					LOG.error("no valid data");
 					return null;
 				}
 		        final NumberAxis xAxis = new NumberAxis(1,dict.getReferenceLength(),dict.getReferenceLength()/10.0);
 		        xAxis.setLabel("Genomic Index");
-		        final NumberAxis yAxis = new NumberAxis(minY,maxY,(maxY-minY)/10.0); 
+		        final NumberAxis yAxis = minmaxY.toAxis();
 		       
 			    final ScatterChart<Number,Number> sc = new ScatterChart<Number,Number>(xAxis,yAxis);
 			    sc.getData().addAll(chroms);
@@ -228,7 +310,7 @@ public class SimplePlot extends Application {
 		extends ChartSupplier
 		{
 		protected Map<String,Double> getKeyValueMap() {
-			final Map<String,Double> key2count = new LinkedHashMap<>();
+			final Map<String,Double> key2count = super.createMapWithStringKey();
 			for(;;) {
 				String line = lineSupplier.get();
 				if(line==null) break;
@@ -236,23 +318,10 @@ public class SimplePlot extends Application {
 				final String key;
 				final Double val;
 				if( input_is_sort_uniq) {
-					int i=0;
-					//skip ws
-					while(i<line.length() && Character.isWhitespace(line.charAt(i))) i++;
-					
-					//read count
-					StringBuilder sb = new StringBuilder();
-					while(i<line.length() && Character.isDigit(line.charAt(i)))
-						{
-						sb.append(line.charAt(i));
-						i++;
-						}
-					if(sb.length()==0) continue;
-					val = this.parseDouble.apply(sb.toString());
-					if(val==null || val.doubleValue()<0.0) continue;
-					i++; //skip one whitespace
-					if(i>=line.length()) continue;
-					key=line.substring(i);
+					final Object array[] = parseSortUniq(line);
+					if(array==null) continue;
+					val = Double.class.cast(array[0]);
+					key=String.class.cast(array[1]);
 					}
 				else
 					{
@@ -312,6 +381,7 @@ public class SimplePlot extends Application {
 	private abstract class AbstractHistogramSupplier extends ChartSupplier
 		{
 		protected abstract <X,Y> XYChart<X,Y> create(Axis<X> xAxis,Axis<Y> yAxis);
+		
 		@Override
 		public Chart get() {
 			String firstLine = lineSupplier.get();
@@ -344,6 +414,8 @@ public class SimplePlot extends Application {
 		    final NumberAxis yAxis = new NumberAxis();
 			final XYChart<String, Number> sbc =create(xAxis, yAxis);
 			sbc.getData().addAll(series);
+			updateAxisX(xAxis);
+			updateAxisY(yAxis);
 			return sbc;
 			}
 		}
@@ -362,21 +434,161 @@ public class SimplePlot extends Application {
 			}
 		}
 	
+	private class XYVHistogramSupplier extends ChartSupplier
+		{
+		boolean stacked=false;
+		
+		public XYVHistogramSupplier setStacked(boolean stacked) {
+			this.stacked = stacked;
+			return this;
+			}
+		private <X,Y> XYChart<X,Y> create(Axis<X> xAxis,Axis<Y> yAxis)
+			{	
+			return this.stacked?
+				new StackedBarChart<>(xAxis, yAxis):
+				new BarChart<>(xAxis, yAxis)
+				;
+			}
+		private Object[] nextTriple() {
+			for(;;)
+				{
+				final String line = lineSupplier.get();
+				if(line==null) return null;
+				final String x;
+				final String y;
+				final Double val;
+				if(input_is_sort_uniq)
+					{
+					final Object array[] = parseSortUniq(line);
+					if(array==null) continue;
+					val = Double.class.cast(array[0]);
+					String remain[] =this.delimiter.split(String.class.cast(array[1]));
+					if(remain.length<2) continue;
+					x=remain[0];
+					y=remain[1];
+					}
+				else
+					{
+					final String tokens[] = this.delimiter.split(line);
+					if(tokens.length<3) continue;
+					x=tokens[0];
+					y=tokens[1];
+					val = parseDouble.apply(tokens[2]);
+					}
+				if(val==null || val.doubleValue()<0) continue;
+				return new Object[] {x,y,val};
+				}
+			}
+		
+		
+		@Override
+		public Chart get() {
+			Map<String,Map<String,Double>> xyv = createMapWithStringKey();
+			final Set<String> allylabels = new LinkedHashSet<>();
+			for(;;)
+				{
+				final Object[] triple=nextTriple();
+				if(triple==null) break;
+				
+				final String keyx = String.class.cast(triple[0]);
+				Map<String,Double> hashx = xyv.get(keyx);
+				if(hashx==null) {
+					hashx= createMapWithStringKey();;
+					xyv.put(keyx,hashx);
+					}
+				
+				final String keyy = String.class.cast(triple[1]);
+				allylabels.add(keyy);
+				if(hashx.containsKey(keyy)) {
+					LOG.warn("Duplicate value for "+keyx+"/"+keyy);
+					continue;
+				}
+				
+				final Double yVal = Double.class.cast(triple[2]);
+				hashx.put(keyy, yVal);
+				}
+			if(xyv.isEmpty()) return null;
+		    final CategoryAxis xAxis = new CategoryAxis();
+		    final NumberAxis yAxis = new NumberAxis();
+		    final XYChart<String, Number> sbc =create(xAxis, yAxis);
+		    for(final String keyy: allylabels)
+				{
+			    final XYChart.Series<String, Number> serie = new XYChart.Series<>();
+				serie.setName(keyy);
+				for(final String keyx:xyv.keySet())
+					{
+					Double yVal = xyv.get(keyx).getOrDefault(keyy, 0.0);
+					
+					serie.getData().add(new XYChart.Data<String,Number>(keyx,yVal));
+					}
+				sbc.getData().add(serie);
+				}
+			updateAxisX(xAxis);
+			updateAxisY(yAxis);
+			return sbc;
+			}
+		}
+
+	private class BubbleChartSupplier extends ChartSupplier {
+		
+		int num_cols=2;
+		
+		BubbleChartSupplier numCols(int n) {
+			this.num_cols = n;
+			return this;
+		}
+		
+		@Override
+		public Chart get() {
+			final MinMax minmaxX = new MinMax();
+			final MinMax minmaxY = new MinMax();
+			final Series<Number, Number> serie = new Series<>();
+			for(;;)
+				{
+				String line = lineSupplier.get();
+				if(line==null) break;
+				if(StringUtil.isBlank(line)) continue;
+				String tokens[] = this.delimiter.split(line);
+				if(tokens.length< this.num_cols) continue;
+				Double vals[] = new Double[this.num_cols];
+				int x=0;
+				for(x=0;x<vals.length;++x)
+					{
+					vals[x] = parseDouble.apply(tokens[x]);
+					if(vals[x]==null) break;
+					}
+				if(x!=vals.length) continue;
+				minmaxX.accept(vals[0]);
+				minmaxY.accept(vals[1]);
+				
+				serie.getData().add(new XYChart.Data<Number,Number>(vals[0],vals[1]));
+				}
+			if(minmaxX.isEmpty()) return null;
+			if(minmaxY.isEmpty()) return null;
+	        final NumberAxis xAxis = minmaxX.toAxis();
+	        final NumberAxis yAxis = minmaxY.toAxis();
+			final BubbleChart<Number,Number> blc = new
+		            BubbleChart<Number,Number>(xAxis,yAxis);
+			blc.getData().add(serie);
+			updateAxisX(xAxis);
+			updateAxisY(yAxis);
+			return blc;
+		}
+	}
+	
+	
 	private enum PlotType {
 		UNDEFINED,
 		BEDGRAPH,
 		PIE,
 		SIMPLE_HISTOGRAM,
 		HISTOGRAM,
-		STACKED_HISTOGRAM
+		STACKED_HISTOGRAM,
+		XYV,
+		STACKED_XYV
 	};
 	
-	@ParametersDelegate
-	private Launcher.UsageBuider usageBuider = null;
-	@Parameter(description = "Files")
-	private List<String> args = new ArrayList<>();
-	@Parameter(names="--testng",description = "testng",hidden=true)
-	private boolean this_is_a_unit_test = false;
+
 	@Parameter(names= {"--type","-t"},description = "type")
 	private PlotType chartType = PlotType.UNDEFINED;
 	@Parameter(names= {"-R","--reference"},description = Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
@@ -397,7 +609,10 @@ public class SimplePlot extends Application {
 	private boolean hide_legend;
 	@Parameter(names= {"-su","--sort-unique"},description = "For PIE or SIMPLE_HISTOGRAM the input is the output of a `sort | uniq -c` pipeline")
 	private boolean input_is_sort_uniq=false;
-
+	@Parameter(names= {"-xlab","-xlabel","--xlabel"},description = "X axis label.")
+	private String xlabel=null;
+	@Parameter(names= {"-ylab","-ylabel","--ylabel"},description = "Y axis label.")
+	private String ylabel=null;
 	
 	private Supplier<String> lineSupplier = ()->null;
 	
@@ -406,36 +621,25 @@ public class SimplePlot extends Application {
 	
 	
 	@Override
-	public void start(final Stage primaryStage) throws Exception {
+	public int doWork(final Stage primaryStage,final List<String> args) {
 		Chart chart=null;
 		try
 			{
 			
-			final List<String> params = this.getParameters().getUnnamed();
-			this.usageBuider = new Launcher.UsageBuider(SimplePlot.class);
-			final JCommander jCommander = new JCommander(this);
-			jCommander.parse(params.toArray(new String[params.size()]));
-			if(this.usageBuider.shouldPrintUsage())
-				{
-				this.usageBuider.usage(jCommander);
-				Platform.exit();
-				return;
-				}
 			final BufferedReader br;
-			if(this.args.isEmpty())
+			if(args.isEmpty())
 				{
 				// open stdin
 				br = IOUtils.openStdinForBufferedReader();
 				}
-			else if(this.args.size()==1)
+			else if(args.size()==1)
 				{
-				br = IOUtils.openURIForBufferedReading(this.args.get(0));
+				br = IOUtils.openURIForBufferedReading(args.get(0));
 				}
 			else
 				{
-				LOG.error("Illegal Number of arguments: " + this.args);
-				Platform.exit();
-				return;
+				LOG.error("Illegal Number of arguments: " + args);
+				return -1;
 				}
 			
 			this.lineSupplier = ()-> {
@@ -458,19 +662,23 @@ public class SimplePlot extends Application {
 				case SIMPLE_HISTOGRAM : chart = new SimpleHistogramSupplier().get();break;
 				case HISTOGRAM: chart = new HistogramSupplier().get();break;
 				case STACKED_HISTOGRAM: chart = new StackedHistogramSupplier().get();break;
+				case XYV:
+				case STACKED_XYV:
+					chart = new XYVHistogramSupplier().
+						setStacked(this.chartType==PlotType.STACKED_XYV).
+						get();
+					break;
 				default:
 					{
 					LOG.error("Bad chart type : " + this.chartType);
-					Platform.exit();
-					return;
+					return -1;
 					}
 				}
 			CloserUtil.close(br);
 			}
 		catch(final Exception err) {
 			LOG.error(err);
-			Platform.exit();
-			return;
+			return -1;
 			}
 		finally
 			{
@@ -478,8 +686,7 @@ public class SimplePlot extends Application {
 			}
 		if(chart==null) {
 			LOG.error("No chart was generated");
-			Platform.exit();
-			return;
+			return -1;
 		}
 		
 		if(StringUtil.isBlank(this.chartTitle)) {
@@ -508,7 +715,7 @@ public class SimplePlot extends Application {
 	       		 catch(final IOException err)
 	       		 	{
 	       			LOG.error(err);
-	       			System.exit(-1);
+	       			setExitStatus(-1);
 	       		 	}
 	       		 Platform.exit();
 				});
@@ -520,6 +727,7 @@ public class SimplePlot extends Application {
 				);
 		primaryStage.setScene(scene);
         primaryStage.show();
+        return 0;
 		}
 	
 	/** save char in file */

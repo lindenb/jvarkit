@@ -50,9 +50,13 @@ Usage: simpleplot [options] Files
     --type, -t
       type
       Default: UNDEFINED
-      Possible Values: [UNDEFINED, BEDGRAPH, PIE, SIMPLE_HISTOGRAM, HISTOGRAM, STACKED_HISTOGRAM]
+      Possible Values: [UNDEFINED, BEDGRAPH, PIE, SIMPLE_HISTOGRAM, HISTOGRAM, STACKED_HISTOGRAM, XYV, STACKED_XYV]
     --version
       print version and exit
+    -xlab, -xlabel, --xlabel
+      X axis label.
+    -ylab, -ylabel, --ylabel
+      Y axis label.
 
 ```
 
@@ -136,7 +140,18 @@ $ gunzip -c in.vcf.gz | grep -v "^#" | cut -f 1 | sort | uniq -c | java -jar dis
 $ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t HISTOGRAM
 $ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM
 
-
 ``` 
+
+### Example
+
+plot base=function(position) in a fastq:
+
+```
+gunzip -c src/test/resources/S1.R1.fq.gz | \
+	awk '(NR%4==2) {L=length($0);for(i=1;i<=L;i++) printf("%d\t%s\n",i,substr($0,i,1));}' |\
+	sort | uniq -c |\
+	java -jar dist/simpleplot.jar -su -t STACKED_XYV --xlabel "Position"
+```
+ 
  
 

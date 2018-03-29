@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2018 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.burden;
 
 
@@ -10,13 +34,10 @@ import java.util.TreeMap;
 
 import javax.imageio.ImageIO;
 
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher.UsageBuider;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -75,7 +96,7 @@ END_DOC
 	description="display jfx chart of case/control maf from a VCF and a pedigree",
 	keywords={"vcf","pedigree","case","control","visualization","jfx","chart","maf"}
 	)
-public class CaseControlJfx extends Application {
+public class CaseControlJfx extends JfxLauncher {
 	
 	private static final Logger LOG = Logger.build(CaseControlJfx.class).make();
 
@@ -258,11 +279,7 @@ public class CaseControlJfx extends Application {
 	
 	private enum SelectSamples { all,males,females};
 	
-	@ParametersDelegate
-	private Launcher.UsageBuider usageBuider=null;
 	
-		@Parameter(description = "Files")
-		List<String> args = new ArrayList<>();
 		@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree File. If not defined, try to use the pedigree inserted in the VCF header.")
 		File pedigreeFile = null;
 		@Parameter(names={"-partition","--partition"},description="partition type. How series are built. For example 'variantType' will produces some series for INDEL, SNP, etc... ")
@@ -292,26 +309,14 @@ public class CaseControlJfx extends Application {
 		
 		public CaseControlJfx()
 			{
-			this.usageBuider = new UsageBuider(this.getClass());
 			}
 		
 		@Override
-		public void start(final Stage primaryStage) throws Exception {
+		public int doWork(final Stage primaryStage,final List<String> args) {
 			final VariantPartition partition;
 			Pedigree pedigree = null;
 			VcfIterator in = null;
 			try {
-				final JCommander jCommander = new JCommander(this);
-				
-				final List<String> unammed=this.getParameters().getUnnamed();
-				jCommander.parse(unammed.toArray(new String[unammed.size()]));
-				
-				if(this.usageBuider.shouldPrintUsage())
-					{
-					this.usageBuider.usage(jCommander);
-					Platform.exit();
-					return;
-					}
 				
 				switch(this.partitionType)
 					{
@@ -326,21 +331,20 @@ public class CaseControlJfx extends Application {
 					default: throw new IllegalStateException(this.partitionType.name());
 					}
 				
-				if(this.args.isEmpty())
+				if(args.isEmpty())
 					{
 					in = VCFUtils.createVcfIteratorStdin();
 					primaryStage.setTitle(CaseControlJfx.class.getSimpleName());
 					}
-				else if(this.args.size()==1)
+				else if(args.size()==1)
 					{
-					in = VCFUtils.createVcfIterator(this.args.get(0));
-					primaryStage.setTitle(this.args.get(0));
+					in = VCFUtils.createVcfIterator(args.get(0));
+					primaryStage.setTitle(args.get(0));
 					}
 				else
 					{
-					LOG.error("Illegal Number of arguments: " + this.args);
-					Platform.exit();
-					return;
+					LOG.error("Illegal Number of arguments: " + args);
+					return -1;
 					}
 				if(this.pedigreeFile!=null)
 					{
@@ -355,8 +359,7 @@ public class CaseControlJfx extends Application {
 					final VCFInfoHeaderLine infoHeaderLine=in.getHeader().getInfoHeaderLine(this.controlTag);
 					if(infoHeaderLine==null) {
 						LOG.error("No such attribute in the VCF header: "+this.controlTag);
-						Platform.exit();
-						return;
+						return -1;
 						}
 					}
 				
@@ -429,13 +432,11 @@ public class CaseControlJfx extends Application {
 			catch(final Exception err)
 				{	
 				LOG.error(err);
-				Platform.exit();
-				return;
+				return -1;
 				}
 			finally {
 				CloserUtil.close(in);
-				
-			}
+				}
 			
 	        final NumberAxis xAxis = new NumberAxis(0.0,1.0,0.1);
 	        xAxis.setLabel("Cases");
@@ -448,9 +449,9 @@ public class CaseControlJfx extends Application {
 				chart.getData().add(series);
 		        }
 			String title="Case/Control";
-			if(!this.args.isEmpty())
+			if(!args.isEmpty())
 				{
-				title= this.args.get(0);
+				title= args.get(0);
 				int slash=title.lastIndexOf("/");
 				if(slash!=-1) title=title.substring(slash+1);
 				if(title.endsWith(".vcf.gz")) title=title.substring(0, title.length()-7);
@@ -530,7 +531,7 @@ public class CaseControlJfx extends Application {
 		            }
 			        }
 		        }
-	        
+	        return 0;
 	        }
 		private void doMenuSave(final ScatterChart<Number, Number>   chart)
 			{

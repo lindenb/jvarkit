@@ -36,7 +36,7 @@ private File histo1(final boolean sort_uniq) throws IOException {
 public void testHistogram01() throws IOException{
 	final File in = histo1(false);
 	final File imgOut = super.createTmpFile(".png");
-	SimplePlot.main(new String[] {
+	launch(new String[] {
 			"-t","SIMPLE_HISTOGRAM",
 			"-o",imgOut.getPath(),
 			in.getPath()
@@ -47,7 +47,7 @@ public void testHistogram01() throws IOException{
 public void testHistogram02() throws IOException{
 	final File in = histo1(true);
 	final File imgOut = super.createTmpFile(".png");
-	SimplePlot.main(new String[] {
+	launch(new String[] {
 			"-t","SIMPLE_HISTOGRAM",
 			"-su",
 			"-o",imgOut.getPath(),
@@ -59,7 +59,7 @@ public void testHistogram02() throws IOException{
 public void testPie01() throws IOException{
 	final File in = histo1(false);
 	final File imgOut = super.createTmpFile(".png");
-	SimplePlot.main(new String[] {
+	launch(new String[] {
 			"-t","PIE",
 			"-o",imgOut.getPath(),
 			in.getPath()
@@ -70,7 +70,7 @@ public void testPie01() throws IOException{
 public void testPie02() throws IOException{
 	final File in = histo1(true);
 	final File imgOut = super.createTmpFile(".png");
-	SimplePlot.main(new String[] {
+	launch(new String[] {
 			"-t","PIE",
 			"-su",
 			"-o",imgOut.getPath(),
@@ -79,4 +79,7 @@ public void testPie02() throws IOException{
 	super.assertIsImage(imgOut);
 	}
 
+private void launch(final String[] args) {
+	testJfxApplication(SimplePlot.class,args);
+}
 }

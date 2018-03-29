@@ -30,7 +30,7 @@ public void test01() throws IOException
 	pw.close();
 	super.assertTsvTableIsConsitent(dataFile, null);
 	
-	IndexCovJfx.main(
+	testJfxApplication(IndexCovJfx.class,
     		newCmd().add(
     		"--testng",
     		dataFile
