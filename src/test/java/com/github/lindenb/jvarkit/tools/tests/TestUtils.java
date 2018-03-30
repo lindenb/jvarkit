@@ -328,7 +328,12 @@ public Object[][] createAllSamOrBamData() {
 @DataProvider(name = "all-one-bam-and-ref")
 public Object[][] createOneBamAndRefData() {
 	return new Object[][] {
-		{SRC_TEST_RESOURCE +"/toy.bam",SRC_TEST_RESOURCE+"/toy.fa"}
+		{SRC_TEST_RESOURCE +"/toy.bam",SRC_TEST_RESOURCE+"/toy.fa"},
+		{SRC_TEST_RESOURCE +"/S1.bam",SRC_TEST_RESOURCE+"/rotavirus_rf.fa"},
+		{SRC_TEST_RESOURCE +"/S2.bam",SRC_TEST_RESOURCE+"/rotavirus_rf.fa"},
+		{SRC_TEST_RESOURCE +"/S3.bam",SRC_TEST_RESOURCE+"/rotavirus_rf.fa"},
+		{SRC_TEST_RESOURCE +"/S4.bam",SRC_TEST_RESOURCE+"/rotavirus_rf.fa"},
+		{SRC_TEST_RESOURCE +"/S5.bam",SRC_TEST_RESOURCE+"/rotavirus_rf.fa"}
 	};
 }
 

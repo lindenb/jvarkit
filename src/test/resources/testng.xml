@@ -22,6 +22,7 @@
             <package name="com.github.lindenb.jvarkit.tools.gnomad"/>
             <package name="com.github.lindenb.jvarkit.tools.groupbygene"/>
             <package name="com.github.lindenb.jvarkit.tools.ngsfiles"/>
+            <package name="com.github.lindenb.jvarkit.tools.pcr"/>
             <package name="com.github.lindenb.jvarkit.tools.pubmed"/>
             <package name="com.github.lindenb.jvarkit.tools.sam2tsv"/>
             <package name="com.github.lindenb.jvarkit.tools.sam4weblogo"/>
