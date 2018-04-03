@@ -20,22 +20,20 @@ public void test01(final String bamPath) throws IOException {
 	
 	for(final Interval rgn :randomIntervalsFromDict(new File(bamPath),100)) {
 		final PrintWriter pw = new PrintWriter(bed);
-		pw.println(rgn.getContig()+"\t"+rgn.getStart()+"-"+rgn.getEnd());
+		pw.println(rgn.getContig()+"\t"+rgn.getStart()+"\t"+rgn.getEnd());
 		pw.flush();
 		pw.close();
 		
 		final String args[] = newCmd().
-		add("-o",out.getPath()).
-		add("-B",bed.getPath()).
-		add(bamPath).make()
-		;
+			add("-o",out.getPath()).
+			add("-B",bed.getPath()).
+			add(bamPath).make()
+			;
 		
 		final int ret = new PcrClipReads().instanceMain(args);
 		if(ret!=0) {
-			Assert.fail(String.join(" ",args)+" "+rgn);
+			Assert.fail(String.join(" ",args)+" "+rgn+" "+ret);
 			}
-		
-		
 		
 		assertIsValidBam(out);
 		}

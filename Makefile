@@ -574,6 +574,7 @@ $(eval $(call compile-htsjdk-cmd,vcfskat,${jvarkit.package}.tools.skat.VcfSkat,$
 $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))
 $(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}  ${bigwig.jars}))
 $(eval $(call compile-htsjdk-cmd,simpleplot,${jvarkit.package}.tools.misc.SimplePlot,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,cytoband2svg,${jvarkit.package}.tools.misc.CytobandToSvg,${jcommander.jar}))
 
 
 

@@ -577,12 +577,12 @@ protected File sortBamOnQueryName(final Path bamFile,final Predicate<SAMRecord> 
 	}
 protected List<Interval> randomIntervalsFromDict(final File dictFile,int n) throws IOException{
 	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(dictFile);
-	List<Interval> rgns = new ArrayList<>();
+	final List<Interval> rgns = new ArrayList<>(n);
 	while(n>0)
 		{
 		final SAMSequenceRecord ssr = dict.getSequence(random.nextInt(dict.size()));
-		int L = 1 + random.nextInt( ssr.getSequenceLength()-1);
-		int start = random.nextInt(ssr.getSequenceLength() -L);
+		final int L = 1 + random.nextInt( ssr.getSequenceLength()-1);
+		final int start = 1 + random.nextInt(ssr.getSequenceLength() -L);
 		rgns.add(new Interval(ssr.getSequenceName(), start, start+L));
 		n--;
 		}

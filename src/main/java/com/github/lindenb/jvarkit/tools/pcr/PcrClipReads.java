@@ -262,7 +262,6 @@ public class PcrClipReads extends Launcher
 					{
 					rec.setMappingQuality(0);
 					sw.addAlignment(rec);
-					
 					continue;
 					}
 				
@@ -270,7 +269,6 @@ public class PcrClipReads extends Launcher
 				if(rec.getAlignmentStart()>= fragment.getStart() && rec.getAlignmentEnd()<=fragment.getEnd())
 					{
 					sw.addAlignment(rec);
-					
 					continue;
 					}
 				final ReadClipper readClipper = new ReadClipper();
@@ -281,7 +279,7 @@ public class PcrClipReads extends Launcher
 				sw.addAlignment(rec);
 				}
 			progress.finish();
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Exception err)
 			{
