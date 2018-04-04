@@ -108,7 +108,6 @@ private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 private final int contig_title_size = 12;
 private final int round_rect = 5;
 
-
 private class Cytoband
 	implements Locatable
 	{
@@ -142,8 +141,33 @@ private class Cytoband
 	public String getStain() {
 		return gieStain;
 		}
-	public String getCssClass() {
-		return this.getStain();
+	/* https://github.com/ENCODE-DCC/kentUtils/blob/master/src/hg/lib/hCytoBand.c#L43 */
+	public String getFillColor() {
+		final String stain = this.getStain();
+		if (stain.startsWith("gneg"))
+		    {
+		    return "lightblue";
+		    }
+		else if (stain.startsWith("gpos") && stain.length()>4)
+		    {
+		    int percentage;
+		    try {
+		    	percentage = Math.max(0, Math.min(100,Integer.parseInt(stain.substring(4))));
+		    	}
+		    catch(final NumberFormatException err) {
+		    	percentage = 100;
+		    	}
+		    final int g = 40 + (int)(215.0*(percentage/100.0));
+		    return "rgb("+g+","+g+","+g+")";
+		    }
+		else if (stain.startsWith("gvar"))
+		    {
+		    return "slategray";
+		    }
+		else 
+		    {
+		    return "honeydew";
+		    }
 		}
 	}
 
@@ -176,12 +200,13 @@ private class Contig
 		}
 	Rectangle2D.Double getContigBounds() {
 		if(this._contig_bounds==null) {
+			double top = (contig_title_size)+(StringUtil.isBlank(title)?0:12);
 			final double w = this.bounds.getWidth()/3.0;
 			this._contig_bounds =  new Rectangle2D.Double(
 				this.bounds.getX()+w,
-				this.bounds.getY()+contig_title_size,
+				this.bounds.getY()+top,
 				w,
-				(this.bounds.getHeight()-contig_title_size)*(this.getSequenceLength()/(double)CytobandToSvg.this.max_contig_length)
+				(this.bounds.getHeight()-top)*(this.getSequenceLength()/(double)CytobandToSvg.this.max_contig_length)
 				);
 			}
 		return this._contig_bounds;
@@ -193,27 +218,17 @@ private class Contig
 		}
 	
 	
-	void def(XMLStreamWriter w) throws XMLStreamException {
+	void def(final XMLStreamWriter w) throws XMLStreamException {
 		final Rectangle2D.Double r= getContigBounds();
 		w.writeStartElement("clipPath");
 		w.writeAttribute("id", "clip_"+getContig());
 		if(this.telomerePos>0) {
 			w.writeStartElement("rect");
-			w.writeAttribute("x",format(r.getX()));
-			w.writeAttribute("y",format(pos2pixel(0,r)));
-			w.writeAttribute("width",format(r.getWidth()));
-			w.writeAttribute("height",format(pos2pixel(this.telomerePos,r)-pos2pixel(0,r)));
-			w.writeAttribute("rx",format(round_rect));
-			w.writeAttribute("ry",format(round_rect));
+			writecontigPAttrs(w);
 			w.writeEndElement();
 			}
 		w.writeStartElement("rect");
-			w.writeAttribute("x",format(r.getX()));
-			w.writeAttribute("y",format(pos2pixel(this.telomerePos,r)));
-			w.writeAttribute("width",format(r.getWidth()));
-			w.writeAttribute("height",format(pos2pixel(this.getSequenceLength(),r) - pos2pixel(this.telomerePos,r)));
-			w.writeAttribute("rx",format(round_rect));
-			w.writeAttribute("ry",format(round_rect));
+			writecontigQAttrs(w);
 		w.writeEndElement();//rect
 		
 		w.writeEndElement();//clipPath
@@ -226,16 +241,37 @@ private class Contig
 		w.writeStartElement("text");
 		w.writeAttribute("class","ctglabel");
 		w.writeAttribute("x",format(this.bounds.getCenterX()));
-		w.writeAttribute("y",format(this.bounds.getY()+contig_title_size - 2));
+		w.writeAttribute("y",format(this.bounds.getY()+contig_title_size - 2 + (StringUtil.isBlank(title)?0:12)));
 		w.writeCharacters(this.getContig());//title
 		w.writeEndElement();
 		
 		w.writeStartElement("g");
+		
+		
+		/* background shape */
+		w.writeStartElement("g");
+		w.writeAttribute("transform","translate(5,5) ");
+		if(this.telomerePos>0) {
+			w.writeStartElement("rect");
+			w.writeAttribute("class","ctgback");
+			w.writeAttribute("filter","url(#filter01)");
+			writecontigPAttrs(w);
+			w.writeEndElement();
+			}
+		
+		w.writeStartElement("rect");
+		w.writeAttribute("class","ctgback");
+		w.writeAttribute("filter","url(#filter01)");
+			writecontigQAttrs(w);
+		w.writeEndElement();//rect
+		w.writeEndElement();//g
+		
+		
 		for(final  Cytoband c:this.cytobands) {
 			w.writeStartElement("rect");
-			w.writeAttribute("class",c.getCssClass());
+			w.writeAttribute("class","cytoband");
+			w.writeAttribute("style","fill:"+c.getFillColor()+";");
 			w.writeAttribute("clip-path","url(#clip_"+getContig()+")");
-			w.writeAttribute("filter","url(#filter01)");
 			w.writeAttribute("x",format(r.getX()));
 			w.writeAttribute("y",format(pos2pixel(c.getStart(),r)));
 			w.writeAttribute("width",format(r.getWidth()));
@@ -253,33 +289,46 @@ private class Contig
 		if(this.telomerePos>0) {
 			w.writeStartElement("rect");
 			w.writeAttribute("class","ctgborderp");
-			w.writeAttribute("x",format(r.getX()));
-			w.writeAttribute("y",format(pos2pixel(0,r)));
-			w.writeAttribute("width",format(r.getWidth()));
-			w.writeAttribute("height",format(pos2pixel(this.telomerePos,r)-pos2pixel(0,r)));
-			w.writeAttribute("rx",format(round_rect));
-			w.writeAttribute("ry",format(round_rect));
+			writecontigPAttrs(w);
 			w.writeEndElement();
 			}
 		
 		
 		w.writeStartElement("rect");
 			w.writeAttribute("class","ctgborderq");
-			w.writeAttribute("x",format(r.getX()));
-			w.writeAttribute("y",format(pos2pixel(this.telomerePos,r)));
-			w.writeAttribute("width",format(r.getWidth()));
-			w.writeAttribute("height",format(pos2pixel(this.getSequenceLength(),r) - pos2pixel(this.telomerePos,r)));
-			w.writeAttribute("rx",format(round_rect));
-			w.writeAttribute("ry",format(round_rect));
+			writecontigQAttrs(w);
 		w.writeEndElement();//rect
+		
 		w.writeEndElement();//g
 		
 		w.writeEndElement();//g
 		}
+	
+	private void writecontigPAttrs(final XMLStreamWriter w) throws XMLStreamException {
+		final Rectangle2D.Double r= getContigBounds();
+		w.writeAttribute("x",format(r.getX()));
+		w.writeAttribute("y",format(pos2pixel(0,r)));
+		w.writeAttribute("width",format(r.getWidth()));
+		w.writeAttribute("height",format(pos2pixel(this.telomerePos,r)-pos2pixel(0,r)));
+		w.writeAttribute("rx",format(round_rect));
+		w.writeAttribute("ry",format(round_rect));
+		}
+	private void writecontigQAttrs(final XMLStreamWriter w)  throws XMLStreamException {
+		final Rectangle2D.Double r= getContigBounds();
+		w.writeAttribute("x",format(r.getX()));
+		w.writeAttribute("y",format(pos2pixel(this.telomerePos,r)));
+		w.writeAttribute("width",format(r.getWidth()));
+		w.writeAttribute("height",format(pos2pixel(this.getSequenceLength(),r) - pos2pixel(this.telomerePos,r)));
+		w.writeAttribute("rx",format(round_rect));
+		w.writeAttribute("ry",format(round_rect));
+		}
+
 	}
 
 private final Map<String,Contig> name2contig = new LinkedHashMap<>();
 private long max_contig_length = 0L;
+
+
 
 private List<Cytoband>  parseCytobands(final BufferedReader r) throws IOException
 	{
@@ -391,28 +440,15 @@ public int doWork(final List<String> args) {
 			w.writeAttribute("style","stop-color:black;stop-opacity:0.9;");
 		
 		w.writeEndElement();
-		//
+		
 		w.writeStartElement("filter");
 			w.writeAttribute("id","filter01");
-			w.writeAttribute("x","0");
-			w.writeAttribute("y","0");
-			w.writeAttribute("width","500%");
-			w.writeAttribute("height","500%");
-			w.writeEmptyElement("feOffset");
-				w.writeAttribute("result","offOut");
-				w.writeAttribute("in","SourceAlpha");
-				w.writeAttribute("dx","120");
-				w.writeAttribute("dy","120");
 			w.writeEmptyElement("feGaussianBlur");
-				w.writeAttribute("in","offOut");
-				w.writeAttribute("result","blurOut");
-				w.writeAttribute("stdDeviation","10");
-			w.writeEmptyElement("feBlend");
 				w.writeAttribute("in","SourceGraphic");
-				w.writeAttribute("in2","blurOut");
-				w.writeAttribute("mode","normal");
+				w.writeAttribute("stdDeviation","10");
+			
 		w.writeEndElement();//filter
-		//
+		
 		
 		
 		double x = drawingArea.getX();
@@ -432,13 +468,10 @@ public int doWork(final List<String> args) {
 				".ctgborderp {fill:url(#grad01);stroke:green;}" +
 				".ctgborderq {fill:url(#grad01);stroke:green;}" +
 				".ctglabel {text-anchor:middle;stroke:none;fill:darkgrey;font: bold 10px Verdana, Helvetica, Arial, sans-serif;}" +
-				".acen {fill:silver;stroke:none;}" +
-				".gpos100 {fill:slategray;stroke:none;}" +
-				".gpos25 {fill:darkgrey;stroke:none;}" +
-				".gpos50 {fill:lightslategrey;stroke:none;filter:url(#filter01);}" +
-				".gpos75 {fill:lightgray;stroke:none;}" +
-				".gvar {fill:gainsboro;stroke:none;}" +
-				".stalk {fill:gray;stroke:none;}" 
+				".cytoband {fill:silver;stroke:none;}" +
+				".bedlabel {stroke:red;fill:none;text-anchor:start;font: normal 7px Verdana, Helvetica, Arial, sans-serif;}" +
+				".maintitle {stroke:none;fill:darkgrey;text-anchor:middle;font: normal 12px Verdana, Helvetica, Arial, sans-serif;}" +
+				".ctgback {fill:gainsboro;stroke:none;filter:url(#filter01);}"
 				);
 		
 		w.writeEndElement();//style
@@ -450,6 +483,9 @@ public int doWork(final List<String> args) {
 		/* title */
 		if(!StringUtil.isBlank(this.title)) {
 			w.writeStartElement("text");
+			w.writeAttribute("class", "maintitle");
+			w.writeAttribute("x", format(this.width/2.0));
+			w.writeAttribute("y", format(12));
 			w.writeCharacters(this.title);
 			w.writeEndElement();
 			}
@@ -514,17 +550,18 @@ public int doWork(final List<String> args) {
 							}
 						}
 					}
+				w.writeStartElement("g");
 				if(attributes.containsKey("href"))
 					{
 					w.writeStartElement("a");
 					w.writeAttribute("href", attributes.get("href"));
 					}
-				w.writeStartElement("line");
+				w.writeStartElement("rect");
 				w.writeAttribute("style","stroke:red;");
-				w.writeAttribute("x1",format(r.getMaxX()+2));
-				w.writeAttribute("x2",format(r.getMaxX()+2));
-				w.writeAttribute("y1",format(ctg.pos2pixel(chromStart,r)));
-				w.writeAttribute("y2",format(ctg.pos2pixel(chromEnd,r)));
+				w.writeAttribute("x",format(r.getMaxX()+2));
+				w.writeAttribute("width",format(2));
+				w.writeAttribute("y",format(ctg.pos2pixel(chromStart,r)));
+				w.writeAttribute("height",format(ctg.pos2pixel(chromEnd,r) - ctg.pos2pixel(chromStart,r)));
 				if(attributes.containsKey("title"))
 					{
 					w.writeStartElement("title");
@@ -532,11 +569,22 @@ public int doWork(final List<String> args) {
 					w.writeEndElement();
 					}
 				w.writeEndElement();
+				if(attributes.containsKey("label"))
+					{
+					w.writeStartElement("text");
+					w.writeAttribute("class","bedlabel");
+					w.writeAttribute("x",format(r.getMaxX()+4));
+					w.writeAttribute("y",format(3 + ctg.pos2pixel(chromStart,r)));
+					w.writeCharacters(attributes.get("label"));
+					w.writeEndElement();
+					}
+				
 				
 				if(attributes.containsKey("href"))
 					{
 					w.writeEndElement();
 					}
+				w.writeEndElement();//g
 				}
 			
 			
