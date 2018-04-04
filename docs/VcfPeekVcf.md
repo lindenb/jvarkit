@@ -1,5 +1,7 @@
 # VcfPeekVcf
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Get the INFO from a VCF and use it for another VCF
 
 
@@ -64,11 +66,10 @@ Usage: vcfpeekvcf [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -98,28 +99,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekVcf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekVcf.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekVcfTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekVcfTest.java)
 
-```
-Tue Jul 11 17:57:33 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1f248bc7f1fd8a0824bb65a4c67eb052d5a6e381
-Fri Jun 9 10:48:00 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3ec1d65a4f371ad9fc6b6b7f5a4efae89a388c44
-Fri Jun 9 09:31:08 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/756ee58a387e69115b7d0a79bd16daa5df2266fc
-Thu Jun 8 16:51:22 2017 +0200 ; fix bug peekvcf Count.AC ; https://github.com/lindenb/jvarkit/commit/36529721b62a162338f5b95d323df86f5daf5c2f
-Thu Jun 8 12:17:45 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bd8ab6b35567ec80a6416d2b588098c4ee9a2fba
-Wed Jun 7 16:15:41 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/8ed068b24f8b7a949e10999c5b219401827c03b0
-Sat Jun 3 23:36:42 2017 +0200 ; cleanup ; https://github.com/lindenb/jvarkit/commit/9574b7c9b25ef9d209f086f00e800481520cea67
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Tue May 16 12:40:09 2017 +0200 ; doc ; https://github.com/lindenb/jvarkit/commit/ce1caf182662dc4690ec9c90e8fdd567fafa7a1e
-Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
-Wed Jan 27 10:28:45 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/95e09679de0f2aa66a36d488e7a4cbc9550badab
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Fri May 29 13:28:09 2015 +0200 ; vcfpeekvcf: check attribute missing ; https://github.com/lindenb/jvarkit/commit/14f3f4dd5579f49f371500a9dbaef594a79791fe
-Thu May 21 15:13:01 2015 +0200 ; vcf peek info ; https://github.com/lindenb/jvarkit/commit/b451191e148ad57f498032e2f81adc1051336c07
-```
-
-</details>
 
 ## Contribute
 

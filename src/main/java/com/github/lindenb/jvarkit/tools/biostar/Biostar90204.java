@@ -150,7 +150,6 @@ public class Biostar90204 extends Launcher
 					split_file_number++;
 					final String pathname=(this.prefix.isEmpty()?"":this.prefix+".")+String.format("%0"+suffix_length+"d", split_file_number)+".bam";
 					final File out=new File(pathname);
-					LOG.info("Opening "+out);
 					manifest.write(pathname);
 					manifest.write("\t"+(nReads)+"\t");
 					
@@ -164,7 +163,6 @@ public class Biostar90204 extends Launcher
 				
 				if(nReads%record_per_file==0)
 					{
-					LOG.info("Closing "+sfw);
 					sfw.close();
 					manifest.write((nReads)+"\n");
 					sfw=null;

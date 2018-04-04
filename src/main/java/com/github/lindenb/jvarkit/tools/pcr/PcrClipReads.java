@@ -223,7 +223,7 @@ public class PcrClipReads extends Launcher
 			{
 			sw = this.writingBamArgs.openSAMFileWriter(outputFile,header2, false);
 			
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header1);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header1).logger(LOG);
 			iter =  reader.iterator();
 			while(iter.hasNext())
 				{

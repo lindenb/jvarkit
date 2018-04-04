@@ -24,6 +24,7 @@ public class SAM4WebLogoTest extends TestUtils
 	private void basetest(final String inBam,String params) throws IOException {
 		final File out = createTmpFile(".txt");
 		for(final Interval interval: super.randomIntervalsFromDict(new File(inBam), 20)) {
+			if(interval.getContig().contains(":")) continue;
 			final String args[]=newCmd().add(
 					"-o",out.getPath(),
 					"-r",interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd()).

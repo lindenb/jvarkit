@@ -38,6 +38,7 @@
             <package name="com.github.lindenb.jvarkit.tools.vcfstats"/>
             <package name="com.github.lindenb.jvarkit.tools.vcftrios"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfucsc"/>
+            <package name="com.github.lindenb.jvarkit.tools.vcfvcf"/>
         </packages>  
     </test>  
 </suite>
