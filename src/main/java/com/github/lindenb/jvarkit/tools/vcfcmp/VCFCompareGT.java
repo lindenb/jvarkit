@@ -413,10 +413,10 @@ public class VCFCompareGT extends Launcher
 						);
 				//build genotypes
 				final List<Genotype> genotypes=new ArrayList<Genotype>();
-				for(Variant var:row)
+				for(final Variant var:row)
 					{
 					//alleles for this genotype
-					List<Allele> galleles=new ArrayList<Allele>();
+					final List<Allele> galleles=new ArrayList<Allele>();
 					galleles.add(Allele.create(var.a1, var.a1.equalsIgnoreCase(var.ref)));
 					galleles.add(Allele.create(var.a2, var.a2.equalsIgnoreCase(var.ref)));
 					
