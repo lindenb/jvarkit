@@ -1,83 +1,98 @@
-/*
-The MIT License (MIT)
-Copyright (c) 2018 Pierre Lindenbaum
+# VcfStatsJfx
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+GUI: VCF statitics
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-package com.github.lindenb.jvarkit.tools.vcfstats;
 
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+## Usage
 
-import javax.imageio.ImageIO;
+```
+Usage: vcfstatsjfx [options] Files
+  Options:
+    -h, --help
+      print help and exit
+    --helpFormat
+      What kind of help
+      Possible Values: [usage, markdown, xml]
+    -o, --output
+      output Directory or zip file. If defined, the application will exit 
+      automatically 
+    --trancheAffected
+      tranches for the number of affected. A 'range of integers' is a list of 
+      integers in ascending order separated with semicolons.
+      Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/Inf[]
+    --version
+      print version and exit
 
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.math.RangeOfIntegers;
-import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+```
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
-import htsjdk.variant.variantcontext.GenotypeType;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
-import htsjdk.variant.vcf.VCFFilterHeaderLine;
-import htsjdk.variant.vcf.VCFHeader;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.concurrent.Task;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.Node;
-import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.Chart;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.StackedBarChart;
-import javafx.scene.chart.XYChart;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.image.WritableImage;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
-/*
-BEGIN_DOC
+
+## Keywords
+
+ * vcf
+ * stats
+ * jfx
+
+
+## Compilation
+
+### Requirements / Dependencies
+
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* GNU Make >= 3.81
+* curl/wget
+* git
+
+
+### Download and Compile
+
+```bash
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ make vcfstatsjfx
+```
+
+The *.jar libraries are not included in the main jar file, [so you shouldn't move them](https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
+The required libraries will be downloaded and installed in the `dist` directory.
+
+Experimental: you can also create a [fat jar](https://stackoverflow.com/questions/19150811/) which contains classes from all the libraries, on which your project depends (it's bigger). Those fat-jar are generated by adding `standalone=yes` to the gnu make command, for example ` make vcfstatsjfx standalone=yes`.
+
+### edit 'local.mk' (optional)
+
+The a file **local.mk** can be created edited to override/add some definitions.
+
+For example it can be used to set the HTTP proxy:
+
+```
+http.proxy.host=your.host.com
+http.proxy.port=124567
+```
+## Source code 
+
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstats/VcfStatsJfx.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstats/VcfStatsJfx.java)
+
+
+## Contribute
+
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
+
+## License
+
+The project is licensed under the MIT license.
+
+## Citing
+
+Should you cite **vcfstatsjfx** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+
+The current reference is:
+
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
 
 */
 @Program(name="vcfstatsjfx",
@@ -575,3 +590,4 @@ public class VcfStatsJfx extends JfxLauncher {
 	}
 
 }
+
