@@ -1,5 +1,7 @@
 # TViewServer
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Web Server displaying SAM/BAM file. A web interface for jvarkit:tview
 
 
@@ -50,11 +52,10 @@ Usage: tviewserver [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -84,20 +85,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/tview/TViewServer.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/tview/TViewServer.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Nov 8 09:00:21 2017 +0100 ; changed igv to custom url ; https://github.com/lindenb/jvarkit/commit/7972f506165e45c3b1300aecd00d1109b52d57dc
-Tue Nov 7 16:33:40 2017 +0100 ; Hyperlinks to IGV ; https://github.com/lindenb/jvarkit/commit/b41b49dfc9e1948eb76085c343b69a4ac0520f16
-Thu Nov 2 12:09:38 2017 +0100 ; commit failed ??? strange.. ; https://github.com/lindenb/jvarkit/commit/3da2a1f1f839ab3c0ebb8e2369926ac6c6fca4f4
-Thu Nov 2 11:51:38 2017 +0100 ; vcfserver can display multiple bams ; https://github.com/lindenb/jvarkit/commit/587a8148bc4c4e330117d6154803de0eba9b3fcd
-Tue Oct 31 17:21:38 2017 +0100 ; tviewserver / vcfserver : added screenshots ; https://github.com/lindenb/jvarkit/commit/2a991b2e352fb30b8e0a94144fcda8d52c2f653a
-Tue Oct 31 17:03:31 2017 +0100 ; tviewserver based on jvarkit:tview ; https://github.com/lindenb/jvarkit/commit/7799aa3b2dae490541a0ae017fd86b6819dd4aba
-```
-
-</details>
 
 ## Contribute
 

@@ -32,7 +32,7 @@ private File histo1(final boolean sort_uniq) throws IOException {
 
 
 
-@Test
+@Test(enabled=false)
 public void testHistogram01() throws IOException{
 	final File in = histo1(false);
 	final File imgOut = super.createTmpFile(".png");
@@ -43,7 +43,7 @@ public void testHistogram01() throws IOException{
 			});
 	super.assertIsImage(imgOut);
 	}
-@Test
+@Test(enabled=false)
 public void testHistogram02() throws IOException{
 	final File in = histo1(true);
 	final File imgOut = super.createTmpFile(".png");
@@ -55,7 +55,7 @@ public void testHistogram02() throws IOException{
 			});
 	super.assertIsImage(imgOut);
 	}
-@Test
+@Test(enabled=false)
 public void testPie01() throws IOException{
 	final File in = histo1(false);
 	final File imgOut = super.createTmpFile(".png");
@@ -66,7 +66,7 @@ public void testPie01() throws IOException{
 			});
 	super.assertIsImage(imgOut);
 	}
-@Test
+@Test(enabled=false)
 public void testPie02() throws IOException{
 	final File in = histo1(true);
 	final File imgOut = super.createTmpFile(".png");

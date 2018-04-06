@@ -11,7 +11,7 @@ import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 public class CaseControlPlotTest extends TestUtils {
 
-@Test
+@Test(enabled=false)
 public void test01() throws IOException {
 	final String inputFile = SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz";
 	final File xmlFile = super.createTmpFile(".xml");

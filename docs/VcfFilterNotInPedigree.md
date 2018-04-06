@@ -1,6 +1,8 @@
 # VcfFilterNotInPedigree
 
-Adds a FILTER NotInPedigree if the only not(homref) genotypes are not in a pedigree
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
+Adds a FILTER 'NotInPedigree' if the only not(homref) genotypes are not in a pedigree
 
 
 ## Usage
@@ -17,13 +19,22 @@ Usage: vcffilternotinpedigree [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -gtf, --ignore-filtered-gt
+      [20180406] Do not consider a *genotype* if it is FILTERED.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --pedigree
+      [20180406]A pedigree is a text file delimited with tabs. No header. 
+      Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
+      Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
+      unaffected, 1 affected,-9 unknown  Default is to try to read the 
+      pedigree in the VCF header
     -r, --remove
-      remove the variant instead of setting the FILTER
+      remove the variant instead of setting the FILTER (hard filtering)
       Default: false
     -sf, --sfilter
-      FILTER name for option singleton
+      FILTER name for option --singleton
       Default: SingletonAlt
     -s, --singleton
       Variant is flagged/FILTERed as SingletonAlt if the ALT if found in less 
@@ -46,11 +57,10 @@ Usage: vcffilternotinpedigree [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -80,24 +90,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigree.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigree.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigreeTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/burden/VcfFilterNotInPedigreeTest.java)
 
-```
-Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
-Fri Sep 8 11:29:13 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/0c5035b59124ca18aba0405d0c616b565a32d10e
-Wed Sep 6 18:09:53 2017 +0200 ; moving to spring xml component ; https://github.com/lindenb/jvarkit/commit/2a697f0a6ac81ad0975fedd43ca2ff916f2920f0
-Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Wed May 10 20:57:52 2017 +0200 ; YC tag ; https://github.com/lindenb/jvarkit/commit/a9515d969d27c76ccd0814a093e886d71904b0f2
-Tue May 24 16:49:08 2016 +0200 ; error in fisherburdenv ; https://github.com/lindenb/jvarkit/commit/ad8d8c2252786a71d063854fddcf5c3e276a052e
-Tue May 3 17:34:10 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7d668372271a7ecc28da6051c0ef251f70bbece9
-Thu Apr 21 10:39:25 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7adf87adc987efbe89def5c530f5a84be0c841d4
-Tue Apr 19 14:25:22 2016 +0200 ; vcfnotinped ; https://github.com/lindenb/jvarkit/commit/265b0d11a280ad1458038fbd838a7a866952facf
-```
-
-</details>
 
 ## Contribute
 
@@ -118,6 +114,9 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
 
 
 

@@ -10,7 +10,7 @@ import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 public class IndexCovJfxTest extends TestUtils{
 	
-@Test
+@Test(enabled=false)
 public void test01() throws IOException
 	{
 

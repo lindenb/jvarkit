@@ -247,11 +247,12 @@ tests: ${testng.jars} ${dist.dir}/testsng.jar
 		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
 	rm -vf ${dist.dir}/testsng.jar
 
-tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb  ${bigwig.jars}  ${mysql.jar}
+tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb  ${bigwig.jars}  ${mysql.jar} ${jetty.jars}
 	rm -rf "${tmp.dir}"
 	mkdir -p "${tmp.dir}"
 	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${generated.dir}/java:src/test/java:src/main/java `find src/test/java -type f -name "*.java"`
 	${JAVA} \
+		-Dhttp.nonProxyHosts="localhost" \
 		$(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host} -Dhttps.proxyHost=${http.proxy.host}) \
 		$(if ${http.proxy.port},-Dhttp.proxyPort=${http.proxy.port} -Dhttps.proxyPort=${http.proxy.port}) \
 		-cp "$(subst $(SPACE),:,$(filter %.jar,$^)):${tmp.dir}"  org.testng.TestNG -parallel false -d "test-output" ./src/test/resources/testng.xml
@@ -460,6 +461,7 @@ $(eval $(call compile-htsjdk-cmd,vcfmakedict,${jvarkit.package}.tools.misc.VcfCr
 $(eval $(call compile-htsjdk-cmd,vcfshuffle,${jvarkit.package}.tools.misc.VCFShuffle,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,vcfsimulator,${jvarkit.package}.tools.misc.VcfSimulator,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfstats,${jvarkit.package}.tools.vcfstats.VcfStats,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfstatsjfx,${jvarkit.package}.tools.vcfstats.VcfStatsJfx,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcombinetwosnvs,${jvarkit.package}.tools.vcfannot.VCFCombineTwoSnvs,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfstripannot,${jvarkit.package}.tools.vcfstripannot.VCFStripAnnotations,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcftabixml,${jvarkit.package}.tools.vcftabixml.VCFTabixml,${jcommander.jar}))

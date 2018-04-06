@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -125,6 +125,8 @@ private boolean disable_javascript = false;
 private int max_interval_length = 2000;
 @Parameter(names={"--url"},description=Launcher.USER_CUSTOM_INTERVAL_URL_DESC)
 private String userCustomUrl=null;
+@Parameter(names={"--shutdown-after"},description="Stop the server after 'x' seconds.")
+private long shutdownAferSeconds=-1L;
 
 
 private class SamViewHandler extends AbstractHandler
@@ -132,9 +134,9 @@ private class SamViewHandler extends AbstractHandler
 	private final List<File> samFiles;
 	
 	
-	SamViewHandler(final List<File> vcfFiles)
+	SamViewHandler(final List<File> samFiles)
 		{
-		this.samFiles = vcfFiles;
+		this.samFiles = samFiles;
 		}
 	
 	
@@ -717,10 +719,30 @@ public int doWork(final List<String> args) {
 		server.setHandler(handlers);
 		LOG.info("Starting "+TViewServer.class.getName()+" on http://localhost:"+this.port);
 		server.start();
+		if(this.shutdownAferSeconds>0)
+			{
+			final Server theServer = server;
+			new java.util.Timer().schedule( 
+			        new java.util.TimerTask() {
+			            @Override
+			            public void run() {
+			                LOG.info("automatic shutdown after "+shutdownAferSeconds);
+			                try {
+			                	theServer.stop();
+			                	}
+			                catch(final Throwable err2) {
+			                	LOG.error(err2);
+			                	}
+			            }
+			        }, 
+			        1000 * this.shutdownAferSeconds 
+					);
+			}
+		
 		server.join();
 		return 0;
 		}
-	catch(final Exception err)  {
+	catch(final Throwable err)  {
 		LOG.error(err);
 		return -1;
 		}
