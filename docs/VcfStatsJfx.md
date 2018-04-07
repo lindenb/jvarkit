@@ -101,14 +101,15 @@ keywords={"vcf","stats","jfx"}
 )
 public class VcfStatsJfx extends JfxLauncher {
 	private static final Logger LOG=Logger.build(VcfStatsJfx.class).make();
+	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private final ReentrantLock lock = new ReentrantLock();
 	private int refreshEverySeconds = 2;
-
+	private ProgressBar progressBar;
 	@Parameter(names={"-o","--output"},description="output Directory or zip file. If defined, the application will exit automatically")
 	private File outputFile = null;
 	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
-
+	
 	
 	private volatile boolean stop = false;
 	private class ChartGenerator
@@ -197,7 +198,8 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(t.name(),this.count.count(t)));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle() +" N="+this.count.getTotal());
+	        bc.setTitle(this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
+	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Variant Type");       
 	        yAxis.setLabel("Count");
 	        return bc;
@@ -239,6 +241,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				}
 			bc.getData().add(series1);
 	        bc.setTitle(this.getChartTitle());
+	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Filter");       
 	        yAxis.setLabel("Count");
 	        return bc;
@@ -294,6 +297,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				}
 			bc.getData().add(series1);
 	        bc.setTitle(this.getChartTitle());
+	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Contig");       
 	        yAxis.setLabel("Count");
 	        return bc;
@@ -392,6 +396,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		            new BarChart<String,Number>(xAxis,yAxis);
 			bc.getData().add(series1);
 	        bc.setTitle(this.getChartTitle());
+	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Num. Samples Affected.");       
 	        yAxis.setLabel("Count");
 	        return bc;
@@ -408,6 +413,37 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		}
 
+	private class AbstractPredictionGenerator extends ChartGenerator
+		{
+		private final VcfTools tools;
+		private final String sampleName;
+		AbstractPredictionGenerator(final VCFHeader header,final String sampleName) {
+			this.tools = new VcfTools(header);
+			this.sampleName = sampleName;
+			}
+		
+		@Override
+		String getChartTitle() {
+			return "Sample "+(this.sampleName==null?"":this.sampleName);
+			}
+		
+		@Override
+		void visit(final VariantContext ctx)
+			{
+			if(sampleName!=null) {
+				final Genotype gt = ctx.getGenotype(this.sampleName);
+				if(gt==null || !gt.isCalled() || 
+						!gt.isAvailable() ||
+						!gt.getAlleles().stream().
+						filter(A->!A.isNoCall()).
+						anyMatch(A->A.isNonReference()))
+					{
+					return;
+					}
+				}
+			super.visit(ctx);
+			}
+		}
 	
 	
 	private final List<ChartGenerator> chartGenerators = new Vector<>();
@@ -431,7 +467,10 @@ public class VcfStatsJfx extends JfxLauncher {
 		protected Void call() throws Exception {
 			refreshCharts();
 			long last = System.currentTimeMillis();
-			System.err.println("Call called");
+			
+			Platform.runLater(()->{
+				progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+				});
 			while(!VcfStatsJfx.this.stop && this.iter.hasNext()) {
 				final VariantContext ctx = this.iter.next();
 				try 
@@ -452,8 +491,13 @@ public class VcfStatsJfx extends JfxLauncher {
 					refreshCharts();
 					}
 				}
-			System.err.println("Done");
+			
 			refreshCharts();
+			
+			Platform.runLater(()->{
+				progressBar.setProgress(1.0);
+				});
+			
 			if(outputFile!=null)
 	        	{
 	        	Platform.runLater(()->{
@@ -533,14 +577,37 @@ public class VcfStatsJfx extends JfxLauncher {
 				stop = true;
 				CloserUtil.close(runner);
 			});
-			
+			final BorderPane contentPane=new BorderPane();
 			final TabPane tabPane = new TabPane();
+			final MenuBar menuBar = new MenuBar();
+		    Menu menu = new Menu("File");
+		    MenuItem item=new MenuItem("Save Current image as...");
+		    item.setOnAction(AE->{doMenuSaveCurrentImage(tabPane.getSelectionModel().getSelectedItem());});
+		    menu.getItems().add(item);
+		    item=new MenuItem("Save All images as...");
+		    item.setOnAction(AE->doMenuSaveAllImages());
+		    menu.getItems().add(item);
+		    menu.getItems().add(new SeparatorMenuItem());
+		    item=new MenuItem("Quit");
+		    item.setOnAction(AE->{stop=true;Platform.exit();});
+		    menu.getItems().add(item);
+		    menuBar.getMenus().add(menu);
+		    contentPane.setTop(menuBar);
+		    
+		    progressBar = new ProgressBar();
+			
+			
+			contentPane.setCenter(tabPane);
+			contentPane.setBottom(progressBar);
+			
+			
 			chartGenerators.removeIf(G->!G.isEnabled());
 			for(final ChartGenerator g:chartGenerators) {
 				tabPane.getTabs().add(g.makeTab());
 				}
 			final Screen scr = Screen.getPrimary();
-			Scene scene  = new Scene(tabPane,
+			Scene scene  = new Scene(
+					contentPane,
 					scr.getBounds().getWidth()-100,
 					scr.getBounds().getHeight()-100
 					);
@@ -560,7 +627,46 @@ public class VcfStatsJfx extends JfxLauncher {
 		return 0;
 		}
 	
-	private void saveImagesAs(File out) throws IOException {
+	private void doMenuSaveAllImages() {
+		final FileChooser fc = new FileChooser();
+		final File file = fc.showSaveDialog(null);
+		if(file==null) return;
+		if(!file.getName().endsWith(".zip")) {
+			  final Alert alert=new Alert(AlertType.ERROR,
+					  "output file MUST end with '.zip' but got "+file.getName());
+	          alert.showAndWait();
+	          return;
+			}
+		try {
+			saveImagesAs(file);
+			}
+    	catch (final IOException e) {
+            LOG.error(e);
+            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
+            alert.showAndWait();
+        	}
+		}
+	
+	private void doMenuSaveCurrentImage(final Tab tab) {
+		if(tab==null) return;
+		final Node content =  tab.getContent();
+	 	if(content==null) return;
+		final FileChooser fc = new FileChooser();
+		final File file = fc.showSaveDialog(null);
+    	if(file==null) return;
+    	try {
+    		final WritableImage image = content.snapshot(new SnapshotParameters(), null);
+			final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
+			ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
+        	}
+    	catch (final IOException e) {
+            LOG.error(e);
+            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
+            alert.showAndWait();
+        	}
+		}
+	
+	private void saveImagesAs(final File out) throws IOException {
 	if(out.getName().endsWith(".zip")) {
 		final FileOutputStream fout = new FileOutputStream(out);
 		final ZipOutputStream zout = new ZipOutputStream(fout);
