@@ -46,25 +46,28 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
@@ -72,6 +75,7 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.Chart;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.PieChart;
 import javafx.scene.chart.StackedBarChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
@@ -83,30 +87,48 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Label;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 /*
 BEGIN_DOC
 
+## Examples
+
+```
+ java -jar dist/vcfstatsjfx.jar input.vcf.gz
+```
+
+```
+grep -E '(^#|missense)' input.vcf | java -jar dist/vcfstatsjfx.jar --stdin 
+```
+
+
+END_DOC
 */
 @Program(name="vcfstatsjfx",
-description="GUI: VCF statitics",
+description="GUI: VCF statistics",
 keywords={"vcf","stats","jfx"}
 )
 public class VcfStatsJfx extends JfxLauncher {
 	private static final Logger LOG=Logger.build(VcfStatsJfx.class).make();
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private final ReentrantLock lock = new ReentrantLock();
-	private int refreshEverySeconds = 2;
 	private ProgressBar progressBar;
+
+	@Parameter(names={"-s","--seconds"},description="Refresh screen every 's' seconds")
+	private int refreshEverySeconds = 15;
 	@Parameter(names={"-o","--output"},description="output Directory or zip file. If defined, the application will exit automatically")
 	private File outputFile = null;
 	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
+	@Parameter(names={"--stdin"},description="if there is no file argument. Read vcf from stdin instead of opening a FileOpen dialog")
+	private boolean vcf_stdin = false;
 	
 	
 	private volatile boolean stop = false;
@@ -114,6 +136,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		{
 		Tab tab;
 		boolean enabled = true;
+		long nVariants = 0;
 		boolean isEnabled() {
 			return enabled;
 			}
@@ -229,7 +252,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			final CategoryAxis xAxis = new CategoryAxis(
 					FXCollections.observableArrayList(count.keySet())
 					);
-			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final XYChart.Series<String,Number> series1 = new XYChart.Series<>();
 			final BarChart<String,Number> bc = 
 			            new BarChart<String,Number>(xAxis,yAxis);
 			
@@ -238,15 +261,17 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(t,this.count.count(t)));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle());
+	        bc.setTitle(this.getChartTitle()+" N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
-	        xAxis.setLabel("Filter");       
+	        xAxis.setTickLabelRotation(90);
+	        xAxis.setLabel("Filters");       
 	        yAxis.setLabel("Count");
 	        return bc;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx) {
+			++nVariants;
 			if(ctx.isFiltered())
 				{
 				for(String f:ctx.getFilters()) {
@@ -294,7 +319,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(ssr.getSequenceName(),n));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle());
+	        bc.setTitle(this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Contig");       
 	        yAxis.setLabel("Count");
@@ -303,6 +328,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		
 		@Override
 		void visit(final VariantContext ctx) {
+			this.nVariants++;
 			this.count.incr(ctx.getContig());
 			}
 		}
@@ -346,15 +372,18 @@ public class VcfStatsJfx extends JfxLauncher {
 					}
 				bc.getData().add(series1);
 				}
-			
-	        bc.setTitle(this.getChartTitle());
-	        xAxis.setLabel("Sample");       
+			bc.setCategoryGap(1);
+	        bc.setTitle(this.getChartTitle()+" N. Variants "+niceIntFormat.format(nVariants));
+	        xAxis.setLabel("Sample (N="+niceIntFormat.format(this.samples.size())+")");
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
 	        yAxis.setLabel("GT");
 	        return bc;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx) {
+			nVariants++;
 			for(final String sn:this.samples)
 				{
 				this.sample2count.get(sn).incr(ctx.getGenotype(sn).getType());
@@ -395,13 +424,14 @@ public class VcfStatsJfx extends JfxLauncher {
 			bc.getData().add(series1);
 	        bc.setTitle(this.getChartTitle());
 	        bc.setLegendVisible(false);
-	        xAxis.setLabel("Num. Samples Affected.");       
+	        xAxis.setLabel("Num. Samples Affected N="+ niceIntFormat.format(nVariants));       
 	        yAxis.setLabel("Count");
 	        return bc;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx) {
+			++nVariants;
 			this.count.incr(
 				VcfStatsJfx.this.affectedTranches.getRange(
 					(int)ctx.getGenotypes().stream().
@@ -410,36 +440,195 @@ public class VcfStatsJfx extends JfxLauncher {
 				);
 			}
 		}
-
-	private class AbstractPredictionGenerator extends ChartGenerator
+	
+	private enum PredType {
+		start_lost,
+		stop_lost,
+		stop_gained,
+		missense,
+		frameshift,
+		inframe_indel,
+		protein_altering,
+		synonymous_variant,
+		coding_seqence,
+		utr,
+		coding_transcript,
+		splicing_variant,
+		exon_variant,
+		intron_variant,
+		transcript,
+		gene,
+		intergenic,
+		regulatory_region,
+		undefined
+		};
+	private final Map<SequenceOntologyTree.Term,PredType> soTerm2type = new HashMap<>();
+	
+	private class PredictionGenerator extends ChartGenerator
 		{
 		private final VcfTools tools;
 		private final String sampleName;
-		AbstractPredictionGenerator(final VCFHeader header,final String sampleName) {
-			this.tools = new VcfTools(header);
+		private PredType best=PredType.undefined;
+		private final SequenceOntologyTree tree;
+		
+		private Counter<PredType> count = new  Counter<>();
+
+		PredictionGenerator(final VcfTools tools,final String sampleName) {
+			this.tools = tools;
 			this.sampleName = sampleName;
+			this.tree = tools.getSequenceOntologyTree();
+			}
+		PredictionGenerator(final VcfTools tools) {
+			this(tools,null);
 			}
 		
 		@Override
 		String getChartTitle() {
-			return "Sample "+(this.sampleName==null?"":this.sampleName);
+			return "Predictions "+(this.sampleName==null?"":this.sampleName);
+			}
+		@Override
+		Chart makeChart() {
+			final ObservableList<PieChart.Data> pieChartData =
+                FXCollections.observableArrayList(
+                		this.count.keySet().stream().
+                			map(T-> new PieChart.Data(
+                					T.name()+" "+niceIntFormat.format(this.count.count(T)), 
+                					this.count.count(T))).
+                			collect(Collectors.toList())
+                			);
+		           
+		    final PieChart chart = new PieChart(pieChartData);
+		    chart.setTitle(getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+		    chart.setLabelLineLength(10);
+		    chart.setLabelsVisible(true);
+		    chart.setLegendSide(Side.LEFT);
+		    return chart;
+			}
+		private PredType toPredType(final SequenceOntologyTree.Term term) {
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0002012")))
+				{
+				return PredType.start_lost;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001578")))
+				{
+				return PredType.stop_lost;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001587")))
+				{
+				return PredType.stop_gained;
+				}
+			
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001583")))
+				{
+				return PredType.missense;
+				}
+			
+			
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001819")))
+				{
+				return PredType.synonymous_variant;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001589")))
+				{
+				return PredType.frameshift;
+				}			
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001820")))
+				{
+				return PredType.inframe_indel;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001818")))
+				{
+				LOG.warn("general "+term);
+				return PredType.protein_altering;
+				}
+			
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001580")))
+				{
+				LOG.warn("general "+term);
+				return PredType.coding_seqence;
+				}
+			
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001622")))
+				{
+				return PredType.utr;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001568")))
+				{
+				return PredType.splicing_variant;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001791")))
+				{
+				return PredType.exon_variant;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001627")))
+				{
+				return PredType.intron_variant;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001968")))
+				{
+				return PredType.coding_transcript;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001576")))
+				{
+				LOG.warn("general "+term);
+				return PredType.transcript;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001564")))
+				{
+				LOG.warn("general "+term);
+				return PredType.gene;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001566")))
+				{
+				return PredType.regulatory_region;
+				}
+			if(term.isChildrenOf(tree.getTermByAcn("SO:0001628")) ||
+				term.isChildrenOf(tree.getTermByAcn("SO:0000605")))
+				{
+				return PredType.intergenic;
+				}
+			
+			
+			LOG.warn("cannot decode "+term);
+			return PredType.undefined;
+			}
+		
+		private void best(SequenceOntologyTree.Term term) {
+			final PredType curr  ;
+			if(soTerm2type.containsKey(term))
+				{
+				curr = soTerm2type.get(term);
+				}
+			else
+				{
+				curr = toPredType(term);
+				soTerm2type.put(term, curr);
+				}
+			
+			if(curr.compareTo(best)<0) this.best=curr;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx)
 			{
+			this.best=PredType.undefined;
 			if(sampleName!=null) {
 				final Genotype gt = ctx.getGenotype(this.sampleName);
-				if(gt==null || !gt.isCalled() || 
+				if(gt==null || 
+						!gt.isCalled() || 
 						!gt.isAvailable() ||
 						!gt.getAlleles().stream().
-						filter(A->!A.isNoCall()).
-						anyMatch(A->A.isNonReference()))
+							filter(A->!A.isNoCall()).
+							anyMatch(A->A.isNonReference()))
 					{
 					return;
 					}
 				}
-			super.visit(ctx);
+			this.nVariants++;
+			this.tools.getAnnPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).forEach(T->best(T));
+			this.tools.getVepPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).forEach(T->best(T));
+			this.count.incr(this.best);
+			this.best=PredType.undefined;
 			}
 		}
 	
@@ -450,21 +639,18 @@ public class VcfStatsJfx extends JfxLauncher {
 		implements Runnable,Closeable
 		
 		{
-		final CloseableIterator<VariantContext> iter;
+		final VcfIterator iter;
 		final VCFHeader header;
-		long last_refresh;
-		final VCFFileReader vcfFileReader;
 		
-		VariantContextRunner(final VCFFileReader vcfFileReader)
+		VariantContextRunner(final VcfIterator vcfFileReader)
 			{
-			this.vcfFileReader = vcfFileReader;
-			this.header = vcfFileReader.getFileHeader();
-			this.iter = vcfFileReader.iterator();
+			this.iter = vcfFileReader;
+			this.header = vcfFileReader.getHeader();
 			}
 		@Override
 		protected Void call() throws Exception {
 			refreshCharts();
-			long last = System.currentTimeMillis();
+			long last = -1L;
 			
 			Platform.runLater(()->{
 				progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
@@ -484,7 +670,7 @@ public class VcfStatsJfx extends JfxLauncher {
 					lock.unlock();
 					}
 				final long now = System.currentTimeMillis();
-				if(now - last > refreshEverySeconds * 1000) {
+				if(last<0L || now - last > refreshEverySeconds * 1000) {
 					last=now;
 					refreshCharts();
 					}
@@ -498,26 +684,32 @@ public class VcfStatsJfx extends JfxLauncher {
 			
 			if(outputFile!=null)
 	        	{
-	        	Platform.runLater(()->{
-	        		 LOG.info("saving as "+outputFile);
-	        		 try
-	        		 	{
-	        			saveImagesAs(outputFile);
-	        		 	}
-	        		 catch(IOException err)
-	        		 	{
-	        			LOG.error(err);
-	        			System.exit(-1);
-	        		 	}
-	        		 Platform.exit();
-	        	 });
+	        
+				LOG.info("saving as "+outputFile);
+        		new java.util.Timer().schedule( 
+    		        new java.util.TimerTask() {
+    		            @Override
+    		            public void run() {
+    		            Platform.runLater(()->{
+		        		 try
+		        		 	{
+		        			saveImagesAs(outputFile);
+		        		 	}
+		        		 catch(IOException err)
+		        		 	{
+		        			LOG.error(err);
+		        			System.exit(-1);
+		        		 	}
+		        		 Platform.exit();
+    		            	});}
+    		            },refreshEverySeconds*1000);
+	        	 	
 	        	}
 			return null;
 			}
 		@Override
 		public void close() throws IOException {
 			CloserUtil.close(this.iter);
-			CloserUtil.close(this.vcfFileReader);
 			}
 		}
 	
@@ -541,12 +733,27 @@ public class VcfStatsJfx extends JfxLauncher {
 	protected int doWork(final Stage primaryStage, final List<String> args) {
 		
 		try {
-			if(args.size()!=1) {
-				System.err.println("VCF missing");
+			final VcfIterator vcfIterator;
+			if(args.size()==1) {
+				vcfIterator = VCFUtils.createVcfIteratorFromFile(new File(args.get(0)));
+				}
+			else if(args.isEmpty() && this.vcf_stdin)
+				{
+				vcfIterator = VCFUtils.createVcfIteratorFromInputStream(System.in);
+				}
+			else if(args.isEmpty())
+				{
+				final FileChooser fc = new FileChooser();
+				final File f = fc.showOpenDialog(null);
+				if(f==null) return -1;
+				vcfIterator = VCFUtils.createVcfIteratorFromFile(f);
+				}
+			else
+				{
+				LOG.error("illegal number of arguments.");
 				return -1;
 				}
-			final VCFFileReader vcfFileReader = new VCFFileReader(new File(args.get(0)));
-			final VCFHeader header =  vcfFileReader.getFileHeader();
+			final VCFHeader header =  vcfIterator.getHeader();
 			chartGenerators.add(new VariantTypeGenerator());
 			if(!header.getFilterLines().isEmpty())
 				{
@@ -556,17 +763,25 @@ public class VcfStatsJfx extends JfxLauncher {
 			if(dict!=null && !dict.isEmpty()) {
 				chartGenerators.add(new ContigUsageGenerator(dict));
 				}
+			final VcfTools tools = new VcfTools(header);
+			boolean hasPred = tools.getVepPredictionParser().isValid() || 
+							tools.getAnnPredictionParser().isValid();
+			
+			if(hasPred)
+				{
+				chartGenerators.add(new PredictionGenerator(tools));
+				}
 			
 			if(header.hasGenotypingData())
 				{
 				chartGenerators.add(new GenotypeTypeGenerator(header.getGenotypeSamples()));
 				chartGenerators.add(new AffectedSamplesGenerator());
 				for(final String sn:header.getSampleNamesInOrder()) {
-					
+					if(hasPred) chartGenerators.add(new PredictionGenerator(tools,sn));
 					}
 				}
 			
-			final VariantContextRunner runner = new VariantContextRunner(vcfFileReader);
+			final VariantContextRunner runner = new VariantContextRunner(vcfIterator);
 			
 			primaryStage.setOnShowing(AE->{
 				new Thread(runner).start();
@@ -596,7 +811,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			
 			
 			contentPane.setCenter(tabPane);
-			contentPane.setBottom(progressBar);
+			contentPane.setBottom(new HBox(new Label("Progress:"),this.progressBar));
 			
 			
 			chartGenerators.removeIf(G->!G.isEnabled());
@@ -604,13 +819,13 @@ public class VcfStatsJfx extends JfxLauncher {
 				tabPane.getTabs().add(g.makeTab());
 				}
 			final Screen scr = Screen.getPrimary();
-			Scene scene  = new Scene(
+			final Scene scene  = new Scene(
 					contentPane,
 					scr.getBounds().getWidth()-100,
 					scr.getBounds().getHeight()-100
 					);
 			primaryStage.setScene(scene);
-			
+			primaryStage.setTitle(getClass().getSimpleName());
 			
 	        primaryStage.show();
 			}
@@ -626,17 +841,17 @@ public class VcfStatsJfx extends JfxLauncher {
 		}
 	
 	private void doMenuSaveAllImages() {
-		final FileChooser fc = new FileChooser();
-		final File file = fc.showSaveDialog(null);
-		if(file==null) return;
-		if(!file.getName().endsWith(".zip")) {
+		final DirectoryChooser fc = new DirectoryChooser();
+		final File dir = fc.showDialog(null);
+		if(dir==null) return;
+		if(!dir.exists() || !dir.isDirectory()) {
 			  final Alert alert=new Alert(AlertType.ERROR,
-					  "output file MUST end with '.zip' but got "+file.getName());
+					  "Bad directory :"+dir);
 	          alert.showAndWait();
 	          return;
 			}
 		try {
-			saveImagesAs(file);
+			saveImagesAs(dir);
 			}
     	catch (final IOException e) {
             LOG.error(e);
@@ -654,7 +869,8 @@ public class VcfStatsJfx extends JfxLauncher {
     	if(file==null) return;
     	try {
     		final WritableImage image = content.snapshot(new SnapshotParameters(), null);
-			final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
+			
+    		final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
 			ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
         	}
     	catch (final IOException e) {
@@ -670,6 +886,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		final ZipOutputStream zout = new ZipOutputStream(fout);
 		for(final ChartGenerator  cg:this.chartGenerators) {
 			if(!cg.isEnabled()) continue;
+			LOG.info("saving "+cg.getFilename());
 			final ZipEntry zipEntry = new ZipEntry(cg.getFilename());
 			zout.putNextEntry(zipEntry);
 			cg.saveImageAs(zout);
@@ -683,7 +900,8 @@ public class VcfStatsJfx extends JfxLauncher {
 		{
 		IOUtil.assertDirectoryIsWritable(out);
 		for(final ChartGenerator  cg:this.chartGenerators) {
-		if(!cg.isEnabled()) continue;
+			if(!cg.isEnabled()) continue;
+			LOG.info("saving "+cg.getFilename());
 			cg.saveImageAs(out);
 			}
 		}

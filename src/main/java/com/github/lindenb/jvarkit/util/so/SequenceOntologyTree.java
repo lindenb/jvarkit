@@ -81,7 +81,8 @@ public class SequenceOntologyTree
 		public Set<Term> getChildren();
 		/** get ALL (recursive) children of this node */
 		public Set<Term> getAllDescendants();
-
+		/** return true if term is children of parent */
+		public boolean isChildrenOf(final Term t);
 		}
 	private class TermImpl implements Term
 		{
@@ -126,7 +127,11 @@ public class SequenceOntologyTree
 			_getAllDescendants(this,set);
 			return set;
 			}
-		
+		/** return true if term is children of parent */
+		public boolean isChildrenOf(final Term t) {
+			return _isChildrenOf(this,t);
+			}	
+
 		
 		@Override
 		public Set<Term> getParents()
@@ -157,6 +162,8 @@ public class SequenceOntologyTree
 
 		}
 	
+
+	
 	private static void _getAllDescendants(final Term term,final Set<Term> set)
 		{
 		set.add(term);
@@ -166,6 +173,16 @@ public class SequenceOntologyTree
 			}
 		}
 
+	private static boolean _isChildrenOf(final Term term,final Term parent)
+		{
+		if(parent.equals(term)) return true;
+		for(final Term c:parent.getChildren())
+			{
+			if(_isChildrenOf(term,c)) return true;
+			}
+		return false;
+		}
+	
 	/*
 	private TermImpl createTerm(final String acn,final String label)
 		{
