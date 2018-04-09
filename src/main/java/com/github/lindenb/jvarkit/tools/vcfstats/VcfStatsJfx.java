@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -57,6 +58,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
@@ -120,6 +122,7 @@ END_DOC
 */
 @Program(name="vcfstatsjfx",
 description="GUI: VCF statistics",
+biostars= {308310},
 keywords={"vcf","stats","jfx"}
 )
 public class VcfStatsJfx extends JfxLauncher {
@@ -130,13 +133,20 @@ public class VcfStatsJfx extends JfxLauncher {
 
 	@Parameter(names={"-s","--seconds"},description="Refresh screen every 's' seconds")
 	private int refreshEverySeconds = 15;
+	@Parameter(names={"--max-concordance"},description="Max number of concordance to display. disable if <=0 ")
+	private int max_condordance = 100;
 	@Parameter(names={"-o","--output"},description="output Directory or zip file. If defined, the application will exit automatically")
 	private File outputFile = null;
 	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
 	@Parameter(names={"--stdin"},description="if there is no file argument. Read vcf from stdin instead of opening a FileOpen dialog")
 	private boolean vcf_stdin = false;
-	
+	@Parameter(names={"-hr","--hr"},description="Ignore HOM_REF in genotype type.")
+	private boolean ignore_HOM_REF = false;
+	@Parameter(names={"-fgt","--fgt"},description="Ignore filtered **GENOTYPES**")
+	private boolean ignore_filtered_genotypes = false;
+	@Parameter(names={"-ncl","--norm-contig-length"},description="For the 'contig' Panel, normalize on contig length.")
+	private boolean normalize_on_contig_length = false;
 	
 	private volatile boolean stop = false;
 	private class ChartGenerator
@@ -177,6 +187,13 @@ public class VcfStatsJfx extends JfxLauncher {
 		public String getFilename() {
 			return getTabTitle().replaceAll("[^A-Za-z_0-9]+","")+".png";
 			}
+		
+		protected boolean isCalled(final Genotype g) {
+			if(g==null || !g.isCalled() || !g.isAvailable()) return false;
+			if(ignore_filtered_genotypes && g.isFiltered()) return false;
+			return g.getAlleles().stream().anyMatch(A->A.isCalled() && !A.isReference());
+			}
+		
 		protected void saveImageAs(final File dir)
 			 	throws IOException
 			 	{
@@ -238,7 +255,48 @@ public class VcfStatsJfx extends JfxLauncher {
 			this.count.incr(ctx.getType());
 			}
 		}
+	private class StructuralVariantTypeGenerator extends ChartGenerator
+		{
+		private final Counter<StructuralVariantType> count = new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "SV Type";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final NumberAxis yAxis = new NumberAxis();
 	
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(
+						Arrays.asList(StructuralVariantType.values()).
+							stream().map(I->I.name()).
+							collect(Collectors.toList()))
+					);
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final BarChart<String,Number> bc = 
+			            new BarChart<String,Number>(xAxis,yAxis);
+			
+			for(final StructuralVariantType t:StructuralVariantType.values())
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(t.name(),this.count.count(t)));
+				}
+			bc.getData().add(series1);
+	        bc.setTitle(this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
+	        bc.setLegendVisible(false);
+	        xAxis.setLabel("SV Type");       
+	        yAxis.setLabel("Count");
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			final StructuralVariantType svt=ctx.getStructuralVariantType();
+			if(svt==null) return;
+			this.count.incr(svt);
+			}
+		}
 	private class FilterUsageGenerator extends ChartGenerator
 		{
 		private final Counter<String> count = new Counter<>();
@@ -272,7 +330,7 @@ public class VcfStatsJfx extends JfxLauncher {
 	        bc.setLegendVisible(false);
 	        xAxis.setTickLabelRotation(90);
 	        xAxis.setLabel("Filters");       
-	        yAxis.setLabel("Count");
+	        yAxis.setLabel("Variant Count N="+niceIntFormat.format(nVariants));
 	        return bc;
 			}
 		
@@ -288,7 +346,6 @@ public class VcfStatsJfx extends JfxLauncher {
 			else {
 				this.count.incr(VCFConstants.PASSES_FILTERS_v4);
 				}
-			
 			}
 		}
 	
@@ -303,7 +360,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		
 		@Override
 		String getChartTitle() {
-			return "Contigs";
+			return "Contigs" +(normalize_on_contig_length?" Normalized":"");
 			}
 		
 		@Override
@@ -323,13 +380,17 @@ public class VcfStatsJfx extends JfxLauncher {
 				{
 				long n = this.count.count(ssr.getSequenceName());
 				if(n==0L) continue;
-				series1.getData().add(new XYChart.Data<String,Number>(ssr.getSequenceName(),n));
+				series1.getData().add(new XYChart.Data<String,Number>(ssr.getSequenceName(),
+						normalize_on_contig_length ?
+								1e6 * n/(double)ssr.getSequenceLength() : 
+								n
+						));
 				}
 			bc.getData().add(series1);
 	        bc.setTitle(this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Contig");       
-	        yAxis.setLabel("Count");
+	        yAxis.setLabel(normalize_on_contig_length? "Variant(s) per Mbp":"Count");
 	        return bc;
 			}
 		
@@ -337,6 +398,57 @@ public class VcfStatsJfx extends JfxLauncher {
 		void visit(final VariantContext ctx) {
 			this.nVariants++;
 			this.count.incr(ctx.getContig());
+			}
+		}
+	private class NumAltsGenerator extends ChartGenerator
+		{
+		private final Counter<Integer> count = new Counter<>();
+		NumAltsGenerator() {
+			}
+		
+		@Override
+		String getChartTitle() {
+			return "Num. ALT";
+			}
+		
+		@Override
+		Chart makeChart() {
+			if(this.count.getCountCategories()==0) return null;
+			final NumberAxis yAxis = new NumberAxis();
+			final int max_count  = count.getMostFrequent();
+			final List<String> L = new ArrayList<>(max_count+1);
+			for(int x=0;x<=max_count;++x) {
+				L.add(niceIntFormat.format(x));
+			}
+			
+			
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(L)
+					);
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final BarChart<String,Number> bc = 
+			            new BarChart<String,Number>(xAxis,yAxis);
+			
+			for(int x=0;x<=max_count;++x)
+				{
+				long n = this.count.count(x);
+				series1.getData().add(new XYChart.Data<String,Number>(
+						niceIntFormat.format(x),
+						n)
+						);
+				}
+			bc.getData().add(series1);
+	        bc.setTitle(this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+	        bc.setLegendVisible(false);
+	        xAxis.setLabel("N. ALT");       
+	        yAxis.setLabel("Count");
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			this.nVariants++;
+			this.count.incr(ctx.getAlternateAlleles().size());
 			}
 		}
 
@@ -370,6 +482,7 @@ public class VcfStatsJfx extends JfxLauncher {
 
 			for(final GenotypeType gt:GenotypeType.values())
 				{
+				if(ignore_HOM_REF && gt.equals(GenotypeType.HOM_REF)) continue;
 				final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 				series1.setName(gt.name());
 				for(final String sn:this.samples) {
@@ -393,11 +506,148 @@ public class VcfStatsJfx extends JfxLauncher {
 			nVariants++;
 			for(final String sn:this.samples)
 				{
-				this.sample2count.get(sn).incr(ctx.getGenotype(sn).getType());
+				final Genotype gt= ctx.getGenotype(sn);
+				if(gt!=null && ignore_filtered_genotypes && gt.isFiltered()) continue;
+				this.sample2count.get(sn).incr(gt.getType());
+				}
+			}
+		}
+	
+	private class GenotypesConcordanceGenerator extends ChartGenerator
+		{
+		private final Counter<String> count=new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "Genotype Condordance";
+			}
+		
+		@Override
+		Chart makeChart() {
+			if(this.count.isEmpty() || max_condordance<1) return null;
+			
+			final List<String> bestPairs = this.count.keySetDecreasing().stream().limit(max_condordance).collect(Collectors.toList());
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(bestPairs));
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			
+			final BarChart<String,Number> bc = 
+		            new BarChart<>(xAxis,yAxis);
+		
+			bc.getData().add(series1);
+			
+			for(final String sn:bestPairs)
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(
+					sn,100.0*(this.count.count(sn)/(double)nVariants)
+					));
+						
+				}
+			bc.setCategoryGap(1);
+	        bc.setTitle(
+	        		this.getChartTitle()+
+	        		" N. Variants "+niceIntFormat.format(nVariants)+
+	        		(this.count.getCountCategories()<max_condordance?"":" (Best "+niceIntFormat.format(max_condordance)+")")
+	        		)
+	        		;
+	        xAxis.setLabel("Pair");
+	        yAxis.setLabel("Percent of Variants (N.= "+niceIntFormat.format(nVariants)+")");
+	        xAxis.setTickLabelRotation(90);
+	        bc.setLegendVisible(false);
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			nVariants++;
+			for(int i=0;i+1 < ctx.getNSamples();i++)
+				{
+				final Genotype g1 = ctx.getGenotype(i);
+				if(!isCalled(g1)) continue;
+				for(int j=i+1; j < ctx.getNSamples();j++)
+					{
+					final Genotype g2 = ctx.getGenotype(j);
+					if(!isCalled(g2)) continue;
+					if(!g1.sameGenotype(g2)) continue;
+					
+					this.count.incr(g1.getSampleName()+" ~ "+g2.getSampleName());
+					}
 				}
 			}
 		}
 
+	
+	private class NumberOfNoCallGenerator extends ChartGenerator
+		{
+		private final int nSamples ;
+		private final Counter<Integer> count=new Counter<>();
+		NumberOfNoCallGenerator(int nSamples) {
+			this.nSamples = nSamples;
+		}
+		@Override
+		String getChartTitle() {
+			return "NoCalls";
+			}
+		
+		@Override
+		Chart makeChart() {
+			if(this.count.isEmpty()) return null;
+			int max_no_call = this.count.keySet().stream().mapToInt(G->G.intValue()).max().orElse(0);
+			if(max_no_call==0) return null;
+			final List<String> L = new ArrayList<>();
+			for(int x=1;x<=max_no_call;++x) {
+				if(this.count.count(x) ==0) continue;
+				L.add(niceIntFormat.format(x));
+			}
+			if(L.isEmpty()) return null;
+			
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(L));
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			
+			final BarChart<String,Number> bc = 
+		            new BarChart<>(xAxis,yAxis);
+		
+			bc.getData().add(series1);
+			
+			for(int x=1;x<=max_no_call;++x)
+				{
+				final long N=this.count.count(x);
+				if(N==0) continue;
+				series1.getData().add(new XYChart.Data<String,Number>(
+					niceIntFormat.format(x),
+					N
+					));
+						
+				}
+			bc.setCategoryGap(1);
+	        bc.setTitle(
+	        		this.getChartTitle() +
+	        		" N. Variants "+niceIntFormat.format(nVariants) +
+	        		" N. Samples "+niceIntFormat.format(nSamples)
+	        		)
+	        		;
+	        yAxis.setLabel("Number of Variants (num variants "+niceIntFormat.format(this.nVariants)+")");
+	        xAxis.setLabel("Number of  NO_CALL per genotypes (num samples "+niceIntFormat.format(this.nSamples)+")");
+	        xAxis.setTickLabelRotation(90);
+	        bc.setLegendVisible(false);
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			nVariants++;
+			final int n = (int)ctx.getGenotypes().stream().
+					filter(G->ignore_filtered_genotypes?!G.isFiltered():true).
+					filter(G->G.isNoCall()).
+					count();
+			if(n==0) return;
+			this.count.incr(n);
+			}
+		}
+
+	
+	
 	private class AffectedSamplesGenerator extends ChartGenerator
 		{
 		private final Counter<RangeOfIntegers.Range> count = new Counter<>();
@@ -410,16 +660,29 @@ public class VcfStatsJfx extends JfxLauncher {
 		@Override
 		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
+			
+			
+		
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final List<RangeOfIntegers.Range> L = new ArrayList<>( affectedTranches.getRanges());
+			while(!L.isEmpty() && this.count.count(L.get(0))==0L)
+				{
+				L.remove(0);
+				}
+			while(!L.isEmpty() && this.count.count(L.get(L.size()-1))==0L)
+				{
+				L.remove(L.size()-1);
+				}
+			if(L.isEmpty()) return null;
+			
 			final CategoryAxis xAxis = new CategoryAxis(
 					FXCollections.observableArrayList(
-							affectedTranches.getRanges().stream().
+							L.stream().
 							map(R->R.toString()).
 							collect(Collectors.toList()))
 					);
 			
-		
-			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
-			for(final RangeOfIntegers.Range range : affectedTranches.getRanges())
+			for(final RangeOfIntegers.Range range : L)
 				{
 				series1.getData().add(new XYChart.Data<String,Number>(
 						range.toString(),
@@ -429,10 +692,11 @@ public class VcfStatsJfx extends JfxLauncher {
 			final BarChart<String,Number> bc = 
 		            new BarChart<String,Number>(xAxis,yAxis);
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle());
+	        bc.setTitle(this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
-	        xAxis.setLabel("Num. Samples Affected N="+ niceIntFormat.format(nVariants));       
-	        yAxis.setLabel("Count");
+	        xAxis.setLabel("Num. Samples Affected N. variants ="+ niceIntFormat.format(nVariants));       
+	        yAxis.setLabel("Sample Count");
+	        xAxis.setTickLabelRotation(90);
 	        return bc;
 			}
 		
@@ -442,7 +706,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			this.count.incr(
 				VcfStatsJfx.this.affectedTranches.getRange(
 					(int)ctx.getGenotypes().stream().
-						filter(G->G.isCalled() && !(G.isHomRef() || G.isFiltered() )).
+						filter(G->isCalled(G)).
 						count()	)
 				);
 			}
@@ -619,18 +883,11 @@ public class VcfStatsJfx extends JfxLauncher {
 		void visit(final VariantContext ctx)
 			{
 			this.best=PredType.undefined;
-			if(sampleName!=null) {
-				final Genotype gt = ctx.getGenotype(this.sampleName);
-				if(gt==null || 
-						!gt.isCalled() || 
-						!gt.isAvailable() ||
-						!gt.getAlleles().stream().
-							filter(A->!A.isNoCall()).
-							anyMatch(A->A.isNonReference()))
-					{
-					return;
-					}
+			if(this.sampleName!=null && !isCalled(ctx.getGenotype(this.sampleName)))
+				{
+				return;
 				}
+				
 			this.nVariants++;
 			this.tools.getAnnPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).forEach(T->best(T));
 			this.tools.getVepPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).forEach(T->best(T));
@@ -647,12 +904,10 @@ public class VcfStatsJfx extends JfxLauncher {
 		
 		{
 		final VcfIterator iter;
-		final VCFHeader header;
 		
 		VariantContextRunner(final VcfIterator vcfFileReader)
 			{
 			this.iter = vcfFileReader;
-			this.header = vcfFileReader.getHeader();
 			}
 		@Override
 		protected Void call() throws Exception {
@@ -766,6 +1021,12 @@ public class VcfStatsJfx extends JfxLauncher {
 				{
 				chartGenerators.add(new FilterUsageGenerator(header.getFilterLines()));
 				}
+			chartGenerators.add(new NumAltsGenerator());
+			
+			if(header.getInfoHeaderLine(VCFConstants.SVTYPE)!=null) {
+				chartGenerators.add(new StructuralVariantTypeGenerator());
+				}
+			
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			if(dict!=null && !dict.isEmpty()) {
 				chartGenerators.add(new ContigUsageGenerator(dict));
@@ -781,8 +1042,14 @@ public class VcfStatsJfx extends JfxLauncher {
 			
 			if(header.hasGenotypingData())
 				{
+				if(max_condordance>0) {
+					chartGenerators.add(new GenotypesConcordanceGenerator());
+				}
+				
+				
 				chartGenerators.add(new GenotypeTypeGenerator(header.getGenotypeSamples()));
 				chartGenerators.add(new AffectedSamplesGenerator());
+				chartGenerators.add(new NumberOfNoCallGenerator(header.getNGenotypeSamples()));
 				for(final String sn:header.getSampleNamesInOrder()) {
 					if(hasPred) chartGenerators.add(new PredictionGenerator(tools,sn));
 					}

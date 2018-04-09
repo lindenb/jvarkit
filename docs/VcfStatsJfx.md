@@ -10,11 +10,23 @@ GUI: VCF statistics
 ```
 Usage: vcfstatsjfx [options] Files
   Options:
+    -fgt, --fgt
+      Ignore filtered **GENOTYPES**
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -hr, --hr
+      Ignore HOM_REF in genotype type.
+      Default: false
+    --max-concordance
+      Max number of concordance to display. disable if <=0
+      Default: 100
+    -ncl, --norm-contig-length
+      For the 'contig' Panel, normalize on contig length.
+      Default: false
     -o, --output
       output Directory or zip file. If defined, the application will exit 
       automatically 
@@ -40,6 +52,12 @@ Usage: vcfstatsjfx [options] Files
  * vcf
  * stats
  * jfx
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/308310](https://www.biostars.org/p/308310)
 
 
 ## Compilation
@@ -110,6 +128,13 @@ The current reference is:
 ```
 grep -E '(^#|missense)' input.vcf | java -jar dist/vcfstatsjfx.jar --stdin 
 ```
+
+## Screenshot
+
+  *  https://twitter.com/yokofakun/status/983280288238317568
+
+
+![https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4](https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4 "animation")
 
 
 

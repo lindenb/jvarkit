@@ -68,6 +68,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/304780](https://www.biostars.org/p/304780)
  * [https://www.biostars.org/p/305174](https://www.biostars.org/p/305174)
  * [https://www.biostars.org/p/305743](https://www.biostars.org/p/305743)
+ * [https://www.biostars.org/p/308310](https://www.biostars.org/p/308310)
 
 
 ## Compilation
@@ -587,5 +588,19 @@ using the edit distance 'NM'
 $ java -jar dist/bioalcidaejdk.jar -e 'stream().map(R->R.getReadUnmappedFlag()?0:(int)(100.0*(R.getReadLength()-R.getIntegerAttribute("NM"))/(double)R.getReadLength())).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->{println(K+"\t"+V);});' input.bam
 ```
 
+
+## Example
+
+sliding windows of 1000 variant, shift by 500 variants
+
+```
+java -jar bioalcidaejdk.jar -e 'String prevContig=null; Consumer<List<VariantContext>> dump = (L)->{if(L.isEmpty()) return;System.out.println(L.get(0).getContig()+"\t"+(L.get(0).getStart()-1)+"\t"+L.get(L.size()-1).getEnd());}; final List<VariantContext> buffer=new ArrayList<>();while(iter.hasNext()) {VariantContext vc=iter.next();if(!vc.getContig().equals(prevContig)) {dump.accept(buffer);buffer.clear();prevContig=vc.getContig();} buffer.add(vc);if(buffer.size()>=1000) {dump.accept(buffer);buffer.subList(0,500).clear();}} dump.accept(buffer);' in.vcf
+```
+
+## number of homozygous and heterozygous non-reference from a multi sample VCF file?
+
+```
+java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(V->V.getGenotypes().stream()).filter(G->!G.isHomRef()).map(G->G.getSampleName()+"\t"+G.getType().name()).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->println(K+"\t"+V));' src/test/resources/rotavirus_rf.vcf.gz
+```
 
 
