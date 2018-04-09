@@ -108,6 +108,13 @@ BEGIN_DOC
 grep -E '(^#|missense)' input.vcf | java -jar dist/vcfstatsjfx.jar --stdin 
 ```
 
+## Screenshot
+
+  *  https://twitter.com/yokofakun/status/983280288238317568
+
+
+![https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4](https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4 "animation")
+
 
 END_DOC
 */
