@@ -33,11 +33,13 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import javax.xml.namespace.QName;
@@ -51,6 +53,7 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -61,7 +64,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 public class SequenceOntologyTree
 	implements Iterable<SequenceOntologyTree.Term>
 	{
-
+	private static final Logger LOG = Logger.build(SequenceOntologyTree.class).make();
 	private static SequenceOntologyTree INSTANCE=null;
 	private final Map<String,TermImpl> acn2term=new HashMap<>(3000);
 	private final Map<String,TermImpl> label2term=new HashMap<>(3000);
@@ -2461,9 +2464,7 @@ public class SequenceOntologyTree
 		tree.newTerm("SO:1001287","distant_three_prime_recoding_signal","SO:1001277");
 		tree.newTerm("SO:1001288","stop_codon_signal","SO:1001268");
 		tree.newTerm("SO:2000061","databank_entry","SO:0000695");
-		tree.newTerm("SO:3000000","gene_segment","SO:0000842");
-
-		
+		tree.newTerm("SO:3000000","gene_segment","SO:0000842");		
 		
 		for(final TermImpl t:tree.acn2term.values()) {
 			if(t.label==null) throw new JvarkitException.ProgrammingError("term "+t.accession+" has no label");
@@ -2593,6 +2594,61 @@ public class SequenceOntologyTree
 	
 		}
 	
+	/** damaging comparator, try to order the term, the most damaging first */
+	public static class DamagingComparator
+		implements Comparator<Term>
+		{
+		private final Map<Term,Integer> term2score = new HashMap<>();
+		
+		private void initMap(final Term t,int score)
+			{
+			if(term2score.containsKey(Objects.requireNonNull(t, "term is  null"))) return;
+			term2score.put(t, score);
+			for(final Term c:t.getChildren()) {
+				initMap(c,score+1);
+				}
+			}
+		
+		public DamagingComparator(final SequenceOntologyTree tree) {
+			int startscore=1000;
+			initMap(tree.getTermByLabel("missense_variant"),startscore);
+			initMap(tree.getTermByLabel("nonsynonymous_variant"),startscore-=100);
+			initMap(tree.getTermByLabel("protein_altering_variant"),startscore-=100);
+			initMap(tree.getTermByLabel("coding_transcript_variant"),startscore-=100);
+			initMap(tree.getTermByLabel("transcript_variant"),startscore-=100);
+			
+			initMap(tree.getTermByLabel("gene_variant"),startscore-=100);
+			initMap(tree.getTermByLabel("regulatory_region_variant"),startscore);
+			initMap(tree.getTermByLabel("intergenic_variant"),startscore);
+			initMap(tree.getTermByLabel("intergenic_region"),startscore);
+			//
+			initMap(tree.getTermByLabel("sequence_variant"),100);
+			initMap(tree.getTermByLabel("structural_variant"),300);
+			}
+		
+		public  DamagingComparator() {
+			this(SequenceOntologyTree.getInstance());
+			}
+		protected int computeDamagingScore(final Term t) {
+			
+			LOG.warn("Cannot compute damaging score of "+t);
+			return 0;
+			}
+		/** the higher, the most precise/damaging */
+		protected int getDamagingScore(final Term t)
+			{
+			Integer score = this.term2score.get(t);
+			if(score==null) {
+				score = computeDamagingScore(t);
+				this.term2score.put(t,score);
+				}
+			return score.intValue();
+			}
+		@Override
+		public int compare(final Term o1,final Term o2) {
+			return Integer.compare(getDamagingScore(o2),getDamagingScore(o1));
+			}
+		}
 	
 	
 	}

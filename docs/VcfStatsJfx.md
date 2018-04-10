@@ -10,6 +10,10 @@ GUI: VCF statistics
 ```
 Usage: vcfstatsjfx [options] Files
   Options:
+    --altering, --damaging
+      For Prediction, just display children of SO:0001818 ( 
+      protein_altering_variant )
+      Default: false
     -fgt, --fgt
       Ignore filtered **GENOTYPES**
       Default: false
@@ -30,6 +34,9 @@ Usage: vcfstatsjfx [options] Files
     -o, --output
       output Directory or zip file. If defined, the application will exit 
       automatically 
+    --predictions-per-sample, -pps
+      Show Predictions per sample.
+      Default: false
     -s, --seconds
       Refresh screen every 's' seconds
       Default: 15
@@ -41,6 +48,10 @@ Usage: vcfstatsjfx [options] Files
       tranches for the number of affected. A 'range of integers' is a list of 
       integers in ascending order separated with semicolons.
       Default: [[-Inf/0[, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/20[, [20/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/Inf[]
+    --trancheIndelSize
+      tranches for the Indel size A 'range of integers' is a list of integers 
+      in ascending order separated with semicolons.
+      Default: [[-Inf/-1000[, [-1000/-100[, [-100/-50[, [-50/-20[, [-20/-15[, [-15/-10[, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, [10/15[, [15/20[, [20/50[, [50/100[, [100/1000[, [1000/Inf[]
     --version
       print version and exit
 

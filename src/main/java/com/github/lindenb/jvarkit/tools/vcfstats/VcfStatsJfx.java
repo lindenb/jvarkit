@@ -137,6 +137,8 @@ public class VcfStatsJfx extends JfxLauncher {
 	private int max_condordance = 100;
 	@Parameter(names={"-o","--output"},description="output Directory or zip file. If defined, the application will exit automatically")
 	private File outputFile = null;
+	@Parameter(names={"--trancheIndelSize"},description="tranches for the Indel size "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers indelTranches =new RangeOfIntegers(-1000,-100,-50,-20,-15,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,15,20,50,100,1000);
 	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
 	@Parameter(names={"--stdin"},description="if there is no file argument. Read vcf from stdin instead of opening a FileOpen dialog")
@@ -147,7 +149,11 @@ public class VcfStatsJfx extends JfxLauncher {
 	private boolean ignore_filtered_genotypes = false;
 	@Parameter(names={"-ncl","--norm-contig-length"},description="For the 'contig' Panel, normalize on contig length.")
 	private boolean normalize_on_contig_length = false;
-	
+	@Parameter(names={"--altering","--damaging"},description="For Prediction, just display children of SO:0001818 ( protein_altering_variant )")
+	private boolean only_protein_altering_variants = false;
+	@Parameter(names={"--predictions-per-sample","-pps"},description="Show Predictions per sample.")
+	private boolean enable_predictions_per_sample = false;
+
 	private volatile boolean stop = false;
 	private class ChartGenerator
 		{
@@ -297,6 +303,8 @@ public class VcfStatsJfx extends JfxLauncher {
 			this.count.incr(svt);
 			}
 		}
+	
+	
 	private class FilterUsageGenerator extends ChartGenerator
 		{
 		private final Counter<String> count = new Counter<>();
@@ -647,7 +655,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		}
 
 	
-	
+	/*****************************************************************************/
 	private class AffectedSamplesGenerator extends ChartGenerator
 		{
 		private final Counter<RangeOfIntegers.Range> count = new Counter<>();
@@ -712,42 +720,84 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		}
 	
-	private enum PredType {
-		start_lost,
-		stop_lost,
-		stop_gained,
-		missense,
-		frameshift,
-		inframe_indel,
-		protein_altering,
-		synonymous_variant,
-		coding_seqence,
-		utr,
-		coding_transcript,
-		splicing_variant,
-		exon_variant,
-		intron_variant,
-		transcript,
-		gene,
-		intergenic,
-		regulatory_region,
-		undefined
-		};
-	private final Map<SequenceOntologyTree.Term,PredType> soTerm2type = new HashMap<>();
+	
+	/*****************************************************************************/
+	private class VariantSizesGenerator extends ChartGenerator
+		{
+		private final Counter<RangeOfIntegers.Range> count = new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "Variant lengths";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final NumberAxis yAxis = new NumberAxis();		
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final List<RangeOfIntegers.Range> L = new ArrayList<>( indelTranches.getRanges());
+			while(!L.isEmpty() && this.count.count(L.get(0))==0L)
+				{
+				L.remove(0);
+				}
+			while(!L.isEmpty() && this.count.count(L.get(L.size()-1))==0L)
+				{
+				L.remove(L.size()-1);
+				}
+			if(L.isEmpty()) return null;
+			
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(
+							L.stream().
+							map(R->R.toString()).
+							collect(Collectors.toList()))
+					);
+			
+			for(final RangeOfIntegers.Range range : L)
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(
+						range.toString(),
+						this.count.count(range)
+						));
+				}
+			final BarChart<String,Number> bc = 
+		            new BarChart<String,Number>(xAxis,yAxis);
+			bc.getData().add(series1);
+	        bc.setTitle(this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
+	        bc.setLegendVisible(false);
+	        xAxis.setLabel("Variant Size.");       
+	        yAxis.setLabel("Variant Count.");
+	        xAxis.setTickLabelRotation(90);
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			++nVariants;
+			this.count.incr(
+				VcfStatsJfx.this.indelTranches.getRange(1 + ctx.getEnd()-ctx.getStart())
+				);
+			}
+		}
+
+	
 	
 	private class PredictionGenerator extends ChartGenerator
 		{
 		private final VcfTools tools;
 		private final String sampleName;
-		private PredType best=PredType.undefined;
+		private SequenceOntologyTree.Term bestTerm = null;
 		private final SequenceOntologyTree tree;
-		
-		private Counter<PredType> count = new  Counter<>();
+		private final SequenceOntologyTree.DamagingComparator damagingComparator;
+		private final SequenceOntologyTree.Term protein_altering_variant_term;
+		private Counter<SequenceOntologyTree.Term> countTerms = new  Counter<>();
 
 		PredictionGenerator(final VcfTools tools,final String sampleName) {
 			this.tools = tools;
 			this.sampleName = sampleName;
 			this.tree = tools.getSequenceOntologyTree();
+			this.damagingComparator =new SequenceOntologyTree.DamagingComparator(this.tree);
+			this.protein_altering_variant_term = this.tree.getTermByAcn("SO:0001818");
 			}
 		PredictionGenerator(final VcfTools tools) {
 			this(tools,null);
@@ -761,10 +811,10 @@ public class VcfStatsJfx extends JfxLauncher {
 		Chart makeChart() {
 			final ObservableList<PieChart.Data> pieChartData =
                 FXCollections.observableArrayList(
-                		this.count.keySet().stream().
+                		this.countTerms.keySet().stream().
                 			map(T-> new PieChart.Data(
-                					T.name()+" "+niceIntFormat.format(this.count.count(T)), 
-                					this.count.count(T))).
+                					T.getLabel()+" "+niceIntFormat.format(this.countTerms.count(T)), 
+                					this.countTerms.count(T))).
                 			collect(Collectors.toList())
                 			);
 		           
@@ -775,124 +825,36 @@ public class VcfStatsJfx extends JfxLauncher {
 		    chart.setLegendSide(Side.LEFT);
 		    return chart;
 			}
-		private PredType toPredType(final SequenceOntologyTree.Term term) {
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0002012")))
-				{
-				return PredType.start_lost;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001578")))
-				{
-				return PredType.stop_lost;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001587")))
-				{
-				return PredType.stop_gained;
-				}
-			
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001583")))
-				{
-				return PredType.missense;
-				}
-			
-			
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001819")))
-				{
-				return PredType.synonymous_variant;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001589")))
-				{
-				return PredType.frameshift;
-				}			
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001820")))
-				{
-				return PredType.inframe_indel;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001818")))
-				{
-				LOG.warn("general "+term);
-				return PredType.protein_altering;
-				}
-			
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001580")))
-				{
-				LOG.warn("general "+term);
-				return PredType.coding_seqence;
-				}
-			
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001622")))
-				{
-				return PredType.utr;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001568")))
-				{
-				return PredType.splicing_variant;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001791")))
-				{
-				return PredType.exon_variant;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001627")))
-				{
-				return PredType.intron_variant;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001968")))
-				{
-				return PredType.coding_transcript;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001576")))
-				{
-				LOG.warn("general "+term);
-				return PredType.transcript;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001564")))
-				{
-				LOG.warn("general "+term);
-				return PredType.gene;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001566")))
-				{
-				return PredType.regulatory_region;
-				}
-			if(term.isChildrenOf(tree.getTermByAcn("SO:0001628")) ||
-				term.isChildrenOf(tree.getTermByAcn("SO:0000605")))
-				{
-				return PredType.intergenic;
-				}
-			
-			
-			LOG.warn("cannot decode "+term);
-			return PredType.undefined;
-			}
 		
 		private void best(SequenceOntologyTree.Term term) {
-			final PredType curr  ;
-			if(soTerm2type.containsKey(term))
+			if(this.bestTerm==null || this.damagingComparator.compare(term, this.bestTerm)<0)
 				{
-				curr = soTerm2type.get(term);
+				if(bestTerm!=null) {
+					//System.err.println(term.getLabel()+" is better than "+bestTerm.getLabel());
 				}
-			else
-				{
-				curr = toPredType(term);
-				soTerm2type.put(term, curr);
+				this.bestTerm = term;
 				}
-			
-			if(curr.compareTo(best)<0) this.best=curr;
 			}
+		
+		private boolean accept(final SequenceOntologyTree.Term t) {
+			if(!only_protein_altering_variants) return true;
+			return t.isChildrenOf(protein_altering_variant_term);
+		}
 		
 		@Override
 		void visit(final VariantContext ctx)
 			{
-			this.best=PredType.undefined;
+			this.bestTerm = null;
 			if(this.sampleName!=null && !isCalled(ctx.getGenotype(this.sampleName)))
 				{
 				return;
 				}
-				
 			this.nVariants++;
-			this.tools.getAnnPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).forEach(T->best(T));
-			this.tools.getVepPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).forEach(T->best(T));
-			this.count.incr(this.best);
-			this.best=PredType.undefined;
+			this.tools.getAnnPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).filter(T->accept(T)).forEach(T->best(T));
+			this.tools.getVepPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).filter(T->accept(T)).forEach(T->best(T));
+			if(this.bestTerm==null) return;
+			this.countTerms.incr(this.bestTerm);
+			this.bestTerm=null;
 			}
 		}
 	
@@ -946,7 +908,6 @@ public class VcfStatsJfx extends JfxLauncher {
 			
 			if(outputFile!=null)
 	        	{
-	        
 				LOG.info("saving as "+outputFile);
         		new java.util.Timer().schedule( 
     		        new java.util.TimerTask() {
@@ -1022,6 +983,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				chartGenerators.add(new FilterUsageGenerator(header.getFilterLines()));
 				}
 			chartGenerators.add(new NumAltsGenerator());
+			chartGenerators.add(new VariantSizesGenerator());
 			
 			if(header.getInfoHeaderLine(VCFConstants.SVTYPE)!=null) {
 				chartGenerators.add(new StructuralVariantTypeGenerator());
@@ -1050,8 +1012,12 @@ public class VcfStatsJfx extends JfxLauncher {
 				chartGenerators.add(new GenotypeTypeGenerator(header.getGenotypeSamples()));
 				chartGenerators.add(new AffectedSamplesGenerator());
 				chartGenerators.add(new NumberOfNoCallGenerator(header.getNGenotypeSamples()));
+				
+				
 				for(final String sn:header.getSampleNamesInOrder()) {
-					if(hasPred) chartGenerators.add(new PredictionGenerator(tools,sn));
+					if(hasPred && this.enable_predictions_per_sample ) {
+						this.chartGenerators.add(new PredictionGenerator(tools,sn));
+						}
 					}
 				}
 			

@@ -1,10 +1,14 @@
 package com.github.lindenb.jvarkit.tools.gvcf;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -14,9 +18,12 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -48,162 +55,211 @@ public class FastGenotypeGVCFs extends Launcher {
 
 	
 	
-	private final List<Source> gvcfSources = new ArrayList<>();
-	private final static Allele NON_REF = Allele.create("<NON_REF>", false);
+	private class GVCFVariantIterator
+		implements Closeable
+		{
+		private final File gvcfFile;
+		private final VCFFileReader vcfFileReader;
+		private final CloseableIterator<VariantContext> iter;
+		private final List<VariantContext> buffer = new ArrayList<>();
+		private final List<String> samples;
+		GVCFVariantIterator(final File vcf) {
+			this.gvcfFile = vcf;
+			this.vcfFileReader = new VCFFileReader(vcf,false);
+			this.iter = this.vcfFileReader.iterator();
+			this.samples = this.vcfFileReader.getFileHeader().getSampleNamesInOrder();
+			}
+		
+		String getSource() {
+			return this.gvcfFile.getPath();
+		}
+		
+		@Override
+		public void close() {
+			CloserUtil.close(this.iter);
+			CloserUtil.close(this.vcfFileReader);
+			}
+		
+		private VariantContext cleanup(final VariantContext ctx) {
+			return ctx;
+			}
+		
+		private boolean isVariant(final VariantContext ctx) {
+			if(ctx.getNAlleles()==2 && ctx.getAlleles().get(1).equals(Allele.NON_REF_ALLELE)) return false;
+			return true;
+			}
+		
+		ContigPosRef lookup() {
+			for(int i=0;i< this.buffer.size();++i)
+				{
+				final VariantContext vc = this.buffer.get(i);
+				if(!isVariant(vc)) continue;
+				return new ContigPosRef(vc);
+				}
+			while(this.iter.hasNext())
+				{
+				final VariantContext vc =  this.iter.next();
+				this.buffer.add(cleanup(vc));
+				if(isVariant(vc)) return new ContigPosRef(vc);
+				}
+			return null;
+			}
+		
+		private VariantContext makeNoCall(final ContigPosRef lookedUp) {
+			final VariantContextBuilder vcb = new VariantContextBuilder(
+					getSource(),
+					lookedUp.getContig(), 
+					lookedUp.getStart(),
+					lookedUp.getEnd(), 
+					Collections.singletonList(lookedUp.getReference())
+					);
+			vcb.genotypes(this.samples.stream().
+				map(S->GenotypeBuilder.createMissing(S, 2)).
+				collect(Collectors.toList()));
+			return vcb.make();
+			}
+		
+		
+		VariantContext next(final ContigPosRef lookedUp) {
+			int i=0;
+			while(i< buffer.size())
+				{
+				final VariantContext vc = this.buffer.get(i);
+				int diff = FastGenotypeGVCFs.this.contigComparator.compare(vc.getContig(), lookedUp.getContig());
+				if(diff < 0) {
+					//LOG.debug("remove "+vc+" for "+lookedUp);
+					this.buffer.remove(i);
+					continue;
+					}
+				else if(diff>0)
+					{
+					//LOG.debug("return nocall for "+lookedUp);
+					return makeNoCall(lookedUp);
+					}
+				
+				if(vc.getEnd()<lookedUp.getStart())
+					{
+					//LOG.debug("remove2 "+vc+" for "+lookedUp);
+					this.buffer.remove(i);
+					continue;
+					}
+				
+				if(!isVariant(vc)) {
+					if(vc.getStart()>lookedUp.getEnd())
+						{
+						//LOG.debug("return2 nocall for "+lookedUp);
+						return makeNoCall(lookedUp);
+						}
+					if(vc.getStart()<=lookedUp.getPos() &&
+						lookedUp.getPos() <= vc.getEnd())
+						{
+						//LOG.debug("return overlapping:\t "+vc+"\n\t(NOT_VARIANT) for "+lookedUp);
+						final VariantContextBuilder vcb = new VariantContextBuilder(
+								getSource(),
+								lookedUp.getContig(), 
+								lookedUp.getStart(),
+								lookedUp.getEnd(), 
+								Collections.singletonList(lookedUp.getReference())
+								);
+						final List<Genotype> genotypes= new ArrayList<>(this.samples.size());
+						for(final Genotype gt:vc.getGenotypes())
+							{
+							final GenotypeBuilder gb=new GenotypeBuilder(gt.getSampleName(),
+									gt.getAlleles().stream().map(A->A.isReference()?lookedUp.getReference():A).collect(Collectors.toList())
+									);
+							if(gt.hasAD()) gb.AD(gt.getAD());
+							if(gt.hasDP()) gb.DP(gt.getDP());
+							if(gt.hasGQ()) gb.GQ(gt.getGQ());
+							if(gt.hasPL()) gb.PL(gt.getPL());
+							genotypes.add(gb.make());
+							}
+						
+						vcb.genotypes(genotypes);
+						return vcb.make();
+						}
+					else
+						{
+						//LOG.warn("unknown case :"+lookedUp+" "+vc);
+						return makeNoCall(lookedUp);
+						}
+					}
+				else
+					{					
+					if(vc.getStart()>lookedUp.getEnd())
+						{
+						//LOG.debug("return3 nocall "+vc+" for "+lookedUp);
+						return makeNoCall(lookedUp);
+						}
+					if(!vc.getReference().equals(lookedUp.getReference()))
+						{
+						//LOG.debug("skip "+vc+" for "+lookedUp);
+						i++;
+						continue;
+						}
+					if(vc.getStart()!=lookedUp.getPos())
+						{	
+						//LOG.warn("boom :"+lookedUp+" "+vc);
+						return makeNoCall(lookedUp);
+						}
+					//LOG.debug("ok "+vc+" for "+lookedUp);
+					if(vc.getGenotypes().stream().anyMatch(G->G.getAlleles().contains(Allele.NON_REF_ALLELE))) {
+						throw new RuntimeException("Boum "+vc+" "+lookedUp+" "+getSource());
+						}
+					
+					final VariantContextBuilder vcb = new VariantContextBuilder(vc);
+					vcb.alleles(vc.getAlleles().
+							stream().
+							filter(A->!A.equals(Allele.NON_REF_ALLELE)).
+							collect(Collectors.toList())
+							);
+					this.buffer.remove(i);
+					return vcb.make();
+					}
+				}
+			return makeNoCall(lookedUp);
+			}
+		}
+	
+	
 	private SAMSequenceDictionary dictionary =null;
 	
-	private final Function<String,Integer> contig2tid = S -> {
-		final int tid1 = dictionary.getSequenceIndex(S);
-		if(tid1==-1) throw new IllegalStateException();
-		return tid1;
-		};
-	private final Comparator<String> contigComparator = (S1,S2) ->{
-		return contig2tid.apply(S1) - contig2tid.apply(S2);
-		};
+	private Comparator<String> contigComparator = null;
 	
-	private final Comparator<VariantContext> variantContigPosRefComparator = (S1,S2) ->{
+	private final Comparator<ContigPosRef> contigPosRefComparator = (S1,S2) ->{
 		int i= 	contigComparator.compare(S1.getContig(), S2.getContig());
 		if(i!=0) return i;
-		i = S1.getStart() - S2.getStart();
+		i = Integer.compare(S1.getPos(), S2.getPos());
 		if(i!=0) return i;
 		return S1.getReference().compareTo(S2.getReference());
 		};
 
 		
-	private abstract class GvcfThing implements Locatable
-		{
-		final VariantContext ctx;
-		GvcfThing(final VariantContext ctx) {
-			this.ctx = ctx;
-			}
-		public int getTid() {
-			return contig2tid.apply(this.getContig());
-			}
-		@Override
-		public String getContig() {
-			return ctx.getContig();
-			}
-		@Override
-		public int getStart() {
-			return ctx.getStart();
-			}
-		public abstract boolean isVariant();
-		public final boolean isBlock() { return !isVariant();}
-		@Override
-		public String toString() {
-			return ctx.getContig()+":"+ctx.getStart()+"-"+ctx.getEnd()+":"+ctx.getAlleles().stream().map(A->A.toString()).collect(Collectors.joining("/"));
-			}
-		}
-	private  class GvcfVariant extends GvcfThing
-		{
-		GvcfVariant(final VariantContext ctx) {
-			super(ctx);
-			}
-		@Override
-		public boolean isVariant() {
-			return true;
-			}
-		@Override
-		public int getEnd() {
-			return ctx.getEnd();
-			}
-		}
-	private  class GvcfBlock extends GvcfThing
-		{
-		GvcfBlock(final VariantContext ctx) {
-			super(ctx);
-			}
-		
-		@Override
-		public int getEnd() {
-			if(!ctx.hasAttribute("END")) throw new IllegalStateException("No \"END=\" in "+ctx);
-			int end= ctx.getAttributeAsInt("END", -1);
-			if(end<this.getStart())  throw new IllegalStateException("\"END=\""+end+"<=start in "+ctx);
-			return end;
-			}
-		@Override
-		public boolean isVariant() {
-			return false;
-			}
-		}
-	private  class Source
-		{
-		final File gvcfFile;
-		private VCFFileReader vcfFileReader=null;
-		private CloseableIterator<VariantContext> iter=null;
-		private GvcfThing current=null;
-		private String sampleName=null;
-		Source(final File gvcfFile) {
-			this.gvcfFile = gvcfFile;
-			}
-		void open()
-			{	
-			this.vcfFileReader = new VCFFileReader(this.gvcfFile, false);
-			this.iter = vcfFileReader.iterator();
-			final List<String> samples = vcfFileReader.getFileHeader().getSampleNamesInOrder();
-			if(samples.size()!=1) {
-				throw new IllegalArgumentException("Expected "+this.gvcfFile+" to contain only one sample but got "+samples);
-				
-				}
-			this.sampleName=samples.get(0);
-			}
-		
-		GvcfThing get()
-			{
-			if(this.current!=null) return this.current;
-			if(!this.iter.hasNext()) return null;
-			final VariantContext ctx= this.iter.next();
-			final List<Allele> altAlleles = ctx.getAlternateAlleles();
-			if(altAlleles.size()==1 && altAlleles.get(0).equals(NON_REF))
-				{
-				this.current = new GvcfBlock(ctx);
-				}
-			else
-				{
-				this.current = new GvcfVariant(ctx);
-				if(this.current.ctx.getGenotype(0).getAlleles().contains(NON_REF)){
-					LOG.warn("Ignoring variant "+ctx+" because a genotype is "+NON_REF+" (bug?)");
-					this.current=null;
-					return get();
-					}
-				}
-			
-			return this.current;
-			}
-		
-		void close() {
-			if(this.vcfFileReader!=null) {
-				this.vcfFileReader.close();
-				CloserUtil.close(this.iter);
-				this.iter=null;
-				this.vcfFileReader=null;
-				}
-			}
-		
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		VariantContextWriter w=null;
+		
 		try {
-			this.gvcfSources.addAll(IOUtil.unrollFiles(args.stream().map(S->new File(S)).collect(Collectors.toSet()),
-					".g.vcf",".g.vcf.gz"
-					).stream().map(F->new Source(F)).collect(Collectors.toList()));
+			final List<GVCFVariantIterator> gvcfSources =  
+					IOUtil.unrollFiles(args.stream().map(F->new File(F)).collect(Collectors.toSet()),".g.vcf",".g.vcf.gz" ).
+					stream().
+					map(F->new GVCFVariantIterator(F)).
+					collect(Collectors.toList())
+					;
 			if(args.isEmpty())
 				{
 				LOG.error("No gvcf file was given");
 				return -1;
 				}
-			this.gvcfSources.stream().forEach(S->S.open());
-			this.dictionary  = this.gvcfSources.get(0).vcfFileReader.getFileHeader().getSequenceDictionary();
+			this.dictionary  = gvcfSources.get(0).vcfFileReader.getFileHeader().getSequenceDictionary();
 			if(this.dictionary==null)
 				{
-				LOG.error("Dict missing in "+this.gvcfSources.get(0).gvcfFile);
+				LOG.error("Dict missing in "+gvcfSources.get(0).gvcfFile);
 				return -1;
 				}
-		
+			this.contigComparator = new ContigDictComparator(this.dictionary);
 			
-			this.gvcfSources.stream().map(S->S.vcfFileReader.getFileHeader().getSequenceDictionary()).forEach(D->{
+			gvcfSources.stream().map(S->S.vcfFileReader.getFileHeader().getSequenceDictionary()).forEach(D->{
 				if(D==null || !SequenceUtil.areSequenceDictionariesEqual(D, dictionary))
 					{
 					throw new JvarkitException.UserError("dict missing or dict are not the same");
@@ -211,7 +267,10 @@ public class FastGenotypeGVCFs extends Launcher {
 				});
 			
 			
-			if(	gvcfSources.stream().map(S->S.sampleName).collect(Collectors.toSet()).stream().count() != this.gvcfSources.size())
+			if(	gvcfSources.stream().
+					flatMap(S->S.samples.stream()).
+					collect(Collectors.groupingBy(Function.identity(),Collectors.counting())).
+					entrySet().stream().anyMatch(P->P.getValue()!=1L))
 				{
 				LOG.error("Duplicate sample name. check input");
 				return -1;
@@ -229,151 +288,54 @@ public class FastGenotypeGVCFs extends Launcher {
 			
 			final VCFHeader header= new VCFHeader(
 					metaData, 
-					gvcfSources.stream().map(S->S.sampleName).collect(Collectors.toList())
+					gvcfSources.stream().flatMap(S->S.samples.stream()).
+					collect(Collectors.toList())
 					);
 			
 			w= super.openVariantContextWriter(outputFile);
 			w.writeHeader(header);
 			
-			
-			int contigTid=0;
-			while(contigTid< dictionary.size())
+			for(;;)
 				{
-				final SAMSequenceRecord ssr = this.dictionary.getSequence(contigTid);
-				int pos=0;
-				while(pos< ssr.getSequenceLength())
+				String id = null;
+				ContigPosRef next = null;
+				for(GVCFVariantIterator it:gvcfSources)
 					{
-					//LOG.debug(ssr.getSequenceName()+" "+pos+" "+this.gvcfSources.size());
-					GvcfVariant variantAtThisPos = null;
-					int minEnd=ssr.getSequenceLength();
-					//cleanup
-					for(final Source src:this.gvcfSources)
+					ContigPosRef cpr = it.lookup();
+					if(cpr==null) continue;
+					if(next==null || contigPosRefComparator.compare(cpr, next)<0)
 						{
-						for(;;) {
-							final GvcfThing gvcfthing = src.get();
-							// LOG.debug(""+gvcfthing+" "+src.sampleName+" "+ssr.getSequenceName()+":"+pos);
-							if(gvcfthing==null)
-								{
-								//no more variant avaialble
-								break;
-								}
-							else if(contigTid> gvcfthing.getTid()) {
-								//observed contig is after gvcfthing.contig
-								src.current=null;
-								continue;
-								}
-							else if(contigTid< gvcfthing.getTid()) {
-								//observed contig is before gvcfthing.contig
-								break;
-								}
-							else if( gvcfthing.getEnd() < pos) {
-								// variant information is before observed pos
-								src.current=null;
-								continue;
-								}
-							else if( gvcfthing.getStart() > pos) {
-								// variant information is after observed pos
-								minEnd=Math.min(minEnd, gvcfthing.getStart()-1);
-								break;
-								}
-							else if(gvcfthing.isVariant())
-								{
-								if(variantAtThisPos==null || 
-									variantContigPosRefComparator.compare(GvcfVariant.class.cast(gvcfthing).ctx, variantAtThisPos.ctx)<0)
-									{
-									variantAtThisPos = GvcfVariant.class.cast(gvcfthing);
-									}
-								break;
-								}
-							else if(gvcfthing.isBlock())
-								{
-								minEnd=Math.min(minEnd, gvcfthing.getEnd());
-								break;
-								}
-							else
-								{
-								LOG.debug("??");
-								}
-							}
+						next = cpr;
 						}
-					
-					if(variantAtThisPos==null)
-						{
-						pos = minEnd +1;
-						}
-					else
-						{
-						final VariantContext archetype = variantAtThisPos.ctx;
-						final List<VariantContext> allVariants =
-								this.gvcfSources.stream().map(S->S.get()).
-								filter(G->G!=null && G.isVariant()).
-								map(G->GvcfVariant.class.cast(G).ctx).
-								filter(V->variantContigPosRefComparator.compare(V, archetype)==0).
-								collect(Collectors.toList());
-								;
-						final Set<Allele> alleles = allVariants.stream().
-								flatMap(V->V.getGenotypes().stream()).
-								flatMap(G->G.getAlleles().stream()).
-								filter(A->!(A.equals(NON_REF) || A.isNoCall())).
-								collect(Collectors.toSet());
-						
-						alleles.add(archetype.getReference());
-						
-						
-						final VariantContextBuilder vcb=new VariantContextBuilder(
-								getClass().getName(),
-								archetype.getContig(), 
-								archetype.getStart(),
-								archetype.getEnd(),
-								alleles
-								);
-						
-						if(archetype.hasID())
-							{
-							vcb.id(archetype.getID());
-							}
-						final List<Genotype> genotypes = new ArrayList<>(allVariants.size());
-						for(VariantContext ctx: allVariants)
-							{
-							Genotype genotype = ctx.getGenotype(0);
-							GenotypeBuilder gb = new GenotypeBuilder(genotype);
-							genotypes.add(gb.make());
-							}
-						vcb.genotypes(genotypes);
-						
-						final VariantContext genotypedVariant ;
-						
-						try {
-						genotypedVariant= vcb.make();
-						
-						} catch(Exception err2)
-							{
-							LOG.debug(allVariants);
-							LOG.error(err2);
-							return -1;
-							}
-						w.add(genotypedVariant);
-						
-
-						// reset source for the current variant
-						for(final Source src:this.gvcfSources)
-							{
-							if(src.current!=null && 
-								variantContigPosRefComparator.compare(src.current.ctx,archetype)==0)
-								{
-								src.current=null;
-								}
-							}
-						}
-					
 					}
-				++contigTid;
+				if(next==null) break;
+				final Set<Allele> alleles = new HashSet<>();
+				final List<Genotype> genotypes = new ArrayList<>();
+				
+				for(final GVCFVariantIterator it:gvcfSources)
+					{
+					final VariantContext vc = it.next(next);
+					if(vc.hasID()) id=vc.getID();
+					Objects.requireNonNull(vc, "vc is null");
+					alleles.addAll(vc.getAlleles());
+					genotypes.addAll(vc.getGenotypes());
+					}
+				
+				final VariantContextBuilder vcb = new VariantContextBuilder(
+						null,
+						next.getContig(), 
+						next.getStart(),
+						next.getEnd(), 
+						alleles
+						);
+				if(id!=null) vcb.id(id);
+				vcb.genotypes(genotypes);
+				w.add(vcb.make());
 				}
 			
-			w.close();w=null;
 			
-			this.gvcfSources.stream().forEach(S->S.close());
-			this.gvcfSources.clear();
+			
+			for(final GVCFVariantIterator src:gvcfSources) src.close();
 			return 0;
 			}
 		catch(Exception err)
@@ -383,7 +345,7 @@ public class FastGenotypeGVCFs extends Launcher {
 			}	
 		finally
 			{
-			for(final Source src:this.gvcfSources) src.close();
+			
 			CloserUtil.close(w);
 			}
 		}
