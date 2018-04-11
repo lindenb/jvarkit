@@ -1,8 +1,29 @@
+/*
+The MIT License (MIT)
+Copyright (c) 2018 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 package com.github.lindenb.jvarkit.tools.gvcf;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -15,21 +36,18 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -39,14 +57,15 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 
-@Program(name="fastgenotypegvcfs",description="Fast Genotype Gvcfs",generate_doc=false)
+@Program(name="fastgenotypegvcfs",
+	description="Fast Genotype Gvcfs",
+	generate_doc=false
+	)
 public class FastGenotypeGVCFs extends Launcher {
 	
 	private static final Logger LOG = Logger.build(FastGenotypeGVCFs.class).make();
@@ -164,7 +183,8 @@ public class FastGenotypeGVCFs extends Launcher {
 						final List<Genotype> genotypes= new ArrayList<>(this.samples.size());
 						for(final Genotype gt:vc.getGenotypes())
 							{
-							final GenotypeBuilder gb=new GenotypeBuilder(gt.getSampleName(),
+							
+							final GenotypeBuilder gb = new GenotypeBuilder(gt.getSampleName(),
 									gt.getAlleles().stream().map(A->A.isReference()?lookedUp.getReference():A).collect(Collectors.toList())
 									);
 							if(gt.hasAD()) gb.AD(gt.getAD());
@@ -201,10 +221,10 @@ public class FastGenotypeGVCFs extends Launcher {
 						//LOG.warn("boom :"+lookedUp+" "+vc);
 						return makeNoCall(lookedUp);
 						}
-					//LOG.debug("ok "+vc+" for "+lookedUp);
-					if(vc.getGenotypes().stream().anyMatch(G->G.getAlleles().contains(Allele.NON_REF_ALLELE))) {
+					//https://gatkforums.broadinstitute.org/gatk/discussion/4216/non-ref-in-gvcf
+					/* if(vc.getGenotypes().stream().anyMatch(G->G.getAlleles().contains(Allele.NON_REF_ALLELE))) {
 						throw new RuntimeException("Boum "+vc+" "+lookedUp+" "+getSource());
-						}
+						}*/
 					
 					final VariantContextBuilder vcb = new VariantContextBuilder(vc);
 					vcb.alleles(vc.getAlleles().
@@ -212,6 +232,14 @@ public class FastGenotypeGVCFs extends Launcher {
 							filter(A->!A.equals(Allele.NON_REF_ALLELE)).
 							collect(Collectors.toList())
 							);
+					vcb.genotypes(
+							vc.getGenotypes().stream().
+							map(G->G.getAlleles().contains(Allele.NON_REF_ALLELE)?
+									GenotypeBuilder.createMissing(G.getSampleName(),2):
+									G).
+							collect(Collectors.toList())
+							)
+							;
 					this.buffer.remove(i);
 					return vcb.make();
 					}
@@ -289,8 +317,11 @@ public class FastGenotypeGVCFs extends Launcher {
 			final VCFHeader header= new VCFHeader(
 					metaData, 
 					gvcfSources.stream().flatMap(S->S.samples.stream()).
+					sorted(new SmartComparator()).
 					collect(Collectors.toList())
 					);
+			final VariantAttributesRecalculator attCalc = new VariantAttributesRecalculator();
+			attCalc.setHeader(header);
 			
 			w= super.openVariantContextWriter(outputFile);
 			w.writeHeader(header);
@@ -311,15 +342,22 @@ public class FastGenotypeGVCFs extends Launcher {
 				if(next==null) break;
 				final Set<Allele> alleles = new HashSet<>();
 				final List<Genotype> genotypes = new ArrayList<>();
-				
+				alleles.add(next.getReference());
 				for(final GVCFVariantIterator it:gvcfSources)
 					{
 					final VariantContext vc = it.next(next);
 					if(vc.hasID()) id=vc.getID();
 					Objects.requireNonNull(vc, "vc is null");
-					alleles.addAll(vc.getAlleles());
+					alleles.addAll(
+							vc.getGenotypes().
+								stream().
+								flatMap(G->G.getAlleles().stream()).
+								filter(A->A.isCalled()).
+								collect(Collectors.toSet())
+								);
 					genotypes.addAll(vc.getGenotypes());
 					}
+				if(alleles.size()<2) continue;
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder(
 						null,
@@ -330,7 +368,7 @@ public class FastGenotypeGVCFs extends Launcher {
 						);
 				if(id!=null) vcb.id(id);
 				vcb.genotypes(genotypes);
-				w.add(vcb.make());
+				w.add(attCalc.apply(vcb.make()));
 				}
 			
 			

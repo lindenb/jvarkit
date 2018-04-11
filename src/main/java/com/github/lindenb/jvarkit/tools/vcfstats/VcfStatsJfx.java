@@ -66,7 +66,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
@@ -77,7 +76,6 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.Chart;
 import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.PieChart;
 import javafx.scene.chart.StackedBarChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
@@ -460,6 +458,70 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		}
 
+	private class AverageDepthGenerator extends ChartGenerator
+		{
+		private class Depth{long sum=0L;long count=0L;
+		double avg() { return count==0L?0.0:sum/(double)count;}
+		}
+		private final Map<String,Depth> sampledp;
+		AverageDepthGenerator(final List<String> samples) {
+			this.sampledp = new HashMap<>(samples.size());
+			for(final String s:samples)
+				{
+				this.sampledp.put(s, new Depth());
+				}
+			}
+		@Override
+		String getChartTitle() {
+			return "DP/Sample";
+			}
+		@Override
+		Chart makeChart() {
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final List<String> categories = new ArrayList<>(this.sampledp.size());
+			for(final String sn: this.sampledp.keySet().
+					stream().
+					sorted((A,B)->Double.compare(sampledp.get(A).avg(),sampledp.get(B).avg())).
+					collect(Collectors.toList())
+					)
+				{
+				final Depth dp = this.sampledp.get(sn);
+				final String key = sn+" "+niceIntFormat.format(dp.count);
+				categories.add(key);
+				series1.getData().add(new XYChart.Data<String,Number>(
+						key,
+						dp.avg()
+						));
+				}
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(categories));
+			final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
+
+			bc.getData().add(series1);
+			bc.setCategoryGap(1);
+	        bc.setTitle(getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+		    bc.setLegendVisible(false);
+		    bc.setVerticalGridLinesVisible(false);
+	        xAxis.setLabel("Sample N="+niceIntFormat.format(this.sampledp.size()));
+	        yAxis.setLabel("Average Depth");
+	        xAxis.setTickLabelRotation(90);
+		    return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			nVariants++;
+			for(final Genotype gt:ctx.getGenotypes())
+				{
+				if(!gt.hasDP()) continue;
+				final Depth dp=this.sampledp.get(gt.getSampleName());
+				dp.count++;
+				dp.sum+=gt.getDP();
+				}
+			}
+
+		}
+	
 	private class GenotypeTypeGenerator extends ChartGenerator
 		{
 		private final Map<String,Counter<GenotypeType>> sample2count;
@@ -659,7 +721,10 @@ public class VcfStatsJfx extends JfxLauncher {
 	private class AffectedSamplesGenerator extends ChartGenerator
 		{
 		private final Counter<RangeOfIntegers.Range> count = new Counter<>();
-		
+		private final int nSamples;
+		AffectedSamplesGenerator(final int nSamples) {
+			this.nSamples = nSamples;
+			}
 		@Override
 		String getChartTitle() {
 			return "Sample Affected";
@@ -702,8 +767,8 @@ public class VcfStatsJfx extends JfxLauncher {
 			bc.getData().add(series1);
 	        bc.setTitle(this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
-	        xAxis.setLabel("Num. Samples Affected N. variants ="+ niceIntFormat.format(nVariants));       
-	        yAxis.setLabel("Sample Count");
+	        xAxis.setLabel("Num. Samples Affected N. samples ="+ niceIntFormat.format(nSamples));       
+	        yAxis.setLabel("Variant Count N="+ niceIntFormat.format(nVariants));
 	        xAxis.setTickLabelRotation(90);
 	        return bc;
 			}
@@ -809,21 +874,31 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		@Override
 		Chart makeChart() {
-			final ObservableList<PieChart.Data> pieChartData =
-                FXCollections.observableArrayList(
-                		this.countTerms.keySet().stream().
-                			map(T-> new PieChart.Data(
-                					T.getLabel()+" "+niceIntFormat.format(this.countTerms.count(T)), 
-                					this.countTerms.count(T))).
-                			collect(Collectors.toList())
-                			);
-		           
-		    final PieChart chart = new PieChart(pieChartData);
-		    chart.setTitle(getChartTitle()+ " N="+niceIntFormat.format(nVariants));
-		    chart.setLabelLineLength(10);
-		    chart.setLabelsVisible(true);
-		    chart.setLegendSide(Side.LEFT);
-		    return chart;
+			if(this.countTerms.isEmpty()) return null;
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			
+			
+			for(final SequenceOntologyTree.Term t: this.countTerms.keySetDecreasing())
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(
+						t.getLabel(),
+						this.countTerms.count(t)
+						));
+						
+				}
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(FXCollections.observableArrayList(this.countTerms.keySet().stream().map(T->T.getLabel()).collect(Collectors.toList()))));
+			final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
+
+			bc.getData().add(series1);
+			bc.setCategoryGap(1);
+	        bc.setTitle(getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+		    bc.setLegendVisible(false);
+	        
+	        xAxis.setLabel("SOTerm");
+	        yAxis.setLabel("Number of Variants (N.= "+niceIntFormat.format(nVariants)+")");
+	        xAxis.setTickLabelRotation(90);
+		    return bc;
 			}
 		
 		private void best(SequenceOntologyTree.Term term) {
@@ -1010,9 +1085,12 @@ public class VcfStatsJfx extends JfxLauncher {
 				
 				
 				chartGenerators.add(new GenotypeTypeGenerator(header.getGenotypeSamples()));
-				chartGenerators.add(new AffectedSamplesGenerator());
+				chartGenerators.add(new AffectedSamplesGenerator(header.getNGenotypeSamples()));
 				chartGenerators.add(new NumberOfNoCallGenerator(header.getNGenotypeSamples()));
 				
+				if(header.getFormatHeaderLine(VCFConstants.DEPTH_KEY)!=null) {
+				chartGenerators.add(new AverageDepthGenerator(header.getGenotypeSamples()));
+				}
 				
 				for(final String sn:header.getSampleNamesInOrder()) {
 					if(hasPred && this.enable_predictions_per_sample ) {
@@ -1034,7 +1112,12 @@ public class VcfStatsJfx extends JfxLauncher {
 			final TabPane tabPane = new TabPane();
 			final MenuBar menuBar = new MenuBar();
 		    Menu menu = new Menu("File");
-		    MenuItem item=new MenuItem("Save Current image as...");
+		    MenuItem item;
+		    item=new MenuItem("About...");
+		    item.setOnAction(AE->doMenuAbout(AE));
+		    menu.getItems().add(item);
+		    menu.getItems().add(new SeparatorMenuItem());
+		    item=new MenuItem("Save Current image as...");
 		    item.setOnAction(AE->{doMenuSaveCurrentImage(tabPane.getSelectionModel().getSelectedItem());});
 		    menu.getItems().add(item);
 		    item=new MenuItem("Save All images as...");
