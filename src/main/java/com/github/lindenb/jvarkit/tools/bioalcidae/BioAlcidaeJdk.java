@@ -547,6 +547,33 @@ java -jar bioalcidaejdk.jar -e 'String prevContig=null; Consumer<List<VariantCon
 java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(V->V.getGenotypes().stream()).filter(G->!G.isHomRef()).map(G->G.getSampleName()+"\t"+G.getType().name()).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->println(K+"\t"+V));' src/test/resources/rotavirus_rf.vcf.gz
 ```
 
+## Counting soft clipped bases and reads
+
+```java
+final long counts[]=new long[4];
+stream().forEach(R->{
+	counts[0]++;
+	if(R.getReadUnmappedFlag()) return;
+	Cigar cigar = R.getCigar();
+	if(cigar==null || cigar.isEmpty()) return;
+	counts[1]++;
+	counts[2] += cigar.getReadLength();
+	counts[3] += cigar.
+		getCigarElements().
+		stream().
+		filter(C->C.getOperator().isClipping()).
+		mapToInt(C->C.getLength()).
+		sum();
+	});
+
+println("NUM-READS:"+counts[0]);
+println("NUM-MAPPED-READS:"+counts[1]);
+println("SUM-MAPPED-READS-LENGTH:"+counts[2]);
+println("SUM-CLIPPING:"+counts[3]);
+```
+
+
+
 END_DOC
 */
 
@@ -555,7 +582,7 @@ END_DOC
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
 	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,
-			297983,299255,304780,305174,305743,308310,308554},
+			297983,299255,304780,305174,305743,308310,308554,309013},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidaeJdk

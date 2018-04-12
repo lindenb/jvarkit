@@ -705,7 +705,7 @@ public class VcfStatsJfx extends JfxLauncher {
 	        		)
 	        		;
 	        yAxis.setLabel("Number of Variants (num variants "+niceIntFormat.format(this.nVariants)+")");
-	        xAxis.setLabel("Number of  NO_CALL per genotypes (num samples "+niceIntFormat.format(this.nSamples)+")");
+	        xAxis.setLabel("Number of  NO_CALL Genotypes per Variant (num samples "+niceIntFormat.format(this.nSamples)+")");
 	        xAxis.setTickLabelRotation(90);
 	        bc.setLegendVisible(false);
 	        return bc;

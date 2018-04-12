@@ -70,6 +70,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/305743](https://www.biostars.org/p/305743)
  * [https://www.biostars.org/p/308310](https://www.biostars.org/p/308310)
  * [https://www.biostars.org/p/308554](https://www.biostars.org/p/308554)
+ * [https://www.biostars.org/p/309013](https://www.biostars.org/p/309013)
 
 
 ## Compilation
@@ -603,5 +604,32 @@ java -jar bioalcidaejdk.jar -e 'String prevContig=null; Consumer<List<VariantCon
 ```
 java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(V->V.getGenotypes().stream()).filter(G->!G.isHomRef()).map(G->G.getSampleName()+"\t"+G.getType().name()).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->println(K+"\t"+V));' src/test/resources/rotavirus_rf.vcf.gz
 ```
+
+## Counting soft clipped bases and reads
+
+```java
+final long counts[]=new long[4];
+stream().forEach(R->{
+	counts[0]++;
+	if(R.getReadUnmappedFlag()) return;
+	Cigar cigar = R.getCigar();
+	if(cigar==null || cigar.isEmpty()) return;
+	counts[1]++;
+	counts[2] += cigar.getReadLength();
+	counts[3] += cigar.
+		getCigarElements().
+		stream().
+		filter(C->C.getOperator().isClipping()).
+		mapToInt(C->C.getLength()).
+		sum();
+	});
+
+println("NUM-READS:"+counts[0]);
+println("NUM-MAPPED-READS:"+counts[1]);
+println("SUM-MAPPED-READS-LENGTH:"+counts[2]);
+println("SUM-CLIPPING:"+counts[3]);
+```
+
+
 
 

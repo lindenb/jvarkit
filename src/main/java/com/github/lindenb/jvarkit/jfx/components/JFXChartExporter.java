@@ -28,6 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.util.StringUtil;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
@@ -48,9 +49,21 @@ private static final Logger LOG=Logger.build(JFXChartExporter.class).make();
 private static Function<String, String> quoteR = (S)->{
 	final StringBuilder sb = new StringBuilder(S.length()+2);
 	sb.append("\"");
-	sb.append(S);
+	for(int i=0;i< S.length();i++)
+		{
+		final char c = S.charAt(i);
+		switch(c)
+			{
+			case '\'': sb.append("\\'");break;
+			case '\"': sb.append("\"");break;
+			case '\n': sb.append("\\n");break;
+			case '\t': sb.append("\\t");break;
+			case '\\': sb.append("\\\\");break;
+			default: sb.append(c);break;
+			}
+		}
 	sb.append("\"");
-	return S;
+	return sb.toString();
 	};
 private final PrintWriter pw;
 
@@ -74,6 +87,18 @@ private <T> String vectorR(
 	sb.append(")");
 	return sb.toString();
 	}
+/**
+
+ barplot(
+	 matrix(
+	c(10,5,15,25,11,12,13,14),
+	ncol=4,byrow=TRUE
+	),
+	names.arg=c("A","B","C","D"),
+		legend = c("X1","X2"),
+	main="T",xlab="xxx", ylab="yy", beside=TRUE)
+ 
+ */
 private void exportPieChartToR(final PieChart chart) {
 	final List<PieChart.Data> data = chart.getData();
 	pw.print("pie(");
@@ -91,7 +116,7 @@ private void exportBarChartSNToR(final BarChart<String, Number> chart) {
 	for(XYChart.Series<String,Number> serie : series) {
 		pw.print(vectorR(serie.getData().stream().map(D->D.getYValue()).collect(Collectors.toList())));
 		pw.print("),");
-	}
+		}
 	lab('x',chart.getXAxis());
 	lab('y',chart.getYAxis());
 	title(chart);
