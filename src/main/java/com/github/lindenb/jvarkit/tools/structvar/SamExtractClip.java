@@ -41,6 +41,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.filter.SamRecordFilter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
@@ -48,24 +49,20 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /**
 
 BEGIN_DOC
 
 
-
-
-
-
 ### Example
 
 
-
-
 ```
+$ curl -L -s "https://raw.githubusercontent.com/samtools/samtools/develop/test/dat/mpileup.1.sam" |\
+	java -jar dist/samextractclip.jar 2> /dev/null 
 
-$ curl -L -s "https://raw.githubusercontent.com/samtools/samtools/develop/test/dat/mpileup.1.sam" | java -jar dist/samextractclip.jar 2> /dev/null 
 @ERR013140.3521432/1:0:17:1:99
 AGAGGTCCCCAACTTCTTTGCA
 +
@@ -121,55 +118,43 @@ TGCTTGA
 ```
 
 
+### Hstory
 
-
-
-### See also
-
-
- *  https://www.biostars.org/p/125874
-
-
+* 20180412 : fastq is now reverse complemented if read was on negative strand
 
 
 ### Cited In
 
-
- *  Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
-
-
-
-
-
+ * Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
 
 
 END_DOC
 */
-
-
 @Program(name="samextractclip",
-	description="Extract Clipped Sequences from a SAM. Ouput is a FASTQ")
+	description="Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ",
+	keywords= {"sam","bam","fastq","clip"},
+	biostars= {125874})
 public class SamExtractClip extends Launcher
 	{
-
 	private static final Logger LOG = Logger.build(SamExtractClip.class).make();
-
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@Parameter(names={"-m","--minsize"},description="Min size of clipped read")
 	private int min_clip_length = 5 ;
 
-	@Parameter(names={"-c","--clipped"},description="Print the original Read where the clipped regions have been removed")
+	@Parameter(names={"-c","--clipped"},description="Print the original Read where the clipped regions have been removed.")
 	private boolean print_clipped_read = false;
 
 	@Parameter(names={"-p","--original"},description="Print Original whole Read that contained a clipped region.")
 	private boolean print_original_read = false;
+	
+	@Parameter(names={"-readFilter","--readFilter"},description="[20181208]"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
+	private SamRecordFilter samRecordFilter = SamRecordJEXLFilter.buildDefault();
 
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		SamReader r=null;
 		BasicFastqWriter out=null;
 		try
@@ -216,105 +201,102 @@ public class SamExtractClip extends Launcher
 				}
 		}
 		
-		private void run(final SamReader r,final FastqWriter out)
+	private void run(final SamReader r,final FastqWriter out)
+		{
+		int startend[]=new int[2];
+		final SAMFileHeader header=r.getFileHeader();
+		//w=swf.make(header, System.out);
+		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		final SAMRecordIterator it= r.iterator();
+		while(it.hasNext())
 			{
-			int startend[]=new int[2];
-			final SAMFileHeader header=r.getFileHeader();
-			//w=swf.make(header, System.out);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
-			SAMRecordIterator it= r.iterator();
-			while(it.hasNext())
-				{
-				final SAMRecord rec=progress.watch(it.next());
-				
-				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				if(rec.getDuplicateReadFlag()) continue;
-				
-				final Cigar cigar=rec.getCigar();
-				if(cigar==null || cigar.isEmpty()) continue;
-				
-				String suffix="";
-				if(rec.getReadPairedFlag())
-					{
-					suffix=(rec.getFirstOfPairFlag()?"/1":"/2");
-					}
-				
+			final SAMRecord rec=progress.watch(it.next());
+			if(rec.getReadUnmappedFlag()) continue;
+			if(this.samRecordFilter.filterOut(rec)) continue;
 			
-				
-				
-				startend[0]=0;
-				startend[1]=rec.getReadLength();
-				boolean found=false;
-				for(int side=0;side<2;++side)
-					{
-					final CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
-					if(!ce.getOperator().equals(CigarOperator.S)) continue;
-					if(ce.getLength() < min_clip_length) continue;
-					
-					found=true;
-					final String clippedSeq;
-					final String clippedQual;
-					if(side==0)
-						{
-						startend[0]=ce.getLength();
-						clippedSeq= rec.getReadString().substring(0, startend[0]);
-						clippedQual=rec.getBaseQualityString().substring(0, startend[0]);
-						}
-					else
-						{
-						startend[1]=rec.getReadLength()-ce.getLength();
-						clippedSeq= rec.getReadString().substring(startend[1]);
-						clippedQual=rec.getBaseQualityString().substring(startend[1]);
-						}
-					
-					out.write(new FastqRecord(
-							rec.getReadName()+suffix+";"+side+";"+rec.getReferenceName()+";"+rec.getAlignmentStart()+";"+rec.getFlags()+";"+rec.getCigarString()+";"+(side==0?"5'":"3'"),
-							clippedSeq,
-							"",
-							clippedQual
-							));
-					}
-				if(!found) continue;
-				
-				String bases=rec.getReadString();
-				String qual=rec.getBaseQualityString();
-				if( rec.getReadNegativeStrandFlag())
-					{
-					bases=AcidNucleics.reverseComplement(bases);
-					qual=new StringBuilder(qual).reverse().toString();
-					}
-				
-				if(print_original_read)
-					{
-					out.write(new FastqRecord(
-							rec.getReadName()+suffix,
-							bases,
-							"",
-							qual
-							));
-					}
-				
-				if(print_clipped_read)
-					{
-					out.write(new FastqRecord(
-							rec.getReadName()+suffix+":clipped",
-							bases.substring(startend[0], startend[1]),
-							"",
-							qual.substring(startend[0], startend[1])
-							));
-					}
+			final Cigar cigar=rec.getCigar();
+			if(cigar==null || cigar.isEmpty()) continue;
+			
+			String suffix="";
+			if(rec.getReadPairedFlag())
+				{
+				suffix=(rec.getFirstOfPairFlag()?"/1":"/2");
 				}
 			
-			it.close();
-			progress.finish();
+			
+			startend[0]=0;
+			startend[1]=rec.getReadLength();
+			boolean found=false;
+			for(int side=0;side<2;++side)
+				{
+				final CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
+				if(!ce.getOperator().equals(CigarOperator.S)) continue;
+				if(ce.getLength() < min_clip_length) continue;
+				
+				found=true;
+				String clippedSeq;
+				String clippedQual;
+				if(side==0)
+					{
+					startend[0]=ce.getLength();
+					clippedSeq= rec.getReadString().substring(0, startend[0]);
+					clippedQual=rec.getBaseQualityString().substring(0, startend[0]);
+					}
+				else
+					{
+					startend[1]=rec.getReadLength()-ce.getLength();
+					clippedSeq= rec.getReadString().substring(startend[1]);
+					clippedQual=rec.getBaseQualityString().substring(startend[1]);
+					}
+				
+				if( rec.getReadNegativeStrandFlag())
+					{
+					clippedSeq=AcidNucleics.reverseComplement(clippedSeq);
+					clippedQual=new StringBuilder(clippedQual).reverse().toString();
+					}
+				
+				out.write(new FastqRecord(
+						rec.getReadName()+suffix+";"+side+";"+rec.getReferenceName()+";"+rec.getAlignmentStart()+";"+rec.getFlags()+";"+rec.getCigarString()+";"+(side==0?"5'":"3'"),
+						clippedSeq,
+						"",
+						clippedQual
+						));
+				}
+			if(!found) continue;
+			
+			String bases=rec.getReadString();
+			String qual=rec.getBaseQualityString();
+			if( rec.getReadNegativeStrandFlag())
+				{
+				bases=AcidNucleics.reverseComplement(bases);
+				qual=new StringBuilder(qual).reverse().toString();
+				}
+			
+			if(this.print_original_read)
+				{
+				out.write(new FastqRecord(
+						rec.getReadName()+suffix,
+						bases,
+						"",
+						qual
+						));
+				}
+			
+			if(this.print_clipped_read)
+				{
+				out.write(new FastqRecord(
+						rec.getReadName()+suffix+":clipped",
+						bases.substring(startend[0], startend[1]),
+						"",
+						qual.substring(startend[0], startend[1])
+						));
+				}
 			}
-
-		
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+		it.close();
+		progress.finish();
+		}
+	
+	public static void main(final String[] args)
 		{
 		new SamExtractClip().instanceMainWithExit(args);
 		}

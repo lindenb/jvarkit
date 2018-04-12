@@ -26,6 +26,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +43,7 @@ import java.util.zip.ZipOutputStream;
 import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jfx.components.JFXChartExporter;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
@@ -68,7 +70,6 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
@@ -133,7 +134,7 @@ public class VcfStatsJfx extends JfxLauncher {
 	private int refreshEverySeconds = 15;
 	@Parameter(names={"--max-concordance"},description="Max number of concordance to display. disable if <=0 ")
 	private int max_condordance = 100;
-	@Parameter(names={"-o","--output"},description="output Directory or zip file. If defined, the application will exit automatically")
+	@Parameter(names={"-o","--output"},description="output images in directory or zip file (filename ends with '.zip') or 'R' file (filename ends with '.R' **UNDER CONSTRUCTION**) . If defined, the application will exit automatically")
 	private File outputFile = null;
 	@Parameter(names={"--trancheIndelSize"},description="tranches for the Indel size "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers indelTranches =new RangeOfIntegers(-1000,-100,-50,-20,-15,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,15,20,50,100,1000);
@@ -197,7 +198,13 @@ public class VcfStatsJfx extends JfxLauncher {
 			if(ignore_filtered_genotypes && g.isFiltered()) return false;
 			return g.getAlleles().stream().anyMatch(A->A.isCalled() && !A.isReference());
 			}
-		
+		protected void saveR(final JFXChartExporter exporter) {
+		 	if(!isEnabled()) return;
+		 	final Node content = this.tab.getContent();
+		 	if(content==null || !(content instanceof Chart)) return;
+		 	final Chart chart = Chart.class.cast(content);
+		 	exporter.exportToR(chart);
+			}
 		protected void saveImageAs(final File dir)
 			 	throws IOException
 			 	{
@@ -1120,8 +1127,11 @@ public class VcfStatsJfx extends JfxLauncher {
 		    item=new MenuItem("Save Current image as...");
 		    item.setOnAction(AE->{doMenuSaveCurrentImage(tabPane.getSelectionModel().getSelectedItem());});
 		    menu.getItems().add(item);
-		    item=new MenuItem("Save All images as...");
+		    item=new MenuItem("Save All images in director...");
 		    item.setOnAction(AE->doMenuSaveAllImages());
+		    menu.getItems().add(item);
+		    item=new MenuItem("Save All images as ...");
+		    item.setOnAction(AE->doMenuSaveAllImagesInFile());
 		    menu.getItems().add(item);
 		    menu.getItems().add(new SeparatorMenuItem());
 		    item=new MenuItem("Quit");
@@ -1163,6 +1173,27 @@ public class VcfStatsJfx extends JfxLauncher {
 		return 0;
 		}
 	
+	private void doMenuSaveAllImagesInFile()
+		{
+		final FileChooser fc = new FileChooser();
+		final File f = fc.showSaveDialog(null);
+		if(f==null) return;
+		if(!(f.getName().endsWith(".R") || f.getName().endsWith(".zip"))){
+			  final Alert alert=new Alert(AlertType.ERROR,
+					  "Filename must end with .R or .zip:"+f);
+	          alert.showAndWait();
+	          return;
+			}
+		try {
+			saveImagesAs(f);
+			}
+    	catch (final IOException e) {
+            LOG.error(e);
+            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
+            alert.showAndWait();
+        	}
+		}
+	
 	private void doMenuSaveAllImages() {
 		final DirectoryChooser fc = new DirectoryChooser();
 		final File dir = fc.showDialog(null);
@@ -1190,12 +1221,27 @@ public class VcfStatsJfx extends JfxLauncher {
 		final FileChooser fc = new FileChooser();
 		final File file = fc.showSaveDialog(null);
     	if(file==null) return;
+    	
+    	
+    	
     	try {
-    		final WritableImage image = content.snapshot(new SnapshotParameters(), null);
-			
-    		final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
-			ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
-        	}
+    		if(file.getName().endsWith(".R")) {
+        		if(content instanceof Chart) {
+            		PrintWriter pw = new PrintWriter(file);
+            		JFXChartExporter exporter = new JFXChartExporter(pw);
+            		exporter.exportToR(Chart.class.cast(content));
+	        		pw.flush();
+	        		pw.close();
+        			}
+        		}
+    		else
+	    		{
+	    		final WritableImage image = content.snapshot(new SnapshotParameters(), null);
+				
+	    		final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
+				ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
+	    		}
+    		}
     	catch (final IOException e) {
             LOG.error(e);
             final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
@@ -1204,7 +1250,18 @@ public class VcfStatsJfx extends JfxLauncher {
 		}
 	
 	private void saveImagesAs(final File out) throws IOException {
-	if(out.getName().endsWith(".zip")) {
+	if(out.getName().endsWith(".R")) {
+		final PrintWriter pw = new PrintWriter(out);
+		final JFXChartExporter chartExporter = new JFXChartExporter(pw);
+		for(final ChartGenerator  cg:this.chartGenerators) {
+			if(!cg.isEnabled()) continue;
+			LOG.info("saving "+cg.getFilename());
+			cg.saveR(chartExporter);
+			}
+		pw.flush();
+		pw.close();
+		}
+	else if(out.getName().endsWith(".zip")) {
 		final FileOutputStream fout = new FileOutputStream(out);
 		final ZipOutputStream zout = new ZipOutputStream(fout);
 		for(final ChartGenerator  cg:this.chartGenerators) {

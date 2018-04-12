@@ -32,8 +32,9 @@ Usage: vcfstatsjfx [options] Files
       For the 'contig' Panel, normalize on contig length.
       Default: false
     -o, --output
-      output Directory or zip file. If defined, the application will exit 
-      automatically 
+      output images in directory or zip file (filename ends with '.zip') or 
+      'R' file (filename ends with '.R' **UNDER CONSTRUCTION**) . If defined, 
+      the application will exit automatically
     --predictions-per-sample, -pps
       Show Predictions per sample.
       Default: false

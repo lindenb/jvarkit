@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,6 +43,7 @@ import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jfx.components.JFXChartExporter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -595,7 +597,7 @@ public class SimplePlot extends JfxLauncher {
 	private File faidx = null;
 	@Parameter(names= {"--min-reference-size"},description ="When using a *.dict file, discard the contigs having a length < 'size'. Useful to discard the small unused contigs like 'chrM'. -1 : ignore.")
 	private int min_contig_size = -1;
-	@Parameter(names= {"-o","--out"},description = "Output file. If defined, save the picture in this file and close the application.")
+	@Parameter(names= {"-o","--out"},description = "Output file. If defined, save the picture in this file extension:png, jpg or R (experimental) and close the application.")
 	private File outputFile = null;
 	@Parameter(names= {"-chrompos","--chrom-position"},description = "When reading a genomic file. Input is not a BED file but a CHROM(tab)POS file. e.g: output of `samtools depth`")
 	private boolean input_is_chrom_position=false;
@@ -730,19 +732,32 @@ public class SimplePlot extends JfxLauncher {
         return 0;
 		}
 	
-	/** save char in file */
+	/** save chart in file */
 	private void saveImageAs(
 			final Chart   chart,
 			final File file)
 		 	throws IOException
 	 	{
-		final WritableImage image = chart.snapshot(new SnapshotParameters(), null);
-		final String format=(file.getName().toLowerCase().endsWith(".png")?"png":"jpg");
-        ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
+		if(file.getName().endsWith(".R"))
+			{
+			try(PrintWriter pw = new PrintWriter(file)) {
+				final JFXChartExporter exporter=new JFXChartExporter(pw);
+				exporter.exportToR(chart);
+				pw.flush();
+				pw.close();
+				}
+			}
+		else
+			{
+			
+			final WritableImage image = chart.snapshot(new SnapshotParameters(), null);
+			final String format=(file.getName().toLowerCase().endsWith(".png")?"png":"jpg");
+	        ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
+		 	}
 	 	}
 
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		Application.launch(args);
 		}
 	}

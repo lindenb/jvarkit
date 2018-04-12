@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Vector;
@@ -60,6 +61,8 @@ import htsjdk.samtools.SamFiles;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.fastq.FastqReader;
+import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.reference.FastaSequenceIndexCreator;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -456,6 +459,23 @@ protected void assertIsVcf(final File f) {
 	}
 	Assert.assertNull(err,"file "+f+" should be vcf : "+err);
 }
+protected void assertIsFastq(final File f) {
+	Exception err=null; 
+	FastqReader fqr =null;
+	try {
+		fqr = new FastqReader(f);
+		Iterator<FastqRecord> iter =fqr.iterator();
+		while(iter.hasNext()) iter.next();
+	}catch (final Exception e) {
+		err= e;
+	} finally {
+		CloserUtil.close(fqr);
+	}
+	Assert.assertNull(err,"file "+f+" should be fastq : "+err);
+}
+
+
+
 
 protected void assertIsNotEmpty(final File f) throws IOException {
 	Assert.assertNotNull(f,"File is null");
