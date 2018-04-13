@@ -82,6 +82,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/301080](https://www.biostars.org/p/301080)
  * [https://www.biostars.org/p/305526](https://www.biostars.org/p/305526)
  * [https://www.biostars.org/p/306034](https://www.biostars.org/p/306034)
+ * [https://www.biostars.org/p/309143](https://www.biostars.org/p/309143)
 
 
 ## Compilation
@@ -436,6 +437,14 @@ $ java -jar dist/samjdk.jar --body -e \
 $ java -jar dist/samjdk.jar --body \
      -e 'Set<String> xc = null;  public Object apply( SAMRecord R) { if(xc==null) try {xc=new HashSet<>(IOUtil.slurpLines(new java.io.File("needed.txt")));} catch(Exception e) {throw new RuntimeIOException(e);} String att= R.getStringAttribute("XC"); return att!=null && xc.contains(att);}' \
      input.bam
+```
+
+### Example:
+
+> remove reads where clipping > 33%
+
+```bash
+$ java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.getCigar()==null || record.getCigar().getCigarElements().stream().filter(C->C.getOperator().isClipping()).mapToInt(C->C.getLength()).sum() / (double)record.getCigar().getReadLength() < 0.33;' input.bam
 ```
 
 

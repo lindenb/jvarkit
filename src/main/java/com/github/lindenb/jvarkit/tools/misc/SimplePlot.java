@@ -43,7 +43,7 @@ import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.jfx.components.JFXChartExporter;
+import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;

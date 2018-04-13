@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ import java.util.TreeMap;
 import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -467,7 +469,7 @@ public class CaseControlJfx extends JfxLauncher {
 		    
 		    MenuBar menuBar = new MenuBar();
 		    Menu menu = new Menu("File");
-		    MenuItem item=new MenuItem("Save image as...");
+		    MenuItem item=new MenuItem("Save image as (.png,.jpg,.R)...");
 		    item.setOnAction(AE->{doMenuSave(chart);});
 		    menu.getItems().add(item);
 		    menu.getItems().add(new SeparatorMenuItem());
@@ -536,27 +538,43 @@ public class CaseControlJfx extends JfxLauncher {
 		private void doMenuSave(final ScatterChart<Number, Number>   chart)
 			{
 			final FileChooser fc = new FileChooser();
-	    	File file = fc.showSaveDialog(null);
+			final File file = fc.showSaveDialog(null);
 	    	if(file==null) return;
 	    	try {
 	    		saveImageAs(chart,file);
-	        } catch (IOException e) {
-	            LOG.error(e);
-	            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
-	            alert.showAndWait();
+	        } catch (final IOException e) {
+	            super.displayAlert(e);
 	        	}
 			}
 		
-		 private void saveImageAs(final ScatterChart<Number, Number>   chart,File file)
+		 private void saveImageAs(final ScatterChart<Number, Number>   chart,final File file)
 		 	throws IOException
 		 	{
-    		WritableImage image = chart.snapshot(new SnapshotParameters(), null);
-    		String format="png";
-    		if(file.getName().toLowerCase().endsWith(".jpg") ||file.getName().toLowerCase().endsWith(".jpeg") )
-    			{
-    			format="jpg";
-    			}
-            ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
+			 PrintWriter pw = null;
+			 try {
+				if(file.getName().endsWith(".R"))
+					{
+					pw = new PrintWriter(file);
+					final JFXChartExporter exporter=new JFXChartExporter(pw);
+					exporter.exportToR(chart);
+					pw.flush();
+					pw.close();
+					}
+				else
+					{
+		    		final WritableImage image = chart.snapshot(new SnapshotParameters(), null);
+		    		String format="png";
+		    		if(file.getName().toLowerCase().endsWith(".jpg") ||file.getName().toLowerCase().endsWith(".jpeg") )
+		    			{
+		    			format="jpg";
+		    			}
+		            ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
+				 	}
+			 	}
+			 finally
+			 	{
+				CloserUtil.close(pw); 
+			 	}
 		 	}
 		
 	

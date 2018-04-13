@@ -38,6 +38,9 @@ Usage: vcfstatsjfx [options] Files
     --predictions-per-sample, -pps
       Show Predictions per sample.
       Default: false
+    --prefix
+      Title Prefix
+      Default: <empty string>
     -s, --seconds
       Refresh screen every 's' seconds
       Default: 15

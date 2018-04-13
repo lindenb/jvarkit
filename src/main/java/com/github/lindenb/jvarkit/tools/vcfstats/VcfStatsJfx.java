@@ -43,7 +43,7 @@ import java.util.zip.ZipOutputStream;
 import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.jfx.components.JFXChartExporter;
+import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
@@ -58,6 +58,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.StructuralVariantType;
@@ -152,7 +153,10 @@ public class VcfStatsJfx extends JfxLauncher {
 	private boolean only_protein_altering_variants = false;
 	@Parameter(names={"--predictions-per-sample","-pps"},description="Show Predictions per sample.")
 	private boolean enable_predictions_per_sample = false;
+	@Parameter(names={"--prefix"},description="Title Prefix")
+	private String titlePrefix="";
 
+	
 	private volatile boolean stop = false;
 	private class ChartGenerator
 		{
@@ -175,6 +179,15 @@ public class VcfStatsJfx extends JfxLauncher {
 			this.tab.setOnClosed(AE->{this.enabled=false;});
 			return this.tab;
 			}
+		
+		void title(final Chart c,final String s) {
+			c.setTitle(
+					StringUtil.isBlank(titlePrefix)?
+					s:
+					titlePrefix+ " : " + s
+					);
+			}
+		
 		void visit(final VariantContext ctx) {
 			
 			}
@@ -254,7 +267,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(t.name(),this.count.count(t)));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
+			title(bc,this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Variant Type");       
 	        yAxis.setLabel("Count");
@@ -294,7 +307,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(t.name(),this.count.count(t)));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
+			title(bc,this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("SV Type");       
 	        yAxis.setLabel("Count");
@@ -339,7 +352,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(t,this.count.count(t)));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle()+" N="+niceIntFormat.format(nVariants));
+			title(bc,this.getChartTitle()+" N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setTickLabelRotation(90);
 	        xAxis.setLabel("Filters");       
@@ -400,7 +413,7 @@ public class VcfStatsJfx extends JfxLauncher {
 						));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+			title(bc,this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Contig");       
 	        yAxis.setLabel(normalize_on_contig_length? "Variant(s) per Mbp":"Count");
@@ -451,7 +464,7 @@ public class VcfStatsJfx extends JfxLauncher {
 						);
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+			title(bc,this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("N. ALT");       
 	        yAxis.setLabel("Count");
@@ -464,35 +477,34 @@ public class VcfStatsJfx extends JfxLauncher {
 			this.count.incr(ctx.getAlternateAlleles().size());
 			}
 		}
-
-	private class AverageDepthGenerator extends ChartGenerator
+	
+	private abstract class AbstractAverageGTGenerator extends ChartGenerator
 		{
-		private class Depth{long sum=0L;long count=0L;
+		protected class Depth{long sum=0L;long count=0L;
 		double avg() { return count==0L?0.0:sum/(double)count;}
 		}
-		private final Map<String,Depth> sampledp;
-		AverageDepthGenerator(final List<String> samples) {
-			this.sampledp = new HashMap<>(samples.size());
+		private final Map<String,Depth> sample2count;
+		protected AbstractAverageGTGenerator(final List<String> samples) {
+			this.sample2count = new HashMap<>(samples.size());
 			for(final String s:samples)
 				{
-				this.sampledp.put(s, new Depth());
+				this.sample2count.put(s, new Depth());
 				}
 			}
 		@Override
-		String getChartTitle() {
-			return "DP/Sample";
-			}
+		abstract String getChartTitle();
+		
 		@Override
 		Chart makeChart() {
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
-			final List<String> categories = new ArrayList<>(this.sampledp.size());
-			for(final String sn: this.sampledp.keySet().
+			final List<String> categories = new ArrayList<>(this.sample2count.size());
+			for(final String sn: this.sample2count.keySet().
 					stream().
-					sorted((A,B)->Double.compare(sampledp.get(A).avg(),sampledp.get(B).avg())).
+					sorted((A,B)->Double.compare(sample2count.get(A).avg(),sample2count.get(B).avg())).
 					collect(Collectors.toList())
 					)
 				{
-				final Depth dp = this.sampledp.get(sn);
+				final Depth dp = this.sample2count.get(sn);
 				final String key = sn+" "+niceIntFormat.format(dp.count);
 				categories.add(key);
 				series1.getData().add(new XYChart.Data<String,Number>(
@@ -503,30 +515,98 @@ public class VcfStatsJfx extends JfxLauncher {
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(categories));
 			final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
-
+	
 			bc.getData().add(series1);
 			bc.setCategoryGap(1);
-	        bc.setTitle(getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+			title(bc,getChartTitle()+ " N="+niceIntFormat.format(nVariants));
 		    bc.setLegendVisible(false);
 		    bc.setVerticalGridLinesVisible(false);
-	        xAxis.setLabel("Sample N="+niceIntFormat.format(this.sampledp.size()));
-	        yAxis.setLabel("Average Depth");
+	        xAxis.setLabel("Sample N="+niceIntFormat.format(this.sample2count.size()));
+	        yAxis.setLabel(getYLabel());
 	        xAxis.setTickLabelRotation(90);
 		    return bc;
 			}
+		
+		abstract String getYLabel();
+		
+		abstract void visitGenotype(final Genotype gt);
 		
 		@Override
 		void visit(final VariantContext ctx) {
 			nVariants++;
 			for(final Genotype gt:ctx.getGenotypes())
 				{
-				if(!gt.hasDP()) continue;
-				final Depth dp=this.sampledp.get(gt.getSampleName());
-				dp.count++;
-				dp.sum+=gt.getDP();
+				if(gt.isFiltered() && ignore_filtered_genotypes) continue;
+				visitGenotype(gt);
 				}
 			}
+	
+		}
 
+	private class AverageDepthGenerator extends AbstractAverageGTGenerator
+		{
+		AverageDepthGenerator(final List<String> samples) {
+			super(samples);
+			}
+		@Override
+		String getChartTitle() {
+			return "DP/Sample";
+			}
+		@Override
+		String getYLabel() {
+			return "Average Depth";
+			}
+		@Override
+		void visitGenotype(final Genotype gt) {
+			if(!gt.hasDP()) return;
+			final Depth dp=super.sample2count.get(gt.getSampleName());
+			dp.count++;
+			dp.sum+=gt.getDP();
+			}
+		}
+	
+	private class AverageGQGenerator extends AbstractAverageGTGenerator
+		{
+		AverageGQGenerator(final List<String> samples) {
+			super(samples);
+			}
+		@Override
+		String getChartTitle() {
+			return "Genotype Quality/Sample";
+			}
+		@Override
+		String getYLabel() {
+			return "Average GQ";
+			}
+		@Override
+		void visitGenotype(final Genotype gt) {
+			if(!gt.hasGQ()) return;
+			final Depth dp=super.sample2count.get(gt.getSampleName());
+			dp.count++;
+			dp.sum+=gt.getGQ();
+			}
+		}
+	private class AveragePhasedGTGenerator extends AbstractAverageGTGenerator
+		{
+		AveragePhasedGTGenerator(final List<String> samples) {
+			super(samples);
+			}
+		@Override
+		String getChartTitle() {
+			return "Fraction of Phased Genotype/Sample";
+			}
+		@Override
+		String getYLabel() {
+			return "Fraction of Phased Genotypes";
+			}
+		@Override
+		void visitGenotype(final Genotype gt) {
+			if(!gt.hasGQ()) return;
+			if(gt.getPloidy()<2) return;
+			final Depth dp=super.sample2count.get(gt.getSampleName());
+			dp.count++;
+			dp.sum+=gt.isPhased()?1:0;
+			}
 		}
 	
 	private class GenotypeTypeGenerator extends ChartGenerator
@@ -570,7 +650,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				bc.getData().add(series1);
 				}
 			bc.setCategoryGap(1);
-	        bc.setTitle(this.getChartTitle()+" N. Variants "+niceIntFormat.format(nVariants));
+			title(bc,this.getChartTitle()+" N. Variants "+niceIntFormat.format(nVariants));
 	        xAxis.setLabel("Sample (N="+niceIntFormat.format(this.samples.size())+")");
 	        bc.setVerticalGridLinesVisible(false);
 	        xAxis.setTickLabelRotation(90);
@@ -621,7 +701,7 @@ public class VcfStatsJfx extends JfxLauncher {
 						
 				}
 			bc.setCategoryGap(1);
-	        bc.setTitle(
+			title(bc,
 	        		this.getChartTitle()+
 	        		" N. Variants "+niceIntFormat.format(nVariants)+
 	        		(this.count.getCountCategories()<max_condordance?"":" (Best "+niceIntFormat.format(max_condordance)+")")
@@ -698,7 +778,7 @@ public class VcfStatsJfx extends JfxLauncher {
 						
 				}
 			bc.setCategoryGap(1);
-	        bc.setTitle(
+			title(bc,
 	        		this.getChartTitle() +
 	        		" N. Variants "+niceIntFormat.format(nVariants) +
 	        		" N. Samples "+niceIntFormat.format(nSamples)
@@ -772,7 +852,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			final BarChart<String,Number> bc = 
 		            new BarChart<String,Number>(xAxis,yAxis);
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
+			title(bc,this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Num. Samples Affected N. samples ="+ niceIntFormat.format(nSamples));       
 	        yAxis.setLabel("Variant Count N="+ niceIntFormat.format(nVariants));
@@ -835,7 +915,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			final BarChart<String,Number> bc = 
 		            new BarChart<String,Number>(xAxis,yAxis);
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
+			title(bc,this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Variant Size.");       
 	        yAxis.setLabel("Variant Count.");
@@ -899,7 +979,7 @@ public class VcfStatsJfx extends JfxLauncher {
 
 			bc.getData().add(series1);
 			bc.setCategoryGap(1);
-	        bc.setTitle(getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+			title(bc,getChartTitle()+ " N="+niceIntFormat.format(nVariants));
 		    bc.setLegendVisible(false);
 	        
 	        xAxis.setLabel("SOTerm");
@@ -990,7 +1070,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			
 			if(outputFile!=null)
 	        	{
-				LOG.info("saving as "+outputFile);
+				LOG.info("saving as "+outputFile+ " in "+refreshEverySeconds+ " secs.");;
         		new java.util.Timer().schedule( 
     		        new java.util.TimerTask() {
     		            @Override
@@ -1005,6 +1085,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		        			LOG.error(err);
 		        			System.exit(-1);
 		        		 	}
+		        		 LOG.info("Platform.exit called");
 		        		 Platform.exit();
     		            	});}
     		            },refreshEverySeconds*1000);
@@ -1096,8 +1177,13 @@ public class VcfStatsJfx extends JfxLauncher {
 				chartGenerators.add(new NumberOfNoCallGenerator(header.getNGenotypeSamples()));
 				
 				if(header.getFormatHeaderLine(VCFConstants.DEPTH_KEY)!=null) {
-				chartGenerators.add(new AverageDepthGenerator(header.getGenotypeSamples()));
+					chartGenerators.add(new AverageDepthGenerator(header.getGenotypeSamples()));
 				}
+				
+				if(header.getFormatHeaderLine(VCFConstants.GENOTYPE_QUALITY_KEY)!=null) {
+					chartGenerators.add(new AverageGQGenerator(header.getGenotypeSamples()));
+					}
+				chartGenerators.add(new AveragePhasedGTGenerator(header.getGenotypeSamples()));
 				
 				for(final String sn:header.getSampleNamesInOrder()) {
 					if(hasPred && this.enable_predictions_per_sample ) {
@@ -1124,10 +1210,10 @@ public class VcfStatsJfx extends JfxLauncher {
 		    item.setOnAction(AE->doMenuAbout(AE));
 		    menu.getItems().add(item);
 		    menu.getItems().add(new SeparatorMenuItem());
-		    item=new MenuItem("Save Current image as...");
+		    item=new MenuItem("Save Current image as... (.R,.png,.jpg)");
 		    item.setOnAction(AE->{doMenuSaveCurrentImage(tabPane.getSelectionModel().getSelectedItem());});
 		    menu.getItems().add(item);
-		    item=new MenuItem("Save All images in director...");
+		    item=new MenuItem("Save All images in directory... (.R,.png,.jpg)");
 		    item.setOnAction(AE->doMenuSaveAllImages());
 		    menu.getItems().add(item);
 		    item=new MenuItem("Save All images as ...");
@@ -1188,9 +1274,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			saveImagesAs(f);
 			}
     	catch (final IOException e) {
-            LOG.error(e);
-            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
-            alert.showAndWait();
+            super.displayAlert(e);
         	}
 		}
 	
@@ -1208,9 +1292,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			saveImagesAs(dir);
 			}
     	catch (final IOException e) {
-            LOG.error(e);
-            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
-            alert.showAndWait();
+    		 super.displayAlert(e);
         	}
 		}
 	
@@ -1223,11 +1305,11 @@ public class VcfStatsJfx extends JfxLauncher {
     	if(file==null) return;
     	
     	
-    	
+    	PrintWriter pw= null;
     	try {
     		if(file.getName().endsWith(".R")) {
         		if(content instanceof Chart) {
-            		PrintWriter pw = new PrintWriter(file);
+            		pw = new PrintWriter(file);
             		JFXChartExporter exporter = new JFXChartExporter(pw);
             		exporter.exportToR(Chart.class.cast(content));
 	        		pw.flush();
@@ -1243,47 +1325,62 @@ public class VcfStatsJfx extends JfxLauncher {
 	    		}
     		}
     	catch (final IOException e) {
+    		super.displayAlert(e);
             LOG.error(e);
-            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
-            alert.showAndWait();
         	}
+    	finally
+    		{
+    		CloserUtil.close(pw);
+    		}
 		}
 	
 	private void saveImagesAs(final File out) throws IOException {
-	if(out.getName().endsWith(".R")) {
-		final PrintWriter pw = new PrintWriter(out);
-		final JFXChartExporter chartExporter = new JFXChartExporter(pw);
-		for(final ChartGenerator  cg:this.chartGenerators) {
-			if(!cg.isEnabled()) continue;
-			LOG.info("saving "+cg.getFilename());
-			cg.saveR(chartExporter);
-			}
-		pw.flush();
-		pw.close();
+		PrintWriter pw =null;
+		FileOutputStream fout = null;
+		try {
+			if(out.getName().endsWith(".R")) {
+				pw = new PrintWriter(out);
+				final JFXChartExporter chartExporter = new JFXChartExporter(pw);
+				for(final ChartGenerator  cg:this.chartGenerators) {
+					if(!cg.isEnabled()) continue;
+					LOG.info("saving "+cg.getFilename());
+					cg.saveR(chartExporter);
+					}
+				pw.flush();
+				pw.close();
+				}
+			else if(out.getName().endsWith(".zip")) {
+				fout = new FileOutputStream(out);
+				final ZipOutputStream zout = new ZipOutputStream(fout);
+				for(final ChartGenerator  cg:this.chartGenerators) {
+					if(!cg.isEnabled()) continue;
+					LOG.info("saving "+cg.getFilename());
+					final ZipEntry zipEntry = new ZipEntry(cg.getFilename());
+					zout.putNextEntry(zipEntry);
+					cg.saveImageAs(zout);
+					zout.closeEntry();
+					}
+				zout.finish();
+				zout.close();
+				fout.close();
+				}
+			else
+				{
+				IOUtil.assertDirectoryIsWritable(out);
+				for(final ChartGenerator  cg:this.chartGenerators) {
+					if(!cg.isEnabled()) continue;
+					LOG.info("saving "+cg.getFilename());
+					cg.saveImageAs(out);
+					}
+				}
+			} 
+	catch(final Exception err) {
+		super.displayAlert(err);
 		}
-	else if(out.getName().endsWith(".zip")) {
-		final FileOutputStream fout = new FileOutputStream(out);
-		final ZipOutputStream zout = new ZipOutputStream(fout);
-		for(final ChartGenerator  cg:this.chartGenerators) {
-			if(!cg.isEnabled()) continue;
-			LOG.info("saving "+cg.getFilename());
-			final ZipEntry zipEntry = new ZipEntry(cg.getFilename());
-			zout.putNextEntry(zipEntry);
-			cg.saveImageAs(zout);
-			zout.closeEntry();
-			}
-		zout.finish();
-		zout.close();
-		fout.close();
-		}
-	else
+	finally
 		{
-		IOUtil.assertDirectoryIsWritable(out);
-		for(final ChartGenerator  cg:this.chartGenerators) {
-			if(!cg.isEnabled()) continue;
-			LOG.info("saving "+cg.getFilename());
-			cg.saveImageAs(out);
-			}
+		CloserUtil.close(pw);
+		CloserUtil.close(fout);
 		}
 	}
 
