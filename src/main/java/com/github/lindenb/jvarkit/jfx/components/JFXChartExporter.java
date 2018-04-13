@@ -23,12 +23,13 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.jfx.components;
 
 import java.io.PrintWriter;
+import java.util.Iterator;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.util.StringUtil;
 import javafx.scene.chart.Axis;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
@@ -47,6 +48,7 @@ private static final Logger LOG=Logger.build(JFXChartExporter.class).make();
 
 	
 private static Function<String, String> quoteR = (S)->{
+	if(S==null) return "\"N/A\"";
 	final StringBuilder sb = new StringBuilder(S.length()+2);
 	sb.append("\"");
 	for(int i=0;i< S.length();i++)
@@ -73,19 +75,17 @@ public JFXChartExporter(final PrintWriter pw)
 	this.pw = pw;
 	}
 
-	
-private <T> String vectorR(
-	final Iterable<T> data
+private <T> void vectorR(
+	final Iterator<T> it
 	) {
-	final StringBuilder sb = new StringBuilder("c(");
+	pw.print("c(");
 	boolean first=true;
-	for(final T V : data){
-		if(!first) sb.append(',');
-		sb.append(V);
+	while(it.hasNext()){
+		if(!first) pw.append(',');
+		pw.print(it.next());
 		first=false;
 		};
-	sb.append(")");
-	return sb.toString();
+	pw.print(")");
 	}
 /**
 
@@ -102,21 +102,44 @@ private <T> String vectorR(
 private void exportPieChartToR(final PieChart chart) {
 	final List<PieChart.Data> data = chart.getData();
 	pw.print("pie(");
-	pw.print(vectorR(data.stream().map(D->D.getPieValue()).collect(Collectors.toList())));
+	vectorR(data.stream().map(D->D.getPieValue()).iterator());
 	pw.print(",col=rainbow("+data.size()+")");
 	pw.print(",labels=");
-	pw.print(vectorR(data.stream().map(D->D.getName()).map(quoteR).collect(Collectors.toList())));
+	vectorR(data.stream().map(D->D.getName()).map(quoteR).iterator());
 	title(chart);
 	pw.println(")");
 	}
-private void exportBarChartSNToR(final BarChart<String, Number> chart) {
+private void exportBarChartSNToR(
+		final XYChart<String, Number> chart,
+		final boolean stacked
+		) {
 	final List<XYChart.Series<String,Number>> series = chart.getData();
+	if(series.isEmpty()) {
+		LOG.warn("empty chart");
+		return;
+	}
+	pw.println("par(las="+(chart.getXAxis().getTickLabelRotation()==0?"0":"2")+")");
+	pw.print("barplot(matrix(");
 	
-	pw.print("barplot(table(");
-	for(XYChart.Series<String,Number> serie : series) {
-		pw.print(vectorR(serie.getData().stream().map(D->D.getYValue()).collect(Collectors.toList())));
-		pw.print("),");
+	vectorR(series.stream().
+			flatMap(S->S.getData().stream()).
+			map(D->D.getYValue()).
+			iterator()
+			);
+	pw.print(",ncol=");
+	pw.print(series.get(0).getData().size());
+	pw.print(",byrow=TRUE)");
+	if(chart.getXAxis() instanceof CategoryAxis)
+		{
+		final CategoryAxis cataxis = CategoryAxis.class.cast(chart.getXAxis());
+		pw.print(",names.arg=");
+		vectorR(cataxis.getCategories().stream().map(quoteR).iterator());
 		}
+	if(series.size()>1) {
+		pw.print(",legend=");
+		vectorR(series.stream().map(T->T.getName()).map(quoteR).iterator());
+		}
+	pw.print(",beside="+(stacked?"F":"T"));
 	lab('x',chart.getXAxis());
 	lab('y',chart.getYAxis());
 	title(chart);
@@ -124,14 +147,10 @@ private void exportBarChartSNToR(final BarChart<String, Number> chart) {
 	pw.flush();
 	}
 
-private void exportBarChartNSToR(final BarChart<Number, String> chart) {
+private void exportBarChartNSToR(final XYChart<Number, String> chart,boolean stacked)  {
+
 }
 
-private void exportStackedBarChartSNToR(final StackedBarChart<String, Number> chart) {
-}
-
-private void exportStackedBarChartNSToR(final StackedBarChart<Number, String> chart) {
-}
 
 private void lab(char yx,final Axis<?> axis) {
 	pw.print(",");
@@ -153,41 +172,23 @@ public void exportToR(final Chart chart) {
 		exportPieChartToR(PieChart.class.cast(chart));
 		return;
 		}
-	else if(chart instanceof StackedBarChart) {
-		final StackedBarChart<?, ?> bc = StackedBarChart.class.cast(chart);
-		if(bc.getData().isEmpty()) {
+	else if(chart instanceof StackedBarChart || chart instanceof BarChart) {
+		final XYChart<?, ?> xyc = XYChart.class.cast(chart);
+		final boolean stacked = (xyc instanceof StackedBarChart);
+		if(xyc.getData().isEmpty()) {
 			LOG.warn("data is empty");
 			return ;
 			}
-		if( bc.getXAxis() instanceof CategoryAxis &&
-			bc.getYAxis() instanceof NumberAxis)
+		if( xyc.getXAxis() instanceof CategoryAxis &&
+			xyc.getYAxis() instanceof NumberAxis)
 			{
-			exportStackedBarChartSNToR((StackedBarChart<String, Number>)bc);
+			exportBarChartSNToR((XYChart<String, Number>)xyc,stacked);
 			return;
 			}
-		else if( bc.getXAxis() instanceof NumberAxis &&
-			bc.getYAxis() instanceof CategoryAxis)
+		else if( xyc.getXAxis() instanceof NumberAxis &&
+				xyc.getYAxis() instanceof CategoryAxis)
 			{
-			exportStackedBarChartNSToR((StackedBarChart<Number, String>)bc);
-			return;
-			}
-		}
-	else if(chart instanceof BarChart) {
-		final BarChart<?, ?> bc = BarChart.class.cast(chart);
-		if(bc.getData().isEmpty()) {
-			LOG.warn("data is empty");
-			return ;
-			}
-		if( bc.getXAxis() instanceof CategoryAxis &&
-			bc.getYAxis() instanceof NumberAxis)
-			{
-			exportBarChartSNToR((BarChart<String, Number>)bc);
-			return;
-			}
-		else if( bc.getXAxis() instanceof NumberAxis &&
-			bc.getYAxis() instanceof CategoryAxis)
-			{
-			exportBarChartNSToR((BarChart<Number, String>)bc);
+			exportBarChartNSToR((XYChart<Number, String>)xyc,stacked);
 			return;
 			}
 		}
