@@ -288,6 +288,7 @@ $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bami
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamrenamechr,${jvarkit.package}.tools.misc.ConvertBamChromosomes,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,bamstatsjfx,${jvarkit.package}.tools.bamstats01.BamStatsJfx,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamstats02view,${jvarkit.package}.tools.bamstats01.BamStats02View,${jcommander.jar} bamstats02 ))
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04,${jcommander.jar}))
