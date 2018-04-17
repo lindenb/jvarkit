@@ -1068,7 +1068,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				progressBar.setProgress(1.0);
 				});
 			
-			if(outputFile!=null)
+			if(outputFile!=null && !stop)
 	        	{
 				LOG.info("saving as "+outputFile+ " in "+refreshEverySeconds+ " secs.");;
         		new java.util.Timer().schedule( 
@@ -1078,9 +1078,9 @@ public class VcfStatsJfx extends JfxLauncher {
     		            Platform.runLater(()->{
 		        		 try
 		        		 	{
-		        			saveImagesAs(outputFile);
+		        			if(!stop) saveImagesAs(outputFile);
 		        		 	}
-		        		 catch(IOException err)
+		        		 catch(final IOException err)
 		        		 	{
 		        			LOG.error(err);
 		        			System.exit(-1);
@@ -1213,10 +1213,10 @@ public class VcfStatsJfx extends JfxLauncher {
 		    item=new MenuItem("Save Current image as... (.R,.png,.jpg)");
 		    item.setOnAction(AE->{doMenuSaveCurrentImage(tabPane.getSelectionModel().getSelectedItem());});
 		    menu.getItems().add(item);
-		    item=new MenuItem("Save All images in directory... (.R,.png,.jpg)");
+		    item=new MenuItem("Save All images in directory... ");
 		    item.setOnAction(AE->doMenuSaveAllImages());
 		    menu.getItems().add(item);
-		    item=new MenuItem("Save All images as ...");
+		    item=new MenuItem("Save All images as ... (.R,.zip)");
 		    item.setOnAction(AE->doMenuSaveAllImagesInFile());
 		    menu.getItems().add(item);
 		    menu.getItems().add(new SeparatorMenuItem());
@@ -1384,7 +1384,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		Application.launch(args);
 	}
 
