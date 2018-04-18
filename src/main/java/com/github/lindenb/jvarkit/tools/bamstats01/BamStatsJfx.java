@@ -75,6 +75,7 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.Chart;
+import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.StackedBarChart;
 import javafx.scene.chart.XYChart;
@@ -347,6 +348,75 @@ public class BamStatsJfx extends JfxLauncher {
 			}
 		}
 
+	private class GCPercentGenerator extends ChartGenerator
+		{
+		private final Counter<Integer> mappedgc2count = new Counter<>();
+		private final Counter<Integer> unmappedgc2count = new Counter<>();
+		GCPercentGenerator() {
+			}
+		
+		@Override
+		String getChartTitle() {
+			return "GC Percent";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final NumberAxis yAxis = new NumberAxis();
+			final NumberAxis xAxis = new NumberAxis();
+			
+			final LineChart<Number,Number> bc = 
+		            new LineChart<Number,Number>(xAxis,yAxis);
+	        for(int side=0;side< 2;++side) {
+				final XYChart.Series<Number,Number> series1 = new XYChart.Series<>();
+				series1.setName(side==0?"Mapped":"Unmapped");
+				final Counter<Integer> rc =(side==0?this.mappedgc2count:this.unmappedgc2count);
+				for(final Integer percent: new TreeSet<>(rc.keySet()))
+					{
+					series1.getData().add(new XYChart.Data<Number,Number>(
+						percent,
+						rc.count(percent)
+						));
+					}
+				bc.getData().add(series1);
+				}			
+			bc.setLegendVisible(true);
+			title(bc,this.getChartTitle());
+	        xAxis.setLabel("GC%");
+			xAxis.setLowerBound(0);
+			xAxis.setUpperBound(100);
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
+	        yAxis.setLabel("Count");
+	        return bc;
+			}
+		
+		@Override
+		void visit(final SAMRecord rec) {
+			if(rec.isSecondaryOrSupplementary()) return;
+			this.nRecords++;
+			final byte[] readBases = rec.getReadBases();
+			if(readBases.length==0) return;
+			double ngc=0;
+			for(int i=0;i< readBases.length;++i) {
+				switch(readBases[i])
+					{
+					case 's':case 'S':
+					case 'g':case 'G':
+					case 'c':case 'C': ngc++;break;
+					}
+				}
+			final int ngi = (int)((ngc/(double)readBases.length)*100.0);
+			if(rec.getReadUnmappedFlag())
+				{
+				this.unmappedgc2count.incr(ngi);
+				}
+			else
+				{
+				this.mappedgc2count.incr(ngi);
+				}
+			}
+		}
 	
 	
 	private class ContigUsageGenerator extends ChartGenerator
@@ -551,8 +621,9 @@ public class BamStatsJfx extends JfxLauncher {
 			if(dict!=null && !dict.isEmpty()) {
 				chartGenerators.add(new ContigUsageGenerator(dict));
 				}
-			chartGenerators.add(new ReadLengthGenerator());
-			chartGenerators.add(new BaseCompositionGenerator());
+			this.chartGenerators.add(new ReadLengthGenerator());
+			this.chartGenerators.add(new BaseCompositionGenerator());
+			this.chartGenerators.add(new GCPercentGenerator());
 			
 			final VariantContextRunner runner = new VariantContextRunner(samReader,samIterator);
 			

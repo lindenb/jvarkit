@@ -132,6 +132,7 @@ public int doWork(final List<String> args) {
 					
 					for(final Site siteI3: listI3) {
 						
+						Strategy strategy = new Strategy();
 						
 						
 						}

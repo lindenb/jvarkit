@@ -35,6 +35,7 @@ import javafx.scene.chart.Axis;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.Chart;
+import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.ScatterChart;
@@ -127,7 +128,7 @@ private void exportPieChartToR(final PieChart chart) {
 	pw.println(")");
 	}
 
-private void exportScatterNNToR(final ScatterChart<Number, Number> chart) 
+private void exportScatterNNToR(final XYChart<Number, Number> chart) 
 	{
 	final List<XYChart.Series<Number,Number>> series = chart.getData().stream().
 			filter(P->!P.getData().isEmpty()).
@@ -138,6 +139,7 @@ private void exportScatterNNToR(final ScatterChart<Number, Number> chart)
 		}
 	par(chart.getXAxis());
 	int serie_index=0;
+	final char type=(chart instanceof ScatterChart?'p':'o');
 	while(serie_index < series.size())
 		{
 		if(serie_index>0) {
@@ -157,6 +159,7 @@ private void exportScatterNNToR(final ScatterChart<Number, Number> chart)
 		lim('x',NumberAxis.class.cast(chart.getXAxis()));
 		lim('y',NumberAxis.class.cast(chart.getYAxis()));
 		pw.print(",pch="+serie_index);
+		pw.print(",type=\""+type+"\"");
 		lab('x',chart.getXAxis());
 		lab('y',chart.getYAxis());
 		if(serie_index==0)
@@ -256,13 +259,14 @@ public void exportToR(final Chart chart) {
 		exportPieChartToR(PieChart.class.cast(chart));
 		return;
 		}
-	else if(chart instanceof ScatterChart )
+	else if(chart instanceof ScatterChart ||
+			chart instanceof LineChart)
 		{
-		final ScatterChart<?, ?> xyc = ScatterChart.class.cast(chart);
+		final XYChart<?, ?> xyc = XYChart.class.cast(chart);
 		if(getAxisType(xyc.getYAxis())==AxisType.NUMBER &&
 			getAxisType(xyc.getYAxis())==AxisType.NUMBER)
 			{
-			exportScatterNNToR((ScatterChart<Number, Number>)xyc);
+			exportScatterNNToR((XYChart<Number, Number>)xyc);
 			return;
 			}
 		}
