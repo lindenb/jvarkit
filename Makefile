@@ -578,7 +578,7 @@ $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.V
 $(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}  ${bigwig.jars}))
 $(eval $(call compile-htsjdk-cmd,simpleplot,${jvarkit.package}.tools.misc.SimplePlot,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,cytoband2svg,${jvarkit.package}.tools.misc.CytobandToSvg,${jcommander.jar}))
-
+$(eval $(call compile-htsjdk-cmd,vcfancestralalleles,${jvarkit.package}.tools.onekgenomes.VcfAncestralAllele,${jcommander.jar}))
 
 
 
