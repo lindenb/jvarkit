@@ -29,7 +29,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeSet;
 import java.util.Vector;
 import java.util.concurrent.locks.ReentrantLock;
@@ -49,7 +52,10 @@ import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -61,8 +67,6 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypeType;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -132,8 +136,14 @@ public class BamStatsJfx extends JfxLauncher {
 	private boolean ignore_filtered_genotypes = false;
 	@Parameter(names={"--prefix"},description="Title Prefix")
 	private String titlePrefix="";
+	@Parameter(names={"--read-lengths"},description="tranches for Read lengths. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers readLengthTranches = new RangeOfIntegers(0,10,20,30,40,50,100,150,200,300,400,500,1000);
+	@Parameter(names={"--max-read-length"},description="max read length for base composition. 0: ignore; <0 not limit")
+	private int max_read_length = 500;
+	@Parameter(names={"--clip-lengths"},description="tranches for Clip lengths. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers clipLengthTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,30,40,50);
 
-	
+	 
 	private volatile boolean stop = false;
 	private abstract class ChartGenerator
 		{
@@ -212,7 +222,7 @@ public class BamStatsJfx extends JfxLauncher {
 	
 	private class ReadLengthGenerator extends ChartGenerator
 		{
-		private final Counter<Integer> len2count = new Counter<>();
+		private final Counter<RangeOfIntegers.Range> len2count = new Counter<>();
 		@Override
 		String getChartTitle() {
 			return "Read-Length";
@@ -224,21 +234,26 @@ public class BamStatsJfx extends JfxLauncher {
 
 			if(this.len2count.isEmpty()) return null;
 			
-			final List<String> lengthCategories = this.len2count.keySetDecreasing().stream().map(x->niceIntFormat.format(x)).collect(Collectors.toList());
+			final List<String> lengthCategories = this.len2count.keySet().
+					stream().
+					sorted().
+					map(x->x.toString()).
+					collect(Collectors.toList());
 			final NumberAxis yAxis = new NumberAxis();
-			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(lengthCategories));
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(lengthCategories)
+					);
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			
 			final BarChart<String,Number> bc = 
 		            new BarChart<>(xAxis,yAxis);
 		
 			
-			
-			for(final Integer x:this.len2count.keySet())
+			for(final RangeOfIntegers.Range x:new TreeSet<>(this.len2count.keySet()))
 				{
 				
 				series1.getData().add(new XYChart.Data<String,Number>(
-						niceIntFormat.format(x),
+						x.toString(),
 						this.len2count.count(x)
 					));
 						
@@ -261,9 +276,71 @@ public class BamStatsJfx extends JfxLauncher {
 		void visit(final SAMRecord rec) {
 			if(rec.isSecondaryOrSupplementary()) return;
 			this.nRecords ++ ;
-			this.len2count.incr(rec.getReadLength());
+			final RangeOfIntegers.Range r = readLengthTranches.getRange(rec.getReadLength());
+			this.len2count.incr(r);
 			}
 		
+		}
+	private class ClippedReadsGenerator extends ChartGenerator
+		{
+		private final Counter<RangeOfIntegers.Range> clip5 = new Counter<>();
+		private final Counter<RangeOfIntegers.Range> clip3 = new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "Clip";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(clipLengthTranches.getRanges().stream().map(O->O.toString()).collect(Collectors.toList())));
+			
+			final StackedBarChart<String,Number> bc = 
+		            new StackedBarChart<String,Number>(xAxis,yAxis);
+			
+	
+			for(int side=0;side<2;++side)
+				{
+				final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+				series1.setName(side==0?"5'":"3'");
+				for(final RangeOfIntegers.Range r: clipLengthTranches.getRanges()) {
+					series1.getData().add(new XYChart.Data<String,Number>(
+							r.toString(),
+							(side==0?this.clip5:this.clip3).count(r)
+							));
+					}
+				bc.getData().add(series1);
+				}
+			bc.setCategoryGap(1);
+			bc.setLegendVisible(true);;
+			title(bc,this.getChartTitle()+" N. Clipped Records: "+niceIntFormat.format(nRecords));
+	        xAxis.setLabel("Clip-Length");
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
+	        yAxis.setLabel("Count");
+	        return bc;
+			}
+		
+		
+		@Override
+		void visit(final SAMRecord rec) {
+			if(rec.isSecondaryOrSupplementary()) return;
+			if(rec.getReadUnmappedFlag()) return ;
+			final Cigar cigar = rec.getCigar();
+			if(cigar==null || cigar.isEmpty()) return;
+			if(!cigar.isClipped()) return;
+			this.nRecords++;
+			CigarElement ce =cigar.getFirstCigarElement();
+			if(ce.getOperator().isClipping()) {
+				this.clip5.incr(clipLengthTranches.getRange(ce.getLength()));
+			}
+			
+			ce =cigar.getLastCigarElement();
+			if(ce.getOperator().isClipping()) {
+					this.clip3.incr(clipLengthTranches.getRange(ce.getLength()));
+				}
+			}
 		}
 	
 	private class BaseCompositionGenerator extends ChartGenerator
@@ -327,20 +404,20 @@ public class BamStatsJfx extends JfxLauncher {
 			this.nRecords++;
 			final byte[] readBases = rec.getReadBases();
 			
-			while(this.pos2count.size()<=readBases.length) {
+			while(this.pos2count.size()<=readBases.length && (max_read_length<0 || this.pos2count.size()<max_read_length)) {
 				this.pos2count.add(new Counter<>());
 				}
 			
 			if(rec.getReadNegativeStrandFlag())
 				{
-				for(int i=0;i< readBases.length;i++)
+				for(int i=0;i< readBases.length && (max_read_length<0 || i<max_read_length);i++)
 					{
 					visit(AcidNucleics.complement((char)readBases[(readBases.length-1)-i]),i);
 					}
 				}
 			else
 				{
-				for(int i=0;i< readBases.length;i++)
+				for(int i=0;i< readBases.length && (max_read_length<0 || i<max_read_length);i++)
 					{
 					visit((char)readBases[i],i);
 					}
@@ -348,6 +425,80 @@ public class BamStatsJfx extends JfxLauncher {
 			}
 		}
 
+	private class QualGenerator extends ChartGenerator
+		{
+		private class Average {
+			double sum=0.0;
+			long n=0L;
+			double get() {
+				return n==0?0.0:sum/n;
+			}
+		}
+		private final Map<Integer,Average> pos2qual = new HashMap<>();
+		
+		@Override
+		String getChartTitle() {
+			return "Quality";
+			}
+		
+		@Override
+		Chart makeChart() {
+
+			if(this.pos2qual.isEmpty()) return null;
+			
+			final int max_length = pos2qual.keySet().stream().mapToInt(X->X.intValue()).max().getAsInt();
+			
+			final NumberAxis yAxis = new NumberAxis();
+			final NumberAxis xAxis = new NumberAxis();
+			
+			final LineChart<Number,Number> bc = 
+		            new LineChart<Number,Number>(xAxis,yAxis);
+			final XYChart.Series<Number,Number> series1 = new XYChart.Series<>();
+			for(int x=0;x<= max_length;++x)
+				{
+				series1.getData().add(new XYChart.Data<Number,Number>(
+					x+1,
+					pos2qual.get(x).get()
+					));
+				}
+			bc.getData().add(series1);
+						
+			bc.setLegendVisible(false);
+			title(bc,this.getChartTitle());
+	        xAxis.setLabel("Position");
+			xAxis.setLowerBound(0.0);
+			xAxis.setUpperBound(max_length);
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
+	        yAxis.setLabel("Avg Qual.");
+	        yAxis.setLowerBound(0);
+	        return bc;
+			}
+		
+		private void visit(int x,byte q) {
+			Average a = this.pos2qual.get(x);
+			if(a==null) {
+				a = new Average();
+				this.pos2qual.put(x, a);
+				}
+			a.n++;
+			a.sum+=q;
+			}
+		
+		@Override
+		void visit(final SAMRecord rec) {
+			if(rec.isSecondaryOrSupplementary()) return;
+			final byte[] readQuals = rec.getBaseQualities();
+			if(readQuals.length==0) return;
+			this.nRecords++;
+			for(int i=0;i< readQuals.length ;i++)
+				{
+				int j = rec.getReadNegativeStrandFlag()? (readQuals.length-1-i):i;
+				visit(j,readQuals[j]);	
+				}
+			}
+		}
+	
 	private class GCPercentGenerator extends ChartGenerator
 		{
 		private final Counter<Integer> mappedgc2count = new Counter<>();
@@ -383,11 +534,12 @@ public class BamStatsJfx extends JfxLauncher {
 			bc.setLegendVisible(true);
 			title(bc,this.getChartTitle());
 	        xAxis.setLabel("GC%");
-			xAxis.setLowerBound(0);
-			xAxis.setUpperBound(100);
+			xAxis.setLowerBound(0.0);
+			xAxis.setUpperBound(100.0);
 	        bc.setVerticalGridLinesVisible(false);
 	        xAxis.setTickLabelRotation(90);
 	        yAxis.setLabel("Count");
+	        yAxis.setLowerBound(0);
 	        return bc;
 			}
 		
@@ -484,6 +636,51 @@ public class BamStatsJfx extends JfxLauncher {
 			}
 		}
 	
+	private class SamFlagUsagGenerator extends ChartGenerator
+		{
+		private final Counter<SAMFlag> count = new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "SamFlags";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final NumberAxis yAxis = new NumberAxis();
+			final ObservableList<String> contigs = 
+					FXCollections.observableArrayList(
+						Arrays.asList(SAMFlag.values()).stream().map(S->S.name()).collect(Collectors.toList())
+						)
+						;
+			
+			final CategoryAxis xAxis = new CategoryAxis(contigs);
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final BarChart<String,Number> bc = 
+			            new BarChart<String,Number>(xAxis,yAxis);
+			
+			for(final SAMFlag f: SAMFlag.values())
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(f.name(),count.count(f)));
+				}
+			bc.getData().add(series1);
+			title(bc,this.getChartTitle()+ " Num. Reads. "+niceIntFormat.format(this.nRecords));
+	        bc.setLegendVisible(false);
+	        xAxis.setLabel("Flag");
+	        xAxis.setTickLabelRotation(90);
+	        yAxis.setLabel("Count");
+	        return bc;
+			}
+		
+		@Override
+		void visit(final SAMRecord rec) {
+			this.nRecords++;
+			for(final SAMFlag f: rec.getSAMFlags())
+				{
+				count.incr(f);
+				}
+			}
+		}
 	
 	private final List<ChartGenerator> chartGenerators = new Vector<>();
 	private class VariantContextRunner
@@ -622,8 +819,15 @@ public class BamStatsJfx extends JfxLauncher {
 				chartGenerators.add(new ContigUsageGenerator(dict));
 				}
 			this.chartGenerators.add(new ReadLengthGenerator());
-			this.chartGenerators.add(new BaseCompositionGenerator());
+			if(max_read_length!=0) { /* negative : not limit */
+				this.chartGenerators.add(new BaseCompositionGenerator());
+				}
 			this.chartGenerators.add(new GCPercentGenerator());
+			this.chartGenerators.add(new QualGenerator());
+			this.chartGenerators.add(new SamFlagUsagGenerator());
+			this.chartGenerators.add(new ClippedReadsGenerator());
+			
+			
 			
 			final VariantContextRunner runner = new VariantContextRunner(samReader,samIterator);
 			

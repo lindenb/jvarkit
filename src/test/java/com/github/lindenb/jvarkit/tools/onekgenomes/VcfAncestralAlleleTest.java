@@ -6,12 +6,14 @@ import java.io.PrintWriter;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
 
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 import htsjdk.samtools.util.IOUtil;
 
 public class VcfAncestralAlleleTest extends TestUtils {
+	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][] {
 			{SRC_TEST_RESOURCE+"/rotavirus_rf.fa",SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz"},
