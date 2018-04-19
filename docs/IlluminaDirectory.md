@@ -1,5 +1,7 @@
 # IlluminaDirectory
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.
 
 
@@ -37,11 +39,10 @@ Usage: illuminadir [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -71,30 +72,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/IlluminaDirectory.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/IlluminaDirectory.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Jun 21 15:27:13 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/034f57d0e8d0399c12b290385d89e498e6138e1d
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
-Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
-Thu Apr 6 18:34:56 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/883b4ba4b693661663694256f16b137e371147fa
-Tue May 24 16:49:08 2016 +0200 ; error in fisherburdenv ; https://github.com/lindenb/jvarkit/commit/ad8d8c2252786a71d063854fddcf5c3e276a052e
-Wed Jan 6 17:39:57 2016 +0100 ; VcfMultiToOneInfo ; https://github.com/lindenb/jvarkit/commit/4bea71a6d15bdb12288d2c34ffc43892004476c9
-Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
-Fri Mar 13 17:27:36 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/342394fbf42c5e19058bc46deac5ae956699a9c6
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Thu Apr 3 17:24:00 2014 +0200 ; cont: doap, sam2fasta, sam2psl... ; https://github.com/lindenb/jvarkit/commit/bc9f11b1a0a1a7b0874a3b74d75b368e4de0bf98
-Tue Nov 12 18:24:48 2013 +0100 ; reading from stdin ; https://github.com/lindenb/jvarkit/commit/5cbcf8273b7d9767ad75fef90e059a6574a3e4ad
-Tue Nov 12 13:18:49 2013 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/7fa73b9b3d540c6fe444517ac10bf4ee945a03e1
-Mon Oct 21 18:22:10 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7c3dbbd3ae3fc9cf7a25278d3cb10737c55251b9
-Mon Oct 21 11:25:40 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/5712fed9238aad4e286ab59a983927afcac7c8be
-```
-
-</details>
 
 ## Contribute
 
