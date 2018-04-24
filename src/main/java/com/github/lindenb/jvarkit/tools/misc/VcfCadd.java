@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,18 +22,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -51,11 +50,13 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
+import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -69,7 +70,7 @@ $  curl -s  "https://raw2.github.com/arq5x/gemini/master/test/ALL.wgs.phase1_rel
  grep -E '(CADD|#)'
 
 (...)
-##INFO=<ID=CADD,Number=.,Type=String,Description="(Allele|Score|Phred) Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive 
+##INFO=<ID=CADD,Number=A,Type=String,Description="(Allele|Score|Phred) Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive 
 values).However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more l
 ikely to have deleterious effects.PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD sc
 ores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc">
@@ -82,12 +83,22 @@ ores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc">
 1	1657021	.	T	C	3.02	.	AC1=2;AF1=1;CADD=C|-0.271229|0.740;...
 (..)
 ```
+
+## History
+
+  * 2018-04-24 : changing INFO -type to 'A'
+
+
 END_DOC
 */
-@Program(name="vcfcadd",description= "Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. "+
+@Program(
+	name="vcfcadd",
+	description= "Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. "+
 		"A general framework for estimating the relative pathogenicity of human genetic variants. "+
 		"Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892." +
-		"PubMed PMID: 24487276.")
+		"PubMed PMID: 24487276.",
+	keywords={"vcf","prediction","cadd","annotation"}
+	)
 
 public class VcfCadd extends Launcher
 	{
@@ -97,12 +108,15 @@ public class VcfCadd extends Launcher
 	private File outputFile = null;
 	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz";
 	private TabixFileReader tabix=null;
-	@Parameter(names="-u",description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
+	@Parameter(names={"-u","--uri"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
 	private String ccaduri=DEFAULT_URI;
-	private Pattern TAB=Pattern.compile("[\t]");
-	private static final String CADD_FLAG="CADD";
-	@Parameter(names="-d",description="processing window size")
+	@Parameter(names={"-T","--tag"},description="INFO tag")
+	private String CADD_FLAG="CADD";
+	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size")
 	private int buffer_distance=1000;
+
+	
+	private final Pattern TAB=Pattern.compile("[\t]");
 	
 	
 	private static class Record
@@ -119,63 +133,82 @@ public class VcfCadd extends Launcher
 		}
 	
 	
-	private void runTabix(List<VariantContext> buffer)
+	private void runTabix(final List<VariantContext> buffer)
 			throws IOException
 		{
 		if(buffer.isEmpty()) return;
-		String chrom=buffer.get(0).getContig();
+		final String chrom=buffer.get(0).getContig();
 		int start=Integer.MAX_VALUE;
 		int end=0;
-		for(VariantContext ctx:buffer)
+		for(final VariantContext ctx:buffer)
 			{
 			start= Math.min(start, ctx.getStart());
 			end= Math.max(end, ctx.getEnd());
 			}
 		LOG.info(chrom+":"+start+"-"+end);
-		List<Record> caddList=new ArrayList<Record>(buffer.size());
+		final Map<ContigPosRef,List<Record>> caddMap =new HashMap<>(buffer.size());
 		
-		Iterator<String> iter = tabix.iterator(
+		
+		Iterator<String> iter = this.tabix.iterator(
 				chrom,
 				(int)Math.max(1,start),
 				(int)Math.min(Integer.MAX_VALUE,end)
 				);
 		while(iter.hasNext() )
 			{
-			String line=iter.next();
-			String tokens[]=TAB.split(line);
-			if(tokens.length!=6) throw new IOException("Bad CADD line . Expected 6 fields:"+line);
-			Record rec=new Record();
+			final String line=iter.next();
+			final String tokens[] = TAB.split(line);
+			if(tokens.length!=6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected 6 fields",tokens);
+			final Record rec=new Record();
 			rec.pos= Integer.parseInt(tokens[1]);
 			rec.ref=Allele.create(tokens[2],true);
 			rec.alt=Allele.create(tokens[3],false);
 			rec.score = Float.parseFloat(tokens[4]);
 			rec.phred = Float.parseFloat(tokens[5]);
-			caddList.add(rec);
+			
+			final ContigPosRef cpr = new ContigPosRef(chrom,rec.pos,rec.ref);
+			List<Record> L = caddMap.get(cpr);
+			if(L==null) {
+				L = new ArrayList<>();
+				caddMap.put(cpr,L);
+				}		
+			L.add(rec);
 			}
 		CloserUtil.close(iter);
 		
 		
 		for(int i=0;i< buffer.size();++i)
 			{
-			List<String> cadd_array=new ArrayList<>();
-			VariantContext ctx=buffer.get(i);
-			for(Record rec:caddList)
-				{
-				if(rec.pos!=ctx.getStart()) continue;
-				if(!ctx.getReference().equals(rec.ref)) continue;
-
+			final VariantContext ctx=buffer.get(i);
+			final List<Record> cadd_rec_for_ctx = caddMap.get(new ContigPosRef(ctx));
+			if(cadd_rec_for_ctx==null || cadd_rec_for_ctx.isEmpty()) continue;
+			
+			final List<Float> cadd_array_score=new ArrayList<>();
+			final List<Float> cadd_array_phred=new ArrayList<>();
 				
-				for(Allele alt:ctx.getAlternateAlleles())
-					{
-					if(alt.isSymbolic() || !alt.equals(rec.alt)) continue;
-					cadd_array.add(alt.getDisplayString()+"|"+rec.score+"|"+rec.phred);
+			for(final Allele alt:ctx.getAlternateAlleles())
+				{
+				final Record rec = cadd_rec_for_ctx.
+						stream().
+						filter(REC->REC.alt.equals(alt)).
+						findAny().
+						orElse(null);
+				if(rec==null) {
+					cadd_array_score.add(-999f);
+					cadd_array_phred.add(-999f);
+					}
+				else {
+					cadd_array_score.add(rec.score);
+					cadd_array_phred.add(rec.phred);
 					}
 				}
+				
 			
-			if(!cadd_array.isEmpty())
+			if(!cadd_array_score.isEmpty())
 				{
-				VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.attribute(CADD_FLAG, cadd_array);
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.attribute(this.CADD_FLAG+"_SCORE", cadd_array_score);
+				vcb.attribute(this.CADD_FLAG+"_PHRED", cadd_array_phred);
 				buffer.set(i, vcb.make());
 				}
 			}
@@ -183,14 +216,14 @@ public class VcfCadd extends Launcher
 		
 		}
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName, VcfIterator in, VariantContextWriter out) {
 		
 			try {
 			VCFHeader header=in.getHeader();
 			if(header.getSequenceDictionary()!=null)
 				{
-				SAMSequenceDictionary dict=header.getSequenceDictionary();
-				Set<String> vcfchr=new HashSet<String>();
+				final SAMSequenceDictionary dict=header.getSequenceDictionary();
+				final Set<String> vcfchr=new HashSet<String>();
 				for(SAMSequenceRecord ssr:dict.getSequences()) vcfchr.add(ssr.getSequenceName());
 				if(!vcfchr.retainAll(this.tabix.getChromosomes()))//nothing changed
 					{
@@ -198,19 +231,26 @@ public class VcfCadd extends Launcher
 					}
 				}
 			
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 			
-			header.addMetaDataLine(new VCFInfoHeaderLine(CADD_FLAG,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"(Allele|Score|Phred) Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive values)."+
+			header.addMetaDataLine(new VCFInfoHeaderLine(
+					this.CADD_FLAG+"_SCORE",
+					VCFHeaderLineCount.A,
+					VCFHeaderLineType.Float,
+					"Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive values)."+
 					"However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects."
-					+ "PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc"
-							));
-			 
+					));
+			header.addMetaDataLine(new VCFInfoHeaderLine(
+					this.CADD_FLAG+"_PHRED",
+					VCFHeaderLineCount.A,
+					VCFHeaderLineType.Float,
+					"PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc"
+					));
 			
 			out.writeHeader(header);
-			List<VariantContext> buffer= new ArrayList<>();
+			final List<VariantContext> buffer= new ArrayList<>();
 			for(;;)
 				{	
 				VariantContext ctx=null;
@@ -225,29 +265,27 @@ public class VcfCadd extends Launcher
 					if(!buffer.isEmpty())
 						{
 						runTabix(buffer);
-						for(VariantContext c:buffer)
+						for(final VariantContext c:buffer)
 							{
 							out.add(c);
 							}
 						}
-				
 					if(ctx==null) break;
 					buffer.clear();
 					}
-			
 				buffer.add(ctx);
 				}
 			progress.finish();
 			return 0;
 			} 
-		catch(Exception err) {
+		catch(final Exception err) {
 			LOG.error(err);
 			return -1;
 			}
-
 		}
+	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try
 			{
 			
@@ -275,7 +313,7 @@ public class VcfCadd extends Launcher
 			}
 		}
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfCadd().instanceMainWithExit(args);
 		}

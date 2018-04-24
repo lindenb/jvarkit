@@ -1,5 +1,7 @@
 # Biostar86480
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Genomic restriction finder
 
 
@@ -43,11 +45,10 @@ Usage: biostar86480 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -77,23 +78,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86480.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86480.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86480Test.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar86480Test.java)
 
-```
-Thu Sep 7 15:26:22 2017 +0200 ; adding unit test with testng ; https://github.com/lindenb/jvarkit/commit/980b8937646e706a83b10f6b1ceeb015f37bbcc1
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Thu Nov 28 08:16:28 2013 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/d41deb4c340967592eb53e98101077ccbd84a3dd
-Fri Nov 15 12:33:13 2013 +0100 ; vcf rebase ; https://github.com/lindenb/jvarkit/commit/a966b4adf21e22309466eaf84da60518bb078bf0
-Fri Nov 15 00:53:11 2013 +0100 ; error in strand ; https://github.com/lindenb/jvarkit/commit/846fcad2dd6dfdc675e529403d47f9957edf4381
-Thu Nov 14 22:20:43 2013 +0100 ; biostar 86480 ; https://github.com/lindenb/jvarkit/commit/8120514280e631ac4caca166e2d206d0ef9e5571
-```
-
-</details>
 
 ## Contribute
 
