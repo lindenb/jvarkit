@@ -37,6 +37,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -67,6 +68,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 
 /**
 BEGIN_DOC
@@ -123,6 +126,11 @@ public class VCFCompareGT extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-label","--labels"},description="A comma separated list of label that will be used as the title of the vcfs. Must be provided in the same order. If blank, some numeric indexes will be used")
 	private String vcfLabelsStr ="";
+	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
+	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
+	@Parameter(names={"-nc","--nocall2homref"},description="convert no call to hom-ref")
+	private boolean convertNoCallToHomRef=false;
+
 
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
@@ -296,14 +304,12 @@ public class VCFCompareGT extends Launcher
 						{
 						LOG.info(vcfFile+" "+nLines);
 						}
+					if(!this.variantFilter.test(var)) continue;
 					if(!var.isVariant()) continue;
 					if(!var.hasGenotypes()) continue;
 					for(final Genotype genotype:var.getGenotypes())
 						{
 						final Variant rec=new Variant();
-						if(!genotype.isAvailable()) continue;
-						if(!genotype.isCalled()) continue;
-						if(genotype.isNoCall()) continue;
 						
 						rec.file_index1= i+1;
 						rec.sampleName=genotype.getSampleName();
@@ -325,8 +331,13 @@ public class VCFCompareGT extends Launcher
 							rec.gq=genotype.getGQ();
 							}	
 						final List<Allele> alleles=genotype.getAlleles();
-						if(alleles==null) continue;
-						if(alleles.size()==1)
+
+						if(genotype.isNoCall() || !genotype.isAvailable() || alleles==null) {
+							if(!this.convertNoCallToHomRef) continue;
+							rec.a1 = var.getReference().getDisplayString().toUpperCase();
+							rec.a2 = rec.a1;
+							}
+						else if(alleles.size()==1)
 							{
 							rec.a1=alleles.get(0).getDisplayString().toUpperCase();
 							rec.a2=rec.a1;
@@ -337,7 +348,7 @@ public class VCFCompareGT extends Launcher
 							rec.a2=alleles.get(1).getDisplayString().toUpperCase();
 							if(rec.a1.compareTo(rec.a2)>0)
 								{
-								String tmp=rec.a2;
+								final String tmp=rec.a2;
 								rec.a2=rec.a1;
 								rec.a1=tmp;
 								}
@@ -429,13 +440,14 @@ public class VCFCompareGT extends Launcher
 					}
 				
 				
-				final VariantContextBuilder b=new VariantContextBuilder(
+				final VariantContextBuilder b = new VariantContextBuilder(
 						getClass().getName(),
 						first.chrom,
 						first.start,
 						first.end,
 						alleles
 						);
+				
 				//build genotypes
 				final List<Genotype> genotypes=new ArrayList<Genotype>();
 				for(final Variant var:row)
@@ -455,8 +467,6 @@ public class VCFCompareGT extends Launcher
 					gb.attribute(GenpotypeCreated,samplesCreates.contains(var.sampleName)?1:0);
 					
 					genotypes.add(gb.make());
-					
-					
 					}
 				b.genotypes(genotypes);
 				b.id(first.id);

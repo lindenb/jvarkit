@@ -26,11 +26,20 @@ Usage: vcfcomparegt [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
+    -nc, --nocall2homref
+      convert no call to hom-ref
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
+    -vf, --variant-filter
+      A Java EXpression Language (JEXL) expressions to filter the variants 
+      from a VCF. Empty string will accept all variants. Expression returning 
+      a TRUE will accept the variant. See 
+      https://gatkforums.broadinstitute.org/gatk/discussion/1255 
+      Default: <empty string> (ACCEPT ALL)
     --version
       print version and exit
     -m
