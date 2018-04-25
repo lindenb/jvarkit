@@ -15,6 +15,11 @@ Usage: vcfcomparegt [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -label, --labels
+      A comma separated list of label that will be used as the title of the 
+      vcfs. Must be provided in the same order. If blank, some numeric indexes 
+      will be used
+      Default: <empty string>
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 

@@ -82,17 +82,13 @@ $ java -jar dist/vcfcomparecallers.jar file1.vcf(.gz) file2.vcf(.gz)
 ```
 
 
-
 both vcf **must** share the same sequence dictionary and must be sorted
-
 
 #### History
 
 * 20170704 : rewritten from scratch
 
-
 ### Example
-
 
 
 ```
@@ -614,7 +610,7 @@ public class VcfCompareCallers
 			archiveFactory.close();archiveFactory=null;
 			return RETURN_OK;
 			} 
-		catch (Exception err)
+		catch (final Exception err)
 			{
 			LOG.error(err);
 			return -1;

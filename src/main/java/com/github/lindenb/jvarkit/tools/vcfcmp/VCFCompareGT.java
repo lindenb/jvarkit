@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
@@ -33,6 +30,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -42,9 +40,8 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SortingCollection;
-
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -53,12 +50,14 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -122,6 +121,8 @@ public class VCFCompareGT extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names={"-label","--labels"},description="A comma separated list of label that will be used as the title of the vcfs. Must be provided in the same order. If blank, some numeric indexes will be used")
+	private String vcfLabelsStr ="";
 
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
@@ -133,7 +134,7 @@ public class VCFCompareGT extends Launcher
 		String ref=VCFConstants.EMPTY_ALLELE;
 		int start=-1;
 		int end=-1;
-		int file_index=0;
+		int file_index1 = 0;
 		String sampleName="";
 		String a1=VCFConstants.EMPTY_ALLELE;
 		String a2=VCFConstants.EMPTY_ALLELE;
@@ -165,7 +166,7 @@ public class VCFCompareGT extends Launcher
 			if(i!=0) return i;
 			i=v1.sampleName.compareTo(v2.sampleName);
 			if(i!=0) return i;
-			i=v1.file_index - v2.file_index;
+			i= Integer.compare(v1.file_index1 ,v2.file_index1);
 			if(i!=0) return i;
 			return 0;
 			}
@@ -189,7 +190,7 @@ public class VCFCompareGT extends Launcher
 			v.sampleName=dis.readUTF();
 			v.a1=readString(dis);
 			v.a2=readString(dis);
-			v.file_index=dis.readInt();
+			v.file_index1 = dis.readInt();
 			v.dp=dis.readInt();
 			v.gq=dis.readInt();
 			return v;
@@ -206,7 +207,7 @@ public class VCFCompareGT extends Launcher
 			dos.writeUTF(v.sampleName);
 			writeString(dos,v.a1);
 			writeString(dos,v.a2);
-			dos.writeInt(v.file_index);
+			dos.writeInt(v.file_index1);
 			dos.writeInt(v.dp);
 			dos.writeInt(v.gq);
 			}
@@ -224,14 +225,31 @@ public class VCFCompareGT extends Launcher
 
 	@Override
 	public int doWork(final List<String> arguments) {
-		final List<File> inputVcfFiles  = new ArrayList<>(
-				IOUtil.unrollFiles(arguments.stream().map(F->new File(F)).collect(Collectors.toCollection(HashSet::new)),
-				".vcf","vcf.gz"
-				));
-		if(inputVcfFiles.isEmpty())
+		
+		if(arguments.isEmpty())
 			{
-			LOG.error("VCF missing.");
+			LOG.error("VCFs missing.");
 			return -1;
+			}
+		final List<String> vcfLabelList;
+		if(!StringUtil.isBlank(this.vcfLabelsStr)) {
+			vcfLabelList = Arrays.stream(this.vcfLabelsStr.split("[,]")).filter(S->!StringUtil.isBlank(S)).collect(Collectors.toList());
+			if(new HashSet<>(vcfLabelList).size()!=arguments.size()) {
+				LOG.error("bad number of labels in : "+this.vcfLabelsStr);
+				return -1;
+				}
+			if(vcfLabelList.stream().anyMatch(S->!S.matches("[0-9A-Za-z]+")))
+				{
+				LOG.error("bad label in : "+this.vcfLabelsStr);
+				return -1;
+				}
+			}
+		else
+			{
+			vcfLabelList = new ArrayList<>();
+			for(int i=0;i< arguments.size();++i) {
+				vcfLabelList.add(String.valueOf(i+1));
+				}
 			}
 		
 		VariantComparator varcmp=new VariantComparator();
@@ -253,22 +271,26 @@ public class VCFCompareGT extends Launcher
 			metaData.add(new VCFHeaderLine(getClass().getSimpleName(),"version:"+getVersion()+" command:"+getProgramCommandLine()));
 			
 			
-			for(int i=0;i< inputVcfFiles.size();++i)
+			for(int i=0;i< arguments.size();++i)
 				{
-				final File vcfFile= inputVcfFiles.get(i);
+				final File vcfFile= new File(arguments.get(i));
+				
 				LOG.info("Opening "+vcfFile);
 				final VCFFileReader vcfFileReader = new VCFFileReader(vcfFile,false);
 				final CloseableIterator<VariantContext> iter = vcfFileReader.iterator();
 				final VCFHeader header = vcfFileReader.getFileHeader();
 				sampleNames.addAll(header.getSampleNamesInOrder());
 				
-				metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"_"+((i)+1),"File: "+vcfFile.getPath()));
+				metaData.add(new VCFHeaderLine(
+						getClass().getSimpleName()+"_"+vcfLabelList.get(i),
+						"File: "+vcfFile.getPath())
+						);
 
 				
 				long nLines=0;
 				while(iter.hasNext())
 					{
-					final VariantContext var=iter.next();
+					final VariantContext var = iter.next();
 					
 					if(nLines++%10000==0)
 						{
@@ -283,7 +305,7 @@ public class VCFCompareGT extends Launcher
 						if(!genotype.isCalled()) continue;
 						if(genotype.isNoCall()) continue;
 						
-						rec.file_index=i+1;
+						rec.file_index1= i+1;
 						rec.sampleName=genotype.getSampleName();
 						rec.chrom=var.getContig();
 						rec.start=var.getStart();
@@ -334,30 +356,33 @@ public class VCFCompareGT extends Launcher
 		
 			LOG.info("Done Adding");
 			
-			final Set<String> newSampleNames=new HashSet<>();
-			for(int i=0;i< inputVcfFiles.size();++i)
-				{
-				for(final String sample:sampleNames)
-					{
-					newSampleNames.add(sample+"_"+((i)+1));
-					}
-				}
+			
 			final String GenpotypeChangedKey="GCH";
 			final String GenpotypeCreated="GNW";
 			final String GenpotypeDiff="GDF";
 			
-			metaData.add(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_KEY, 1, VCFHeaderLineType.String, "Genotype"));
-			metaData.add(new VCFFormatHeaderLine("DP", 1, VCFHeaderLineType.Integer, "Depth"));
-			metaData.add(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_QUALITY_KEY, 1, VCFHeaderLineType.Integer, "Qual"));
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY));
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY));
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY));
+			
 			metaData.add(new VCFFormatHeaderLine(GenpotypeChangedKey,1,VCFHeaderLineType.Integer, "Changed Genotype"));
 			metaData.add(new VCFFormatHeaderLine(GenpotypeCreated,1,VCFHeaderLineType.Integer, "Genotype Created/Deleted"));
 			metaData.add(new VCFInfoHeaderLine(GenpotypeDiff,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String, "Samples with Genotype Difference"));
+			metaData.add(new VCFFilterHeaderLine("DISCORDANCE","something has changed."));
 
-			
+            final Set<String> newSampleNames=new TreeSet<>();
+            for(int i=0;i< vcfLabelList.size();++i)
+                   {
+                   for(final String sample:sampleNames)
+                           {
+                           newSampleNames.add(sample+"_"+vcfLabelList.get(i));
+                           }
+                   }
 			
 			final VCFHeader header=new VCFHeader(
 					metaData,
-					new ArrayList<String>(newSampleNames));
+					new ArrayList<>(newSampleNames)
+					);
 			
 			final VariantContextWriter w= super.openVariantContextWriter(outputFile);
 			w.writeHeader(header);
@@ -387,7 +412,7 @@ public class VCFCompareGT extends Launcher
 				
 				for(final String sampleName:samplesSeen.keySet())
 					{
-					if(samplesSeen.count(sampleName)!=inputVcfFiles.size())
+					if(samplesSeen.count(sampleName)!=arguments.size())
 						{
 						samplesCreates.add(sampleName);
 						}
@@ -423,7 +448,7 @@ public class VCFCompareGT extends Launcher
 					final GenotypeBuilder gb=new GenotypeBuilder();
 					gb.DP(var.dp);
 					gb.alleles(galleles);
-					gb.name(var.sampleName+"_"+var.file_index);
+					gb.name(var.sampleName +"_"+ vcfLabelList.get(var.file_index1 -1 ));
 					gb.GQ(var.gq);
 					
 					gb.attribute(GenpotypeChangedKey,samplesModified.contains(var.sampleName)?1:0);
@@ -439,10 +464,16 @@ public class VCFCompareGT extends Launcher
 				
 				if(!(samplesModified.isEmpty() && samplesCreates.isEmpty()))
 					{
-					Set<String> set2=new TreeSet<String>(samplesModified);
+					final Set<String> set2=new TreeSet<String>(samplesModified);
 					set2.addAll(samplesCreates);
 					b.attribute(GenpotypeDiff, set2.toArray());
+					b.filter("DISCORDANCE");
 					}
+				else
+					{
+					b.passFilters();
+					}
+				
 				
 				
 				if(!only_print_modified || !(samplesModified.isEmpty() && samplesCreates.isEmpty()))
