@@ -36,9 +36,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -51,6 +50,8 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -64,29 +65,32 @@ BEGIN_DOC
 ## Example
 
 ```bash
-$  curl -s  "https://raw2.github.com/arq5x/gemini/master/test/ALL.wgs.phase1_release_v3.20101123.snps_indels_sv.sites.snippet.vcf" | \
- java -jar dist/vcfcadd.jar \
-      -u "http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz" |\
- grep -E '(CADD|#)'
+$ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd.jar \
+	-u "http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz"  \
+	src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz 2> /dev/null | ~/package/bcftools/bcftools annotate -x '^INFO/CADD_SCORE,INFO/CADD_PHRED'
 
+##fileformat=VCFv4.2
 (...)
-##INFO=<ID=CADD,Number=A,Type=String,Description="(Allele|Score|Phred) Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive 
-values).However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more l
-ikely to have deleterious effects.PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD sc
-ores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc">
-(..)
-##VcfCaddCmdLine=-u http://krishna.gs.washington.edu/download/CADD/v1.0/1000G.tsv.gz
-##VcfCaddVersion=6123910f68df940c1f3986d142f9b0414f76a43a
+##INFO=<ID=CADD_PHRED,Number=A,Type=Float,Description="PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc.  URI was http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz">
+##INFO=<ID=CADD_SCORE,Number=A,Type=Float,Description="Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive values).However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects. URI was http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz">
+##VcfCaddCmdLine=-u http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz
+(...)
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-1	1308871	.	A	T	6.20	.	AC1=2;AF1=1;CADD=T|-0.549120|0.089;...
-1	1308982	.	A	G	6.98	.	AC1=2;AF1=1;CADD=G|-0.000088|3.329;...
-1	1657021	.	T	C	3.02	.	AC1=2;AF1=1;CADD=C|-0.271229|0.740;...
+1	905606	rs540662886	G	C,A	41743.9	PASS	CADD_PHRED=3.426,.;CADD_SCORE=0.082875,.
+(...)
+1	905621	rs368876607	G	A	14291.5	PASS	CADD_PHRED=6.025;CADD_SCORE=0.334762
+(...)
+1	905669	rs111483874	C	G,T	86574.3	PASS	CADD_PHRED=12.77,.;CADD_SCORE=1.39614,.
+(...)
+1	905723	rs150703609	G	A	15622.1	PASS	CADD_PHRED=23.7;CADD_SCORE=4.05532
+1	905726	rs751084833	C	T,A	8733.36	PASS	.
+1	905727	rs761609807	G	A	12936.9	PASS	.
 (..)
 ```
 
 ## History
 
-  * 2018-04-24 : changing INFO -type to 'A'
+  * 2018-04-25 : changing INFO -type to 'A', splitting into two CADD_score/phred and adding dict converter
 
 
 END_DOC
@@ -108,36 +112,73 @@ public class VcfCadd extends Launcher
 	private File outputFile = null;
 	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz";
 	private TabixFileReader tabix=null;
-	@Parameter(names={"-u","--uri"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
+	@Parameter(names={"-u","--uri","--tabix"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
 	private String ccaduri=DEFAULT_URI;
-	@Parameter(names={"-T","--tag"},description="INFO tag")
-	private String CADD_FLAG="CADD";
+	@Parameter(names={"-S","--score","--score-tag"},description="INFO tag for score")
+	private String CADD_FLAG_SCORE = "CADD_SCORE";
+	@Parameter(names={"-P","--phred","--phred-tag"},description="INFO tag for phred")
+	private String CADD_FLAG_PHRED = "CADD_PHRED";
 	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size")
 	private int buffer_distance=1000;
 
 	
 	private final Pattern TAB=Pattern.compile("[\t]");
+	private ContigNameConverter convertToCaddContigs = null;
 	
+	/**
+	$ wget -q -O - "http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz" | gunzip  -c | head 
+
+## CADD v1.3 (c) University of Washington and Hudson-Alpha Institute for Biotechnology 2013-2015. All rights reserved.
+#Chrom	Pos	Ref	Alt	RawScore	PHRED
+1	10177	A	AC	-0.402095	0.382
+1	10235	T	TA	-0.196330	1.117
+1	10352	T	TA	-0.240617	0.900
+1	10505	A	T	0.618129	8.281
+1	10506	C	G	0.789734	9.401
+1	10511	G	A	0.772599	9.294
+1	10539	C	A	1.054015	10.96
+1	10542	C	T	1.113857	11.29
+
 	
+	*/
 	private static class Record
 		{
-		int pos;
-		Allele ref;
-		Allele alt;
-		float score;
-		float phred;
+		final int pos;
+		final Allele ref;
+		final Allele alt;
+		final float score;
+		final float phred;
+		Record(final String tokens[]) {
+			if(tokens.length!=6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected 6 fields",tokens);
+			this.pos= Integer.parseInt(tokens[1]);
+			this.ref = Allele.create(tokens[2],true);
+			this.alt = Allele.create(tokens[3],false);
+			this.score = Float.parseFloat(tokens[4]);
+			this.phred = Float.parseFloat(tokens[5]);
+			}
 		}
 	
 	public VcfCadd()
 		{
 		}
 	
+	private final Set<String> contigsNotFounds = new HashSet<>();
 	
 	private void runTabix(final List<VariantContext> buffer)
 			throws IOException
 		{
 		if(buffer.isEmpty()) return;
-		final String chrom=buffer.get(0).getContig();
+		final String contigVcf = buffer.get(0).getContig();
+		final String chromCadd = this.convertToCaddContigs.apply(contigVcf);
+		if(StringUtil.isBlank(chromCadd)) {
+			if(!contigsNotFounds.contains(contigVcf) && this.contigsNotFounds.size()<10000 ) {
+				contigsNotFounds.add(contigVcf);
+				LOG.warning("Cannot find or convert VCF contig "+contigVcf+" to cadd contigs");
+				}
+			return;
+			}
+		
+		
 		int start=Integer.MAX_VALUE;
 		int end=0;
 		for(final VariantContext ctx:buffer)
@@ -145,28 +186,24 @@ public class VcfCadd extends Launcher
 			start= Math.min(start, ctx.getStart());
 			end= Math.max(end, ctx.getEnd());
 			}
-		LOG.info(chrom+":"+start+"-"+end);
-		final Map<ContigPosRef,List<Record>> caddMap =new HashMap<>(buffer.size());
+		LOG.info("Scanning "+contigVcf+":"+start+"-"+end);
+		final Map<ContigPosRef,List<Record>> caddMap = new HashMap<>(buffer.size());
 		
 		
 		Iterator<String> iter = this.tabix.iterator(
-				chrom,
+				chromCadd,
 				(int)Math.max(1,start),
 				(int)Math.min(Integer.MAX_VALUE,end)
 				);
 		while(iter.hasNext() )
 			{
 			final String line=iter.next();
+			if(line.startsWith("#") || StringUtil.isBlank(line))continue;
 			final String tokens[] = TAB.split(line);
-			if(tokens.length!=6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected 6 fields",tokens);
-			final Record rec=new Record();
-			rec.pos= Integer.parseInt(tokens[1]);
-			rec.ref=Allele.create(tokens[2],true);
-			rec.alt=Allele.create(tokens[3],false);
-			rec.score = Float.parseFloat(tokens[4]);
-			rec.phred = Float.parseFloat(tokens[5]);
+			final Record rec=new Record(tokens);
+			if(!tokens[0].equals(chromCadd)) throw new IllegalStateException("Expected CADD contig "+chromCadd+" in "+line);
 			
-			final ContigPosRef cpr = new ContigPosRef(chrom,rec.pos,rec.ref);
+			final ContigPosRef cpr = new ContigPosRef(contigVcf,rec.pos,rec.ref);
 			List<Record> L = caddMap.get(cpr);
 			if(L==null) {
 				L = new ArrayList<>();
@@ -185,7 +222,7 @@ public class VcfCadd extends Launcher
 			
 			final List<Float> cadd_array_score=new ArrayList<>();
 			final List<Float> cadd_array_phred=new ArrayList<>();
-				
+			boolean got_non_null = false;
 			for(final Allele alt:ctx.getAlternateAlleles())
 				{
 				final Record rec = cadd_rec_for_ctx.
@@ -194,21 +231,22 @@ public class VcfCadd extends Launcher
 						findAny().
 						orElse(null);
 				if(rec==null) {
-					cadd_array_score.add(-999f);
-					cadd_array_phred.add(-999f);
+					cadd_array_score.add(null);
+					cadd_array_phred.add(null);
 					}
 				else {
+					got_non_null = true;
 					cadd_array_score.add(rec.score);
 					cadd_array_phred.add(rec.phred);
 					}
 				}
 				
 			
-			if(!cadd_array_score.isEmpty())
+			if(!cadd_array_score.isEmpty() && got_non_null)
 				{
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.attribute(this.CADD_FLAG+"_SCORE", cadd_array_score);
-				vcb.attribute(this.CADD_FLAG+"_PHRED", cadd_array_phred);
+				vcb.attribute(this.CADD_FLAG_SCORE, cadd_array_score);
+				vcb.attribute(this.CADD_FLAG_PHRED, cadd_array_phred);
 				buffer.set(i, vcb.make());
 				}
 			}
@@ -217,36 +255,34 @@ public class VcfCadd extends Launcher
 		}
 	@Override
 	protected int doVcfToVcf(final String inputName, VcfIterator in, VariantContextWriter out) {
-		
-			try {
-			VCFHeader header=in.getHeader();
-			if(header.getSequenceDictionary()!=null)
-				{
-				final SAMSequenceDictionary dict=header.getSequenceDictionary();
-				final Set<String> vcfchr=new HashSet<String>();
-				for(SAMSequenceRecord ssr:dict.getSequences()) vcfchr.add(ssr.getSequenceName());
-				if(!vcfchr.retainAll(this.tabix.getChromosomes()))//nothing changed
-					{
-					LOG.warning("#### !!!! NO common chromosomes between tabix and vcf file. Check chromosome 'chr' prefix ? tabix chroms:"+this.tabix.getChromosomes());
-					}
-				}
 			
+			try {
+			final VCFHeader header=in.getHeader();
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			if(header.getInfoHeaderLine(this.CADD_FLAG_PHRED)!=null) {
+				throw new JvarkitException.DuplicateVcfHeaderInfo(header, this.CADD_FLAG_PHRED);
+			}
+			if(header.getInfoHeaderLine(this.CADD_FLAG_SCORE)!=null) {
+				throw new JvarkitException.DuplicateVcfHeaderInfo(header, this.CADD_FLAG_SCORE);
+			}
+
 			
 			header.addMetaDataLine(new VCFInfoHeaderLine(
-					this.CADD_FLAG+"_SCORE",
+					this.CADD_FLAG_SCORE,
 					VCFHeaderLineCount.A,
 					VCFHeaderLineType.Float,
 					"Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive values)."+
-					"However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects."
+					"However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects." +
+					" URI was " +this.ccaduri
 					));
 			header.addMetaDataLine(new VCFInfoHeaderLine(
-					this.CADD_FLAG+"_PHRED",
+					this.CADD_FLAG_PHRED,
 					VCFHeaderLineCount.A,
 					VCFHeaderLineType.Float,
-					"PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc"
+					"PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc. " +
+					" URI was " +this.ccaduri
 					));
 			
 			out.writeHeader(header);
@@ -288,7 +324,10 @@ public class VcfCadd extends Launcher
 	public int doWork(final List<String> args) {
 		try
 			{
-			
+			if(this.CADD_FLAG_PHRED.equals(CADD_FLAG_SCORE)) {
+				LOG.error("tag phred same as tag score");
+				return -1;
+				}
 			if(this.ccaduri==null || !this.ccaduri.endsWith(".gz"))
 				{
 				LOG.error("CCAD uri should end with gz. got "+this.ccaduri);
@@ -296,7 +335,9 @@ public class VcfCadd extends Launcher
 				}
 			
 			LOG.info("Loading index for "+this.ccaduri+". Please wait...");
-			this.tabix=new TabixFileReader(this.ccaduri);
+			this.tabix = new TabixFileReader(this.ccaduri);
+			this.convertToCaddContigs = ContigNameConverter.fromContigSet(this.tabix.getChromosomes());
+			this.convertToCaddContigs.setOnNotFound(OnNotFound.SKIP);
 			LOG.info("End loading index");
 			
 			return doVcfToVcf(args,outputFile);

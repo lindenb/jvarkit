@@ -20,10 +20,13 @@ Usage: vcfcadd [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
-    -T, --tag
-      INFO tag
-      Default: CADD
-    -u, --uri
+    -P, --phred, --phred-tag
+      INFO tag for phred
+      Default: CADD_PHRED
+    -S, --score, --score-tag
+      INFO tag for score
+      Default: CADD_SCORE
+    -u, --uri, --tabix
       Combined Annotation Dependent Depletion (CADD) Tabix file URI
       Default: http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz
     --version
@@ -105,29 +108,32 @@ The current reference is:
 ## Example
 
 ```bash
-$  curl -s  "https://raw2.github.com/arq5x/gemini/master/test/ALL.wgs.phase1_release_v3.20101123.snps_indels_sv.sites.snippet.vcf" | \
- java -jar dist/vcfcadd.jar \
-      -u "http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz" |\
- grep -E '(CADD|#)'
+$ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd.jar \
+	-u "http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz"  \
+	src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz 2> /dev/null | ~/package/bcftools/bcftools annotate -x '^INFO/CADD_SCORE,INFO/CADD_PHRED'
 
+##fileformat=VCFv4.2
 (...)
-##INFO=<ID=CADD,Number=A,Type=String,Description="(Allele|Score|Phred) Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive 
-values).However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more l
-ikely to have deleterious effects.PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD sc
-ores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc">
-(..)
-##VcfCaddCmdLine=-u http://krishna.gs.washington.edu/download/CADD/v1.0/1000G.tsv.gz
-##VcfCaddVersion=6123910f68df940c1f3986d142f9b0414f76a43a
+##INFO=<ID=CADD_PHRED,Number=A,Type=Float,Description="PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc.  URI was http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz">
+##INFO=<ID=CADD_SCORE,Number=A,Type=Float,Description="Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive values).However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects. URI was http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz">
+##VcfCaddCmdLine=-u http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz
+(...)
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-1	1308871	.	A	T	6.20	.	AC1=2;AF1=1;CADD=T|-0.549120|0.089;...
-1	1308982	.	A	G	6.98	.	AC1=2;AF1=1;CADD=G|-0.000088|3.329;...
-1	1657021	.	T	C	3.02	.	AC1=2;AF1=1;CADD=C|-0.271229|0.740;...
+1	905606	rs540662886	G	C,A	41743.9	PASS	CADD_PHRED=3.426,.;CADD_SCORE=0.082875,.
+(...)
+1	905621	rs368876607	G	A	14291.5	PASS	CADD_PHRED=6.025;CADD_SCORE=0.334762
+(...)
+1	905669	rs111483874	C	G,T	86574.3	PASS	CADD_PHRED=12.77,.;CADD_SCORE=1.39614,.
+(...)
+1	905723	rs150703609	G	A	15622.1	PASS	CADD_PHRED=23.7;CADD_SCORE=4.05532
+1	905726	rs751084833	C	T,A	8733.36	PASS	.
+1	905727	rs761609807	G	A	12936.9	PASS	.
 (..)
 ```
 
 ## History
 
-  * 2018-04-24 : changing INFO -type to 'A'
+  * 2018-04-25 : changing INFO -type to 'A', splitting into two CADD_score/phred and adding dict converter
 
 
 

@@ -16,6 +16,7 @@ public class VcfCaddTest extends TestUtils {
 		final File out = super.createTmpFile(".vcf");
 		Assert.assertEquals(0,new VcfCadd().instanceMain(new String[] {
 			"-o",out.getPath(),
+			"-u","http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz",
 			inputFile
 			}));
 		assertIsVcf(out);
