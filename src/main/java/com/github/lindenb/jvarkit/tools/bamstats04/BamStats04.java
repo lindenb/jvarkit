@@ -223,7 +223,7 @@ public class BamStats04 extends Launcher
 					if(dict==null) {
 						dict=d;
 						}
-					else if(SequenceUtil.areSequenceDictionariesEqual(d, dict)) {
+					else if(!SequenceUtil.areSequenceDictionariesEqual(d, dict)) {
 						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(d, dict));
 						return -1;
 						}
