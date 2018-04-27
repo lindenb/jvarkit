@@ -35,8 +35,10 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -62,13 +64,11 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 
 /**
@@ -77,6 +77,8 @@ BEGIN_DOC
 ## Input
 
 input is a set of VCF files or a file with '.list' suffix with the path (one path per line).
+
+Genotypes are supposed diploids.
 
 ## Example
 
@@ -130,8 +132,6 @@ public class VCFCompareGT extends Launcher
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
 	@Parameter(names={"-nc","--nocall2homref"},description="convert no call to hom-ref")
 	private boolean convertNoCallToHomRef=false;
-
-
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
@@ -148,6 +148,9 @@ public class VCFCompareGT extends Launcher
 		String a2=VCFConstants.EMPTY_ALLELE;
 		int dp=-1;
 		int gq=-1;
+		boolean isHomRef() {
+			return a1.equals(ref) && a1.equals(a2);
+			}
 		}
 	
 	private class PosComparator implements Comparator<Variant>
@@ -183,12 +186,12 @@ public class VCFCompareGT extends Launcher
 	private class VariantCodec extends AbstractDataCodec<Variant>
 		{
 		@Override
-		public Variant decode(DataInputStream dis) throws IOException
+		public Variant decode(final DataInputStream dis) throws IOException
 			{
-			Variant v=new Variant();
+			final Variant v=new Variant();
 			try {
 				v.chrom=dis.readUTF();
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				return null;
 				}
 			v.start=dis.readInt();
@@ -204,7 +207,7 @@ public class VCFCompareGT extends Launcher
 			return v;
 			}
 		@Override
-		public void encode(DataOutputStream dos, Variant v)
+		public void encode(final DataOutputStream dos,final Variant v)
 				throws IOException
 			{
 			dos.writeUTF(v.chrom);
@@ -277,7 +280,9 @@ public class VCFCompareGT extends Launcher
 			
 			final Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			metaData.add(new VCFHeaderLine(getClass().getSimpleName(),"version:"+getVersion()+" command:"+getProgramCommandLine()));
-			
+			final BiFunction<String, Integer, String> createName=(SN,IDX) -> 
+				SN+"_"+vcfLabelList.get(IDX)
+			;
 			
 			for(int i=0;i< arguments.size();++i)
 				{
@@ -313,11 +318,11 @@ public class VCFCompareGT extends Launcher
 						
 						rec.file_index1= i+1;
 						rec.sampleName=genotype.getSampleName();
-						rec.chrom=var.getContig();
-						rec.start=var.getStart();
-						rec.end=var.getEnd();
+						rec.chrom = var.getContig();
+						rec.start = var.getStart();
+						rec.end = var.getEnd();
 						
-						rec.ref=var.getReference().getDisplayString();
+						rec.ref = var.getReference().getDisplayString().toUpperCase();
 						if(var.hasID())
 							{
 							rec.id=var.getID();
@@ -386,7 +391,7 @@ public class VCFCompareGT extends Launcher
                    {
                    for(final String sample:sampleNames)
                            {
-                           newSampleNames.add(sample+"_"+vcfLabelList.get(i));
+                           newSampleNames.add(createName.apply(sample,i));
                            }
                    }
 			
@@ -407,31 +412,37 @@ public class VCFCompareGT extends Launcher
 				final Set<String> samplesModified=new TreeSet<>();
 				/** the number of sample is different from vcflist.size() */
 				final Set<String> samplesCreates=new TreeSet<>();
-				final Counter<String> samplesSeen=new Counter<>();
-				for(int x=0;x< row.size();++x)
+				
+				final Map<String,List<Variant>> sample2variants = row.stream().collect(Collectors.groupingBy(T->T.sampleName));
+				for(final String sn:sample2variants.keySet())
 					{
-					final Variant var1=row.get(x);
-					samplesSeen.incr(var1.sampleName);
-					for(int y=x+1;y< row.size();++y)
+					boolean all_hom_ref = true;
+					final List<Variant> sampleVariants = sample2variants.get(sn);
+
+					for(int x=0;x /*+1 non, besoin de tester hom_ref */ < sampleVariants.size();++x)
 						{
-						final Variant var2=row.get(y);
-						if(!var2.sampleName.equals(var1.sampleName)) continue;
-						if(var1.a1.equals(var2.a1) && var1.a2.equals(var2.a2) ) continue;
-						samplesModified.add(var1.sampleName);
+						final Variant var1=sampleVariants.get(x);
+						if(!var1.isHomRef()) all_hom_ref = false;
+						for(int y=x+1;y< sampleVariants.size();++y)
+							{
+							final Variant var2=sampleVariants.get(y);
+							if(var1.a1.equals(var2.a1) && var1.a2.equals(var2.a2) ) continue;
+							samplesModified.add(var1.sampleName);
+							}
 						}
+					
+					if(sampleVariants.size() != arguments.size())
+						{
+						if(!convertNoCallToHomRef || (this.convertNoCallToHomRef && !all_hom_ref))
+							{
+							samplesCreates.add(sn);
+							}
+						}					
 					}
 				
-				for(final String sampleName:samplesSeen.keySet())
-					{
-					if(samplesSeen.count(sampleName)!=arguments.size())
-						{
-						samplesCreates.add(sampleName);
-						}
-					}
 				
-				
-				final Variant first=row.get(0);
-				final Set<Allele> alleles=new HashSet<>();
+				final Variant first = row.get(0);
+				final Set<Allele> alleles = new HashSet<>();
 				alleles.add(Allele.create(first.ref, true));
 				for(final Variant var:row)
 					{
@@ -460,7 +471,7 @@ public class VCFCompareGT extends Launcher
 					final GenotypeBuilder gb=new GenotypeBuilder();
 					gb.DP(var.dp);
 					gb.alleles(galleles);
-					gb.name(var.sampleName +"_"+ vcfLabelList.get(var.file_index1 -1 ));
+					gb.name(createName.apply(var.sampleName,var.file_index1 -1));
 					gb.GQ(var.gq);
 					
 					gb.attribute(GenpotypeChangedKey,samplesModified.contains(var.sampleName)?1:0);
@@ -474,7 +485,7 @@ public class VCFCompareGT extends Launcher
 				
 				if(!(samplesModified.isEmpty() && samplesCreates.isEmpty()))
 					{
-					final Set<String> set2=new TreeSet<String>(samplesModified);
+					final Set<String> set2 = new TreeSet<String>(samplesModified);
 					set2.addAll(samplesCreates);
 					b.attribute(GenpotypeDiff, set2.toArray());
 					b.filter("DISCORDANCE");
@@ -483,8 +494,6 @@ public class VCFCompareGT extends Launcher
 					{
 					b.passFilters();
 					}
-				
-				
 				
 				if(!only_print_modified || !(samplesModified.isEmpty() && samplesCreates.isEmpty()))
 					{
