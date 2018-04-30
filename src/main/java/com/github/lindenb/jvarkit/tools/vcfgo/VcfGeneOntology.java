@@ -43,8 +43,8 @@ import javax.xml.stream.XMLStreamException;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.go.GoTree;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -162,6 +162,7 @@ END_DOC
 @Program(
 		name="vcfgo",
 		description="Find the GO terms for VCF annotated with SNPEFF or VEP",
+		deprecatedMsg="do not use this",
 		keywords={"vcf","go"}
 		)
 public class VcfGeneOntology
@@ -324,8 +325,8 @@ public class VcfGeneOntology
 			h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"GO terms from GO "+GO+" and GOA="+GOA));
 			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+			JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), h2);
+			
 			if(filterName!=null)
 				{
 				h2.addMetaDataLine( new VCFFilterHeaderLine(
@@ -385,23 +386,23 @@ public class VcfGeneOntology
 				List<String> atts=new ArrayList<String>();
 				
 				/* loop over symbols */
-				for(String symbol:symbols)
+				for(final String symbol:symbols)
 					{
 					/* go terms associated to this symbol */
-					Set<GoTree.Term> t2= this.name2go.get(symbol);
+					final Set<GoTree.Term> t2= this.name2go.get(symbol);
 					if(t2==null || t2.isEmpty()) continue;
 					
-					StringBuilder sb=new StringBuilder(symbol);
+					final StringBuilder sb=new StringBuilder(symbol);
 					sb.append("|");
 					boolean first=true;
-					for(GoTree.Term gt:t2)
+					for(final GoTree.Term gt:t2)
 						{
 						/* user gave terms to filter */
 						if(!found_child_of_filter && this.goTermToFilter!=null)
 							{
-							for(GoTree.Term userTerm : this.goTermToFilter)
+							for(final GoTree.Term userTerm : this.goTermToFilter)
 								{
-								if(userTerm.hasDescendant(gt.getAcn()))
+								if(gt.isDescendantOf(userTerm))
 									{
 									found_child_of_filter=true;
 									break;

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.vcfcmp;
@@ -45,7 +42,8 @@ import java.util.List;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -139,9 +137,9 @@ public class VcfCompareCallersOneSample
 	
 	
 @Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		File inputFile=null;
-		List<EqualRangeVcfIterator> listChallengers = new ArrayList<>();
+		final List<EqualRangeVcfIterator> listChallengers = new ArrayList<>();
 		VariantContextWriter vcw=null;
 		VcfIterator in=null;
 		try {
@@ -151,28 +149,26 @@ public class VcfCompareCallersOneSample
 			VCFHeader header=in.getHeader();
 			if(header.getNGenotypeSamples()!=1)
 				{
-				LOG.error("vcf.must.have.only.one.sample");
+				LOG.error("vcf must have only one sample");
 				return -1;
 				}
 			
-			VCFHeader h2=new VCFHeader(header);
+			final VCFHeader h2=new VCFHeader(header);
 			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
-
+			JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), h2);
 			
 			
 			SAMSequenceDictionary dict = header.getSequenceDictionary();
 			if(dict==null)
 				{
-				LOG.error("no.dict.in.vcf");
+				LOG.error(JvarkitException.VcfDictionaryMissing.getMessage("input"));
 				return -1;
 				}
-			Comparator<VariantContext> ctxComparator = VCFUtils.createTidPosComparator(dict);
+			final Comparator<VariantContext> ctxComparator = VCFUtils.createTidPosComparator(dict);
 
 			/* load files to be challenged */
-			for(File cf :this.challengerVcf)
+			for(final File cf :this.challengerVcf)
 				{
 				//do not challenge vs itself
 				if(inputFile!=null && inputFile.equals(cf))
@@ -226,11 +222,11 @@ public class VcfCompareCallersOneSample
 				
 				
 				int countInOtherFiles=0;
-				for(EqualRangeVcfIterator citer:listChallengers)
+				for(final EqualRangeVcfIterator citer:listChallengers)
 					{
 					boolean foundInThatFile=false;
-					List<VariantContext> ctxChallenging = citer.next(ctx);
-					for(VariantContext ctx2:ctxChallenging)
+					final List<VariantContext> ctxChallenging = citer.next(ctx);
+					for(final VariantContext ctx2:ctxChallenging)
 						{
 						if(!ctx2.getReference().equals(ctx.getReference())) continue;
 						boolean ok=true;
@@ -260,7 +256,7 @@ public class VcfCompareCallersOneSample
 			progress.finish();
 			return 0;
 			} 
-		catch (Exception err)
+		catch (final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -275,7 +271,7 @@ public class VcfCompareCallersOneSample
 		}
 	
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VcfCompareCallersOneSample().instanceMainWithExit(args);
 	}
 	}

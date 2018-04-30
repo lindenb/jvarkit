@@ -1,5 +1,7 @@
 # VcfFilterXPath
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document
 
 
@@ -39,11 +41,10 @@ Usage: vcffilterxpath [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -73,19 +74,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfFilterXPath.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfFilterXPath.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Thu Apr 27 17:22:22 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/0a27a246a537d2b48201596067652ea26bfc28d6
-Mon Jun 15 21:35:36 2015 +0200 ; pubmed graph ; https://github.com/lindenb/jvarkit/commit/3fd6216961e9aca27a1013a7b2aab63afe819d52
-Mon Jun 15 17:39:39 2015 +0200 ; fix bug ; https://github.com/lindenb/jvarkit/commit/0eaebc08048fc961b89fadc21635d21548cf3c45
-Mon Jun 15 17:24:26 2015 +0200 ; vep as xml base 64 ; https://github.com/lindenb/jvarkit/commit/d629603576c14a970208c9599b39ecb2a8b39994
-```
-
-</details>
 
 ## Contribute
 

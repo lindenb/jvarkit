@@ -228,7 +228,7 @@ public class VcfCompareCallers
 				}
 			if(g1!=null &&  VcfCompareCallers.this.noCallIsHomRef && !g1.isCalled())
 				{
-				g1 =makeHomRef( this.theOne(ctx0, ctx1),g1.getPloidy());
+				g1 = makeHomRef( this.theOne(ctx0, ctx1),g1.getPloidy());
 				}
 			for(final String cat:categories)
 				{
@@ -626,7 +626,7 @@ public class VcfCompareCallers
 
 	
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VcfCompareCallers().instanceMainWithExit(args);
 	}
 }

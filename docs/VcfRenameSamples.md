@@ -1,5 +1,7 @@
 # VcfRenameSamples
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Rename the Samples in a VCF
 
 
@@ -45,11 +47,10 @@ Usage: vcfrenamesamples [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -79,25 +80,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRenameSamples.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRenameSamples.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Jul 26 18:09:38 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/576fdd17812f9a47491945cb8bb74990ffb084c9
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Tue Apr 25 17:33:00 2017 +0200 ; fix make ; https://github.com/lindenb/jvarkit/commit/621fdfbe039f474e187e8f5c67ff17b368b77289
-Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
-Tue Mar 17 16:59:10 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/b74a74277f72f240dab3360a49fdb8357f7bfbbd
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Thu Dec 12 23:40:23 2013 +0100 ; rename samples vcf ; https://github.com/lindenb/jvarkit/commit/dde9d975366700060e6436ed83c7399f00ebd0cd
-```
-
-</details>
 
 ## Contribute
 

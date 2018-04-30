@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -98,7 +98,6 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -1068,7 +1067,6 @@ public class BatchIGVPictures extends Launcher
 			
 			app.about=" Author: Pierre Lindenbaum "+
 						" Version:"+getVersion()+
-						" Htsjdk.version:"+HtsjdkVersion.getVersion()+
 						" Date:"+getCompileDate()
 						;
 			try
