@@ -1,0 +1,579 @@
+<?xml version="1.0"?>
+<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">
+<BlastOutput>
+  <BlastOutput_program>blastn</BlastOutput_program>
+  <BlastOutput_version>BLASTN 2.2.31+</BlastOutput_version>
+  <BlastOutput_reference>Zheng Zhang, Scott Schwartz, Lukas Wagner, and Webb Miller (2000), &quot;A greedy algorithm for aligning DNA sequences&quot;, J Comput Biol 2000; 7(1-2):203-14.</BlastOutput_reference>
+  <BlastOutput_db>rotavirus_rf.fa</BlastOutput_db>
+  <BlastOutput_query-ID>Query_1</BlastOutput_query-ID>
+  <BlastOutput_query-def>AF338247.1 Human rotavirus A strain M clone M1 NSP3 genes, complete cds</BlastOutput_query-def>
+  <BlastOutput_query-len>2032</BlastOutput_query-len>
+  <BlastOutput_param>
+    <Parameters>
+      <Parameters_expect>10</Parameters_expect>
+      <Parameters_sc-match>1</Parameters_sc-match>
+      <Parameters_sc-mismatch>-2</Parameters_sc-mismatch>
+      <Parameters_gap-open>0</Parameters_gap-open>
+      <Parameters_gap-extend>0</Parameters_gap-extend>
+      <Parameters_filter>L;m;</Parameters_filter>
+    </Parameters>
+  </BlastOutput_param>
+<BlastOutput_iterations>
+<Iteration>
+  <Iteration_iter-num>1</Iteration_iter-num>
+  <Iteration_query-ID>Query_1</Iteration_query-ID>
+  <Iteration_query-def>AF338247.1 Human rotavirus A strain M clone M1 NSP3 genes, complete cds</Iteration_query-def>
+  <Iteration_query-len>2032</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|6</Hit_id>
+  <Hit_def>RF07</Hit_def>
+  <Hit_accession>6</Hit_accession>
+  <Hit_len>1074</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>1027.86</Hsp_bit-score>
+      <Hsp_score>556</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>964</Hsp_query-from>
+      <Hsp_query-to>2032</Hsp_query-to>
+      <Hsp_hit-from>6</Hsp_hit-from>
+      <Hsp_hit-to>1074</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>899</Hsp_identity>
+      <Hsp_positive>899</Hsp_positive>
+      <Hsp_gaps>2</Hsp_gaps>
+      <Hsp_align-len>1070</Hsp_align-len>
+      <Hsp_qseq>TTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCTGCTACTTCAACATTAGAATTAATGGGTATTCAATATGATTACAATGAAGTATTTACCAGAGTTAAAAGTAAATTTGATTATGTAATGGATGACTCTGGTGTTAAAAACAATCTTTTGGGTAAAGCTATAACTATTGATCAGGCGTTAAATGGAAAATTTGGCTCAGCTATTAGAAATAGAAATTGGATGACTGATTCTAAAACGGTTGCTAAATTAGATGAAGACGTGAATAAACTTAGAATGACTTTATCTTCTAAAGGAATCGACCAAAAGATGAGAGTACTTAATGCTTGTTTTAGTGTAAAAAGAATACCAGGAAAATCATCATCAATAATTAAATGCACTAGACTTATGAAGGATAAAATAGAACGTGGAGAAGTTGAGGTTGATGATTCATATGTTGATGAGAAAATGGAAATTGATACTATTGATTGGAAATCTCGTTATGATCAGTTAGAAAAAAGATTTGAGTCACTAAAACAAAGAGTTAATGAAAAATACAATACTTGGGTACAAAAAGCGAAGAAAGTAAATGAAAATATGTACTCTCTTCAGAATGTTATTTCACAACAGCAAAACCAAATAGCAGATCTTCAACAATATTGTAATAAATTGGAAGCTGATTTGCAAGGCAAATTTAGTTCATTAGTGTCATCAGTTGAGTGGTATCTAAGGTCTATGGAATTACCAGATGATGTAAAGAATGATATTGAACAGCAGTTAAATTCAATTGATTTAATTAATCCCATTAATGCTATAGATGATATCGAATCGTTGATTAGAAATTTAATTCAAGATTATGACAGAACATTTTTAATGTTAAAAGGACTGTTGAAGCAATGCAACTATGAATATGCATATGAGTAGTCACATAATA-AAAAATATTAACCATCTACACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_qseq>
+      <Hsp_hseq>TTAATGCTTTTCAGTGGTTGATGCTCAAGATGGAGTCTACACAGCAGATGGCTAGTTCGATTATTAACACTTCTTTTGAAGCCGCAGTCGTTGCTGCCACTTCAACTCTTGAACTTATGGGCATTCAATATGATTATAATGAAGTTTATACTAGAGTTAAGAGCAAATTTGATTACGTAATGGATGATTCAGGTGTTAAAAACAATCTGTTGGGTAAAGCGGCAACTATTGATCAGGCACTGAATGGAAAATTTGGTTCAGCAGCAAGAAATAGAAATTGGATGGCTGATACTAGAACTACAGCTAGACTAGATGAAGATGTGAACAAACTTAGAATGATGCTATCATCTAAAGGAATTGATCAAAAAATGAGAGTACTTAATGCATGTTTCAATGTGAAGCGAGTTCCAGGTAAATCATCATCAATAATTAAATGTACTAGATTAATGAGAGATAAGATTGAACGTGGTGAAGTCGAAGTGGATGATTCGTTTGTTGAAGAAAAAATGGAAGTTGACACAATTGATTGGAAATCTAGATATGAACAATTGGAAAAACGATTTGAATCGCTGAAACAAAGGGTGAATGAAAAATATACAAGTTGGGTGCAAAAAGCAAAAAAGGTAAATGAAAATATGTACTCTCTCCAAAACGTTATATCACAACAGCAGAGCCAGATTGCTGATTTACAAAATTACTGTAATAAATTGGAAGTTGATCTACAAAATAAAATTAGTTCACTTGTGTCTTCAGTCGAATGGTACCTGAAATCAATGGAATTGCCTGATGAAATTAAGACAGATATTGAACAACAACTAAATTCCATTGATGTAATCAATCCAATTAATGCTATAGATGATTTTGAATCACTGATCAGAAATATTATACTCGACTATGACAGAATATTTTTAATGTTTAAAGGATTAATGAGGCAATGCAACTATGAATATACGTATGAATAGTCACATAATATAATTAAATT-ACCATCTTCACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_hseq>
+      <Hsp_midline>|||||||||||||||||||| ||||||||||||||||||| ||||||||||  || || |||||||| |||||||||||||| |||||||||||||| ||||||||  | ||| | ||||| |||||||||||||| |||||||| | ||| |||||||| || ||||||||||| ||||||||||| || ||||||||||||||||| |||||||||||   |||||||||||||||  | |||||||||||||| |||||    |||||||||||||||||| ||||| ||| |||    |||| | |||||||||| ||||| |||||||||||||   |||| ||||||||||| || ||||| ||||||||||||||||| ||||| | ||| ||  || | ||||| ||||||||||||||||||||||| |||||| | ||||  ||||| || |||||||| ||||| || || |||||||| | |||||| || ||||||||| |||| || ||||||||||||||| | ||||| || || |||||| ||||||| || || |||||||| || ||||||||||| |  | |||||| |||||||| || || ||||||||||||||||||||||| || || ||||| ||||||||||| | ||| || || ||| | ||| | || |||||||||||||||| |||| | |||   ||| |||||||| | ||||| ||||| || ||||| || |  || |||||||| || |||||  | ||||  ||||||||||| ||  ||||||| |||||| |||| ||||| |||||||||||||||||| | |||||  |||| |||||| | || |  || |||||||||| |||||||||||| |||||| |  ||| ||||||||||||||||||| | ||||| ||||||||||||| ||  | ||| ||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>17</Statistics_hsp-len>
+      <Statistics_eff-space>36880545</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>2</Iteration_iter-num>
+  <Iteration_query-ID>Query_2</Iteration_query-ID>
+  <Iteration_query-def>JQ687100.1 Simian rotavirus A strain SA11 tsI (prototype 2403) NSP3 (7) gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1086</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|6</Hit_id>
+  <Hit_def>RF07</Hit_def>
+  <Hit_accession>6</Hit_accession>
+  <Hit_len>1074</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>132.232</Hsp_bit-score>
+      <Hsp_score>71</Hsp_score>
+      <Hsp_evalue>3.06367e-33</Hsp_evalue>
+      <Hsp_query-from>1010</Hsp_query-from>
+      <Hsp_query-to>1083</Hsp_query-to>
+      <Hsp_hit-from>998</Hsp_hit-from>
+      <Hsp_hit-to>1071</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>73</Hsp_identity>
+      <Hsp_positive>73</Hsp_positive>
+      <Hsp_gaps>0</Hsp_gaps>
+      <Hsp_align-len>74</Hsp_align-len>
+      <Hsp_qseq>CATAACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTG</Hsp_qseq>
+      <Hsp_hseq>CATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTG</Hsp_hseq>
+      <Hsp_midline>||| ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>19595980</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>3</Iteration_iter-num>
+  <Iteration_query-ID>Query_3</Iteration_query-ID>
+  <Iteration_query-def>JQ687099.1 Simian rotavirus A strain SA11 tsH (prototype 2384) NSP3 (7) gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1086</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|6</Hit_id>
+  <Hit_def>RF07</Hit_def>
+  <Hit_accession>6</Hit_accession>
+  <Hit_len>1074</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>132.232</Hsp_bit-score>
+      <Hsp_score>71</Hsp_score>
+      <Hsp_evalue>3.06367e-33</Hsp_evalue>
+      <Hsp_query-from>1010</Hsp_query-from>
+      <Hsp_query-to>1083</Hsp_query-to>
+      <Hsp_hit-from>998</Hsp_hit-from>
+      <Hsp_hit-to>1071</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>73</Hsp_identity>
+      <Hsp_positive>73</Hsp_positive>
+      <Hsp_gaps>0</Hsp_gaps>
+      <Hsp_align-len>74</Hsp_align-len>
+      <Hsp_qseq>CATAACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTG</Hsp_qseq>
+      <Hsp_hseq>CATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTG</Hsp_hseq>
+      <Hsp_midline>||| ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>19595980</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>4</Iteration_iter-num>
+  <Iteration_query-ID>Query_4</Iteration_query-ID>
+  <Iteration_query-def>AF338246.1 Human rotavirus A strain M clone M0 NSP3 gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1074</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|6</Hit_id>
+  <Hit_def>RF07</Hit_def>
+  <Hit_accession>6</Hit_accession>
+  <Hit_len>1074</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>1037.09</Hsp_bit-score>
+      <Hsp_score>561</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>1</Hsp_query-from>
+      <Hsp_query-to>1074</Hsp_query-to>
+      <Hsp_hit-from>1</Hsp_hit-from>
+      <Hsp_hit-to>1074</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>904</Hsp_identity>
+      <Hsp_positive>904</Hsp_positive>
+      <Hsp_gaps>2</Hsp_gaps>
+      <Hsp_align-len>1075</Hsp_align-len>
+      <Hsp_qseq>GGCTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCTGCTACTTCAACATTAGAATTAATGGGTATTCAATATGATTACAATGAAGTATTTACCAGAGTTAAAAGTAAATTTGATTATGTAATGGATGACTCTGGTGTTAAAAACAATCTTTTGGGTAAAGCTATAACTATTGATCAGGCGTTAAATGGAAAATTTGGCTCAGCTATTAGAAATAGAAATTGGATGACTGATTCTAAAACGGTTGCTAAATTAGATGAAGACGTGAATAAACTTAGAATGACTTTATCTTCTAAAGGAATCGACCAAAAGATGAGAGTACTTAATGCTTGTTTTAGTGTAAAAAGAATACCAGGAAAATCATCATCAATAATTAAATGCACTAGACTTATGAAGGATAAAATAGAACGTGGAGAAGTTGAGGTTGATGATTCATATGTTGATGAGAAAATGGAAATTGATACTATTGATTGGAAATCTCGTTATGATCAGTTAGAAAAAAGATTTGAGTCACTAAAACAAAGAGTTAATGAAAAATACAATACTTGGGTACAAAAAGCGAAGAAAGTAAATGAAAATATGTACTCTCTTCAGAATGTTATTTCACAACAGCAAAACCAAATAGCAGATCTTCAACAATATTGTAATAAATTGGAAGCTGATTTGCAAGGCAAATTTAGTTCATTAGTGTCATCAGTTGAGTGGTATCTAAGGTCTATGGAATTACCAGATGATGTAAAGAATGATATTGAACAGCAGTTAAATTCAATTGATTTAATTAATCCCATTAATGCTATAGATGATATCGAATCGTTGATTAGAAATTTAATTCAAGATTATGACAGAACATTTTTAATGTTAAAAGGACTGTTGAAGCAATGCAACTATGAATATGCATATGAGTAGTCACATAATA-AAAAATATTAACCATCTACACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_qseq>
+      <Hsp_hseq>GGCTTTTAATGCTTTTCAGTGGTTGATGCTCAAGATGGAGTCTACACAGCAGATGGCTAGTTCGATTATTAACACTTCTTTTGAAGCCGCAGTCGTTGCTGCCACTTCAACTCTTGAACTTATGGGCATTCAATATGATTATAATGAAGTTTATACTAGAGTTAAGAGCAAATTTGATTACGTAATGGATGATTCAGGTGTTAAAAACAATCTGTTGGGTAAAGCGGCAACTATTGATCAGGCACTGAATGGAAAATTTGGTTCAGCAGCAAGAAATAGAAATTGGATGGCTGATACTAGAACTACAGCTAGACTAGATGAAGATGTGAACAAACTTAGAATGATGCTATCATCTAAAGGAATTGATCAAAAAATGAGAGTACTTAATGCATGTTTCAATGTGAAGCGAGTTCCAGGTAAATCATCATCAATAATTAAATGTACTAGATTAATGAGAGATAAGATTGAACGTGGTGAAGTCGAAGTGGATGATTCGTTTGTTGAAGAAAAAATGGAAGTTGACACAATTGATTGGAAATCTAGATATGAACAATTGGAAAAACGATTTGAATCGCTGAAACAAAGGGTGAATGAAAAATATACAAGTTGGGTGCAAAAAGCAAAAAAGGTAAATGAAAATATGTACTCTCTCCAAAACGTTATATCACAACAGCAGAGCCAGATTGCTGATTTACAAAATTACTGTAATAAATTGGAAGTTGATCTACAAAATAAAATTAGTTCACTTGTGTCTTCAGTCGAATGGTACCTGAAATCAATGGAATTGCCTGATGAAATTAAGACAGATATTGAACAACAACTAAATTCCATTGATGTAATCAATCCAATTAATGCTATAGATGATTTTGAATCACTGATCAGAAATATTATACTCGACTATGACAGAATATTTTTAATGTTTAAAGGATTAATGAGGCAATGCAACTATGAATATACGTATGAATAGTCACATAATATAATTAAATT-ACCATCTTCACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_hseq>
+      <Hsp_midline>||||||||||||||||||||||||| ||||||||||||||||||| ||||||||||  || || |||||||| |||||||||||||| |||||||||||||| ||||||||  | ||| | ||||| |||||||||||||| |||||||| | ||| |||||||| || ||||||||||| ||||||||||| || ||||||||||||||||| |||||||||||   |||||||||||||||  | |||||||||||||| |||||    |||||||||||||||||| ||||| ||| |||    |||| | |||||||||| ||||| |||||||||||||   |||| ||||||||||| || ||||| ||||||||||||||||| ||||| | ||| ||  || | ||||| ||||||||||||||||||||||| |||||| | ||||  ||||| || |||||||| ||||| || || |||||||| | |||||| || ||||||||| |||| || ||||||||||||||| | ||||| || || |||||| ||||||| || || |||||||| || ||||||||||| |  | |||||| |||||||| || || ||||||||||||||||||||||| || || ||||| ||||||||||| | ||| || || ||| | ||| | || |||||||||||||||| |||| | |||   ||| |||||||| | ||||| ||||| || ||||| || |  || |||||||| || |||||  | ||||  ||||||||||| ||  ||||||| |||||| |||| ||||| |||||||||||||||||| | |||||  |||| |||||| | || |  || |||||||||| |||||||||||| |||||| |  ||| ||||||||||||||||||| | ||||| ||||||||||||| ||  | ||| ||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>19376212</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>5</Iteration_iter-num>
+  <Iteration_query-ID>Query_5</Iteration_query-ID>
+  <Iteration_query-def>AF338248.1 Human rotavirus A strain M clone M3 modified NSP3 protein gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1941</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|6</Hit_id>
+  <Hit_def>RF07</Hit_def>
+  <Hit_accession>6</Hit_accession>
+  <Hit_len>1074</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>941.065</Hsp_bit-score>
+      <Hsp_score>509</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>932</Hsp_query-from>
+      <Hsp_query-to>1941</Hsp_query-to>
+      <Hsp_hit-from>65</Hsp_hit-from>
+      <Hsp_hit-to>1074</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>844</Hsp_identity>
+      <Hsp_positive>844</Hsp_positive>
+      <Hsp_gaps>2</Hsp_gaps>
+      <Hsp_align-len>1011</Hsp_align-len>
+      <Hsp_qseq>ATTATTAATACTTCTTTTGAATCTGCAGTCGTTGCTGCTACTTCAACATTAGAATTAATGGGTATTCAATATGATTACAATGAAGTATTTACCAGAGTTAAAAGTAAATTTGATTATGTAATGGATGACTCTGGTGTTAAAAACAATCTTTTGGGTAAAGCTATAACTATTGATCAGGCGTTAAATGGAAAATTTGGCTCAGCTATTAGAAATAGAAATTGGATGACTGATTCTAAAACGGTTGCTAAATTAGATGAAGACGTGAATAAACTTAGGATGACTTTATCTTCTAAAGGAATCGACCAAAAGATGAGAGTACTTAATGCTTGTTTTAGTGTAAAAAGAATACCAGGAAAATCATCATCAATAATTAAATGCACTAGACTTATGAAGGATAAAATAGAACGTGGAGAAGTTGAGGTTGATGATTCATATGTTGATGAGAAAATGGAAATTGATACTATTGATTGGAAATCTCGTTATGATCAGTTAGAAAAAAGATTTGAGTCACTAAAACAAAGAGTTAATGAAAAATACAATACTTGGGTACAAAAAGCGAAGAAAGTAAATGAAAATATGTACTCTCTTCAGAATGTTATTTCACAACAGCAAAACCAAATAGCAGATCTTCAACAATATTGTAATAAATTGGAAGCTGATTTGCAAGGCAAATTTAGTTCATTAGTGTCATCAGTTGAGTGGTATCTAAGGTCTATGGAATTACCAGATGATGTAAAGAATGATATTGAACAGCAGTTAAATTCAATTGATTTAATTAATCCCATTAATGCTATAGATGATATCGAATCGTTGATTAGAAATTTAATTCAAGATTATGACAGAACATTTTTAATGTTAAAAGGACTGTTGAAGCAATGCAACTATGAATATGCATATGAGTAGTCACATAATA-AAAAATATTAACCATCTACACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_qseq>
+      <Hsp_hseq>ATTATTAACACTTCTTTTGAAGCCGCAGTCGTTGCTGCCACTTCAACTCTTGAACTTATGGGCATTCAATATGATTATAATGAAGTTTATACTAGAGTTAAGAGCAAATTTGATTACGTAATGGATGATTCAGGTGTTAAAAACAATCTGTTGGGTAAAGCGGCAACTATTGATCAGGCACTGAATGGAAAATTTGGTTCAGCAGCAAGAAATAGAAATTGGATGGCTGATACTAGAACTACAGCTAGACTAGATGAAGATGTGAACAAACTTAGAATGATGCTATCATCTAAAGGAATTGATCAAAAAATGAGAGTACTTAATGCATGTTTCAATGTGAAGCGAGTTCCAGGTAAATCATCATCAATAATTAAATGTACTAGATTAATGAGAGATAAGATTGAACGTGGTGAAGTCGAAGTGGATGATTCGTTTGTTGAAGAAAAAATGGAAGTTGACACAATTGATTGGAAATCTAGATATGAACAATTGGAAAAACGATTTGAATCGCTGAAACAAAGGGTGAATGAAAAATATACAAGTTGGGTGCAAAAAGCAAAAAAGGTAAATGAAAATATGTACTCTCTCCAAAACGTTATATCACAACAGCAGAGCCAGATTGCTGATTTACAAAATTACTGTAATAAATTGGAAGTTGATCTACAAAATAAAATTAGTTCACTTGTGTCTTCAGTCGAATGGTACCTGAAATCAATGGAATTGCCTGATGAAATTAAGACAGATATTGAACAACAACTAAATTCCATTGATGTAATCAATCCAATTAATGCTATAGATGATTTTGAATCACTGATCAGAAATATTATACTCGACTATGACAGAATATTTTTAATGTTTAAAGGATTAATGAGGCAATGCAACTATGAATATACGTATGAATAGTCACATAATATAATTAAATT-ACCATCTTCACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_hseq>
+      <Hsp_midline>|||||||| |||||||||||| | |||||||||||||| ||||||||  | ||| | ||||| |||||||||||||| |||||||| | ||| |||||||| || ||||||||||| ||||||||||| || ||||||||||||||||| |||||||||||   |||||||||||||||  | |||||||||||||| |||||    |||||||||||||||||| ||||| ||| |||    |||| | |||||||||| ||||| |||||||| ||||   |||| ||||||||||| || ||||| ||||||||||||||||| ||||| | ||| ||  || | ||||| ||||||||||||||||||||||| |||||| | ||||  ||||| || |||||||| ||||| || || |||||||| | |||||| || ||||||||| |||| || ||||||||||||||| | ||||| || || |||||| ||||||| || || |||||||| || ||||||||||| |  | |||||| |||||||| || || ||||||||||||||||||||||| || || ||||| ||||||||||| | ||| || || ||| | ||| | || |||||||||||||||| |||| | |||   ||| |||||||| | ||||| ||||| || ||||| || |  || |||||||| || |||||  | ||||  ||||||||||| ||  ||||||| |||||| |||| ||||| |||||||||||||||||| | |||||  |||| |||||| | || |  || |||||||||| |||||||||||| |||||| |  ||| ||||||||||||||||||| | ||||| ||||||||||||| ||  | ||| ||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>17</Statistics_hsp-len>
+      <Statistics_eff-space>35214972</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>6</Iteration_iter-num>
+  <Iteration_query-ID>Query_6</Iteration_query-ID>
+  <Iteration_query-def>AF338245.1 Human rotavirus A strain M clone M2 NSP5 gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1237</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|10</Hit_id>
+  <Hit_def>RF11</Hit_def>
+  <Hit_accession>10</Hit_accession>
+  <Hit_len>666</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>689.921</Hsp_bit-score>
+      <Hsp_score>373</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>1</Hsp_query-from>
+      <Hsp_query-to>615</Hsp_query-to>
+      <Hsp_hit-from>1</Hsp_hit-from>
+      <Hsp_hit-to>617</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>537</Hsp_identity>
+      <Hsp_positive>537</Hsp_positive>
+      <Hsp_gaps>4</Hsp_gaps>
+      <Hsp_align-len>618</Hsp_align-len>
+      <Hsp_qseq>GGCTTTAAAAGCGCTACAGTGATGTCTCTCAGCATTGACGTGACGAGTCTTCCCTCAATTTCTTCTAATATCTTTAAAAATGAATCGTCTTCTACAACGTCAACTCTTTCTGGAAAATCTATTGGTAGGAACGAACAGTATGTTTCATCAGATATCGAAGCATTCAATAAATACATGTTGTCGAAGTCTCCAGAGGATATTGGACCATCTGATTCTGCTTCAAACGATCCACTCACCAGTTTTTCGATTAGATCGAATGCAGTTAAGACAAATGCAGATGCTGGCGTGTCTATGGATTCATCAACACAATCACGACCTTCAAGCAACGTTGGGTGCGATCAAATGGATTTCTCCTTAACTAAAGGTATTAATGTTAGTGCTAGTCTTGATTCATGCGTATCAATTTCAACTAACCATAAAAAGGAGAAATCTAAAAAGG---ATAAAAGTAGGAAACACTACCCAAGAATTGAAGCAGATTCTGACTCTGAAGATTACGTTTTGGATGATTCAGATAGTGATGACGGTAAATGTAAGAATTGTAAATATAAGAAGAAATATTTTGCATTAAGAATGAGGATGAAACAAGTCGCAATGCAATTGATAGAAGATTTGTAG</Hsp_qseq>
+      <Hsp_hseq>GGCTTT-AAAGCGCTACAGTGATGTCTCTCAGTATTGACGTGACGAGTCTTCCTTCTATTTCTTCTAGTATATACAAAAATGAATCATCTTCAACAACGTCAACTCTTTCTGGAAAATCTATTGGTAGGAGTGAACAGTACATTTCACCAGATGCAGAAGCATTCAGTAAATACATGCTGTCAAAGTCTCCAGAAGATATTGGACCATCTGATTCTGCTTCAAACGATCCACTCACCAGCTTTTCGATTAGATCGAATGCAGTTAAGACAAATGCAGACGCTGGCGTGTCTATGGATTCATCAACACAATCACGGCCATCAAGCAATGTTGGGTGCGATCAAGTGGATTTCTCCTTTAATAAAGGAATTAGTATGAACGCGAACCTGGATTCATCAATATCCATATCAACCAGTTCGAAGAAGGAGAAATCCAAAAGCGACCATAAAAGTAGGAAACACTACCCTAAAATAGAAGCAGAATCTGATTCAGATGACTACATACTCGACGATTCTGATAGTGATGATGGTAAATGTAAAAACTGTAAATATAAGAGGAAGTATTTCGCACTAAGAATGAGAATGAAACAAGTCGCAATGCAATTGATCGAAGATTTGTAG</Hsp_hseq>
+      <Hsp_midline>|||||| ||||||||||||||||||||||||| |||||||||||||||||||| || |||||||||| ||| |  ||||||||||| ||||| |||||||||||||||||||||||||||||||||||||  ||||||||  ||||| |||||   |||||||||| |||||||||| |||| ||||||||||| |||||||||||||||||||||||||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||| ||||||||||||||||||||||||||||||||||| || |||||||| ||||||||||||||| ||||||||||||| | |||||| |||| | | |  || |  || |||||||   |||| || ||||| |     || ||||||||||| ||||  |   |||||||||||||||||||||| | ||| |||||||| ||||| || || || ||| |  | || ||||| ||||||||||| ||||||||||| || ||||||||||||| ||| ||||| ||| |||||||||| |||||||||||||||||||||||||| ||||||||||||</Hsp_midline>
+    </Hsp>
+    <Hsp>
+      <Hsp_num>2</Hsp_num>
+      <Hsp_bit-score>676.994</Hsp_bit-score>
+      <Hsp_score>366</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>615</Hsp_query-from>
+      <Hsp_query-to>1237</Hsp_query-to>
+      <Hsp_hit-from>41</Hsp_hit-from>
+      <Hsp_hit-to>666</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>541</Hsp_identity>
+      <Hsp_positive>541</Hsp_positive>
+      <Hsp_gaps>5</Hsp_gaps>
+      <Hsp_align-len>627</Hsp_align-len>
+      <Hsp_qseq>GACGAGTCTTCCCTCAATTTCTTCTAATATCTTTAAAAATGAATCGTCTTCTACAACGTCAACTCTTTCTGGAAAATCTATTGGTAGGAACGAACAGTATGTTTCATCAGATATCGAAGCATTCAATAAATACATGTTGTCGAAGTCTCCAGAGGATATTGGACCATCTGATTCTGCTTCAAACGATCCACTCACCAGTTTTTCGATTAGATCGAATGCAGTTAAGACAAATGCAGATGCTGGCGTGTCTATGGATTCATCAACACAATCACGACCTTCAAGCAACGTTGGGTGCGATCAAATGGATTTCTCCTTAACTAAAGGTATTAATGTTAGTGCTAGTCTTGATTCATGCGTATCAATTTCAACTAACCATAAAAAGGAGAAATCTAAAAAGG---ATAAAAGTAGGAAACACTACCCAAGAATTGAAGCAGATTCTGACTCTGAAGATTACGTTTTGGATGATTCAGATAGTGATGACGGTAAATGTAAGAATTGTAAATATAAGAAGAAATATTTTGCATTAAGAATGAGGATGAAACAAGTCGCAATGCAATTGATAGAAGATTTGTAATGTC-AACCTGAGGACACACTAGGGAGCTCCCCACTCCCGTTTTGTGACC</Hsp_qseq>
+      <Hsp_hseq>GACGAGTCTTCCTTCTATTTCTTCTAGTATATACAAAAATGAATCATCTTCAACAACGTCAACTCTTTCTGGAAAATCTATTGGTAGGAGTGAACAGTACATTTCACCAGATGCAGAAGCATTCAGTAAATACATGCTGTCAAAGTCTCCAGAAGATATTGGACCATCTGATTCTGCTTCAAACGATCCACTCACCAGCTTTTCGATTAGATCGAATGCAGTTAAGACAAATGCAGACGCTGGCGTGTCTATGGATTCATCAACACAATCACGGCCATCAAGCAATGTTGGGTGCGATCAAGTGGATTTCTCCTTTAATAAAGGAATTAGTATGAACGCGAACCTGGATTCATCAATATCCATATCAACCAGTTCGAAGAAGGAGAAATCCAAAAGCGACCATAAAAGTAGGAAACACTACCCTAAAATAGAAGCAGAATCTGATTCAGATGACTACATACTCGACGATTCTGATAGTGATGATGGTAAATGTAAAAACTGTAAATATAAGAGGAAGTATTTCGCACTAAGAATGAGAATGAAACAAGTCGCAATGCAATTGATCGAAGATTTGTAG-GTCTAACCTGAGAGGTCACTAGGGAGCTCCCCACTCCCGTTTTGTGACC</Hsp_hseq>
+      <Hsp_midline>|||||||||||| || |||||||||| ||| |  ||||||||||| ||||| |||||||||||||||||||||||||||||||||||||  ||||||||  ||||| |||||   |||||||||| |||||||||| |||| ||||||||||| |||||||||||||||||||||||||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||| ||||||||||||||||||||||||||||||||||| || |||||||| ||||||||||||||| ||||||||||||| | |||||| |||| | | |  || |  || |||||||   |||| || ||||| |     || ||||||||||| ||||  |   |||||||||||||||||||||| | ||| |||||||| ||||| || || || ||| |  | || ||||| ||||||||||| ||||||||||| || ||||||||||||| ||| ||||| ||| |||||||||| |||||||||||||||||||||||||| |||||||||||  ||| ||||||||    |||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>22361394</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>7</Iteration_iter-num>
+  <Iteration_query-ID>Query_7</Iteration_query-ID>
+  <Iteration_query-def>AF338244.1 Human rotavirus A strain M clone M0 NSP5 gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>664</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|10</Hit_id>
+  <Hit_def>RF11</Hit_def>
+  <Hit_accession>10</Hit_accession>
+  <Hit_len>666</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>741.627</Hsp_bit-score>
+      <Hsp_score>401</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>1</Hsp_query-from>
+      <Hsp_query-to>664</Hsp_query-to>
+      <Hsp_hit-from>1</Hsp_hit-from>
+      <Hsp_hit-to>666</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>580</Hsp_identity>
+      <Hsp_positive>580</Hsp_positive>
+      <Hsp_gaps>6</Hsp_gaps>
+      <Hsp_align-len>668</Hsp_align-len>
+      <Hsp_qseq>GGCTTTAAAAGCGCTACAGTGATGTCTCTCAGCATTGACGTGACGAGTCTTCCCTCAATTTCTTCTAATATCTTTAAAAATGAATCGTCTTCTACAACGTCAACTCTTTCTGGAAAATCTATTGGTAGGAACGAACAGTATGTTTCATCAGATATCGAAGCATTCAATAAATACATGTTGTCGAAGTCTCCAGAGGATATTGGACCATCTGATTCTGCTTCAAACGATCCACTCACCAGTTTTTCGATTAGATCGAATGCAGTTAAGACAAATGCAGATGCTGGCGTGTCTATGGATTCATCAACACAATCACGACCTTCAAGCAACGTTGGGTGCGATCAAATGGATTTCTCCTTAACTAAAGGTATTAATGTTAGTGCTAGTCTTGATTCATGCGTATCAATTTCAACTAACCATAAAAAGGAGAAATCTAAAAAGG---ATAAAAGTAGGAAACACTACCCAAGAATTGAAGCAGATTCTGACTCTGAAGATTACGTTTTGGATGATTCAGATAGTGATGACGGTAAATGTAAGAATTGTAAATATAAGAAGAAATATTTTGCATTAAGAATGAGGATGAAACAAGTCGCAATGCAATTGATAGAAGATTTGTAATGTC-AACCTGAGGACACACTAGGGAGCTCCCCACTCCCGTTTTGTGACC</Hsp_qseq>
+      <Hsp_hseq>GGCTTT-AAAGCGCTACAGTGATGTCTCTCAGTATTGACGTGACGAGTCTTCCTTCTATTTCTTCTAGTATATACAAAAATGAATCATCTTCAACAACGTCAACTCTTTCTGGAAAATCTATTGGTAGGAGTGAACAGTACATTTCACCAGATGCAGAAGCATTCAGTAAATACATGCTGTCAAAGTCTCCAGAAGATATTGGACCATCTGATTCTGCTTCAAACGATCCACTCACCAGCTTTTCGATTAGATCGAATGCAGTTAAGACAAATGCAGACGCTGGCGTGTCTATGGATTCATCAACACAATCACGGCCATCAAGCAATGTTGGGTGCGATCAAGTGGATTTCTCCTTTAATAAAGGAATTAGTATGAACGCGAACCTGGATTCATCAATATCCATATCAACCAGTTCGAAGAAGGAGAAATCCAAAAGCGACCATAAAAGTAGGAAACACTACCCTAAAATAGAAGCAGAATCTGATTCAGATGACTACATACTCGACGATTCTGATAGTGATGATGGTAAATGTAAAAACTGTAAATATAAGAGGAAGTATTTCGCACTAAGAATGAGAATGAAACAAGTCGCAATGCAATTGATCGAAGATTTGTAG-GTCTAACCTGAGAGGTCACTAGGGAGCTCCCCACTCCCGTTTTGTGACC</Hsp_hseq>
+      <Hsp_midline>|||||| ||||||||||||||||||||||||| |||||||||||||||||||| || |||||||||| ||| |  ||||||||||| ||||| |||||||||||||||||||||||||||||||||||||  ||||||||  ||||| |||||   |||||||||| |||||||||| |||| ||||||||||| |||||||||||||||||||||||||||||||||||||||||||| |||||||||||||||||||||||||||||||||||||| ||||||||||||||||||||||||||||||||||| || |||||||| ||||||||||||||| ||||||||||||| | |||||| |||| | | |  || |  || |||||||   |||| || ||||| |     || ||||||||||| ||||  |   |||||||||||||||||||||| | ||| |||||||| ||||| || || || ||| |  | || ||||| ||||||||||| ||||||||||| || ||||||||||||| ||| ||||| ||| |||||||||| |||||||||||||||||||||||||| |||||||||||  ||| ||||||||    |||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>11867472</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>8</Iteration_iter-num>
+  <Iteration_query-ID>Query_8</Iteration_query-ID>
+  <Iteration_query-def>JX417182.1 Simian rotavirus A strain SA11 tsD NSP1 gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1557</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>17</Statistics_hsp-len>
+      <Statistics_eff-space>28186620</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>9</Iteration_iter-num>
+  <Iteration_query-ID>Query_9</Iteration_query-ID>
+  <Iteration_query-def>JX417181.1 Simian rotavirus A strain SA11 tsI NSP1 gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1557</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>17</Statistics_hsp-len>
+      <Statistics_eff-space>28186620</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>10</Iteration_iter-num>
+  <Iteration_query-ID>Query_10</Iteration_query-ID>
+  <Iteration_query-def>JX417180.1 Simian rotavirus A strain SA11 tsJ NSP1 gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>1557</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>17</Statistics_hsp-len>
+      <Statistics_eff-space>28186620</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>11</Iteration_iter-num>
+  <Iteration_query-ID>Query_11</Iteration_query-ID>
+  <Iteration_query-def>NM_017590.5 Homo sapiens zinc finger CCCH-type containing 7B (ZC3H7B), mRNA</Iteration_query-def>
+  <Iteration_query-len>5928</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>18</Statistics_hsp-len>
+      <Statistics_eff-space>108105720</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>12</Iteration_iter-num>
+  <Iteration_query-ID>Query_12</Iteration_query-ID>
+  <Iteration_query-def>GU144588.1 Synthetic construct 7RdeltaStop r-NSP3 gene, complete cds</Iteration_query-def>
+  <Iteration_query-len>2032</Iteration_query-len>
+<Iteration_hits>
+<Hit>
+  <Hit_num>1</Hit_num>
+  <Hit_id>gnl|BL_ORD_ID|6</Hit_id>
+  <Hit_def>RF07</Hit_def>
+  <Hit_accession>6</Hit_accession>
+  <Hit_len>1074</Hit_len>
+  <Hit_hsps>
+    <Hsp>
+      <Hsp_num>1</Hsp_num>
+      <Hsp_bit-score>1016.78</Hsp_bit-score>
+      <Hsp_score>550</Hsp_score>
+      <Hsp_evalue>0</Hsp_evalue>
+      <Hsp_query-from>966</Hsp_query-from>
+      <Hsp_query-to>2032</Hsp_query-to>
+      <Hsp_hit-from>9</Hsp_hit-from>
+      <Hsp_hit-to>1074</Hsp_hit-to>
+      <Hsp_query-frame>1</Hsp_query-frame>
+      <Hsp_hit-frame>1</Hsp_hit-frame>
+      <Hsp_identity>895</Hsp_identity>
+      <Hsp_positive>895</Hsp_positive>
+      <Hsp_gaps>1</Hsp_gaps>
+      <Hsp_align-len>1067</Hsp_align-len>
+      <Hsp_qseq>ATGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTAAGCTCTATTATTAATACTTCTTTTGAATCTGCAGTCGTTGCTGCTACTTCAACATTAGAATTAATGGGTATTCAATATGATTACAATGAAGTATTTACCAGAGTTAAAAGTAAATTTGATTATGTAATGGATGACTCTGGTGTTAAAAACAATCTTTTGGGTAAAGCTATAACTATTGATCAGGCGTTAAATGGAAAATTTGGCTCAGCTATTAGAAATAGAAATTGGATGACTGATTCTAAAACGGTTGCTAAATTAGATGAAGACGTGAATAAACTTAGAATGACTTTATCTTCTAAAGGAATCGACCAAAAGATGAGAGTACTTAATGCTTGTTTTAGTGTAAAAAGAATACCAGGAAAATCATCATCAATAATTAAATGCACTAGACTTATGAAGGATAAAATAGAACGTGGAGAAGTTGAGGTTGATGATTCATATGTTGATGAGAAAATGGAAATTGATACTATTGATTGGAAATCTCGTTATGATCAGTTAGAAAAAAGATTTGAGTCACTAAAACAAAGAGTTAATGAAAAATACAATACTTGGGTACAAAAAGCGAAGAAAGTAAATGAAAATATGTACTCTCTTCAGAATGTTATTTCACAACAGCAAAACCAAATAGCAGATCTTCAACAATATTGTAATAAATTGGAAGCTGATTTGCAAGGCAAATTTAGTTCATTAGTGTCATCAGTTGAGTGGTATCTAAGGTCTATGGAATTACCAGATGATGTAAAGAATGATATTGAACAGCAGTTAAATTCAATTGATTTAATTAATCCCATTAATGCTATAGATGATATCGAATCGTTGATTAGAAATTTAATTCAAGATTATGACAGAACATTTTTAATGTTAAAAGGACTGTTGAAGCAATGCAACTATGAATATGCATATGAGTAGTCACATAATAAAAAAATATTAACCATCTACACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_qseq>
+      <Hsp_hseq>ATGCTTTTCAGTGGTTGATGCTCAAGATGGAGTCTACACAGCAGATGGCTAGTTCGATTATTAACACTTCTTTTGAAGCCGCAGTCGTTGCTGCCACTTCAACTCTTGAACTTATGGGCATTCAATATGATTATAATGAAGTTTATACTAGAGTTAAGAGCAAATTTGATTACGTAATGGATGATTCAGGTGTTAAAAACAATCTGTTGGGTAAAGCGGCAACTATTGATCAGGCACTGAATGGAAAATTTGGTTCAGCAGCAAGAAATAGAAATTGGATGGCTGATACTAGAACTACAGCTAGACTAGATGAAGATGTGAACAAACTTAGAATGATGCTATCATCTAAAGGAATTGATCAAAAAATGAGAGTACTTAATGCATGTTTCAATGTGAAGCGAGTTCCAGGTAAATCATCATCAATAATTAAATGTACTAGATTAATGAGAGATAAGATTGAACGTGGTGAAGTCGAAGTGGATGATTCGTTTGTTGAAGAAAAAATGGAAGTTGACACAATTGATTGGAAATCTAGATATGAACAATTGGAAAAACGATTTGAATCGCTGAAACAAAGGGTGAATGAAAAATATACAAGTTGGGTGCAAAAAGCAAAAAAGGTAAATGAAAATATGTACTCTCTCCAAAACGTTATATCACAACAGCAGAGCCAGATTGCTGATTTACAAAATTACTGTAATAAATTGGAAGTTGATCTACAAAATAAAATTAGTTCACTTGTGTCTTCAGTCGAATGGTACCTGAAATCAATGGAATTGCCTGATGAAATTAAGACAGATATTGAACAACAACTAAATTCCATTGATGTAATCAATCCAATTAATGCTATAGATGATTTTGAATCACTGATCAGAAATATTATACTCGACTATGACAGAATATTTTTAATGTTTAAAGGATTAATGAGGCAATGCAACTATGAATATACGTATGAATAGTCACATAATATAATTAAATT-ACCATCTTCACATGACCCTCTATGAGCACAATAGTTAAAAGCTAACACTGTCAAAAACCTAAATGGCTATAGGGGCGTTATGTGACC</Hsp_hseq>
+      <Hsp_midline>||||||||||||||||| ||||||||||||||||||| ||||||||||  || || |||||||| |||||||||||| | |||||||||||||| ||||||||  | ||| | ||||| |||||||||||||| |||||||| | ||| |||||||| || ||||||||||| ||||||||||| || ||||||||||||||||| |||||||||||   |||||||||||||||  | |||||||||||||| |||||    |||||||||||||||||| ||||| ||| |||    |||| | |||||||||| ||||| |||||||||||||   |||| ||||||||||| || ||||| ||||||||||||||||| ||||| | ||| ||  || | ||||| ||||||||||||||||||||||| |||||| | ||||  ||||| || |||||||| ||||| || || |||||||| | |||||| || ||||||||| |||| || ||||||||||||||| | ||||| || || |||||| ||||||| || || |||||||| || ||||||||||| |  | |||||| |||||||| || || ||||||||||||||||||||||| || || ||||| ||||||||||| | ||| || || ||| | ||| | || |||||||||||||||| |||| | |||   ||| |||||||| | ||||| ||||| || ||||| || |  || |||||||| || |||||  | ||||  ||||||||||| ||  ||||||| |||||| |||| ||||| |||||||||||||||||| | |||||  |||| |||||| | || |  || |||||||||| |||||||||||| |||||| |  ||| ||||||||||||||||||| | ||||| ||||||||||||| ||  | ||| ||||||| |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</Hsp_midline>
+    </Hsp>
+  </Hit_hsps>
+</Hit>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>17</Statistics_hsp-len>
+      <Statistics_eff-space>36880545</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>13</Iteration_iter-num>
+  <Iteration_query-ID>Query_13</Iteration_query-ID>
+  <Iteration_query-def>AF188530.1 Homo sapiens ubiquitous tetratricopeptide containing protein RoXaN mRNA, partial cds</Iteration_query-def>
+  <Iteration_query-len>2398</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>17</Statistics_hsp-len>
+      <Statistics_eff-space>43579443</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>14</Iteration_iter-num>
+  <Iteration_query-ID>Query_14</Iteration_query-ID>
+  <Iteration_query-def>AF004836.1 Homo sapiens eukaryotic initiation factor-4 gamma (eIF-4G) gene, partial cds</Iteration_query-def>
+  <Iteration_query-len>1224</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>22123312</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>15</Iteration_iter-num>
+  <Iteration_query-ID>Query_15</Iteration_query-ID>
+  <Iteration_query-def>AF002816.1 Human eucaryotic translation initiation factor 4G isoform 2 mRNA, partial cds</Iteration_query-def>
+  <Iteration_query-len>532</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>15</Statistics_hsp-len>
+      <Statistics_eff-space>9474025</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+<Iteration>
+  <Iteration_iter-num>16</Iteration_iter-num>
+  <Iteration_query-ID>Query_16</Iteration_query-ID>
+  <Iteration_query-def>AF002815.1 Human eucaryotic translation initiation factor 4G isoform 1 mRNA, partial cds</Iteration_query-def>
+  <Iteration_query-len>691</Iteration_query-len>
+<Iteration_hits>
+</Iteration_hits>
+  <Iteration_stat>
+    <Statistics>
+      <Statistics_db-num>11</Statistics_db-num>
+      <Statistics_db-len>18490</Statistics_db-len>
+      <Statistics_hsp-len>16</Statistics_hsp-len>
+      <Statistics_eff-space>12361950</Statistics_eff-space>
+      <Statistics_kappa>0.46</Statistics_kappa>
+      <Statistics_lambda>1.28</Statistics_lambda>
+      <Statistics_entropy>0.85</Statistics_entropy>
+    </Statistics>
+  </Iteration_stat>
+  <Iteration_message>No hits found</Iteration_message>
+</Iteration>
+</BlastOutput_iterations>
+</BlastOutput>
+

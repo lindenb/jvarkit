@@ -15,6 +15,7 @@
             <package name="com.github.lindenb.jvarkit.tools.bamindexnames"/>
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>
             <package name="com.github.lindenb.jvarkit.tools.biostar"/>
+            <package name="com.github.lindenb.jvarkit.tools.blast"/>
             <package name="com.github.lindenb.jvarkit.tools.burden"/>
             <package name="com.github.lindenb.jvarkit.tools.cmpbams"/>
             <package name="com.github.lindenb.jvarkit.tools.ensembl"/>
