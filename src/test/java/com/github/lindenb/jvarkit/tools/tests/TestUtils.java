@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
@@ -475,6 +476,21 @@ protected void assertIsFastq(final File f) {
 }
 
 
+protected long assertIsBed(final File f) {
+	Exception err=null;
+	BufferedReader r = null;
+	try {
+		r = IOUtils.openFileForBufferedReading(f);
+		final BedLineCodec codec = new BedLineCodec();
+		return r.lines().map(L->codec.decode(L)).filter(B->B!=null).count();
+	}catch (final Exception e) {
+		err= e;
+	} finally {
+		CloserUtil.close(r);
+	}
+	Assert.assertNull(err,"file "+f+" should be fastq : "+err);
+	return 0L;
+}
 
 
 protected void assertIsNotEmpty(final File f) throws IOException {

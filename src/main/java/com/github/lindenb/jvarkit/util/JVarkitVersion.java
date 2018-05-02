@@ -33,7 +33,8 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
-import htsjdk.samtools.SAMFileHeader;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.vcf.VCFHeader;
@@ -133,14 +134,20 @@ public Set<VCFHeaderLine> getMetaData(String prefix) {
 	if(StringUtil.isBlank(prefix)) prefix="jvarkit";
 	if(!prefix.endsWith(".")) prefix+=".";
 	final Set<VCFHeaderLine> metaData = new HashSet<>();
-	metaData.add(new VCFHeaderLine(prefix + "htsjdk",getHtsjdkVersion()));
-	metaData.add(new VCFHeaderLine(prefix + "githash",getGitHash()));
-	metaData.add(new VCFHeaderLine(prefix + "compilation",getGitHash()));
+	metaData.add(new VCFHeaderLine(prefix+"meta",getLabel()));
 	return metaData;
 	}
 
 public VCFHeader addMetaData(String prefix,final VCFHeader header) {
 	getMetaData(prefix).stream().forEach(H->header.addMetaDataLine(H));
+	return header;
+	}
+public VCFHeader addMetaData(final Launcher app,final VCFHeader header) {
+	header.addMetaDataLine(new VCFHeaderLine(
+			app.getProgramName()+".meta",
+			getLabel()+" cmd:"+
+			app.getProgramCommandLine().replaceAll("[\\\n\r\"\']+", " ").trim())
+			);
 	return header;
 	}
 

@@ -75,7 +75,7 @@ $ java -jar dist/genomicjaspar.jar  -J pfm_vertebrates.txt human_g1k_v37.fasta
 @Program(name="genomicjaspar",
 	description="Find jaspar patterns in FASTA sequences. Reports a BED file.",
 	keywords={"jaspar","genomic","pattern"}
-		)
+	)
 public class GenomicJaspar extends Launcher
 	{
 	private static final Logger LOG = Logger.build(GenomicJaspar.class).make();
@@ -87,16 +87,16 @@ public class GenomicJaspar extends Launcher
 	private double fraction_of_max=0.95;
 
 	
-	private List<Matrix> jasparDb=new ArrayList<Matrix>();
-	private GenomicJaspar()
+	private final List<Matrix> jasparDb=new ArrayList<Matrix>();
+	GenomicJaspar()
 		{
 		}
 	
 	
 	private void digest(
-			PrintWriter out,
-			String seqName,
-			int position0,
+			final PrintWriter out,
+			final String seqName,
+			final int position0,
 			final StringBuilder sequence
 			)
 		{
@@ -105,8 +105,8 @@ public class GenomicJaspar extends Launcher
 			{
 			if(matrix.length()>sequence.length()) continue;
 			
-			CharSequence forward=new SubSequence(sequence,0,matrix.length());
-			CharSequence revcomp=new RevCompCharSequence(forward);
+			final CharSequence forward=new SubSequence(sequence,0,matrix.length());
+			final CharSequence revcomp=new RevCompCharSequence(forward);
 			
 
 			
@@ -142,17 +142,17 @@ public class GenomicJaspar extends Launcher
 			}
 		}
 	
-	private void run(PrintWriter out,Reader in) throws IOException
+	private void run(final PrintWriter out,final Reader in) throws IOException
 		{
 		int longest=0;
-		for(Matrix m:this.jasparDb)
+		for(final Matrix m:this.jasparDb)
 			{
 			longest=Math.max(m.length(), longest);
 			}
 		LOG.info("longest:"+longest);
 		String seqName="";
 		int position0=0;
-		StringBuilder sequences=new StringBuilder(longest);
+		final StringBuilder sequences=new StringBuilder(longest);
 		for(;;)
 			{
 			int c=in.read();
@@ -165,7 +165,7 @@ public class GenomicJaspar extends Launcher
 					sequences.deleteCharAt(0);
 					}
 				if(c==-1) break;
-				StringBuilder b=new StringBuilder();
+				final StringBuilder b=new StringBuilder();
 				while((c=in.read())!=-1 && c!='\n')
 					{
 					b.append((char)c);
@@ -192,7 +192,7 @@ public class GenomicJaspar extends Launcher
 		}
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(jasparUri==null)
 			{
 			LOG.error("Undefined jaspar-uri");
