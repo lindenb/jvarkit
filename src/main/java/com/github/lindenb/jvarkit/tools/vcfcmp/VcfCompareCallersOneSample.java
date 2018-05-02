@@ -93,9 +93,9 @@ END_DOC
 
  */
 @Program(name="vcfcomparecallersonesample",
-description="For my colleague Julien: VCF with one sample called using different callers. Only keep variant if it was found in min<x=other-files<=max"
-
-			)
+description="For my colleague Julien: VCF with one sample called using different callers. Only keep variant if it was found in min<x=other-files<=max",
+keywords= {"vcf","compare"}
+)
 public class VcfCompareCallersOneSample
 	extends Launcher
 	{

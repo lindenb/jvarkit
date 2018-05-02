@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.samfixcigar;
@@ -45,6 +41,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -115,8 +112,9 @@ END_DOC
 
 @Program(name="samfixcigar",
 	description="Fix Cigar String in SAM replacing 'M' by 'X' or '='",
-	keywords={"sam","bam","cigar"}
-		)
+	keywords={"sam","bam","cigar"},
+	biostars= {312430}
+	)
 public class SamFixCigar extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamFixCigar.class).make();
@@ -135,7 +133,7 @@ public class SamFixCigar extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args) {		
+	public int doWork(final List<String> args) {		
 		if(this.faidx==null)
 			{
 			LOG.error("Reference was not specified.");
@@ -149,7 +147,8 @@ public class SamFixCigar extends Launcher
 			{
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
 			sfr = openSamReader(oneFileOrNull(args));
-			final SAMFileHeader header=sfr.getFileHeader();
+			final SAMFileHeader header = sfr.getFileHeader();
+			header.addComment("Processed with "+getProgramName()+" "+JVarkitVersion.getInstance().getLabel());
 			sfw = this.writingBamArgs.
 					setReferenceFile(this.faidx).
 					openSAMFileWriter(outputFile,header, true);
@@ -187,8 +186,8 @@ public class SamFixCigar extends Launcher
 						{
 						for(int i=0;i< ce.getLength();++i)
     		    			{
-							char c1=Character.toUpperCase((char)bases[readPos0]);
-							char c2=Character.toUpperCase(refPos1-1< genomicSequence.length()?genomicSequence.charAt(refPos1-1):'*');
+							final char c1=Character.toUpperCase((char)bases[readPos0]);
+							final char c2=Character.toUpperCase(refPos1-1< genomicSequence.length()?genomicSequence.charAt(refPos1-1):'*');
 							
 							if(c2=='N' || c1==c2)
 								{
@@ -239,7 +238,7 @@ public class SamFixCigar extends Launcher
 			progress.finish();
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final  Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -252,10 +251,7 @@ public class SamFixCigar extends Launcher
 			}
 		}
 	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+	public static void main(final  String[] args) {
 		new SamFixCigar().instanceMainWithExit(args);
 
 	}

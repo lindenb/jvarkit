@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.vcf.VCFHeader;
@@ -143,8 +144,8 @@ public VCFHeader addMetaData(String prefix,final VCFHeader header) {
 	return header;
 	}
 
-@Override
-public String toString() {
+
+public String getLabel() {
 	return String.join(" ",
 			"compilation:",
 			getCompilationDate(),
@@ -153,5 +154,10 @@ public String toString() {
 			"htsjdk:",
 			getHtsjdkVersion()
 			);
-	}
+	
+	
+}
+
+@Override
+public String toString() { return getLabel();}
 }
