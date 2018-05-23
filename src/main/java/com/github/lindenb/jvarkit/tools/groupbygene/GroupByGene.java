@@ -485,7 +485,7 @@ public class GroupByGene
 			pw.print("gene.name");
 			pw.print('\t');
 			pw.print("gene.type");
-			pw.print('\t');
+			pw.print('\t');			
 			pw.print("samples.affected");
 			pw.print('\t');
 			pw.print("count.variations");

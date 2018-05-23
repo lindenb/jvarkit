@@ -224,7 +224,7 @@ public class VcfConcat extends Launcher
 		
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		VariantContextWriter w=null;
 		BufferedReader r=null;
 		try
@@ -255,7 +255,7 @@ public class VcfConcat extends Launcher
 			w= super.openVariantContextWriter(this.outputfile);
 			return fromFiles(w);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

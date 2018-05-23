@@ -1,5 +1,7 @@
 # SortSamRefName
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Sort a BAM of contig and then on name
 
 
@@ -53,11 +55,10 @@ Usage: sortsamrefname [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -87,21 +88,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SortSamRefName.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SortSamRefName.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/SortSamRefNameTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/SortSamRefNameTest.java)
 
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Thu Apr 27 17:22:22 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/0a27a246a537d2b48201596067652ea26bfc28d6
-Wed Mar 30 17:45:00 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ef77dce3c82c470017916555304df6a470fbdad4
-Tue Dec 15 14:18:29 2015 +0100 ; sort sam ref ; https://github.com/lindenb/jvarkit/commit/b7c82e602e66e9cd300d00e739d69296883f5864
-Wed Aug 12 18:34:11 2015 +0200 ; ignore mapq=0 ; https://github.com/lindenb/jvarkit/commit/484ae4fc0e3333893aa6f343db8774f0ede40dda
-Wed Aug 12 15:35:53 2015 +0200 ; Tool to sort BAM on REF/name , tool to 'cap' bam. ; https://github.com/lindenb/jvarkit/commit/6f7e43d6fb776bf2a549700d71220b3d2693862d
-```
-
-</details>
 
 ## Contribute
 
