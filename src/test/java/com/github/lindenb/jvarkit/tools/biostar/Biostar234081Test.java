@@ -15,8 +15,8 @@ public class Biostar234081Test extends TestUtils {
 		final File out = createTmpFile(".bam");
 		Assert.assertEquals(
 				new  Biostar234081().instanceMain(newCmd().add(
-						"-o",samFile,
-						out.getPath()
+						"-o",out.getPath(),
+						samFile
 				).make()),0);
 		
 		super.assertIsValidBam(out);

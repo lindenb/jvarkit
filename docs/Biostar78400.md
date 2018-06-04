@@ -59,11 +59,10 @@ Usage: biostar78400 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -93,6 +92,11 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78400.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78400.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78400Test.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar78400Test.java)
+
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -115,19 +119,14 @@ The current reference is:
 
 
 
-
-
 ### Read names
 
 Reads' name should start with the following signature:
 
 
-
-
 ### XML
 
 the XML should look like this:
-
 
 ```
 
@@ -160,11 +159,7 @@ the XML should look like this:
 
 ```
 
-
-
-
 ### Example
-
 
 
 ```
@@ -192,8 +187,5 @@ HS2000-1259_127:1:1210:15640:52255  163 ref 7   30  8M4I4M1D3M  =   37  39  TTAG
 HS2000-1259_128:2:1210:15640:52255  0   ref 9   30  1S2I6M1P1I1P1I4M2I  *   0   0AAAAGATAAGGGATAAA  *   RG:Z:x2
 
 ```
-
-
-
 
 

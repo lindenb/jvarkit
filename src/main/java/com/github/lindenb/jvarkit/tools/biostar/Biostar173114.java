@@ -32,7 +32,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.Cigar;
@@ -89,7 +88,7 @@ END_DOC
 */
 
 
-@Program(name="biostar173114",terms=Term.ID_0000015,
+@Program(name="biostar173114",
 	description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/",
 	keywords= {"sam","bam"})
 public class Biostar173114 extends Launcher

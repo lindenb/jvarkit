@@ -132,7 +132,9 @@ END_DOC
  */
 @Program(name="biostar160470",
 	description="Getting untranslated nucleotide sequences on tblastn standalone ",
-	biostars=160470,terms=Term.ID_0000015)
+	keywords= {"blasn","blast","translation","protein"},
+	biostars=160470
+	)
 public class Biostar160470 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar160470.class).make();
@@ -351,10 +353,7 @@ public class Biostar160470 extends Launcher
 		}
 	}
 
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new Biostar160470().instanceMainWithExit(args);
 		}

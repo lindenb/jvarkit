@@ -19,6 +19,7 @@ private  File basetest(final String bam,String param) throws IOException {
 		make()
 		),0);
 	assertIsValidBam(out);
+	Assert.assertEquals(wc(new File(bam)),wc(out));
 	return out;
 	}
 
