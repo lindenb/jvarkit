@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.redon;
@@ -72,14 +68,18 @@ import org.broad.igv.bbfile.WigItem;
 
 import htsjdk.tribble.bed.BEDCodec;
 import htsjdk.tribble.readers.LineIterator;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -95,6 +95,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -109,8 +110,11 @@ import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
+import com.github.lindenb.jvarkit.io.DataSerializable;
+import com.github.lindenb.jvarkit.io.DataSerializableCodec;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -173,15 +177,18 @@ public class CopyNumber02 extends Launcher
 	private UnivariateStatistic univariateMid = UnivariateStatistic.median;
 	@Parameter(names={"--univariateSmooth"},description="How to smooth data")
 	private UnivariateStatistic univariateSmooth = UnivariateStatistic.mean;
-	
+	@Parameter(names={"-et","--del-treshold"},description="Deletion Treshold")
+	double delTreshold=1.5;
+	@Parameter(names={"-ut","--dup-treshold"},description="Duplication Treshold")
+	double dupTreshold=0.5;
+	@Parameter(names={"-gct","--gc-treshold"},description="Segment having GC<x or GC>(1.0-x) will be discarded.")
+	double gcTreshold=0.05;
+
 	
 	
 	@Parameter(names={"--ignoreContigPattern"},description="Ignore those Chromosomes")
 	private String ignoreContigPattern = "^(chr)?(GL.*|M|MT|NC_.*)$";
-	@Parameter(names={"--smooth"},description="Smooth window")
-	private int SMOOTH_WINDOW=5;
-	@Parameter(names={"--blackListedBed"},description="Black Listed Bed Regions")
-	private File blackListedBedFile=null;
+	
 	@Parameter(names={"--chrom"},description="Limit to that chromosome")
 	private String limitToChrom=null;
 
@@ -223,6 +230,82 @@ public class CopyNumber02 extends Launcher
 		{
 		loess,neville,difference,linear,spline,identity
 		}
+	
+	private class IterableOfBed implements Iterable<Interval>
+		{
+		final File bedFile;
+		IterableOfBed(final File bedFile) {
+			this.bedFile = bedFile;
+			}
+		@Override
+		public Iterator<Interval> iterator() {
+			return new MyIter();
+			}
+		private class MyIter extends AbstractIterator<Interval> {
+			final BedLineCodec codec=new BedLineCodec();
+			final BufferedReader br;
+			MyIter() {
+				this.br = IOUtil.openFileForBufferedReading(bedFile);
+				}
+			@Override
+			protected Interval advance() {
+				try {
+					String line;
+					while((line=this.br.readLine())!=null)
+						{
+						final BedLine bed = this.codec.decode(line);
+						if(bed==null) continue;
+						if(bed.getContig().matches(ignoreContigPattern)) {
+							continue;
+							}
+						return bed.toInterval();
+						}
+					this.br.close();
+					return null;
+				} catch (IOException e) {
+					throw new RuntimeIOException(e);
+					}
+				}
+			}
+		}	
+	
+	private class IterableOfDict implements Iterable<Interval>
+		{
+		final SAMSequenceDictionary dict;
+		IterableOfDict(final SAMSequenceDictionary dict) {
+			this.dict = dict;
+			}
+		@Override
+		public Iterator<Interval> iterator() {
+			return new MyIter();
+			}
+		private class MyIter extends AbstractIterator<Interval> {
+			int tid=0;
+			int pos=1;
+			@Override
+			protected Interval advance() {
+				while(tid<dict.size())
+					{
+					SAMSequenceRecord ssr = dict.getSequence(tid);
+					if(ssr.getSequenceName().matches(ignoreContigPattern)) {
+						tid++;
+						pos=1;
+						continue;
+						}
+					if(pos+windowSize > ssr.getSequenceLength()) {
+						tid++;
+						pos=1;
+						continue;
+						}
+					Interval rgn =new Interval(ssr.getSequenceName(), pos, pos+windowSize);
+					pos+=windowShift;
+					return rgn;
+					}
+				return null;
+				}
+			}
+		}
+	
 	
 	private class DiskSorter<T>
 		implements Iterable<T>,AutoCloseable
@@ -274,494 +357,7 @@ public class CopyNumber02 extends Launcher
 			}
 		}
 	
-	
-	/* fact: Y=depth X=GC% */
-	private class GCAndDepth
-		{
-		int start;
-		int end;
-		double raw_depth=0;
-		double norm_depth=0;
-		double gc=0;
-		
-		/** GC % */
-		double getX()
-			{
-			return gc;
-			}
-		/** DEPTH */
-		double getY()
-			{
-			return norm_depth;
-			}
-		
-		
-		
-		
-		@Override
-		public String toString() {
-			return ""+start+"-"+end+" GC%="+gc+" depth:"+this.raw_depth+" norm-depth:"+this.norm_depth;
-			}
-		}
-
-			
-			
-	
-	
-	/** constructor */
-	private CopyNumber02()
-		{
-		}
-		
-	
-	private boolean ignoreChromosomeName(final String chrom)
-		{
-		return Pattern.compile(ignoreContigPattern).matcher(chrom).matches();
-		}
-	
-	
-	private class ContigProcessor
-		{
-		private final String sampleName;
-		private final SamReader samReader;
-		private final List<GCAndDepth> items ;
-		private final SAMSequenceRecord ssr;
-		ContigProcessor(final SamReader samReader,
-				final SAMSequenceRecord ssr,
-				final String sampleName
-				)
-			{
-			this.samReader = samReader;
-			this.sampleName = sampleName;
-			this.ssr = ssr;
-			this.items = new ArrayList<>(100000);
-			
-			final int contig_len = this.getSequenceLength();
-			int pos = 0;
-			while(pos <  contig_len)
-				{
-				final int pos_end = Math.min(pos + CopyNumber02.this.windowSize,contig_len);
 				
-				if( (pos_end - pos) < CopyNumber02.this.windowSize*0.8)
-					{
-					break;
-					}
-				
-				final GCAndDepth dataRow = new GCAndDepth();
-				dataRow.start = pos+1;
-				dataRow.end = pos_end;
-				this.items.add(dataRow);
-				
-				pos += CopyNumber02.this.windowShift;
-				}
-			LOG.debug("number of items = " + this.items.size());
-			}
-		
-		public String getContig()
-			{
-			return this.ssr.getSequenceName();
-			}
-		
-		public int getSequenceLength() {
-			return this.ssr.getSequenceLength();
-			}
-		
-		void removeBlackListed()
-			{
-			if(blackListedBedFile==null) return;
-			final BedLineCodec codec= new BedLineCodec();
-			BufferedReader r=null;
-			int countBefore = this.items.size();
-			try
-				{
-				r = IOUtils.openFileForBufferedReading(blackListedBedFile);
-				final IntervalTree<Boolean> badRgns = new IntervalTree<>();
-				r.lines().map(L->codec.decode(L)).
-					filter(B->B!=null).
-					filter(B->B.getContig().equals(getContig())).
-					forEach(B->{
-						badRgns.put(B.getStart(),B.getEnd(), true);
-						});
-				r.close();r=null;
-				
-				int i=0;
-				while(i<this.items.size())
-					{
-					GCAndDepth item = this.items.get(i);
-					boolean ok=true;
-					Iterator<IntervalTree.Node<Boolean>> it = badRgns.overlappers(item.start,item.end);
-					while(it.hasNext())
-						{
-						final IntervalTree.Node<Boolean> node=it.next();
-						if(node.getStart() < item.start && item.start< node.getEnd() && node.getEnd()<=item.end)
-							{
-							item.start=node.getEnd()+1;
-							}
-						else if(item.start <=node.getStart()  && node.getStart() <=item.end && item.end<node.getEnd())
-							{
-							item.end=node.getStart()-1;
-							}
-						else
-							{
-							ok=false;
-							}
-						if(item.end-item.start< 0.8*windowSize)
-							{
-							ok=false;
-							}
-						}
-					if(!ok)
-						{
-						this.items.remove(i);
-						}
-					else
-						{
-						i++;
-						}
-					}
-				if(countBefore!=this.items.size())
-					{
-					LOG.info("removed "+(countBefore-this.items.size())+" blacklisted regions.");
-					}
-				}
-			catch(IOException err)
-				{
-				throw new RuntimeIOException(err);
-				}
-			finally
-				{
-				CloserUtil.close(r);
-				}	
-			}
-		
-		void fillGC()
-				{
-				LOG.debug("Fill GC% for "+this.getContig());
-				final String faixContig = CopyNumber02.this.sam2faiContigNameConverter.apply(this.getContig());
-				final GenomicSequence genomic = new GenomicSequence(CopyNumber02.this.indexedFastaSequenceFile,
-						faixContig);
-				final int chrom_end = this.getSequenceLength();
-				int i=0;
-				
-				while( i < this.items.size()) 
-					{
-					final GCAndDepth dataRow = this.items.get(i);
-					double total_gc = 0.0;
-					double total_bases = 0.0;
-					double total_N = 0.0;
-					boolean foundN = true;
-	
-					for (int pos = dataRow.start;pos <= dataRow.end && pos <= chrom_end; ++pos ) {
-						final char c = genomic.charAt(pos - 1);
-						switch (c) {
-						case 'c':
-						case 'C':
-						case 'g':
-						case 'G':
-						case 's':
-						case 'S': {
-							total_gc++;
-							break;
-							}
-						case 'n':
-						case 'N':
-							total_N++;
-							break;
-						default:
-							break;
-						}
-						++total_bases;
-					}
-				if(total_N>0)
-					{
-					this.items.remove(i);
-					}
-				else
-					{
-					dataRow.gc = total_gc / (double) total_bases;
-					i++;
-					}
-				}
-			}
-		
-		/** get whole contig coverage */
-		private void scanCoverage()
-			{
-			final int contig_length =  this.getSequenceLength();
-			LOG.debug("Fill Depth for "+this.getContig()+" allocating sizeof(short)*"+contig_length);
-
-			// region were we have items
-			final IntervalTree<Boolean> itemRgns = new IntervalTree<>();
-			
-			{
-			int i=0;
-			
-			while(i < this.items.size())
-				{
-				final GCAndDepth item_i = this.items.get(i);
-				int end= item_i.end;
-				int j=i+1;
-				//reduce footprint: merge adjascents item to build itemRgns
-				while(j<this.items.size())
-					{
-					final GCAndDepth item_j = this.items.get(j);
-
-					if(!(item_i.end > item_j.start && item_i.end < item_j.end ))
-						{
-						break;
-						}
-					end = item_j.end;
-					++j;
-					}
-				itemRgns.put(item_i.start, end, true);
-				i=j;
-				}
-			}
-			
-			short array[]= new short[ 1 + contig_length];
-			Arrays.fill(array, (short)0);
-			final SAMRecordIterator sri=this.samReader.query(
-					getContig(),
-					1,
-					array.length,
-					false);
-			while(sri.hasNext())
-				{
-				final SAMRecord rec = sri.next();
-				if(rec.getReadUnmappedFlag()) continue;
-				if(CopyNumber02.this.filter.filterOut(rec)) continue;
-				
-				if(itemRgns.minOverlapper(rec.getStart(), rec.getEnd())==null) continue;
-				
-				final Cigar c= rec.getCigar();
-				int refStart= rec.getAlignmentStart();
-				for(final CigarElement ce:c.getCigarElements())
-					{
-					if(!ce.getOperator().consumesReferenceBases()) continue;
-					if(ce.getOperator().consumesReadBases())
-						{
-						for(int x=0;x< ce.getLength();++x)
-							{
-							final int pos = refStart + x;
-							if(pos >= 1 && pos <= contig_length && array[pos]<Short.MAX_VALUE)
-								{
-								array[ pos  ]++;
-								}
-							}
-						}
-					refStart+=ce.getLength();
-					}		
-				}
-			sri.close();
-			
-			
-			for(final GCAndDepth row:this.items)
-				{
-				final double sum_array[]= new double[1 + row.end - row.start];
-				Arrays.fill(sum_array, 0.0);
-				for(int i=0;i< sum_array.length;++i)
-					{
-					sum_array[ i ] = array[ i + (row.start-1) ];
-					}
-				row.raw_depth = CopyNumber02.this.univariateDepth.evaluate(sum_array);
-				row.norm_depth = row.raw_depth;
-				}
-			array=null;
-			System.gc();
-			
-			final int oldCount=this.items.size();
-			if(this.items.removeIf(T->T.raw_depth >= weirdDepth))
-				{
-				LOG.info(""+(oldCount-items.size())+" items had a depth greater than treshold ("+weirdDepth+")");
-				}
-			
-			}
-		
-		private void normalizeCoverage()
-			{
-			Collections.sort(this.items,(a,b)->{
-				final int i = Double.compare(a.getX(), b.getX());
-				if(i!=0) return i;
-				return Double.compare(a.getY(), b.getY());
-				});
-			
-			
-			double x[]=new double[this.items.size()];
-			double y[]=new double[this.items.size()];
-	
-			int i=0;
-			for(i=0;i< this.items.size();++i)
-				{
-				final GCAndDepth r=this.items.get(i);
-				x[i] = r.getX();
-				y[i] = r.getY();
-				}
-			
-			final double min_x=x[0];
-			final double max_x=x[x.length-1];
-			
-			/* merge adjacent x (GC%) having same values */
-			i=0;
-			int k=0;
-			while(i  < x.length)
-				{
-				int j = i+1;
-				
-				while(j< x.length && Double.compare(x[i],x[j])==0)
-					{
-					++j;
-					}
-				x[k] = x[i];
-				y[k] = CopyNumber02.this.univariateGCLoess.create().evaluate(y, i, j-i);
-				++k;
-				i=j;
-				}
-	
-			/* reduce size of x et y */
-			if(k != x.length)
-				{
-				LOG.info("Compacting X from "+x.length+" to "+k);
-				x = Arrays.copyOf(x, k);
-				y  =Arrays.copyOf(y, k);
-				}
-			
-			//min depth cal
-			double min_depth=Double.MAX_VALUE;
-			
-			final UnivariateInterpolator interpolator = createInterpolator();
-			UnivariateFunction  spline = null;
-			try {
-				spline = interpolator.interpolate(x, y);
-				}
-			catch(final org.apache.commons.math3.exception.NumberIsTooSmallException err)
-				{
-				spline=null;
-				LOG.error("Cannot use "+interpolator.getClass().getName()+":"+err.getMessage());
-				}
-				
-			int points_removed=0;
-			i=0;
-			while(i<this.items.size())
-				{
-				final GCAndDepth r= this.items.get(i);
-				if(spline==null)
-					{
-					min_depth=Math.min(min_depth,r.norm_depth);
-					++i;
-					}
-				else if(r.getX()< min_x || r.getX()> max_x)
-					{
-					this.items.remove(i);
-					++points_removed;
-					}
-				else
-					{
-					double norm = spline.value(r.getX());
-					if(Double.isNaN(norm) || Double.isInfinite(norm)  )
-						{
-						LOG.info("NAN "+r);
-						this.items.remove(i);
-						++points_removed;
-						continue;
-						}
-					r.norm_depth -= norm; 
-					min_depth=Math.min(min_depth,r.norm_depth);
-					++i;
-					}
-				}
-			LOG.info("Removed "+points_removed+" because GC% is too small (Sexual chrom)" );
-			spline=null;
-			
-			
-			//fit to min, fill new y for median calculation
-	
-			y= new double[this.items.size()];
-			for(i=0;i< this.items.size();++i)
-				{
-				final GCAndDepth gc= this.items.get(i);
-				gc.norm_depth -= min_depth;
-				y[i] = gc.norm_depth;
-				}
-			
-			//normalize on median
-			final double median_depth =  CopyNumber02.this.univariateMid.create().evaluate(y, 0, y.length);
-			for(i=0;median_depth>0 && i< this.items.size();++i)
-				{
-				final GCAndDepth gc = this.items.get(i);
-				gc.norm_depth /= median_depth;
-				}
-			
-			// ok, we now have a normalization between 0 and 1. Let's multiply by 2 because we have a diploid
-			for(final GCAndDepth gc:this.items)
-				{
-				gc.norm_depth*=2.0;
-				}
-			
-			//restore genomic order
-			Collections.sort(this.items,(A,B)->A.start-B.start);
-			
-			
-			//  smoothing values with neighbours 
-			y= new double[this.items.size()];
-			for(i=0;i< this.items.size();++i)
-				{
-				y[i] = this.items.get(i).getY();
-				}
-			for(i=0;i< this.items.size();++i)
-				{
-				final GCAndDepth gc = this.items.get(i);
-				final int left = Math.max(i,i-SMOOTH_WINDOW);
-				final int right = Math.min(y.length-1,i+SMOOTH_WINDOW);
-				gc.norm_depth = CopyNumber02.this.univariateSmooth.create().evaluate(y, left,(right-left)+1);
-				}
-			}
-	
-
-	
-		private void saveCoverage( final PrintWriter pw )
-			{
-			LOG.info("Dumping coverage for "+getContig());
-			
-			final Function<Integer, Long> genomicIndex = START ->
-					{
-					long n= START;
-					for(int i=0;i< ssr.getSequenceIndex();++i) n+=  samDictionary.getSequence(i).getSequenceLength();
-					return n;
-					};
-			
-			/* header */
-			pw.println("#CHROM\tSTART\tEND\tIDX\tGC\tRAW-DP\tNORM-DP");
-			
-			/* get data */
-			for(final GCAndDepth r:this.items)
-				{
-				pw.print(ssr.getSequenceName());
-				pw.print('\t');
-				pw.print( r.start);
-				pw.print('\t');
-				pw.print( r.end);
-				pw.print('\t');
-				pw.print(genomicIndex.apply(r.start));
-				pw.print('\t');
-				pw.print(r.gc);
-				pw.print('\t');
-				pw.print(r.raw_depth);
-				pw.print('\t');
-				pw.print(r.norm_depth);
-				pw.println();
-				}
-			pw.flush();
-			}
-		
-		public void run()
-			{
-			removeBlackListed();
-			fillGC();
-			scanCoverage();
-			normalizeCoverage();
-			}
-		
-		}
 	
 	
 	
@@ -798,11 +394,13 @@ public class CopyNumber02 extends Launcher
 		}
 	
 	private class CaptureData
+		implements DataSerializable
 		{
 		int tid;
 		int start;
 		int sample_idx;
 		float depth;
+		float norm_depth;
 		float gc_percent;
 		
 		int comparePos(final CaptureData o) {
@@ -816,48 +414,26 @@ public class CopyNumber02 extends Launcher
 		int compareGC(final CaptureData o) {
 			return Float.compare(this.gc_percent, o.gc_percent);
 			}
-		void read(DataInputStream dai) throws IOException
-			{
+		@Override
+		public void readDataInputStream(DataInputStream dai) throws IOException {
 			this.tid  = dai.readInt();
 			this.start = dai.readInt();
 			this.sample_idx = dai.readInt();
 			this.depth = dai.readFloat();
+			this.norm_depth = dai.readFloat();
 			this.gc_percent =  dai.readFloat();
 			}
-		void write(DataOutputStream dao) throws IOException
-			{
+		@Override
+		public void writeDataOutputStream(DataOutputStream dao) throws IOException {
 			dao.writeInt(this.tid);
 			dao.writeInt(this.start);
 			dao.writeInt(this.sample_idx);
 			dao.writeFloat(this.depth);
+			dao.writeFloat(this.norm_depth);
 			dao.writeFloat(this.gc_percent);
 			}
 		}
 	
-	private class CaptureDataCodec extends AbstractDataCodec<CaptureData>
-		{
-		@Override
-		public CaptureData decode(DataInputStream dis) throws IOException {
-			try
-				{
-				final CaptureData cd = new CaptureData();
-				cd.read(dis);
-				return cd;
-				}
-			catch(EOFException err)
-				{
-				return null;
-				}
-			}
-		@Override
-		public void encode(DataOutputStream dos, CaptureData object) throws IOException {
-			object.write(dos);
-			}
-		@Override
-		public AbstractDataCodec<CaptureData> clone() {
-			return new CaptureDataCodec();
-			}
-		}
 	
 	
 	@Override
@@ -883,7 +459,7 @@ public class CopyNumber02 extends Launcher
 			{
 			DiskSorter<CaptureData> sorting1 = new DiskSorter<>(
 					CaptureData.class, 
-					new CaptureDataCodec(),
+					new DataSerializableCodec<>(()->new CaptureData()),
 					(A,B)->A.comparePos(B));
 			
 			/* loading REF Reference */
@@ -932,12 +508,17 @@ public class CopyNumber02 extends Launcher
 				long depth_count =0L;
 				
 				
-				final BedLineCodec bedLineCodec = new BedLineCodec();
-				final BufferedReader br = IOUtils.openFileForBufferedReading(this.capturebedFile);
-				String line;
-				while((line=br.readLine())!=null) {
-					final BedLine bed= bedLineCodec.decode(line);
-					if(bed==null) continue;
+				final Iterable<Interval> intervalSource ;
+				if(this.capturebedFile==null)
+					{
+					intervalSource =  new IterableOfDict(dict);
+					}
+				else
+					{
+					intervalSource = new IterableOfBed(this.capturebedFile);	
+					}
+				
+				for(final Interval bed:intervalSource) {
 					int tid = dict.getSequenceIndex(bed.getContig());
 					if(tid<0) 
 						{
@@ -1059,7 +640,9 @@ public class CopyNumber02 extends Launcher
 					gc_percent = total_gc / (double) array.length;
 					}
 				
-			
+				if(gcTreshold< gc_percent || gc_percent>(1.0-gcTreshold) ) {
+					continue;
+					}
 
 				
 				for(final CaptureData item:row)
@@ -1074,6 +657,14 @@ public class CopyNumber02 extends Launcher
 			final VariantContextWriter vcw=super.openVariantContextWriter(this.outputFile);
 			final Set<VCFHeaderLine> meta= new HashSet<>();
 			final VCFFormatHeaderLine normDepthFormat = new VCFFormatHeaderLine("CN",1,VCFHeaderLineType.Float,"Normalized Depth");
+			meta.add(normDepthFormat);
+			final VCFInfoHeaderLine fisherInfo = new VCFInfoHeaderLine("FISHER",1,VCFHeaderLineType.Float,"Fisher Test");
+			meta.add(fisherInfo);
+
+			
+			VCFStandardHeaderLines.addStandardFormatLines(meta, true,VCFConstants.DEPTH_KEY,VCFConstants.GENOTYPE_KEY);
+			VCFStandardHeaderLines.addStandardInfoLines(meta, true,VCFConstants.DEPTH_KEY,VCFConstants.END_KEY);
+			
 			
 			final VCFHeader vcfHeader = new VCFHeader(
 					meta,
@@ -1086,39 +677,86 @@ public class CopyNumber02 extends Launcher
 				final List<CaptureData> row = equal_range_iter.next();
 				if(row.isEmpty()) continue;
 				final CaptureData first = row.get(0);
-				
+				final String contig = dict.getSequence(first.tid).getSequenceName();
 				final VariantContextBuilder vcb=new VariantContextBuilder();
-				vcb.chr(dict.getSequence(first.tid).getSequenceName());
+				vcb.chr(contig);
 				vcb.start(first.start);
 				vcb.stop(first.start+this.windowSize-1);
-				vcb.attribute("END", (first.start+this.windowSize-1));
+				vcb.attribute(VCFConstants.END_KEY, (first.start+this.windowSize-1));
+				vcb.attribute(VCFConstants.DEPTH_KEY,row.stream().mapToInt(X->(int)X.depth).sum());
 				
-				final double min_depth = row.stream().mapToDouble(R->R.depth).min().orElse(0.0);
+				final double min_depth = row.stream().mapToDouble(R->R.norm_depth).min().orElse(0.0);
 				final double median_depth = 
-						new Median().evaluate(row.stream().mapToDouble(R->R.depth-min_depth).toArray()
+						new Median().evaluate(row.stream().mapToDouble(R->R.norm_depth-min_depth).toArray()
 						);
 				
+				Set<Allele> alleles=new HashSet<>();
+				Allele refAllele = Allele.create(this.indexedFastaSequenceFile.getSubsequenceAt(contig, first.start,first.start).getBases()[0],true);
+				alleles.add(refAllele);
+				List<Allele> HOM_REF= Arrays.asList(refAllele,refAllele);
+				Allele alleleDel = Allele.create("<DEL>", false);
+				Allele alleleDup = Allele.create("<DUP>", false);
 				
-				List<Genotype> genotypes = new ArrayList<>();
+				int affected_snv =0;
+				int affected_wild =0;
+				int healthy_snv =0;
+				int healthy_wild =0;
+				final List<Genotype> genotypes = new ArrayList<>(sampleToIdx.size());
 				for(final CaptureData item:row)
 					{
-					GenotypeBuilder gb = new GenotypeBuilder(sampleToIdx.get(item.sample_idx).name);
-					double depth = (item.depth-min_depth)/median_depth;
+					final SampleInfo sampleInfo = sampleToIdx.get(item.sample_idx);
+					final GenotypeBuilder gb = new GenotypeBuilder(sampleInfo.name);
+					final double depth = (item.norm_depth-min_depth)/median_depth;
 					
 					gb.attribute(normDepthFormat.getID(), depth);
-					if(depth>1.5*median_depth) {
-						
+					gb.DP((int)item.depth);
+					if(depth>= dupTreshold * median_depth) {
+						if(sampleInfo.affected)
+							{
+							affected_snv++;
+							}
+						else
+							{
+							healthy_snv++;
+							}
+						alleles.add(alleleDup);
+						gb.alleles(Arrays.asList(alleleDup));
 						}
-					else if(depth<1.5*median_depth) {
-						
+					else if(depth<delTreshold*median_depth) {
+						if(sampleInfo.affected)
+							{
+							affected_snv++;
+							}
+						else
+							{
+							healthy_snv++;
+							}
+						alleles.add(alleleDel);
+						gb.alleles(Arrays.asList(alleleDel));
 						}
 					else
 						{
-						
+						if(sampleInfo.affected)
+							{
+							affected_wild++;
+							}
+						else
+							{
+							healthy_wild++;
+							}
+						gb.alleles(HOM_REF);
 						}
 					
 					genotypes.add(gb.make());
 					}
+				final FisherExactTest ft=FisherExactTest.compute(
+						affected_snv,
+						affected_wild,
+						healthy_snv,
+						healthy_wild
+						);
+				vcb.attribute(fisherInfo.getID(), ft.getAsDouble());
+				vcb.alleles(alleles);
 				vcb.genotypes(genotypes);
 				}
 			
