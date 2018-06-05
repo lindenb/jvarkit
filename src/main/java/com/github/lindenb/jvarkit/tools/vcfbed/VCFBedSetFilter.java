@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +22,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.vcfbed;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -60,9 +62,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 BEGIN_DOC
 
-
-
-
 ### Examples
 
 ```
@@ -79,7 +78,7 @@ END_DOC
 	description="Set FILTER for VCF if it doesn't intersects with BED.",
 	deprecatedMsg="use GATK FilterVariants",
 	keywords={"vcf","bed","filter"}
-		)
+	)
 public class VCFBedSetFilter extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFBedSetFilter.class).make();
@@ -112,8 +111,12 @@ public class VCFBedSetFilter extends Launcher
 		}
 		
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator r, VariantContextWriter w) {
+	protected int doVcfToVcf(
+			final String inputName,
+			final VcfIterator r,
+			final VariantContextWriter w) {
 		try {
+			final Set<String> contigs_not_found = new HashSet<>();
 			final VCFHeader h2=new VCFHeader(r.getHeader());
 			addMetaData(h2);
 			final VCFFilterHeaderLine filter = new VCFFilterHeaderLine(
@@ -124,6 +127,16 @@ public class VCFBedSetFilter extends Launcher
 					(this.tabixFile==null?this.treeMapFile:this.tabixFile)
 					);
 			
+			final ContigNameConverter ctgNameConverter;
+			if(this.bedReader!=null)
+				{
+				ctgNameConverter = ContigNameConverter.fromContigSet(this.bedReader.getContigs());
+				}
+			else
+				{
+				ctgNameConverter  = ContigNameConverter.fromIntervalTreeMap(this.intervalTreeMap);
+				}
+			ctgNameConverter.setOnNotFound(OnNotFound.SKIP);
 			
 			if(!this.discardFlag) {
 				h2.addMetaDataLine(filter);
@@ -146,25 +159,35 @@ public class VCFBedSetFilter extends Launcher
 				
 				else 
 					{
-					final CloseableIterator<BedLine> iter = this.bedReader.iterator(
-							ctx.getContig(),
-							ctx.getStart()-1,
-							ctx.getEnd()+1
-							);
-					while(iter.hasNext())
+					final String convert_contig = ctgNameConverter.apply(ctx.getContig());
+					if(!StringUtil.isBlank(convert_contig))
 						{
-						final BedLine bed = iter.next();
-						if(!ctx.getContig().equals(bed.getContig())) continue;
-						if(ctx.getStart() > bed.getEnd() ) continue;
-						if(ctx.getEnd() < bed.getStart() ) continue;
-						set_filter=false;
-						break;
+						final CloseableIterator<BedLine> iter = this.bedReader.iterator(
+								convert_contig,
+								ctx.getStart()-1,
+								ctx.getEnd()+1
+								);
+						while(iter.hasNext())
+							{
+							final BedLine bed = iter.next();
+							if(bed==null ||
+								bed.getEnd() <ctx.getStart() ||
+								bed.getStart() > ctx.getEnd()
+								) continue;
+							set_filter=false;
+							break;
+							}
+						CloserUtil.close(iter);
 						}
-					CloserUtil.close(iter);
+					else
+						{
+						if( contigs_not_found.size()<100) {
+							contigs_not_found.add(ctx.getContig());
+							}
+						}
 					}
 				
 				if(this.inverse) set_filter=!set_filter;
-				
 				
 				
 				if(!set_filter)
@@ -183,8 +206,15 @@ public class VCFBedSetFilter extends Launcher
 				if(w.checkError()) break;
 				}
 			progress.finish();
+			if(!contigs_not_found.isEmpty()) {
+				LOG.warn(
+					"The following contigs were not found: "+
+					String.join(" ", contigs_not_found)+ 
+					"..."
+					);
+				}
 			return RETURN_OK;
-		} catch(Exception err) {
+		} catch(final Exception err) {
 			LOG.error(err);
 			return -1;
 			}
@@ -192,7 +222,7 @@ public class VCFBedSetFilter extends Launcher
 
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final  List<String> args) {
 		try
 			{
 			if(this.tabixFile==null && this.treeMapFile==null)

@@ -614,6 +614,7 @@ protected File sortBamOnQueryName(final Path bamFile,final Predicate<SAMRecord> 
 protected List<Interval> randomIntervalsFromDict(final File dictFile,int n) throws IOException{
 	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(dictFile);
 	final List<Interval> rgns = new ArrayList<>(n);
+	if(dict==null) return rgns;
 	while(n>0)
 		{
 		final SAMSequenceRecord ssr = dict.getSequence(random.nextInt(dict.size()));
@@ -684,8 +685,10 @@ protected void assertTsvTableIsConsitent(final File f,Predicate<String> ignoreLi
 protected long wc(final File f) throws IOException
 	{
 	if(f.getName().endsWith(".bam") || f.getName().endsWith(".sam")) {
-		SamReader sr = SamReaderFactory.makeDefault().open(f);
-		SAMRecordIterator iter =sr.iterator();
+		final SamReader sr = SamReaderFactory.makeDefault().
+				validationStringency(ValidationStringency.SILENT).
+				open(f);
+		final SAMRecordIterator iter =sr.iterator();
 		final long n= iter.stream().count();
 		iter.close();
 		sr.close();
