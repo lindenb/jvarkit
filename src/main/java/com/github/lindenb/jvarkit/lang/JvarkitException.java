@@ -131,7 +131,6 @@ public static class BamBadSortOrder extends Error
 	public static void verify(final SAMFileHeader.SortOrder expected,final SAMFileHeader found) {
 		verify(expected,found.getSortOrder());
 		}
-
 	}
 
 public static class DuplicateVcfHeaderInfo extends Error
