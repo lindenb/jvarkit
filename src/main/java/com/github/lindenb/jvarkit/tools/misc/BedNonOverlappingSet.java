@@ -53,9 +53,15 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 /**
 BEGIN_DOC
 
-## EXAMPLE
+## Motivation
 
-```
+GATK DepthOfCoverage merge overlapping segments (see https://gatkforums.broadinstitute.org/gatk/discussion/1865/ ). I wan't to get the coverage for a set of overlapping windows.
+
+## EXAMPLES
+
+### Example
+
+```bash
 $ awk '{printf("%s\t0\t%s\n",$1,$2);}' src/test/resources/rotavirus_rf.fa.fai |\
 bedtools makewindows  -w 500 -s 100 -b - |\
 java -jar dist/bednonoverlappingset.jar  -o tmp.__SETID__.bed -m tmp.manifest
@@ -93,7 +99,27 @@ tmp.00002.bed	39
 tmp.00003.bed	37
 tmp.00004.bed	36
 tmp.00005.bed	33
+```
 
+### Example
+
+```bash
+(...)
+java -jar dist/bednonoverlappingset.jar -x 1 -R ref.fa -o "tmp.__SETID__.bed" -m tmp.manifest input.bed
+
+cut -f 1 tmp.manifest | while read B
+do
+	${java_exe}   -Djava.io.tmpdir=.  -jar GenomeAnalysisTK.jar \
+	   -T DepthOfCoverage -R "ref.fa" \
+	   -o "SAMPLE"  -I input.bam  -L "${B}" --omitDepthOutputAtEachBase --omitLocusTable --omitPerSampleStats
+ 	   grep -v '^Target' "${sample}.sample_interval_summary" | awk -F '	' '{printf("%s\\t%s\\n",\$1,\$3);}' >> tmp.tsv	
+	
+	   rm "SAMPLE.sample_interval_summary"  "SAMPLE.sample_interval_statistics"
+done
+	
+LC_ALL=C sort -t '	' -k1,1 tmp.tsv >> "SAMPLE.win.cov.tsv"
+
+(...)
 ```
 
 END_DOC
