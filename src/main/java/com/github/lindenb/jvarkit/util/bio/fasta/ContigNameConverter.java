@@ -183,8 +183,16 @@ public static ContigNameConverter fromFile(final File mappingFile)
 	finally {
 		CloserUtil.close(in);
 	}
-	
 }
+
+public static ContigNameConverter fromMap(final Map<String,String> hash) {
+	final MapBasedContigNameConverter mapper=new MapBasedContigNameConverter();
+	mapper.name="fromMap";
+	mapper.map.putAll(hash);
+	return mapper;
+	}
+
+
 public static ContigNameConverter createConvertToUcsc()
 	{
 	final MapBasedContigNameConverter map = new MapBasedContigNameConverter();
