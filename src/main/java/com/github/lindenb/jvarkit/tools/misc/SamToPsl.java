@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -50,6 +50,7 @@ import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
 BEGIN_DOC
 
+## Motivation
 
 Convert **SAM/BAM** to **PSL** http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or **BED12** .
 
@@ -57,13 +58,11 @@ Properly-paired reads are extended to the mate's position.
 
 What ? **bamtobed** http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html does the same job ?! too late.
 
+## Cited in:
 
-
+   * "R2C2: Improving nanopore read accuracy enables the sequencing of highly-multiplexed full-length single-cell cDNA" biorxiv  https://doi.org/10.1101/338020 
 
 ### Example
-
-
-
 
 ```
 $ samtools view -b  http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/wgEncodeCaltechRnaSeq/wgEncodeCaltechRnaSeq10t12C3hFR2x75Th131Il200AlnRep1.bam "chr15:81575506-81616397" |\
@@ -80,33 +79,23 @@ $ tail out.psl
 6064	0	0	0	0	0	0	5964	+	HWI-ST0787:100:C02F9ACXX:3:1301:11600:100190_1:N:0:/1_99	100	0	100	chr15	10349497481616393	81622457	2	4,96,	0,4,	81616393,81622361,
 6064	0	0	0	0	0	0	5964	+	HWI-ST0787:100:C02F9ACXX:3:2304:5980:187674_1:Y:0:/1_99	100	0	100	chr15	103494974	81616393	81622457	2	4,96,	0,4,	81616393,81622361,
 6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:1306:18607:99733_2:N:0:/2_147	101	0	101	chr15	10349497481616334	81622457	3	1,4,96,	0,1,5,	81616334,81616394,81622362,
-
-
 ```
-
-
 
 used as a custom track in the **UCSC genome browser**.
 
 ![img](http://i.imgur.com/Gi6Sd0M.png)
 
 
-
-
 ### See also
-
 
 * bedtools/bamtobed : http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html
 
 
-
-
-
 END_DOC
 */
-
-
-@Program(name="sam2psl",description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12")
+@Program(name="sam2psl",
+	deprecatedMsg="use bedtools/bamtobed",
+	description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12")
 public class SamToPsl extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamToPsl.class).make();

@@ -142,16 +142,22 @@ public class VCFBedSetFilter extends Launcher
 				h2.addMetaDataLine(filter);
 			}
 			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(h2);
+			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h2).logger(LOG);
 			w.writeHeader(h2);
 			while(r.hasNext())
 				{
 				final VariantContext ctx= progress.watch(r.next());
 				boolean set_filter=true;
+				final String convert_contig = ctgNameConverter.apply(ctx.getContig());
 				
-				
-				if(this.intervalTreeMap!=null) {
-					if( this.intervalTreeMap.containsOverlapping(new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd())))
+				if(!StringUtil.isBlank(convert_contig))
+					{
+					if(contigs_not_found.size()<100) {
+						contigs_not_found.add(ctx.getContig());
+						}
+					}
+				else if(this.intervalTreeMap!=null) {
+					if( this.intervalTreeMap.containsOverlapping(new Interval(convert_contig,ctx.getStart(),ctx.getEnd())))
 						{
 						set_filter = false;	
 						}
@@ -159,33 +165,24 @@ public class VCFBedSetFilter extends Launcher
 				
 				else 
 					{
-					final String convert_contig = ctgNameConverter.apply(ctx.getContig());
-					if(!StringUtil.isBlank(convert_contig))
+					final CloseableIterator<BedLine> iter = this.bedReader.iterator(
+							convert_contig,
+							ctx.getStart()-1,
+							ctx.getEnd()+1
+							);
+					while(iter.hasNext())
 						{
-						final CloseableIterator<BedLine> iter = this.bedReader.iterator(
-								convert_contig,
-								ctx.getStart()-1,
-								ctx.getEnd()+1
-								);
-						while(iter.hasNext())
-							{
-							final BedLine bed = iter.next();
-							if(bed==null ||
-								bed.getEnd() <ctx.getStart() ||
-								bed.getStart() > ctx.getEnd()
-								) continue;
-							set_filter=false;
-							break;
-							}
-						CloserUtil.close(iter);
+						final BedLine bed = iter.next();
+						if(bed==null ||
+							bed.getEnd() <ctx.getStart() ||
+							bed.getStart() > ctx.getEnd()
+							) continue;
+						set_filter=false;
+						break;
 						}
-					else
-						{
-						if( contigs_not_found.size()<100) {
-							contigs_not_found.add(ctx.getContig());
-							}
-						}
+					CloserUtil.close(iter);
 					}
+				
 				
 				if(this.inverse) set_filter=!set_filter;
 				
@@ -270,4 +267,4 @@ public class VCFBedSetFilter extends Launcher
 		{
 		new VCFBedSetFilter().instanceMainWithExit(args);
 		}
-}
+	}
