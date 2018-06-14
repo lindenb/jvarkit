@@ -379,7 +379,7 @@ public class ConvertBamChromosomes
 							}
 						else
 							{
-							rec1.setAttribute(SAMTag.SA.name(), L);
+							rec1.setAttribute(SAMTag.SA.name(),String.join(";",L));
 							}
 						}
 					}
