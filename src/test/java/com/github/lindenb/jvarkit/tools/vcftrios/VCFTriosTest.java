@@ -21,12 +21,12 @@ public class VCFTriosTest extends TestUtils {
 		}
 		final File output = super.createTmpFile(".vcf");
 		
-		Assert.assertEquals(0,new VCFTrios().instanceMain(
+		Assert.assertEquals(new VCFTrios().instanceMain(
         		newCmd().add(
         		"-o",output,
         		"--pedigree",ped,
         		inputFile).make()
-        	));
+        	),0);
         assertIsVcf(output);
 		}
 	}

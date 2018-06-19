@@ -30,9 +30,12 @@ Usage: simpleplot [options] Files
       When using a *.dict file, discard the contigs having a length < 'size'. 
       Useful to discard the small unused contigs like 'chrM'. -1 : ignore.
       Default: -1
+    -nh, --no-header
+      There is no header. Tested for Histograms
+      Default: false
     -o, --out
-      Output file. If defined, save the picture in this file and close the 
-      application. 
+      Output file. If defined, save the picture in this file extension:png, 
+      jpg or R (experimental) and close the application.
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -50,7 +53,7 @@ Usage: simpleplot [options] Files
     --type, -t
       type
       Default: UNDEFINED
-      Possible Values: [UNDEFINED, BEDGRAPH, PIE, SIMPLE_HISTOGRAM, HISTOGRAM, STACKED_HISTOGRAM, XYV, STACKED_XYV]
+      Possible Values: [UNDEFINED, BEDGRAPH, PIE, SIMPLE_HISTOGRAM, HISTOGRAM, STACKED_HISTOGRAM, STACKED_HISTOGRAM_PIVOTED, XYV, STACKED_XYV]
     --version
       print version and exit
     -xlab, -xlabel, --xlabel
@@ -131,16 +134,66 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Plot types:
+
+Year  X  Y
+2018  1  2
+2019  3  4
+
+
 ## Examples
 
 ```
 $ gunzip -c in.vcf.gz | grep -v "^#" | cut -f 1 | sort | uniq -c | java -jar dist/simpleplot.jar -t SIMPLE_HISTOGRAM  -su 
 $ gunzip -c in.vcf.gz | grep -v "^#" | cut -f 1 | sort | uniq -c | java -jar dist/simpleplot.jar -t PIE  -su
+```
 
+### HISTOGRAM
+
+```
+Year  X  Y
+2018  1  2
+2019  3  4
+```
+
+```
 $ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t HISTOGRAM
-$ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM
+```
 
+produces a histogram with two series in the legend (2018 and 2019). On the X-axis: 4 items X-2018, X-2019, Y-2018, Y-2019
+
+
+
+### STACKED_HISTOGRAM
+
+```
+Year  X  Y
+2018  1  2
+2019  3  4
+```
+
+```
+$ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM
 ``` 
+
+produces a histogram with two series in the legend (2018 and 2019). On the X-axis: 2 items X( 2018 under-2019), Y (2018 under 2019)
+
+
+### STACKED_HISTOGRAM_PIVOTED
+
+```
+Year  X  Y
+2018  1  2
+2019  3  4
+```
+
+```
+$  echo -e "2018\t1\t2\n2019\t3\t4\n2020\t1\t10" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM_PIVOTED -nh
+``` 
+
+produces a histogram with two series in the legend ($1 and $2). On the X-axis: 3 items 2018, 2019, 2020. Each with the stacked $1 and $2
+
+
 
 ### Example
 

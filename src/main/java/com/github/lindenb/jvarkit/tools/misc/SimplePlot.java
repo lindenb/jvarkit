@@ -84,16 +84,66 @@ import javafx.stage.Stage;
 /**
 BEGIN_DOC 
 
+## Plot types:
+
+Year  X  Y
+2018  1  2
+2019  3  4
+
+
 ## Examples
 
 ```
 $ gunzip -c in.vcf.gz | grep -v "^#" | cut -f 1 | sort | uniq -c | java -jar dist/simpleplot.jar -t SIMPLE_HISTOGRAM  -su 
 $ gunzip -c in.vcf.gz | grep -v "^#" | cut -f 1 | sort | uniq -c | java -jar dist/simpleplot.jar -t PIE  -su
+```
 
+### HISTOGRAM
+
+```
+Year  X  Y
+2018  1  2
+2019  3  4
+```
+
+```
 $ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t HISTOGRAM
-$ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM
+```
 
+produces a histogram with two series in the legend (2018 and 2019). On the X-axis: 4 items X-2018, X-2019, Y-2018, Y-2019
+
+
+
+### STACKED_HISTOGRAM
+
+```
+Year  X  Y
+2018  1  2
+2019  3  4
+```
+
+```
+$ echo -e "Year\tX\tY\n2018\t1\t2\n2019\t3\t4" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM
 ``` 
+
+produces a histogram with two series in the legend (2018 and 2019). On the X-axis: 2 items X( 2018 under-2019), Y (2018 under 2019)
+
+
+### STACKED_HISTOGRAM_PIVOTED
+
+```
+Year  X  Y
+2018  1  2
+2019  3  4
+```
+
+```
+$  echo -e "2018\t1\t2\n2019\t3\t4\n2020\t1\t10" | java -jar dist/simpleplot.jar -t STACKED_HISTOGRAM_PIVOTED -nh
+``` 
+
+produces a histogram with two series in the legend ($1 and $2). On the X-axis: 3 items 2018, 2019, 2020. Each with the stacked $1 and $2
+
+
 
 ### Example
 
@@ -115,6 +165,8 @@ keywords={"char","figure","jfx"})
 
 public class SimplePlot extends JfxLauncher {
 	private static final Logger LOG = Logger.build(SimplePlot.class).make();
+	
+	
 	
 	private static class MinMax
 		implements DoubleConsumer
@@ -386,13 +438,16 @@ public class SimplePlot extends JfxLauncher {
 		
 		@Override
 		public Chart get() {
-			String firstLine = lineSupplier.get();
-			if(firstLine==null) {
-				return null;
-				}
-			String header[]=this.delimiter.split(firstLine);
-			if(header.length<=1) return null;
+			String header[]=null;
 			
+			if(!there_is_no_table_header) {
+				String firstLine = lineSupplier.get();
+				if(firstLine==null) {
+					return null;
+					}
+				header = this.delimiter.split(firstLine);
+				if(header.length<=1) return null;
+				}
 			final List<XYChart.Series<String, Number>> series = FXCollections.observableArrayList();
 
 			for(;;)
@@ -401,6 +456,15 @@ public class SimplePlot extends JfxLauncher {
 				if(line==null) break;
 				if(StringUtil.isBlank(line)) continue;
 				final String tokens[]=this.delimiter.split(line);
+				if(header==null) // there_is_no_table_header
+					{
+					/* create the header */
+					header= new String[tokens.length];
+					for(int x=0;x<header.length;++x) {
+						header[x]="$"+(x);
+						}
+					}
+				
 				
 				final XYChart.Series<String, Number> serie = new XYChart.Series<>();
 				serie.setName(tokens[0]);
@@ -412,6 +476,7 @@ public class SimplePlot extends JfxLauncher {
 				 	}
 				series.add(serie);
 				}
+			if(header==null) return null;
 		    final CategoryAxis xAxis = new CategoryAxis();
 		    final NumberAxis yAxis = new NumberAxis();
 			final XYChart<String, Number> sbc =create(xAxis, yAxis);
@@ -435,6 +500,66 @@ public class SimplePlot extends JfxLauncher {
 			return new StackedBarChart<>(xAxis, yAxis);
 			}
 		}
+	
+	private class StackedHistogramPivoted extends ChartSupplier
+		{
+		@Override
+		public Chart get() {
+			String header[]=null;
+			
+			if(!there_is_no_table_header) {
+				String firstLine = lineSupplier.get();
+				if(firstLine==null) {
+					return null;
+					}
+				header = this.delimiter.split(firstLine);
+				if(header.length<=1) return null;
+				}
+			List<XYChart.Series<String, Number>> series = null;
+	
+			for(;;)
+				{
+				String line = lineSupplier.get();
+				if(line==null) break;
+				if(StringUtil.isBlank(line)) continue;
+				final String tokens[]=this.delimiter.split(line);
+				if(header==null) // there_is_no_table_header
+					{
+					/* create the header */
+					header= new String[tokens.length];
+					for(int x=0;x<header.length;++x) {
+						header[x]="$"+(x);
+						}
+					}
+				if(series == null) //first time we see the serie/header
+					{
+					series= FXCollections.observableArrayList();
+					for(int x=1;x<header.length;++x) {
+						final XYChart.Series<String, Number> serie = new XYChart.Series<>();
+						serie.setName(header[x]);
+						series.add(serie);
+						}
+					}
+				
+				for(int x=1;x< header.length && x < header.length;++x)
+				 	{
+					Double yVal = parseDouble.apply(tokens[x]);
+					if(yVal==null || yVal.doubleValue()<=0) yVal=0.0; 
+					series.get(x-1).getData().add(new XYChart.Data<String,Number>(tokens[0],yVal));
+				 	}
+				}
+			if(header==null || series==null || series.isEmpty()) return null;
+		    final CategoryAxis xAxis = new CategoryAxis();
+		    final NumberAxis yAxis = new NumberAxis();
+			final XYChart<String, Number> sbc =new StackedBarChart<>(xAxis, yAxis);
+			sbc.getData().addAll(series);
+			updateAxisX(xAxis);
+			updateAxisY(yAxis);
+			return sbc;
+			}
+		}
+
+	
 	
 	private class XYVHistogramSupplier extends ChartSupplier
 		{
@@ -586,6 +711,7 @@ public class SimplePlot extends JfxLauncher {
 		SIMPLE_HISTOGRAM,
 		HISTOGRAM,
 		STACKED_HISTOGRAM,
+		STACKED_HISTOGRAM_PIVOTED,
 		XYV,
 		STACKED_XYV
 	};
@@ -615,6 +741,10 @@ public class SimplePlot extends JfxLauncher {
 	private String xlabel=null;
 	@Parameter(names= {"-ylab","-ylabel","--ylabel"},description = "Y axis label.")
 	private String ylabel=null;
+	@Parameter(names= {"-nh","--no-header"},description = "There is no header. Tested for Histograms")
+	private boolean there_is_no_table_header;
+
+	
 	
 	private Supplier<String> lineSupplier = ()->null;
 	
@@ -664,6 +794,7 @@ public class SimplePlot extends JfxLauncher {
 				case SIMPLE_HISTOGRAM : chart = new SimpleHistogramSupplier().get();break;
 				case HISTOGRAM: chart = new HistogramSupplier().get();break;
 				case STACKED_HISTOGRAM: chart = new StackedHistogramSupplier().get();break;
+				case STACKED_HISTOGRAM_PIVOTED : chart = new StackedHistogramPivoted().get();break;
 				case XYV:
 				case STACKED_XYV:
 					chart = new XYVHistogramSupplier().

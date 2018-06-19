@@ -44,6 +44,7 @@
             <package name="com.github.lindenb.jvarkit.tools.vcftrios"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfucsc"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfvcf"/>
+            <package name="com.github.lindenb.jvarkit.tools.xcontamination"/>
         </packages>  
     </test>  
 </suite>
