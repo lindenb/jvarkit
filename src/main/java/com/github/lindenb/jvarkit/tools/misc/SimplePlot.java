@@ -202,7 +202,7 @@ public class SimplePlot extends JfxLauncher {
 		
 		protected <V> Map<String,V> createMapWithStringKey()
 			{
-			if(input_is_sort_uniq)
+			if(!input_is_sort_uniq)
 				{
 				return new TreeMap<>(new SmartComparator().caseSensitive());
 				}
@@ -427,7 +427,7 @@ public class SimplePlot extends JfxLauncher {
 			final StackedBarChart<String, Number> chart =
 			            new StackedBarChart<String, Number>(xAxis, yAxis);
 			chart.getData().add(series1);
-			
+			chart.setLegendVisible(false);
 			return chart;
 			}
 		}
@@ -481,6 +481,7 @@ public class SimplePlot extends JfxLauncher {
 		    final NumberAxis yAxis = new NumberAxis();
 			final XYChart<String, Number> sbc =create(xAxis, yAxis);
 			sbc.getData().addAll(series);
+			sbc.setLegendVisible(series.size()>1);
 			updateAxisX(xAxis);
 			updateAxisY(yAxis);
 			return sbc;

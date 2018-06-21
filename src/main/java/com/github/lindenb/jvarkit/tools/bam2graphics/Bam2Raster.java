@@ -679,7 +679,7 @@ public class Bam2Raster extends AbstractBam2Raster
 					
 					// paint insertions
 					for(final Integer refpos: refposOfInsertions) {
-						g.setColor(Color.GREEN); 
+						g.setColor(Color.ORANGE); 
 						if(printThisRow)  g.fill(new Rectangle2D.Double(
 									convertToX(refpos),
 									y0,
