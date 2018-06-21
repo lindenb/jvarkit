@@ -13,7 +13,7 @@ public void test01() throws IOException {
 	File output = super.createTmpFile(".vcf");
 	Assert.assertEquals(new XContaminations().instanceMain(
     		newCmd().add(
-    		"-ov","-sample"
+    		"-ov","-sample",
     		"-o",output,
     		SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz",
     		SRC_TEST_RESOURCE+"/S1.bam",
