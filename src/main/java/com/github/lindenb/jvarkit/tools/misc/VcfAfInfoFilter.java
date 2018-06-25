@@ -23,7 +23,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.gnomad;
+package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -59,31 +59,47 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
- 
- END_DOC
+
+## Motivation
+
+Filter VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomad.
+
+## Example
+
+```
+$ java -jar dist/vcfafinfofilter.jar -nfe input.vcf
+$ java -jar dist/vcfafinfofilter.jar -af 'gnomad_exome_AF_NFE,gnomad_genome_AF_NFE'   input.vcf
+$ java -jar dist/vcfafinfofilter.jar -acn 'gnomad_genome_AC_NFE,gnomad_genome_AN_NFE'   input.vcf
+$ java -jar dist/vcfafinfofilter.jar -acn 'gnomad_genome_*_NFE'   input.vcf
+
+```
+
+
+
+END_DOC
  */
-@Program(name="vcfgnomadpostfilter",
-	description="Filter VCF annanoted with vcfgnomad",
+@Program(name="vcfafinfofilter",
+	description="Filter VCF annotated with external (AF or AC/AN) frequency information like vcfgnomad",
 	keywords={"vcf","annotation","gnomad"})
-public class VcfGnomadPostFilter extends Launcher{
+public class VcfAfInfoFilter extends Launcher{
 	
-	private static final Logger LOG = Logger.build(VcfGnomadPostFilter.class).make();
+	private static final Logger LOG = Logger.build(VcfAfInfoFilter.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"--filter","-f"},description="set this filter if all ALT fails the treshold. If empty :remove the variant")
-	private String filterAllAltInGnomad="ALTS_FAIL_GNOMAD";
-	@Parameter(names={"--gtfilter","-gtf"},description="set this *GENOTYPE* filter if all ALT fails the treshold. If empty :set genotype to NO_CALL")
+	private String filterAllAltInGnomad="";
+	@Parameter(names={"--gtfilter","-gtf"},description="set this *GENOTYPE* filter if all ALT for a Genotype fail the treshold. If empty :set genotype to NO_CALL")
 	private String genotypeFilter="";
 	@Parameter(names={"--treshold","-t"},description="Treshold for allele Frequency")
 	private double user_af_treshold = 1E-3;
-	@Parameter(names={"-af","--af","--af"},description="A list of AF fields, separated with comma,semicolon or whitespace that will be used to extract a AF field.")
+	@Parameter(names={"-af","--af"},description="A list of AF fields, separated with comma,semicolon or whitespace that will be used to extract a AF field.")
 	private String user_af_fields = "";
-	@Parameter(names={"-acn","--acn",},description="A list of pairs of AC/AF fields separated with comma,semicolon or whitespace that will be used to calculate the AF. "
+	@Parameter(names={"-acn","--acn"},description="A list of pairs of AC/AF fields separated with comma,semicolon or whitespace that will be used to calculate the AF. "
 			+ "If an attribute contains  '*', it will be replaced by 'AC' and 'AN'. eg: 'gnomad_exome_AC_NFE,gnomad_exome_AN_NFE,my_pop_*'")
 	private String user_ac_an_fields = "";
 	@Parameter(names={"-i","--no-valid"},description="Ignore INFO Field Validation. (e.g INFO field not declarated in VCF header)")
 	private boolean ignore_INFO_field_validation=false;
-	@Parameter(names={"-nfe","--nfe"},description="Add fields created by vcfgnomad: ")
+	@Parameter(names={"-nfe","--nfe"},description="Add INFO fields for the 'NFE' population created by vcfgnomad: gnomad_exome_AC_NFE,gnomad_exome_AF_NFE,gnomad_exome_AN_NFE,gnomad_genome_AC_NFE,gnomad_genome_AF_NFE,gnomad_genome_AN_NF")
 	private boolean vcf_gnomad_nfe =false;
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
@@ -200,7 +216,7 @@ public class VcfGnomadPostFilter extends Launcher{
 			}
 		}
 
-	public VcfGnomadPostFilter() {
+	public VcfAfInfoFilter() {
 		
 	}
 	
@@ -237,6 +253,10 @@ public class VcfGnomadPostFilter extends Launcher{
 				for(final String s:this.user_af_fields.split("[,; \t\n]+"))
 					{
 					if(StringUtil.isBlank(s)) continue;
+					if(s.contains("*")) {
+						LOG.error("INFO/"+s+" contains a '*'");
+						return -1;
+						}
 					final AFFieldExtractor extractor = new AFFieldExtractor(s);
 					if(!extractor.validateHeader(header) && !this.ignore_INFO_field_validation)
 						{
@@ -307,13 +327,14 @@ public class VcfGnomadPostFilter extends Launcher{
 			VCFStandardHeaderLines.addStandardFormatLines(headerLines, true, VCFConstants.GENOTYPE_FILTER_KEY);
 			JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), header);
 			this.recalculator.setHeader(header);
-
+			headerLines.stream().forEach(H->header.addMetaDataLine(H));
 			
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 			out.writeHeader(header);
 			while(in.hasNext())
 				{
 				final VariantContext ctx = progress.watch(in.next());
+
 				if(!ctx.isVariant())
 					{
 					out.add(ctx);
@@ -336,10 +357,12 @@ public class VcfGnomadPostFilter extends Launcher{
 						if(af==null) continue;
 						if(af.doubleValue()> this.user_af_treshold)
 							{
+							
 							ok_alleles.remove(alt_alleles.get(x));
 							}
 						}
 					}
+
 				if(ok_alleles.isEmpty() && StringUtil.isBlank(this.filterAllAltInGnomad))
 					{
 					continue;
@@ -407,6 +430,6 @@ public class VcfGnomadPostFilter extends Launcher{
 		}
 
 public static void main(final String[] args) {
-	new VcfGnomadPostFilter().instanceMainWithExit(args);
+	new VcfAfInfoFilter().instanceMainWithExit(args);
 	}
 }

@@ -567,6 +567,8 @@ $(eval $(call compile-htsjdk-cmd,vcfepistatis01,${jvarkit.package}.tools.epistas
 $(eval $(call compile-htsjdk-cmd,subcloneit,${jvarkit.package}.tools.cloneit.SubCloneIt,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,igvreview,${jvarkit.package}.tools.igvreview.IgvReview,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samtranslocations,${jvarkit.package}.tools.structvar.SamTranslocations,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfafinfofilter,${jvarkit.package}.tools.misc.VcfAfInfoFilter,${jcommander.jar}))
+
 
 
 $(eval $(call compile-htsjdk-cmd,vcfburdengoenrichment,${jvarkit.package}.tools.burden.VcfBurdenGoEnrichment,${jcommander.jar}))
