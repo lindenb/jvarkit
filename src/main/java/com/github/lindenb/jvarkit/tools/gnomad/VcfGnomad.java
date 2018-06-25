@@ -129,9 +129,9 @@ public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
 	/** allele specific population in gnomad */
-	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female","SAS", "raw", "POPMAX"}; 
+	/* private */ final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female","SAS", "raw", "POPMAX"}; 
 	/** 'ome'-type section */
-	private enum OmeType {exome,genome};
+	/* private */ enum OmeType {exome,genome};
 	
 	
 	
