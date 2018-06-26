@@ -33,6 +33,10 @@ Usage: biostar322664 [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -pair, --pair
+      pair mode: the paired read and it's pair muts BOTH carry at least one 
+      variant 
+      Default: false
     --samoutputformat
       Sam output format.
       Default: SAM

@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -53,7 +54,6 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
@@ -119,6 +119,8 @@ public class Biostar322664 extends Launcher
 	private String meta_tag_str = null;
 	@Parameter(names={"-all","--all"},description="used in complement of option -X . Will output any SamRecord, but some reads will carrying the information about the variant in a 'Xx' attribute.")
 	private boolean output_all = false;
+	@Parameter(names={"-pair","--pair"},description="pair mode: the paired read and it's pair muts BOTH carry at least one variant")
+	private boolean both_pair_mode = false;
 
 	
 	@ParametersDelegate
@@ -131,6 +133,10 @@ public class Biostar322664 extends Launcher
 		if(this.use_bam_index && !this.input_is_not_sorted_on_queryname)
 			{
 			LOG.error("Cannot use option -index without option -nm");
+			return -1;
+			}
+		if(this.both_pair_mode && this.input_is_not_sorted_on_queryname) {
+			LOG.error("Cannot use option -and without sorting on queryname");
 			return -1;
 			}
 		/* will be used as a SAMRecord attribute 'X'+meta_char containing the data about the variants */
@@ -216,10 +222,14 @@ public class Biostar322664 extends Launcher
 				eq_range = new EqualRangeIterator<>(iter,ReadNameSortMethod.picard.get());
 				}
 			while(eq_range.hasNext()) {
-				boolean any_match=false;
 				final List<SAMRecord> array = eq_range.next();
+				final boolean carry_variant[]=new boolean[array.size()];
+				Arrays.fill(carry_variant, false);
 				
-				for(final SAMRecord rec:array) {
+				for(int record_index=0;record_index < array.size();++record_index) {
+					final SAMRecord rec= array.get(record_index);
+					//final boolean debug = false;
+					//if(debug==true) LOG.info("got read! "+rec);
 					if(rec.getReadUnmappedFlag()) {
 						continue;
 					}
@@ -241,6 +251,7 @@ public class Biostar322664 extends Launcher
 						for(final Allele alt:ctx.getAlternateAlleles()) {
 							if(alt.isNoCall() || alt.isSymbolic()) continue;
 							if(alt.length()!=1) continue;
+							final char altbase= (char)Character.toUpperCase(alt.getBases()[0]);
 							int ref1 =rec.getUnclippedStart();
 							int readpos = 0;
 							
@@ -271,10 +282,12 @@ public class Biostar322664 extends Launcher
 										final int rp2 = readpos+x;
 										if(rp2>=0 && rp2<bases.length && ref1+x==ctx.getStart())
 											{
-											final char base = Character.toUpperCase((char)bases[rp2]);
-											if(base==(char)Character.toUpperCase(alt.getBases()[0]));
+											final char readbase = Character.toUpperCase((char)bases[rp2]);
+											
+											if(readbase==altbase)
 												{
-												any_match = true;
+												//if(debug) LOG.debug(rec.getReadName()+" read["+rp2+"]="+readbase+" ref["+ctx.getStart()+"]="+altbase);
+												carry_variant[record_index]=true;
 												if(meta_attribute!=null) {
 													meta_attribute.add(ctx.getContig()+"|"+ctx.getStart()+"|"+ctx.getReference().getDisplayString()+"|"+ctx.getAlternateAlleles().stream().filter(A->A.length()==1).map(A->A.getDisplayString()).collect(Collectors.joining(",")));
 													}
@@ -289,15 +302,43 @@ public class Biostar322664 extends Launcher
 								default: throw new IllegalStateException("bad cigar operator "+op);
 								}
 							}
-						if(meta_char=='\0' && any_match) break;
-						}//end of cigar loop
-					if(meta_char=='\0' && any_match) break;
-					
+						}//end of cigar loop					
 					if(meta_attribute!=null && !meta_attribute.isEmpty()) {
 						rec.setAttribute("X"+meta_char, String.join(";",meta_attribute));
 						}
 					} // end of loop over variants
 				}// end of for(Samrecord in array)
+				
+				boolean any_match=false;
+				for(boolean m: carry_variant) {
+					if(m) {
+						any_match=true;
+						break;
+					}
+				}
+				
+				if(any_match && this.both_pair_mode)  {
+					any_match = false;//reset
+					for(int x=0;x+1< array.size() && !any_match;++x) {
+						if(!carry_variant[x]) continue;
+						final SAMRecord r1 = array.get(x);
+						if(!r1.getReadPairedFlag()) continue;
+						for(int y=x+1;y< array.size() && !any_match;++y) {
+							if(!carry_variant[y]) continue;
+							// check r2 is mate of r1
+							final SAMRecord r2 = array.get(x);
+							if(!r2.getReadPairedFlag()) continue;
+							if(r1.getFirstOfPairFlag()&& r2.getFirstOfPairFlag()) continue;
+							if(!r1.getFirstOfPairFlag()&& !r2.getFirstOfPairFlag()) continue;
+							if(r1.getAlignmentStart()!=r2.getMateAlignmentStart()) continue;
+							if(r2.getAlignmentStart()!=r1.getMateAlignmentStart()) continue;
+							if(!r1.getReferenceName().equals(r2.getMateReferenceName())) continue;
+							any_match = true;
+						}
+					}
+				}
+				
+				
 				
 				if(any_match || this.output_all) {
 					for(final SAMRecord rec:array) samFileWriter.addAlignment(rec);
