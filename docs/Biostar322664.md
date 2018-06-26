@@ -32,6 +32,14 @@ Usage: biostar322664 [options] Files
 ```
 
 
+## Keywords
+
+ * sam
+ * bam
+ * vcf
+
+
+
 ## See also in Biostars
 
  * [https://www.biostars.org/p/322664](https://www.biostars.org/p/322664)

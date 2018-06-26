@@ -80,9 +80,10 @@ END_DOC
 */
 
 @Program(name="biostar322664",
-description="Extract PE Reads (with their mates) supporting variants in vcf file",
-biostars=322664
-)
+	description="Extract PE Reads (with their mates) supporting variants in vcf file",
+	keywords= {"sam","bam","vcf"},
+	biostars=322664
+	)
 public class Biostar322664 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar322664.class).make();
@@ -107,14 +108,13 @@ public class Biostar322664 extends Launcher
 			vcfFileReader = new VCFFileReader(this.vcfFile, false);
 			viter= vcfFileReader.iterator();
 			viter.stream().
-				filter(V->V.isVariant()).
-				map(V->new VariantContextBuilder(V).attributes(Collections.emptyMap()).noGenotypes().make()).
+				filter(V->V.isVariant() && V.getReference().length()==1 && V.getAlternateAlleles().stream().anyMatch(A->A.length()==1)).
+				map(V->new VariantContextBuilder(V).attributes(Collections.emptyMap()).noID().unfiltered().noGenotypes().make()).
 				forEach(V->variantMap.put(new Interval(V.getContig(), V.getStart(), V.getEnd()),V));
 			CloserUtil.close(viter);viter=null;
 			vcfFileReader.close();vcfFileReader=null;
 			LOG.info("Done Reading: "+this.vcfFile);
 
-			
 			samReader =super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header = samReader.getFileHeader();
 			if(header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
@@ -126,7 +126,7 @@ public class Biostar322664 extends Launcher
 			EqualRangeIterator<SAMRecord> eq_range = new EqualRangeIterator<>(iter,ReadNameSortMethod.picard.get());
 			while(eq_range.hasNext()) {
 				boolean any_match=false;
-				final List<SAMRecord> array= eq_range.next();
+				final List<SAMRecord> array = eq_range.next();
 				
 				for(final SAMRecord rec:array) {
 					if(rec.getReadUnmappedFlag()) continue;
@@ -174,7 +174,6 @@ public class Biostar322664 extends Launcher
 											final char base = Character.toUpperCase((char)bases[rp2]);
 											if(base==Character.toUpperCase(alt.getBases()[0]));
 												{	
-												System.err.println("Got "+ctx+" at "+rp2+" in "+rec.getContig()+" "+rec.getStart()+" "+rec.getEnd());
 												any_match = true;
 												break;
 												}

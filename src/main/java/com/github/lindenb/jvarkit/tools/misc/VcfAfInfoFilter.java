@@ -408,7 +408,8 @@ public class VcfAfInfoFilter extends Launcher{
 					}
 				vcb.genotypes(genotypes);
 				out.add(this.recalculator.apply(vcb.make()));
-				}			
+				}
+			progress.finish();
 			return 0;
 			}
 		catch(final Exception err) {
