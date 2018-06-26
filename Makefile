@@ -640,7 +640,7 @@ ${generated.dir}/java/org/uniprot/package-info.java : api.uniprot
 api.uniprot :
 	rm -rf ${generated.dir}/java/org/uniprot/
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "http://www.uniprot.org/docs/uniprot.xsd" 
+	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "https://www.uniprot.org/docs/uniprot.xsd" 
 
 
 api.ncbi.pubmed : 
