@@ -10,6 +10,11 @@ Extract PE Reads (with their mates) supporting variants in vcf file
 ```
 Usage: biostar322664 [options] Files
   Options:
+    -all, --all
+      used in complement of option -X . Will output any SamRecord, but some 
+      reads will carrying the information about the variant in a 'Xx' 
+      attribute. 
+      Default: false
     --bamcompression
       Compression Level.
       Default: 5
@@ -18,6 +23,14 @@ Usage: biostar322664 [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -index, --index
+      Use the VCF input to query the BAM using bai index. Faster for large bam 
+      + small VCF. Require option `--no-mate` and the bam file to be indexed.
+      Default: false
+    -nm, --no-mate
+      Disable the 'mate' function. BAM is not expected to be sorted with 
+      picard (bam can be sorted on coordinate), but mate will not be written.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --samoutputformat
@@ -28,6 +41,9 @@ Usage: biostar322664 [options] Files
       Variant VCF file. This tool **doesn't work** with INDEL/SV.
     --version
       print version and exit
+    -x, -X
+      If defined, add the variant(s) information in a 'X' metadata. One 
+      character only.
 
 ```
 
@@ -124,4 +140,14 @@ RF02_358_926_2:0:0_2:1:0_83	83	RF02	857	60	70M	=	358	-569	GACGTGAACTATATAATTAAAA
 RF02_362_917_2:0:0_2:1:0_6f	147	RF02	848	60	70M	=	362	-556	ATAAGGAATCACGTTAACTATATACTTAAAATGGACTGAAATCTGCCATCAACAGCTAGATATATAAGAC	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S1	NM:i:3	AS:i:55	XS:i:0
 (...)
 ```
+
+```
+$ java -jar dist/biostar322664.jar -nm  -index -V src/test/resources/S1.vcf.gz src/test/resources/S1.bam 
+(...)
+RF02_827_1385_4:1:0_2:0:0_3f    163     RF02    827     60      70M     =       1316    559     ATCAATTACATTCCTGAAAGGATAAGGAATGAGGTTAACTATCTACTTAAAATGGACAGAAATCTGCCAA  2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S1 NM:i:5  AS:i:53XS:i:0
+RF02_827_1292_4:0:0_1:0:0_50    163     RF02    827     60      70M     =       1223    466     TTCAATTACATTCCTGCAAGGATAAGGAATGCCGTTAACTATATACTTAATAAGGACAGAAATCTGGCAT  2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S1 NM:i:4  AS:i:51XS:i:0
+(...)
+```
+
+
 

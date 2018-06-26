@@ -91,11 +91,10 @@ Usage: prettysam [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -125,25 +124,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/PrettySam.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/PrettySam.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/PrettySamTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/PrettySamTest.java)
 
-```
-Tue Dec 26 17:33:00 2017 +0100 ; fix prettysam ; https://github.com/lindenb/jvarkit/commit/dfd11a999e2b271ff9f79b08de367d1d9b1606d2
-Wed Dec 20 15:17:02 2017 +0100 ; prettysam with VCF file ; https://github.com/lindenb/jvarkit/commit/b87d8f2413a2b5765b1560da800dbf3fe30c8701
-Tue Dec 19 15:45:53 2017 +0100 ; pretty sam + knownGene ; https://github.com/lindenb/jvarkit/commit/bc31eba58deb8e473dbef04f57468417b395729b
-Mon Dec 18 10:28:57 2017 +0100 ; fix tags ; https://github.com/lindenb/jvarkit/commit/727b6dee603f4563d327522c8d12af92278e648c
-Mon Dec 18 10:24:33 2017 +0100 ; colors ; https://github.com/lindenb/jvarkit/commit/979df33b759b68e4e6e6e615ddc1d7808a02faca
-Sun Dec 17 13:31:21 2017 +0100 ; pretty sam fix ; https://github.com/lindenb/jvarkit/commit/7fe1838781866f6685bff80f0b1cace09d30839c
-Sat Dec 16 19:00:54 2017 +0100 ; use das a ref dict ; https://github.com/lindenb/jvarkit/commit/8df0196c191f5b546a123dcb1328ddf8c79d049d
-Sat Dec 16 17:52:51 2017 +0100 ; writing ref contig factory ; https://github.com/lindenb/jvarkit/commit/9f3ae5b2f90a4b211016af9421241cbf8ae25d8d
-Sat Dec 16 16:01:41 2017 +0100 ; optimize for long reads ; https://github.com/lindenb/jvarkit/commit/f12cae9419d2156141ee79175d236bbf07804906
-Fri Dec 15 21:57:44 2017 +0100 ; sam pretty ; https://github.com/lindenb/jvarkit/commit/19cb4d756b0f5006ff85c9afb5c4c83e466ef13c
-Fri Dec 15 17:59:36 2017 +0100 ; pretty sam ; https://github.com/lindenb/jvarkit/commit/9a76f347cbc5392c52b21eb12179d38efcf1d9d1
-```
-
-</details>
 
 ## Contribute
 

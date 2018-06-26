@@ -27,12 +27,18 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -42,10 +48,14 @@ import com.github.lindenb.jvarkit.util.samtools.ReadNameSortMethod;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -75,6 +85,16 @@ RF02_358_926_2:0:0_2:1:0_83	83	RF02	857	60	70M	=	358	-569	GACGTGAACTATATAATTAAAA
 RF02_362_917_2:0:0_2:1:0_6f	147	RF02	848	60	70M	=	362	-556	ATAAGGAATCACGTTAACTATATACTTAAAATGGACTGAAATCTGCCATCAACAGCTAGATATATAAGAC	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S1	NM:i:3	AS:i:55	XS:i:0
 (...)
 ```
+
+```
+$ java -jar dist/biostar322664.jar -nm  -index -V src/test/resources/S1.vcf.gz src/test/resources/S1.bam 
+(...)
+RF02_827_1385_4:1:0_2:0:0_3f    163     RF02    827     60      70M     =       1316    559     ATCAATTACATTCCTGAAAGGATAAGGAATGAGGTTAACTATCTACTTAAAATGGACAGAAATCTGCCAA  2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S1 NM:i:5  AS:i:53XS:i:0
+RF02_827_1292_4:0:0_1:0:0_50    163     RF02    827     60      70M     =       1223    466     TTCAATTACATTCCTGCAAGGATAAGGAATGCCGTTAACTATATACTTAATAAGGACAGAAATCTGGCAT  2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S1 NM:i:4  AS:i:51XS:i:0
+(...)
+```
+
+
 END_DOC
 
 */
@@ -91,6 +111,16 @@ public class Biostar322664 extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-V","--variant"},description="Variant VCF file. This tool **doesn't work** with INDEL/SV.",required=true)
 	private File vcfFile = null;
+	@Parameter(names={"-nm","--no-mate"},description="Disable the 'mate' function. BAM is not expected to be sorted with picard (bam can be sorted on coordinate), but mate will not be written.")
+	private boolean input_is_not_sorted_on_queryname = false;
+	@Parameter(names={"-index","--index"},description="Use the VCF input to query the BAM using bai index. Faster for large bam + small VCF. Require option `--no-mate` and the bam file to be indexed. ")
+	private boolean use_bam_index = false;
+	@Parameter(names={"-x","-X"},description="If defined, add the variant(s) information in a 'X' metadata. One character only.")
+	private String meta_tag_str = null;
+	@Parameter(names={"-all","--all"},description="used in complement of option -X . Will output any SamRecord, but some reads will carrying the information about the variant in a 'Xx' attribute.")
+	private boolean output_all = false;
+
+	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 
@@ -98,6 +128,29 @@ public class Biostar322664 extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.use_bam_index && !this.input_is_not_sorted_on_queryname)
+			{
+			LOG.error("Cannot use option -index without option -nm");
+			return -1;
+			}
+		/* will be used as a SAMRecord attribute 'X'+meta_char containing the data about the variants */
+		final char meta_char;
+		if(this.meta_tag_str!=null) {
+			if(this.meta_tag_str.length()!=1) {
+				LOG.error("Meta tag should be only one character, got "+meta_tag_str);
+				return -1;			
+				}
+			meta_char = this.meta_tag_str.charAt(0);
+		} else
+			{
+			meta_char='\0';
+			}
+		
+		if(this.output_all && meta_char=='\0') {
+			LOG.error("Cannot output all if not meta char -X defined");
+			return -1;
+		}
+		
 		final IntervalTreeMap<VariantContext> variantMap=new IntervalTreeMap<>();
 		VCFFileReader vcfFileReader=null;
 		CloseableIterator<VariantContext> viter=null;
@@ -114,24 +167,69 @@ public class Biostar322664 extends Launcher
 			CloserUtil.close(viter);viter=null;
 			vcfFileReader.close();vcfFileReader=null;
 			LOG.info("Done Reading: "+this.vcfFile);
+			
 
 			samReader =super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header = samReader.getFileHeader();
-			if(header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
-				LOG.error("Expected SAM input to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder());
+			if(!this.input_is_not_sorted_on_queryname &&
+				header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
+				LOG.error("Expected SAM input to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder() +
+						" See the options to work without 'mate'.");
 				return -1;
 				}
 			samFileWriter = this.writingBamArgs.openSAMFileWriter(this.outputFile, header, true);
-			CloseableIterator<SAMRecord> iter = samReader.iterator();
-			EqualRangeIterator<SAMRecord> eq_range = new EqualRangeIterator<>(iter,ReadNameSortMethod.picard.get());
+			final CloseableIterator<SAMRecord> iter ;
+			if(!use_bam_index) {
+				iter = samReader.iterator();
+				}
+			else
+				{
+				final SAMSequenceDictionary dict = header.getSequenceDictionary();
+				if(dict==null) throw new JvarkitException.BamDictionaryMissing("input");
+				final List<QueryInterval> intervals = new ArrayList<>();
+				for(final VariantContext ctx:variantMap.values())
+					{
+					int tid = dict.getSequenceIndex(ctx.getContig());
+					if(tid<0)  throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), dict);
+					intervals.add(new QueryInterval(tid, ctx.getStart(), ctx.getEnd()));
+					}
+				QueryInterval intervalArray[] = intervals.toArray(new QueryInterval[intervals.size()]);
+				intervalArray = QueryInterval.optimizeIntervals(intervalArray);
+				iter = samReader.query(intervalArray, false);
+				}
+			
+			
+			Iterator<List<SAMRecord>> eq_range = null;
+			if(this.input_is_not_sorted_on_queryname)
+				{
+				eq_range = new AbstractIterator<List<SAMRecord>>()
+					{
+					@Override
+					protected List<SAMRecord> advance()
+						{
+						return iter.hasNext()?Collections.singletonList(iter.next()):null;
+						}
+					};
+				}
+			else
+				{
+				eq_range = new EqualRangeIterator<>(iter,ReadNameSortMethod.picard.get());
+				}
 			while(eq_range.hasNext()) {
 				boolean any_match=false;
 				final List<SAMRecord> array = eq_range.next();
 				
 				for(final SAMRecord rec:array) {
-					if(rec.getReadUnmappedFlag()) continue;
+					if(rec.getReadUnmappedFlag()) {
+						continue;
+					}
+					
+					final Set<String> meta_attribute = (meta_char=='\0'?null:new HashSet<>());
 					final Collection<VariantContext> variants = variantMap.getOverlapping(rec);
-					if(variants.isEmpty()) continue;
+					if(variants.isEmpty()) {
+						continue;
+					}
+					
 					final Cigar cigar=rec.getCigar();
 					if(cigar==null || cigar.isEmpty()) continue;
 					
@@ -147,7 +245,9 @@ public class Biostar322664 extends Launcher
 							int readpos = 0;
 							
 							for(final CigarElement ce:cigar) {
-								if(ref1> ctx.getEnd()) break;
+								if(ref1> ctx.getEnd()) {
+									break;
+								}
 								final CigarOperator op =ce.getOperator();
 								switch(op) {
 								case P:break;
@@ -168,13 +268,16 @@ public class Biostar322664 extends Launcher
 									{
 									for(int x=0;x< ce.getLength();++x)
 										{
-										int rp2 = readpos+x;
+										final int rp2 = readpos+x;
 										if(rp2>=0 && rp2<bases.length && ref1+x==ctx.getStart())
 											{
 											final char base = Character.toUpperCase((char)bases[rp2]);
-											if(base==Character.toUpperCase(alt.getBases()[0]));
-												{	
+											if(base==(char)Character.toUpperCase(alt.getBases()[0]));
+												{
 												any_match = true;
+												if(meta_attribute!=null) {
+													meta_attribute.add(ctx.getContig()+"|"+ctx.getStart()+"|"+ctx.getReference().getDisplayString()+"|"+ctx.getAlternateAlleles().stream().filter(A->A.length()==1).map(A->A.getDisplayString()).collect(Collectors.joining(",")));
+													}
 												break;
 												}
 											}
@@ -186,17 +289,21 @@ public class Biostar322664 extends Launcher
 								default: throw new IllegalStateException("bad cigar operator "+op);
 								}
 							}
-						if(any_match) break;
+						if(meta_char=='\0' && any_match) break;
 						}//end of cigar loop
-					if(any_match) break;
+					if(meta_char=='\0' && any_match) break;
+					
+					if(meta_attribute!=null && !meta_attribute.isEmpty()) {
+						rec.setAttribute("X"+meta_char, String.join(";",meta_attribute));
+						}
 					} // end of loop over variants
 				}// end of for(Samrecord in array)
-				if(any_match) {
+				
+				if(any_match || this.output_all) {
 					for(final SAMRecord rec:array) samFileWriter.addAlignment(rec);
 					}
-				
 				}
-			eq_range.close();
+			CloserUtil.close(eq_range);
  			iter.close();
 			samFileWriter.close();samFileWriter=null;
 			samReader.close();samReader=null;

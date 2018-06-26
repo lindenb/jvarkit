@@ -20,7 +20,7 @@ public class Biostar322664Test extends TestUtils{
 		}
 	
 	@Test(dataProvider="src01")
-	public void test1(final String bampath,final String vcfpath) throws Exception
+	public void testWithQueryNameSortedBam(final String bampath,final String vcfpath) throws Exception
 		{
 		final File out = super.createTmpFile(".bam");
 		final File sortedBam1= sortBamOnQueryName(Paths.get(bampath),null);
@@ -33,5 +33,16 @@ public class Biostar322664Test extends TestUtils{
 		super.assertIsValidBam(out);
 		}
 	
-	
-}
+	@Test(dataProvider="src01")
+	public void testWithBamIndex(final String bampath,final String vcfpath) throws Exception
+		{
+		final File out = super.createTmpFile(".bam");
+		
+		Assert.assertEquals(new Biostar322664().instanceMain(new String[] {
+			"-o",out.getPath(),"-index","-nm",
+			"-V",vcfpath,
+			bampath
+			}),0);
+		super.assertIsValidBam(out);
+		}
+	}
