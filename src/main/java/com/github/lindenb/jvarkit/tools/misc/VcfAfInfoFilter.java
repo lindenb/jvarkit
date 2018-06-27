@@ -62,7 +62,9 @@ BEGIN_DOC
 
 ## Motivation
 
-Filter VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomad.
+I'm often asked to filter out variant that are too frequent in gnomad, but I must keep the data if any ALT allele is NOT in gnomad.
+
+This tool filters VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomad.
 
 ## Example
 
@@ -90,7 +92,7 @@ public class VcfAfInfoFilter extends Launcher{
 	private String filterAllAltInGnomad="";
 	@Parameter(names={"--gtfilter","-gtf"},description="set this *GENOTYPE* filter if all ALT for a Genotype fail the treshold. If empty :set genotype to NO_CALL")
 	private String genotypeFilter="";
-	@Parameter(names={"--treshold","-t"},description="Treshold for allele Frequency")
+	@Parameter(names={"--treshold","-t"},description="Treshold for allele Frequency. ALT alleles above this AF value will be subject to filtration.")
 	private double user_af_treshold = 1E-3;
 	@Parameter(names={"-af","--af"},description="A list of AF fields, separated with comma,semicolon or whitespace that will be used to extract a AF field.")
 	private String user_af_fields = "";

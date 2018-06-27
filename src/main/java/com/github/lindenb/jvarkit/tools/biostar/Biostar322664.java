@@ -219,7 +219,7 @@ public class Biostar322664 extends Launcher
 				}
 			else
 				{
-				eq_range = new EqualRangeIterator<>(iter,ReadNameSortMethod.picard.get());
+				eq_range = new EqualRangeIterator<>(iter,(R1,R2)->R1.getReadName().compareTo(R2.getReadName()));
 				}
 			while(eq_range.hasNext()) {
 				final List<SAMRecord> array = eq_range.next();
@@ -228,8 +228,8 @@ public class Biostar322664 extends Launcher
 				
 				for(int record_index=0;record_index < array.size();++record_index) {
 					final SAMRecord rec= array.get(record_index);
-					//final boolean debug = false;
-					//if(debug==true) LOG.info("got read! "+rec);
+					//final boolean debug = rec.getReadName().equals("SRR5229653.1238236");
+					//if(debug==true) LOG.info("got read! "+rec+" array.size="+array.size());
 					if(rec.getReadUnmappedFlag()) {
 						continue;
 					}

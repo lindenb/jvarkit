@@ -47,7 +47,8 @@ Usage: vcfafinfofilter [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     --treshold, -t
-      Treshold for allele Frequency
+      Treshold for allele Frequency. ALT alleles above this AF value will be 
+      subject to filtration.
       Default: 0.001
     --vc-attribute-recalc-ignore-filtered
       When recalculating variant attributes like DP AF, AC, AN, ignore 
@@ -135,7 +136,9 @@ The current reference is:
 
 ## Motivation
 
-Filter VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomad.
+I'm often asked to filter out variant that are too frequent in gnomad, but I must keep the data if any ALT allele is NOT in gnomad.
+
+This tool filters VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomad.
 
 ## Example
 

@@ -1,5 +1,7 @@
 # CommBams
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Equivalent of unix 'comm' for bams sorted on queryname
 
 
@@ -57,11 +59,10 @@ Usage: commbams [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -91,19 +92,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBams.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBams.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBamsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/CommBamsTest.java)
 
-```
-Fri Nov 10 17:07:13 2017 +0100 ; samjdk with pair mode, added sortmethod, fixed trapindex, fat-jar ; https://github.com/lindenb/jvarkit/commit/7eba4eda059e4ddbef27544cd87910131cf1f4a9
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Wed May 10 15:18:14 2017 +0200 ; bam2raster ; https://github.com/lindenb/jvarkit/commit/4f59fa50eb3be1389338e45302515fb4efd49eb5
-Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
-Thu Apr 20 19:53:01 2017 +0200 ; comm bams ; https://github.com/lindenb/jvarkit/commit/5d4089bc118077a4714e24f5dde5c56333ba65b2
-```
-
-</details>
 
 ## Contribute
 
@@ -156,7 +148,7 @@ PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAA
 .	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10205/2
 .	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10380/1	.
 .	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10380/2	.
-
+```
 
 
 
