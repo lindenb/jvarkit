@@ -150,10 +150,13 @@ public class VCFBedSetFilter extends Launcher
 				boolean set_filter=true;
 				final String convert_contig = ctgNameConverter.apply(ctx.getContig());
 				
-				if(!StringUtil.isBlank(convert_contig))
+				if(StringUtil.isBlank(convert_contig))
 					{
 					if(contigs_not_found.size()<100) {
-						contigs_not_found.add(ctx.getContig());
+						if(contigs_not_found.add(ctx.getContig()))
+							{
+							LOG.warn("Cannot convert variant contig "+ctx.getContig()+" to bed file.");
+							}
 						}
 					}
 				else if(this.intervalTreeMap!=null) {

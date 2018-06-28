@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Filter VEP Output from a list of genes.
+Filter VEP/SnpEff Output from a list of genes.
 
 
 ## Usage
@@ -10,6 +10,10 @@ Filter VEP Output from a list of genes.
 ```
 Usage: vcfburdenfiltergenes [options] Files
   Options:
+    -a, --add
+      [20180627] Gene Names: Add this gene, multiple separated by 
+      comma,spaces,semicolon 
+      Default: <empty string>
     -filter, --filter
       If empty: remove the variants from the VCF. If not empty, add a token in 
       the column filter.
@@ -34,6 +38,7 @@ Usage: vcfburdenfiltergenes [options] Files
  * gene
  * vcf
  * vep
+ * snpeff
 
 
 ## Compilation
@@ -99,11 +104,13 @@ The current reference is:
 
 ```
 echo "IL2" > genes.txt
- echo "NOCTH2" >>  genes.txt
- gunzip -c inputx.vcf.gz |\
- java -jar dit/vcfburdenfiltergenes.jar -g genes.txt
+echo "NOCTH2" >>  genes.txt
+gunzip -c input.vcf.gz |\
+	java -jar dit/vcfburdenfiltergenes.jar -g genes.txt
 ```
 
+## History
 
+  * 20180617 : for SNpEFF, now looks into GeneName OR GeneId (was only GeneName)
 
 
