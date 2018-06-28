@@ -88,11 +88,11 @@ java -jar dist/lowresbam2raster.jar \
 
 ## see also
 
-* https://twitter.com/yokofakun/status/951769190884610051
-* https://twitter.com/yokofakun/status/973836167522279425
-* 
+  * https://twitter.com/yokofakun/status/951769190884610051
+  * https://twitter.com/yokofakun/status/973836167522279425
+  * https://twitter.com/notSoJunkDNA/status/1012309599079272448
 
-## Screenshot
+## Screenshots
 
 ![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
 
@@ -100,6 +100,7 @@ java -jar dist/lowresbam2raster.jar \
 
 ![https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg](https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg)
 
+![https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg](https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg)
 
 END_DOC
 
