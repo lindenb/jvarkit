@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2018 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfcomposite;
 
 import java.io.DataInputStream;
@@ -8,6 +32,7 @@ import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -30,22 +55,31 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
+import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+/*
+BEGIN_DOC
 
-@Program(name="vcfcomposite",description="TODO",keywords={"vcf","disease","annotation","pedigree"})
+END_DOC
+*/
+@Program(name="vcfcomposite",
+	description="TODO",
+	keywords={"vcf","disease","annotation","pedigree"}
+)
 public class VCFComposite extends Launcher {
 	private static final Logger LOG= Logger.build(VCFComposite.class).make();
 	@Parameter(names={"-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION,required=true)
 	private File pedigreeFile=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-	@Parameter(names={"-acceptFiltered","--acceptFiltered"},description="Accept FILTERED variants")
-	private boolean acceptFiltered=false;
-	@Parameter(names={"-acceptID","--acceptID"},description="Accept variants with ID")
-	private boolean acceptID=false;
+	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
+	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
+	@Parameter(names={"-gf","--genotype-filter"},description=JexlGenotypePredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
+	private BiPredicate<VariantContext,Genotype> genotypeFilter = JexlGenotypePredicate.create("");
 	@Parameter(names={"-m","--model"},description="Model type",required=true)
 	private Type modelType=null;
 	@Parameter(names={"-models"},description="List the available models and exits",help=true)
@@ -96,7 +130,7 @@ public class VCFComposite extends Launcher {
 	
 	private final Predicate<Genotype> deNovoGenotype = new Predicate<Genotype>() {
 		@Override
-		public boolean test(Genotype t) {
+		public boolean test(final Genotype t) {
 			Pedigree.Person c = pedigree.getPersonById(t.getSampleName());
 			if(c==null) return false;
 			
@@ -185,21 +219,38 @@ public class VCFComposite extends Launcher {
 			for(final Pedigree.Person c: pedigree.getAffected()) {
 				for(int x=0;x+1< variants.size();++x)
 					{
-					
-					final Genotype gcx = variants.get(x).getGenotype(c.getId());
+					final VariantContext vcx = variants.get(x);
+					final Genotype gcx = vcx.getGenotype(c.getId());
 					// child variant  n. y  must be HOM_VAR or HET
 					if(gcx==null || !isGenotypeForAffected(gcx)) continue;
+					// filtered ?
+					if(!genotypeFilter.test(vcx,gcx)) continue;
 					// search for the second snp
 					for(int y=x+1;y< variants.size();++y)
 						{
-						final Genotype gcy = variants.get(y).getGenotype(c.getId());
+						final VariantContext vcy = variants.get(y);
+						final Genotype gcy = vcy.getGenotype(c.getId());
 						// child variant n. y must be HOM_VAR or HET
 						if(gcy==null || !isGenotypeForAffected(gcy)) continue;
+						// filtered ?
+						if(!genotypeFilter.test(vcy,gcy)) continue;
+						
 						boolean unaffected_are_ok=true;
 						//check unaffected indididual don't have same haplotype
 						for(final Pedigree.Person unaffected: pedigree.getUnaffected()) {
 							final Genotype gux = variants.get(x).getGenotype(unaffected.getId());
+							if(gux!=null && gux.isHomVar()) {
+								unaffected_are_ok=false;
+								break;
+								}
+							
 							final Genotype guy = variants.get(y).getGenotype(unaffected.getId());
+							
+							if(guy!=null && guy.isHomVar()) {
+								unaffected_are_ok=false;
+								break;
+								}
+							
 							if(gux!=null && guy!=null &&
 								gux.sameGenotype(gcx, true) &&
 								guy.sameGenotype(gcy, true)
@@ -331,8 +382,7 @@ public class VCFComposite extends Launcher {
 					
 					}
 				if(!ctx.isVariant()) continue;
-				if(!acceptFiltered && ctx.isFiltered()) continue;
-				if(!acceptID && ctx.hasID()) continue;
+				if(!this.variantFilter.test(ctx)) continue;
 				if(!model.accept(ctx)) continue;
 				final Set<String> geneKeys = new HashSet<>();
 				for(final AnnPredictionParser.AnnPrediction pred: annParser.getPredictions(ctx)) {
@@ -377,8 +427,8 @@ public class VCFComposite extends Launcher {
 			CloserUtil.close(out);
 			}
 		}
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VCFComposite().instanceMainWithExit(args);
-	}
+		}
 	
 	}
