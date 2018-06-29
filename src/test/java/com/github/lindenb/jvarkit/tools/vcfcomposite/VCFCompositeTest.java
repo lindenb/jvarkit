@@ -15,14 +15,13 @@ public class VCFCompositeTest extends TestUtils{
 		{
 		final File ped = super.createRandomPedigreeFromFile(inputFile);
 		if(ped==null) return;
-		final File output = super.createTmpFile(".tsv");
+		final File output = super.createTmpFile(".vcf");
         Assert.assertEquals(new VCFComposite().instanceMain(
         		newCmd().add(
         		"-o",output.getPath(),
-        		"-m","RecessiveComposite",
         		"--pedigree",ped).
         		add(inputFile).make()
         	),0);
-        super.assertTsvTableIsConsitent(output, null);
+        super.assertIsVcf(output);
 		}
 }

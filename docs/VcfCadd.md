@@ -13,6 +13,10 @@ Usage: vcfcadd [options] Files
     -d, --buffer-size
       Buffer size / processing window size
       Default: 1000
+    -f, --fields
+      Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz 
+      . Multiple separeted by space, semicolon or comma
+      Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
@@ -28,7 +32,7 @@ Usage: vcfcadd [options] Files
       Default: CADD_SCORE
     -u, --uri, --tabix
       Combined Annotation Dependent Depletion (CADD) Tabix file URI
-      Default: http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz
+      Default: http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs.tsv.gz
     --version
       print version and exit
 
@@ -133,6 +137,7 @@ $ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd
 
 ## History
 
+  * 2018-06-29 : handling user's field for url like "http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz" 
   * 2018-04-25 : changing INFO -type to 'A', splitting into two CADD_score/phred and adding dict converter
 
 

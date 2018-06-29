@@ -28,6 +28,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -58,6 +60,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -90,6 +93,7 @@ $ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd
 
 ## History
 
+  * 2018-06-29 : handling user's field for url like "http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz" 
   * 2018-04-25 : changing INFO -type to 'A', splitting into two CADD_score/phred and adding dict converter
 
 
@@ -110,7 +114,7 @@ public class VcfCadd extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.2/whole_genome_SNVs.tsv.gz";
+	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs.tsv.gz";
 	private TabixFileReader tabix=null;
 	@Parameter(names={"-u","--uri","--tabix"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
 	private String ccaduri=DEFAULT_URI;
@@ -120,10 +124,18 @@ public class VcfCadd extends Launcher
 	private String CADD_FLAG_PHRED = "CADD_PHRED";
 	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size")
 	private int buffer_distance=1000;
+	@Parameter(names={"-f","--fields"},description="Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz . Multiple separeted by space, semicolon or comma")
+	private String otherFieldsStr = "";
 
 	
 	private final Pattern TAB=Pattern.compile("[\t]");
 	private ContigNameConverter convertToCaddContigs = null;
+	private List<String> headerLabel = null;
+	private Map<String,Integer> headerLabel2column = null;
+	private int column_index_for_Alt = -1;
+	private int column_index_for_RawScore = -1;
+	private int column_index_for_PHRED = -1;
+	private final Set<String> userFields = new HashSet<>();
 	
 	/**
 	$ wget -q -O - "http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz" | gunzip  -c | head 
@@ -141,20 +153,35 @@ public class VcfCadd extends Launcher
 
 	
 	*/
-	private static class Record
+	private class Record
 		{
 		final int pos;
 		final Allele ref;
 		final Allele alt;
 		final float score;
 		final float phred;
+		final Map<String,String> otherKeyValues;
 		Record(final String tokens[]) {
-			if(tokens.length!=6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected 6 fields",tokens);
+			if(tokens.length<6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected at least 6 fields",tokens);
 			this.pos= Integer.parseInt(tokens[1]);
 			this.ref = Allele.create(tokens[2],true);
-			this.alt = Allele.create(tokens[3],false);
-			this.score = Float.parseFloat(tokens[4]);
-			this.phred = Float.parseFloat(tokens[5]);
+			this.alt = Allele.create(tokens[VcfCadd.this.column_index_for_Alt],false);
+			this.score = Float.parseFloat(tokens[VcfCadd.this.column_index_for_RawScore]);
+			this.phred = Float.parseFloat(tokens[VcfCadd.this.column_index_for_PHRED]);
+			if(userFields.isEmpty())
+				{
+				this.otherKeyValues  = null;
+				}
+			else
+				{
+				otherKeyValues= new HashMap<>(userFields.size());
+				for(final String uf: userFields) {
+					Integer i = headerLabel2column.get(uf);
+					if(i==null || i.intValue()>=tokens.length) continue;
+					final String v =  tokens[headerLabel2column.get(uf)];
+					this.otherKeyValues.put(uf, v);
+					}
+				}
 			}
 		}
 	
@@ -222,6 +249,7 @@ public class VcfCadd extends Launcher
 			
 			final List<Float> cadd_array_score=new ArrayList<>();
 			final List<Float> cadd_array_phred=new ArrayList<>();
+			final List<Map<String,String>> cadd_array_other = new ArrayList<>();
 			boolean got_non_null = false;
 			for(final Allele alt:ctx.getAlternateAlleles())
 				{
@@ -233,11 +261,13 @@ public class VcfCadd extends Launcher
 				if(rec==null) {
 					cadd_array_score.add(null);
 					cadd_array_phred.add(null);
+					cadd_array_other.add(null);
 					}
 				else {
 					got_non_null = true;
 					cadd_array_score.add(rec.score);
 					cadd_array_phred.add(rec.phred);
+					cadd_array_other.add(rec.otherKeyValues);
 					}
 				}
 				
@@ -247,6 +277,33 @@ public class VcfCadd extends Launcher
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 				vcb.attribute(this.CADD_FLAG_SCORE, cadd_array_score);
 				vcb.attribute(this.CADD_FLAG_PHRED, cadd_array_phred);
+				for(final String uf:this.userFields)
+					{
+					boolean all_na=true;
+					boolean all_null=true;
+					final List<String> cadd_other = new ArrayList<>();
+					for(int x=0;x< cadd_array_other.size();++x)
+						{
+						final Map<String,String> hash = cadd_array_other.get(x);
+						if(hash==null || hash.isEmpty() || !hash.containsKey(uf))
+							{
+							cadd_other.add(".");
+							}
+						else
+							{
+							all_null = false;
+							String s= hash.get(uf);
+							if(StringUtil.isBlank(s)) s="NA";
+							if(!s.equals("NA")) all_na=false;
+							s=VCFUtils.escapeInfoField(s.replace(',','&'));
+							cadd_other.add(s);
+							}
+						}
+					
+					if(cadd_array_other.isEmpty() || all_na || all_null) continue;
+					vcb.attribute("CADD_"+uf, cadd_other);
+					}
+				
 				buffer.set(i, vcb.make());
 				}
 			}
@@ -284,6 +341,14 @@ public class VcfCadd extends Launcher
 					"PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc. " +
 					" URI was " +this.ccaduri
 					));
+			for(final String uf: this.userFields) {
+				header.addMetaDataLine(new VCFInfoHeaderLine(
+						"CADD_"+uf,
+						VCFHeaderLineCount.A,
+						VCFHeaderLineType.String,
+						"user field extracted from " +this.ccaduri
+						));
+				}
 			
 			out.writeHeader(header);
 			final List<VariantContext> buffer= new ArrayList<>();
@@ -339,6 +404,73 @@ public class VcfCadd extends Launcher
 			this.convertToCaddContigs = ContigNameConverter.fromContigSet(this.tabix.getChromosomes());
 			this.convertToCaddContigs.setOnNotFound(OnNotFound.SKIP);
 			LOG.info("End loading index");
+			
+			for(;;)
+				{
+				final String head = this.tabix.readLine();
+				if(!head.startsWith("#")) break;
+				if(head.startsWith("#Chrom\tPos\tRef"))
+					{
+					this.headerLabel = Arrays.asList(TAB.split(head));
+					break;
+					}
+				}
+			if(this.headerLabel==null || this.headerLabel.isEmpty())
+				{
+				LOG.error("Cannot read tabix file header");
+				return -1;
+				}
+			this.headerLabel2column= new HashMap<>(this.headerLabel.size());
+			for(int i=0;i< this.headerLabel.size();i++)
+				{
+				this.headerLabel2column.put(this.headerLabel.get(i), i);
+				}
+			Integer col = this.headerLabel2column.get("#Chrom");
+			if(col==null || col.intValue()!=0) {
+				LOG.error("Illegal Header: Cannot get column index of #Chrom at 0");
+				return -1;
+				}
+			col = this.headerLabel2column.get("Pos");
+			if(col==null || col.intValue()!=1) {
+				LOG.error("Illegal Header: Cannot get column index of 'Pos' at 1");
+				return -1;
+				}
+			col = this.headerLabel2column.get("Ref");
+			if(col==null || col.intValue()!=2) {
+				LOG.error("Illegal Header: Cannot get column index of 'Ref' at 2");
+				return -1;
+				}
+			col = this.headerLabel2column.get("Alt");
+			if(col==null ) {
+				LOG.error("Illegal Header: Cannot get column index of 'Alt'");
+				return -1;
+				}
+			this.column_index_for_Alt = col.intValue();
+			
+			col = this.headerLabel2column.get("RawScore");
+			if(col==null ) {
+				LOG.error("Illegal Header: Cannot get column index of 'RawScore'");
+				return -1;
+				}
+			this.column_index_for_RawScore = col.intValue();
+			
+			col = this.headerLabel2column.get("PHRED");
+			if(col==null ) {
+				LOG.error("Illegal Header: Cannot get column index of 'PHRED'");
+				return -1;
+				}
+			this.column_index_for_PHRED = col.intValue();
+
+			for(final String field:this.otherFieldsStr.split("[ \t,;]+"))
+				{
+				if(StringUtil.isBlank(field)) continue;
+				col = this.headerLabel2column.get(field);
+				if(col==null) {
+					LOG.error("Illegal Header: Cannot find user's field "+field+ "in "+this.headerLabel);
+					return -1;
+					}
+				this.userFields.add(field);
+				}
 			
 			return doVcfToVcf(args,outputFile);
 			}

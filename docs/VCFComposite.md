@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-TODO
+(in developpement) Finds Variants involved in a Het Composite Disease
 
 
 ## Usage
@@ -27,12 +27,9 @@ Usage: vcfcomposite [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
-  * -m, --model
-      Model type
-      Possible Values: [RecessiveComposite]
     -o, --out
       Output file. Optional . Default: stdout
-  * -ped, --pedigree
+    -p, -ped, --pedigree
       A pedigree is a text file delimited with tabs. No header. Columns are 
       (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
       (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
@@ -48,8 +45,6 @@ Usage: vcfcomposite [options] Files
       Default: <empty string> (ACCEPT ALL)
     --version
       print version and exit
-    -models
-      List the available models and exits
 
 ```
 
@@ -123,6 +118,12 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Input
+
+input is a VCF file annotated with SNPEff or VEP.
+
 
 
 
