@@ -365,10 +365,15 @@ public class VcfAfInfoFilter extends Launcher{
 						}
 					}
 
-				if(ok_alleles.isEmpty() && StringUtil.isBlank(this.filterAllAltInGnomad))
+				if(ok_alleles.isEmpty() )
 					{
+					if(!StringUtil.isBlank(this.filterAllAltInGnomad))
+						{
+						out.add(new VariantContextBuilder(ctx).filter(this.filterAllAltInGnomad).make());
+						}
 					continue;
 					}
+				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				if(ok_alleles.isEmpty())
 					{

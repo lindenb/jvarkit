@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -37,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -124,7 +124,9 @@ public class VcfCadd extends Launcher
 	private String CADD_FLAG_PHRED = "CADD_PHRED";
 	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size")
 	private int buffer_distance=1000;
-	@Parameter(names={"-f","--fields"},description="Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz . Multiple separeted by space, semicolon or comma")
+	@Parameter(names={"-f","--fields"},description=
+			"Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz . Multiple separeted by space, semicolon or comma."
+			+ " Warning: This tool currently uses the first CHROM/POS/REF/ALT values it finds while I saw some duplicated fields in 'whole_genome_SNVs_inclAnno.tsv.gz'.")
 	private String otherFieldsStr = "";
 
 	
@@ -136,6 +138,7 @@ public class VcfCadd extends Launcher
 	private int column_index_for_RawScore = -1;
 	private int column_index_for_PHRED = -1;
 	private final Set<String> userFields = new HashSet<>();
+	private final Map<String,VCFHeaderLineCount> annoField2linecount = new HashMap<>();
 	
 	/**
 	$ wget -q -O - "http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz" | gunzip  -c | head 
@@ -249,7 +252,6 @@ public class VcfCadd extends Launcher
 			
 			final List<Float> cadd_array_score=new ArrayList<>();
 			final List<Float> cadd_array_phred=new ArrayList<>();
-			final List<Map<String,String>> cadd_array_other = new ArrayList<>();
 			boolean got_non_null = false;
 			for(final Allele alt:ctx.getAlternateAlleles())
 				{
@@ -261,17 +263,57 @@ public class VcfCadd extends Launcher
 				if(rec==null) {
 					cadd_array_score.add(null);
 					cadd_array_phred.add(null);
-					cadd_array_other.add(null);
 					}
 				else {
 					got_non_null = true;
 					cadd_array_score.add(rec.score);
 					cadd_array_phred.add(rec.phred);
-					cadd_array_other.add(rec.otherKeyValues);
 					}
 				}
-				
-			
+
+			final Map<String,List<String>> cadd_array_other = new HashMap<>();
+
+			if(got_non_null && !this.userFields.isEmpty())
+				{
+				for(final String key: this.userFields) {
+					
+					if(getFieldHeaderLineCount(key).equals(VCFHeaderLineCount.A)) {
+						final List<String> vals = new ArrayList<>();
+						cadd_array_other.put(key, vals);
+						for(final Allele alt:ctx.getAlternateAlleles())
+							{
+							final String rec = cadd_rec_for_ctx.
+									stream().
+									filter(REC->REC.alt.equals(alt)).
+									filter(REC->REC.otherKeyValues!=null).
+									filter(REC->REC.otherKeyValues.containsKey(key)).
+									map(REC->REC.otherKeyValues.get(key)).
+									findAny().
+									orElse(null);
+							if(StringUtil.isBlank(rec) || rec.equals("NA") ) {
+								vals.add(null);
+								}
+							else
+								{
+								vals.add(rec);
+								}
+							}
+						}
+					else
+						{
+						cadd_array_other.put(key, new ArrayList<>(
+							cadd_rec_for_ctx.
+								stream().
+								filter(R->R.otherKeyValues!=null).
+								map(R->R.otherKeyValues.get(key)).
+								filter(S->!(StringUtil.isBlank(S) || S.equals(".")|| S.equals("NA"))).
+								collect(Collectors.toSet())
+								));
+						}
+					
+					}
+					
+				}
 			if(!cadd_array_score.isEmpty() && got_non_null)
 				{
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
@@ -279,37 +321,42 @@ public class VcfCadd extends Launcher
 				vcb.attribute(this.CADD_FLAG_PHRED, cadd_array_phred);
 				for(final String uf:this.userFields)
 					{
+					final List<String> cadd_other = cadd_array_other.get(uf);
+					if(cadd_array_other==null || cadd_array_other.isEmpty()) continue;
+					final List<String> array2 = new ArrayList<>(cadd_other.size());
+
 					boolean all_na=true;
 					boolean all_null=true;
-					final List<String> cadd_other = new ArrayList<>();
-					for(int x=0;x< cadd_array_other.size();++x)
+					for(String v:cadd_other)
 						{
-						final Map<String,String> hash = cadd_array_other.get(x);
-						if(hash==null || hash.isEmpty() || !hash.containsKey(uf))
+						if(StringUtil.isBlank(v))
 							{
-							cadd_other.add(".");
+							array2.add(".");
 							}
 						else
 							{
 							all_null = false;
-							String s= hash.get(uf);
+							String s= v;
 							if(StringUtil.isBlank(s)) s="NA";
 							if(!s.equals("NA")) all_na=false;
 							s=VCFUtils.escapeInfoField(s.replace(',','&'));
-							cadd_other.add(s);
+							array2.add(s);
 							}
 						}
 					
-					if(cadd_array_other.isEmpty() || all_na || all_null) continue;
+					if(array2.isEmpty() || all_na || all_null) continue;
 					vcb.attribute("CADD_"+uf, cadd_other);
 					}
 				
 				buffer.set(i, vcb.make());
 				}
 			}
-
-		
 		}
+	
+	private VCFHeaderLineCount getFieldHeaderLineCount(final String field) {
+		return this.annoField2linecount.getOrDefault(field, VCFHeaderLineCount.UNBOUNDED);
+	}
+	
 	@Override
 	protected int doVcfToVcf(final String inputName, VcfIterator in, VariantContextWriter out) {
 			
@@ -344,9 +391,9 @@ public class VcfCadd extends Launcher
 			for(final String uf: this.userFields) {
 				header.addMetaDataLine(new VCFInfoHeaderLine(
 						"CADD_"+uf,
-						VCFHeaderLineCount.A,
+						this.getFieldHeaderLineCount(uf),
 						VCFHeaderLineType.String,
-						"user field extracted from " +this.ccaduri
+						"User field extracted from " +this.ccaduri
 						));
 				}
 			
@@ -474,7 +521,7 @@ public class VcfCadd extends Launcher
 			
 			return doVcfToVcf(args,outputFile);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

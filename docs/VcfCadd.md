@@ -15,7 +15,9 @@ Usage: vcfcadd [options] Files
       Default: 1000
     -f, --fields
       Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz 
-      . Multiple separeted by space, semicolon or comma
+      . Multiple separeted by space, semicolon or comma. Warning: This tool 
+      currently uses the first CHROM/POS/REF/ALT values it finds while I saw 
+      some duplicated fields in 'whole_genome_SNVs_inclAnno.tsv.gz'.
       Default: <empty string>
     -h, --help
       print help and exit
