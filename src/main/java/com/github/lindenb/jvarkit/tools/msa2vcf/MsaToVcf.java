@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.msa2vcf;
@@ -65,7 +61,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 BEGIN_DOC
 
 
-Deprecated: use https://github.com/sanger-pathogens/snp_sites
+Deprecated: use https://github.com/sanger-pathogens/snp_sites , though some people told me they still use it for misc reasons.
 
 
 ## Motivation
@@ -79,7 +75,7 @@ input is a clustalw file like: https://github.com/biopython/biopython/blob/maste
 
 
   * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
-
+  * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean‐Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
 
 ## Example
 
@@ -156,7 +152,8 @@ END_DOC
 @Program(name="msa2vcf",
 	description="Getting a VCF file from a CLUSTAW or a FASTA alignment. ",
 	deprecatedMsg="use https://github.com/sanger-pathogens/snp_sites",
-	biostars=94573
+	biostars=94573,
+	keywords={"vcf","snp","msa","alignment"}
 	)
 public class MsaToVcf extends Launcher
 	{

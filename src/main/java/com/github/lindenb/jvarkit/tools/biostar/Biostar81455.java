@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,16 +32,16 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.semontology.Term;
-
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.StringUtil;
 
 
 /**
@@ -77,8 +77,8 @@ END_DOC
 @Program(name="biostar81455",
 	biostars=81455,
 	keywords={"bed","gene","knownGene","ucsc"},
-			terms=Term.ID_0000015,
-	description="Defining precisely the genomic context based on a position .")
+	description="Defining precisely the genomic context based on a position ."
+	)
 public class Biostar81455 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar81455.class).make();
@@ -86,7 +86,8 @@ public class Biostar81455 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
+	@Parameter(names={"-1"},description="The coordinate are one-based. The default is zero based.")
+	private  boolean one_based=false;
 
 	@Parameter(names={"-KG","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
 	private String kgUri = KnownGene.getDefaultUri();
@@ -108,7 +109,7 @@ public class Biostar81455 extends Launcher
     	}
     
     @Override
-    public int doWork(List<String> args) {
+    public int doWork(final List<String> args) {
 		BufferedReader r=null;
 		String line;
 		PrintStream out=null;
@@ -133,7 +134,7 @@ public class Biostar81455 extends Launcher
     	finally {
 			CloserUtil.close(r);
 			}
-		
+		final ContigNameConverter contigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.kgMap);
     	try
     		{
     		r = super.openBufferedReader(oneFileOrNull(args));
@@ -147,8 +148,18 @@ public class Biostar81455 extends Launcher
 					}
 				boolean found=false;
 				String tokens[]=tab.split(line);
-				int pos0=Integer.parseInt(tokens[1]);
-			    final IntervalTree<List<KnownGene>> kgs=kgMap.debugGetTree(tokens[0]);
+				final int pos0=Integer.parseInt(tokens[1]) - (this.one_based?1:0);
+				final String convertCtg = contigNameConverter.apply(tokens[0]);
+				final IntervalTree<List<KnownGene>> kgs;
+			    if(StringUtil.isBlank(convertCtg))
+			    	{
+			    	kgs = null;
+			    	}
+			    else
+				    {
+					kgs = kgMap.debugGetTree(tokens[0]);
+				    }
+			    
 			    if(kgs==null)
 			    	{
 			    	LOG.info("no gene found in chromosome "+tokens[0]+" (check chrom prefix?)");
@@ -157,9 +168,10 @@ public class Biostar81455 extends Launcher
 					{
 			    	KnownGene bestGene=null;
 					
-					for(Iterator<IntervalTree.Node<List<KnownGene>>> iter=kgs.iterator();iter.hasNext();)
+					for(final Iterator<IntervalTree.Node<List<KnownGene>>> iter=kgs.iterator();
+						iter.hasNext();)
 						{
-						for(KnownGene kg:iter.next().getValue())
+						for(final KnownGene kg:iter.next().getValue())
 							{
 							if(bestGene==null|| Math.abs(distance(pos0,kg))< Math.abs(distance(pos0,bestGene)))
 								{
@@ -212,7 +224,7 @@ public class Biostar81455 extends Launcher
 				}
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
