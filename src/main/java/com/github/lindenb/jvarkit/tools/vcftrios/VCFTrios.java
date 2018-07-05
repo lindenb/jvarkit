@@ -29,12 +29,14 @@ History:
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -231,6 +233,17 @@ public class VCFTrios
 			
 			@Override
 			public void add(final VariantContext ctx) {
+				final Function<Genotype,Genotype> convertGT;
+				
+				if(nocall_to_homref) {
+					final List<Allele> homref_alleles = Arrays.asList(ctx.getReference(),ctx.getReference());
+					convertGT = G1 -> G1==null?null:(G1.isNoCall()?new GenotypeBuilder(G1.getSampleName(), homref_alleles).make():G1);
+					}
+				else
+					{
+					convertGT = G1 -> G1;
+					}
+				
 				
 				final VariantContextBuilder vcb= new VariantContextBuilder(ctx);
 				final Map<String,Genotype> sample2genotype = new HashMap<>( 
@@ -243,7 +256,9 @@ public class VCFTrios
 				
 				for(final Pedigree.Person child:this.samplename2person.values())
 					{
-					final Genotype gChild=sample2genotype.get(child.getId());
+					final Genotype gChildOriginal = sample2genotype.get(child.getId());
+					final Genotype gChild = convertGT.apply(gChildOriginal);
+					
 					if(gChild==null)
 						{
 						if(this.sampleNotFound.add(child.getId()))
@@ -264,7 +279,7 @@ public class VCFTrios
 						}
 					
 					Pedigree.Person parent=child.getFather();
-					Genotype gFather=(parent==null?null:sample2genotype.get(parent.getId()));
+					Genotype gFather=convertGT.apply(parent==null?null:sample2genotype.get(parent.getId()));
 					if(gFather==null && parent!=null)
 						{
 						if(this.sampleNotFound.add(parent.getId()))
@@ -281,7 +296,7 @@ public class VCFTrios
 						}
 					parent=child.getMother();
 					
-					Genotype gMother=(parent==null?null:sample2genotype.get(parent.getId()));
+					Genotype gMother = convertGT.apply(parent==null?null:sample2genotype.get(parent.getId()));
 					
 					if(gMother==null && parent!=null)
 						{
@@ -316,25 +331,29 @@ public class VCFTrios
 						{
 						incompatibilities.add(child.getId());
 						}
-					else
-						{
-						if(CtxWriterFactory.this.genotypeFilterNameNoIncompat!=null)
-							{
-							sample2genotype.put(child.getId(),
-								new GenotypeBuilder(gChild).
-									filters(CtxWriterFactory.this.genotypeFilterNameNoIncompat).
-									make()
-								);
-							}
-						}
+					
 					}
 				vcb.genotypes(sample2genotype.values());
 				
 				
 				if(!incompatibilities.isEmpty()) {
+					//set filter for samples that are not a mendelian violation
+					if(!StringUtil.isBlank(CtxWriterFactory.this.genotypeFilterNameNoIncompat))
+						{
+						vcb.genotypes( ctx.getGenotypes().stream().map(G->
+								incompatibilities.contains(G.getSampleName())?
+										G:new GenotypeBuilder(G).
+										filters(CtxWriterFactory.this.genotypeFilterNameNoIncompat).
+								make()
+								).collect(Collectors.toList()));
+						}
+					
+					
 					++this.count_incompats;
+					// set INFO attribute
 					vcb.attribute(attributeName, incompatibilities.toArray());
 					
+					// set FILTER 
 					if(!StringUtil.isBlank(CtxWriterFactory.this.filterAnyIncompat))
 						{
 						vcb.filter(CtxWriterFactory.this.filterAnyIncompat);
@@ -439,6 +458,9 @@ public class VCFTrios
 		
 		@Parameter(names={"-d","--dicard"},description="Discard the variant if there is NO mendelian violation.")
 		private boolean discard_variants_without_mendelian_incompat=false;
+		
+		@Parameter(names={"-hr","--hom-ref"},description="[20180705] treat NO_CALL genotypes as HOM_REF (when individual VCF/Sample have been merged).")
+		private boolean nocall_to_homref = false;
 			
 		@XmlTransient
 		private Pedigree pedigree=null;

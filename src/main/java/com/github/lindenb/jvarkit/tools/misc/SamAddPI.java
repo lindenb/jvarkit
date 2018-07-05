@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -161,6 +158,7 @@ public class SamAddPI extends Launcher
 				if(!rec.getReadPairedFlag()) continue;
 				if(!rec.getFirstOfPairFlag()) continue;
 				if(rec.getMateUnmappedFlag()) continue;
+				if(!rec.getReferenceName().equals(rec.getMateReferenceName())) continue;
 				if(this.samRecordFilter.filterOut(rec)) continue;
 				
 				final int len = rec.getInferredInsertSize();
@@ -201,7 +199,7 @@ public class SamAddPI extends Launcher
 			outWriter.close();
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{			
 			LOG.error(err);
 			return -1;
@@ -215,10 +213,8 @@ public class SamAddPI extends Launcher
 			CloserUtil.close(sfw);
 			}
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+	
+	public static void main(final String[] args) {
 		new SamAddPI().instanceMainWithExit(args);
 
 	}

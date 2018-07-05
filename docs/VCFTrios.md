@@ -28,6 +28,10 @@ Usage: vcftrio [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -hr, --hom-ref
+      [20180705] treat NO_CALL genotypes as HOM_REF (when individual 
+      VCF/Sample have been merged).
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -p, --ped, --pedigree
