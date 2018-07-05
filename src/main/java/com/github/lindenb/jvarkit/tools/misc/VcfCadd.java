@@ -230,6 +230,18 @@ public class VcfCadd extends Launcher
 			final String line=iter.next();
 			if(line.startsWith("#") || StringUtil.isBlank(line))continue;
 			final String tokens[] = TAB.split(line);
+			
+			if(!Allele.acceptableAlleleBases(tokens[2], true))
+				{
+				LOG.warn("REF allele not suitable in  line "+line+". skipping");
+				continue;
+				}
+			if(!Allele.acceptableAlleleBases(tokens[this.column_index_for_Alt], false))
+				{
+				LOG.warn("ALT allele not suitable in  line "+line+". skipping");
+				continue;
+				}
+			
 			final Record rec=new Record(tokens);
 			if(!tokens[0].equals(chromCadd)) throw new IllegalStateException("Expected CADD contig "+chromCadd+" in "+line);
 			

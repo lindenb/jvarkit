@@ -59,12 +59,14 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -73,6 +75,10 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
 BEGIN_DOC
+
+## Using GATK VariantAnnotator ? 
+
+GATK VariantAnnotator doesn't work if GQ is low or if there is no GQ.
 
 ## Example
 
@@ -126,7 +132,9 @@ $12	SAMPLE_P	1/1:53:0,0,27,26:81,99,0,.,.,.:81
 <<< 59
 
 ```
+## History
 
+  * [20180704] changing the arguments that are not really clear.
 
  
 END_DOC
@@ -155,9 +163,9 @@ public class VCFTrios
 		{
 		private class CtxWriter extends DelegateVariantContextWriter
 			{
-			private int count_incompats=0;
-			private final Map<String,Pedigree.Person> samplename2person=new HashMap<String,Pedigree.Person>();
-
+			private long count_incompats=0L;
+			private final Map<String,Pedigree.Person> samplename2person = new HashMap<String,Pedigree.Person>();
+			private final Set<String> sampleNotFound = new HashSet<>();
 			CtxWriter(final VariantContextWriter delegate) {
 				super(delegate);
 				}
@@ -166,25 +174,27 @@ public class VCFTrios
 			public void writeHeader(final VCFHeader header) {
 				
 				final VCFHeader h2=new VCFHeader(header);
-				h2.addMetaDataLine(new VCFInfoHeaderLine(
+				final Set<VCFHeaderLine> meta = new HashSet<>();
+				meta.add(new VCFInfoHeaderLine(
 						CtxWriterFactory.this.attributeName,
 						VCFHeaderLineCount.UNBOUNDED,
 						VCFHeaderLineType.String,
-						"mendelian incompatibilities"
+						"Samples with mendelian incompatibilities. Pedigree was : "+CtxWriterFactory.this.pedigreeFile
 						));
+				meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY, true));
 				
-
-				if(!StringUtil.isBlank(CtxWriterFactory.this.filterName)) {
-					h2.addMetaDataLine(new VCFFilterHeaderLine(filterName, "data filtered with VCFTrios"));
-				}
-				if(!StringUtil.isBlank(CtxWriterFactory.this.genotypeFilterName))
-					{
-					h2.addMetaDataLine(new VCFFormatHeaderLine(
-							genotypeFilterName,1,
-							VCFHeaderLineType.String,
-							"Genotype with mendelian incompatibilities"
-							));
+				if(!StringUtil.isBlank(CtxWriterFactory.this.filterAnyIncompat)) {
+					meta.add(new VCFFilterHeaderLine(CtxWriterFactory.this.filterAnyIncompat,
+							"Variant contains at least one mendelian incompatibilities"));
 					}
+				if(!StringUtil.isBlank(CtxWriterFactory.this.filterNoIncompat)) {
+					meta.add(new VCFFilterHeaderLine(CtxWriterFactory.this.filterNoIncompat,
+							"Variant does not contain any mendelian incompatibilities"));
+					}
+				
+				meta.stream().forEach(H->h2.addMetaDataLine(H));
+				
+				
 				
 				for(final String sampleName:h2.getSampleNamesInOrder())
 					{
@@ -205,11 +215,12 @@ public class VCFTrios
 						}
 					if(p==null)
 						{
+						this.sampleNotFound.add(sampleName);
 						LOG.info("Cannot find "+sampleName+" in "+pedigreeFile);
 						}
 					else
 						{
-						samplename2person.put(sampleName, p);
+						this.samplename2person.put(sampleName, p);
 						}
 					}
 			
@@ -227,7 +238,7 @@ public class VCFTrios
 						collect(Collectors.toMap(G->G.getSampleName(), G->G)));
 				
 							
-				final Set<String> incompatibilities=new HashSet<String>();
+				final Set<String> incompatibilities = new HashSet<String>();
 				
 				
 				for(final Pedigree.Person child:this.samplename2person.values())
@@ -235,7 +246,10 @@ public class VCFTrios
 					final Genotype gChild=sample2genotype.get(child.getId());
 					if(gChild==null)
 						{
-						LOG.debug("cannot get genotype for child  "+child.getId());
+						if(this.sampleNotFound.add(child.getId()))
+							{
+							LOG.debug("cannot get genotype for child  "+child.getId());
+							}
 						continue;
 						}
 					if(gChild.isNoCall())
@@ -253,7 +267,10 @@ public class VCFTrios
 					Genotype gFather=(parent==null?null:sample2genotype.get(parent.getId()));
 					if(gFather==null && parent!=null)
 						{
-						LOG.warn("cannot get genotype for father  "+parent.getId());
+						if(this.sampleNotFound.add(parent.getId()))
+							{
+							LOG.debug("cannot get genotype for father  "+parent.getId());
+							}
 						}
 					if(gFather!=null && gFather.isNoCall()) gFather=null;
 
@@ -268,7 +285,10 @@ public class VCFTrios
 					
 					if(gMother==null && parent!=null)
 						{
-						LOG.debug("cannot get genotype for mother  "+parent.getId());
+						if(this.sampleNotFound.add(parent.getId()))
+							{
+							LOG.debug("cannot get genotype for mother  "+parent.getId());
+							}
 						}
 					
 					if(gMother!=null && gMother.isNoCall()) gMother=null;
@@ -291,30 +311,42 @@ public class VCFTrios
 						{
 						is_ok=duo(gChild,gMother);
 						}
+					
 					if(!is_ok)
 						{
 						incompatibilities.add(child.getId());
-						if(CtxWriterFactory.this.genotypeFilterName!=null)
+						}
+					else
+						{
+						if(CtxWriterFactory.this.genotypeFilterNameNoIncompat!=null)
 							{
 							sample2genotype.put(child.getId(),
-								new GenotypeBuilder(gChild).filters(CtxWriterFactory.this.genotypeFilterName).make()
+								new GenotypeBuilder(gChild).
+									filters(CtxWriterFactory.this.genotypeFilterNameNoIncompat).
+									make()
 								);
 							}
 						}
 					}
 				vcb.genotypes(sample2genotype.values());
 				
-			
-				++this.count_incompats;
 				
 				if(!incompatibilities.isEmpty()) {
+					++this.count_incompats;
 					vcb.attribute(attributeName, incompatibilities.toArray());
-					if( CtxWriterFactory.this.filterName!=null && !CtxWriterFactory.this.inverseFilter) vcb.filter(filterName);
+					
+					if(!StringUtil.isBlank(CtxWriterFactory.this.filterAnyIncompat))
+						{
+						vcb.filter(CtxWriterFactory.this.filterAnyIncompat);
+						}
 					}
 				else
 					{
 					if(CtxWriterFactory.this.discard_variants_without_mendelian_incompat) return;
-					if( CtxWriterFactory.this.filterName!=null && CtxWriterFactory.this.inverseFilter) vcb.filter(filterName);
+					if(!StringUtil.isBlank(CtxWriterFactory.this.filterNoIncompat))
+						{
+						vcb.filter(CtxWriterFactory.this.filterNoIncompat);
+						}
 					}
 				super.add(vcb.make());				
 				}
@@ -322,6 +354,10 @@ public class VCFTrios
 			@Override
 			public void close() {
 				LOG.info("incompatibilitie(s) N="+this.count_incompats);
+				if(!this.sampleNotFound.isEmpty())
+					{
+					LOG.info("SAMPLE(S) not found: "+String.join(" / ",this.sampleNotFound));
+					}
 				super.close();
 				}
 			
@@ -390,21 +426,20 @@ public class VCFTrios
 		@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
 		private File pedigreeFile = null;
 	
-		@Parameter(names={"-f","--filter"},description="filter name. create a filter in the FILTER column for variants having an INCOMPAT")
-		private String filterName = null;
+		@Parameter(names={"-fo","--filter-out"},description="FILTER name if there is NO mendelian violation.")
+		private String filterNoIncompat = null;
+		@Parameter(names={"-fi","--filter-in"},description="FILTER name if there is ANY mendelian violation.")
+		private String filterAnyIncompat = null;
 	
-		@Parameter(names={"-if","--inversefilter"},description="inverse FILTER, flag variant having NO mendelian incompat.")
-		private boolean inverseFilter = false;
-	
-		@Parameter(names={"-gf","--gfilter"},description="genotype filter name. create a filter in the GENOTYPE column")
-		private String genotypeFilterName = null;
+		@Parameter(names={"-gtf","--gtfilter"},description="GENOTYPE FILTER name. Create a filter in the GENOTYPE column when there is NO mendelian violation")
+		private String genotypeFilterNameNoIncompat = null;
 		
 		@Parameter(names={"-A","--attribute"},description="INFO Attribute name containing the name of the affected samples.")
 		private String attributeName = "MENDEL";
-	
-		@Parameter(names={"--discard"},description="Discard variants without mendelian incompatibilities")
-		private boolean discard_variants_without_mendelian_incompat=false;
 		
+		@Parameter(names={"-d","--dicard"},description="Discard the variant if there is NO mendelian violation.")
+		private boolean discard_variants_without_mendelian_incompat=false;
+			
 		@XmlTransient
 		private Pedigree pedigree=null;
 		
@@ -419,10 +454,9 @@ public class VCFTrios
 				LOG.error("Pedigree undefined.");
 				return -1;
 				}
-			if(this.discard_variants_without_mendelian_incompat && 
-				this.inverseFilter)
+			if(!StringUtil.isBlank(this.filterAnyIncompat) && !StringUtil.isBlank(this.filterNoIncompat))
 				{
-				LOG.error("Cannot inverse filter and discard variants without problem at the same time");
+				LOG.error("Filters no/any incompatibilities both defined.");
 				return -1;
 				}
 			

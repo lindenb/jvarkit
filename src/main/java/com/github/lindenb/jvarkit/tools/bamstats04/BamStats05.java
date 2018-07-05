@@ -92,7 +92,8 @@ END_DOC
 */
 @Program(name="bamstats05",
 description="Coverage statistics for a BED file, group by gene",
-keywords={"bam","coverage","statistics","bed"}
+keywords={"bam","coverage","statistics","bed"},
+biostars={324639,194393}
 )
 public class BamStats05 extends Launcher
 	{
