@@ -46,6 +46,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -411,13 +412,28 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		}
 
-	private class AbstractPredictionGenerator extends ChartGenerator
+	private class ConsequenceGenerator extends ChartGenerator
 		{
 		private final VcfTools tools;
+		private Counter<String> count = new Counter<>();
 		private final String sampleName;
-		AbstractPredictionGenerator(final VCFHeader header,final String sampleName) {
-			this.tools = new VcfTools(header);
+		private final Map<String,ConsequenceGenerator> sample2generator ;
+		ConsequenceGenerator( final VcfTools tools,final String sampleName) {
+			this.tools = tools;
 			this.sampleName = sampleName;
+			if(sampleName==null && tools.getHeader().hasGenotypingData()) {
+				sample2generator = new HashMap<>(tools.getHeader().getNGenotypeSamples());
+				for(final String sn: tools.getHeader().getSampleNamesInOrder()) {
+					sample2generator.put(sn, new ConsequenceGenerator(tools,sn));
+					}
+				}
+			else
+				{
+				sample2generator = null;
+				}
+			}
+		ConsequenceGenerator( final VcfTools tools) {
+			this(tools,null);
 			}
 		
 		@Override
@@ -425,21 +441,28 @@ public class VcfStatsJfx extends JfxLauncher {
 			return "Sample "+(this.sampleName==null?"":this.sampleName);
 			}
 		
+		private void visitTerm() {
+		
+			}
+		
 		@Override
 		void visit(final VariantContext ctx)
 			{
-			if(sampleName!=null) {
-				final Genotype gt = ctx.getGenotype(this.sampleName);
-				if(gt==null || !gt.isCalled() || 
-						!gt.isAvailable() ||
-						!gt.getAlleles().stream().
-						filter(A->!A.isNoCall()).
-						anyMatch(A->A.isNonReference()))
-					{
-					return;
+			if(this.sampleName==null) return;//handled by parent
+			String term="other";
+			
+			if(sample2generator!=null) {
+					for(final Genotype gt:ctx.getGenotypes()) {
+					if(gt==null || !gt.isCalled() || 
+							!gt.isAvailable() ||
+							!gt.getAlleles().stream().
+							filter(A->!A.isNoCall()).
+							anyMatch(A->A.isNonReference()))
+						{
+						}
 					}
 				}
-			super.visit(ctx);
+			
 			}
 		}
 	
