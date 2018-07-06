@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.pubmed;
@@ -143,6 +140,59 @@ $ java -jar dist/pubmeddump.jar "Lindenbaum[Author] Nantes" 2> /dev/null  | java
                     <ForeName>Pierre</ForeName>
                     <Initials>P</Initials>
 ```
+
+## Example
+
+
+Get an histogram for gender ratio in pubmed:
+
+```
+$ java -jar dist/pubmeddump.jar  '("bioinformatics"[Journal]) AND ("2018-01-01"[Date - Publication] : "2018-07-06"[Date - Publication]) ' |\
+	java -jar dist/pubmedgender.jar -d ./yob2017.txt  |\
+	java -jar dist/xsltstream.jar -t ~/tr.xsl -n "PubmedArticle" |\
+	tr ";" "\n" | sort | uniq -c |\
+	java -jar dist/simpleplot.jar -su -t SIMPLE_HISTOGRAM  --title "Authors in Bioinformatics 2018"
+```
+
+with tr.xsl:
+
+```xslt
+<?xml version='1.0'  encoding="UTF-8" ?>
+<xsl:stylesheet 
+	xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+	xmlns:j='http://www.ibm.com/xmlns/prod/2009/jsonx'
+	version='1.0'>
+<xsl:output method="text"/>
+
+
+<xsl:template match="/">
+<xsl:apply-templates select="PubmedArticle"/>
+</xsl:template>
+
+<xsl:template match="PubmedArticle">
+<xsl:apply-templates select="MedlineCitation/Article/AuthorList/Author[@female or @male]"/>
+</xsl:template>
+
+<xsl:template match="Author">
+<xsl:choose>
+	<xsl:when test="@female and @male and number(@female) &gt; number(@male) ">
+		<xsl:text>FEMALE;</xsl:text>
+	</xsl:when>
+	<xsl:when test="@female and @male and number(@female) &lt; number(@male) ">
+		<xsl:text>MALE;</xsl:text>
+	</xsl:when>
+	<xsl:when test="@female">
+		<xsl:text>FEMALE;</xsl:text>
+	</xsl:when>
+	<xsl:when test="@male">
+		<xsl:text>MALE;</xsl:text>
+	</xsl:when>
+</xsl:choose>
+</xsl:template>
+
+</xsl:stylesheet>
+```
+
 
 ## See also
 

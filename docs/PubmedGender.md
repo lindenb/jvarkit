@@ -1,5 +1,7 @@
 # PubmedGender
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Add gender-related attributes in the Author tag of pubmed xml. 
 
 
@@ -38,11 +40,10 @@ Usage: pubmedgender [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -72,18 +73,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGender.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGender.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGenderTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGenderTest.java)
 
-```
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
-Thu May 26 16:43:07 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/60ada53779722d3b5f4bff4d31b08cb518a38541
-```
-
-</details>
 
 ## Contribute
 
@@ -183,6 +176,59 @@ $ java -jar dist/pubmeddump.jar "Lindenbaum[Author] Nantes" 2> /dev/null  | java
                     <ForeName>Pierre</ForeName>
                     <Initials>P</Initials>
 ```
+
+## Example
+
+
+Get an histogram for gender ratio in pubmed:
+
+```
+$ java -jar dist/pubmeddump.jar  '("bioinformatics"[Journal]) AND ("2018-01-01"[Date - Publication] : "2018-07-06"[Date - Publication]) ' |\
+	java -jar dist/pubmedgender.jar -d ./yob2017.txt  |\
+	java -jar dist/xsltstream.jar -t ~/tr.xsl -n "PubmedArticle" |\
+	tr ";" "\n" | sort | uniq -c |\
+	java -jar dist/simpleplot.jar -su -t SIMPLE_HISTOGRAM  --title "Authors in Bioinformatics 2018"
+```
+
+with tr.xsl:
+
+```xslt
+<?xml version='1.0'  encoding="UTF-8" ?>
+<xsl:stylesheet 
+	xmlns:xsl='http://www.w3.org/1999/XSL/Transform'
+	xmlns:j='http://www.ibm.com/xmlns/prod/2009/jsonx'
+	version='1.0'>
+<xsl:output method="text"/>
+
+
+<xsl:template match="/">
+<xsl:apply-templates select="PubmedArticle"/>
+</xsl:template>
+
+<xsl:template match="PubmedArticle">
+<xsl:apply-templates select="MedlineCitation/Article/AuthorList/Author[@female or @male]"/>
+</xsl:template>
+
+<xsl:template match="Author">
+<xsl:choose>
+	<xsl:when test="@female and @male and number(@female) &gt; number(@male) ">
+		<xsl:text>FEMALE;</xsl:text>
+	</xsl:when>
+	<xsl:when test="@female and @male and number(@female) &lt; number(@male) ">
+		<xsl:text>MALE;</xsl:text>
+	</xsl:when>
+	<xsl:when test="@female">
+		<xsl:text>FEMALE;</xsl:text>
+	</xsl:when>
+	<xsl:when test="@male">
+		<xsl:text>MALE;</xsl:text>
+	</xsl:when>
+</xsl:choose>
+</xsl:template>
+
+</xsl:stylesheet>
+```
+
 
 ## See also
 
