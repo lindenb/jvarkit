@@ -33,10 +33,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -65,6 +67,8 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -125,9 +129,9 @@ public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
 	/** allele specific population in gnomad */
-	private final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female","SAS", "raw", "POPMAX"}; 
+	/* private */ final static String POPS[]=new String[]{"AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH", "Male", "Female","SAS", "raw", "POPMAX"}; 
 	/** 'ome'-type section */
-	private enum OmeType {exome,genome};
+	/* private */ enum OmeType {exome,genome};
 	
 	
 	
@@ -192,6 +196,11 @@ public class VcfGnomad extends Launcher{
 		@XmlElement(name="streaming")
 		@Parameter(names={"--streaming"},description="[20170707] Don't use tabix random-access (which are ok for small inputs) but you a streaming process (better to annotate a large WGS file). Assume dictionaries are sorted the same way.")
 		private boolean streaming=false;
+		
+		@XmlElement(name="gtfilter")
+		@Parameter(names={"--gtfilter"},description="[20180604] if defined, FILTER the GENOTYPE carrying all alleles found in gnomad: provide a way to find the genotype containing an allele not in gnomad")
+		private String genotypeFilterStr;
+
 		
 		/** entries mapping chromosome/type->vcf.gz */
 		@XmlTransient
@@ -384,6 +393,7 @@ public class VcfGnomad extends Launcher{
 			private final List<InfoField> infoFields=new ArrayList<>();
 			private String prevContig=null;
 			private final ManifestEntry ome2manifest[]=new ManifestEntry[OmeType.values().length];
+			private final String genotypeFilterStr = CtxWriterFactory.this.genotypeFilterStr;
 			private final VCFFilterHeaderLine filterWasFilteredInGnomad = 
 					StringUtil.isBlank(CtxWriterFactory.this.filteredInGnomadFilterName)?
 					null:
@@ -490,7 +500,12 @@ public class VcfGnomad extends Launcher{
 				
 				boolean setfilter=false;
 				boolean filtered_in_gnomad = false;
-				// lopp over exome and genome data
+				final Set<Allele> gnomad_alleles = (
+						StringUtil.isBlank(this.genotypeFilterStr)?
+						null:
+						new HashSet<>()
+						);
+				// loop over exome and genome data
 				for(int i=0;i< this.ome2manifest.length;++i) {
 					final ManifestEntry entry = this.ome2manifest[i];
 					if(entry==null) continue;
@@ -501,6 +516,11 @@ public class VcfGnomad extends Launcher{
 					if(ctx2.isFiltered()) {
 						filtered_in_gnomad = true;
 					}
+					
+					if(gnomad_alleles!=null)
+						{
+						gnomad_alleles.addAll(ctx2.getAlternateAlleles());
+						}
 					
 					for(final InfoField infoField: infoFields)
 						{
@@ -517,7 +537,7 @@ public class VcfGnomad extends Launcher{
 					else
 						{
 						setfilter=true;
-						}					
+						}			
 					}
 				
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
@@ -534,6 +554,33 @@ public class VcfGnomad extends Launcher{
 					if(infoField.attributes.isEmpty()) continue;
 					if(!infoField.attributes.stream().filter(N->N!=null).findAny().isPresent()) continue;
 					vcb.attribute(infoField.getOutputTag(), infoField.attributes);
+					}
+				if(gnomad_alleles!=null) {
+					final List<Genotype> newgtlist = new ArrayList<>(ctx.getNSamples());
+					for(final Genotype gt:ctx.getGenotypes()) {
+						if(!gt.isCalled() || gt.isHomRef())
+							{
+							newgtlist.add(gt);
+							}
+						else
+							{
+							final Set<Allele> gt_alt_alleles = new HashSet<>(gt.getAlleles());
+							gt_alt_alleles.remove(ctx.getReference());
+							gt_alt_alleles.remove(Allele.SPAN_DEL);
+							
+							if(!gt_alt_alleles.isEmpty() &&
+								gnomad_alleles.containsAll(gt_alt_alleles)) {
+								newgtlist.add(new GenotypeBuilder(gt).
+										filter(this.genotypeFilterStr).
+										make());
+								}
+							else
+								{
+								newgtlist.add(gt);
+								}
+							}
+						}
+					vcb.genotypes(newgtlist);
 					}
 				final VariantContext ctx2 = Objects.requireNonNull(vcb.make());
 				Objects.requireNonNull(getDelegate());

@@ -82,17 +82,13 @@ $ java -jar dist/vcfcomparecallers.jar file1.vcf(.gz) file2.vcf(.gz)
 ```
 
 
-
 both vcf **must** share the same sequence dictionary and must be sorted
-
 
 #### History
 
 * 20170704 : rewritten from scratch
 
-
 ### Example
-
 
 
 ```
@@ -232,7 +228,7 @@ public class VcfCompareCallers
 				}
 			if(g1!=null &&  VcfCompareCallers.this.noCallIsHomRef && !g1.isCalled())
 				{
-				g1 =makeHomRef( this.theOne(ctx0, ctx1),g1.getPloidy());
+				g1 = makeHomRef( this.theOne(ctx0, ctx1),g1.getPloidy());
 				}
 			for(final String cat:categories)
 				{
@@ -614,7 +610,7 @@ public class VcfCompareCallers
 			archiveFactory.close();archiveFactory=null;
 			return RETURN_OK;
 			} 
-		catch (Exception err)
+		catch (final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -630,7 +626,7 @@ public class VcfCompareCallers
 
 	
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VcfCompareCallers().instanceMainWithExit(args);
 	}
 }

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
 
 */
 package com.github.lindenb.jvarkit.tools.misc;
@@ -51,6 +48,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -445,16 +443,57 @@ public class VcfMultiToOneAllele
 						continue;
 						}
 					
-					
+					final List<Allele> newAllelesList = g.getAlleles().stream().
+							map(A->(A.isNoCall() || A.isReference() || A.equals(theAllele)?A:replaceWith)).
+							collect(Collectors.toList())
+							;
 					final GenotypeBuilder gb =new GenotypeBuilder(
 							g.getSampleName(),
-								g.getAlleles().stream().
-								map(A->(A.isNoCall() || A.isReference() || A.equals(theAllele)?A:replaceWith)).
-								collect(Collectors.toList())
+							newAllelesList
 							);
 					if(g.hasDP()) gb.DP(g.getDP());
 					if(g.hasGQ()) gb.GQ(g.getGQ());
 					if(g.isFiltered()) gb.filter(g.getFilters());
+					if(g.hasAD())
+						{
+						final int srcads[]=g.getAD();
+						if(srcads==null || srcads.length==0 ||  newAllelesList.size()!=2) 
+							{
+							// nothing
+							}
+						else if(newAllelesList.get(0).equals(newAllelesList.get(1)) )
+							{
+							//HOM_REF
+							if(newAllelesList.get(0).isReference())
+								{
+								gb.AD(new int[] {srcads[0],0});
+								gb.DP(srcads[0]);
+								}
+							//HOM_VAR
+							else if(newAllelesList.get(0).equals(replaceWith))
+								{
+								final int aidx = ctx.getAlleleIndex(replaceWith);
+								if(aidx>=0 && aidx < srcads.length)
+									{
+									gb.AD(new int[] {0,srcads[aidx]});
+									gb.DP(srcads[aidx]);
+									}
+								}
+							}
+						//HET
+						else if(
+							(newAllelesList.get(0).isReference() && newAllelesList.get(1).equals(replaceWith)) ||
+							(newAllelesList.get(1).isReference() && newAllelesList.get(0).equals(replaceWith)))
+							{
+							final int aidx = ctx.getAlleleIndex(replaceWith);
+							if(aidx>=0 && aidx < srcads.length)
+								{
+								gb.AD(new int[] {srcads[0],srcads[aidx]});
+								gb.DP(srcads[0]+srcads[aidx]);
+								}
+							}
+							
+						}
 
 					genotypes.add(gb.make());
 					}

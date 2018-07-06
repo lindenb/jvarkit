@@ -62,6 +62,9 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/296145](https://www.biostars.org/p/296145)
  * [https://www.biostars.org/p/302217](https://www.biostars.org/p/302217)
  * [https://www.biostars.org/p/304979](https://www.biostars.org/p/304979)
+ * [https://www.biostars.org/p/310155](https://www.biostars.org/p/310155)
+ * [https://www.biostars.org/p/317388](https://www.biostars.org/p/317388)
+ * [https://www.biostars.org/p/319148](https://www.biostars.org/p/319148)
 
 
 ## Compilation
@@ -402,6 +405,28 @@ public Object apply(final VariantContext V) {
 		}
 	return false;
 	}
+```
+
+## Example
+
+> What I want is to assign ./. missing genotypes for sample-level genotypes in a VCF, if they fail to pass defined AD ratio (so, keeping the variant itself still if it is present in at least one sample with desired AD ratio thresholds). 
+
+```java
+return new VariantContextBuilder(variant).
+    genotypes(
+        variant.
+        getGenotypes().
+        stream().
+        map( G->{
+            if(G.hasAD()) {
+                final int A[]= G.getAD();
+                if(A.length>1 &&  A[0]>0 && A[1]/(double)A[0]> 0.33) return G;
+                }
+            return  GenotypeBuilder.createMissing(G.getSampleName(),2);
+            }).
+        collect(Collectors.toList())
+        ).
+    make();
 ```
 
 

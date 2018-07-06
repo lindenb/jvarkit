@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
 
 */
 package com.github.lindenb.jvarkit.tools.misc;
@@ -128,7 +126,7 @@ public class SortSamRefName extends Launcher
 		}
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		SamReader in=null;
 		SAMFileWriter out=null;
 		SAMRecordIterator iter=null;
@@ -150,7 +148,7 @@ public class SortSamRefName extends Launcher
 					);
 			sorter.setDestructiveIteration(true);
 			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
 			iter = in.iterator();
 			while(iter.hasNext())
 				{
@@ -171,10 +169,9 @@ public class SortSamRefName extends Launcher
 			out.close();out=null;
 			sorter.cleanup();
 			progress.finish();
-			LOG.info("done");
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

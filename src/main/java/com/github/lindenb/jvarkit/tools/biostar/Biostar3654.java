@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -165,10 +165,11 @@ HIT   000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
 END_DOC
 
  */
-import com.github.lindenb.semontology.Term;
+
 @Program(name="biostar3654",
-terms=Term.ID_0000015,description="show blast alignment with annotations",
-	biostars=3654,keywords={"blast","xml","annotation"})
+description="show blast alignment with annotations",
+	biostars=3654,
+	keywords={"blast","xml","annotation"})
 public class Biostar3654 extends Launcher
 	{
 	private static final Logger LOG=Logger.build(Biostar3654.class).make();

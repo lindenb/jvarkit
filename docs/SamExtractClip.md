@@ -11,7 +11,7 @@ Extract Clipped Sequences from a SAM. Ouput is a FASTQ
 Usage: samextractclip [options] Files
   Options:
     -c, --clipped
-      Print the original Read where the clipped regions have been removed
+      Print the original Read where the clipped regions have been removed.
       Default: false
     -h, --help
       print help and exit
@@ -26,10 +26,34 @@ Usage: samextractclip [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -readFilter, --readFilter
+      [20181208]A JEXL Expression that will be used to filter out some 
+      sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * fastq
+ * clip
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/125874](https://www.biostars.org/p/125874)
+ * [https://www.biostars.org/p/308828](https://www.biostars.org/p/308828)
+
 
 ## Compilation
 
@@ -68,6 +92,9 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamExtractClip.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamExtractClip.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamExtractClipTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamExtractClipTest.java)
 
 ## Contribute
 
@@ -92,11 +119,7 @@ The current reference is:
 
 
 
-
-
-
 ### Example
-
 
 
 
@@ -158,26 +181,14 @@ TGCTTGA
 ```
 
 
+### Hstory
 
-
-
-### See also
-
-
- *  https://www.biostars.org/p/125874
-
-
+* 20180412 : fastq is now reverse complemented if read was on negative strand
 
 
 ### Cited In
 
-
- *  Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
-
-
-
-
-
+ * Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
 
 
 

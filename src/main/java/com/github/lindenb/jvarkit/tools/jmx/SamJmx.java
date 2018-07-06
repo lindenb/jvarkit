@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2015 creation
 
 */
 package com.github.lindenb.jvarkit.tools.jmx;
@@ -87,15 +83,15 @@ public class SamJmx extends Launcher
 		this.projectName = projectName;
 		}
 	
-	private int doWork( SamReader in) throws IOException
+	private int doWork(final SamReader in) throws IOException
 		{
 		String name=this.projectName;
 		if(name==null || name.trim().isEmpty())
 			{
 			name= "undefined";
 			}
-	    MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
-		LocatableStreamInfo dynamicMBean=new LocatableStreamInfo( name );
+		final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
+		final LocatableStreamInfo dynamicMBean=new LocatableStreamInfo( name );
 		LocatableStreamInfo.Status status = LocatableStreamInfo.Status.IDLE;
 		ObjectName objectMBean = null;
 		SAMFileWriter out=null;
@@ -113,7 +109,7 @@ public class SamJmx extends Launcher
 			iter = in.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec = iter.next();
+				final SAMRecord rec = iter.next();
 				out.addAlignment(rec);
 				status = dynamicMBean.watch(rec);
 				if( status == LocatableStreamInfo.Status.ABORT ||
@@ -137,7 +133,7 @@ public class SamJmx extends Launcher
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -154,7 +150,7 @@ public class SamJmx extends Launcher
 			}
 		}
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
 		SamReader in=null;
 		try
@@ -173,10 +169,8 @@ public class SamJmx extends Launcher
 			}
 		}
 
-	
-	public static void main(String[] args) throws IOException
+	public static void main(final  String[] args) throws IOException
 		{
 		new SamJmx().instanceMainWithExit(args);
 		}
-
-}
+	}

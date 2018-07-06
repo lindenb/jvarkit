@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,27 +26,42 @@ package com.github.lindenb.jvarkit.tools.jaspar;
 
 import java.util.Iterator;
 import java.util.regex.Pattern;
-
-
+import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 
+/*
+example:
 
+>MA0029.1	Mecom
+A  [14 20  0 27  1 27 26  0 27  0 24 23  6 15 ]
+C  [ 2  1  1  0 10  0  0  0  0  3  1  0  7  6 ]
+G  [ 6  2 25  0  0  0  1 27  0  0  0  4  7  3 ]
+T  [ 5  4  1  0 16  0  0  0  0 24  2  0  7  3 ]
+
+>MA0030.1	FOXF2
+A  [ 1 10 17 13  3  7  0 27 27 27  0 27 16  7 ]
+C  [10  7  4  5 11  0  0  0  0  0 25  0  4  4 ]
+G  [ 7  5  2  5  8 20  0  0  0  0  0  0  2  6 ]
+T  [ 9  5  4  5  0  0 27  0  0  0  2  0  5 10 ]
+
+ */
 public class Matrix
 	{
 	private static final char BASES[]={'A','C','G','T'};
 	public enum Type {PFM,PWM};
 	private Type type;
-	private String name;
-	private double data[];
+	private final String name;
+	private final double data[];
 	
-	private Matrix(String name,double data[])
+	private Matrix(final String name,double data[])
 		{
 		this.type=Type.PFM;
 		this.name=name;
 		this.data=data;
 		}
 	
-	public double score(CharSequence S)
+	public double score(final CharSequence S)
 		{
 		if(S.length()!=this.length()) throw new IllegalArgumentException("Not same length S/matrix");
 		double score=0.0;
@@ -91,7 +106,7 @@ public class Matrix
 	
 	public String getArchetype()
 		{
-		StringBuilder b=new StringBuilder(this.length());
+		final StringBuilder b=new StringBuilder(this.length());
 		for(int x=0;x< length();++x)
 			{
 			char c='A';
@@ -110,7 +125,7 @@ public class Matrix
 	public Matrix convertToPWM()
 		{
 		if(type!=Type.PFM) throw new IllegalStateException();
-		Matrix pwm=new Matrix(this.name,new double[data.length]);
+		final Matrix pwm=new Matrix(this.name,new double[data.length]);
 		pwm.type=Type.PWM;
 		
 		
@@ -119,7 +134,7 @@ public class Matrix
 		double prior_params=0.25;
 		for(int x=0;x< length();++x)
 			{
-			int N=(int)sum(x);
+			final int N=(int)sum(x);
 			for(int y=0;y<4;++y)
 				{
 				
@@ -137,7 +152,7 @@ public class Matrix
 		return data.length/4;
 		}
 	
-	public double get(int y,int x)
+	public double get(final int y,final int x)
 		{
 		return data[y*length()+x];
 		}
@@ -150,7 +165,7 @@ public class Matrix
 	@Override
 	public String toString()
 		{
-		StringBuilder b=new StringBuilder();
+		final StringBuilder b=new StringBuilder();
 		b.append(">").append(getName()).append('\n');
 		for(int y=0;y< 4;++y)
 			{
@@ -172,62 +187,49 @@ public class Matrix
 		}
 	
 	private static class MyIterator
-		implements Iterator<Matrix>
+		extends AbstractIterator<Matrix>
 		{
-		private Pattern ws=Pattern.compile("[\t ]+");
-		private LineIterator iter;
-		MyIterator(LineIterator iter)
+		private final Pattern ws=Pattern.compile("[\t \\[\\]]+");
+		private final LineIterator iter;
+		MyIterator(final LineIterator iter)
 			{
 			this.iter=iter;
 			}
-		
 		@Override
-		public boolean hasNext()
-			{
+		protected Matrix advance() {
 			while(iter.hasNext())
 				{
-				String line=iter.peek();
-				if(line.isEmpty())
+				final String L0 =iter.peek();
+				if(L0.isEmpty())
 					{
 					iter.next();
 					continue;
 					}
-				if(!line.startsWith(">"))
+				if(!L0.startsWith(">"))
 					{
-					throw new RuntimeException("Expected line to start with '>' but got "+line);
+					throw new RuntimeIOException("Expected line to start with '>' but got "+L0);
 					}
-				return true;
+				final String header=iter.next().substring(1).replaceAll("[ \t]+","_").trim();
+				double data[]=null;
+				for(int i=0;i< 4;++i)
+					{
+					if(!iter.hasNext()) throw new IllegalStateException();
+					final String line=iter.next();
+					final String tokens[]=this.ws.split(line);
+					if(i==0)
+						{
+						data=new double[tokens.length*4];
+						}
+					else
+						{
+						if(tokens.length*4!=data.length) throw new RuntimeException("Bad matrix in "+header);
+						}
+					if(!tokens[0].matches("[ATGC]")) throw new RuntimeException("line in "+line);
+					for(int j=1;j< tokens.length;++j) data[i*tokens.length+j]=Integer.parseInt(tokens[j]);
+					}
+				return new Matrix(header, data);
 				}
-			return false;
-			}
-		
-		@Override
-		public Matrix next() {
-			if(!hasNext()) throw new IllegalStateException();
-			String header=iter.next().substring(1).trim();
-			double data[]=null;
-			for(int i=0;i< 4;++i)
-				{
-				if(!iter.hasNext()) throw new IllegalStateException();
-				String line=iter.next();
-				String tokens[]=this.ws.split(line);
-				if(i==0)
-					{
-					data=new double[tokens.length*4];
-					}
-				else
-					{
-					if(tokens.length*4!=data.length) throw new RuntimeException("Bad matrix in "+header);
-					}
-				for(int j=0;j< tokens.length;++j) data[i*tokens.length+j]=Integer.parseInt(tokens[j]);
-				}
-			return new Matrix(header, data);
-			}
-		
-		@Override
-		public void remove()
-			{
-			throw new UnsupportedOperationException();
+			return null;
 			}
 		}
 	

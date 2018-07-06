@@ -1,5 +1,7 @@
 # VcfRemoveGenotypeJs
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Reset Genotype in VCF using a javascript expression
 
 
@@ -37,11 +39,10 @@ Usage: vcfremovegenotypejs [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -71,19 +72,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRemoveGenotypeJs.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRemoveGenotypeJs.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Thu Jul 13 20:16:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/85b6c9c196e9a065dfd47bee37fe50238af41660
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26
-Wed Mar 2 21:44:13 2016 +0100 ; Genotype filter ; https://github.com/lindenb/jvarkit/commit/3bbf30657f10c85e367a09b2fa4c78120bbc1454
-Mon Feb 29 15:45:33 2016 +0100 ; VcfRemoveGenotypeJs ; https://github.com/lindenb/jvarkit/commit/d98bcde14603037686657e57c37e73c33eb27593
-```
-
-</details>
 
 ## Contribute
 

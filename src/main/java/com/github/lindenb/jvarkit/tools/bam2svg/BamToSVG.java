@@ -66,7 +66,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -479,7 +478,6 @@ public class BamToSVG extends Launcher
 			w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
 			w.writeCharacters("Version:"+getVersion()+"\n");
 			w.writeCharacters("Author: Pierre Lindenbaum\n");
-			w.writeCharacters("Htsjdk: "+HtsjdkVersion.getHome()+" "+HtsjdkVersion.getVersion()+"\n");
 			w.writeEndElement();
 			
 			

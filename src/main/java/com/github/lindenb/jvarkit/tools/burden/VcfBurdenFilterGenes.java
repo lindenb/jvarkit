@@ -63,19 +63,21 @@ BEGIN_DOC
 
 ```
 echo "IL2" > genes.txt
- echo "NOCTH2" >>  genes.txt
- gunzip -c inputx.vcf.gz |\
- java -jar dit/vcfburdenfiltergenes.jar -g genes.txt
+echo "NOCTH2" >>  genes.txt
+gunzip -c input.vcf.gz |\
+	java -jar dit/vcfburdenfiltergenes.jar -g genes.txt
 ```
 
+## History
 
+  * 20180617 : for SNpEFF, now looks into GeneName OR GeneId (was only GeneName)
 
 END_DOC
 */
 @Program(
 		name="vcfburdenfiltergenes",
-		description="Filter VEP Output from a list of genes.",
-		keywords={"gene","vcf","vep"})
+		description="Filter VEP/SnpEff Output from a list of genes.",
+		keywords={"gene","vcf","vep","snpeff"})
 public class VcfBurdenFilterGenes
 	extends Launcher
 	{
@@ -87,6 +89,8 @@ public class VcfBurdenFilterGenes
 
 	@Parameter(names={"-g","--genes"},description="Gene file: one name per line")
 	private File geneFile = null;
+	@Parameter(names={"-a","--add"},description="[20180627] Gene Names: Add this gene, multiple separated by comma,spaces,semicolon")
+	private String geneStr="";
 
 	@Parameter(names={"-filter","--filter"},description="If empty: remove the variants from the VCF. If not empty, add a token in the column filter.")
 	private String filterTag = "";
@@ -169,7 +173,14 @@ public class VcfBurdenFilterGenes
 				final List<String> newEffList=new ArrayList<>();
 				for(final String predStr: ctx.getAttributeAsList(annParser.getTag()).stream().map(O->String.class.cast(O)).collect(Collectors.toList())) {
 					final AnnPredictionParser.AnnPrediction pred = annParser.parseOnePrediction(predStr);
-					final String token = pred.getGeneName();
+					String token = pred.getGeneName();
+					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
+						{
+						newEffList.add(predStr);
+						keep=true;
+						break;
+						}
+					token = pred.getGeneId();
 					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
 						{
 						newEffList.add(predStr);
@@ -217,25 +228,35 @@ public class VcfBurdenFilterGenes
 	 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.geneFile==null || !this.geneFile.exists()) {
+		if(StringUtil.isBlank(this.geneStr) && (this.geneFile==null || !this.geneFile.exists())) {
 			LOG.error("Undefined gene file option.");
 			return -1;
 			}
 			
 		try {
 			this.geneNames.clear();
-			this.geneNames.addAll(Files.readAllLines(this.geneFile.toPath()));
+			if(this.geneFile!=null)
+				{
+				this.geneNames.addAll(Files.readAllLines(this.geneFile.toPath()));
+				}
+			
+			for(final String gs: this.geneStr.split("[ ;\t\n,]+"))
+				{
+				if(StringUtil.isBlank(gs)) continue;
+				this.geneNames.add(gs);
+				}
+			
 			geneNames.remove(".");
 			geneNames.remove("");
 			LOG.info("number of genes : "+geneNames.size());
-			return doVcfToVcf(args,outputFile);
+			return doVcfToVcf(args,this.outputFile);
 		} catch (final Exception err) {
 			LOG.error(err);
 			return -1;
 			}
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfBurdenFilterGenes().instanceMainWithExit(args);
 		}

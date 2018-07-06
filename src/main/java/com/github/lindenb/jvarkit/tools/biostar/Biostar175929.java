@@ -33,7 +33,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
@@ -129,7 +128,6 @@ END_DOC
 
 
 @Program(name="biostar175929",
-	terms=Term.ID_0000015,
 	description="Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/")
 public class Biostar175929 extends Launcher
 	{

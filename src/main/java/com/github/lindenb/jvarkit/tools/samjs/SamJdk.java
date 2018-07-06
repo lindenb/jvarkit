@@ -357,13 +357,21 @@ $ java -jar dist/samjdk.jar --body \
      input.bam
 ```
 
+### Example:
+
+> remove reads where clipping > 33%
+
+```bash
+$ java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.getCigar()==null || record.getCigar().getCigarElements().stream().filter(C->C.getOperator().isClipping()).mapToInt(C->C.getLength()).sum() / (double)record.getCigar().getReadLength() < 0.33;' input.bam
+```
+
 END_DOC
 */
 @Program(name="samjdk",
 	description="Filters a BAM using a java expression compiled in memory.",
 	keywords={"sam","bam","java","jdk","filter"},
 	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,
-			287057,299673,301080,305526,306034},
+			287057,299673,301080,305526,306034,309143},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJdk

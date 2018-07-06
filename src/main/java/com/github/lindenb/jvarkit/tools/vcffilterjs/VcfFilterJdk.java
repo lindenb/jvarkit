@@ -360,6 +360,28 @@ public Object apply(final VariantContext V) {
 	}
 ```
 
+## Example
+
+> What I want is to assign ./. missing genotypes for sample-level genotypes in a VCF, if they fail to pass defined AD ratio (so, keeping the variant itself still if it is present in at least one sample with desired AD ratio thresholds). 
+
+```java
+return new VariantContextBuilder(variant).
+    genotypes(
+        variant.
+        getGenotypes().
+        stream().
+        map( G->{
+            if(G.hasAD()) {
+                final int A[]= G.getAD();
+                if(A.length>1 &&  A[0]>0 && A[1]/(double)A[0]> 0.33) return G;
+                }
+            return  GenotypeBuilder.createMissing(G.getSampleName(),2);
+            }).
+        collect(Collectors.toList())
+        ).
+    make();
+```
+
 
 END_DOC
  */
@@ -367,7 +389,7 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,304979},
+		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,304979,310155,317388,319148},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk

@@ -69,6 +69,10 @@ import htsjdk.samtools.filter.SamRecordFilter;
 /**
 BEGIN_DOC
 
+## input
+
+Input is one or more indexed BAM files.
+
 ## History
 
 * 2018-01-30: now using a jexl parser
@@ -93,7 +97,8 @@ END_DOC
  */
 @Program(name="bamstats04",
 	description="Coverage statistics for a BED file.",
-	keywords={"sam","bam","coverage","depth","statistics","bed"}
+	keywords={"sam","bam","coverage","depth","statistics","bed"},
+	biostars= {309673}
 	)
 public class BamStats04 extends Launcher
 	{
@@ -218,7 +223,7 @@ public class BamStats04 extends Launcher
 					if(dict==null) {
 						dict=d;
 						}
-					else if(SequenceUtil.areSequenceDictionariesEqual(d, dict)) {
+					else if(!SequenceUtil.areSequenceDictionariesEqual(d, dict)) {
 						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(d, dict));
 						return -1;
 						}
@@ -245,7 +250,7 @@ public class BamStats04 extends Launcher
 				for(final int MIN_COVERAGE:this.minCoverages)
 					{
 					pw.print(
-							"\tmeancov_"+MIN_COVERAGE+
+							"\tavgcov_"+MIN_COVERAGE+
 							"\tmediancov_"+MIN_COVERAGE+
 							"\tnocoveragebp_"+MIN_COVERAGE+
 							"\tpercentcovered_"+MIN_COVERAGE

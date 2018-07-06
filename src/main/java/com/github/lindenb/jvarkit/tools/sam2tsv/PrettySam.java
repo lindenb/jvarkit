@@ -983,7 +983,7 @@ public class PrettySam extends Launcher {
 								if(cigar==null || cigar.isEmpty() || PrettySam.this.referenceGenome==null) continue;
 								label(margin2,"Middle");break;
 							case 5: 
-								if(rec.getReadUnmappedFlag() || cigar==null || cigar.isEmpty() || PrettySam.this.referenceGenome==null) continue;
+								if(rec.getReadUnmappedFlag() || cigar==null || cigar.isEmpty() /*|| PrettySam.this.referenceGenome==null*/) continue;
 								label(margin2,"Ref-Pos");break;
 							default:break;
 							}

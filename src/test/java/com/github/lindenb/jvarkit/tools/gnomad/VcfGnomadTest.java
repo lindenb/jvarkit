@@ -59,4 +59,19 @@ public void testStreaming(final String vcfpath) throws IOException {
 	assertIsVcf(vcfOut);
 	}
 
+@Test(dataProvider="src01")
+public void testFilterGenotypes(final String vcfpath) throws IOException {
+	final File mFile = createManifest();
+	final File vcfOut = super.createTmpFile(".vcf");
+	
+	Assert.assertEquals(new VcfGnomad().instanceMain(newCmd().
+			add("-o",vcfOut.getPath()).
+			add("-m",mFile.getPath()).
+			add("-ac").
+			add("--gtfilter","MYF111").
+			add(vcfpath).make()
+			),0);
+	assertIsVcf(vcfOut);
+	}
+
 }

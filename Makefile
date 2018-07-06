@@ -88,7 +88,6 @@ define compile-htsjdk-cmd
 ## 3 : other deps
 
 $(1)  : ${htsjdk.jars} \
-		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(3) \
 		${dist.dir}/annotproc.jar
@@ -117,6 +116,7 @@ endif
 	#create META-INF/MANIFEST.MF
 	echo "Manifest-Version: 1.0" > ${tmp.mft}
 	echo "Main-Class: $(2)" >> ${tmp.mft}
+	echo "Htsjdk-Version: ${htsjdk.version}" >> ${tmp.mft}
 ifneq (${standalone},yes)
 	echo "Class-Path: $$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^))) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
 endif
@@ -218,7 +218,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	indexcovjfx indexcov2vcf samcustomsortjdk
 
 
-.PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden ${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java
+.PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden 
 
 
 
@@ -264,7 +264,7 @@ $(eval $(call compile-htsjdk-cmd,vcfbigwig,${jvarkit.package}.tools.vcfbigwig.VC
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	${jvarkit.package}.tools.ensemblreg.VcfEnsemblReg,${bigwig.jars} ${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,105754,${bigwig.jar} ${jcommander.jar} ))
 # common math
-$(eval $(call compile-htsjdk-cmd,cnv01,${jvarkit.package}.tools.redon.CopyNumber01,${jcommander.jar} ${common.math3.libs} ${bigwig.jars}))
+$(eval $(call compile-htsjdk-cmd,naivecnvdetector,${jvarkit.package}.tools.structvar.NaiveCnvDetector,${jcommander.jar} ${common.math3.libs} ))
 #berkeley
 $(eval $(call compile-htsjdk-cmd,vcfphylotree,${jvarkit.package}.tools.phylo.VcfPhyloTree,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilesscanner,${jvarkit.package}.tools.ngsfiles.NgsFilesScanner,${jcommander.jar} ${berkeleydb.jar}))
@@ -288,6 +288,7 @@ $(eval $(call compile-htsjdk-cmd,bamindexreadnames,${jvarkit.package}.tools.bami
 $(eval $(call compile-htsjdk-cmd,bamliftover,${jvarkit.package}.tools.liftover.BamLiftOver,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamqueryreadnames,${jvarkit.package}.tools.bamindexnames.BamQueryReadNames,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamrenamechr,${jvarkit.package}.tools.misc.ConvertBamChromosomes,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,bamstatsjfx,${jvarkit.package}.tools.bamstats01.BamStatsJfx,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamstats02,${jvarkit.package}.tools.bamstats01.BamStats02,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,bamstats02view,${jvarkit.package}.tools.bamstats01.BamStats02View,${jcommander.jar} bamstats02 ))
 $(eval $(call compile-htsjdk-cmd,bamstats04,${jvarkit.package}.tools.bamstats04.BamStats04,${jcommander.jar}))
@@ -326,6 +327,7 @@ $(eval $(call compile_biostar_cmd,214299,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,234081,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,234230,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,251649,${jcommander.jar}))
+$(eval $(call compile_biostar_cmd,322664,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,gb2gff,${jvarkit.package}.tools.genbank.GenbankToGff3,${jcommander.jar} api.ncbi.gb ))
@@ -566,6 +568,8 @@ $(eval $(call compile-htsjdk-cmd,vcfepistatis01,${jvarkit.package}.tools.epistas
 $(eval $(call compile-htsjdk-cmd,subcloneit,${jvarkit.package}.tools.cloneit.SubCloneIt,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,igvreview,${jvarkit.package}.tools.igvreview.IgvReview,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samtranslocations,${jvarkit.package}.tools.structvar.SamTranslocations,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfafinfofilter,${jvarkit.package}.tools.misc.VcfAfInfoFilter,${jcommander.jar}))
+
 
 
 $(eval $(call compile-htsjdk-cmd,vcfburdengoenrichment,${jvarkit.package}.tools.burden.VcfBurdenGoEnrichment,${jcommander.jar}))
@@ -577,7 +581,8 @@ $(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.V
 $(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}  ${bigwig.jars}))
 $(eval $(call compile-htsjdk-cmd,simpleplot,${jvarkit.package}.tools.misc.SimplePlot,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,cytoband2svg,${jvarkit.package}.tools.misc.CytobandToSvg,${jcommander.jar}))
-
+$(eval $(call compile-htsjdk-cmd,vcfancestralalleles,${jvarkit.package}.tools.onekgenomes.VcfAncestralAllele,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,bednonoverlappingset,${jvarkit.package}.tools.misc.BedNonOverlappingSet,${jcommander.jar}))
 
 
 
@@ -635,7 +640,7 @@ ${generated.dir}/java/org/uniprot/package-info.java : api.uniprot
 api.uniprot :
 	rm -rf ${generated.dir}/java/org/uniprot/
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "http://www.uniprot.org/docs/uniprot.xsd" 
+	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "https://www.uniprot.org/docs/uniprot.xsd" 
 
 
 api.ncbi.pubmed : 
@@ -723,7 +728,6 @@ $(eval $(foreach U,${gatk.tools},$(call make_gatk_code,${U})))
 ## jvarkit-library (used in knime)
 library: ${dist.dir}/jvarkit-${htsjdk.version}.jar
 ${dist.dir}/jvarkit-${htsjdk.version}.jar : ${htsjdk.jars} ${bigwig.jars} \
-		${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java \
 		${src.dir}/com/github/lindenb/jvarkit/util/Library.java
 	mkdir -p ${tmp.dir}/META-INF $(dir $@)
 	cp src/main/resources/messages/messages.properties ${tmp.dir}
@@ -769,21 +773,6 @@ ${bigwig.jar} xx :
 ##
 $(addprefix lib/, commons-validator/commons-validator/1.4.0/commons-validator-1.4.0.jar commons-beanutils/commons-beanutils/1.8.3/commons-beanutils-1.8.3.jar ):
 	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o $@ "http://central.maven.org/maven2/$(patsubst lib/%,%,$@)"
-	
-
-
-${generated.dir}/java/com/github/lindenb/jvarkit/util/htsjdk/HtsjdkVersion.java :
-	mkdir -p $(dir $@)
-	echo "package ${jvarkit.package}.util.htsjdk;" > $@
-	echo '@javax.annotation.Generated("jvarkit")' >> $@
-	echo 'public class HtsjdkVersion{ private HtsjdkVersion(){}' >> $@
-	echo 'public static String getVersion() {return "${htsjdk.version}";}' >> $@
-	echo -n 'public static String getDate() {return "' >> $@ &&  date | tr -d '\n' >> $@ && echo ')";}' >> $@
-	echo 'public static String getHash() {return "${htsjdk.version}";}' >> $@
-	echo 'public static String getHome() {return "$(word 1,${htsjdk.jars})";}' >> $@
-	echo 'public static String getJavadocUrl(final Class<?> clazz) {return "https://samtools.github.io/htsjdk/javadoc/htsjdk/"+clazz.getName().replaceAll("\\.","/")+".html";}' >> $@
-	echo '}'  >> $@
-
 
 ## API EVS
 src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :

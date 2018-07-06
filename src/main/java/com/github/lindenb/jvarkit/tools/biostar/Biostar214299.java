@@ -119,7 +119,7 @@ END_DOC
 @Program(name="biostar214299",
 	description="Extract allele specific reads from bamfiles",
 	biostars=214299,
-	keywords={"sam","bam","variant","snp"},terms=Term.ID_0000015
+	keywords={"sam","bam","variant","snp"}
 	)
 public class Biostar214299 extends Launcher
 	{

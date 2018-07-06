@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Vector;
@@ -41,6 +42,7 @@ import org.testng.annotations.Test;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
 
@@ -60,6 +62,8 @@ import htsjdk.samtools.SamFiles;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.fastq.FastqReader;
+import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.reference.FastaSequenceIndexCreator;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -456,6 +460,38 @@ protected void assertIsVcf(final File f) {
 	}
 	Assert.assertNull(err,"file "+f+" should be vcf : "+err);
 }
+protected void assertIsFastq(final File f) {
+	Exception err=null; 
+	FastqReader fqr =null;
+	try {
+		fqr = new FastqReader(f);
+		Iterator<FastqRecord> iter =fqr.iterator();
+		while(iter.hasNext()) iter.next();
+	}catch (final Exception e) {
+		err= e;
+	} finally {
+		CloserUtil.close(fqr);
+	}
+	Assert.assertNull(err,"file "+f+" should be fastq : "+err);
+}
+
+
+protected long assertIsBed(final File f) {
+	Exception err=null;
+	BufferedReader r = null;
+	try {
+		r = IOUtils.openFileForBufferedReading(f);
+		final BedLineCodec codec = new BedLineCodec();
+		return r.lines().map(L->codec.decode(L)).filter(B->B!=null).count();
+	}catch (final Exception e) {
+		err= e;
+	} finally {
+		CloserUtil.close(r);
+	}
+	Assert.assertNull(err,"file "+f+" should be fastq : "+err);
+	return 0L;
+}
+
 
 protected void assertIsNotEmpty(final File f) throws IOException {
 	Assert.assertNotNull(f,"File is null");
@@ -578,6 +614,7 @@ protected File sortBamOnQueryName(final Path bamFile,final Predicate<SAMRecord> 
 protected List<Interval> randomIntervalsFromDict(final File dictFile,int n) throws IOException{
 	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(dictFile);
 	final List<Interval> rgns = new ArrayList<>(n);
+	if(dict==null) return rgns;
 	while(n>0)
 		{
 		final SAMSequenceRecord ssr = dict.getSequence(random.nextInt(dict.size()));
@@ -648,8 +685,10 @@ protected void assertTsvTableIsConsitent(final File f,Predicate<String> ignoreLi
 protected long wc(final File f) throws IOException
 	{
 	if(f.getName().endsWith(".bam") || f.getName().endsWith(".sam")) {
-		SamReader sr = SamReaderFactory.makeDefault().open(f);
-		SAMRecordIterator iter =sr.iterator();
+		final SamReader sr = SamReaderFactory.makeDefault().
+				validationStringency(ValidationStringency.SILENT).
+				open(f);
+		final SAMRecordIterator iter =sr.iterator();
 		final long n= iter.stream().count();
 		iter.close();
 		sr.close();

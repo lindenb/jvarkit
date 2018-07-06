@@ -1,5 +1,7 @@
 # ConvertBamChromosomes
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Convert the names of the chromosomes in a BAM file
 
 
@@ -16,20 +18,22 @@ Usage: bamrenamechr [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-  * -f, --mapping, -m
+    -f, --mapping, -m
       load a custom name mapping. Format (chrom-source\tchrom-dest\n)+
     -o, --out
       Output file. Optional . Default: stdout
+    -R, --reference, -r
+      Use this reference file. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
     --version
       print version and exit
-    -c, -convert
-      What should I do when  a converstion is not found
-      Default: RAISE_EXCEPTION
-      Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
+    -i, -ignore
+      If the tool cannot convert a contig, skip the read
+      Default: false
 
 ```
 
@@ -46,11 +50,10 @@ Usage: bamrenamechr [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -80,22 +83,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ConvertBamChromosomes.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ConvertBamChromosomes.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/ConvertBamChromosomesTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/ConvertBamChromosomesTest.java)
 
-```
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Wed Apr 19 17:58:48 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/95f05cfd4e04f5013c22274c49db7bcc4cbbb1c8
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Wed Feb 26 18:33:05 2014 +0100 ; short invert , messages, rev-comp, rename bam-chrom ; https://github.com/lindenb/jvarkit/commit/195aa6d36b0ec2501637d61386ef82c3c4118afa
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Tue Dec 17 10:52:24 2013 +0100 ; bam rename chrom ; https://github.com/lindenb/jvarkit/commit/07c9cfcf563b1ebb183c2eb20f50fda98d65290e
-```
-
-</details>
 
 ## Contribute
 
@@ -164,10 +155,14 @@ x6	0	CHROM2	14	30	23M	*	0	0	TAATTAAGTCTACAGAGCAACTA	???????????????????????
 
 ## See also
 
-* https://github.com/lindenb/jvarkit/blob/master/src/main/resources/chromnames/g1kv37_to_hg19.tsv
-* https://github.com/lindenb/jvarkit/blob/master/src/main/resources/chromnames/hg19_to_g1kv37.tsv
-* [[VcfRenameChromosomes]]
-* http://plindenbaum.blogspot.fr/2013/07/g1kv37-vs-hg19.html
+  * https://github.com/lindenb/jvarkit/blob/master/src/main/resources/chromnames/g1kv37_to_hg19.tsv
+  * https://github.com/lindenb/jvarkit/blob/master/src/main/resources/chromnames/hg19_to_g1kv37.tsv
+  * [[VcfRenameChromosomes]]
+  * http://plindenbaum.blogspot.fr/2013/07/g1kv37-vs-hg19.html
+
+## history
+
+  * 20180612 : rewrote it, using a output Dict, handle the SA tag
 
 
 

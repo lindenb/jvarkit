@@ -47,6 +47,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 
@@ -182,8 +183,16 @@ public static ContigNameConverter fromFile(final File mappingFile)
 	finally {
 		CloserUtil.close(in);
 	}
-	
 }
+
+public static ContigNameConverter fromMap(final Map<String,String> hash) {
+	final MapBasedContigNameConverter mapper=new MapBasedContigNameConverter();
+	mapper.name="fromMap";
+	mapper.map.putAll(hash);
+	return mapper;
+	}
+
+
 public static ContigNameConverter createConvertToUcsc()
 	{
 	final MapBasedContigNameConverter map = new MapBasedContigNameConverter();
@@ -227,6 +236,13 @@ public static ContigNameConverter fromContigSet(
 	return new OneDictionary(contigSet);
 	}
 
+/** creates a ContigNameConverter from an IntervalTreeMap*/
+public static ContigNameConverter fromIntervalTreeMap(
+		final IntervalTreeMap<?> itm
+		)
+	{
+	return fromContigSet(itm.keySet().stream().map(I->I.getContig()).collect(Collectors.toSet()));
+	}
 
 
 private static class TwoDictionaries extends MapBasedContigNameConverter

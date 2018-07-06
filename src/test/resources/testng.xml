@@ -2,6 +2,7 @@
 <suite name="SuiteAll" >
     <test name="TestAll">  
         <packages>  
+            <package name="com.github.lindenb.jvarkit.io"/>
             <package name="com.github.lindenb.jvarkit.util"/>
             <package name="com.github.lindenb.jvarkit.util.bio.fasta"/>
             <package name="com.github.lindenb.jvarkit.util.so"/>
@@ -15,13 +16,16 @@
             <package name="com.github.lindenb.jvarkit.tools.bamindexnames"/>
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>
             <package name="com.github.lindenb.jvarkit.tools.biostar"/>
+            <package name="com.github.lindenb.jvarkit.tools.blast"/>
             <package name="com.github.lindenb.jvarkit.tools.burden"/>
             <package name="com.github.lindenb.jvarkit.tools.cmpbams"/>
             <package name="com.github.lindenb.jvarkit.tools.ensembl"/>
+            <package name="com.github.lindenb.jvarkit.tools.jaspar"/>
             <package name="com.github.lindenb.jvarkit.tools.genbank"/>
             <package name="com.github.lindenb.jvarkit.tools.gnomad"/>
             <package name="com.github.lindenb.jvarkit.tools.groupbygene"/>
             <package name="com.github.lindenb.jvarkit.tools.ngsfiles"/>
+            <package name="com.github.lindenb.jvarkit.tools.onekgenomes"/>
             <package name="com.github.lindenb.jvarkit.tools.pcr"/>
             <package name="com.github.lindenb.jvarkit.tools.pubmed"/>
             <package name="com.github.lindenb.jvarkit.tools.sam2tsv"/>
@@ -32,13 +36,16 @@
             <package name="com.github.lindenb.jvarkit.tools.tview"/>
             <package name="com.github.lindenb.jvarkit.tools.misc"/>
             <package name="com.github.lindenb.jvarkit.tools.vcf2sql"/>
+            <package name="com.github.lindenb.jvarkit.tools.vcfbed"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfbigwig"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfcmp"/>
+            <package name="com.github.lindenb.jvarkit.tools.vcfcomposite"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfmerge"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfstats"/>
             <package name="com.github.lindenb.jvarkit.tools.vcftrios"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfucsc"/>
             <package name="com.github.lindenb.jvarkit.tools.vcfvcf"/>
+            <package name="com.github.lindenb.jvarkit.tools.xcontamination"/>
         </packages>  
     </test>  
 </suite>

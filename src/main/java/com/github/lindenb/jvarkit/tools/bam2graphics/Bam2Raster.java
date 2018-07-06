@@ -530,7 +530,6 @@ public class Bam2Raster extends AbstractBam2Raster
 								}
 							return c1;
 							};
-							
 						int refpos= rec.getUnclippedStart();
 						int readpos=0;
 						for(final CigarElement ce:cigar.getCigarElements())
@@ -601,7 +600,6 @@ public class Bam2Raster extends AbstractBam2Raster
 								case X:
 								case M:
 									{
-									
 									for(int i=0;i< ce.getLength();++i)
 										{
 										boolean drawbase=!Bam2Raster.this.hideBases;
@@ -609,6 +607,7 @@ public class Bam2Raster extends AbstractBam2Raster
 										
 										
 										char c1=readBaseAt.apply(readpos);
+										
 										
 										/* handle consensus */
 										Counter<Character> consensus=ref2consensus.get(refpos);
@@ -621,7 +620,6 @@ public class Bam2Raster extends AbstractBam2Raster
 										
 										
 										char c2=genomicSequence.charAt(refpos-1);
-										
 										double mutW=convertToX(refpos+1)-convertToX(refpos);
 										g.setColor(ALMOST_BLACK);
 										final Shape mut= new Rectangle2D.Double(
@@ -630,6 +628,8 @@ public class Bam2Raster extends AbstractBam2Raster
 												mutW,
 												y1-y0
 												);
+
+										
 										if(ce.getOperator()==CigarOperator.X ||
 											(c2!='N' && c2!='n' && 
 											Character.toUpperCase(c1)!=Character.toUpperCase(c2)))
@@ -679,7 +679,7 @@ public class Bam2Raster extends AbstractBam2Raster
 					
 					// paint insertions
 					for(final Integer refpos: refposOfInsertions) {
-						g.setColor(Color.GREEN); 
+						g.setColor(Color.ORANGE); 
 						if(printThisRow)  g.fill(new Rectangle2D.Double(
 									convertToX(refpos),
 									y0,

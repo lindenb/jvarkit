@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
 
 */
 package com.github.lindenb.jvarkit.tools.biostar;
@@ -55,16 +52,15 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
 
 /*
 BEGIN_DOC
 ## Example
 
 ```bash
-$ java -jar dist/sortsamrefname.jar -T bam /input.bam  |\
-  java -jar dist/biostar154220.jar  -n 20 -T bam |\
-  samtools sort - output
+$ java -jar dist/sortsamrefname.jar --samoutputformat BAM input.bam  |\
+  java -jar dist/biostar154220.jar  -n 20 --samoutputformat BAM |\
+  samtools sort -T tmp -o output.bam -
 
 
 $ samtools mpileup output.bam  | cut -f 4 | sort | uniq -c
@@ -98,8 +94,7 @@ END_DOC
 */
 @Program(name="biostar154220",
 	description="Cap BAM to a given coverage",
-	biostars=154220,
-	terms=Term.ID_0000015
+	biostars=154220
 	)
 public class Biostar154220 extends Launcher
 	{
@@ -143,7 +138,7 @@ public class Biostar154220 extends Launcher
 			SAMFileHeader header2=header.clone();
 			header2.addComment("Biostar154220"+" "+getVersion()+" "+getProgramCommandLine());
 			out = this.writingBams.openSAMFileWriter(outputFile,header2, true);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict).logger(LOG);
 			iter = in.iterator();
 			List<SAMRecord> buffer=new ArrayList<>();
 			for(;;)
@@ -247,7 +242,7 @@ public class Biostar154220 extends Launcher
 			progress.finish();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

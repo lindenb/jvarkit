@@ -134,14 +134,13 @@ public class Counter<T>
 	
 	public List<T> keySetDecreasing()
 		{
-		List<T> L=new ArrayList<T>(this.object2count.keySet());
+		final List<T> L=new ArrayList<T>(this.object2count.keySet());
 		Collections.sort(L, new Comparator<T>()
 			{
 			@Override
 			public int compare(T o1, T o2)
 				{
-				long n= count(o2)-count(o1);
-				return (n<0L?-1:n>0L?1:0);
+				return Long.compare(count(o2),count(o1));
 				}
 			});
 		return L;
@@ -149,14 +148,13 @@ public class Counter<T>
 	
 	public List<T> keySetIncreasing()
 		{
-		List<T> L=new ArrayList<T>(this.object2count.keySet());
+		final List<T> L=new ArrayList<T>(this.object2count.keySet());
 		Collections.sort(L, new Comparator<T>()
 			{
 			@Override
 			public int compare(T o1, T o2)
 				{
-				long n= count(o1)-count(o2);
-				return (n<0L?-1:n>0L?1:0);
+				return Long.compare(count(o1),count(o2));
 				}
 			});
 		return L;

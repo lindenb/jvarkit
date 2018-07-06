@@ -33,21 +33,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.StringWriter;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.function.Function;
-import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
@@ -74,6 +71,7 @@ import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -113,10 +111,6 @@ public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 /** need to decouple from Launcher for JXF applications that cannot extends 'Launcher' */
 public static  class UsageBuider
 	{
-	/** git hash in the manifest */
-	private String gitHash = null;
-	/** compile date in the manifest */
-	private String compileDate = null;
 	/** main class */
 	private Class<?> mainClass=Object.class;
 	
@@ -462,70 +456,20 @@ public static  class UsageBuider
 	
 	public String getCompileDate()
 		{
-		if(this.compileDate==null)
-			{
-			this.compileDate="undefined";
-			loadManifest();
-			}
-		return compileDate;
+		return JVarkitVersion.getInstance().getCompilationDate();
 		}
 
 	public String getGitHash()
 		{
-		if(this.gitHash==null)
-			{
-			this.gitHash="1.0";
-			loadManifest();
-			}
-		return this.gitHash;
+		return JVarkitVersion.getInstance().getGitHash();
 		}
+	
 	public String getVersion()
 		{
 		return getGitHash();
 		}
 	
 	
-	private void loadManifest()
-		{
-		try
-			{
-			final Enumeration<URL> resources = getMainClass().getClassLoader()
-					  .getResources("META-INF/MANIFEST.MF");//not '/META-INF'
-			while (resources.hasMoreElements())
-				{
-				final URL url=resources.nextElement();
-				InputStream in=url.openStream();
-				if(in==null)
-					{
-					continue;
-					}
-				
-				Manifest m=new Manifest(in);
-				in.close();
-				in=null;
-				final java.util.jar.Attributes attrs=m.getMainAttributes();
-				if(attrs==null)
-					{
-					continue;
-					}
-				String s =attrs.getValue("Git-Hash");
-				if(s!=null && !s.isEmpty() && !s.contains("$")) //ant failed
-					{
-					this.gitHash=s;
-					}
-				s =attrs.getValue("Compile-Date");
-				if(s!=null && !s.isEmpty()) //ant failed
-					{
-					this.compileDate=s;
-					}
-				}
-			}	
-		catch(Exception err)
-			{
-			
-			}
-		
-		}
 
 	}
 

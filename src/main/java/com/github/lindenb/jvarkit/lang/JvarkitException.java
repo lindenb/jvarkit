@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 
 import org.w3c.dom.Node;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -96,6 +97,7 @@ public static class VcfDictionaryMissing extends DictionaryMissing
 		super(getMessage(file));
 		}
 	}
+
 public static class BamDictionaryMissing extends DictionaryMissing
 	{
 	public static String getMessage(final String path) {
@@ -110,6 +112,26 @@ public static class BamDictionaryMissing extends DictionaryMissing
 		}
 	}
 
+public static class BamBadSortOrder extends Error
+	{
+	public BamBadSortOrder(
+			final SAMFileHeader.SortOrder expected,
+			final SAMFileHeader.SortOrder found)
+		{
+		super(
+				"Expected the BAM to be sorted on \""+ expected +
+				"\" but it is sorted using \"" + found +"\". " +
+				"Use `picard SortSam ` or `samtools sort` to sort the bam."
+				);
+		
+		}
+	public static void verify(final SAMFileHeader.SortOrder expected,final SAMFileHeader.SortOrder found) {
+		if(!expected.equals(found)) throw new BamBadSortOrder(expected,found);
+		}
+	public static void verify(final SAMFileHeader.SortOrder expected,final SAMFileHeader found) {
+		verify(expected,found.getSortOrder());
+		}
+	}
 
 public static class DuplicateVcfHeaderInfo extends Error
 	{

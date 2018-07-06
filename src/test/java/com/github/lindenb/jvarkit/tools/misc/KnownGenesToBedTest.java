@@ -8,9 +8,6 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-
-import htsjdk.samtools.util.IOUtil;
 
 public class KnownGenesToBedTest extends TestUtils{
 	
@@ -28,9 +25,6 @@ public void test(final String kgfile) throws IOException {
 			kgfile
 			}),0);
 	Assert.assertTrue(out.exists());
-	final BedLineCodec codec= new BedLineCodec();
-	Assert.assertTrue(IOUtil.slurpLines(out).stream().
-			map(L->codec.decode(L)).
-			filter(L->L!=null).count()>0L);
+	assertIsBed(out);
 	}
 }

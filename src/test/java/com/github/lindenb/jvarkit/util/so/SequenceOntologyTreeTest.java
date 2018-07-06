@@ -84,6 +84,7 @@ public class SequenceOntologyTreeTest
 		}
 	
 	
+	
 	private void testTerms(final SequenceOntologyTree tree,final String acn,final String label,final String parentAcn) 
 		{
 		SequenceOntologyTree.Term t1 = tree.getTermByAcn(acn);
@@ -100,6 +101,10 @@ public class SequenceOntologyTreeTest
 		
 		Assert.assertTrue(t3.getAllDescendants().contains(t1));
 		Assert.assertFalse(t1.getAllDescendants().contains(t3));
+		
+		Assert.assertTrue(t2.isChildrenOf(t3));
+		Assert.assertFalse(t3.isChildrenOf(t2));
+
 		}
 	 
 

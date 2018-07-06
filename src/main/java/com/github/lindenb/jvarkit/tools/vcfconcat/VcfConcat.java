@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.vcfconcat;
@@ -52,7 +49,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -111,7 +108,7 @@ public class VcfConcat extends Launcher
 		SAMSequenceDictionary dict=null;
 		try
 			{
-			Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
+			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
 			
 			/* open each vcf file */
 			for(String vcfFile:this.inputFiles)
@@ -160,10 +157,9 @@ public class VcfConcat extends Launcher
 					VCFUtils.createChromPosRefComparator():
 					VCFUtils.createTidPosRefComparator(dict)
 					);
+			metaData.addAll(JVarkitVersion.getInstance().getMetaData(getClass().getSimpleName()));
 			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
 			metaData.add(new VCFInfoHeaderLine(
 					VARIANTSOURCE,1,VCFHeaderLineType.String,
 					"Origin File of Varant"
@@ -228,7 +224,7 @@ public class VcfConcat extends Launcher
 		
 
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		VariantContextWriter w=null;
 		BufferedReader r=null;
 		try
@@ -259,7 +255,7 @@ public class VcfConcat extends Launcher
 			w= super.openVariantContextWriter(this.outputfile);
 			return fromFiles(w);
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

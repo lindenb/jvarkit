@@ -153,7 +153,9 @@ R11	0	rotavirus	3	60	70M	*	0	0	CTTTTAAAGCTTTTCAGAGGTTGCTGCTCAAGATGTAGTCTACTCAGGA
 
 ```
 
+## See also
 
+  * https://bioinformatics.stackexchange.com/a/3866/71
 
 
 

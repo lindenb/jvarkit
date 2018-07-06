@@ -481,11 +481,7 @@ public class VCFBed extends Launcher
 					try {
 						this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(this.treeMapFile);
 						LOG.info("Number of items in "+this.treeMapFile+" "+this.intervalTreeMap.size());
-						this.contigNameConverter = ContigNameConverter.fromContigSet(this.intervalTreeMap.keySet().
-								stream().
-								map(I->I.getContig()).
-								collect(Collectors.toSet())
-								);
+						this.contigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.intervalTreeMap);
 						}
 					catch(final Exception err) {
 						LOG.error(err);

@@ -1,5 +1,7 @@
 # Biostar160470
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Getting untranslated nucleotide sequences on tblastn standalone 
 
 
@@ -25,6 +27,15 @@ Usage: biostar160470 [options] Files
 ```
 
 
+## Keywords
+
+ * blasn
+ * blast
+ * translation
+ * protein
+
+
+
 ## See also in Biostars
 
  * [https://www.biostars.org/p/160470](https://www.biostars.org/p/160470)
@@ -34,11 +45,10 @@ Usage: biostar160470 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -68,20 +78,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar160470.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar160470.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
-Fri Apr 14 15:27:32 2017 +0200 ; annotation proc ; https://github.com/lindenb/jvarkit/commit/72b9383a8472e5a91120bab84d15b8acad4db8d4
-Fri Apr 8 17:17:56 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a943c4dfb102e4e4475d733fb32eb3dd22eb2760
-Tue Oct 6 17:27:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/35fed6f953545afc1b47f1e4b6dc32f5837646c5
-```
-
-</details>
 
 ## Contribute
 

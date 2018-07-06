@@ -34,7 +34,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -65,23 +64,22 @@ r001    163 ref 7   30  8M4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG*XX:B:S,12561
 END_DOC
  */
 @Program(name="biostar234081",
-	description="convert extended CIGAR to regular CIGAR",
+	description="convert extended CIGAR to regular CIGAR ('X','=' -> 'M')",
 	keywords={"sam","bam","cigar"},
-	biostars=234081,
-	terms=Term.ID_0000015
+	biostars=234081
 	)
 public class Biostar234081 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar234081.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
 	@Override
-	public int doWork(java.util.List<String> args) { 
+	public int doWork(final List<String> args) { 
 	SamReader in =null;
 	SAMFileWriter w=null;  
 	SAMRecordIterator iter=null;  
@@ -91,7 +89,7 @@ public class Biostar234081 extends Launcher
 		iter=in.iterator();
 		while(iter.hasNext())
 			{
-			SAMRecord rec = iter.next();
+			final SAMRecord rec = iter.next();
 			if(!rec.getReadUnmappedFlag() && rec.getCigar()!=null)
 				{
 				final Cigar cigar = rec.getCigar();
@@ -123,7 +121,6 @@ public class Biostar234081 extends Launcher
 				}
 			w.addAlignment(rec);
 			}
-		LOG.debug("done");
 		return RETURN_OK;
 	} catch (final Exception err) {
 		LOG.error(err);
@@ -133,15 +130,10 @@ public class Biostar234081 extends Launcher
 		CloserUtil.close(iter);
 		CloserUtil.close(in);
 		CloserUtil.close(w);
-	
+		}
 	}
-	
-	
-		}	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+
+	public static void main(final String[] args)
 		{
 		new Biostar234081().instanceMainWithExit(args);
 		}

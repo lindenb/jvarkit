@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
 
 */
 package com.github.lindenb.jvarkit.tools.bamstats04;
@@ -47,11 +44,11 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -71,10 +68,13 @@ import htsjdk.samtools.filter.SamRecordFilter;
 /**
 BEGIN_DOC
 
+## Cited In:
+
+  * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
+
 ## Example
 
 ```
-
 $ head genes.bed
 1	179655424	179655582	ZORG
 1	179656788	179656934	ZORG
@@ -84,7 +84,6 @@ $ java -jar  dist/bamstats05.jar -B genes.bed --mincoverage 10  > out.txt
 $ head out.txt
 #chrom	start	end	gene	sample	length	mincov	maxcov	avg	nocoverage.bp	percentcovered
 1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
-
 ```
 
 END_DOC
@@ -93,7 +92,8 @@ END_DOC
 */
 @Program(name="bamstats05",
 description="Coverage statistics for a BED file, group by gene",
-keywords={"bam","coverage","statistics","bed"}
+keywords={"bam","coverage","statistics","bed"},
+biostars={324639,194393}
 )
 public class BamStats05 extends Launcher
 	{
@@ -112,8 +112,8 @@ public class BamStats05 extends Launcher
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
-	@Parameter(names={"-f","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	
 	private Map<String, List<Interval>> readBedFile(final File bedFile) throws IOException
     	{

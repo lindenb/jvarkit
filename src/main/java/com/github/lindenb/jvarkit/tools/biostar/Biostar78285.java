@@ -202,11 +202,7 @@ public class Biostar78285 extends Launcher
 		    		LOG.error("No header in "+bamFile);
 		    		return -1;
 		    		}
-		    	if(header.getSortOrder()!=SortOrder.coordinate)
-		    		{
-		    		LOG.error("Sam file "+bamFile+" is not sorted on coordinate :"+header.getSortOrder());
-		    		return -1;
-		    		}
+				JvarkitException.BamBadSortOrder.verify(SortOrder.coordinate, header);
 		    	samples.addAll(header.getReadGroups().stream().map(RG->this.partition.apply(RG, DEFAULT_PARTITION)).collect(Collectors.toSet()));
 		    	
 		    	final SAMSequenceDictionary currDict =header.getSequenceDictionary();

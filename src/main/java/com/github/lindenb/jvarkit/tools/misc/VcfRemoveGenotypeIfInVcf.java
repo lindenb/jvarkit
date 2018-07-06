@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -44,10 +41,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.htsjdk.HtsjdkVersion;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -97,16 +94,15 @@ public class VcfRemoveGenotypeIfInVcf extends Launcher {
 		long genotypes_empty=0;
 		long variant_changed=0;
 		long variant_unchanged=0;
-		ArrayList<VariantContext> overlappingList =new ArrayList<VariantContext>();
-		VCFHeader h2=in.getHeader();
+		final ArrayList<VariantContext> overlappingList =new ArrayList<VariantContext>();
+		final VCFHeader h2=in.getHeader();
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
 		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkVersion",HtsjdkVersion.getVersion()));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"HtsJdkHome",HtsjdkVersion.getHome()));
+		JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), h2);
 		out.writeHeader(h2);
 		while(in.hasNext())
 			{
-			VariantContext ctx= in.next();
+			final VariantContext ctx= in.next();
 			
 			/* no genotypes */
 			if(ctx.getNSamples()==0)

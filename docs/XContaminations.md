@@ -1,5 +1,7 @@
 # XContaminations
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 For @AdrienLeger2 : cross contamination between samples by looking at the homozygous genotypes.
 
 
@@ -75,11 +77,10 @@ Usage: xcontaminations [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -109,33 +110,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminations.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminationsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/xcontamination/XContaminationsTest.java)
 
-```
-Wed Dec 13 17:22:37 2017 +0100 ; fixing xcontamination+singleton ; https://github.com/lindenb/jvarkit/commit/0ad0c272832570db1c2aa4f1c5fdbc46faac70e1
-Tue Dec 12 18:31:25 2017 +0100 ; xcontaminations not het with singleton ; https://github.com/lindenb/jvarkit/commit/e26cd04dbc64f1a62390854584ac98f71faae40b
-Tue Dec 12 15:54:41 2017 +0100 ; adding option singleton for xcontamination ; https://github.com/lindenb/jvarkit/commit/3ccec16db34a4be4be68975a6bea5d696a655117
-Mon Dec 4 14:27:04 2017 +0100 ; xcontamination with count ; https://github.com/lindenb/jvarkit/commit/a161a8a92fc38f28e91fd2164a29dcf52b07f658
-Sun Dec 3 14:10:21 2017 +0100 ; new option for xcontimation ; https://github.com/lindenb/jvarkit/commit/e943ce31e8c93d48790681923c08cb74e55074a7
-Fri Dec 1 12:42:00 2017 +0100 ; biostars answer, adding --reference to findallcoverageatpos ; https://github.com/lindenb/jvarkit/commit/74e2d2f9f0d34ca5081915c65a7b7ea35f160ec5
-Mon Nov 27 17:33:11 2017 +0100 ; exploring jni+htslib ; https://github.com/lindenb/jvarkit/commit/509b01e22a04a34e96c77c0bd5b335c5d7fcec76
-Thu Nov 23 13:32:25 2017 +0100 ; fixing the bash wrapper after https://www.biostars.org/p/284083/#285575 ; https://github.com/lindenb/jvarkit/commit/7f811475a7648d24289702f49d53c89fb53761c9
-Wed Nov 22 14:51:23 2017 +0100 ; improving xcontaminations ; https://github.com/lindenb/jvarkit/commit/9cb1d093c18fd6f644be5905fb7d7f1cc496a8fc
-Tue Nov 21 20:52:32 2017 +0100 ; improving xcontamination, jexl for genotypes ; https://github.com/lindenb/jvarkit/commit/56c1304b97e85167cf78dfa0cf9737c1bf1f8287
-Tue Nov 21 17:55:52 2017 +0100 ; working on xcontaminations... ; https://github.com/lindenb/jvarkit/commit/0519fdc041212457ffcdb427b28c477227c38a9e
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Thu May 11 10:59:12 2017 +0200 ; samcolortag ; https://github.com/lindenb/jvarkit/commit/dfd3239dc49af52966e2259bf0a5f52dd34aac8e
-Wed May 3 17:57:20 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/db456cbf0b6586ea60a4fe8ea05a5af7457d5d6e
-Mon Jun 8 17:24:41 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f9a941d604f378ff40a32666c8381cb2450c7cfa
-Thu Apr 23 11:26:16 2015 +0200 ; checking cross-contaminations for @AdrienLeger2. #tweet ; https://github.com/lindenb/jvarkit/commit/2ed4a8a1fc72c8b593753d6546c4ee4ef83ed012
-Wed Apr 22 12:21:29 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/dc65752a1d0c364957940847f8901d32106f21c7
-Thu Apr 16 15:26:07 2015 +0200 ; xcontaminations ; https://github.com/lindenb/jvarkit/commit/74e7091af278340e187548f945be51e73256f2ac
-```
-
-</details>
 
 ## Contribute
 

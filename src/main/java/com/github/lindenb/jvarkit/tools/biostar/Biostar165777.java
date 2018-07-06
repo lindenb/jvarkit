@@ -45,7 +45,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.util.CloserUtil;
 
@@ -80,7 +79,10 @@ END_DOC
  
  */
 
-@Program(name="biostar165777",description="Split a XML file",terms=Term.ID_0000015)
+@Program(name="biostar165777",
+	description="Split a XML file",
+	keywords= {"xml"}
+	)
 public class Biostar165777 extends Launcher
 	{
 
@@ -105,7 +107,6 @@ public class Biostar165777 extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-	
 		if(this.outputFile==null)
 			{
 			LOG.error("output file must be defined.");
@@ -133,9 +134,9 @@ public class Biostar165777 extends Launcher
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			for(int i=0;i< this.count;++i)
 				{
-				File xmlout =new File(this.outputFile.getParentFile(),this.outputFile.getName().
+				final File xmlout =new File(this.outputFile.getParentFile(),this.outputFile.getName().
 						replaceAll(SPLIT_TOKEN, String.format("%03d", (i+1))));
-				FileOutputStream fos = new FileOutputStream(xmlout);
+				final FileOutputStream fos = new FileOutputStream(xmlout);
 				fwriters.add(fos);
 				writers.add(xof.createXMLEventWriter(fos,"UTF-8"));
 				}
@@ -185,7 +186,8 @@ public class Biostar165777 extends Launcher
 						if(!evt.asCharacters().getData().trim().isEmpty())
 							{
 							break;
-							}
+							}		
+
 						r.nextEvent();
 						}
 					continue;
@@ -194,31 +196,28 @@ public class Biostar165777 extends Launcher
 					{
 					evt = xef.createStartDocument("UTF-8", "1.0");
 					}
-				for(XMLEventWriter w:writers) w.add(evt);
+				for(final XMLEventWriter w:writers) w.add(evt);
 				}
 			r.close();
-			for(XMLEventWriter w: writers)
+			for(final XMLEventWriter w: writers)
 				{
 				w.flush();
 				CloserUtil.close(w);
 				}
-			for(FileOutputStream w:fwriters)
+			for(final FileOutputStream w:fwriters)
 				{	
 				CloserUtil.close(w);
 				}
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally {
-			
-			}
-		
 		}
-	public static void main(String[] args) {
+	
+	public static void main(final String[] args) {
 		new Biostar165777().instanceMainWithExit(args);
-	}
+		}
 	}

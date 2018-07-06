@@ -25,6 +25,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SubSequence;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.RevCompCharSequence;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -66,12 +67,14 @@ public class VcfJaspar extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names="-J",description=" jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt",required=true)
+	@Parameter(names="-J",description=" jaspar PFM uri. required. example: http://jaspar2016.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt",required=true)
 	private String jasparUri=null;
 	@Parameter(names="-f",description="(0<ratio<1) fraction of best score")
 	private double fraction_of_max=0.95;
 	@Parameter(names={"-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File fasta = null;
+	@Parameter(names={"-T","--tag"},description="VCF tag")
+	private String ATT = "JASPAR";
 
 	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -82,18 +85,17 @@ public class VcfJaspar extends Launcher
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
-		
-		final String ATT="JASPAR";
+	protected int doVcfToVcf(final String inputName,final VcfIterator in,final VariantContextWriter out) {
 		GenomicSequence genomicSequence=null;
 		final VCFHeader header=new VCFHeader(in.getHeader());
 		addMetaData(header);
 
-		header.addMetaDataLine(new VCFInfoHeaderLine(ATT,
+		header.addMetaDataLine(new VCFInfoHeaderLine(this.ATT,
 				VCFHeaderLineCount.UNBOUNDED,
 				VCFHeaderLineType.String, 
 				"Jaspar pattern overlapping: Format: (Name|length|Score/1000|pos|strand)"
 				));
+		JVarkitVersion.getInstance().addMetaData(getProgramName(), header);
 		out.writeHeader(header);
 		while(in.hasNext())
 			{
@@ -112,9 +114,8 @@ public class VcfJaspar extends Launcher
 					int start0=Math.max(0, var.getStart() - matrix.length());
 					for(int y=start0;y<var.getStart() && y+matrix.length() <= genomicSequence.length();++y)
 						{
-						
-						CharSequence forward=new SubSequence(genomicSequence,y,y+matrix.length());
-						CharSequence revcomp=new RevCompCharSequence(forward);
+						final CharSequence forward=new SubSequence(genomicSequence,y,y+matrix.length());
+						final CharSequence revcomp=new RevCompCharSequence(forward);
 						
 						//run each strand
 						for(int strand=0;strand<2;++strand)
@@ -154,7 +155,7 @@ public class VcfJaspar extends Launcher
 		return RETURN_OK;
 		}
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		if(this.jasparUri==null)
 			{
@@ -170,11 +171,11 @@ public class VcfJaspar extends Launcher
 		try
 			{
 			LOG.info("Reading JASPAR: "+jasparUri);
-			LineIterator liter = IOUtils.openURIForLineIterator(this.jasparUri);
-			Iterator<Matrix> miter=Matrix.iterator(liter);
+			final LineIterator liter = IOUtils.openURIForLineIterator(this.jasparUri);
+			final Iterator<Matrix> miter=Matrix.iterator(liter);
 			while(miter.hasNext())
 				{
-				Matrix matrix = miter.next();
+				final Matrix matrix = miter.next();
 				this.jasparDb.add(matrix.convertToPWM());
 				}
 			CloserUtil.close(liter);

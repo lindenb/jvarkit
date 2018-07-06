@@ -63,19 +63,14 @@ import htsjdk.samtools.SamReader;
 BEGIN_DOC
 
 
-
-
 ### Read names
 
 Reads' name should start with the following signature:
 
 
-
-
 ### XML
 
 the XML should look like this:
-
 
 ```
 
@@ -108,11 +103,7 @@ the XML should look like this:
 
 ```
 
-
-
-
 ### Example
-
 
 
 ```
@@ -140,9 +131,6 @@ HS2000-1259_127:1:1210:15640:52255  163 ref 7   30  8M4I4M1D3M  =   37  39  TTAG
 HS2000-1259_128:2:1210:15640:52255  0   ref 9   30  1S2I6M1P1I1P1I4M2I  *   0   0AAAAGATAAGGGATAAA  *   RG:Z:x2
 
 ```
-
-
-
 
 END_DOC
 */
