@@ -47,7 +47,12 @@ import htsjdk.samtools.util.StringUtil;
 /**
 BEGIN_DOC
 
+## Input
+
+tab delimited file. 2 columns: CHROM and POS
+
 ## Example
+
 ```bash
 echo -e "chr22\t41258261\nchr22\t52000000\nchr22\t0" |\
 	java   dist/biostar81455.jar 
@@ -77,7 +82,7 @@ END_DOC
 @Program(name="biostar81455",
 	biostars=81455,
 	keywords={"bed","gene","knownGene","ucsc"},
-	description="Defining precisely the genomic context based on a position ."
+	description="Defining precisely the exonic genomic context based on a position ."
 	)
 public class Biostar81455 extends Launcher
 	{
@@ -88,7 +93,6 @@ public class Biostar81455 extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-1"},description="The coordinate are one-based. The default is zero based.")
 	private  boolean one_based=false;
-
 	@Parameter(names={"-KG","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
 	private String kgUri = KnownGene.getDefaultUri();
 	
@@ -118,7 +122,7 @@ public class Biostar81455 extends Launcher
 		
     	try
 			{
-    		if(this.kgUri==null || this.kgUri.trim().isEmpty())
+    		if(StringUtil.isBlank(this.kgUri))
     			{
     			LOG.error("undefined kguri");
     			return -1;
@@ -147,7 +151,7 @@ public class Biostar81455 extends Launcher
 					continue;
 					}
 				boolean found=false;
-				String tokens[]=tab.split(line);
+				final String tokens[]=tab.split(line);
 				final int pos0=Integer.parseInt(tokens[1]) - (this.one_based?1:0);
 				final String convertCtg = contigNameConverter.apply(tokens[0]);
 				final IntervalTree<List<KnownGene>> kgs;
@@ -236,7 +240,7 @@ public class Biostar81455 extends Launcher
     		}
 		}
 	
-	public static void main(String[] args)throws Exception
+	public static void main(final String[] args)throws Exception
 		{
 		new Biostar81455().instanceMainWithExit(args);
 		}

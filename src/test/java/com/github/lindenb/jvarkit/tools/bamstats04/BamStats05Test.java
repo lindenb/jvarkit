@@ -50,6 +50,6 @@ public void test1(final String inBam) throws IOException {
 		"--bed",bedout.getPath(),
 		inBam
 		}),0);
-	assertIsNotEmpty(out);
+	assertTsvTableIsConsitent(out, null);
 	}
 }

@@ -72,6 +72,10 @@ BEGIN_DOC
 
   * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
 
+## History
+
+  * 20180710 : added header, added multiple values for min_cov
+
 ## Example
 
 ```
@@ -102,9 +106,8 @@ public class BamStats05 extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-
-	@Parameter(names={"-m","--mincoverage"},description="min coverage to say the position is not covered")
-	private int MIN_COVERAGE = 0 ;
+	@Parameter(names={"-m","--mincoverage"},description="Coverage treshold. Any depth under this value will be considered as 'not-covered'.  Default: 0")
+	private List<Integer> min_coverages = new ArrayList<>() ;
 
 	@Parameter(names={"-B","--bed"},description="bed file (columns: chrom start end GENE)",required=true)
 	private File BEDILE = null;
@@ -175,7 +178,6 @@ public class BamStats05 extends Launcher
 			final String filename,
 			final SamReader IN) throws Exception
 		{
-		
 		try
 			{
 			LOG.info("Scanning "+filename);
@@ -184,6 +186,9 @@ public class BamStats05 extends Launcher
 			if(rgs==null || rgs.isEmpty())
 				throw new IOException("No read groups in "+filename);
 			final Set<String> groupNames = this.groupBy.getPartitions(rgs);
+			
+			
+			
 			
 			for(final String partition : groupNames)
 				{
@@ -261,27 +266,37 @@ public class BamStats05 extends Launcher
 						}/* end interval */
 						
 						
-						Collections.sort(counts);
+					Collections.sort(counts);
 						
-						int count_no_coverage=0;
-						double mean=0;
-						for(int cov:counts)
-							{
-							if(cov<=MIN_COVERAGE) ++count_no_coverage;
-							mean+=cov;
-							}
-						mean/=counts.size();
 						
-					pw.println(
+						
+					pw.print(
 							gene2interval.get(gene).get(0).getContig()+"\t"+
 							geneStart+"\t"+geneEnd+"\t"+gene+"\t"+partition+"\t"+
 							counts.size()+"\t"+
 							counts.get(0)+"\t"+
-							counts.get(counts.size()-1)+"\t"+
-							mean+"\t"+
-							count_no_coverage+"\t"+
-							(int)(((counts.size()-count_no_coverage)/(double)counts.size())*100.0)
+							counts.get(counts.size()-1)
 							);
+					
+					for(final int mc:this.min_coverages)
+						{
+						int count_no_coverage=0;
+						double mean=0;
+						for(int cov:counts)
+							{
+							if(cov<=mc) ++count_no_coverage;
+							mean+=cov;
+							}
+						mean/=counts.size();
+						
+						pw.print("\t"+
+								mean+"\t"+
+								count_no_coverage+"\t"+
+								(int)(((counts.size()-count_no_coverage)/(double)counts.size())*100.0)
+								);
+						}
+					
+					pw.println();
 					}//end gene
 				}//end sample
 		return RETURN_OK;
@@ -304,14 +319,33 @@ public class BamStats05 extends Launcher
 			LOG.error( "missing bed file");
 			return -1;
 			}
+		if(this.min_coverages.isEmpty()) min_coverages.add(0);
+
 		SamReader in=null;
 		BufferedReader r=null;
 		PrintWriter pw=null;
 		try
 			{
-			Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
+			final Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
 			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			pw.println("#chrom\tstart\tend\tgene\tsample\tlength\tmincov\tmaxcov\tavg\tnocoverage.bp\tpercentcovered");
+			//print header
+			pw.print(
+					"#chrom\t"+
+					"gene.Start"+"\t"+"gene.End"+"\t"+"gene.Name"+"\t"+groupBy.name()+"\t"+
+					"length"+"\t"+
+					"min.cov"+"\t"+
+					"max.cov");
+			
+			for(final int mc:this.min_coverages)
+				{
+				pw.print("\t"+
+						"mean.GT_"+mc+"\t"+
+						"no_coverage.GT_"+mc+"\t"+
+						"percent_covered.GT_"+mc
+						);
+				}		
+			pw.println();
+			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			final Set<String> files = new  HashSet<>();
 			if(args.isEmpty())
@@ -354,7 +388,7 @@ public class BamStats05 extends Launcher
 			pw=null;
 			return RETURN_OK;
 			}
-		catch (Exception e) {
+		catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 			}
@@ -367,7 +401,7 @@ public class BamStats05 extends Launcher
 		}
 
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new BamStats05().instanceMainWithExit(args);
 		}

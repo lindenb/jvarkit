@@ -31,8 +31,9 @@ Usage: bamstats05 [options] Files
       What kind of help
       Possible Values: [usage, markdown, xml]
     -m, --mincoverage
-      min coverage to say the position is not covered
-      Default: 0
+      Coverage treshold. Any depth under this value will be considered as 
+      'not-covered'.  Default: 0
+      Default: []
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -122,6 +123,10 @@ The current reference is:
 ## Cited In:
 
   * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
+
+## History
+
+  * 20180710 : added header, added multiple values for min_cov
 
 ## Example
 

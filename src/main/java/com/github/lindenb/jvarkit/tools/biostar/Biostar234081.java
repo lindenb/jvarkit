@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -90,7 +90,13 @@ public class Biostar234081 extends Launcher
 		while(iter.hasNext())
 			{
 			final SAMRecord rec = iter.next();
-			if(!rec.getReadUnmappedFlag() && rec.getCigar()!=null)
+			if(!rec.getReadUnmappedFlag() &&
+					rec.getCigar()!=null &&
+					rec.getCigar().getCigarElements().
+						stream().
+						map(C->C.getOperator()).
+						anyMatch(OP->(OP.equals(CigarOperator.EQ) || OP.equals(CigarOperator.X)))
+						)
 				{
 				final Cigar cigar = rec.getCigar();
 				final List<CigarElement> elements = new ArrayList<>(cigar.numCigarElements());

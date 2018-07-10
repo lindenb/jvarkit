@@ -432,7 +432,7 @@ public class PubmedMap
 		build("us","san-francisco"),
 		build("us","san francisco"),
 		build("us","california"),
-		build("us","boston"),build("us","Atlanta"),build("us","Chicago"),build("us","Seattle"),build("us","Texas"),
+		build("us","boston"),build("us","Atlanta"),build("us","Chicago"),build("us","Seattle"),build("us","Texas"),build("us","Baltimore"),build("us","New York"),build("us","Florida"),
 		build("fr","cedex"),
 		build("kr","Korea")
 		};
