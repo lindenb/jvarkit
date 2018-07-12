@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Defining precisely the genomic context based on a position .
+Defining precisely the exonic genomic context based on a position .
 
 
 ## Usage
@@ -112,7 +112,12 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Input
+
+tab delimited file. 2 columns: CHROM and POS
+
 ## Example
+
 ```bash
 echo -e "chr22\t41258261\nchr22\t52000000\nchr22\t0" |\
 	java   dist/biostar81455.jar 

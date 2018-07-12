@@ -216,7 +216,7 @@ public class VcfCadd extends Launcher
 			start= Math.min(start, ctx.getStart());
 			end= Math.max(end, ctx.getEnd());
 			}
-		LOG.info("Scanning "+contigVcf+":"+start+"-"+end);
+		//LOG.info("Scanning "+contigVcf+":"+start+"-"+end);
 		final Map<ContigPosRef,List<Record>> caddMap = new HashMap<>(buffer.size());
 		
 		

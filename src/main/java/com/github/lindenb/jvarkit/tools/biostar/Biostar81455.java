@@ -139,7 +139,8 @@ public class Biostar81455 extends Launcher
 			CloserUtil.close(r);
 			}
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.kgMap);
-    	try
+		contigNameConverter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
+		try
     		{
     		r = super.openBufferedReader(oneFileOrNull(args));
 			out = openFileOrStdoutAsPrintStream(this.outputFile);
@@ -154,6 +155,11 @@ public class Biostar81455 extends Launcher
 				final String tokens[]=tab.split(line);
 				final int pos0=Integer.parseInt(tokens[1]) - (this.one_based?1:0);
 				final String convertCtg = contigNameConverter.apply(tokens[0]);
+				if(convertCtg==null) {
+					LOG.error("CANNOT FIND contig "+tokens[0]);
+					out.println("##UNKNOWN CONTIG "+line);
+					continue;
+					}
 				final IntervalTree<List<KnownGene>> kgs;
 			    if(StringUtil.isBlank(convertCtg))
 			    	{
