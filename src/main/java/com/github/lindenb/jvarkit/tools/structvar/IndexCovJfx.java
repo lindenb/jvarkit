@@ -41,8 +41,8 @@ import java.util.stream.IntStream;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
-import com.github.lindenb.jvarkit.util.Hershey;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.hershey.JfxHershey;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -139,7 +139,7 @@ public class IndexCovJfx extends JfxLauncher {
 	private ListView<Sample> sampleListView = null;
 	private final Map<String,Color> contig2color = new HashMap<>();
 	private final int CHUNK_WIDTH=100;
-	private final Hershey hershey = new Hershey();
+	private final JfxHershey hershey = new JfxHershey();
 	private static final float DEFAULT_deletionTreshold = 0.6f;// not 0.4 !
 	private static final float DEFAULT_duplicationTreshold = 1.9f;
 	private Spinner<Double> deletionSpinner; 

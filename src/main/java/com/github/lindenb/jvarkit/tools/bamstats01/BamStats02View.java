@@ -67,7 +67,7 @@ import javax.swing.border.EmptyBorder;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.treepack.TreePack;
 import com.github.lindenb.jvarkit.tools.treepack.TreePacker;
-import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;

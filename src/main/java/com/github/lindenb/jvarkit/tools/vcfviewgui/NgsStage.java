@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -59,7 +59,7 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
-import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.hershey.JfxHershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -410,7 +410,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
             		new Stop(0.5, Color.WHITE),
             		new Stop(1.0,Color.DARKSLATEBLUE)
             		);
-            final Hershey hershey = new Hershey();
+            final JfxHershey hershey = new JfxHershey();
             /* paint each chrom */
             for(int i=0;i< this.dict.size();++i)
             	{

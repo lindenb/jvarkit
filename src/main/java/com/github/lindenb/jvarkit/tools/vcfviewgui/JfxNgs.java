@@ -82,7 +82,7 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantDepthChartFactor
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantQualChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.Hershey;
+import com.github.lindenb.jvarkit.util.hershey.JfxHershey;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
