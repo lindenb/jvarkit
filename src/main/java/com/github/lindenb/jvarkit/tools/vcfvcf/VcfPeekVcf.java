@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.vcfvcf;
 
@@ -42,6 +39,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -50,6 +48,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -68,8 +67,7 @@ BEGIN_DOC
 
 ## Alternate tools
 
-you can also use GATK or VCFtools. But this one contains some interesting options.
-
+you can also use `GATK VariantAnnotator` or `bcftools`. But this tool contains some interesting options.
 
 ## Example
 
@@ -98,6 +96,7 @@ grep NCBI135_
 ## History
 
 2017-06-08: more intelligent for AlleleCount.A and AlleleCount.R
+2018-07-13: ignore spanning deletions, (for @SolenaSLS)
 
 END_DOC
 
@@ -128,8 +127,12 @@ public class VcfPeekVcf extends Launcher
 	
 	@Parameter(names={"-i","--replaceid"},description="Replace the ID field if it exists")
 	private boolean peekId = false;
+	
 	@Parameter(names={"-missingIsError","--missingIsError"},description="Missing Info Header is an error")
 	private boolean missingIdIsError = false;
+	
+	@Parameter(names={"-span","--span"},description="[20180713] when checking for the '--alt' option, ignore spanning deletion: "+Allele.SPAN_DEL_STRING)
+	private boolean ignoreSpanningDel = false;
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -152,6 +155,11 @@ public class VcfPeekVcf extends Launcher
 	@Override
 	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
 		return new PostponedVariantContextWriter(writingVcfArgs,stdout(),outorNull);
+		}
+	
+	private boolean isIgnorableSpanDel(final Allele A)
+		{
+		return this.ignoreSpanningDel && A.equals(Allele.SPAN_DEL);
 		}
 	
 	/** public for knime */
@@ -222,6 +230,8 @@ public class VcfPeekVcf extends Launcher
 				h2.addMetaDataLine(hinfo);;
 				}
 			
+			JVarkitVersion.getInstance().addMetaData(this, h2);
+			
 			out.writeHeader(h2);
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h).logger(LOG);
 			while(vcfIn.hasNext())
@@ -247,24 +257,37 @@ public class VcfPeekVcf extends Launcher
 					if(ctx.getStart()!=ctx2.getStart()) continue;
 					if(!ctx.getReference().equals(ctx2.getReference())) continue;
 					
-					final boolean okAllele;
+					boolean okAllele;
 					
-					switch(altAlleleMatcher)
+					switch(this.altAlleleMatcher)
 						{
 						case all:
 							{
-							okAllele = 	ctx.getAlternateAlleles().
-									stream().
-									filter(A->ctx2.hasAlternateAllele(A)
-									).count() == ctx.getAlternateAlleles().size();
+							okAllele = true; 
+							for(final Allele A: ctx.getAlternateAlleles())
+								{
+								if(isIgnorableSpanDel(A)) continue;
+								if(!ctx2.hasAlternateAllele(A))
+									{
+									okAllele=false;
+									break;
+									}
+								}
 							break;
 							}
 						case at_least_one: 
 							{
-							okAllele = 	ctx.getAlternateAlleles().
-									stream().
-									filter(A->ctx2.hasAlternateAllele(A)
-									).findAny().isPresent();
+							okAllele = false;
+							
+							for(final Allele A: ctx.getAlternateAlleles())
+								{
+								if(isIgnorableSpanDel(A)) continue;
+								if(ctx2.hasAlternateAllele(A))
+									{
+									okAllele=true;
+									break;
+									}
+								}
 							break;
 							}
 						case none: okAllele=true;break;
@@ -294,7 +317,7 @@ public class VcfPeekVcf extends Launcher
 									{
 									final Allele ctxalt = ctx.getAlternateAllele(i);
 									int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
-									if(index2==-1 || index2>=ctx2att.size())
+									if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
 										{
 										newatt.add(null);
 										}
@@ -303,7 +326,7 @@ public class VcfPeekVcf extends Launcher
 										newatt.add(ctx2att.get(index2));
 										}
 									}
-								if(newatt.stream().filter(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))).count()>0)
+								if(newatt.stream().anyMatch(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))))
 									{
 									vcb.attribute(this.peekTagPrefix+key, newatt);
 									somethingWasChanged=true;
@@ -318,7 +341,7 @@ public class VcfPeekVcf extends Launcher
 									{
 									final Allele ctxalt = ctx.getAlleles().get(i);
 									int index2 = ctx2.getAlleleIndex(ctxalt);
-									if(index2==-1 || index2>=ctx2att.size())
+									if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
 										{
 										newatt.add(null);
 										}
@@ -327,7 +350,7 @@ public class VcfPeekVcf extends Launcher
 										newatt.add(ctx2att.get(index2));
 										}
 									}
-								if(newatt.stream().filter(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))).count()>0)
+								if(newatt.stream().anyMatch(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))))
 									{
 									vcb.attribute(this.peekTagPrefix+key, newatt);
 									somethingWasChanged=true;
@@ -372,10 +395,9 @@ public class VcfPeekVcf extends Launcher
 		this.indexedVcfFileReader = null;
 		try
 			{
-			
 			this.peek_info_tags.addAll(this.tagsAsString.stream().
 					flatMap(S->Arrays.stream(S.split("[, \n]+"))).
-					filter(S->!S.isEmpty()).
+					filter(S->!StringUtil.isBlank(S)).
 					collect(Collectors.toSet())
 					);
 			
@@ -386,7 +408,7 @@ public class VcfPeekVcf extends Launcher
 				}
 			this.indexedVcfFileReader = new VCFFileReader(resourceVcfFile,true);
 
-			return doVcfToVcf(args, outputFile);
+			return doVcfToVcf(args, this.outputFile);
 			} 
 		catch(final Exception err)
 			{
@@ -402,7 +424,7 @@ public class VcfPeekVcf extends Launcher
 		}
 	
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new VcfPeekVcf().instanceMainWithExit(args);
 		}

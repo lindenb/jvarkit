@@ -35,6 +35,10 @@ Usage: vcfpeekvcf [options] Files
       Default: false
   * -f, --tabix, --resource
       The VCF file indexed with TABIX or tribble. Source of the annotations
+    -span, --span
+      [20180713] when checking for the '--alt' option, ignore spanning 
+      deletion: *
+      Default: false
     -t, --tags
       tag1,tag2,tag... the INFO keys to peek from the indexed file
       Default: []
@@ -127,8 +131,7 @@ The current reference is:
 
 ## Alternate tools
 
-you can also use GATK or VCFtools. But this one contains some interesting options.
-
+you can also use `GATK VariantAnnotator` or `bcftools`. But this tool contains some interesting options.
 
 ## Example
 
@@ -157,5 +160,6 @@ grep NCBI135_
 ## History
 
 2017-06-08: more intelligent for AlleleCount.A and AlleleCount.R
+2018-07-13: ignore spanning deletions, (for @SolenaSLS)
 
 
