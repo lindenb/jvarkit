@@ -16,6 +16,11 @@ Usage: vcffilterjdk [options] Files
       Default: false
     -e, --expression
        (js expression). Optional.
+    -xf, --extra-filters
+      [20180716] extra FILTERs names that will be added in the VCF header and 
+      that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- 
+      . Multiple separated by space/comma
+      Default: <empty string>
     -F, --filter
       If not empty, variants won't be discarded and this name will be used in 
       the FILTER column
@@ -30,10 +35,19 @@ Usage: vcffilterjdk [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -rc, --recalc
+      [20180716] recalc attributes like INFO/AF, INFO/AC, INFO/AN... if the 
+      number of genotypes has been altered. Recal is not applied if there is 
+      no genotype.
+      Default: false
     --saveCodeInDir
       Save the generated java code in the following directory
     -f, --script
        (js file). Optional.
+    -vn, --variable
+      [20180716] how to name the VariantContext in the code. htsjdk/gatk often 
+      use 'vc'.
+      Default: variant
     --version
       print version and exit
 
@@ -65,6 +79,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/310155](https://www.biostars.org/p/310155)
  * [https://www.biostars.org/p/317388](https://www.biostars.org/p/317388)
  * [https://www.biostars.org/p/319148](https://www.biostars.org/p/319148)
+ * [https://www.biostars.org/p/327035](https://www.biostars.org/p/327035)
 
 
 ## Compilation

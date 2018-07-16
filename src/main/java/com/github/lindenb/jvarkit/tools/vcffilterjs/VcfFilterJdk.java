@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -50,9 +51,11 @@ import javax.xml.bind.annotation.XmlType;
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
+import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
@@ -67,8 +70,11 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -389,7 +395,7 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,304979,310155,317388,319148},
+		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,304979,310155,317388,319148,327035},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk
@@ -436,6 +442,19 @@ public class VcfFilterJdk
 			@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
 			private File saveCodeInDir=null;
 			
+			@XmlElement(name="variable")
+			@Parameter(names={"-vn","--variable"},description="[20180716] how to name the VariantContext in the code. htsjdk/gatk often use 'vc'.")
+			private String variantVariable="variant";
+			
+			@XmlElement(name="recalc")
+			@Parameter(names={"-rc","--recalc"},description="[20180716] recalc attributes like INFO/AF, INFO/AC, INFO/AN... if the number of genotypes has been altered. Recal is not applied if there is no genotype.")
+			private boolean recalcAttributes = false;
+			
+			@XmlElement(name="extra-filters")
+			@Parameter(names={"-xf","--extra-filters"},description="[20180716] extra FILTERs names that will be added in the VCF header and that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- . Multiple separated by space/comma")
+			private String extraFilters = "";
+
+			
 			@XmlTransient
 			private String code = null;
 			@XmlTransient
@@ -448,6 +467,7 @@ public class VcfFilterJdk
 					);
 
 				private AbstractFilter filter_instance;
+				private VariantAttributesRecalculator recalculator = null;
 				
 				CtxWriter(final VariantContextWriter delegate) {
 					super(delegate);
@@ -455,17 +475,52 @@ public class VcfFilterJdk
 				@Override
 				public void writeHeader(final VCFHeader header) {
 					final VCFHeader h2 = new VCFHeader(header);
+					
+					if(recalcAttributes && header.hasGenotypingData())
+						{
+						this.recalculator = new VariantAttributesRecalculator();
+						this.recalculator.setHeader(h2);
+						}
+					else
+						{
+						this.recalculator = null;
+						}
+					
 					if(this.filterHeaderLine!=null)
 						{
 						h2.addMetaDataLine(this.filterHeaderLine);
 						}
+					// add genotype filter key if missing
+					if(h2.getFormatHeaderLine(VCFConstants.GENOTYPE_FILTER_KEY)==null)
+						{
+						h2.addMetaDataLine(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY, true));
+						}
+					
+					for(final String xf: Arrays.stream(extraFilters.split("[ ,;]+")).
+							filter(S->!StringUtil.isBlank(S)).
+							collect(Collectors.toSet())
+							)
+						{
+						h2.addMetaDataLine(new VCFFilterHeaderLine(xf,"Custom FILTER inserted with "+VcfFilterJdk.class.getSimpleName()));
+						}
+					
 					try {
 						this.filter_instance = (AbstractFilter)CtxWriterFactory.this.constructor.newInstance(header);
 						}
 					catch(final Throwable err) {
 						throw new RuntimeException(err);
 						}
+					
+					
 					super.writeHeader(h2);
+					}
+				
+				/** recalculate INFO/AF, INFO/AN ... variables and 'add' */ 
+				private void recalcAndAdd(final VariantContext ctx) {
+					super.add(this.recalculator !=null ?
+						this.recalculator.apply(ctx):
+						ctx
+						);
 					}
 				
 				@Override
@@ -492,12 +547,12 @@ public class VcfFilterJdk
 							{
 							if(item==null) throw new JvarkitException.UserError("item in array is null");
 							if(!(item instanceof VariantContext)) throw new JvarkitException.UserError("item in array is not a VariantContext "+item.getClass());
-							super.add(VariantContext.class.cast(item));
+							this.recalcAndAdd(VariantContext.class.cast(item));
 							}
 						}
 					// result is a VariantContext
 					else if(result!=null && (result instanceof VariantContext)) {
-						super.add(VariantContext.class.cast(result));
+						this.recalcAndAdd(VariantContext.class.cast(result));
 						}
 					else
 						{
@@ -525,7 +580,7 @@ public class VcfFilterJdk
 								{
 								final VariantContextBuilder vcb = new VariantContextBuilder(variation);
 								vcb.filter(this.filterHeaderLine.getID());
-								super.add(vcb.make());
+								this.recalcAndAdd(vcb.make());
 								}
 							return;
 							}
@@ -533,10 +588,10 @@ public class VcfFilterJdk
 						// set PASS filter if needed
 						if(this.filterHeaderLine!=null && !variation.isFiltered())
 							{
-							super.add( new VariantContextBuilder(variation).passFilters().make());
+							this.recalcAndAdd( new VariantContextBuilder(variation).passFilters().make());
 							return;
 							}
-						super.add(variation);
+						this.recalcAndAdd(variation);
 						}
 					}
 				@Override
@@ -545,6 +600,10 @@ public class VcfFilterJdk
 					super.close();
 					}
 				}
+			
+			private String getVariantVariableName() {
+				return StringUtil.isBlank(this.variantVariable)?"variant":this.variantVariable;
+			}
 			
 			@Override
 			public int initialize() {
@@ -599,7 +658,7 @@ public class VcfFilterJdk
 					else
 						{
 						pw.println("  @Override");
-						pw.println("  public Object apply(final VariantContext variant) {");
+						pw.println("  public Object apply(final VariantContext "+getVariantVariableName()+") {");
 						pw.println("   /** user's code starts here */");
 						pw.println(code);
 						pw.println(    "/** user's code ends here */");
@@ -709,8 +768,9 @@ public class VcfFilterJdk
 			)
 		{	
 		final CtxWriterFactory.CtxWriter out = this.component.open(delegate);
-		
-		out.writeHeader(iter.getHeader());
+		final VCFHeader header = iter.getHeader();
+		JVarkitVersion.getInstance().addMetaData(this, header);
+		out.writeHeader(header);
 		
 		out.filter_instance.userData.put("first.variant", Boolean.TRUE);
 		out.filter_instance.userData.put("last.variant", Boolean.FALSE);
@@ -754,7 +814,7 @@ public class VcfFilterJdk
 			}
 		}
 	
-	public static void main(String[] args) throws Exception
+	public static void main(final String[] args) throws Exception
 		{
 		new VcfFilterJdk().instanceMainWithExit(args);
 		}

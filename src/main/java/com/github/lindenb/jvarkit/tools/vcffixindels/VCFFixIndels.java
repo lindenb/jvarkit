@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.vcffixindels;
 
@@ -38,12 +35,14 @@ import java.util.Map;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -59,23 +58,14 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 BEGIN_DOC
 
 
-
-
 ### See also
-
 
  *  https://github.com/lindenb/jvarkit/wiki/VCFFixIndels
  *  "Unified Representation of Genetic Variants" http://bioinformatics.oxfordjournals.org/content/early/2015/02/19/bioinformatics.btv112.abstract (hey ! it was published after I wrote this tool !)
  *  https://github.com/quinlan-lab/vcftidy/blob/master/vcftidy.py
  *  http://www.cureffi.org/2014/04/24/converting-genetic-variants-to-their-minimal-representation/
 
-
-
-
-
 ### Example
-
-
 
 ```
 $ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/input_callsets/si/ALL.wgs.samtools_pass_filter.20130502.snps_indels.low_coverage.sites.vcf.gz" |\
@@ -103,19 +93,20 @@ $ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/
 
 END_DOC
 */
-
-
 @Program(
 	name="vcffixindels",
 	description="Fix samtools indels (for @SolenaLS)",
-	keywords={"vcf","indel"}
-		)
+	keywords={"vcf","indel"},
+	deprecatedMsg="use `bcftools norm`"
+	)
 public class VCFFixIndels extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFFixIndels.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names={"-t","--tag"},description="INFO/tag")
+	private String tag = "INDELFIXED";
 
 	public VCFFixIndels()
 		{
@@ -123,32 +114,34 @@ public class VCFFixIndels extends Launcher
 	
 	
 	@Override
-	protected int doVcfToVcf(String inputName,
-			VcfIterator r, VariantContextWriter w)
+	protected int doVcfToVcf(
+			final String inputName,
+			final VcfIterator r,
+			final VariantContextWriter w
+			)
 		{
 		long nChanged=0L;
-		final String TAG="INDELFIXED";
 		final VCFHeader header=r.getHeader();
 		
 		final VCFHeader h2=new VCFHeader(header);
 		addMetaData(h2);
-		h2.addMetaDataLine(new VCFInfoHeaderLine(TAG,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS (position|alleles...)"));
-
+		h2.addMetaDataLine(new VCFInfoHeaderLine(this.tag,1,VCFHeaderLineType.String,"Fix Indels for @SolenaLS (position|alleles...)"));
+		JVarkitVersion.getInstance().addMetaData(this, h2);
 		w.writeHeader(h2);
 		final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 		
 		while(r.hasNext())
 			{
 			boolean somethingChanged=false;
-			VariantContext ctx=progress.watch(r.next());
+			final VariantContext ctx=progress.watch(r.next());
 			/* map old allele to new allele */
-			Map<Allele, Allele> original2modified=new HashMap<Allele, Allele>();
+			final Map<Allele, Allele> original2modified=new HashMap<Allele, Allele>();
 			/* did we found a strange allele (symbolic, etc ) */
 			boolean strange_allele_flag=false;
 			for(final Allele a:ctx.getAlleles())
 				{
 				original2modified.put(a, a);
-				if(a.isSymbolic() || a.isNoCall())
+				if(a.isSymbolic() || a.isNoCall() || a.equals(Allele.SPAN_DEL))
 					{
 					strange_allele_flag=true;
 					break;
@@ -217,7 +210,7 @@ public class VCFFixIndels extends Launcher
 						{
 						done=false;
 						somethingChanged=true;
-						for(Allele k:keys)
+						for(final Allele k:keys)
 							{
 							Allele newAllele = original2modified.get(k);
 							String baseString = newAllele.getBaseString().trim().toUpperCase();
@@ -250,10 +243,10 @@ public class VCFFixIndels extends Launcher
 			
 			final VariantContextBuilder b=new VariantContextBuilder(ctx);
 			b.start(chromStart);
-			Allele newRef=original2modified.get(ctx.getReference());
+			final Allele newRef=original2modified.get(ctx.getReference());
 			b.stop(chromStart+newRef.getBaseString().length()-1);
 			b.alleles(original2modified.values());
-			List<Genotype> genotypes=new ArrayList<>();
+			final List<Genotype> genotypes=new ArrayList<>();
 			for(final String sample:header.getSampleNamesInOrder())
 				{
 				final Genotype g = ctx.getGenotype(sample);
@@ -272,16 +265,14 @@ public class VCFFixIndels extends Launcher
 				genotypes.add(gb.make());
 				}
 			
-			StringBuilder tagContent=new StringBuilder();
+			final StringBuilder tagContent=new StringBuilder();
 			tagContent.append(String.valueOf(ctx.getStart()));
-			for(Allele a:ctx.getAlleles())
+			for(final Allele a:ctx.getAlleles())
 				{
 				tagContent.append("|");
 				tagContent.append(a.toString());
 				}
-			
-			
-			b.attribute(TAG,tagContent.toString());
+			b.attribute(this.tag,tagContent.toString());
 			b.genotypes(genotypes);
 			
 			w.add( b.make());
@@ -296,6 +287,10 @@ public class VCFFixIndels extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(StringUtil.isBlank(this.tag)) {
+			LOG.error("empty INFO/tag");
+			return -1;
+		}
 		try {
 			return doVcfToVcf(args,outputFile);
 			} 
@@ -306,7 +301,7 @@ public class VCFFixIndels extends Launcher
 		}
 	
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new VCFFixIndels().instanceMainWithExit(args);
 		}

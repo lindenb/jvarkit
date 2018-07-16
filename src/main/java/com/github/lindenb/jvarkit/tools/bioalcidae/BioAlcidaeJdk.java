@@ -582,7 +582,8 @@ END_DOC
 	description="java-based version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","jdk"},
 	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,
-			297983,299255,304780,305174,305743,308310,308554,309013,311363,298361,324900},
+			297983,299255,304780,305174,305743,308310,308554,309013,311363,
+			298361,324900,326294,326765},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidaeJdk

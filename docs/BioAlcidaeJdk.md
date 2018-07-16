@@ -74,6 +74,8 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/311363](https://www.biostars.org/p/311363)
  * [https://www.biostars.org/p/298361](https://www.biostars.org/p/298361)
  * [https://www.biostars.org/p/324900](https://www.biostars.org/p/324900)
+ * [https://www.biostars.org/p/326294](https://www.biostars.org/p/326294)
+ * [https://www.biostars.org/p/326765](https://www.biostars.org/p/326765)
 
 
 ## Compilation
