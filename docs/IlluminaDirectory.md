@@ -15,6 +15,8 @@ Usage: illuminadir [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -i, --invalid
+      [20180717]save invalid line/fastq names in this file.
     -J, -j, -json, --json
       Generate JSON output.
       Default: false
@@ -102,6 +104,7 @@ Currently only tested with HiSeq data.
 
 ### History
 
+* 20180717: supports bcl2fq2
 * 20171128: supports double indexing.
 
 ### Examples

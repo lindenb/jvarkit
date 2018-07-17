@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,72 +27,218 @@ package com.github.lindenb.jvarkit.util.illumina;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.zip.GZIPInputStream;
 
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.StringUtil;
 
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
 
 /** FastQName */
-public class FastQName
+public abstract class FastQName
 	implements Comparable<FastQName>
 	{
+	
 	private static final String SUFFIX=".fastq.gz";
-	private File file;
-	private boolean is_valid=false;
-	private String seqIndex="";
-	private int lane;
-	private Side side=Side.None;
-	private String sample=null;
-	private int split=-1;
-	private boolean undetermined=false;
-	private Long nReads=null;
+	private static final int NO_LANE=-1;
+	private static final int NO_SPLIT=-1;
 	
 	public enum Side {
 		None,//first in list
 		Forward,Reverse
 		}
-	
-	private FastQName()
+	protected Long nReads=null;
+	protected FastQName()
 		{
 		}
 	
-	public boolean isUndetermined()
-		{
+	public abstract File getFile();
+	public abstract boolean isUndetermined();
+	public abstract String getSample();
+	public boolean hasLane() { return getLane()!=NO_LANE;}
+	public abstract int getLane();
+	public boolean hasSplit() { return getSplit()!=NO_SPLIT;}
+	public abstract int getSplit();
+	public abstract Side getSide();
+	public boolean hasSeqIndex() {
+		return !StringUtil.isBlank(getSeqIndex());
+	}
+	public abstract String getSeqIndex();
+	public abstract boolean isValid();
+	
+	
+
+	
+	private static class FastqNameBcl2Fastq2 extends FastQName {
+		private File file;
+		private int sample_index_in_samplesheet = -1;
+		private int split = NO_SPLIT;
+		private Side side = Side.None;
+		private String sample;
+		@Override
+		public File getFile() {
+			return file;
+		}
+
+		@Override
+		public boolean isUndetermined() {
+			return getSample().equals("Undetermined") ||
+					sample_index_in_samplesheet == 0;
+		}
+
+		@Override
+		public String getSample() {
+			return sample;
+		}
+
+		@Override
+		public int getLane() {
+			return NO_LANE;
+		}
+
+		@Override
+		public int getSplit() {
+			return this.split;
+		}
+
+		@Override
+		public Side getSide() {
+			return side;
+		}
+
+		@Override
+		public String getSeqIndex() {
+			return null;
+		}
+
+		@Override
+		public boolean isValid() {
+			return true;
+			}
+		
+		}
+	
+	/** parse as the new version of illumina bcl2fastq2 .eg: Pool2_S2_R2_001.fastq.gz*/
+	public static Optional<FastQName> parseAsBcl2fastq2(final File file) {
+		String fname = file.getName();
+		if(!fname.endsWith(SUFFIX)) return Optional.empty();
+		fname = fname.substring(0,fname.length()-SUFFIX.length());
+		final String tokens[]=fname.split("[_]");
+		if(tokens.length<4) return Optional.empty();
+		
+		final FastqNameBcl2Fastq2 fq = new FastqNameBcl2Fastq2();
+		fq.file = file;
+		/* parse 'split' */
+		int column = tokens.length-1;
+		try {
+			fq.split = Integer.parseInt(tokens[column]);
+		} catch(final NumberFormatException err) {
+			return Optional.empty();
+		}
+		if(fq.split<0) return Optional.empty();
+		/* parse 'side' */
+		column--;
+		if(tokens[column].equals("R1"))
+			{
+			fq.side = Side.Forward;
+			}
+		else if(tokens[column].equals("R2"))
+			{
+			fq.side = Side.Reverse;
+			}
+		else
+			{
+			return Optional.empty();
+			}
+		/* parse 'sample_index' */
+		column--;
+		if(!tokens[column].startsWith("S"))
+			{
+			return Optional.empty();
+			}
+		try {
+			fq.sample_index_in_samplesheet = Integer.parseInt(tokens[column].substring(1));
+		} catch(final NumberFormatException err) {
+			return Optional.empty();
+		}
+		if(fq.sample_index_in_samplesheet<0) //0==undetermined
+			{
+			return Optional.empty();
+			}
+		
+		fq.sample = String.join("_", Arrays.asList(tokens).subList(0, column));
+		
+		return Optional.of(fq);
+	}
+	
+	private static class FastqNameImpl extends FastQName {
+		protected File file;
+		protected boolean is_valid=false;
+		protected String seqIndex="";
+		protected int lane = NO_LANE;
+		protected Side side=Side.None;
+		protected String sample=null;
+		protected int split=NO_SPLIT;
+		protected boolean undetermined=false;
+	
+		
+		@Override
+		public boolean isValid()
+			{
+			return is_valid;
+			}
+		
+		@Override
+		public File getFile() {
+		return file;
+		}
+		
+		@Override
+		public boolean isUndetermined() {
 		return undetermined;
 		}
-	
-	public String getSample() {
-		return sample;
+		
+		@Override
+		public String getSample() {
+			return sample;
+			}
+		
+		@Override
+		public int getLane() {
+			return lane;
+			}
+		
+		@Override
+		public int getSplit()
+			{
+			return split;
+			}
+		
+		@Override
+		public Side getSide()
+			{
+			return side;
+			}
+		
+		@Override
+		public String getSeqIndex()
+			{
+			return seqIndex;
+			}
+		
 		}
 	
-	public int getLane() {
-		return lane;
-		}
-	
-	public int getSplit()
-		{
-		return split;
-		}
-	
-	public Side getSide()
-		{
-		return side;
-		}
-	
-	public String getSeqIndex()
-		{
-		return seqIndex;
-		}
-	
-	
-	
-	public static FastQName parse(File f)
+	public static FastQName parse(final File f)
 		{
 		
-		FastQName fq=new FastQName();
+		final Optional<FastQName> opt = parseAsBcl2fastq2(f);
+		if(opt.isPresent()) return opt.get();
+		
+		FastqNameImpl fq=new FastqNameImpl();
 		fq.file=f;
 		
 		if(!f.getName().endsWith(SUFFIX))
@@ -187,10 +333,7 @@ public class FastQName
 		}
 	
 	
-	public File getFile()
-		{
-		return file;
-		}
+	
 	
 	
 	public long countReads() throws IOException
@@ -250,18 +393,14 @@ public class FastQName
 		}
 
 	
-	/** the record was parsed */
-	public boolean isValid()
-		{
-		return is_valid;
-		}
+
 
 	@Override
 	public String toString() {
-		return "FastQName [file=" + file + ", is_valid=" + is_valid
-				+ ", seqIndex=" + seqIndex + ", lane=" + lane + ", side="
-				+ side + ", sample=" + sample + ", split=" + split
-				+ ", undetermined=" + undetermined + "]";
+		return "FastQName [file=" + getFile() + ", is_valid=" + isValid()
+				+ ", seqIndex=" + getSeqIndex() + ", lane=" + getLane() + ", side="
+				+ getSide() + ", sample=" + getSample() + ", split=" + getSplit()
+				+ ", undetermined=" + isUndetermined() + "]";
 	}
 
 
@@ -271,14 +410,14 @@ public class FastQName
 		}
 	
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if(obj==null || !(obj instanceof FastQName)) return false;
 		if(obj==this ) return true;
 		return getFile().equals(((FastQName)obj).getFile());
 		}
 	
 	@Override
-	public int compareTo(FastQName o) {
+	public int compareTo(final FastQName o) {
 		return getFile().getPath().compareTo(o.getFile().getPath());
 		}
 	
@@ -290,13 +429,16 @@ public class FastQName
 			return false;
 			}
 		
-		if(!this.isUndetermined() && !this.getSeqIndex().equals(other.getSeqIndex()))
+		if(!this.isUndetermined() &&
+				this.hasSeqIndex() &&
+				other.hasSeqIndex() &&
+				!this.getSeqIndex().equals(other.getSeqIndex()))
 			{
 			return false;
 			}
-		if(this.getLane()!=other.getLane()) return false;
-		if(this.getSplit()!=other.getSplit()) return false;
-		if(this.getSeqIndex()!=null && !this.getSeqIndex().equals(other.getSeqIndex())  ) return false;
+		if(this.hasLane() && other.hasLane() && this.getLane()!=other.getLane()) return false;
+		if(this.hasSplit() && other.hasSplit() && this.getSplit()!=other.getSplit()) return false;
+		if(this.hasSeqIndex() && other.hasSeqIndex() &&  !this.getSeqIndex().equals(other.getSeqIndex())  ) return false;
 		if(this.getSide()==other.getSide()) return false;
 		return true;
 		}

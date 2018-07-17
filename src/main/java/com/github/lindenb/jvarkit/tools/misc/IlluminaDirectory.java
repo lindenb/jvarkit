@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -64,6 +65,7 @@ Currently only tested with HiSeq data.
 
 ### History
 
+* 20180717: supports bcl2fq2
 * 20171128: supports double indexing.
 
 ### Examples
@@ -334,11 +336,14 @@ public class IlluminaDirectory
 	private File outputFile = null;
 	@Parameter(names={"-J","-j","-json","--json"},description="Generate JSON output.")
 	private boolean JSON = false;
+	@Parameter(names={"-i","--invalid"},description="[20180717]save invalid line/fastq names in this file.")
+	private File invalidFile = null;
+
 	
 	private final Function<String, String> str2md5 = new StringToMd5();
 	
 	private int ID_GENERATOR=0;
-
+	private PrintWriter invalidWriter = null;
     
     private class Folder
     	{
@@ -354,6 +359,7 @@ public class IlluminaDirectory
 			FastQName fq=FastQName.parse(f);
 			if(!fq.isValid())
 				{
+				IlluminaDirectory.this.invalidWriter.println(f.getPath());
 				LOG.warn("invalid name:"+fq);
 				return;
 				}
@@ -478,9 +484,11 @@ public class IlluminaDirectory
 	    		out.beginObject();
 	    		out.name("id");out.value("p"+this.id);
 	    		out.name("md5pair");out.value(str2md5.apply(forward.getFile().getPath()+reverse.getFile().getPath()));
-	    		out.name("lane");out.value(""+forward.getLane());
+	    		if(forward.hasLane()) {
+	    			out.name("lane");out.value(""+forward.getLane());
+	    			}
 	    		out.name("index");
-	    		if(forward.getSeqIndex()!=null)
+	    		if(forward.hasSeqIndex())
     				{
     				out.value(forward.getSeqIndex());
     				}
@@ -488,8 +496,14 @@ public class IlluminaDirectory
     				{
     				out.nullValue();
     				}
-	    		out.name("split");out.value(""+forward.getSplit());
-	    		
+	    		out.name("split");
+	    		if(forward.hasSplit()) {
+	    			out.value(""+forward.getSplit());
+	    			}
+	    		else
+					{
+					out.nullValue();
+					}
 	    		
 	    		out.name("forward");
 	    		
@@ -517,9 +531,11 @@ public class IlluminaDirectory
     			out.beginObject();
 	    		out.name("id");out.value("p"+this.id);
 	    		out.name("md5filename");out.value(str2md5.apply(F.getFile().getPath()));
-	    		out.name("lane");out.value(""+F.getLane());
+	    		if(F.hasLane()){
+	    			out.name("lane");out.value(""+F.getLane());
+	    		}
 	    		out.name("index");
-	    		if(F.getSeqIndex()!=null)
+	    		if(F.hasSeqIndex())
     				{
     				out.value(F.getSeqIndex());
     				}
@@ -527,7 +543,14 @@ public class IlluminaDirectory
     				{
     				out.nullValue();
     				}
-	    		out.name("split");out.value(""+F.getSplit());
+	    		out.name("split");
+	    		if(F.hasSplit()) {
+	    			out.value(""+F.getSplit());
+	    			}
+	    		else
+	    			{
+	    			out.nullValue();
+	    			}
 	    		out.name("path");out.value(F.getFile().getPath());
 	    		out.name("side");out.value(F.getSide().ordinal());
 
@@ -550,9 +573,15 @@ public class IlluminaDirectory
 			w.writeStartElement("fastq");
 			w.writeAttribute("id","p"+this.id);
 			w.writeAttribute("md5",str2md5.apply(forward.getFile().getPath()+reverse.getFile().getPath()));
-			w.writeAttribute("lane", String.valueOf(forward.getLane()));
-			if(forward.getSeqIndex()!=null) w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
-			w.writeAttribute("split", String.valueOf(forward.getSplit()));
+			if(forward.hasLane()) {
+				w.writeAttribute("lane", String.valueOf(forward.getLane()));
+			}
+			if(forward.hasSeqIndex()) {
+				w.writeAttribute("index", String.valueOf(forward.getSeqIndex()));
+			}
+			if(forward.hasSplit()) {
+				w.writeAttribute("split", String.valueOf(forward.getSplit()));
+				}
 			w.writeAttribute("group-id", getGroupId());
 			
 			if(forward!=null && reverse!=null)
@@ -577,7 +606,10 @@ public class IlluminaDirectory
     private Map<String,String> groupIdMap=new HashMap<>(); 
     private String getGroupId(final FastQName fastq)
     	{
-    	final String s= str2md5.apply( fastq.getSample()+" "+fastq.getLane()+" "+fastq.getSeqIndex());
+    	final String s= str2md5.apply( fastq.getSample()+" "+
+    			(fastq.hasLane()?fastq.getLane()+" ":"")+
+    			(fastq.hasSeqIndex()?fastq.getSeqIndex():"")
+    			);
     	String gid = this.groupIdMap.get(s);
     	if(gid==null)
     		{
@@ -593,17 +625,17 @@ public class IlluminaDirectory
 		String name;
     	final List<Pair> pairs=new ArrayList<Pair>();
     	
-    	private void add(FastQName fq)
+    	private void add(final FastQName fq)
     		{
     		for(int i=0;i< pairs.size();++i)
     			{
-    			Pair p=pairs.get(i);
+    			final Pair p=pairs.get(i);
     			if(p.complement(fq)) return;
     			}
     		pairs.add(new Pair(fq));
     		}
     	
-    	void write(XMLStreamWriter w) throws XMLStreamException
+    	void write(final XMLStreamWriter w) throws XMLStreamException
 			{
 			w.writeStartElement("sample");
 			w.writeAttribute("name",this.name);
@@ -645,6 +677,14 @@ public class IlluminaDirectory
 				final String inputName= oneFileOrNull(args);
 				in= super.openBufferedReader(inputName);
 				
+				if(this.invalidFile==null)
+					{
+					this.invalidWriter = new PrintWriter(new NullOuputStream());
+					}
+				else
+					{
+					this.invalidWriter = new PrintWriter(this.invalidFile);
+					}
 				
 				final Folder folder=new Folder();
 				String line;
@@ -653,17 +693,20 @@ public class IlluminaDirectory
 					if(line.isEmpty() || line.startsWith("#")) continue;
 					if(!line.endsWith(".fastq.gz"))
 						{
+						this.invalidWriter.println(line);
 						LOG.warn("ignoring "+line+" because it doesn't end with *.fastq.gz");
 						continue;
 						}
 					final File f=new File(line);
 					if(!f.exists())
 						{
+						this.invalidWriter.println(line);
 						LOG.error("Doesn't exist:"+f);
 						return -1;
 						}
 					if(!f.isFile())
 						{
+						this.invalidWriter.println(line);
 						LOG.error("Not a file:"+f);
 						return -1;
 						}
@@ -690,7 +733,9 @@ public class IlluminaDirectory
 	    			CloserUtil.close(w);
 		    		}
 		    	pw.flush();
+		    	this.invalidWriter.flush();
 		    	CloserUtil.close(pw);
+		    	CloserUtil.close(this.invalidWriter);
 		    	return RETURN_OK;
 				}
 			catch(final Exception err)
@@ -701,14 +746,11 @@ public class IlluminaDirectory
 			finally
 				{
 				CloserUtil.close(in);
+				CloserUtil.close(this.invalidWriter);
 				}
 			}
    
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new IlluminaDirectory().instanceMainWithExit(args);
 		}

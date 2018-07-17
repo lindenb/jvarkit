@@ -1,5 +1,7 @@
 # VCFCombineTwoSnvs
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert
 
 
@@ -17,8 +19,10 @@ Usage: vcfcombinetwosnvs [options] Files
       What kind of help
       Possible Values: [usage, markdown, xml]
   * -k, --knownGene
-      UCSC knownGene URI. Beware chromosome names are formatted the same as 
-      your REFERENCE. A typical KnownGene file is 
+      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
+      GFF/GTF because one transcript is described using only one line.	Beware 
+      chromosome names are formatted the same as your REFERENCE. A typical 
+      KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
@@ -55,11 +59,10 @@ Usage: vcfcombinetwosnvs [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -89,29 +92,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFCombineTwoSnvs.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFCombineTwoSnvs.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
-Thu May 18 18:34:07 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/89cb7d10eaeef051af30f1043698546f555cbcd8
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
-Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
-Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
-Tue May 31 18:35:56 2016 +0200 ; fix interval maps ; https://github.com/lindenb/jvarkit/commit/f6afe341076b9da7c63c33b64c96d15d6cc7b596
-Thu Mar 3 16:37:41 2016 +0100 ; matilde compte les nocall comme homref ; https://github.com/lindenb/jvarkit/commit/a1f328bfccff81e8f4736827d9755a79cf6e2829
-Fri Feb 19 17:36:28 2016 +0100 ; .github dir , filter in js , grantham score ; https://github.com/lindenb/jvarkit/commit/94d74481e3e488aeb890235cee47c595229cf18b
-Fri Feb 19 09:41:06 2016 +0100 ; added option -Filter to vcffilterjs ; https://github.com/lindenb/jvarkit/commit/0c40527a6f551d0685612994659df3151a3c2388
-Fri Feb 19 09:23:31 2016 +0100 ; version trois snp ; https://github.com/lindenb/jvarkit/commit/1834f8eb5898ed20a0849adf5603ea0ff9fb2daa
-Wed Feb 17 17:27:36 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/53a4e2e4fec16449c2bb1b3061a0d47abf695807
-Tue Feb 16 16:19:18 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/4453c9806caa4284eb3183d38b2aa35705bbe7c7
-Mon Feb 15 16:29:54 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/1d908a20a451136a2888d1b58e8efc44914510f3
-```
-
-</details>
 
 ## Contribute
 
