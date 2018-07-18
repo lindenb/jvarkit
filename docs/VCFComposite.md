@@ -10,6 +10,10 @@
 ```
 Usage: vcfcomposite [options] Files
   Options:
+    --filter
+      [20180718] set FILTER for the variants that are not part of a composite 
+      mutation. 
+      Default: NOT_COMPOSITE
     -gf, --genotype-filter
       A Java EXpression Language (JEXL) expressions to filter a genotye in a 
       VCF. Empty string will accept all genotypes. Expression returning a TRUE 
@@ -21,6 +25,11 @@ Usage: vcfcomposite [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -max, --max, --max-variants
+      [20180718] Max variants per gene. If different than -1, used to set a 
+      maximum number of variants per gene; The idea is to filter out the gene 
+      having a large number of variants.
+      Default: -1
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 

@@ -89,7 +89,6 @@ END_DOC
 )
 public class VCFComposite extends Launcher {
 	private static final String INFO_TAG="COMPOSITE";
-	private static final String FILTER_TAG="NOT_COMPOSITE";
 	private static final Logger LOG= Logger.build(VCFComposite.class).make();
 	@Parameter(names={"-p","-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
 	private File pedigreeFile=null;
@@ -99,6 +98,13 @@ public class VCFComposite extends Launcher {
 	private Predicate<VariantContext> variantJexl = JexlVariantPredicate.create("");
 	@Parameter(names={"-gf","--genotype-filter"},description=JexlGenotypePredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
 	private BiPredicate<VariantContext,Genotype> genotypeFilter = JexlGenotypePredicate.create("");
+	@Parameter(names={"-max","--max","--max-variants"},description="[20180718] Max variants per gene. If different than -1, used to set a maximum number of variants per gene; The idea is to filter out the gene having a large number of variants.")
+	private int max_number_of_variant_per_gene = -1;
+	@Parameter(names={"--filter"},description="[20180718] set FILTER for the variants that are not part of a composite mutation.")
+	private String filterTag = "NOT_COMPOSITE";
+
+	
+	
 	//@Parameter(names={"-m","--model"},description="Model type",required=true)
 	//private Type modelType=null;
 	//@Parameter(names={"-models"},description="List the available models and exits",help=true)
@@ -156,7 +162,7 @@ public class VCFComposite extends Launcher {
 		String source;
 		GeneIdentifier() {
 			}
-		GeneIdentifier(String geneName,String source) {
+		GeneIdentifier(final String geneName,final String source) {
 			this.geneName = geneName;
 			this.source = source;
 			}
@@ -177,6 +183,10 @@ public class VCFComposite extends Launcher {
 			if(i!=0) return i;
 			i = this.source.compareTo(o.source);
 			return i;
+			}
+		@Override
+		public String toString() {
+			return geneName+"("+source+") on "+contig;
 			}
 		}
 
@@ -331,6 +341,14 @@ public class VCFComposite extends Launcher {
 			if(variants.size()<2) {
 				return;
 				}
+			// test if this gene is a big pool of variant, false positive. e.g: highly variables genes.
+			if(max_number_of_variant_per_gene>=0) {
+				if(variants.size()< max_number_of_variant_per_gene) {
+					LOG.warn("Too many variants "+variants.size()+" for "+geneKey);
+					return;
+				}
+			}
+			
 			/* loop over affected */
 			for(final Pedigree.Person child: pedigree.getAffected()) {
 				for(int x=0;x+1< variants.size();++x)
@@ -463,7 +481,7 @@ public class VCFComposite extends Launcher {
 			return -1;
 			}
 		header.addMetaDataLine(new VCFInfoHeaderLine(INFO_TAG, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Variant of VCFComposite"));
-		header.addMetaDataLine(new VCFFilterHeaderLine(FILTER_TAG, "Not a Variant fir VCFComposite"));
+		header.addMetaDataLine(new VCFFilterHeaderLine(this.filterTag, "Not a Variant fir VCFComposite"));
 		final SAMSequenceDictionary dict = header.getSequenceDictionary();
 		final Comparator<String> contigCmp;
 		if(dict==null || dict.isEmpty())
@@ -500,6 +518,7 @@ public class VCFComposite extends Launcher {
 
 		try
 			{
+			LOG.info("reading variants and genes");
 			/* Gene and variant sorter */
 			sorting = SortingCollection.newInstance(GeneAndVariant.class,
 					new GeneAndVariantCodec(),
@@ -509,7 +528,8 @@ public class VCFComposite extends Launcher {
 					);
 			sorting.setDestructiveIteration(true);
 			/* Variant sorter */
-			outputSorter = SortingCollection.newInstance(VariantLine.class,
+			outputSorter = SortingCollection.newInstance(
+					VariantLine.class,
 					new VariantLineCodec(),
 					variantLineComparator,
 					this.writingSortingCollection.getMaxRecordsInRam(),
@@ -586,7 +606,8 @@ public class VCFComposite extends Launcher {
 					}
 				}
 			sorting.doneAdding();
-
+			
+			LOG.info("compile per gene");
 			//compile data
 			CloseableIterator<GeneAndVariant> iter2=sorting.iterator();
 			EqualRangeIterator<GeneAndVariant> eqiter= new EqualRangeIterator<>(iter2,(A,B)->A.gene.compareTo(B.gene));
@@ -607,7 +628,7 @@ public class VCFComposite extends Launcher {
 			//
 			
 			
-			
+			LOG.info("write variants");
 			CloseableIterator<VariantLine> iter1 = outputSorter.iterator();
 			EqualRangeIterator<VariantLine > eqiter1 = new EqualRangeIterator<>(iter1,variantLineComparator);
 			out.writeHeader(header);
@@ -623,7 +644,7 @@ public class VCFComposite extends Launcher {
 					}
 				if(set.isEmpty())
 					{
-					vcb.filter(FILTER_TAG);
+					vcb.filter(this.filterTag);
 					}
 				else
 					{
@@ -653,6 +674,11 @@ public class VCFComposite extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(StringUtil.isBlank(this.filterTag)) 
+			{
+			LOG.error("bad name for FILTER");
+			return -1;
+			}
 		try {
 			/*
 			if(this.listModels)
