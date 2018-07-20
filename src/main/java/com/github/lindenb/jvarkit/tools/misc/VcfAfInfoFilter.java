@@ -170,12 +170,12 @@ public class VcfAfInfoFilter extends Launcher{
 				return false;
 				}
 			if(hdr.getType()!=VCFHeaderLineType.Integer) {
-				final String msg = "INFO=<ID=" +this.acAttr+"> extected Type=Integer but got "+hdr.getType();
+				final String msg = "INFO=<ID=" +this.acAttr+"> expected Type=Integer but got "+hdr.getType();
 				LOG.warn(msg);
 				return false;
 				}
 			if(hdr.getCountType()!=VCFHeaderLineCount.A) {
-				final String msg = "INFO=<ID=" +this.acAttr+"> extected Number=A but got "+hdr.getCountType();
+				final String msg = "INFO=<ID=" +this.acAttr+"> expected Number=A but got "+hdr.getCountType();
 				LOG.warn(msg);
 				return false;
 				}
@@ -186,12 +186,20 @@ public class VcfAfInfoFilter extends Launcher{
 				return false;
 				}
 			if(hdr.getType()!=VCFHeaderLineType.Integer) {
-				final String msg = "INFO=<ID=" +this.anAttr+"> extected Type=Integer but got "+hdr.getType();
+				final String msg = "INFO=<ID=" +this.anAttr+"> expected Type=Integer but got "+hdr.getType();
 				LOG.warn(msg);
 				return false;
 				}
+			
+			if(!hdr.isFixedCount())
+				{
+				final String msg = "INFO=<ID=" +this.anAttr+"> expected fixed count "+hdr.getCountType();
+				LOG.warn(msg);
+				return false;
+				}
+			
 			if(hdr.getCount()!=1) {
-				final String msg = "INFO=<ID=" +this.anAttr+"> extected Number=1 but got "+hdr.getCount();
+				final String msg = "INFO=<ID=" +this.anAttr+"> expected Number=1 but got "+hdr.getCount();
 				LOG.warn(msg);
 				return false;
 				}

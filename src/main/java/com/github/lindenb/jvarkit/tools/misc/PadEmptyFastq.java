@@ -110,7 +110,7 @@ public class PadEmptyFastq extends Launcher
 					}
 				if(fillN==null)
 					{
-					StringBuilder b1=new StringBuilder();
+					final StringBuilder b1=new StringBuilder();
 					while(b1.length()< padLength) b1.append("N");
 					fillN=b1.toString();
 					fillQ=fillN.replace('N', '#');
@@ -160,7 +160,7 @@ public class PadEmptyFastq extends Launcher
 				for(final String filename:args)
 					{
 					LOG.info("Reading from "+filename);
-					FastqReader fqr=new FourLinesFastqReader(new File(filename));
+					final FastqReader fqr=new FourLinesFastqReader(new File(filename));
 					copyTo(fqr,fqw);
 					fqr.close();
 					}
