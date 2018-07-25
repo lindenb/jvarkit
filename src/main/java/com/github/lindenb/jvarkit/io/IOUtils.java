@@ -34,7 +34,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.FilterOutputStream;
@@ -64,6 +63,7 @@ import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.Defaults;
+import htsjdk.samtools.SAMException;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
@@ -617,5 +617,20 @@ public class IOUtils {
 			if(w!=null) w.close();
 			}
 		}
-	
+	/** create tmp directory into existing another directory */
+	 public static File createTempDir(final String prefix, final String suffix,final File parentDir) {
+	     IOUtil.assertDirectoryIsWritable(parentDir);   
+		 try {
+	            final File tmp = File.createTempFile(prefix, suffix,parentDir);
+	            if (!tmp.delete()) {
+	                throw new SAMException("Could not delete temporary file " + tmp);
+	            }
+	            if (!tmp.mkdir()) {
+	                throw new SAMException("Could not create temporary directory " + tmp);
+	            }
+	            return tmp;
+	        } catch (final IOException e) {
+	            throw new RuntimeIOException("Exception creating temporary directory in "+parentDir, e);
+	        }
+	    }
 	}
