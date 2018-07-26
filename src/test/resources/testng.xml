@@ -12,6 +12,7 @@
             <package name="com.github.lindenb.jvarkit.lang"/>
             <package name="com.github.lindenb.jvarkit.tools.bamstats04"/>
             <package name="com.github.lindenb.jvarkit.tools.bam2xml"/>
+            <package name="com.github.lindenb.jvarkit.tools.bam2svg"/>
             <package name="com.github.lindenb.jvarkit.tools.bam2graphics"/>
             <package name="com.github.lindenb.jvarkit.tools.bamindexnames"/>
             <package name="com.github.lindenb.jvarkit.tools.bioalcidae"/>

@@ -10,6 +10,9 @@ SVG visualization of bam DEPTH for multiple regions
 ```
 Usage: wescnvsvg [options] Files
   Options:
+    -cap, --cap
+      Cap coverage to this value. Negative=don't set any limit
+      Default: -1
   * -B, --bed, -b, --capture
       BED Capture. Regions to be observed.
     -h, --help
@@ -17,6 +20,9 @@ Usage: wescnvsvg [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -norm, --normalize
+      Normalize coverage using global maximum depth as factor.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --ref
@@ -84,6 +90,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/WesCnvSvg.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/WesCnvSvg.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2svg/WesCnvSvgTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2svg/WesCnvSvgTest.java)
+
 
 ## Contribute
 
@@ -116,5 +126,12 @@ input is a set of bam file or a file with the '*.list' suffix containing the pat
 $ find dir -name "*.bam"  > bam.list
 $ java -jar dist/wescnvsvg.jar -R ref.fasta -B cnv.bed bam.list > cnv.svg 
 ```
+
+## Screenshots
+
+https://twitter.com/yokofakun/status/1022503372669300738 : 
+
+![ScreenShot](https://pbs.twimg.com/media/DjCpKcYXgAAq4fw.jpg:large)
+
 
 

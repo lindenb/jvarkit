@@ -36,6 +36,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.DoubleUnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
@@ -87,6 +88,13 @@ $ find dir -name "*.bam"  > bam.list
 $ java -jar dist/wescnvsvg.jar -R ref.fasta -B cnv.bed bam.list > cnv.svg 
 ```
 
+## Screenshots
+
+https://twitter.com/yokofakun/status/1022503372669300738 : 
+
+![ScreenShot](https://pbs.twimg.com/media/DjCpKcYXgAAq4fw.jpg:large)
+
+
 END_DOC
  */
 @Program(name="wescnvsvg",
@@ -106,6 +114,10 @@ public class WesCnvSvg  extends Launcher {
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-smooth","--smooth"},description="Smoothing DEPTH window size. Negative=don't smooth")
 	private int smoothSize = 100 ;
+	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
+	private int capMaxDepth = -1 ;
+	@Parameter(names={"-norm","--normalize"},description="Normalize coverage using global maximum depth as factor.")
+	private boolean do_normalize_depth=false;
 
 
 	
@@ -116,6 +128,7 @@ public class WesCnvSvg  extends Launcher {
 		File bamFile;
 		SamReader samReader=null;
 		String sample;
+		@SuppressWarnings("unused")
 		double minDepth=0;
 		double maxDepth=0;
 		@Override
@@ -167,7 +180,7 @@ public class WesCnvSvg  extends Launcher {
 		}
 		
 		String getName() {
-			return this.getContig()+":"+format(this.getStart())+"-"+format(this.getEnd());
+			return this.getContig()+":"+niceIntFormat.format(this.getStart())+"-"+niceIntFormat.format(this.getEnd());
 			}
 		}
 	
@@ -180,6 +193,10 @@ public class WesCnvSvg  extends Launcher {
 	private double globalMaxDepth = 0.0;
 	private int countBasesToBeDisplayed = 0;
 
+	private final DoubleUnaryOperator capDepthValue = (v)->
+		 this.capMaxDepth<1 ?v:Math.min(this.capMaxDepth, v);
+		 
+	
 	/** convert double to string */
 	private String format(double v)
 		{
@@ -316,18 +333,44 @@ public class WesCnvSvg  extends Launcher {
 					
 					}
 				}
+			
+			if(this.do_normalize_depth) {
+				final double another_max_depth = 
+						 this.intervals.stream().
+						 flatMap(CI->CI.sampleInfos.stream()).
+						 flatMapToDouble(SI->DoubleStream.of(SI.coverage)).
+						 max().orElse(1.0);
+				 this.intervals.stream().flatMap(CI->CI.sampleInfos.stream()).forEach(SI->{
+					 final double max_in_si = DoubleStream.of(SI.coverage).max().orElse(0);
+					 if(max_in_si<=0) return;
+					 for(int x=0;x< SI.coverage.length;++x)
+					 	{
+						SI.coverage[x]=(SI.coverage[x]/max_in_si)*another_max_depth;
+					 	}
+					 
+				 });
+				
+				}
+			
 			// compute min/max depth for each sample
 			for(final BamInput bi:this.bamInputs)
 				{
 				bi.minDepth = this.intervals.stream().flatMapToDouble(CI->
 						DoubleStream.of(CI.sampleInfos.get(bi.index).coverage)
-						).min().orElse(0);
+						).
+					map(capDepthValue).
+					min().orElse(0);
 				bi.maxDepth = this.intervals.stream().flatMapToDouble(CI->
 					DoubleStream.of(CI.sampleInfos.get(bi.index).coverage)
-					).max().orElse(1);
+					).
+					map(capDepthValue).
+					max().orElse(1);
 				}
 			
-			this.globalMaxDepth = Math.max(1.0,this.bamInputs.stream().mapToDouble(B->B.maxDepth).max().orElse(0));
+			this.globalMaxDepth = Math.max(1.0,this.bamInputs.stream().
+					mapToDouble(B->B.maxDepth).
+					map(capDepthValue).
+					max().orElse(0));
 			LOG.debug("global max depth "+this.globalMaxDepth);
 			
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
@@ -403,7 +446,6 @@ public class WesCnvSvg  extends Launcher {
 				}
 			w.writeEndElement();//interval background
 			
-			
 			y+= bed_header_height;
 			
 			for(final BamInput bi:this.bamInputs)
@@ -451,8 +493,10 @@ public class WesCnvSvg  extends Launcher {
 						else
 							{
 							sum_interval[z]/=count_interval[z];
+							sum_interval[z]=capDepthValue.applyAsDouble(sum_interval[z]);
 							}
 						}
+					
 					
 					final List<Point2D.Double> points = new ArrayList<>(sum_interval.length);
 					points.add(new Point2D.Double(0,bi.getPixelHeight()));
@@ -505,8 +549,6 @@ public class WesCnvSvg  extends Launcher {
 						w.writeEndElement();//line
 						depth+=depthshift;
 						}
-					
-					
 					}
 				// name for this sample
 				w.writeStartElement("rect");
