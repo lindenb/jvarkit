@@ -39,8 +39,7 @@ END_DOC
 @Program(name="biostar251649",
 	description=" Annotating the flanking bases of SNPs in a VCF file",
 	biostars=251649,
-	keywords={"vcf","annotation","sequence","reference"},
-	terms = Term.ID_0000015
+	keywords={"vcf","annotation","sequence","reference"}
 	)
 public class Biostar251649 extends Launcher
 	{

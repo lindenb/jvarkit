@@ -82,6 +82,8 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	private static final Logger LOG = Logger.build(NgsFilesSummary.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names={"-header","--header"},description="[20180725]print header")
+	private boolean show_header= false;
 
 	private PrintWriter printWriter=null;
 	
@@ -177,7 +179,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     		in=IOUtils.openFileForReading(f);
     		
     		r=new VcfIteratorImpl(in);
-        	VCFHeader header=r.getHeader();
+        	final VCFHeader header=r.getHeader();
         	for(final String sample:header.getSampleNamesInOrder())
 	        	{
 	        	print(sample,InfoType.VCF, f);
@@ -195,12 +197,12 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     	
 		}
 
-    private void scan(BufferedReader in) throws IOException
+    private void scan(final BufferedReader in) throws IOException
     	{
     	String line;
     	while((line=in.readLine())!=null)
     			{
-    			if(line.isEmpty() || line.startsWith("#")) continue;
+    			if(StringUtil.isBlank(line) || line.startsWith("#")) continue;
     			analyze(new File(line));
     			}
     	}
@@ -211,6 +213,20 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 		try
 			{
 			this.printWriter = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			if(show_header)
+				{
+				this.printWriter.print("#SAMPLE");
+				this.printWriter.print('\t');
+				this.printWriter.print("TYPE");
+				this.printWriter.print('\t');
+				this.printWriter.print("FILE");
+				this.printWriter.print('\t');
+				this.printWriter.print("FILE_SIZE");
+				this.printWriter.print('\t');
+				this.printWriter.print("DATE");
+				this.printWriter.println();
+				}
+			
 			if(args.isEmpty())
 				{
 				scan(new BufferedReader(new InputStreamReader(stdin())));
