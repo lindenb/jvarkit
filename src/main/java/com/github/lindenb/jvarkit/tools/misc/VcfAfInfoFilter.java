@@ -190,6 +190,7 @@ public class VcfAfInfoFilter extends Launcher{
 				LOG.warn(msg);
 				return false;
 				}
+			
 			if(hdr.getCount()!=1) {
 				final String msg = "INFO=<ID=" +this.anAttr+"> extected Number=1 but got "+hdr.getCount();
 				LOG.warn(msg);
