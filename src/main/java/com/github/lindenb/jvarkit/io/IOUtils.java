@@ -51,6 +51,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -71,6 +72,7 @@ import htsjdk.samtools.util.BlockCompressedStreamConstants;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 
 public class IOUtils {
 	/*
@@ -517,6 +519,36 @@ public class IOUtils {
 			}
 		return vcfFiles;
 		}
+	
+    /** 
+     * new version of unrollFiles in 2018, for common usage...
+     * only one list
+     * duplicate file are removed
+     * return List of Files
+     */
+	public static List<File> unrollFiles2018(final java.util.List<String> args)
+		{
+		if(args.isEmpty()) return Collections.emptyList();
+		final LinkedHashSet<File> fileset = new LinkedHashSet<>();
+		if(args.size()==1 && args.get(0).endsWith(".list"))
+			{
+			final File listFile = new File(args.get(0));
+			IOUtil.assertFileIsReadable(listFile);
+			IOUtil.readLines(listFile).forEach(s->{
+				if (s.endsWith("#")) return;
+				if (StringUtil.isBlank(s)) return;
+				fileset.add(new File(s));
+				});
+			}
+		else
+			{
+			fileset.addAll(args.stream().
+					map(S->new File(S)).
+					collect(Collectors.toList()/* to list to keep oreder */));
+			}
+		return new ArrayList<>(fileset);
+		}
+
 	
 	/** test wether the two first bytes are gzip */
 	public static boolean isGZipCompressed(final byte[] twoBytes) {

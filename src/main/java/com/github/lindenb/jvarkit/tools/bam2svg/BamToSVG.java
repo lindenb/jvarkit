@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.bam2svg;
@@ -116,7 +113,7 @@ public class BamToSVG extends Launcher
 	private static final Logger LOG = Logger.build(BamToSVG.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
 
@@ -964,7 +961,7 @@ public class BamToSVG extends Launcher
 				this.featureHeight= Math.min(Math.max(5.0,this.featureWidth),30); 
 				this.HEIGHT_RULER=(int)(this.niceIntFormat.format(this.interval.end).length()*this.featureHeight+5);
 				LOG.info("Feature height:"+this.featureHeight);
-				XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 				if(this.outputFile==null)
 					{
 					w=xof.createXMLStreamWriter(stdout(), "UTF-8");
@@ -982,7 +979,7 @@ public class BamToSVG extends Launcher
 				
 				return RETURN_OK;
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
 				LOG.error(err);
 				return -1;
@@ -1000,9 +997,8 @@ public class BamToSVG extends Launcher
 		
 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new BamToSVG().instanceMainWithExit(args);
 		}
-
-}
+	}

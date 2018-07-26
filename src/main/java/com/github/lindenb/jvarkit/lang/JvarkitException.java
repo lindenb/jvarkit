@@ -40,6 +40,7 @@ import org.w3c.dom.Node;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
@@ -103,12 +104,42 @@ public static class BamDictionaryMissing extends DictionaryMissing
 	public static String getMessage(final String path) {
 		return "A Sequence dictionary is missing for "+(path==null?"(null)":path)+". A Bam should have a header with a set of lines starting with '@SQ' see https://samtools.github.io/hts-specs/SAMv1.pdf";
 		}
-	
+	public static SAMSequenceDictionary mustHaveDictionary(final SamReader r) {
+		final SAMFileHeader h = r.getFileHeader();
+		if(h==null) throw new JvarkitException.FileFormatError("No SAM header in "+r.getResourceDescription());
+		return mustHaveDictionary(h,r.getResourceDescription());
+		}
+	public static SAMSequenceDictionary mustHaveDictionary(final SAMFileHeader header,final String file) {
+		final SAMSequenceDictionary dict = header.getSequenceDictionary();
+		if(dict==null || dict.isEmpty()) throw new BamDictionaryMissing(file);
+		return dict;
+		}
 	public BamDictionaryMissing(final File file) {
 		this(file.getPath());
 		}
 	public BamDictionaryMissing(final String file) {
 		super(getMessage(file));
+		}
+	
+	}
+
+public static class BamHasIndex extends Error
+	{
+	public BamHasIndex(final SamReader r)
+		{
+		this(r==null?null:r.getResourceDescription());
+		}
+	public BamHasIndex(final String msg)
+		{
+		super(
+				"Expected the BAM to be indexed. "
+				+ "The bam must be sorted and indexed using `samtools index` and must have an associated bai file."+
+				msg
+				);
+		
+		}
+	public static void verify(final SamReader sr) {
+		if(!sr.hasIndex()) throw new BamHasIndex(sr.getResourceDescription());
 		}
 	}
 
