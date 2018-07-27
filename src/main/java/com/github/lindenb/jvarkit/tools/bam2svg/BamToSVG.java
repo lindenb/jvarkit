@@ -60,6 +60,7 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
@@ -117,7 +118,7 @@ public class BamToSVG extends Launcher
 	private File outputFile = null;
 
 
-	@Parameter(names={"-i","--interval"},description="interval",required=true)
+	@Parameter(names={"-i","--interval","--region"},description="interval CHROM:START-END",required=true)
 	private String intervalStr = null;
 
 	@Parameter(names={"-w","--width"},description="Page width")
@@ -879,7 +880,7 @@ public class BamToSVG extends Launcher
 		}
 		
 		@Override
-		public int doWork(List<String> args) {
+		public int doWork(final List<String> args) {
 			/* parse interval */
 			if(this.intervalStr==null)
 				{
@@ -924,9 +925,9 @@ public class BamToSVG extends Launcher
 					{
 					readVariantFile(vcf);
 					}
-				
+				final List<File> inputFiles = IOUtils.unrollFiles2018(args);
 				/* read SAM data */
-				if(args.isEmpty())
+				if(inputFiles.isEmpty())
 					{
 					LOG.info("Reading from stdin");
 					in = sfrf.open(SamInputResource.of(stdin()));
@@ -937,9 +938,8 @@ public class BamToSVG extends Launcher
 					}
 				else
 					{
-					for(String arg: args)
+					for(final File filename: inputFiles)
 						{
-						File filename=new File(arg);
 						LOG.info("Reading from "+filename);
 						in=sfrf.open(SamInputResource.of(filename));
 						if(in.hasIndex())

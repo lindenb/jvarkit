@@ -50,6 +50,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -66,6 +67,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -103,7 +105,7 @@ keywords={"bam","alignment","graphics","visualization","svg","wes","bed","captur
 )
 public class WesCnvSvg  extends Launcher {
 	private static final Logger LOG = Logger.build(WesCnvSvg.class).make();
-
+	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-B","--bed","-b","--capture"},description="BED Capture. Regions to be observed.",required=true)
@@ -112,15 +114,23 @@ public class WesCnvSvg  extends Launcher {
 	private File faidxFile = null;
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
+	@Parameter(names={"-height","--height"},description="Sample Track height")
+	private int sampleTrackHeight = 100 ;
 	@Parameter(names={"-smooth","--smooth"},description="Smoothing DEPTH window size. Negative=don't smooth")
 	private int smoothSize = 100 ;
 	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
 	private int capMaxDepth = -1 ;
-	@Parameter(names={"-norm","--normalize"},description="Normalize coverage using global maximum depth as factor.")
-	private boolean do_normalize_depth=false;
-
-
-	
+	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
+	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
+	@Parameter(names={"--title"},description="document title")
+	private String domSvgTitle=WesCnvSvg.class.getSimpleName();
+	@Parameter(names={"-u","--url","--hyperlink"},description=
+			"creates a hyperlink when 'click' in an area. "
+			+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. "
+			+ "IGV : \"http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__\" , "
+			+ "UCSC: \"http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__\" "
+			)
+	private String hyperlinkType = "none";
 	
 	private class BamInput implements Closeable
 		{
@@ -136,7 +146,7 @@ public class WesCnvSvg  extends Launcher {
 			CloserUtil.close(samReader);
 			}
 		double getPixelHeight() {
-			return 100.0;
+			return WesCnvSvg.this.sampleTrackHeight;
 		}
 		}
 	private static class SampleInfo
@@ -247,7 +257,7 @@ public class WesCnvSvg  extends Launcher {
 				{
 				if(BedLine.isBedHeader(line)) continue;
 				final BedLine bed = bedCodec.decode(line);
-				if(bed==null || bed.getStart()>=bed.getEnd()) {
+				if(bed==null || bed.getStart()>bed.getEnd()) {
 					LOG.warn("Ignoring "+line);
 					continue;
 				}
@@ -292,8 +302,9 @@ public class WesCnvSvg  extends Launcher {
 						{
 						final SAMRecord rec = iter.next();
 						if(rec.getReadUnmappedFlag()) continue;
+						if(this.samRecordFilter.filterOut(rec)) continue;
 						final Cigar cigar=rec.getCigar();
-						if(cigar==null) continue;
+						if(cigar==null || cigar.isEmpty()) continue;
 						int ref1=rec.getAlignmentStart();
 						for(final CigarElement ce:cigar) {
 							final CigarOperator op = ce.getOperator();
@@ -334,23 +345,6 @@ public class WesCnvSvg  extends Launcher {
 					}
 				}
 			
-			if(this.do_normalize_depth) {
-				final double another_max_depth = 
-						 this.intervals.stream().
-						 flatMap(CI->CI.sampleInfos.stream()).
-						 flatMapToDouble(SI->DoubleStream.of(SI.coverage)).
-						 max().orElse(1.0);
-				 this.intervals.stream().flatMap(CI->CI.sampleInfos.stream()).forEach(SI->{
-					 final double max_in_si = DoubleStream.of(SI.coverage).max().orElse(0);
-					 if(max_in_si<=0) return;
-					 for(int x=0;x< SI.coverage.length;++x)
-					 	{
-						SI.coverage[x]=(SI.coverage[x]/max_in_si)*another_max_depth;
-					 	}
-					 
-				 });
-				
-				}
 			
 			// compute min/max depth for each sample
 			for(final BamInput bi:this.bamInputs)
@@ -402,21 +396,59 @@ public class WesCnvSvg  extends Launcher {
 			w.writeDefaultNamespace(SVG.NS);
 			w.writeNamespace("xlink", XLINK.NS);
 			
-			
+			// https://stackoverflow.com/questions/15717970
 			w.writeStartElement("style");
 			w.writeCharacters(
-					"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
+					"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
 					"text.sampleLabel {stroke:none;stroke-width:0.5px;fill:blue;}" +
-					"text.captureLabel {stroke:none;stroke-width:0.5px;fill:salmon;text-anchor:middle;}" +
+					"text.captureLabel {stroke:none;stroke-width:0.5px;fill:slategrey;text-anchor:middle;}" +
 					"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:lightgray;}" +
-					"line.linedp {stroke:green;stroke-width:0.5px;}"
+					"line.linedp {stroke:darkcyan;stroke-width:0.3px;}" +
+					"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
+					"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
+					"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}"
 					);
 			w.writeEndElement();//style
 			
 			w.writeStartElement("title");
-			w.writeCharacters(getProgramName());
+			w.writeCharacters(this.domSvgTitle);
 			w.writeEndElement();
 
+			w.writeStartElement("script");
+			
+			final StringBuilder openBrowserFunction = new StringBuilder(
+					"function openGenomeBrowser(contig,chromStart,chromEnd) {\n"
+					);
+			if( hyperlinkType.contains("__CHROM__") &&
+				hyperlinkType.contains("__START__")	&&
+				hyperlinkType.contains("__END__") &&
+				!hyperlinkType.contains("\"")
+				)
+				{
+				openBrowserFunction.append("var url=\""+this.hyperlinkType+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
+				openBrowserFunction.append("window.open(url,'_blank');\n");
+
+				}
+			else
+				{
+				//nothing
+				}
+			openBrowserFunction.append("}\n");
+			
+			w.writeCData(
+				openBrowserFunction.toString() +
+				"function clicked(evt,contig,chromStart,chromEnd){\n" +
+			    "    var e = evt.target;\n" +
+			    "    var dim = e.getBoundingClientRect();\n" +
+			    "    var x = 1.0 * evt.clientX - dim.left;\n" + 
+			    "    var cLen = 1.0* (chromEnd - chromStart); if(cLen<1) cLen=1.0;\n" + 
+			    "    var pos1 = chromStart + parseInt(((x+0)/dim.width)*cLen);\n" +
+			    "    var pos2 = chromStart + parseInt(((x+1)/dim.width)*cLen);\n" +
+			    "   openGenomeBrowser(contig,pos1,pos2);\n" +
+			    "}\n");                
+			w.writeEndElement();//script
+			
+			
 			w.writeStartElement("g");
 			w.writeAttribute("class", "maing");
 			
@@ -426,10 +458,10 @@ public class WesCnvSvg  extends Launcher {
 			for(final CaptureInterval ci:this.intervals)
 				{
 				w.writeStartElement("text");
-				w.writeAttribute("class", "captureLabel");
-				w.writeAttribute("x",String.valueOf(ci.getPixelX1()+ci.getPixelWidth()/2.0));
-				w.writeAttribute("y",String.valueOf(bed_header_height-2));
-				w.writeCharacters(ci.getName());
+					w.writeAttribute("class", "captureLabel");
+					w.writeAttribute("x",String.valueOf(ci.getPixelX1()+ci.getPixelWidth()/2.0));
+					w.writeAttribute("y",String.valueOf(bed_header_height-2));
+					w.writeCharacters(ci.getName());
 				w.writeEndElement();//text
 
 				
@@ -461,12 +493,20 @@ public class WesCnvSvg  extends Launcher {
 				w.writeCharacters(bi.sample);
 				w.writeEndElement();//text
 				
+				
+				
+				
 				for(final CaptureInterval ci:this.intervals)
 					{
+					final String clickedAttribute = "clicked(evt,\""+ci.getContig()+"\","+ci.getStart()+","+ci.getEnd()+")";
 					final SampleInfo si = ci.sampleInfos.get(bi.index);
 					double x=ci.getPixelX1();
 					w.writeStartElement("g");
 					w.writeAttribute("transform","translate("+x+",0)");
+					
+					
+					
+					
 					
 					double sum_interval[]=new double[1+(int)ci.getPixelWidth()];
 					LOG.info("interval.lenghth : "+sum_interval.length);
@@ -475,20 +515,27 @@ public class WesCnvSvg  extends Launcher {
 					
 					for(int pos=ci.getStart();pos<=ci.getEnd();++pos)
 						{
-						int array_index=(int)(((pos-ci.getStart())/(double)ci.getBaseLength())*(double)ci.getPixelWidth());
+						int array_index1=(int)(((pos-ci.getStart())/(double)ci.getBaseLength())*(double)ci.getPixelWidth());
+						/* next index in array: is used to 'fill' the pixel if
+						 * one base is greater than one pixel.
+						 * avoid to have small 'peaks' for one position.
+						 */
+						int array_index2=(int)((((pos+1)-ci.getStart())/(double)ci.getBaseLength())*(double)ci.getPixelWidth());
 						//LOG.info("pos="+pos+"->"+array_index+"/"+sum_interval.length+" "+ci.getName()+" "+ci.getPixelWidth());
-						if(array_index>=sum_interval.length )  throw new IllegalStateException("boum "+array_index);
+						if(array_index1>=sum_interval.length )  throw new IllegalStateException("boum "+array_index1);
 						
-						
-						sum_interval[array_index]+=si.coverage[pos-ci.getStart()];
-						count_interval[array_index]++;
+						while(array_index1 < array_index2 && array_index1<sum_interval.length) {
+							sum_interval[array_index1]+=si.coverage[pos-ci.getStart()];
+							count_interval[array_index1]++;
+							array_index1++;
+							}
 						}
 					for(int z=0;z< count_interval.length;++z)
 						{
 						if(count_interval[z]==0) 
 							{
 							sum_interval[z]=0;
-							LOG.info("index error  sum==0 for"+z+"/"+sum_interval.length+" "+ci.getName()+" "+ci.getPixelWidth());
+							//LOG.info("index error  sum==0 for"+z+"/"+sum_interval.length+" "+ci.getName()+" "+ci.getPixelWidth());
 							}
 						else
 							{
@@ -520,6 +567,7 @@ public class WesCnvSvg  extends Launcher {
 					points.add(new Point2D.Double(x,bi.getPixelHeight()));
 					w.writeEmptyElement("polygon");
 					w.writeAttribute("class","area");
+					//w.writeAttribute("onclick", clickedAttribute);
 					w.writeAttribute("points",
 							points.
 								stream().
@@ -536,6 +584,14 @@ public class WesCnvSvg  extends Launcher {
 					while(depth< bi.maxDepth)
 						{
 						double new_y = bi.getPixelHeight()-(depth/this.globalMaxDepth)*bi.getPixelHeight();
+						
+						w.writeStartElement("text");
+							w.writeAttribute("class", "linedp");
+							w.writeAttribute("x","1");
+							w.writeAttribute("y",String.valueOf(new_y+1));
+							w.writeCharacters(String.valueOf(depth));
+						w.writeEndElement();//text
+						
 						w.writeStartElement("line");
 							w.writeAttribute("class","linedp");
 							w.writeAttribute("stroke-dasharray","4");
@@ -549,16 +605,20 @@ public class WesCnvSvg  extends Launcher {
 						w.writeEndElement();//line
 						depth+=depthshift;
 						}
+					//click
+					w.writeStartElement("rect");
+					w.writeAttribute("class","clickRgn");
+					w.writeAttribute("onclick", clickedAttribute);
+					w.writeAttribute("x", "0");
+					w.writeAttribute("y", "0");
+					w.writeAttribute("width", String.valueOf(ci.getPixelWidth()));
+					w.writeAttribute("height", String.valueOf(bi.getPixelHeight()));
+					w.writeEndElement();
 					}
-				// name for this sample
-				w.writeStartElement("rect");
-					w.writeAttribute("x","5");
-					w.writeAttribute("y", "12");
-					w.writeCharacters(bi.sample);
-				w.writeEndElement();//rect
 				
 				//frame for this sample
 				w.writeStartElement("rect");
+					w.writeAttribute("class","sampleFrame");
 					w.writeAttribute("x","0");
 					w.writeAttribute("y", "0");
 					w.writeAttribute("width",String.valueOf(dim.width));

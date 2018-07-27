@@ -26,8 +26,8 @@ Usage: bam2svg [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-  * -i, --interval
-      interval
+  * -i, --interval, --region
+      interval CHROM:START-END
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
@@ -94,6 +94,10 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVG.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVG.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVGTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2svg/BamToSVGTest.java)
 
 
 ## Contribute

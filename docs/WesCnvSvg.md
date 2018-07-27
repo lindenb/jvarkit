@@ -15,14 +15,25 @@ Usage: wescnvsvg [options] Files
       Default: -1
   * -B, --bed, -b, --capture
       BED Capture. Regions to be observed.
+    --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: Accept All/ Filter out nothing
+    -height, --height
+      Sample Track height
+      Default: 100
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    -norm, --normalize
-      Normalize coverage using global maximum depth as factor.
-      Default: false
+    -u, --url, --hyperlink
+      creates a hyperlink when 'click' in an area. The URL must contains 
+      __CHROM__, __START__ and __END__ that will be replaced by their values. 
+      IGV : "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" 
+      , UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
+      Default: none
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --ref
@@ -31,6 +42,9 @@ Usage: wescnvsvg [options] Files
     -smooth, --smooth
       Smoothing DEPTH window size. Negative=don't smooth
       Default: 100
+    --title
+      document title
+      Default: WesCnvSvg
     --version
       print version and exit
     -w, --width
