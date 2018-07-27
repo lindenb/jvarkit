@@ -98,6 +98,10 @@ https://twitter.com/yokofakun/status/1022503372669300738 :
 
 ![ScreenShot](https://pbs.twimg.com/media/DjCpKcYXgAAq4fw.jpg:large)
 
+https://twitter.com/yokofakun/status/1022805656905150464
+
+![ScreenShot](https://pbs.twimg.com/media/DjG8Do0XsAA4U46.jpg:large)
+
 
 END_DOC
  */
@@ -563,10 +567,7 @@ public class WesCnvSvg  extends Launcher {
 					double x=ci.getPixelX1();
 					w.writeStartElement("g");
 					w.writeAttribute("transform","translate("+x+",0)");
-					
-					
-					
-					
+										
 					
 					double sum_interval[]=new double[1+(int)ci.getPixelWidth()];
 					LOG.info("interval.lenghth : "+sum_interval.length);
@@ -636,9 +637,13 @@ public class WesCnvSvg  extends Launcher {
 							);
 					//w.writeEndElement();//g
 					
-					int depthshift=10;
-					if(this.globalMaxDepth<=10) depthshift=1;
-					else if(this.globalMaxDepth>=100) depthshift=100;
+					int depthshift=1;
+					for(;;) {
+						final int numdiv =(int) (this.globalMaxDepth/depthshift);
+						if(numdiv<=10) break;
+						depthshift*=10;
+						}
+					
 					
 					int depth=depthshift;
 					while(depth< bi.maxDepth)

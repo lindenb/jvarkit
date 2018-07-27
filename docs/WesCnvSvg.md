@@ -147,5 +147,9 @@ https://twitter.com/yokofakun/status/1022503372669300738 :
 
 ![ScreenShot](https://pbs.twimg.com/media/DjCpKcYXgAAq4fw.jpg:large)
 
+https://twitter.com/yokofakun/status/1022805656905150464
+
+![ScreenShot](https://pbs.twimg.com/media/DjG8Do0XsAA4U46.jpg:large)
+
 
 
