@@ -523,6 +523,8 @@ public class WesCnvSvg  extends Launcher {
 				{
 				w.writeStartElement("text");
 					w.writeAttribute("class", "captureLabel");
+					w.writeAttribute("textLength",String.valueOf(ci.getPixelWidth()*0.8));
+					w.writeAttribute("lengthAdjust", "spacing");
 					w.writeAttribute("x",String.valueOf(ci.getPixelX1()+ci.getPixelWidth()/2.0));
 					w.writeAttribute("y",String.valueOf(bed_header_height-2));
 					w.writeCharacters(ci.getName());
@@ -550,12 +552,6 @@ public class WesCnvSvg  extends Launcher {
 				w.writeStartElement("g");
 				w.writeAttribute("transform","translate(0,"+y+")");
 				
-				w.writeStartElement("text");
-				w.writeAttribute("class", "sampleLabel");
-				w.writeAttribute("x","5");
-				w.writeAttribute("y","12");
-				w.writeCharacters(bi.sample);
-				w.writeEndElement();//text
 				
 				
 				
@@ -661,7 +657,7 @@ public class WesCnvSvg  extends Launcher {
 							w.writeAttribute("class","linedp");
 							w.writeAttribute("stroke-dasharray","4");
 							w.writeAttribute("x1", "0");
-							w.writeAttribute("x2", String.valueOf(dim.width));
+							w.writeAttribute("x2", String.valueOf(ci.getPixelWidth()));
 							w.writeAttribute("y1", String.valueOf(new_y));
 							w.writeAttribute("y2", String.valueOf(new_y));
 							w.writeStartElement("title");
@@ -675,7 +671,7 @@ public class WesCnvSvg  extends Launcher {
 						}
 					// polyline
 					w.writeEmptyElement("use");
-					w.writeAttribute("href","#z"+ci.getId());
+					w.writeAttribute("xlink",XLINK.NS,"href","#z"+ci.getId());
 					w.writeAttribute("x","0");
 					w.writeAttribute("y","0");
 
@@ -702,6 +698,17 @@ public class WesCnvSvg  extends Launcher {
 					w.writeAttribute("width",String.valueOf(dim.width));
 					w.writeAttribute("height",String.valueOf(bi.getPixelHeight()));
 				w.writeEndElement();//rect
+
+				
+				w.writeStartElement("text");
+					w.writeAttribute("class", "sampleLabel");
+					w.writeAttribute("x","5");
+					w.writeAttribute("y","12");
+					w.writeStartElement("title");
+					w.writeCharacters(bi.bamFile.getPath());
+					w.writeEndElement();
+					w.writeCharacters(bi.sample);
+				w.writeEndElement();//text
 
 				
 				w.writeEndElement();//g
