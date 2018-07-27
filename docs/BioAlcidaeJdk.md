@@ -47,7 +47,7 @@ Usage: bioalcidaejdk [options] Files
  * sam
  * bam
  * vcf
- * javascript
+ * java
  * jdk
 
 
@@ -76,6 +76,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/324900](https://www.biostars.org/p/324900)
  * [https://www.biostars.org/p/326294](https://www.biostars.org/p/326294)
  * [https://www.biostars.org/p/326765](https://www.biostars.org/p/326765)
+ * [https://www.biostars.org/p/329423](https://www.biostars.org/p/329423)
 
 
 ## Compilation
