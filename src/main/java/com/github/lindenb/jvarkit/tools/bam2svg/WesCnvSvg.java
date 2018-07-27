@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.Cigar;
@@ -64,6 +65,7 @@ import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -192,6 +194,9 @@ public class WesCnvSvg  extends Launcher {
 		String getName() {
 			return this.getContig()+":"+niceIntFormat.format(this.getStart())+"-"+niceIntFormat.format(this.getEnd());
 			}
+		String getId() {
+			return String.valueOf(this.queryInterval.referenceIndex)+"_"+this.getStart()+"_"+this.getEnd();
+			}
 		}
 	
 	private final List<CaptureInterval> intervals = new ArrayList<>();
@@ -202,6 +207,7 @@ public class WesCnvSvg  extends Launcher {
 	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private double globalMaxDepth = 0.0;
 	private int countBasesToBeDisplayed = 0;
+	private final int gc_win=100;
 
 	private final DoubleUnaryOperator capDepthValue = (v)->
 		 this.capMaxDepth<1 ?v:Math.min(this.capMaxDepth, v);
@@ -212,6 +218,23 @@ public class WesCnvSvg  extends Launcher {
 		{
 		return this.decimalFormater.format(v);
 		}
+	
+	private double getGcPercent(GenomicSequence seq,int chromStart,int chromEnd)
+		{
+		final SAMSequenceRecord ssr = seq.getSAMSequenceRecord();
+		while(chromEnd-chromStart+1< this.gc_win)
+			{
+			chromEnd++;
+			chromStart--;
+			}
+		chromStart = Math.max(chromStart,1);
+		chromEnd = Math.min(ssr.getSequenceLength(),chromEnd);
+		if(chromStart>chromEnd) return 0.0;
+		
+		final GenomicSequence.GCPercent gcpercent=seq.getGCPercent(chromStart-1, chromEnd);
+		if(gcpercent.isEmpty()) return 0.0;
+		return gcpercent.getGCPercent();
+		}	
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -406,7 +429,8 @@ public class WesCnvSvg  extends Launcher {
 					"line.linedp {stroke:darkcyan;stroke-width:0.3px;}" +
 					"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
 					"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
-					"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}"
+					"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}" +
+					"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"
 					);
 			w.writeEndElement();//style
 			
@@ -414,6 +438,42 @@ public class WesCnvSvg  extends Launcher {
 			w.writeCharacters(this.domSvgTitle);
 			w.writeEndElement();
 
+			w.writeStartElement("defs");
+			// gc percent
+			for(final CaptureInterval ci:this.intervals)
+				{
+				final GenomicSequence genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile,ci.getContig());
+				final int gc_percent_width= (int)ci.getPixelWidth();
+				final List<Point2D.Double> points= new ArrayList<>(gc_percent_width);
+				for(int x=0;x< gc_percent_width;++x)
+					{
+					int pos1= ci.getStart()+(int)(((x+0)/ci.getPixelWidth())*ci.getBaseLength());
+					int pos2= ci.getStart()+(int)(((x+1)/ci.getPixelWidth())*ci.getBaseLength());
+					double gc_percent = getGcPercent(genomicSequence,pos1,pos2);
+					double y = this.sampleTrackHeight - this.sampleTrackHeight*gc_percent;
+					
+					points.add(new Point2D.Double(x, y));
+					}
+				for(int z=0;z+1<points.size();++z) {
+					if(points.get(z).getY()==points.get(z+1).getY())
+						{
+						points.get(z).x = points.get(z+1).x;
+						points.remove(z+1);
+						}
+					}
+				w.writeStartElement("polyline");
+				w.writeAttribute("class","gc");
+				w.writeAttribute("id","z"+ci.getId());
+				w.writeAttribute("points",points.stream().map(P->format(P.getX())+","+format(P.getY())).collect(Collectors.joining(" ")));
+				w.writeStartElement("title");
+				w.writeCharacters("GC %");
+				w.writeEndElement();
+				w.writeEndElement();
+				}
+			
+			w.writeEndElement();//defs
+			
+			
 			w.writeStartElement("script");
 			
 			final StringBuilder openBrowserFunction = new StringBuilder(
@@ -574,7 +634,7 @@ public class WesCnvSvg  extends Launcher {
 								map(S->format(S.getX())+","+format(S.getY())).
 								collect(Collectors.joining(" "))
 							);
-					w.writeEndElement();//g
+					//w.writeEndElement();//g
 					
 					int depthshift=10;
 					if(this.globalMaxDepth<=10) depthshift=1;
@@ -604,7 +664,17 @@ public class WesCnvSvg  extends Launcher {
 							w.writeEndElement();
 						w.writeEndElement();//line
 						depth+=depthshift;
+						
+						
+
 						}
+					// polyline
+					w.writeEmptyElement("use");
+					w.writeAttribute("href","#z"+ci.getId());
+					w.writeAttribute("x","0");
+					w.writeAttribute("y","0");
+
+					
 					//click
 					w.writeStartElement("rect");
 					w.writeAttribute("class","clickRgn");
@@ -614,6 +684,9 @@ public class WesCnvSvg  extends Launcher {
 					w.writeAttribute("width", String.valueOf(ci.getPixelWidth()));
 					w.writeAttribute("height", String.valueOf(bi.getPixelHeight()));
 					w.writeEndElement();
+					
+					
+					w.writeEndElement();//g
 					}
 				
 				//frame for this sample
