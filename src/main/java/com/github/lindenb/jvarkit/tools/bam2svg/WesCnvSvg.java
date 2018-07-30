@@ -46,6 +46,7 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -137,6 +138,10 @@ public class WesCnvSvg  extends Launcher {
 			+ "UCSC: \"http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__\" "
 			)
 	private String hyperlinkType = "none";
+	@Parameter(names={"-p","-percentile","--percentile"},description="How to compute the percentil of a region")
+	private Percentile.Type percentile = Percentile.Type.AVERAGE;
+
+	
 	
 	private class BamInput implements Closeable
 		{
@@ -563,52 +568,28 @@ public class WesCnvSvg  extends Launcher {
 					double x=ci.getPixelX1();
 					w.writeStartElement("g");
 					w.writeAttribute("transform","translate("+x+",0)");
-										
 					
-					double sum_interval[]=new double[1+(int)ci.getPixelWidth()];
-					LOG.info("interval.lenghth : "+sum_interval.length);
-					Arrays.fill(sum_interval, 0);
-					int count_interval[]=new int[sum_interval.length];
-					
-					for(int pos=ci.getStart();pos<=ci.getEnd();++pos)
-						{
-						int array_index1=(int)(((pos-ci.getStart())/(double)ci.getBaseLength())*(double)ci.getPixelWidth());
-						/* next index in array: is used to 'fill' the pixel if
-						 * one base is greater than one pixel.
-						 * avoid to have small 'peaks' for one position.
-						 */
-						int array_index2=(int)((((pos+1)-ci.getStart())/(double)ci.getBaseLength())*(double)ci.getPixelWidth());
-						//LOG.info("pos="+pos+"->"+array_index+"/"+sum_interval.length+" "+ci.getName()+" "+ci.getPixelWidth());
-						if(array_index1>=sum_interval.length )  throw new IllegalStateException("boum "+array_index1);
-						
-						while(array_index1 < array_index2 && array_index1<sum_interval.length) {
-							sum_interval[array_index1]+=si.coverage[pos-ci.getStart()];
-							count_interval[array_index1]++;
-							array_index1++;
-							}
-						}
-					for(int z=0;z< count_interval.length;++z)
-						{
-						if(count_interval[z]==0) 
-							{
-							sum_interval[z]=0;
-							//LOG.info("index error  sum==0 for"+z+"/"+sum_interval.length+" "+ci.getName()+" "+ci.getPixelWidth());
-							}
-						else
-							{
-							sum_interval[z]/=count_interval[z];
-							sum_interval[z]=capDepthValue.applyAsDouble(sum_interval[z]);
-							}
-						}
-					
-					
-					final List<Point2D.Double> points = new ArrayList<>(sum_interval.length);
+					final int segment_width = (int)ci.getPixelWidth();
+
+					final List<Point2D.Double> points = new ArrayList<>(segment_width);
 					points.add(new Point2D.Double(0,bi.getPixelHeight()));
 
-					for(int z=0;z< sum_interval.length;++z)
+					for(int px=0;px< segment_width;px++)
 						{
-						double new_y = bi.getPixelHeight()-(sum_interval[z]/this.globalMaxDepth)*bi.getPixelHeight();
-						points.add(new Point2D.Double(z,new_y));
+						final int pos1 = ci.getStart() + (int)(((px+0)/ci.getPixelWidth())*(ci.getBaseLength()));
+						final int pos2 = ci.getStart() + (int)(((px+1)/ci.getPixelWidth())*(ci.getBaseLength()));
+						if(pos1>=pos2) continue;
+						
+						final double y_covs[]=new double[pos2-pos1];
+						Arrays.fill(y_covs, 0);
+
+						for(int n=pos1;n<pos2;++n)
+							{
+							y_covs[n-pos1]=si.coverage[n-ci.getStart()];
+							}
+						final double y_avg_cov=Percentile.of(this.percentile).evaluate(y_covs);
+						final double new_y = bi.getPixelHeight()-(y_avg_cov/this.globalMaxDepth)*bi.getPixelHeight();
+						points.add(new Point2D.Double(px,new_y));
 						}
 					points.add(new Point2D.Double(ci.getPixelWidth(),bi.getPixelHeight()));
 					

@@ -36,6 +36,10 @@ Usage: wescnvsvg [options] Files
       Default: none
     -o, --output
       Output file. Optional . Default: stdout
+    -p, -percentile, --percentile
+      How to compute the percentil of a region
+      Default: AVERAGE
+      Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
   * -R, --ref
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
