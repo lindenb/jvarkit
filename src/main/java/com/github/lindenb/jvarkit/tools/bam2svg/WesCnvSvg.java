@@ -107,6 +107,11 @@ https://twitter.com/yokofakun/status/1023953180927963137
 
 ![ScreenShot](https://pbs.twimg.com/media/DjXP8_4X0AAtSQZ.jpg)
 
+https://twitter.com/yokofakun/status/1024315948847849472
+
+![ScreenShot](https://pbs.twimg.com/media/DjcZ6vNXcAEYjEt.jpg)
+
+
 END_DOC
  */
 @Program(name="wescnvsvg",
@@ -271,7 +276,10 @@ public class WesCnvSvg  extends Launcher {
 				bi.samReader = srf.open(bamFile);
 				JvarkitException.BamHasIndex.verify(bi.samReader);
 				final SAMSequenceDictionary dict2= JvarkitException.BamDictionaryMissing.mustHaveDictionary(bi.samReader);
-				SequenceUtil.assertSequenceDictionariesEqual(this.refDict, dict2);
+				if(!SequenceUtil.areSequenceDictionariesEqual(this.refDict, dict2))
+					{
+					LOG.warn("Not the same dictionaries ! REF/BAM "+ JvarkitException.DictionariesAreNotTheSame.getMessage(this.refDict, dict2));
+					}
 				
 				bi.sample = bi.samReader.getFileHeader().getReadGroups().stream().
 					map(V->V.getSample()).
@@ -376,7 +384,21 @@ public class WesCnvSvg  extends Launcher {
 							}
 						System.arraycopy(newcov, 0, si.coverage, 0, newcov.length);
 						}
-					
+					/* debug
+						{
+						int max_index=-1;
+						for(int z=0;z < si.coverage.length;z++)
+							{
+							if(max_index==-1 || si.coverage[z]>si.coverage[max_index])
+								{
+								max_index=z;
+								}
+							}
+						System.err.println(bi.sample+" "+ci.getName()+" / "+
+								Arrays.stream(si.coverage).max().getAsDouble()+" at"+(
+										ci.getStart()+max_index)+"="+si.coverage[max_index]
+												);
+						}*/
 					}
 				}
 			
@@ -394,11 +416,12 @@ public class WesCnvSvg  extends Launcher {
 					).
 					map(capDepthValue).
 					max().orElse(1);
+				System.err.println(bi.sample+" "+bi.maxDepth);
 				}
 			
 			this.globalMaxDepth = Math.max(1.0,this.bamInputs.stream().
 					mapToDouble(B->B.maxDepth).
-					map(capDepthValue).
+					map(this.capDepthValue).
 					max().orElse(0));
 			LOG.debug("global max depth "+this.globalMaxDepth);
 			
@@ -590,7 +613,7 @@ public class WesCnvSvg  extends Launcher {
 							{
 							y_covs[n-pos1]=si.coverage[n-ci.getStart()];
 							}
-						final double y_avg_cov=Percentile.of(this.percentile).evaluate(y_covs);
+						final double y_avg_cov= this.capDepthValue.applyAsDouble(Percentile.of(this.percentile).evaluate(y_covs));
 						final double new_y = bi.getPixelHeight()-(y_avg_cov/this.globalMaxDepth)*bi.getPixelHeight();
 						points.add(new Point2D.Double(px,new_y));
 						}
