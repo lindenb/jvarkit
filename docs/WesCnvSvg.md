@@ -155,5 +155,8 @@ https://twitter.com/yokofakun/status/1022805656905150464
 
 ![ScreenShot](https://pbs.twimg.com/media/DjG8Do0XsAA4U46.jpg:large)
 
+https://twitter.com/yokofakun/status/1023953180927963137
+
+![ScreenShot](https://pbs.twimg.com/media/DjXP8_4X0AAtSQZ.jpg)
 
 
