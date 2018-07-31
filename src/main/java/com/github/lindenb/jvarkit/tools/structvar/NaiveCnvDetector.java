@@ -26,22 +26,28 @@ package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
+import org.apache.commons.math3.stat.inference.ChiSquareTest;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.tools.vcfviewgui.PedFile.Sample;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.StringUtil;
 
 
 /**
@@ -64,7 +70,7 @@ public class NaiveCnvDetector extends Launcher
 	//@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	//private File outputFile=null;
 	
-	@Parameter(names={"-c"},description="config file")
+	@Parameter(names={"-c"},description="config file. Tab delimited. Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]",required=true)
 	private File configFile=null;	
 	/** size of a window */
 	@Parameter(names={"-w"},description="window size")
@@ -83,6 +89,7 @@ public class NaiveCnvDetector extends Launcher
 		{
 		String name;
 		int index;
+		double meanDepth=0.0;
 		double adjustDepth = 1.0;
 		boolean affected=false;
 		}
@@ -155,6 +162,12 @@ public class NaiveCnvDetector extends Launcher
 		if(Arrays.stream(rec.depths).noneMatch(V->V>=min_depth)) return;
 		if(Arrays.stream(rec.depths).anyMatch(V->V>=weirdDepth)) return;
 		if(Arrays.stream(rec.depths,0,6).max().getAsDouble()<25) return;
+		
+		
+		final StandardDeviation standardDeviation=new StandardDeviation();
+		Arrays.stream(rec.depths).forEach(V->standardDeviation.increment(V));
+		standardDeviation.evaluate();
+		
 		final double median_depth = new Median().evaluate(rec.depths,0,6);
 		final double dup = median_depth * 2.8;
 		final double del = median_depth * 0.2;
@@ -186,8 +199,13 @@ public class NaiveCnvDetector extends Launcher
 			return;
 			}
 		msg+="\t"+Arrays.stream(rec.depths).boxed().map(V->V.toString()).collect(Collectors.joining(" , "));
+		
+		final ChiSquareTest chiSquareTest = new ChiSquareTest();
+		final double p_value=chiSquareTest.chiSquare(new long[][]{{0L},{}});
 		System.out.println(msg);
+		
 		}
+	
 	
 	@Override
 	public int doWork(final List<String> args) {		
@@ -206,6 +224,33 @@ public class NaiveCnvDetector extends Launcher
 		try
 			{
 			final CharSplitter tab = CharSplitter.TAB;
+			
+			
+			this.sampleList.addAll( IOUtil.slurpLines(this.configFile).stream().
+					filter(S->!(StringUtil.isBlank(S) || S.startsWith("#"))).
+					map(S->CharSplitter.TAB.split(S)).
+					map(T->{
+						final SampleInfo si=new SampleInfo();
+						si.name = T[0];
+						si.meanDepth = Double.parseDouble(T[1]);
+						si.affected=false;
+						if(T[2].equalsIgnoreCase("true") || T[2].equals("1")) {
+							si.affected=true;
+							}
+						return si;
+						}).collect(Collectors.toList())
+					);	
+			for(int i=0;i< sampleList.size();i++)
+				{
+				this.sampleList.get(i).index=i;
+				}
+			final double max_depth= this.sampleList.stream().mapToDouble(S->S.meanDepth).max().getAsDouble();
+			for(int i=0;i< this.sampleList.size();i++)
+				{
+				this.sampleList.get(i).adjustDepth=this.sampleList.get(i).meanDepth* max_depth;
+				}
+			
+			
 			samDepthReader = super.openBufferedReader(oneFileOrNull(args));
 			String line;
 			
@@ -217,11 +262,7 @@ public class NaiveCnvDetector extends Launcher
 				if(tokens.length<3) {
 					throw new JvarkitException.TokenErrors("expected at least 3 words",tokens);
 					}
-				if(num_samples==-1)
-					{
-					num_samples = tokens.length - 2;
-					}
-				else if(num_samples+2!=tokens.length)
+				if(this.sampleList.size()+2!=tokens.length)
 					{
 					throw new JvarkitException.TokenErrors("expected at least "+(num_samples+3)+" words",tokens);
 					}
@@ -230,7 +271,7 @@ public class NaiveCnvDetector extends Launcher
 				final DepthLine depthLine = new DepthLine(contig, pos1, num_samples);
 				for(int x=2;x<tokens.length;++x)
 					{
-					depthLine.depths[x-2] = Integer.parseInt(tokens[x]);
+					depthLine.depths[x-2] = this.sampleList.get(x-2).adjustDepth * Integer.parseInt(tokens[x]);
 					}
 				if(!this.depthBuffer.isEmpty())
 					{
