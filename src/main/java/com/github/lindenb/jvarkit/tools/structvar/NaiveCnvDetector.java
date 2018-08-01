@@ -26,11 +26,16 @@ package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
 
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
@@ -40,7 +45,6 @@ import org.apache.commons.math3.stat.inference.ChiSquareTest;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.tools.vcfviewgui.PedFile.Sample;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -55,6 +59,15 @@ BEGIN_DOC
 
 Input is the output of samtools depth.
 
+
+## Example
+
+```
+make naivecnvdetector && samtools depth -r '1:1234-567' *.bam |\
+	java -jar dist/naivecnvdetector.jar  > out.tsv
+```
+
+
 END_DOC
 
  */
@@ -67,10 +80,9 @@ public class NaiveCnvDetector extends Launcher
 	{
 	private static final Logger LOG = Logger.build(NaiveCnvDetector.class).make();
 	
-	//@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	//private File outputFile=null;
-	
-	@Parameter(names={"-c"},description="config file. Tab delimited. Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]",required=true)
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile=null;
+	@Parameter(names={"-c"},description="config file. Tab delimited. Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If this file is not specified , all samples are considered unaffected (discovery mode).")
 	private File configFile=null;	
 	/** size of a window */
 	@Parameter(names={"-w"},description="window size")
@@ -80,21 +92,55 @@ public class NaiveCnvDetector extends Launcher
 
 	@Parameter(names={"--weirdDepth"},description="Treat normalized depth greater than this value as 'weird' and discard the sliding windows at this place.")
 	private int weirdDepth=500;
-	@Parameter(names={"-nafd","--no-affected-for-depth"},description="When calculating the average depth in one window, do not include the affected samples. use when the number of affected ~= non-affected.")
-	private boolean non_affected_for_depth=false;
-	@Parameter(names={"-md","--min-dp"},description="At least one sample must have a normalized-depth greater than this value.")
-	private int min_depth = 20;
+	@Parameter(names={"-md","--min-dp"},description="At least one 'unaffected' sample must have a normalized-depth greater than this value.")
+	private int min_unaffected_depth = 20;
+	@Parameter(names={"--disable-consecutive"},description="Disable 'consecutive' positions criteria. Default: dump buffer of position if the current samtools-depth line is not the very next expected position.")
+	private boolean disable_consecutive_bases =false;
+	@Parameter(names={"-stddevu","--stddev-unaffected"},description="Maximum standard deviation of depth for unaffected samples. Ignored if negative or if not any affected samples is defined." )
+	private double max_stdev_unaffected = 10.0;
+	@Parameter(names={"-del","--del","--deletion"},description="Deletion Treshold. Which fraction of the median depth is considered as aa deletion. Must be <1.0" )
+	private double deletion_treshold = 0.5;
+	@Parameter(names={"-dup","--dup","--duplication"},description="Duplication Treshold. Which fraction of the median depth is considered as a duplication. Must be >1.0" )
+	private double duplication_treshold = 1.9;
+	@Parameter(names={"-disable-both"},description="Disable the following criteria: there cannot be a DEL and a DUP at the same place." )
+	private boolean disable_both_del_dup = false;
+
+
 	
-	private final class SampleInfo
+	private class SampleInfo
 		{
 		String name;
 		int index;
 		double meanDepth=0.0;
 		double adjustDepth = 1.0;
 		boolean affected=false;
+		
+		boolean isAffected() { return affected;}
+		boolean isUnaffected() { return !affected;}
+		
+		String getLabel() {
+			return name+(count_affected_samples>0?(isAffected()?"*":""):"");
+		}
+		
+		@Override
+		public int hashCode() {
+			return Integer.hashCode(this.index);
+			}
+		@Override
+		public boolean equals(Object obj) {
+			return SampleInfo.class.cast(obj).index==this.index;
+			}
+		@Override
+		public String toString() {
+			return name+"["+(index+1)+"]";
+			}
 		}
 	
 	private final List<SampleInfo> sampleList  = new ArrayList<>();
+	private int count_affected_samples = 0;
+	private int count_unaffected_samples = 0;
+	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
+
 	
 	private class DepthLine
 		{
@@ -156,56 +202,195 @@ public class NaiveCnvDetector extends Launcher
 	
 	private final List<DepthLine> depthBuffer=new ArrayList<>();
 	
-	private void dump() {
+	/** convert double to string */
+	private String format(double v)
+		{
+		return this.decimalFormater.format(v);
+		}	
+	
+	private void dump(final PrintWriter out) {
 		if(depthBuffer.isEmpty()) return;
-		DepthInterval rec = new DepthInterval(this.depthBuffer);
-		if(Arrays.stream(rec.depths).noneMatch(V->V>=min_depth)) return;
-		if(Arrays.stream(rec.depths).anyMatch(V->V>=weirdDepth)) return;
-		if(Arrays.stream(rec.depths,0,6).max().getAsDouble()<25) return;
+		if(depthBuffer.size()< this.windowSize/2) return;
+		final DepthInterval rec = new DepthInterval(this.depthBuffer);
 		
-		
-		final StandardDeviation standardDeviation=new StandardDeviation();
-		Arrays.stream(rec.depths).forEach(V->standardDeviation.increment(V));
-		standardDeviation.evaluate();
-		
-		final double median_depth = new Median().evaluate(rec.depths,0,6);
-		final double dup = median_depth * 2.8;
-		final double del = median_depth * 0.2;
-		List<Integer> dupIndexes = new ArrayList<>();
-		List<Integer> delIndexes = new ArrayList<>();
-		for(int i=6;i< rec.depths.length;i++)
-			{
-			double d = rec.depths[i];
-			if(d>dup)
-				{
-				dupIndexes.add(i);
-				}
-			if(d<del)
-				{
-				delIndexes.add(i);
-				}
-			}
-		String msg ;
-		if(delIndexes.size()>=1 && dupIndexes.isEmpty())
-			{
-			msg=(rec.contig+"\t"+rec.start+"\t"+rec.end+"\tDEL\t["+delIndexes.get(0)+"]");
-			}
-		else if(dupIndexes.size()>=1 && delIndexes.isEmpty())
-			{
-			msg=(rec.contig+"\t"+rec.start+"\t"+rec.end+"\tDUP\t["+dupIndexes.get(0)+"]");
-			}
-		else
+		// at last one unaffected must have depth >= this.min_unaffected_depth
+		if(this.sampleList.stream().
+			filter(S->S.isUnaffected()).
+			noneMatch(S->rec.depths[S.index]>= this.min_unaffected_depth))
 			{
 			return;
 			}
-		msg+="\t"+Arrays.stream(rec.depths).boxed().map(V->V.toString()).collect(Collectors.joining(" , "));
 		
-		final ChiSquareTest chiSquareTest = new ChiSquareTest();
-		final double p_value=chiSquareTest.chiSquare(new long[][]{{0L},{}});
-		System.out.println(msg);
+		//any sample having a weird depth
+		if(Arrays.stream(rec.depths).anyMatch(V->V>=weirdDepth)) return;
+
 		
+		// standard deviation of unaffected
+		final double stddev_unaffected = new StandardDeviation(true).
+				evaluate(
+				this.sampleList.stream().
+				filter(S->S.isUnaffected()).
+				mapToDouble(S->rec.depths[S.index]).
+				toArray()
+				);
+		
+		// there are some affected sample but stddev of unaffected is large
+		if(this.count_affected_samples>0 && 
+			this.max_stdev_unaffected>=0 && 
+			stddev_unaffected>this.max_stdev_unaffected)
+			{
+			return;
+			}
+		
+		//calc median depth of unaffected
+		final double median_unaffected_depth = new Median().
+				evaluate(
+				this.sampleList.stream().
+				filter(S->S.isUnaffected()).
+				mapToDouble(S->rec.depths[S.index]).
+				toArray()
+				);
+		
+		if(median_unaffected_depth<0) return;
+		
+		final List<SampleInfo> delSamples = this.sampleList.
+				stream().
+				filter(SI-> rec.depths[SI.index] < median_unaffected_depth*this.deletion_treshold).
+				collect(Collectors.toList())
+				;
+		final List<SampleInfo> dupSamples = this.sampleList.
+				stream().
+				filter(SI-> rec.depths[SI.index] > median_unaffected_depth*this.duplication_treshold).
+				collect(Collectors.toList())
+				;
+		
+		if(delSamples.isEmpty() && dupSamples.isEmpty()) return;
+		
+		final Set<SampleInfo> noCnvSamples = new HashSet<>(this.sampleList);
+		noCnvSamples.removeAll(delSamples);
+		noCnvSamples.removeAll(dupSamples);
+		
+		
+		//interval contains DEL *and* DUP
+		if(!this.disable_both_del_dup && 
+			!delSamples.isEmpty() && 
+			!dupSamples.isEmpty()
+			)
+			{
+			return;
+			}
+		out.print(rec.contig);
+		out.print("\t");
+		out.print(rec.start-1);
+		out.print("\t");
+		out.print(rec.end);
+		out.print("\t");
+		out.print(format(median_unaffected_depth));
+		out.print("\t");
+		out.print(format(stddev_unaffected));
+		
+		for(int side=0;side<2;++side)
+			{
+			final List<SampleInfo> list = side==0?delSamples:dupSamples;
+			out.print("\t");
+			out.print(list.isEmpty()?".":(side==0?"DEL":"DUP"));
+			out.print("\t");
+			out.print(list.size());
+			if(this.count_affected_samples>0) {
+				out.print("\t");
+				out.print(list.stream().filter(S->S.isAffected()).count());
+				out.print("\t");
+				out.print(list.stream().filter(S->S.isUnaffected()).count());
+				}
+			
+			
+			final DoubleStream dst = list.stream().
+						mapToDouble(si->rec.depths[si.index]/median_unaffected_depth);
+			final OptionalDouble best_ratio=(side==0?dst.min():dst.max());
+				
+			out.print("\t");
+			out.print(best_ratio.isPresent()?format(best_ratio.getAsDouble()):".");
+			out.print("\t");
+			out.print(list.isEmpty()?".":list.stream().map(S->S.getLabel()).collect(Collectors.joining(";")));
+			}
+		out.print("\t");
+		
+		
+		if(this.count_affected_samples>0)
+			{
+			final ChiSquareTest chiSquareTest = new ChiSquareTest();
+			
+			final double p_value=chiSquareTest.chiSquare(new long[][]{
+				{
+				dupSamples.stream().filter(S->S.isAffected()).count() + delSamples.stream().filter(S->S.isAffected()).count(),
+				dupSamples.stream().filter(S->S.isUnaffected()).count() + delSamples.stream().filter(S->S.isUnaffected()).count(),
+				},{
+				noCnvSamples.stream().filter(S->S.isAffected()).count(),
+				noCnvSamples.stream().filter(S->S.isUnaffected()).count()
+				}}
+				);
+			out.print(p_value);
+			out.print("\t");
+			out.print(p_value<0.05?"*":".");
+			}
+		
+		for(final SampleInfo si: this.sampleList)
+			{
+			out.print("\t");
+			out.print(format(rec.depths[si.index])+" x"+format(rec.depths[si.index]/median_unaffected_depth));
+			}
+		
+		out.println();
+		out.flush();
 		}
 	
+	
+	private void printHeader(final PrintWriter out) {
+
+		
+		out.print("#chrom");
+		out.print("\t");
+		out.print("start");
+		out.print("\t");
+		out.print("end");
+		out.print("\t");
+		out.print("median.unaffected.depth");
+		out.print("\t");
+		out.print("median.unaffected.depth.stddev");
+		for(int side=0;side<2;++side)
+			{
+			String prefix=side==0?"DEL":"DUP";
+			out.print("\t");
+			out.print(prefix);
+			out.print("\t");
+			out.print(prefix+".count");
+			if(this.count_affected_samples>0) {
+				out.print("\t");
+				out.print(prefix+".count.affected");
+				out.print("\t");
+				out.print(prefix+".count.unaffected");
+				}
+			out.print("\t");
+			out.print(prefix+".best.ratio");
+			out.print("\t");
+			out.print(prefix+".samples");
+			}
+		out.print("\t");
+		
+		if(this.count_affected_samples>0) {
+			out.print("chi2");
+			out.print("\t");
+			out.print("chi2.signifiant");
+			}
+		for(final SampleInfo si: this.sampleList)
+			{
+			out.print("\t");
+			out.print(si.getLabel());
+			}
+		
+		out.println();
+		}
+
 	
 	@Override
 	public int doWork(final List<String> args) {		
@@ -218,36 +403,64 @@ public class NaiveCnvDetector extends Launcher
 			LOG.error("low window shift");
 			return -1;
 		}
-		int num_samples = -1;
-		BufferedReader samDepthReader=null;
+		if(this.deletion_treshold>=1.0)
+			{
+			LOG.error("bad deletion treshold . Must be <1.0 but got "+this.deletion_treshold);
+			return -1;
+			}
+		if(this.duplication_treshold<=1.0)
+			{
+			LOG.error("bad dup treshold . Must be >1.0 but got "+this.duplication_treshold);
+			return -1;
+			}
 		
+		BufferedReader samDepthReader=null;
+		PrintWriter out = null;
 		try
 			{
+			
 			final CharSplitter tab = CharSplitter.TAB;
 			
+			out =  super.openFileOrStdoutAsPrintWriter(this.outputFile);
+
 			
-			this.sampleList.addAll( IOUtil.slurpLines(this.configFile).stream().
-					filter(S->!(StringUtil.isBlank(S) || S.startsWith("#"))).
-					map(S->CharSplitter.TAB.split(S)).
-					map(T->{
-						final SampleInfo si=new SampleInfo();
-						si.name = T[0];
-						si.meanDepth = Double.parseDouble(T[1]);
-						si.affected=false;
-						if(T[2].equalsIgnoreCase("true") || T[2].equals("1")) {
-							si.affected=true;
-							}
-						return si;
-						}).collect(Collectors.toList())
-					);	
-			for(int i=0;i< sampleList.size();i++)
+			if(this.configFile!=null)
 				{
-				this.sampleList.get(i).index=i;
-				}
-			final double max_depth= this.sampleList.stream().mapToDouble(S->S.meanDepth).max().getAsDouble();
-			for(int i=0;i< this.sampleList.size();i++)
-				{
-				this.sampleList.get(i).adjustDepth=this.sampleList.get(i).meanDepth* max_depth;
+				this.sampleList.addAll( IOUtil.slurpLines(this.configFile).stream().
+						filter(S->!(StringUtil.isBlank(S) || S.startsWith("#"))).
+						map(S->JvarkitException.TokenErrors.atLeast(3,CharSplitter.TAB.split(S))).
+						map(T->{
+							final SampleInfo si=new SampleInfo();
+							si.name = T[0];
+							si.meanDepth = Double.parseDouble(T[1]);
+							if(si.meanDepth<0) throw new IllegalArgumentException("negative mean depth");
+							si.affected=false;
+							if(T[2].equalsIgnoreCase("true") || T[2].equals("1")) {
+								si.affected=true;
+								}
+							return si;
+							}).collect(Collectors.toList())
+						);
+				for(int i=0;i< sampleList.size();i++)
+					{
+					this.sampleList.get(i).index=i;
+					}
+				final double max_depth= this.sampleList.stream().mapToDouble(S->S.meanDepth).max().getAsDouble();
+				for(int i=0;i< this.sampleList.size();i++)
+					{
+					this.sampleList.get(i).adjustDepth= max_depth / this.sampleList.get(i).meanDepth ;
+					LOG.debug("Max-depth "+max_depth+" "+this.sampleList.get(i).meanDepth+" "+this.sampleList.get(i).adjustDepth);
+					}
+				this.count_affected_samples = (int)this.sampleList.stream().filter(S->S.affected).count();
+				this.count_unaffected_samples = this.sampleList.size()-this.count_affected_samples;
+				
+				if(this.count_unaffected_samples==0)
+					{
+					LOG.error("No unaffected sample in config file "+this.configFile);
+					return -1;
+					}
+				LOG.info("affected "+this.count_affected_samples+" ; unaffected:"+this.count_unaffected_samples);
+				printHeader(out);
 				}
 			
 			
@@ -262,13 +475,29 @@ public class NaiveCnvDetector extends Launcher
 				if(tokens.length<3) {
 					throw new JvarkitException.TokenErrors("expected at least 3 words",tokens);
 					}
-				if(this.sampleList.size()+2!=tokens.length)
+				if(this.sampleList.isEmpty())
 					{
-					throw new JvarkitException.TokenErrors("expected at least "+(num_samples+3)+" words",tokens);
+					LOG.info("building default sample list");
+					this.count_affected_samples = 0;
+					this.count_unaffected_samples = tokens.length-2;
+					for(int i=0;i< this.count_unaffected_samples;i++) {
+						final SampleInfo si = new SampleInfo();
+						si.index=i;
+						si.affected=false;
+						si.meanDepth = 20;
+						si.adjustDepth = 1.0;
+						si.name = String.format("S%03d",(i+1));
+						this.sampleList.add(si);
+						}
+					printHeader(out);
+					}
+				else if(this.sampleList.size()+2!=tokens.length)
+					{
+					throw new JvarkitException.TokenErrors("expected at least "+( this.sampleList.size()+3)+" words",tokens);
 					}
 				final String contig=tokens[0];
 				final int pos1 = Integer.parseInt(tokens[1]);
-				final DepthLine depthLine = new DepthLine(contig, pos1, num_samples);
+				final DepthLine depthLine = new DepthLine(contig, pos1, this.sampleList.size());
 				for(int x=2;x<tokens.length;++x)
 					{
 					depthLine.depths[x-2] = this.sampleList.get(x-2).adjustDepth * Integer.parseInt(tokens[x]);
@@ -278,33 +507,32 @@ public class NaiveCnvDetector extends Launcher
 					final DepthLine last = this.depthBuffer.get(this.depthBuffer.size()-1);
 					if(!last.contig.equals(depthLine.contig))
 						{
-						dump();
+						dump(out);
 						this.depthBuffer.clear();
 						}
 					else if(last.pos+1!=depthLine.pos)
 						{
-						dump();
+						dump(out);
 						this.depthBuffer.clear();
 						}
-					else if(last.pos>=depthLine.pos)
+					else if(!this.disable_consecutive_bases && last.pos>=depthLine.pos)
 						{
-						dump();
+						dump(out);
 						this.depthBuffer.clear();
 						}
 					}
 				this.depthBuffer.add(depthLine);
 				if(this.depthBuffer.size()==this.windowSize)
 					{
-					dump();
+					dump(out);
 					for(int x=0;x<this.windowShift && !this.depthBuffer.isEmpty();++x)
 						{
 						this.depthBuffer.remove(0);
 						}
 					}
 				}
-			
-			
-			
+			out.flush();
+			out.close();
 			return 0;
 			}
 		catch(final Exception err)
@@ -315,6 +543,7 @@ public class NaiveCnvDetector extends Launcher
 		finally
 			{
 			CloserUtil.close(samDepthReader);
+			CloserUtil.close(out);
 			}
 		}
 	

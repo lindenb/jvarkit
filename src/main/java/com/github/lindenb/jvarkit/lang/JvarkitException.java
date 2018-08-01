@@ -329,24 +329,35 @@ public static class TokenErrors  extends FileFormatError
 	{	
 	private static String vertical(final List<String> tokens) {
 		if(tokens==null) return "(tokens:null)";
-		StringBuilder sb=new StringBuilder("\n");
+		final StringBuilder sb=new StringBuilder("\n");
 		for(int i=0;i<tokens.size();++i)
-				sb.append(" * (").append(String.valueOf(i+1)).append(")\t\"").append(tokens.get(i)).append("\"\n");
+				sb.append(" * [").
+				append(String.valueOf(i+1)).
+				append("]\t\"").
+				append(tokens.get(i)).
+				append("\"\n");
 		return sb.toString();
 		}
-	public TokenErrors(String tokens[]) {
+	public TokenErrors(final String tokens[]) {
 		this(Arrays.asList(tokens));
 		}
 
-	public TokenErrors(List<String> tokens) {
+	public TokenErrors(final List<String> tokens) {
 		super(vertical(tokens));
 		}
 
 	public TokenErrors(final String msg,List<String> tokens) {
 		super(msg+vertical(tokens));
 		}
-	public TokenErrors(final String msg,String tokens[]) {
+	public TokenErrors(final int expected,final String tokens[]) {
+		this("Expected "+expected+" tokens, but got "+(tokens==null?0:tokens.length),tokens);
+		}
+	public TokenErrors(final String msg,final String tokens[]) {
 		this(msg,Arrays.asList(tokens));
+		}
+	public static String[] atLeast(final int expected,final String tokens[]) {
+		if(tokens==null || tokens.length<expected) throw new TokenErrors(expected,tokens);
+		return tokens;
 		}
 	}
 
