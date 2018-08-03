@@ -63,7 +63,7 @@ Input is the output of samtools depth.
 ## Example
 
 ```
-make naivecnvdetector && samtools depth -r '1:1234-567' *.bam |\
+samtools depth -r '1:1234-567' *.bam |\
 	java -jar dist/naivecnvdetector.jar  > out.tsv
 ```
 
@@ -72,9 +72,8 @@ END_DOC
 
  */
 @Program(name="naivecnvdetector",
-	description="experimental CNV detection for multiple samples. Doesn't work for now.",
-	keywords= {"cnv","bam","sam"},
-	generate_doc=false
+	description="experimental CNV detection for multiple samples.",
+	keywords= {"cnv","bam","sam"}
 	)
 public class NaiveCnvDetector extends Launcher
 	{
