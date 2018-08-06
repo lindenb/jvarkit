@@ -340,7 +340,7 @@ public class WesCnvSvg  extends Launcher {
 					ci.sampleInfos.add(si);
 					si.coverage= new double[ci.getBaseLength()];
 					Arrays.fill(si.coverage, 0f);
-					final SAMRecordIterator iter=bi.samReader.queryOverlapping(singletonInterval);
+					final SAMRecordIterator iter=bi.samReader.queryOverlapping(ci.getContig(),ci.getStart(),ci.getEnd());
 					while(iter.hasNext())
 						{
 						final SAMRecord rec = iter.next();
@@ -366,7 +366,6 @@ public class WesCnvSvg  extends Launcher {
 							}
 						}
 					iter.close();
-					
 					if(this.smoothSize>0)
 						{
 						final double newcov[]=new double[si.coverage.length];
