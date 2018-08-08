@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
@@ -43,7 +39,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
@@ -62,6 +57,8 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 /**
 BEGIN_DOC
 
@@ -112,6 +109,7 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
 
 ## History:
 
+* 20180808: fixing bug https://github.com/lindenb/jvarkit/issues/108
 * 20180212: fixing bug https://github.com/lindenb/jvarkit/issues/95
 
 END_DOC
@@ -141,6 +139,10 @@ public class Biostar214299 extends Launcher
 		//String contig;
 		int refpos;
 		final Map<Character,String> base2sample = new HashMap<>();
+		@Override
+		public String toString() {
+			return "pos:"+this.refpos+" "+this.base2sample;
+			}
 		}
 	
 	@Override
@@ -170,18 +172,18 @@ public class Biostar214299 extends Launcher
 			
 			try ( BufferedReader br = IOUtils.openFileForBufferedReading(this.positionFile)) {
 				String line;
+				final CharSplitter tab = CharSplitter.TAB;
 				while((line=br.readLine())!=null) {
 					if(line.trim().isEmpty() || line.startsWith("#")) continue;
-					final String tokens[]=line.split("[\t]");
+					final String tokens[]=tab.split(line);
 					if(tokens.length<4) {
 						LOG.error("Not enough columns in "+line);
 						return -1;
 						}
-					
 					final String contig = tokens[0];
 					if(dict.getSequence(contig)==null) 
 						{
-						LOG.error("No such contig in input's sam dictionary: "+contig);
+						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(contig, dict));
 						return -1;
 						}
 					final int refpos = Integer.parseInt(tokens[1]);
@@ -294,7 +296,6 @@ public class Biostar214299 extends Launcher
 					final boolean consummeReadBaseOrSoftClip= 
 							op.consumesReadBases() || 
 							op.equals(CigarOperator.S);
-					
 					if(op.consumesReferenceBases() && consummeReadBaseOrSoftClip) 
 						{
 						for(int i=0;i< ce.getLength();++i){
@@ -304,6 +305,7 @@ public class Biostar214299 extends Launcher
 							if(position==null) continue;
 							if(nowReadPos0>= bases.length) continue;
 							final char base = (char)Character.toUpperCase(bases[nowReadPos0]);
+							
 							final String sample = position.base2sample.get(base);
 							if(sample==null) continue;
 							selectedSamples.add(sample);
@@ -312,8 +314,11 @@ public class Biostar214299 extends Launcher
 							if(index2pos.isEmpty()) break;
 							}
 						}
-					if(op.consumesReferenceBases()) refPos1+=ce.getLength();
-					if(consummeReadBaseOrSoftClip  ||  op.equals(CigarOperator.H)) {
+					if(op.consumesReferenceBases() || op.isClipping())
+						{
+						refPos1+=ce.getLength();
+						}
+					if(consummeReadBaseOrSoftClip) {
 						readPos0+=ce.getLength();
 						}
 					}
