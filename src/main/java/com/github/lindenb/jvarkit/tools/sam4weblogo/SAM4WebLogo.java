@@ -186,7 +186,7 @@ public class SAM4WebLogo extends Launcher
     		 		if(inInterval.test(refPos))
     		 			{
     		 			seq.append('-');
-    		 			qual.append('!');
+    		 			qual.append(' ');
     		 			}
     	        	++refPos;
     	        	}
@@ -224,7 +224,7 @@ public class SAM4WebLogo extends Launcher
         				if(inInterval.test(refPos) )
         					{
         					seq.append(useClip?'n':'-');
-        					qual.append(useClip?'!':'!');
+        					qual.append('!');
         					}
         				refPos++;
         				}
@@ -273,7 +273,7 @@ public class SAM4WebLogo extends Launcher
         while(refPos<= interval.getEnd())
         	{
         	seq.append('-');
-        	qual.append('!');
+        	qual.append(' ');
         	refPos++;
         	}
     	out.print(this.print_fastq?FastqConstants.SEQUENCE_HEADER:">");
