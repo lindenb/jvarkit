@@ -47,6 +47,7 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.filter.SamRecordFilter;
 /**
 BEGIN_DOC
@@ -135,8 +136,8 @@ public class SAM4WebLogo extends Launcher
 	@Parameter(names={"-readFilter","--readFilter"},description="[20171201](moved to jexl)"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
 	private SamRecordFilter SamRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
 	
-	@Parameter(names={"-q","--qual"},description="[20180812]print QUAL instead of bases. Was : https://github.com/lindenb/jvarkit/issues/109")
-	private boolean print_qual = false;
+	@Parameter(names={"-q","--fastq"},description="[20180812]print fastq-like format. Was : https://github.com/lindenb/jvarkit/issues/109")
+	private boolean print_fastq = false;
 
 	
 	private final Function<SAMRecord,Integer> readStart = rec -> 
@@ -155,28 +156,25 @@ public class SAM4WebLogo extends Launcher
 		
         final Cigar cigar=rec.getCigar();
         
-        final Function<Integer,Character> read2base;
-        if(this.print_qual) {
-        	read2base = IDX -> {
-	        	final String bases = rec.getBaseQualityString();
-	        	if(bases==null || SAMRecord.NULL_QUALS_STRING.equals(bases)) return '~'; 
-	        	if(IDX<0 || IDX>=bases.length()) return '~';
-	        	return bases.charAt(IDX);
-	        	};
-        	}
-        else
-	        {
-	        read2base = IDX -> {
+        final Function<Integer,Character> read2qual = IDX -> {
+        	final String bases = rec.getBaseQualityString();
+        	if(bases==null || SAMRecord.NULL_QUALS_STRING.equals(bases)) return '~'; 
+        	if(IDX<0 || IDX>=bases.length()) return '~';
+        	return bases.charAt(IDX);
+        	};
+        	
+        final Function<Integer,Character> read2base = IDX -> {
 	        	final byte bases[] = rec.getReadBases();
 	        	if(SAMRecord.NULL_SEQUENCE.equals(bases)) return '?'; 
 	        	if(IDX<0 || IDX>=bases.length) return '?';
 	        	return (char)bases[IDX];
 	        	};
-	        }
+	        
         	
     	final Predicate<Integer> inInterval = IDX -> IDX>=interval.getStart() && IDX<=interval.getEnd();
        
-         final StringBuilder seq=new StringBuilder(interval.length());
+        final StringBuilder seq  = new StringBuilder(interval.length());
+        final StringBuilder qual = new StringBuilder(interval.length());
          
          int refPos = Math.min(
         		 interval.getStart(),
@@ -188,6 +186,7 @@ public class SAM4WebLogo extends Launcher
     		 		if(inInterval.test(refPos))
     		 			{
     		 			seq.append('-');
+    		 			qual.append('-');
     		 			}
     	        	++refPos;
     	        	}
@@ -212,6 +211,7 @@ public class SAM4WebLogo extends Launcher
         				if(inInterval.test(refPos))
         					{
         					seq.append('-');
+        					qual.append('-');
         					}
         				refPos++;
         				}
@@ -219,12 +219,12 @@ public class SAM4WebLogo extends Launcher
         			}
         		case H:
         			{
-        			final char clipped_base = (this.print_qual?'~':'n');
         			for(int j=0;j< ce.getLength() && refPos<= interval.getEnd();++j)
         				{
         				if(inInterval.test(refPos) )
         					{
-        					seq.append(useClip?clipped_base:'-');
+        					seq.append(useClip?'n':'-');
+        					qual.append(useClip?'!':'-');
         					}
         				refPos++;
         				}
@@ -239,10 +239,12 @@ public class SAM4WebLogo extends Launcher
         					if(useClip)
         						{
         						seq.append(Character.toLowerCase(read2base.apply(readPos)));
+        						qual.append(read2qual.apply(readPos));
         						}
         					else
         						{
         						seq.append('-');
+        						qual.append('-');
         						}
         					}
         				readPos++;
@@ -257,6 +259,7 @@ public class SAM4WebLogo extends Launcher
         				if(inInterval.test(refPos))
         					{
         					seq.append(read2base.apply(readPos));
+        					qual.append(read2qual.apply(readPos));
         					}
         				readPos++;
         				refPos++;
@@ -270,16 +273,23 @@ public class SAM4WebLogo extends Launcher
         while(refPos<= interval.getEnd())
         	{
         	seq.append('-');
+        	qual.append('-');
         	refPos++;
         	}
-    	out.print(">"+rec.getReadName());
+    	out.print(this.print_fastq?FastqConstants.SEQUENCE_HEADER:">");
+    	out.print(rec.getReadName());
     	if(rec.getReadPairedFlag())
         	{
-        	if(rec.getFirstOfPairFlag()) out.print("/1");
-        	if(rec.getSecondOfPairFlag()) out.print("/2");
+        	if(rec.getFirstOfPairFlag()) out.print(FastqConstants.FIRST_OF_PAIR);
+        	if(rec.getSecondOfPairFlag()) out.print(FastqConstants.SECOND_OF_PAIR);
         	}
     	out.println();
     	out.println(seq);
+	    if(this.print_fastq)
+	    	{
+	    	out.println(FastqConstants.QUALITY_HEADER);
+	    	out.println(qual);
+	    	}
 		}
 	
 	@Override

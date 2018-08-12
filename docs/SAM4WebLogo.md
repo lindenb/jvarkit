@@ -13,6 +13,10 @@ Usage: sam4weblogo [options] Files
     -c, --clipped, --clip
       Use Clipped Bases
       Default: false
+    -q, --fastq
+      [20180812]print fastq-like format. Was : 
+      https://github.com/lindenb/jvarkit/issues/109 
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -22,10 +26,6 @@ Usage: sam4weblogo [options] Files
       Region to observe: chrom:start-end
     -o, --output
       Output file. Optional . Default: stdout
-    -q, --qual
-      [20180812]print QUAL instead of bases. Was : 
-      https://github.com/lindenb/jvarkit/issues/109 
-      Default: false
     -readFilter, --readFilter
       [20171201](moved to jexl)A JEXL Expression that will be used to filter 
       out some sam-records (see 
