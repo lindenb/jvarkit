@@ -1,5 +1,7 @@
 # SAM4WebLogo
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Sequence logo for different alleles or generated from SAM/BAM 
 
 
@@ -20,11 +22,18 @@ Usage: sam4weblogo [options] Files
       Region to observe: chrom:start-end
     -o, --output
       Output file. Optional . Default: stdout
+    -q, --qual
+      [20180812]print QUAL instead of bases. Was : 
+      https://github.com/lindenb/jvarkit/issues/109 
+      Default: false
     -readFilter, --readFilter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: Accept All/ Filter out nothing
+      [20171201](moved to jexl)A JEXL Expression that will be used to filter 
+      out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: 'Accept all' (Empty expression)
     --version
       print version and exit
 
@@ -49,11 +58,10 @@ Usage: sam4weblogo [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -83,24 +91,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam4weblogo/SAM4WebLogo.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam4weblogo/SAM4WebLogo.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam4weblogo/SAM4WebLogoTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam4weblogo/SAM4WebLogoTest.java)
 
-```
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Mon May 15 09:04:30 2017 +0200 ; fix https://github.com/lindenb/jvarkit/issues/77 ; https://github.com/lindenb/jvarkit/commit/b6538a7bf2c02daf7d67dc9649e54f96c3d228d0
-Thu May 11 10:59:12 2017 +0200 ; samcolortag ; https://github.com/lindenb/jvarkit/commit/dfd3239dc49af52966e2259bf0a5f52dd34aac8e
-Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
-Mon Nov 30 16:53:51 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/89f3cbe043ac8c52735feec5b45e43cf873b7179
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Tue Jun 10 21:41:09 2014 +0200 ; samlogo changed sources ; https://github.com/lindenb/jvarkit/commit/378aac14b03169f68e53ba03fb6a8c02bff7b50d
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Wed May 29 17:34:36 2013 +0200 ; sam4weblogo ; https://github.com/lindenb/jvarkit/commit/aad4b11f38f096c186b496182420bfab399ee424
-```
-
-</details>
 
 ## Contribute
 

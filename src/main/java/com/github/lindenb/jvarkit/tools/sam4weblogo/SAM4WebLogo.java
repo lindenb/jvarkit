@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,37 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-
-
-*/
-/*
-The MIT License (MIT)
-
-Copyright (c) 2014 Pierre Lindenbaum
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.sam4weblogo;
@@ -166,6 +135,10 @@ public class SAM4WebLogo extends Launcher
 	@Parameter(names={"-readFilter","--readFilter"},description="[20171201](moved to jexl)"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
 	private SamRecordFilter SamRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
 	
+	@Parameter(names={"-q","--qual"},description="[20180812]print QUAL instead of bases. Was : https://github.com/lindenb/jvarkit/issues/109")
+	private boolean print_qual = false;
+
+	
 	private final Function<SAMRecord,Integer> readStart = rec -> 
 		 useClip ? rec.getUnclippedStart() : rec.getAlignmentStart() ;
 		
@@ -173,8 +146,6 @@ public class SAM4WebLogo extends Launcher
 			 useClip ? rec.getUnclippedEnd() : rec.getAlignmentEnd() ;
 
 
-	
-	
 	private void printRead(
 			final PrintWriter out,
 			final SAMRecord rec,
@@ -183,12 +154,25 @@ public class SAM4WebLogo extends Launcher
 		{
 		
         final Cigar cigar=rec.getCigar();
-        final Function<Integer,Character> read2base = IDX -> {
-        	final byte bases[]=rec.getReadBases();
-        	if(SAMRecord.NULL_SEQUENCE.equals(bases)) return '?'; 
-        	if(IDX<0 || IDX>=bases.length) return '?';
-        	return (char)bases[IDX];
-        	};
+        
+        final Function<Integer,Character> read2base;
+        if(this.print_qual) {
+        	read2base = IDX -> {
+	        	final String bases = rec.getBaseQualityString();
+	        	if(bases==null || SAMRecord.NULL_QUALS_STRING.equals(bases)) return '~'; 
+	        	if(IDX<0 || IDX>=bases.length()) return '~';
+	        	return bases.charAt(IDX);
+	        	};
+        	}
+        else
+	        {
+	        read2base = IDX -> {
+	        	final byte bases[] = rec.getReadBases();
+	        	if(SAMRecord.NULL_SEQUENCE.equals(bases)) return '?'; 
+	        	if(IDX<0 || IDX>=bases.length) return '?';
+	        	return (char)bases[IDX];
+	        	};
+	        }
         	
     	final Predicate<Integer> inInterval = IDX -> IDX>=interval.getStart() && IDX<=interval.getEnd();
        
@@ -207,7 +191,7 @@ public class SAM4WebLogo extends Launcher
     		 			}
     	        	++refPos;
     	        	}
-        	
+        
         int readPos=0;
         for(int i=0;i< cigar.numCigarElements();++i)
         	{
@@ -235,11 +219,12 @@ public class SAM4WebLogo extends Launcher
         			}
         		case H:
         			{
+        			final char clipped_base = (this.print_qual?'~':'n');
         			for(int j=0;j< ce.getLength() && refPos<= interval.getEnd();++j)
         				{
         				if(inInterval.test(refPos) )
         					{
-        					seq.append(useClip?'n':'-');
+        					seq.append(useClip?clipped_base:'-');
         					}
         				refPos++;
         				}
@@ -347,7 +332,6 @@ public class SAM4WebLogo extends Launcher
 				samReader.close();
 				samReader=null;
 				}
-            		
 			out.flush();
 	        out.close();out=null;
 	        return 0;
@@ -364,7 +348,7 @@ public class SAM4WebLogo extends Launcher
 			}
 		}
 
-public static void main(String[] args)
+public static void main(final String[] args)
 	{
 	new SAM4WebLogo().instanceMainWithExit(args);
 	}
