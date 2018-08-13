@@ -107,6 +107,42 @@ TGTGGGGGCCGCAGTG---------------
 TGGGGGGGGCGCAGT----------------
 ```
 
+### fastq-like output
+
+```
+$ java -jar dist/sam4weblogo.jar -r 'RF01:100-130' src/test/resources/S1.bam -q -c
+
+@RF01_44_622_1:0:0_1:0:0_3a/1
+TATTCTTCCAATAG-----------------
++
+22222222222222                 
+@RF01_44_499_0:0:0_3:0:0_7b/2
+TATTCTTCCAATAG-----------------
++
+22222222222222                 
+@RF01_67_565_0:0:0_2:0:0_67/2
+TATTCTTCCAATAGTGAATTAGAGAATAGAT
++
+2222222222222222222222222222222
+@RF01_94_620_1:0:0_2:0:0_15/2
+TATTCTTCCAATAGTGAATTAGAGAATAGAT
++
+2222222222222222222222222222222
+@RF01_102_665_1:0:0_1:0:0_71/1
+--TTCTTCCAATAGTGAATTAGAGAATAGAT
++
+  22222222222222222222222222222
+@RF01_110_504_2:0:0_1:0:0_5d/2
+----------ATAGTGAATTAGATAATAGAT
++
+          222222222222222222222
+@RF01_121_598_1:0:0_3:0:0_6e/2
+---------------------GAGAATAGAT
++
+                     2222222222
+```
+
+
 ## See also
 
 * https://www.biostars.org/p/103052/
@@ -155,24 +191,33 @@ public class SAM4WebLogo extends Launcher
 		{
 		
         final Cigar cigar=rec.getCigar();
-        
-        final Function<Integer,Character> read2qual = IDX -> {
-        	final String bases = rec.getBaseQualityString();
-        	if(bases==null || SAMRecord.NULL_QUALS_STRING.equals(bases)) return '~'; 
-        	if(IDX<0 || IDX>=bases.length()) return '~';
-        	return bases.charAt(IDX);
-        	};
-        	
-        final Function<Integer,Character> read2base = IDX -> {
-	        	final byte bases[] = rec.getReadBases();
-	        	if(SAMRecord.NULL_SEQUENCE.equals(bases)) return '?'; 
-	        	if(IDX<0 || IDX>=bases.length) return '?';
-	        	return (char)bases[IDX];
+        final String recQualString = rec.getBaseQualityString();
+        final Function<Integer,Character> read2qual;
+        if(recQualString==null || SAMRecord.NULL_QUALS_STRING.equals(recQualString)) {
+        	read2qual = IDX -> '~';
+        	}
+        else
+        	{
+        	read2qual = IDX -> {
+	        	if(IDX<0 || IDX>=recQualString.length()) return '~';
+	        	return recQualString.charAt(IDX);
 	        	};
-	        
+        	}
+        final byte rec_bases[] = rec.getReadBases();
+        final Function<Integer,Character> read2base;
+        if(SAMRecord.NULL_SEQUENCE.equals(rec_bases)) {
+        	read2base = IDX-> '?'; 
+        	}
+        else
+        	{
+        	read2base = 
+		        IDX -> {
+			        	if(IDX<0 || IDX>=rec_bases.length) return '?';
+			        	return (char)rec_bases[IDX];
+			        	};
+        	}    
         	
     	final Predicate<Integer> inInterval = IDX -> IDX>=interval.getStart() && IDX<=interval.getEnd();
-       
         final StringBuilder seq  = new StringBuilder(interval.length());
         final StringBuilder qual = new StringBuilder(interval.length());
          

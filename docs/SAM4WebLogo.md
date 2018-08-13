@@ -172,6 +172,42 @@ TGTGGGGGCCGCAGTG---------------
 TGGGGGGGGCGCAGT----------------
 ```
 
+### fastq-like output
+
+```
+$ java -jar dist/sam4weblogo.jar -r 'RF01:100-130' src/test/resources/S1.bam -q -c
+
+@RF01_44_622_1:0:0_1:0:0_3a/1
+TATTCTTCCAATAG-----------------
++
+22222222222222                 
+@RF01_44_499_0:0:0_3:0:0_7b/2
+TATTCTTCCAATAG-----------------
++
+22222222222222                 
+@RF01_67_565_0:0:0_2:0:0_67/2
+TATTCTTCCAATAGTGAATTAGAGAATAGAT
++
+2222222222222222222222222222222
+@RF01_94_620_1:0:0_2:0:0_15/2
+TATTCTTCCAATAGTGAATTAGAGAATAGAT
++
+2222222222222222222222222222222
+@RF01_102_665_1:0:0_1:0:0_71/1
+--TTCTTCCAATAGTGAATTAGAGAATAGAT
++
+  22222222222222222222222222222
+@RF01_110_504_2:0:0_1:0:0_5d/2
+----------ATAGTGAATTAGATAATAGAT
++
+          222222222222222222222
+@RF01_121_598_1:0:0_3:0:0_6e/2
+---------------------GAGAATAGAT
++
+                     2222222222
+```
+
+
 ## See also
 
 * https://www.biostars.org/p/103052/
