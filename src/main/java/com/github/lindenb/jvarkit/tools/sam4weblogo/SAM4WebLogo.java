@@ -174,6 +174,10 @@ public class SAM4WebLogo extends Launcher
 	
 	@Parameter(names={"-q","--fastq"},description="[20180812]print fastq-like format. Was : https://github.com/lindenb/jvarkit/issues/109")
 	private boolean print_fastq = false;
+	@Parameter(names={"-fqu","--fqu"},description="[20180813] fastq unknown quality character")
+	private String fastq_quality_unknown_str = "!";
+	@Parameter(names={"-fqp","--fqp"},description="[20180813] fastq padding quality character")
+	private String fastq_quality_padding_str = "-";
 
 	
 	private final Function<SAMRecord,Integer> readStart = rec -> 
@@ -231,7 +235,7 @@ public class SAM4WebLogo extends Launcher
     		 		if(inInterval.test(refPos))
     		 			{
     		 			seq.append('-');
-    		 			qual.append(' ');
+    		 			qual.append(this.fastq_quality_padding_str);
     		 			}
     	        	++refPos;
     	        	}
@@ -256,7 +260,7 @@ public class SAM4WebLogo extends Launcher
         				if(inInterval.test(refPos))
         					{
         					seq.append('-');
-        					qual.append('!');
+        					qual.append(this.fastq_quality_padding_str);
         					}
         				refPos++;
         				}
@@ -268,8 +272,8 @@ public class SAM4WebLogo extends Launcher
         				{
         				if(inInterval.test(refPos) )
         					{
-        					seq.append(useClip?'n':'-');
-        					qual.append('!');
+        					seq.append(this.useClip?'n':'-');
+        					qual.append(this.useClip?this.fastq_quality_unknown_str:this.fastq_quality_padding_str);
         					}
         				refPos++;
         				}
@@ -281,7 +285,7 @@ public class SAM4WebLogo extends Launcher
         				{
         				if(inInterval.test(refPos) )
         					{
-        					if(useClip)
+        					if(this.useClip)
         						{
         						seq.append(Character.toLowerCase(read2base.apply(readPos)));
         						qual.append(read2qual.apply(readPos));
@@ -289,7 +293,7 @@ public class SAM4WebLogo extends Launcher
         					else
         						{
         						seq.append('-');
-        						qual.append('!');
+        						qual.append(this.fastq_quality_padding_str);
         						}
         					}
         				readPos++;
@@ -318,7 +322,7 @@ public class SAM4WebLogo extends Launcher
         while(refPos<= interval.getEnd())
         	{
         	seq.append('-');
-        	qual.append(' ');
+        	qual.append(this.fastq_quality_padding_str);
         	refPos++;
         	}
     	out.print(this.print_fastq?FastqConstants.SEQUENCE_HEADER:">");
@@ -339,6 +343,16 @@ public class SAM4WebLogo extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		
+		if(this.fastq_quality_padding_str.length()!=1) {
+			LOG.error("Bad fastq padding character (length!=1)");
+			return -1;
+		}
+		
+		if(this.fastq_quality_unknown_str.length()!=1) {
+			LOG.error("Bad fastq unknown character (length!=1)");
+			return -1;
+		}
 		
     	if(StringUtil.isBlank(this.regionStr))
 			{

@@ -17,6 +17,12 @@ Usage: sam4weblogo [options] Files
       [20180812]print fastq-like format. Was : 
       https://github.com/lindenb/jvarkit/issues/109 
       Default: false
+    -fqp, --fqp
+      [20180813] fastq padding quality character
+      Default: -
+    -fqu, --fqu
+      [20180813] fastq unknown quality character
+      Default: !
     -h, --help
       print help and exit
     --helpFormat
