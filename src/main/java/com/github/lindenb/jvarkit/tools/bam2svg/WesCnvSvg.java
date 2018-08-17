@@ -36,7 +36,9 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
@@ -131,8 +133,8 @@ public class WesCnvSvg  extends Launcher {
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-height","--height"},description="Sample Track height")
 	private int sampleTrackHeight = 100 ;
-	@Parameter(names={"-smooth","--smooth"},description="Smoothing DEPTH window size. Negative=don't smooth")
-	private int smoothSize = 100 ;
+	@Parameter(names={"-smooth","--smooth"},description="Smoothing pixel window size. Negative=don't smooth")
+	private int pixSmoothSize = 100 ;
 	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
 	private int capMaxDepth = -1 ;
 	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
@@ -170,7 +172,8 @@ public class WesCnvSvg  extends Launcher {
 		}
 	private static class SampleInfo
 		{
-		double coverage[];
+		double pixel_coverage[];
+		double pixel_clipping[];
 		}
 	
 	private class CaptureInterval
@@ -223,6 +226,7 @@ public class WesCnvSvg  extends Launcher {
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private double globalMaxDepth = 0.0;
+	private double globalMaxClip = 0.0;
 	private int countBasesToBeDisplayed = 0;
 	private final int gc_win=100;
 
@@ -329,17 +333,22 @@ public class WesCnvSvg  extends Launcher {
 					x1+=ci.getPixelWidth();
 					}
 				}
-			
+			final Percentile thePercentile = Percentile.of(this.percentile);
 			
 			for(final CaptureInterval ci:this.intervals) {
-				final QueryInterval singletonInterval[]=new QueryInterval[]{ci.queryInterval};
 				for(final BamInput bi:this.bamInputs)
 					{
 					final SampleInfo si = new SampleInfo();
+					si.pixel_coverage = new double[(int)ci.getPixelWidth()];
+					Arrays.fill(si.pixel_coverage, 0.0);
+					si.pixel_clipping = new double[(int)ci.getPixelWidth()];
+					Arrays.fill(si.pixel_clipping, 0.0);
 					LOG.info("get cov "+ci.getName()+" for "+bi.bamFile);
 					ci.sampleInfos.add(si);
-					si.coverage= new double[ci.getBaseLength()];
-					Arrays.fill(si.coverage, 0f);
+					final int base_coverage[] = new int[ci.getBaseLength()];
+					Arrays.fill(base_coverage, 0);
+					final int clip_coverage[] = new int[ci.getBaseLength()];
+					Arrays.fill(clip_coverage, 0);
 					final SAMRecordIterator iter=bi.samReader.queryOverlapping(ci.getContig(),ci.getStart(),ci.getEnd());
 					while(iter.hasNext())
 						{
@@ -348,9 +357,25 @@ public class WesCnvSvg  extends Launcher {
 						if(this.samRecordFilter.filterOut(rec)) continue;
 						final Cigar cigar=rec.getCigar();
 						if(cigar==null || cigar.isEmpty()) continue;
-						int ref1=rec.getAlignmentStart();
+						int ref1=rec.getUnclippedStart();
+						
+						
 						for(final CigarElement ce:cigar) {
 							final CigarOperator op = ce.getOperator();
+							
+							
+							if(op.isClipping())
+								{
+								for(int x=0;x< ce.getLength();++x){
+									final int pos=ref1+x;
+									if(pos< ci.getStart()) continue;
+									if(pos> ci.getEnd()) break;
+									clip_coverage[pos-ci.getStart()]++;
+									}
+								ref1 +=  ce.getLength();
+								continue;
+								}
+							
 							if(op.consumesReferenceBases())
 								{
 								if(op.consumesReadBases()){
@@ -358,7 +383,7 @@ public class WesCnvSvg  extends Launcher {
 										final int pos=ref1+x;
 										if(pos< ci.getStart()) continue;
 										if(pos> ci.getEnd()) break;
-										si.coverage[pos-ci.getStart()]++;
+										base_coverage[pos-ci.getStart()]++;
 										}
 									}
 								ref1+=ce.getLength();
@@ -366,22 +391,32 @@ public class WesCnvSvg  extends Launcher {
 							}
 						}
 					iter.close();
-					if(this.smoothSize>0)
+					
+					
+					for(int x=0;x< si.pixel_coverage.length;x++) {
+						final int pos0 = Math.min(base_coverage.length, (int)(((x+0)/ci.getPixelWidth())*ci.getBaseLength()));
+						final int pos1 = Math.min(base_coverage.length, (int)(((x+1)/ci.getPixelWidth())*ci.getBaseLength()));
+						if(pos0>=pos1) continue;
+						si.pixel_coverage[x] = thePercentile.evaluate(base_coverage,pos0,(pos1-pos0));
+						si.pixel_clipping[x] = thePercentile.evaluate(clip_coverage,pos0,(pos1-pos0));
+					}
+					
+					if(this.pixSmoothSize>0)
 						{
-						final double newcov[]=new double[si.coverage.length];
-						for(int x=0;x<si.coverage.length;++x) {
+						final double newcov[]=new double[si.pixel_coverage.length];
+						for(int x=0;x<si.pixel_coverage.length;++x) {
 							double sum=0;
 							int count=0;
-							for(int y=-this.smoothSize;y<=this.smoothSize;++y)
+							for(int y=-this.pixSmoothSize;y<=this.pixSmoothSize;++y)
 								{
 								int array_index = x+y;
-								if(array_index<0 || array_index>= si.coverage.length) continue;
-								sum+=si.coverage[array_index];
+								if(array_index<0 || array_index>= si.pixel_coverage.length) continue;
+								sum+=si.pixel_coverage[array_index];
 								count++;
 								}
 							newcov[x]=(sum/count);
 							}
-						System.arraycopy(newcov, 0, si.coverage, 0, newcov.length);
+						System.arraycopy(newcov, 0, si.pixel_coverage, 0, newcov.length);
 						}
 					/* debug
 						{
@@ -406,16 +441,16 @@ public class WesCnvSvg  extends Launcher {
 			for(final BamInput bi:this.bamInputs)
 				{
 				bi.minDepth = this.intervals.stream().flatMapToDouble(CI->
-						DoubleStream.of(CI.sampleInfos.get(bi.index).coverage)
+						DoubleStream.of(CI.sampleInfos.get(bi.index).pixel_coverage)
 						).
 					map(capDepthValue).
 					min().orElse(0);
 				bi.maxDepth = this.intervals.stream().flatMapToDouble(CI->
-					DoubleStream.of(CI.sampleInfos.get(bi.index).coverage)
+					DoubleStream.of(CI.sampleInfos.get(bi.index).pixel_coverage)
 					).
 					map(capDepthValue).
 					max().orElse(1);
-				System.err.println(bi.sample+" "+bi.maxDepth);
+				LOG.debug("Sample "+bi.sample+" Max-Depth:"+bi.maxDepth);
 				}
 			
 			this.globalMaxDepth = Math.max(1.0,this.bamInputs.stream().
@@ -423,6 +458,13 @@ public class WesCnvSvg  extends Launcher {
 					map(this.capDepthValue).
 					max().orElse(0));
 			LOG.debug("global max depth "+this.globalMaxDepth);
+			
+			this.globalMaxClip = Math.max(1.0,this.intervals.stream().
+					flatMap(R->R.sampleInfos.stream()).
+					flatMapToDouble(R->Arrays.stream(R.pixel_clipping)).
+					map(this.capDepthValue).
+					max().orElse(0));
+			LOG.debug("global max clip "+this.globalMaxDepth);
 			
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			if(this.outputFile==null)
@@ -434,6 +476,20 @@ public class WesCnvSvg  extends Launcher {
 				fout = new FileOutputStream(this.outputFile);
 				w=xof.createXMLStreamWriter(fout, "UTF-8");
 				}
+			
+			final Function<List<Point2D.Double>,String> points2str = (L)->
+				L.stream().map(S->format(S.getX())+","+format(S.getY())).
+				collect(Collectors.joining(" "));
+				
+			final Consumer<List<Point2D.Double>> simplifyPoints = (L)->{
+				for(int z=0;z+1< L.size();++z) {
+					if(L.get(z).getY()==L.get(z+1).getY())
+						{
+						L.get(z).x = L.get(z+1).x;
+						L.remove(z+1);
+						}
+					}
+			};
 			
 			w.writeStartDocument("UTF-8", "1.0");
 			
@@ -460,11 +516,12 @@ public class WesCnvSvg  extends Launcher {
 					"text.sampleLabel {stroke:none;stroke-width:0.5px;fill:blue;}" +
 					"text.captureLabel {stroke:none;stroke-width:0.5px;fill:slategrey;text-anchor:middle;}" +
 					"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:lightgray;}" +
-					"line.linedp {stroke:darkcyan;stroke-width:0.3px;}" +
+					"line.linedp {stroke:darkcyan;stroke-width:0.3px;opacity:0.4;}" +
 					"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
 					"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
 					"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}" +
-					"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"
+					"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"+
+					"polyline.clipping {stroke:orange;stroke-width:0.8px;fill:none;}"
 					);
 			w.writeEndElement();//style
 			
@@ -488,17 +545,12 @@ public class WesCnvSvg  extends Launcher {
 					
 					points.add(new Point2D.Double(x, y));
 					}
-				for(int z=0;z+1<points.size();++z) {
-					if(points.get(z).getY()==points.get(z+1).getY())
-						{
-						points.get(z).x = points.get(z+1).x;
-						points.remove(z+1);
-						}
-					}
+				simplifyPoints.accept(points);
+				
 				w.writeStartElement("polyline");
 				w.writeAttribute("class","gc");
 				w.writeAttribute("id","z"+ci.getId());
-				w.writeAttribute("points",points.stream().map(P->format(P.getX())+","+format(P.getY())).collect(Collectors.joining(" ")));
+				w.writeAttribute("points",points2str.apply(points));
 				w.writeStartElement("title");
 				w.writeCharacters("GC %");
 				w.writeEndElement();
@@ -590,54 +642,56 @@ public class WesCnvSvg  extends Launcher {
 					{
 					final String clickedAttribute = "clicked(evt,\""+ci.getContig()+"\","+ci.getStart()+","+ci.getEnd()+")";
 					final SampleInfo si = ci.sampleInfos.get(bi.index);
-					double x=ci.getPixelX1();
+					final double leftx =ci.getPixelX1();
 					w.writeStartElement("g");
-					w.writeAttribute("transform","translate("+x+",0)");
+					w.writeAttribute("transform","translate("+leftx+",0)");
 					
 					final int segment_width = (int)ci.getPixelWidth();
 
+					//coverage
+					{
 					final List<Point2D.Double> points = new ArrayList<>(segment_width);
 					points.add(new Point2D.Double(0,bi.getPixelHeight()));
 
-					for(int px=0;px< segment_width;px++)
+					for(int px=0;px< si.pixel_coverage.length;px++)
 						{
-						final int pos1 = ci.getStart() + (int)(((px+0)/ci.getPixelWidth())*(ci.getBaseLength()));
-						final int pos2 = ci.getStart() + (int)(((px+1)/ci.getPixelWidth())*(ci.getBaseLength()));
-						if(pos1>=pos2) continue;
-						
-						final double y_covs[]=new double[pos2-pos1];
-						Arrays.fill(y_covs, 0);
-
-						for(int n=pos1;n<pos2;++n)
-							{
-							y_covs[n-pos1]=si.coverage[n-ci.getStart()];
-							}
-						final double y_avg_cov= this.capDepthValue.applyAsDouble(Percentile.of(this.percentile).evaluate(y_covs));
+						final double y_avg_cov= this.capDepthValue.applyAsDouble(si.pixel_coverage[px]);
 						final double new_y = bi.getPixelHeight()-(y_avg_cov/this.globalMaxDepth)*bi.getPixelHeight();
 						points.add(new Point2D.Double(px,new_y));
 						}
 					points.add(new Point2D.Double(ci.getPixelWidth(),bi.getPixelHeight()));
-					
-					
-					for(int z=1;z+1<points.size();++z) {
-						if(points.get(z).getY()==points.get(z+1).getY())
-							{
-							points.get(z).x = points.get(z+1).x;
-							points.remove(z+1);
-							}
-						}
-				
-					points.add(new Point2D.Double(x,bi.getPixelHeight()));
+					simplifyPoints.accept(points);				
+					points.add(new Point2D.Double(leftx,bi.getPixelHeight()));//close
 					w.writeEmptyElement("polygon");
 					w.writeAttribute("class","area");
 					//w.writeAttribute("onclick", clickedAttribute);
-					w.writeAttribute("points",
-							points.
-								stream().
-								map(S->format(S.getX())+","+format(S.getY())).
-								collect(Collectors.joining(" "))
-							);
+					w.writeAttribute("points",points2str.apply(points));
+					}
 					//w.writeEndElement();//g
+					
+					//clipping
+					if(this.globalMaxClip>0)
+					{
+						final List<Point2D.Double> points = new ArrayList<>(segment_width);
+						points.clear();
+						points.add(new Point2D.Double(0,bi.getPixelHeight()));
+						
+						for(int px=0;px< si.pixel_clipping.length;px++)
+							{
+							final double y_avg_cov= this.capDepthValue.applyAsDouble(si.pixel_clipping[px]);
+							final double new_y = bi.getPixelHeight()-(y_avg_cov/this.globalMaxClip)*bi.getPixelHeight();
+							points.add(new Point2D.Double(px,new_y));
+							}
+						simplifyPoints.accept(points);
+						points.add(new Point2D.Double(ci.getPixelWidth(),bi.getPixelHeight()));
+						
+						w.writeEmptyElement("polyline");
+						w.writeAttribute("class","clipping");
+						//w.writeAttribute("onclick", clickedAttribute);
+						w.writeAttribute("points",points2str.apply(points));
+						}
+					
+					
 					
 					int depthshift=1;
 					for(;;) {

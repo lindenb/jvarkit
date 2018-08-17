@@ -44,7 +44,7 @@ Usage: wescnvsvg [options] Files
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     -smooth, --smooth
-      Smoothing DEPTH window size. Negative=don't smooth
+      Smoothing pixel window size. Negative=don't smooth
       Default: 100
     --title
       document title
