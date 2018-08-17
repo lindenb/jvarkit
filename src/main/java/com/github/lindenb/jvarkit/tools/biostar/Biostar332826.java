@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -69,8 +70,10 @@ private File outputFile = null;
 private File rsFile = null;
 @Parameter(names={"-R","-I"},description="A semicolon/comma/space separated list of identifiers")
 private String rsStr = "";
-@Parameter(names={"-d","-delete"},description="When found , remove the ID from the list of identifiers. Should be faster but don't use it if two variants have the same ID.")
+@Parameter(names={"-d","--delete"},description="When found , remove the ID from the list of identifiers. Should be faster but don't use it if two variants have the same ID.")
 private boolean removeIfFound=false;
+@Parameter(names={"-v","--inverse"},description="Inverse: don't print the variants containing the IDS.")
+private boolean inverseSelection =false;
 
 
 @Override
@@ -104,20 +107,43 @@ public int doWork(final List<String> args) {
 			if(line.startsWith("#CHROM")) break;
 			}
 		
-		
 		final CharSplitter tab = CharSplitter.TAB;
-		while((line=br.readLine())!=null && !rsSet.isEmpty()) {
-			final List<CharSequence> tokens = tab.splitAsCharSequenceList(line, 4);
-			if(tokens.size() !=4) {
-				LOG.error("expected at least four tokens in "+line);
-				return -1;
+		
+		if(this.inverseSelection)
+			{
+			while((line=br.readLine())!=null) {
+				final List<CharSequence> tokens = tab.splitAsCharSequenceList(line, 4);
+				if(tokens.size() != 4) {
+					LOG.error("expected at least four tokens in "+line);
+					return -1;
+					}
+				final String id = tokens.get(2).toString();
+				
+				if( id.isEmpty() ||
+					id.equals(VCFConstants.EMPTY_ID_FIELD) ||
+					!(this.removeIfFound? rsSet.remove(id):rsSet.contains(id))
+					)
+					{
+					pw.println(line);
+					}
 				}
-			final String id = tokens.get(2).toString();
-			if(id.isEmpty() || id.equals(VCFConstants.EMPTY_ID_FIELD)) continue;
-			if(this.removeIfFound? rsSet.remove(id):rsSet.contains(id))
-				{
-				pw.println(line);
-				}	
+			IOUtils.copyTo(br, pw);
+			}
+		else
+			{
+			while((line=br.readLine())!=null && !rsSet.isEmpty()) {
+				final List<CharSequence> tokens = tab.splitAsCharSequenceList(line, 4);
+				if(tokens.size() !=4) {
+					LOG.error("expected at least four tokens in "+line);
+					return -1;
+					}
+				final String id = tokens.get(2).toString();
+				if(id.isEmpty() || id.equals(VCFConstants.EMPTY_ID_FIELD)) continue;
+				if(this.removeIfFound? rsSet.remove(id):rsSet.contains(id))
+					{
+					pw.println(line);
+					}	
+				}
 			}
 		pw.flush();
 		pw.close();pw = null;
