@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,16 +21,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2017 creation
-
 */
 package com.github.lindenb.jvarkit.lang;
 
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -41,12 +38,18 @@ import org.w3c.dom.Node;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 @SuppressWarnings("serial")
 public class JvarkitException   {
 
+private static String niceInt(int pos) {
+	final DecimalFormat niceIntFmt = new DecimalFormat("###,###");
+	return niceIntFmt.format(pos);
+}
+	
 /** convert stack trace to String */
 public static String toString(final Throwable err) {
 	final StringWriter sw = new StringWriter();
@@ -212,6 +215,27 @@ public static class ContigNotFoundInDictionary extends ContigNotFound
 		}
 	public ContigNotFoundInDictionary(final String contig,final SAMSequenceDictionary dict) {
 		super(getMessage(contig,dict));
+		}
+	}
+
+
+public static class BadLocatableSortOrder extends Error
+	{
+	private static String str(final Locatable loc,final SAMSequenceDictionary dict) {
+		if(loc==null) return "(null)";
+		return loc.getContig()+(dict==null?":":"(tid="+ dict.getSequenceIndex(loc.getContig())+"):")+
+				":"+niceInt(loc.getStart())+
+				"-"+niceInt(loc.getEnd())
+				;
+		}
+	public static String getMessage(final Locatable loc1,final Locatable loc2,final SAMSequenceDictionary dict)
+		{
+		return "Bad Sort Order: found:\n\t"+str(loc1,dict)+"\nbefore\n\t"+str(loc2,dict)+
+				(dict==null?"":"\n\tdictionary:["+dict.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(","))+"]")
+				;
+		}
+	public BadLocatableSortOrder(final Locatable loc1,final Locatable loc2,final SAMSequenceDictionary dict) {
+		super(getMessage(loc1,loc2,dict));
 		}
 	}
 
