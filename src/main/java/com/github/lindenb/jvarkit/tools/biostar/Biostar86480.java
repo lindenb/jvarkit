@@ -45,7 +45,6 @@ import com.github.lindenb.jvarkit.util.bio.Rebase;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.semontology.Term;
 /**
 BEGIN_DOC
 
@@ -79,9 +78,10 @@ chr3	107451	107457	GAATTC	1000	+	EcoRI	G^AATTC
 ```
 END_DOC
  */
-@Program(name="biostar86480",description="Genomic restriction finder",biostars=86480,
-		keywords={"rebase","genome","enzyme","restricion","genome"},
-		terms=Term.ID_0000015)
+@Program(name="biostar86480",description="Genomic restriction finder",
+	biostars=86480,
+		keywords={"rebase","genome","enzyme","restricion","genome"}
+		)
 public class Biostar86480 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar86480.class).make();

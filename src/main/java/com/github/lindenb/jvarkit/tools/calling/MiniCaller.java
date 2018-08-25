@@ -53,7 +53,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -117,7 +116,6 @@ END_DOC
  */
 @Program(name="minicaller",
 	description="Simple and Stupid Variant Caller designed for @AdrienLeger2",
-	terms=Term.ID_0000005,
 	keywords={"bam","sam","calling","vcf"}
 	)
 public class MiniCaller extends Launcher

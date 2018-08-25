@@ -93,7 +93,6 @@ public int doWork(final List<String> args) {
 			}
 		LOG.info("rs list size: "+rsSet.size());
 		rsSet.remove("");
-		rsSet.remove(VCFConstants.EMPTY_ID_FIELD);
 		if(rsSet.isEmpty()) LOG.warn("NO IDENTIFIER WAS SPECIFIED");
 		br = super.openBufferedReader(oneFileOrNull(args));
 		pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
@@ -119,10 +118,8 @@ public int doWork(final List<String> args) {
 					}
 				final String id = tokens.get(2).toString();
 				
-				if( id.isEmpty() ||
-					id.equals(VCFConstants.EMPTY_ID_FIELD) ||
-					!(this.removeIfFound? rsSet.remove(id):rsSet.contains(id))
-					)
+				if(!(this.removeIfFound && !id.equals(VCFConstants.EMPTY_ID_FIELD) ?
+						rsSet.remove(id):rsSet.contains(id)))
 					{
 					pw.println(line);
 					}
@@ -138,8 +135,8 @@ public int doWork(final List<String> args) {
 					return -1;
 					}
 				final String id = tokens.get(2).toString();
-				if(id.isEmpty() || id.equals(VCFConstants.EMPTY_ID_FIELD)) continue;
-				if(this.removeIfFound? rsSet.remove(id):rsSet.contains(id))
+				if(id.isEmpty()) continue;
+				if(this.removeIfFound && !id.equals(VCFConstants.EMPTY_ID_FIELD) ? rsSet.remove(id):rsSet.contains(id))
 					{
 					pw.println(line);
 					}	

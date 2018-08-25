@@ -38,7 +38,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -48,6 +47,7 @@ import htsjdk.tribble.annotation.Strand;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
@@ -461,7 +461,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			"exonEnds"
 			};
 		
-		public KnownGene(ResultSet row) throws SQLException
+		public KnownGene(final ResultSet row) throws SQLException
 			{
 			this.name = row.getString( SQL_COLUMNS[0]);
 			this.chrom= row.getString(SQL_COLUMNS[1]);
@@ -487,7 +487,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 
 			}
 		
-		private static final Pattern COMMA=Pattern.compile("[,]");
+		private static final CharSplitter COMMA = CharSplitter.COMMA;
 		
 		public KnownGene(final String tokens[])
 			{
@@ -505,15 +505,14 @@ public class KnownGene implements Iterable<Integer>,Feature
 	        final int exonCount=Integer.parseInt(tokens[binIdx + 7]);
 	        this.exonStarts = new int[exonCount];
 	        this.exonEnds = new int[exonCount];
-	            
-            
+	        
             int index=0;
-            for(final String s: COMMA.split(tokens[binIdx + 8]))
+            for(final String s: COMMA.splitAsStringList(tokens[binIdx + 8]))
             	{
             	this.exonStarts[index++]=Integer.parseInt(s);
             	}
             index=0;
-            for(final String s: COMMA.split(tokens[binIdx + 9]))
+            for(final String s: COMMA.splitAsStringList(tokens[binIdx + 9]))
             	{
             	this.exonEnds[index++]=Integer.parseInt(s);
             	}
@@ -604,12 +603,12 @@ public class KnownGene implements Iterable<Integer>,Feature
 			this.exonStarts=new int[exonCount];
 			this.exonEnds=new int[exonCount];
 			int i=0;
-			for(final String s: exonStarts.split("[,]"))
+			for(final String s: COMMA.split(exonStarts))
 				{
 				this.exonStarts[i++]=Integer.parseInt(s);
 				}
 			i=0;
-			for(final String s: exonEnds.split("[,]"))
+			for(final String s: COMMA.split(exonEnds))
 				{
 				this.exonEnds[i++]=Integer.parseInt(s);
 				}
@@ -1019,7 +1018,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			try {
 				in = IOUtils.openURIForBufferedReading(uri);
 				String line;
-				final Pattern tab = Pattern.compile("[\t]");
+				final CharSplitter tab = CharSplitter.TAB;
 				while ((line = in.readLine()) != null) {
 					if (line.isEmpty())
 						continue;

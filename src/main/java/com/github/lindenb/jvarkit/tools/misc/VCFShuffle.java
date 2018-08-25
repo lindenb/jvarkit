@@ -31,6 +31,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -98,7 +99,7 @@ public class VCFShuffle extends Launcher
 				{
 				r.rand=dis.readLong();
 				}
-			catch(final IOException err)
+			catch(final EOFException err)
 				{
 				return null;
 				}
@@ -145,7 +146,7 @@ public class VCFShuffle extends Launcher
 					RLine.class,
 					new RLineCodec(),
 					(o1,o2)->{
-						final int i= o1.rand<o2.rand?-1:o1.rand>o2.rand?1:0;
+						final int i= Long.compare(o1.rand, o2.rand);
 						if(i!=0) return i;
 						return o1.line.compareTo(o2.line);
 						},
@@ -188,7 +189,7 @@ public class VCFShuffle extends Launcher
 	}
 	
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VCFShuffle().instanceMainWithExit(args);
 		}

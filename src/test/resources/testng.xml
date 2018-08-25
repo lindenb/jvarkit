@@ -23,6 +23,7 @@
             <package name="com.github.lindenb.jvarkit.tools.ensembl"/>
             <package name="com.github.lindenb.jvarkit.tools.jaspar"/>
             <package name="com.github.lindenb.jvarkit.tools.genbank"/>
+            <package name="com.github.lindenb.jvarkit.tools.ga4gh"/>
             <package name="com.github.lindenb.jvarkit.tools.gnomad"/>
             <package name="com.github.lindenb.jvarkit.tools.groupbygene"/>
             <package name="com.github.lindenb.jvarkit.tools.ngsfiles"/>

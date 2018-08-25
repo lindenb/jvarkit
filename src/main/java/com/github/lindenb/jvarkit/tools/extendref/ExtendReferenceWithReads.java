@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.extendref;
 
@@ -61,7 +57,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
+
 /**
  BEGIN_DOC
  
@@ -89,8 +85,7 @@ $  java   -jar dist/extendrefwithreads.jar \
 @Program(name="extendrefwithreads",
 	description="Extending ends of sequences with the help of reads",
 	biostars=148089,
-	keywords={"read","fastq","reference","sam","bam"},
-	terms=Term.ID_0000015
+	keywords={"read","fastq","reference","sam","bam"}
 	)
 public class ExtendReferenceWithReads extends Launcher
 	{

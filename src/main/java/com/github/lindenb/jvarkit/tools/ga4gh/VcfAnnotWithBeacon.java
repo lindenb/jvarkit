@@ -25,7 +25,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.semontology.Term;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -62,14 +61,12 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 @Program(
 		name="vcfannotwithbeacon",
 		description="Annotate a VCF with ga4gh beacon",
-		keywords={"ga4gh","beacon","vcf","annotation"},
-		terms={Term.ID_0000017}
+		keywords={"ga4gh","beacon","vcf","annotation"}
 		)
 public class VcfAnnotWithBeacon extends Launcher {
 	private static final Logger LOG=Logger.build(VcfAnnotWithBeacon.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	
 	@Parameter(names={"-B","--bdb"},description="Optional BerkeleyDB directory to store result. Avoid to make the same calls to beacon")
 	private File bdbDir = null;
 	@Parameter(names={"--build"},description="genome build")
@@ -388,7 +385,7 @@ public class VcfAnnotWithBeacon extends Launcher {
 			
 			}
 	
-public static void main(String[] args) {
+public static void main(final String[] args) {
 	new VcfAnnotWithBeacon().instanceMainWithExit(args);
 	}
 }
