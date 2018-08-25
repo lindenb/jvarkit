@@ -40,14 +40,13 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
-public abstract class ProgressFactory {
+public class ProgressFactory {
 private static final Logger LOG=Logger.build( ProgressFactory.class).make();
 private SAMSequenceDictionary _dictionary = null;
 private Logger _logger = LOG;
@@ -57,7 +56,7 @@ private boolean _validateContigInDict = true;
 private boolean _validateOrderInDict = false;
 private boolean _runInBackground  = true;
 
-protected ProgressFactory() {
+private ProgressFactory() {
 }
 
 /** run logger in background */
@@ -66,28 +65,28 @@ public ProgressFactory threaded(final boolean b) {
 	return this;
 	}
 
-public boolean threaded() {
+public boolean isThreaded() {
 	return this._runInBackground;
 	}
 
 
 /** validate contig: check the contig is in the dictionary, if the dictionary is defined */
-public ProgressFactory validateContig(final boolean b) {
+public ProgressFactory validatingContig(final boolean b) {
 	this._validateContigInDict = b;
 	return this;
 	}
 
-public boolean validateContig() {
+public boolean isValidatingContig() {
 	return this._validateContigInDict;
 	}
 
 /** validate contig: check items are sorted in the dictionary, it the dictionary is defined */
-public ProgressFactory validateSortOrder(final boolean b) {
+public ProgressFactory validatingSortOrder(final boolean b) {
 	this._validateOrderInDict = b;
 	return this;
 	}
 
-public boolean validateSortOrder() {
+public boolean isValidatingSortOrder() {
 	return this._validateOrderInDict;
 	}
 
@@ -97,7 +96,7 @@ public ProgressFactory prefix(final String prefix) {
 	return this;
 	}
 
-public String prefix() {
+public String getPrefix() {
 	return this._prefix;
 	}
 
@@ -124,7 +123,7 @@ public ProgressFactory dictionary(final SAMSequenceDictionary dictionary) {
 	return this;
 	}
 
-public SAMSequenceDictionary dictionary() {
+public SAMSequenceDictionary getDictionary() {
 	return this._dictionary;
 	}
 
@@ -133,7 +132,7 @@ public ProgressFactory logger(final Logger logger) {
 	return this;
 	}
 
-public Logger logger() {
+public Logger getLogger() {
 	return (this._logger==null?LOG:this._logger);
 	}
 
@@ -142,16 +141,15 @@ public ProgressFactory setEverySeconds(int everySeconds) {
 	return this;
 }
 
-public int everySeconds() {
+public int getEverySeconds() {
 	return everySeconds;
 	}
 
 public static ProgressFactory newInstance()
 	{
-	return new ProgressFactory()
-		{
-		};
+	return new ProgressFactory();
 	}
+
 public <T extends Locatable> Stream<T> stream(final CloseableIterator<T> delegate) {
 	final CloseableIterator<T> iter= build(delegate);
 	final Stream<T> st = iter.stream();
@@ -161,20 +159,20 @@ public <T extends Locatable> Stream<T> stream(final CloseableIterator<T> delegat
 
 public <T extends Locatable> CloseableIterator<T> build(final CloseableIterator<T> delegate) {
 	final AbstractLogIter<T> iter=new AbstractLogIter<>();
-	iter._dictionary = this.dictionary();
-	iter._logger = this.logger();
+	iter._dictionary = this.getDictionary();
+	iter._logger = this.getLogger();
 	iter._delegate = delegate;
-	iter._everySeconds= this.everySeconds();
-	iter._logPrefix= this.prefix();
-	iter._checkDictContig = this.dictionary()!=null && this.validateContig();
-	iter._checkSorted = this.validateSortOrder();
-	iter._threaded = this.threaded();
+	iter._everySeconds= this.getEverySeconds();
+	iter._logPrefix= this.getPrefix();
+	iter._checkDictContig = this.getDictionary()!=null && this.isValidatingContig();
+	iter._checkSorted = this.isValidatingSortOrder();
+	iter._threaded = this.isThreaded();
 	//
-	iter._logPrefix=(StringUtil.isBlank( this.prefix())?"":"["+ this.prefix()+"]");
+	iter._logPrefix=(StringUtil.isBlank( this.getPrefix())?"":"["+ this.getPrefix()+"]");
 	return iter;
 	}
 
-private class AbstractLogIter<T extends Locatable>
+private static class AbstractLogIter<T extends Locatable>
 	extends AbstractIterator<T>
 	implements CloseableIterator<T>,Runnable
 	{
@@ -218,18 +216,14 @@ private class AbstractLogIter<T extends Locatable>
 			_logger.info(pfx+"No data received. "+duration(diff_millisec));
 			return ;
 			}
-		if(this._dictionary==null || !this.dataAreSorted) {
+		final int tid = getTid(last);
+		final int pos = tid<0?-1:last.getStart();
+
+		if(this._dictionary==null || !this.dataAreSorted || tid==-1 || pos<1) {
 			_logger.info(pfx+"Last "+loc2str(last)+" "+duration(diff_millisec));
 			return ;
 			}
 		
-		final int tid = _dictionary.getSequenceIndex(last.getContig());
-		final int pos = last.getStart();
-		if(tid==-1 || pos<1)
-			{
-			_logger.info(last.toString()+"."+duration(diff_millisec));
-			return;
-			}
 			
 		final long numBasesDone=(tid==0?0:this.cumulLengthDone[tid-1])+pos;
 		final long numBasesRemains=Math.max(0,referenceLength-numBasesDone);
@@ -269,7 +263,7 @@ private class AbstractLogIter<T extends Locatable>
 				this.referenceLength=0L;
 				}
 			else
-				{	
+				{
 				this.cumulLengthDone=new long[this._dictionary.size()];
 				long prev_cumul=0L;
 				this.referenceLength=this._dictionary.getReferenceLength();
@@ -296,12 +290,19 @@ private class AbstractLogIter<T extends Locatable>
 		final T item = this._delegate.next();
 		if(item==null) {
 			close();
-			return null;
+			throw new IllegalStateException("iterator returned null");
 			}
 		
 		this.count_items++;
 		
-		if((this._checkDictContig || this._checkSorted) && this._dictionary.getSequence(item.getContig())==null) {
+		//e.g: SAMRecord not mapped
+		if(StringUtil.isBlank(item.getContig()))
+			{
+			this.previous = item;
+			return item;
+			}
+		final int tid2 = getTid(item);
+		if(tid2 == -1) {
 			close();
 			throw new JvarkitException.ContigNotFoundInDictionary(item.getContig(), this._dictionary);
 			}
@@ -309,15 +310,14 @@ private class AbstractLogIter<T extends Locatable>
 		if(this.previous!=null) {
 			
 				if(this.dataAreSorted) {
-				final int tid1 =  this._dictionary.getSequenceIndex(this.previous.getContig());
-				final int tid2 =  this._dictionary.getSequenceIndex(item.getContig());
-				if((tid1!=-1 && tid2!=-1) && (tid1 > tid2 || (tid1==tid2 && this.previous.getStart()>item.getStart()))) {
-					if(this._checkSorted) {
-						close();
-						throw new JvarkitException.BadLocatableSortOrder(this.previous, item, this._dictionary);
+					final int tid1 =  getTid(this.previous);
+					if((tid1!=-1 && tid2!=-1) && (tid1 > tid2 || (tid1==tid2 && this.previous.getStart()>item.getStart()))) {
+						if(this._checkSorted) {
+							close();
+							throw new JvarkitException.BadLocatableSortOrder(this.previous, item, this._dictionary);
+							}
+						this.dataAreSorted=false;
 						}
-					this.dataAreSorted=false;
-					}
 				}
 			
 			this.previous=item;
@@ -357,7 +357,17 @@ private class AbstractLogIter<T extends Locatable>
 			}
 		return loc.getContig()+":"+format(loc.getStart())+"-"+format(loc.getEnd());
 		}
-
+	
+	private int getTid(final Locatable loc) {
+		if(this._dictionary==null || loc==null) return -1;
+		if(StringUtil.isBlank(loc.getContig())) return -1;//can happen for SamRecord
+		final int tid = this._dictionary.getSequenceIndex(loc.getContig());
+		if(this._checkDictContig)
+			{
+			throw new JvarkitException.ContigNotFoundInDictionary(loc.getContig(), this._dictionary);
+			}
+		return tid;
+		}
 	}
 
 private static String duration(long millisecs)

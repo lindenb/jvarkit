@@ -395,7 +395,7 @@ public class WesCnvSvg  extends Launcher {
 					
 					for(int x=0;x< si.pixel_coverage.length;x++) {
 						final int pos0 = Math.min(base_coverage.length, (int)(((x+0)/ci.getPixelWidth())*ci.getBaseLength()));
-						final int pos1 = Math.min(base_coverage.length, (int)(((x+1)/ci.getPixelWidth())*ci.getBaseLength()));
+						final int pos1 = Math.min(base_coverage.length, (int)Math.ceil(((x+1)/ci.getPixelWidth())*ci.getBaseLength()));
 						if(pos0>=pos1) continue;
 						si.pixel_coverage[x] = thePercentile.evaluate(base_coverage,pos0,(pos1-pos0));
 						si.pixel_clipping[x] = thePercentile.evaluate(clip_coverage,pos0,(pos1-pos0));
