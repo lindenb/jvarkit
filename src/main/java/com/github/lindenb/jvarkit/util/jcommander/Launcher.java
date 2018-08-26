@@ -202,9 +202,9 @@ public static  class UsageBuider
 					{
 					ok=true;
 					}
-				else if(line.contains("END"+"_DOC"))
+				else if(line.contains("END"+"_DOC") && !line.contains(".END_DOCUMENT"))
 					{
-					if(!ok) LOG.warn("END_"+"DOC without BEGIN");
+					if(!ok) LOG.warn("END_"+"DOC without BEGIN"+"_DOC "+line.trim());
 					ok=false;
 					}
 				else if(ok)

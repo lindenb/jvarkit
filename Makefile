@@ -392,6 +392,7 @@ $(eval $(call compile-htsjdk-cmd,pubmedgender,${jvarkit.package}.tools.pubmed.Pu
 $(eval $(call compile-htsjdk-cmd,pubmedmap,${jvarkit.package}.tools.pubmed.PubmedMap,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedgraph,${jvarkit.package}.tools.pubmed.PubmedGraph,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedorcidgraph,${jvarkit.package}.tools.pubmed.PubmedOrcidGraph,${jcommander.jar} ${berkeleydb.jar}))
+$(eval $(call compile-htsjdk-cmd,pubmedauthorgraph,${jvarkit.package}.tools.pubmed.PubmedAuthorGraph,${jcommander.jar} ${berkeleydb.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedfilterjs,${jvarkit.package}.tools.pubmed.PubmedFilterJS,${jcommander.jar} api.ncbi.pubmed))
 $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.ReferenceToVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,sam2json,${jvarkit.package}.tools.misc.SamToJson,${jcommander.jar} ${gson.jar} ))
