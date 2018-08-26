@@ -24,14 +24,20 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.log;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.vcf.readers.DelegateVcfIterator;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
@@ -40,7 +46,9 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -157,36 +165,47 @@ public <T extends Locatable> Stream<T> stream(final CloseableIterator<T> delegat
 	return st;
 	}
 
-public <T extends Locatable> CloseableIterator<T> build(final CloseableIterator<T> delegate) {
-	final AbstractLogIter<T> iter=new AbstractLogIter<>();
-	iter._dictionary = this.getDictionary();
-	iter._logger = this.getLogger();
-	iter._delegate = delegate;
-	iter._everySeconds= this.getEverySeconds();
-	iter._logPrefix= this.getPrefix();
-	iter._checkDictContig = this.getDictionary()!=null && this.isValidatingContig();
-	iter._checkSorted = this.isValidatingSortOrder();
-	iter._threaded = this.isThreaded();
-	//
-	iter._logPrefix=(StringUtil.isBlank( this.getPrefix())?"":"["+ this.getPrefix()+"]");
-	return iter;
+public <T extends Locatable> CloseableIterator<T> build(final Iterator<T> delegate) {
+	return new LogIter<>(delegate,build());
 	}
 
-private static class AbstractLogIter<T extends Locatable>
-	extends AbstractIterator<T>
-	implements CloseableIterator<T>,Runnable
-	{
+public VcfIterator build(final VcfIterator delegate) {
+	return new VcfIteratorWatcher(delegate,build());
+	}
 
+public <T extends Locatable> Watcher<T> build() {
+	final WatcherImpl<T> w = new WatcherImpl<>();
+	w._dictionary = this.getDictionary();
+	w._logger = this.getLogger();
+	w._everySeconds= this.getEverySeconds();
+	
+	w._checkDictContig = this.getDictionary()!=null && this.isValidatingContig();
+	w._checkSorted = this.isValidatingSortOrder();
+	w._threaded = this.isThreaded();
+
+	w._logPrefix=(StringUtil.isBlank( this.getPrefix())?"":"["+ this.getPrefix()+"]");
+	return w;
+	}
+
+public static interface Watcher<T extends Locatable>
+	extends Closeable,Function<T, T>
+	{
+	
+	}
+
+private static class WatcherImpl<T extends Locatable>
+	implements Watcher<T>,Runnable
+	{
+	private boolean EOF_flag = false;
 	private SAMSequenceDictionary _dictionary = null;
 	private Logger _logger = LOG;
-	private CloseableIterator<T> _delegate = null;
 	private boolean firstCall = true;
 	private ScheduledExecutorService scheduledExecutorService=null;
 	private int _everySeconds = 10;
 	private boolean _checkDictContig = false;
 	private boolean _checkSorted = false;
 	private boolean _threaded = true;
-	private T previous=null;
+	private T previousLocatable = null;
 	private long count_items = 0L;
 	private long startMillisec = System.currentTimeMillis();
 	private transient long lastCallMillisec = startMillisec;
@@ -199,6 +218,7 @@ private static class AbstractLogIter<T extends Locatable>
 	
 	@Override
 	public void run() {
+		if(this.EOF_flag) return;
 		final long now = System.currentTimeMillis();
 		final long diff_millisec = now - this.lastCallMillisec;
 		if(this._threaded ) {
@@ -208,22 +228,20 @@ private static class AbstractLogIter<T extends Locatable>
 			{
 			if(diff_millisec* 1000 <this._everySeconds) return;
 			}
-		final T last = this.previous;
+		final T last = this.previousLocatable;
 		this.lastCallMillisec = now;
 		final long count = this.count_items;
 		final String pfx= this._logPrefix;
 		if(last==null) {
-			_logger.info(pfx+"No data received. "+duration(diff_millisec));
+			_logger.info(pfx+"No data received. Elapsed time: "+duration(now-this.startMillisec));
 			return ;
 			}
 		final int tid = getTid(last);
 		final int pos = tid<0?-1:last.getStart();
-
 		if(this._dictionary==null || !this.dataAreSorted || tid==-1 || pos<1) {
 			_logger.info(pfx+"Last "+loc2str(last)+" "+duration(diff_millisec));
 			return ;
 			}
-		
 			
 		final long numBasesDone=(tid==0?0:this.cumulLengthDone[tid-1])+pos;
 		final long numBasesRemains=Math.max(0,referenceLength-numBasesDone);
@@ -233,11 +251,10 @@ private static class AbstractLogIter<T extends Locatable>
 		final long timeRemain=(long)(numBasesRemains*millisecPerBase);
 		
 		
-		this._logger.info(
-				String.format("%sCount: %d Elapsed: %s(%.2f%%) Remains: %s(%.2f%%) Last: %s:%s",
-				
+		final String msg = String.format(
+				"%sCount: %s Elapsed: %s(%.2f%%) Remains: %s(%.2f%%) Last: %s:%s",
 				pfx,
-				format(count),
+				this.format(count),
 				
 				duration(diff_millisec),
 				(percentDone*100.0),
@@ -247,11 +264,14 @@ private static class AbstractLogIter<T extends Locatable>
 				
 				last.getContig(),
 				this.format(pos)
-				));
+				);
+		this._logger.info(msg);
 		}
 	
-	@Override
-	protected T advance() {
+		@Override
+		public T apply(final T item) {
+		if(this.EOF_flag) throw new IllegalStateException("Walker was closed");
+		
 		if(this.firstCall)
 			{
 			this.firstCall=false;
@@ -283,14 +303,11 @@ private static class AbstractLogIter<T extends Locatable>
 					);
 				}
 			}
-		if(this._delegate==null || !this._delegate.hasNext()) {
-			close();
-			return null;
-		}
-		final T item = this._delegate.next();
+		
+
 		if(item==null) {
 			close();
-			throw new IllegalStateException("iterator returned null");
+			throw new IllegalStateException("Walker invoked with 'null'");
 			}
 		
 		this.count_items++;
@@ -298,47 +315,40 @@ private static class AbstractLogIter<T extends Locatable>
 		//e.g: SAMRecord not mapped
 		if(StringUtil.isBlank(item.getContig()))
 			{
-			this.previous = item;
+			this.previousLocatable = item;
 			return item;
 			}
 		final int tid2 = getTid(item);
-		if(tid2 == -1) {
-			close();
-			throw new JvarkitException.ContigNotFoundInDictionary(item.getContig(), this._dictionary);
-			}
 		
-		if(this.previous!=null) {
-			
+		
+		if(this.previousLocatable!=null) {
 				if(this.dataAreSorted) {
-					final int tid1 =  getTid(this.previous);
-					if((tid1!=-1 && tid2!=-1) && (tid1 > tid2 || (tid1==tid2 && this.previous.getStart()>item.getStart()))) {
+					final int tid1 =  getTid(this.previousLocatable);
+					if((tid1!=-1 && tid2!=-1) && (tid1 > tid2 || (tid1==tid2 && this.previousLocatable.getStart()>item.getStart()))) {
 						if(this._checkSorted) {
 							close();
-							throw new JvarkitException.BadLocatableSortOrder(this.previous, item, this._dictionary);
+							throw new JvarkitException.BadLocatableSortOrder(this.previousLocatable, item, this._dictionary);
 							}
 						this.dataAreSorted=false;
 						}
 				}
-			
-			this.previous=item;
-			if(!this._threaded) run();
 			}
-		
+		this.previousLocatable = item;
+		if(!this._threaded) run();
 		return item;
 		}
 	@Override
 	public void close() {
-		if(this._delegate!=null) {
-			_delegate.close();
-			_delegate=null;
-			}
+		if(EOF_flag) return;
+		
 		if(this.scheduledExecutorService!=null)
 			{
 			this.scheduledExecutorService.shutdown();
 			this.scheduledExecutorService=null;
 			}
-		this.previous=null;
+		this.previousLocatable=null;
 		this._logger.info(this._logPrefix +". Completed. N="+format(count_items)+". That took:"+duration(System.currentTimeMillis()-this.startMillisec));
+		this.EOF_flag=true;
 		}
 	
 	private String format(final long loc) {
@@ -362,11 +372,67 @@ private static class AbstractLogIter<T extends Locatable>
 		if(this._dictionary==null || loc==null) return -1;
 		if(StringUtil.isBlank(loc.getContig())) return -1;//can happen for SamRecord
 		final int tid = this._dictionary.getSequenceIndex(loc.getContig());
-		if(this._checkDictContig)
+		if(tid<0 && this._checkDictContig)
 			{
 			throw new JvarkitException.ContigNotFoundInDictionary(loc.getContig(), this._dictionary);
 			}
 		return tid;
+		}
+	}
+
+private static class LogIter<T extends Locatable>
+	extends AbstractIterator<T>
+	implements CloseableIterator<T>
+	{
+	final Iterator<T> delegate;
+	final Watcher<T> watcher;
+	LogIter(final Iterator<T> delegate,final Watcher<T> watcher) {
+		this.delegate = delegate;
+		this.watcher = watcher;
+		}
+	@Override
+	protected T advance() {
+		if(!delegate.hasNext()) {
+			close();
+			return null;
+			}
+		return this.watcher.apply(delegate.next());
+		}
+	@Override
+	public void close() {
+		CloserUtil.close(delegate);
+		CloserUtil.close(watcher);
+		}
+	}
+
+private static class VcfIteratorWatcher extends DelegateVcfIterator
+	{
+	final Watcher<VariantContext> watcher;
+	VcfIteratorWatcher(final VcfIterator delegate,final Watcher<VariantContext> watcher) {
+		super(delegate);
+		this.watcher=watcher;
+		}
+	@Override
+	public boolean hasNext() {
+		boolean b = super.hasNext();
+		if(!b) {
+			try {
+				close();
+				}
+			catch(final IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		return b;
+		}
+	@Override
+	public VariantContext next() {
+		return watcher.apply(super.next());
+		}
+	@Override
+	public void close() throws IOException {
+		super.close();
+		watcher.close();
 		}
 	}
 

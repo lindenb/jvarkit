@@ -48,7 +48,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
@@ -182,12 +182,12 @@ public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
 				final VariantContextWriter out  = this.component.open(delegate);
 				out.writeHeader(in.getHeader());
 				
-				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+				final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 				while(in.hasNext())
 					{
-					out.add(progress.watch(in.next()));
+					out.add(progress.apply(in.next()));
 					}
-				progress.finish();
+				progress.close();
 				out.close();
 				return 0;
 				}
