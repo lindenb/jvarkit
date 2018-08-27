@@ -48,6 +48,7 @@ import javax.xml.transform.stream.StreamResult;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -1150,8 +1151,8 @@ public class VcfToTable extends Launcher {
 				if(!getOwner().hideGenotypes && vc.hasGenotypes())
 					{
 					//margin = margin+ DEFAULT_MARGIN;
-					final Pattern tab = Pattern.compile("\t");
-					final Pattern colon = Pattern.compile("\\:");
+					final CharSplitter tab = CharSplitter.TAB;
+					final CharSplitter colon = CharSplitter.COLON;
 					final List<String> hds = new ArrayList<>();
 					
 					hds.add("Sample");

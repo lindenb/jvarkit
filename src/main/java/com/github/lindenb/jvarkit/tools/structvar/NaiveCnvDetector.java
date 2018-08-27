@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
@@ -97,12 +98,15 @@ public class NaiveCnvDetector extends Launcher
 	private boolean disable_consecutive_bases =false;
 	@Parameter(names={"-stddevu","--stddev-unaffected"},description="Maximum standard deviation of depth for unaffected samples. Ignored if negative or if not any affected samples is defined." )
 	private double max_stdev_unaffected = 10.0;
-	@Parameter(names={"-del","--del","--deletion"},description="Deletion Treshold. Which fraction of the median depth is considered as aa deletion. Must be <1.0" )
+	@Parameter(names={"-E","-del","--del","--deletion"},description="Deletion Treshold. Which fraction of the median depth is considered as aa deletion. Must be <1.0" )
 	private double deletion_treshold = 0.5;
-	@Parameter(names={"-dup","--dup","--duplication"},description="Duplication Treshold. Which fraction of the median depth is considered as a duplication. Must be >1.0" )
-	private double duplication_treshold = 1.5;
-	@Parameter(names={"-disable-both"},description="Disable the following criteria: there cannot be a DEL and a DUP at the same place." )
-	private boolean disable_both_del_dup = false;
+	@Parameter(names={"-U","-dup","--dup","--duplication"},description="Duplication Treshold. Which fraction of the median depth is considered as a duplication. Must be >1.0" )
+	private double duplication_treshold = 1.9;
+	@Parameter(names={"--no-both"},description="There cannot be a DEL and a DUP at the same place." )
+	private boolean no_both = false;
+	@Parameter(names={"-t"},description="DEL must be < median-depth-stdev and DUP must be > median-depth+stdev" )
+	private boolean use_standard_depth = false;
+
 
 
 	
@@ -113,6 +117,8 @@ public class NaiveCnvDetector extends Launcher
 		double meanDepth=0.0;
 		double adjustDepth = 1.0;
 		boolean affected=false;
+		long sumDepth = 0L;
+		long countDepth = 0L;
 		
 		boolean isAffected() { return affected;}
 		boolean isUnaffected() { return !affected;}
@@ -241,6 +247,8 @@ public class NaiveCnvDetector extends Launcher
 			return;
 			}
 		
+		
+		
 		//calc median depth of unaffected
 		final double median_unaffected_depth = new Median().
 				evaluate(
@@ -250,20 +258,43 @@ public class NaiveCnvDetector extends Launcher
 				toArray()
 				);
 		
-		if(median_unaffected_depth<0) return;
+		if(median_unaffected_depth<=0 || Double.isNaN(median_unaffected_depth)) return;
+		
+		
+		final Predicate<SampleInfo> deletionTest = (SI)->{
+			final double dp = rec.depths[SI.index];
+			if(use_standard_depth && dp> median_unaffected_depth-stddev_unaffected) return false;
+			return dp <= median_unaffected_depth*this.deletion_treshold;
+			};
+			
+		final Predicate<SampleInfo> duplicationTest = (SI)->{
+			final double dp = rec.depths[SI.index];
+			if(use_standard_depth && dp< median_unaffected_depth+stddev_unaffected) return false;
+			return dp >= median_unaffected_depth*this.duplication_treshold;
+			};	
 		
 		final List<SampleInfo> delSamples = this.sampleList.
 				stream().
-				filter(SI-> rec.depths[SI.index] < median_unaffected_depth*this.deletion_treshold).
+				filter(deletionTest).
 				collect(Collectors.toList())
 				;
 		final List<SampleInfo> dupSamples = this.sampleList.
 				stream().
-				filter(SI-> rec.depths[SI.index] > median_unaffected_depth*this.duplication_treshold).
+				filter(duplicationTest).
 				collect(Collectors.toList())
 				;
 		
 		if(delSamples.isEmpty() && dupSamples.isEmpty()) return;
+		
+		// at least one sample affected must carry mutation
+		if(this.count_affected_samples>0) {
+			if(delSamples.stream().noneMatch(S->S.isAffected()) &&
+				dupSamples.stream().noneMatch(S->S.isAffected()))
+				{
+				return;
+				}
+		}
+		
 		
 		final Set<SampleInfo> noCnvSamples = new HashSet<>(this.sampleList);
 		noCnvSamples.removeAll(delSamples);
@@ -271,7 +302,7 @@ public class NaiveCnvDetector extends Launcher
 		
 		
 		//interval contains DEL *and* DUP
-		if(!this.disable_both_del_dup && 
+		if(this.no_both && 
 			!delSamples.isEmpty() && 
 			!dupSamples.isEmpty()
 			)
@@ -328,7 +359,7 @@ public class NaiveCnvDetector extends Launcher
 				noCnvSamples.stream().filter(S->S.isUnaffected()).count()
 				}}
 				);
-			out.print(p_value);
+			out.print(format(p_value));
 			out.print("\t");
 			out.print(p_value<0.05?"*":".");
 			}
@@ -499,7 +530,11 @@ public class NaiveCnvDetector extends Launcher
 				final DepthLine depthLine = new DepthLine(contig, pos1, this.sampleList.size());
 				for(int x=2;x<tokens.length;++x)
 					{
-					depthLine.depths[x-2] = this.sampleList.get(x-2).adjustDepth * Integer.parseInt(tokens[x]);
+					final SampleInfo si=this.sampleList.get(x-2);
+					final int rawdp =  Integer.parseInt(tokens[x]);
+					si.sumDepth += rawdp;
+					si.countDepth++;
+					depthLine.depths[x-2] = si.adjustDepth * Integer.parseInt(tokens[x]);
 					}
 				if(!this.depthBuffer.isEmpty())
 					{
@@ -532,6 +567,12 @@ public class NaiveCnvDetector extends Launcher
 				}
 			out.flush();
 			out.close();
+			
+			for(final SampleInfo ci:this.sampleList) {
+				if(ci.countDepth<=0) continue;
+				LOG.info(ci.name+"\t"+(ci.sumDepth/(double)ci.countDepth)+"\t"+(ci.isAffected()?1:0));
+			}
+			
 			return 0;
 			}
 		catch(final Exception err)

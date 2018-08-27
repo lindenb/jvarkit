@@ -21,8 +21,8 @@ public class SAM4WebLogoTest extends TestUtils
 			initList(collectIndexedBams()).
 			build();
 		}
-	private void basetest(final String inBam,String params) throws IOException {
-		final File out = createTmpFile(".txt");
+	private File basetest(final String inBam,String params,boolean fastq) throws IOException {
+		final File out = createTmpFile(fastq?".fastq":".txt");
 		for(final Interval interval: super.randomIntervalsFromDict(new File(inBam), 20)) {
 			if(interval.getContig().contains(":")) continue;
 			final String args[]=newCmd().add(
@@ -37,14 +37,20 @@ public class SAM4WebLogoTest extends TestUtils
 				Assert.fail(Arrays.asList(args).toString());
 				}
 			}
+		return out;
 		}
 	
 	@Test(dataProvider="src1")
 	public void testNoClip(final String inBam) throws IOException {
-		basetest(inBam,"");
+		basetest(inBam,"",false);
 		}
 	@Test(dataProvider="src1")
 	public void testClip(final String inBam) throws IOException {
-		basetest(inBam,"-c");
+		basetest(inBam,"-c",false);
+		}
+	@Test(dataProvider="src1")
+	public void testFastq(final String inBam) throws IOException {
+		final File out=basetest(inBam,"-c --fastq -fqu _ -fqp _",true);
+		assertIsFastq(out);
 		}
 	}

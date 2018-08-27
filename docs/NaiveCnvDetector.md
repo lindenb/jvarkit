@@ -10,7 +10,7 @@ experimental CNV detection for multiple samples.
 ```
 Usage: naivecnvdetector [options] Files
   Options:
-    -del, --del, --deletion
+    -E, -del, --del, --deletion
       Deletion Treshold. Which fraction of the median depth is considered as 
       aa deletion. Must be <1.0
       Default: 0.5
@@ -19,7 +19,7 @@ Usage: naivecnvdetector [options] Files
       position if the current samtools-depth line is not the very next 
       expected position.
       Default: false
-    -dup, --dup, --duplication
+    -U, -dup, --dup, --duplication
       Duplication Treshold. Which fraction of the median depth is considered 
       as a duplication. Must be >1.0
       Default: 1.9
@@ -32,6 +32,9 @@ Usage: naivecnvdetector [options] Files
       At least one 'unaffected' sample must have a normalized-depth greater 
       than this value.
       Default: 20
+    --no-both
+      There cannot be a DEL and a DUP at the same place.
+      Default: false
     -o, --out
       Output file. Optional . Default: stdout
     -stddevu, --stddev-unaffected
@@ -49,13 +52,12 @@ Usage: naivecnvdetector [options] Files
       Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If 
       this file is not specified , all samples are considered unaffected 
       (discovery mode).
-    -disable-both
-      Disable the following criteria: there cannot be a DEL and a DUP at the 
-      same place.
-      Default: false
     -s
       window shift
       Default: 500
+    -t
+      DEL must be < median-depth-stdev and DUP must be > median-depth+stdev
+      Default: false
     -w
       window size
       Default: 1000

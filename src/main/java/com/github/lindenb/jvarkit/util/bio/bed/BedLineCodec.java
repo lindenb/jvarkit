@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,27 +20,26 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.util.bio.bed;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.readers.LineIterator;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
+
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 public class BedLineCodec
 	extends AsciiFeatureCodec<BedLine>
 	{
-	private final Pattern tab=Pattern.compile("[\t]");
+	private static final Logger LOG = Logger.build(BedLineCodec.class).make();
+	private final CharSplitter tab= CharSplitter.TAB;
 	public BedLineCodec() {
 		super(BedLine.class);
 		}
@@ -48,13 +47,16 @@ public class BedLineCodec
 	@Override
 	/** may be null of line is a BEd header or empty string */
 	public BedLine decode(final String line) {
-		if (line.trim().isEmpty()) {
+		if (StringUtil.isBlank(line)) {
             return null;
         	}
 		if(BedLine.isBedHeader(line)) return null;
 		
         final String[] tokens = tab.split(line);
-        if(tokens.length<2) return null;
+        if(tokens.length<2) {
+        	LOG.warn("not enough tokens in BED line "+line+". Skipping.");
+        	return null;
+        	}
        
         return new BedLine(tokens);
         }

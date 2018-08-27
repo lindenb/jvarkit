@@ -29,7 +29,6 @@ History:
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,7 +36,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -45,6 +43,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
@@ -88,9 +87,9 @@ public class VepPredictionParser implements PredictionParser
 		HGVSp,ALLELE_NUM,CANONICAL,
 		CCDS,ENSP,DOMAINS
 		*/
-	private final Map<String, Integer> col2col=new HashMap<String, Integer>();
-	private final Pattern pipe=Pattern.compile("[\\|]");
-	private final Pattern ampRegex = Pattern.compile("[&]");
+	private final Map<String, Integer> col2colidx=new HashMap<String, Integer>();
+	private final CharSplitter pipe= CharSplitter.PIPE;
+	private final CharSplitter ampRegex = CharSplitter.of('&');
 	private final String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	private final boolean valid;
@@ -136,17 +135,18 @@ public class VepPredictionParser implements PredictionParser
 			return;
 			}
 		description=description.substring(i+chunck.length()).replaceAll("[ \'\\.\\(\\)]+","").trim();
-		final String tokens[]= this.pipe.split(description);
+		final List<String> tokens= this.pipe.splitAsStringList(description);
 
-		for(i=0;i< tokens.length;++i)
+		for(i=0;i< tokens.size();++i)
 			{
-			if(tokens[i].isEmpty()) continue;
-			if(this.col2col.containsKey(tokens[i]))
+			final String token= tokens.get(i);
+			if(StringUtil.isBlank(token)) continue;
+			if(this.col2colidx.containsKey(token))
 				{
-				LOG.warning("Column  "+tokens[i]+" defined twice in "+description);;
+				LOG.warning("Column  "+token+" defined twice in "+description);;
 				continue;
 				}
-			this.col2col.put(tokens[i], i);
+			this.col2colidx.put(token, i);
 			}
 		this.valid=true;
 		}
@@ -156,13 +156,13 @@ public class VepPredictionParser implements PredictionParser
 		}
 	
 	public Set<String> getCategories() {
-		return Collections.unmodifiableSet(this.col2col.keySet());
+		return Collections.unmodifiableSet(this.col2colidx.keySet());
 	}
 	
 	@Override
 	public List<VepPrediction> getPredictions(final VariantContext ctx)
 		{
-		if(!isValid() || this.col2col.isEmpty()) return Collections.emptyList();
+		if(!isValid() || this.col2colidx.isEmpty()) return Collections.emptyList();
 		final List<? extends Object> L =ctx.getAttributeAsList(this.tag);
 		ArrayList<VepPrediction> preds= new ArrayList<VepPrediction>(L.size());
 		for(final Object o2:L)  _predictions(preds,o2,ctx);
@@ -200,7 +200,7 @@ public class VepPredictionParser implements PredictionParser
 			this.tokens=tokens;
 			this.alleles = Collections.unmodifiableList(ctx.getAlleles());
 			/** special case for ALT, can be '-' */
-			Integer idx_allele = VepPredictionParser.this.col2col.get("Allele");
+			Integer idx_allele = VepPredictionParser.this.col2colidx.get("Allele");
 			if(	idx_allele!=null && 
 				idx_allele<tokens.length &&
 				tokens[idx_allele].equals("-"))
@@ -218,7 +218,7 @@ public class VepPredictionParser implements PredictionParser
 		public String getByCol(final String col)
 			{
 			if(col==null || col.isEmpty()) return null;
-			final Integer idx= VepPredictionParser.this.col2col.get(col);
+			final Integer idx= VepPredictionParser.this.col2colidx.get(col);
 			if(idx==null || idx>=tokens.length || tokens[idx].isEmpty())
 				{
 				return null;
@@ -363,10 +363,10 @@ public class VepPredictionParser implements PredictionParser
 		
 		public Map<String,String> getMap()
 			{
-			final Map<String, String> hash=new LinkedHashMap<>();
-			for(final String c: col2col.keySet())
+			final Map<String, String> hash = new LinkedHashMap<>();
+			for(final String c: col2colidx.keySet())
 				{
-				int idx=col2col.get(c);
+				final int idx=col2colidx.get(c);
 				if(idx>=this.tokens.length) continue;
 				hash.put(c, tokens[idx]);
 				}
@@ -417,9 +417,9 @@ public class VepPredictionParser implements PredictionParser
 		/** return the "Consequence" splitted, as an array of String, empty if consequence is not found */
 		public List<String> getSOTermsStrings()
 		{
-			final String EFF=getSOTermsString();
+			final String EFF = getSOTermsString();
 			if(EFF==null || EFF.isEmpty()) return Collections.emptyList();
-			return Arrays.asList(VepPredictionParser.this.ampRegex.split(EFF));
+			return VepPredictionParser.this.ampRegex.splitAsStringList(EFF);
 		}
 	
 		/** convert the list of getConsequences() to a list of SequenceOntology Terms */

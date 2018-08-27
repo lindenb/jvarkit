@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,16 +21,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
-
 */
 
 package com.github.lindenb.jvarkit.util.illumina;
 
 import java.util.Arrays;
-import java.util.regex.Pattern;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 
 import htsjdk.samtools.SAMRecord;
 
@@ -171,13 +167,7 @@ public class ShortReadName
 	
 	public String getName()
 		{
-		StringBuilder b=new StringBuilder();
-		for(int i=0;i< tokens.length;++i)
-			{
-			if(i>0) b.append(":");
-			b.append(tokens[i]);
-			}
-		return b.toString();
+		return String.join(":", this.tokens);
 		}
 
 	
@@ -187,7 +177,7 @@ public class ShortReadName
 		return this.getName();
 		}
 	
-	private static final Pattern COLON=Pattern.compile("[\\:]");
+	private static final CharSplitter COLON=CharSplitter.COLON;
 	
 	/** Parse a Read name. For now only  Casava 1.8 */
 	public static ShortReadName parse(String readName)
@@ -227,7 +217,7 @@ public class ShortReadName
 		}
 	
 	/** Parse a Read name. For now only  Casava 1.8 */
-	public static ShortReadName parse(SAMRecord record)
+	public static ShortReadName parse(final SAMRecord record)
 		{
 		return parse(record==null?null:record.getReadName());
 		}

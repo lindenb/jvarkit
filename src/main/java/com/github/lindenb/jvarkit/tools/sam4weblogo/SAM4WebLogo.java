@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,37 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-
-
-*/
-/*
-The MIT License (MIT)
-
-Copyright (c) 2014 Pierre Lindenbaum
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.sam4weblogo;
@@ -78,6 +47,7 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.filter.SamRecordFilter;
 /**
 BEGIN_DOC
@@ -137,6 +107,42 @@ TGTGGGGGCCGCAGTG---------------
 TGGGGGGGGCGCAGT----------------
 ```
 
+### fastq-like output
+
+```
+$ java -jar dist/sam4weblogo.jar -r 'RF01:100-130' src/test/resources/S1.bam -q -c
+
+@RF01_44_622_1:0:0_1:0:0_3a/1
+TATTCTTCCAATAG-----------------
++
+22222222222222                 
+@RF01_44_499_0:0:0_3:0:0_7b/2
+TATTCTTCCAATAG-----------------
++
+22222222222222                 
+@RF01_67_565_0:0:0_2:0:0_67/2
+TATTCTTCCAATAGTGAATTAGAGAATAGAT
++
+2222222222222222222222222222222
+@RF01_94_620_1:0:0_2:0:0_15/2
+TATTCTTCCAATAGTGAATTAGAGAATAGAT
++
+2222222222222222222222222222222
+@RF01_102_665_1:0:0_1:0:0_71/1
+--TTCTTCCAATAGTGAATTAGAGAATAGAT
++
+  22222222222222222222222222222
+@RF01_110_504_2:0:0_1:0:0_5d/2
+----------ATAGTGAATTAGATAATAGAT
++
+          222222222222222222222
+@RF01_121_598_1:0:0_3:0:0_6e/2
+---------------------GAGAATAGAT
++
+                     2222222222
+```
+
+
 ## See also
 
 * https://www.biostars.org/p/103052/
@@ -166,6 +172,14 @@ public class SAM4WebLogo extends Launcher
 	@Parameter(names={"-readFilter","--readFilter"},description="[20171201](moved to jexl)"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
 	private SamRecordFilter SamRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
 	
+	@Parameter(names={"-q","--fastq"},description="[20180812]print fastq-like format. Was : https://github.com/lindenb/jvarkit/issues/109")
+	private boolean print_fastq = false;
+	@Parameter(names={"-fqu","--fqu"},description="[20180813] fastq unknown quality character")
+	private String fastq_quality_unknown_str = "!";
+	@Parameter(names={"-fqp","--fqp"},description="[20180813] fastq padding quality character")
+	private String fastq_quality_padding_str = "-";
+
+	
 	private final Function<SAMRecord,Integer> readStart = rec -> 
 		 useClip ? rec.getUnclippedStart() : rec.getAlignmentStart() ;
 		
@@ -173,8 +187,6 @@ public class SAM4WebLogo extends Launcher
 			 useClip ? rec.getUnclippedEnd() : rec.getAlignmentEnd() ;
 
 
-	
-	
 	private void printRead(
 			final PrintWriter out,
 			final SAMRecord rec,
@@ -183,16 +195,35 @@ public class SAM4WebLogo extends Launcher
 		{
 		
         final Cigar cigar=rec.getCigar();
-        final Function<Integer,Character> read2base = IDX -> {
-        	final byte bases[]=rec.getReadBases();
-        	if(SAMRecord.NULL_SEQUENCE.equals(bases)) return '?'; 
-        	if(IDX<0 || IDX>=bases.length) return '?';
-        	return (char)bases[IDX];
-        	};
+        final String recQualString = rec.getBaseQualityString();
+        final Function<Integer,Character> read2qual;
+        if(recQualString==null || SAMRecord.NULL_QUALS_STRING.equals(recQualString)) {
+        	read2qual = IDX -> '~';
+        	}
+        else
+        	{
+        	read2qual = IDX -> {
+	        	if(IDX<0 || IDX>=recQualString.length()) return '~';
+	        	return recQualString.charAt(IDX);
+	        	};
+        	}
+        final byte rec_bases[] = rec.getReadBases();
+        final Function<Integer,Character> read2base;
+        if(SAMRecord.NULL_SEQUENCE.equals(rec_bases)) {
+        	read2base = IDX-> '?'; 
+        	}
+        else
+        	{
+        	read2base = 
+		        IDX -> {
+			        	if(IDX<0 || IDX>=rec_bases.length) return '?';
+			        	return (char)rec_bases[IDX];
+			        	};
+        	}    
         	
     	final Predicate<Integer> inInterval = IDX -> IDX>=interval.getStart() && IDX<=interval.getEnd();
-       
-         final StringBuilder seq=new StringBuilder(interval.length());
+        final StringBuilder seq  = new StringBuilder(interval.length());
+        final StringBuilder qual = new StringBuilder(interval.length());
          
          int refPos = Math.min(
         		 interval.getStart(),
@@ -204,10 +235,11 @@ public class SAM4WebLogo extends Launcher
     		 		if(inInterval.test(refPos))
     		 			{
     		 			seq.append('-');
+    		 			qual.append(this.fastq_quality_padding_str);
     		 			}
     	        	++refPos;
     	        	}
-        	
+        
         int readPos=0;
         for(int i=0;i< cigar.numCigarElements();++i)
         	{
@@ -228,6 +260,7 @@ public class SAM4WebLogo extends Launcher
         				if(inInterval.test(refPos))
         					{
         					seq.append('-');
+        					qual.append(this.fastq_quality_padding_str);
         					}
         				refPos++;
         				}
@@ -239,7 +272,8 @@ public class SAM4WebLogo extends Launcher
         				{
         				if(inInterval.test(refPos) )
         					{
-        					seq.append(useClip?'n':'-');
+        					seq.append(this.useClip?'n':'-');
+        					qual.append(this.useClip?this.fastq_quality_unknown_str:this.fastq_quality_padding_str);
         					}
         				refPos++;
         				}
@@ -251,13 +285,15 @@ public class SAM4WebLogo extends Launcher
         				{
         				if(inInterval.test(refPos) )
         					{
-        					if(useClip)
+        					if(this.useClip)
         						{
         						seq.append(Character.toLowerCase(read2base.apply(readPos)));
+        						qual.append(read2qual.apply(readPos));
         						}
         					else
         						{
         						seq.append('-');
+        						qual.append(this.fastq_quality_padding_str);
         						}
         					}
         				readPos++;
@@ -272,6 +308,7 @@ public class SAM4WebLogo extends Launcher
         				if(inInterval.test(refPos))
         					{
         					seq.append(read2base.apply(readPos));
+        					qual.append(read2qual.apply(readPos));
         					}
         				readPos++;
         				refPos++;
@@ -285,20 +322,37 @@ public class SAM4WebLogo extends Launcher
         while(refPos<= interval.getEnd())
         	{
         	seq.append('-');
+        	qual.append(this.fastq_quality_padding_str);
         	refPos++;
         	}
-    	out.print(">"+rec.getReadName());
+    	out.print(this.print_fastq?FastqConstants.SEQUENCE_HEADER:">");
+    	out.print(rec.getReadName());
     	if(rec.getReadPairedFlag())
         	{
-        	if(rec.getFirstOfPairFlag()) out.print("/1");
-        	if(rec.getSecondOfPairFlag()) out.print("/2");
+        	if(rec.getFirstOfPairFlag()) out.print(FastqConstants.FIRST_OF_PAIR);
+        	if(rec.getSecondOfPairFlag()) out.print(FastqConstants.SECOND_OF_PAIR);
         	}
     	out.println();
     	out.println(seq);
+	    if(this.print_fastq)
+	    	{
+	    	out.println(FastqConstants.QUALITY_HEADER);
+	    	out.println(qual);
+	    	}
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
+		
+		if(this.fastq_quality_padding_str.length()!=1) {
+			LOG.error("Bad fastq padding character (length!=1)");
+			return -1;
+		}
+		
+		if(this.fastq_quality_unknown_str.length()!=1) {
+			LOG.error("Bad fastq unknown character (length!=1)");
+			return -1;
+		}
 		
     	if(StringUtil.isBlank(this.regionStr))
 			{
@@ -347,7 +401,6 @@ public class SAM4WebLogo extends Launcher
 				samReader.close();
 				samReader=null;
 				}
-            		
 			out.flush();
 	        out.close();out=null;
 	        return 0;
@@ -364,7 +417,7 @@ public class SAM4WebLogo extends Launcher
 			}
 		}
 
-public static void main(String[] args)
+public static void main(final String[] args)
 	{
 	new SAM4WebLogo().instanceMainWithExit(args);
 	}

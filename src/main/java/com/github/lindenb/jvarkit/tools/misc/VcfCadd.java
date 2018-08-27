@@ -35,7 +35,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -51,6 +50,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
@@ -130,7 +130,7 @@ public class VcfCadd extends Launcher
 	private String otherFieldsStr = "";
 
 	
-	private final Pattern TAB=Pattern.compile("[\t]");
+	private final CharSplitter TAB = CharSplitter.TAB;
 	private ContigNameConverter convertToCaddContigs = null;
 	private List<String> headerLabel = null;
 	private Map<String,Integer> headerLabel2column = null;
@@ -164,13 +164,13 @@ public class VcfCadd extends Launcher
 		final float score;
 		final float phred;
 		final Map<String,String> otherKeyValues;
-		Record(final String tokens[]) {
-			if(tokens.length<6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected at least 6 fields",tokens);
-			this.pos= Integer.parseInt(tokens[1]);
-			this.ref = Allele.create(tokens[2],true);
-			this.alt = Allele.create(tokens[VcfCadd.this.column_index_for_Alt],false);
-			this.score = Float.parseFloat(tokens[VcfCadd.this.column_index_for_RawScore]);
-			this.phred = Float.parseFloat(tokens[VcfCadd.this.column_index_for_PHRED]);
+		Record(final List<String> tokens) {
+			if(tokens.size()<6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected at least 6 fields",tokens);
+			this.pos= Integer.parseInt(tokens.get(1));
+			this.ref = Allele.create(tokens.get(2),true);
+			this.alt = Allele.create(tokens.get(VcfCadd.this.column_index_for_Alt),false);
+			this.score = Float.parseFloat(tokens.get(VcfCadd.this.column_index_for_RawScore));
+			this.phred = Float.parseFloat(tokens.get(VcfCadd.this.column_index_for_PHRED));
 			if(userFields.isEmpty())
 				{
 				this.otherKeyValues  = null;
@@ -180,8 +180,8 @@ public class VcfCadd extends Launcher
 				otherKeyValues= new HashMap<>(userFields.size());
 				for(final String uf: userFields) {
 					Integer i = headerLabel2column.get(uf);
-					if(i==null || i.intValue()>=tokens.length) continue;
-					final String v =  tokens[headerLabel2column.get(uf)];
+					if(i==null || i.intValue()>=tokens.size()) continue;
+					final String v =  tokens.get(headerLabel2column.get(uf));
 					this.otherKeyValues.put(uf, v);
 					}
 				}
@@ -229,21 +229,21 @@ public class VcfCadd extends Launcher
 			{
 			final String line=iter.next();
 			if(line.startsWith("#") || StringUtil.isBlank(line))continue;
-			final String tokens[] = TAB.split(line);
+			final List<String> tokens = TAB.splitAsStringList(line);
 			
-			if(!Allele.acceptableAlleleBases(tokens[2], true))
+			if(!Allele.acceptableAlleleBases(tokens.get(2), true))
 				{
 				LOG.warn("REF allele not suitable in  line "+line+". skipping");
 				continue;
 				}
-			if(!Allele.acceptableAlleleBases(tokens[this.column_index_for_Alt], false))
+			if(!Allele.acceptableAlleleBases(tokens.get(this.column_index_for_Alt), false))
 				{
 				LOG.warn("ALT allele not suitable in  line "+line+". skipping");
 				continue;
 				}
 			
 			final Record rec=new Record(tokens);
-			if(!tokens[0].equals(chromCadd)) throw new IllegalStateException("Expected CADD contig "+chromCadd+" in "+line);
+			if(!tokens.get(0).equals(chromCadd)) throw new IllegalStateException("Expected CADD contig "+chromCadd+" in "+line);
 			
 			final ContigPosRef cpr = new ContigPosRef(contigVcf,rec.pos,rec.ref);
 			List<Record> L = caddMap.get(cpr);

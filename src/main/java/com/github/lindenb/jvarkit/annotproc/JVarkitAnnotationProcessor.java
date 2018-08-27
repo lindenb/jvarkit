@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -225,13 +225,10 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 							td = dom.createElement("td");
 							tr.appendChild(td);
 							td.appendChild(dom.createTextNode(Arrays.asList(prog.keywords()).stream().collect(Collectors.joining(" "))));
-							//terms
+							//terms (deprecated)
 							td = dom.createElement("td");
 							tr.appendChild(td);
-							td.appendChild(dom.createTextNode(Arrays.asList(prog.terms()).
-									stream().
-									map(T->"["+T.getAccession()+"]"+T.getLabel()).
-									collect(Collectors.joining(" "))));
+							td.appendChild(dom.createTextNode(""));
 							//misc
 							td = dom.createElement("td");
 							tr.appendChild(td);

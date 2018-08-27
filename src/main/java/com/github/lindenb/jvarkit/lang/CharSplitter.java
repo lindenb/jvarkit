@@ -239,9 +239,11 @@ public static CharSplitter of(final char c) {
 	return new CharSplitterImpl(c);
 	}
 public static final CharSplitter TAB = of('\t');
+public static final CharSplitter COLON = of(':');
 public static final CharSplitter COMMA = of(',');
 public static final CharSplitter SPACE = of(' ');
 public static final CharSplitter SEMICOLON = of(';');
 public static final CharSplitter PIPE = of('|');
+public static final CharSplitter DOT = of('.');
 
 }

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-History:
-* 2014 creation
 
 */
 
@@ -47,7 +43,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.fastq.BasicFastqWriter;
@@ -108,7 +103,6 @@ END_DOC
 
 @Program(name="fastqjs",
 	keywords={"fastq"},
-	terms={Term.ID_0000005},
 	description="Filters a FASTQ file using javascript( java nashorn engine). ")
 public class FastqJavascript
 	extends Launcher

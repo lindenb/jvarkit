@@ -41,6 +41,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -50,6 +51,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -98,14 +100,18 @@ public class VcfRenameSamples extends Launcher
 	@ParametersDelegate
 	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
-	private final Map<String,String> oldNameToNewName=new HashMap<String,String>();
+	private final Map<String,String> oldNameToNewName=new HashMap<>();
 	
 	public VcfRenameSamples()
 		{
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(
+			final String inputName,
+			final VcfIterator in,
+			final VariantContextWriter out
+			) {
 		final VCFHeader header1=in.getHeader();
 		final Set<String> samples1 = new LinkedHashSet<String>(header1.getSampleNamesInOrder());
 		
@@ -123,7 +129,7 @@ public class VcfRenameSamples extends Launcher
 			}
 				
 		for(final String srcName:this.oldNameToNewName.keySet())
-			{			
+			{
 			if(!samples1.contains(srcName))
 				{
 				if(missing_user_name_is_error)
@@ -171,25 +177,22 @@ public class VcfRenameSamples extends Launcher
 		return 0;
 		}
 	
-	
-	
-	
 	private void parseNames(final File f) throws IOException
 		{
-		final Pattern tab=Pattern.compile("[\t]");
+		final CharSplitter tab= CharSplitter.TAB;
 		final BufferedReader in=IOUtils.openFileForBufferedReading(f);
 		String line;
 		while((line=in.readLine())!=null)
 			{
 			if(line.startsWith("#")) continue;
-			if(line.trim().isEmpty()) continue;
+			if(StringUtil.isBlank(line)) continue;
 			final String tokens[]=tab.split(line);
-			if(tokens.length<2) throw new IOException("Expected two columns in \""+line+"\" : "+f);
+			if(tokens.length!=2) throw new IOException("Expected two columns in \""+line+"\" : "+f);
 			tokens[0]=tokens[0].trim();
 			tokens[1]=tokens[1].trim();
 			
-			if(tokens[0].isEmpty()) throw new IOException("Empty src-name in \""+line+"\" : "+f);
-			if(tokens[1].isEmpty()) throw new IOException("Empty dest-name in \""+line+"\" : "+f);
+			if(StringUtil.isBlank(tokens[0])) throw new IOException("Empty src-name in \""+line+"\" : "+f);
+			if(StringUtil.isBlank(tokens[1])) throw new IOException("Empty dest-name in \""+line+"\" : "+f);
 			if(tokens[0].equals(tokens[1]))
 				{
 				LOG.warning("Same src/dest in in \""+line+"\" : "+f);

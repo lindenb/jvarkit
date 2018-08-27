@@ -77,7 +77,6 @@ import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
-import com.github.lindenb.semontology.Term;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -203,9 +202,9 @@ public static  class UsageBuider
 					{
 					ok=true;
 					}
-				else if(line.contains("END"+"_DOC"))
+				else if(line.contains("END"+"_DOC") && !line.contains(".END_DOCUMENT"))
 					{
-					if(!ok) LOG.warn("END_"+"DOC without BEGIN");
+					if(!ok) LOG.warn("END_"+"DOC without BEGIN"+"_DOC "+line.trim());
 					ok=false;
 					}
 				else if(ok)
@@ -269,13 +268,7 @@ public static  class UsageBuider
 				root.appendChild(e1);
 				e1.appendChild(dom.createTextNode(kw));
 				}
-			for(final Term t : programdesc.terms())
-				{
-				e1 = dom.createElement("term");
-				root.appendChild(e1);
-				e1.setAttribute("id", t.getAccession());
-				e1.appendChild(dom.createTextNode(t.getLabel()));
-				}
+			
 			for(final int bid : programdesc.biostars())
 				{
 				e1 = dom.createElement("biostar");

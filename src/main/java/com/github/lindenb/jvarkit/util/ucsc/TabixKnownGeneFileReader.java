@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 
 
@@ -46,7 +47,7 @@ public class TabixKnownGeneFileReader extends AbstractTabixObjectReader<KnownGen
     private class MyIterator
     	extends AbstractMyIterator
     	{
-    	private final Pattern tab=Pattern.compile("[\t]");
+    	private final CharSplitter tab=CharSplitter.TAB;
     	MyIterator(final Iterator<String> delegate)
     		{
     		super(delegate);

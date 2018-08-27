@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,15 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.io;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -39,20 +35,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 
-public abstract class ArchiveFactory
-	implements Closeable{
+public interface ArchiveFactory extends Closeable{
 
-	private ArchiveFactory()
-		{
-		}
 	
 	public abstract OutputStream openOuputStream(final String filename) throws IOException;
-	public PrintWriter openWriter(final String filename) throws IOException
+	
+	public default PrintWriter openWriter(final String filename) throws IOException
 		{
 		return new PrintWriter(openOuputStream(filename), true);
 		}
 
-	
+	/** open a new ArchiveFactory, if filename ends with '.zip' it will be a zip instance
+	 * otherwise it will be a FileInstance */
 	public static ArchiveFactory open(final File f)  throws IOException
 		{
 		if( f == null ) throw new IllegalArgumentException("Cannot open(null)");
@@ -67,8 +61,8 @@ public abstract class ArchiveFactory
 		}
 	
 	
-	private static class ZipInstance
-		extends ArchiveFactory
+	static class ZipInstance
+		implements ArchiveFactory
 		{
 		FileOutputStream fout;
 		ZipOutputStream zout;
@@ -80,24 +74,24 @@ public abstract class ArchiveFactory
 			}
 		
 		@Override
-		public OutputStream openOuputStream(String filename) throws IOException
+		public OutputStream openOuputStream(final String filename) throws IOException
 			{
-			ZipOS os =new ZipOS(filename);
+			final ZipOS os =new ZipOS(filename);
 			return os;
 			}
 		
 		@Override
 		public void close() throws IOException
 			{
-			if(zout!=null)
+			if(this.zout!=null)
 				{
-				zout.finish();
-				zout.flush();
-				fout.flush();
-				zout.close();
-				fout.close();
-				zout=null;
-				fout=null;
+				this.zout.finish();
+				this.zout.flush();
+				this.fout.flush();
+				this.zout.close();
+				this.fout.close();
+				this.zout=null;
+				this.fout=null;
 				}
 			}
 		
@@ -112,23 +106,23 @@ public abstract class ArchiveFactory
 				while(filename.startsWith("/")) filename=filename.substring(1);
 				this.ze=new ZipEntry(filename);
 				
-				tmp=File.createTempFile("tmp", ".zipentry");
-				tmp.deleteOnExit();
-				out=new FileOutputStream(tmp);
+				this.tmp=File.createTempFile("tmp", ".zipentry");
+				this.tmp.deleteOnExit();
+				this.out=new FileOutputStream(this.tmp);
 				}
 			
 			@Override
-			public void write(int b) throws IOException {
+			public void write(final int b) throws IOException {
 				if(out!=null) out.write(b);
 				}
 			
 			@Override
-			public void write(byte[] b) throws IOException {
+			public void write(final byte[] b) throws IOException {
 				if(out!=null)  out.write(b);
 				}
 			
 			@Override
-			public void write(byte[] b, int off, int len) throws IOException {
+			public void write(final byte[] b, final int off, final int len) throws IOException {
 				if(out!=null) out.write(b, off, len);
 				}
 			
@@ -149,9 +143,7 @@ public abstract class ArchiveFactory
 					if(ZipInstance.this.zout!=null)
 						{
 						zout.putNextEntry(this.ze);
-						FileInputStream fin=new FileInputStream(tmp);
-						IOUtils.copyTo(fin,ZipInstance.this.zout );
-						fin.close();
+						IOUtils.copyTo(this.tmp,ZipInstance.this.zout );
 						ZipInstance.this.zout.flush();
 						ZipInstance.this.zout.closeEntry();
 						}
@@ -165,8 +157,7 @@ public abstract class ArchiveFactory
 		
 		}
 	
-	private static class FileInstance
-	extends ArchiveFactory
+	static class FileInstance implements ArchiveFactory
 		{
 		private final File baseDir;
 		
@@ -176,15 +167,14 @@ public abstract class ArchiveFactory
 			if(baseDir.exists() && !baseDir.isDirectory())
 				{
 				throw new IOException("Not a directory:"+baseDir);
-				}
-				
+				}				
 			}
 		
 		@Override
 		public OutputStream openOuputStream(String filename) throws IOException
 			{
 			while(filename.startsWith("/")) filename=filename.substring(1);
-			File f=new File(baseDir, filename);
+			final File f=new File(baseDir, filename);
 			if(f.getParentFile()!=null)
 				{
 				f.getParentFile().mkdirs();
@@ -194,7 +184,6 @@ public abstract class ArchiveFactory
 		@Override
 		public void close() throws IOException
 			{
-			
 			}
 		}
 }

@@ -34,13 +34,14 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
@@ -79,8 +80,8 @@ public class AnnPredictionParser
 		}
 	private static final Logger LOG=Logger.build(AnnPredictionParser.class).make();
 
-	private final Pattern pipeRegex=Pattern.compile("[\\|]");
-	private final Pattern ampRegex = Pattern.compile("[&]");
+	private final CharSplitter pipeRegex= CharSplitter.PIPE;
+	private final CharSplitter ampRegex = CharSplitter.of('&');
 
 	private final String tag;
 	private final boolean valid;
@@ -167,7 +168,7 @@ public class AnnPredictionParser
 			return parseOnePrediction( o.toString());
 			}
 		final String s=String.class.cast(o).trim();
-		final String tokens[]=this.pipeRegex.split(s);
+		final List<CharSequence> tokens=this.pipeRegex.splitAsCharSequenceList(s);
 		return new AnnPrediction(s,tokens);
 		}
 	
@@ -184,16 +185,16 @@ public class AnnPredictionParser
 		implements Prediction
 		{
 		private final String originalStr;
-		private final String tokens[];
-		private AnnPrediction(final String originalStr,final String tokens[])
+		private final List<CharSequence> _tokens;
+		private AnnPrediction(final String originalStr,final List<CharSequence> tokens)
 			{
 			this.originalStr = originalStr;
-			this.tokens=tokens;
+			this._tokens=tokens;
 			}
 		
 		private String at(int i)
 			{
-			return(i<0 || i>=tokens.length ? null:tokens[i]);
+			return(i<0 || i>=_tokens.size() ? null:_tokens.get(i).toString());
 			}
 		
 		public String getAllele()
@@ -279,13 +280,14 @@ public class AnnPredictionParser
 			}
 		
 		public String getSOTermsString() {
-			return(this.tokens.length<2 ?"":tokens[1]);
+			final String so = at(1);
+			return so==null?"":so;
 			}
 		
 		public List<String> getSOTermsStrings() {
-			final String soterms =getSOTermsString();
-			if(soterms==null || soterms.isEmpty()) return Collections.emptyList();
-			return Arrays.asList(AnnPredictionParser.this.ampRegex.split(soterms));
+			final String soterms = getSOTermsString();
+			if(StringUtil.isBlank(soterms)) return Collections.emptyList();
+			return AnnPredictionParser.this.ampRegex.splitAsStringList(soterms);
 			}
 		
 		//@Override
@@ -296,7 +298,7 @@ public class AnnPredictionParser
 			final Set<SequenceOntologyTree.Term> set=new HashSet<>(effects.size());
 			for(final String label:effects) {
 				if(label.isEmpty()) continue;
-				final SequenceOntologyTree.Term t =AnnPredictionParser.this.soTree.getTermByLabel(label);
+				final SequenceOntologyTree.Term t = AnnPredictionParser.this.soTree.getTermByLabel(label);
 				if(t==null) {
 					LOG.warning("Current Sequence Ontology Tree doesn't contain \""+ label+"\". May be it's a deprecated term or the current version of this package is obsolete.");
 					} 
@@ -310,8 +312,8 @@ public class AnnPredictionParser
 		
 		public Impact getPutativeImpact()
 			{
-			if(this.tokens.length<3) return Impact.UNDEFINED;
-			final String s=this.tokens[2];
+			final String s=this.at(2);
+			if(s==null || s.isEmpty() )return Impact.UNDEFINED;
 			return Impact.valueOf(s.toUpperCase().trim());
 			}
 		

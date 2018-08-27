@@ -39,10 +39,14 @@ public class BedLine
 	implements Feature
 	{
 	private final String tokens[];
+	private final int _start;
+	private final int _end;
 	
 	public BedLine(final String tokens[])
 		{
 		this.tokens=tokens;
+		this._start = Integer.parseInt(this.tokens[1]) + 1; /* +1 because the Feature uses a +1 position */
+		this._end = (this.tokens.length<3 ? this._start  : Integer.parseInt(this.tokens[2]));
 		}
 	@Override
 	@Deprecated
@@ -57,12 +61,12 @@ public class BedLine
 	
 	@Override
 	public int getStart() {
-		return Integer.parseInt(this.tokens[1]) + 1; /* +1 because the Feature uses a +1 position */
+		return this._start;
 		}
 	
 	@Override
 	public int getEnd() {
-		return (this.tokens.length<3 ?getStart(): Integer.parseInt(this.tokens[2]));
+		return this._end;
 		}
 	
 	/** shortcut to <code>new Interval(getContig(), getStart(), getEnd())</code> */

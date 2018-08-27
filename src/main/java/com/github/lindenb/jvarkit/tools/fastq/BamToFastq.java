@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -53,103 +53,71 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
+
 
 /**
 
 BEGIN_DOC
 
 
-Deprecated: use picard please
+# Deprecated: 
+
+use picard please
+
+
+# Warnings
 
 Previous version was an Implementation of https://twitter.com/DNAntonie/status/402909852277932032
-
-
-
-Warnings
 
 	illumina  read is filtered is always "n"
 	illumina control number is always 0
 	Illumina index sequence is lost.
 
-
-
-Example
+## Example
 piping bwa mem
 
-
-
 ```
-
 $ bwa mem -M  human_g1k_v37.fasta  Sample1_L001_R1_001.fastq.gz Sample2_S5_L001_R2_001.fastq.gz |\
   java -jar dist/bam2fastq.jar  -F tmpR1.fastq.gz -R tmpR2.fastq.gz
 
 ```
 
-
-
-
 before:
 
-
 ```
-
 $ ls -lah Sample1_L001_R1_001.fastq.gz Sample2_S5_L001_R2_001.fastq.gz
 -rw-r--r-- 1 lindenb lindenb 181M Jun 14 15:20 Sample1_L001_R1_001.fastq.gz
 -rw-r--r-- 1 lindenb lindenb 190M Jun 14 15:20 Sample1_L001_R2_001.fastq.gz
-
 ```
-
-
-
 
 after (these are Haloplex Data, with a lot of duplicates )
 
-
 ```
-
 $ ls -lah tmpR1.fastq.gz  tmpR2.fastq.gz
 -rw-rw-r-- 1 lindenb lindenb  96M Nov 20 17:10 tmpR1.fastq.gz
 -rw-rw-r-- 1 lindenb lindenb 106M Nov 20 17:10 tmpR2.fastq.gz
-
 ```
-
-
-
 
 using BZ2:
 
-
 ```
-
 $  ls -lah *.bz2
 -rw-rw-r-- 1 lindenb lindenb 77M Nov 20 17:55 tmpR1.fastq.bz2
 -rw-rw-r-- 1 lindenb lindenb 87M Nov 20 17:55 tmpR2.fastq.bz2
-
 ```
-
-
-
-
 
 check the number of reads
 
-
 ```
-
 $ gunzip -c Sample1_L001_R1_001.fastq.gz | wc -l
 5824676
 $ gunzip -c tmpR1.fastq.gz | wc -l
 5824676
-
 ```
-
 
 verify one read
 
-
 ```
-
 $ gunzip -c Sample1_L001_R1_001.fastq.gz | cat -n | head -n 4
      1	@M00491:25:000000000-A46H3:1:1101:11697:2045 1:N:0:5
      2	AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACATTGGCAAATAGCATGCCGAGGTACGCTTAAAAAAAAAACGACGCGAGGCAGGGGGGGAGGAAGCAGGGGAGCAACAGGGGGAAGGGAAGGGAAGAGAAGAAGAACGAACGAAAG
@@ -162,35 +130,30 @@ $ gunzip -c tmpR1.fastq.gz | cat -n | grep  -A 3 -w "@M00491:25:000000000-A46H3:
 5771578	AGATCGGAAGAGCACACGTCTGAACTCCAGTCACACATTGGCAAATAGCATGCCGAGGTACGCTTAAAAAAAAAACGACGCGAGGCAGGGGGGGAGGAAGCAGGGGAGCAACAGGGGGAAGGGAAGGGAAGAGAAGAAGAACGAACGAAAG
 5771579	+
 5771580	AAAAAAAA1AC1FFGCGA0AFFBGAGHHFF2GBGHH0B2DBCF101111D211B////A11///B/1DE1E/>>E//?///</<><C////<?9-9-99A-;/---;---;-9--9=---------9:AF---9//:/9/:9---9-:-9-
-
 ```
 
-
-
-Example 2 from BAM
-
+## Example 2 from BAM
 
 ```
-
 $ java -jar dist/bam2fastq.jar \
     -F tmpR1.fastq.gz -R tmpR2.fastq.gz file.bam
-
 (...)
 -rw-r--r-- 1 lindenb lindenb 565M Nov 18 10:44 Sample_S1_L001_R1_001.fastq.gz
 -rw-r--r-- 1 lindenb lindenb 649M Nov 18 10:45 Sample_S1_L001_R2_001.fastq.gz
 -rw-rw-r-- 1 lindenb lindenb 470M Nov 20 16:17 tmpR1.fastq.gz.fastq.gz
 -rw-rw-r-- 1 lindenb lindenb 554M Nov 20 16:17 tmpR2.fastq.gz.fastq.gz
-
 ```
 
+## Cited In:
+
+  * "Plastomes of nine hornbeams and phylogenetic implications", Ying Li & al;  Ecology and Evolution, 2018; DOI: 10.1002/ece3.4414; https://onlinelibrary.wiley.com/doi/pdf/10.1002/ece3.4414 
 
 END_DOC
 */
 @Program(name="bam2fastq",
 	description="Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. ",
 	deprecatedMsg="use picard",
-	keywords={"fastq"},
-	terms={Term.ID_0000005}
+	keywords={"fastq"}
 	)
 public class BamToFastq
 	extends Launcher
@@ -262,9 +225,9 @@ public class BamToFastq
 			dos.writeUTF(o.qual);
 			}
 		@Override
-		public MappedFastq decode(DataInputStream dis) throws IOException
+		public MappedFastq decode(final DataInputStream dis) throws IOException
 			{
-			MappedFastq m=new MappedFastq();
+			final MappedFastq m=new MappedFastq();
 			try {
 				m.side=dis.readByte();
 			} catch (IOException e) {
@@ -528,7 +491,7 @@ public class BamToFastq
 			if(fastqCollection!=null) fastqCollection.cleanup();
 			}
 		}
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new BamToFastq().instanceMainWithExit(args);
 		}
 	}

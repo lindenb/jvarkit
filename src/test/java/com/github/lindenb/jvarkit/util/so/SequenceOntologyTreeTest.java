@@ -31,8 +31,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -42,8 +43,9 @@ public class SequenceOntologyTreeTest
 	extends TestUtils
 	{
 	private SequenceOntologyTree owlTree;
-	@BeforeTest
+	@BeforeClass
 	public void downloadSoOwl() throws IOException {
+		try {
 		URL url=new URL("https://raw.githubusercontent.com/The-Sequence-Ontology/SO-Ontologies/master/so-simple.owl");
 		HttpURLConnection con = (HttpURLConnection)url.openConnection();
 		HttpURLConnection.setFollowRedirects(true);
@@ -52,8 +54,12 @@ public class SequenceOntologyTreeTest
 		this.owlTree = SequenceOntologyTree.createFromInputStream(in);
 		in.close();
 		con.disconnect();
+		}
+		catch(final Throwable err) {
+			owlTree = SequenceOntologyTree.createDefault();
+		}
 	}
-	@AfterTest
+	@AfterClass
 	public void disposeOwl()
 		{
 		owlTree=null;

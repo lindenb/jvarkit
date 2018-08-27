@@ -247,7 +247,7 @@ tests: ${testng.jars} ${dist.dir}/testsng.jar
 		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
 	rm -vf ${dist.dir}/testsng.jar
 
-tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb  ${bigwig.jars}  ${mysql.jar} ${jetty.jars}
+tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb  ${bigwig.jars}  ${mysql.jar} ${jetty.jars} ${common.math3.libs}  ${gson.jar} ${berkeleydb.jar}
 	rm -rf "${tmp.dir}"
 	mkdir -p "${tmp.dir}"
 	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${generated.dir}/java:src/test/java:src/main/java `find src/test/java -type f -name "*.java"`
@@ -328,6 +328,7 @@ $(eval $(call compile_biostar_cmd,234081,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,234230,${jcommander.jar} ))
 $(eval $(call compile_biostar_cmd,251649,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,322664,${jcommander.jar}))
+$(eval $(call compile_biostar_cmd,332826,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,gb2gff,${jvarkit.package}.tools.genbank.GenbankToGff3,${jcommander.jar} api.ncbi.gb ))
@@ -391,6 +392,7 @@ $(eval $(call compile-htsjdk-cmd,pubmedgender,${jvarkit.package}.tools.pubmed.Pu
 $(eval $(call compile-htsjdk-cmd,pubmedmap,${jvarkit.package}.tools.pubmed.PubmedMap,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedgraph,${jvarkit.package}.tools.pubmed.PubmedGraph,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedorcidgraph,${jvarkit.package}.tools.pubmed.PubmedOrcidGraph,${jcommander.jar} ${berkeleydb.jar}))
+$(eval $(call compile-htsjdk-cmd,pubmedauthorgraph,${jvarkit.package}.tools.pubmed.PubmedAuthorGraph,${jcommander.jar} ${berkeleydb.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedfilterjs,${jvarkit.package}.tools.pubmed.PubmedFilterJS,${jcommander.jar} api.ncbi.pubmed))
 $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.ReferenceToVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,sam2json,${jvarkit.package}.tools.misc.SamToJson,${jcommander.jar} ${gson.jar} ))
@@ -574,7 +576,6 @@ $(eval $(call compile-htsjdk-cmd,vcfclusteredreadedge,${jvarkit.package}.tools.m
 
 
 $(eval $(call compile-htsjdk-cmd,vcfburdengoenrichment,${jvarkit.package}.tools.burden.VcfBurdenGoEnrichment,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,jeter,${jvarkit.package}.tools.epistasis.VcfGeneEpistasis,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfoptimizeped4skat,${jvarkit.package}.tools.skat.VcfOptimizePedForSkat,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.skat.VcfSkatSlidingWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfskat,${jvarkit.package}.tools.skat.VcfSkat,${jcommander.jar}))
@@ -587,10 +588,23 @@ $(eval $(call compile-htsjdk-cmd,bednonoverlappingset,${jvarkit.package}.tools.m
 $(eval $(call compile-htsjdk-cmd,wescnvsvg,${jvarkit.package}.tools.bam2svg.WesCnvSvg,${jcommander.jar}))
 
 
+$(lib.dir)/org/gephi/gephi.jar:
+	test -f "${gephi_home}/bin/gephi"
+	rm -rf "${tmp.dir}"
+	mkdir -p "${tmp.dir}" "$(dir $@)"
+	find "${gephi_home}/gephi/modules" \
+		"${gephi_home}/platform/core" \
+		"${gephi_home}/platform/lib" -type f -name "*.jar" | while read F; do echo "$$F" && unzip -o  "$$F" -d "${tmp.dir}" ; done
+	jar cf $@ -C "${tmp.dir}" .
+	rm -rf "${tmp.dir}"
+	jar tvf $@ | head
+	
+
+$(eval $(call compile-htsjdk-cmd,gephicmd,${jvarkit.package}.tools.gephi.GephiCmd,${jcommander.jar} $(lib.dir)/org/gephi/gephi.jar ))
 
 ij: ${dist.dir}/ij
 ${dist.dir}/ij : $(sort ${derby.jars} ${derby-tools.jar})
-	mkdir -p $(dir $@)
+	mkdir -p $(dir $@)org.gephi.preview.api
 	echo '#!/bin/bash' > @
 	echo -n '${JAVA} -Dfile.encoding=UTF8  -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" org.apache.derby.tools.ij $$*' >> $@
 	chmod  ugo+rx $@

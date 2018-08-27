@@ -1,5 +1,7 @@
 # VcfLoopOverGenes
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Generates a BED file of the Genes in an annotated VCF, loop over those genes and generate a VCF for each gene, then execute an optional command.
 
 
@@ -92,11 +94,10 @@ Usage: vcfloopovergenes [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -126,25 +127,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfLoopOverGenes.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfLoopOverGenes.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Oct 18 17:17:31 2017 +0200 ; add skat, add splitter by contig ; https://github.com/lindenb/jvarkit/commit/fd4408e3d1bbd312db8b3329d59ceb12a9d0dc29
-Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
-Thu Jul 20 16:08:20 2017 +0200 ; changes to vcfloopovergenes + cnv01 ; https://github.com/lindenb/jvarkit/commit/1ef43b445fd0849725e0148d0431587aea43040b
-Tue Jul 11 17:57:33 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1f248bc7f1fd8a0824bb65a4c67eb052d5a6e381
-Thu Jun 29 17:31:10 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1aac040bed918f89b1ce68b2c8f7a0c6d5cfddd0
-Tue Jun 27 17:36:29 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/278970358111f7e3eca02e77d9a238321668a2dd
-Mon Jun 26 17:29:03 2017 +0200 ; burden ; https://github.com/lindenb/jvarkit/commit/a3b7abf21d07f0366e81816ebbb2cce26b2341e7
-Sun Jun 25 16:43:47 2017 +0200 ; loop over gene in region ; https://github.com/lindenb/jvarkit/commit/a491397b51bb7149fcdccad8c5dab9bdf6fd83fa
-Fri Jun 23 15:26:55 2017 +0200 ; updated vcf2multiallele ; https://github.com/lindenb/jvarkit/commit/775e8ddcc38a3e283cf49d9287b06510d7634e31
-Thu Jun 22 15:28:11 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cb19128044b14265ee78325199515e2121904871
-Thu Jun 22 13:16:05 2017 +0200 ; vcfloopovergenes ; https://github.com/lindenb/jvarkit/commit/aa4a6f29c853efddcee5678f9441d9994a2deee6
-```
-
-</details>
 
 ## Contribute
 

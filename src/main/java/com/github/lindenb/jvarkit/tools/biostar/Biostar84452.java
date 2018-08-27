@@ -47,7 +47,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.semontology.Term;
 
 /**
 BEGIN_DOC
@@ -88,13 +87,11 @@ END_DOC
 @Program(name="biostar84452",
 	biostars=84452,
 	description="remove clipped bases from a BAM file",
-	keywords={"sam","bam","clip"},
-	terms=Term.ID_0000015
+	keywords={"sam","bam","clip"}
 	)
 public class Biostar84452 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar84452.class).make();
-	
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

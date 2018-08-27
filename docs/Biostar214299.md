@@ -157,6 +157,7 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
 
 ## History:
 
+* 20180808: fixing bug https://github.com/lindenb/jvarkit/issues/108
 * 20180212: fixing bug https://github.com/lindenb/jvarkit/issues/95
 
 

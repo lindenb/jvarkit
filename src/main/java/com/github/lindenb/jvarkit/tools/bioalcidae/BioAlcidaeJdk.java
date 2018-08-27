@@ -62,6 +62,7 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -583,7 +584,7 @@ END_DOC
 	keywords={"sam","bam","vcf","java","jdk"},
 	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,
 			297983,299255,304780,305174,305743,308310,308554,309013,311363,
-			298361,324900,326294,326765,329423,330752},
+			298361,324900,326294,326765,329423,330752,334253},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class BioAlcidaeJdk
@@ -970,7 +971,75 @@ public class BioAlcidaeJdk
 		
 		}
 
+    public static abstract class SimpleLineHandler extends AbstractHandler
+		{
+		protected CloseableIterator<String> iter=null;
+		public Stream<String> stream()
+			{
+			return StreamSupport.stream(
+					new IterableAdapter<String>(this.iter).spliterator(),
+					false);
+			}
+		}
     
+    public static class SimpleLineHandlerHandlerFactory extends AbstractHandlerFactory<SimpleLineHandler>
+		{
+    	private static class LineIterator extends AbstractIterator<String> implements CloseableIterator<String> {
+    		private final BufferedReader br;
+    		LineIterator(final BufferedReader br) {
+    			this.br = br;
+    			}
+    		@Override
+    		protected String advance() {
+    			try {
+    				return br.readLine();
+    				}
+    			catch(Exception err) {
+    				return null;
+    			}
+    			}
+    		@Override
+    		public void close() {
+    			CloserUtil.close(br);
+    			}
+    	}
+    	@Override
+    	protected Class<SimpleLineHandler> getHandlerClass() {
+    		return SimpleLineHandler.class;
+    		}
+    	@Override
+    	public int execute(final String inputFile, final PrintStream out) throws Exception {
+    		SimpleLineHandler lineHandler = null;
+			try {
+				lineHandler = (SimpleLineHandler)this.getConstructor().newInstance();
+				lineHandler.out = out;
+				lineHandler.inputFile = inputFile;
+				//
+				lineHandler.iter =  new LineIterator(IOUtils.openURIForBufferedReading(inputFile));
+				
+				lineHandler.initialize();
+				lineHandler.execute();
+				return 0;
+				}
+			catch (final Throwable err) {
+				LOG.error(err);
+				return -1;
+				}
+			finally
+				{
+				if(lineHandler!=null) 
+					{
+					lineHandler.dispose();
+					CloserUtil.close(lineHandler.iter);
+					if(lineHandler.out!=null) lineHandler.out.flush();
+					CloserUtil.close(lineHandler.out);
+					lineHandler=null;
+					}
+				}
+			}
+		
+		}
+
     
 	private enum FORMAT {
 		VCF{
@@ -999,8 +1068,13 @@ public class BioAlcidaeJdk
 			@Override
 			boolean canAs(final String src) {
 				return src!=null && (src.endsWith(".fa") || src.endsWith(".fasta") || src.endsWith(".fa.gz") || src.endsWith(".fasta.gz")  );
-			}
-			};
+			}},
+		TEXT {
+			@Override
+			boolean canAs(final String src) {
+				return src!=null && (src.endsWith(".txt") || src.endsWith(".csv") || src.endsWith(".tsv") );
+			}}
+			;
 
 		abstract boolean canAs(String src);
 		};
@@ -1053,6 +1127,7 @@ public class BioAlcidaeJdk
 				case VCF: abstractFactory = new VcfHandlerFactory(); break;
 				case FASTQ: abstractFactory = new FastqHandlerFactory(); break;
 				case FASTA: abstractFactory = new FastaHandlerFactory(); break;
+				case TEXT: abstractFactory = new SimpleLineHandlerHandlerFactory();break;
 				default: throw new IllegalStateException("Not implemented: "+this.format);
 				}
 			abstractFactory.scriptExpr = this.scriptExpr;

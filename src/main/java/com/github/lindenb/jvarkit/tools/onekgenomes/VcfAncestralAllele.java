@@ -33,10 +33,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -162,8 +162,8 @@ extends Launcher
 		{
 		BufferedReader r = null;
 		try {
-			final Pattern tab =Pattern.compile("[\t]");
-			final Pattern pipe =Pattern.compile("[\\|]");
+			final CharSplitter tab = CharSplitter.TAB;
+			final CharSplitter pipe = CharSplitter.PIPE;
 			r = IOUtils.openFileForBufferedReading(this.manifestFile);
 			String line;
 			while((line=r.readLine())!=null) {
