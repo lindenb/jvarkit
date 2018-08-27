@@ -100,7 +100,7 @@ public class NaiveCnvDetector extends Launcher
 	@Parameter(names={"-del","--del","--deletion"},description="Deletion Treshold. Which fraction of the median depth is considered as aa deletion. Must be <1.0" )
 	private double deletion_treshold = 0.5;
 	@Parameter(names={"-dup","--dup","--duplication"},description="Duplication Treshold. Which fraction of the median depth is considered as a duplication. Must be >1.0" )
-	private double duplication_treshold = 1.9;
+	private double duplication_treshold = 1.5;
 	@Parameter(names={"-disable-both"},description="Disable the following criteria: there cannot be a DEL and a DUP at the same place." )
 	private boolean disable_both_del_dup = false;
 

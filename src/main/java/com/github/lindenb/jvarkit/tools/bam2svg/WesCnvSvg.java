@@ -111,6 +111,13 @@ https://twitter.com/yokofakun/status/1024315948847849472
 
 ![ScreenShot](https://pbs.twimg.com/media/DjcZ6vNXcAEYjEt.jpg)
 
+https://twitter.com/yokofakun/status/1024315948847849472
+
+![ScreenShot](https://pbs.twimg.com/media/DjcZ6vNXcAEYjEt.jpg)
+
+https://twitter.com/yokofakun/status/1025330308193779712
+
+![ScreenShot](https://pbs.twimg.com/media/Djq0Se-W0AEAbyR.jpg)
 
 END_DOC
  */
