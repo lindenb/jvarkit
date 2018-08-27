@@ -30,6 +30,8 @@ import org.gephi.io.exporter.api.*;
 import com.itextpdf.text.*;
 import org.gephi.utils.progress.*;
 import org.gephi.layout.plugin.fruchterman.*;
+
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 
 import org.gephi.preview.types.*;
@@ -69,7 +71,7 @@ input is a GEXF file or it reads a GEXF from stdin.
 
 ## Example
 
-list the properties:
+list the available properties:
 
 ```
  java -jar dist/gephicmd.jar -l
@@ -91,6 +93,13 @@ INFO: # Edges loaded: 619
 
 ```
 
+## Screenshots
+
+https://twitter.com/yokofakun/status/1034107797439504384
+
+![https://twitter.com/yokofakun/status/1034107797439504384](https://pbs.twimg.com/media/DlnjTj1W4AIBB6B.jpg)
+
+
 END_DOC
 */
 @Program(name="gephicmd",
@@ -103,8 +112,8 @@ public class GephiCmd  extends Launcher {
 	private File outputFile = null;
 	@Parameter(names={"-l"},description="list available/default properties and exit with success")
 	private boolean list_properties = false;
-	@Parameter(names={"-f"},description="property file. formatted like a java.util.Properties file. https://docs.oracle.com/cd/E23095_01/Platform.93/ATGProgGuide/html/s0204propertiesfileformat01.html ")
-	private File customPropertiesFile = null;
+	@Parameter(names={"-f"},description="zero or more java property files. formatted like a java.util.Properties file. https://docs.oracle.com/cd/E23095_01/Platform.93/ATGProgGuide/html/s0204propertiesfileformat01.html ")
+	private List<String> customPropertiesFiles = new ArrayList<>();
 	@Parameter(names={"-e"},description="override properties. syntax 'key1:value1;key2:value2;...' ")
 	private String customProperties = "";
 
@@ -359,16 +368,18 @@ public int doWork(final List<String> args) {
 				return 0;
 				}
 		 
-		 if(this.customPropertiesFile!=null) {
+		 for(final String filename: this.customPropertiesFiles) {
 			final Properties props = new Properties();
-			final FileReader fr=new FileReader(this.customPropertiesFile);
+			final File file = new File(filename);
+			IOUtil.assertFileIsReadable(file);
+			final FileReader fr=new FileReader(file);
 			props.load(fr);
 			fr.close();
 			for(final String k:props.stringPropertyNames())
 				{
 				final ConfigProperty prop = this.config_properties.get(k);
 				 if(prop==null) {
-					 LOG.error("undefined property "+k+" in "+this.customPropertiesFile);
+					 LOG.error("undefined property "+k+" in "+file);
 					 return -1;
 				 	}
 				 prop.parse(props.getProperty(k));

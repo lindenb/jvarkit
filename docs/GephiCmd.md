@@ -23,7 +23,9 @@ Usage: gephicmd [options] Files
       override properties. syntax 'key1:value1;key2:value2;...'
       Default: <empty string>
     -f
-      property file. formatted like a java.util.Properties file. https://docs.oracle.com/cd/E23095_01/Platform.93/ATGProgGuide/html/s0204propertiesfileformat01.html
+      zero or more java property files. formatted like a java.util.Properties 
+      file. https://docs.oracle.com/cd/E23095_01/Platform.93/ATGProgGuide/html/s0204propertiesfileformat01.html
+      Default: []
     -l
       list available/default properties and exit with success
       Default: false
@@ -117,7 +119,7 @@ input is a GEXF file or it reads a GEXF from stdin.
 
 ## Example
 
-list the properties:
+list the available properties:
 
 ```
  java -jar dist/gephicmd.jar -l
@@ -138,5 +140,12 @@ INFO: # Edges loaded: 619
 [INFO][GephiCmd]exporting to out.svg
 
 ```
+
+## Screenshots
+
+https://twitter.com/yokofakun/status/1034107797439504384
+
+![https://twitter.com/yokofakun/status/1034107797439504384](https://pbs.twimg.com/media/DlnjTj1W4AIBB6B.jpg)
+
 
 
