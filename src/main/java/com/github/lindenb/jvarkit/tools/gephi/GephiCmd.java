@@ -213,11 +213,11 @@ public class GephiCmd  extends Launcher {
 			}
 		@Override
 		void parse(final String v) {
-			if(v.toLowerCase().equals("true") || v.toLowerCase().equals("T")  || v.toLowerCase().equals("1")) {
+			if(v.toLowerCase().equals("true") || v.toLowerCase().equals("t")  || v.toLowerCase().equals("1")) {
 				value=true;
 				super.wasSet = true;
 			}
-			else if(v.toLowerCase().equals("false") || v.toLowerCase().equals("F") || v.toLowerCase().equals("0")) {
+			else if(v.toLowerCase().equals("false") || v.toLowerCase().equals("f") || v.toLowerCase().equals("0")) {
 				value=false;
 				super.wasSet = true;
 				}

@@ -586,6 +586,7 @@ $(eval $(call compile-htsjdk-cmd,cytoband2svg,${jvarkit.package}.tools.misc.Cyto
 $(eval $(call compile-htsjdk-cmd,vcfancestralalleles,${jvarkit.package}.tools.onekgenomes.VcfAncestralAllele,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bednonoverlappingset,${jvarkit.package}.tools.misc.BedNonOverlappingSet,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,wescnvsvg,${jvarkit.package}.tools.bam2svg.WesCnvSvg,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,gexftr,${jvarkit.package}.tools.gephi.GexfTransformer,${jcommander.jar}))
 
 
 $(lib.dir)/org/gephi/gephi.jar:
