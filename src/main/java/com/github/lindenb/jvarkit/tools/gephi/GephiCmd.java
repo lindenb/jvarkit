@@ -12,6 +12,8 @@ import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.gephi.project.api.*;
 import org.openide.util.*;
@@ -32,6 +34,7 @@ import org.gephi.utils.progress.*;
 import org.gephi.layout.plugin.fruchterman.*;
 
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.StringUtil;
 
 import org.gephi.preview.types.*;
@@ -69,6 +72,8 @@ gephi_home=${HOME}/package/gephi-0.9.2
 
 input is a GEXF file or it reads a GEXF from stdin.
 
+
+
 ## Example
 
 list the available properties:
@@ -92,6 +97,37 @@ INFO: # Edges loaded: 619
 [INFO][GephiCmd]exporting to out.svg
 
 ```
+
+## Example of property file.
+
+```
+layout.duration=10
+layout.time.unit=SECONDS
+layout.algorithm=fruchtermanReingold
+
+node.label.show=true
+node.label.outline.opacity=1
+node.label.outline.size=0.5
+node.label.proportinalSize=false
+node.label.shorten=true
+node.label.color=rgb(255,255,0,100)
+node.label.font=Nimbus,PLAIN,12
+edge.label.max-char=2
+node.label.outline.color=blue
+node.label.box=true
+node.label.box.color=green
+node.label.box.opacity=10
+
+edge.radius=0.1
+node.opacity=30
+edge.color=lightcoral
+edge.thickness=0.5
+
+background-color=gainsboro
+directed=true
+arrow.size=300
+```
+
 
 ## Screenshots
 
@@ -197,7 +233,7 @@ public class GephiCmd  extends Launcher {
 				this.value = Integer.parseInt(v);
 				super.wasSet = true;
 				}
-			catch(NumberFormatException err) {
+			catch(final NumberFormatException err) {
 				throw new NumberFormatException("Cannot parse ineger property "+name+" : "+v);
 				}
 			}
@@ -214,11 +250,11 @@ public class GephiCmd  extends Launcher {
 		@Override
 		void parse(final String v) {
 			if(v.toLowerCase().equals("true") || v.toLowerCase().equals("t")  || v.toLowerCase().equals("1")) {
-				value=true;
+				this.value=true;
 				super.wasSet = true;
 			}
 			else if(v.toLowerCase().equals("false") || v.toLowerCase().equals("f") || v.toLowerCase().equals("0")) {
-				value=false;
+				this.value=false;
 				super.wasSet = true;
 				}
 			else {
@@ -226,8 +262,13 @@ public class GephiCmd  extends Launcher {
 			}
 			}
 		@Override
-		Object getValue() { return value;}
+		Object getValue() { return this.value;}
 		}
+	
+	private static final String EDGE_COLOR_INFO = 
+			"A edge color is a item from org.gephi.preview.types.EdgeColor.Mode or a color parseable with  "+
+			ColorUtils.Converter.OPT_DESC;
+			
 	
 	private class StringProperty extends ConfigProperty
 		{
@@ -251,12 +292,27 @@ public class GephiCmd  extends Launcher {
 			return col;
 			}
 		
-		DependantColor asColor() {
+		DependantColor asDependantColor() {
+			for(final DependantColor.Mode m : DependantColor.Mode.values()) {
+				if(m.name().equalsIgnoreCase(this.value)) return new DependantColor(m);
+				}
 			return new DependantColor(asAwtColor());
 			}
 		boolean isEmpty() {
 			return StringUtil.isBlank(this.value);
 			}
+		EdgeColor asEdgeColor() {
+			for(final EdgeColor.Mode m : EdgeColor.Mode.values()) {
+				if(m.name().equalsIgnoreCase(this.value)) return new EdgeColor(m);
+				}
+			return new EdgeColor(asAwtColor());
+			}
+		DependantOriginalColor asDependantOriginalColor()  {
+			for(final  DependantOriginalColor.Mode m :  DependantOriginalColor.Mode.values()) {
+				if(m.name().equalsIgnoreCase(this.value)) return new DependantOriginalColor(m);
+				}
+			return new DependantOriginalColor(asAwtColor());
+		}
 		Font asFont() {
 			try {
 				final String tokens[]= CharSplitter.COMMA.split(this.value);
@@ -279,7 +335,7 @@ public class GephiCmd  extends Launcher {
 					}
 				return new Font(fontFam,fontFace,fontSize);
 				}
-			catch(Exception err) {
+			catch(final Exception err) {
 				 throw new IllegalArgumentException("cannot parse font "+this.value+" for "+this.toString(),err);
 				}
 			}
@@ -299,6 +355,7 @@ public class GephiCmd  extends Launcher {
 	private final IntProperty PROP_EXPORT_MARGIN = new IntProperty("export.transparent.margin", "",1000);
 	private final StringProperty PROP_EXPORT_PDF_PAGE_SIZE = new StringProperty("export.pdf.size", "PDF page size. One of http://itextsupport.com/apidocs/iText5/5.5.9/com/itextpdf/text/PageSize.html ","A0");
 	private final BoolProperty PROP_EXPORT_PDF_LANDSCAPE = new BoolProperty("export.pdf.landscape", "",false);
+	private final BoolProperty PROP_EXPORT_SVG_SCALESTROKE = new BoolProperty("export.svg.scalestrokes", "",false);
 	private final StringProperty PROP_LAYOUT_ALGORITHM = new StringProperty("layout.algorithm",
 			"Layout algorithm one of "+Arrays.stream(Algorithm.values()).map(E->E.name()).collect(Collectors.joining(", "))
 			,Algorithm.forceAtlas2.name());
@@ -315,7 +372,7 @@ public class GephiCmd  extends Launcher {
 	private final BoolProperty PROP_SHOW_EDGES = new BoolProperty(PreviewProperty.SHOW_EDGES,"Edge Boolean property defining whether to show edges.",true);
 	private final FloatProperty PROP_EDGE_THICKNESS = new FloatProperty(PreviewProperty.EDGE_THICKNESS,"Edge Float property for the edge's thickness",1f);
 	private final BoolProperty PROP_EDGE_CURVED = new BoolProperty(PreviewProperty.EDGE_CURVED,null,true);
-	private final StringProperty PROP_EDGE_COLOR = new StringProperty(PreviewProperty.EDGE_COLOR,"defines the border color","");
+	private final StringProperty PROP_EDGE_COLOR = new StringProperty(PreviewProperty.EDGE_COLOR,"defines the edge color." + EDGE_COLOR_INFO ,"");
 	private final FloatProperty PROP_EDGE_OPACITY = new FloatProperty(PreviewProperty.EDGE_OPACITY,"property between 0-100 which defines the opacity.",100f);
 	private final BoolProperty PROP_EDGE_RESCALE_WEIGHT = new BoolProperty(PreviewProperty.EDGE_RESCALE_WEIGHT,"defining whether edge's weight should be rescaled between fixed bounds.",false);
 	private final FloatProperty PROP_EDGE_RESCALE_WEIGHT_MIN = new FloatProperty(PreviewProperty.EDGE_RESCALE_WEIGHT_MIN,"Edge float property defining the minimum weight when edge weight rescaling is enabled.",0.3f);
@@ -342,6 +399,7 @@ public class GephiCmd  extends Launcher {
 	private final FloatProperty PROP_EDGE_LABEL_OUTLINE_SIZE = new FloatProperty(PreviewProperty.EDGE_LABEL_OUTLINE_SIZE,"Edge Label Outline Float property defining the outline size.",0f);
 	private final FloatProperty PROP_EDGE_LABEL_OUTLINE_OPACITY = new FloatProperty(PreviewProperty.EDGE_LABEL_OUTLINE_OPACITY,"Edge Label Outline Float property between 0-100 which defines the opacity. 100 means opaque.",100f);
 	private final StringProperty PROP_EDGE_LABEL_OUTLINE_COLOR = new StringProperty(PreviewProperty.EDGE_LABEL_OUTLINE_COLOR,"label outline color","");
+	private final StringProperty PROP_EDGE_ARROWS = new StringProperty(PreviewProperty.CATEGORY_EDGE_ARROWS,null,"");
 	// forceAtlas2
 	private final DoubleProperty PROP_FORCEATLAS2_JITTER_TOLERANCE = new DoubleProperty("foceAtlas2.jitter.tolerance",null,0.05);
 	private final BoolProperty PROP_FORCEATLAS2_LINLOGMODE = new BoolProperty("foceAtlas2.linglogmode",null,false);
@@ -350,7 +408,9 @@ public class GephiCmd  extends Launcher {
 	private final DoubleProperty PROP_FRUCHTERMAN_REINGOLD_SPEED = new DoubleProperty("fruchtermanReingold.speed",null,1);
 	private final DoubleProperty PROP_FRUCHTERMAN_REINGOLD_AREA = new DoubleProperty("fruchtermanReingold.area",null,10000);
 	
-	
+	private Stream<Node> streamNodes(final Graph graphPart) {
+		return StreamSupport.stream( new IterableAdapter<>(graphPart.getNodes().iterator()).spliterator(),false);
+	}
 	
 @Override
 public int doWork(final List<String> args) {
@@ -504,7 +564,14 @@ public int doWork(final List<String> args) {
 	       LOG.info("done");
 	        
             final Graph graphPart = graphModel.getGraphVisible();
-         
+            final double min_node_x = streamNodes(graphPart).mapToDouble(N->N.x()-N.size()).min().orElse(0);
+            final double max_node_x = streamNodes(graphPart).mapToDouble(N->N.x()+N.size()).max().orElse(0);
+            final double min_node_y = streamNodes(graphPart).mapToDouble(N->N.y()-N.size()).min().orElse(0);
+            final double max_node_y = streamNodes(graphPart).mapToDouble(N->N.y()+N.size()).max().orElse(0);
+            LOG.warning("width "+min_node_x+":"+max_node_x+" "+(max_node_x-min_node_x));
+            LOG.warning("height "+min_node_y+":"+max_node_y+" "+(max_node_y-min_node_y));
+            
+            
             PreviewController previewController = Lookup.getDefault().lookup(PreviewController.class);
             final PreviewModel previewModel = previewController.getModel();
             
@@ -512,27 +579,57 @@ public int doWork(final List<String> args) {
             if(PROP_EDGE_COLOR.wasSet && !PROP_EDGE_COLOR.isEmpty())
             	{
             	 previewModel.getProperties().putValue(PROP_EDGE_COLOR.name,
-            			 new EdgeColor(PROP_EDGE_COLOR.asAwtColor())
+            			 PROP_EDGE_COLOR.asEdgeColor()
             			 );	
             	}
             
+            
+         // handle properties for colors
+            for(final StringProperty colorProp : new StringProperty[] {
+            		PROP_NODE_LABEL_OUTLINE_COLOR,
+            		PROP_NODE_LABEL_BOX_COLOR,
+            	})
+	            {
+            	if(!colorProp.wasSet) continue;
+	            if(colorProp.isEmpty()) continue;
+	            LOG.debug("setting "+colorProp+" "+colorProp.asDependantColor());
+	            previewModel.getProperties().putValue(colorProp.name,colorProp.asDependantColor());
+	            }
+            
+            
             // handle properties for colors
             for(final StringProperty colorProp : new StringProperty[] {
-            		PROP_BACKGROUND_COLOR,PROP_NODE_BORDER_COLOR,
-            		PROP_NODE_LABEL_COLOR,
-            		PROP_NODE_LABEL_OUTLINE_COLOR,PROP_NODE_LABEL_BOX_COLOR,
-            		PROP_EDGE_LABEL_COLOR,PROP_EDGE_LABEL_OUTLINE_COLOR
+            		PROP_BACKGROUND_COLOR,
+            		PROP_NODE_BORDER_COLOR,            		
+            		PROP_EDGE_LABEL_COLOR,
+            		PROP_EDGE_LABEL_OUTLINE_COLOR
             	})
 	            {
+            	if(!colorProp.wasSet) continue;
 	            if(colorProp.isEmpty()) continue;
-	            previewModel.getProperties().putValue(colorProp.name,colorProp.asColor());	
+	            LOG.debug("setting "+colorProp);
+	            previewModel.getProperties().putValue(colorProp.name,colorProp.asAwtColor());	
 	            }
+            
+            for(final StringProperty colorProp : new StringProperty[] {
+            		PROP_NODE_LABEL_COLOR,
+            	})
+	            {
+            	if(!colorProp.wasSet) continue;
+	            if(colorProp.isEmpty()) continue;
+	            LOG.debug("setting "+colorProp);
+	            previewModel.getProperties().putValue(colorProp.name,colorProp.asDependantOriginalColor());	
+	            }
+            
          // handle properties for font
             for(final StringProperty fontProp : new StringProperty[] {
-            		 PROP_NODE_LABEL_FONT,PROP_EDGE_LABEL_FONT
+            		 PROP_NODE_LABEL_FONT,
+            		 PROP_EDGE_LABEL_FONT
             	})
 	            {
+            	if(!fontProp.wasSet) continue;
 	            if(fontProp.isEmpty()) continue;
+	            LOG.debug("setting "+fontProp);
 	            previewModel.getProperties().putValue(fontProp.name,fontProp.asFont());	
 	            }
            
@@ -564,10 +661,13 @@ public int doWork(final List<String> args) {
             		PROP_NODE_LABEL_OUTLINE_SIZE,
             		PROP_NODE_LABEL_OUTLINE_OPACITY,
             		PROP_NODE_LABEL_SHOW_BOX,
-            		PROP_NODE_LABEL_BOX_OPACITY
+            		PROP_NODE_LABEL_BOX_OPACITY,
+            		//
+            		PROP_ARROW_SIZE
             	})
 	            {
             	if(!other.wasSet) continue;
+            	LOG.debug("setting "+other);
 	            previewModel.getProperties().putValue(other.name,other.getValue());	
 	            }
             
@@ -589,8 +689,22 @@ public int doWork(final List<String> args) {
             	{
             	  final PNGExporter pngExporter = (PNGExporter) ec.getExporter("png");
                   
-                  pngExporter.setHeight(PROP_EXPORT_HEIGHT.value);
-                  pngExporter.setWidth(PROP_EXPORT_WIDTH.value);
+            	  int png_width = PROP_EXPORT_WIDTH.value; 
+            	  if(png_width > (int)(max_node_x-min_node_x))
+            	  	{
+            		  png_width = (int)(max_node_x-min_node_x);
+            		 LOG.warn("adjusting png width to "+png_width);
+            	  	}
+            	  
+            	  int png_height = PROP_EXPORT_HEIGHT.value;
+            	  if(png_height > (int)(max_node_y-min_node_y))
+	          	  	{
+            		png_height = (int)(max_node_y-min_node_y);
+	          		LOG.warn("adjusting png height to "+png_height);
+	          	  	}
+            	  
+                  pngExporter.setHeight(png_height);
+                  pngExporter.setWidth(png_width);
                   pngExporter.setMargin(PROP_EXPORT_MARGIN.value);
                   pngExporter.setTransparentBackground(PROP_EXPORT_TRANSPARENT.value);
                   pngExporter.setWorkspace(workspace);
@@ -635,6 +749,7 @@ public int doWork(final List<String> args) {
 	        	{
 	        	final SVGExporter exporter = (SVGExporter) ec.getExporter("svg");
 	        	exporter.setWorkspace(workspace);
+	        	exporter.setScaleStrokes(PROP_EXPORT_SVG_SCALESTROKE.value);
 	        	ec.exportFile(this.outputFile, exporter);
 	        	}
             else  if( this.outputFile.getName().toLowerCase().endsWith(".gexf"))

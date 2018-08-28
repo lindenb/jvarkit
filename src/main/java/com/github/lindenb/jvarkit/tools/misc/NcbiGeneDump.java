@@ -64,11 +64,49 @@ BEGIN_DOC
 
 ## Example
 
+search two genes and convert to markdown using the following XSLT stylesheet.
+
+```xslt
+<?xml version='1.0'  encoding="UTF-8" ?>
+<xsl:stylesheet xmlns:xsl='http://www.w3.org/1999/XSL/Transform'  version='1.0' >
+<xsl:output method="text" encoding="UTF-8"/>
+
+<xsl:template match="Entrezgene-Set">
+<xsl:apply-templates select="Entrezgene"/>
+</xsl:template>
+
+<xsl:template match="Entrezgene">
+<xsl:variable name="geneId" select="Entrezgene_track-info/Gene-track/Gene-track_geneid"/>
+<xsl:variable name="locus" select="Entrezgene_gene/Gene-ref/Gene-ref_locus"/>
+<xsl:text>**</xsl:text>
+<xsl:value-of select="$locus"/>
+<xsl:text>** : </xsl:text>
+<xsl:value-of select="Entrezgene_summary"/>
+<xsl:text>
+
+</xsl:text>
+</xsl:template>
+
+</xsl:stylesheet>
+```
+
+
+```
+$ java -jar dist/ncbigenedump.jar SCN5A NOTCH2 |\
+ 	xsltproc stylesheet.xsl  -
+```
+
+**NOTCH2** : This gene encodes a member of the Notch family. Members of this Type 1 transmembrane protein family share structural characteristics including an extracellular domain consisting of multiple epidermal growth factor-like (EGF) repeats, and an intracellular domain consisting of multiple, different domain types. Notch family members play a role in a variety of developmental processes by controlling cell fate decisions. The Notch signaling network is an evolutionarily conserved intercellular signaling pathway which regulates interactions between physically adjacent cells. In Drosophilia, notch interaction with its cell-bound ligands (delta, serrate) establishes an intercellular signaling pathway that plays a key role in development. Homologues of the notch-ligands have also been identified in human, but precise interactions between these ligands and the human notch homologues remain to be determined. This protein is cleaved in the trans-Golgi network, and presented on the cell surface as a heterodimer. This protein functions as a receptor for membrane bound ligands, and may play a role in vascular, renal and hepatic development. Two transcript variants encoding different isoforms have been found for this gene. [provided by RefSeq, Jan 2011]
+
+**SCN5A** : The protein encoded by this gene is an integral membrane protein and tetrodotoxin-resistant voltage-gated sodium channel subunit. This protein is found primarily in cardiac muscle and is responsible for the initial upstroke of the action potential in an electrocardiogram. Defects in this gene are a cause of long QT syndrome type 3 (LQT3), an autosomal dominant cardiac disease. Alternative splicing results in several transcript variants encoding different isoforms. [provided by RefSeq, Jul 2008]
+
+
 END_DOC
  *
  */
-@Program(name="ncbigenedump",keywords={"ncbi","gene","xml"}, 
-	description="Dump XML results from gene/Eutils"
+@Program(name="ncbigenedump",
+	keywords={"ncbi","gene","xml"}, 
+	description="Dump XML results from a list of gene using NCBI/Eutils"
 	)
 public class NcbiGeneDump
 	extends Launcher
@@ -87,11 +125,12 @@ public class NcbiGeneDump
 	private String taxonId = "9606";
 	@Parameter(names={"--stdin"},description="read list of genes from stdin.")
 	private boolean stdinFlags = false;
-
+	@Parameter(names={"--abort"},description="Abort with error if a gene was not found with ncbi-esearch.")
+	private boolean abortOnNotFound=false;
 	@ParametersDelegate
 	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
 
-	private String tool="ncbigenedump";
+	private static final String tool="ncbigenedump";
 
 	public NcbiGeneDump() {
 		}
@@ -148,6 +187,7 @@ public class NcbiGeneDump
 			if(this.userGeneFile!=null) {
 				IOUtil.slurpLines(this.userGeneFile).stream().map(S->S.trim()).forEach(G->geneIdentifiers.add(G));
 				}
+			
 			if(!args.isEmpty()) {
 				args.stream().map(S->S.trim()).forEach(G->geneIdentifiers.add(G));
 				}
@@ -191,6 +231,8 @@ public class NcbiGeneDump
 			});
 			
 			final int batchSize=10;
+			
+			
 			while(!geneNames.isEmpty()) {
 				final Set<String> batchNames = new HashSet<>(batchSize);
 				final Iterator<String> iter = geneNames.iterator();
@@ -202,13 +244,13 @@ public class NcbiGeneDump
 				final StringBuilder query = new StringBuilder(
 					batchNames.
 						stream().
-						map(G->"\""+G+"\"[TODO]").
+						map(G->"\""+G+"\"[GENE]").
 						collect(Collectors.joining(" OR " ))
 					);
 				
 				if(!StringUtil.isBlank(taxonId)) {
 					query.insert(0, "(");
-					query.append(") AND \""+this.taxonId+"\"[TODO]");
+					query.append(") AND \""+this.taxonId+"\"[TID]");
 				}
 	
 				
@@ -216,7 +258,7 @@ public class NcbiGeneDump
 						NcbiConstants.esearch()+"?db=gene&term="+
 						URLEncoder.encode(query.toString(), "UTF-8")+
 						ncbiApiKey.getAmpParamValue()+
-						"&retstart=0&retmode=xml"+
+						"&retstart=0&retmode=xml&retmax="+NcbiConstants.RETMAX_MAX+
 						(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
 						(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
 						;
@@ -233,6 +275,16 @@ public class NcbiGeneDump
 							{
 							geneIds.add(Integer.parseInt(r.getElementText()));
 							nFound++;
+							}
+						else if( eName.equals("QuotedPhraseNotFound"))
+							{
+							final String notFound = r.getElementText();
+							LOG.warn("NOT FOUND :" + notFound);
+							if(abortOnNotFound) 
+								{
+								LOG.error("The following Entrez query was not found : "+notFound);
+								return -1;
+								}
 							}
 						}
 					}
@@ -314,10 +366,10 @@ public class NcbiGeneDump
 							if(in_gene)
 								{
 								w.add(evt);
-								w.add(eventFactory.createCharacters("\n"));
 								final  String localName= evt.asEndElement().getName().getLocalPart();
 								if(localName.equals("Entrezgene"))
 									{
+									w.add(eventFactory.createCharacters("\n"));
 									in_gene = false;
 									}
 								}
@@ -343,7 +395,7 @@ public class NcbiGeneDump
 					}
 				r.close();
 				}//end while ids
-			w.add(eventFactory.createEndElement(new QName(""),null));
+			w.add(eventFactory.createEndElement(new QName("Entrezgene-Set"),null));
 			w.add(eventFactory.createEndDocument());
 			w.flush();
 			w.close();

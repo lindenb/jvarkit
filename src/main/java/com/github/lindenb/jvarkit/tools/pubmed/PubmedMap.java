@@ -132,7 +132,7 @@ grep domain -B 5
 END_DOC
  */
 @Program(name="pubmedmap",
-description="Use Pubmed Author's Affiliation to map the authors .",
+description="Use Pubmed Author's Affiliation to map the authors in the world.",
 	keywords={"pubmed","xml","gis","map"})
 public class PubmedMap
 	extends Launcher
@@ -141,6 +141,11 @@ public class PubmedMap
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
 
+	/** used in pubmed author graph */
+	static final QName QNAME_PLACE_ATTRIBUTE = new QName("place");
+
+	
+	
 	private static class Country {
 	final String suffix;
 	final String name;
@@ -502,7 +507,6 @@ public class PubmedMap
 		XMLEventWriter w=null;
 		try {
 			final QName attDomainSuffix=new QName("domain");
-			final QName attPlaceSuffix=new QName("place");
 			final XMLEventFactory xmlEventFactory = XMLEventFactory.newFactory();
 			final XMLInputFactory xmlInputFactory = XMLInputFactory.newFactory();
 			xmlInputFactory.setXMLResolver(new XMLResolver() {
@@ -531,7 +535,7 @@ public class PubmedMap
 				while(t.hasNext()) {
 				    final Attribute att =  (Attribute)t.next();
 				    if(att.getName().equals(attDomainSuffix)) continue;
-				    if(att.getName().equals(attPlaceSuffix)) continue;
+				    if(att.getName().equals(QNAME_PLACE_ATTRIBUTE)) continue;
 					attributes.add(att);
 				}
 				
@@ -544,7 +548,7 @@ public class PubmedMap
 					String suffix = country.suffix;
 					if(suffix.equals("gov")) suffix="us";
 					attributes.add(xmlEventFactory.createAttribute(attDomainSuffix, suffix));
-					attributes.add(xmlEventFactory.createAttribute(attPlaceSuffix, country.name));
+					attributes.add(xmlEventFactory.createAttribute(QNAME_PLACE_ATTRIBUTE, country.name));
 					}
 				w.add(xmlEventFactory.createStartElement(
 						evt.asStartElement().getName(),

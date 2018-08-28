@@ -216,6 +216,10 @@ public class PubmedGender
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
+	/* used by pubmed graph */
+	static final QName MALE_QNAME =new QName("male");
+	static final QName FEMALE_QNAME =new QName("female");
+
 	
 	private static class GenderInfo {
 		String male=null;
@@ -241,8 +245,6 @@ public class PubmedGender
 		XMLEventReader r=null;
 		InputStream in=null;
 		XMLEventWriter w=null;
-		final QName maleName =new QName("male");
-		final QName femaleName =new QName("female");
 		BufferedReader br=null;
 		try {
 			final Pattern comma=Pattern.compile("[,]");
@@ -355,13 +357,13 @@ public class PubmedGender
 				Iterator<?> t=evt.asStartElement().getAttributes();
 				while(t.hasNext()) {
 				    final Attribute att =  (Attribute)t.next();
-				    if(att.getName().equals(maleName)) continue;
-				    if(att.getName().equals(femaleName)) continue;
+				    if(att.getName().equals(MALE_QNAME)) continue;
+				    if(att.getName().equals(FEMALE_QNAME)) continue;
 					attributes.add(att);
 				}
 				
-				if(male!=null) attributes.add(xmlEventFactory.createAttribute(maleName, male));
-				if(female!=null) attributes.add(xmlEventFactory.createAttribute(femaleName, female));
+				if(male!=null) attributes.add(xmlEventFactory.createAttribute(MALE_QNAME, male));
+				if(female!=null) attributes.add(xmlEventFactory.createAttribute(FEMALE_QNAME, female));
 				
 				w.add(xmlEventFactory.createStartElement(
 						evt.asStartElement().getName(),

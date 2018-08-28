@@ -31,8 +31,10 @@ import htsjdk.samtools.util.CloserUtil;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -313,6 +315,7 @@ public class PubmedGraph extends Launcher
 			w.writeAttribute("xsi:schemaLocation",GexfConstants.XSI_SCHEMA_LOCATION);
 			w.writeAttribute("version", GexfConstants.VERSION);
 			w.writeStartElement("meta");
+			  w.writeAttribute("lastmodifieddate",new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
 			  w.writeStartElement("creator");
 			  w.writeCharacters("PubmedGraph  by Pierre Lindenbaum");
 			  w.writeEndElement();

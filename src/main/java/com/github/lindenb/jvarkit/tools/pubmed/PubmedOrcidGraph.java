@@ -34,8 +34,10 @@ import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.text.Collator;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -773,7 +775,7 @@ public class PubmedOrcidGraph
 			
 			/* meta */
 			w.writeStartElement("meta");
-				w.writeAttribute("lastmodifieddate","2017-04-03");
+				w.writeAttribute("lastmodifieddate",new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
 				w.writeStartElement("creator");
 				  w.writeCharacters("PumedOrcidGraph");
 				w.writeEndElement();

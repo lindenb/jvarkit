@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.pubmed;
 
 
+import java.awt.Color;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -73,6 +74,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -119,7 +121,15 @@ public class PubmedAuthorGraph
 	@Parameter(names={"-r","--scale-articles"},description="Scale articles in function of the number of authors")
 	private boolean scale_articles = false;
 	@Parameter(names={"-u","--scale-authors"},description="Scale authors in function of the number of articles")
-	private boolean scale_authors = false;	
+	private boolean scale_authors = false;
+	@Parameter(names={"-i","--initals"},description="use author's initials to build the author-identifier. In the old pubmed record, the forename is not available.")
+	private boolean use_initials_to_build_sample_id = false;	
+	@Parameter(names={"-uc","--author-color"},description="viz:Color for the Authors." +ColorUtils.Converter.OPT_DESC,converter=ColorUtils.Converter.class)
+	private Color authorColor = null;
+	@Parameter(names={"-rc","--article-color"},description="viz:Color for the Articles." +ColorUtils.Converter.OPT_DESC,converter=ColorUtils.Converter.class)
+	private Color articleColor = null;
+	
+	
 	@ParametersDelegate
 	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
 
@@ -136,7 +146,25 @@ public class PubmedAuthorGraph
 	
 
 	
+	private static String normalize(final String s) {
+		if(StringUtil.isBlank(s)) return "";
+		return Normalizer.normalize(s, Normalizer.Form.NFD).
+				replace(" ", "_").replace("'", "_").
+				replaceAll("\\p{InCombiningDiacriticalMarks}+", "").
+				trim().
+				toUpperCase();
+	}
 	
+	private static void writeColor(final XMLStreamWriter w,final Color c) throws XMLStreamException {
+		if(c==null) return;
+		w.writeEmptyElement("viz", "color", GexfConstants.XMLNS_VIZ);
+		w.writeAttribute("r", String.valueOf(c.getRed()));
+		w.writeAttribute("g", String.valueOf(c.getGreen()));
+		w.writeAttribute("b", String.valueOf(c.getBlue()));
+		if(c.getAlpha()<255) {
+			w.writeAttribute("a", String.valueOf(c.getAlpha()/255.0f));
+			}
+		}
 	
 	private class Article implements Comparable<Article>
 		{
@@ -158,12 +186,7 @@ public class PubmedAuthorGraph
 			w.writeAttribute("id","pmid:"+this.pmid);
 			w.writeAttribute("label", String.valueOf(this.ArticleTitle));
 			
-			
-			w.writeEmptyElement("viz", "color", GexfConstants.XMLNS_VIZ);
-			w.writeAttribute("r", "10");
-			w.writeAttribute("g", "10");
-			w.writeAttribute("b", "155");
-			
+			writeColor(w,PubmedAuthorGraph.this.articleColor);
 
 			w.writeEmptyElement("viz", "shape", GexfConstants.XMLNS_VIZ);
 			w.writeAttribute("value","square");
@@ -267,7 +290,9 @@ public class PubmedAuthorGraph
 		String initials=null;
 		String affiliation =null;
 		final Set<String> pmids = new HashSet<>();
-		
+		String male = null;
+		String female = null;
+		String place = null;
 		
 		/** idea: in xml+xslt , used to presort orcid indentifiers
 		 * in order to produce unique pairs of collab(orcid1,orcid2) */
@@ -281,9 +306,14 @@ public class PubmedAuthorGraph
 			
 			w.writeStartElement("node");
 			w.writeAttribute("id", this.id);
-			w.writeAttribute("label", String.join(" ",foreName,lastName));
-			
+			if(use_initials_to_build_sample_id) {
+				w.writeAttribute("label", String.join(" ",lastName,initials));
+			}
+			else {
+			w.writeAttribute("label", String.join(" ",lastName,foreName));
+			}
 
+			writeColor(w,PubmedAuthorGraph.this.authorColor);
 			
 			if(PubmedAuthorGraph.this.scale_authors)
 				{
@@ -303,28 +333,49 @@ public class PubmedAuthorGraph
 			w.writeAttribute("value","author");
 			
 
-			
-			w.writeEmptyElement("attvalue");
-			w.writeAttribute("for","foreName");
-			w.writeAttribute("value",this.foreName);
+			if(!StringUtil.isBlank(this.foreName)) {
+				w.writeEmptyElement("attvalue");
+				w.writeAttribute("for","foreName");
+				w.writeAttribute("value",this.foreName);
+				}
 			
 			w.writeEmptyElement("attvalue");
 			w.writeAttribute("for","lastName");
 			w.writeAttribute("value",this.lastName);
 
-			w.writeEmptyElement("attvalue");
-			w.writeAttribute("for","initials");
-			w.writeAttribute("value",this.initials);
+			if(!StringUtil.isBlank(this.initials)) {
+				w.writeEmptyElement("attvalue");
+				w.writeAttribute("for","initials");
+				w.writeAttribute("value",this.initials);
+				}
 
-			w.writeEmptyElement("attvalue");
-			w.writeAttribute("for","affiliation");
-			w.writeAttribute("value",this.affiliation);
+			if(!StringUtil.isBlank(this.affiliation)) {
+				w.writeEmptyElement("attvalue");
+				w.writeAttribute("for","affiliation");
+				w.writeAttribute("value",this.affiliation);
+				}
 
 			w.writeEmptyElement("attvalue");
 			w.writeAttribute("for","count_articles");
 			w.writeAttribute("value",String.valueOf(this.pmids.size()));
 
+			if(!StringUtil.isBlank(this.male)) {
+				w.writeEmptyElement("attvalue");
+				w.writeAttribute("for","male");
+				w.writeAttribute("value",this.male);
+				}
 			
+			if(!StringUtil.isBlank(this.female)) {
+				w.writeEmptyElement("attvalue");
+				w.writeAttribute("for","female");
+				w.writeAttribute("value",this.female);
+				}
+			
+			if(!StringUtil.isBlank(this.place)) {
+				w.writeEmptyElement("attvalue");
+				w.writeAttribute("for","place");
+				w.writeAttribute("value",this.place);
+				}
 			
 			w.writeEndElement();//attvalues
 			w.writeEndElement();//node
@@ -341,6 +392,12 @@ public class PubmedAuthorGraph
 			a.id = in.readString();
 			a.initials = in.readString();
 			a.affiliation = in.readString();
+			// pubmed gender
+			a.male = in.readString();
+			a.female = in.readString();
+			// pubmed map
+			a.place = in.readString();
+			
 			int n_pmid=in.readInt();
 			for(int i=0;i<n_pmid;++i){
 				a.pmids.add(in.readString());
@@ -354,6 +411,13 @@ public class PubmedAuthorGraph
 			w.writeString(_s(a.id));
 			w.writeString(_s(a.initials));
 			w.writeString(_s(a.affiliation));
+			// pubmed gender
+			w.writeString(_s(a.male));
+			w.writeString(_s(a.female));
+			// pubmed map
+			w.writeString(_s(a.place));
+
+			
 			w.writeInt(a.pmids.size());
 			for(final String pmid:a.pmids)
 				{
@@ -386,9 +450,15 @@ public class PubmedAuthorGraph
 		return sb.toString();
 		}
 	
-	private Author parseAuthor(final XMLEventReader r,final String pmid)  throws XMLStreamException
+	private Author parseAuthor(final XMLEventReader r,final StartElement root,final String pmid)  throws XMLStreamException
 		{
 		final Author au = new Author();
+		
+		Attribute att = root.getAttributeByName(PubmedGender.MALE_QNAME);
+		if(att!=null) au.male=att.getValue();
+		att = root.getAttributeByName(PubmedGender.FEMALE_QNAME);
+		if(att!=null) au.female=att.getValue();
+
 		while(r.hasNext()) {
 			final XMLEvent evt=r.nextEvent();
 			if(evt.isStartElement()) {
@@ -399,6 +469,10 @@ public class PubmedAuthorGraph
 				} else if(eltName.equals("ForeName") || eltName.equals("FirstName")) {
 					au.foreName=r.getElementText().trim();
 				} else if(eltName.equals("Affiliation")) {
+					att = root.getAttributeByName(PubmedMap.QNAME_PLACE_ATTRIBUTE);
+					if(att!=null) {
+						au.place = att.getValue();
+						}
 					au.affiliation=r.getElementText().trim();
 				} else if(eltName.equals("Initials")) {
 					au.initials=r.getElementText().trim();
@@ -407,12 +481,19 @@ public class PubmedAuthorGraph
 			else if(evt.isEndElement() &&
 				evt.asEndElement().getName().getLocalPart().equals("Author")) {
 				if(StringUtil.isBlank(au.lastName)) return null;
-				if(StringUtil.isBlank(au.foreName)) return null;
 				
-				au.id= Normalizer.normalize(au.lastName, Normalizer.Form.NFD).trim().toUpperCase() +
-					"~" +
-					Normalizer.normalize(au.foreName, Normalizer.Form.NFD).trim().toUpperCase();
-				au.id= au.id.replace(" ", "_").replace("'", "_");
+				au.id= normalize(au.lastName) + "~" ;
+				
+				if(use_initials_to_build_sample_id)
+					{
+					if(StringUtil.isBlank(au.initials)) return null;
+					au.id += normalize(au.initials);
+					}
+				else
+					{
+					if(StringUtil.isBlank(au.foreName)) return null;
+					au.id += normalize(au.foreName);
+					}
 				return au;
 			}
 		}
@@ -481,7 +562,7 @@ public class PubmedAuthorGraph
 						article.Year=r.getElementText();
 					}
 					else if(eltName.equals("Author")) {
-						final Author author = parseAuthor(r,article.pmid);
+						final Author author = parseAuthor(r,start,article.pmid);
 						if(author!=null) {
 							authors.add(author);
 							}
@@ -623,6 +704,16 @@ public class PubmedAuthorGraph
 			gexfAttDecl(w,"initials","string");
 			gexfAttDecl(w,"affiliation","string");
 			gexfAttDecl(w,"count_articles","integer");
+			//from pubmed gender
+			w.writeComment("Attribute filled if used with jvarkit/pubmedgender ");
+			gexfAttDecl(w,"male","integer");
+			w.writeComment("Attribute filled if used with jvarkit/pubmedgender ");
+			gexfAttDecl(w,"female","integer");
+			//from pubmed map
+			w.writeComment("Attribute filled if used with jvarkit/pubmedmap ");
+			gexfAttDecl(w,"place","string");
+
+			
 			
 			
 			gexfAttDecl(w,"pmid","string");

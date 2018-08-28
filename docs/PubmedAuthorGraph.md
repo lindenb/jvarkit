@@ -10,6 +10,12 @@ Creates a graph from Pubmed and Authors
 ```
 Usage: pubmedauthorgraph [options] Files
   Options:
+    -rc, --article-color
+      viz:Color for the Articles. A named color ('red', 'blue'...) use the 
+      syntax 'rgb(int,int,int)'.
+    -uc, --author-color
+      viz:Color for the Authors. A named color ('red', 'blue'...) use the 
+      syntax 'rgb(int,int,int)'.
   * -D, --berkeydb
       BerkeleyDB tmpDir
     -h, --help
@@ -17,6 +23,10 @@ Usage: pubmedauthorgraph [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -i, --initals
+      use author's initials to build the author-identifier. In the old pubmed 
+      record, the forename is not available.
+      Default: false
     --ncbi-api-key
       NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ 
       .If undefined, it will try to get in that order:  1) environment 

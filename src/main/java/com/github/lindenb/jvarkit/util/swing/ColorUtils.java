@@ -34,6 +34,7 @@ import java.util.function.Function;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.ParameterException;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 
 import htsjdk.samtools.SAMRecord;
 
@@ -437,37 +438,23 @@ public class ColorUtils
             {
             return new Color( Integer.valueOf(c.substring(1),16).intValue());
             }
-        else if(c.startsWith("rgb(") && c.endsWith(")"))
+        else if((c.startsWith("rgb(") || c.startsWith("rgba(")) && c.endsWith(")"))
             {
-            int index=c.indexOf(',');
-            if(index==-1)
+        	final int par = c.indexOf('(');
+        	final String  tokens[]= CharSplitter.COMMA.split(c.substring(par+1, c.length()-1).trim());
+            if(tokens.length<3)
                     {
                     return null;
                     }
             try
                 {
-                int r= java.lang.Integer.parseInt(c.substring(4,index));
-                c=c.substring(index+1);
-                index=c.indexOf(',');
-                if(index==-1)
-                    {
-                    return null;
-                    }
-                int g= java.lang.Integer.parseInt(c.substring(0,index));
-                c=c.substring(index+1);
-                index=c.indexOf(')');
-                if(index==-1)
-                    {
-                    return null;
-                    }
-                int b= java.lang.Integer.parseInt(c.substring(0,index));
-                if( c.substring(index+1).trim().length()!=0)
-                        {
-                        return null;
-                        }
-                return new Color(r,g,b);
+                final int r= java.lang.Integer.parseInt(tokens[0]);
+                final int g= java.lang.Integer.parseInt(tokens[1]);
+                final int b= java.lang.Integer.parseInt(tokens[2]);
+                final int a=(tokens.length>3?java.lang.Integer.parseInt(tokens[3]):255);
+                return new Color(r,g,b,a);
                 }
-            catch(Exception err)
+            catch(final Throwable err)
                 {
                 return null;
                 }

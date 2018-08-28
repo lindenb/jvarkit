@@ -50,6 +50,10 @@ public class NcbiConstants {
 	public static String esummary() {
 		return service("esummary");
 		}
-	
+	/** 
+	 * " Increasing retmax allows more of the retrieved UIDs to be included in the XML output, up to a maximum of 100,000 records" 
+	 * https://www.ncbi.nlm.nih.gov/books/NBK25499/
+	 * */
+	public static final int RETMAX_MAX = 100_000;
 	
 }
