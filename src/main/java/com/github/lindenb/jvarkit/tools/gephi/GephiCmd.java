@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2018 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.gephi;
 
 import java.awt.Color;
@@ -189,6 +213,7 @@ public class GephiCmd  extends Launcher {
 			}
 		abstract void parse(final String v);
 		abstract Object getValue();
+		abstract String getDataType();
 		@Override
 		public String toString() {
 			return "\""+name+"\"="+getValue();
@@ -202,6 +227,7 @@ public class GephiCmd  extends Launcher {
 			super(name,description);
 			this.value = def;
 			}
+		@Override String getDataType() { return "float";}
 		@Override
 		void parse(final String v) {
 			try {
@@ -223,6 +249,7 @@ public class GephiCmd  extends Launcher {
 			super(name,description);
 			this.value = def;
 			}
+		@Override String getDataType() { return "double";}
 		@Override
 		void parse(final String v) {
 			try {
@@ -244,6 +271,7 @@ public class GephiCmd  extends Launcher {
 			super(name,description);
 			this.value = def;
 			}
+		@Override String getDataType() { return "int";}
 		@Override
 		void parse(final String v) {
 			try {
@@ -264,6 +292,7 @@ public class GephiCmd  extends Launcher {
 			super(name,description);
 			this.value = def;
 			}
+		@Override String getDataType() { return "boolean";}
 		@Override
 		void parse(final String v) {
 			if(v.toLowerCase().equals("true") || v.toLowerCase().equals("t")  || v.toLowerCase().equals("1")) {
@@ -294,6 +323,7 @@ public class GephiCmd  extends Launcher {
 			super(name,description);
 			this.value = def;
 			}
+		@Override String getDataType() { return "string";}
 		@Override
 		void parse(final String v) {
 			super.wasSet = true;
@@ -374,7 +404,8 @@ public class GephiCmd  extends Launcher {
 	private final BoolProperty PROP_EXPORT_PDF_LANDSCAPE = new BoolProperty("export.pdf.landscape", "",false);
 	private final BoolProperty PROP_EXPORT_SVG_SCALESTROKE = new BoolProperty("export.svg.scalestrokes", "",false);
 	private final StringProperty PROP_LAYOUT_ALGORITHM = new StringProperty("layout.algorithm",
-			"Layout algorithm one of "+Arrays.stream(Algorithm.values()).map(E->E.name()).collect(Collectors.joining(", "))
+			"Layout algorithm one of "+Arrays.stream(Algorithm.values()).
+				map(E->E.name()).collect(Collectors.joining(", "))
 			,Algorithm.forceAtlas2.name());
 
 	// from https://raw.githubusercontent.com/gephi/gephi/master/modules/PreviewAPI/src/main/java/org/gephi/preview/api/PreviewProperty.java
@@ -477,7 +508,7 @@ public int doWork(final List<String> args) {
 		 if(this.list_properties) {
 				final PrintWriter out = openFileOrStdoutAsPrintWriter(this.outputFile);
 				this.config_properties.entrySet().stream().forEach(P->{
-					out.println("# "+P.getValue().description);
+					out.println("# "+P.getValue().description+" ("+P.getValue().getDataType()+")");
 					out.println(P.getKey()+"="+  P.getValue().getValue());
 					});
 				out.flush();
