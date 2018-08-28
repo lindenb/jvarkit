@@ -117,6 +117,8 @@ gephi_home=${HOME}/package/gephi-0.9.2
 
 input is a GEXF file or it reads a GEXF from stdin.
 
+
+
 ## Example
 
 list the available properties:
@@ -141,11 +143,59 @@ INFO: # Edges loaded: 619
 
 ```
 
+## Example of property file.
+
+```
+layout.duration=10
+layout.time.unit=SECONDS
+layout.algorithm=fruchtermanReingold
+
+node.label.show=true
+node.label.outline.opacity=1
+node.label.outline.size=0.5
+node.label.proportinalSize=false
+node.label.shorten=true
+node.label.color=rgb(255,255,0,100)
+node.label.font=Nimbus,PLAIN,12
+edge.label.max-char=2
+node.label.outline.color=blue
+node.label.box=true
+node.label.box.color=green
+node.label.box.opacity=10
+
+edge.radius=0.1
+node.opacity=30
+edge.color=lightcoral
+edge.thickness=0.5
+
+background-color=gainsboro
+directed=true
+arrow.size=300
+```
+
+
 ## Screenshots
 
 https://twitter.com/yokofakun/status/1034107797439504384
 
 ![https://twitter.com/yokofakun/status/1034107797439504384](https://pbs.twimg.com/media/DlnjTj1W4AIBB6B.jpg)
+
+
+https://twitter.com/yokofakun/status/1034397660189523968
+
+![https://twitter.com/yokofakun/status/1034397660189523968](https://pbs.twimg.com/media/DlrqXqvX4AE6r27.jpg)
+
+https://twitter.com/yokofakun/status/1034440031589552128
+
+
+![https://twitter.com/yokofakun/status/1034440031589552128](https://pbs.twimg.com/media/DlsRaDCW0AAsotv.jpg)
+
+
+## Note to self:
+
+part of the code was generated using java2xml && xslt see https://gist.github.com/lindenb/890b9957f768c4bad61b271de7747d07
+
+
 
 
 

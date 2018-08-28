@@ -136,6 +136,23 @@ https://twitter.com/yokofakun/status/1034107797439504384
 ![https://twitter.com/yokofakun/status/1034107797439504384](https://pbs.twimg.com/media/DlnjTj1W4AIBB6B.jpg)
 
 
+https://twitter.com/yokofakun/status/1034397660189523968
+
+![https://twitter.com/yokofakun/status/1034397660189523968](https://pbs.twimg.com/media/DlrqXqvX4AE6r27.jpg)
+
+https://twitter.com/yokofakun/status/1034440031589552128
+
+
+![https://twitter.com/yokofakun/status/1034440031589552128](https://pbs.twimg.com/media/DlsRaDCW0AAsotv.jpg)
+
+
+## Note to self:
+
+part of the code was generated using java2xml && xslt see https://gist.github.com/lindenb/890b9957f768c4bad61b271de7747d07
+
+
+
+
 END_DOC
 */
 @Program(name="gephicmd",
@@ -343,7 +360,7 @@ public class GephiCmd  extends Launcher {
 	
 
 	
-	private enum Algorithm {forceAtlas2,fruchtermanReingold}
+	private enum Algorithm {forceAtlas,forceAtlas2,fruchtermanReingold,yifanHu,noverlap}
 	
 	private final IntProperty PROP_LAYOUT_DURATION = new IntProperty("layout.duration", "Layout duration", 1);
 	private final StringProperty PROP_LAYOUT_TIME_UNIT = new StringProperty("layout.time.unit", "Layout time unit", TimeUnit.MINUTES.name());
@@ -400,13 +417,53 @@ public class GephiCmd  extends Launcher {
 	private final FloatProperty PROP_EDGE_LABEL_OUTLINE_OPACITY = new FloatProperty(PreviewProperty.EDGE_LABEL_OUTLINE_OPACITY,"Edge Label Outline Float property between 0-100 which defines the opacity. 100 means opaque.",100f);
 	private final StringProperty PROP_EDGE_LABEL_OUTLINE_COLOR = new StringProperty(PreviewProperty.EDGE_LABEL_OUTLINE_COLOR,"label outline color","");
 	private final StringProperty PROP_EDGE_ARROWS = new StringProperty(PreviewProperty.CATEGORY_EDGE_ARROWS,null,"");
-	// forceAtlas2
-	private final DoubleProperty PROP_FORCEATLAS2_JITTER_TOLERANCE = new DoubleProperty("foceAtlas2.jitter.tolerance",null,0.05);
-	private final BoolProperty PROP_FORCEATLAS2_LINLOGMODE = new BoolProperty("foceAtlas2.linglogmode",null,false);
-	//fruchtermanReingold
-	private final DoubleProperty PROP_FRUCHTERMAN_REINGOLD_GRAVITY = new DoubleProperty("fruchtermanReingold.gravity",null,10);
-	private final DoubleProperty PROP_FRUCHTERMAN_REINGOLD_SPEED = new DoubleProperty("fruchtermanReingold.speed",null,1);
-	private final DoubleProperty PROP_FRUCHTERMAN_REINGOLD_AREA = new DoubleProperty("fruchtermanReingold.area",null,10000);
+	
+	
+	/** ForceAtlasLayout **/
+	private final DoubleProperty PROP_FORCEATLAST_INERTIA = new DoubleProperty("forceatlas.inertia",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAST_REPULSIONSTRENGTH = new DoubleProperty("forceatlas.repulsionstrength",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAST_ATTRACTIONSTRENGTH = new DoubleProperty("forceatlas.attractionstrength",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAST_MAXDISPLACEMENT = new DoubleProperty("forceatlas.maxdisplacement",null,0.0);
+	private final BoolProperty PROP_FORCEATLAST_FREEZEBALANCE = new BoolProperty("forceatlas.freezebalance",null,false);
+	private final DoubleProperty PROP_FORCEATLAST_FREEZESTRENGTH = new DoubleProperty("forceatlas.freezestrength",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAST_FREEZEINERTIA = new DoubleProperty("forceatlas.freezeinertia",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAST_GRAVITY = new DoubleProperty("forceatlas.gravity",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAST_COOLING = new DoubleProperty("forceatlas.cooling",null,0.0);
+	private final BoolProperty PROP_FORCEATLAST_OUTBOUNDATTRACTIONDISTRIBUTION = new BoolProperty("forceatlas.outboundattractiondistribution",null,false);
+	private final BoolProperty PROP_FORCEATLAST_ADJUSTSIZES = new BoolProperty("forceatlas.adjustsizes",null,false);
+	private final DoubleProperty PROP_FORCEATLAST_SPEED = new DoubleProperty("forceatlas.speed",null,0.0);
+	private final BoolProperty PROP_FORCEATLAST_CONVERGED = new BoolProperty("forceatlas.converged",null,false);
+	/** YifanHuLayout **/
+	private final IntProperty PROP_YIFANHU_QUADTREEMAXLEVEL = new IntProperty("yifanhu.quadtreemaxlevel",null,0);
+	private final FloatProperty PROP_YIFANHU_BARNESHUTTHETA = new FloatProperty("yifanhu.barneshuttheta",null,0f);
+	private final FloatProperty PROP_YIFANHU_OPTIMALDISTANCE = new FloatProperty("yifanhu.optimaldistance",null,0f);
+	private final FloatProperty PROP_YIFANHU_RELATIVESTRENGTH = new FloatProperty("yifanhu.relativestrength",null,0f);
+	private final BoolProperty PROP_YIFANHU_ADAPTIVECOOLING = new BoolProperty("yifanhu.adaptivecooling",null,false);
+	private final FloatProperty PROP_YIFANHU_STEPRATIO = new FloatProperty("yifanhu.stepratio",null,0f);
+	private final FloatProperty PROP_YIFANHU_CONVERGENCETHRESHOLD = new FloatProperty("yifanhu.convergencethreshold",null,0f);
+	//private final FloatProperty PROP_YIFANHU_INITIALSTEP = new FloatProperty("yifanhu.initialstep",null,0f);
+	//private final BoolProperty PROP_YIFANHU_CONVERGED = new BoolProperty("yifanhu.converged",null,false);
+	/** ForceAtlas2 **/
+	private final DoubleProperty PROP_FORCEATLAS2_BARNESHUTTHETA = new DoubleProperty("forceatlas2.barneshuttheta",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAS2_EDGEWEIGHTINFLUENCE = new DoubleProperty("forceatlas2.edgeweightinfluence",null,0.0);
+	private final DoubleProperty PROP_FORCEATLAS2_JITTERTOLERANCE = new DoubleProperty("forceatlas2.jittertolerance",null,0.0);
+	private final BoolProperty PROP_FORCEATLAS2_LINLOGMODE = new BoolProperty("forceatlas2.linlogmode",null,false);
+	private final DoubleProperty PROP_FORCEATLAS2_SCALINGRATIO = new DoubleProperty("forceatlas2.scalingratio",null,0.0);
+	private final BoolProperty PROP_FORCEATLAS2_STRONGGRAVITYMODE = new BoolProperty("forceatlas2.stronggravitymode",null,false);
+	private final DoubleProperty PROP_FORCEATLAS2_GRAVITY = new DoubleProperty("forceatlas2.gravity",null,0.0);
+	//private final IntProperty PROP_FORCEATLAS2_THREADSCOUNT = new IntProperty("forceatlas2.threadscount",null,0);
+	private final BoolProperty PROP_FORCEATLAS2_OUTBOUNDATTRACTIONDISTRIBUTION = new BoolProperty("forceatlas2.outboundattractiondistribution",null,false);
+	private final BoolProperty PROP_FORCEATLAS2_ADJUSTSIZES = new BoolProperty("forceatlas2.adjustsizes",null,false);
+	private final BoolProperty PROP_FORCEATLAS2_BARNESHUTOPTIMIZE = new BoolProperty("forceatlas2.barneshutoptimize",null,false);
+	/** FruchtermanReingold **/
+	private final FloatProperty PROP_FRUCHTERMANREINGOLD_AREA = new FloatProperty("fruchtermanreingold.area",null,0f);
+	private final DoubleProperty PROP_FRUCHTERMANREINGOLD_GRAVITY = new DoubleProperty("fruchtermanreingold.gravity",null,0.0);
+	private final DoubleProperty PROP_FRUCHTERMANREINGOLD_SPEED = new DoubleProperty("fruchtermanreingold.speed",null,0.0);
+	//private final BoolProperty PROP_FRUCHTERMANREINGOLD_CONVERGED = new BoolProperty("fruchtermanreingold.converged",null,false);
+	/** NoverlapLayout **/
+	private final DoubleProperty PROP_NOVERLAP_SPEED = new DoubleProperty("noverlap.speed",null,0.0);
+	private final DoubleProperty PROP_NOVERLAP_RATIO = new DoubleProperty("noverlap.ratio",null,0.0);
+	private final DoubleProperty PROP_NOVERLAP_MARGIN = new DoubleProperty("noverlap.margin",null,0.0);
 	
 	private Stream<Node> streamNodes(final Graph graphPart) {
 		return StreamSupport.stream( new IterableAdapter<>(graphPart.getNodes().iterator()).spliterator(),false);
@@ -514,35 +571,229 @@ public int doWork(final List<String> args) {
 	    final Layout layout;
 	    switch(Algorithm.valueOf(PROP_LAYOUT_ALGORITHM.value))
 	    	{
+	    	case yifanHu:
+			    {
+			    final org.gephi.layout.plugin.force.yifanHu.YifanHuLayout  faLayout = 
+			    		new org.gephi.layout.plugin.force.yifanHu.YifanHuProportional().
+			    		buildLayout();
+			    if(PROP_YIFANHU_QUADTREEMAXLEVEL.wasSet)
+					{
+					faLayout.setQuadTreeMaxLevel(PROP_YIFANHU_QUADTREEMAXLEVEL.value);
+					}
+				if(PROP_YIFANHU_BARNESHUTTHETA.wasSet)
+					{
+					faLayout.setBarnesHutTheta(PROP_YIFANHU_BARNESHUTTHETA.value);
+					}
+				if(PROP_YIFANHU_OPTIMALDISTANCE.wasSet)
+					{
+					faLayout.setOptimalDistance(PROP_YIFANHU_OPTIMALDISTANCE.value);
+					}
+				if(PROP_YIFANHU_RELATIVESTRENGTH.wasSet)
+					{
+					faLayout.setRelativeStrength(PROP_YIFANHU_RELATIVESTRENGTH.value);
+					}
+				if(PROP_YIFANHU_ADAPTIVECOOLING.wasSet)
+					{
+					faLayout.setAdaptiveCooling(PROP_YIFANHU_ADAPTIVECOOLING.value);
+					}
+				if(PROP_YIFANHU_STEPRATIO.wasSet)
+					{
+					faLayout.setStepRatio(PROP_YIFANHU_STEPRATIO.value);
+					}
+				if(PROP_YIFANHU_CONVERGENCETHRESHOLD.wasSet)
+					{
+					faLayout.setConvergenceThreshold(PROP_YIFANHU_CONVERGENCETHRESHOLD.value);
+					}
+				/*
+				if(PROP_YIFANHU_INITIALSTEP.wasSet)
+					{
+					faLayout.setInitialStep(PROP_YIFANHU_INITIALSTEP.value);
+					}
+				if(PROP_YIFANHU_CONVERGED.wasSet)
+					{
+					faLayout.setConverged(PROP_YIFANHU_CONVERGED.value);
+					}*/
+				layout =    faLayout;
+				break;
+			    }
+	    	case forceAtlas:
+	    		{
+	    		final org.gephi.layout.plugin.forceAtlas.ForceAtlasLayout  faLayout = 
+	    				new org.gephi.layout.plugin.forceAtlas.ForceAtlas().
+	    					buildLayout();
+
+	    		if(PROP_FORCEATLAST_INERTIA.wasSet)
+		    		{
+		    		faLayout.setInertia(PROP_FORCEATLAST_INERTIA.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_REPULSIONSTRENGTH.wasSet)
+		    		{
+		    		faLayout.setRepulsionStrength(PROP_FORCEATLAST_REPULSIONSTRENGTH.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_ATTRACTIONSTRENGTH.wasSet)
+		    		{
+		    		faLayout.setAttractionStrength(PROP_FORCEATLAST_ATTRACTIONSTRENGTH.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_MAXDISPLACEMENT.wasSet)
+		    		{
+		    		faLayout.setMaxDisplacement(PROP_FORCEATLAST_MAXDISPLACEMENT.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_FREEZEBALANCE.wasSet)
+		    		{
+		    		faLayout.setFreezeBalance(PROP_FORCEATLAST_FREEZEBALANCE.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_FREEZESTRENGTH.wasSet)
+		    		{
+		    		faLayout.setFreezeStrength(PROP_FORCEATLAST_FREEZESTRENGTH.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_FREEZEINERTIA.wasSet)
+		    		{
+		    		faLayout.setFreezeInertia(PROP_FORCEATLAST_FREEZEINERTIA.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_GRAVITY.wasSet)
+		    		{
+		    		faLayout.setGravity(PROP_FORCEATLAST_GRAVITY.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_COOLING.wasSet)
+		    		{
+		    		faLayout.setCooling(PROP_FORCEATLAST_COOLING.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_OUTBOUNDATTRACTIONDISTRIBUTION.wasSet)
+		    		{
+		    		faLayout.setOutboundAttractionDistribution(PROP_FORCEATLAST_OUTBOUNDATTRACTIONDISTRIBUTION.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_ADJUSTSIZES.wasSet)
+		    		{
+		    		faLayout.setAdjustSizes(PROP_FORCEATLAST_ADJUSTSIZES.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_SPEED.wasSet)
+		    		{
+		    		faLayout.setSpeed(PROP_FORCEATLAST_SPEED.value);
+		    		}
+	
+	
+		    	if(PROP_FORCEATLAST_CONVERGED.wasSet)
+		    		{
+		    		faLayout.setConverged(PROP_FORCEATLAST_CONVERGED.value);
+		    		}
+	
+
+	    		layout =    faLayout;
+	    		break;
+	    		}
 	    	case forceAtlas2:
 	    		{
 	    		final ForceAtlas2 faLayout = new ForceAtlas2Builder().buildLayout();
-	    		if(PROP_FORCEATLAS2_LINLOGMODE.wasSet) {
-	    			faLayout.setLinLogMode(PROP_FORCEATLAS2_LINLOGMODE.value);
-	    			}
-	    		if(PROP_FORCEATLAS2_JITTER_TOLERANCE.wasSet) {
-	    			faLayout.setJitterTolerance(PROP_FORCEATLAS2_JITTER_TOLERANCE.value);
-	    			}
-		        
+	    		if(PROP_FORCEATLAS2_BARNESHUTTHETA.wasSet)
+		    		{
+		    		faLayout.setBarnesHutTheta(PROP_FORCEATLAS2_BARNESHUTTHETA.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_EDGEWEIGHTINFLUENCE.wasSet)
+		    		{
+		    		faLayout.setEdgeWeightInfluence(PROP_FORCEATLAS2_EDGEWEIGHTINFLUENCE.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_JITTERTOLERANCE.wasSet)
+		    		{
+		    		faLayout.setJitterTolerance(PROP_FORCEATLAS2_JITTERTOLERANCE.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_LINLOGMODE.wasSet)
+		    		{
+		    		faLayout.setLinLogMode(PROP_FORCEATLAS2_LINLOGMODE.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_SCALINGRATIO.wasSet)
+		    		{
+		    		faLayout.setScalingRatio(PROP_FORCEATLAS2_SCALINGRATIO.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_STRONGGRAVITYMODE.wasSet)
+		    		{
+		    		faLayout.setStrongGravityMode(PROP_FORCEATLAS2_STRONGGRAVITYMODE.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_GRAVITY.wasSet)
+		    		{
+		    		faLayout.setGravity(PROP_FORCEATLAS2_GRAVITY.value);
+		    		}
+		    	/*if(PROP_FORCEATLAS2_THREADSCOUNT.wasSet)
+		    		{
+		    		faLayout.setThreadsCount(PROP_FORCEATLAS2_THREADSCOUNT.value);
+		    		}*/
+		    	if(PROP_FORCEATLAS2_OUTBOUNDATTRACTIONDISTRIBUTION.wasSet)
+		    		{
+		    		faLayout.setOutboundAttractionDistribution(PROP_FORCEATLAS2_OUTBOUNDATTRACTIONDISTRIBUTION.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_ADJUSTSIZES.wasSet)
+		    		{
+		    		faLayout.setAdjustSizes(PROP_FORCEATLAS2_ADJUSTSIZES.value);
+		    		}
+		    	if(PROP_FORCEATLAS2_BARNESHUTOPTIMIZE.wasSet)
+		    		{
+		    		faLayout.setBarnesHutOptimize(PROP_FORCEATLAS2_BARNESHUTOPTIMIZE.value);
+		    		}
+
 		        layout =    faLayout;
 		        break;
 	    		}
 	    	case fruchtermanReingold:
 	    		{
 	    		final FruchtermanReingold  faLayout = new FruchtermanReingoldBuilder().buildLayout();
-	    		if(PROP_FRUCHTERMAN_REINGOLD_GRAVITY.wasSet) 
-	    			{
-	    			faLayout.setGravity(PROP_FRUCHTERMAN_REINGOLD_GRAVITY.value);
-	    			}
-	    		if(PROP_FRUCHTERMAN_REINGOLD_SPEED.wasSet) 
-	    			{
-	    			faLayout.setSpeed(PROP_FRUCHTERMAN_REINGOLD_SPEED.value);
-	    			}
-	    		if(PROP_FRUCHTERMAN_REINGOLD_AREA.wasSet) 
-	    			{
-	    			faLayout.setSpeed(PROP_FRUCHTERMAN_REINGOLD_AREA.value);
-	    			}
+	    		if(PROP_FRUCHTERMANREINGOLD_AREA.wasSet)
+		    		{
+		    		faLayout.setArea(PROP_FRUCHTERMANREINGOLD_AREA.value);
+		    		}
+		    	if(PROP_FRUCHTERMANREINGOLD_GRAVITY.wasSet)
+		    		{
+		    		faLayout.setGravity(PROP_FRUCHTERMANREINGOLD_GRAVITY.value);
+		    		}
+		    	if(PROP_FRUCHTERMANREINGOLD_SPEED.wasSet)
+		    		{
+		    		faLayout.setSpeed(PROP_FRUCHTERMANREINGOLD_SPEED.value);
+		    		}
+
 	    		layout =    faLayout;
+	    		break;
+	    		}
+	    	case noverlap:
+	    		{
+	    		final org.gephi.layout.plugin.noverlap.NoverlapLayout  faLayout = 
+	    				(org.gephi.layout.plugin.noverlap.NoverlapLayout)
+	    				new org.gephi.layout.plugin.noverlap.NoverlapLayoutBuilder().
+	    				buildLayout();
+
+	    		if(PROP_NOVERLAP_SPEED.wasSet)
+	    			{
+	    			faLayout.setSpeed(PROP_NOVERLAP_SPEED.value);
+	    			}
+	    		if(PROP_NOVERLAP_RATIO.wasSet)
+	    			{
+	    			faLayout.setRatio(PROP_NOVERLAP_RATIO.value);
+	    			}
+	    		if(PROP_NOVERLAP_MARGIN.wasSet)
+	    			{
+	    			faLayout.setMargin(PROP_NOVERLAP_MARGIN.value);
+	    			}
+
+    			layout =    faLayout;
 	    		break;
 	    		}
 	    	default:

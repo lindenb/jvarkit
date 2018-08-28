@@ -100,6 +100,11 @@ https://twitter.com/yokofakun/status/1034107797439504384
 
 ![https://twitter.com/yokofakun/status/1034107797439504384](https://pbs.twimg.com/media/DlnjTj1W4AIBB6B.jpg)
 
+https://twitter.com/yokofakun/status/1034397660189523968
+
+![https://twitter.com/yokofakun/status/1034397660189523968](https://pbs.twimg.com/media/DlrqXqvX4AE6r27.jpg)
+
+
 
 END_DOC
 */
