@@ -208,6 +208,12 @@ CUSTOM-ANNOTATIONS: encodes a member of the Notch family
 CUSTOM-ANNOTATIONS: See also SCN10A
 
 
+## Screenshots
+
+
+https://twitter.com/yokofakun/status/1034825482808819713
+
+![https://twitter.com/yokofakun/status/1034825482808819713](https://pbs.twimg.com/media/DlxwR3fXoAIFKO2.jpg)
 
 END_DOC
  *
