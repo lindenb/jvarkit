@@ -105,10 +105,12 @@ public void testStringList03() {
 @Test
 public void testStringStream() {
 	final List<String> L=CharSplitter.COMMA.stream(",AA,BBB,,DDDD,,").collect(Collectors.toList());
-	Assert.assertEquals(L.size(),3);
+	Assert.assertEquals(L.size(),5);
 	Assert.assertEquals(L.get(0),"");
 	Assert.assertEquals(L.get(1),"AA");
-	Assert.assertEquals(L.get(2),"BBB,,DDDD");
+	Assert.assertEquals(L.get(2),"BBB");
+	Assert.assertEquals(L.get(3),"");
+	Assert.assertEquals(L.get(4),"DDDD");
 	}
 
 

@@ -25,8 +25,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
 import java.util.Arrays;
@@ -44,6 +46,8 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.Attribute;
+import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
@@ -62,7 +66,25 @@ import htsjdk.samtools.util.StringUtil;
 /**
 BEGIN_DOC
 
-## Example
+## Annotation files
+
+a custom annotation file can be a xml or a plain text file.
+
+Annotation will be inserted in a `<custom-annotation>` tag (not in the official dtd) under `<Entrezgene>`
+
+### XML files
+
+The program will insert the first XML tag containing a XML attribute `ncbi-gene-id` corresponding to the current NCBI gene identifier.
+
+### Plain text files
+
+block of lines starting after `## NCBI Gene ID.` followed by the current NCBI gene identifer will be inserted.
+
+
+
+## Examples
+
+### Example 1
 
 search two genes and convert to markdown using the following XSLT stylesheet.
 
@@ -82,6 +104,11 @@ search two genes and convert to markdown using the following XSLT stylesheet.
 <xsl:value-of select="$locus"/>
 <xsl:text>** : </xsl:text>
 <xsl:value-of select="Entrezgene_summary"/>
+
+<xsl:if test="custom-annotation">
+<xsl:text>
+CUSTOM-ANNOTATIONS: </xsl:text><xsl:value-of select="normalize-space(custom-annotation)"/>
+</xsl:if>
 <xsl:text>
 
 </xsl:text>
@@ -100,6 +127,87 @@ $ java -jar dist/ncbigenedump.jar SCN5A NOTCH2 |\
 
 **SCN5A** : The protein encoded by this gene is an integral membrane protein and tetrodotoxin-resistant voltage-gated sodium channel subunit. This protein is found primarily in cardiac muscle and is responsible for the initial upstroke of the action potential in an electrocardiogram. Defects in this gene are a cause of long QT syndrome type 3 (LQT3), an autosomal dominant cardiac disease. Alternative splicing results in several transcript variants encoding different isoforms. [provided by RefSeq, Jul 2008]
 
+### Example
+
+The xml annotation file:
+
+```html
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>My custom annots</title></head><body>
+<div ncbi-gene-id="6331"><h2>SCN5A</h2><p>This is the gene, Matilde.</p></div>
+<div ncbi-gene-id="4853"><h2>NOTCH2</h2><p>Hajdu-Cheney syndrome</p></div>
+</body></html>
+```
+
+```
+java -jar dist/ncbigenedump.jar -C annot.html NOTCH2 SCN5A | xmllint --format -
+
+(...)
+      </Xtra-Terms>
+    </Entrezgene_xtra-properties>
+    <custom-annotation>
+      <div ncbi-gene-id="6331">
+        <h2>SCN5A</h2>
+        <p>This is the gene, Matilde.</p>
+      </div>
+    </custom-annotation>
+  </Entrezgene>
+</Entrezgene-Set>
+
+```
+
+### Example
+
+The text annotation file `annot.md`:
+
+```markdown
+# My Annotations
+
+last updated 2018-08-29
+
+## NCBI Gene ID. 4853
+
+encodes a member of the Notch family
+
+## NCBI Gene ID. 6331
+
+See also SCN10A
+```
+
+```
+java -jar dist/ncbigenedump.jar -C annot.md NOTCH2 SCN5A | xmllint --format -
+
+(...)
+        <Xtra-Terms_tag>PROP</Xtra-Terms_tag>
+        <Xtra-Terms_value>phenotype</Xtra-Terms_value>
+      </Xtra-Terms>
+    </Entrezgene_xtra-properties>
+    <custom-annotation>
+encodes a member of the Notch family
+
+</custom-annotation>
+  </Entrezgene>
+</Entrezgene-Set>
+```
+
+### Example
+
+custom annotation and XSLT:
+
+```
+$ java -jar dist/ncbigenedump.jar -C annot.md NOTCH2 SCN5A | xsltproc tansform.xsl -
+```
+
+output:
+
+**NOTCH2** : This gene encodes a member of the Notch family. Members of this Type 1 transmembrane protein family share structural characteristics including an extracellular domain consisting of multiple epidermal growth factor-like (EGF) repeats, and an intracellular domain consisting of multiple, different domain types. Notch family members play a role in a variety of developmental processes by controlling cell fate decisions. The Notch signaling network is an evolutionarily conserved intercellular signaling pathway which regulates interactions between physically adjacent cells. In Drosophilia, notch interaction with its cell-bound ligands (delta, serrate) establishes an intercellular signaling pathway that plays a key role in development. Homologues of the notch-ligands have also been identified in human, but precise interactions between these ligands and the human notch homologues remain to be determined. This protein is cleaved in the trans-Golgi network, and presented on the cell surface as a heterodimer. This protein functions as a receptor for membrane bound ligands, and may play a role in vascular, renal and hepatic development. Two transcript variants encoding different isoforms have been found for this gene. [provided by RefSeq, Jan 2011]
+
+CUSTOM-ANNOTATIONS: See also SCN10A
+
+**SCN5A** : The protein encoded by this gene is an integral membrane protein and tetrodotoxin-resistant voltage-gated sodium channel subunit. This protein is found primarily in cardiac muscle and is responsible for the initial upstroke of the action potential in an electrocardiogram. Defects in this gene are a cause of long QT syndrome type 3 (LQT3), an autosomal dominant cardiac disease. Alternative splicing results in several transcript variants encoding different isoforms. [provided by RefSeq, Jul 2008]
+
+CUSTOM-ANNOTATIONS: encodes a member of the Notch family
+
+
 
 END_DOC
  *
@@ -112,7 +220,9 @@ public class NcbiGeneDump
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(NcbiGeneDump.class).make();
-
+	private static final QName CUSTOM_ATTRIBUTE_QNAME = new QName("ncbi-gene-id");
+	private static final QName CUSTOM_ANNOT_QNAME = new QName("custom-annotation");
+	private static final String CUSTOM_ANNOT_LINE_PREFIX= "## NCBI Gene ID.";
 	@Parameter(names={"-e","--email"},description="optional user email")
 	private String email = null;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -127,6 +237,10 @@ public class NcbiGeneDump
 	private boolean stdinFlags = false;
 	@Parameter(names={"--abort"},description="Abort with error if a gene was not found with ncbi-esearch.")
 	private boolean abortOnNotFound=false;
+	@Parameter(names={"-C","--custom"},description=
+			"Custom annotation file. See the main documentation.")
+	private File customAnnotationFile=null;
+
 	@ParametersDelegate
 	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
 
@@ -324,6 +438,7 @@ public class NcbiGeneDump
 				LOG.info(url);
 				final XMLEventReader r = xmlInputFactory.createXMLEventReader(new StreamSource(url));
 				boolean in_gene = false;
+				Integer current_gene_id = null;
 				
 				while(r.hasNext())
 					{
@@ -349,7 +464,19 @@ public class NcbiGeneDump
 							if(localName.equals("Entrezgene"))
 								{
 								in_gene = true;
+								current_gene_id = null;
 								w.add(evt);
+								}
+							else if(in_gene && localName.equals("Gene-track_geneid"))
+								{
+								w.add(evt);
+								final XMLEvent evt2 = r.nextEvent();
+								if(!evt2.isCharacters()) throw new XMLStreamException("expected a text node for Gene-track_geneid" ,evt2.getLocation());
+								current_gene_id  = new Integer(evt2.asCharacters().getData().trim());
+								if(!batchIds.remove(current_gene_id)) {
+									LOG.warn("found NCBI-GENE-ID "+current_gene_id+" but it is not in my list");
+									}
+								w.add(evt2);
 								}
 							else if(in_gene && skipTags.contains(localName))
 								{
@@ -365,12 +492,17 @@ public class NcbiGeneDump
 							{
 							if(in_gene)
 								{
-								w.add(evt);
 								final  String localName= evt.asEndElement().getName().getLocalPart();
+								if(current_gene_id!=null && localName.equals("Entrezgene"))
+									{
+									insertCustomAnnotationsForGeneId(w,current_gene_id,eventFactory);
+									}
+								w.add(evt);
 								if(localName.equals("Entrezgene"))
 									{
 									w.add(eventFactory.createCharacters("\n"));
 									in_gene = false;
+									current_gene_id = null;
 									}
 								}
 							break; 
@@ -394,6 +526,29 @@ public class NcbiGeneDump
 						}
 					}
 				r.close();
+				
+				if(!batchIds.isEmpty())
+					{
+					final String msg = "The following NCBI gene identifiers were not found: "+
+							batchIds.stream().
+							map(I->String.valueOf(I)).
+								collect(Collectors.joining(" , "))
+							;
+					if(abortOnNotFound) 
+						{
+						LOG.error(msg);
+						return -1;
+						}
+					else
+						{
+						for(final Integer gid: batchIds)
+							{
+							w.add(eventFactory.createComment("NOT FOUND : https://www.ncbi.nlm.nih.gov/gene/ "+ gid));
+							}
+						LOG.warn(msg);
+						}
+					}
+				
 				}//end while ids
 			w.add(eventFactory.createEndElement(new QName("Entrezgene-Set"),null));
 			w.add(eventFactory.createEndDocument());
@@ -411,6 +566,88 @@ public class NcbiGeneDump
 		finally
 			{
 			CloserUtil.close(pw);
+			}
+		}
+	
+	private void insertCustomAnnotationsForGeneId(
+			final XMLEventWriter w,
+			final Integer geneid_int,
+			final XMLEventFactory eventFactory
+			) throws XMLStreamException,IOException
+		{
+		
+		if(customAnnotationFile==null || geneid_int==null) return;
+		final String geneid = geneid_int.toString();
+		IOUtil.assertFileIsReadable(customAnnotationFile);
+		
+		final String suffix = IOUtil.fileSuffix(this.customAnnotationFile);
+		final BufferedReader br = IOUtil.openFileForBufferedReading(this.customAnnotationFile);
+		if(suffix!=null && (suffix.equals(".xml") || suffix.equals(".xml.gz") || suffix.equals(".html") || suffix.equals(".html.gz")))
+			{
+			final XMLEventReader r = XMLInputFactory.newInstance().createXMLEventReader(br);
+			while(r.hasNext())
+				{
+				final XMLEvent evt = r.nextEvent();
+				if(evt.isStartElement())
+					{
+					final StartElement R = evt.asStartElement();
+					final Attribute att = R.getAttributeByName(CUSTOM_ATTRIBUTE_QNAME);
+					if(att!=null && att.getValue().trim().replace(",", "").equals(geneid))
+						{
+						w.add(eventFactory.createStartElement(CUSTOM_ANNOT_QNAME, null, null));
+						w.add(evt);
+						copy(r,w);
+						w.add(eventFactory.createEndElement(CUSTOM_ANNOT_QNAME, null));
+						break;
+						}
+					}
+			
+				}
+			r.close();
+			}
+		else
+			{
+			boolean in_gene=false;
+			String line;
+			while((line=br.readLine())!=null)
+				{
+				String line2 = line.trim().replaceAll("[ \t]+", " ");
+				if(line2.startsWith(CUSTOM_ANNOT_LINE_PREFIX))
+					{
+					if(in_gene) break;
+					line2 = line2.substring(CUSTOM_ANNOT_LINE_PREFIX.length()).trim().replace(",", "");
+					if(line2.equals(geneid))
+						{
+						in_gene = true;
+						w.add(eventFactory.createStartElement(CUSTOM_ANNOT_QNAME, null, null));
+						continue;
+						}
+					}
+				if(in_gene)
+					{
+					w.add(eventFactory.createCharacters(line));
+					w.add(eventFactory.createCharacters("\n"));
+					}
+				}
+			if(in_gene) ; {
+				w.add(eventFactory.createEndElement(CUSTOM_ANNOT_QNAME, null));
+				}
+			}
+		br.close();
+		}
+
+	private void copy(final XMLEventReader r,final XMLEventWriter w) throws XMLStreamException
+		{
+		while(r.hasNext())
+			{
+			final XMLEvent evt = r.nextEvent();
+			w.add(evt);
+			switch(evt.getEventType())
+				{
+				case XMLEvent.END_ELEMENT: return;
+				case XMLEvent.START_ELEMENT: copy(r,w);break;
+				default:break;
+				}
 			}
 		}
 	

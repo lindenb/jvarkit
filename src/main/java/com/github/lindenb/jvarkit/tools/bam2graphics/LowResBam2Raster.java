@@ -1060,9 +1060,11 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			
 					this.key2partition.values().stream().forEach(P->P.make());
 					
-					saveImages(this.key2partition.values().stream().
-							map(P->P.image).
-							collect(Collectors.toList()));
+					saveImages(
+							this.key2partition.keySet().
+							stream().
+							collect(Collectors.toMap(K->K, K->this.key2partition.get(K).image))
+							);					
 					return RETURN_OK;
 					}
 				catch(final Exception err)

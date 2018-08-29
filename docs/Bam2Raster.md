@@ -51,7 +51,9 @@ Usage: bam2raster [options] Files
       hide bases
       Default: false
     -o, --output
-      Output file. Optional . Default: stdout
+      Output file. Optional . Default: stdout [20180829] filename can be also 
+      an existing directory or a zip file, in witch case, each individual will 
+      be saved in the zip/dir.
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary

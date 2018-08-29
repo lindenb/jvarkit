@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.tools.vcfcomposite;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -15,6 +16,11 @@ public class VCFCompositeTest extends TestUtils{
 		{
 		final File ped = super.createRandomPedigreeFromFile(inputFile);
 		if(ped==null) return;
+		if(Files.lines(ped.toPath()).noneMatch(L->L.endsWith("1")))
+			{
+			//no affected in pedigree ?
+			return;
+			}
 		final File output = super.createTmpFile(".vcf");
         Assert.assertEquals(new VCFComposite().instanceMain(
         		newCmd().add(

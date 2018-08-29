@@ -32,16 +32,20 @@ import java.awt.geom.GeneralPath;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javax.imageio.ImageIO;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
@@ -57,6 +61,7 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 
@@ -65,7 +70,9 @@ public abstract class AbstractBam2Raster extends Launcher{
 	protected static final Color ALMOST_WHITE = new Color(240,240,240);
 
 	private static final Logger LOG = Logger.build(AbstractBam2Raster.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	@Parameter(names={"-o","--output"},description=
+			OPT_OUPUT_FILE_OR_STDOUT+
+			" [20180829] filename can be also an existing directory or a zip file, in witch case, each individual will be saved in the zip/dir.")
 	protected File outputFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	protected SAMRecordPartition groupBy=SAMRecordPartition.sample;
@@ -136,11 +143,38 @@ public abstract class AbstractBam2Raster extends Launcher{
 		return true;
 		};
 
-	protected void saveImages(final Collection<BufferedImage> imgs) throws IOException 
+	protected void saveImages(final Map<String,BufferedImage> id2imgs) throws IOException 
 		{
-		int image_width= imgs.stream().mapToInt(P->P.getWidth()).max().getAsInt();
-		int image_height= imgs.stream().mapToInt(P->P.getHeight()).sum();
-
+		if(this.outputFile!=null  &&
+				(
+				(this.outputFile.exists() && this.outputFile.isDirectory() ) ||
+				(this.outputFile.getName().endsWith(".zip")) 
+				))
+			{
+			final ArchiveFactory archiveFactory = ArchiveFactory.open(this.outputFile);
+			final SimpleDateFormat simpleDateFormat = 
+		                new SimpleDateFormat("yyyyMMdd");
+			
+			final String prefix = simpleDateFormat.format(new Date())+"." +  
+						(
+						this.interval==null?"":
+						this.interval.getContig()+"_"+this.interval.getStart()+"_"+this.interval.getEnd()+"."
+						);
+			
+			for(final String sn: id2imgs.keySet())
+				{
+				final OutputStream os = archiveFactory.openOuputStream(prefix+sn+".png");
+				ImageIO.write(id2imgs.get(sn), "PNG", os);
+				os.flush();
+				os.close();
+				}
+			archiveFactory.close();
+			return;
+			}
+		
+		final int image_width= id2imgs.values().stream().mapToInt(P->P.getWidth()).max().getAsInt();
+		final int image_height= id2imgs.values().stream().mapToInt(P->P.getHeight()).sum();
+		 
 		final BufferedImage img= new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 		final Graphics2D g=img.createGraphics();
 		g.setRenderingHint(
@@ -149,7 +183,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 				);
 
 		int y=0;
-		for(final BufferedImage subImg : imgs) {
+		for(final BufferedImage subImg : id2imgs.values()) {
 			g.drawImage(subImg,0,y,null);
 			y+=subImg.getHeight();
 			}

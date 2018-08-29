@@ -33,6 +33,9 @@ Usage: lowresbam2raster [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -hideInsert, --hideInsertions
+      Hide insertions
+      Default: false
     --highlight
       hightligth those positions.
       Default: []
@@ -59,7 +62,9 @@ Usage: lowresbam2raster [options] Files
       Hide arcs of Supplementary alignments.
       Default: false
     -o, --output
-      Output file. Optional . Default: stdout
+      Output file. Optional . Default: stdout [20180829] filename can be also 
+      an existing directory or a zip file, in witch case, each individual will 
+      be saved in the zip/dir.
     -printNames, --printNames
       Print Read Names (for debugging)
       Default: false
@@ -180,11 +185,11 @@ java -jar dist/lowresbam2raster.jar \
 
 ## see also
 
-* https://twitter.com/yokofakun/status/951769190884610051
-* https://twitter.com/yokofakun/status/973836167522279425
-* 
+  * https://twitter.com/yokofakun/status/951769190884610051
+  * https://twitter.com/yokofakun/status/973836167522279425
+  * https://twitter.com/notSoJunkDNA/status/1012309599079272448
 
-## Screenshot
+## Screenshots
 
 ![https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg](https://pbs.twimg.com/media/DAldDxvXkAAGMoJ.jpg)
 
@@ -192,5 +197,6 @@ java -jar dist/lowresbam2raster.jar \
 
 ![https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg](https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg)
 
+![https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg](https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg)
 
 

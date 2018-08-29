@@ -36,4 +36,20 @@ public void test01(final String rgn) throws IOException {
 			),0);
 	assertIsNotEmpty(imgOut);
 	}
+
+@Test(dataProvider="rf_regions")
+public void testZip(final String rgn) throws IOException {
+	File imgOut = super.createTmpFile(".zip");
+	Assert.assertEquals(new Bam2Raster().instanceMain(newCmd().add(
+			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.fa",
+			"-r",rgn,
+			"-o",imgOut).
+			add(Arrays.asList("1","2","3","4","5").stream().
+				map(S->SRC_TEST_RESOURCE+"/S"+S+".bam").
+				toArray()).
+			make()
+			),0);
+	assertZip(imgOut);
+	}
+
 }
