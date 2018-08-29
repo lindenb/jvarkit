@@ -275,11 +275,6 @@ public class NcbiGeneDump
 	public int doWork(final List<String> args) {
 		PrintWriter pw=null;
 		
-		if(args.isEmpty())
-			{
-			LOG.error("Query missing");
-			return -1;
-			}
 		
 		if(!this.ncbiApiKey.isApiKeyDefined()) {
 			LOG.error("NCBI API key is not defined");
