@@ -190,7 +190,8 @@ public <T extends Locatable> Watcher<T> build() {
 public static interface Watcher<T extends Locatable>
 	extends Closeable,Function<T, T>
 	{
-	
+	@Override
+	public void close();
 	}
 
 private static class WatcherImpl<T extends Locatable>
