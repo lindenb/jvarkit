@@ -10,6 +10,10 @@ Set the `##contig` lines in a VCF header on the fly
 ```
 Usage: vcfsetdict [options] Files
   Options:
+    -ho, --header-only
+      only change the vcf header. Keep the whole VCF body unchanged. The idea 
+      is to used sed for the body if needed.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat

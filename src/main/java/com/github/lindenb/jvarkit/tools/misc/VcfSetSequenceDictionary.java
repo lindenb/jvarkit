@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,19 +24,15 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -47,14 +43,13 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 /**
 BEGIN_DOC
@@ -85,112 +80,17 @@ public class VcfSetSequenceDictionary extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private File faidx=null;
+	@Parameter(names={"--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
+	private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;			
+	@Parameter(names={"-ho","--header-only"},description="only change the vcf header. Keep the whole VCF body unchanged. The idea is to used sed for the body if needed. " )
+	private boolean header_only=false;			
+
 	
-
-	@XmlType(name="vcfsetdict")
-	@XmlRootElement(name="vcfsetdict")
-	@XmlAccessorType(XmlAccessType.FIELD)
-	public static class CtxWriterFactory 
-		implements VariantContextWriterFactory
-			{
-			@XmlElement(name="reference")
-			@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-			private File faidx=null;
-			
-			@XmlElement(name="on-not-found")
-			@Parameter(names={"--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
-			private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;			
-		
-			@XmlTransient
-			private SAMSequenceDictionary dict=null;
-			
-			public void setReference(final File faidx) {
-				this.faidx = faidx;
-				}
-			public void setOnContigNotFound(final ContigNameConverter.OnNotFound onContigNotFound) {
-				this.onContigNotFound = onContigNotFound;
-				}
-			
-			
-			
-			private  class CtxWriter extends DelegateVariantContextWriter
-				{
-				private ContigNameConverter contigNameConverter;
-				private final Set<String> inputContigsNotFound=new HashSet<>();
-
-				CtxWriter(final VariantContextWriter delegate) {
-					super(delegate);
-					}
-				
-				@Override
-				public void writeHeader(final VCFHeader header) {
-					final VCFHeader header2 = new VCFHeader(header);
-					
-					final SAMSequenceDictionary oldDict = header.getSequenceDictionary();
-					header2.setSequenceDictionary(CtxWriterFactory.this.dict);
-					if(oldDict!=null && !oldDict.isEmpty())
-						{
-						this.contigNameConverter = ContigNameConverter.fromDictionaries(oldDict, CtxWriterFactory.this.dict);
-						}
-					else
-						{
-						this.contigNameConverter = ContigNameConverter.fromOneDictionary(CtxWriterFactory.this.dict);
-						}
-					this.contigNameConverter.setOnNotFound(CtxWriterFactory.this.onContigNotFound);
-					super.writeHeader(header2);
-					}
-				@Override
-				public void add(final VariantContext ctx) {
-					final String newContig = this.contigNameConverter.apply(ctx.getContig());
-					if(newContig==null)
-						{
-						if(!inputContigsNotFound.contains(ctx.getContig())) {
-							LOG.info("cannot convert contig "+ctx.getContig()+ " for new dictionary");
-							inputContigsNotFound.add(ctx.getContig());
-							}
-						return;
-						}
-					else if(newContig.equals(ctx.getContig()))
-						{
-						super.add(ctx);
-						}
-					else
-						{
-						super.add(new VariantContextBuilder(ctx).chr(newContig).make());
-						}
-					}
-				@Override
-				public void close() {
-					this.inputContigsNotFound.stream().forEach(chrom->
-						{
-						LOG.warn("Variant(s) with Contig \'"+chrom+"\' could not be converted to new Dictionary and where ignored");
-						});
-					this.inputContigsNotFound.clear();
-					super.close();
-					}
-				}
-			
-			@Override
-			public int initialize() {
-				Objects.requireNonNull(this.faidx);
-				this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
-				return 0;
-				}
-			
-			@Override
-			public VariantContextWriter open(VariantContextWriter delegate) {
-				return new CtxWriter(delegate);
-				}
-			
-			@Override
-			public void close() throws IOException {
-				this.dict=null;
-				}
-			
-			}
-
+	private SAMSequenceDictionary dict=null;
+	
+	
 	public VcfSetSequenceDictionary()
 		{
 		}
@@ -199,34 +99,112 @@ public class VcfSetSequenceDictionary extends Launcher
 	protected int doVcfToVcf(
 		final String inputName,
 		final VcfIterator in,
-		final VariantContextWriter delegate
+		final VariantContextWriter w
 		) 
 	    {
-		final VariantContextWriter out = this.component.open(delegate);
+		final Set<String> inputContigsNotFound = new HashSet<>();
+		final VCFHeader header = in.getHeader();
 		
-		out.writeHeader(in.getHeader());
-		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+		final VCFHeader header2 = new VCFHeader(header);
+		final ContigNameConverter contigNameConverter;
+		final SAMSequenceDictionary oldDict = header.getSequenceDictionary();
+		header2.setSequenceDictionary(this.dict);
+		if(oldDict!=null && !oldDict.isEmpty())
+			{
+			contigNameConverter = ContigNameConverter.fromDictionaries(oldDict, this.dict);
+			}
+		else
+			{
+			contigNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
+			}
+		contigNameConverter.setOnNotFound(this.onContigNotFound);
+		w.writeHeader(header2);
+		
+		
+		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
+				dictionary(header).
+				validatingContig(false).
+				logger(LOG).
+				build();
 		while(in.hasNext())
 			{
-			out.add(progress.watch(in.next()));
+			final VariantContext ctx=progress.apply(in.next());
+			
+			final String newContig = contigNameConverter.apply(ctx.getContig());
+			if(newContig==null)
+				{
+				if(!inputContigsNotFound.contains(ctx.getContig())) {
+					LOG.info("cannot convert contig "+ctx.getContig()+ " for new dictionary");
+					inputContigsNotFound.add(ctx.getContig());
+					}
+				continue;
+				}
+			else if(newContig.equals(ctx.getContig()))
+				{
+				w.add(ctx);
+				}
+			else
+				{
+				w.add(new VariantContextBuilder(ctx).chr(newContig).make());
+				}
 			}
-		progress.finish();
+		progress.close();
+		inputContigsNotFound.stream().forEach(chrom->
+			{
+			LOG.warn("Variant(s) with Contig \'"+chrom+"\' could not be converted to new Dictionary and where ignored");
+			});
+		inputContigsNotFound.clear();
 		return 0;
 	    }
 
+	private int headerOnly(final String inputName,final File outputFile) throws IOException {
+		BufferedReader br = null;
+		PrintWriter pw = null;
+		try {
+		br = super.openBufferedReader(inputName);
+		pw = super.openFileOrStdoutAsPrintWriter(outputFile);
+		VCFUtils.CodecAndHeader cah =  VCFUtils.parseHeader(br);
+		final VCFHeader header2 = new VCFHeader(cah.header);
+		header2.setSequenceDictionary(this.dict);
+		final ByteArrayOutputStream baos=new ByteArrayOutputStream();
+		final VariantContextWriter vcw=VCFUtils.createVariantContextWriterToOutputStream(baos);
+		vcw.writeHeader(header2);
+		vcw.close();
+		pw.print(new String(baos.toByteArray()));
+		IOUtils.copyTo(br, pw);
+		pw.flush();
+		pw.close();pw=null;
+		br.close();br=null;
+		return 0;
+		} catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
+		} finally {
+			CloserUtil.close(br);
+			CloserUtil.close(pw);
+		}
+		}
+	
+	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.faidx==null) {
+			LOG.error("REF not defined");
+			return -1;
+		}
 		try {
-			if(this.component.initialize()!=0) {
-				return -1;
-				}
-			 return doVcfToVcf(args, this.outputFile);
+			this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
+			if(!this.header_only) {
+				return doVcfToVcf(args, this.outputFile);
+			}
+			else {
+				return headerOnly(oneFileOrNull(args), this.outputFile);
+			}
+			
 		} catch (final Exception err2) {
 			LOG.error(err2);
 			return -1;
-		} finally {
-			CloserUtil.close(this.component);
-		}
+		} 
 	}
 
 	public static void main(final String[] args) {
