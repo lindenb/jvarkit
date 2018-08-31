@@ -27,11 +27,11 @@ Usage: goutils [options] Files
     -go-divisions, --go-divisions
       limit the gene ontology tree to those divisions. empty: all possible 
       divisions. 
-      Default: [molecular_function, biological_process, cellular_component]
+      Default: [cellular_component, biological_process, molecular_function]
     -go-relations, --go-relations
       limit the gene ontology tree to those relationships. empty: all possible 
       relationships. 
-      Default: [negatively_regulates, positively_regulates, part_of, regulates, is_a]
+      Default: [positively_regulates, is_a, regulates, negatively_regulates, part_of]
     -h, --help
       print help and exit
     --helpFormat

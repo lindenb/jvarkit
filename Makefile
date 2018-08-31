@@ -214,7 +214,7 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
 	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
-	vcfamalgamation vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils gb2gff \
+	vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils gb2gff \
 	indexcovjfx indexcov2vcf samcustomsortjdk
 
 

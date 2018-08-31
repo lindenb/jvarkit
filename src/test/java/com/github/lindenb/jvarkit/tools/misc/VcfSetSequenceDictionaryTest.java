@@ -17,12 +17,11 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 public class VcfSetSequenceDictionaryTest extends TestUtils {
-	@Test(dataProvider="all-vcf-files")
-	public void test01(final String inputFile) 
-		throws IOException
+	
+	private File prepare(final String inputFile)  throws IOException
 		{
 		final SAMSequenceDictionary dict=SAMSequenceDictionaryExtractor.extractDictionary(new File(inputFile));
-		if(dict==null || dict.isEmpty()) return;
+		if(dict==null || dict.isEmpty()) return null;
 		final File dictF = super.createTmpFile(".dict");
 		final BufferedWriter bw = Files.newBufferedWriter(dictF.toPath());
 		final SAMSequenceDictionaryCodec codec= new SAMSequenceDictionaryCodec(bw);
@@ -34,14 +33,35 @@ public class VcfSetSequenceDictionaryTest extends TestUtils {
 				collect(Collectors.toList())));
 		bw.flush();
 		bw.close();
-		
-		
+		return dictF;
+		}
+	
+	@Test(dataProvider="all-vcf-files")
+	public void test01(final String inputFile) 
+		throws IOException
+		{
+		final File dictF = prepare(inputFile);
 		final File output = super.createTmpFile(".vcf");
-        Assert.assertEquals(0,new VcfSetSequenceDictionary().instanceMain(new String[]{
+        Assert.assertEquals(new VcfSetSequenceDictionary().instanceMain(new String[]{
         		"-o",output.getPath(),
         		"-R",dictF.getPath(),
         		inputFile
-        	}));
+        	}),0);
+        assertIsVcf(output);
+		}
+	
+	@Test(dataProvider="all-vcf-files")
+	public void testHeaderOnly(final String inputFile) 
+		throws IOException
+		{
+		final File dictF = prepare(inputFile);
+		final File output = super.createTmpFile(".vcf");
+        Assert.assertEquals(new VcfSetSequenceDictionary().instanceMain(new String[]{
+        		"-o",output.getPath(),
+        		"-R",dictF.getPath(),
+        		"-ho",
+        		inputFile
+        	}),0);
         assertIsVcf(output);
 		}
 

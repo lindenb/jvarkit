@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
@@ -33,6 +31,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -44,6 +44,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.tools.misc.VcfCadd;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -103,6 +104,9 @@ BEGIN_DOC
 
  *  VcfBurdenFilter3
 
+### History 
+
+  * [20180831] add CADD values from VcfCadd
 
 END_DOC
 */
@@ -131,6 +135,14 @@ public class VcfBurdenRscriptV
 	@Parameter(names={"-minusnineiszero","--minusnineiszero"},description="No Call is '0' (default is -9)")
 	private boolean nocalliszero = false;
 	
+	@Parameter(names={"--cadd","-cadd"},description="[20180831] Include CADD data, if available (INFO/"+VcfCadd.DEFAULT_CADD_FLAG_PHRED +" INFO/"+VcfCadd.DEFAULT_CADD_FLAG_SCORE)
+	private boolean include_vcf_cadd = false;
+	@Parameter(names={"--cadd-missing"},description="[20180831] value for CADD missing data")
+	private String cadd_missing_value = "NA";
+	@Parameter(names={"--pedigree"},description="[20180831] pedigree file (or I will try to extract the pedigree from the vcf header.")
+	private File pedigreeFile = null;
+
+	
 	
 	public VcfBurdenRscriptV()
 		{
@@ -143,7 +155,8 @@ public class VcfBurdenRscriptV
 		Allele ref;
 		Allele alt;
 		Double maf=null;
-		
+		Double cadd_phred = null;
+		Double cadd_score = null;
 	}
 	
 	@Override
@@ -186,7 +199,17 @@ public class VcfBurdenRscriptV
 			in = VCFUtils.createVcfIteratorFromLineIterator(lr,true);
 			
 			final VCFHeader header=in.getHeader();
-			final Set<Pedigree.Person> samples = new TreeSet<>( super.getCasesControlsInPedigree(header));
+			final Set<Pedigree.Person> samples;
+			
+			if(this.pedigreeFile==null) {
+				samples = new TreeSet<>( super.getCasesControlsInPedigree(header));
+				}
+			else
+				{
+				final Pedigree ped = Pedigree.newParser().parse(this.pedigreeFile);
+				samples = new TreeSet<>(new Pedigree.CaseControlExtractor().extract(header, ped));
+				}
+			
 			final List<Variant> variants = new ArrayList<>();
 
 		
@@ -291,6 +314,31 @@ public class VcfBurdenRscriptV
 				variant.end = ctx.getEnd();
 				variant.ref = ctx.getReference();
 				variant.alt = observed_alt;
+				
+				/** 2018-08-31 : Matilde wants scores CADD in output */
+				if(this.include_vcf_cadd) {
+					final Function<Object,Double> object2double = (O)->{
+						if(O==null) return null;
+						final String str= String.valueOf(O);
+						if(str.isEmpty() || str.equals(".")) return null;
+						try {
+							return new Double(str);
+							}
+						catch (final NumberFormatException e) {
+							return null;
+							}
+						};
+					final int allele_index = ctx.getAlleleIndex(observed_alt);
+					List<Object> caddL = ctx.getAttributeAsList(VcfCadd.DEFAULT_CADD_FLAG_PHRED);
+					if(!caddL.isEmpty() && allele_index> 0 /* yes */ && allele_index< caddL.size()) {
+						variant.cadd_phred  = object2double.apply(caddL.get(allele_index-1));/* -1 because allele_index is relative to REF */
+						}
+					caddL = ctx.getAttributeAsList(VcfCadd.DEFAULT_CADD_FLAG_SCORE);
+					if(!caddL.isEmpty() && allele_index> 0 /* yes */ && allele_index< caddL.size()) {
+						variant.cadd_score  = object2double.apply(caddL.get(allele_index-1));/* -1 because allele_index is relative to REF */
+						}
+					}
+				
 				if(!mafCalculator.isEmpty())
 					{
 					variant.maf = mafCalculator.getMaf();
@@ -307,7 +355,12 @@ public class VcfBurdenRscriptV
 			pw.println(")");
 			first = true;
 			
-			pw.println("# variants. CONTIG/START/END/REF/ALT/MAF");
+			pw.print("# variants. CONTIG/START/END/REF/ALT/MAF");
+			if(this.include_vcf_cadd)
+				{
+				pw.print("/CADD_SCORE/CADD_PHRED");
+				}
+			pw.println();
 			pw.print("variants <- data.frame(chrom=c(");
 			first=true; for(final Variant v: variants) {if(!first) pw.print(",");pw.print("\""+v.contig+"\"");first=false;}
 			pw.print("),chromStart=c(");
@@ -320,7 +373,26 @@ public class VcfBurdenRscriptV
 			first=true; for(final Variant v: variants) {if(!first) pw.print(",");pw.print("\""+v.alt.getDisplayString()+"\"");first=false;}
 			pw.print("),maf=c(");
 			first=true; for(final Variant v: variants) {if(!first) pw.print(",");pw.print(v.maf==null?"NA":String.valueOf(v.maf));first=false;}
-			pw.println("))");
+			pw.print(")");
+			
+			if(this.include_vcf_cadd)
+				{
+				pw.print(",cadd_phred=c(");
+				pw.print(variants.stream().
+						map(V->V.cadd_phred).
+						map(D->D==null?cadd_missing_value:String.valueOf(D)).
+						collect(Collectors.joining(",")
+						));
+				pw.print("),cadd_score=c(");
+				pw.print(variants.stream().
+						map(V->V.cadd_score).
+						map(D->D==null?cadd_missing_value:String.valueOf(D)).
+						collect(Collectors.joining(",")
+						));
+				pw.print(")");
+				}
+			
+			pw.println(")");
 			
 			if(!variants.isEmpty())
 				{

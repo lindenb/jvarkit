@@ -13,6 +13,9 @@ Usage: vcfin [options] Files
     -A, --allalt
       ALL user ALT must be found in VCF-database ALT
       Default: false
+  * -D, --database
+      external database uri
+      Default: <empty string>
     -fi, --filterin
       Do not discard variant but add this FILTER if the variant is found in 
       the database
@@ -32,7 +35,9 @@ Usage: vcfin [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -t, --tabix, --tribble, --indexed
-      Database is indexed with tabix or tribble
+      Database is indexed with tabix or tribble. I will use random access to 
+      get the data. Otherwise, VCF are assumed to be sorted the same way. 
+      [20180731] I will try to convert the contig names e.g: 'chr1' -> '1'
       Default: false
     --version
       print version and exit
@@ -115,7 +120,6 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-
 VCF files should be sorted using the same order as the sequence dictionary (see picard SortVcf).
 
 
@@ -131,21 +135,18 @@ ls Samples | while read S
 do
 gunzip -c NEWALIGN/{S}.gatk.vcf.gz |\
         java -jar jvarkit-git/dist/vcffilterso.jar -A SO:0001818 |\
-        java -jar jvarkit-git/dist/vcfin.jar NEWALIGN/{S}.samtools.vcf.gz |\
-        java -jar jvarkit-git/dist/vcfin.jar -i OLDALIGN/{S}.samtools.vcf.gz |
-        java -jar jvarkit-git/dist/vcfin.jar -i OLDALIGN/${S}.gatk.vcf.gz |
+        java -jar jvarkit-git/dist/vcfin.jar -D NEWALIGN/{S}.samtools.vcf.gz |\
+        java -jar jvarkit-git/dist/vcfin.jar -i -D OLDALIGN/{S}.samtools.vcf.gz |
+        java -jar jvarkit-git/dist/vcfin.jar -i -D OLDALIGN/${S}.gatk.vcf.gz |
         grep -vE '^#' |
         awk -v S=${S} -F '      ' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",S,$1,$2,$3,$4,$5,$8);}' 
 done
 ```
 
 
-
-
 #### Example 2
 
 My list of bad variants is in the file 'bad.vcf'.
-
 
 
 ```
@@ -162,10 +163,7 @@ My list of bad variants is in the file 'bad.vcf'.
 1	11180949	.	C	T	.	.	.
 ```
 
-
-
 My main vcf file is 'input.vcf'.
-
 
 
 ```
@@ -194,20 +192,14 @@ My main vcf file is 'input.vcf'.
 ```
 
 
-
 I want to put a FILTER in the variants if they are contained in VCF.
 
 
-
 ```
-java -jar dist/vcfin.jar -A -fi InMyListOfBadVariants jeter2.vcf jeter1.vcf
+java -jar dist/vcfin.jar -A -fi InMyListOfBadVariants -D jeter2.vcf jeter1.vcf
 ```
-
-
 
 output:
-
-
 
 ```
 ##fileformat=VCFv4.2
@@ -236,21 +228,14 @@ output:
 
 ```
 
-
 Please note that variant 1	11167517 is not flagged because is alternate allele is not contained in 'bad.vcf'
-
-
 
 
 ### History
 
-
+ *  2018-08-31: database must be specified with '-D'. ContigName conversion applied for tabix/tribble data.
  *  2015-02-24: rewritten. all files must be sorted: avoid to sort on disk. Support for tabix. Option -A
  *  2015-01-26: changed option '-v' to option '-i' (-v is for version)
  *  2014: Creation
-
-
-
-
 
 

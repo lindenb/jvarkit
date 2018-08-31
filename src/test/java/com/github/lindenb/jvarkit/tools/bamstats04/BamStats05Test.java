@@ -35,6 +35,7 @@ public void test1(final String inBam) throws IOException {
 	for(int i=0;i<100;i++)
 		{
 		final SAMSequenceRecord ssr=dict.getSequence(this.random.nextInt(dict.size()));
+		if(ssr.getSequenceLength()> 10_000_000) continue;
 		if(seen_contig.contains(ssr.getSequenceName())) continue;
 		seen_contig.add(ssr.getSequenceName());
 		int start = this.random.nextInt(ssr.getSequenceLength()-1);
@@ -43,7 +44,7 @@ public void test1(final String inBam) throws IOException {
 		}
 	pw.flush();
 	pw.close();
-	
+	if(seen_contig.isEmpty()) return;//contigs too large for test
 	
 	Assert.assertEquals(new BamStats05().instanceMain(new String[] {
 		"-o",out.getPath(),

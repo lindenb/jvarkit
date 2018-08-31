@@ -12,14 +12,14 @@ Usage: vcfsetdict [options] Files
   Options:
     -ho, --header-only
       only change the vcf header. Keep the whole VCF body unchanged. The idea 
-      is to used sed for the body if needed.
+      is to use a faster(?) `sed sed 's/^chr//' ` for the VCF body.
       Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    --onNotFound
+    -n, --onNotFound
       Contig converter. I will do my best to convert the contig names (e.g 
       'chr1' -> '1'): But what should I do when comparing two dictionaries 
       with different notations

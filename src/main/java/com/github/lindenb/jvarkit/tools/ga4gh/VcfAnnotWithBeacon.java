@@ -1,3 +1,28 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2018 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.ga4gh;
 
 import java.io.File;
@@ -15,10 +40,15 @@ import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScheme;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.ProxyAuthenticationStrategy;
+import org.apache.http.protocol.HttpContext;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -44,6 +74,7 @@ import com.sleepycat.je.Transaction;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -124,7 +155,11 @@ public class VcfAnnotWithBeacon extends Launcher {
 			{
 
 
-		   final org.apache.http.impl.client.HttpClientBuilder hb=HttpClients.custom();
+		   final org.apache.http.impl.client.HttpClientBuilder hb=
+				   HttpClients.
+				   custom().
+				   useSystemProperties()
+				   ;
 			
 			if (this.ignoreCertErrors) {
 				// http://stackoverflow.com/questions/24720013/apache-http-client-ssl-certificate-error
@@ -138,14 +173,36 @@ public class VcfAnnotWithBeacon extends Launcher {
 									throws CertificateException {
 								return true;
 							}
-						}).useTLS().build();
+						}).
+						useTLS().
+						build();
 
-				final org.apache.http.conn.ssl.SSLConnectionSocketFactory connectionFactory = new org.apache.http.conn.ssl.SSLConnectionSocketFactory(
-						sslContext, new org.apache.http.conn.ssl.AllowAllHostnameVerifier());
+			final org.apache.http.conn.ssl.SSLConnectionSocketFactory connectionFactory = new org.apache.http.conn.ssl.SSLConnectionSocketFactory(
+					sslContext,
+					new org.apache.http.conn.ssl.AllowAllHostnameVerifier()
+					);
 
-				hb.setSSLSocketFactory(connectionFactory);
+			hb.setSSLSocketFactory(connectionFactory);
 
 			}
+			//proxy
+			{
+	
+			String proxyHost = System.getProperty("http.proxyHost","");
+			String proxyPortNum = System.getProperty("http.proxyPort","");
+			if(!StringUtil.isBlank(proxyHost) && !StringUtil.isBlank(proxyPortNum)) {
+				 hb.setProxy(new HttpHost(proxyHost, Integer.parseInt(proxyPortNum),"http"));
+				}
+			
+			proxyHost = System.getProperty("https.proxyHost","");
+			proxyPortNum = System.getProperty("https.proxyPort","");
+			if(!StringUtil.isBlank(proxyHost) && !StringUtil.isBlank(proxyPortNum)) {
+				hb.setProxy(new HttpHost(proxyHost, Integer.parseInt(proxyPortNum),"https"));
+				}
+			
+			
+			}
+			
 			httpClient = hb.build(); 	
 			HttpGet httpGetRequest = null;
 
@@ -294,9 +351,9 @@ public class VcfAnnotWithBeacon extends Launcher {
 							
 							contentInputStream = httpClient.execute(httpGetRequest).getEntity().getContent();
 
-							JsonParser jsonparser = new JsonParser();
+							final JsonParser jsonparser = new JsonParser();
 							final JsonElement root = jsonparser.parse(new InputStreamReader(contentInputStream));
-							Iterator<JsonElement> jsr = root.getAsJsonArray().iterator();
+							final Iterator<JsonElement> jsr = root.getAsJsonArray().iterator();
 							while (jsr.hasNext()) {
 								final JsonObject b = jsr.next().getAsJsonObject();
 								if (!(b.has("beacon") && b.has("response")))
@@ -309,10 +366,14 @@ public class VcfAnnotWithBeacon extends Launcher {
 							}
 
 						} catch (final Exception err) {
-							LOG.error(err);
 							if (stopOnNetworkError) {
+								LOG.error(err);
 								throw new RuntimeIOException(err);
-							}
+								}
+							else
+								{
+								LOG.warn(err.getMessage());
+								}
 						}
 						finally {
 							CloserUtil.close(contentInputStream);

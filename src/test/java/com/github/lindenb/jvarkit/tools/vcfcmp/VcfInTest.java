@@ -104,10 +104,10 @@ private File makeVcfIn(final String vcfpath,String other_args) throws Exception
 	iter.close();
 	r.close();
 	Assert.assertEquals(new VcfIn().instanceMain(newCmd().add(
-			"-o",outVcf.getPath()).
+			"-o",outVcf.getPath(),
+			"--database",vcfDbIn).
 			split(other_args).
 			add(
-			vcfDbIn,
 			vcfpath
 			).make()
 		),0);

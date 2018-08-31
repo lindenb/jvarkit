@@ -82,9 +82,10 @@ public class VcfSetSequenceDictionary extends Launcher
 	private File outputFile=null;
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx=null;
-	@Parameter(names={"--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
+	@Parameter(names={"-n","--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
 	private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;			
-	@Parameter(names={"-ho","--header-only"},description="only change the vcf header. Keep the whole VCF body unchanged. The idea is to used sed for the body if needed. " )
+	@Parameter(names={"-ho","--header-only"},description=
+			"only change the vcf header. Keep the whole VCF body unchanged. The idea is to use a faster(?) `sed sed 's/^chr//' ` for the VCF body. " )
 	private boolean header_only=false;			
 
 	
@@ -161,28 +162,29 @@ public class VcfSetSequenceDictionary extends Launcher
 		BufferedReader br = null;
 		PrintWriter pw = null;
 		try {
-		br = super.openBufferedReader(inputName);
-		pw = super.openFileOrStdoutAsPrintWriter(outputFile);
-		VCFUtils.CodecAndHeader cah =  VCFUtils.parseHeader(br);
-		final VCFHeader header2 = new VCFHeader(cah.header);
-		header2.setSequenceDictionary(this.dict);
-		final ByteArrayOutputStream baos=new ByteArrayOutputStream();
-		final VariantContextWriter vcw=VCFUtils.createVariantContextWriterToOutputStream(baos);
-		vcw.writeHeader(header2);
-		vcw.close();
-		pw.print(new String(baos.toByteArray()));
-		IOUtils.copyTo(br, pw);
-		pw.flush();
-		pw.close();pw=null;
-		br.close();br=null;
-		return 0;
-		} catch(final Throwable err) {
+			br = super.openBufferedReader(inputName);
+			pw = super.openFileOrStdoutAsPrintWriter(outputFile);
+			VCFUtils.CodecAndHeader cah =  VCFUtils.parseHeader(br);
+			final VCFHeader header2 = new VCFHeader(cah.header);
+			header2.setSequenceDictionary(this.dict);
+			final ByteArrayOutputStream baos=new ByteArrayOutputStream();
+			final VariantContextWriter vcw=VCFUtils.createVariantContextWriterToOutputStream(baos);
+			vcw.writeHeader(header2);
+			vcw.close();
+			pw.print(new String(baos.toByteArray()));
+			IOUtils.copyTo(br, pw);
+			pw.flush();
+			pw.close();pw=null;
+			br.close();br=null;
+			return 0;
+			}
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 		} finally {
 			CloserUtil.close(br);
 			CloserUtil.close(pw);
-		}
+			}
 		}
 	
 	
@@ -191,21 +193,24 @@ public class VcfSetSequenceDictionary extends Launcher
 		if(this.faidx==null) {
 			LOG.error("REF not defined");
 			return -1;
-		}
+			}
 		try {
 			this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
-			if(!this.header_only) {
-				return doVcfToVcf(args, this.outputFile);
-			}
-			else {
+			if(this.header_only)
+				{
 				return headerOnly(oneFileOrNull(args), this.outputFile);
+				}
+			else
+				{
+				return doVcfToVcf(args, this.outputFile);
+				}
 			}
-			
-		} catch (final Exception err2) {
+		catch (final Exception err2)
+			{
 			LOG.error(err2);
 			return -1;
-		} 
-	}
+			} 
+		}
 
 	public static void main(final String[] args) {
 		new VcfSetSequenceDictionary().instanceMainWithExit(args);

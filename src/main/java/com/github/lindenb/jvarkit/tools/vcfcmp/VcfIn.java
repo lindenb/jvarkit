@@ -29,18 +29,17 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -54,11 +53,11 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 /**
 
 BEGIN_DOC
-
 
 VCF files should be sorted using the same order as the sequence dictionary (see picard SortVcf).
 
@@ -75,21 +74,18 @@ ls Samples | while read S
 do
 gunzip -c NEWALIGN/{S}.gatk.vcf.gz |\
         java -jar jvarkit-git/dist/vcffilterso.jar -A SO:0001818 |\
-        java -jar jvarkit-git/dist/vcfin.jar NEWALIGN/{S}.samtools.vcf.gz |\
-        java -jar jvarkit-git/dist/vcfin.jar -i OLDALIGN/{S}.samtools.vcf.gz |
-        java -jar jvarkit-git/dist/vcfin.jar -i OLDALIGN/${S}.gatk.vcf.gz |
+        java -jar jvarkit-git/dist/vcfin.jar -D NEWALIGN/{S}.samtools.vcf.gz |\
+        java -jar jvarkit-git/dist/vcfin.jar -i -D OLDALIGN/{S}.samtools.vcf.gz |
+        java -jar jvarkit-git/dist/vcfin.jar -i -D OLDALIGN/${S}.gatk.vcf.gz |
         grep -vE '^#' |
         awk -v S=${S} -F '      ' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",S,$1,$2,$3,$4,$5,$8);}' 
 done
 ```
 
 
-
-
 #### Example 2
 
 My list of bad variants is in the file 'bad.vcf'.
-
 
 
 ```
@@ -106,10 +102,7 @@ My list of bad variants is in the file 'bad.vcf'.
 1	11180949	.	C	T	.	.	.
 ```
 
-
-
 My main vcf file is 'input.vcf'.
-
 
 
 ```
@@ -138,20 +131,14 @@ My main vcf file is 'input.vcf'.
 ```
 
 
-
 I want to put a FILTER in the variants if they are contained in VCF.
 
 
-
 ```
-java -jar dist/vcfin.jar -A -fi InMyListOfBadVariants jeter2.vcf jeter1.vcf
+java -jar dist/vcfin.jar -A -fi InMyListOfBadVariants -D jeter2.vcf jeter1.vcf
 ```
-
-
 
 output:
-
-
 
 ```
 ##fileformat=VCFv4.2
@@ -180,22 +167,15 @@ output:
 
 ```
 
-
 Please note that variant 1	11167517 is not flagged because is alternate allele is not contained in 'bad.vcf'
-
-
 
 
 ### History
 
-
+ *  2018-08-31: database must be specified with '-D'. ContigName conversion applied for tabix/tribble data.
  *  2015-02-24: rewritten. all files must be sorted: avoid to sort on disk. Support for tabix. Option -A
  *  2015-01-26: changed option '-v' to option '-i' (-v is for version)
  *  2014: Creation
-
-
-
-
 
 END_DOC
 */
@@ -213,7 +193,9 @@ public class VcfIn extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-i","--inverse"},description="Print variant that are not part of the VCF-database.")
 	private boolean inverse = false;
-	@Parameter(names={"-t","--tabix","--tribble","--indexed"},description="Database is indexed with tabix or tribble")
+	@Parameter(names={"-t","--tabix","--tribble","--indexed"},description=
+			"Database is indexed with tabix or tribble. I will use random access to get the data. Otherwise, VCF are assumed to be sorted the same way."
+			+ " [20180731] I will try to convert the contig names e.g: 'chr1' -> '1'")
 	private boolean databaseIsIndexed = false;
 	@Parameter(names={"-A","--allalt"},description="ALL user ALT must be found in VCF-database ALT")
 	private boolean userAltInDatabase = false;
@@ -221,11 +203,26 @@ public class VcfIn extends Launcher
 	private String filterIn = "";
 	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER if the variant is NOT found in the database")
 	private String filterOut = "";
+	@Parameter(names={"-D","--database"},description="external database uri",required=true)
+	private String externalDatabaseURI = "";
+
 
 	public VcfIn()
 		{
 		}
 		
+	/** if dict are different , ignore contig*/
+	private boolean sameContextIgnoreContig(			
+			final VariantContext ctx1,
+			final VariantContext ctx2
+			)
+		{
+		return ctx1.getStart() == ctx2.getStart() &&
+				ctx1.getEnd() == ctx2.getEnd() &&
+				ctx1.getReference().equals(ctx2.getReference())
+				;
+		}
+
 	
 	private boolean sameContext(			
 			final VariantContext ctx1,
@@ -233,9 +230,7 @@ public class VcfIn extends Launcher
 			)
 		{
 		return ctx1.getContig().equals(ctx2.getContig()) &&
-				ctx1.getStart() == ctx2.getStart() &&
-				ctx1.getEnd() == ctx2.getEnd() &&
-				ctx1.getReference().equals(ctx2.getReference())
+				sameContextIgnoreContig(ctx1,ctx2)
 				;
 		}
 	
@@ -254,11 +249,11 @@ public class VcfIn extends Launcher
 	protected VCFHeader addMetaData(final VCFHeader header) {
 		if(!this.filterIn.isEmpty()) {
 			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterIn,
-					"Variant overlapping database."));
+					"Variant overlapping database. "+this.externalDatabaseURI));
 			}
 		if(!this.filterOut.isEmpty()) {
 			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterOut,
-					"Variant non overlapping database."));
+					"Variant non overlapping database." +this.externalDatabaseURI));
 			}
 		return super.addMetaData(header);
 		}
@@ -275,12 +270,24 @@ public class VcfIn extends Launcher
 				}
 			else
 				{
-				w.add(ctx);
+				if(ctx.isFiltered()) {
+					w.add(ctx);
+					}
+				else
+					{
+					w.add(new VariantContextBuilder(ctx).passFilters().make());
+					}
 				}
 			}
 		else  if(!this.filterOut.isEmpty()) {
 			if(keep){
-				w.add(ctx);
+				if(ctx.isFiltered()) {
+					w.add(ctx);
+					}
+				else
+					{
+					w.add(new VariantContextBuilder(ctx).passFilters().make());
+					}
 				}
 			else
 				{
@@ -302,7 +309,6 @@ public class VcfIn extends Launcher
 	
 	private int scanFileSorted(
 			final VariantContextWriter vcw,
-			final String databaseVcfUri,
 			final VcfIterator userVcfIn
 			)
 		{
@@ -322,18 +328,23 @@ public class VcfIn extends Launcher
 					VCFUtils.createTidPosComparator(userVcfDict)
 					;
 			equalRangeDbIter = new EqualRangeVcfIterator(
-					VCFUtils.createVcfIterator(databaseVcfUri),userVcfComparator);
+					VCFUtils.createVcfIterator(this.externalDatabaseURI),userVcfComparator);
 
 			this.addMetaData(header);
 			vcw.writeHeader(header);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(userVcfDict).logger(LOG);
+			
+			final ProgressFactory.Watcher<VariantContext> progress= 
+					ProgressFactory.newInstance().
+						dictionary(header).
+						logger(LOG).
+						build();
 			
 			equalRangeUserVcf = new EqualRangeIterator<>(userVcfIn, userVcfComparator);
 			
 			while(equalRangeUserVcf.hasNext())
 				{
 				final List<VariantContext> ctxList = equalRangeUserVcf.next();
-				progress.watch(ctxList.get(0));
+				progress.apply(ctxList.get(0));
 				
 				//fill both contextes
 				final List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctxList.get(0)));
@@ -349,6 +360,7 @@ public class VcfIn extends Launcher
 				if(vcw.checkError()) break;
 				}
 			equalRangeUserVcf.close();
+			progress.close();
 			return RETURN_OK;
 			}
 		catch(final Exception err)
@@ -366,43 +378,71 @@ public class VcfIn extends Launcher
 
 	private int scanUsingTabix(
 			final VariantContextWriter vcw,
-			final String databaseFile,
-			final VcfIterator in2
+			final VcfIterator vcfIn
 			)
 		{
 		VCFFileReader tabix=null;
 		try
 			{
-			tabix =  new VCFFileReader(new File(databaseFile),true);
-			final VCFHeader header1= new VCFHeader(in2.getHeader());
+			
+			tabix =  new VCFFileReader(new File(this.externalDatabaseURI),true);
+			final SAMSequenceDictionary dictTabix = tabix.getFileHeader().getSequenceDictionary();
+
+			final VCFHeader header1= new VCFHeader(vcfIn.getHeader());
+			final SAMSequenceDictionary dictIn = header1.getSequenceDictionary();
 			this.addMetaData(header1);
 			vcw.writeHeader(header1);
-			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1.getSequenceDictionary()).logger(LOG);
-			
-			while(in2.hasNext() && !vcw.checkError())
+			final ContigNameConverter contigNameConverter;
+			if(dictIn!=null && dictTabix!=null)
 				{
-				final VariantContext userCtx= progress.watch(in2.next());
-				final CloseableIterator<VariantContext> iter= tabix.query(
-						userCtx.getContig(),
-						Math.max(1,userCtx.getStart()-1),
-						userCtx.getEnd()+1
-						);
-				boolean keep=false;
-				while(iter.hasNext())
-					{
-					final VariantContext dbctx= iter.next();
-					if(!sameContext(userCtx,dbctx)) continue;
-					if(!allUserAltFoundInDatabase(userCtx, dbctx)) continue;
-					keep=true;
-					break;
+				contigNameConverter = ContigNameConverter.fromDictionaries(dictIn, dictTabix);
+				}
+			else if(dictTabix!=null)
+				{
+				contigNameConverter = ContigNameConverter.fromOneDictionary(dictTabix);
+				}
+			else
+				{
+				contigNameConverter = ContigNameConverter.getIdentity();
+				}
+			contigNameConverter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
+			
+			final ProgressFactory.Watcher<VariantContext> progress= 
+					ProgressFactory.newInstance().
+						dictionary(dictIn).
+						logger(LOG).
+						build();
+			
+			while(vcfIn.hasNext())
+				{
+				final VariantContext userCtx= progress.apply(vcfIn.next());
+				
+				final String newContigName = contigNameConverter.apply(userCtx.getContig());
+				boolean keep = false;
+				
+				if(!StringUtil.isBlank(newContigName)) {
+					final CloseableIterator<VariantContext> iter= tabix.query(
+							newContigName,
+							Math.max(1,userCtx.getStart()-1),
+							userCtx.getEnd()+1
+							);
+					
+					while(iter.hasNext())
+						{
+						final VariantContext dbctx= iter.next();
+						if(!dbctx.getContig().equals(newContigName)) continue;
+						if(!sameContextIgnoreContig(userCtx,dbctx)) continue;
+						if(!allUserAltFoundInDatabase(userCtx, dbctx)) continue;
+						keep=true;
+						break;
+						}
+					iter.close();
 					}
-				iter.close();
 				
 				addVariant(vcw,userCtx,keep);
 				if(vcw.checkError()) break;
 				}
-			progress.finish();
+			progress.close();
 			return RETURN_OK;
 			}
 		catch(final Exception err)
@@ -413,11 +453,13 @@ public class VcfIn extends Launcher
 		finally
 			{
 			CloserUtil.close(tabix);
-			CloserUtil.close(in2);
+			CloserUtil.close(vcfIn);
 			}
 		}
+	
 	@Override
 	public int doWork(final List<String> args) {
+		
 		if(!this.filterIn.isEmpty() && !this.filterOut.isEmpty()) {
 			 LOG.error("Option filterIn/filterOut both defined.");
 			 return -1;
@@ -427,24 +469,17 @@ public class VcfIn extends Launcher
 			 return -1;
 		}
 		
-		String databaseVcfUri;
-		String userVcfUri;
-		if(args.size()==1)
-			{
-			databaseVcfUri = args.get(0);
-			userVcfUri =null;
-			}
-		else if(args.size()==2)
-			{
-			databaseVcfUri = args.get(0);
-			userVcfUri = args.get(1);
-			}
-		else
-			{
-			LOG.error("illegal number of arguments");
+		if(args.size()==2) {
+			LOG.error("cmd-line syntax has changed. Database must be specified with --database/-D");
 			return -1;
 			}
-
+		
+		if(StringUtil.isBlank(this.externalDatabaseURI)) {
+			LOG.error("Empty external database URI");
+			return -1;
+			}
+		
+		final String userVcfUri = oneFileOrNull(args);
 		VariantContextWriter w=null;
 		VcfIterator in=null;
 		try {
@@ -455,11 +490,11 @@ public class VcfIn extends Launcher
 			w= super.openVariantContextWriter(outputFile);
 			if(this.databaseIsIndexed)
 				{
-				return this.scanUsingTabix(w,databaseVcfUri, in);
+				return this.scanUsingTabix(w,in);
 				}
 			else
 				{
-				return this.scanFileSorted(w,databaseVcfUri, in);
+				return this.scanFileSorted(w,in);
 				}
 			} catch (final Exception err) {
 				LOG.error(err);
@@ -473,5 +508,5 @@ public class VcfIn extends Launcher
 
 	public static void main(final String[] args) {
 		new VcfIn().instanceMainWithExit(args);
-	}
+		}
 	}

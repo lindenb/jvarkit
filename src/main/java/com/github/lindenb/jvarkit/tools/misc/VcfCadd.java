@@ -112,6 +112,11 @@ public class VcfCadd extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfCadd.class).make();
 
+	/** global can be used by vcf2r for Matilde */
+	public static final String DEFAULT_CADD_FLAG_SCORE = "CADD_SCORE";
+	/** global can be used by vcf2r for Matilde */
+	public static final String DEFAULT_CADD_FLAG_PHRED = "CADD_PHRED";
+	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs.tsv.gz";
@@ -119,9 +124,9 @@ public class VcfCadd extends Launcher
 	@Parameter(names={"-u","--uri","--tabix"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
 	private String ccaduri=DEFAULT_URI;
 	@Parameter(names={"-S","--score","--score-tag"},description="INFO tag for score")
-	private String CADD_FLAG_SCORE = "CADD_SCORE";
+	private String CADD_FLAG_SCORE = DEFAULT_CADD_FLAG_SCORE;
 	@Parameter(names={"-P","--phred","--phred-tag"},description="INFO tag for phred")
-	private String CADD_FLAG_PHRED = "CADD_PHRED";
+	private String CADD_FLAG_PHRED = DEFAULT_CADD_FLAG_PHRED;
 	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size")
 	private int buffer_distance=1000;
 	@Parameter(names={"-f","--fields"},description=

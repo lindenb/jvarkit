@@ -26,6 +26,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -41,14 +43,18 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /*
 BEGIN_DOC
 
@@ -115,12 +121,19 @@ public class VcfAlleleBalance extends Launcher {
 			}
 		final Set<String> cases_samples = this.pedigree.getAffected().stream().map(P->P.getId()).collect(Collectors.toSet());
 		final Set<String> ctr_samples = this.pedigree.getUnaffected().stream().map(P->P.getId()).collect(Collectors.toSet());
-
+		boolean use_dp4_if_ad_missing = false;
 		final VCFHeader header2 = new VCFHeader(header);
 		if(header.hasGenotypingData()) {
 			
 			if(header.getFormatHeaderLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)==null) {
 				LOG.error("header is issing  FORMAT/"+VCFConstants.GENOTYPE_ALLELE_DEPTHS);
+				header2.addMetaDataLine(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS));
+				final VCFFormatHeaderLine dp4h = header.getFormatHeaderLine("DP4");
+				if(dp4h!=null && dp4h.isFixedCount()  && dp4h.getCount()==4 && dp4h.getType()==VCFHeaderLineType.Integer)
+					{
+					LOG.warn("I will use FORMAT/DP4 instead of FORMAT/AD");
+					use_dp4_if_ad_missing = true;
+					}
 				}
 			
 			for(int i=0;i< (this.pedigree.isEmpty()?1:3);i++)
@@ -192,12 +205,42 @@ public class VcfAlleleBalance extends Launcher {
 				build();
 		while(iterin.hasNext())
 			{
-			final VariantContext ctx = progress.apply(iterin.next());
+			VariantContext ctx = progress.apply(iterin.next());
 			if(!(ctx.hasGenotypes() || ctx.isBiallelic()))
 				{
 				out.add(ctx);
 				continue;
 				}
+			
+			if(use_dp4_if_ad_missing && ctx.getNAlleles()==2)
+				{
+				final List<Genotype> newgt = new ArrayList<>(ctx.getNSamples());
+				for(final Genotype gt: ctx.getGenotypes())
+					{
+					if(!gt.hasAnyAttribute("DP4") || gt.hasAD() || gt.isHetNonRef())
+						{
+						newgt.add(gt);
+						}
+					else
+						{
+						Object o= gt.getAnyAttribute("DP4");
+						if(o==null || !(o instanceof List) || List.class.cast(o).size()!=4) continue;
+						final List<?> dp4 = (List<?>)o;
+						final int ad[] = new int[ctx.getNAlleles()];
+						Arrays.fill(ad, 0);
+						
+						//Number of high-quality ref-forward , ref-reverse, alt-forward and alt-reverse bases
+						ad[0] = Integer.class.cast(dp4.get(0)) + Integer.class.cast(dp4.get(1));
+						ad[1] = Integer.class.cast(dp4.get(2)) + Integer.class.cast(dp4.get(3));
+						
+						newgt.add(new GenotypeBuilder(gt).AD(ad).make());
+						}
+					}
+				
+				ctx = new VariantContextBuilder(ctx).genotypes(newgt).make();
+				}
+			
+			
 			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			computeAB(ctx,vcb,(GT)->true,"");
 			if(!pedigree.isEmpty())

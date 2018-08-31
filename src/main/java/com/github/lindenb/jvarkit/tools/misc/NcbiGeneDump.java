@@ -164,11 +164,11 @@ The text annotation file `annot.md`:
 
 last updated 2018-08-29
 
-## NCBI Gene ID. 4853
+## NCBI Gene ID. 4853 NOTCH2
 
 encodes a member of the Notch family
 
-## NCBI Gene ID. 6331
+## NCBI Gene ID. 6331 SCN5A
 
 See also SCN10A
 ```
@@ -617,6 +617,8 @@ public class NcbiGeneDump
 					{
 					if(in_gene) break;
 					line2 = line2.substring(CUSTOM_ANNOT_LINE_PREFIX.length()).trim().replace(",", "");
+					line2 = line2.split("\\p{Blank}",2)[0];
+					
 					if(line2.equals(geneid))
 						{
 						in_gene = true;
