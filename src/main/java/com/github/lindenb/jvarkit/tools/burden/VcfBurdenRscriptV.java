@@ -135,13 +135,13 @@ public class VcfBurdenRscriptV
 	@Parameter(names={"-minusnineiszero","--minusnineiszero"},description="No Call is '0' (default is -9)")
 	private boolean nocalliszero = false;
 	
-	@Parameter(names={"--cadd","-cadd"},description="[20180831] Include CADD data, if available (INFO/"+VcfCadd.DEFAULT_CADD_FLAG_PHRED +" INFO/"+VcfCadd.DEFAULT_CADD_FLAG_SCORE)
+	@Parameter(names={"--cadd","-cadd"},description="[20180831] Include CADD data, if available (INFO/"+VcfCadd.DEFAULT_CADD_FLAG_PHRED +" INFO/"+VcfCadd.DEFAULT_CADD_FLAG_SCORE+")")
 	private boolean include_vcf_cadd = false;
 	@Parameter(names={"--cadd-missing"},description="[20180831] value for CADD missing data")
 	private String cadd_missing_value = "NA";
-	@Parameter(names={"--pedigree"},description="[20180831] pedigree file (or I will try to extract the pedigree from the vcf header.")
+	@Parameter(names={"-p","--pedigree"},description="[20180831] pedigree file (or I will try to extract the pedigree from the vcf header. " +Pedigree.OPT_DESCRIPTION)
 	private File pedigreeFile = null;
-
+	
 	
 	
 	public VcfBurdenRscriptV()
@@ -415,7 +415,6 @@ public class VcfBurdenRscriptV
 				LOG.warn("No Variant found");
 				}
 			pw.println("# END VCF ##########################################");
-			
 			}
 			
 			

@@ -120,9 +120,9 @@ public class NcbiApiKey {
 			"*****\n"+
 			"*\n"+
 			"* NCBI api_key is undefined. see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/.\n"+
-			"* 1) can find it in ${"+ENV_NAME+"}\n" +
-			"* 2) can find it in -D"+JVM_PARAM+"\n" +
-			"* 3) can find it in property file "+keyFile+"\n" +
+			"* 1) can find it in environment variable  `export "+ENV_NAME+"=xxxxxxxxx`\n" +
+			"* 2) can find it in jvm property java -D"+JVM_PARAM+"=xxxxxxxxx ....\n" +
+			"* 3) can find it in java property file ( https://en.wikipedia.org/wiki/.properties ) "+keyFile+" with property "+PARAM+"=xxxxxxxxx\n" +
 			"*\n"+
 			"*****"
 			);

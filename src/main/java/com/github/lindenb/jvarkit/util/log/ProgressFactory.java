@@ -63,6 +63,7 @@ private String _prefix;
 private boolean _validateContigInDict = true;
 private boolean _validateOrderInDict = false;
 private boolean _runInBackground  = true;
+private boolean _silent  = true;
 
 private ProgressFactory() {
 }
@@ -77,6 +78,15 @@ public boolean isThreaded() {
 	return this._runInBackground;
 	}
 
+/** do not log anything */
+public ProgressFactory setSilent(boolean _silent) {
+	this._silent = _silent;
+	return this;
+	}
+
+public boolean isSilent() {
+	return _silent;
+	}
 
 /** validate contig: check the contig is in the dictionary, if the dictionary is defined */
 public ProgressFactory validatingContig(final boolean b) {
@@ -174,6 +184,9 @@ public VcfIterator build(final VcfIterator delegate) {
 	}
 
 public <T extends Locatable> Watcher<T> build() {
+	if(this._silent) return new SilentWatcher<>();
+	
+	
 	final WatcherImpl<T> w = new WatcherImpl<>();
 	w._dictionary = this.getDictionary();
 	w._logger = this.getLogger();
@@ -192,6 +205,19 @@ public static interface Watcher<T extends Locatable>
 	{
 	@Override
 	public void close();
+	}
+
+private static class SilentWatcher<T extends Locatable>
+	implements Watcher<T>
+	{
+	@Override
+	public T apply(final T t) {
+		return t;
+		}
+	@Override
+	public void close() {
+		
+		}
 	}
 
 private static class WatcherImpl<T extends Locatable>
@@ -257,7 +283,7 @@ private static class WatcherImpl<T extends Locatable>
 				pfx,
 				this.format(count),
 				
-				duration(diff_millisec),
+				duration(now-this.startMillisec),
 				(percentDone*100.0),
 				
 				duration(timeRemain),
