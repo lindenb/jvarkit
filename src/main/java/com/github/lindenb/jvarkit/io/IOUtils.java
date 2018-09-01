@@ -59,6 +59,8 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
@@ -306,15 +308,22 @@ public class IOUtils {
 
 	public static InputStream openFileForReading(final File file) throws IOException
 		{
-		IOUtil.assertFileIsReadable(file);
-		InputStream in= Files.newInputStream(file.toPath());
-		if(file.getName().endsWith(".gz"))
+		return openPathForReading(file.toPath());
+		}
+	
+	public static InputStream openPathForReading(final Path path) throws IOException
+		{
+		IOUtil.assertFileIsReadable(path);
+		InputStream in= Files.newInputStream(path);
+		if(path.getFileName().endsWith(".gz"))
 			{
 			in = tryBGZIP(in);
 			}
+		else if(path.getFileName().endsWith(".bz2")) {
+			in  = new BZip2CompressorInputStream(in);
+			}
 		return in;
 		}
-
 	public static BufferedReader openFileForBufferedReading(File file) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(openFileForReading(file), Charset.forName("UTF-8")));

@@ -25,7 +25,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -44,21 +46,30 @@ import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.apache.commons.math3.stat.inference.ChiSquareTest;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.sun.xml.internal.bind.v2.TODO;
 
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 
 /**
 BEGIN_DOC
 
-Input is the output of samtools depth.
+Input is either:
+
+  * one fileof samtools depth. All 'N' samples in one file.
+  * 'N' files samtools depth. One samples in per file. REF dictionary is required.
 
 
 ## Example
@@ -106,6 +117,8 @@ public class NaiveCnvDetector extends Launcher
 	private boolean no_both = false;
 	@Parameter(names={"-t"},description="DEL must be < median-depth-stdev and DUP must be > median-depth+stdev" )
 	private boolean use_standard_depth = false;
+	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private File dictRefFile =  null;
 
 
 
@@ -145,7 +158,7 @@ public class NaiveCnvDetector extends Launcher
 	private int count_affected_samples = 0;
 	private int count_unaffected_samples = 0;
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
-
+	private SAMSequenceDictionary dict = null;
 	
 	private class DepthLine
 		{
@@ -444,10 +457,20 @@ public class NaiveCnvDetector extends Launcher
 			return -1;
 			}
 		
+		
+		
 		BufferedReader samDepthReader=null;
 		PrintWriter out = null;
 		try
 			{
+			if(this.dictRefFile!=null) 
+				{
+				this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.dictRefFile);
+				}
+			else
+				{
+				this.dict=null;
+				}
 			
 			final CharSplitter tab = CharSplitter.TAB;
 			
@@ -493,23 +516,95 @@ public class NaiveCnvDetector extends Launcher
 				printHeader(out);
 				}
 			
-			
-			samDepthReader = super.openBufferedReader(oneFileOrNull(args));
-			String line;
-			
-			
-			
-			while((line=samDepthReader.readLine())!=null)
-				{
-				final String tokens[] = tab.split(line);
-				if(tokens.length<3) {
-					throw new JvarkitException.TokenErrors("expected at least 3 words",tokens);
-					}
-				if(this.sampleList.isEmpty())
+			if(args.isEmpty() || (args.size()==1 && !args.get(0).endsWith(".list"))) {
+				samDepthReader = super.openBufferedReader(oneFileOrNull(args));
+				String line;
+				
+				while((line=samDepthReader.readLine())!=null)
 					{
+					final String tokens[] = tab.split(line);
+					if(tokens.length<3) {
+						throw new JvarkitException.TokenErrors("expected at least 3 words",tokens);
+						}
+					if(this.sampleList.isEmpty())
+						{
+						LOG.info("building default sample list");
+						this.count_affected_samples = 0;
+						this.count_unaffected_samples = tokens.length-2;
+						for(int i=0;i< this.count_unaffected_samples;i++) {
+							final SampleInfo si = new SampleInfo();
+							si.index=i;
+							si.affected=false;
+							si.meanDepth = 20;
+							si.adjustDepth = 1.0;
+							si.name = String.format("S%03d",(i+1));
+							this.sampleList.add(si);
+							}
+						printHeader(out);
+						}
+					else if(this.sampleList.size()+2!=tokens.length)
+						{
+						throw new JvarkitException.TokenErrors("expected at least "+( this.sampleList.size()+3)+" words",tokens);
+						}
+					final String contig=tokens[0];
+					final int pos1 = Integer.parseInt(tokens[1]);
+					final DepthLine depthLine = new DepthLine(contig, pos1, this.sampleList.size());
+					for(int x=2;x<tokens.length;++x)
+						{
+						final SampleInfo si=this.sampleList.get(x-2);
+						final int rawdp =  Integer.parseInt(tokens[x]);
+						si.sumDepth += rawdp;
+						si.countDepth++;
+						depthLine.depths[x-2] = si.adjustDepth * Integer.parseInt(tokens[x]);
+						}
+					if(!this.depthBuffer.isEmpty())
+						{
+						final DepthLine last = this.depthBuffer.get(this.depthBuffer.size()-1);
+						if(!last.contig.equals(depthLine.contig))
+							{
+							dump(out);
+							this.depthBuffer.clear();
+							}
+						else if(last.pos+1!=depthLine.pos)
+							{
+							dump(out);
+							this.depthBuffer.clear();
+							}
+						else if(!this.disable_consecutive_bases && last.pos>=depthLine.pos)
+							{
+							dump(out);
+							this.depthBuffer.clear();
+							}
+						}
+					this.depthBuffer.add(depthLine);
+					if(this.depthBuffer.size()==this.windowSize)
+						{
+						dump(out);
+						for(int x=0;x<this.windowShift && !this.depthBuffer.isEmpty();++x)
+							{
+							this.depthBuffer.remove(0);
+							}
+						}
+					}
+				samDepthReader.close();
+				samDepthReader=null;
+				}
+			else
+				{
+				if(this.dict==null) {
+					LOG.error("Ref dictionary is required");
+					return -1;
+					}
+				final List<File> filenames = IOUtils.unrollFiles2018(args);				
+				final List<OneSampleDepthReader> stdBr = new ArrayList<>(filenames.size());
+				for(int x=0;x< filenames.size();++x)
+					{
+					stdBr.add(new OneSampleDepthReader(x,this.dict,filenames.get(x)));
+					}
+				if(this.sampleList.isEmpty()) {
 					LOG.info("building default sample list");
 					this.count_affected_samples = 0;
-					this.count_unaffected_samples = tokens.length-2;
+					this.count_unaffected_samples = filenames.size();
 					for(int i=0;i< this.count_unaffected_samples;i++) {
 						final SampleInfo si = new SampleInfo();
 						si.index=i;
@@ -521,49 +616,62 @@ public class NaiveCnvDetector extends Launcher
 						}
 					printHeader(out);
 					}
-				else if(this.sampleList.size()+2!=tokens.length)
+				else if(this.sampleList.size()!=filenames.size())
 					{
-					throw new JvarkitException.TokenErrors("expected at least "+( this.sampleList.size()+3)+" words",tokens);
+					LOG.error(
+					"expected at least "+ this.sampleList.size()+" samples got " + 
+					filenames.size());
+					return -1;
 					}
-				final String contig=tokens[0];
-				final int pos1 = Integer.parseInt(tokens[1]);
-				final DepthLine depthLine = new DepthLine(contig, pos1, this.sampleList.size());
-				for(int x=2;x<tokens.length;++x)
+				
+				final EqualRangeIterator<OneSampleDepth> eq=
+						new EqualRangeIterator<>();
+				while(eq.hasNext())
 					{
-					final SampleInfo si=this.sampleList.get(x-2);
-					final int rawdp =  Integer.parseInt(tokens[x]);
-					si.sumDepth += rawdp;
-					si.countDepth++;
-					depthLine.depths[x-2] = si.adjustDepth * Integer.parseInt(tokens[x]);
-					}
-				if(!this.depthBuffer.isEmpty())
-					{
-					final DepthLine last = this.depthBuffer.get(this.depthBuffer.size()-1);
-					if(!last.contig.equals(depthLine.contig))
+					final List<OneSampleDepth> row = eq.next();
+					
+					final String contig=tokens[0];
+					final int pos1 = Integer.parseInt(tokens[1]);
+					final DepthLine depthLine = new DepthLine(contig, pos1, this.sampleList.size());
+					for(int x=2;x<tokens.length;++x)
+						{
+						final SampleInfo si=this.sampleList.get(x-2);
+						final int rawdp =  Integer.parseInt(tokens[x]);
+						si.sumDepth += rawdp;
+						si.countDepth++;
+						depthLine.depths[x-2] = si.adjustDepth * Integer.parseInt(tokens[x]);
+						}
+					if(!this.depthBuffer.isEmpty())
+						{
+						final DepthLine last = this.depthBuffer.get(this.depthBuffer.size()-1);
+						if(!last.contig.equals(depthLine.contig))
+							{
+							dump(out);
+							this.depthBuffer.clear();
+							}
+						else if(last.pos+1!=depthLine.pos)
+							{
+							dump(out);
+							this.depthBuffer.clear();
+							}
+						else if(!this.disable_consecutive_bases && last.pos>=depthLine.pos)
+							{
+							dump(out);
+							this.depthBuffer.clear();
+							}
+						}
+					this.depthBuffer.add(depthLine);
+					if(this.depthBuffer.size()==this.windowSize)
 						{
 						dump(out);
-						this.depthBuffer.clear();
-						}
-					else if(last.pos+1!=depthLine.pos)
-						{
-						dump(out);
-						this.depthBuffer.clear();
-						}
-					else if(!this.disable_consecutive_bases && last.pos>=depthLine.pos)
-						{
-						dump(out);
-						this.depthBuffer.clear();
+						for(int x=0;x<this.windowShift && !this.depthBuffer.isEmpty();++x)
+							{
+							this.depthBuffer.remove(0);
+							}
 						}
 					}
-				this.depthBuffer.add(depthLine);
-				if(this.depthBuffer.size()==this.windowSize)
-					{
-					dump(out);
-					for(int x=0;x<this.windowShift && !this.depthBuffer.isEmpty();++x)
-						{
-						this.depthBuffer.remove(0);
-						}
-					}
+				samDepthReader.close();
+				samDepthReader=null;
 				}
 			out.flush();
 			out.close();
@@ -587,6 +695,57 @@ public class NaiveCnvDetector extends Launcher
 			}
 		}
 	
+	private static class OneSampleDepth
+		{
+		final int sample_index ;
+		final int tid;
+		final String contig;
+		final int pos1;
+		final int rawdp;
+		OneSampleDepth(final int sample_index,final SAMSequenceDictionary dict,final String line) {
+			this.sample_index = sample_index;
+			final String tokens[] = CharSplitter.TAB.split(line);
+			if(tokens.length!=3) {
+				throw new JvarkitException.TokenErrors("expected  3 words",tokens);
+				}
+			this.contig = tokens[0];
+			this.tid = dict.getSequenceIndex(contig);
+			if(this.tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(this.contig, dict);
+			this.pos1 = Integer.parseInt(tokens[1]);
+			this.rawdp = Integer.parseInt(tokens[2]);
+			}
+		}
+	
+	private static class OneSampleDepthReader
+		extends AbstractIterator<OneSampleDepth>
+		implements Closeable
+		{
+		final BufferedReader br ;
+		final int sample_index;
+		final SAMSequenceDictionary dict;
+		OneSampleDepthReader(final int sample_index,SAMSequenceDictionary dict,final File f) throws IOException {
+			br= IOUtils.openFileForBufferedReading(f);
+			this.sample_index = sample_index;
+			this.dict = dict;
+			}
+		@Override
+		protected OneSampleDepth advance()
+			{
+			try {
+				String line  = br.readLine();
+				if(line==null) return null;
+				return new OneSampleDepth(sample_index, dict, line);
+				}
+			catch(final IOException err) {
+				throw new RuntimeException(err);
+				}
+			}
+		@Override
+		public void close() throws IOException
+			{
+			CloserUtil.close(br);
+			}
+		}
 	public static void main(final String[] args) {
 		new NaiveCnvDetector().instanceMainWithExit(args);
 		}
