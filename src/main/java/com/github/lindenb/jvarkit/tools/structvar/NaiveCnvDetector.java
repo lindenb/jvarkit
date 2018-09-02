@@ -46,6 +46,9 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.apache.commons.math3.stat.inference.ChiSquareTest;
+import org.broad.igv.bbfile.BBFileReader;
+import org.broad.igv.bbfile.BigWigIterator;
+import org.broad.igv.bbfile.WigItem;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -56,7 +59,6 @@ import com.github.lindenb.jvarkit.util.iterator.MergingIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.sun.xml.internal.bind.v2.TODO;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.AbstractIterator;
@@ -73,7 +75,8 @@ BEGIN_DOC
 Input is either:
 
   * one fileof samtools depth. All 'N' samples in one file.
-  * 'N' files samtools depth. One samples in per file. REF dictionary is required.
+  * 'N' files samtools depth. One samples in per file. REF dictionary is required. List of file can be specified if input ends with '.list' 
+  * 'N' files bigwig. REF dictionary is required. List of files can be specified if input ends with '.list' 
 
 
 ## Example
@@ -89,7 +92,7 @@ END_DOC
  */
 @Program(name="naivecnvdetector",
 	description="experimental CNV detection for multiple samples.",
-	keywords= {"cnv","bam","sam"}
+	keywords= {"cnv","bam","sam","wig","bigwig"}
 	)
 public class NaiveCnvDetector extends Launcher
 	{
@@ -476,7 +479,6 @@ public class NaiveCnvDetector extends Launcher
 				this.dict=null;
 				}
 			
-			final CharSplitter tab = CharSplitter.TAB;
 			
 			out =  super.openFileOrStdoutAsPrintWriter(this.outputFile);
 
@@ -641,6 +643,14 @@ public class NaiveCnvDetector extends Launcher
 				this.pos1 = Integer.parseInt(tokens[1]);
 				this.rawdp = Integer.parseInt(tokens[2]);
 				}
+			OneSampleDepth(final int sample_index,final SAMSequenceDictionary dict,final WigItem item,int pos1) {
+				this.sample_index = sample_index;
+				this.contig = item.getChromosome();
+				this.tid = dict.getSequenceIndex(this.contig);
+				if(this.tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(this.contig, dict);
+				this.pos1 = pos1;
+				this.rawdp = (int)item.getWigValue();
+				}
 			}
 	
 	private static class OneSampleDepthIterator
@@ -674,10 +684,71 @@ public class NaiveCnvDetector extends Launcher
 			}
 		}
 	
+	private static class OneSampleBigWigIterator
+	extends AbstractIterator<OneSampleDepth>
+	implements Closeable
+		{
+		private BBFileReader bbFileReader=null;
+		final int sample_index;
+		final SAMSequenceDictionary dict;
+		final BigWigIterator bwIter;
+		final List<OneSampleDepth> buffer = new ArrayList<>();
+		OneSampleBigWigIterator(
+				final int sample_index,
+				SAMSequenceDictionary dict,
+				final String path) throws IOException {
+			this.bbFileReader = new BBFileReader(path);
+			if(!this.bbFileReader.isBigWigFile())
+				{
+				throw new RuntimeIOException("not a bigwig file :"+path);
+				}
+			this.sample_index = sample_index;
+			this.dict = dict;
+			this.bwIter = this.bbFileReader.getBigWigIterator();
+			
+			}
+		@Override
+		protected OneSampleDepth advance()
+			{
+			if(!buffer.isEmpty())
+				{
+				return buffer.remove(0);
+				}
+			try {
+				if(this.bwIter.hasNext()) {
+					close();
+					return null;
+					}
+				final WigItem item =this.bwIter.next();
+				if(item==null) {
+					close();
+					return null;
+					}
+				for(int i=item.getStartBase();i<=item.getEndBase() /* TODO <= ? */;i++)
+					{
+					this.buffer.add(new OneSampleDepth(this.sample_index, this.dict, item,i));
+					}
+				return buffer.remove(0);
+				}
+			catch(final IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		@Override
+		public void close() throws IOException
+			{
+			CloserUtil.close(this.bwIter);
+			CloserUtil.close(this.bbFileReader.getBBFis());
+			CloserUtil.close(this.bbFileReader);
+			}
+		}
+
+	
 	private class MultipleSampleDepthIterators
 		extends AbstractIterator<DepthLine>
 		implements Closeable
 		{
+		final CharSplitter tab = CharSplitter.TAB;
 		final BufferedReader br;
 		MultipleSampleDepthIterators(final BufferedReader br) {
 			this.br = br;
@@ -688,7 +759,7 @@ public class NaiveCnvDetector extends Launcher
 			try {
 				final String line = br.readLine();
 				if(line==null) return null;
-				final String tokens[] = CharSplitter.TAB.split(line);
+				final String tokens[] = this.tab.split(line);
 				if(tokens.length<3) {
 					throw new JvarkitException.TokenErrors("expected at least 3 words",tokens);
 					}
@@ -719,7 +790,7 @@ public class NaiveCnvDetector extends Launcher
 		extends AbstractIterator<DepthLine>
 		implements Closeable
 		{
-		private List<OneSampleDepthIterator> oneSampleDepthIterators;
+		private List<Iterator<OneSampleDepth>> oneSampleDepthIterators;
 		private MergingIterator<OneSampleDepth> mergingIter;
 		private EqualRangeIterator<OneSampleDepth> equal_range;
 		public CombineOneSampleDepthIterators(final SAMSequenceDictionary dic,final List<File> oneSampleFiles ) throws IOException
@@ -727,7 +798,18 @@ public class NaiveCnvDetector extends Launcher
 			this.oneSampleDepthIterators = new ArrayList<>(oneSampleFiles.size());
 			for(int i=0;i< oneSampleFiles.size();++i)
 				{
-				oneSampleDepthIterators.add(new OneSampleDepthIterator(i, dic,oneSampleFiles.get(i)));
+				final File sampleFile=oneSampleFiles.get(i);
+				final Iterator<OneSampleDepth> oiter;
+				if(sampleFile.getName().toLowerCase().endsWith(".bw") ||
+					sampleFile.getName().toLowerCase().endsWith(".bigwig") )
+					{
+					oiter = new OneSampleBigWigIterator(i, dic, sampleFile.getPath());
+					}
+				else
+					{
+					oiter = new OneSampleDepthIterator(i, dic,oneSampleFiles.get(i));
+					}
+				oneSampleDepthIterators.add(oiter);
 				}
 			final Comparator<OneSampleDepth> cmp= (A, B)->{
 				final int d = Integer.compare(A.tid,B.tid);

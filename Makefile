@@ -264,7 +264,7 @@ $(eval $(call compile-htsjdk-cmd,vcfbigwig,${jvarkit.package}.tools.vcfbigwig.VC
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	${jvarkit.package}.tools.ensemblreg.VcfEnsemblReg,${bigwig.jars} ${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,105754,${bigwig.jar} ${jcommander.jar} ))
 # common math
-$(eval $(call compile-htsjdk-cmd,naivecnvdetector,${jvarkit.package}.tools.structvar.NaiveCnvDetector,${jcommander.jar} ${common.math3.libs} ))
+$(eval $(call compile-htsjdk-cmd,naivecnvdetector,${jvarkit.package}.tools.structvar.NaiveCnvDetector,${jcommander.jar} ${common.math3.libs} ${bigwig.jars}))
 #berkeley
 $(eval $(call compile-htsjdk-cmd,vcfphylotree,${jvarkit.package}.tools.phylo.VcfPhyloTree,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilesscanner,${jvarkit.package}.tools.ngsfiles.NgsFilesScanner,${jcommander.jar} ${berkeleydb.jar}))

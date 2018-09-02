@@ -52,6 +52,9 @@ Usage: naivecnvdetector [options] Files
       Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If 
       this file is not specified , all samples are considered unaffected 
       (discovery mode).
+    -R, -reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     -s
       window shift
       Default: 500
@@ -70,6 +73,8 @@ Usage: naivecnvdetector [options] Files
  * cnv
  * bam
  * sam
+ * wig
+ * bigwig
 
 
 ## Compilation
@@ -135,7 +140,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-Input is the output of samtools depth.
+Input is either:
+
+  * one fileof samtools depth. All 'N' samples in one file.
+  * 'N' files samtools depth. One samples in per file. REF dictionary is required. List of file can be specified if input ends with '.list' 
+  * 'N' files bigwig. REF dictionary is required. List of files can be specified if input ends with '.list' 
 
 
 ## Example
