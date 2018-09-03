@@ -351,6 +351,7 @@ public class NcbiGeneDump
 			
 			
 			while(!geneNames.isEmpty()) {
+				LOG.debug(""+geneNames.size()+" remain for esearch...");
 				final Set<String> batchNames = new HashSet<>(batchSize);
 				final Iterator<String> iter = geneNames.iterator();
 				while(iter.hasNext() && batchNames.size() < batchSize) {
