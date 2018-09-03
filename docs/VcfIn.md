@@ -15,14 +15,14 @@ Usage: vcfin [options] Files
       Default: false
   * -D, --database
       external database uri
-      Default: <empty string>
+      Default: []
     -fi, --filterin
       Do not discard variant but add this FILTER if the variant is found in 
-      the database
+      the database(s)
       Default: <empty string>
     -fo, --filterout
       Do not discard variant but add this FILTER if the variant is NOT found 
-      in the database
+      in the database(s)
       Default: <empty string>
     -h, --help
       print help and exit
@@ -31,6 +31,13 @@ Usage: vcfin [options] Files
       Possible Values: [usage, markdown, xml]
     -i, --inverse
       Print variant that are not part of the VCF-database.
+      Default: false
+    -cp, --only-contig-pos
+      Two variants are the same if they have the same CONTIG/POS. Do NOT Look 
+      at REF or ALTS. Motivation: e.g  
+      http://gnomad.broadinstitute.org/dbsnp/rs11361742 in gnomad VCF: 
+      [19	45454285 TAA	TA,T,TAAA ] in my VCF: [19	45454285	TA	T]. Only works 
+      with --tabix option
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
@@ -41,6 +48,16 @@ Usage: vcfin [options] Files
       Default: false
     --version
       print version and exit
+    -M
+       max number of equivalent variants found in database(s). -1 : no limit. 
+      sinclusive.With --tabix mode only. .eg: '3': the user variant must be 
+      found in 3 or less VCF database.
+      Default: -1
+    -m
+      min number of equivalent variants found in database(s), inclusive. With 
+      --tabix mode only. .eg: '2': the user variant must be found in at least 
+      2 VCF database.
+      Default: 1
 
 ```
 

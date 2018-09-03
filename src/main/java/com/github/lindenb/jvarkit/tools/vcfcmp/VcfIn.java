@@ -25,12 +25,18 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -199,12 +205,30 @@ public class VcfIn extends Launcher
 	private boolean databaseIsIndexed = false;
 	@Parameter(names={"-A","--allalt"},description="ALL user ALT must be found in VCF-database ALT")
 	private boolean userAltInDatabase = false;
-	@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER if the variant is found in the database")
+	@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER if the variant is found in the database(s)")
 	private String filterIn = "";
-	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER if the variant is NOT found in the database")
+	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER if the variant is NOT found in the database(s)")
 	private String filterOut = "";
 	@Parameter(names={"-D","--database"},description="external database uri",required=true)
-	private String externalDatabaseURI = "";
+	private List<String> externalDatabaseList = new ArrayList<>();
+	
+	// http://gnomad.broadinstitute.org/dbsnp/rs11361742
+	// gnomad www: 19:45454285 TA / T 
+	// gnomad www: 19:45454285 TAA/ T
+	// my data: 19	45454285	TA	T
+	// gnomad-vcf: 19	45454285	TAA	TA,T,TAAA
+
+	@Parameter(names={"-cp","--only-contig-pos"},description=
+			"Two variants are the same if they have the same CONTIG/POS. Do NOT Look at REF or ALTS. "
+			+ "Motivation: e.g  http://gnomad.broadinstitute.org/dbsnp/rs11361742 "
+			+ "in gnomad VCF: [19	45454285 TAA	TA,T,TAAA ] "
+			+ "in my VCF: [19	45454285	TA	T]. "
+			+ "Only works with --tabix option")
+	private boolean only_contig_pos = false;
+	@Parameter(names="-m",description="min number of equivalent variants found in database(s), inclusive. With --tabix mode only. .eg: '2': the user variant must be found in at least 2 VCF database.")
+	private int minCountInclusive=1;
+	@Parameter(names="-M",description=" max number of equivalent variants found in database(s). -1 : no limit. sinclusive.With --tabix mode only. .eg: '3': the user variant must be found in 3 or less VCF database.")
+	private int maxCountInclusive= -1;
 
 
 	public VcfIn()
@@ -249,11 +273,13 @@ public class VcfIn extends Launcher
 	protected VCFHeader addMetaData(final VCFHeader header) {
 		if(!this.filterIn.isEmpty()) {
 			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterIn,
-					"Variant overlapping database. "+this.externalDatabaseURI));
+					"Variant overlapping database(s). " + 
+			String.join(" ",this.externalDatabaseList)));
 			}
 		if(!this.filterOut.isEmpty()) {
 			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterOut,
-					"Variant non overlapping database." +this.externalDatabaseURI));
+					"Variant non overlapping database(s)." +
+			String.join(" ",this.externalDatabaseList)));
 			}
 		return super.addMetaData(header);
 		}
@@ -309,7 +335,8 @@ public class VcfIn extends Launcher
 	
 	private int scanFileSorted(
 			final VariantContextWriter vcw,
-			final VcfIterator userVcfIn
+			final VcfIterator userVcfIn,
+			String externalDatabaseURI
 			)
 		{
 		EqualRangeVcfIterator equalRangeDbIter=null;
@@ -328,7 +355,7 @@ public class VcfIn extends Launcher
 					VCFUtils.createTidPosComparator(userVcfDict)
 					;
 			equalRangeDbIter = new EqualRangeVcfIterator(
-					VCFUtils.createVcfIterator(this.externalDatabaseURI),userVcfComparator);
+					VCFUtils.createVcfIterator(externalDatabaseURI),userVcfComparator);
 
 			this.addMetaData(header);
 			vcw.writeHeader(header);
@@ -375,37 +402,64 @@ public class VcfIn extends Launcher
 			CloserUtil.close(vcw);
 			}
 		}
-
-	private int scanUsingTabix(
-			final VariantContextWriter vcw,
-			final VcfIterator vcfIn
-			)
+	
+	private class TabixVcf
+		implements Closeable
 		{
-		VCFFileReader tabix=null;
-		try
-			{
+		final File file;
+		final VCFFileReader vcfFileReader;
+		final VCFHeader header;
+		final SAMSequenceDictionary dict;
+		final ContigNameConverter contigNameConverter;
+		TabixVcf(SAMSequenceDictionary dictIn,final String file) {
+			this.file = new File(file);
+			this.vcfFileReader = new VCFFileReader(this.file,true);
+			this.header = this.vcfFileReader.getFileHeader();
+			this.dict = this.header.getSequenceDictionary();
 			
-			tabix =  new VCFFileReader(new File(this.externalDatabaseURI),true);
-			final SAMSequenceDictionary dictTabix = tabix.getFileHeader().getSequenceDictionary();
-
-			final VCFHeader header1= new VCFHeader(vcfIn.getHeader());
-			final SAMSequenceDictionary dictIn = header1.getSequenceDictionary();
-			this.addMetaData(header1);
-			vcw.writeHeader(header1);
-			final ContigNameConverter contigNameConverter;
-			if(dictIn!=null && dictTabix!=null)
+			if(dictIn!=null && this.dict!=null)
 				{
-				contigNameConverter = ContigNameConverter.fromDictionaries(dictIn, dictTabix);
+				contigNameConverter = ContigNameConverter.fromDictionaries(dictIn, this.dict);
 				}
-			else if(dictTabix!=null)
+			else if(this.dict!=null)
 				{
-				contigNameConverter = ContigNameConverter.fromOneDictionary(dictTabix);
+				contigNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
 				}
 			else
 				{
 				contigNameConverter = ContigNameConverter.getIdentity();
 				}
 			contigNameConverter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
+			}
+		
+		@Override
+		public void close() throws IOException {
+			CloserUtil.close(vcfFileReader);
+			}
+		}
+
+	private int scanUsingTabix(
+			final VariantContextWriter vcw,
+			final VcfIterator vcfIn,
+			final List<String> databasesPaths
+			)
+		{
+		final List<TabixVcf> tabixList = new ArrayList<>(databasesPaths.size());
+		try
+			{
+			final VCFHeader header1= new VCFHeader(vcfIn.getHeader());
+			final SAMSequenceDictionary dictIn = header1.getSequenceDictionary();
+			
+
+			
+			for(final String path: databasesPaths)
+				{
+				tabixList.add(new TabixVcf(dictIn,path));
+				}
+			
+			final VCFHeader header2 = new VCFHeader(header1);
+			this.addMetaData(header2);
+			vcw.writeHeader(header2);
 			
 			final ProgressFactory.Watcher<VariantContext> progress= 
 					ProgressFactory.newInstance().
@@ -417,28 +471,37 @@ public class VcfIn extends Launcher
 				{
 				final VariantContext userCtx= progress.apply(vcfIn.next());
 				
-				final String newContigName = contigNameConverter.apply(userCtx.getContig());
-				boolean keep = false;
-				
-				if(!StringUtil.isBlank(newContigName)) {
-					final CloseableIterator<VariantContext> iter= tabix.query(
+				int number_of_time_ctx_was_found = 0;
+				for(final TabixVcf tabix:tabixList)  {
+					final String newContigName = tabix.contigNameConverter.apply(userCtx.getContig());
+					if(StringUtil.isBlank(newContigName))  continue;
+					final CloseableIterator<VariantContext> iter= tabix.vcfFileReader.query(
 							newContigName,
 							Math.max(1,userCtx.getStart()-1),
 							userCtx.getEnd()+1
 							);
+					final Predicate<VariantContext> acceptVariant = (V)->{
+						if(!V.equals(newContigName)) return false;
+						if(only_contig_pos && V.getStart()==userCtx.getStart()) return true;
+						if(!sameContextIgnoreContig(userCtx,V)) return false;
+						if(!allUserAltFoundInDatabase(userCtx, V)) return false;
+						return true;
+						};
 					
 					while(iter.hasNext())
 						{
 						final VariantContext dbctx= iter.next();
-						if(!dbctx.getContig().equals(newContigName)) continue;
-						if(!sameContextIgnoreContig(userCtx,dbctx)) continue;
-						if(!allUserAltFoundInDatabase(userCtx, dbctx)) continue;
-						keep=true;
+						if(!acceptVariant.test(dbctx)) continue;
+						number_of_time_ctx_was_found++;
 						break;
 						}
 					iter.close();
+					if( number_of_time_ctx_was_found >= minCountInclusive) break;
 					}
 				
+				final boolean keep = number_of_time_ctx_was_found >= this.minCountInclusive &&
+						(this.maxCountInclusive<0 || number_of_time_ctx_was_found <= this.maxCountInclusive)
+						;
 				addVariant(vcw,userCtx,keep);
 				if(vcw.checkError()) break;
 				}
@@ -452,7 +515,7 @@ public class VcfIn extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(tabix);
+			CloserUtil.close(tabixList);
 			CloserUtil.close(vcfIn);
 			}
 		}
@@ -474,10 +537,10 @@ public class VcfIn extends Launcher
 			return -1;
 			}
 		
-		if(StringUtil.isBlank(this.externalDatabaseURI)) {
-			LOG.error("Empty external database URI");
-			return -1;
-			}
+		
+		
+		
+		
 		
 		final String userVcfUri = oneFileOrNull(args);
 		VariantContextWriter w=null;
@@ -487,14 +550,36 @@ public class VcfIn extends Launcher
 					VCFUtils.createVcfIteratorFromInputStream(stdin()):
 					VCFUtils.createVcfIterator(userVcfUri)
 					);
+			
+			final List<String> externalDatabaseUris = 
+					this.externalDatabaseList.size() ==1 && this.externalDatabaseList.get(0).endsWith(".list") ?
+					Files.lines(Paths.get(this.externalDatabaseList.get(0))).filter(L->!StringUtil.isBlank(L)).collect(Collectors.toList())
+					:
+					this.externalDatabaseList
+					;
+			
+			if(externalDatabaseUris.isEmpty()) {
+				LOG.error("Empty external database URI");
+				return -1;
+				}
+			
 			w= super.openVariantContextWriter(outputFile);
 			if(this.databaseIsIndexed)
 				{
-				return this.scanUsingTabix(w,in);
+				return this.scanUsingTabix(w,in,externalDatabaseUris);
 				}
 			else
 				{
-				return this.scanFileSorted(w,in);
+				if(externalDatabaseUris.size()!=1) {
+					LOG.info("When files are sorted, I can only use one URI.");
+					return -1;
+					}
+				if(this.only_contig_pos)
+					{
+					LOG.error("--only-contig-pos only  works with --tabix flag ");
+					return -1;
+					}
+				return this.scanFileSorted(w,in,externalDatabaseUris.get(0));
 				}
 			} catch (final Exception err) {
 				LOG.error(err);

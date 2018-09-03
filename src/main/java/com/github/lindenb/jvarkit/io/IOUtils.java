@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -295,7 +296,7 @@ public class IOUtils {
 		return  new BufferedReader(new InputStreamReader(openURIForReading(uri), Charset.forName("UTF-8")));
 		}
 
-	public static Reader openFileForReader(File file) throws IOException
+	public static Reader openFileForReader(final File file) throws IOException
 		{
 		IOUtil.assertFileIsReadable(file);
 		if(file.getName().endsWith(".gz"))
@@ -315,14 +316,14 @@ public class IOUtils {
 		{
 		IOUtil.assertFileIsReadable(path);
 		InputStream in= Files.newInputStream(path);
-		if(path.getFileName().endsWith(".gz"))
+		if(path.getFileName().toString().endsWith(".gz"))
 			{
 			in = tryBGZIP(in);
 			}
-		else if(path.getFileName().endsWith(".bz2")) {
+		else if(path.getFileName().toString().endsWith(".bz2")) {
 			in  = new BZip2CompressorInputStream(in);
 			}
-		return in;
+		return Objects.requireNonNull(in,"cannot open "+path);
 		}
 	public static BufferedReader openFileForBufferedReading(File file) throws IOException
 		{

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -100,7 +100,8 @@ END_DOC
  */
 
 
-@Program(name="uniprotfilterjs",description= "Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. "
+@Program(name="uniprotfilterjs",
+	description= "Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. "
 		+ "Context contain 'entry' an uniprot entry "
 		+ "and 'index', the index in the XML file.",
 		keywords={"unitprot","javascript","xjc","xml"})
@@ -112,6 +113,8 @@ public class UniprotFilterJS
 	@SuppressWarnings("unused")
 	private static ObjectFactory _fool_javac=null;
 	
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private File outputFile = null;
 	@Parameter(names="-e",description=" (js expression). Optional.")
 	private String scriptExpr=null;
 	@Parameter(names="-f",description=" (js file). Optional.")
@@ -126,31 +129,28 @@ public class UniprotFilterJS
 	@Override
 	public int doWork(final List<String> args)
 		{
-		
-
-		
 		Unmarshaller unmarshaller;
 		Marshaller marshaller;
 		try
 			{
-			ScriptEngineManager manager = new ScriptEngineManager();
-			ScriptEngine engine = manager.getEngineByName("js");
+			final ScriptEngineManager manager = new ScriptEngineManager();
+			final ScriptEngine engine = manager.getEngineByName("js");
 			if(engine==null)
 				{
 				LOG.error("not available: javascript. Use the SUN/Oracle JDK ?");
 				return -1;
 				}
-			CompiledScript compiledScript = super.compileJavascript(scriptExpr, scriptFile);
+			final CompiledScript compiledScript = super.compileJavascript(scriptExpr, scriptFile);
 			
 			
 			
-			JAXBContext jc = JAXBContext.newInstance("org.uniprot");
+			final JAXBContext jc = JAXBContext.newInstance("org.uniprot");
 			
 			unmarshaller =jc.createUnmarshaller();
 			marshaller =jc.createMarshaller();
 
 			
-			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
+			final XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
 			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
@@ -159,14 +159,14 @@ public class UniprotFilterJS
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
 			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://uniprot.org/uniprot http://www.uniprot.org/support/docs/uniprot.xsd");
 			
-			PrintWriter pw=new PrintWriter(System.out);
-			XMLOutputFactory xof=XMLOutputFactory.newFactory();
+			final PrintWriter pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.FALSE);
-			XMLEventWriter w=xof.createXMLEventWriter(pw);
+			final XMLEventWriter w=xof.createXMLEventWriter(pw);
 			
 			
 			
-			StreamSource src=null;
+			final StreamSource src;
 			if(args.isEmpty())
 				{
 				src=new StreamSource(stdin());
@@ -177,14 +177,14 @@ public class UniprotFilterJS
 				}
 			else
 				{
-				LOG.error("illegal.number.of.arguments");
+				LOG.error("Illegal number of arguments");
 				return -1;
 				}
-			XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
+			final XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
 			
-			XMLEventFactory eventFactory=XMLEventFactory.newFactory();
+			final XMLEventFactory eventFactory=XMLEventFactory.newFactory();
 			
-			SimpleBindings bindings=new SimpleBindings();
+			final SimpleBindings bindings=new SimpleBindings();
 			long nArticles=0L;
 			while(r.hasNext())
 				{
@@ -212,7 +212,7 @@ public class UniprotFilterJS
 							
 							bindings.put("entry", entry);
 							bindings.put("index", nArticles++);
-							Object result=compiledScript.eval(bindings);
+							final Object result=compiledScript.eval(bindings);
 							
 							String entryName="undefined";
 							if(!entry.getAccession().isEmpty()) entryName=entry.getAccession().get(0);
@@ -265,7 +265,7 @@ public class UniprotFilterJS
 			pw.close();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -276,7 +276,7 @@ public class UniprotFilterJS
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new UniprotFilterJS().instanceMainWithExit(args);
 	}
 }

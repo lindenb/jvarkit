@@ -440,7 +440,7 @@ public class NcbiGeneDump
 						(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
 						(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
 						;
-				LOG.info(url);
+				LOG.info(url+" remains "+geneIds.size()+" ID(s).");
 				final XMLEventReader r = xmlInputFactory.createXMLEventReader(new StreamSource(url));
 				boolean in_gene = false;
 				Integer current_gene_id = null;

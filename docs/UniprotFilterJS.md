@@ -15,6 +15,8 @@ Usage: uniprotfilterjs [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -o, --output
+      Output file. Optional . Default: stdout
     --version
       print version and exit
     -e

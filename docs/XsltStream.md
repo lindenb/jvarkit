@@ -47,6 +47,7 @@ Usage: xsltstream [options] Files
  * [https://www.biostars.org/p/280581](https://www.biostars.org/p/280581)
  * [https://www.biostars.org/p/282545](https://www.biostars.org/p/282545)
  * [https://www.biostars.org/p/282602](https://www.biostars.org/p/282602)
+ * [https://www.biostars.org/p/335867](https://www.biostars.org/p/335867)
 
 
 ## Compilation
@@ -408,5 +409,13 @@ $ java -jar dist/xsltstream.jar \
 	-t drugbank2tsv.xsl \
 	full_database.xml
 ```
+
+## Example
+
+https://www.biostars.org/p/335867/#335885
+
+How to download database of Human protein sequences with sub cellular locations?
+
+see https://gist.github.com/lindenb/b3c726adecde90e37acd92bc940dfdd5 
 
 

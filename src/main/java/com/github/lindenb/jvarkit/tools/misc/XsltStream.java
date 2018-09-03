@@ -365,12 +365,20 @@ $ java -jar dist/xsltstream.jar \
 	full_database.xml
 ```
 
+## Example
+
+https://www.biostars.org/p/335867/#335885
+
+How to download database of Human protein sequences with sub cellular locations?
+
+see https://gist.github.com/lindenb/b3c726adecde90e37acd92bc940dfdd5 
+
 END_DOC
 */
 @Program(name="xsltstream",
 	description="XSLT transformation for large XML files. xslt is only applied on a given subset of nodes.",
 	keywords={"xml","xslt","xsl","stylesheet"},
-	biostars= {270498,280581,282545,282602}
+	biostars= {270498,280581,282545,282602,335867}
 	)
 public class XsltStream extends Launcher {
 	private static final Logger LOG = Logger.build(XsltStream.class).make();

@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -114,4 +115,31 @@ private File makeVcfIn(final String vcfpath,String other_args) throws Exception
 	assertIsVcf(outVcf);
 	return outVcf;
 	}
+
+@Test
+public void testMultiple() throws Exception
+	{
+	final File vcfList = super.createTmpFile(".list");
+	PrintWriter pw = new PrintWriter(vcfList);
+	for(int i=1;i<6;i++)
+		{
+		pw.println(SRC_TEST_RESOURCE+"/S"+i+".vcf.gz");
+		}
+	pw.flush();
+	pw.close();
+	
+	
+	final File outVcf = createTmpFile(".vcf");
+	Assert.assertEquals(new VcfIn().instanceMain(newCmd().add(
+			"-o",outVcf.getPath(),
+			"--database",vcfList.getPath(),
+			"--tabix",
+			SRC_TEST_RESOURCE+"/S1.vcf.gz"
+			).make()
+		),0);
+	
+	assertIsVcf(outVcf);
+	}
+
+
 }
