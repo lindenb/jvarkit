@@ -481,7 +481,7 @@ public class VcfIn extends Launcher
 							userCtx.getEnd()+1
 							);
 					final Predicate<VariantContext> acceptVariant = (V)->{
-						if(!V.equals(newContigName)) return false;
+						if(!V.getContig().equals(newContigName)) return false;
 						if(only_contig_pos && V.getStart()==userCtx.getStart()) return true;
 						if(!sameContextIgnoreContig(userCtx,V)) return false;
 						if(!allUserAltFoundInDatabase(userCtx, V)) return false;
@@ -498,7 +498,6 @@ public class VcfIn extends Launcher
 					iter.close();
 					if( number_of_time_ctx_was_found >= minCountInclusive) break;
 					}
-				
 				final boolean keep = number_of_time_ctx_was_found >= this.minCountInclusive &&
 						(this.maxCountInclusive<0 || number_of_time_ctx_was_found <= this.maxCountInclusive)
 						;
