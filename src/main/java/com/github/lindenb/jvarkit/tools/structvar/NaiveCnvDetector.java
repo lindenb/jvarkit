@@ -74,10 +74,10 @@ BEGIN_DOC
 
 Input is either:
 
-  * one fileof samtools depth. All 'N' samples in one file.
-  * 'N' files samtools depth. One samples in per file. REF dictionary is required. List of file can be specified if input ends with '.list' 
-  * 'N' files bigwig. REF dictionary is required. List of files can be specified if input ends with '.list' 
+  * one fileof samtools depth output. All 'N' samples in one file.
+  * 'N' files (samtools depth output AND/OR bigwig/bigbed [experimental not tested] ). One samples in per file. REF dictionary is required. List of file can be specified if input ends with '.list' 
 
+bigbed and bigwig have not been tested; Bigbed shouldn't have overlapping regions...
 
 ## Example
 
@@ -92,7 +92,7 @@ END_DOC
  */
 @Program(name="naivecnvdetector",
 	description="experimental CNV detection for multiple samples.",
-	keywords= {"cnv","bam","sam","wig","bigwig"}
+	keywords= {"cnv","bam","sam","wig","bigwig","bigbed"}
 	)
 public class NaiveCnvDetector extends Launcher
 	{
@@ -684,6 +684,7 @@ public class NaiveCnvDetector extends Launcher
 			}
 		}
 	
+	/** iterate over the values of a bigwig/bigbed file */
 	private static class OneSampleBigWigIterator
 	extends AbstractIterator<OneSampleDepth>
 	implements Closeable
@@ -692,43 +693,56 @@ public class NaiveCnvDetector extends Launcher
 		final int sample_index;
 		final SAMSequenceDictionary dict;
 		final BigWigIterator bwIter;
-		final List<OneSampleDepth> buffer = new ArrayList<>();
+		WigItem current_item = null;
+		int position_in_current_item = -1; 
 		OneSampleBigWigIterator(
 				final int sample_index,
 				SAMSequenceDictionary dict,
 				final String path) throws IOException {
 			this.bbFileReader = new BBFileReader(path);
-			if(!this.bbFileReader.isBigWigFile())
-				{
-				throw new RuntimeIOException("not a bigwig file :"+path);
-				}
 			this.sample_index = sample_index;
 			this.dict = dict;
 			this.bwIter = this.bbFileReader.getBigWigIterator();
-			
 			}
 		@Override
 		protected OneSampleDepth advance()
 			{
-			if(!buffer.isEmpty())
+			if(current_item!=null)
 				{
-				return buffer.remove(0);
+				if(position_in_current_item> current_item.getEndBase())
+					{
+					current_item = null;
+					position_in_current_item = -1;
+					}
+				else
+					{
+					final OneSampleDepth osd = new OneSampleDepth(
+							this.sample_index,
+							this.dict,
+							this.current_item,
+							this.position_in_current_item
+							);
+					this.position_in_current_item++;
+					return osd;
+					}
 				}
 			try {
 				if(this.bwIter.hasNext()) {
 					close();
 					return null;
 					}
-				final WigItem item =this.bwIter.next();
-				if(item==null) {
+				this.current_item =this.bwIter.next();
+				if(this.current_item==null) {
 					close();
 					return null;
 					}
-				for(int i=item.getStartBase();i<=item.getEndBase() /* TODO <= ? */;i++)
-					{
-					this.buffer.add(new OneSampleDepth(this.sample_index, this.dict, item,i));
-					}
-				return buffer.remove(0);
+				this.position_in_current_item = this.current_item.getStartBase()+1;/* +1 for next iteration */
+				return new OneSampleDepth(
+						this.sample_index,
+						this.dict,
+						this.current_item,
+						 this.current_item.getStartBase()
+						);
 				}
 			catch(final IOException err) {
 				throw new RuntimeIOException(err);
@@ -737,6 +751,8 @@ public class NaiveCnvDetector extends Launcher
 		@Override
 		public void close() throws IOException
 			{
+			this.current_item=null;
+			this.position_in_current_item=-1;
 			CloserUtil.close(this.bwIter);
 			CloserUtil.close(this.bbFileReader.getBBFis());
 			CloserUtil.close(this.bbFileReader);

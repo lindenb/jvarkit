@@ -75,6 +75,7 @@ Usage: naivecnvdetector [options] Files
  * sam
  * wig
  * bigwig
+ * bigbed
 
 
 ## Compilation
@@ -142,10 +143,10 @@ The current reference is:
 
 Input is either:
 
-  * one fileof samtools depth. All 'N' samples in one file.
-  * 'N' files samtools depth. One samples in per file. REF dictionary is required. List of file can be specified if input ends with '.list' 
-  * 'N' files bigwig. REF dictionary is required. List of files can be specified if input ends with '.list' 
+  * one fileof samtools depth output. All 'N' samples in one file.
+  * 'N' files (samtools depth output AND/OR bigwig/bigbed [experimental not tested] ). One samples in per file. REF dictionary is required. List of file can be specified if input ends with '.list' 
 
+bigbed and bigwig have not been tested; Bigbed shouldn't have overlapping regions...
 
 ## Example
 
