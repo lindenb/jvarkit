@@ -32,6 +32,9 @@ Usage: ncbigenedump [options] Files
       java property file ${HOME}/.ncbi.properties and key api_key
     -o, --output
       Output file. Optional . Default: stdout
+    --seconds
+      wait 'n' seconds between each calls.
+      Default: 2
     -skip, --skip
       Optional set of elements names to be ignored in the output. Spaces or 
       comma separated. .eg: 'Gene-track '

@@ -241,6 +241,8 @@ public class NcbiGeneDump
 	private String taxonId = "9606";
 	@Parameter(names={"--stdin"},description="read list of genes from stdin.")
 	private boolean stdinFlags = false;
+	@Parameter(names={"--seconds"},description="wait 'n' seconds between each calls.")
+	private int wait_seconds = 2;
 	@Parameter(names={"--abort"},description="Abort with error if a gene was not found with ncbi-esearch.")
 	private boolean abortOnNotFound=false;
 	@Parameter(names={"-C","--custom"},description=
@@ -412,6 +414,7 @@ public class NcbiGeneDump
 					LOG.error("Bad esearch result. Found "+nFound+" but expected "+batchNames.size()+". was " +
 							String.join(" ",batchNames));
 					}
+				try { if(!geneNames.isEmpty()) Thread.sleep(this.wait_seconds * 1000); } catch(final Throwable err) {}
 				}
 			
 			pw=super.openFileOrStdoutAsPrintWriter(outputFile);
@@ -549,7 +552,7 @@ public class NcbiGeneDump
 						LOG.warn(msg);
 						}
 					}
-				
+				try { if(!geneIds.isEmpty()) Thread.sleep(this.wait_seconds * 1000); } catch(final Throwable err) {}				
 				}//end while ids
 			w.add(eventFactory.createEndElement(new QName("Entrezgene-Set"),null));
 			w.add(eventFactory.createEndDocument());
