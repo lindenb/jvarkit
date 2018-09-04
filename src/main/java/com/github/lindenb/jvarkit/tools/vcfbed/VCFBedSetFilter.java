@@ -155,9 +155,10 @@ public class VCFBedSetFilter extends Launcher
 					if(contigs_not_found.size()<100) {
 						if(contigs_not_found.add(ctx.getContig()))
 							{
-							LOG.warn("Cannot convert variant contig "+ctx.getContig()+" to bed file.");
+							LOG.warn("Cannot convert variant contig "+ctx.getContig()+" to bed file. (Contig is not in BED file)");
 							}
 						}
+					set_filter = false;
 					}
 				else if(this.intervalTreeMap!=null) {
 					if( this.intervalTreeMap.containsOverlapping(new Interval(convert_contig,ctx.getStart(),ctx.getEnd())))
@@ -222,7 +223,7 @@ public class VCFBedSetFilter extends Launcher
 
 	
 	@Override
-	public int doWork(final  List<String> args) {
+	public int doWork(final List<String> args) {
 		try
 			{
 			if(this.tabixFile==null && this.treeMapFile==null)
