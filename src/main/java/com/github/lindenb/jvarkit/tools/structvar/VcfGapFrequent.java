@@ -21,7 +21,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
-import com.github.lindenb.jvarkit.util.vcf.ContigPos;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -36,13 +35,23 @@ import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 /**
- 
+BEGIN_DOC
+
+## Example
+
+```
+$ find /commun/data/pubdb/broadinstitute.org/gnomad/release-170228/ -name "*.vcf.gz" > gnomad.list
+
+$ java -jar dist/vcfgapfrequent.jar --fields "AF_POPMAX" -C -D gnomad.list genotyped.22.vcf.gz  > out.bed
+
+```
+
+END_DOC
  */
 
 @Program(name="vcfgapfrequent",
 description="Filter VCF annotated with external (AF or AC/AN) frequency information like vcfgnomad",
-keywords={"vcf","annotation","gnomad"},
-generate_doc=false
+keywords={"vcf"}
 )
 
 public class VcfGapFrequent extends Launcher {
@@ -170,9 +179,9 @@ public class VcfGapFrequent extends Launcher {
 			out.print("\t");
 			out.print(this.sampleName==null?"*":this.sampleName);
 			out.print("\t");
-			out.print(count_frequent);
+			out.print(found_pos.size());
 			out.print("\t");
-			out.print((double)count_frequent/(double)length);
+			out.print((double)found_pos.size()/(double)length);
 			out.println();
 			}
 		
