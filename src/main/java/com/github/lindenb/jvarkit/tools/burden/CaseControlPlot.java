@@ -49,6 +49,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
+import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
@@ -72,7 +74,7 @@ The script should return 'true' to accept the variant.
 
 
  `<maf id="abcd"/>` can have an @attribute `attribute` that will be the INFO field that contains the attribute
- otherwise it's considered a MAF extractor counting the genotypes.
+ otherwise it's considered a MAF extractor counting the genotypes. This attribute is parsed by AFExtractorFactory. So it can be 'AC/AN' or 'AF'
 
  `<handlers name="abcd"/>`  can have a `<filter>` or a reference to a filter `<filter ref='filter-id'>`
  `<handlers name="abcd"/>`  should have a `<case>` and a `<"ctrl">`
@@ -119,32 +121,18 @@ public class CaseControlPlot extends Launcher
 		public Double apply(final VariantContext ctx,Allele alt,final Set<Pedigree.Person> persons);
 		}
 	
-	private static class AttributeMafExtractor implements MafExtractor
+	private static class DefaultMafExtractor implements MafExtractor
 		{
-		private final String attribute;
-		public AttributeMafExtractor(final String tag) {this.attribute = tag;}
-		public String getAttribute()
-			{
-			return attribute;
-			}
+		private final AFExtractor afExtractor;
+		public DefaultMafExtractor(final AFExtractor afExtractor) {this.afExtractor = afExtractor;}
+		
 		@Override
 		public Double apply(final VariantContext ctx,final Allele alt,final Set<Pedigree.Person> persons) {
-			final String att = this.getAttribute();
-			if(att==null || att.isEmpty()) return null;
+			final List<Double> L= this.afExtractor.parse(ctx);
 			int index=ctx.getAlleleIndex(alt);
 			if( index<=0) return null;//can't be REF==0
-			final List<Object> L = ctx.getAttributeAsList(att);
 			if(index>=L.size()) return null;
-			final Object o = L.get(index);
-			if(o==null || ".".equals(o)) return null;
-			try {
-				double f = Double.parseDouble(String.valueOf(o));
-				if(f<0.0 || f>1.0) return null;
-				return f;
-				}
-			catch(NumberFormatException err) {
-				return null;
-				}
+			return L.get(index);
 			}
 		}
 	
@@ -292,7 +280,11 @@ public class CaseControlPlot extends Launcher
 				{
 				final String tag = e1.getAttribute("attribute");
 				if(StringUtil.isBlank(tag)) throw new JvarkitException.XmlDomError(e1,"@attribute is empty");
-				final AttributeMafExtractor at= new AttributeMafExtractor(tag);
+				final List<AFExtractor> extractors = new AFExtractorFactory().parseFieldExtractors(tag);
+				if(extractors.size()!=1) {
+					throw new JvarkitException.XmlDomError(e1,"expected one AF extractor but got "+extractors);
+				}
+				final DefaultMafExtractor at= new DefaultMafExtractor(extractors.get(0));
 				mafExtractor = at;
 				}
 			else

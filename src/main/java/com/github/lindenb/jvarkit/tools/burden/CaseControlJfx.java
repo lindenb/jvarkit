@@ -42,14 +42,16 @@ import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
+import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
@@ -60,13 +62,11 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
@@ -306,8 +306,11 @@ public class CaseControlJfx extends JfxLauncher {
 		double dataOpacity=0.4;
 		@Parameter(names={"-o","--out"},description="Save the image in a file and then exit.")
 		File outputFile=null;
-		@Parameter(names={"-mafTag","--mafTag"},description="Do not calculate MAF for controls, but use this tag to get Controls' MAF")
-		String controlTag =null;
+		@Parameter(names={"-mafTag","--mafTag"},description=
+				"[20180905] Do not calculate MAF for controls, but use this tag to get Controls' MAF. " +
+				AFExtractorFactory.OPT_DESC
+				)
+		String controlFields =null;
 		
 		public CaseControlJfx()
 			{
@@ -356,15 +359,24 @@ public class CaseControlJfx extends JfxLauncher {
 					{
 					pedigree = Pedigree.newParser().parse(in.getHeader());
 					}
-				if(this.controlTag!=null)
+				final AFExtractor controlAFExtractor;
+				if(!StringUtil.isBlank(this.controlFields))
 					{
-					final VCFInfoHeaderLine infoHeaderLine=in.getHeader().getInfoHeaderLine(this.controlTag);
-					if(infoHeaderLine==null) {
-						LOG.error("No such attribute in the VCF header: "+this.controlTag);
+					final List<AFExtractor> extractors = new AFExtractorFactory().parseFieldExtractors(this.controlFields);
+					if(extractors.size()!=1) {
+						LOG.error("extractor list should have size==1 . got "+extractors);
+						return -1;
+						}
+					controlAFExtractor = extractors.get(0);
+					if(!controlAFExtractor.validateHeader(in.getHeader())) {
+						LOG.error("Invalid : "+controlAFExtractor);
 						return -1;
 						}
 					}
-				
+				else
+					{
+					controlAFExtractor = null;
+					}
 				
 				int count = 0;
 				final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader());
@@ -383,20 +395,12 @@ public class CaseControlJfx extends JfxLauncher {
 						
 						for(int i=0;i< 2;++i)
 							{
-							if(i==1 && this.controlTag!=null)
+							if(i==1 && controlAFExtractor!=null)
 								{
-								if(ctx.hasAttribute(this.controlTag)) {
-									try 
-										{
-										final List<Double> dvals =ctx.getAttributeAsDoubleList(this.controlTag, Double.NaN);
-										if(alt_idx< dvals.size() && dvals.get(alt_idx)!=null) {	
-										    final double d= dvals.get(alt_idx);
-											if(!Double.isNaN(d) && d>=0 && d<=1.0) mafs[1]=d;
-											}
-										}
-									catch(NumberFormatException err)
-										{
-										}
+								final List<Double> dvals = controlAFExtractor.parse(ctx);
+								if(alt_idx< dvals.size() && dvals.get(alt_idx)!=null) {	
+								    final double d= dvals.get(alt_idx);
+									if(!Double.isNaN(d) && d>=0 && d<=1.0) mafs[1]=d;
 									}
 								}
 							else
@@ -444,7 +448,7 @@ public class CaseControlJfx extends JfxLauncher {
 	        xAxis.setLabel("Cases");
 	        
 	        final NumberAxis yAxis = new NumberAxis(0.0,1.0,0.1);
-	        yAxis.setLabel("Controls"+(this.controlTag==null?"":"["+this.controlTag+"]"));
+	        yAxis.setLabel("Controls"+(StringUtil.isBlank(this.controlFields)?"":"["+this.controlFields+"]"));
 	        final ScatterChart<Number, Number>   chart =  new ScatterChart<>(xAxis,yAxis);
 	        for(final XYChart.Series<Number,Number> series:partition.getSeries())
 		        {
