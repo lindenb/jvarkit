@@ -4,8 +4,10 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -19,6 +21,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
+import com.github.lindenb.jvarkit.util.vcf.ContigPos;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -134,8 +137,8 @@ public class VcfGapFrequent extends Launcher {
 				{
 				return;
 				}
-			LOG.debug("Scanning "+ssr.getSequenceName()+":"+start_incl_1+"-"+end_exclusive+" for "+this.sampleName);
-			int count_frequent=0;
+			//LOG.debug("Scanning "+ssr.getSequenceName()+":"+start_incl_1+"-"+end_exclusive+" for "+this.sampleName);
+			final Set<Integer> found_pos = new HashSet<>();
 			for(final FreqentDB db:freqentDBs)
 				{
 				if(db.afExtractors.isEmpty()) continue;
@@ -145,17 +148,18 @@ public class VcfGapFrequent extends Launcher {
 				while(iter.hasNext())
 					{
 					final VariantContext ctx = iter.next();
+					if(found_pos.contains(ctx.getStart())) continue;
 					final OptionalDouble maxAf= db.afExtractors.
 							stream().flatMap(EX->EX.parse(ctx).stream()).
 							mapToDouble(AF->AF==null ?0:AF.doubleValue()).
 							filter(V-> V> af_treshold).
 							max();//pas noneMatch please
 					if(!maxAf.isPresent()) continue;
-					count_frequent++;
+					found_pos.add(ctx.getStart());
 					}
 				iter.close();
 				}
-			if(count_frequent==0) return;
+			if(found_pos.isEmpty()) return;
 			out.print(ssr.getSequenceName());
 			out.print("\t");
 			out.print(start_incl_1-1);
