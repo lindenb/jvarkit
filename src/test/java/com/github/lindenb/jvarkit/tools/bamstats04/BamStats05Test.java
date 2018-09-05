@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.bamstats04;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,6 +31,11 @@ public void test1(final String inBam) throws IOException {
 	final File bedout = createTmpFile(".bed");
 	final SAMSequenceDictionary dict= SAMSequenceDictionaryExtractor.extractDictionary(new File(inBam));
 	if(dict==null) return;
+	
+	if(dict.getSequences().stream().
+			mapToInt(L->L.getSequenceLength()).
+			max().orElse(0) > 1_000_000) return;
+	
 	final PrintWriter pw = new PrintWriter(bedout);
 	final Set<String> seen_contig = new HashSet<>();
 	for(int i=0;i<100;i++)

@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -38,7 +37,9 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
+import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
@@ -53,9 +54,6 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
@@ -94,11 +92,14 @@ public class VcfAfInfoFilter extends Launcher{
 	private String genotypeFilter="";
 	@Parameter(names={"--treshold","-t"},description="Treshold for allele Frequency. ALT alleles above this AF value will be subject to filtration.")
 	private double user_af_treshold = 1E-3;
-	@Parameter(names={"-af","--af"},description="A list of AF fields, separated with comma,semicolon or whitespace that will be used to extract a AF field.")
-	private String user_af_fields = "";
+	@Parameter(names={"-af","--af"},description="A list of AF fields, separated with comma,semicolon or whitespace that will be used to extract a AF field.",hidden=true)
+	private String deprecated_user_af_fields = "";
 	@Parameter(names={"-acn","--acn"},description="A list of pairs of AC/AF fields separated with comma,semicolon or whitespace that will be used to calculate the AF. "
-			+ "If an attribute contains  '*', it will be replaced by 'AC' and 'AN'. eg: 'gnomad_exome_AC_NFE,gnomad_exome_AN_NFE,my_pop_*'")
-	private String user_ac_an_fields = "";
+			+ "If an attribute contains  '*', it will be replaced by 'AC' and 'AN'. eg: 'gnomad_exome_AC_NFE,gnomad_exome_AN_NFE,my_pop_*'",hidden=true)
+	private String deprecated_user_ac_an_fields = "";
+	@Parameter(names={"-F","--fields"},description="[20180905]"+AFExtractorFactory.OPT_DESC)
+	private String user_fields_str = "";
+
 	@Parameter(names={"-i","--no-valid"},description="Ignore INFO Field Validation. (e.g INFO field not declarated in VCF header)")
 	private boolean ignore_INFO_field_validation=false;
 	@Parameter(names={"-nfe","--nfe"},description="Add INFO fields for the 'NFE' population created by vcfgnomad: gnomad_exome_AC_NFE,gnomad_exome_AF_NFE,gnomad_exome_AN_NFE,gnomad_genome_AC_NFE,gnomad_genome_AF_NFE,gnomad_genome_AN_NF")
@@ -107,138 +108,11 @@ public class VcfAfInfoFilter extends Launcher{
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
 	
-	private abstract class AFExtractor
-		{
-		abstract boolean validateHeader(final VCFHeader header);
-		abstract List<Object> parse(final VariantContext ctx);
-		}
-	
-	private class AFFieldExtractor extends AFExtractor
-		{
-		private String afAttr;
-		AFFieldExtractor(final String afAttr) {
-			this.afAttr = afAttr;
-			if(StringUtil.isBlank(this.afAttr)) throw new IllegalArgumentException("AF is blank");
-			}
-		@Override
-		boolean validateHeader(final VCFHeader header) {
-			final VCFInfoHeaderLine hdr = header.getInfoHeaderLine(this.afAttr);
-			if(hdr==null) {
-				final String msg = "VCF header doesn't contain the INFO field " +this.afAttr;
-				LOG.warn(msg);
-				return false;
-				}
-			if(hdr.getType()!=VCFHeaderLineType.Float) {
-				final String msg = "INFO=<ID=" +this.afAttr+"> extected Type=Float but got "+hdr.getType();
-				LOG.warn(msg);
-				return false;
-				}
-			if(hdr.getCountType()!=VCFHeaderLineCount.A) {
-				final String msg = "INFO=<ID=" +this.afAttr+"> extected Number=A but got "+hdr.getCountType();
-				LOG.warn(msg);
-				return false;
-				}
-			return true;
-			}
-		@Override
-		List<Object> parse(final VariantContext ctx) {
-			if(!ctx.hasAttribute(this.afAttr)) return null;
-			return ctx.getAttributeAsList(this.afAttr);
-			}
-		@Override
-		public String toString() {
-			return "AF Extractor using INFO/"+this.afAttr;
-			}
-		}
-	private class ACANFieldsExtractor extends AFExtractor
-		{
-		private String acAttr;
-		private String anAttr;
-		ACANFieldsExtractor(final String acAttr,final String anAttr) {
-			this.acAttr = acAttr;
-			this.anAttr = anAttr;
-			if(StringUtil.isBlank(this.acAttr)) throw new IllegalArgumentException("AC is blank");
-			if(StringUtil.isBlank(this.anAttr)) throw new IllegalArgumentException("AN is blank");
-			if(this.acAttr.equals(this.anAttr)) throw new IllegalArgumentException(acAttr+"="+this.anAttr);
-			}
-		@Override
-		boolean validateHeader(final VCFHeader header) {
-			VCFInfoHeaderLine hdr = header.getInfoHeaderLine(this.acAttr);
-			if(hdr==null) {
-				final String msg = "VCF header doesn't contain the INFO field " +this.acAttr;
-				LOG.warn(msg);
-				return false;
-				}
-			if(hdr.getType()!=VCFHeaderLineType.Integer) {
-				final String msg = "INFO=<ID=" +this.acAttr+"> expected Type=Integer but got "+hdr.getType();
-				LOG.warn(msg);
-				return false;
-				}
-			if(hdr.getCountType()!=VCFHeaderLineCount.A) {
-				final String msg = "INFO=<ID=" +this.acAttr+"> expected Number=A but got "+hdr.getCountType();
-				LOG.warn(msg);
-				return false;
-				}
-			hdr = header.getInfoHeaderLine(this.anAttr);
-			if(hdr==null) {
-				final String msg = "VCF header doesn't contain the INFO field " +this.anAttr;
-				LOG.warn(msg);
-				return false;
-				}
-			if(hdr.getType()!=VCFHeaderLineType.Integer) {
-				final String msg = "INFO=<ID=" +this.anAttr+"> expected Type=Integer but got "+hdr.getType();
-				LOG.warn(msg);
-				return false;
-				}
-			
-			if(!hdr.isFixedCount())
-				{
-				final String msg = "INFO=<ID=" +this.anAttr+"> expected fixed count "+hdr.getCountType();
-				LOG.warn(msg);
-				return false;
-				}
-			
-			if(hdr.getCount()!=1) {
-				final String msg = "INFO=<ID=" +this.anAttr+"> expected Number=1 but got "+hdr.getCount();
-				LOG.warn(msg);
-				return false;
-				}
-			return true;
-			}
-		
-		@Override
-		List<Object> parse(final VariantContext ctx) {
-			if(!ctx.hasAttribute(this.acAttr)) return null;
-			if(!ctx.hasAttribute(this.anAttr)) return null;
-			final double an = (double)ctx.getAttributeAsInt(this.anAttr, 0);
-			if(an>0) {
-				return ctx.getAttributeAsList(this.acAttr).
-						stream().
-						map(O->objectToFrequency(O)).
-						map(V->V==null?null:V/an).
-						collect(Collectors.toList());
-				}
-			return null;
-			}
-		@Override
-		public String toString() {
-			return "AF Extractor using INFO/"+this.acAttr+" and INFO/"+this.anAttr;
-			}
-		}
 
 	public VcfAfInfoFilter() {
 		
 	}
 	
-	private Double objectToFrequency(final Object o) {
-		if(o==null) return null;
-		if(o instanceof Double) return Double.class.cast(o);
-		if(o instanceof Float) return Float.class.cast(o).doubleValue();
-		if(o instanceof Integer) return Integer.class.cast(o).doubleValue();
-		final String s = o.toString();
-		if(StringUtil.isBlank(s) || s.equals("null") || s.equals(".")) return null;
-		return Double.parseDouble(s);
-		}
 	
 	@Override
 	protected int doVcfToVcf(
@@ -249,51 +123,40 @@ public class VcfAfInfoFilter extends Launcher{
 		try
 			{
 			if(this.vcf_gnomad_nfe) {
-				this.user_af_fields += ",gnomad_exome_AF_NFE,gnomad_genome_AF_NFE";
-				this.user_ac_an_fields += ",gnomad_exome_AC_NFE,gnomad_exome_AN_NFE,"
-						+ "gnomad_genome_AC_NFE,gnomad_genome_AN_NFE";
+				this.user_fields_str += ",gnomad_exome_AF_NFE,gnomad_genome_AF_NFE";
+				this.user_fields_str += ",gnomad_exome_AC_NFE/gnomad_exome_AN_NFE,"
+						+ "gnomad_genome_AC_NFE/gnomad_genome_AN_NFE";
 			
 			}
-			
-			
-			final List<AFExtractor> afExtractors = new ArrayList<>();
-			final VCFHeader header = in.getHeader();
-			
-			if(!StringUtil.isBlank(this.user_af_fields)) {
-				for(final String s:this.user_af_fields.split("[,; \t\n]+"))
-					{
-					if(StringUtil.isBlank(s)) continue;
-					if(s.contains("*")) {
-						LOG.error("INFO/"+s+" contains a '*'");
-						return -1;
-						}
-					final AFFieldExtractor extractor = new AFFieldExtractor(s);
-					if(!extractor.validateHeader(header) && !this.ignore_INFO_field_validation)
-						{
-						LOG.warn("Ignoring "+extractor);
-						continue;
-						}
-					afExtractors.add(extractor);
-					}
+			if(!StringUtil.isBlank(this.deprecated_user_af_fields)) {
+				LOG.warn("-af use is deprecated.");
+				this.user_fields_str +="," +
+						String.join(" , ",this.deprecated_user_af_fields.split("[,; \t\n]+")
+						);
 				}
-			if(!StringUtil.isBlank(this.user_ac_an_fields)) {
-				final String array[]=this.user_ac_an_fields.split("[,; \t\n]+");
+			if(!StringUtil.isBlank(this.deprecated_user_af_fields)) {
+				LOG.warn("-af use is deprecated.");
+				this.user_fields_str +="," +
+						String.join(" , ",this.deprecated_user_af_fields.split("[,; \t\n]+")
+						);
+				}
+			
+			if(!StringUtil.isBlank(this.deprecated_user_ac_an_fields)) {
+				LOG.warn("--acn use is deprecated.");
+				final String array[]=this.deprecated_user_ac_an_fields.split("[,; \t\n]+");
 				int i=0;
 				while(i<array.length)
 					{
 					String s= array[i];
 					if(StringUtil.isBlank(s)) {i++; continue;}
-					final String acf;
-					final String anf;
 					
 					if(s.contains("*"))
 						{
-						acf = s.replace("*", "AC");
-						anf = s.replace("*", "AN");
+						this.user_fields_str+= ";"+s;
 						}
 					else
 						{
-						acf = s;
+						final String acf = s;
 						i++;
 						while(i<array.length)
 							{
@@ -302,28 +165,34 @@ public class VcfAfInfoFilter extends Launcher{
 							break;
 							}
 						if(i==array.length) {
-							LOG.error("missing AN for "+acf+ " in "+this.user_ac_an_fields);
+							LOG.error("missing AN for "+acf+ " in "+this.deprecated_user_ac_an_fields);
 							return -1;
 							}
-						anf = s;
+						final String anf = s;
+						this.user_fields_str+= ";"+ acf+"/"+anf;
 						}
-					
-					
-					final ACANFieldsExtractor extractor = new ACANFieldsExtractor(acf,anf);
-					if(!extractor.validateHeader(header) && !this.ignore_INFO_field_validation)
-						{
-						LOG.warn("Ignoring "+extractor);
-						i++;
-						continue;
-						}
-					afExtractors.add(extractor);
-					i++;
 					}
 				}
 			
+			final AFExtractorFactory afExtractorFactory = new AFExtractorFactory();
+			
+			final VCFHeader header = in.getHeader();
+			final List<AFExtractor> afExtractors = new ArrayList<>(afExtractorFactory.parseFieldExtractors(this.user_fields_str));
+			afExtractors.removeIf(T->{
+				if(!T.validateHeader(header) && !this.ignore_INFO_field_validation)
+					{
+					LOG.warn("Ignoring "+T+ " because it's not valid.");
+					return true;
+					}
+				return false;
+				});
+			
+			
 			if(afExtractors.isEmpty()) {
 				LOG.warn("No extractor was defined !");
-			}
+				} 
+			
+			
 			
 			final Set<VCFHeaderLine> headerLines = new HashSet<>();
 			final VCFFilterHeaderLine noAltVariantFilter = new VCFFilterHeaderLine(
@@ -339,11 +208,14 @@ public class VcfAfInfoFilter extends Launcher{
 			this.recalculator.setHeader(header);
 			headerLines.stream().forEach(H->header.addMetaDataLine(H));
 			
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
+			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
+					dictionary(header).
+					logger(LOG).
+					build();
 			out.writeHeader(header);
 			while(in.hasNext())
 				{
-				final VariantContext ctx = progress.watch(in.next());
+				final VariantContext ctx = progress.apply(in.next());
 
 				if(!ctx.isVariant())
 					{
@@ -356,14 +228,14 @@ public class VcfAfInfoFilter extends Launcher{
 				for(final AFExtractor afExtractor : afExtractors)
 					{
 					if(ok_alleles.isEmpty()) break;
-					final List<Object> afo_list = afExtractor.parse(ctx);
+					final List<Double> afo_list = afExtractor.parse(ctx);
 					if(afo_list==null) continue;
 					if(afo_list.size()!=alt_alleles.size()) {
 						LOG.warn("in "+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference()+" illegal number of AF values "+afExtractor);
 						}
 					for(int x=0;x< afo_list.size() && x < alt_alleles.size();++x)
 						{
-						final Double af = objectToFrequency(afo_list.get(x));
+						final Double af = afo_list.get(x);
 						if(af==null) continue;
 						if(af.doubleValue()> this.user_af_treshold)
 							{
@@ -424,7 +296,7 @@ public class VcfAfInfoFilter extends Launcher{
 				vcb.genotypes(genotypes);
 				out.add(this.recalculator.apply(vcb.make()));
 				}
-			progress.finish();
+			progress.close();
 			return 0;
 			}
 		catch(final Exception err) {

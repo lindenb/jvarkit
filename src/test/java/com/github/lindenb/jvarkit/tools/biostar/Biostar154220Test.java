@@ -19,7 +19,7 @@ public class Biostar154220Test extends TestUtils {
 		if(SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(samFile)).
 				getSequences().stream().
 				mapToInt(L->L.getSequenceLength()).
-				min().orElse(0) > 1_000_000) return;
+				max().orElse(0) > 1_000_000) return;
 		
 		final File out1 = createTmpFile(".bam");
 		Assert.assertEquals(

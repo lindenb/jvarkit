@@ -150,7 +150,7 @@ public class SamAddPI extends Launcher
 				final SAMRecord rec=progress.watch(iter.next());
 				tmpBamWriter.addAlignment(rec);
 				final SAMReadGroupRecord rg = rec.getReadGroup();
-				
+				if(rg==null || rg.getId()==null) continue;
 				final List<Integer> insertlist = rg2insertsize.get(rg.getId());
 				if(insertlist==null) continue;
 				

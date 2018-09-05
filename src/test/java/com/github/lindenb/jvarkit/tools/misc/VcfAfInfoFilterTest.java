@@ -21,4 +21,17 @@ public class VcfAfInfoFilterTest extends TestUtils {
 			}),0);
 		assertIsVcf(out);
 		}
+	@Test(dataProvider="all-vcf-files")
+	public void testAfFactory(final String inputFile) 
+		throws IOException
+		{
+		final File out = super.createTmpFile(".vcf");
+		Assert.assertEquals(new VcfAfInfoFilter().instanceMain(new String[] {
+			"--fields","AC/AN;AF;zobi",
+			"-i",
+			"-o",out.getPath(),
+			inputFile
+			}),0);
+		assertIsVcf(out);
+		}
 }

@@ -55,7 +55,7 @@ public void testTxtAnnot() throws IOException {
 			"SCN5A","NOTCH2"
 			}),0);
 	Assert.assertTrue(Files.lines(out.toPath()).anyMatch(L->L.contains("Hello")));
-	super.assertIsXml(annot);
+	super.assertIsXml(out);
 	}
 
 }
