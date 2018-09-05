@@ -26,7 +26,9 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,24 +43,27 @@ import java.util.zip.ZipOutputStream;
 import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import javafx.application.Application;
@@ -84,37 +89,80 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Label;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 /*
 BEGIN_DOC
 
+## Examples
+
+```
+ java -jar dist/vcfstatsjfx.jar input.vcf.gz
+```
+
+```
+grep -E '(^#|missense)' input.vcf | java -jar dist/vcfstatsjfx.jar --stdin 
+```
+
+## Screenshot
+
+  *  https://twitter.com/yokofakun/status/983280288238317568
+
+
+![https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4](https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4 "animation")
+
+
+END_DOC
 */
 @Program(name="vcfstatsjfx",
-description="GUI: VCF statitics",
+description="GUI: VCF statistics",
+biostars= {308310},
 keywords={"vcf","stats","jfx"}
 )
 public class VcfStatsJfx extends JfxLauncher {
 	private static final Logger LOG=Logger.build(VcfStatsJfx.class).make();
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private final ReentrantLock lock = new ReentrantLock();
-	private int refreshEverySeconds = 2;
 	private ProgressBar progressBar;
-	@Parameter(names={"-o","--output"},description="output Directory or zip file. If defined, the application will exit automatically")
+
+	@Parameter(names={"-s","--seconds"},description="Refresh screen every 's' seconds")
+	private int refreshEverySeconds = 15;
+	@Parameter(names={"--max-concordance"},description="Max number of concordance to display. disable if <=0 ")
+	private int max_condordance = 100;
+	@Parameter(names={"-o","--output"},description="output images in directory or zip file (filename ends with '.zip') or 'R' file (filename ends with '.R' **UNDER CONSTRUCTION**) . If defined, the application will exit automatically")
 	private File outputFile = null;
+	@Parameter(names={"--trancheIndelSize"},description="tranches for the Indel size "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
+	private RangeOfIntegers indelTranches =new RangeOfIntegers(-1000,-100,-50,-20,-15,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,15,20,50,100,1000);
 	@Parameter(names={"--trancheAffected"},description="tranches for the number of affected. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
-	
+	@Parameter(names={"--stdin"},description="if there is no file argument. Read vcf from stdin instead of opening a FileOpen dialog")
+	private boolean vcf_stdin = false;
+	@Parameter(names={"-hr","--hr"},description="Ignore HOM_REF in genotype type.")
+	private boolean ignore_HOM_REF = false;
+	@Parameter(names={"-fgt","--fgt"},description="Ignore filtered **GENOTYPES**")
+	private boolean ignore_filtered_genotypes = false;
+	@Parameter(names={"-ncl","--norm-contig-length"},description="For the 'contig' Panel, normalize on contig length.")
+	private boolean normalize_on_contig_length = false;
+	@Parameter(names={"--altering","--damaging"},description="For Prediction, just display children of SO:0001818 ( protein_altering_variant )")
+	private boolean only_protein_altering_variants = false;
+	@Parameter(names={"--predictions-per-sample","-pps"},description="Show Predictions per sample.")
+	private boolean enable_predictions_per_sample = false;
+	@Parameter(names={"--prefix"},description="Title Prefix")
+	private String titlePrefix="";
+
 	
 	private volatile boolean stop = false;
 	private class ChartGenerator
 		{
 		Tab tab;
 		boolean enabled = true;
+		long nVariants = 0;
 		boolean isEnabled() {
 			return enabled;
 			}
@@ -131,6 +179,15 @@ public class VcfStatsJfx extends JfxLauncher {
 			this.tab.setOnClosed(AE->{this.enabled=false;});
 			return this.tab;
 			}
+		
+		void title(final Chart c,final String s) {
+			c.setTitle(
+					StringUtil.isBlank(titlePrefix)?
+					s:
+					titlePrefix+ " : " + s
+					);
+			}
+		
 		void visit(final VariantContext ctx) {
 			
 			}
@@ -147,6 +204,19 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		public String getFilename() {
 			return getTabTitle().replaceAll("[^A-Za-z_0-9]+","")+".png";
+			}
+		
+		protected boolean isCalled(final Genotype g) {
+			if(g==null || !g.isCalled() || !g.isAvailable()) return false;
+			if(ignore_filtered_genotypes && g.isFiltered()) return false;
+			return g.getAlleles().stream().anyMatch(A->A.isCalled() && !A.isReference());
+			}
+		protected void saveR(final JFXChartExporter exporter) {
+		 	if(!isEnabled()) return;
+		 	final Node content = this.tab.getContent();
+		 	if(content==null || !(content instanceof Chart)) return;
+		 	final Chart chart = Chart.class.cast(content);
+		 	exporter.exportToR(chart);
 			}
 		protected void saveImageAs(final File dir)
 			 	throws IOException
@@ -197,7 +267,7 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(t.name(),this.count.count(t)));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
+			title(bc,this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Variant Type");       
 	        yAxis.setLabel("Count");
@@ -209,6 +279,49 @@ public class VcfStatsJfx extends JfxLauncher {
 			this.count.incr(ctx.getType());
 			}
 		}
+	private class StructuralVariantTypeGenerator extends ChartGenerator
+		{
+		private final Counter<StructuralVariantType> count = new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "SV Type";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final NumberAxis yAxis = new NumberAxis();
+	
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(
+						Arrays.asList(StructuralVariantType.values()).
+							stream().map(I->I.name()).
+							collect(Collectors.toList()))
+					);
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final BarChart<String,Number> bc = 
+			            new BarChart<String,Number>(xAxis,yAxis);
+			
+			for(final StructuralVariantType t:StructuralVariantType.values())
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(t.name(),this.count.count(t)));
+				}
+			bc.getData().add(series1);
+			title(bc,this.getChartTitle() +" N="+niceIntFormat.format(this.count.getTotal()));
+	        bc.setLegendVisible(false);
+	        xAxis.setLabel("SV Type");       
+	        yAxis.setLabel("Count");
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			final StructuralVariantType svt=ctx.getStructuralVariantType();
+			if(svt==null) return;
+			this.count.incr(svt);
+			}
+		}
+	
 	
 	private class FilterUsageGenerator extends ChartGenerator
 		{
@@ -230,7 +343,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			final CategoryAxis xAxis = new CategoryAxis(
 					FXCollections.observableArrayList(count.keySet())
 					);
-			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final XYChart.Series<String,Number> series1 = new XYChart.Series<>();
 			final BarChart<String,Number> bc = 
 			            new BarChart<String,Number>(xAxis,yAxis);
 			
@@ -239,15 +352,17 @@ public class VcfStatsJfx extends JfxLauncher {
 				series1.getData().add(new XYChart.Data<String,Number>(t,this.count.count(t)));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle());
+			title(bc,this.getChartTitle()+" N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
-	        xAxis.setLabel("Filter");       
-	        yAxis.setLabel("Count");
+	        xAxis.setTickLabelRotation(90);
+	        xAxis.setLabel("Filters");       
+	        yAxis.setLabel("Variant Count N="+niceIntFormat.format(nVariants));
 	        return bc;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx) {
+			++nVariants;
 			if(ctx.isFiltered())
 				{
 				for(String f:ctx.getFilters()) {
@@ -257,7 +372,6 @@ public class VcfStatsJfx extends JfxLauncher {
 			else {
 				this.count.incr(VCFConstants.PASSES_FILTERS_v4);
 				}
-			
 			}
 		}
 	
@@ -272,7 +386,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		
 		@Override
 		String getChartTitle() {
-			return "Contigs";
+			return "Contigs" +(normalize_on_contig_length?" Normalized":"");
 			}
 		
 		@Override
@@ -292,22 +406,209 @@ public class VcfStatsJfx extends JfxLauncher {
 				{
 				long n = this.count.count(ssr.getSequenceName());
 				if(n==0L) continue;
-				series1.getData().add(new XYChart.Data<String,Number>(ssr.getSequenceName(),n));
+				series1.getData().add(new XYChart.Data<String,Number>(ssr.getSequenceName(),
+						normalize_on_contig_length ?
+								1e6 * n/(double)ssr.getSequenceLength() : 
+								n
+						));
 				}
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle());
+			title(bc,this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
 	        xAxis.setLabel("Contig");       
+	        yAxis.setLabel(normalize_on_contig_length? "Variant(s) per Mbp":"Count");
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			this.nVariants++;
+			this.count.incr(ctx.getContig());
+			}
+		}
+	private class NumAltsGenerator extends ChartGenerator
+		{
+		private final Counter<Integer> count = new Counter<>();
+		NumAltsGenerator() {
+			}
+		
+		@Override
+		String getChartTitle() {
+			return "Num. ALT";
+			}
+		
+		@Override
+		Chart makeChart() {
+			if(this.count.getCountCategories()==0) return null;
+			final NumberAxis yAxis = new NumberAxis();
+			final int max_count  = count.getMostFrequent();
+			final List<String> L = new ArrayList<>(max_count+1);
+			for(int x=0;x<=max_count;++x) {
+				L.add(niceIntFormat.format(x));
+			}
+			
+			
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(L)
+					);
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final BarChart<String,Number> bc = 
+			            new BarChart<String,Number>(xAxis,yAxis);
+			
+			for(int x=0;x<=max_count;++x)
+				{
+				long n = this.count.count(x);
+				series1.getData().add(new XYChart.Data<String,Number>(
+						niceIntFormat.format(x),
+						n)
+						);
+				}
+			bc.getData().add(series1);
+			title(bc,this.getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+	        bc.setLegendVisible(false);
+	        xAxis.setLabel("N. ALT");       
 	        yAxis.setLabel("Count");
 	        return bc;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx) {
-			this.count.incr(ctx.getContig());
+			this.nVariants++;
+			this.count.incr(ctx.getAlternateAlleles().size());
 			}
 		}
+	
+	private abstract class AbstractAverageGTGenerator extends ChartGenerator
+		{
+		protected class Depth{long sum=0L;long count=0L;
+		double avg() { return count==0L?0.0:sum/(double)count;}
+		}
+		private final Map<String,Depth> sample2count;
+		protected AbstractAverageGTGenerator(final List<String> samples) {
+			this.sample2count = new HashMap<>(samples.size());
+			for(final String s:samples)
+				{
+				this.sample2count.put(s, new Depth());
+				}
+			}
+		@Override
+		abstract String getChartTitle();
+		
+		@Override
+		Chart makeChart() {
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final List<String> categories = new ArrayList<>(this.sample2count.size());
+			for(final String sn: this.sample2count.keySet().
+					stream().
+					sorted((A,B)->Double.compare(sample2count.get(A).avg(),sample2count.get(B).avg())).
+					collect(Collectors.toList())
+					)
+				{
+				final Depth dp = this.sample2count.get(sn);
+				final String key = sn+" "+niceIntFormat.format(dp.count);
+				categories.add(key);
+				series1.getData().add(new XYChart.Data<String,Number>(
+						key,
+						dp.avg()
+						));
+				}
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(categories));
+			final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
+	
+			bc.getData().add(series1);
+			bc.setCategoryGap(1);
+			title(bc,getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+		    bc.setLegendVisible(false);
+		    bc.setVerticalGridLinesVisible(false);
+	        xAxis.setLabel("Sample N="+niceIntFormat.format(this.sample2count.size()));
+	        yAxis.setLabel(getYLabel());
+	        xAxis.setTickLabelRotation(90);
+		    return bc;
+			}
+		
+		abstract String getYLabel();
+		
+		abstract void visitGenotype(final Genotype gt);
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			nVariants++;
+			for(final Genotype gt:ctx.getGenotypes())
+				{
+				if(gt.isFiltered() && ignore_filtered_genotypes) continue;
+				visitGenotype(gt);
+				}
+			}
+	
+		}
 
+	private class AverageDepthGenerator extends AbstractAverageGTGenerator
+		{
+		AverageDepthGenerator(final List<String> samples) {
+			super(samples);
+			}
+		@Override
+		String getChartTitle() {
+			return "DP/Sample";
+			}
+		@Override
+		String getYLabel() {
+			return "Average Depth";
+			}
+		@Override
+		void visitGenotype(final Genotype gt) {
+			if(!gt.hasDP()) return;
+			final Depth dp=super.sample2count.get(gt.getSampleName());
+			dp.count++;
+			dp.sum+=gt.getDP();
+			}
+		}
+	
+	private class AverageGQGenerator extends AbstractAverageGTGenerator
+		{
+		AverageGQGenerator(final List<String> samples) {
+			super(samples);
+			}
+		@Override
+		String getChartTitle() {
+			return "Genotype Quality/Sample";
+			}
+		@Override
+		String getYLabel() {
+			return "Average GQ";
+			}
+		@Override
+		void visitGenotype(final Genotype gt) {
+			if(!gt.hasGQ()) return;
+			final Depth dp=super.sample2count.get(gt.getSampleName());
+			dp.count++;
+			dp.sum+=gt.getGQ();
+			}
+		}
+	private class AveragePhasedGTGenerator extends AbstractAverageGTGenerator
+		{
+		AveragePhasedGTGenerator(final List<String> samples) {
+			super(samples);
+			}
+		@Override
+		String getChartTitle() {
+			return "Fraction of Phased Genotype/Sample";
+			}
+		@Override
+		String getYLabel() {
+			return "Fraction of Phased Genotypes";
+			}
+		@Override
+		void visitGenotype(final Genotype gt) {
+			if(!gt.hasGQ()) return;
+			if(gt.getPloidy()<2) return;
+			final Depth dp=super.sample2count.get(gt.getSampleName());
+			dp.count++;
+			dp.sum+=gt.isPhased()?1:0;
+			}
+		}
+	
 	private class GenotypeTypeGenerator extends ChartGenerator
 		{
 		private final Map<String,Counter<GenotypeType>> sample2count;
@@ -338,6 +639,7 @@ public class VcfStatsJfx extends JfxLauncher {
 
 			for(final GenotypeType gt:GenotypeType.values())
 				{
+				if(ignore_HOM_REF && gt.equals(GenotypeType.HOM_REF)) continue;
 				final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 				series1.setName(gt.name());
 				for(final String sn:this.samples) {
@@ -347,26 +649,169 @@ public class VcfStatsJfx extends JfxLauncher {
 					}
 				bc.getData().add(series1);
 				}
-			
-	        bc.setTitle(this.getChartTitle());
-	        xAxis.setLabel("Sample");       
+			bc.setCategoryGap(1);
+			title(bc,this.getChartTitle()+" N. Variants "+niceIntFormat.format(nVariants));
+	        xAxis.setLabel("Sample (N="+niceIntFormat.format(this.samples.size())+")");
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
 	        yAxis.setLabel("GT");
 	        return bc;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx) {
+			nVariants++;
 			for(final String sn:this.samples)
 				{
-				this.sample2count.get(sn).incr(ctx.getGenotype(sn).getType());
+				final Genotype gt= ctx.getGenotype(sn);
+				if(gt!=null && ignore_filtered_genotypes && gt.isFiltered()) continue;
+				this.sample2count.get(sn).incr(gt.getType());
+				}
+			}
+		}
+	
+	private class GenotypesConcordanceGenerator extends ChartGenerator
+		{
+		private final Counter<String> count=new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "Genotype Condordance";
+			}
+		
+		@Override
+		Chart makeChart() {
+			if(this.count.isEmpty() || max_condordance<1) return null;
+			
+			final List<String> bestPairs = this.count.keySetDecreasing().stream().limit(max_condordance).collect(Collectors.toList());
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(bestPairs));
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			
+			final BarChart<String,Number> bc = 
+		            new BarChart<>(xAxis,yAxis);
+		
+			bc.getData().add(series1);
+			
+			for(final String sn:bestPairs)
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(
+					sn,100.0*(this.count.count(sn)/(double)nVariants)
+					));
+						
+				}
+			bc.setCategoryGap(1);
+			title(bc,
+	        		this.getChartTitle()+
+	        		" N. Variants "+niceIntFormat.format(nVariants)+
+	        		(this.count.getCountCategories()<max_condordance?"":" (Best "+niceIntFormat.format(max_condordance)+")")
+	        		)
+	        		;
+	        xAxis.setLabel("Pair");
+	        yAxis.setLabel("Percent of Variants (N.= "+niceIntFormat.format(nVariants)+")");
+	        xAxis.setTickLabelRotation(90);
+	        bc.setLegendVisible(false);
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			nVariants++;
+			for(int i=0;i+1 < ctx.getNSamples();i++)
+				{
+				final Genotype g1 = ctx.getGenotype(i);
+				if(!isCalled(g1)) continue;
+				for(int j=i+1; j < ctx.getNSamples();j++)
+					{
+					final Genotype g2 = ctx.getGenotype(j);
+					if(!isCalled(g2)) continue;
+					if(!g1.sameGenotype(g2)) continue;
+					
+					this.count.incr(g1.getSampleName()+" ~ "+g2.getSampleName());
+					}
 				}
 			}
 		}
 
+	
+	private class NumberOfNoCallGenerator extends ChartGenerator
+		{
+		private final int nSamples ;
+		private final Counter<Integer> count=new Counter<>();
+		NumberOfNoCallGenerator(int nSamples) {
+			this.nSamples = nSamples;
+		}
+		@Override
+		String getChartTitle() {
+			return "NoCalls";
+			}
+		
+		@Override
+		Chart makeChart() {
+			if(this.count.isEmpty()) return null;
+			int max_no_call = this.count.keySet().stream().mapToInt(G->G.intValue()).max().orElse(0);
+			if(max_no_call==0) return null;
+			final List<String> L = new ArrayList<>();
+			for(int x=1;x<=max_no_call;++x) {
+				if(this.count.count(x) ==0) continue;
+				L.add(niceIntFormat.format(x));
+			}
+			if(L.isEmpty()) return null;
+			
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(L));
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			
+			final BarChart<String,Number> bc = 
+		            new BarChart<>(xAxis,yAxis);
+		
+			bc.getData().add(series1);
+			
+			for(int x=1;x<=max_no_call;++x)
+				{
+				final long N=this.count.count(x);
+				if(N==0) continue;
+				series1.getData().add(new XYChart.Data<String,Number>(
+					niceIntFormat.format(x),
+					N
+					));
+						
+				}
+			bc.setCategoryGap(1);
+			title(bc,
+	        		this.getChartTitle() +
+	        		" N. Variants "+niceIntFormat.format(nVariants) +
+	        		" N. Samples "+niceIntFormat.format(nSamples)
+	        		)
+	        		;
+	        yAxis.setLabel("Number of Variants (num variants "+niceIntFormat.format(this.nVariants)+")");
+	        xAxis.setLabel("Number of  NO_CALL Genotypes per Variant (num samples "+niceIntFormat.format(this.nSamples)+")");
+	        xAxis.setTickLabelRotation(90);
+	        bc.setLegendVisible(false);
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			nVariants++;
+			final int n = (int)ctx.getGenotypes().stream().
+					filter(G->ignore_filtered_genotypes?!G.isFiltered():true).
+					filter(G->G.isNoCall()).
+					count();
+			if(n==0) return;
+			this.count.incr(n);
+			}
+		}
+
+	
+	/*****************************************************************************/
 	private class AffectedSamplesGenerator extends ChartGenerator
 		{
 		private final Counter<RangeOfIntegers.Range> count = new Counter<>();
-		
+		private final int nSamples;
+		AffectedSamplesGenerator(final int nSamples) {
+			this.nSamples = nSamples;
+			}
 		@Override
 		String getChartTitle() {
 			return "Sample Affected";
@@ -375,16 +820,29 @@ public class VcfStatsJfx extends JfxLauncher {
 		@Override
 		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
+			
+			
+		
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final List<RangeOfIntegers.Range> L = new ArrayList<>( affectedTranches.getRanges());
+			while(!L.isEmpty() && this.count.count(L.get(0))==0L)
+				{
+				L.remove(0);
+				}
+			while(!L.isEmpty() && this.count.count(L.get(L.size()-1))==0L)
+				{
+				L.remove(L.size()-1);
+				}
+			if(L.isEmpty()) return null;
+			
 			final CategoryAxis xAxis = new CategoryAxis(
 					FXCollections.observableArrayList(
-							affectedTranches.getRanges().stream().
+							L.stream().
 							map(R->R.toString()).
 							collect(Collectors.toList()))
 					);
 			
-		
-			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
-			for(final RangeOfIntegers.Range range : affectedTranches.getRanges())
+			for(final RangeOfIntegers.Range range : L)
 				{
 				series1.getData().add(new XYChart.Data<String,Number>(
 						range.toString(),
@@ -394,75 +852,173 @@ public class VcfStatsJfx extends JfxLauncher {
 			final BarChart<String,Number> bc = 
 		            new BarChart<String,Number>(xAxis,yAxis);
 			bc.getData().add(series1);
-	        bc.setTitle(this.getChartTitle());
+			title(bc,this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
 	        bc.setLegendVisible(false);
-	        xAxis.setLabel("Num. Samples Affected.");       
-	        yAxis.setLabel("Count");
+	        xAxis.setLabel("Num. Samples Affected N. samples ="+ niceIntFormat.format(nSamples));       
+	        yAxis.setLabel("Variant Count N="+ niceIntFormat.format(nVariants));
+	        xAxis.setTickLabelRotation(90);
 	        return bc;
 			}
 		
 		@Override
 		void visit(final VariantContext ctx) {
+			++nVariants;
 			this.count.incr(
 				VcfStatsJfx.this.affectedTranches.getRange(
 					(int)ctx.getGenotypes().stream().
-						filter(G->G.isCalled() && !(G.isHomRef() || G.isFiltered() )).
+						filter(G->isCalled(G)).
 						count()	)
 				);
 			}
 		}
+	
+	
+	/*****************************************************************************/
+	private class VariantSizesGenerator extends ChartGenerator
+		{
+		private final Counter<RangeOfIntegers.Range> count = new Counter<>();
+		
+		@Override
+		String getChartTitle() {
+			return "Variant lengths";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final NumberAxis yAxis = new NumberAxis();		
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			final List<RangeOfIntegers.Range> L = new ArrayList<>( indelTranches.getRanges());
+			while(!L.isEmpty() && this.count.count(L.get(0))==0L)
+				{
+				L.remove(0);
+				}
+			while(!L.isEmpty() && this.count.count(L.get(L.size()-1))==0L)
+				{
+				L.remove(L.size()-1);
+				}
+			if(L.isEmpty()) return null;
+			
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(
+							L.stream().
+							map(R->R.toString()).
+							collect(Collectors.toList()))
+					);
+			
+			for(final RangeOfIntegers.Range range : L)
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(
+						range.toString(),
+						this.count.count(range)
+						));
+				}
+			final BarChart<String,Number> bc = 
+		            new BarChart<String,Number>(xAxis,yAxis);
+			bc.getData().add(series1);
+			title(bc,this.getChartTitle()+" N. variants ="+ niceIntFormat.format(nVariants));
+	        bc.setLegendVisible(false);
+	        xAxis.setLabel("Variant Size.");       
+	        yAxis.setLabel("Variant Count.");
+	        xAxis.setTickLabelRotation(90);
+	        return bc;
+			}
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			++nVariants;
+			this.count.incr(
+				VcfStatsJfx.this.indelTranches.getRange(1 + ctx.getEnd()-ctx.getStart())
+				);
+			}
+		}
 
-	private class ConsequenceGenerator extends ChartGenerator
+
+	
+	private class PredictionGenerator extends ChartGenerator
 		{
 		private final VcfTools tools;
-		private Counter<String> count = new Counter<>();
+		//private Counter<String> count = new Counter<>();
 		private final String sampleName;
-		private final Map<String,ConsequenceGenerator> sample2generator ;
-		ConsequenceGenerator( final VcfTools tools,final String sampleName) {
+		private SequenceOntologyTree.Term bestTerm = null;
+		private final SequenceOntologyTree tree;
+		private final SequenceOntologyTree.DamagingComparator damagingComparator;
+		private final SequenceOntologyTree.Term protein_altering_variant_term;
+		private Counter<SequenceOntologyTree.Term> countTerms = new  Counter<>();
+
+		PredictionGenerator(final VcfTools tools,final String sampleName) {
 			this.tools = tools;
 			this.sampleName = sampleName;
-			if(sampleName==null && tools.getHeader().hasGenotypingData()) {
-				sample2generator = new HashMap<>(tools.getHeader().getNGenotypeSamples());
-				for(final String sn: tools.getHeader().getSampleNamesInOrder()) {
-					sample2generator.put(sn, new ConsequenceGenerator(tools,sn));
-					}
-				}
-			else
-				{
-				sample2generator = null;
-				}
+			this.tree = tools.getSequenceOntologyTree();
+			this.damagingComparator =new SequenceOntologyTree.DamagingComparator(this.tree);
+			this.protein_altering_variant_term = this.tree.getTermByAcn("SO:0001818");
 			}
-		ConsequenceGenerator( final VcfTools tools) {
+		PredictionGenerator(final VcfTools tools) {
 			this(tools,null);
 			}
 		
 		@Override
 		String getChartTitle() {
-			return "Sample "+(this.sampleName==null?"":this.sampleName);
+			return "Predictions "+(this.sampleName==null?"":this.sampleName);
+			}
+		@Override
+		Chart makeChart() {
+			if(this.countTerms.isEmpty()) return null;
+			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+			
+			
+			for(final SequenceOntologyTree.Term t: this.countTerms.keySetDecreasing())
+				{
+				series1.getData().add(new XYChart.Data<String,Number>(
+						t.getLabel(),
+						this.countTerms.count(t)
+						));
+						
+				}
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(FXCollections.observableArrayList(this.countTerms.keySet().stream().map(T->T.getLabel()).collect(Collectors.toList()))));
+			final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
+
+			bc.getData().add(series1);
+			bc.setCategoryGap(1);
+			title(bc,getChartTitle()+ " N="+niceIntFormat.format(nVariants));
+		    bc.setLegendVisible(false);
+	        
+	        xAxis.setLabel("SOTerm");
+	        yAxis.setLabel("Number of Variants (N.= "+niceIntFormat.format(nVariants)+")");
+	        xAxis.setTickLabelRotation(90);
+		    return bc;
 			}
 		
-		private void visitTerm() {
-		
+		private void best(SequenceOntologyTree.Term term) {
+			if(this.bestTerm==null || this.damagingComparator.compare(term, this.bestTerm)<0)
+				{
+				if(bestTerm!=null) {
+					//System.err.println(term.getLabel()+" is better than "+bestTerm.getLabel());
+				}
+				this.bestTerm = term;
+				}
 			}
+		
+
+		private boolean accept(final SequenceOntologyTree.Term t) {
+			if(!only_protein_altering_variants) return true;
+			return t.isChildrenOf(protein_altering_variant_term);
+		}
 		
 		@Override
 		void visit(final VariantContext ctx)
 			{
-			if(this.sampleName==null) return;//handled by parent
-			String term="other";
-			
-			if(sample2generator!=null) {
-					for(final Genotype gt:ctx.getGenotypes()) {
-					if(gt==null || !gt.isCalled() || 
-							!gt.isAvailable() ||
-							!gt.getAlleles().stream().
-							filter(A->!A.isNoCall()).
-							anyMatch(A->A.isNonReference()))
-						{
-						}
-					}
+			this.bestTerm = null;
+			if(this.sampleName!=null && !isCalled(ctx.getGenotype(this.sampleName)))
+				{
+				return;
 				}
-			
+			this.nVariants++;
+			this.tools.getAnnPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).filter(T->accept(T)).forEach(T->best(T));
+			this.tools.getVepPredictions(ctx).stream().flatMap(P->P.getSOTerms().stream()).filter(T->accept(T)).forEach(T->best(T));
+			if(this.bestTerm==null) return;
+			this.countTerms.incr(this.bestTerm);
+			this.bestTerm=null;
 			}
 		}
 	
@@ -473,21 +1029,16 @@ public class VcfStatsJfx extends JfxLauncher {
 		implements Runnable,Closeable
 		
 		{
-		final CloseableIterator<VariantContext> iter;
-		final VCFHeader header;
-		long last_refresh;
-		final VCFFileReader vcfFileReader;
+		final VcfIterator iter;
 		
-		VariantContextRunner(final VCFFileReader vcfFileReader)
+		VariantContextRunner(final VcfIterator vcfFileReader)
 			{
-			this.vcfFileReader = vcfFileReader;
-			this.header = vcfFileReader.getFileHeader();
-			this.iter = vcfFileReader.iterator();
+			this.iter = vcfFileReader;
 			}
 		@Override
 		protected Void call() throws Exception {
 			refreshCharts();
-			long last = System.currentTimeMillis();
+			long last = -1L;
 			
 			Platform.runLater(()->{
 				progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
@@ -507,7 +1058,7 @@ public class VcfStatsJfx extends JfxLauncher {
 					lock.unlock();
 					}
 				final long now = System.currentTimeMillis();
-				if(now - last > refreshEverySeconds * 1000) {
+				if(last<0L || now - last > refreshEverySeconds * 1000) {
 					last=now;
 					refreshCharts();
 					}
@@ -519,28 +1070,34 @@ public class VcfStatsJfx extends JfxLauncher {
 				progressBar.setProgress(1.0);
 				});
 			
-			if(outputFile!=null)
+			if(outputFile!=null && !stop)
 	        	{
-	        	Platform.runLater(()->{
-	        		 LOG.info("saving as "+outputFile);
-	        		 try
-	        		 	{
-	        			saveImagesAs(outputFile);
-	        		 	}
-	        		 catch(IOException err)
-	        		 	{
-	        			LOG.error(err);
-	        			System.exit(-1);
-	        		 	}
-	        		 Platform.exit();
-	        	 });
+				LOG.info("saving as "+outputFile+ " in "+refreshEverySeconds+ " secs.");;
+        		new java.util.Timer().schedule( 
+    		        new java.util.TimerTask() {
+    		            @Override
+    		            public void run() {
+    		            Platform.runLater(()->{
+		        		 try
+		        		 	{
+		        			if(!stop) saveImagesAs(outputFile);
+		        		 	}
+		        		 catch(final IOException err)
+		        		 	{
+		        			LOG.error(err);
+		        			System.exit(-1);
+		        		 	}
+		        		 LOG.info("Platform.exit called");
+		        		 Platform.exit();
+    		            	});}
+    		            },refreshEverySeconds*1000);
+	        	 	
 	        	}
 			return null;
 			}
 		@Override
 		public void close() throws IOException {
 			CloserUtil.close(this.iter);
-			CloserUtil.close(this.vcfFileReader);
 			}
 		}
 	
@@ -564,32 +1121,80 @@ public class VcfStatsJfx extends JfxLauncher {
 	protected int doWork(final Stage primaryStage, final List<String> args) {
 		
 		try {
-			if(args.size()!=1) {
-				System.err.println("VCF missing");
+			final VcfIterator vcfIterator;
+			if(args.size()==1) {
+				vcfIterator = VCFUtils.createVcfIteratorFromFile(new File(args.get(0)));
+				}
+			else if(args.isEmpty() && this.vcf_stdin)
+				{
+				vcfIterator = VCFUtils.createVcfIteratorFromInputStream(System.in);
+				}
+			else if(args.isEmpty())
+				{
+				final FileChooser fc = new FileChooser();
+				final File f = fc.showOpenDialog(null);
+				if(f==null) return -1;
+				vcfIterator = VCFUtils.createVcfIteratorFromFile(f);
+				}
+			else
+				{
+				LOG.error("illegal number of arguments.");
 				return -1;
 				}
-			final VCFFileReader vcfFileReader = new VCFFileReader(new File(args.get(0)));
-			final VCFHeader header =  vcfFileReader.getFileHeader();
+			final VCFHeader header =  vcfIterator.getHeader();
 			chartGenerators.add(new VariantTypeGenerator());
 			if(!header.getFilterLines().isEmpty())
 				{
 				chartGenerators.add(new FilterUsageGenerator(header.getFilterLines()));
 				}
+			chartGenerators.add(new NumAltsGenerator());
+			chartGenerators.add(new VariantSizesGenerator());
+			
+			if(header.getInfoHeaderLine(VCFConstants.SVTYPE)!=null) {
+				chartGenerators.add(new StructuralVariantTypeGenerator());
+				}
+			
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			if(dict!=null && !dict.isEmpty()) {
 				chartGenerators.add(new ContigUsageGenerator(dict));
 				}
+			final VcfTools tools = new VcfTools(header);
+			boolean hasPred = tools.getVepPredictionParser().isValid() || 
+							tools.getAnnPredictionParser().isValid();
+			
+			if(hasPred)
+				{
+				chartGenerators.add(new PredictionGenerator(tools));
+				}
 			
 			if(header.hasGenotypingData())
 				{
+				if(max_condordance>0) {
+					chartGenerators.add(new GenotypesConcordanceGenerator());
+				}
+				
+				
 				chartGenerators.add(new GenotypeTypeGenerator(header.getGenotypeSamples()));
-				chartGenerators.add(new AffectedSamplesGenerator());
+				chartGenerators.add(new AffectedSamplesGenerator(header.getNGenotypeSamples()));
+				chartGenerators.add(new NumberOfNoCallGenerator(header.getNGenotypeSamples()));
+				
+				if(header.getFormatHeaderLine(VCFConstants.DEPTH_KEY)!=null) {
+					chartGenerators.add(new AverageDepthGenerator(header.getGenotypeSamples()));
+				}
+				
+				if(header.getFormatHeaderLine(VCFConstants.GENOTYPE_QUALITY_KEY)!=null) {
+					chartGenerators.add(new AverageGQGenerator(header.getGenotypeSamples()));
+					}
+				chartGenerators.add(new AveragePhasedGTGenerator(header.getGenotypeSamples()));
+				
 				for(final String sn:header.getSampleNamesInOrder()) {
-					
+					if(hasPred && this.enable_predictions_per_sample ) {
+						this.chartGenerators.add(new PredictionGenerator(tools,sn));
+						}
 					}
 				}
 			
-			final VariantContextRunner runner = new VariantContextRunner(vcfFileReader);
+			final VariantContextRunner runner = new VariantContextRunner(vcfIterator);
 			
 			primaryStage.setOnShowing(AE->{
 				new Thread(runner).start();
@@ -602,11 +1207,19 @@ public class VcfStatsJfx extends JfxLauncher {
 			final TabPane tabPane = new TabPane();
 			final MenuBar menuBar = new MenuBar();
 		    Menu menu = new Menu("File");
-		    MenuItem item=new MenuItem("Save Current image as...");
+		    MenuItem item;
+		    item=new MenuItem("About...");
+		    item.setOnAction(AE->doMenuAbout(AE));
+		    menu.getItems().add(item);
+		    menu.getItems().add(new SeparatorMenuItem());
+		    item=new MenuItem("Save Current image as... (.R,.png,.jpg)");
 		    item.setOnAction(AE->{doMenuSaveCurrentImage(tabPane.getSelectionModel().getSelectedItem());});
 		    menu.getItems().add(item);
-		    item=new MenuItem("Save All images as...");
+		    item=new MenuItem("Save All images in directory... ");
 		    item.setOnAction(AE->doMenuSaveAllImages());
+		    menu.getItems().add(item);
+		    item=new MenuItem("Save All images as ... (.R,.zip)");
+		    item.setOnAction(AE->doMenuSaveAllImagesInFile());
 		    menu.getItems().add(item);
 		    menu.getItems().add(new SeparatorMenuItem());
 		    item=new MenuItem("Quit");
@@ -619,7 +1232,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			
 			
 			contentPane.setCenter(tabPane);
-			contentPane.setBottom(progressBar);
+			contentPane.setBottom(new HBox(new Label("Progress:"),this.progressBar));
 			
 			
 			chartGenerators.removeIf(G->!G.isEnabled());
@@ -627,13 +1240,13 @@ public class VcfStatsJfx extends JfxLauncher {
 				tabPane.getTabs().add(g.makeTab());
 				}
 			final Screen scr = Screen.getPrimary();
-			Scene scene  = new Scene(
+			final Scene scene  = new Scene(
 					contentPane,
 					scr.getBounds().getWidth()-100,
 					scr.getBounds().getHeight()-100
 					);
 			primaryStage.setScene(scene);
-			
+			primaryStage.setTitle(getClass().getSimpleName());
 			
 	        primaryStage.show();
 			}
@@ -648,23 +1261,40 @@ public class VcfStatsJfx extends JfxLauncher {
 		return 0;
 		}
 	
-	private void doMenuSaveAllImages() {
+	private void doMenuSaveAllImagesInFile()
+		{
 		final FileChooser fc = new FileChooser();
-		final File file = fc.showSaveDialog(null);
-		if(file==null) return;
-		if(!file.getName().endsWith(".zip")) {
+		final File f = fc.showSaveDialog(null);
+		if(f==null) return;
+		if(!(f.getName().endsWith(".R") || f.getName().endsWith(".zip"))){
 			  final Alert alert=new Alert(AlertType.ERROR,
-					  "output file MUST end with '.zip' but got "+file.getName());
+					  "Filename must end with .R or .zip:"+f);
 	          alert.showAndWait();
 	          return;
 			}
 		try {
-			saveImagesAs(file);
+			saveImagesAs(f);
 			}
     	catch (final IOException e) {
-            LOG.error(e);
-            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
-            alert.showAndWait();
+            super.displayAlert(e);
+        	}
+		}
+	
+	private void doMenuSaveAllImages() {
+		final DirectoryChooser fc = new DirectoryChooser();
+		final File dir = fc.showDialog(null);
+		if(dir==null) return;
+		if(!dir.exists() || !dir.isDirectory()) {
+			  final Alert alert=new Alert(AlertType.ERROR,
+					  "Bad directory :"+dir);
+	          alert.showAndWait();
+	          return;
+			}
+		try {
+			saveImagesAs(dir);
+			}
+    	catch (final IOException e) {
+    		 super.displayAlert(e);
         	}
 		}
 	
@@ -675,40 +1305,84 @@ public class VcfStatsJfx extends JfxLauncher {
 		final FileChooser fc = new FileChooser();
 		final File file = fc.showSaveDialog(null);
     	if(file==null) return;
+    	
+    	
+    	PrintWriter pw= null;
     	try {
-    		final WritableImage image = content.snapshot(new SnapshotParameters(), null);
-			final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
-			ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
-        	}
+    		if(file.getName().endsWith(".R")) {
+        		if(content instanceof Chart) {
+            		pw = new PrintWriter(file);
+            		JFXChartExporter exporter = new JFXChartExporter(pw);
+            		exporter.exportToR(Chart.class.cast(content));
+	        		pw.flush();
+	        		pw.close();
+        			}
+        		}
+    		else
+	    		{
+	    		final WritableImage image = content.snapshot(new SnapshotParameters(), null);
+				
+	    		final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
+				ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
+	    		}
+    		}
     	catch (final IOException e) {
+    		super.displayAlert(e);
             LOG.error(e);
-            final Alert alert=new Alert(AlertType.ERROR,e.getMessage());
-            alert.showAndWait();
         	}
+    	finally
+    		{
+    		CloserUtil.close(pw);
+    		}
 		}
 	
 	private void saveImagesAs(final File out) throws IOException {
-	if(out.getName().endsWith(".zip")) {
-		final FileOutputStream fout = new FileOutputStream(out);
-		final ZipOutputStream zout = new ZipOutputStream(fout);
-		for(final ChartGenerator  cg:this.chartGenerators) {
-			if(!cg.isEnabled()) continue;
-			final ZipEntry zipEntry = new ZipEntry(cg.getFilename());
-			zout.putNextEntry(zipEntry);
-			cg.saveImageAs(zout);
-			zout.closeEntry();
-			}
-		zout.finish();
-		zout.close();
-		fout.close();
+		PrintWriter pw =null;
+		FileOutputStream fout = null;
+		try {
+			if(out.getName().endsWith(".R")) {
+				pw = new PrintWriter(out);
+				final JFXChartExporter chartExporter = new JFXChartExporter(pw);
+				for(final ChartGenerator  cg:this.chartGenerators) {
+					if(!cg.isEnabled()) continue;
+					LOG.info("saving "+cg.getFilename());
+					cg.saveR(chartExporter);
+					}
+				pw.flush();
+				pw.close();
+				}
+			else if(out.getName().endsWith(".zip")) {
+				fout = new FileOutputStream(out);
+				final ZipOutputStream zout = new ZipOutputStream(fout);
+				for(final ChartGenerator  cg:this.chartGenerators) {
+					if(!cg.isEnabled()) continue;
+					LOG.info("saving "+cg.getFilename());
+					final ZipEntry zipEntry = new ZipEntry(cg.getFilename());
+					zout.putNextEntry(zipEntry);
+					cg.saveImageAs(zout);
+					zout.closeEntry();
+					}
+				zout.finish();
+				zout.close();
+				fout.close();
+				}
+			else
+				{
+				IOUtil.assertDirectoryIsWritable(out);
+				for(final ChartGenerator  cg:this.chartGenerators) {
+					if(!cg.isEnabled()) continue;
+					LOG.info("saving "+cg.getFilename());
+					cg.saveImageAs(out);
+					}
+				}
+			} 
+	catch(final Exception err) {
+		super.displayAlert(err);
 		}
-	else
+	finally
 		{
-		IOUtil.assertDirectoryIsWritable(out);
-		for(final ChartGenerator  cg:this.chartGenerators) {
-		if(!cg.isEnabled()) continue;
-			cg.saveImageAs(out);
-			}
+		CloserUtil.close(pw);
+		CloserUtil.close(fout);
 		}
 	}
 
