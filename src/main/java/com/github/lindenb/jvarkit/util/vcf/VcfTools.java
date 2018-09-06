@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,19 +21,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2017 creation
-
 */
 package com.github.lindenb.jvarkit.util.vcf;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
+import com.github.lindenb.jvarkit.tools.vcftrios.DeNovoDetector;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
@@ -44,9 +40,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFac
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -62,7 +56,7 @@ private VCFHeader header=null;
 private SnpEffPredictionParser snpEffPredictionParser=null;
 private VepPredictionParser vepPredictionParser=null;
 private AnnPredictionParser annPredictionParser=null;
-
+private final DeNovoDetector deNovoDetector = new DeNovoDetector();
 public VcfTools() {
 	init(null);
 	}
@@ -170,40 +164,16 @@ public boolean hasSequenceOntologyTerm(final VariantContext ctx,final SequenceOn
 public boolean isMendelianIncompatibility(final Genotype child,final Genotype parent)
 	{
 	if(child==null || parent==null) return false;
-	if(!child.isCalled() || !parent.isCalled()) return false;
-	if(child.getPloidy()!=2 || parent.getPloidy()!=2) return false;
-	for(final Allele childAllele:child.getAlleles())
-		{
-		if(parent.getAlleles().contains(childAllele)) return false;
-		}
-	
-	return true;
+	return getDeNovoDetector().test(null, parent, child)!=null;
 	}
 
-
+public DeNovoDetector getDeNovoDetector() {
+	return this.deNovoDetector;
+}
 
 public boolean isMendelianIncompatibility(final Genotype child,final Genotype father,final Genotype mother)
 	{
-	if(child==null || !child.isCalled() || (father==null && mother==null)) return false;
-	if(father==null || !father.isCalled()) {
-		return this.isMendelianIncompatibility(child,mother);
-		}
-	if(mother==null || !mother.isCalled()) {
-		return this.isMendelianIncompatibility(child,father);
-		}
-	final Allele alleles[]=new Allele[2];
-	for(final Allele af:father.getAlleles())
-	{
-		alleles[0]=af;
-		for(final Allele am:mother.getAlleles())
-		{
-			alleles[1]=am;
-			final Genotype sim = new GenotypeBuilder(child.getSampleName()).alleles(Arrays.asList(alleles)).make();
-			if(child.sameGenotype(sim, true)) return false;
-		}	
-	}
-	
-	return true;
+	return getDeNovoDetector().test(father, mother, child)!=null;
 	}
 /** return true if there is a mendelian problem with the children */
 public boolean isMendelianIncompatibility(final VariantContext ctx,final Pedigree.Person child)
@@ -213,7 +183,7 @@ public boolean isMendelianIncompatibility(final VariantContext ctx,final Pedigre
 	final Genotype gf= child.hasFather()?ctx.getGenotype(child.getFatherId()):null;
 	final Genotype gm= child.hasMother()?ctx.getGenotype(child.getMotherId()):null;
 	if(gf==null && gm == null) return false;
-	return isMendelianIncompatibility(gc,gf,gm);
+	return getDeNovoDetector().test(ctx,gf,gm,gc)!=null;
 	}
 
 }

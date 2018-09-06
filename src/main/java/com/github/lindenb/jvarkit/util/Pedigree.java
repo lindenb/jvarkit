@@ -440,6 +440,20 @@ public class Pedigree
 		return null;
 	}
 
+	/** get an individual by id, assume individual-ID are unique, return null on not found */
+	public Person getUniqPersonById(final String id) {
+		Person p = null;
+		for(final Family fam:this.families.values())
+			{
+			final Person p2 = fam.getPersonById(id);
+			if(p2==null) continue;
+			if(p!=null) throw new IllegalStateException("found duplicate sample by id "+p+" and "+p2); 
+			p = p2;
+			}
+		return p;
+	}
+
+	
 	
 	/** get all the individuals in this pedigree */
 	public java.util.Set<Person> getPersons()

@@ -30,7 +30,14 @@ Usage: casectrljfx [options] Files
       memory. The more variants you have, the more your need memory
       Default: -1
     -mafTag, --mafTag
-      Do not calculate MAF for controls, but use this tag to get Controls' MAF
+      [20180905] Do not calculate MAF for controls, but use this tag to get 
+      Controls' MAF. How to extract the AlleleFrequencies from a variant. 
+      Multiple separated with comma or semicolon. e.g: 
+      "AC/AN;exome_CEU_*;genome_NFE_AF;another_AC/another/AN". Input is a set 
+      of AC/AN field pairs or/and AF field separated by semicolon. 'x/y' means 
+      AC/AN fields. '*' will be replaced with AC and AN, hence, 'exome_CEU_*' 
+      will be interpreted as exome_CEU_AC/exome_CEU_AN. Other field will be 
+      interpreted as an AF field.
     -nchr, --nocallishomref
       treat no call as HomRef
       Default: false
