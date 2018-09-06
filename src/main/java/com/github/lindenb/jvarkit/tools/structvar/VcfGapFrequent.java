@@ -161,7 +161,7 @@ public class VcfGapFrequent extends Launcher {
 					final OptionalDouble maxAf= db.afExtractors.
 							stream().flatMap(EX->EX.parse(ctx).stream()).
 							mapToDouble(AF->AF==null ?0:AF.doubleValue()).
-							filter(V-> V> af_treshold).
+							filter(V-> V>= af_treshold).
 							max();//pas noneMatch please
 					if(!maxAf.isPresent()) continue;
 					found_pos.add(ctx.getStart());

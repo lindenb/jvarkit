@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.vcftrios;
@@ -267,10 +264,7 @@ public class VCFTrios
 							}
 						continue;
 						}
-					if(gChild.isNoCall())
-						{
-						continue;
-						}
+					
 					
 					if(gChild.getPloidy()!=2)
 						{
@@ -314,9 +308,19 @@ public class VCFTrios
 						}
 					
 					boolean is_ok=true;
+					
+					
 					if(gFather!=null && gMother!=null)
 						{
-						is_ok=trio(gChild,gFather,gMother);
+						// could be a deletion of the child
+						if(gChild.isNoCall() && gFather.isCalled() && gMother.isCalled())
+							{
+							is_ok = false;
+							}
+						else
+							{
+							is_ok=trio(gChild,gFather,gMother);
+							}
 						}
 					else if(gFather!=null)
 						{
