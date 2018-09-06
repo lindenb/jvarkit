@@ -101,6 +101,11 @@ private <T> void vectorR(
 		};
 	pw.print(")");
 	}
+
+private String colors(int n) {
+	return  "rainbow("+n+")";
+	}
+
 /**
 
  barplot(
@@ -121,7 +126,7 @@ private void exportPieChartToR(final PieChart chart) {
 		}
 	pw.print("pie(");
 	vectorR(data.stream().map(D->D.getPieValue()).iterator());
-	pw.print(",col=rainbow("+data.size()+")");
+	pw.print(",col="+colors(data.size()));
 	pw.print(",labels=");
 	vectorR(data.stream().map(D->D.getName()).map(quoteR).iterator());
 	title(chart);
@@ -165,6 +170,9 @@ private void exportScatterNNToR(final XYChart<Number, Number> chart)
 		if(serie_index==0)
 			{
 			title(chart);
+			}
+		if(series.size()>1) {
+			pw.print(",col="+colors(series.size()));
 			}
 		pw.println(")");
 		
@@ -212,6 +220,10 @@ private void exportBarChartSNToR(
 		pw.print(",legend=");
 		vectorR(series.stream().map(T->T.getName()).map(quoteR).iterator());
 		}
+	if(series.size()>1) {
+		pw.print(",col="+colors(series.size()));
+		}
+	
 	pw.print(",beside="+(stacked?"F":"T"));
 	lab('x',chart.getXAxis());
 	lab('y',chart.getYAxis());

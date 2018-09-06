@@ -122,7 +122,7 @@ public class Counter<T>
 	public T getMostFrequent()
 		{
 		T key=null;
-		for(T o:this.object2count.keySet())
+		for(final T o:this.object2count.keySet())
 			{
 			if(key==null || count(key)< count(o))
 				{

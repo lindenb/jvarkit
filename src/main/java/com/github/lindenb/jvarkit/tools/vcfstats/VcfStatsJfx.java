@@ -434,14 +434,14 @@ public class VcfStatsJfx extends JfxLauncher {
 		
 		@Override
 		String getChartTitle() {
-			return "Num. ALT";
+			return "Num. ALTernate Alleles";
 			}
 		
 		@Override
 		Chart makeChart() {
 			if(this.count.getCountCategories()==0) return null;
 			final NumberAxis yAxis = new NumberAxis();
-			final int max_count  = count.getMostFrequent();
+			final int max_count  = count.keySet().stream().mapToInt(I->I.intValue()).max().orElse(1);
 			final List<String> L = new ArrayList<>(max_count+1);
 			for(int x=0;x<=max_count;++x) {
 				L.add(niceIntFormat.format(x));
@@ -474,8 +474,8 @@ public class VcfStatsJfx extends JfxLauncher {
 		@Override
 		void visit(final VariantContext ctx) {
 			this.nVariants++;
-			this.count.incr(ctx.getAlternateAlleles().size());
-			}
+			final int n_alts = ctx.getAlternateAlleles().size();
+			this.count.incr(n_alts);			}
 		}
 	
 	private abstract class AbstractAverageGTGenerator extends ChartGenerator
@@ -550,7 +550,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		@Override
 		String getChartTitle() {
-			return "DP/Sample";
+			return "Depth/Sample";
 			}
 		@Override
 		String getYLabel() {
