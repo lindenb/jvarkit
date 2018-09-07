@@ -21,7 +21,7 @@ public class VcfAnnotWithBeaconTest extends TestUtils {
 			};
 		}
 	
-	@Test(dataProvider="src1")
+	@Test(dataProvider="src1",enabled=false)
 	public void test1(final String vcf) throws IOException {
 		final File out = createTmpFile(".vcf");
 		Assert.assertEquals(

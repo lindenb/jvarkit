@@ -89,6 +89,18 @@ $ wget -O - -q  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt
 	java -jar dist/biostar336589.jar -R src/test/resources/human_b37.dict   --url 'http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__' --title gaps -mr 300 -fh 20 > ~/jeter.svg 
 ```
 
+```
+$ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz" |\
+	gunzip -c | cut -f 3,5,6 |\
+	sort -t $'\t' -k1,1V -k2,2n |\
+	bedtools merge |\
+	java -jar dist/biostar336589.jar -md 10000 \
+	 	-R src/test/resources/human_b37.dict > out.svg
+```
+
+https://gist.github.com/lindenb/5250750014441cc36586dd1f47ed0e37
+
+
 ## Screenshot
 
 
@@ -122,6 +134,9 @@ public class Biostar336589 extends Launcher{
 	private double distance_between_arc =10;
 	@Parameter(names="-ms",description="skip chromosome reference length lower than this value. ignore if <=0")
 	private int skip_chromosome_size = -1;
+	@Parameter(names="-a",description="rotate for 'x' seconds. ignore if <=0")
+	private int animation_seconds = -1;
+
 	@Parameter(names={"-u","--url","--hyperlink"},description=
 			"creates a hyperlink when 'click' in an area. "
 			+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. "
@@ -340,13 +355,7 @@ public class Biostar336589 extends Launcher{
 			w.writeCData(
 				openBrowserFunction.toString() +
 				"function clicked(evt,contig,chromStart,chromEnd){\n" +
-			    "    var e = evt.target;\n" +
-			    "    var dim = e.getBoundingClientRect();\n" +
-			    "    var x = 1.0 * evt.clientX - dim.left;\n" + 
-			    "    var cLen = 1.0* (chromEnd - chromStart); if(cLen<1) cLen=1.0;\n" + 
-			    "    var pos1 = chromStart + parseInt(((x+0)/dim.width)*cLen);\n" +
-			    "    var pos2 = chromStart + parseInt(((x+1)/dim.width)*cLen);\n" +
-			    "   openGenomeBrowser(contig,pos1,pos2);\n" +
+			    "   openGenomeBrowser(contig,chromStart,chromEnd);\n" +
 			    "}\n");                
 			w.writeEndElement();//script
 
@@ -357,6 +366,20 @@ public class Biostar336589 extends Launcher{
 			
 			w.writeStartElement("g");
 			w.writeAttribute("class", "maing");
+			
+			if(this.animation_seconds >0) {
+				w.writeStartElement("animateTransform");
+				w.writeAttribute("attributeName", "transform");
+				w.writeAttribute("attributeType", "XML");
+				w.writeAttribute("type", "rotate");
+				w.writeAttribute("from","0 "+format(img_radius)+" "+format(img_radius));
+				w.writeAttribute("to","360 "+format(img_radius)+" "+format(img_radius));
+				w.writeAttribute("dur",String.valueOf(this.animation_seconds)+"s");
+				w.writeAttribute("repeatCount","indefinite");
+				w.writeEndElement();
+				}
+			
+			w.writeStartElement("g");
 			w.writeAttribute("transform", "translate("+format(img_radius)+","+format(img_radius)+")");
 			w.writeStartElement("g");
 			for(final List<Arc> row:rows)
@@ -438,6 +461,8 @@ public class Biostar336589 extends Launcher{
 				w.writeCharacters(ssr.getSequenceName());
 				w.writeEndElement();
 				}
+			w.writeEndElement();//g
+			
 			w.writeEndElement();//g
 			
 			w.writeEndElement();//g

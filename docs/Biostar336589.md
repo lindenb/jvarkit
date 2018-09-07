@@ -31,6 +31,9 @@ Usage: biostar336589 [options] Files
   * -R
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    -a
+      rotate for 'x' seconds. ignore if <=0
+      Default: -1
     -da
       distance between arcs
       Default: 10.0
@@ -153,6 +156,18 @@ $ wget -O - -q  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt
 	gunzip -c | awk '{printf("%s\t%s\t%s\t%s\t%d\t+\t.\t.\t%s\n",$2,$3,$4,$8,rand()*1000,NR%20==0?"255,0,250":".");}' |\
 	java -jar dist/biostar336589.jar -R src/test/resources/human_b37.dict   --url 'http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__' --title gaps -mr 300 -fh 20 > ~/jeter.svg 
 ```
+
+```
+$ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz" |\
+	gunzip -c | cut -f 3,5,6 |\
+	sort -t $'\t' -k1,1V -k2,2n |\
+	bedtools merge |\
+	java -jar dist/biostar336589.jar -md 10000 \
+	 	-R src/test/resources/human_b37.dict > out.svg
+```
+
+https://gist.github.com/lindenb/5250750014441cc36586dd1f47ed0e37
+
 
 ## Screenshot
 
