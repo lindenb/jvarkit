@@ -34,6 +34,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -287,13 +288,13 @@ public class Biostar336589 extends Launcher{
 					final List<Arc> row = rows.get(y);
 					if(row.stream().noneMatch(A->A.withinDistanceOf(arc,min_distance_bp)))
 						{
-						row.add(arc);
+						row.add(0,arc);//add in front, should be faster if data are sorted
 						break;
 						}
 					}
 				if(y==rows.size())
 					{
-					final List<Arc> row = new ArrayList<>();
+					final List<Arc> row = new LinkedList<>();
 					rows.add(row);
 					row.add(arc);
 					}
