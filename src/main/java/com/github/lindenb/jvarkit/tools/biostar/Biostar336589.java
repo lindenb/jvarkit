@@ -80,12 +80,21 @@ input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 
 ## Example
 
+
+https://gist.github.com/lindenb/b6debad569dcb5112e76da893d68dd81
+
 ```
 $ wget -O - -q  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz" |\
 	gunzip -c | awk '{printf("%s\t%s\t%s\t%s\t%d\t+\t.\t.\t%s\n",$2,$3,$4,$8,rand()*1000,NR%20==0?"255,0,250":".");}' |\
 	java -jar dist/biostar336589.jar -R src/test/resources/human_b37.dict   --url 'http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__' --title gaps -mr 300 -fh 20 > ~/jeter.svg 
 ```
 
+## Screenshot
+
+
+https://twitter.com/yokofakun/status/1038060108373286912
+
+![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
 
 
 END_DOC
