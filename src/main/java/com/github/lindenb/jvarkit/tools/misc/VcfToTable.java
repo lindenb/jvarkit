@@ -907,8 +907,10 @@ public class VcfToTable extends Launcher {
 				t.addRow("REF",vc.getReference().getDisplayString());
 				t.addRow("ALT",vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
 				t.addRow("QUAL",vc.hasLog10PError()?vc.getPhredScaledQual():null);
-				final String filterStr=vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null;
-				t.addRow("FILTER",filterStr!=null && useANSIColors?new ColoredDecorator(filterStr, AnsiColor.RED):filterStr);
+				if(hideFilters) /* print filters here if 'hide filters table has been set */ {
+					final String filterStr=vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null;
+					t.addRow("FILTER",filterStr!=null && useANSIColors?new ColoredDecorator(filterStr, AnsiColor.RED):filterStr);
+					}
 				t.addRow("Type",vc.getType());
 				
 				

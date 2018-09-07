@@ -137,13 +137,13 @@ public class WorldMapGenome extends Launcher
 	private static final Logger LOG = Logger.build(WorldMapGenome.class).make();
 
 
-	@Parameter(names="-R",description=" (ref) fasta reference file indexed with samtools. Required.")
+	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	File faidx=null;
 	@Parameter(names="-w",description=" (int: size) square size")
 	private int squareSize=1000;
 	@Parameter(names="-T",description=" just list countries and exit.",help=true)
 	private  boolean listCountries=false;
-	@Parameter(names="-o",description=" (file.jpg) ouput file. Required")
+	@Parameter(names="-o",description=" (file.jpg) ouput file. Required",required=true)
 	private File fileout=null;
 		
 	private CircularContext context=null;

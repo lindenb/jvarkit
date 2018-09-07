@@ -16,7 +16,7 @@ public class VcfAnnotWithBeaconTest extends TestUtils {
 		return new Object[][]{
 			{SRC_TEST_RESOURCE+"/test_vcf01.vcf"},
 			{SRC_TEST_RESOURCE+"/gnomad.genomes.r2.0.1.sites.1.vcf.gz"},
-			{SRC_TEST_RESOURCE+"/gnomad.exomes.r2.0.1.sites.1.vcf.gz"},
+			{SRC_TEST_RESOURCE+"/gnomad.exomes.r2.0.1.sites.vcf.gz"},
 			{SRC_TEST_RESOURCE+"/ExAC.r1.sites.vep.vcf.gz"}
 			};
 		}
@@ -28,6 +28,7 @@ public class VcfAnnotWithBeaconTest extends TestUtils {
 			new VcfAnnotWithBeacon().instanceMain(newCmd().
 			add("-o").add(out).
 			add("--cert").
+			add("--tee").
 			add(vcf).
 			make()
 			),0);

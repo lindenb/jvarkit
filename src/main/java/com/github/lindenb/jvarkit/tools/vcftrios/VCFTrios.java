@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -116,6 +117,7 @@ $12	SAMPLE_P	1/1:53:0,0,27,26:81,99,0,.,.,.:81
 ```
 ## History
 
+  * [20180907] moved to the new DeNovoDetector
   * [20180704] changing the arguments that are not really clear.
 
  
@@ -124,8 +126,8 @@ END_DOC
  */
 @Program(
 		name="vcftrio",
-		description="Find mendelian incompatibilitie in a VCF",
-		keywords={"vcf","mendelian","pedigree"}
+		description="Find mendelian incompatibilitie / denovo variants in a VCF",
+		keywords={"vcf","mendelian","pedigree","denovo"}
 		)
 public class VCFTrios
 	extends Launcher
@@ -134,9 +136,9 @@ public class VCFTrios
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION,required=true)
+	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION)
 	private File pedigreeFile = null;
-	@Parameter(names={"-fo","--filter-out"},description="FILTER name if there is NO mendelian violation.")
+	@Parameter(names={"-fo","--filter-out","--filter-no-denovo"},description="FILTER name if there is NO mendelian violation.")
 	private String filterNoIncompat = null;
 	@Parameter(names={"-fi","--filter-in"},description="FILTER name if there is ANY mendelian violation.")
 	private String filterAnyIncompat = null;
@@ -151,9 +153,9 @@ public class VCFTrios
 		
 	private static class Trio
 		{
-		String father = null;
-		String mother = null;
-		String child = null;
+		int father_id = -1;
+		int mother_id = -1;
+		int child_id = -1;
 		}
 	
 	@Override
@@ -183,7 +185,7 @@ public class VCFTrios
 						VCFHeaderLineCount.UNBOUNDED,
 						VCFHeaderLineType.String,
 						"Samples with mendelian incompatibilities." +
-							(this.pedigreeFile==null?"":" Pedigree was : " + this.pedigreeFile)
+							(this.pedigreeFile==null?"":" Pedigree File was : " + this.pedigreeFile)
 						));
 				meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY, true));
 				
@@ -198,6 +200,7 @@ public class VCFTrios
 				
 				meta.stream().forEach(H->h2.addMetaDataLine(H));
 				
+				JVarkitVersion.getInstance().addMetaData(this, h2);
 				
 				
 				for(final String sampleName:h2.getSampleNamesInOrder())
@@ -212,16 +215,17 @@ public class VCFTrios
 					else
 						{
 						final Trio trio = new Trio();
-						trio.child = sampleName;
+						trio.child_id = header.getSampleNameToOffset().getOrDefault(sampleName,-1);
+						if(trio.child_id<0) throw new IllegalStateException(sampleName);
 						if(p.hasFather()) {
 							final Pedigree.Person parent = p.getFather();
-							trio.father = h2.getSampleNamesInOrder().stream().filter(S->S.equals(parent.getId())).findFirst().orElse(null);
+							trio.father_id = header.getSampleNameToOffset().getOrDefault(parent.getId(),-1);
 							}
 						if(p.hasMother()) {
 							final Pedigree.Person parent = p.getMother();
-							trio.mother = h2.getSampleNamesInOrder().stream().filter(S->S.equals(parent.getId())).findFirst().orElse(null);
+							trio.mother_id = header.getSampleNameToOffset().getOrDefault(parent.getId(),-1);
 							}
-						if(!(trio.father==null && trio.mother==null)) {
+						if(!(trio.father_id==-1 && trio.mother_id==-1)) {
 							trios.add(trio);
 							}
 						}
@@ -243,15 +247,15 @@ public class VCFTrios
 					
 					for(final Trio trio : trios)
 						{
-						final Genotype gChild = ctx.getGenotype(trio.child);
+						final Genotype gChild = ctx.getGenotype(trio.child_id);
 						if(gChild==null) throw new IllegalStateException();
-						final Genotype gFather = trio.father==null?null:ctx.getGenotype(trio.father);
-						final Genotype gMother = trio.mother==null?null:ctx.getGenotype(trio.mother);
+						final Genotype gFather = trio.father_id<0?null:ctx.getGenotype(trio.father_id);
+						final Genotype gMother = trio.mother_id<0?null:ctx.getGenotype(trio.mother_id);
 						final DeNovoDetector.DeNovoMutation mut = detector.test(ctx, gFather, gMother, gChild);	
 						
 						if(mut!=null)
 							{
-							incompatibilities.add(trio.child);
+							incompatibilities.add(gChild.getSampleName());
 							}
 						}	
 					
@@ -278,13 +282,25 @@ public class VCFTrios
 							{
 							vcb.filter(this.filterAnyIncompat);
 							}
+						else if(!ctx.isFiltered())
+							{
+							vcb.passFilters();
+							}
 						}
-					else
+					else//No denovo
 						{
-						if(this.discard_variants_without_mendelian_incompat) continue;
+						// dicard variant
+						if(this.discard_variants_without_mendelian_incompat) {
+							continue;
+							}
+						// set filters
 						if(!StringUtil.isBlank(this.filterNoIncompat))
 							{
 							vcb.filter(this.filterNoIncompat);
+							}
+						else if(!ctx.isFiltered())
+							{
+							vcb.passFilters();
 							}
 						}
 					w.add(vcb.make());

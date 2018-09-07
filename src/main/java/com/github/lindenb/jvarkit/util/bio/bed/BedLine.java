@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -83,11 +83,18 @@ public class BedLine
 		return new QueryInterval(tid, getStart(), getEnd());
 	}
 	
-	
+	/** get the 0 based index-th column or null if the number of column is GE than index */
 	public String get(final int index)
 		{
-		return (index<this.tokens.length?this.tokens[index]:null);
+		return getOrDefault(index,null);
 		}
+	
+	/** get the 0 based index-th column or defValue if the number of column is GE than index */
+	public String getOrDefault(final int index,final String defValue)
+		{
+		return (index<this.tokens.length?this.tokens[index]:defValue);
+		}
+
 	
 	public String join(final CharSequence delimiter) {
 		return String.join(delimiter, this.tokens);

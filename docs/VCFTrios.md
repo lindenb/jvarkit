@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Find mendelian incompatibilitie in a VCF
+Find mendelian incompatibilitie / denovo variants in a VCF
 
 
 ## Usage
@@ -18,7 +18,7 @@ Usage: vcftrio [options] Files
       Default: false
     -fi, --filter-in
       FILTER name if there is ANY mendelian violation.
-    -fo, --filter-out
+    -fo, --filter-out, --filter-no-denovo
       FILTER name if there is NO mendelian violation.
     -gtf, --gtfilter
       GENOTYPE FILTER name. Create a filter in the GENOTYPE column when there 
@@ -34,7 +34,7 @@ Usage: vcftrio [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-  * -p, --ped, --pedigree
+    -p, --ped, --pedigree
       Pedigree file. A pedigree is a text file delimited with tabs. No header. 
       Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
       Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
@@ -50,6 +50,7 @@ Usage: vcftrio [options] Files
  * vcf
  * mendelian
  * pedigree
+ * denovo
 
 
 ## Compilation
@@ -173,6 +174,7 @@ $12	SAMPLE_P	1/1:53:0,0,27,26:81,99,0,.,.,.:81
 ```
 ## History
 
+  * [20180907] moved to the new DeNovoDetector
   * [20180704] changing the arguments that are not really clear.
 
  

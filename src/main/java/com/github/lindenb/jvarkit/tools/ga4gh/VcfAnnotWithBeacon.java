@@ -41,16 +41,13 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.auth.AuthScheme;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.client.ProxyAuthenticationStrategy;
-import org.apache.http.protocol.HttpContext;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.TeeInputStream;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -112,6 +109,8 @@ public class VcfAnnotWithBeacon extends Launcher {
 	private String baseurl="https://beacon-network.org/api";
 	@Parameter(names={"--cert"},description="ignore SSL certification errors")
 	private boolean ignoreCertErrors = false;
+	@Parameter(names={"--tee"},description="show what's happening in the network")
+	private boolean teeInput = false;
 	
 	/** BerkeleyDB Environment to store results */
 	private Environment bdbEnv=null;
@@ -144,7 +143,15 @@ public class VcfAnnotWithBeacon extends Launcher {
 			}
 		}
 
-	
+	private InputStream wrapTee(final InputStream in) {
+		if(this.teeInput) {
+			return new TeeInputStream(in, stderr(),false);
+			}
+		else
+			{
+			return in;
+			}
+		}
 	
 	@Override
 	protected int doVcfToVcf(String inputName,final VcfIterator iter,final VariantContextWriter out) {
@@ -212,8 +219,8 @@ public class VcfAnnotWithBeacon extends Launcher {
 				httpGetRequest = new HttpGet(baseurl+"/chromosomes");
 				httpGetRequest.setHeader("Accept", ContentType.APPLICATION_JSON.getMimeType());
 				contentInputStream = httpClient.execute(httpGetRequest).getEntity().getContent();
-				JsonParser jsonparser = new JsonParser();
-				final JsonElement root = jsonparser.parse(new InputStreamReader(contentInputStream));
+				final JsonParser jsonparser = new JsonParser();
+				final JsonElement root = jsonparser.parse(new InputStreamReader(wrapTee(contentInputStream)));
 				Iterator<JsonElement> jsr = root.getAsJsonArray().iterator();
 				while (jsr.hasNext()) {
 					final String ctg = jsr.next().getAsString();
