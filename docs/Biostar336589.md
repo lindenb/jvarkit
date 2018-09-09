@@ -136,14 +136,14 @@ The current reference is:
 input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 
   * column 1: chrom
-  * column 2: start
+  * column 2: start (you'll get faster results if the input is sorted on chrom/start )
   * column 3: end
-  * column 4 is the name
+  * column 4 is the name of the feature
   * column 5 is the score [0-1000] or '.'
   * column 6 ignored
   * column 7 ignored
   * column 8 ignored
-  * column 9 is '.' or R,G,B
+  * column 9 is '.' or R,G,B (as in the bed specification) or it's treated as a full svg:style (e.g: `fill:red;stroke:blue;` ) 
 
 
 ## Example

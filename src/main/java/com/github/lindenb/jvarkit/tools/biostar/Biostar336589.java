@@ -33,10 +33,12 @@ import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -69,14 +71,14 @@ BEGIN_DOC
 input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 
   * column 1: chrom
-  * column 2: start
+  * column 2: start (you'll get faster results if the input is sorted on chrom/start )
   * column 3: end
-  * column 4 is the name
+  * column 4 is the name of the feature
   * column 5 is the score [0-1000] or '.'
   * column 6 ignored
   * column 7 ignored
   * column 8 ignored
-  * column 9 is '.' or R,G,B
+  * column 9 is '.' or R,G,B (as in the bed specification) or it's treated as a full svg:style (e.g: `fill:red;stroke:blue;` ) 
 
 
 ## Example
@@ -154,7 +156,7 @@ public class Biostar336589 extends Launcher{
 		int end;
 		String name;
 		int score  =0;
-		Color itemRgb = null;
+		String cssStyle = null;
 		@Override
 		public String getContig() {
 			return dict.getSequence(this.tid).getSequenceName();
@@ -171,6 +173,32 @@ public class Biostar336589 extends Launcher{
 		
 		}
 	
+	private static class TrackContig {
+		final List<List<Arc>> rows = new ArrayList<>();
+		TrackContig(int tid) {
+			
+			}
+		}
+	
+	private class Track {
+		private final int id;
+		private String name = "";
+		private List<TrackContig> contigs ;
+		Track(int id) {
+			this.id=id;
+			this.contigs = new ArrayList<>(Biostar336589.this.dict.size());
+			for(int tid=0;tid < Biostar336589.this.dict.size();++tid) {
+				this.contigs.add(new TrackContig(tid));
+				}
+			}
+		TrackContig get(int tid) {
+			return this.contigs.get(tid);
+			}
+		int maxRows() {
+			return this.contigs.stream().mapToInt(C->C.rows.size()).max().orElse(0);
+			}
+		}
+	
 	private SAMSequenceDictionary dict;
 	private long reference_length;
 	private long tid_to_start[];
@@ -182,6 +210,35 @@ public class Biostar336589 extends Launcher{
 	private String format(double v) {
 		return this.decimalFormater.format(v);
 	}
+	
+	private static final Pattern RGB_PATTERN = Pattern.compile("\\d+,\\d+,\\d+");
+
+	private String toCss(final String s) {
+		if(StringUtil.isBlank(s)) return null;
+		if(s.contains(":") || s.contains(";"))
+			{
+			return s.trim();
+			}
+		if(!RGB_PATTERN.matcher(s).matches()) return null;
+		final String tokens[] = CharSplitter.COMMA.split(s);
+		if(tokens.length!=3) return null;
+		
+		try 
+			{
+			final int r = Integer.parseInt(tokens[0]);
+				final int g = Integer.parseInt(tokens[1]);
+				final int b = Integer.parseInt(tokens[2]);
+				if(r>=0 && r<256 && g>=0 && g<256 && b>=0 && b<256)
+					{
+					return "fill:rgb("+r+","+g+","+b+")";
+					}
+			}
+		catch(final NumberFormatException err)
+			{
+			return null;
+			}
+		return null;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -196,7 +253,6 @@ public class Biostar336589 extends Launcher{
 			this.feature_height = 2;
 		}
 		int maxScore=0;
-		final List<List<Arc>> rows = new ArrayList<>();
 		BufferedReader br = null;
 		PrintWriter out = null;
 		try
@@ -215,9 +271,11 @@ public class Biostar336589 extends Launcher{
 			if(this.dict.isEmpty()) {
 				throw new JvarkitException.DictionaryMissing(String.valueOf(this.faidx.toString()));
 				}
+			
 			this.reference_length = this.dict.getReferenceLength();
 			this.tid_to_start = new long[this.dict.size()];
 			Arrays.fill(this.tid_to_start,0L);
+			
 			
 			long n = 0;
 			for(int i=0;i< dict.size();i++) {
@@ -225,86 +283,80 @@ public class Biostar336589 extends Launcher{
 				n += dict.getSequence(i).getSequenceLength();
 				}
 
-			
+			final List<Track> tracks = new ArrayList<>(1+args.size());
 			final Set<String> skipped_contigs = new HashSet<>();
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
 			converter.setOnNotFound(OnNotFound.SKIP);
 			final BedLineCodec codec = new BedLineCodec();
-			br = super.openBufferedReader(oneFileOrNull(args));
-			String line;
-			while((line=br.readLine())!=null)
+			for(final String filename:args.isEmpty()?Collections.singletonList((String)null):args)
 				{
-				if(StringUtil.isBlank(line) || BedLine.isBedHeader(line)) continue;
-				final BedLine bedLine = codec.decode(line);
-				final String newCtg = converter.apply(bedLine.getContig());
-				if(StringUtil.isBlank(newCtg)) {
-					if(skipped_contigs.add(bedLine.getContig())) {
-						LOG.warn("unknown contig "+bedLine.getContig()+". Skipping.");
-						}
-					continue;
-				}
-				final SAMSequenceRecord ssr = this.dict.getSequence(newCtg);
-				if(ssr==null) continue;
-				if(bedLine.getStart() > ssr.getSequenceLength()) continue;
-				if(bedLine.getEnd() < 1) continue;
-				final Arc arc = new Arc();
-				arc.tid = ssr.getSequenceIndex();
-				arc.start = Math.max(bedLine.getStart(),0);
-				arc.end = Math.min(bedLine.getEnd(),ssr.getSequenceLength());
-				arc.name = bedLine.getOrDefault(3,"");
-				try {
-					final String s = bedLine.getOrDefault(4,"0");
-					if(!StringUtil.isBlank(s)) arc.score= Math.min(1000,Math.max(0,Integer.parseInt(s)));
-					maxScore = Math.max(maxScore, arc.score);
-					}
-				catch(final NumberFormatException err)
-					{
-					arc.score=0;
-					}
+				final Track currentTrack = new Track(tracks.size());
+				if(!StringUtil.isBlank(filename)) currentTrack.name =  filename;
+				tracks.add(currentTrack);
 				
-				try {
-					final String s = bedLine.getOrDefault(8,"");
-					final String tokens[] = CharSplitter.COMMA.split(s);
-					if(tokens.length==3)
+				br = super.openBufferedReader(filename);
+				String line;
+				while((line=br.readLine())!=null)
+					{
+					if(StringUtil.isBlank(line) || BedLine.isBedHeader(line)) continue;
+					final BedLine bedLine = codec.decode(line);
+					final String newCtg = converter.apply(bedLine.getContig());
+					if(StringUtil.isBlank(newCtg)) {
+						if(skipped_contigs.add(bedLine.getContig())) {
+							LOG.warn("unknown contig "+bedLine.getContig()+". Skipping.");
+							}
+						continue;
+						}
+					final SAMSequenceRecord ssr = this.dict.getSequence(newCtg);
+					if(ssr==null) continue;
+					if(bedLine.getStart() > ssr.getSequenceLength()) continue;
+					if(bedLine.getEnd() < 1) continue;
+					final Arc arc = new Arc();
+					arc.tid = ssr.getSequenceIndex();
+					arc.start = Math.max(bedLine.getStart(),0);
+					arc.end = Math.min(bedLine.getEnd(),ssr.getSequenceLength());
+					arc.name = bedLine.getOrDefault(3,"");
+					try {
+						final String s = bedLine.getOrDefault(4,"0");
+						if(!StringUtil.isBlank(s)) arc.score= Math.min(1000,Math.max(0,Integer.parseInt(s)));
+						maxScore = Math.max(maxScore, arc.score);
+						}
+					catch(final NumberFormatException err)
 						{
-						final int r = Integer.parseInt(tokens[0]);
-						final int g = Integer.parseInt(tokens[1]);
-						final int b = Integer.parseInt(tokens[2]);
-						if(r>=0 && r<256 && g>=0 && g<256 && b>=0 && b<256)
+						arc.score=0;
+						}
+					//color
+					
+					arc.cssStyle = toCss(bedLine.getOrDefault(8,""));
+					
+					
+					final TrackContig currTrackContig = currentTrack.get(arc.tid);
+					
+					int y=0;
+					for(y=0;y< currTrackContig.rows.size();++y)
+						{
+						final List<Arc> row = currTrackContig.rows.get(y);
+						if(row.stream().noneMatch(A->A.withinDistanceOf(arc,min_distance_bp)))
 							{
-							arc.itemRgb = new Color(r, g, b);
+							row.add(0,arc);//add in front, should be faster if data are sorted
+							break;
 							}
 						}
-						
-					}
-				catch(final NumberFormatException err)
-					{
-					arc.itemRgb=null;
-					}
-				
-				int y=0;
-				for(y=0;y< rows.size();++y)
-					{
-					final List<Arc> row = rows.get(y);
-					if(row.stream().noneMatch(A->A.withinDistanceOf(arc,min_distance_bp)))
+					if(y==currTrackContig.rows.size())
 						{
-						row.add(0,arc);//add in front, should be faster if data are sorted
-						break;
+						final List<Arc> row = new LinkedList<>();
+						currTrackContig.rows.add(row);
+						row.add(arc);
 						}
 					}
-				if(y==rows.size())
-					{
-					final List<Arc> row = new LinkedList<>();
-					rows.add(row);
-					row.add(arc);
-					}
+				br.close();
 				}
-			br.close();
-			LOG.info("number of arcs : "+rows.size());
+			LOG.info("number of arcs : "+ tracks.stream().mapToInt(T->T.maxRows()).sum());
 			
 			final double img_radius = 
 					this.min_internal_radius +
-					(rows.size()+4)*(this.feature_height+this.distance_between_arc)
+					(tracks.stream().mapToInt(T->T.maxRows()).sum()+4)
+					*(this.feature_height+this.distance_between_arc)
 					;
 			double radius = this.min_internal_radius;
 			
@@ -327,7 +379,8 @@ public class Biostar336589 extends Launcher{
 					"path.feature {stroke:lightcoral;stroke-width:0.3px;fill:rosybrown;opacity:0.8;pointer-events:all;cursor:crosshair;}"+
 					"path.contig0 {stroke:dimgray;stroke-width:0.8px;fill:gainsboro;}"+
 					"path.contig1 {stroke:dimgray;stroke-width:0.8px;fill:lightgrey;}"+
-					"text.contig {stroke:none;fill:steelblue;}"
+					"text.contig {stroke:none;fill:steelblue;}"+
+					"circle.track {stroke:lightgray;fill:none;stroke-width:0.8px;}"
 					);
 			w.writeEndElement();//style
 			
@@ -383,58 +436,74 @@ public class Biostar336589 extends Launcher{
 			w.writeStartElement("g");
 			w.writeAttribute("transform", "translate("+format(img_radius)+","+format(img_radius)+")");
 			w.writeStartElement("g");
-			for(final List<Arc> row:rows)
-				{
+			for(final Track currentTrack: tracks) {
 				w.writeStartElement("g");
-				for(final Arc arc: row)
+				w.writeComment("track "+String.valueOf(currentTrack.name));
+				if(currentTrack.id>0)
 					{
-					final String clickedAttribute = "clicked(evt,\""+arc.getContig()+"\","+arc.getStart()+","+arc.getEnd()+")";
-					
-					w.writeStartElement("path");
-					w.writeAttribute("d", arc(arc.tid,radius,arc.start,arc.end));
-
-					w.writeAttribute("onclick", clickedAttribute);
-					
-					w.writeAttribute("class", "feature");
-					if(arc.itemRgb!=null)
-						{
-						w.writeAttribute("style", "fill:rgb("
-								+arc.itemRgb.getRed()+ ","+
-								+arc.itemRgb.getGreen()+","+
-								+arc.itemRgb.getBlue()+");"
-								);
-						}
-					else if(maxScore>0)
-						{
-						final int g = (int)((arc.score/(double)maxScore)*255);
-						w.writeAttribute("style", "fill:rgb(" +
-								g+ ","+ +g+","+ +g+
-								")");
-						}
-					
-
-					
-					
-						w.writeStartElement("title");
-						if(!StringUtil.isBlank(arc.name))
-							{
-							w.writeCharacters(arc.name);
-							}
-						else
-							{
-							w.writeCharacters(arc.getContig()+":"+
-									niceIntFormat.format(arc.getStart())+"-"+
-									niceIntFormat.format(arc.getEnd())
-									);
-							}
-						w.writeEndElement();
-					
-					w.writeEndElement();//path
-					
+					w.writeEmptyElement("circle");
+					w.writeAttribute("class","track");
+					w.writeAttribute("cx","0");
+					w.writeAttribute("cy","0");
+					w.writeAttribute("r",format(radius));
 					}
+				
+				for(final TrackContig contigArc : currentTrack.contigs)
+					{
+					double track_contig_radius = radius;
+					for(final List<Arc> row:contigArc.rows)
+							{
+							w.writeStartElement("g");
+							for(final Arc arc: row)
+								{
+								final String clickedAttribute = "clicked(evt,\""+arc.getContig()+"\","+arc.getStart()+","+arc.getEnd()+")";
+								
+								w.writeStartElement("path");
+								w.writeAttribute("d", arc(arc.tid,track_contig_radius,arc.start,arc.end));
+			
+								w.writeAttribute("onclick", clickedAttribute);
+								
+								w.writeAttribute("class", "feature");
+								if(!StringUtil.isBlank(arc.cssStyle))
+									{
+									w.writeAttribute("style",arc.cssStyle);
+									}
+								else if(maxScore>0)
+									{
+									final int g = (int)((arc.score/(double)maxScore)*255);
+									w.writeAttribute("style", "fill:rgb(" +
+											g+ ","+ +g+","+ +g+
+											")");
+									}
+								
+			
+								
+								
+									w.writeStartElement("title");
+									if(!StringUtil.isBlank(arc.name))
+										{
+										w.writeCharacters(arc.name);
+										}
+									else
+										{
+										w.writeCharacters(arc.getContig()+":"+
+												niceIntFormat.format(arc.getStart())+"-"+
+												niceIntFormat.format(arc.getEnd())
+												);
+										}
+									w.writeEndElement();
+								
+								w.writeEndElement();//path
+								
+								}
+							w.writeEndElement();//g
+							track_contig_radius += this.distance_between_arc+this.feature_height;
+							}
+						}
 				w.writeEndElement();//g
-				radius += this.distance_between_arc+this.feature_height;
+				radius += currentTrack.maxRows()*(this.distance_between_arc+this.feature_height);
 				}
+			
 			w.writeEndElement();//g
 			w.writeStartElement("g");
 			radius+=this.feature_height;
