@@ -363,7 +363,7 @@ public class NaiveCnvDetector extends Launcher
 			out.print("\t");
 			out.print(list.isEmpty()?".":list.stream().map(S->S.getLabel()).collect(Collectors.joining(";")));
 			}
-		out.print("\t");
+		
 		
 		
 		if(this.count_affected_samples>0)
@@ -379,6 +379,7 @@ public class NaiveCnvDetector extends Launcher
 				noCnvSamples.stream().filter(S->S.isUnaffected()).count()
 				}}
 				);
+			out.print("\t");
 			out.print(format(p_value));
 			out.print("\t");
 			out.print(p_value<0.05?"*":".");
@@ -396,8 +397,6 @@ public class NaiveCnvDetector extends Launcher
 	
 	
 	private void printHeader(final PrintWriter out) {
-
-		
 		out.print("#chrom");
 		out.print("\t");
 		out.print("start");
@@ -409,7 +408,7 @@ public class NaiveCnvDetector extends Launcher
 		out.print("median.unaffected.depth.stddev");
 		for(int side=0;side<2;++side)
 			{
-			String prefix=side==0?"DEL":"DUP";
+			final String prefix=side==0?"DEL":"DUP";
 			out.print("\t");
 			out.print(prefix);
 			out.print("\t");
@@ -425,9 +424,10 @@ public class NaiveCnvDetector extends Launcher
 			out.print("\t");
 			out.print(prefix+".samples");
 			}
-		out.print("\t");
+		
 		
 		if(this.count_affected_samples>0) {
+			out.print("\t");
 			out.print("chi2");
 			out.print("\t");
 			out.print("chi2.signifiant");
