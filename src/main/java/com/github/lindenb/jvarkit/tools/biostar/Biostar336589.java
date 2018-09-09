@@ -60,6 +60,8 @@ import com.github.lindenb.jvarkit.util.svg.SVG;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
@@ -75,7 +77,7 @@ input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
   * column 3: end
   * column 4 is the name of the feature
   * column 5 is the score [0-1000] or '.'
-  * column 6 ignored
+  * column 6 strand +/-
   * column 7 ignored
   * column 8 ignored
   * column 9 is '.' or R,G,B (as in the bed specification) or it's treated as a full svg:style (e.g: `fill:red;stroke:blue;` ) 
@@ -127,6 +129,8 @@ public class Biostar336589 extends Launcher{
 	private File outputFile = null;
 	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx=null;
+	@Parameter(names={"-css","--css"},description="custom svg css file")
+	private File customCssFile=null;
 	@Parameter(names="-md",description="min distance in bp between two features on the same arc.")
 	private int min_distance_bp =100;
 	@Parameter(names="-mr",description="min internal radius")
@@ -139,6 +143,9 @@ public class Biostar336589 extends Launcher{
 	private int skip_chromosome_size = -1;
 	@Parameter(names="-a",description="rotate for 'x' seconds. ignore if <=0")
 	private int animation_seconds = -1;
+	@Parameter(names={"-hist","--histogram"},description="histogram mode: score of each bed item must be defined. Items must not overlap")
+	private boolean histogram_mode = false;
+
 
 	@Parameter(names={"-u","--url","--hyperlink"},description=
 			"creates a hyperlink when 'click' in an area. "
@@ -155,6 +162,7 @@ public class Biostar336589 extends Launcher{
 		int start;
 		int end;
 		String name;
+		byte strand=(byte)0;
 		int score  =0;
 		String cssStyle = null;
 		@Override
@@ -169,7 +177,6 @@ public class Biostar336589 extends Launcher{
 		public int getEnd() {
 			return end;
 			}
-		
 		
 		}
 	
@@ -316,39 +323,78 @@ public class Biostar336589 extends Launcher{
 					arc.start = Math.max(bedLine.getStart(),0);
 					arc.end = Math.min(bedLine.getEnd(),ssr.getSequenceLength());
 					arc.name = bedLine.getOrDefault(3,"");
-					try {
-						final String s = bedLine.getOrDefault(4,"0");
-						if(!StringUtil.isBlank(s)) arc.score= Math.min(1000,Math.max(0,Integer.parseInt(s)));
-						maxScore = Math.max(maxScore, arc.score);
-						}
-					catch(final NumberFormatException err)
+					final String scoreStr = bedLine.getOrDefault(4,"0");
+					if(StringUtil.isBlank(scoreStr)|| scoreStr.equals("."))
 						{
-						arc.score=0;
+						if(this.histogram_mode )
+							{
+							LOG.warn("no score defined for "+line+" in histogram mode. skipping.");
+							continue;
+							}
 						}
-					//color
+					else
+						{
+						try {
+							arc.score= Math.min(1000,Math.max(0,Integer.parseInt(scoreStr)));
+							maxScore = Math.max(maxScore, arc.score);
+							}
+						catch(final NumberFormatException err)
+							{
+							LOG.warn("bad defined for "+line+" in histogram mode..");
+							if(this.histogram_mode )
+								{
+								LOG.warn("skipping.");
+								continue;
+								}
+							arc.score=0;
+							}
+						}
+					final String strandStr= bedLine.getOrDefault(5,".");
+					if(strandStr.equals("+")) {
+						arc.strand = (byte)1;
+					} else if(strandStr.equals("-")) {
+						arc.strand = (byte)-1;
+					} else  {
+						arc.strand = (byte)0;
+					} 
 					
+					//color
 					arc.cssStyle = toCss(bedLine.getOrDefault(8,""));
 					
 					
 					final TrackContig currTrackContig = currentTrack.get(arc.tid);
-					
-					int y=0;
-					for(y=0;y< currTrackContig.rows.size();++y)
+					if(this.histogram_mode) // only one row for histograms
 						{
-						final List<Arc> row = currTrackContig.rows.get(y);
-						if(row.stream().noneMatch(A->A.withinDistanceOf(arc,min_distance_bp)))
+						if(currTrackContig.rows.isEmpty())
 							{
-							row.add(0,arc);//add in front, should be faster if data are sorted
-							break;
+							currTrackContig.rows.add(new LinkedList<>());
+							}
+						currTrackContig.rows.get(0).add(arc);
+						}
+					else
+						{
+						int y=0;
+						for(y=0;y< currTrackContig.rows.size();++y)
+							{
+							final List<Arc> row = currTrackContig.rows.get(y);
+							if(row.stream().noneMatch(A->A.withinDistanceOf(arc,
+									this.histogram_mode?0:this.min_distance_bp
+									)))
+								{
+								row.add(0,arc);//add in front, should be faster if data are sorted
+								break;
+								}
+							
+							}
+						if(y==currTrackContig.rows.size())
+							{
+							final List<Arc> row = new LinkedList<>();
+							currTrackContig.rows.add(row);
+							row.add(arc);	
 							}
 						}
-					if(y==currTrackContig.rows.size())
-						{
-						final List<Arc> row = new LinkedList<>();
-						currTrackContig.rows.add(row);
-						row.add(arc);
-						}
 					}
+				
 				br.close();
 				}
 			LOG.info("number of arcs : "+ tracks.stream().mapToInt(T->T.maxRows()).sum());
@@ -359,7 +405,7 @@ public class Biostar336589 extends Launcher{
 					*(this.feature_height+this.distance_between_arc)
 					;
 			double radius = this.min_internal_radius;
-			
+
 			LOG.info("image radius : "+img_radius);
 
 			
@@ -374,14 +420,20 @@ public class Biostar336589 extends Launcher{
 			w.writeNamespace("xlink", XLINK.NS);
 			
 			w.writeStartElement("style");
-			w.writeCharacters(
-					"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
-					"path.feature {stroke:lightcoral;stroke-width:0.3px;fill:rosybrown;opacity:0.8;pointer-events:all;cursor:crosshair;}"+
-					"path.contig0 {stroke:dimgray;stroke-width:0.8px;fill:gainsboro;}"+
-					"path.contig1 {stroke:dimgray;stroke-width:0.8px;fill:lightgrey;}"+
-					"text.contig {stroke:none;fill:steelblue;}"+
-					"circle.track {stroke:lightgray;fill:none;stroke-width:0.8px;}"
-					);
+			if(this.customCssFile!=null) {
+				w.writeCharacters(IOUtil.slurp(this.customCssFile));
+				}
+			else
+				{
+				w.writeCharacters(
+						"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
+						"path.feature {stroke:lightcoral;stroke-width:0.3px;fill:rosybrown;opacity:0.8;pointer-events:all;cursor:crosshair;}"+
+						"path.contig0 {stroke:dimgray;stroke-width:0.8px;fill:gainsboro;}"+
+						"path.contig1 {stroke:dimgray;stroke-width:0.8px;fill:lightgrey;}"+
+						"text.contig {stroke:none;fill:steelblue;}"+
+						"circle.track {stroke:lightgray;fill:none;stroke-width:0.8px;}"
+						);
+				}
 			w.writeEndElement();//style
 			
 			
@@ -459,8 +511,18 @@ public class Biostar336589 extends Launcher{
 								final String clickedAttribute = "clicked(evt,\""+arc.getContig()+"\","+arc.getStart()+","+arc.getEnd()+")";
 								
 								w.writeStartElement("path");
-								w.writeAttribute("d", arc(arc.tid,track_contig_radius,arc.start,arc.end));
-			
+								if(this.histogram_mode)
+									{
+									final double height = (arc.score/((double)(maxScore<=0?1:maxScore)))*this.feature_height;
+									w.writeAttribute("d", arc(arc.tid,track_contig_radius,
+											track_contig_radius+height,
+											arc.start,
+											arc.end,(byte)0));
+									}
+								else
+									{
+									w.writeAttribute("d", arc(arc.tid,track_contig_radius,track_contig_radius+this.feature_height,arc.start,arc.end,arc.strand));
+									}
 								w.writeAttribute("onclick", clickedAttribute);
 								
 								w.writeAttribute("class", "feature");
@@ -512,12 +574,11 @@ public class Biostar336589 extends Launcher{
 				final SAMSequenceRecord ssr = this.dict.getSequence(tid);
 				w.writeStartElement("path");
 				w.writeAttribute("class", "contig"+(tid%2));
-				w.writeAttribute("d", arc(tid,radius,0,ssr.getSequenceLength()));
+				w.writeAttribute("d", arc(tid,radius,radius+this.feature_height,0,ssr.getSequenceLength(),(byte)0));
 
 				w.writeStartElement("title");
 				w.writeCharacters(ssr.getSequenceName());
 				w.writeEndElement();
-					
 				
 				w.writeEndElement();//path
 				
@@ -566,23 +627,29 @@ public class Biostar336589 extends Launcher{
 		return (pos/((double)this.reference_length))*(2.0*Math.PI);
 		}
 	
-	private String arc(final int tid,final double radius,final int start,final int end) {
+	private String arc(
+		final int tid,
+		final double radius1,
+		final double radius2,
+		final int start,final int end,
+		final byte strand
+		) {
 		final long index_at_start = this.tid_to_start[tid];
 		
 		final double r_start = refpos2ang(index_at_start+ start);
 		final double r_end = refpos2ang(index_at_start+ end);
-		final Point2D.Double p1 = polarToCartestian(radius, r_start);
-		final Point2D.Double p2 = polarToCartestian(radius, r_end);
-		final Point2D.Double p3 = polarToCartestian(radius+this.feature_height, r_end);
-		final Point2D.Double p4 = polarToCartestian(radius+this.feature_height, r_start);
+		final Point2D.Double p1 = polarToCartestian(radius1, r_start);
+		final Point2D.Double p2 = polarToCartestian(radius1, r_end);
+		final Point2D.Double p3 = polarToCartestian(radius2, r_end);
+		final Point2D.Double p4 = polarToCartestian(radius2, r_start);
 		final StringBuilder sb = new StringBuilder();
 		sb.append("M ").
 			append(pointToStr(p1));
 		
 		sb.append(" A ").
-			append(format(radius)).
+			append(format(radius1)).
 			append(" ").
-			append(format(radius)).
+			append(format(radius1)).
 			append(" 0"). //X axis rotation
 			append(" 0").// large arc
 			append(" 1 ").// sweep flag (positive angle direction)
@@ -591,9 +658,9 @@ public class Biostar336589 extends Launcher{
 		sb.append(" L").append(pointToStr(p3));
 		
 		sb.append(" A ").
-		append(format(radius+this.feature_height)).
+		append(format(radius2)).
 		append(" ").
-		append(format(radius+this.feature_height)).
+		append(format(radius2)).
 		append(" 0"). //X axis rotation
 		append(" 0").// large arc
 		append(" 0 ").// sweep flag (positive angle direction)

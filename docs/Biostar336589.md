@@ -10,11 +10,17 @@ displays circular map as SVG from BED and REF file
 ```
 Usage: biostar336589 [options] Files
   Options:
+    -css, --css
+      custom svg css file
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -hist, --histogram
+      histogram mode: score of each bed item must be defined. Items must not 
+      overlap 
+      Default: false
     -u, --url, --hyperlink
       creates a hyperlink when 'click' in an area. The URL must contains 
       __CHROM__, __START__ and __END__ that will be replaced by their values. 
@@ -140,7 +146,7 @@ input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
   * column 3: end
   * column 4 is the name of the feature
   * column 5 is the score [0-1000] or '.'
-  * column 6 ignored
+  * column 6 strand +/-
   * column 7 ignored
   * column 8 ignored
   * column 9 is '.' or R,G,B (as in the bed specification) or it's treated as a full svg:style (e.g: `fill:red;stroke:blue;` ) 
