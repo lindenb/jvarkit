@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.io.BufferedReader;
 import java.io.File;
@@ -60,7 +59,6 @@ import com.github.lindenb.jvarkit.util.svg.SVG;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
@@ -70,7 +68,7 @@ BEGIN_DOC
 
 ## input
 
-input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
+input is a BED file (file or stdin). https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 
   * column 1: chrom
   * column 2: start (you'll get faster results if the input is sorted on chrom/start )
@@ -82,6 +80,8 @@ input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
   * column 8 ignored
   * column 9 is '.' or R,G,B (as in the bed specification) or it's treated as a full svg:style (e.g: `fill:red;stroke:blue;` ) 
 
+
+multiple bed files are splitted into 'tracks'.
 
 ## Example
 
@@ -105,6 +105,19 @@ $ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/refGene.txt
 
 https://gist.github.com/lindenb/5250750014441cc36586dd1f47ed0e37
 
+## Example
+
+```
+cat src/test/resources/rotavirus_rf.fa.fai  | awk '{if(NR==1) srand(); printf("%s\t0\t%s\t%s\t%d\t%s\n",$1,$2,$1,rand()*1000,rand()<0.5?rand()<0.5?".":"+":"-");}'   > tmp1.bed
+cat src/test/resources/rotavirus_rf.fa.fai  | awk '{if(NR==1) srand(); printf("%s\t0\t%s\t%s\t%d\t%s\n",$1,$2,$1,rand()*1000,rand()<0.5?rand()<0.5?".":"+":"-");}'   > tmp2.bed
+cat src/test/resources/rotavirus_rf.fa.fai  | awk '{if(NR==1) srand(); printf("%s\t0\t%s\t%s\t%d\t%s\n",$1,$2,$1,rand()*1000,rand()<0.5?rand()<0.5?".":"+":"-");}'   > tmp3.bed
+
+
+java -jar dist/biostar336589.jar -R src/test/resources/rotavirus_rf.fa -a 60   tmp1.bed tmp2.bed tmp3.bed > out.svg
+```
+
+https://gist.github.com/lindenb/7fd1fa1d3dedcfe38e009387d9f8579c
+
 
 ## Screenshot
 
@@ -112,6 +125,10 @@ https://gist.github.com/lindenb/5250750014441cc36586dd1f47ed0e37
 https://twitter.com/yokofakun/status/1038060108373286912
 
 ![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
+
+https://twitter.com/yokofakun/status/1039054467889590272
+
+![https://pbs.twimg.com/media/Dmt2GyvWsAAHfvY.jpg](https://pbs.twimg.com/media/Dmt2GyvWsAAHfvY.jpg)
 
 
 END_DOC
@@ -260,6 +277,9 @@ public class Biostar336589 extends Launcher{
 		}
 		if(this.feature_height < 2) {
 			this.feature_height = 2;
+		}
+		if(this.arrow_size<=0) {
+			this.arrow_size=0.01;
 		}
 		int maxScore=0;
 		BufferedReader br = null;
@@ -641,8 +661,8 @@ public class Biostar336589 extends Launcher{
 		final double r_start = refpos2ang(index_at_start+ start);
 		final double r_end = refpos2ang(index_at_start+ end);
 		final double arc_length = (r_end-r_start)*Math.PI;
-		
-		strand = 0;//TODO
+		final double angle_arrow= this.arrow_size / mid_radius;
+
 		final Point2D.Double p1 = polarToCartestian(radius1, r_start);
 		final Point2D.Double p2 = polarToCartestian(radius1, r_end);
 		final Point2D.Double p3 = polarToCartestian(radius2, r_end);
@@ -650,8 +670,7 @@ public class Biostar336589 extends Launcher{
 		final StringBuilder sb = new StringBuilder();
 		
 		if(this.histogram_mode || strand==0|| 2.0*this.arrow_size<=arc_length)  {
-			sb.append("M ").
-				append(pointToStr(p1));
+			sb.append("M ").append(pointToStr(p1));
 			
 			sb.append(" A ").
 				append(format(radius1)).
@@ -676,16 +695,54 @@ public class Biostar336589 extends Launcher{
 			sb.append(" L ").append(pointToStr(p1));
 			}
 		else if(strand==-1) {
-			final double angle_arrow= this.arrow_size * 1.0; //len = r*PI
-			final Point2D.Double pas = polarToCartestian(mid_radius, r_start + angle_arrow);
-			final Point2D.Double pae = polarToCartestian(mid_radius, r_end - angle_arrow);
+			sb.append("M ").append(pointToStr(polarToCartestian(mid_radius, r_start)));
+			sb.append("L ").append(pointToStr(polarToCartestian(radius1, r_start+angle_arrow)));
+			
+			sb.append(" A ").
+				append(format(radius1)).
+				append(" ").
+				append(format(radius1)).
+				append(" 0"). //X axis rotation
+				append(" 0").// large arc
+				append(" 1 ").// sweep flag (positive angle direction)
+				append(pointToStr(p2));
+
+			sb.append("L ").append(pointToStr(p3));	
+			
+			sb.append(" A ").
+				append(format(radius2)).
+				append(" ").
+				append(format(radius2)).
+				append(" 0"). //X axis rotation
+				append(" 0").// large arc
+				append(" 0 ").// sweep flag (positive angle direction)
+				append(pointToStr(polarToCartestian(radius2, r_start+angle_arrow)));
 			
 			}
 		else if(strand==1)
-			{
-			final double angle_arrow= this.arrow_size * 1.0; //len = r*PI
-			final Point2D.Double pas = polarToCartestian(mid_radius, r_start + angle_arrow);
-			final Point2D.Double pae = polarToCartestian(mid_radius, r_end - angle_arrow);
+			{			
+			sb.append("M ").append(pointToStr(p1));
+			
+			sb.append(" A ").
+				append(format(radius1)).
+				append(" ").
+				append(format(radius1)).
+				append(" 0"). //X axis rotation
+				append(" 0").// large arc
+				append(" 1 ").// sweep flag (positive angle direction)
+				append(pointToStr(polarToCartestian(radius1, r_end - angle_arrow)));
+			
+			sb.append("L ").append(pointToStr(polarToCartestian(mid_radius, r_end)));
+			sb.append("L ").append(pointToStr(polarToCartestian(radius2, r_end-angle_arrow)));	
+			
+			sb.append(" A ").
+				append(format(radius2)).
+				append(" ").
+				append(format(radius2)).
+				append(" 0"). //X axis rotation
+				append(" 0").// large arc
+				append(" 0 ").// sweep flag (positive angle direction)
+				append(pointToStr(p4));
 			}
 		sb.append(" Z");
 		

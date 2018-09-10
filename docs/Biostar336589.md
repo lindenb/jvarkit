@@ -40,6 +40,9 @@ Usage: biostar336589 [options] Files
     -a
       rotate for 'x' seconds. ignore if <=0
       Default: -1
+    -as
+      arrow size
+      Default: 10.0
     -da
       distance between arcs
       Default: 10.0
@@ -139,7 +142,7 @@ The current reference is:
 
 ## input
 
-input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
+input is a BED file (file or stdin). https://genome.ucsc.edu/FAQ/FAQformat.html#format1
 
   * column 1: chrom
   * column 2: start (you'll get faster results if the input is sorted on chrom/start )
@@ -151,6 +154,8 @@ input is a BED file. https://genome.ucsc.edu/FAQ/FAQformat.html#format1
   * column 8 ignored
   * column 9 is '.' or R,G,B (as in the bed specification) or it's treated as a full svg:style (e.g: `fill:red;stroke:blue;` ) 
 
+
+multiple bed files are splitted into 'tracks'.
 
 ## Example
 
@@ -174,6 +179,19 @@ $ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/refGene.txt
 
 https://gist.github.com/lindenb/5250750014441cc36586dd1f47ed0e37
 
+## Example
+
+```
+cat src/test/resources/rotavirus_rf.fa.fai  | awk '{if(NR==1) srand(); printf("%s\t0\t%s\t%s\t%d\t%s\n",$1,$2,$1,rand()*1000,rand()<0.5?rand()<0.5?".":"+":"-");}'   > tmp1.bed
+cat src/test/resources/rotavirus_rf.fa.fai  | awk '{if(NR==1) srand(); printf("%s\t0\t%s\t%s\t%d\t%s\n",$1,$2,$1,rand()*1000,rand()<0.5?rand()<0.5?".":"+":"-");}'   > tmp2.bed
+cat src/test/resources/rotavirus_rf.fa.fai  | awk '{if(NR==1) srand(); printf("%s\t0\t%s\t%s\t%d\t%s\n",$1,$2,$1,rand()*1000,rand()<0.5?rand()<0.5?".":"+":"-");}'   > tmp3.bed
+
+
+java -jar dist/biostar336589.jar -R src/test/resources/rotavirus_rf.fa -a 60   tmp1.bed tmp2.bed tmp3.bed > out.svg
+```
+
+https://gist.github.com/lindenb/7fd1fa1d3dedcfe38e009387d9f8579c
+
 
 ## Screenshot
 
@@ -181,6 +199,10 @@ https://gist.github.com/lindenb/5250750014441cc36586dd1f47ed0e37
 https://twitter.com/yokofakun/status/1038060108373286912
 
 ![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
+
+https://twitter.com/yokofakun/status/1039054467889590272
+
+![https://pbs.twimg.com/media/Dmt2GyvWsAAHfvY.jpg](https://pbs.twimg.com/media/Dmt2GyvWsAAHfvY.jpg)
 
 
 

@@ -85,6 +85,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/309143](https://www.biostars.org/p/309143)
  * [https://www.biostars.org/p/327317](https://www.biostars.org/p/327317)
  * [https://www.biostars.org/p/335998](https://www.biostars.org/p/335998)
+ * [https://www.biostars.org/p/336965](https://www.biostars.org/p/336965)
 
 
 ## Compilation
