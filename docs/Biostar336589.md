@@ -29,11 +29,23 @@ Usage: biostar336589 [options] Files
       Default: none
     -o, --out
       Output file. Optional . Default: stdout
+    --score-end-color
+      When coloring with bed/score this is the color end.  A named color 
+      ('red', 'blue'...) use the syntax 'rgb(int,int,int)'.
+      Default: black
+    --score-start-color
+      When coloring with bed/score this is the color start.  A named color 
+      ('red', 'blue'...) use the syntax 'rgb(int,int,int)'.
+      Default: white
     --title
       document title
       Default: Biostar336589
     --version
       print version and exit
+    --width
+      Linear SVG size. When defined, this option switches to a 
+      linear(!=circular) view
+      Default: -1
   * -R
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -42,6 +54,9 @@ Usage: biostar336589 [options] Files
       Default: -1
     -as
       arrow size
+      Default: 10.0
+    -ch
+      contig height
       Default: 10.0
     -da
       distance between arcs

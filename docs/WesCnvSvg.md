@@ -15,6 +15,11 @@ Usage: wescnvsvg [options] Files
       Default: -1
   * -B, --bed, -b, --capture
       BED Capture. Regions to be observed.
+    -css, --css
+      custom svg css stylesheet
+    -x, --extend
+      Extend each region in the bed by 'x' bases. If the argument ends with 
+      '%' it is interpreted as a percentage.
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 

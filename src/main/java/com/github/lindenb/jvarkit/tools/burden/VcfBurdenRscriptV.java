@@ -101,11 +101,11 @@ BEGIN_DOC
 
 ### see also
 
-
  *  VcfBurdenFilter3
 
 ### History 
 
+  * [20180910] add NFE https://www.youtube.com/watch?v=Fi5dLGAH8R0
   * [20180831] add CADD values from VcfCadd
 
 END_DOC
@@ -139,6 +139,8 @@ public class VcfBurdenRscriptV
 	private boolean include_vcf_cadd = false;
 	@Parameter(names={"--cadd-missing"},description="[20180831] value for CADD missing data")
 	private String cadd_missing_value = "NA";
+	@Parameter(names={"--nfe"},description="[20180910] INCLUDE gnomad genome NFE AC")
+	private boolean include_gnomad_genome_nfe_ac  = false;
 	@Parameter(names={"-p","--pedigree"},description="[20180831] pedigree file (or I will try to extract the pedigree from the vcf header. " +Pedigree.OPT_DESCRIPTION)
 	private File pedigreeFile = null;
 	
@@ -157,6 +159,7 @@ public class VcfBurdenRscriptV
 		Double maf=null;
 		Double cadd_phred = null;
 		Double cadd_score = null;
+		Integer gnomad_genome_nfe_ac = null;
 	}
 	
 	@Override
@@ -315,6 +318,27 @@ public class VcfBurdenRscriptV
 				variant.ref = ctx.getReference();
 				variant.alt = observed_alt;
 				
+				/** 20181110, include NFE AC */
+				if(this.include_gnomad_genome_nfe_ac)
+					{
+					final Function<Object,Integer> object2int = (O)->{
+						if(O==null) return null;
+						final String str= String.valueOf(O);
+						if(str.isEmpty() || str.equals(".")) return null;
+						try {
+							return new Integer(str);
+							}
+						catch (final NumberFormatException e) {
+							return null;
+							}
+						};
+					final int allele_index = ctx.getAlleleIndex(observed_alt);
+					final List<Object> nfeL = ctx.getAttributeAsList("gnomad_genome_AC_NFE");
+					if(!nfeL.isEmpty() && allele_index> 0 /* yes */ && allele_index< nfeL.size()) {
+						variant.gnomad_genome_nfe_ac  = object2int.apply(nfeL.get(allele_index-1));/* -1 because allele_index is relative to REF */
+						}
+					}
+				
 				/** 2018-08-31 : Matilde wants scores CADD in output */
 				if(this.include_vcf_cadd) {
 					final Function<Object,Double> object2double = (O)->{
@@ -374,6 +398,17 @@ public class VcfBurdenRscriptV
 			pw.print("),maf=c(");
 			first=true; for(final Variant v: variants) {if(!first) pw.print(",");pw.print(v.maf==null?"NA":String.valueOf(v.maf));first=false;}
 			pw.print(")");
+			
+			if(this.include_gnomad_genome_nfe_ac)
+				{
+				pw.print(",gnomad_nfe_ac=c(");
+				pw.print(variants.stream().
+						map(V->V.gnomad_genome_nfe_ac).
+						map(D->D==null?"0":String.valueOf(D)).
+						collect(Collectors.joining(",")
+						));
+				pw.print(")");				
+				}
 			
 			if(this.include_vcf_cadd)
 				{

@@ -100,7 +100,7 @@ public class NaiveCnvDetector extends Launcher
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-	@Parameter(names={"-c"},description="config file. Tab delimited. Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If this file is not specified , all samples are considered unaffected (discovery mode).")
+	@Parameter(names={"-c","--config"},description="config file. Tab delimited. Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If this file is not specified , all samples are considered unaffected (discovery mode).")
 	private File configFile=null;	
 	/** size of a window */
 	@Parameter(names={"-w"},description="window size")
@@ -119,7 +119,7 @@ public class NaiveCnvDetector extends Launcher
 	@Parameter(names={"-E","-del","--del","--deletion"},description="Deletion Treshold. Which fraction of the median depth is considered as aa deletion. Must be <1.0" )
 	private double deletion_treshold = 0.5;
 	@Parameter(names={"-U","-dup","--dup","--duplication"},description="Duplication Treshold. Which fraction of the median depth is considered as a duplication. Must be >1.0" )
-	private double duplication_treshold = 1.9;
+	private double duplication_treshold = 1.5;
 	@Parameter(names={"--no-both"},description="There cannot be a DEL and a DUP at the same place." )
 	private boolean no_both = false;
 	@Parameter(names={"-t"},description="DEL must be < median-depth-stdev and DUP must be > median-depth+stdev" )
@@ -529,7 +529,7 @@ public class NaiveCnvDetector extends Launcher
 			else
 				{
 				if(this.dict==null) {
-					LOG.error("Ref dictionary is required");
+					LOG.error("Ref dictionary is required . args: "+String.join(",", args)+".");
 					return -1;
 					}
 				final List<File> filenames = IOUtils.unrollFiles2018(args);	
@@ -773,8 +773,12 @@ public class NaiveCnvDetector extends Launcher
 		protected DepthLine advance()
 			{
 			try {
-				final String line = br.readLine();
-				if(line==null) return null;
+				String line;
+				for(;;) {
+					line = br.readLine();
+					if(line==null) return null;
+					if(!line.startsWith("#")) break;
+					}
 				final String tokens[] = this.tab.split(line);
 				if(tokens.length<3) {
 					throw new JvarkitException.TokenErrors("expected at least 3 words",tokens);

@@ -25,9 +25,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
+import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -37,10 +39,12 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
@@ -55,6 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -154,6 +159,8 @@ public class Biostar336589 extends Launcher{
 	private double min_internal_radius =100;
 	@Parameter(names="-fh",description="arc height")
 	private double feature_height =10;
+	@Parameter(names="-ch",description="contig height")
+	private double contig_height =10;
 	@Parameter(names="-as",description="arrow size")
 	private double arrow_size =10;
 	@Parameter(names="-da",description="distance between arcs ")
@@ -164,6 +171,12 @@ public class Biostar336589 extends Launcher{
 	private int animation_seconds = -1;
 	@Parameter(names={"-hist","--histogram"},description="histogram mode: score of each bed item must be defined. Items must not overlap")
 	private boolean histogram_mode = false;
+	@Parameter(names={"--score-start-color"},description="When coloring with bed/score this is the color start. "+ColorUtils.Converter.OPT_DESC)
+	private String colorScoreStartStr = "white";
+	@Parameter(names={"--score-end-color"},description="When coloring with bed/score this is the color end. "+ColorUtils.Converter.OPT_DESC)
+	private String colorScoreEndStr = "black";
+	@Parameter(names={"--width"},description="Linear SVG size. When defined, this option switches to a linear(!=circular) view")
+	private int linear_width = -1;
 
 
 	@Parameter(names={"-u","--url","--hyperlink"},description=
@@ -228,9 +241,11 @@ public class Biostar336589 extends Launcher{
 	private SAMSequenceDictionary dict;
 	private long reference_length;
 	private long tid_to_start[];
-	
+	private final ColorUtils colorUtils = new ColorUtils();
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
+	private Color scoreColorStart = Color.WHITE;
+	private Color scoreColorEnd = Color.BLACK;
 
 	
 	private String format(double v) {
@@ -266,6 +281,16 @@ public class Biostar336589 extends Launcher{
 		return null;
 		}
 	
+	private Color between(final Color i,final Color j,float f)
+		{
+		if(f<0) f=0f;
+		if(f>1) f=1f;
+		final int r= i.getRed()+(int)((j.getRed()-i.getRed())*f);
+		final int g= i.getGreen()+(int)((j.getGreen()-i.getGreen())*f);
+		final int b= i.getBlue()+(int)((j.getBlue()-i.getBlue())*f);
+		return new Color(r,g,b);
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.faidx==null) {
@@ -281,6 +306,30 @@ public class Biostar336589 extends Launcher{
 		if(this.arrow_size<=0) {
 			this.arrow_size=0.01;
 		}
+		if(this.contig_height<=0) 
+			{
+			this.contig_height = 2.0;
+			}
+		;
+		Color scoreColorEnd;
+		
+		try {
+			scoreColorStart = colorUtils.parse(this.colorScoreStartStr);
+			if(scoreColorStart==null) scoreColorStart = Color.WHITE;
+			} 
+		catch(final Exception err) 
+			{
+			scoreColorStart = Color.WHITE;
+			}
+		try {
+			scoreColorEnd = colorUtils.parse(this.colorScoreEndStr);
+			if(scoreColorEnd==null) scoreColorEnd = Color.BLACK;
+			} 
+		catch(final Exception err) 
+			{
+			scoreColorEnd = Color.BLACK;
+			}
+		
 		int maxScore=0;
 		BufferedReader br = null;
 		PrintWriter out = null;
@@ -362,7 +411,7 @@ public class Biostar336589 extends Launcher{
 							}
 						catch(final NumberFormatException err)
 							{
-							LOG.warn("bad defined for "+line+" in histogram mode..");
+							LOG.warn("bad score for "+line);
 							if(this.histogram_mode )
 								{
 								LOG.warn("skipping.");
@@ -421,14 +470,6 @@ public class Biostar336589 extends Launcher{
 				}
 			LOG.info("number of arcs : "+ tracks.stream().mapToInt(T->T.maxRows()).sum());
 			
-			final double img_radius = 
-					this.min_internal_radius +
-					(tracks.stream().mapToInt(T->T.maxRows()).sum()+4)
-					*(this.feature_height+this.distance_between_arc)
-					;
-			double radius = this.min_internal_radius;
-
-			LOG.info("image radius : "+img_radius);
 
 			
 			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
@@ -436,190 +477,14 @@ public class Biostar336589 extends Launcher{
 			final XMLStreamWriter w = xof.createXMLStreamWriter(out);
 			w.writeStartDocument("UTF-8", "1.0");
 			w.writeStartElement("svg");
-			w.writeAttribute("width", String.valueOf(Math.ceil(img_radius*2)));
-			w.writeAttribute("height", String.valueOf(Math.ceil(img_radius*2)));
-			w.writeDefaultNamespace(SVG.NS);
-			w.writeNamespace("xlink", XLINK.NS);
-			
-			w.writeStartElement("style");
-			if(this.customCssFile!=null) {
-				w.writeCharacters(IOUtil.slurp(this.customCssFile));
+			if(this.linear_width<=0)
+				{
+				writeCircular(w,tracks,maxScore);
 				}
 			else
 				{
-				w.writeCharacters(
-						"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
-						"path.feature {stroke:lightcoral;stroke-width:0.3px;fill:rosybrown;opacity:0.8;pointer-events:all;cursor:crosshair;}"+
-						"path.contig0 {stroke:dimgray;stroke-width:0.8px;fill:gainsboro;}"+
-						"path.contig1 {stroke:dimgray;stroke-width:0.8px;fill:lightgrey;}"+
-						"text.contig {stroke:none;fill:steelblue;}"+
-						"circle.track {stroke:lightgray;fill:none;stroke-width:0.8px;}"
-						);
+				writeLinear(w,tracks,maxScore);
 				}
-			w.writeEndElement();//style
-			
-			
-			w.writeStartElement("script");
-			
-			final StringBuilder openBrowserFunction = new StringBuilder(
-					"function openGenomeBrowser(contig,chromStart,chromEnd) {\n"
-					);
-			if( hyperlinkType.contains("__CHROM__") &&
-				hyperlinkType.contains("__START__")	&&
-				hyperlinkType.contains("__END__") &&
-				!hyperlinkType.contains("\"")
-				)
-				{
-				openBrowserFunction.append("var url=\""+this.hyperlinkType+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
-				openBrowserFunction.append("window.open(url,'_blank');\n");
-
-				}
-			else
-				{
-				//nothing
-				}
-			openBrowserFunction.append("}\n");
-			
-			w.writeCData(
-				openBrowserFunction.toString() +
-				"function clicked(evt,contig,chromStart,chromEnd){\n" +
-			    "   openGenomeBrowser(contig,chromStart,chromEnd);\n" +
-			    "}\n");                
-			w.writeEndElement();//script
-
-			
-			w.writeStartElement("title");
-			w.writeCharacters(this.domTitle);
-			w.writeEndElement();
-			
-			w.writeStartElement("g");
-			w.writeAttribute("class", "maing");
-			
-			if(this.animation_seconds >0) {
-				w.writeStartElement("animateTransform");
-				w.writeAttribute("attributeName", "transform");
-				w.writeAttribute("attributeType", "XML");
-				w.writeAttribute("type", "rotate");
-				w.writeAttribute("from","0 "+format(img_radius)+" "+format(img_radius));
-				w.writeAttribute("to","360 "+format(img_radius)+" "+format(img_radius));
-				w.writeAttribute("dur",String.valueOf(this.animation_seconds)+"s");
-				w.writeAttribute("repeatCount","indefinite");
-				w.writeEndElement();
-				}
-			
-			w.writeStartElement("g");
-			w.writeAttribute("transform", "translate("+format(img_radius)+","+format(img_radius)+")");
-			w.writeStartElement("g");
-			for(final Track currentTrack: tracks) {
-				w.writeStartElement("g");
-				w.writeComment("track "+String.valueOf(currentTrack.name));
-				if(currentTrack.id>0)
-					{
-					w.writeEmptyElement("circle");
-					w.writeAttribute("class","track");
-					w.writeAttribute("cx","0");
-					w.writeAttribute("cy","0");
-					w.writeAttribute("r",format(radius));
-					}
-				
-				for(final TrackContig contigArc : currentTrack.contigs)
-					{
-					double track_contig_radius = radius;
-					for(final List<Arc> row:contigArc.rows)
-							{
-							w.writeStartElement("g");
-							for(final Arc arc: row)
-								{
-								final String clickedAttribute = "clicked(evt,\""+arc.getContig()+"\","+arc.getStart()+","+arc.getEnd()+")";
-								
-								w.writeStartElement("path");
-								if(this.histogram_mode)
-									{
-									final double height = (arc.score/((double)(maxScore<=0?1:maxScore)))*this.feature_height;
-									w.writeAttribute("d", arc(arc.tid,track_contig_radius,
-											track_contig_radius+height,
-											arc.start,
-											arc.end,(byte)0));
-									}
-								else
-									{
-									w.writeAttribute("d", arc(arc.tid,track_contig_radius,track_contig_radius+this.feature_height,arc.start,arc.end,arc.strand));
-									}
-								w.writeAttribute("onclick", clickedAttribute);
-								
-								w.writeAttribute("class", "feature");
-								if(!StringUtil.isBlank(arc.cssStyle))
-									{
-									w.writeAttribute("style",arc.cssStyle);
-									}
-								else if(maxScore>0)
-									{
-									final int g = (int)((arc.score/(double)maxScore)*255);
-									w.writeAttribute("style", "fill:rgb(" +
-											g+ ","+ +g+","+ +g+
-											")");
-									}
-								
-			
-								
-								
-									w.writeStartElement("title");
-									if(!StringUtil.isBlank(arc.name))
-										{
-										w.writeCharacters(arc.name);
-										}
-									else
-										{
-										w.writeCharacters(arc.getContig()+":"+
-												niceIntFormat.format(arc.getStart())+"-"+
-												niceIntFormat.format(arc.getEnd())
-												);
-										}
-									w.writeEndElement();
-								
-								w.writeEndElement();//path
-								
-								}
-							w.writeEndElement();//g
-							track_contig_radius += this.distance_between_arc+this.feature_height;
-							}
-						}
-				w.writeEndElement();//g
-				radius += currentTrack.maxRows()*(this.distance_between_arc+this.feature_height);
-				}
-			
-			w.writeEndElement();//g
-			w.writeStartElement("g");
-			radius+=this.feature_height;
-			for(int tid=0;tid< dict.size();++tid)
-				{
-				final SAMSequenceRecord ssr = this.dict.getSequence(tid);
-				w.writeStartElement("path");
-				w.writeAttribute("class", "contig"+(tid%2));
-				w.writeAttribute("d", arc(tid,radius,radius+this.feature_height,0,ssr.getSequenceLength(),(byte)0));
-
-				w.writeStartElement("title");
-				w.writeCharacters(ssr.getSequenceName());
-				w.writeEndElement();
-				
-				w.writeEndElement();//path
-				
-				w.writeStartElement("text");
-				w.writeAttribute("class", "contig");
-				w.writeAttribute("x", format(radius+this.distance_between_arc+this.feature_height));
-				w.writeAttribute("y", "0");
-				w.writeAttribute("transform","rotate("+format(Math.toDegrees(
-						refpos2ang(this.tid_to_start[tid]+(long)(ssr.getSequenceLength()/2.0))
-						))+")");
-				w.writeCharacters(ssr.getSequenceName());
-				w.writeEndElement();
-				}
-			w.writeEndElement();//g
-			
-			w.writeEndElement();//g
-			
-			w.writeEndElement();//g
-			
 			w.writeEndElement();//svg
 			w.writeEndDocument();
 			
@@ -638,8 +503,313 @@ public class Biostar336589 extends Launcher{
 			{
 			CloserUtil.close(br);
 			}
-	
 		}
+	
+	private void writeStyle(final XMLStreamWriter w) throws XMLStreamException,IOException {
+		w.writeStartElement("style");
+		if(this.customCssFile!=null) {
+			w.writeCharacters(IOUtil.slurp(this.customCssFile));
+			}
+		else
+			{
+			w.writeCharacters(
+					"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
+					".feature {stroke:lightcoral;stroke-width:0.3px;fill:rosybrown;opacity:0.8;pointer-events:all;cursor:crosshair;}"+
+					".contig0 {stroke:dimgray;stroke-width:0.8px;fill:gainsboro;}"+
+					".contig1 {stroke:dimgray;stroke-width:0.8px;fill:lightgrey;}"+
+					".contig {stroke:none;fill:steelblue;}"+
+					"circle.track {stroke:lightgray;fill:none;stroke-width:0.8px;}"
+					);
+			}
+		w.writeEndElement();//style		
+		}
+	
+	private void writeScript(final XMLStreamWriter w) throws IOException,XMLStreamException
+		{
+		w.writeStartElement("script");
+		final StringBuilder openBrowserFunction = new StringBuilder(
+				"function openGenomeBrowser(contig,chromStart,chromEnd) {\n"
+				);
+		if( hyperlinkType.contains("__CHROM__") &&
+			hyperlinkType.contains("__START__")	&&
+			hyperlinkType.contains("__END__") &&
+			!hyperlinkType.contains("\"")
+			)
+			{
+			openBrowserFunction.append("var url=\""+this.hyperlinkType+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
+			openBrowserFunction.append("window.open(url,'_blank');\n");
+
+			}
+		else
+			{
+			//nothing
+			}
+		openBrowserFunction.append("}\n");
+		
+		w.writeCData(
+			openBrowserFunction.toString() +
+			"function clicked(evt,contig,chromStart,chromEnd){\n" +
+		    "   openGenomeBrowser(contig,chromStart,chromEnd);\n" +
+		    "}\n");                
+		w.writeEndElement();//script
+		}
+	private void writeTitle(final XMLStreamWriter w) throws XMLStreamException {
+		w.writeStartElement("title");
+		w.writeCharacters(this.domTitle);
+		w.writeEndElement();
+		}
+	private void writeArcFeatures(final XMLStreamWriter w,final Arc arc,int maxScore) throws XMLStreamException
+		{
+		final String clickedAttribute = "clicked(evt,\""+arc.getContig()+"\","+arc.getStart()+","+arc.getEnd()+")";
+
+		w.writeAttribute("onclick", clickedAttribute);
+		
+		w.writeAttribute("class", "feature");
+		if(!StringUtil.isBlank(arc.cssStyle))
+			{
+			w.writeAttribute("style",arc.cssStyle);
+			}
+		else if(maxScore>0)
+			{
+			final float f = (float)((arc.score/(float)maxScore));
+			final Color c = between(scoreColorStart,scoreColorEnd,f);
+			w.writeAttribute("style", "fill:rgb(" +
+					c.getRed()+ ","+ c.getGreen()+","+ c.getBlue()+
+					")");
+			}
+		
+
+		
+		
+			w.writeStartElement("title");
+			if(!StringUtil.isBlank(arc.name))
+				{
+				w.writeCharacters(arc.name);
+				}
+			else
+				{
+				w.writeCharacters(arc.getContig()+":"+
+						niceIntFormat.format(arc.getStart())+"-"+
+						niceIntFormat.format(arc.getEnd())
+						);
+				}
+			w.writeEndElement();
+		}
+
+	private void writeLinear(
+			final XMLStreamWriter w,
+			final List<Track> tracks,
+			int maxScore
+			)throws XMLStreamException,IOException
+		{
+		
+		final int margin_left= 100;
+		final int longest = this.dict.getSequences().stream().mapToInt(SSR->SSR.getSequenceLength()).max().orElse(0);
+		if(longest<=0) return;
+		
+		final Function<Integer, Double> tid2y = (TID)->this.distance_between_arc+(TID*(this.feature_height+this.distance_between_arc));
+		final Function<Integer, Double> pos2x = (P)-> (P/((double)longest))*this.linear_width;
+		
+		final int img_width = this.linear_width  +  margin_left*2 +1;
+		final int img_height = (int)((this.dict.size()+1)*(this.feature_height+this.distance_between_arc));
+		w.writeAttribute("width", String.valueOf(img_width));
+		w.writeAttribute("height", String.valueOf(img_height));
+		w.writeDefaultNamespace(SVG.NS);
+		w.writeNamespace("xlink", XLINK.NS);
+		writeStyle(w);
+		writeScript(w);
+		writeTitle(w);
+		w.writeStartElement("g");
+		w.writeAttribute("class", "maing");
+		w.writeAttribute("transform", "translate("+margin_left+",0)");
+		
+		w.writeStartElement("g");
+		for(int tid=0;tid< this.dict.size();++tid)
+			{
+			final SAMSequenceRecord ssr=this.dict.getSequence(tid);
+			w.writeStartElement("g");
+			
+			w.writeStartElement("rect");
+			w.writeAttribute("class", "contig"+(tid%2));
+			w.writeAttribute("x","0");
+			w.writeAttribute("y",format(tid2y.apply(tid)));
+			w.writeAttribute("width",format(pos2x.apply(ssr.getSequenceLength())));
+			w.writeAttribute("height",format(this.feature_height));
+			w.writeEndElement();
+			
+			w.writeStartElement("text");
+			w.writeAttribute("class", "contig");
+			w.writeAttribute("style", "text-anchor:end;");
+			w.writeAttribute("x",String.valueOf(0-1));
+			w.writeAttribute("y",format(tid2y.apply(tid)+this.feature_height/2.0));
+			w.writeCharacters(ssr.getSequenceName());
+			w.writeEndElement();
+			
+			w.writeEndElement();//g
+			}
+		w.writeEndElement();//end g contigs
+		
+		for(final Track currentTrack: tracks) {
+			w.writeStartElement("g");
+			w.writeComment("track "+String.valueOf(currentTrack.name));
+			for(final TrackContig trackcontig : currentTrack.contigs)
+				{
+				for(final List<Arc> arcs: trackcontig.rows)
+					{
+					for(final Arc arc: arcs)
+						{
+						double x1= pos2x.apply(arc.start);
+						double x2= pos2x.apply(arc.end);
+						if(x2<=x1) x2+=0.5;
+						
+						w.writeStartElement("rect");
+						w.writeAttribute("x",format(x1));
+						w.writeAttribute("y",format(tid2y.apply(arc.tid)));
+						w.writeAttribute("width",format(x2-x1));
+						w.writeAttribute("height",format(this.feature_height));
+						
+						writeArcFeatures(w,arc,maxScore);
+						
+						w.writeEndElement();
+						}
+					}
+				}
+			w.writeEndElement();//g of track
+			}
+		
+		w.writeEndElement();//g@maing
+		}
+	
+	
+	
+	private void writeCircular(
+			final XMLStreamWriter w,
+			final List<Track> tracks,
+			int maxScore
+			)throws XMLStreamException,IOException
+		{
+		final double img_radius = 
+				this.min_internal_radius +
+				(tracks.stream().mapToInt(T->T.maxRows()).sum()+3)*(this.feature_height+this.distance_between_arc)+
+				(this.contig_height+this.distance_between_arc)
+				;
+		double radius = this.min_internal_radius;
+
+		LOG.info("image radius : "+img_radius);
+
+	
+		w.writeAttribute("width", String.valueOf(Math.ceil(img_radius*2)));
+		w.writeAttribute("height", String.valueOf(Math.ceil(img_radius*2)));
+		w.writeDefaultNamespace(SVG.NS);
+		w.writeNamespace("xlink", XLINK.NS);
+		
+		writeStyle(w);
+		writeScript(w);
+		writeTitle(w);
+		
+
+
+		
+		
+		w.writeStartElement("g");
+		w.writeAttribute("class", "maing");
+		
+		if(this.animation_seconds >0) {
+			w.writeStartElement("animateTransform");
+			w.writeAttribute("attributeName", "transform");
+			w.writeAttribute("attributeType", "XML");
+			w.writeAttribute("type", "rotate");
+			w.writeAttribute("from","0 "+format(img_radius)+" "+format(img_radius));
+			w.writeAttribute("to","360 "+format(img_radius)+" "+format(img_radius));
+			w.writeAttribute("dur",String.valueOf(this.animation_seconds)+"s");
+			w.writeAttribute("repeatCount","indefinite");
+			w.writeEndElement();
+			}
+		
+		w.writeStartElement("g");
+		w.writeAttribute("transform", "translate("+format(img_radius)+","+format(img_radius)+")");
+		w.writeStartElement("g");
+		for(final Track currentTrack: tracks) {
+			w.writeStartElement("g");
+			w.writeComment("track "+String.valueOf(currentTrack.name));
+			if(currentTrack.id>0)
+				{
+				w.writeEmptyElement("circle");
+				w.writeAttribute("class","track");
+				w.writeAttribute("cx","0");
+				w.writeAttribute("cy","0");
+				w.writeAttribute("r",format(radius));
+				}
+			
+			for(final TrackContig contigArc : currentTrack.contigs)
+				{
+				double track_contig_radius = radius;
+				for(final List<Arc> row:contigArc.rows)
+						{
+						w.writeStartElement("g");
+						for(final Arc arc: row)
+							{
+							
+							w.writeStartElement("path");
+							if(this.histogram_mode)
+								{
+								final double height = (arc.score/((double)(maxScore<=0?1:maxScore)))*this.feature_height;
+								w.writeAttribute("d", arc(arc.tid,track_contig_radius,
+										track_contig_radius+height,
+										arc.start,
+										arc.end,(byte)0));
+								}
+							else
+								{
+								w.writeAttribute("d", arc(arc.tid,track_contig_radius,track_contig_radius+this.feature_height,arc.start,arc.end,arc.strand));
+								}
+							writeArcFeatures(w,arc,maxScore);
+							w.writeEndElement();//path
+							
+							}
+						w.writeEndElement();//g
+						track_contig_radius += this.distance_between_arc+this.feature_height;
+						}
+					}
+			w.writeEndElement();//g
+			radius += currentTrack.maxRows()*(this.distance_between_arc+this.feature_height);
+			}
+		
+		w.writeEndElement();//g
+		w.writeStartElement("g");
+		radius+=this.feature_height;
+		for(int tid=0;tid< dict.size();++tid)
+			{
+			final SAMSequenceRecord ssr = this.dict.getSequence(tid);
+			w.writeStartElement("path");
+			w.writeAttribute("class", "contig"+(tid%2));
+			w.writeAttribute("d", arc(tid,radius,radius+this.contig_height,0,ssr.getSequenceLength(),(byte)0));
+
+			w.writeStartElement("title");
+			w.writeCharacters(ssr.getSequenceName());
+			w.writeEndElement();
+			
+			w.writeEndElement();//path
+			
+			w.writeStartElement("text");
+			w.writeAttribute("class", "contig");
+			w.writeAttribute("x", format(radius+this.distance_between_arc+this.contig_height));
+			w.writeAttribute("y", "0");
+			w.writeAttribute("transform","rotate("+format(Math.toDegrees(
+					refpos2ang(this.tid_to_start[tid]+(long)(ssr.getSequenceLength()/2.0))
+					))+")");
+			w.writeCharacters(ssr.getSequenceName());
+			w.writeEndElement();
+			}
+		w.writeEndElement();//g
+		
+		w.writeEndElement();//g
+		
+		w.writeEndElement();//g		
+		}
+	
+	
+	
 	private String pointToStr(final Point2D.Double p)
 		{
 		return format(p.x)+" "+format(p.y);

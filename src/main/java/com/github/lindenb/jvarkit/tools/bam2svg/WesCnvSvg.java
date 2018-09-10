@@ -36,6 +36,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
@@ -75,6 +76,7 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
@@ -157,7 +159,10 @@ public class WesCnvSvg  extends Launcher {
 	private String hyperlinkType = "none";
 	@Parameter(names={"-p","-percentile","--percentile"},description="How to compute the percentil of a region")
 	private Percentile.Type percentile = Percentile.Type.AVERAGE;
-
+	@Parameter(names={"-css","--css"},description="custom svg css stylesheet")
+	private File cssFile = null;
+	@Parameter(names={"-x","--extend"},description="Extend each region in the bed by 'x' bases. If the argument ends with '%' it is interpreted as a percentage.")
+	private String extendStr = null;
 	
 	
 	private class BamInput implements Closeable
@@ -166,6 +171,7 @@ public class WesCnvSvg  extends Launcher {
 		File bamFile;
 		SamReader samReader=null;
 		String sample;
+		ContigNameConverter contigNameConverter;
 		@SuppressWarnings("unused")
 		double minDepth=0;
 		double maxDepth=0;
@@ -208,7 +214,7 @@ public class WesCnvSvg  extends Launcher {
 		
 		@Override
 		public String getContig() {
-			return refDict.getSequence(this.queryInterval.referenceIndex).getSequenceName();
+			return WesCnvSvg.this.refDict.getSequence(this.queryInterval.referenceIndex).getSequenceName();
 			}
 		public double getPixelX1() {
 			return pixelx;
@@ -285,6 +291,9 @@ public class WesCnvSvg  extends Launcher {
 				bi.index = this.bamInputs.size();
 				bi.bamFile = bamFile;
 				bi.samReader = srf.open(bamFile);
+				final SAMSequenceDictionary samDict = bi.samReader.getFileHeader().getSequenceDictionary();
+				bi.contigNameConverter = samDict==null?ContigNameConverter.getIdentity():ContigNameConverter.fromOneDictionary(samDict);
+				
 				JvarkitException.BamHasIndex.verify(bi.samReader);
 				final SAMSequenceDictionary dict2= JvarkitException.BamDictionaryMissing.mustHaveDictionary(bi.samReader);
 				if(!SequenceUtil.areSequenceDictionariesEqual(this.refDict, dict2))
@@ -314,10 +323,35 @@ public class WesCnvSvg  extends Launcher {
 				if(bed==null || bed.getStart()>bed.getEnd()) {
 					LOG.warn("Ignoring "+line);
 					continue;
-				}
+					}
 				Interval interval = bed.toInterval();
 				final int tid = this.refDict.getSequenceIndex(contigNameConverter.apply(interval.getContig()));
 				if(tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(), refDict);
+				
+				//user asked to extend the regions
+				if(!StringUtil.isBlank(this.extendStr))
+					{
+					final SAMSequenceRecord ssr = Objects.requireNonNull(this.refDict.getSequence(tid),"??");
+					final int halflen = (bed.getEnd() - bed.getStart())/2;
+					final int mid = bed.getStart()+halflen;
+					int len;
+					if(this.extendStr.endsWith("%"))
+						{
+						double x = Double.parseDouble(this.extendStr.substring(0, this.extendStr.length()-1).trim())/100.0;
+						if(x<=0) x=0.0;
+						len = halflen + (int)(halflen*x/2.0);
+						}
+					else
+						{
+						len = halflen + Integer.parseInt(this.extendStr.trim());
+						}
+					interval = new Interval(
+							bed.getContig(),
+							Math.max(0, mid-len),
+							Math.min(ssr.getSequenceLength(),mid+len)
+							);
+					}
+				
 				final QueryInterval qInterval = new QueryInterval(tid, interval.getStart(), interval.getEnd());
 				listQueryIntervals.add(qInterval);
 				}
@@ -356,7 +390,12 @@ public class WesCnvSvg  extends Launcher {
 					Arrays.fill(base_coverage, 0);
 					final int clip_coverage[] = new int[ci.getBaseLength()];
 					Arrays.fill(clip_coverage, 0);
-					final SAMRecordIterator iter=bi.samReader.queryOverlapping(ci.getContig(),ci.getStart(),ci.getEnd());
+					final String newContig = bi.contigNameConverter.apply(ci.getContig());
+					if(newContig==null) {
+						LOG.error("cannot find contig "+ci.getContig()+" in "+bi.bamFile);
+						return -1;
+						}
+					final SAMRecordIterator iter=bi.samReader.queryOverlapping(newContig,ci.getStart(),ci.getEnd());
 					while(iter.hasNext())
 						{
 						final SAMRecord rec = iter.next();
@@ -518,18 +557,23 @@ public class WesCnvSvg  extends Launcher {
 			
 			// https://stackoverflow.com/questions/15717970
 			w.writeStartElement("style");
-			w.writeCharacters(
-					"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
-					"text.sampleLabel {stroke:none;stroke-width:0.5px;fill:blue;}" +
-					"text.captureLabel {stroke:none;stroke-width:0.5px;fill:slategrey;text-anchor:middle;}" +
-					"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:lightgray;}" +
-					"line.linedp {stroke:darkcyan;stroke-width:0.3px;opacity:0.4;}" +
-					"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
-					"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
-					"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}" +
-					"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"+
-					"polyline.clipping {stroke:orange;stroke-width:0.8px;fill:none;}"
-					);
+			if(this.cssFile!=null) {
+				w.writeCharacters(IOUtil.slurp(this.cssFile));
+				}
+			else {
+				w.writeCharacters(
+						"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
+						"text.sampleLabel {stroke:none;stroke-width:0.5px;fill:blue;}" +
+						"text.captureLabel {stroke:none;stroke-width:0.5px;fill:slategrey;text-anchor:middle;}" +
+						"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:lightgray;}" +
+						"line.linedp {stroke:darkcyan;stroke-width:0.3px;opacity:0.4;}" +
+						"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
+						"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
+						"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}" +
+						"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"+
+						"polyline.clipping {stroke:orange;stroke-width:0.8px;fill:none;}"
+						);
+				}
 			w.writeEndElement();//style
 			
 			w.writeStartElement("title");

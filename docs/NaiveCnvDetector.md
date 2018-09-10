@@ -10,6 +10,11 @@ experimental CNV detection for multiple samples.
 ```
 Usage: naivecnvdetector [options] Files
   Options:
+    -c, --config
+      config file. Tab delimited. 
+      Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If 
+      this file is not specified , all samples are considered unaffected 
+      (discovery mode).
     -E, -del, --del, --deletion
       Deletion Treshold. Which fraction of the median depth is considered as 
       aa deletion. Must be <1.0
@@ -22,7 +27,7 @@ Usage: naivecnvdetector [options] Files
     -U, -dup, --dup, --duplication
       Duplication Treshold. Which fraction of the median depth is considered 
       as a duplication. Must be >1.0
-      Default: 1.9
+      Default: 1.5
     -h, --help
       print help and exit
     --helpFormat
@@ -47,11 +52,6 @@ Usage: naivecnvdetector [options] Files
       Treat normalized depth greater than this value as 'weird' and discard 
       the sliding windows at this place.
       Default: 500
-    -c
-      config file. Tab delimited. 
-      Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If 
-      this file is not specified , all samples are considered unaffected 
-      (discovery mode).
     -R, -reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
