@@ -137,6 +137,8 @@ public class Biostar336589 extends Launcher{
 	private double min_internal_radius =100;
 	@Parameter(names="-fh",description="arc height")
 	private double feature_height =10;
+	@Parameter(names="-as",description="arrow size")
+	private double arrow_size =10;
 	@Parameter(names="-da",description="distance between arcs ")
 	private double distance_between_arc =10;
 	@Parameter(names="-ms",description="skip chromosome reference length lower than this value. ignore if <=0")
@@ -632,42 +634,59 @@ public class Biostar336589 extends Launcher{
 		final double radius1,
 		final double radius2,
 		final int start,final int end,
-		final byte strand
+		byte strand
 		) {
 		final long index_at_start = this.tid_to_start[tid];
-		
+		final double mid_radius= (radius1+radius2)/2.0;
 		final double r_start = refpos2ang(index_at_start+ start);
 		final double r_end = refpos2ang(index_at_start+ end);
+		final double arc_length = (r_end-r_start)*Math.PI;
+		
+		strand = 0;//TODO
 		final Point2D.Double p1 = polarToCartestian(radius1, r_start);
 		final Point2D.Double p2 = polarToCartestian(radius1, r_end);
 		final Point2D.Double p3 = polarToCartestian(radius2, r_end);
 		final Point2D.Double p4 = polarToCartestian(radius2, r_start);
 		final StringBuilder sb = new StringBuilder();
-		sb.append("M ").
-			append(pointToStr(p1));
 		
-		sb.append(" A ").
-			append(format(radius1)).
-			append(" ").
-			append(format(radius1)).
-			append(" 0"). //X axis rotation
-			append(" 0").// large arc
-			append(" 1 ").// sweep flag (positive angle direction)
-			append(pointToStr(p2));
-		
-		sb.append(" L").append(pointToStr(p3));
-		
-		sb.append(" A ").
-		append(format(radius2)).
-		append(" ").
-		append(format(radius2)).
-		append(" 0"). //X axis rotation
-		append(" 0").// large arc
-		append(" 0 ").// sweep flag (positive angle direction)
-		append(pointToStr(p4));
-		
-		sb.append(" L ").append(pointToStr(p1));
-		
+		if(this.histogram_mode || strand==0|| 2.0*this.arrow_size<=arc_length)  {
+			sb.append("M ").
+				append(pointToStr(p1));
+			
+			sb.append(" A ").
+				append(format(radius1)).
+				append(" ").
+				append(format(radius1)).
+				append(" 0"). //X axis rotation
+				append(" 0").// large arc
+				append(" 1 ").// sweep flag (positive angle direction)
+				append(pointToStr(p2));
+			
+			sb.append(" L").append(pointToStr(p3));
+			
+			sb.append(" A ").
+				append(format(radius2)).
+				append(" ").
+				append(format(radius2)).
+				append(" 0"). //X axis rotation
+				append(" 0").// large arc
+				append(" 0 ").// sweep flag (positive angle direction)
+				append(pointToStr(p4));
+			
+			sb.append(" L ").append(pointToStr(p1));
+			}
+		else if(strand==-1) {
+			final double angle_arrow= this.arrow_size * 1.0; //len = r*PI
+			final Point2D.Double pas = polarToCartestian(mid_radius, r_start + angle_arrow);
+			final Point2D.Double pae = polarToCartestian(mid_radius, r_end - angle_arrow);
+			
+			}
+		else if(strand==1)
+			{
+			final double angle_arrow= this.arrow_size * 1.0; //len = r*PI
+			final Point2D.Double pas = polarToCartestian(mid_radius, r_start + angle_arrow);
+			final Point2D.Double pae = polarToCartestian(mid_radius, r_end - angle_arrow);
+			}
 		sb.append(" Z");
 		
 		return sb.toString();
