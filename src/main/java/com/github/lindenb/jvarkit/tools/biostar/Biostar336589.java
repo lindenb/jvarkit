@@ -310,24 +310,23 @@ public class Biostar336589 extends Launcher{
 			{
 			this.contig_height = 2.0;
 			}
-		;
-		Color scoreColorEnd;
+		
 		
 		try {
-			scoreColorStart = colorUtils.parse(this.colorScoreStartStr);
-			if(scoreColorStart==null) scoreColorStart = Color.WHITE;
+			this.scoreColorStart = this.colorUtils.parse(this.colorScoreStartStr);
+			if(this.scoreColorStart==null) this.scoreColorStart = Color.WHITE;
 			} 
 		catch(final Exception err) 
 			{
-			scoreColorStart = Color.WHITE;
+			this.scoreColorStart = Color.WHITE;
 			}
 		try {
-			scoreColorEnd = colorUtils.parse(this.colorScoreEndStr);
-			if(scoreColorEnd==null) scoreColorEnd = Color.BLACK;
+			this.scoreColorEnd = this.colorUtils.parse(this.colorScoreEndStr);
+			if(this.scoreColorEnd==null) this.scoreColorEnd = Color.BLACK;
 			} 
 		catch(final Exception err) 
 			{
-			scoreColorEnd = Color.BLACK;
+			this.scoreColorEnd = Color.BLACK;
 			}
 		
 		int maxScore=0;
@@ -573,6 +572,7 @@ public class Biostar336589 extends Launcher{
 			{
 			final float f = (float)((arc.score/(float)maxScore));
 			final Color c = between(scoreColorStart,scoreColorEnd,f);
+			
 			w.writeAttribute("style", "fill:rgb(" +
 					c.getRed()+ ","+ c.getGreen()+","+ c.getBlue()+
 					")");
@@ -641,14 +641,16 @@ public class Biostar336589 extends Launcher{
 			w.writeAttribute("class", "contig");
 			w.writeAttribute("style", "text-anchor:end;");
 			w.writeAttribute("x",String.valueOf(0-1));
-			w.writeAttribute("y",format(tid2y.apply(tid)+this.feature_height/2.0));
+			w.writeAttribute("y",format(tid2y.apply(tid)+this.feature_height));
 			w.writeCharacters(ssr.getSequenceName());
 			w.writeEndElement();
 			
 			w.writeEndElement();//g
 			}
 		w.writeEndElement();//end g contigs
-		
+		if(tracks.size()>1) {
+			LOG.warn("in linear mode, all tracks are merged");
+			}
 		for(final Track currentTrack: tracks) {
 			w.writeStartElement("g");
 			w.writeComment("track "+String.valueOf(currentTrack.name));
@@ -656,18 +658,48 @@ public class Biostar336589 extends Launcher{
 				{
 				for(final List<Arc> arcs: trackcontig.rows)
 					{
+					if(arcs.size()>1) {
+						LOG.warn("in linear mode, all tracks are merged");
+						}
 					for(final Arc arc: arcs)
 						{
 						double x1= pos2x.apply(arc.start);
 						double x2= pos2x.apply(arc.end);
+						final double y1 = tid2y.apply(arc.tid);
+						final double y2 = y1 + this.feature_height;
+						final double midy = this.feature_height/2.0 + y1 ;
 						if(x2<=x1) x2+=0.5;
-						
-						w.writeStartElement("rect");
-						w.writeAttribute("x",format(x1));
-						w.writeAttribute("y",format(tid2y.apply(arc.tid)));
-						w.writeAttribute("width",format(x2-x1));
-						w.writeAttribute("height",format(this.feature_height));
-						
+						if(arc.strand==0 || (x2-x1)<this.arrow_size*2)
+							{
+							w.writeStartElement("rect");
+							w.writeAttribute("x",format(x1));
+							w.writeAttribute("y",format(y1));
+							w.writeAttribute("width",format(x2-x1));
+							w.writeAttribute("height",format(this.feature_height));
+							}
+						else if(arc.strand==-1) {
+							w.writeStartElement("path");
+							final StringBuilder sb =  new StringBuilder();
+							sb.append("M ").append(format(x1)).append(" ").append(format(midy));
+							sb.append(" L ").append(format(x1+this.arrow_size)).append(" ").append(format(y1));
+							sb.append(" L ").append(format(x2)).append(" ").append(format(y1));
+							sb.append(" L ").append(format(x2)).append(" ").append(format(y2));
+							sb.append(" L ").append(format(x1+this.arrow_size)).append(" ").append(format(y2));
+							sb.append("Z");
+							w.writeAttribute("d",sb.toString());
+							}
+						else
+							{
+							w.writeStartElement("path");
+							final StringBuilder sb =  new StringBuilder();
+							sb.append("M ").append(format(x1)).append(" ").append(format(y1));
+							sb.append(" L ").append(format(x2-this.arrow_size)).append(" ").append(format(y1));
+							sb.append(" L ").append(format(x2)).append(" ").append(format(midy));
+							sb.append(" L ").append(format(x2-this.arrow_size)).append(" ").append(format(y2));
+							sb.append(" L ").append(format(x1)).append(" ").append(format(y2));
+							sb.append("Z");
+							w.writeAttribute("d",sb.toString());
+							}
 						writeArcFeatures(w,arc,maxScore);
 						
 						w.writeEndElement();
