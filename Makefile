@@ -520,7 +520,7 @@ $(eval $(call compile-htsjdk-cmd,vcfderby01,${jvarkit.package}.tools.burden.VcfD
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter,${jvarkit.package}.tools.burden.VcfBurdenSplitter,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,casectrljfx,${jvarkit.package}.tools.burden.CaseControlJfx,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,indexcovjfx,${jvarkit.package}.tools.structvar.IndexCovJfx,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,indexcov2vcf,${jvarkit.package}.tools.structvar.IndexCovToVcf,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,indexcov2vcf,${jvarkit.package}.tools.structvar.IndexCovToVcf,${jcommander.jar} ${common.math3.libs}))
 $(eval $(call compile-htsjdk-cmd,vcfburdensplitter2,${jvarkit.package}.tools.burden.VcfBurdenSplitter2,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherh,${jvarkit.package}.tools.burden.VcfBurdenFisherH,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfburdenfisherv,${jvarkit.package}.tools.burden.VcfBurdenFisherV,${jcommander.jar}))

@@ -28,13 +28,21 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.stat.descriptive.rank.Median;
+import org.apache.commons.math3.stat.inference.ChiSquareTest;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -114,7 +122,9 @@ public class IndexCovToVcf extends Launcher {
 	private float deletionTreshold = 0.6f;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File refFile = null;
-	
+	@Parameter(names={"-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
+	private File pedFile = null;
+
 	
 	public IndexCovToVcf() {
 	}
@@ -134,10 +144,13 @@ public class IndexCovToVcf extends Launcher {
 			LOG.error("Bad tresholds del>=dup");
 			return -1;
 		}
-		final Pattern tab = Pattern.compile("[\t]");
+		final CharSplitter tab = CharSplitter.TAB;
 		BufferedReader r = null;
 		VariantContextWriter vcw  = null;
 		try {
+			final ChiSquareTest chiSquareTest = new ChiSquareTest();
+
+			
 			final SAMSequenceDictionary dict;
 			if(this.refFile==null) {
 				dict = null;
@@ -149,6 +162,7 @@ public class IndexCovToVcf extends Launcher {
 					return -1;
 				}
 			}
+			
 			
 			
 			r = super.openBufferedReader(oneFileOrNull(args));
@@ -190,6 +204,32 @@ public class IndexCovToVcf extends Launcher {
 
 			
 			final List<String> samples = Arrays.asList(tokens). subList(3,tokens.length);
+			final Set<String> cases;
+			final Set<String> controls;
+			
+			if(this.pedFile!=null)
+				{
+				final Pedigree ped = new Pedigree.Parser().parse(this.pedFile);
+				cases = ped.getAffected().stream().map(I->I.getId()).filter(S->samples.contains(S)).collect(Collectors.toSet());
+				controls = ped.getUnaffected().stream().map(I->I.getId()).filter(S->samples.contains(S)).collect(Collectors.toSet());
+				}
+			else
+				{
+				cases = Collections.emptySet();
+				controls = Collections.emptySet();
+				}
+			final boolean valid_pedigree = !cases.isEmpty() && !controls.isEmpty();
+			
+			final VCFInfoHeaderLine controlsMedianHeader = new VCFInfoHeaderLine((valid_pedigree?"AFFECTED_":"")+"MEDIAN", 1, VCFHeaderLineType.Float,"Median for controls samples");
+			metaData.add(controlsMedianHeader);
+			final VCFInfoHeaderLine controlsStdevHeader = new VCFInfoHeaderLine((valid_pedigree?"AFFECTED_":"")+"STDDEV", 1, VCFHeaderLineType.Float,"StdDeviation for controls samples");
+			metaData.add(controlsStdevHeader);
+			final VCFFormatHeaderLine fractionOfMedian = new VCFFormatHeaderLine("RF", 1, VCFHeaderLineType.Float, "Ratio to median "+(valid_pedigree?" of affected":""));
+			metaData.add(fractionOfMedian);
+			final VCFInfoHeaderLine chiSquareHeader = new VCFInfoHeaderLine("CHISQUARE", 1, VCFHeaderLineType.Float,"ChiSquare Cases vs Controls");
+			metaData.add(chiSquareHeader);
+
+			
 			final VCFHeader vcfHeader = new VCFHeader(metaData, samples);
 			
 			if(dict!=null) {
@@ -234,37 +274,125 @@ public class IndexCovToVcf extends Launcher {
 				
 				int count_dup=0;
 				int count_del=0;
-				final List<Genotype> genotypes= new ArrayList<>(samples.size());
+				final Map<String,Float> sample2fold = new HashMap<>(samples.size());
 				for(int i=3;i<tokens.length;i++) {
+					final String sampleName = samples.get(i-3);
 					final float f = Float.parseFloat(tokens[i]);
 					 if(f<0 || Float.isNaN(f) ||! Float.isFinite(f)) {
-						 LOG.error("Bad fold "+f+" in "+line);
+						 LOG.error("Bad fold "+f+" for sample "+sampleName+" in "+line);
 					 	}
-					
-					
+					sample2fold.put(sampleName, f);
+					}
+				
+				
+				final double control_depths[];
+				if(controls.isEmpty() || cases.isEmpty())
+					{
+					control_depths = sample2fold.values().stream().mapToDouble(F->F.doubleValue()).toArray();
+					}
+				else
+					{
+					control_depths = controls.stream().
+						mapToDouble(S->sample2fold.get(S).doubleValue()).
+						toArray();
+					}
+				// standard deviation of unaffected
+				final double stddev_unaffected = new StandardDeviation(true).
+						evaluate(control_depths);
+				//calc median depth of unaffected
+				final double median_unaffected_depth = new Median().
+						evaluate(control_depths);
+
+				if(median_unaffected_depth > 0 && Double.isFinite(median_unaffected_depth)) {
+					vcb.attribute(controlsMedianHeader.getID(), median_unaffected_depth);
+					}
+				if(Double.isFinite(stddev_unaffected)) {
+					vcb.attribute(controlsStdevHeader.getID(), stddev_unaffected);
+					}
+
+				
+				final List<Genotype> genotypes = new ArrayList<>(samples.size());
+				int count_cases_del = 0;
+				int count_ctrs_del= 0;
+				int count_cases_void = 0;
+				int count_ctrs_void= 0;
+				int count_cases_dup = 0;
+				int count_ctrs_dup= 0;
+				
+				for(final String sampleName:sample2fold.keySet())
+					{
+					final float f = sample2fold.get(sampleName);
 					final GenotypeBuilder gb;
 					
 					if(f<=this.deletionTreshold) {
-						gb = new GenotypeBuilder(samples.get(i-3),Collections.singletonList(DEL_ALLELE));
+						gb = new GenotypeBuilder(sampleName,Collections.singletonList(DEL_ALLELE));
 						alleles.add(DEL_ALLELE);
 						gb.attribute(formatIsDeletion.getID(),1);
+						gb.attribute(formatIsDuplication.getID(),0);
 						count_del++;
+						if(controls.contains(sampleName))
+							{
+							count_ctrs_del++;
+							}
+						else if(cases.contains(sampleName))
+							{
+							count_cases_del++;
+							}
 						}
 					else if(f>=this.duplicationTreshold) {
-						gb = new GenotypeBuilder(samples.get(i-3),Collections.singletonList(DUP_ALLELE));
+						gb = new GenotypeBuilder(sampleName,Collections.singletonList(DUP_ALLELE));
 						alleles.add(DUP_ALLELE);
+						gb.attribute(formatIsDeletion.getID(),0);
 						gb.attribute(formatIsDuplication.getID(),1);
 						count_dup++;
+						if(controls.contains(sampleName))
+							{
+							count_ctrs_dup++;
+							}
+						else if(cases.contains(sampleName))
+							{
+							count_cases_dup++;
+							}
 						}
 					else
 						{
-						gb = new GenotypeBuilder(samples.get(i-3),Collections.singletonList(REF_ALLELE));
+						gb = new GenotypeBuilder(sampleName,Collections.singletonList(REF_ALLELE));
+						gb.attribute(formatIsDeletion.getID(),0);
 						gb.attribute(formatIsDuplication.getID(),0);
+						if(controls.contains(sampleName))
+							{
+							count_ctrs_void++;
+							}
+						else if(cases.contains(sampleName))
+							{
+							count_cases_void++;
+							}
 						}	
 					gb.attribute(foldHeader.getID(),f);
+					if(median_unaffected_depth>0 && Double.isFinite(median_unaffected_depth))
+						{
+						gb.attribute(fractionOfMedian.getID(), f/median_unaffected_depth);
+						}
 					genotypes.add(gb.make());
 					}
 				vcb.alleles(alleles);
+				
+				
+				if(valid_pedigree)
+					{
+					final double p_value =chiSquareTest.chiSquare(new long[][]{
+						{
+						count_cases_del + count_cases_dup,
+						count_ctrs_del + count_ctrs_dup,
+						},{
+						count_cases_void,
+						count_ctrs_void
+						}}
+						);
+
+					vcb.attribute(chiSquareHeader.getID(),p_value);
+					}
+				
 				vcb.genotypes(genotypes);
 				
 				if(count_dup == samples.size() && samples.size()!=1) {
