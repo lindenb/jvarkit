@@ -504,6 +504,7 @@ $(eval $(call compile-htsjdk-cmd,bedindextabix,${jvarkit.package}.tools.misc.Bed
 $(eval $(call compile-htsjdk-cmd,vcf2bam,${jvarkit.package}.tools.misc.VcfToBam,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcffilterxpath,${jvarkit.package}.tools.misc.VcfFilterXPath,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pcrclipreads,${jvarkit.package}.tools.pcr.PcrClipReads,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,bamslicebed,${jvarkit.package}.tools.pcr.BamSliceBed,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,extendrefwithreads,${jvarkit.package}.tools.extendref.ExtendReferenceWithReads,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pcrslicereads,${jvarkit.package}.tools.pcr.PcrSliceReads,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samjmx,${jvarkit.package}.tools.jmx.SamJmx,${jcommander.jar}))
