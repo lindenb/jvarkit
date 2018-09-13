@@ -32,6 +32,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.StringReader;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +51,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -134,8 +136,11 @@ public class WesCnvSvg  extends Launcher {
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-B","--bed","-b","--capture"},description="BED Capture. Regions to be observed.",required=true)
+	@Parameter(names={"-B","--bed","-b","--capture"},description=
+			"BED Capture. BED file containing the Regions to be observed.")
 	private File bedFile = null;
+	@Parameter(names={"-rgn","--region"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon",required=true)
+	private String bedRegions = null;
 	@Parameter(names={"-R","--ref"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidxFile = null;
 	@Parameter(names={"-w","--width"},description="Page width")
@@ -277,9 +282,38 @@ public class WesCnvSvg  extends Launcher {
 		FileOutputStream fout=null;
 		try
 			{
+			
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxFile);
 			this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
 			if(this.refDict==null || this.refDict.isEmpty()) throw new JvarkitException.FastaDictionaryMissing(this.faidxFile);
+			
+			final List<Interval> userIntervals = new ArrayList<>();
+			if(!StringUtil.isBlank(this.bedRegions))
+				{
+				final IntervalParser intervalParser = new IntervalParser(this.refDict);
+				for(final String s: this.bedRegions.split("[ \t;]+"))
+					{
+					if(StringUtil.isBlank(s)) continue;
+					final Interval i = intervalParser.parse(s);
+					if(i==null) {
+						LOG.error("Cannot parse interval "+s);
+						return -1;
+						}
+					userIntervals.add(i);
+					}
+				}
+			
+			if(this.bedFile==null && userIntervals.isEmpty())
+				{
+				LOG.error("no interval or bed defined");
+				return -1;
+				}
+			else if(this.bedFile!=null && !userIntervals.isEmpty())
+				{
+				LOG.error("intervals and bed both defined");
+				return -1;
+				}
+			
 			final ContigNameConverter contigNameConverter=ContigNameConverter.fromOneDictionary(this.refDict);
 			contigNameConverter.setOnNotFound(OnNotFound.RAISE_EXCEPTION);
 			
@@ -311,8 +345,16 @@ public class WesCnvSvg  extends Launcher {
 				return -1;
 			}
 			
-			
-			r = IOUtils.openFileForBufferedReading(this.bedFile);
+			if(this.bedFile!=null)
+				{
+				r = IOUtils.openFileForBufferedReading(this.bedFile);
+				}
+			else
+				{
+				r = new BufferedReader(new StringReader(userIntervals.stream().map(
+						R->R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()
+						).collect(Collectors.joining("\n"))));
+				}
 			final BedLineCodec bedCodec = new BedLineCodec();
 			String line;
 			List<QueryInterval> listQueryIntervals = new ArrayList<>();

@@ -33,6 +33,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.Feature;
 
 public class BedLine
@@ -45,8 +46,17 @@ public class BedLine
 	public BedLine(final String tokens[])
 		{
 		this.tokens=tokens;
-		this._start = Integer.parseInt(this.tokens[1]) + 1; /* +1 because the Feature uses a +1 position */
-		this._end = (this.tokens.length<3 ? this._start  : Integer.parseInt(this.tokens[2]));
+		if(StringUtil.isBlank(this.tokens[0]))
+			{
+			throw new IllegalArgumentException("empty contig in BED line : "+String.join("(tab)", tokens)+"\"");
+			}
+		try {
+			this._start = Integer.parseInt(this.tokens[1]) + 1; /* +1 because the Feature uses a +1 position */
+			this._end = (this.tokens.length<3 ? this._start  : Integer.parseInt(this.tokens[2]));
+			}
+		catch(final NumberFormatException err) {
+			throw new IllegalArgumentException("bad start/end in BED line : \""+String.join("(tab)", tokens)+"\"",err);
+			}
 		}
 	@Override
 	@Deprecated

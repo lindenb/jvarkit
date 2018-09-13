@@ -13,8 +13,8 @@ Usage: wescnvsvg [options] Files
     -cap, --cap
       Cap coverage to this value. Negative=don't set any limit
       Default: -1
-  * -B, --bed, -b, --capture
-      BED Capture. Regions to be observed.
+    -B, --bed, -b, --capture
+      BED Capture. BED file containing the Regions to be observed.
     -css, --css
       custom svg css stylesheet
     -x, --extend
@@ -48,6 +48,9 @@ Usage: wescnvsvg [options] Files
   * -R, --ref
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+  * -rgn, --region
+      Interval regions: 'CHR:START-END'. multiple separated with spaces or 
+      semicolon 
     -smooth, --smooth
       Smoothing pixel window size. Negative=don't smooth
       Default: 100

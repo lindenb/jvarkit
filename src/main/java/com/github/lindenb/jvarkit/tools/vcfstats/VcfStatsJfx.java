@@ -143,8 +143,6 @@ public class VcfStatsJfx extends JfxLauncher {
 	private RangeOfIntegers affectedTranches = new RangeOfIntegers(0,1,2,3,4,5,6,7,8,9,10,20,50,100,200,300,400,500,1000);
 	@Parameter(names={"--stdin"},description="if there is no file argument. Read vcf from stdin instead of opening a FileOpen dialog")
 	private boolean vcf_stdin = false;
-	@Parameter(names={"-hr","--hr"},description="Ignore HOM_REF in genotype type.")
-	private boolean ignore_HOM_REF = false;
 	@Parameter(names={"-fgt","--fgt"},description="Ignore filtered **GENOTYPES**")
 	private boolean ignore_filtered_genotypes = false;
 	@Parameter(names={"-ncl","--norm-contig-length"},description="For the 'contig' Panel, normalize on contig length.")
@@ -609,11 +607,12 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		}
 	
-	private class GenotypeTypeGenerator extends ChartGenerator
+	/** per sample/ genotype type */
+	private abstract class AbstractGenotypeTypeGenerator extends ChartGenerator
 		{
 		private final Map<String,Counter<GenotypeType>> sample2count;
 		private final List<String> samples;
-		GenotypeTypeGenerator(final List<String> samples) {
+		AbstractGenotypeTypeGenerator(final List<String> samples) {
 			this.samples = samples;
 			this.sample2count = new HashMap<>(samples.size());
 			for(final String s:samples)
@@ -624,7 +623,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		
 		@Override
 		String getChartTitle() {
-			return "Sample/Genotype-Type";
+			return "Sample/Genotype-Type"+(IsIgnoringHomRef()?" (HOM_REF Excluded)":"");
 			}
 		
 		@Override
@@ -639,7 +638,7 @@ public class VcfStatsJfx extends JfxLauncher {
 
 			for(final GenotypeType gt:GenotypeType.values())
 				{
-				if(ignore_HOM_REF && gt.equals(GenotypeType.HOM_REF)) continue;
+				if(IsIgnoringHomRef() && gt.equals(GenotypeType.HOM_REF)) continue;
 				final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 				series1.setName(gt.name());
 				for(final String sn:this.samples) {
@@ -658,6 +657,8 @@ public class VcfStatsJfx extends JfxLauncher {
 	        return bc;
 			}
 		
+		abstract boolean IsIgnoringHomRef();
+		
 		@Override
 		void visit(final VariantContext ctx) {
 			nVariants++;
@@ -665,10 +666,12 @@ public class VcfStatsJfx extends JfxLauncher {
 				{
 				final Genotype gt= ctx.getGenotype(sn);
 				if(gt!=null && ignore_filtered_genotypes && gt.isFiltered()) continue;
+				if(gt!=null && IsIgnoringHomRef() && gt.isHomRef()) continue;
 				this.sample2count.get(sn).incr(gt.getType());
 				}
 			}
 		}
+	
 	
 	private class GenotypesConcordanceGenerator extends ChartGenerator
 		{
@@ -1174,7 +1177,18 @@ public class VcfStatsJfx extends JfxLauncher {
 				}
 				
 				
-				chartGenerators.add(new GenotypeTypeGenerator(header.getGenotypeSamples()));
+				chartGenerators.add(new AbstractGenotypeTypeGenerator(header.getGenotypeSamples()){
+					@Override
+					boolean IsIgnoringHomRef() {
+						return false;
+						}
+					});
+				chartGenerators.add(new AbstractGenotypeTypeGenerator(header.getGenotypeSamples()){
+					@Override
+					boolean IsIgnoringHomRef() {
+						return true;
+						}
+					});
 				chartGenerators.add(new AffectedSamplesGenerator(header.getNGenotypeSamples()));
 				chartGenerators.add(new NumberOfNoCallGenerator(header.getNGenotypeSamples()));
 				

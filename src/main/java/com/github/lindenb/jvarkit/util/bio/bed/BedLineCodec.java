@@ -52,9 +52,9 @@ public class BedLineCodec
         	}
 		if(BedLine.isBedHeader(line)) return null;
 		
-        final String[] tokens = tab.split(line);
+        final String[] tokens = this.tab.split(line);
         if(tokens.length<2) {
-        	LOG.warn("not enough tokens in BED line "+line+". Skipping.");
+        	LOG.warn("not enough tokens in BED line "+line+" (\""+line.replaceAll("[\t]", "(tab)")+"\"=. Skipping.");
         	return null;
         	}
        
