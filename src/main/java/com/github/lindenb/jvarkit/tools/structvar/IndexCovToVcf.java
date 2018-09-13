@@ -35,8 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
-import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.apache.commons.math3.stat.inference.ChiSquareTest;
 
 import com.beust.jcommander.Parameter;
@@ -103,7 +101,9 @@ output:
 chr1	0	.	N	<DUP>	.	.	END=16384;NDEL=0;NDUP=8	GT:DUP:F	0:0:1.59	0:0:1.31	0:0:1.67	0:0:1.61	0:0:1.83 (...)
 ```
 
+## history
 
+  * 20191112 : add pedigree
 
 END_DOC
  */
@@ -122,7 +122,7 @@ public class IndexCovToVcf extends Launcher {
 	private float deletionTreshold = 0.6f;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File refFile = null;
-	@Parameter(names={"-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION)
+	@Parameter(names={"-ped","--pedigree"},description="Optional pedigree. " + Pedigree.OPT_DESCRIPTION)
 	private File pedFile = null;
 
 	
@@ -185,6 +185,7 @@ public class IndexCovToVcf extends Launcher {
 			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, "GT");
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, "END");
 			
+			/** raw value in indexcov */
 			final VCFFormatHeaderLine foldHeader = new VCFFormatHeaderLine("F", 1, VCFHeaderLineType.Float,"Relative number of copy: 0.5 deletion 1 normal 2.0 duplication");
 			metaData.add(foldHeader);
 			final VCFFormatHeaderLine formatIsDeletion = new VCFFormatHeaderLine("DEL", 1, VCFHeaderLineType.Integer,"set to 1 if relative number of copy <= " + this.deletionTreshold );
@@ -220,15 +221,13 @@ public class IndexCovToVcf extends Launcher {
 				}
 			final boolean valid_pedigree = !cases.isEmpty() && !controls.isEmpty();
 			
-			final VCFInfoHeaderLine controlsMedianHeader = new VCFInfoHeaderLine((valid_pedigree?"AFFECTED_":"")+"MEDIAN", 1, VCFHeaderLineType.Float,"Median for controls samples");
-			metaData.add(controlsMedianHeader);
-			final VCFInfoHeaderLine controlsStdevHeader = new VCFInfoHeaderLine((valid_pedigree?"AFFECTED_":"")+"STDDEV", 1, VCFHeaderLineType.Float,"StdDeviation for controls samples");
-			metaData.add(controlsStdevHeader);
-			final VCFFormatHeaderLine fractionOfMedian = new VCFFormatHeaderLine("RF", 1, VCFHeaderLineType.Float, "Ratio to median "+(valid_pedigree?" of affected":""));
-			metaData.add(fractionOfMedian);
 			final VCFInfoHeaderLine chiSquareHeader = new VCFInfoHeaderLine("CHISQUARE", 1, VCFHeaderLineType.Float,"ChiSquare Cases vs Controls");
-			metaData.add(chiSquareHeader);
-
+			final VCFFormatHeaderLine pedStatusFormat = new VCFFormatHeaderLine("ST", 1, VCFHeaderLineType.Integer,"Status in pedigree file");
+			
+			if(valid_pedigree) {
+				metaData.add(chiSquareHeader);
+				metaData.add(pedStatusFormat);
+				}
 			
 			final VCFHeader vcfHeader = new VCFHeader(metaData, samples);
 			
@@ -284,32 +283,6 @@ public class IndexCovToVcf extends Launcher {
 					sample2fold.put(sampleName, f);
 					}
 				
-				
-				final double control_depths[];
-				if(controls.isEmpty() || cases.isEmpty())
-					{
-					control_depths = sample2fold.values().stream().mapToDouble(F->F.doubleValue()).toArray();
-					}
-				else
-					{
-					control_depths = controls.stream().
-						mapToDouble(S->sample2fold.get(S).doubleValue()).
-						toArray();
-					}
-				// standard deviation of unaffected
-				final double stddev_unaffected = new StandardDeviation(true).
-						evaluate(control_depths);
-				//calc median depth of unaffected
-				final double median_unaffected_depth = new Median().
-						evaluate(control_depths);
-
-				if(median_unaffected_depth > 0 && Double.isFinite(median_unaffected_depth)) {
-					vcb.attribute(controlsMedianHeader.getID(), median_unaffected_depth);
-					}
-				if(Double.isFinite(stddev_unaffected)) {
-					vcb.attribute(controlsStdevHeader.getID(), stddev_unaffected);
-					}
-
 				
 				final List<Genotype> genotypes = new ArrayList<>(samples.size());
 				int count_cases_del = 0;
@@ -369,10 +342,23 @@ public class IndexCovToVcf extends Launcher {
 							}
 						}	
 					gb.attribute(foldHeader.getID(),f);
-					if(median_unaffected_depth>0 && Double.isFinite(median_unaffected_depth))
+					
+					if(valid_pedigree)
 						{
-						gb.attribute(fractionOfMedian.getID(), f/median_unaffected_depth);
+						if(cases.contains(sampleName))
+							{
+							gb.attribute(pedStatusFormat.getID(),1);
+							}
+						else if(controls.contains(sampleName))
+							{
+							gb.attribute(pedStatusFormat.getID(),0);
+							}
+						else
+							{
+							gb.attribute(pedStatusFormat.getID(),-9);
+							}
 						}
+					
 					genotypes.add(gb.make());
 					}
 				vcb.alleles(alleles);

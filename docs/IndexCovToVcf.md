@@ -24,10 +24,10 @@ Usage: indexcov2vcf [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -ped, --pedigree
-      A pedigree is a text file delimited with tabs. No header. Columns are 
-      (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
-      (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
-      affected,-9 unknown
+      Optional pedigree. A pedigree is a text file delimited with tabs. No 
+      header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' 
+      (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 
+      0 unaffected, 1 affected,-9 unknown
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -144,6 +144,8 @@ output:
 chr1	0	.	N	<DUP>	.	.	END=16384;NDEL=0;NDUP=8	GT:DUP:F	0:0:1.59	0:0:1.31	0:0:1.67	0:0:1.61	0:0:1.83 (...)
 ```
 
+## history
 
+  * 20191112 : add pedigree
 
 
