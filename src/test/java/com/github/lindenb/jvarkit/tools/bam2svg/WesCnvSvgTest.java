@@ -15,7 +15,7 @@ import htsjdk.samtools.util.Interval;
 
 public class WesCnvSvgTest extends TestUtils{
 @Test
-public void test01() throws IOException{
+public void testWithBed() throws IOException{
 	final File svg = super.createTmpFile(".svg");
 	final File bed = super.createTmpFile(".bed");
 	final List<Interval> interval =super.randomIntervalsFromDict(new File(SRC_TEST_RESOURCE+"/rotavirus_rf.dict"), 10);
@@ -38,4 +38,19 @@ public void test01() throws IOException{
 			),0);
 	assertIsXml(svg);
 	}
+@Test
+public void testWithRegion() throws IOException{
+	final File svg = super.createTmpFile(".svg");	
+	Assert.assertEquals(new WesCnvSvg().instanceMain(newCmd().add(
+			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.fa",
+			"--region","RF01:1-100;RF02:200-300",
+			"-o",svg).
+			add(Arrays.asList("1","2","3","4","5").stream().
+				map(S->SRC_TEST_RESOURCE+"/S"+S+".bam").
+				toArray()).
+			make()
+			),0);
+	assertIsXml(svg);
+	}
+
 }
