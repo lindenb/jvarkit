@@ -151,7 +151,7 @@ RF01_27_590_3:0:0_1:0:0_68#RF01:31:35	0	RF01	31	255	5M	*	0	0	CATCT	22222
 
 samtools tview jeter.bam src/test/resources/rotavirus_rf.fa
 
-```
+
 1         11        21        31    
 ggctattaaagctatacaATGGGGAAGTATAATCTA
           .....     .....     .....
