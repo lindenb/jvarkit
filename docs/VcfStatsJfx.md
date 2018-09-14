@@ -22,9 +22,6 @@ Usage: vcfstatsjfx [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    -hr, --hr
-      Ignore HOM_REF in genotype type.
-      Default: false
     --max-concordance
       Max number of concordance to display. disable if <=0
       Default: 100

@@ -32,8 +32,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.Vector;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -671,7 +674,61 @@ public class VcfStatsJfx extends JfxLauncher {
 				}
 			}
 		}
-	
+	/** per sample/ genotype type */
+	private class DeNovoGenerator extends ChartGenerator
+		{
+		private final Counter<String> sample2hiConfDeNovo = new Counter<>();
+		private final Counter<String> sample2loConfDeNovo = new Counter<>();
+		
+		
+		@Override
+		String getChartTitle() {
+			return "GATK DeNovo/Sample";
+			}
+		
+		@Override
+		Chart makeChart() {
+			final Set<String> deNovoSamples = new TreeSet<>(sample2hiConfDeNovo.keySet());
+			deNovoSamples.addAll(sample2loConfDeNovo.keySet());
+			
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(deNovoSamples)
+					);
+			final StackedBarChart<String,Number> bc = 
+		            new StackedBarChart<String,Number>(xAxis,yAxis);
+		
+			
+			for(int y=0;y< 2;++y)
+				{
+				Counter<String> counter = (y==0?this.sample2hiConfDeNovo:this.sample2loConfDeNovo);
+				final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+				series1.setName(y==0?"hiConfDeNovo":"loConfDeNovo");
+				for(final String sn:deNovoSamples) {
+					series1.getData().add(new XYChart.Data<String,Number>(
+							sn,counter.count(sn)
+							));
+					}
+				bc.getData().add(series1);
+				}
+			bc.setCategoryGap(1);
+			title(bc,this.getChartTitle());
+	        xAxis.setLabel("Sample");
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
+	        yAxis.setLabel("DeNovo Variants");
+	        return bc;
+			}
+		
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			this.nVariants++;
+			ctx.getAttributeAsList("hiConfDeNovo").stream().map(O->String.valueOf(O)).forEach(S->sample2hiConfDeNovo.incr(S));
+			ctx.getAttributeAsList("loConfDeNovo").stream().map(O->String.valueOf(O)).forEach(S->sample2loConfDeNovo.incr(S));
+			}
+		}
+
 	
 	private class GenotypesConcordanceGenerator extends ChartGenerator
 		{
@@ -1164,6 +1221,13 @@ public class VcfStatsJfx extends JfxLauncher {
 			final VcfTools tools = new VcfTools(header);
 			boolean hasPred = tools.getVepPredictionParser().isValid() || 
 							tools.getAnnPredictionParser().isValid();
+			
+			
+			if(header.getInfoHeaderLine("hiConfDeNovo")!=null && 
+				header.getInfoHeaderLine("loConfDeNovo")!=null)
+				{
+				chartGenerators.add(new DeNovoGenerator());
+				}
 			
 			if(hasPred)
 				{

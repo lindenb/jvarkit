@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -33,10 +30,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -75,6 +74,9 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
 htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12892	HET	C T
 ```
 
+## History
+
+  * 20180914 : replace DP4 with AD
  
  END_DOC
  */
@@ -167,21 +169,15 @@ public class FindAVariation extends Launcher
     		)
     	{
     	
-    	final GenotypesContext genotypes=ctx.getGenotypes();
-    	if(genotypes==null || genotypes.isEmpty())
+    	
+    	if(!ctx.hasGenotypes())
     		{
     		reportPos(f,header,ctx);
     		out.println();
     		}
     	else
     		{
-    		VCFFormatHeaderLine DP4header = header.getFormatHeaderLine("DP4");
-    		if(DP4header!=null &&
-    			!( DP4header.getType().equals(VCFHeaderLineType.Integer) &&
-    				DP4header.getCount()==4))
-    			{
-    			DP4header=null;
-    			}
+    		final GenotypesContext genotypes=ctx.getGenotypes();
     		for(int i=0;i< genotypes.size();++i)
     			{
     			Genotype g=genotypes.get(i);
@@ -193,21 +189,20 @@ public class FindAVariation extends Launcher
     			out.print('\t');
     			out.print(g.getType());
     			out.print('\t');
-    			List<Allele> alleles=g.getAlleles();
-    			for(int na=0;na<alleles.size();++na)
+    			out.print(g.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(" ")));
+    			out.print('\t');
+    			if(g.hasAD())
     				{
-    				if(na>0) out.print(" ");
-    				out.print(alleles.get(na).getDisplayString());
+					out.print(Arrays.stream(g.getAD()).mapToObj(x->String.valueOf(x)).collect(Collectors.joining(",")));//it's a String not an int[] ??
     				}
-    			if(DP4header!=null)
+    			else
     				{
-    				final  Object dp4=g.getExtendedAttribute("DP4");
-    				if(dp4!=null )
-    					{
-    					out.print('\t');
-    					out.print(String.valueOf(dp4));//it's a String not an int[] ??
-    					}
+    				out.print('.');
     				}
+    			out.print('\t');
+    			out.print(g.hasDP()?String.valueOf(g.getDP()):".");
+    			out.print('\t');
+    			out.print(g.hasGQ()?String.valueOf(g.getGQ()):".");
     			out.println();
     			}
     		}
@@ -401,7 +396,7 @@ public class FindAVariation extends Launcher
 				}			
 			
 			this.out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tDP4");
+			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tAD\tDP\tGQ");
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
