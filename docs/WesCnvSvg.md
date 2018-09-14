@@ -48,7 +48,7 @@ Usage: wescnvsvg [options] Files
   * -R, --ref
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
-  * -rgn, --region
+    -rgn, --region
       Interval regions: 'CHR:START-END'. multiple separated with spaces or 
       semicolon 
     -smooth, --smooth

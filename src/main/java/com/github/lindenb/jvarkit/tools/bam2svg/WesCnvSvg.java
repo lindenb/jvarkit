@@ -139,7 +139,7 @@ public class WesCnvSvg  extends Launcher {
 	@Parameter(names={"-B","--bed","-b","--capture"},description=
 			"BED Capture. BED file containing the Regions to be observed.")
 	private File bedFile = null;
-	@Parameter(names={"-rgn","--region"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon",required=true)
+	@Parameter(names={"-rgn","--region"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon")
 	private String bedRegions = null;
 	@Parameter(names={"-R","--ref"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidxFile = null;
