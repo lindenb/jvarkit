@@ -559,7 +559,7 @@ public class IOUtils {
 		return new ArrayList<>(fileset);
 		}
 
-	
+
 	/** test wether the two first bytes are gzip */
 	public static boolean isGZipCompressed(final byte[] twoBytes) {
 		if ((twoBytes == null) || (twoBytes.length < 2)) {
