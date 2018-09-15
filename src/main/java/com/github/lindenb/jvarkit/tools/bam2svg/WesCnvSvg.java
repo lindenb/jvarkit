@@ -125,6 +125,14 @@ https://twitter.com/yokofakun/status/1025330308193779712
 
 ![ScreenShot](https://pbs.twimg.com/media/Djq0Se-W0AEAbyR.jpg)
 
+https://twitter.com/yokofakun/status/1040592885786263554
+
+![ScreenShot](https://pbs.twimg.com/media/DnDttNgX4AAtxax.jpg)
+
+https://twitter.com/yokofakun/status/1040577235856580608
+
+![ScreenShot](https://pbs.twimg.com/media/DnDfaGLXcAArg0P.jpg)
+
 END_DOC
  */
 @Program(name="wescnvsvg",
