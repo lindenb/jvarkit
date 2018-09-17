@@ -48,6 +48,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -56,6 +57,7 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
@@ -64,6 +66,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
 
 public abstract class AbstractBam2Raster extends Launcher{
 	protected static final Color ALMOST_BLACK = new Color(20,20,20);
@@ -203,12 +206,26 @@ public abstract class AbstractBam2Raster extends Launcher{
 	protected void loadVCFs() {
 		for(final String vcfFile: IOUtils.unrollFiles(variants)) {
 			final VCFFileReader vcfFileReader = new VCFFileReader(new File(vcfFile),true);
-			final CloseableIterator<VariantContext> r=vcfFileReader.query(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd());
-			while(r.hasNext())
+			final VCFHeader header = vcfFileReader.getFileHeader();
+			final SAMSequenceDictionary dict = header.getSequenceDictionary();
+			final ContigNameConverter converter;
+			if(dict!=null)
 				{
-				this.highlightPositions.add(r.next().getStart());
+				converter = ContigNameConverter.fromOneDictionary(dict);
 				}
-			r.close();
+			else
+				{
+				converter = ContigNameConverter.getIdentity();
+				}
+			final String newCtg = converter.apply(this.interval.getContig());
+			if(!StringUtil.isBlank(newCtg)) {
+				final CloseableIterator<VariantContext> r=vcfFileReader.query(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd());
+				while(r.hasNext())
+					{
+					this.highlightPositions.add(r.next().getStart());
+					}
+				r.close();
+				}
 			vcfFileReader.close();
 			}
 		}

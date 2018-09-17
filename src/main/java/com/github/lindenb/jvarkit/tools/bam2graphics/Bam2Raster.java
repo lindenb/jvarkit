@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -90,8 +90,10 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -108,6 +110,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 /**
 
@@ -135,7 +138,7 @@ BAMS=	S1|f1.bam \
 
 define run
 $(1)_$(3)_$(4).png: $(2)
-	java -jar dist/bam2raster.jar -clip --highlight $(4)  --mapqopacity handler1 --nobase -r "chr$(3):$(4)+50"   --reference /commun/data/pubdb/broadinstitute.org/bundle/1.5/b37/human_g1k_v37_prefix.fasta -o $$@ $$<
+	java -jar dist/bam2raster.jar -clip --highlight $(4)  --mapqopacity handler1 --nobase -r "chr$(3):$(4)+50"   --reference human_g1k_v37_prefix.fasta -o $$@ $$<
 
 IMAGES+=$(1)_$(3)_$(4).png
 
@@ -161,6 +164,9 @@ all2: ${IMAGES}
 ![http://i.imgur.com/lBSpTSW.png](http://i.imgur.com/lBSpTSW.png)
 
 
+## History
+
+  * 20180917 REF is now required.
 
 END_DOC
 
@@ -217,6 +223,8 @@ public class Bam2Raster extends AbstractBam2Raster
 	private int maxArrowWidth=5;
 	//private int featureHeight=30;
 	private Colorizer strokeColorizer=new FlagColorizer();
+	private SAMSequenceDictionary refDict = null;
+	//private ContigNameConverter contigNameConverter  = null;
 	private final Map<String, PartitionImage> key2partition=new TreeMap<>();
 	
 	private double convertToX(int genomic)
@@ -787,9 +795,9 @@ public class Bam2Raster extends AbstractBam2Raster
 			}
 		}
 	
-	private void scan(final SamReader r) {
+	private void scan(final SamReader r,final String normalizedContig ) {
 		final SAMRecordIterator iter=r.query(
-					interval.getContig(),
+					normalizedContig,
 					interval.getStart(),
 					interval.getEnd(),
 					false
@@ -800,7 +808,7 @@ public class Bam2Raster extends AbstractBam2Raster
 			if(rec.getReadUnmappedFlag()) continue;
 			if(this.samRecordFilter.filterOut(rec)) continue;
 		
-			if(!this.interval.getContig().equals(rec.getReferenceName())) continue;
+			if(!normalizedContig.equals(rec.getReferenceName())) continue;
 			if(super.readRight.apply(rec) < this.interval.getStart()) 
 				{
 				continue;
@@ -842,13 +850,25 @@ public class Bam2Raster extends AbstractBam2Raster
 				{
 				final SamReaderFactory srf = super.createSamReaderFactory();
 				
-				if(this.referenceFile!=null)
+				if(this.referenceFile==null)
+					{
+					LOG.error("Since 2018-09-17 REF is required");
+					return -1;
+					}
+				else
 					{
 					LOG.info("loading reference");
 					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
 					srf.referenceSequence(this.referenceFile);
+					this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
+					if(this.refDict==null)
+						{
+						LOG.error(JvarkitException.FastaDictionaryMissing.getMessage(this.referenceFile.getPath()));
+						return -1;
+						}
+					//this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 					}
-				final IntervalParser intervalParser = new IntervalParser(this.indexedFastaSequenceFile==null?null:this.indexedFastaSequenceFile.getSequenceDictionary()).
+				final IntervalParser intervalParser = new IntervalParser(this.refDict).
 						setFixContigName(true);
 
 				this.interval = intervalParser.parse(this.regionStr);
@@ -868,14 +888,17 @@ public class Bam2Raster extends AbstractBam2Raster
 					final SAMFileHeader header=samFileReader.getFileHeader();
 					final SAMSequenceDictionary dict=header.getSequenceDictionary();
 					if(dict==null) {
-						LOG.error("no dict in "+bamFile);
+						LOG.error(JvarkitException.BamDictionaryMissing.getMessage(bamFile));
 						return -1;
 						}
-					if(dict.getSequence(this.interval.getContig())==null){
-						LOG.error("no such chromosome in "+bamFile+" "+this.interval);
+					final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
+					final String newCtg = converter.apply(this.interval.getContig());
+					if(StringUtil.isBlank(newCtg) || dict.getSequence(newCtg)==null){
+						LOG.error("no such chromosome in "+bamFile+" "+this.interval+" "+
+								JvarkitException.ContigNotFoundInDictionary.getMessage(this.interval.getContig(), dict));
 						return -1;
 						}
-					scan(samFileReader);
+					scan(samFileReader,newCtg);
 					samFileReader.close();
 					samFileReader=null;
 					}
