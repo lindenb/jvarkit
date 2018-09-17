@@ -43,7 +43,10 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -71,6 +74,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.StringUtil;
 
 /**
 
@@ -128,8 +132,15 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	private final int featureHeight=5;
 	private int minArrowWidth=3;
 	private final Map<String, PartitionImage> key2partition=new TreeMap<>();
+	private SAMSequenceDictionary refDict = null;
+	private ContigNameConverter contigNameConverter = null;
 	
-
+	/** return true if interval converted is same that interval.getContig() */
+	private boolean isQueryIntervalContig(final String ctg)
+		{
+		return this.interval.getContig().equals(this.contigNameConverter.apply(ctg));
+		}
+	
 	public LowResBam2Raster() {
 		super.spaceYbetweenFeatures=1;
 		super.minDistanceBetweenPairs=10;
@@ -138,6 +149,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	private static class InsertSizeAt
 		{
 		final int ref;
+		@SuppressWarnings("unused")
 		final int size;
 		InsertSizeAt(int ref,final CigarElement ce) {
 			this.ref=ref;
@@ -176,7 +188,8 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 		
 		@Override
 		public String getContig() {
-			return R1.getContig();
+			final String s = contigNameConverter.apply(R1.getContig());
+			return s==null?R1.getContig():s;//foireux
 			}
 		@Override
 		public int getStart() {
@@ -301,7 +314,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			
 			void visit(final SAMRecord rec)
 				{
-				if(rec==null || rec.getReadUnmappedFlag() || !rec.getContig().equals(interval.getContig())) return; 
+				if(rec==null || rec.getReadUnmappedFlag() || !isQueryIntervalContig(rec.getContig())) return; 
 				String readName = rec.getReadName();
 				if(readName.endsWith("/1") || readName.endsWith("/2")) readName=readName.substring(0, readName.length()-1);
 				
@@ -700,13 +713,18 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							
 							if(!hideArchOfSupplAlign)
 								{
+								final String c1 = contigNameConverter.apply(rec.getContig());
+
 								//collect argc
 								for(final SAMRecord suppl : SAMUtils.getOtherCanonicalAlignments(rec))
 									{
+									if(c1==null) continue;
+									final String c_suppl = contigNameConverter.apply(suppl.getContig());
+									if(c_suppl==null) continue;
 									final Arc arc=new Arc();
 									arc.y = y;
-									arc.arcStart = new Interval(rec.getContig(), readLeft.apply(rec), readRight.apply(rec),rec.getReadNegativeStrandFlag(),rec.getReadName());
-									arc.arcEnd = new Interval(suppl.getContig(), readLeft.apply(suppl), readRight.apply(suppl),suppl.getReadNegativeStrandFlag(),suppl.getReadName());
+									arc.arcStart = new Interval(c1, readLeft.apply(rec), readRight.apply(rec),rec.getReadNegativeStrandFlag(),rec.getReadName());
+									arc.arcEnd = new Interval(c_suppl, readLeft.apply(suppl), readRight.apply(suppl),suppl.getReadNegativeStrandFlag(),suppl.getReadName());
 									supplementaryArcs.add(arc);
 									}
 								}
@@ -930,9 +948,12 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 				}
 			}
 		
-		private void scan(final SamReader r) {
+		private void scan(final SamReader r,final String normalizedContig) {
+			//paranoid
+			if(!isQueryIntervalContig(normalizedContig)) throw new IllegalStateException(normalizedContig);
+			
 			final SAMRecordIterator iter=r.query(
-						interval.getContig(),
+						normalizedContig,
 						interval.getStart(),
 						interval.getEnd(),
 						false
@@ -947,10 +968,10 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					//don't dicard now, we need to build pairs of reads
 					if(!rec.getReadPairedFlag()) continue;
 					if(rec.getMateUnmappedFlag()) continue;
-					if(!this.interval.getContig().equals(rec.getMateReferenceName())) continue;
+					if(!normalizedContig.equals(rec.getMateReferenceName())) continue;
 					}
 			
-				if(!this.interval.getContig().equals(rec.getReferenceName())) continue;
+				if(!normalizedContig.equals(rec.getReferenceName())) continue;
 				
 				final SamRecordPair srp = new SamRecordPair(rec);
 				
@@ -963,7 +984,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					}
 				
 				final String group=this.groupBy.apply(rec.getReadGroup());
-				if(group==null) continue;
+				if(StringUtil.isBlank(group)) continue;
 				PartitionImage partition =  this.key2partition.get(group);
 				if( partition == null)
 					{
@@ -997,27 +1018,43 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			    	this.WIDTH=100;
 			    	}
 				if(this.gcWinSize<=0)
-				{
+					{
 					LOG.info("adjusting GC win size to 5");
 			    	this.gcWinSize=5;
-				}
+					}
 			    
 				SamReader samFileReader=null;
 				try
 					{
-				    if(this.referenceFile!=null)
+				    if(this.referenceFile==null)
 						{
-						LOG.info("loading reference");
-						this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
+				    	LOG.info("error. Since 2018-11-17. Reference is Required");
+				    	return -1;
 						}
+				    else
+				    	{
+				    	LOG.info("loading reference");
+						this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
+						this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
+						if(this.refDict==null)
+							{
+							LOG.error(JvarkitException.FastaDictionaryMissing.getMessage(this.referenceFile.getPath()));
+							return -1;
+							}
+						this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
+						this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
+				    	}
 
 					
 					final SamReaderFactory srf = super.createSamReaderFactory();
-					this.interval = new IntervalParser(this.indexedFastaSequenceFile==null?null:this.indexedFastaSequenceFile.getSequenceDictionary()).
+					this.interval = new IntervalParser(this.refDict).
 							parse(this.regionStr);
+					
+					
 					if(this.interval==null)
 						{
-						LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary.");
+						LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary."
+								+ JvarkitException.ContigNotFoundInDictionary.getMessage(this.interval.getContig(), this.refDict));
 						return -1;
 						}
 					LOG.info("Interval is "+this.interval );
@@ -1026,8 +1063,9 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					
 					if(this.knownGeneUrl!=null)
 						{
-						IntervalTreeMap<List<KnownGene>> map=KnownGene.loadUriAsIntervalTreeMap(this.knownGeneUrl,
-								(KG)->(KG.getContig().equals(this.interval.getContig()) && !(KG.getEnd()<this.interval.getStart() || KG.getStart()+1>this.interval.getEnd()
+						IntervalTreeMap<List<KnownGene>> map=KnownGene.
+								loadUriAsIntervalTreeMap(this.knownGeneUrl,
+								(KG)->(this.interval.getContig().equals(this.contigNameConverter.apply(KG.getContig())) && !(KG.getEnd()<this.interval.getStart() || KG.getStart()+1>this.interval.getEnd()
 								)));
 						
 						this.knownGenes.addAll(map.values().stream().flatMap(L->L.stream()).collect(Collectors.toList()));
@@ -1043,11 +1081,17 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							LOG.error("no dict in "+bamFile);
 							return -1;
 							}
-						if(dict.getSequence(this.interval.getContig())==null){
-							LOG.error("no such chromosome in "+bamFile+" "+this.interval);
+						final ContigNameConverter conv = ContigNameConverter.fromOneDictionary(dict);
+						conv.setOnNotFound(OnNotFound.SKIP);
+						final String normalizedContig = conv.apply(this.interval.getContig());
+						
+						if(StringUtil.isBlank(normalizedContig) || dict.getSequence(normalizedContig)==null){
+							LOG.error("no such chromosome in "+bamFile+" "+this.interval+". "+
+								" "+JvarkitException.ContigNotFoundInDictionary.getMessage(
+										this.interval.getContig(), dict));
 							return -1;
 							}
-						scan(samFileReader);
+						scan(samFileReader,normalizedContig);
 						samFileReader.close();
 						samFileReader=null;
 						}

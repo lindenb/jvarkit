@@ -324,6 +324,27 @@ private static class TwoDictionaries extends MapBasedContigNameConverter
 	public String getName() {return "TwoDictionaries";}
 	}
 
+
+/** creates a ContigNameConverter from only one contig name. e.g: in LowResBam when we plot in one region. */
+public static ContigNameConverter fromOneContig(final String contig)
+	{
+	if(StringUtil.isBlank(contig)) throw new IllegalArgumentException("empty contig");
+	final Map<String,String> hash= new HashMap<>();
+	hash.put(contig, contig);
+	if(contig.startsWith("chr"))
+		{
+		hash.put(contig.substring(3), contig);
+		}
+	else if(!contig.startsWith("chr"))
+		{
+		hash.put("chr"+contig, contig);
+		}
+	if(contig.equals("MT")) hash.put("chrM", contig);
+	if(contig.equals("chrM")) hash.put("MT", contig);
+	return fromMap(hash);
+	}
+
+
 private static class OneDictionary extends ContigNameConverter
 	{
 	private final SAMSequenceDictionary dict;
