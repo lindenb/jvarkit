@@ -65,6 +65,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.Axis;
@@ -194,7 +196,7 @@ public class SimplePlot extends JfxLauncher {
 	
 	/** base generator for a Chart Maker */
 	private abstract class ChartSupplier
-		implements Supplier<Chart>
+		implements Supplier<Node>
 		{
 		private SAMSequenceDictionary _dict = null;
 		protected Pattern delimiter = Pattern.compile("[\t]");
@@ -704,6 +706,27 @@ public class SimplePlot extends JfxLauncher {
 		}
 	}
 	
+
+	private class HeatmapSupplier extends ChartSupplier {
+		
+		
+		@Override
+		public Node get() {
+			for(;;) {
+				final String line = lineSupplier.get();
+				if(line==null) break;
+				final String tokens[] = super.delimiter.split(line);
+				if(tokens.length!=3) {
+					LOG.warn("expected 3 tokens in "+line);
+					continue;
+					}
+				Double value = parseDouble.apply(tokens[2]);
+				if(value==null) continue;
+				
+				}
+			return null;
+		}
+	}
 	
 	private enum PlotType {
 		UNDEFINED,
@@ -755,7 +778,7 @@ public class SimplePlot extends JfxLauncher {
 	
 	@Override
 	public int doWork(final Stage primaryStage,final List<String> args) {
-		Chart chart=null;
+		Node chartNode =null;
 		try
 			{
 			
@@ -777,7 +800,7 @@ public class SimplePlot extends JfxLauncher {
 			
 			this.lineSupplier = ()-> {
 				try {for(;;) {
-					String L=br.readLine();
+					final String L=br.readLine();
 					if(L==null) return null;
 					return L;
 					}}
@@ -788,17 +811,17 @@ public class SimplePlot extends JfxLauncher {
 			switch(this.chartType) {
 				case BEDGRAPH:
 					{
-					chart = new BedGraphSupplier().get();
+						chartNode = new BedGraphSupplier().get();
 					break;
 					}
-				case PIE: chart = new PieChartSupplier().get();break;
-				case SIMPLE_HISTOGRAM : chart = new SimpleHistogramSupplier().get();break;
-				case HISTOGRAM: chart = new HistogramSupplier().get();break;
-				case STACKED_HISTOGRAM: chart = new StackedHistogramSupplier().get();break;
-				case STACKED_HISTOGRAM_PIVOTED : chart = new StackedHistogramPivoted().get();break;
+				case PIE: chartNode = new PieChartSupplier().get();break;
+				case SIMPLE_HISTOGRAM : chartNode = new SimpleHistogramSupplier().get();break;
+				case HISTOGRAM: chartNode = new HistogramSupplier().get();break;
+				case STACKED_HISTOGRAM: chartNode = new StackedHistogramSupplier().get();break;
+				case STACKED_HISTOGRAM_PIVOTED : chartNode = new StackedHistogramPivoted().get();break;
 				case XYV:
 				case STACKED_XYV:
-					chart = new XYVHistogramSupplier().
+					chartNode = new XYVHistogramSupplier().
 						setStacked(this.chartType==PlotType.STACKED_XYV).
 						get();
 					break;
@@ -818,33 +841,39 @@ public class SimplePlot extends JfxLauncher {
 			{
 			
 			}
-		if(chart==null) {
+		if(chartNode==null) {
 			LOG.error("No chart was generated");
 			return -1;
 		}
 		
-		if(StringUtil.isBlank(this.chartTitle)) {
-			chart.setLegendVisible(false);
+		if(chartNode instanceof Chart) {
+			final Chart chart = Chart.class.cast(chartNode);
+			if(this.outputFile!=null) 
+				{
+				chart.setAnimated(false);
+				}
+			
+			if(StringUtil.isBlank(this.chartTitle)) {
+				chart.setLegendVisible(false);
+				}
+			else
+				{
+				chart.setTitleSide(this.titleSide);
+				chart.setTitle(this.chartTitle);
+				}
+			chart.setLegendSide(this.legendSide);
+			chart.setLegendVisible(!this.hide_legend);
 			}
-		else
-			{
-			chart.setTitleSide(this.titleSide);
-			chart.setTitle(this.chartTitle);
-			}
-		chart.setLegendSide(this.legendSide);
-		chart.setLegendVisible(!this.hide_legend);
-		
 		
 		
 		if(this.outputFile!=null) 
 			{
-			chart.setAnimated(false);
       		LOG.info("saving as "+this.outputFile+" and exiting.");
-			final Chart theChart=chart;
+      		final Node theNode = chartNode;
 			primaryStage.setOnShown(WE->{
 	       		 try
 	       		 	{
-	       			saveImageAs(theChart,this.outputFile);
+	       			saveImageAs(theNode,this.outputFile);
 	       		 	}
 	       		 catch(final IOException err)
 	       		 	{
@@ -854,8 +883,13 @@ public class SimplePlot extends JfxLauncher {
 	       		 Platform.exit();
 				});
 			}
+		if(!(chartNode instanceof Parent)) {
+			LOG.error("not an instance of parent??");
+			return -1;
+			}
 		final Screen scr = Screen.getPrimary();
-		Scene scene  = new Scene(chart,
+		Scene scene  = new Scene(
+				Parent.class.cast(chartNode),
 				scr.getBounds().getWidth()-100,
 				scr.getBounds().getHeight()-100
 				);
@@ -866,15 +900,15 @@ public class SimplePlot extends JfxLauncher {
 	
 	/** save chart in file */
 	private void saveImageAs(
-			final Chart   chart,
+			final Node chartNode,
 			final File file)
 		 	throws IOException
 	 	{
-		if(file.getName().endsWith(".R"))
+		if(file.getName().endsWith(".R") && (chartNode instanceof Chart))
 			{
 			try(PrintWriter pw = new PrintWriter(file)) {
 				final JFXChartExporter exporter=new JFXChartExporter(pw);
-				exporter.exportToR(chart);
+				exporter.exportToR(Chart.class.cast(chartNode));
 				pw.flush();
 				pw.close();
 				}
@@ -882,7 +916,7 @@ public class SimplePlot extends JfxLauncher {
 		else
 			{
 			
-			final WritableImage image = chart.snapshot(new SnapshotParameters(), null);
+			final WritableImage image = chartNode.snapshot(new SnapshotParameters(), null);
 			final String format=(file.getName().toLowerCase().endsWith(".png")?"png":"jpg");
 	        ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
 		 	}

@@ -66,7 +66,8 @@ END_DOC
 */
 @Program(name="samscandepthfall",
 	description="Explore balanced translocations between two chromosomes using discordant paired-end reads.",
-	keywords={"sam","bam","xslt","xml"}
+	keywords={"sam","bam","xslt","xml"},
+	generate_doc=false
 	)
 public class SamScanDepthFall extends Launcher {
 	private static final Logger LOG = Logger.build(SamScanDepthFall.class).make();

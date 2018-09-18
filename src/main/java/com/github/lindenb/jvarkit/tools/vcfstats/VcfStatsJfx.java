@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -192,16 +191,19 @@ public class VcfStatsJfx extends JfxLauncher {
 		void visit(final VariantContext ctx) {
 			
 			}
-		Chart makeChart() {
+		Node makeTabContent() {
 			return null;
 			}
 		
 		void refresh() {
 			if(!isEnabled()) return;
-			final Chart chart= makeChart();
-			if(chart==null) return;
-			if(outputFile!=null) chart.setAnimated(false);
-			this.tab.setContent(chart);
+			final Node node = makeTabContent();
+			if(node==null) return;
+			if(outputFile!=null && node instanceof Chart)
+				{
+				Chart.class.cast(node).setAnimated(false);
+				}
+			this.tab.setContent(node);
 			}
 		public String getFilename() {
 			return getTabTitle().replaceAll("[^A-Za-z_0-9]+","")+".png";
@@ -250,7 +252,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();
 
 			final CategoryAxis xAxis = new CategoryAxis(
@@ -290,7 +292,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();
 	
 			final CategoryAxis xAxis = new CategoryAxis(
@@ -338,7 +340,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();
 	
 			final CategoryAxis xAxis = new CategoryAxis(
@@ -391,7 +393,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
 					FXCollections.observableArrayList(this.dict.getSequences().stream().
@@ -439,7 +441,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			if(this.count.getCountCategories()==0) return null;
 			final NumberAxis yAxis = new NumberAxis();
 			final int max_count  = count.keySet().stream().mapToInt(I->I.intValue()).max().orElse(1);
@@ -496,7 +498,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		abstract String getChartTitle();
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final List<String> categories = new ArrayList<>(this.sample2count.size());
 			for(final String sn: this.sample2count.keySet().
@@ -630,7 +632,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
 					FXCollections.observableArrayList(this.samples)
@@ -687,7 +689,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final Set<String> deNovoSamples = new TreeSet<>(sample2hiConfDeNovo.keySet());
 			deNovoSamples.addAll(sample2loConfDeNovo.keySet());
 			
@@ -740,7 +742,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			if(this.count.isEmpty() || max_condordance<1) return null;
 			
 			final List<String> bestPairs = this.count.keySetDecreasing().stream().limit(max_condordance).collect(Collectors.toList());
@@ -807,7 +809,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			if(this.count.isEmpty()) return null;
 			int max_no_call = this.count.keySet().stream().mapToInt(G->G.intValue()).max().orElse(0);
 			if(max_no_call==0) return null;
@@ -878,7 +880,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();
 			
 			
@@ -944,7 +946,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();		
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final List<RangeOfIntegers.Range> L = new ArrayList<>( indelTranches.getRanges());
@@ -1021,7 +1023,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			return "Predictions "+(this.sampleName==null?"":this.sampleName);
 			}
 		@Override
-		Chart makeChart() {
+		Chart makeTabContent() {
 			if(this.countTerms.isEmpty()) return null;
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			

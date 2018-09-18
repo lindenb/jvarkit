@@ -63,7 +63,7 @@ private String _prefix;
 private boolean _validateContigInDict = true;
 private boolean _validateOrderInDict = false;
 private boolean _runInBackground  = true;
-private boolean _silent  = true;
+private boolean _silent  = false;
 
 private ProgressFactory() {
 }

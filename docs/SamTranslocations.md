@@ -1,5 +1,7 @@
 # SamTranslocations
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Explore balanced translocations between two chromosomes using discordant paired-end reads.
 
 
@@ -8,38 +10,25 @@ Explore balanced translocations between two chromosomes using discordant paired-
 ```
 Usage: samtranslocations [options] Files
   Options:
-    --filter
-      A JEXL Expression that will be used to filter out some sam-records (see 
-      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
-      An expression should return a boolean value (true=exclude, false=keep 
-      the read). An empty expression keeps everything. The variable 'record' 
-      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
-      Default: 'Accept all' (Empty expression)
-    -fd, --fuzzy-distance
+    -B, --bed
+      Optional BED file. SV should overlap this bed.
+    -d, --distance
       Max distance between two read to test if they both end at the same ~ 
       position. 
-      Default: 10
-    --groupby
-      Group Reads by. Data partitioning using the SAM Read Group (see 
-      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
-      be any combination of sample, library....
-      Default: sample
-      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+      Default: 100
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    --region, --interval
-      Limit analysis to this interval. An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or 
-      "chrom:start-end+extend".A program might use a Reference sequence to fix 
-      the chromosome name (e.g: 1->chr1)
-    -md, --max-distance
-      Max distance between forward-reverse
-      Default: 50
+    -m, --min
+      Min number of events
+      Default: 0
     -o, --output
       Output file. Optional . Default: stdout
+    -t, --trans
+      Allow same-contig variants
+      Default: false
     --version
       print version and exit
 
@@ -58,11 +47,10 @@ Usage: samtranslocations [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -92,23 +80,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocations.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocationsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamTranslocationsTest.java)
 
-```
-Wed Dec 13 22:11:30 2017 +0100 ; fix bug sam transloc ; https://github.com/lindenb/jvarkit/commit/4d73544f9bc965685a4c6edfe22a3755b21504d1
-Wed Dec 13 21:48:52 2017 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/6ca9f3ad0a3b67636fc0db414f0e5b3e966cf598
-Wed Dec 13 20:21:10 2017 +0100 ; new samtransloc ; https://github.com/lindenb/jvarkit/commit/1aa0d6c70ae478d3393bc5180f6f51d0769dddc1
-Wed Dec 13 17:22:37 2017 +0100 ; fixing xcontamination+singleton ; https://github.com/lindenb/jvarkit/commit/0ad0c272832570db1c2aa4f1c5fdbc46faac70e1
-Tue Dec 5 09:42:48 2017 +0100 ; samtransloc min/max ; https://github.com/lindenb/jvarkit/commit/77e5c5513897fdfc41b7b833db497a6738e55642
-Mon Dec 4 19:25:31 2017 +0100 ; num partitions ; https://github.com/lindenb/jvarkit/commit/95e327ffd1949326bc5989225dd58edf002b3038
-Thu Nov 30 12:18:26 2017 +0100 ; xslt-stylesheet for samtransloc ; https://github.com/lindenb/jvarkit/commit/4450d1e0dcbfcf2685404d401d149976f1cab6ca
-Wed Nov 29 17:09:58 2017 +0100 ; adding samjdk / biostars answer ; https://github.com/lindenb/jvarkit/commit/9ed7b941944f653f5ca5cc822e069108ab8deaf6
-Wed Nov 29 16:40:28 2017 +0100 ; sam transloc ; https://github.com/lindenb/jvarkit/commit/9b83677697adc04d1cd7411b2181fa933a47583d
-```
-
-</details>
 
 ## Contribute
 
@@ -133,6 +108,7 @@ The current reference is:
 
 ## History
 
+* 2018-09-18 :  rewriting
 * 2017-12-13 :  refactoring for balanced translocation.
 
 

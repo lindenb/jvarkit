@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,34 +27,43 @@ package com.github.lindenb.jvarkit.tools.structvar;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.math.stats.Percentile;
-import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
-import com.github.lindenb.jvarkit.util.iterator.FilterIterator;
-import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIterator;
-import com.github.lindenb.jvarkit.util.iterator.ForwardPeekIteratorImpl;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
-import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
+import htsjdk.samtools.GenomicIndexUtil;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.SAMTagUtil;
+import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.StringUtil;
 /**
 
 BEGIN_DOC
 
 ## History
 
+* 2018-09-18 :  rewriting
 * 2017-12-13 :  refactoring for balanced translocation.
 
 END_DOC
@@ -67,67 +76,310 @@ public class SamTranslocations extends Launcher {
 	private static final Logger LOG = Logger.build(SamTranslocations.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"--region","--interval"},description="Limit analysis to this interval. "+IntervalParser.OPT_DESC)
-	private String region_str=null;
-	@Parameter(names={"--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
-	private SamRecordFilter samRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
-	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
-	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
+	@Parameter(names={"-d","--distance"},description="Max distance between two read to test if they both end at the same ~ position.")
+	private int fuzzy_distance = 100;
+	@Parameter(names={"-t","--trans"},description="Allow same-contig variants")
+	private boolean allowSameContig=false;
+	@Parameter(names={"-m","--min"},description="Min number of events")
+	private int min_number_of_events=0;
+	@Parameter(names={"-B","--bed"},description="Optional BED file. SV should overlap this bed.")
+	private File bedFile = null;
 
-	@Parameter(names={"-md","--max-distance"},description="Max distance between forward-reverse")
-	private int max_distance = 50;
-	@Parameter(names={"-fd","--fuzzy-distance"},description="Max distance between two read to test if they both end at the same ~ position.")
-	private int fully_distance = 10;
-
-	private int min_count_forward = 5;
-
-	private static class PartitionState
+	private class BinMap
 		{
-		final String name;
-		SAMRecord last_rec = null;
-		PartitionState(final String name) {
-			this.name=name;
+		private final Map<Integer, Set<BreakPointDigest>> bin2set = new HashMap<>(GenomicIndexUtil.MAX_BINS);
+		
+		private int bin(final BreakPointDigest bp)
+			{
+			return GenomicIndexUtil.regionToBin(
+					start1(bp),
+					end1(bp)
+					);
 			}
-		}	
+		
+		private int start1(final BreakPointDigest bp)
+			{
+			return Math.max(1,(bp.start1-1)-fuzzy_distance);
+			}
+		private int end1(final BreakPointDigest bp) {
+			return (bp.end1)+fuzzy_distance;
+			}
+		
+		List<BreakPointDigest> toList() {
+			return this.bin2set.
+					values().
+					stream().
+					flatMap(S->S.stream().filter(P->P.count>=min_number_of_events)).
+					sorted((A,B)->{
+						int d = Integer.compare(A.tid1,B.tid1);
+						if(d!=0) return d;
+						d = Integer.compare(A.tid2,B.tid2);
+						if(d!=0) return d;
+						d = Integer.compare(A.start1,B.start1);
+						if(d!=0) return d;
+						return Integer.compare(A.start2,B.start2);
+						}).
+					collect(Collectors.toList());
+			}
+		
+		void put(BreakPointDigest bp)
+			{
+			boolean done=false;
+			while(!done)
+				{
+				done = true;
+				final int b= bin(bp);
+				if(b>=GenomicIndexUtil.MAX_BINS) throw new IllegalStateException();
+				final BitSet bitset = GenomicIndexUtil.regionToBins(start1(bp), end1(bp));
+				for(int x=0;x<GenomicIndexUtil.MAX_BINS;++x)
+					{
+					if(!bitset.get(x)) continue;
+					final Set<BreakPointDigest> set  = this.bin2set.get(b);
+					if(set==null) continue;
+					BreakPointDigest overlapper = null;
+					for(BreakPointDigest other : set) {
+						if(bp.tid1!=other.tid1) throw new IllegalStateException();
+						if(bp.tid2!=other.tid2) continue;
+						if( overlap( bp.start1  ,bp.end1 , other.start1, other.end1 ) &&
+							overlap( bp.start2  ,bp.end2 , other.start2, other.end2 ))
+							{
+							overlapper = other;
+							break;
+							}
+						}
+					if(overlapper!=null)
+						{
+						//System.err.println("merging "+bp+" "+overlapper);
+						set.remove(overlapper);
+						//
+						bp.start1 = Math.min(bp.start1, overlapper.start1);
+						bp.end1 = Math.max(bp.end1, overlapper.end1);
+						//
+						bp.start2 = Math.min(bp.start2, overlapper.start2);
+						bp.end2 = Math.max(bp.end2, overlapper.end2);
+						//
+						bp.count += overlapper.count;
+						done=false;
+						break;
+						}
+					}
+				}
+			final int b= bin(bp);
+			Set<BreakPointDigest> set  = this.bin2set.get(b);
+			if(set==null) {
+				set = new HashSet<>();
+				this.bin2set.put(b,set);
+				}
+			set.add(bp);
+			}
+		
+		}
+
+	private static class BreakPoint
+		{
+		final int tid1;
+		final int pos1;
+		final int tid2;
+		final int pos2;
+		BreakPoint(final int tid1,int pos1,int tid2,int pos2) {
+			if(tid1==tid2)
+				{
+				this.tid1 = tid1;
+				this.tid2 = tid2;
+				this.pos1 = pos1<pos2?pos1:pos2;
+				this.pos2 = pos1<pos2?pos2:pos1;
+				}
+			else if(tid1<tid2)
+				{
+				this.tid1 = tid1;
+				this.pos1 = pos1;
+				this.tid2 = tid2;
+				this.pos2 = pos2;
+				}
+			else
+				{
+				this.tid1 = tid2;
+				this.pos1 = pos2;
+				this.tid2 = tid1;
+				this.pos2 = pos1;
+				}
+			}
+		}
+	private static long ID_GENERATOR = 0L;
+	private static class BreakPointDigest
+		{
+		final long id = (++ID_GENERATOR);
+		final int tid1;
+		int start1 = 0;
+		int end1 = 0;
+		
+		final int tid2;
+		int start2 = 0;
+		int end2 = 0;
+
+		
+		int count=0;
+		BreakPointDigest(final int tid1,final int tid2) {
+			this.tid1 = tid1;
+			this.tid2 = tid2;
+			}
+		@Override
+		public int hashCode() {
+			return Long.hashCode(this.id);
+			}
+		@Override
+		public boolean equals(final Object obj) {
+			return this.id == BreakPointDigest.class.cast(obj).id;
+			}
+		@Override
+		public String toString() {
+			return tid1+":"+start1+"-"+end1+" -> "+tid2+":"+start2+"-"+end2;
+			}
+		}
+	
+	private boolean overlap(final int start, final int end, final int start2, final int end2) {
+		return CoordMath.overlaps(
+			start-this.fuzzy_distance, end+this.fuzzy_distance,
+			start2-this.fuzzy_distance, end2+this.fuzzy_distance
+			);
+	}
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.max_distance<=0) {
-			LOG.error("max_distance <=0 ("+max_distance+")");
+		if(this.fuzzy_distance<=0) {
+			LOG.error("fuzzy_distance <=0 ("+fuzzy_distance+")");
 			return -1;
 		}
 		PrintWriter pw = null;
-		ConcatSam.ConcatSamIterator samIter = null;
-		ForwardPeekIterator<SAMRecord> forwardPeekIterator = null;
+		SamReader samReader = null;
+		SAMRecordIterator iter = null;
+		final short SA = SAMTagUtil.getSingleton().SA;
 		try {
+			String inputName = oneFileOrNull(args);
+			samReader = super.openSamReader(inputName);
+			final SAMFileHeader header = samReader.getFileHeader();
 			
-			samIter = new ConcatSam.Factory().addInterval(this.region_str).open(args);
-			final SAMSequenceDictionary dict = samIter.getFileHeader().getSequenceDictionary();
-			if(dict.size()<2) {
-				LOG.error("Not enough contigs in sequence dictionary. Expected at least 2.");
+			final String sampleName = header.
+					getReadGroups().
+					stream().
+					map(RG->RG.getSample()).
+					filter(S->!StringUtil.isBlank(S)).
+					findFirst().
+					orElse(StringUtil.isBlank(inputName)?"<BAM>":inputName);
+			
+			final SAMSequenceDictionary refDict = header.getSequenceDictionary();
+			if(refDict==null ||refDict.isEmpty()) {
+				LOG.error("Not enough contigs in sequence dictionary.");
 				return -1;
 			}
-			forwardPeekIterator = new ForwardPeekIteratorImpl<>(
-					new FilterIterator<>(samIter,rec->{
-						if(rec.getReadUnmappedFlag()) return false;
-						if(!rec.getReadPairedFlag()) return false;
-						if(rec.getMateUnmappedFlag()) return false;
-						final int tid1 =  rec.getReferenceIndex();
-						final int tid2 =  rec.getMateReferenceIndex();
-						if(tid1==tid2) return false;
-						if(this.samRecordFilter.filterOut(rec)) return false;
-						return true;
-						})
-					);
+			final boolean allowedContigs[] = new boolean[refDict.size()];
+			for(int tid=0;tid < refDict.size();++tid)
+				{
+				final String refName = refDict.getSequence(tid).getSequenceName();
+				allowedContigs[tid]= true;
+				if(!refName.matches("(chr)?([1-9][0-9]*|X|Y)"))
+					{
+					allowedContigs[tid]= false;
+					}
+				}
+			final IntervalTreeMap<Boolean> bedIntervals;
+			if(this.bedFile!=null)
+				{
+				java.io.BufferedReader r=null;
+				try
+					{
+					final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(refDict);
+					bedIntervals = new IntervalTreeMap<Boolean>();
+					r=com.github.lindenb.jvarkit.io.IOUtils.openFileForBufferedReading(this.bedFile);
+					final BedLineCodec bedCodec=new BedLineCodec();
+					r.lines().
+						filter(line->!(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty())).
+						map(line->bedCodec.decode(line)).
+						filter(B->B!=null).
+						map(B->B.toInterval()).
+						filter(L->L.getStart()<L.getEnd()).
+						forEach(B->{
+							final String c = contigNameConverter.apply(B.getContig());
+							if(c==null) return;
+							int tid = refDict.getSequenceIndex(c);
+							if(tid==-1 || !allowedContigs[tid]) return;
+							bedIntervals.put(new Interval(c,B.getStart(),B.getEnd()),true);							
+							});						
+					}
+				finally
+					{
+					htsjdk.samtools.util.CloserUtil.close(r);
+					}
+				}
+			else
+				{
+				bedIntervals=null;
+				}
+			iter = samReader.iterator();
 			
+			final List<BreakPoint> breakPoints = new ArrayList<>(10_000_000);
+			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
+					newInstance().
+					dictionary(refDict).
+					logger(LOG).
+					build();
+			
+			final Consumer<BreakPoint> addBreakPoint = (BP)->{				
+				breakPoints.add(BP);
+				if(breakPoints.size()%100_000==0) {
+					LOG.warn("Breakpoints:"+breakPoints.size());
+					}
+			};
+			
+			while(iter.hasNext()) {
+				final SAMRecord rec = progress.apply(iter.next());
+				if(rec.getReadUnmappedFlag())  continue;
+				if(rec.getDuplicateReadFlag()) continue;
+				if(rec.isSecondaryOrSupplementary()) continue;
+				final int tid1 = rec.getReferenceIndex();
+				if(!allowedContigs[tid1]) continue;
+				if(rec.getReadPairedFlag() && 
+					!rec.getMateUnmappedFlag()
+					)
+					{
+					final int tid2 = rec.getMateReferenceIndex();
+					if(allowedContigs[tid2] && (this.allowSameContig || tid1!=tid2))
+						{
+						addBreakPoint.accept(new BreakPoint(
+								tid1,
+								rec.getReadNegativeStrandFlag()?rec.getEnd():rec.getStart(),
+								tid2,
+								rec.getMateAlignmentStart()
+								));
+						}
+					}
+				if(rec.getAttribute(SA)!=null) {
+					for(final SAMRecord sup:SAMUtils.getOtherCanonicalAlignments(rec))
+						{
+						final int tid2 = sup.getReferenceIndex();
+						if(!allowedContigs[tid2]) continue;
+						if(!this.allowSameContig && tid1==tid2) continue;
+						addBreakPoint.accept(new BreakPoint(
+								tid1,
+								rec.getReadNegativeStrandFlag()?rec.getEnd():rec.getStart(),
+								tid2,
+								sup.getAlignmentStart()
+								));
+						
+						}
+					}
+				}
+			progress.close();
+			samReader.close();
+			
+			LOG.info("Done. Computing output");
 			pw = openFileOrStdoutAsPrintWriter(this.outputFile);
+			
 			pw.print("#chrom1");
 			pw.print('\t');
 			pw.print("chrom1-start");
 			pw.print('\t');
 			pw.print("chrom1-end");
-			pw.print('\t');
-			pw.print("middle1\tstrand_plus_before_mid1_count\tstrand_plus_before_mid1_percent\tstrand_minus_after_mid1_count\tstrand_minus_after_mid1_percent");
 			pw.print('\t');
 			pw.print("chrom2");
 			pw.print('\t');
@@ -135,164 +387,76 @@ public class SamTranslocations extends Launcher {
 			pw.print('\t');
 			pw.print("chrom2-end");
 			pw.print('\t');
-			pw.print("middle2\tstrand_plus_before_mid2_count\tstrand_plus_before_mid2_percent\tstrand_minus_after_mid2_count\tstrand_minus_after_mid2_percent");
+			pw.print("sample");
 			pw.print('\t');
-			pw.print("count-reads");
-			pw.print('\t');
-			pw.print("count-clipped");
-			pw.print('\t');
-			pw.print("partition");
+			pw.print("count");
 			pw.println();
-			
-			final Map<String,PartitionState> partition2state = new HashMap<>();
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(dict).logger(LOG);
-			while(forwardPeekIterator.hasNext()) {
-				final SAMRecord rec = progress.watch(forwardPeekIterator.next());
-				final String partition = this.samRecordPartition.getPartion(rec, "N/A");
-				PartitionState partitionState = partition2state.get(partition);
-				if(partitionState==null) {
-					partitionState = new PartitionState(partition);
-					partition2state.put(partition, partitionState);
-					}
-				if(partitionState.last_rec!=null)
-					{
-					if(partitionState.last_rec==rec) {
-						//reset last
-						partitionState.last_rec=null;
-						}
-					continue;
-					}
-				
-				if(rec.getReadNegativeStrandFlag()) continue;// searching for -->
 
-				
-				//find forward records
-				final  List<SAMRecord> positiveStrandList=new ArrayList<>();
-				positiveStrandList.add(rec);
-				int x=0;
-				for(;;)
+			
+			for(int tid1=0;tid1 < refDict.size();++tid1)
+				{
+				if(!allowedContigs[tid1]) continue;
+				final String ctg1 = refDict.getSequence(tid1).getSequenceName();
+				for(int tid2=tid1 + (this.allowSameContig?0:1);tid2< refDict.size();++tid2)
 					{
-					final SAMRecord rec2 = forwardPeekIterator.peek(x);
-					if(rec2==null) {
-						break;
-						}
-					if(!rec.getReferenceIndex().equals(rec2.getReferenceIndex())) {
-						break;
-						}
-					if(rec2.getStart()-rec.getEnd()>this.max_distance) {
-						break;
-						}
-					if(rec2.getReadNegativeStrandFlag() ||
-						Math.abs(rec2.getEnd()-rec.getEnd()) > this.fully_distance ||
-						!rec2.getMateReferenceName().equals(rec.getMateReferenceName())
-						)
-						{
-						++x;
-						continue;
-						}
-					positiveStrandList.add(rec2);
-					partitionState.last_rec = rec2;
-					++x;
+					if(!allowedContigs[tid2]) continue;
+					final String ctg2 = refDict.getSequence(tid2).getSequenceName();
+					final BinMap binMap = new BinMap();
 					
-					}
-				if(positiveStrandList.size()<this.min_count_forward)
-					{
-					partitionState.last_rec=null;
-					continue;
-					}
-				//find reverse records
-
-				x=0;
-				final  List<SAMRecord> negativeStrandList=new ArrayList<>();
-
-				for(;;)
-					{
-					final SAMRecord rec2 = forwardPeekIterator.peek(x);
-					if(rec2==null) {
-						break;
-						}
-					if(!rec.getReferenceIndex().equals(rec2.getReferenceIndex())) {
-						break;
-						}
-					if(rec2.getStart()-rec.getEnd()>this.max_distance) {
-						break;
-						}
-					if(!rec2.getReadNegativeStrandFlag() ||
-						(rec2.getStart() < rec.getEnd() && (rec.getEnd() - rec2.getStart()) > this.fully_distance ) ||
-						!rec2.getMateReferenceName().equals(rec.getMateReferenceName())
-						)
+					
+					
+					int x=0;
+					while(x<breakPoints.size())
 						{
-						++x;
-						continue;
+						final BreakPoint bp = breakPoints.get(x);
+						if(bp.tid1==tid1 && bp.tid2==tid2)
+							{
+							breakPoints.remove(x);
+							final BreakPointDigest dg = new BreakPointDigest(tid1, tid2);
+							dg.start1 = bp.pos1;
+							dg.end1 = bp.pos1;
+							dg.start2 = bp.pos2;
+							dg.end2 = bp.pos2;
+							dg.count = 1;
+							binMap.put(dg);
+							}
+						else
+							{
+							++x;
+							}
 						}
-					negativeStrandList.add(rec2);
-					++x;
+					for(final BreakPointDigest dg:binMap.toList()) {
+						
+						if(bedIntervals!=null)
+							{
+							if(!(
+								bedIntervals.containsOverlapping(new Interval(ctg1,dg.start1,dg.end1))) || 
+								bedIntervals.containsOverlapping(new Interval(ctg2,dg.start2,dg.end2)))
+								{
+								continue;
+								}
+							}
+						
+						pw.print(ctg1);
+						pw.print("\t");
+						pw.print(dg.start1);
+						pw.print("\t");
+						pw.print(dg.end1);
+						pw.print("\t");
+						pw.print(ctg2);
+						pw.print("\t");
+						pw.print(dg.start2);
+						pw.print("\t");
+						pw.print(dg.end2);
+						pw.print("\t");
+						pw.print(sampleName);
+						pw.print("\t");
+						pw.print(dg.count);
+						pw.println();
+						}
 					}
-				
-				if(negativeStrandList.size()<this.min_count_forward)
-					{
-					partitionState.last_rec=null;
-					continue;
-					}
-								
-				
-				
-				final int start1 = (int)Percentile.median().evaluate(positiveStrandList.stream().mapToInt(R->R.getEnd()));
-				final int end1 =   (int)Percentile.median().evaluate(negativeStrandList.stream().mapToInt(R->R.getStart()));
-				final int mid1= (start1+end1)/2;
-			
-				
-				final int mid2= (int)Percentile.median().evaluate(negativeStrandList.stream().mapToInt(R->R.getMateAlignmentStart()));
-
-				
-				
-				pw.print(rec.getReferenceName());
-				pw.print('\t');
-				pw.print(positiveStrandList.stream().mapToInt(R->R.getEnd()).max().getAsInt());
-				pw.print('\t');
-				pw.print(negativeStrandList.stream().mapToInt(R->R.getStart()).min().getAsInt());
-				pw.print('\t');
-				pw.print(mid1);
-				pw.print('\t');
-				pw.print(positiveStrandList.stream().filter(R->R.getEnd()<=mid1).count());
-				pw.print('\t');
-				pw.print((int)(100.0*(positiveStrandList.stream().filter(R->R.getEnd()<=mid1).count())/positiveStrandList.size()));
-				pw.print('\t');
-				pw.print(negativeStrandList.stream().filter(R->R.getStart()>=mid1).count());
-				pw.print('\t');
-				pw.print((int)(100.0*(negativeStrandList.stream().filter(R->R.getStart()>=mid1).count())/positiveStrandList.size()));
-				pw.print('\t');
-				
-				pw.print(rec.getMateReferenceName());
-				pw.print('\t');
-				pw.print(negativeStrandList.stream().mapToInt(R->R.getMateAlignmentStart()).min().getAsInt());
-				pw.print('\t');
-				pw.print(negativeStrandList.stream().mapToInt(R->R.getMateAlignmentStart()).max().getAsInt());
-				pw.print('\t');
-				pw.print(mid2);
-				pw.print('\t');
-				pw.print(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()<=mid2).count());
-				pw.print('\t');
-				pw.print((int)(100.0*(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()<=mid2).count())/negativeStrandList.size()));
-				pw.print('\t');
-				pw.print(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()>=mid2).count());
-				pw.print('\t');
-				pw.print((int)(100.0*(negativeStrandList.stream().filter(R->R.getMateAlignmentStart()>=mid2).count())/negativeStrandList.size()));
-				pw.print('\t');
-				pw.print(positiveStrandList.size()+negativeStrandList.size());
-				pw.print('\t');
-				pw.print(
-						positiveStrandList.stream().filter(R->R.getCigar()!=null && R.getCigar().isClipped()).count()
-						+
-						negativeStrandList.stream().filter(R->R.getCigar()!=null && R.getCigar().isClipped()).count()
-						);
-				pw.print('\t');
-				pw.print(partition);
-				pw.println();
 				}
-			progress.finish();
-			forwardPeekIterator.close();forwardPeekIterator=null;
-			samIter.close();samIter=null;
+			
 			pw.flush();
 			pw.close();pw=null;
 			return 0;
@@ -302,13 +466,12 @@ public class SamTranslocations extends Launcher {
 			}
 		finally
 			{
-			CloserUtil.close(forwardPeekIterator);
-			CloserUtil.close(samIter);
+			CloserUtil.close(samReader);
 			CloserUtil.close(pw);
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new SamTranslocations().instanceMainWithExit(args);
 
 	}
