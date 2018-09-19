@@ -637,7 +637,15 @@ public class VcfStatsJfx extends JfxLauncher {
 		Chart makeTabContent() {
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(this.samples)
+					FXCollections.observableArrayList(IsIgnoringHomRef()?
+						this.samples.stream().sorted((S1,S2)->
+							{
+							return Long.compare(
+									sample2count.get(S1).getTotal(),
+									sample2count.get(S2).getTotal()
+									);
+							}).collect(Collectors.toList()):
+						this.samples)
 					);
 			final StackedBarChart<String,Number> bc = 
 		            new StackedBarChart<String,Number>(xAxis,yAxis);
@@ -746,13 +754,21 @@ public class VcfStatsJfx extends JfxLauncher {
 			return "AL/(REF+ALT) (SNP Diallelic "+getGenotypeType()+" Genotypes)";
 			}
 		
+		
 		@Override
 		Chart makeTabContent() {
 			
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(this.sample2count.keySet())
-					);
+					FXCollections.observableArrayList(
+						this.sample2count.keySet().stream().sorted((S1,S2)->
+							{
+							return Long.compare(
+									sample2count.get(S1).getTotal(),
+									sample2count.get(S2).getTotal()
+									);
+							}).collect(Collectors.toList())
+					));
 			final StackedBarChart<String,Number> bc = 
 		            new StackedBarChart<String,Number>(xAxis,yAxis);
 		
