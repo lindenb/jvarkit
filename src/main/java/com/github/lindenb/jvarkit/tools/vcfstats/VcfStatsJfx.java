@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Vector;
 import java.util.concurrent.locks.ReentrantLock;
@@ -46,6 +47,7 @@ import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
+import com.github.lindenb.jvarkit.math.RangeOfDoubles;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
@@ -732,6 +734,76 @@ public class VcfStatsJfx extends JfxLauncher {
 		}
 
 	
+	/** AD allele depth */
+	private abstract class AlleleDepthGenerator extends ChartGenerator
+		{
+		private final RangeOfDoubles rangeOfDoubles = new RangeOfDoubles(new double[] {0.2,0.3,0.4,0.6,0.7,0.8});
+		private final Map<String,Counter<RangeOfDoubles.Range>> sample2count = new TreeMap<>();
+		
+		
+		@Override
+		String getChartTitle() {
+			return "AL/(REF+ALT) (SNP Diallelic "+getGenotypeType()+" Genotypes)";
+			}
+		
+		@Override
+		Chart makeTabContent() {
+			
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(this.sample2count.keySet())
+					);
+			final StackedBarChart<String,Number> bc = 
+		            new StackedBarChart<String,Number>(xAxis,yAxis);
+		
+			
+			for(final RangeOfDoubles.Range range:rangeOfDoubles.getRanges())
+				{
+				final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+				series1.setName(range.toString());
+				for(final String sn:this.sample2count.keySet()) {
+					final Counter<RangeOfDoubles.Range> counter = this.sample2count.get(sn);
+					final long n  = counter==null?0L:counter.count(range);
+					
+					series1.getData().add(new XYChart.Data<String,Number>(
+							sn,n
+							));
+					}
+				bc.getData().add(series1);
+				}
+			bc.setCategoryGap(1);
+			title(bc,this.getChartTitle());
+	        xAxis.setLabel("Sample");
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
+	        yAxis.setLabel("ALT/(ALT+REF)");
+	        return bc;
+			}
+		
+		protected abstract GenotypeType getGenotypeType();
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			if(!ctx.isBiallelic()) return ;
+			if(!ctx.isSNP()) return ;
+			this.nVariants++;
+			for(final Genotype gt: ctx.getGenotypes())
+				{
+				if(!gt.hasAD()) continue;
+				if(!getGenotypeType().equals(gt.getType())) continue;
+				final int ads[] = gt.getAD();
+				if(ads==null || ads.length!=2 || ads[0]+ads[1]<=0.0) continue;
+				final RangeOfDoubles.Range range = rangeOfDoubles.getRange((double)ads[1]/(double)(ads[0]+ads[1]));
+				Counter<RangeOfDoubles.Range> counter = this.sample2count.get(gt.getSampleName());
+				if(counter==null) {
+					counter = new Counter<>();
+					this.sample2count.put(gt.getSampleName(),counter);
+					}
+				counter.incr(range);
+				}
+			}
+		}
+	
 	private class GenotypesConcordanceGenerator extends ChartGenerator
 		{
 		private final Counter<String> count=new Counter<>();
@@ -1230,6 +1302,25 @@ public class VcfStatsJfx extends JfxLauncher {
 				{
 				chartGenerators.add(new DeNovoGenerator());
 				}
+			
+			if(header.getNGenotypeSamples()>0  &&
+				header.getFormatHeaderLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)!=null)
+				{
+				if(header.getNGenotypeSamples()>1) chartGenerators.add(new AlleleDepthGenerator() {
+					@Override
+					protected GenotypeType getGenotypeType() {
+						return GenotypeType.HOM_REF;
+						}
+					});
+				chartGenerators.add(new AlleleDepthGenerator() {
+					@Override
+					protected GenotypeType getGenotypeType() {
+						return GenotypeType.HET;
+						}
+					});
+				}
+			
+			
 			
 			if(hasPred)
 				{

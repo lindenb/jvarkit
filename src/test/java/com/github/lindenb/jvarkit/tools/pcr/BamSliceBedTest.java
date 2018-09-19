@@ -27,7 +27,7 @@ public class BamSliceBedTest extends TestUtils {
 		
 		Assert.assertEquals(new BamSliceBed().instanceMain(new String[]{
 	    		"-o",out.getPath(),
-	    		"-V",out.getPath(),
+	    		"-B",bed.getPath(),
 	    		SRC_TEST_RESOURCE+"/S1.bam"
 	    		}),0);
 		assertIsValidBam(out);
