@@ -14,8 +14,11 @@ Usage: vcfburdenrscriptv [options] Files
       [20180831] Include CADD data, if available (INFO/CADD_PHRED 
       INFO/CADD_SCORE) 
       Default: false
-    --cadd-missing
-      [20180831] value for CADD missing data
+    -cpm, --cadd-phred-missing
+      [20180831] value for CADD / phred missing data
+      Default: NA
+    -csm, --cadd-score-missing
+      [20180921] value for CADD / score missing data
       Default: NA
     -f, --function
       User defined R function to be called after each VCF

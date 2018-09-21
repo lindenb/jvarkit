@@ -137,8 +137,10 @@ public class VcfBurdenRscriptV
 	
 	@Parameter(names={"--cadd","-cadd"},description="[20180831] Include CADD data, if available (INFO/"+VcfCadd.DEFAULT_CADD_FLAG_PHRED +" INFO/"+VcfCadd.DEFAULT_CADD_FLAG_SCORE+")")
 	private boolean include_vcf_cadd = false;
-	@Parameter(names={"--cadd-missing"},description="[20180831] value for CADD missing data")
-	private String cadd_missing_value = "NA";
+	@Parameter(names={"-cpm","--cadd-phred-missing"},description="[20180831] value for CADD / phred missing data")
+	private String cadd_phred_missing_value = "NA";
+	@Parameter(names={"-csm","--cadd-score-missing"},description="[20180921] value for CADD / score missing data")
+	private String cadd_score_missing_value = "NA";
 	@Parameter(names={"--nfe"},description="[20180910] INCLUDE gnomad genome NFE AC")
 	private boolean include_gnomad_genome_nfe_ac  = false;
 	@Parameter(names={"-p","--pedigree"},description="[20180831] pedigree file (or I will try to extract the pedigree from the vcf header. " +Pedigree.OPT_DESCRIPTION)
@@ -417,13 +419,13 @@ public class VcfBurdenRscriptV
 				pw.print(",cadd_phred=c(");
 				pw.print(variants.stream().
 						map(V->V.cadd_phred).
-						map(D->D==null?cadd_missing_value:String.valueOf(D)).
+						map(D->D==null?cadd_phred_missing_value:String.valueOf(D)).
 						collect(Collectors.joining(",")
 						));
 				pw.print("),cadd_score=c(");
 				pw.print(variants.stream().
 						map(V->V.cadd_score).
-						map(D->D==null?cadd_missing_value:String.valueOf(D)).
+						map(D->D==null?cadd_score_missing_value:String.valueOf(D)).
 						collect(Collectors.joining(",")
 						));
 				pw.print(")");
