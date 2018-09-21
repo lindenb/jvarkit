@@ -349,16 +349,18 @@ public class VcfBurdenRscriptV
 							return new Double(str);
 							}
 						catch (final NumberFormatException e) {
+							LOG.warn("bad cadd number "+O);
 							return null;
 							}
 						};
 					final int allele_index = ctx.getAlleleIndex(observed_alt);
 					List<Object> caddL = ctx.getAttributeAsList(VcfCadd.DEFAULT_CADD_FLAG_PHRED);
-					if(!caddL.isEmpty() && allele_index> 0 /* yes */ && allele_index< caddL.size()) {
+					if(!caddL.isEmpty() && allele_index> 0 /* yes */ && (allele_index-1)< caddL.size()) {
 						variant.cadd_phred  = object2double.apply(caddL.get(allele_index-1));/* -1 because allele_index is relative to REF */
 						}
+					
 					caddL = ctx.getAttributeAsList(VcfCadd.DEFAULT_CADD_FLAG_SCORE);
-					if(!caddL.isEmpty() && allele_index> 0 /* yes */ && allele_index< caddL.size()) {
+					if(!caddL.isEmpty() && allele_index> 0 /* yes */ && (allele_index-1)< caddL.size()) {
 						variant.cadd_score  = object2double.apply(caddL.get(allele_index-1));/* -1 because allele_index is relative to REF */
 						}
 					}
