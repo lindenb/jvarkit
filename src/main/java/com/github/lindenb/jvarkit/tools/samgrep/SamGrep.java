@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.samgrep;
 
@@ -38,7 +35,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
@@ -46,7 +42,7 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.CloserUtil;
-
+import htsjdk.samtools.util.StringUtil;
 
 /**
 
@@ -102,6 +98,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 
 /**
@@ -184,8 +181,7 @@ public class SamGrep extends Launcher
    
     
     @Override
-    public int doWork(List<String> args) {
-    	
+    public int doWork(final List<String> args) {
     	
     	readNames.clear();
     	
@@ -194,13 +190,9 @@ public class SamGrep extends Launcher
 			try
 				{
 				in=IOUtils.openFileForBufferedReading(this.namefile);
-		    	String line;
-		    	while((line=in.readLine())!=null)
-		    		{
-		    		line=line.trim();
-		    		if(line.isEmpty()) continue;
-		    		readNames.put(line,0);
-		    		}
+				in.lines().
+						filter(L->!StringUtil.isBlank(L)).
+						forEach(L->readNames.put(L.trim(),0));
 				}
 			catch(Exception err)
 				{
@@ -227,7 +219,11 @@ public class SamGrep extends Launcher
 		try {
 			sfr = super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=sfr.getFileHeader().clone();
-			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
+					newInstance().
+					logger(LOG).
+					dictionary(header).
+					build();
 
 			
 			
@@ -246,7 +242,7 @@ public class SamGrep extends Launcher
 			while(iter.hasNext())
 				{
 				boolean keep=false;
-				final SAMRecord rec=progress.watch(iter.next());
+				final SAMRecord rec=progress.apply(iter.next());
 				if(samStdout!=null) samStdout.addAlignment(rec);
 				Integer count = readNames.get(rec.getReadName());
 				if(count!=null)
@@ -273,7 +269,7 @@ public class SamGrep extends Launcher
 						}
 					}
 				}
-			progress.finish();
+			progress.close();
 			return RETURN_OK;
 		} catch (final Exception err) {
 			LOG.error(err);
