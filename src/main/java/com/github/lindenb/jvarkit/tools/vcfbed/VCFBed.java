@@ -271,11 +271,11 @@ public class VCFBed extends Launcher
 									VCFHeaderLineCount.UNBOUNDED,
 									VCFHeaderLineType.String,
 									"metadata added from "+ srcbedfile+
-									" . Format was "+this.formatPattern
+									" . Format was "+this.formatPattern.replace('\"',' ').replace('\\',' ')
 									);
 					
 					this.filterOverlap = 
-							(this.filterOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
+							(this.filterOverlapStr==null || this.filterOverlapStr.trim().isEmpty()?null:
 							new VCFFilterHeaderLine(this.filterOverlapStr, "Variant overlap with "+srcbedfile)	
 							);
 					
