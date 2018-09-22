@@ -43,6 +43,13 @@ Usage: vcfbed [options] Files
     -mx, --max-extend
       [20180123] used with option 'x': don't extend to more than 'max' bases.
       Default: 1000
+    -mofb, --min-overlap-bed-fraction
+      [20180822]	Minimum overlap required as a fraction of BED record.
+    -mofr, --min-overlap-fraction
+      [20180822] Require that the minimum fraction be satisfied for VCF OR 
+      BED. 
+    -mofv, --min-overlap-vcf-fraction
+      [20180822]	Minimum overlap required as a fraction of VCF record.
     -o, --output
       Output file. Optional . Default: stdout
     -T, --tag
