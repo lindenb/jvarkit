@@ -3,6 +3,9 @@ package com.github.lindenb.jvarkit.tools.structvar;
 import java.io.File;
 import java.io.IOException;
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 public class SamTranslocationsTest  extends TestUtils {
@@ -11,7 +14,7 @@ public class SamTranslocationsTest  extends TestUtils {
 		throws IOException
 		{
 		final File out = super.createTmpFile(".txt");
-		Assert.assertEquals(new SamTranslocationsTest().instanceMain(new String[] {
+		Assert.assertEquals(new SamTranslocations().instanceMain(new String[] {
 			"-o",out.getPath(),
 			inBam
 			}),0);

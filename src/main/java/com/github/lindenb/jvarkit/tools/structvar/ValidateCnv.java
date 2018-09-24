@@ -43,7 +43,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -128,7 +127,6 @@ public class ValidateCnv extends Launcher
 			this.header  = samReader.getFileHeader();
 			this.dict = this.header.getSequenceDictionary();
 			this.ctgNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
-			this.ctgNameConverter.setOnNotFound(OnNotFound.SKIP);
 			this.sampleName = this.header.getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtil.isBlank(S)).findFirst().orElse(uri);
 			}
 		@Override

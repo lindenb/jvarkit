@@ -35,7 +35,6 @@ import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import htsjdk.tribble.readers.AsciiLineReader;
 import htsjdk.tribble.readers.LineIterator;
@@ -44,6 +43,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -88,8 +88,11 @@ public class ConvertBedChromosomes
 	{
 	private static final Logger LOG = Logger.build(ConvertBedChromosomes.class).make();
 	
+	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
+
+	
 	@Parameter(names={"-convert","--convert"},description="What should I do when  a converstion is not found")
-	private ContigNameConverter.OnNotFound onNotFound=ContigNameConverter.OnNotFound.RAISE_EXCEPTION;
+	private OnNotFound onNotFound=OnNotFound.RAISE_EXCEPTION;
 	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
 	private File mappingFile=null;
 	@Parameter(names={"-c","--column"},description="1-based chromosome column")
@@ -128,7 +131,7 @@ public class ConvertBedChromosomes
 		{
 		final int chromColumn0=chromColumn1-1;
 	
-		Pattern tab=Pattern.compile("[\t]");
+		final  CharSplitter tab = CharSplitter.TAB;
 		LineIterator lr=new LineIteratorImpl(new AsciiLineReader(in));
 		
 		

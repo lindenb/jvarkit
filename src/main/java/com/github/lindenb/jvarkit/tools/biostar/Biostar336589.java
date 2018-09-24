@@ -53,7 +53,6 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -363,7 +362,6 @@ public class Biostar336589 extends Launcher{
 			final List<Track> tracks = new ArrayList<>(1+args.size());
 			final Set<String> skipped_contigs = new HashSet<>();
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
-			converter.setOnNotFound(OnNotFound.SKIP);
 			final BedLineCodec codec = new BedLineCodec();
 			for(final String filename:args.isEmpty()?Collections.singletonList((String)null):args)
 				{

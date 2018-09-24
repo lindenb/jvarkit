@@ -77,13 +77,14 @@ END_DOC
 public class VcfSetSequenceDictionary extends Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfSetSequenceDictionary.class).make();
+	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx=null;
 	@Parameter(names={"-n","--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
-	private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;			
+	private OnNotFound onContigNotFound = OnNotFound.SKIP;			
 	@Parameter(names={"-ho","--header-only"},description=
 			"only change the vcf header. Keep the whole VCF body unchanged. The idea is to use a faster(?) `sed sed 's/^chr//' ` for the VCF body. " )
 	private boolean header_only=false;			
@@ -118,7 +119,7 @@ public class VcfSetSequenceDictionary extends Launcher
 			{
 			contigNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
 			}
-		contigNameConverter.setOnNotFound(this.onContigNotFound);
+		
 		w.writeHeader(header2);
 		
 		
@@ -131,14 +132,28 @@ public class VcfSetSequenceDictionary extends Launcher
 			{
 			final VariantContext ctx=progress.apply(in.next());
 			
-			final String newContig = contigNameConverter.apply(ctx.getContig());
+			String newContig = contigNameConverter.apply(ctx.getContig());
+			
+			
 			if(newContig==null)
 				{
-				if(!inputContigsNotFound.contains(ctx.getContig())) {
-					LOG.info("cannot convert contig "+ctx.getContig()+ " for new dictionary");
-					inputContigsNotFound.add(ctx.getContig());
+				if(this.onContigNotFound.equals(OnNotFound.RAISE_EXCEPTION))
+					{
+					LOG.error("cannot convert contig "+ctx.getContig()+ " for new dictionary");
+					return -1;
 					}
-				continue;
+				else if(this.onContigNotFound.equals(OnNotFound.RETURN_ORIGINAL))
+					{
+					newContig = ctx.getContig();
+					}
+				else
+					{
+					if(!inputContigsNotFound.contains(ctx.getContig())) {
+						LOG.info("cannot convert contig "+ctx.getContig()+ " for new dictionary");
+						inputContigsNotFound.add(ctx.getContig());
+						}
+					continue;
+					}
 				}
 			else if(newContig.equals(ctx.getContig()))
 				{

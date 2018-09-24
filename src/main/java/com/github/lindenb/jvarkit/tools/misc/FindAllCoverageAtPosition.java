@@ -215,7 +215,6 @@ public class FindAllCoverageAtPosition extends Launcher
     		return null;
     		}
     	final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict); 
-    	converter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
     	final String ctg =  converter.apply(src.chrom);
     	if(ctg==null) return null;
     	if(ctg!=null && ctg.equals(src.chrom)) return src;
@@ -229,7 +228,6 @@ public class FindAllCoverageAtPosition extends Launcher
     		if(dict==null) return '.';
     		
     		final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict); 
-        	converter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
         	final String newctg =  converter.apply(contig);
         	final SAMSequenceRecord rec= (newctg==null?null:dict.getSequence(newctg));
         	if(rec!=null) genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, newctg);

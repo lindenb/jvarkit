@@ -48,7 +48,6 @@ import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -528,7 +527,6 @@ public class PrettySam extends Launcher {
 			
 			if(this.samDict!=null && this.faidxDict!=null) {
 				this.contigNameConverter  = ContigNameConverter.fromDictionaries(this.samDict, this.faidxDict);
-				this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 				}
 			/* load vcf file */
 			if(PrettySam.this.vcfFile!=null) {

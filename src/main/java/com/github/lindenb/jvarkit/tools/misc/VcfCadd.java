@@ -53,7 +53,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -466,7 +465,6 @@ public class VcfCadd extends Launcher
 			LOG.info("Loading index for "+this.ccaduri+". Please wait...");
 			this.tabix = new TabixFileReader(this.ccaduri);
 			this.convertToCaddContigs = ContigNameConverter.fromContigSet(this.tabix.getChromosomes());
-			this.convertToCaddContigs.setOnNotFound(OnNotFound.SKIP);
 			LOG.info("End loading index");
 			
 			for(;;)

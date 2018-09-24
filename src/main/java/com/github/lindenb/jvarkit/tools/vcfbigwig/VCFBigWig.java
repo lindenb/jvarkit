@@ -53,7 +53,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -163,7 +162,7 @@ public class VCFBigWig extends Launcher
 					;}
 		
 		
-		public BigWigResource open(final OnNotFound onNotFound)
+		public BigWigResource open()
 			{
 			try {
 				this.bbFileReader= new BBFileReader(this.biwWigFile);
@@ -178,7 +177,6 @@ public class VCFBigWig extends Launcher
 				throw new RuntimeIOException(this.biwWigFile+" is not a bigWIG file. ("+this.getToken()+")");
 				}
 			this.contigNameConverter = ContigNameConverter.fromContigSet(new HashSet<>(this.bbFileReader.getChromosomeNames()));
-			this.contigNameConverter.setOnNotFound(onNotFound);
 			return this;
 			}
 		
@@ -244,9 +242,6 @@ public class VCFBigWig extends Launcher
 		@Parameter(names={"-t","--transform"},description="Deprecated",hidden=true)
 		private String _convertChrName = null;
 	
-		@XmlElement(name="onNotFound")
-		@Parameter(names={"--onNotFound"},description="[20170707] " + ContigNameConverter.OPT_ON_NT_FOUND_DESC)
-		private ContigNameConverter.OnNotFound onContigNotFound =ContigNameConverter.OnNotFound.SKIP;
 		
 		private final List<BigWigResource> bigwigResources = new ArrayList<>();
 
@@ -463,7 +458,7 @@ public class VCFBigWig extends Launcher
 					}
 				
 				this.bigwigResources.stream().forEach(BB->{
-					BB.open(CtxWriterFactory.this.onContigNotFound);
+					BB.open();
 					});
 				return 0;
 				}

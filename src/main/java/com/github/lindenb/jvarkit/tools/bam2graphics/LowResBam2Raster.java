@@ -46,7 +46,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -1042,7 +1041,6 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							return -1;
 							}
 						this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
-						this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 				    	}
 
 					
@@ -1082,7 +1080,6 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							return -1;
 							}
 						final ContigNameConverter conv = ContigNameConverter.fromOneDictionary(dict);
-						conv.setOnNotFound(OnNotFound.SKIP);
 						final String normalizedContig = conv.apply(this.interval.getContig());
 						
 						if(StringUtil.isBlank(normalizedContig) || dict.getSequence(normalizedContig)==null){

@@ -47,7 +47,6 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
@@ -102,8 +101,6 @@ public class VCFPolyX extends Launcher
 		private String referenceUri = null;
 		@Parameter(names={"--skip-filtered"},description="Don't spend some time to calculate the tag if the variant is FILTERed")
 		private boolean skip_filtered=false;
-		@Parameter(names={"-onf","--on-not-found"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
-		private OnNotFound onNotFound=OnNotFound.SKIP;
 
 
 		
@@ -156,8 +153,7 @@ public class VCFPolyX extends Launcher
 					private VCFFilterHeaderLine filterHeaderLine = null;
 					private VCFInfoHeaderLine infoHeaderLine = null;
 					private final boolean skip_filtered =  CtxWriterFactory.this.skip_filtered;
-					private final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(CtxWriterFactory.this.referenceGenome.getDictionary()).
-								setOnNotFound(CtxWriterFactory.this.onNotFound);
+					private final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(CtxWriterFactory.this.referenceGenome.getDictionary());
 					@Override
 					public void writeHeader(final VCFHeader header) {
 						final VCFHeader h2=new VCFHeader(header);

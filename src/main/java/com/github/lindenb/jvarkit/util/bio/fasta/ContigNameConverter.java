@@ -41,7 +41,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -53,38 +52,18 @@ import htsjdk.samtools.util.StringUtil;
 
 public abstract class ContigNameConverter implements  Function<String, String> {
 public static final String OPT_ON_NT_FOUND_DESC="Contig converter. I will do my best to convert the contig names (e.g 'chr1' -> '1'): But what should I do when comparing two dictionaries with different notations";	
-public static enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
-private OnNotFound onNotFound=OnNotFound.RAISE_EXCEPTION;
 protected abstract String find(final String contig);
 
 public String getName() {
 	return "Untitled";
 }
 
-public ContigNameConverter  setOnNotFound(final OnNotFound onNotFound) {
-	this.onNotFound = onNotFound;
-	return this;
-	}
 
-public OnNotFound getOnNotFound() {
-	return onNotFound;
-}
 
+/** return converted contig, or null */
 @Override
 public String apply(final String contig) {
 	final String dest=find(contig);
-	if(dest==null)
-		{
-		switch(onNotFound)
-			{
-			case RAISE_EXCEPTION:
-				throw new JvarkitException.ContigNotFound("cannot convert contig \""+contig+"\"");
-			case SKIP: /* lave plus blanc */
-				return null;
-			case RETURN_ORIGINAL:
-				return contig;
-			}
-		}
 	return dest;
 	}		
 

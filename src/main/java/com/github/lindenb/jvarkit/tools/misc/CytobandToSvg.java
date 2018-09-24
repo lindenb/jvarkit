@@ -219,7 +219,6 @@ private class Contig
 	
 	
 	void def(final XMLStreamWriter w) throws XMLStreamException {
-		final Rectangle2D.Double r= getContigBounds();
 		w.writeStartElement("clipPath");
 		w.writeAttribute("id", "clip_"+getContig());
 		if(this.telomerePos>0) {
@@ -502,7 +501,6 @@ public int doWork(final List<String> args) {
 		
 		
 		final ContigNameConverter ctgNameConverter = ContigNameConverter.fromContigSet(this.name2contig.keySet());
-		ctgNameConverter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
 		for(final String filename: args) {
 			final Pattern tab = Pattern.compile("[\t]");
 			w.writeStartElement("g");

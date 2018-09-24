@@ -14,7 +14,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -113,7 +112,6 @@ public class VcfGapFrequent extends Launcher {
 				{
 				converter = ContigNameConverter.fromOneDictionary(d);
 				}
-			converter.setOnNotFound(OnNotFound.SKIP);
 			}
 		@Override
 		public void close() {

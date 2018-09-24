@@ -176,9 +176,10 @@ END_DOC
 public class ConvertVcfChromosomes extends com.github.lindenb.jvarkit.util.jcommander.Launcher {
 	private static final Logger LOG = Logger.build(ConvertVcfChromosomes.class).make();
 	
-	
+	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
+
 	@Parameter(names={"-c","-convert"},description="What should I do when  a converstion is not found")
-	private ContigNameConverter.OnNotFound onNotFound=ContigNameConverter.OnNotFound.RAISE_EXCEPTION;
+	private OnNotFound onNotFound= OnNotFound.RAISE_EXCEPTION;
 	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
 	private File mappingFile=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -192,7 +193,6 @@ public class ConvertVcfChromosomes extends com.github.lindenb.jvarkit.util.jcomm
 	@Override
 	protected int doVcfToVcf(String inputName, VcfIterator iterin, VariantContextWriter out) {
 		final ContigNameConverter customMapping = ContigNameConverter.fromFile(mappingFile);
-		customMapping.setOnNotFound(this.onNotFound);
 		final Set<String> unseen=new HashSet<>();
 		final VCFHeader header1=iterin.getHeader();
 		final VCFHeader header2=new VCFHeader(

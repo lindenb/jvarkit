@@ -40,7 +40,6 @@ import org.apache.commons.jexl2.JexlException;
 
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -517,7 +516,6 @@ public class VCFBed extends Launcher
 					return -1;
 					}
 				}
-			this.contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 			
 			if(StringUtil.isBlank(this.infoName))
 				{

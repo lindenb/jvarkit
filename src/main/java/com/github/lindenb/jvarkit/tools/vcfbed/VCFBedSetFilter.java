@@ -33,7 +33,6 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -136,7 +135,6 @@ public class VCFBedSetFilter extends Launcher
 				{
 				ctgNameConverter  = ContigNameConverter.fromIntervalTreeMap(this.intervalTreeMap);
 				}
-			ctgNameConverter.setOnNotFound(OnNotFound.SKIP);
 			
 			if(!this.discardFlag) {
 				h2.addMetaDataLine(filter);

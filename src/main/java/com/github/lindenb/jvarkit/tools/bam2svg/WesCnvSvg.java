@@ -55,7 +55,6 @@ import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -323,7 +322,6 @@ public class WesCnvSvg  extends Launcher {
 				}
 			
 			final ContigNameConverter contigNameConverter=ContigNameConverter.fromOneDictionary(this.refDict);
-			contigNameConverter.setOnNotFound(OnNotFound.RAISE_EXCEPTION);
 			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					validationStringency(ValidationStringency.LENIENT).

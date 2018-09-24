@@ -55,7 +55,6 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -180,7 +179,7 @@ public class VcfUcsc extends Launcher
 	private String chromColumn=null;
 	private String startColumn=null;
 	private String endColumn=null;
-	private final ContigNameConverter contigNameConverter = ContigNameConverter.createConvertToUcsc().setOnNotFound(OnNotFound.RETURN_ORIGINAL);
+	private final ContigNameConverter contigNameConverter = ContigNameConverter.createConvertToUcsc();
 	private final Set<String> userColumnNames = new LinkedHashSet<>();
 	 
 	private void select(final Set<String> atts,final PreparedStatement pstmt) throws SQLException
@@ -214,7 +213,9 @@ public class VcfUcsc extends Launcher
 	 
 	 private void initPstmt(final PreparedStatement pstmt,final String contig,int start0,int end0) throws java.sql.SQLException
 	 	{
-		pstmt.setString(1, this.contigNameConverter.apply(contig));
+		String ctg = this.contigNameConverter.apply(contig);
+		if(ctg==null) ctg=contig;
+		pstmt.setString(1, ctg);
 		pstmt.setInt(2, start0 ) ;
 		pstmt.setInt(3, end0);
 	 	}

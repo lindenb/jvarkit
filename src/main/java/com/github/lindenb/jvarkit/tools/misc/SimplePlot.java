@@ -287,7 +287,6 @@ public class SimplePlot extends JfxLauncher {
 					throw new JvarkitException.DictionaryMissing("empty dictionary extracted from "+SimplePlot.this.faidx);
 					}
 				this._ctgConverter =  ContigNameConverter.fromOneDictionary(this._dict);
-				this._ctgConverter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
 				}
 			return this._dict;
 			}

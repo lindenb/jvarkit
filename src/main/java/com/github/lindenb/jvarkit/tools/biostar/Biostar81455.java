@@ -139,7 +139,6 @@ public class Biostar81455 extends Launcher
 			CloserUtil.close(r);
 			}
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.kgMap);
-		contigNameConverter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
 		try
     		{
     		r = super.openBufferedReader(oneFileOrNull(args));

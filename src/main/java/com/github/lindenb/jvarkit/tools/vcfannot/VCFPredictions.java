@@ -57,7 +57,6 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
@@ -354,7 +353,6 @@ public class VCFPredictions extends Launcher
 			LOG.info("loading genes");
 
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
-			contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 			
 			in = IOUtils.openURIForBufferedReading(this.kgURI);
 			String line;
@@ -433,7 +431,6 @@ public class VCFPredictions extends Launcher
 		final VCFHeader header=(VCFHeader)r.getHeader();
 		
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
-		contigNameConverter.setOnNotFound(OnNotFound.SKIP);
 		
 		final VCFHeader h2=new VCFHeader(header);
 		addMetaData(h2);

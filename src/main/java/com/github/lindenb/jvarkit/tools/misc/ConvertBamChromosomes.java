@@ -42,7 +42,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -292,7 +291,6 @@ public class ConvertBamChromosomes
 				return -1;
 				}
 			
-			this.mapper.setOnNotFound(OnNotFound.SKIP);
 			outHeader.setSequenceDictionary(dictOut);
 			
 			// check order of dictionaries, do we need to set the sort order ?

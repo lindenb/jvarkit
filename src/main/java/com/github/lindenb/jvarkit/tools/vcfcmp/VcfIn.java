@@ -429,7 +429,6 @@ public class VcfIn extends Launcher
 				{
 				contigNameConverter = ContigNameConverter.getIdentity();
 				}
-			contigNameConverter.setOnNotFound(ContigNameConverter.OnNotFound.SKIP);
 			}
 		
 		@Override

@@ -137,8 +137,6 @@ public class VcfPeekVcf extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names="-contigConverter",description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
-	private ContigNameConverter.OnNotFound onContigNotFound=ContigNameConverter.OnNotFound.SKIP;
 	
 	@ParametersDelegate
 	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
@@ -195,7 +193,7 @@ public class VcfPeekVcf extends Launcher
 							)
 						:
 						ContigNameConverter.getIdentity()
-						).setOnNotFound(this.onContigNotFound);
+						);
 					;
 			
 			for(final String key: this.peek_info_tags)

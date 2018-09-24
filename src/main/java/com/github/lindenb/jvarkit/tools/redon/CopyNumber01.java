@@ -98,7 +98,6 @@ import com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter.OnNotFound;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -771,7 +770,6 @@ public class CopyNumber01 extends Launcher
 				}
 			
 			this.sam2faiContigNameConverter = ContigNameConverter.fromDictionaries(this.samDictionary, dict);
-			this.sam2faiContigNameConverter.setOnNotFound(OnNotFound.SKIP);
 			
 			archive = ArchiveFactory.open(this.archiveFile);
 
