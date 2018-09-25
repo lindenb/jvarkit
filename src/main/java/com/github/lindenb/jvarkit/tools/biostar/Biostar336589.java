@@ -176,7 +176,8 @@ public class Biostar336589 extends Launcher{
 	private String colorScoreEndStr = "black";
 	@Parameter(names={"--width"},description="Linear SVG size. When defined, this option switches to a linear(!=circular) view")
 	private int linear_width = -1;
-
+	@Parameter(names={"--bedpe","-bpe","--interact"},description="Input is UCSC interact format https://genome.ucsc.edu/goldenPath/help/interact.html. I will draw arcs.",hidden=true)
+	private boolean input_is_bedpe = false;
 
 	@Parameter(names={"-u","--url","--hyperlink"},description=
 			"creates a hyperlink when 'click' in an area. "
@@ -189,7 +190,7 @@ public class Biostar336589 extends Launcher{
 	private String domTitle = Biostar336589.class.getSimpleName();
 
 	private class Arc implements Locatable {
-		int tid;
+		int tid = -1;
 		int start;
 		int end;
 		String name;
@@ -208,7 +209,22 @@ public class Biostar336589 extends Launcher{
 		public int getEnd() {
 			return end;
 			}
+		}
+	private class ArcInterval extends Arc {
+		int targetTid = -1;
+		int targetStart;
+		int targetEnd;
+		byte targetStrand;
 		
+		public String getTargetContig() {
+			return dict.getSequence(this.targetTid).getSequenceName();
+			}
+		public int getTargetStart() {
+			return targetStart;
+			}
+		public int getTargetEnd() {
+			return targetEnd;
+			}
 		}
 	
 	private static class TrackContig {
@@ -253,6 +269,17 @@ public class Biostar336589 extends Launcher{
 	
 	private static final Pattern RGB_PATTERN = Pattern.compile("\\d+,\\d+,\\d+");
 
+	private byte toStrand(final String strandStr) {
+		if(strandStr.equals("+")) {
+			return (byte)1;
+			}
+		else if(strandStr.equals("-")) {
+			return  (byte)-1;
+		}else  {
+			return (byte)0;
+			} 
+	}
+	
 	private String toCss(final String s) {
 		if(StringUtil.isBlank(s)) return null;
 		if(s.contains(":") || s.contains(";"))
@@ -292,6 +319,11 @@ public class Biostar336589 extends Launcher{
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.histogram_mode && this.input_is_bedpe) {
+			LOG.error("cannot use both histogram and interact format");
+			return -1;
+		}
+		
 		if(this.faidx==null) {
 			LOG.error("undefined REF");
 			return -1;
@@ -386,15 +418,78 @@ public class Biostar336589 extends Launcher{
 					if(ssr==null) continue;
 					if(bedLine.getStart() > ssr.getSequenceLength()) continue;
 					if(bedLine.getEnd() < 1) continue;
-					final Arc arc = new Arc();
-					arc.tid = ssr.getSequenceIndex();
-					arc.start = Math.max(bedLine.getStart(),0);
-					arc.end = Math.min(bedLine.getEnd(),ssr.getSequenceLength());
+					final Arc arc;
+					
+					if(!this.input_is_bedpe) {
+						arc = new Arc();
+						arc.tid = ssr.getSequenceIndex();
+						arc.start = Math.max(bedLine.getStart(),0);
+						arc.end = Math.min(bedLine.getEnd(),ssr.getSequenceLength());
+						arc.strand = toStrand(bedLine.getOrDefault(5,"."));
+						}
+					else
+						{
+						final ArcInterval arci = new ArcInterval();
+						arc = arci;
+						for(int side=0;side<2;++side) {
+							final int shift = (side==0?8:13);
+							final String ctg2 = bedLine.getOrDefault(shift+0, null);
+							if(StringUtil.isBlank(ctg2)) {
+								if(skipped_contigs.add(ctg2)) {
+									LOG.warn("unknown contig "+(side+1)+"/2 "+bedLine+". Skipping.");
+									}
+								continue;
+								}
+							final SAMSequenceRecord ssr2 = this.dict.getSequence(ctg2);
+							if(ssr2==null) continue;
+							int tid2 = ssr2.getSequenceIndex();
+							int start2 = -1;
+							int end2 = -1;
+							byte strand2 = -1;
+							try
+								{
+								start2 =Math.max(0, Integer.parseInt(bedLine.getOrDefault(shift+1, "")));
+								end2 =Math.min(ssr2.getSequenceLength(), Integer.parseInt(bedLine.getOrDefault(shift+2, "")));
+								strand2 = toStrand(bedLine.getOrDefault(shift+4, "."));
+								}
+							catch(final NumberFormatException err2)
+								{
+								tid2=-1;
+								start2=-1;
+								end2=-1;
+								}
+							if(side==0)
+								{
+								arci.tid = tid2;
+								arci.start = start2;
+								arci.end = end2;
+								arci.strand = strand2;
+								}
+							else
+								{
+								arci.targetTid = tid2;
+								arci.targetStart = start2;
+								arci.targetEnd = end2;
+								arci.targetStrand = strand2;
+								}
+							}
+						if(	arci.tid<0 ||
+							arci.targetTid<0 || 
+							arci.end < arci.start ||
+							arci.targetEnd< arci.targetStart
+							) {
+							LOG.warn("bad interval bed record  "+bedLine+". Skipping.");
+							continue;
+							}
+						}
+					
+					
 					arc.name = bedLine.getOrDefault(3,"");
+					
 					final String scoreStr = bedLine.getOrDefault(4,"0");
 					if(StringUtil.isBlank(scoreStr)|| scoreStr.equals("."))
 						{
-						if(this.histogram_mode )
+						if(!this.input_is_bedpe && this.histogram_mode )
 							{
 							LOG.warn("no score defined for "+line+" in histogram mode. skipping.");
 							continue;
@@ -417,17 +512,9 @@ public class Biostar336589 extends Launcher{
 							arc.score=0;
 							}
 						}
-					final String strandStr= bedLine.getOrDefault(5,".");
-					if(strandStr.equals("+")) {
-						arc.strand = (byte)1;
-					} else if(strandStr.equals("-")) {
-						arc.strand = (byte)-1;
-					} else  {
-						arc.strand = (byte)0;
-					} 
 					
 					//color
-					arc.cssStyle = toCss(bedLine.getOrDefault(8,""));
+					arc.cssStyle = toCss(bedLine.getOrDefault(this.input_is_bedpe?7:8,""));
 					
 					
 					final TrackContig currTrackContig = currentTrack.get(arc.tid);
@@ -555,6 +642,7 @@ public class Biostar336589 extends Launcher{
 		w.writeCharacters(this.domTitle);
 		w.writeEndElement();
 		}
+	
 	private void writeArcFeatures(final XMLStreamWriter w,final Arc arc,int maxScore) throws XMLStreamException
 		{
 		final String clickedAttribute = "clicked(evt,\""+arc.getContig()+"\","+arc.getStart()+","+arc.getEnd()+")";
@@ -574,24 +662,21 @@ public class Biostar336589 extends Launcher{
 			w.writeAttribute("style", "fill:rgb(" +
 					c.getRed()+ ","+ c.getGreen()+","+ c.getBlue()+
 					")");
+			}		
+		
+		w.writeStartElement("title");
+		if(!StringUtil.isBlank(arc.name))
+			{
+			w.writeCharacters(arc.name);
 			}
-		
-
-		
-		
-			w.writeStartElement("title");
-			if(!StringUtil.isBlank(arc.name))
-				{
-				w.writeCharacters(arc.name);
-				}
-			else
-				{
-				w.writeCharacters(arc.getContig()+":"+
-						niceIntFormat.format(arc.getStart())+"-"+
-						niceIntFormat.format(arc.getEnd())
-						);
-				}
-			w.writeEndElement();
+		else
+			{
+			w.writeCharacters(arc.getContig()+":"+
+					niceIntFormat.format(arc.getStart())+"-"+
+					niceIntFormat.format(arc.getEnd())
+					);
+			}
+		w.writeEndElement();
 		}
 
 	private void writeLinear(
@@ -667,7 +752,35 @@ public class Biostar336589 extends Launcher{
 						final double y2 = y1 + this.feature_height;
 						final double midy = this.feature_height/2.0 + y1 ;
 						if(x2<=x1) x2+=0.5;
-						if(arc.strand==0 || (x2-x1)<this.arrow_size*2)
+						if(this.input_is_bedpe)
+							{
+							final ArcInterval arci = ArcInterval.class.cast(arc);
+							
+							double tx1= pos2x.apply(arci.targetStart);
+							double tx2= pos2x.apply(arci.targetEnd);
+							
+							
+							w.writeStartElement("path");
+							final StringBuilder sb =  new StringBuilder();
+							if(arci.tid==arci.targetTid)
+								{
+								//TODO
+								}
+							else
+								{
+								final double ty1 = tid2y.apply(arci.targetTid);
+								final double ty2 = ty1 + this.feature_height;
+								final double tmidy = (ty1+ty2)/2.0 ;
+								
+								sb.append("M ").append(format(x1)).append(" ").append(format(midy));
+								sb.append(" L ").append(format(x2)).append(" ").append(format(midy));
+								sb.append(" L ").append(format(tx2)).append(" ").append(format(tmidy));
+								sb.append(" L ").append(format(tx1)).append(" ").append(format(tmidy));
+								sb.append("Z");
+								}
+							w.writeAttribute("d",sb.toString());
+							}
+						else if(arc.strand==0 || (x2-x1)<this.arrow_size*2)
 							{
 							w.writeStartElement("rect");
 							w.writeAttribute("x",format(x1));
@@ -781,7 +894,11 @@ public class Biostar336589 extends Launcher{
 							{
 							
 							w.writeStartElement("path");
-							if(this.histogram_mode)
+							if(this.input_is_bedpe)
+								{
+								//TODO
+								}
+							else if(this.histogram_mode)
 								{
 								final double height = (arc.score/((double)(maxScore<=0?1:maxScore)))*this.feature_height;
 								w.writeAttribute("d", arc(arc.tid,track_contig_radius,

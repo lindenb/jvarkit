@@ -76,6 +76,7 @@ input is a clustalw file like: https://github.com/biopython/biopython/blob/maste
 
   * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
   * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean‐Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
+  * 'Two key events associated with a transposable element burst occurred during rice domestication'  https://doi.org/10.1101/405290  
 
 ## Example
 
