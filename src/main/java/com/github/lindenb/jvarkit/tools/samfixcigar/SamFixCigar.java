@@ -113,7 +113,7 @@ END_DOC
 @Program(name="samfixcigar",
 	description="Fix Cigar String in SAM replacing 'M' by 'X' or '='",
 	keywords={"sam","bam","cigar"},
-	biostars= {312430}
+	biostars= {312430,340479}
 	)
 public class SamFixCigar extends Launcher
 	{

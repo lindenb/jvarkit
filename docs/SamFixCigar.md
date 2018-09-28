@@ -44,6 +44,7 @@ Usage: samfixcigar [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/312430](https://www.biostars.org/p/312430)
+ * [https://www.biostars.org/p/340479](https://www.biostars.org/p/340479)
 
 
 ## Compilation
