@@ -47,6 +47,7 @@ import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -77,20 +78,28 @@ BEGIN_DOC
 Input is the tabular output of CNVNator
 
 ```
+(...)
 deletion     chr2:1-2649000        2.649e+06  0        6.01633e-14  0            6.02087e-14  0           -1
 duplication  chr2:3712001-3721000  9000       1.89036  0.0274362    5.17568e-42  0.137369     3.6838e-64  0.00821444
 (...)
 ```
 
-Sample is the basename of the file, before the first 'dot'.
+The name of each sample is the `basename` of the file, before the first `.`
 
-List of file can be specified if input ends with '.list' 
+a list of paths can be specified if the only input file ends with '.list' 
 
 
 ## Example
 
 ```
+find DIR1 DIR2 -type f -name "*.tsv" > in.list
+java -jar dist/mergecnvnator.jar -R ref.fasta in.list > out.vcf
 
+(...)
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample7	Sample8	Sample9
+chr1	1	.	N	<DEL>	.	.	END=10000;IMPRECISE;SVLEN=10000;SVTYPE=DEL	GT:CN:P1:P2:P3:P4:Q0:RD	1/1:0:1.594e-11:0.00:1.992e-11:0.00:-1.000e+00:0.00	1/1:0:1.594e-11:0.00:1.992e-11:0.00:-1.000e+00:0.00	1/1:0:1.594e-11:0.00:1.992e-11:0.00:-1.000e+00:0.00
+chr1	40001	.	N	<DEL>	.	.	END=48000;IMPRECISE;SVLEN=8000;SVTYPE=DEL	GT:CN:P1:P2:P3:P4:Q0:RD	./.	./.	0/1:1:34.95:5.850e-06:323.37:2.143e-03:0.889:0.603
+(...)
 ```
 
 ## See also
@@ -102,7 +111,6 @@ END_DOC
  */
 @Program(name="mergecnvnator",
 description="Merge CNVNator results",
-generate_doc  = false,
 keywords= {"cnv","indel","cnvnator"}
 )
 public class MergeCnvNator extends Launcher{
@@ -112,13 +120,13 @@ public class MergeCnvNator extends Launcher{
 	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File dictRefFile =  null;
 	@Parameter(names={"-r","--ratio"},description="two intervals are the same if they both have more or equals of this fraction of length in common")
-	private double region_are_same_ratio=0.8;
+	private double region_are_same_ratio=0.9;
 	
 	private final Allele REF_ALLELE = Allele.create("N", true);
 	private final Allele DEL_ALLELE = Allele.create("<DEL>", false);
 	private final Allele DUP_ALLELE = Allele.create("<DUP>", false);
 
-	enum CnvType {
+	private enum CnvType {
 		deletion,
 		duplication
 	} ;
@@ -311,6 +319,11 @@ public class MergeCnvNator extends Launcher{
 					if(StringUtil.isBlank(line)) continue;
 					final String tokens[]= CharSplitter.TAB.split(line);
 					final CnvNatorCall call = new CnvNatorCall(sample, tokens);
+					if(dict!=null && dict.getSequence(call.getContig())==null)
+						{
+						LOG.warn("skipping "+line+" because contig "+call.getContig()+" is not defined in dictionary");
+						continue;
+						}
 					intervals_set.add(call.interval);
 					final Interval key = new Interval(call.getContig(), call.getStart(), call.getEnd());
 					List<CnvNatorCall> callList = all_calls.get(key);
@@ -322,21 +335,17 @@ public class MergeCnvNator extends Launcher{
 				}
 				br.close();
 			}
-			final SmartComparator smartComparator = new SmartComparator();
-			final Comparator<String> contigComparator = (A,B)->{
-				if(dict!=null)
-					{
-					int tid1 = dict.getSequenceIndex(A);
-					if(tid1<0) throw new JvarkitException.ContigNotFoundInDictionary(A, dict);
-					int tid2 = dict.getSequenceIndex(B);
-					if(tid2<0) throw new JvarkitException.ContigNotFoundInDictionary(A, dict);
-					return tid1  -  tid2;
-					}
-				else
-					{
-					return smartComparator.compare(A, B);
-					}
-				};
+			
+			final Comparator<String> contigComparator;
+			if(dict!=null)
+				{
+				contigComparator = new ContigDictComparator(dict);
+				}
+			else
+				{
+				final SmartComparator smartComparator = new SmartComparator();
+				contigComparator = (A,B)-> smartComparator.compare(A, B);
+				}
 			
 			final Comparator<CNVNatorInterval> comparator = (A,B)->{
 				int i = contigComparator.compare(A.getContig(), B.getContig());
