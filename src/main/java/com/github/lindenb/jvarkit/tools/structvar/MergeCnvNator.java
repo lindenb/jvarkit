@@ -218,10 +218,11 @@ public class MergeCnvNator extends Launcher{
 			this.sample = sample;
 			this.interval =new CNVNatorInterval(tokens);
 		
-			Function<Integer,Double> toDbl = IDX->{
+			final Function<Integer,Double> toDbl = IDX->{
 				if(IDX>=tokens.length) return null;
 				final String s = tokens[IDX];
 				if(s.isEmpty()) return null;
+				if(s.equals("nan") || s.equals("-nan")) return null;
 				try {
 					return new Double(s);
 					}
@@ -424,6 +425,12 @@ public class MergeCnvNator extends Launcher{
 					"Number of paired-ends that support the event"
 					));
 			
+			metadata.add(new VCFFormatHeaderLine(
+					"OV",1,
+					VCFHeaderLineType.Integer,
+					"Number calls (with different sample) overlapping this genotype"
+					));
+			
 			final VCFHeader header = new VCFHeader(
 					metadata,
 					all_samples
@@ -485,7 +492,7 @@ public class MergeCnvNator extends Launcher{
 					{
 					if(sample2gt.containsKey(call.sample))
 						{
-						LOG.warn("Sample "+call.sample+" exits twice at the same loc " + call);
+						LOG.warn("Sample "+call.sample+" exits twice at the same loc " + call+" could be two small SV overlapping a big one.");
 						continue;
 						}
 					call.echoed_flag  = true;
@@ -498,6 +505,13 @@ public class MergeCnvNator extends Launcher{
 					if( call.e_val_3!=null) gb.attribute("P3", call.e_val_3);
 					if( call.e_val_4!=null) gb.attribute("P4", call.e_val_4);
 					if( call.q0!=null) gb.attribute("Q0", call.q0);
+					gb.attribute("OV",
+							all_calls.getOverlapping(call).
+								stream().
+								flatMap(col->col.stream()).
+								filter(C->!C.sample.equals(call.sample)).
+								count()
+							);
 					
 					if (call.interval.type==CnvType.deletion &&
 						call.normalized_RD!=null && call.normalized_RD <0.20) {

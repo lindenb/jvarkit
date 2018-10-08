@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -176,6 +177,10 @@ protected static class CommandBuilder
 		}
 	
 	public CommandBuilder add(final Object...ss) {
+		for(final Object s :ss) this.args.add(String.valueOf(s));
+		return this;
+		}
+	public CommandBuilder addAll(final Collection<?> ss) {
 		for(final Object s :ss) this.args.add(String.valueOf(s));
 		return this;
 		}

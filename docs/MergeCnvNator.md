@@ -20,7 +20,7 @@ Usage: mergecnvnator [options] Files
     -r, --ratio
       two intervals are the same if they both have more or equals of this 
       fraction of length in common
-      Default: 0.9
+      Default: 0.75
     --version
       print version and exit
     -R, -reference
