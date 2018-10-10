@@ -101,6 +101,14 @@ $(1)  : ${htsjdk.jars} \
 		cat $$(addsuffix .jdkversion,$$@) && \
 		grep -E '1\.8\.[0-9_]+' $$(addsuffix .jdkversion,$$@) && \
 		rm $$(addsuffix .jdkversion,$$@)
+	#information about the java jre/sdk. For future use of openjdk
+	echo -n "javac=" > "${tmp.dir}/META-INF/jdk.properties"
+	which ${JAVAC} >> "${tmp.dir}/META-INF/jdk.properties"
+	echo -n "jar=" >> "${tmp.dir}/META-INF/jdk.properties"
+	which ${JAR} >> "${tmp.dir}/META-INF/jdk.properties"
+	echo -n "java=" >> "${tmp.dir}/META-INF/jdk.properties"
+	which ${JAVA} >> "${tmp.dir}/META-INF/jdk.properties"
+	echo "classpath=$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))" >> "${tmp.dir}/META-INF/jdk.properties"
 	#compile
 	${JAVAC} \
 		-J-Djvarkit.libs.jars='$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))' \
