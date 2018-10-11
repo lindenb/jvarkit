@@ -70,6 +70,12 @@ Usage: groupbygene [options] Files
  * gene
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/342790](https://www.biostars.org/p/342790)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

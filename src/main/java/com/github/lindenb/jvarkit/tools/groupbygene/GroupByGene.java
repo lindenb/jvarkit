@@ -116,6 +116,7 @@ END_DOC
 @Program(
 		name="groupbygene",
 		keywords={"vcf","gene"},
+		biostars={342790},
 		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff"
 		)
 public class GroupByGene
