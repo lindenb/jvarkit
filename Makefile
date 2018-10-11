@@ -584,6 +584,7 @@ $(eval $(call compile-htsjdk-cmd,subcloneit,${jvarkit.package}.tools.cloneit.Sub
 $(eval $(call compile-htsjdk-cmd,igvreview,${jvarkit.package}.tools.igvreview.IgvReview,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samtranslocations,${jvarkit.package}.tools.structvar.SamTranslocations,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfafinfofilter,${jvarkit.package}.tools.misc.VcfAfInfoFilter,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,faidxsplitter,${jvarkit.package}.tools.misc.FaidxSplitter,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfclusteredreadedge,${jvarkit.package}.tools.misc.VcfClusteredReadEdge,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfgapfrequent,${jvarkit.package}.tools.structvar.VcfGapFrequent,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,mergecnvnator,${jvarkit.package}.tools.structvar.MergeCnvNator,${jcommander.jar}))
