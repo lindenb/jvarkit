@@ -48,6 +48,7 @@ Usage: xsltstream [options] Files
  * [https://www.biostars.org/p/282545](https://www.biostars.org/p/282545)
  * [https://www.biostars.org/p/282602](https://www.biostars.org/p/282602)
  * [https://www.biostars.org/p/335867](https://www.biostars.org/p/335867)
+ * [https://www.biostars.org/p/343432](https://www.biostars.org/p/343432)
 
 
 ## Compilation
