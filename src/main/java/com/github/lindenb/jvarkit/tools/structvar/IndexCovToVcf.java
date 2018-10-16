@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.apache.commons.math3.stat.inference.ChiSquareTest;
 
 import com.beust.jcommander.Parameter;
@@ -202,6 +204,10 @@ public class IndexCovToVcf extends Launcher {
 			metaData.add(infoNumDup);
 			final VCFInfoHeaderLine infoNumDel = new VCFInfoHeaderLine("NDEL", 1, VCFHeaderLineType.Integer,"Number of samples being deleted");
 			metaData.add(infoNumDel);
+			final VCFInfoHeaderLine infoMedianFold = new VCFInfoHeaderLine("MEDIAN_FOLD", 1, VCFHeaderLineType.Float,"Median fold");
+			metaData.add(infoMedianFold);
+			final VCFInfoHeaderLine infoStdDevFold = new VCFInfoHeaderLine("STDEV_FOLD", 1, VCFHeaderLineType.Float,"Stddev fold");
+			metaData.add(infoStdDevFold);
 
 			
 			final List<String> samples = Arrays.asList(tokens). subList(3,tokens.length);
@@ -292,6 +298,7 @@ public class IndexCovToVcf extends Launcher {
 				int count_cases_dup = 0;
 				int count_ctrs_dup= 0;
 				
+				
 				for(final String sampleName:sample2fold.keySet())
 					{
 					final float f = sample2fold.get(sampleName);
@@ -363,6 +370,26 @@ public class IndexCovToVcf extends Launcher {
 					}
 				vcb.alleles(alleles);
 				
+				
+				/** median fold */
+				vcb.attribute(infoMedianFold.getID(),
+					new Median().evaluate(sample2fold.values().
+							stream().
+							mapToDouble(F->F.doubleValue()).
+							toArray())
+						);
+					
+				if(sample2fold.size()>1) {
+					/** std fold */
+					vcb.attribute(infoStdDevFold.getID(),
+							new StandardDeviation().evaluate(
+									sample2fold.values().
+									stream().
+									mapToDouble(F->F.doubleValue()).
+									toArray())
+								);
+					}
+					
 				
 				if(valid_pedigree)
 					{
