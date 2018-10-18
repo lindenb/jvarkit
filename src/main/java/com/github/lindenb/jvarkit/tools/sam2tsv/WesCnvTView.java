@@ -33,9 +33,12 @@ import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -56,13 +59,17 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFileReader;
 
 
 /**
@@ -89,8 +96,11 @@ public class WesCnvTView  extends Launcher {
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-B","--bed","-b","--capture"},description=
-			"BED Capture. BED file containing the Regions to be observed.")
-	private File bedFile = null;
+			"BED file(s) containing the Regions to be observed.")
+	private List<File> bedFiles = new ArrayList<>();
+	@Parameter(names={"-V","--vcf","--variant"},description=
+			"VCF file(s) containing the Regions to be observed.")
+	private List<File> vcfFiles = new ArrayList<>();
 	@Parameter(names={"-r","-rgn","--region"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon")
 	private String bedRegions = null;
 	@Parameter(names={"-w","--width","--cols","-C"},description="Terminal width")
@@ -102,7 +112,37 @@ public class WesCnvTView  extends Launcher {
 	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
 	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
 	@Parameter(names={"-p","-percentile","--percentile"},description="How to compute the percentil of a region")
-	private Percentile.Type percentile = Percentile.Type.AVERAGE;
+	private Percentile.Type percentile = Percentile.Type.MEDIAN;
+	@Parameter(names={"-x","--extend"},description="Extend intervals by factor 'x'")
+	private double extend_interval_factor = 1.0;
+	
+	private enum AnsiColor {
+    	BLACK (30),
+    	RED (31),
+    	GREEN (32),
+    	YELLOW (33),
+    	BLUE (34),
+    	MAGENTA (35),
+    	CYAN (36),
+    	WHITE (37)
+		;
+		final int opcode;
+    	AnsiColor(final int opcode) {
+    		this.opcode=opcode;
+    		}
+    	
+     String color() {
+    		return ANSI_ESCAPE+this.opcode+"m";
+    		}
+    	}
+
+	
+	public static final String ANSI_ESCAPE = "\u001B[";
+	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
+	private static String HISTOGRAM_CHARS[] = new String[]{
+			"\u2581", "\u2582", "\u2583", "\u2584", "\u2585", 
+			"\u2586", "\u2587", "\u2588"
+			};
 	
 	private class BamInput implements Closeable
 		{
@@ -131,7 +171,7 @@ public class WesCnvTView  extends Launcher {
 	private final List<BamInput> bamInputs = new ArrayList<>();
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
-	private final int LEFT_MARGIN = 6;		 
+	private final int LEFT_MARGIN = 10;		 
 	
 		 
 	private abstract class AbstractViewWriter
@@ -139,10 +179,12 @@ public class WesCnvTView  extends Launcher {
 		{
 		int count_intervals = 0;
 		final PrintWriter pw;
-		final Map<String,SampleInfo> sample2info = new TreeMap<>();
+		final List<SampleInfo> sampleInfos = new ArrayList<>();
 		AbstractViewWriter(final PrintWriter pw) {
 			this.pw = pw;
 			}
+		
+		
 		
 		char float2val(double f)
 			{
@@ -166,51 +208,59 @@ public class WesCnvTView  extends Launcher {
 		void beginInterval(final Interval i) {
 			++count_intervals;
 			if(count_intervals>1) this.pw.println();
-			this.sample2info.clear();
+			this.sampleInfos.clear();
 			this.pw.println(">>> " +labelOf(i));
 			}
 		void endInterval(final Interval i) {
 			this.pw.println("<<< " +labelOf(i));
-			this.sample2info.clear();
+			this.sampleInfos.clear();
 			}
 		@Override
 		public void close() throws IOException {
 			this.pw.flush();
 			this.pw.close();
 			}
-		void dump(final Interval interval) {
-			int maxDepth = (int)this.sample2info.values().stream().
+		void dump(final Interval interval0) {
+			double maxDepth = this.sampleInfos.stream().
 					flatMapToDouble(SI->Arrays.stream(SI.pixel_coverage)).
 					max().orElse(0.0);
+			
 			if(WesCnvTView.this.capMaxDepth>0 && maxDepth>WesCnvTView.this.capMaxDepth) {
 				maxDepth =  WesCnvTView.this.capMaxDepth;
 				}
-			if(maxDepth<=0) maxDepth=1;
+			if(maxDepth<=0.0) maxDepth=1.0;
 			int idx=0;
-			for(final String sample:this.sample2info.keySet())
+			Collections.sort(this.sampleInfos,(A,B)->A.sample.compareTo(B.sample));
+			for(final SampleInfo si:this.sampleInfos)
 				{
 				if(idx>0)
 					{
 					this.pw.println();
 					}
-				dump(this.sample2info.get(sample),maxDepth,interval);
+				dump(si,maxDepth,interval0);
 				++idx;
 				}
-			
 			}
-		void dump(final SampleInfo si,int maxDepth,final Interval interval) {
-			LOG.debug(maxDepth);
+		
+		
+		
+		void dump(final SampleInfo si,double maxDepth,final Interval interval0)
+			{
+			final Interval interval = extendInterval(interval0);
 			final int areaWidth = terminalWidth-LEFT_MARGIN;
 			String s = "> "+si.sample+" ";
+			this.pw.print(AnsiColor.CYAN.color());
 			this.pw.print(s);
+			this.pw.print(ANSI_RESET);
 			for(int i=s.length();i< terminalWidth;i++) this.pw.print("=");
 			this.pw.println();
 			//print ruler
 				{
-				s = "Pos: ";
+				this.pw.print(AnsiColor.GREEN.color());
+				s = "Pos| ";
 				while(s.length() < LEFT_MARGIN)
 					{
-					s+=" ";
+					s=" "+s;
 					}
 				pw.print(s);	
 				int x=s.length();
@@ -233,34 +283,54 @@ public class WesCnvTView  extends Launcher {
 						x++;
 						}
 					}
+				this.pw.print(ANSI_RESET);
+				this.pw.println();
 				}
-			this.pw.println();
-			for(int y=0;y< WesCnvTView.this.sampleHeight;++y)
+			
+			//end print ruler
+			
+			
+			for(int pixy=0;pixy< WesCnvTView.this.sampleHeight;++pixy)
 				{
-				double dpy = maxDepth - (maxDepth/(double) WesCnvTView.this.sampleHeight )*y;
+				final double dpy = maxDepth - (pixy/(double)WesCnvTView.this.sampleHeight)*maxDepth;
 				s= String.format("%.2f",dpy);
 				while(s.length() < (LEFT_MARGIN-3))
 					{
-					s+=" ";
+					s =" "+s;
 					}
 				s+=" | ";
+				if(dpy<20) pw.print(AnsiColor.YELLOW.color());
 				pw.print(s);
+				if(dpy<20) pw.print(ANSI_RESET);
 				
+				final Function<Integer,Integer> pixel2base = (x)->interval.getStart()+(int)(((x)/(double)si.pixel_coverage.length)*interval.length());
+				 
 				for(int x=0;x< si.pixel_coverage.length;x++)
 					{
-					
-					if(si.pixel_coverage[x] < dpy)
+					int chromStart = pixel2base.apply(x+0);
+					int chromEnd = pixel2base.apply(x+1);
+					boolean overlap_extend = CoordMath.overlaps(chromStart, chromEnd, interval0.getStart(), interval0.getEnd());
+					double depth = si.pixel_coverage[x];
+					if(depth < dpy)
 						{
-						pw.print(float2val(Math.abs(si.pixel_coverage[x]-Math.floor(si.pixel_coverage[x]))));
+						pw.print(' ');
 						}
-					else
+					else 
 						{
-						pw.print(float2val(1.0));
+						if(overlap_extend)
+							{
+							pw.print(AnsiColor.RED.color());
+							}
+						else
+							{
+							pw.print(AnsiColor.BLUE.color());
+							}
+						pw.print(float2val(Math.abs(depth-dpy)));
+						pw.print(ANSI_RESET);
 						}
 					}
 				pw.println();
 				}
-			
 			
 			}
 		
@@ -283,8 +353,18 @@ public class WesCnvTView  extends Launcher {
 				}
 			w.dump(interval);
 			w.endInterval(interval);
-			w.sample2info.clear();
+			w.sampleInfos.clear();
 			}
+	
+	protected final Interval extendInterval(final Interval rgn) {
+		final int x = (int)(rgn.length()*WesCnvTView.this.extend_interval_factor);
+		if(x<=0) return rgn;
+		return new Interval(
+				rgn.getContig(),
+				Math.max(rgn.getStart()-x,1),
+				rgn.getEnd()+x
+				);
+		}
 	
 	private void run(
 			final AbstractViewWriter w,
@@ -302,14 +382,24 @@ public class WesCnvTView  extends Launcher {
 				LOG.warn( "Contig not found in "+interval0+" for "+baminput.bamFile);
 				return ;
 				}
-			final Interval interval = new Interval(newCtg,interval0.getStart(),interval0.getEnd());
+			final SAMSequenceRecord ssr = baminput.dict.getSequence(newCtg);
+			if(ssr==null)
+				{
+				LOG.warn( "Contig not found in "+interval0+" for "+baminput.bamFile);
+				return ;
+				}
+			
+			final Interval interval1 = new Interval(newCtg,interval0.getStart(),interval0.getEnd());
+					
+			final Interval interval = extendInterval(interval1);
+			
 			final int base_coverage[] = new int[interval.length()];
 			Arrays.fill(base_coverage, 0);
-				
+			
 			final SAMRecordIterator iter=baminput.samReader.queryOverlapping(
 						interval.getContig(),
 						interval.getStart(),
-						interval.getEnd()
+						Math.min(ssr.getSequenceLength(),interval.getEnd())
 						);
 			while(iter.hasNext()) {
 				final SAMRecord rec = iter.next();
@@ -340,14 +430,15 @@ public class WesCnvTView  extends Launcher {
 				
 				
 			for(int x=0;x< si.pixel_coverage.length;x++) {
-				final Percentile thePercentile = Percentile.median();
-				final int pos0 = Math.min(base_coverage.length, (int)(((x+0)/(double)si.pixel_coverage.length)*base_coverage.length));
-				final int pos1 = Math.min(base_coverage.length, (int)Math.ceil(((x+1)/(double)si.pixel_coverage.length)*base_coverage.length));
+				int pos0 = (int)(((x+0)/(double)si.pixel_coverage.length)*base_coverage.length);
+				pos0 = Math.min(pos0,base_coverage.length);
+				int pos1 = (int)(((x+1)/(double)si.pixel_coverage.length)*base_coverage.length);
+				pos1 = Math.min(pos1,base_coverage.length);
 				if(pos0>=pos1) continue;
-				si.pixel_coverage[x] = thePercentile.evaluate(base_coverage,pos0,(pos1-pos0));
-			}
+				si.pixel_coverage[x] = Percentile.of(this.percentile).evaluate(base_coverage,pos0,(pos1-pos0));
+				}
 			
-		w.sample2info.put(baminput.sample,si);
+		w.sampleInfos.add(si);
 		}
 
 	
@@ -397,11 +488,11 @@ public class WesCnvTView  extends Launcher {
 			AbstractViewWriter w = new DefaultTerminalWriter(out);
 			
 			boolean got_interval = false;
-			if(this.bedFile!=null)
+			for(final File bedFile : IOUtils.unrollFiles2018(this.bedFiles.stream().map(F->F.getPath()).collect(Collectors.toList())))
 				{
 				String line;
 				final BedLineCodec bedCodec = new BedLineCodec();
-				r = IOUtils.openFileForBufferedReading(this.bedFile);
+				r = IOUtils.openFileForBufferedReading(bedFile);
 				while((line=r.readLine())!=null)
 					{
 					if(BedLine.isBedHeader(line)) continue;
@@ -417,6 +508,20 @@ public class WesCnvTView  extends Launcher {
 				r.close();
 				r= null;
 				}
+			/* VCF files */
+			for(final File vcfFile : IOUtils.unrollFiles2018(this.vcfFiles.stream().map(F->F.getPath()).collect(Collectors.toList())))
+				{
+				final VCFFileReader fr = new VCFFileReader(vcfFile, false);
+				fr.iterator().stream().
+					filter(V->V.hasAttribute(VCFConstants.SVTYPE) && V.hasAttribute("SVLEN")).
+					map(V->new Interval(V.getContig(),V.getStart(),V.getEnd())).
+					filter(I->I.length()>1).
+					forEach(I->run(w,I));
+					
+				fr.close();
+				if(out.checkError()) break;
+				}
+			
 			if(!StringUtil.isBlank(this.bedRegions))
 				{
 				final IntervalParser intervalParser = new IntervalParser(firstDict);
@@ -438,7 +543,8 @@ public class WesCnvTView  extends Launcher {
 			out = null;
 			if(!got_interval) {
 				LOG.warn("No interval was provided");
-				}	
+				}
+			
 			return 0;
 			}
 		catch(final Exception err) {
@@ -457,5 +563,6 @@ public class WesCnvTView  extends Launcher {
 public static void main(final String[] args)
 	{
 	new WesCnvTView().instanceMainWithExit(args);
+	
 	}
 }

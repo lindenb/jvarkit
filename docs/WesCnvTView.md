@@ -14,7 +14,11 @@ Usage: wescnvtview [options] Files
       Cap coverage to this value. Negative=don't set any limit
       Default: -1
     -B, --bed, -b, --capture
-      BED Capture. BED file containing the Regions to be observed.
+      BED file(s) containing the Regions to be observed.
+      Default: []
+    -x, --extend
+      Extend intervals by factor 'x'
+      Default: 1.0
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
@@ -32,11 +36,14 @@ Usage: wescnvtview [options] Files
       Output file. Optional . Default: stdout
     -p, -percentile, --percentile
       How to compute the percentil of a region
-      Default: AVERAGE
+      Default: MEDIAN
       Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
     -r, -rgn, --region
       Interval regions: 'CHR:START-END'. multiple separated with spaces or 
       semicolon 
+    -V, --vcf, --variant
+      VCF file(s) containing the Regions to be observed.
+      Default: []
     --version
       print version and exit
     -w, --width, --cols, -C

@@ -97,6 +97,7 @@ HeatMapJfx()
 	// Redraw canvas when size changes.
 	this.canvas.widthProperty().addListener(evt -> draw());
 	this.canvas.heightProperty().addListener(evt -> draw());
+	this.getChildren().add(this.canvas);
 	}
 
 
