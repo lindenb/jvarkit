@@ -388,6 +388,13 @@ return new VariantContextBuilder(variant).
     make();
 ```
 
+## Example
+
+> I've filtered variants based on quality and depth using bcftools, but I also want to filter them that were called within 5 base pairs of each other. Is there any tools that can do this?
+
+```
+$ java -jar dist/vcffilterjdk.jar --body -e 'String prev_contig=null;int prev_end=-1; public Object apply(final VariantContext vc) {boolean ret=!(vc.getContig().equals(prev_contig)  && vc.getStart() - prev_end <=5); prev_contig=vc.getContig();prev_end=vc.getEnd();return ret; }'  in.vcf
+```
 
 END_DOC
  */
@@ -395,7 +402,8 @@ END_DOC
 		name="vcffilterjdk",
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
-		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,304979,310155,317388,319148,327035,337645},
+		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,
+				304979,310155,317388,319148,327035,337645,343569},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk
