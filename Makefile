@@ -408,6 +408,7 @@ $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.Re
 $(eval $(call compile-htsjdk-cmd,sam2json,${jvarkit.package}.tools.misc.SamToJson,${jcommander.jar} ${gson.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam2psl,${jvarkit.package}.tools.misc.SamToPsl,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam2tsv,${jvarkit.package}.tools.sam2tsv.Sam2Tsv,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,wescnvtview,${jvarkit.package}.tools.sam2tsv.WesCnvTView,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,prettysam,${jvarkit.package}.tools.sam2tsv.PrettySam,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam4weblogo,${jvarkit.package}.tools.sam4weblogo.SAM4WebLogo,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samclipindelfraction,${jvarkit.package}.tools.misc.SamClipIndelFraction,${jcommander.jar}))

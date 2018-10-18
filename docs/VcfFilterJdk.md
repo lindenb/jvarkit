@@ -81,6 +81,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/319148](https://www.biostars.org/p/319148)
  * [https://www.biostars.org/p/327035](https://www.biostars.org/p/327035)
  * [https://www.biostars.org/p/337645](https://www.biostars.org/p/337645)
+ * [https://www.biostars.org/p/343569](https://www.biostars.org/p/343569)
 
 
 ## Compilation
@@ -445,5 +446,12 @@ return new VariantContextBuilder(variant).
     make();
 ```
 
+## Example
+
+> I've filtered variants based on quality and depth using bcftools, but I also want to filter them that were called within 5 base pairs of each other. Is there any tools that can do this?
+
+```
+$ java -jar dist/vcffilterjdk.jar --body -e 'String prev_contig=null;int prev_end=-1; public Object apply(final VariantContext vc) {boolean ret=!(vc.getContig().equals(prev_contig)  && vc.getStart() - prev_end <=5); prev_contig=vc.getContig();prev_end=vc.getEnd();return ret; }'  in.vcf
+```
 
 
