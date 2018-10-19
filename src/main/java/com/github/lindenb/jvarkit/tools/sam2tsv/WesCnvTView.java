@@ -29,6 +29,8 @@ import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -602,9 +604,38 @@ public class WesCnvTView  extends Launcher {
 		}
 
 	
+	private static int getDefaultNumberOfColumns() {
+		int ncols = -1;
+		final String os= java.lang.System.getProperty("os.name","");
+		if(os.toLowerCase().contains("linux")) {
+			InputStream in = null;
+			try
+				{
+				ProcessBuilder pb = new ProcessBuilder("bash","-c","tput cols").
+							redirectErrorStream(true);
+				final Process p = pb.start();
+				in = p.getInputStream();
+				final String colstr = IOUtils.copyToString(new InputStreamReader(in));
+				in.close();
+				in=null;
+				p.waitFor();
+				ncols = Integer.parseInt(colstr.trim());
+				}
+			catch(final Throwable err)
+				{
+				}
+			}
+		if(ncols<=0) ncols=80;
+		return ncols;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.terminalWidth<=0) {
+			LOG.debug("runxx");
+			this.terminalWidth=getDefaultNumberOfColumns();
+		}
+		
 		if(this.terminalWidth-LEFT_MARGIN<10)
 			{
 			LOG.error("terminal width is too small");
@@ -776,6 +807,5 @@ public class WesCnvTView  extends Launcher {
 public static void main(final String[] args)
 	{
 	new WesCnvTView().instanceMainWithExit(args);
-	
 	}
 }
