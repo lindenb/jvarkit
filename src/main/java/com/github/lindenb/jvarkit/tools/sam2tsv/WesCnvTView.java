@@ -165,11 +165,39 @@ $  java -jar dist/wescnvtview.jar -l bam.list  -P "RF01:100-200"
 
 ```
 
+## Note to self: Splitting the output:
+
+```
+java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
+	csplit -b  '%05d.txt' -f cnv. -n 5 -s -z - '/^>>>/' '{*}' 
+```
+
+`-s`: "do not print counts of output file sizes". 
+
+`-z`: "remove empty output files". 
+
+`-n`: "use specified number of digits instead of 2". 
+
+`-b`: "use sprintf FORMAT instead of %02d". 
+
+`-f`: "prefix". 
+
+## Note to self: view in less/more
+
+```
+java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   | less -r
+```
+
 ## Screenshot
 
 https://twitter.com/yokofakun/status/1053185975923470337
 
 ![https://pbs.twimg.com/media/Dp2rDfsWoAEQEAI.jpg](https://pbs.twimg.com/media/Dp2rDfsWoAEQEAI.jpg)
+
+https://twitter.com/yokofakun/status/1053204927202369536
+
+![https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg](https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg)
+
 
 
 END_DOC
