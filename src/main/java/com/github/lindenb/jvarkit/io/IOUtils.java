@@ -558,7 +558,31 @@ public class IOUtils {
 			}
 		return new ArrayList<>(fileset);
 		}
-
+	 /** 
+     * new version of unrollFiles in 2018, for common usage...
+     * only one list
+     * return List of Strings
+     */
+	public static List<String> unrollStrings2018(final java.util.List<String> args)
+		{
+		if(args.isEmpty()) return Collections.emptyList();
+		final List<String> fileset = new ArrayList<>();
+		if(args.size()==1 && args.get(0).endsWith(".list"))
+			{
+			final File listFile = new File(args.get(0));
+			IOUtil.assertFileIsReadable(listFile);
+			IOUtil.readLines(listFile).forEach(s->{
+				if (s.endsWith("#")) return;
+				if (StringUtil.isBlank(s)) return;
+				fileset.add(s);
+				});
+			}
+		else
+			{
+			fileset.addAll(args);
+			}
+		return fileset;
+		}
 
 	/** test wether the two first bytes are gzip */
 	public static boolean isGZipCompressed(final byte[] twoBytes) {

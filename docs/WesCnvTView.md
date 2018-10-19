@@ -10,12 +10,13 @@ SVG visualization of bam DEPTH for multiple regions in a terminal
 ```
 Usage: wescnvtview [options] Files
   Options:
+    -l, -B, --bams
+      The Bam file(s) to be displayed. If there is only one file which ends 
+      with '.list' it is interpreted as a file containing a list of paths
+      Default: []
     -cap, --cap
       Cap coverage to this value. Negative=don't set any limit
       Default: -1
-    -B, --bed, -b, --capture
-      BED file(s) containing the Regions to be observed.
-      Default: []
     -x, --extend
       Extend intervals by factor 'x'
       Default: 1.0
@@ -24,6 +25,10 @@ Usage: wescnvtview [options] Files
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
       for a complete syntax.
       Default: Accept All/ Filter out nothing
+    -F, --format
+      input format. INTERVALS is a string 'contig:start-end'.
+      Default: INTERVALS
+      Possible Values: [VCF, BED, INTERVALS]
     -H, --height, --rows
       Terminal width
       Default: 10
@@ -38,12 +43,9 @@ Usage: wescnvtview [options] Files
       How to compute the percentil of a region
       Default: MEDIAN
       Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
-    -r, -rgn, --region
-      Interval regions: 'CHR:START-END'. multiple separated with spaces or 
-      semicolon 
-    -V, --vcf, --variant
-      VCF file(s) containing the Regions to be observed.
-      Default: []
+    -P, --plain
+      Plain output (not color)
+      Default: false
     --version
       print version and exit
     -w, --width, --cols, -C
@@ -100,6 +102,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTView.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTView.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTViewTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTViewTest.java)
+
 
 ## Contribute
 
@@ -124,11 +130,96 @@ The current reference is:
 
 ## Input
 
-input is a set of bam file or a file with the '*.list' suffix containing the path to the bam files.
+Input is a set of regions to observe. It can be a 
+
+   * BED file
+   * VCF File with SV
+   * Some intervals 'contig:start-end'
+
+Input can be read from stdin
 
 ## Example
 
-TODO
+```
+find src/test/resources/ -type f -name "S*.bam" > bam.list
+
+$  java -jar dist/wescnvtview.jar -l bam.list  -P "RF01:100-200" 
+
+>>> RF01:100-200	 Length:101	(1)
+> S1 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                                       
+   8.10 |                                                                       
+   7.20 |                %                                                      
+   6.30 |           %%%%%%%%                                                    
+   5.40 |           %%%%%%%%%      #           # #                              
+   4.50 |       %%%%%%%%%%%%%   % ##  ####   #########   %%%%%                  
+   3.60 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%% %%%%   %%%     %
+   2.70 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |   %%%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 | %%%%%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S2 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                           %%%  %%     
+   8.10 |                                                           %%% %%%     
+   7.20 |                                                   %%  %%%%%%%%%%%     
+   6.30 |                     %                             %%%%%%%%%%%%%%%%%   
+   5.40 |              %%%%%%%%   #       ###           #  %%%%%%%%%%%%%%%%%%   
+   4.50 |          %%%%%%%%%%%%%%##  ##  #########    ###%%%%%%%%%%%%%%%%%%%%%%%
+   3.60 |          %%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   2.70 |      %%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |     %%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S3 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                           %%%  %%     
+   8.10 |                                                           %%% %%%     
+   7.20 |                                                   %%  %%%%%%%%%%%     
+   6.30 |                     %                             %%%%%%%%%%%%%%%%%   
+   5.40 |              %%%%%%%%   #       ###           #  %%%%%%%%%%%%%%%%%%   
+   4.50 |          %%%%%%%%%%%%%%##  ##  #########    ###%%%%%%%%%%%%%%%%%%%%%%%
+   3.60 |          %%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   2.70 |      %%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |     %%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S4 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                                       
+   8.10 |                                                                       
+   7.20 |                                                                       
+   6.30 |                                    ##                                 
+   5.40 |                            ##########                                 
+   4.50 |                      % ################        %  %%                  
+   3.60 |                      %%################# ######%%%%%%%%%%             
+   2.70 |                %%%%%%%%########################%%%%%%%%%%%%%          
+   1.80 |        %%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%  %    
+   0.90 |       %%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S5 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                                       
+   8.10 |                                                                       
+   7.20 |                                                             %%       %
+   6.30 |                                                           %%%%       %
+   5.40 |                                                           %%%%%     %%
+   4.50 |                       %#######                 %%%%%     %%%%%% %%%%%%
+   3.60 |                   % %%%########                %%%%%%%%%%%%%%%%%%%%%%%
+   2.70 |                %%%%%%%%########### #          #%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |               %%%%%%%%%###############        #%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+<<< RF01:100-200	 Length:101	(1)
+
+
+```
+
+## Screenshot
+
+https://twitter.com/yokofakun/status/1053185975923470337
+
+![https://pbs.twimg.com/media/Dp2rDfsWoAEQEAI.jpg](https://pbs.twimg.com/media/Dp2rDfsWoAEQEAI.jpg)
 
 
 

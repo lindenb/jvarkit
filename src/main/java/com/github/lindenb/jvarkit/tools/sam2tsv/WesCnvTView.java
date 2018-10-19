@@ -35,23 +35,24 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -66,8 +67,10 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 
@@ -77,11 +80,96 @@ BEGIN_DOC
 
 ## Input
 
-input is a set of bam file or a file with the '*.list' suffix containing the path to the bam files.
+Input is a set of regions to observe. It can be a 
+
+   * BED file
+   * VCF File with SV
+   * Some intervals 'contig:start-end'
+
+Input can be read from stdin
 
 ## Example
 
-TODO
+```
+find src/test/resources/ -type f -name "S*.bam" > bam.list
+
+$  java -jar dist/wescnvtview.jar -l bam.list  -P "RF01:100-200" 
+
+>>> RF01:100-200	 Length:101	(1)
+> S1 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                                       
+   8.10 |                                                                       
+   7.20 |                %                                                      
+   6.30 |           %%%%%%%%                                                    
+   5.40 |           %%%%%%%%%      #           # #                              
+   4.50 |       %%%%%%%%%%%%%   % ##  ####   #########   %%%%%                  
+   3.60 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%% %%%%   %%%     %
+   2.70 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |   %%%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 | %%%%%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S2 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                           %%%  %%     
+   8.10 |                                                           %%% %%%     
+   7.20 |                                                   %%  %%%%%%%%%%%     
+   6.30 |                     %                             %%%%%%%%%%%%%%%%%   
+   5.40 |              %%%%%%%%   #       ###           #  %%%%%%%%%%%%%%%%%%   
+   4.50 |          %%%%%%%%%%%%%%##  ##  #########    ###%%%%%%%%%%%%%%%%%%%%%%%
+   3.60 |          %%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   2.70 |      %%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |     %%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S3 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                           %%%  %%     
+   8.10 |                                                           %%% %%%     
+   7.20 |                                                   %%  %%%%%%%%%%%     
+   6.30 |                     %                             %%%%%%%%%%%%%%%%%   
+   5.40 |              %%%%%%%%   #       ###           #  %%%%%%%%%%%%%%%%%%   
+   4.50 |          %%%%%%%%%%%%%%##  ##  #########    ###%%%%%%%%%%%%%%%%%%%%%%%
+   3.60 |          %%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   2.70 |      %%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |     %%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S4 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                                       
+   8.10 |                                                                       
+   7.20 |                                                                       
+   6.30 |                                    ##                                 
+   5.40 |                            ##########                                 
+   4.50 |                      % ################        %  %%                  
+   3.60 |                      %%################# ######%%%%%%%%%%             
+   2.70 |                %%%%%%%%########################%%%%%%%%%%%%%          
+   1.80 |        %%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%  %    
+   0.90 |       %%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+
+> S5 ===========================================================================
+     Pos| 1 9 18 31 44 56 69 82 95 108 125 142 160 177 194 211 228 246 263 280  
+   9.00 |                                                                       
+   8.10 |                                                                       
+   7.20 |                                                             %%       %
+   6.30 |                                                           %%%%       %
+   5.40 |                                                           %%%%%     %%
+   4.50 |                       %#######                 %%%%%     %%%%%% %%%%%%
+   3.60 |                   % %%%########                %%%%%%%%%%%%%%%%%%%%%%%
+   2.70 |                %%%%%%%%########### #          #%%%%%%%%%%%%%%%%%%%%%%%
+   1.80 |               %%%%%%%%%###############        #%%%%%%%%%%%%%%%%%%%%%%%
+   0.90 |    %%%%%%%%%%%%%%%%%%%%########################%%%%%%%%%%%%%%%%%%%%%%%
+<<< RF01:100-200	 Length:101	(1)
+
+
+```
+
+## Screenshot
+
+https://twitter.com/yokofakun/status/1053185975923470337
+
+![https://pbs.twimg.com/media/Dp2rDfsWoAEQEAI.jpg](https://pbs.twimg.com/media/Dp2rDfsWoAEQEAI.jpg)
 
 
 END_DOC
@@ -95,14 +183,10 @@ public class WesCnvTView  extends Launcher {
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-B","--bed","-b","--capture"},description=
-			"BED file(s) containing the Regions to be observed.")
-	private List<File> bedFiles = new ArrayList<>();
-	@Parameter(names={"-V","--vcf","--variant"},description=
-			"VCF file(s) containing the Regions to be observed.")
-	private List<File> vcfFiles = new ArrayList<>();
-	@Parameter(names={"-r","-rgn","--region"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon")
-	private String bedRegions = null;
+	@Parameter(names={"-l","-B","--bams"},description=
+			"The Bam file(s) to be displayed. If there is only one file which ends with '.list' it is interpreted as a file containing a list of paths")
+	private List<File> theBamFiles = new ArrayList<>();
+
 	@Parameter(names={"-w","--width","--cols","-C"},description="Terminal width")
 	private int terminalWidth = 80 ;
 	@Parameter(names={"-H","--height","--rows"},description="Terminal width")
@@ -115,6 +199,13 @@ public class WesCnvTView  extends Launcher {
 	private Percentile.Type percentile = Percentile.Type.MEDIAN;
 	@Parameter(names={"-x","--extend"},description="Extend intervals by factor 'x'")
 	private double extend_interval_factor = 1.0;
+	@Parameter(names={"-F","--format"},description="input format. INTERVALS is a string 'contig:start-end'.")
+	private InputFormat inputFormat = InputFormat.INTERVALS;
+	@Parameter(names={"-P","--plain"},description="Plain output (not color)")
+	private boolean plain_flag = false;
+
+	
+	private enum InputFormat {VCF,BED,INTERVALS}
 	
 	private enum AnsiColor {
     	BLACK (30),
@@ -139,10 +230,7 @@ public class WesCnvTView  extends Launcher {
 	
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
-	private static String HISTOGRAM_CHARS[] = new String[]{
-			"\u2581", "\u2582", "\u2583", "\u2584", "\u2585", 
-			"\u2586", "\u2587", "\u2588"
-			};
+
 	
 	private class BamInput implements Closeable
 		{
@@ -169,7 +257,6 @@ public class WesCnvTView  extends Launcher {
 	
 	
 	private final List<BamInput> bamInputs = new ArrayList<>();
-	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private final int LEFT_MARGIN = 10;		 
 	
@@ -184,16 +271,10 @@ public class WesCnvTView  extends Launcher {
 			this.pw = pw;
 			}
 		
-		
-		
-		char float2val(double f)
-			{
-			char array[]= {' ','\u2581','\u2582','\u2583','\u2584','\u2585','\u2586','\u2587'};
-			int idx =(int)(array.length*f);
-			if(idx<=0) return ' ';
-			if(idx>=array.length) return '\u2588';
-			return array[idx];
-			}
+		abstract void beginColor(AnsiColor color);
+		abstract void endColor();
+		abstract char float2val(double f);
+		abstract void printBarSymbol(char c, boolean overlap_user_interval);
 		
 		protected String labelOf(final Interval i)
 			{
@@ -249,14 +330,14 @@ public class WesCnvTView  extends Launcher {
 			final Interval interval = extendInterval(interval0);
 			final int areaWidth = terminalWidth-LEFT_MARGIN;
 			String s = "> "+si.sample+" ";
-			this.pw.print(AnsiColor.CYAN.color());
+			beginColor(AnsiColor.CYAN);
 			this.pw.print(s);
-			this.pw.print(ANSI_RESET);
+			endColor();
 			for(int i=s.length();i< terminalWidth;i++) this.pw.print("=");
 			this.pw.println();
 			//print ruler
 				{
-				this.pw.print(AnsiColor.GREEN.color());
+				beginColor(AnsiColor.GREEN);
 				s = "Pos| ";
 				while(s.length() < LEFT_MARGIN)
 					{
@@ -283,33 +364,35 @@ public class WesCnvTView  extends Launcher {
 						x++;
 						}
 					}
-				this.pw.print(ANSI_RESET);
+				endColor();
 				this.pw.println();
 				}
 			
 			//end print ruler
 			
-			
+			final double depthPerPixel = (1.0/ WesCnvTView.this.sampleHeight)*maxDepth;
 			for(int pixy=0;pixy< WesCnvTView.this.sampleHeight;++pixy)
 				{
-				final double dpy = maxDepth - (pixy/(double)WesCnvTView.this.sampleHeight)*maxDepth;
+				final double dpy = maxDepth - pixy * depthPerPixel;
 				s= String.format("%.2f",dpy);
 				while(s.length() < (LEFT_MARGIN-3))
 					{
 					s =" "+s;
 					}
 				s+=" | ";
-				if(dpy<20) pw.print(AnsiColor.YELLOW.color());
+				if(dpy<20) beginColor(AnsiColor.YELLOW);
 				pw.print(s);
-				if(dpy<20) pw.print(ANSI_RESET);
+				if(dpy<20) endColor();
+				
 				
 				final Function<Integer,Integer> pixel2base = (x)->interval.getStart()+(int)(((x)/(double)si.pixel_coverage.length)*interval.length());
 				 
+				
 				for(int x=0;x< si.pixel_coverage.length;x++)
 					{
 					int chromStart = pixel2base.apply(x+0);
 					int chromEnd = pixel2base.apply(x+1);
-					boolean overlap_extend = CoordMath.overlaps(chromStart, chromEnd, interval0.getStart(), interval0.getEnd());
+					final boolean overlap_extend = CoordMath.overlaps(chromStart, chromEnd, interval0.getStart(), interval0.getEnd());
 					double depth = si.pixel_coverage[x];
 					if(depth < dpy)
 						{
@@ -317,16 +400,7 @@ public class WesCnvTView  extends Launcher {
 						}
 					else 
 						{
-						if(overlap_extend)
-							{
-							pw.print(AnsiColor.RED.color());
-							}
-						else
-							{
-							pw.print(AnsiColor.BLUE.color());
-							}
-						pw.print(float2val(Math.abs(depth-dpy)));
-						pw.print(ANSI_RESET);
+						printBarSymbol(float2val(Math.abs(depth-dpy)/depthPerPixel), overlap_extend);
 						}
 					}
 				pw.println();
@@ -341,11 +415,69 @@ public class WesCnvTView  extends Launcher {
 		DefaultTerminalWriter(final PrintWriter pw) {
 			super(pw);
 			}
-		}
 		
+		@Override 
+		char float2val(double f)
+			{
+			char array[]= {' ','\u2581','\u2582','\u2583','\u2584','\u2585','\u2586','\u2587'};
+			int idx =(int)(Math.ceil(array.length*f));
+			if(idx<=0) return ' ';
+			if(idx>=array.length) return '\u2588';
+			return array[idx];
+			}
+		
+		@Override void beginColor(final AnsiColor color) {
+			super.pw.print(color.color());
+			}
+		@Override void endColor() {
+			super.pw.print(ANSI_RESET);
+			}
+		
+		@Override
+		void printBarSymbol(char c, boolean overlap_extend) {
+			if(overlap_extend)
+				{
+				beginColor(AnsiColor.RED);
+				}
+			else
+				{
+				beginColor(AnsiColor.BLUE);
+				}
+			pw.print(c);
+			endColor();
+			}
+		
+		}
+	private class PlainTerminalWriter extends AbstractViewWriter
+		{
+		PlainTerminalWriter(final PrintWriter pw) {
+			super(pw);
+			}
+		@Override 
+		char float2val(double f)
+			{
+			return '#';
+			}
+		
+		@Override void beginColor(final AnsiColor color) {
+			}
+		@Override void endColor() {
+			}
+		@Override
+		void printBarSymbol(char c, boolean overlap_extend) {
+			if(overlap_extend)
+				{
+				pw.print('#');
+				}
+			else
+				{
+				pw.print('%');
+				}
+			}
+		}
 
 	
-	private void run(final AbstractViewWriter w,final Interval interval) {
+	private void runInterval(final AbstractViewWriter w,final Interval interval) {
 			w.beginInterval(interval);
 			for(final BamInput baminput: this.bamInputs)
 				{
@@ -450,10 +582,34 @@ public class WesCnvTView  extends Launcher {
 			LOG.error("terminal width is too small");
 			return -1;
 			}
-		BufferedReader r = null;
 		PrintWriter out = null;
 		try
-			{			
+			{
+			final List<String> inputs = IOUtils.unrollStrings2018(args);
+			
+			
+			final List<File> bamUrls = new ArrayList<>();
+			if(this.theBamFiles.size()==1 && this.theBamFiles.get(0).getName().endsWith(".list"))
+				{
+				bamUrls.addAll(IOUtil.slurpLines(this.theBamFiles.get(0)).
+						stream().
+						filter(L->!StringUtil.isBlank(L) ).
+						filter(L->!L.startsWith("#")).
+						map(L->new File(L)).
+						collect(Collectors.toSet())
+						);
+				}
+			else
+				{
+				bamUrls.addAll(bamUrls);
+				}
+			
+			if(bamUrls.isEmpty())
+				{
+				LOG.error("No BAM file was specified");
+				return -1;
+				}
+			
 			SAMSequenceDictionary firstDict = null;
 			
 			
@@ -462,7 +618,7 @@ public class WesCnvTView  extends Launcher {
 					validationStringency(ValidationStringency.LENIENT)
 					;
 			
-			for(final File bamFile:IOUtils.unrollFiles2018(args)) {
+			for(final File bamFile:bamUrls) {
 				final BamInput bi = new BamInput();
 				bi.bamFile = bamFile;
 				bi.samReader = srf.open(bamFile);
@@ -485,66 +641,96 @@ public class WesCnvTView  extends Launcher {
 				}
 			
 			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			AbstractViewWriter w = new DefaultTerminalWriter(out);
+			final AbstractViewWriter w = plain_flag?
+					new PlainTerminalWriter(out):
+					new DefaultTerminalWriter(out);
 			
-			boolean got_interval = false;
-			for(final File bedFile : IOUtils.unrollFiles2018(this.bedFiles.stream().map(F->F.getPath()).collect(Collectors.toList())))
+			switch(this.inputFormat)
 				{
-				String line;
-				final BedLineCodec bedCodec = new BedLineCodec();
-				r = IOUtils.openFileForBufferedReading(bedFile);
-				while((line=r.readLine())!=null)
+				case VCF:
 					{
-					if(BedLine.isBedHeader(line)) continue;
-					final BedLine bed = bedCodec.decode(line);
-					if(bed==null || bed.getStart()>bed.getEnd()) {
-						LOG.warn("Ignoring "+line);
-						continue;
+					final Predicate<VariantContext> acceptVariant = V->V.hasAttribute(VCFConstants.SVTYPE) && V.hasAttribute("SVLEN") && V.getEnd()-V.getStart()>1;
+					final Function<VariantContext,Interval> mapper = V->new Interval(V.getContig(),V.getStart(),V.getEnd());
+					if(inputs.isEmpty())
+						{
+						final VcfIterator vcfin = super.openVcfIterator(null);
+						while(vcfin.hasNext())
+							{
+							final VariantContext ctx = vcfin.next();
+							if(!acceptVariant.test(ctx)) continue;
+							runInterval(w,mapper.apply(ctx));
+							if(out.checkError()) break;
+							}
+						vcfin.close();
 						}
-					got_interval = true;
-					run(w,bed.toInterval());
-					if(out.checkError()) break;
+					else
+						{
+						for(final String vcfFile:inputs)
+							{
+							final VCFFileReader fr = new VCFFileReader(new File(vcfFile), false);
+							fr.iterator().stream().
+								filter(acceptVariant).
+								map(mapper).
+								forEach(I->runInterval(w,I));
+							fr.close();
+							if(out.checkError()) break;
+							}
+						}
+					break;
 					}
-				r.close();
-				r= null;
-				}
-			/* VCF files */
-			for(final File vcfFile : IOUtils.unrollFiles2018(this.vcfFiles.stream().map(F->F.getPath()).collect(Collectors.toList())))
-				{
-				final VCFFileReader fr = new VCFFileReader(vcfFile, false);
-				fr.iterator().stream().
-					filter(V->V.hasAttribute(VCFConstants.SVTYPE) && V.hasAttribute("SVLEN")).
-					map(V->new Interval(V.getContig(),V.getStart(),V.getEnd())).
-					filter(I->I.length()>1).
-					forEach(I->run(w,I));
-					
-				fr.close();
-				if(out.checkError()) break;
+				case BED:
+					{
+					final BedLineCodec bedCodec = new BedLineCodec();
+					final Consumer<BufferedReader> consummer = R->R.lines().
+								filter(L->!StringUtil.isBlank(L)).
+								map(L->bedCodec.decode(L)).
+								filter(bed->!(bed==null || bed.getStart()>bed.getEnd())).
+								map(B->B.toInterval()).
+								forEach(I->{runInterval(w,I);})
+								;					
+					if(inputs.isEmpty())
+						{
+						final BufferedReader br = super.openBufferedReader(null);
+						consummer.accept(br);
+						br.close();
+						}
+					else
+						{
+						for(final String bedFile:inputs)
+							{
+							final BufferedReader br = IOUtils.openURIForBufferedReading(bedFile);
+							consummer.accept(br);
+							br.close();
+							}
+						}
+					break;
+					}
+				case INTERVALS:
+					{
+					final IntervalParser parser=new IntervalParser();
+					final Consumer<Stream<String>> consummer = SL->SL.filter(L->!StringUtil.isBlank(L)).
+						map(L->parser.parse(L)).
+						filter(I->I!=null && I.length()>1).
+						forEach(I->{runInterval(w,I);})
+						;
+					if(inputs.isEmpty())
+						{
+						final BufferedReader br = super.openBufferedReader(null);
+						consummer.accept(br.lines());
+						br.close();
+						}
+					else
+						{
+						consummer.accept(inputs.stream());
+						}
+					break;
+					}
+				default: LOG.error("Invalid input format "+this.inputFormat); return -1;
 				}
 			
-			if(!StringUtil.isBlank(this.bedRegions))
-				{
-				final IntervalParser intervalParser = new IntervalParser(firstDict);
-				for(final String s: this.bedRegions.split("[ \t;]+"))
-					{
-					if(StringUtil.isBlank(s)) continue;
-					final Interval bed = intervalParser.parse(s);
-					if(bed==null) {
-						LOG.error("Cannot parse interval "+s);
-						return -1;
-						}
-					run(w,bed);
-					got_interval = true;
-					if(out.checkError()) break;
-					}
-				}
 			w.close();
 			out.close();
 			out = null;
-			if(!got_interval) {
-				LOG.warn("No interval was provided");
-				}
-			
 			return 0;
 			}
 		catch(final Exception err) {
@@ -554,7 +740,6 @@ public class WesCnvTView  extends Launcher {
 		finally
 			{
 			CloserUtil.close(out);
-			CloserUtil.close(r);
 			CloserUtil.close(this.bamInputs);
 			}
 		}
