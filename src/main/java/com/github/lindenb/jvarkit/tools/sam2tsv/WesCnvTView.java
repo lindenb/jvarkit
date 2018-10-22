@@ -35,8 +35,11 @@ import java.io.PrintWriter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -48,6 +51,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
@@ -71,6 +75,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
@@ -217,9 +222,9 @@ public class WesCnvTView  extends Launcher {
 			"The Bam file(s) to be displayed. If there is only one file which ends with '.list' it is interpreted as a file containing a list of paths")
 	private List<File> theBamFiles = new ArrayList<>();
 
-	@Parameter(names={"-w","--width","--cols","-C"},description="Terminal width")
+	@Parameter(names={"-w","--width","--cols","-C"},description="Terminal width. Under linux good idea is to use the environment variable ${COLUMNS}")
 	private int terminalWidth = 80 ;
-	@Parameter(names={"-H","--height","--rows"},description="Terminal width")
+	@Parameter(names={"-H","--height","--rows"},description="Terminal width per sample")
 	private int sampleHeight = 10 ;
 	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
 	private int capMaxDepth = -1 ;
@@ -233,6 +238,11 @@ public class WesCnvTView  extends Launcher {
 	private InputFormat inputFormat = InputFormat.INTERVALS;
 	@Parameter(names={"-P","--plain"},description="Plain output (not color)")
 	private boolean plain_flag = false;
+	@Parameter(names={"-highlight","--highlight","--top"},description="Per default samples are sorted alphabetically."
+			+ "The samples in this collection will be displayed on the 'top' to have an quick insight about the propositus.")
+	private Set<String> highlight_sample_set = new HashSet<>();
+	@Parameter(names={"-G","--genes"},description="A BED file containing some regions of interest that will be displayed")
+	private File roiFile = null;
 
 	
 	private enum InputFormat {VCF,BED,INTERVALS}
@@ -260,6 +270,8 @@ public class WesCnvTView  extends Launcher {
 	
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
+	private final IntervalTreeMap<Interval> geneMap = new IntervalTreeMap<>();
+	private ContigNameConverter geneMapContigNameConverter = ContigNameConverter.getIdentity();
 
 	
 	private class BamInput implements Closeable
@@ -305,6 +317,7 @@ public class WesCnvTView  extends Launcher {
 		abstract void endColor();
 		abstract char float2val(double f);
 		abstract void printBarSymbol(char c, boolean overlap_user_interval);
+		abstract char genearrow(boolean negativestrand);
 		
 		protected String labelOf(final Interval i)
 			{
@@ -322,6 +335,46 @@ public class WesCnvTView  extends Launcher {
 			this.sampleInfos.clear();
 			this.pw.println(">>> " +labelOf(i));
 			}
+		
+		void printGenes(final Interval interval0) {
+			final Interval interval = extendInterval(interval0);
+			for(final Interval gene : getROIGenes(interval)) {
+				String s = gene.getName();
+				while(s.length() < (LEFT_MARGIN-3))
+					{
+					s =" "+s;
+					}
+				while(s.length() > (LEFT_MARGIN-3))
+					{
+					s = s.substring(1);
+					}
+				beginColor(AnsiColor.YELLOW);
+				this.pw.print(s);
+				endColor();
+				this.pw.print(" | ");
+				int x= LEFT_MARGIN;
+				final int areaWidth = terminalWidth-LEFT_MARGIN;
+
+				while(x<terminalWidth)
+					{
+					final int beg = interval.getStart()+ (int)((((x+0)-LEFT_MARGIN)/(double)(areaWidth))*interval.length());
+					final int end = interval.getStart()+ (int)((((x+1)-LEFT_MARGIN)/(double)(areaWidth))*interval.length());
+					
+					if(CoordMath.overlaps(beg, end, gene.getStart(), gene.getEnd()))
+						{
+						this.pw.print(genearrow(gene.isNegativeStrand()));
+						}
+					else
+						{
+						this.pw.print(" ");
+						}
+					x++;
+					}
+				
+				this.pw.println();
+				}
+		}
+		
 		void endInterval(final Interval i) {
 			this.pw.println("<<< " +labelOf(i));
 			this.sampleInfos.clear();
@@ -341,7 +394,16 @@ public class WesCnvTView  extends Launcher {
 				}
 			if(maxDepth<=0.0) maxDepth=1.0;
 			int idx=0;
-			Collections.sort(this.sampleInfos,(A,B)->A.sample.compareTo(B.sample));
+			Collections.sort(this.sampleInfos,(A,B)->{
+				final boolean topA = highlight_sample_set.contains(A.sample);
+				final boolean topB = highlight_sample_set.contains(B.sample);
+				if(topA!=topB) {
+					if(topA) return -1;
+					if(topB) return 1;
+					}
+				final int i=A.sample.compareTo(B.sample);
+				return i;
+				});
 			for(final SampleInfo si:this.sampleInfos)
 				{
 				if(idx>0)
@@ -368,10 +430,10 @@ public class WesCnvTView  extends Launcher {
 			//print ruler
 				{
 				beginColor(AnsiColor.GREEN);
-				s = "Pos| ";
+				s = "Pos | ";
 				while(s.length() < LEFT_MARGIN)
 					{
-					s=" "+s;
+					s= " "+s;
 					}
 				pw.print(s);	
 				int x=s.length();
@@ -445,7 +507,10 @@ public class WesCnvTView  extends Launcher {
 		DefaultTerminalWriter(final PrintWriter pw) {
 			super(pw);
 			}
-		
+		@Override
+		char genearrow(boolean negativestrand) {
+			return negativestrand?'\u2190':'\u2192';
+			}
 		@Override 
 		char float2val(double f)
 			{
@@ -483,6 +548,11 @@ public class WesCnvTView  extends Launcher {
 		PlainTerminalWriter(final PrintWriter pw) {
 			super(pw);
 			}
+		@Override
+		char genearrow(boolean negativestrand) {
+			return negativestrand?'<':'>';
+			}
+		
 		@Override 
 		char float2val(double f)
 			{
@@ -509,9 +579,10 @@ public class WesCnvTView  extends Launcher {
 	
 	private void runInterval(final AbstractViewWriter w,final Interval interval) {
 			w.beginInterval(interval);
+			w.printGenes(interval);
 			for(final BamInput baminput: this.bamInputs)
 				{
-				run(w,baminput,interval);
+				runInterval(w,baminput,interval);
 				}
 			w.dump(interval);
 			w.endInterval(interval);
@@ -528,7 +599,7 @@ public class WesCnvTView  extends Launcher {
 				);
 		}
 	
-	private void run(
+	private void runInterval(
 			final AbstractViewWriter w,
 			final BamInput baminput,
 			final Interval interval0
@@ -594,7 +665,7 @@ public class WesCnvTView  extends Launcher {
 			for(int x=0;x< si.pixel_coverage.length;x++) {
 				int pos0 = (int)(((x+0)/(double)si.pixel_coverage.length)*base_coverage.length);
 				pos0 = Math.min(pos0,base_coverage.length);
-				int pos1 = (int)(((x+1)/(double)si.pixel_coverage.length)*base_coverage.length);
+				int pos1 = (int)Math.ceil(((x+1)/(double)si.pixel_coverage.length)*base_coverage.length);
 				pos1 = Math.min(pos1,base_coverage.length);
 				if(pos0>=pos1) continue;
 				si.pixel_coverage[x] = Percentile.of(this.percentile).evaluate(base_coverage,pos0,(pos1-pos0));
@@ -629,10 +700,16 @@ public class WesCnvTView  extends Launcher {
 		return ncols;
 		}
 	
+	private Collection<Interval> getROIGenes(final Interval interval0) {
+		if(this.geneMap.isEmpty()) return Collections.emptyList();
+		final String contig = this.geneMapContigNameConverter.apply(interval0.getContig());
+		if(StringUtil.isBlank(contig)) return Collections.emptyList();
+		return this.geneMap.getOverlapping(new Interval(contig,interval0.getStart(),interval0.getEnd()));
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.terminalWidth<=0) {
-			LOG.debug("runxx");
 			this.terminalWidth=getDefaultNumberOfColumns();
 		}
 		
@@ -667,6 +744,27 @@ public class WesCnvTView  extends Launcher {
 				{
 				LOG.error("No BAM file was specified");
 				return -1;
+				}
+			
+			if(this.roiFile!=null) {
+				BufferedReader br = IOUtils.openFileForBufferedReading(this.roiFile);
+				final BedLineCodec codec = new BedLineCodec();
+				String line;
+				while((line=br.readLine())!=null)
+					{
+					final BedLine bed = codec.decode(line);
+					if(bed==null) continue;
+					final Interval interval = new Interval(
+							bed.getContig(),
+							bed.getStart(),
+							bed.getEnd(),
+							bed.getOrDefault(4, "+").equals("-"),
+							bed.getOrDefault(3, "ROI."+(this.geneMap.size()+1))
+							);
+					this.geneMap.put(interval,interval);
+					}
+				br.close();
+				this.geneMapContigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.geneMap);
 				}
 			
 			SAMSequenceDictionary firstDict = null;

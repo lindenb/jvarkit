@@ -29,14 +29,21 @@ Usage: wescnvtview [options] Files
       input format. INTERVALS is a string 'contig:start-end'.
       Default: INTERVALS
       Possible Values: [VCF, BED, INTERVALS]
+    -G, --genes
+      A BED file containing some regions of interest that will be displayed
     -H, --height, --rows
-      Terminal width
+      Terminal width per sample
       Default: 10
     -h, --help
       print help and exit
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -highlight, --highlight, --top
+      Per default samples are sorted alphabetically.The samples in this 
+      collection will be displayed on the 'top' to have an quick insight about 
+      the propositus.
+      Default: []
     -o, --output
       Output file. Optional . Default: stdout
     -p, -percentile, --percentile
@@ -49,7 +56,8 @@ Usage: wescnvtview [options] Files
     --version
       print version and exit
     -w, --width, --cols, -C
-      Terminal width
+      Terminal width. Under linux good idea is to use the environment variable 
+      ${COLUMNS} 
       Default: 80
 
 ```
