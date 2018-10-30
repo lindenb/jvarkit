@@ -93,7 +93,7 @@ $(1)  : ${htsjdk.jars} \
 		${dist.dir}/annotproc.jar
 	echo "### COMPILING $(1) ######"
 	rm -f ${tmp.dir}/markdown.flag
-	mkdir -p ${tmp.dir}/META-INF ${dist.dir} 
+	mkdir -p ${tmp.dir}/META-INF ${dist.dir}
 	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
 	cp -v "$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" "${tmp.dir}/$(dir $(subst .,/,$(2)))"
 	echo '### Printing javac version : it should be Oracle 1.8 (you should avoid OpenJDK). if Not, check your $$$${PATH}.'
@@ -109,6 +109,8 @@ $(1)  : ${htsjdk.jars} \
 	echo -n "java=" >> "${tmp.dir}/META-INF/jdk.properties"
 	which ${JAVA} >> "${tmp.dir}/META-INF/jdk.properties"
 	echo "classpath=$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))" >> "${tmp.dir}/META-INF/jdk.properties"
+	echo -n "self=" >> "${tmp.dir}/META-INF/jdk.properties"
+	echo "${dist.dir}/$(1)$(if ${standalone},-fat).jar" >> "${tmp.dir}/META-INF/jdk.properties"
 	#compile
 	${JAVAC} \
 		-J-Djvarkit.libs.jars='$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))' \

@@ -48,7 +48,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
-import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
+import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -678,7 +678,7 @@ public class VcfFilterJdk
 					
 					if(!this.hideGeneratedCode)
 						{
-						LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
+						LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
 						}
 					
 					if(this.saveCodeInDir!=null)
@@ -704,8 +704,8 @@ public class VcfFilterJdk
 							}
 						}
 					
-					final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
-					final Class<?> compiledClass = inMemoryCompiler.compileClass(
+					final OpenJdkCompiler compiler = OpenJdkCompiler.getInstance();
+					final Class<?> compiledClass = compiler.compileClass(
 							javaClassName,
 							codeWriter.toString()
 							);

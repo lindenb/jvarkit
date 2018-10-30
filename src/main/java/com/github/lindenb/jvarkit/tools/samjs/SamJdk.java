@@ -41,8 +41,8 @@ import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -470,6 +470,7 @@ public class SamJdk
 		if(failingReadsWriter!=null) failingReadsWriter.addAlignment(rec);
 		}
 	
+		
 	@Override
 	public int doWork(final List<String> args) {
 		SAMRecordIterator iter=null;
@@ -535,7 +536,7 @@ public class SamJdk
 			
 			if(!hideGeneratedCode)
 				{
-				LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
+				LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
 				}
 			
 			if(this.saveCodeInDir!=null)
@@ -561,12 +562,10 @@ public class SamJdk
 					CloserUtil.close(cw);
 					}
 				}
+			final OpenJdkCompiler compiler = OpenJdkCompiler.getInstance();
 			
-			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
-			final Class<?> compiledClass = inMemoryCompiler.compileClass(
-					javaClassName,
-					codeWriter.toString()
-					);
+			final Class<?> compiledClass = compiler.compileClass(javaClassName,codeWriter.toString());
+			
 			final Constructor<?> ctor=compiledClass.getDeclaredConstructor(SAMFileHeader.class);
 			
 			
