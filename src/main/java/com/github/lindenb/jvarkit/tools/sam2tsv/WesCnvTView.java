@@ -205,7 +205,9 @@ https://twitter.com/yokofakun/status/1053204927202369536
 
 ![https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg](https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg)
 
+https://twitter.com/yokofakun/status/1057627022665502721
 
+![https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg](https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg)
 
 END_DOC
  */
@@ -806,7 +808,7 @@ public class WesCnvTView  extends Launcher {
 				{
 				case VCF:
 					{
-					final Predicate<VariantContext> acceptVariant = V->V.hasAttribute(VCFConstants.SVTYPE) && V.hasAttribute("SVLEN") && V.getEnd()-V.getStart()>1;
+					final Predicate<VariantContext> acceptVariant = V->V.hasAttribute(VCFConstants.SVTYPE) && (V.hasAttribute("SVLEN") || V.hasAttribute("SVMETHOD")/* DELLY2 */) && V.getEnd()-V.getStart()>1;
 					final Function<VariantContext,Interval> mapper = V->new Interval(V.getContig(),V.getStart(),V.getEnd());
 					if(inputs.isEmpty())
 						{
