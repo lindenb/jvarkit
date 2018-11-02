@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -713,6 +713,9 @@ public class VcfToTable extends Launcher {
 		private boolean hidePredictions=false;
 		@Parameter(names={"--hideGTypes"},description="[20180221] hide Genotype.Type table")
 		private boolean hideGTypes=false;
+		@Parameter(names={"--hideHyperlinks"},description="[20191102] hide Hyperlinks table.")
+		private boolean hideHyperlinks=false;
+
 		@Parameter(names={"--format"},description="[20171020] output format.")
 		private OutputFormat outputFormat=OutputFormat.text;
 		@Parameter(names={"--no-html-header"},description="[20171023] ignore html header for HTML output.")
@@ -1025,6 +1028,46 @@ public class VcfToTable extends Launcher {
 					t.addRow(getOwner().useANSIColors?new ColoredDecorator(f, AnsiColor.RED):f);
 				 	}
 				 this.writeTable(margin, t);
+				}
+			
+			if(!getOwner().hideHyperlinks)
+				{
+				final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
+				if(vc.hasID() && vc.getID().matches("rs[0-9]+"))
+					{
+					t.addRow("dbSNP","https://www.ncbi.nlm.nih.gov/snp/"+vc.getID());
+					t.addRow("clinvar","https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D");
+					}
+				
+				for(final Allele alt: vc.getAlternateAlleles())
+					{
+					if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+					t.addRow("Gnomad","http://gnomad.broadinstitute.org/variant/"+
+						(
+						vc.getContig().startsWith("chr")?
+						vc.getContig().substring(3):
+						vc.getContig()
+						) +
+						"-"+vc.getStart()+
+						"-"+
+						vc.getReference().getDisplayString()+
+						"-"+
+						alt.getDisplayString()
+						);
+					}
+				for(final String build: new String[] {"hg19","hg38"}) {
+					t.addRow(build,"http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
+						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
+						"%3A"+vc.getStart() +"-"+vc.getEnd() + "&position=" +
+						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
+						"%3A"+ Math.max(1,vc.getStart()-50) +"-"+(vc.getEnd()+50)
+						);
+					}
+				t.addRow("clinvar 37","https://www.ncbi.nlm.nih.gov/clinvar/?term="+
+						( vc.getContig().startsWith("chr")? vc.getContig().substring(3): vc.getContig()) +
+						"%5Bchr%5D+AND+"+ vc.getStart()+"%3A"+vc.getEnd()+"%5Bchrpos37%5D"
+						);
+				this.writeTable(margin, t);
 				}
 			
 			if(!getOwner().hideInfo)

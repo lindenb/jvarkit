@@ -37,6 +37,9 @@ Usage: vcf2table [options] Files
     -hr, --hideHomRefs
       Hide HOM_REF genotypes
       Default: false
+    --hideHyperlinks
+      [20191102] hide Hyperlinks table.
+      Default: false
     --hideInfo
       [20170808] hide INFO table.
       Default: false
