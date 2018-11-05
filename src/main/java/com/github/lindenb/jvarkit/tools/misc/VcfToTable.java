@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPr
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -376,8 +377,15 @@ public class VcfToTable extends Launcher {
 				{
 				return "https://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&GO=MainBrowse&DATA="+str;
 				}
+			else if(IOUtil.isUrl(str))
+				{
+				return str;
+				}
 			return null;
 			}
+		
+		
+		
 		@Override
 		void beginXml(final XMLStreamWriter w) throws XMLStreamException {
 			final String u = this.getURL();
@@ -1042,7 +1050,7 @@ public class VcfToTable extends Launcher {
 				for(final Allele alt: vc.getAlternateAlleles())
 					{
 					if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
-					t.addRow("Gnomad","http://gnomad.broadinstitute.org/variant/"+
+					t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
 						(
 						vc.getContig().startsWith("chr")?
 						vc.getContig().substring(3):
@@ -1053,20 +1061,20 @@ public class VcfToTable extends Launcher {
 						vc.getReference().getDisplayString()+
 						"-"+
 						alt.getDisplayString()
-						);
+						));
 					}
 				for(final String build: new String[] {"hg19","hg38"}) {
-					t.addRow(build,"http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
+					t.addRow(build,new HyperlinkDecorator("http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
 						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
 						"%3A"+vc.getStart() +"-"+vc.getEnd() + "&position=" +
 						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
 						"%3A"+ Math.max(1,vc.getStart()-50) +"-"+(vc.getEnd()+50)
-						);
+						));
 					}
-				t.addRow("clinvar 37","https://www.ncbi.nlm.nih.gov/clinvar/?term="+
+				t.addRow("clinvar 37",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar/?term="+
 						( vc.getContig().startsWith("chr")? vc.getContig().substring(3): vc.getContig()) +
 						"%5Bchr%5D+AND+"+ vc.getStart()+"%3A"+vc.getEnd()+"%5Bchrpos37%5D"
-						);
+						));
 				this.writeTable(margin, t);
 				}
 			
