@@ -97,7 +97,7 @@ public class VCFAnnoBam extends Launcher {
 	private File outputFile = null;
     @Parameter(names= {"-BED","--bed"}, description="BED File Exome capture.",required=true)
 	private File BEDILE=null;
-	@Parameter(names= {"-BAM","--bam"}, description="indexed BAM File.")		
+	@Parameter(names= {"-BAM","--bam"}, description="Indexed BAM File. One file ending with the '.list' suffix will be interpreted as a text file containing the path to the bams.")		
 	private List<File> BAMFILE=null;
 	@Parameter(names={"-filter","--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
@@ -231,11 +231,19 @@ public class VCFAnnoBam extends Launcher {
     @Override
     protected int doVcfToVcf(final String inputName, final VcfIterator r,final  VariantContextWriter w) {
 		BufferedReader bedIn=null;
-		List<SamReader> samReaders=new ArrayList<SamReader>();
-		IntervalTreeMap<Rgn> capture=new IntervalTreeMap<Rgn>();
+		final List<SamReader> samReaders=new ArrayList<SamReader>();
+		final IntervalTreeMap<Rgn> capture=new IntervalTreeMap<Rgn>();
 		try
 			{
 			SAMFileHeader firstHeader=null;
+			
+			if(this.BAMFILE.size()==1 && this.BAMFILE.get(0).getName().endsWith(".list"))
+				{
+				final File first = this.BAMFILE.get(0);
+				this.BAMFILE.clear();
+				this.BAMFILE.addAll(IOUtils.unrollFile(first));
+				}
+			
 			for(final  File samFile:new HashSet<File>(BAMFILE))
 				{
 				LOG.info("open bam "+samFile);

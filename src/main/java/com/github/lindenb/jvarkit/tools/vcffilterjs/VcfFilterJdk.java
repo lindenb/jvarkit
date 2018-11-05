@@ -403,7 +403,9 @@ END_DOC
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
 		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,
-				304979,310155,317388,319148,327035,337645,343569},
+				304979,310155,317388,319148,327035,337645,343569,
+				347173
+				},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk

@@ -1148,7 +1148,7 @@ public class VcfToTable extends Launcher {
 				if(!getOwner().hidePredictions && this.vcfTools.getAnnPredictionParser().isValid())
 					{
 					Table t = new Table("SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",
-							"BioType","HGVsc","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
+							"BioType","HGVsc","HGVsp","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
 					
 					for(final AnnPrediction P: this.vcfTools.getAnnPredictionParser().getPredictions(vc)) {
 						final List<Object> r=new ArrayList<>();
@@ -1165,6 +1165,7 @@ public class VcfToTable extends Launcher {
 						r.add(new GenelinkDecorator(P.getFeatureId()));
 						r.add(P.getTranscriptBioType());
 						r.add(P.getHGVSc());
+						r.add(P.getHGVSp());
 						r.add(P.getRank());
 						r.add(P.getCDNAPos());
 						r.add(P.getCDSPos());
