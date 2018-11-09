@@ -63,6 +63,7 @@ Usage: bamstats04 [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/309673](https://www.biostars.org/p/309673)
+ * [https://www.biostars.org/p/348251](https://www.biostars.org/p/348251)
 
 
 ## Compilation

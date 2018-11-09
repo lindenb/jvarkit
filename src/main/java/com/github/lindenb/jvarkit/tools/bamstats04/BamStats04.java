@@ -98,7 +98,7 @@ END_DOC
 @Program(name="bamstats04",
 	description="Coverage statistics for a BED file.",
 	keywords={"sam","bam","coverage","depth","statistics","bed"},
-	biostars= {309673}
+	biostars= {309673,348251}
 	)
 public class BamStats04 extends Launcher
 	{
