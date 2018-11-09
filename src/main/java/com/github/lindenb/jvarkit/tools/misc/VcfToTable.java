@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -1044,12 +1045,16 @@ public class VcfToTable extends Launcher {
 				final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
 				if(vc.hasID() && vc.getID().matches("rs[0-9]+"))
 					{
-					t.addRow("dbSNP","https://www.ncbi.nlm.nih.gov/snp/"+vc.getID());
+					t.addRow("dbSNP",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/snp/"+vc.getID()));
 					if(SequenceDictionaryUtils.isHuman(header)) {
-						t.addRow("clinvar","https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D");
+						t.addRow("clinvar",
+								new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D"));
 						}
 					}
-				
+				t.addRow("IGV",new HyperlinkDecorator("https://"+ IgvConstants.DEFAULT_HOST +":"+IgvConstants.DEFAULT_PORT+"/goto?locus="+
+						vc.getContig()+"%3A"+vc.getStart() +"-"+vc.getEnd()
+						));
+			
 				
 				for(final String build: new String[] {"hg19","hg38"}) {
 					if(build.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(header)) continue;
