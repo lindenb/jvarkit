@@ -589,6 +589,7 @@ $(eval $(call compile-htsjdk-cmd,faidxsplitter,${jvarkit.package}.tools.misc.Fai
 $(eval $(call compile-htsjdk-cmd,vcfclusteredreadedge,${jvarkit.package}.tools.misc.VcfClusteredReadEdge,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfgapfrequent,${jvarkit.package}.tools.structvar.VcfGapFrequent,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,mergecnvnator,${jvarkit.package}.tools.structvar.MergeCnvNator,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,mergesv,${jvarkit.package}.tools.structvar.MergeStructuralVariants,${jcommander.jar}))
 
 
 $(eval $(call compile-htsjdk-cmd,vcfburdengoenrichment,${jvarkit.package}.tools.burden.VcfBurdenGoEnrichment,${jcommander.jar}))

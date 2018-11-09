@@ -50,6 +50,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -1044,37 +1045,52 @@ public class VcfToTable extends Launcher {
 				if(vc.hasID() && vc.getID().matches("rs[0-9]+"))
 					{
 					t.addRow("dbSNP","https://www.ncbi.nlm.nih.gov/snp/"+vc.getID());
-					t.addRow("clinvar","https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D");
+					if(SequenceDictionaryUtils.isHuman(header)) {
+						t.addRow("clinvar","https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D");
+						}
 					}
 				
-				for(final Allele alt: vc.getAlternateAlleles())
-					{
-					if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
-					t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
-						(
-						vc.getContig().startsWith("chr")?
-						vc.getContig().substring(3):
-						vc.getContig()
-						) +
-						"-"+vc.getStart()+
-						"-"+
-						vc.getReference().getDisplayString()+
-						"-"+
-						alt.getDisplayString()
-						));
-					}
+				
 				for(final String build: new String[] {"hg19","hg38"}) {
-					t.addRow(build,new HyperlinkDecorator("http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
+					if(build.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(header)) continue;
+					if(build.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(header)) continue;
+					
+					t.addRow("UCSC "+build,new HyperlinkDecorator("http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
 						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
 						"%3A"+vc.getStart() +"-"+vc.getEnd() + "&position=" +
 						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
 						"%3A"+ Math.max(1,vc.getStart()-50) +"-"+(vc.getEnd()+50)
 						));
 					}
-				t.addRow("clinvar 37",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar/?term="+
-						( vc.getContig().startsWith("chr")? vc.getContig().substring(3): vc.getContig()) +
-						"%5Bchr%5D+AND+"+ vc.getStart()+"%3A"+vc.getEnd()+"%5Bchrpos37%5D"
-						));
+				if(SequenceDictionaryUtils.isGRCh37(header)) {
+					
+					for(final Allele alt: vc.getAlternateAlleles())
+						{
+						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
+							(
+							vc.getContig().startsWith("chr")?
+							vc.getContig().substring(3):
+							vc.getContig()
+							) +
+							"-"+vc.getStart()+
+							"-"+
+							vc.getReference().getDisplayString()+
+							"-"+
+							alt.getDisplayString()
+							));
+						}
+					
+					t.addRow("clinvar 37",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar/?term="+
+							( vc.getContig().startsWith("chr")? vc.getContig().substring(3): vc.getContig()) +
+							"%5Bchr%5D+AND+"+ vc.getStart()+"%3A"+vc.getEnd()+"%5Bchrpos37%5D"
+							));
+					if(vc.getStart()!=vc.getEnd()) {
+						t.addRow("decipher",new HyperlinkDecorator("https://decipher.sanger.ac.uk/search?q="+
+								vc.getContig() + 
+								"%3A"+vc.getStart()+"-"+vc.getEnd()));
+						}
+					}
 				this.writeTable(margin, t);
 				}
 			
