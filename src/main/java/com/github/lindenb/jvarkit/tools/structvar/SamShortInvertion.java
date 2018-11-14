@@ -161,6 +161,9 @@ public class SamShortInvertion extends Launcher
 					stream().
 					flatMap(L->L.stream()).
 					filter(A->!A.consummed).
+					filter(A->
+						Math.abs(interval0.getStart()-A.chromStart) <= this.extentd &&
+						Math.abs(interval0.getEnd()-A.chromEnd) <= this.extentd).
 					collect(Collectors.toList());
 			
 			if(arcs.isEmpty()) continue;
