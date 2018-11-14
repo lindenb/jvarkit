@@ -1,5 +1,7 @@
 # SamShortInvertion
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Scan short inversions in SAM
 
 
@@ -8,6 +10,11 @@ Scan short inversions in SAM
 ```
 Usage: samshortinvert [options] Files
   Options:
+    -B, --bed
+      limit to that bed file
+    -x, --extend
+      extends interval by 'x' pb before merging.
+      Default: 10
     -h, --help
       print help and exit
     --helpFormat
@@ -15,26 +22,42 @@ Usage: samshortinvert [options] Files
       Possible Values: [usage, markdown, xml]
     -m, --maxsize
       max size of inversion
-      Default: 2000
-    -c, --mincov
-      min coverage
-      Default: 10
+      Default: 10000
     -o, --output
       Output file. Optional . Default: stdout
+    -partition, --partition
+      Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    -r, --rgn
+      limit to that region CHROM:START-END
     --version
       print version and exit
+    -s, -supporting
+      Don't print the variant if INFO/DP <= 's'
+      Default: 1
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * sv
+ * inversion
+
 
 ## Compilation
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -65,26 +88,6 @@ http.proxy.port=124567
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java)
 
 
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Mon May 22 05:26:37 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1f1851299859a590e5807bca21e0b46e602568c2
-Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
-Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
-Tue Aug 2 17:12:59 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f9842fcf255e7b7f3468ca5e2abf947f9c8dd9e3
-Thu Dec 10 12:31:38 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/2242c107247d288754dfb47b373e3ebbd9da07f6
-Fri May 23 15:32:54 2014 +0200 ; continue move to htsjdk ; https://github.com/lindenb/jvarkit/commit/b5a8a3bce5ecd952abffb7aae6223d1e03a9809e
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Tue Mar 11 17:29:11 2014 +0100 ; kg2bed  bedliftover etc... ; https://github.com/lindenb/jvarkit/commit/71c0a6b173a9417b3c9ac3bc6ccd612efdf0fdb0
-Mon Mar 10 13:23:56 2014 +0100 ; SAM specification changed; supplementary align now defined as 'SA' ; https://github.com/lindenb/jvarkit/commit/0abcdb58cb641efc661a32a6fa5a36e150457dee
-Fri Feb 28 17:50:32 2014 +0100 ; scan clipped rgn ; https://github.com/lindenb/jvarkit/commit/e7f8693e7b4736384ddccd469c7af677bb1f0491
-```
-
-</details>
-
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -104,5 +107,19 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Motivation
+
+finds the regions having some short inversions.
+
+input is a set of BAM files. One file ending with '.list' is interpreted as a file containing some path to the bams.
+
+output is a VCF file
+
+## Example:
+
+```
+```
 
 

@@ -223,8 +223,7 @@ public class ConcatSam extends Launcher
 				queryIntervals.add(new QueryInterval(referenceIndex, i.getStart(), i.getEnd()));
 				}
 			Collections.sort(queryIntervals);
-			
-			return queryIntervals.toArray(QueryInterval.optimizeIntervals(new QueryInterval[queryIntervals.size()]));
+			return queryIntervals.toArray(QueryInterval.optimizeIntervals(queryIntervals.toArray(new QueryInterval[queryIntervals.size()])));
 			}
 
 		

@@ -28,6 +28,7 @@ import java.io.File;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
@@ -76,6 +77,17 @@ public static boolean isHuman(final VCFHeader h) {
 /** test if dict looks like a human dict  */
 public static boolean isHuman(final SAMSequenceDictionary dict) {
 	return isGRCh37(dict) || isGRCh38(dict);
+	}
+
+/** extract required SAMSequenceDictionary */
+public static SAMSequenceDictionary extractRequired(final SAMFileHeader h) {
+	if(h==null) throw new IllegalArgumentException("Cannot extract dictionary because SAM header was not provided.");
+	final SAMSequenceDictionary dict = h.getSequenceDictionary();
+	if(dict==null || dict.isEmpty()) 
+		{
+		throw new JvarkitException.BamDictionaryMissing("<bam>");
+		}
+	return dict;
 	}
 
 /** extract required SAMSequenceDictionary */
