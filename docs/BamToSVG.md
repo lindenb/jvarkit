@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-BAM to raster graphics
+BAM to Scalar Vector Graphics (SVG)
 
 
 ## Usage

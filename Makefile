@@ -289,6 +289,7 @@ $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToF
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,lowresbam2raster,${jvarkit.package}.tools.bam2graphics.LowResBam2Raster,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,sv2svg,${jvarkit.package}.tools.bam2svg.SvToSVG,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samaddpi,${jvarkit.package}.tools.misc.SamAddPI,${jcommander.jar}))
