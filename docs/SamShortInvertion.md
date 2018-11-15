@@ -14,7 +14,7 @@ Usage: samshortinvert [options] Files
       limit to that bed file
     -x, --extend
       extends interval by 'x' pb before merging.
-      Default: 10
+      Default: 50
     -h, --help
       print help and exit
     --helpFormat

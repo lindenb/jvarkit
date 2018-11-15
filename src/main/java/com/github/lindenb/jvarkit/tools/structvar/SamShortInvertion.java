@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.ToIntBiFunction;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -52,8 +53,10 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTagUtil;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -109,9 +112,11 @@ public class SamShortInvertion extends Launcher
 	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
-	private int extentd=10;
+	private int extend=50;
 	@Parameter(names={"-s","-supporting"},description="Don't print the variant if INFO/DP <= 's'")
 	private int min_supporting_reads = 1;
+	@Parameter(names={"--debug"},description="Debug",hidden=true)
+	private boolean debug = false;
 
 	private static class Arc
 		{
@@ -121,6 +126,11 @@ public class SamShortInvertion extends Launcher
 		int chromEnd;
 		boolean consummed=false;
 		byte type;
+		
+		int length() {
+			return chromEnd-chromStart+1;
+		}
+		
 		@Override
 		public String toString() {
 			return "("+tid+"):"+chromStart+"-"+chromEnd +" type="+(int)type;
@@ -135,15 +145,16 @@ public class SamShortInvertion extends Launcher
 			final VariantContextWriter vcw,
 			final Set<String> samples,
 			final Integer before
-			) { 
+			) {
+		if(this.debug) LOG.debug("dump");
 		final Allele REF = Allele.create("N", true);
 		final Allele SPLIT = Allele.create("<INV>", false);
 		final ContigDictComparator ctgCmp  = new ContigDictComparator(dict);
 		final List<Interval> intervals  = database.keySet().stream().
 				map(R-> new Interval(
 					R.getContig(),
-					Math.max(1,R.getStart() - this.extentd),
-					R.getEnd() + this.extentd
+					Math.max(1,R.getStart() - this.extend),
+					R.getEnd() + this.extend
 					)).
 				filter(R->(before==null?true:R.getEnd() < before.intValue())).
 				sorted((A,B)->{
@@ -156,20 +167,20 @@ public class SamShortInvertion extends Launcher
 				collect(Collectors.toList());
 		
 		for(final Interval interval0:intervals) {
-		
+			
 			final List<Arc> arcs = database.getOverlapping(interval0).
 					stream().
 					flatMap(L->L.stream()).
 					filter(A->!A.consummed).
 					filter(A->
-						Math.abs(interval0.getStart()-A.chromStart) <= this.extentd &&
-						Math.abs(interval0.getEnd()-A.chromEnd) <= this.extentd).
+						Math.abs(interval0.getStart()-A.chromStart) <= this.extend &&
+						Math.abs(interval0.getEnd()-A.chromEnd) <= this.extend).
 					collect(Collectors.toList());
 			
 			if(arcs.isEmpty()) continue;
 			arcs.forEach(A->A.consummed=true);
 			
-			
+			int maxdp = 0;
 			final VariantContextBuilder vcb = new VariantContextBuilder();
 			final Set<Allele> alleles = new HashSet<>();
 			alleles.add(REF);
@@ -205,6 +216,8 @@ public class SamShortInvertion extends Launcher
 					gb.attribute("N5", countCat1);
 					gb.attribute("N3", countCat2);
 					
+					maxdp = Math.max(maxdp, countCat1+countCat2);
+					
 					depth+=countCat1+countCat2;
 					genotypes.add(gb.make());
 					++nsamples;
@@ -217,6 +230,7 @@ public class SamShortInvertion extends Launcher
 			vcb.attribute(VCFConstants.DEPTH_KEY, depth);
 			vcb.attribute("NSAMPLES", nsamples);
 			vcb.attribute(VCFConstants.SVTYPE, "INV");
+			vcb.attribute("DPMAX", maxdp);
 			vcw.add(vcb.make());
 			}
 		
@@ -225,6 +239,10 @@ public class SamShortInvertion extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.max_size_inversion<100) {
+			LOG.error("max size insersion must be >=100");
+			return -1;
+		}
 	 	ConcatSam.ConcatSamIterator iter = null;
 	 	VariantContextWriter vcw= null;
 	 	final  IntervalTreeMap<List<Arc>> database = new IntervalTreeMap<>(); 
@@ -257,7 +275,16 @@ public class SamShortInvertion extends Launcher
 				return -1;
 				}
 			
-			
+			final ToIntBiFunction<Locatable, Locatable> distance = (A,B) ->{
+				if(CoordMath.overlaps(A.getStart(), A.getEnd(), B.getStart(), B.getEnd())) return 0;
+				if(A.getEnd()<B.getStart()) {
+					return B.getStart() - A.getEnd();
+					}
+				else
+					{
+					return A.getStart() - B.getEnd();
+					}
+				};
 		
 			
 			final Set<VCFHeaderLine> meta=new HashSet<>();
@@ -274,6 +301,7 @@ public class SamShortInvertion extends Launcher
 			meta.add(new VCFFormatHeaderLine("N3", 1, VCFHeaderLineType.Integer,"Number of validating clipped reads in 3'"));
 			meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
 			meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of sample having some split reads"));
+			meta.add(new VCFInfoHeaderLine("DPMAX", 1, VCFHeaderLineType.Integer,"MAX DP among samples"));
 			meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
 			
 			
@@ -313,6 +341,7 @@ public class SamShortInvertion extends Launcher
 						stream().
 						filter(R->rec.getContig().equals(R.getContig())).
 						filter(R->rec.getReadNegativeStrandFlag()!=R.getReadNegativeStrandFlag()).
+						filter(R->distance.applyAsInt(rec,R)< this.max_size_inversion).
 						collect(Collectors.toList());
 				
 				if(others.isEmpty()) continue;
@@ -343,14 +372,15 @@ public class SamShortInvertion extends Launcher
 				if(cigar.isLeftClipped())
 					{
 					for(final SAMRecord rec2:others) {
-						if(rec.getEnd()>= rec2.getStart()) continue;
-						final int dist =rec2.getEnd() - rec.getStart();
-						if(dist> this.max_size_inversion) continue;
+						// NON if(rec.getEnd()>= rec2.getStart()) continue;
 						final Arc arc = new Arc();
 						arc.sample  = sample;
 						arc.tid = rec.getReferenceIndex();
-						arc.chromStart = rec.getStart();
-						arc.chromEnd = rec2.getEnd();
+						arc.chromStart = Math.min(rec.getStart(),rec2.getStart());
+						arc.chromEnd = Math.max(rec.getEnd(),rec2.getEnd());
+						if(arc.length()> this.max_size_inversion) continue;
+
+						
 						arc.type = SUPPORTING_LEFT;
 						registerArc.accept(arc);
 						}
@@ -360,14 +390,13 @@ public class SamShortInvertion extends Launcher
 				if(cigar.isRightClipped())
 					{
 					for(final SAMRecord rec2:others) {
-						if(rec2.getEnd()>= rec.getStart()) continue;
-						final int dist =rec.getEnd() - rec2.getStart();
-						if(dist> this.max_size_inversion) continue;
 						final Arc arc = new Arc();
 						arc.sample  = sample;
 						arc.tid = rec.getReferenceIndex();
-						arc.chromStart = rec2.getStart();
-						arc.chromEnd = rec.getEnd();
+						arc.chromStart = Math.min(rec.getStart(),rec2.getStart());
+						arc.chromEnd = Math.max(rec.getEnd(),rec2.getEnd());
+						if(arc.length()> this.max_size_inversion) continue;
+						
 						arc.type = SUPPORTING_RIGHT;
 						registerArc.accept(arc);
 						}
