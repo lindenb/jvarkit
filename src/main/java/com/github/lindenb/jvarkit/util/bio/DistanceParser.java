@@ -27,14 +27,35 @@ package com.github.lindenb.jvarkit.util.bio;
 import java.math.BigInteger;
 import java.util.function.ToIntFunction;
 
+import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.ParameterException;
+
+
 public class DistanceParser implements ToIntFunction<String> {
+	public static final String OPT_DESCRIPTION =
+			"A distance specified as a positive integer."
+			+ "Comma are removed. "
+			+ "The following suffixes are interpreted : b,bp,k,kb,m,mb";
+
 	
+	public static class StringConverter
+		implements IStringConverter<Integer>
+		{
+		@Override
+		public Integer convert(final String distStr) {
+			try {
+				final DistanceParser parser = new DistanceParser();
+			      return parser.applyAsInt(distStr);
+			    } catch(final Exception ex) {
+			      throw new ParameterException("Bad distance \""+distStr+"\"",ex);
+			    }
+			}
+		}
 	
 	private BigInteger _parseBigInteger( String s)
 		{
 		BigInteger factor = BigInteger.ONE;
 		s=s.replace(",", "");
-		
 		
 		 if(s.endsWith("bp"))
 			{
@@ -43,12 +64,12 @@ public class DistanceParser implements ToIntFunction<String> {
 		else if(s.toLowerCase().endsWith("kb"))
 			{
 			s=s.substring(0, s.length()-2).trim();
-			factor = new BigInteger("1000");
+			factor = BigInteger.valueOf(1_000L);
 			}
 		else if(s.toLowerCase().endsWith("mb"))
 			{
 			s=s.substring(0, s.length()-2).trim();
-			factor = new BigInteger("1000000");
+			factor = BigInteger.valueOf(1_000_000L);
 			}
 		else if(s.endsWith("b"))
 			{
@@ -57,12 +78,12 @@ public class DistanceParser implements ToIntFunction<String> {
 		else if(s.endsWith("k"))
 			{
 			s=s.substring(0, s.length()-1).trim();
-			factor = new BigInteger("1000");
+			factor = BigInteger.valueOf(1_000L);
 			}
 		else if(s.endsWith("m"))
 			{
 			s=s.substring(0, s.length()-1).trim();
-			factor = new BigInteger("1000000");
+			factor = BigInteger.valueOf(1_000_000L);
 			}
 		final BigInteger vbi = new BigInteger(String.valueOf(s)).multiply(factor);
 		

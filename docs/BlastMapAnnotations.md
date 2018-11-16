@@ -1,5 +1,7 @@
 # BlastMapAnnotations
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Maps uniprot/genbank annotations on a blast result.
 
 
@@ -42,11 +44,10 @@ Usage: blastmapannots [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -76,22 +77,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blastmapannots/BlastMapAnnotations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blastmapannots/BlastMapAnnotations.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Tue Apr 18 17:44:13 2017 +0200 ; javacc + samfilter ; https://github.com/lindenb/jvarkit/commit/695e7cb606ba96feeeabbd2a359aacd38cf36ae0
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Fri Jul 12 11:26:27 2013 +0200 ; vcf view in gui ; https://github.com/lindenb/jvarkit/commit/b287af69d3b9bfd3a8866231aeedc5b491d314d4
-Wed Jul 10 14:11:22 2013 +0200 ; fixed error in blast-map annot / genbank ; https://github.com/lindenb/jvarkit/commit/d12459b96f62d53b35263a40334938bf8000f04d
-Wed Jul 10 12:34:59 2013 +0200 ; build.dtd and  fixed error in blast-map-annot ; https://github.com/lindenb/jvarkit/commit/f1b5f928840df4c894fdf8a236e4dfabf064db2c
-Tue Jul 9 22:32:27 2013 +0200 ; map blast annotations ; https://github.com/lindenb/jvarkit/commit/daf4fc237904ef2cf68f6588b93d5aded76905c5
-```
-
-</details>
 
 ## Contribute
 
