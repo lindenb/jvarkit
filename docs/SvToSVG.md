@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-BAM to raster graphics
+BAM to SVG. Used to display the structural variations.
 
 
 ## Usage
@@ -120,5 +120,10 @@ $ java -jar dist/svg2svg.jar jeter.bam > jeter.svg
 
 ![https://imgur.com/EVOrXuc](https://i.imgur.com/EVOrXuc.gif)
 
+[https://twitter.com/yokofakun/status/1063511215832539136](https://twitter.com/yokofakun/status/1063511215832539136)
+
+![https://pbs.twimg.com/media/DsJZKRrWsAE_QqA.jpg](https://pbs.twimg.com/media/DsJZKRrWsAE_QqA.jpg)
+
+[https://gist.github.com/lindenb/877d1d00d9f19c618f2d8505a2fe5614](https://gist.github.com/lindenb/877d1d00d9f19c618f2d8505a2fe5614)
 
 

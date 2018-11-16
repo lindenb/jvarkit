@@ -96,11 +96,16 @@ $ java -jar dist/svg2svg.jar jeter.bam > jeter.svg
 
 ![https://imgur.com/EVOrXuc](https://i.imgur.com/EVOrXuc.gif)
 
+[https://twitter.com/yokofakun/status/1063511215832539136](https://twitter.com/yokofakun/status/1063511215832539136)
+
+![https://pbs.twimg.com/media/DsJZKRrWsAE_QqA.jpg](https://pbs.twimg.com/media/DsJZKRrWsAE_QqA.jpg)
+
+[https://gist.github.com/lindenb/877d1d00d9f19c618f2d8505a2fe5614](https://gist.github.com/lindenb/877d1d00d9f19c618f2d8505a2fe5614)
 
 END_DOC
  */
 @Program(name="sv2svg",
-description="BAM to raster graphics",
+description="BAM to SVG. Used to display the structural variations.",
 keywords={"bam","alignment","graphics","visualization","svg"}
 )
 public class SvToSVG extends Launcher
