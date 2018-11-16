@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -85,6 +86,8 @@ public class MergeStructuralVariants extends Launcher{
 	private File outputFile=null;
 	@Parameter(names={"-d","--distance"},description="two intervals are the same if their bounds are distant by less than xxx bases")
 	private int max_distance = 100;
+	@Parameter(names={"-m","--max-length"},description="ignore variant longer than 'x' bases. Ignore this parameter if 'x' <=0 ")
+	private int max_variant_length = -1;
 	
 	private final Allele REF_ALLELE = Allele.create("N", true);
 
@@ -208,6 +211,7 @@ public class MergeStructuralVariants extends Launcher{
 				final String sample = header.getGenotypeSamples().get(0);
 				vcfFileReader.iterator().stream().
 					filter(V->V.getStructuralVariantType()!=null).
+					filter(V->this.max_variant_length<=0 || (V.getEnd()-V.getStart()+1)<=this.max_variant_length).
 					map(V->new CnvCall(V)).
 					forEach(V->{
 						final Interval key = new Interval(V.getContig(), V.getStart(), V.getEnd());
@@ -251,6 +255,18 @@ public class MergeStructuralVariants extends Launcher{
 					VCFHeaderLineType.String,
 					"Samples carrying the SV"
 					));
+			metadata.add(new VCFInfoHeaderLine("NSAMPLES",
+					1,
+					VCFHeaderLineType.Integer,
+					"Number of Samples carrying the SV"
+					));
+			
+			metadata.add(new VCFInfoHeaderLine("SVLEN",
+					1,
+					VCFHeaderLineType.Integer,
+					"SV length"
+					));
+			
 			metadata.add(new VCFFormatHeaderLine(
 					"OV",1,
 					VCFHeaderLineType.Integer,
@@ -262,6 +278,7 @@ public class MergeStructuralVariants extends Launcher{
 					all_samples
 					);
 			header.setSequenceDictionary(dict);
+			JVarkitVersion.getInstance().addMetaData(this, header);
 			
 			out =  super.openVariantContextWriter(this.outputFile);
 			out.writeHeader(header);
@@ -302,6 +319,7 @@ public class MergeStructuralVariants extends Launcher{
 				vcb.stop(baseCall.getEnd());
 				vcb.attribute(VCFConstants.END_KEY, baseCall.getEnd());
 				vcb.attribute(VCFConstants.SVTYPE, baseCall.getType().name());
+				vcb.attribute("SVLEN", (1+baseCall.getEnd()-baseCall.getStart()));
 				
 				
 				
@@ -334,6 +352,7 @@ public class MergeStructuralVariants extends Launcher{
 					
 					}
 				vcb.attribute("SAMPLES",new ArrayList<>(sample2gt.keySet()));
+				vcb.attribute("NSAMPLES",sample2gt.size());
 				vcb.genotypes(sample2gt.values());
 				alleles.remove(Allele.NO_CALL);
 				vcb.alleles(alleles);
