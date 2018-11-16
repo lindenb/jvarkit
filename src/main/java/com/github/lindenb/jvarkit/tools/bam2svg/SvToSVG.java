@@ -86,12 +86,16 @@ $ java -jar dist/svg2svg.jar jeter.bam > jeter.svg
 
 ## Gallery
 
- * [https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb](https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb)
- * https://twitter.com/yokofakun/status/1063369955406725120
+[https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb](https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb)
+
+[https://twitter.com/yokofakun/status/1063369955406725120](https://twitter.com/yokofakun/status/1063369955406725120)
+
+![https://imgur.com/EVOrXuc](https://i.imgur.com/EVOrXuc.gif)
+
 
 END_DOC
  */
-@Program(name="bam2svg",
+@Program(name="sv2svg",
 description="BAM to raster graphics",
 keywords={"bam","alignment","graphics","visualization","svg"}
 )
