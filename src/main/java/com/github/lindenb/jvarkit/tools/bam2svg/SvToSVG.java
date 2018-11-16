@@ -80,26 +80,20 @@ BEGIN_DOC
 ## Example
 
 ```bash
+$ samtools view -b "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/NA20845/high_coverage_alignment/NA20845.wgs.ILLUMINA.bwa.GIH.high_cov_pcr_free.20140203.bam" "7:8352157-8356597" > jeter.bam && samtools index jeter.bam
+$ java -jar dist/svg2svg.jar jeter.bam > jeter.svg
 ```
 
 ## Gallery
 
-https://twitter.com/yokofakun/status/523031098541232128
-
-![bam2svg](https://pbs.twimg.com/media/B0IuAw2IgAAYfNM.jpg)
-
-https://twitter.com/yokofakun/status/522415314425090048
-
-![bam2svg-2](https://pbs.twimg.com/media/Bz_99ayIMAAK57s.jpg)
-
-
+ * [https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb](https://gist.github.com/lindenb/bf48989b8da31eeafdc2caa0694361eb)
+ * https://twitter.com/yokofakun/status/1063369955406725120
 
 END_DOC
  */
 @Program(name="bam2svg",
 description="BAM to raster graphics",
-keywords={"bam","alignment","graphics","visualization","svg"},
-generate_doc=false
+keywords={"bam","alignment","graphics","visualization","svg"}
 )
 public class SvToSVG extends Launcher
 	{
