@@ -1094,6 +1094,14 @@ public class VcfToTable extends Launcher {
 						t.addRow("decipher",new HyperlinkDecorator("https://decipher.sanger.ac.uk/search?q="+
 								vc.getContig() + 
 								"%3A"+vc.getStart()+"-"+vc.getEnd()));
+						
+						String build="";
+						if(SequenceDictionaryUtils.isGRCh37(header)) build="hg19";
+						if(SequenceDictionaryUtils.isGRCh38(header)) build="hg38";
+						if(!StringUtil.isBlank(build)) {
+							t.addRow("Hi-C",new HyperlinkDecorator("http://promoter.bx.psu.edu/hi-c/view.php?method=Hi-C&species=human&assembly="+build+
+									"&source=inside&tissue=GM12878&type=Lieberman-raw&resolution=25&c_url=&transfer=&gene=&chr="+vc.getContig()+"&start="+vc.getStart()+"&end="+vc.getEnd()+"&sessionID=&browser=none"));	
+							}
 						}
 					}
 				this.writeTable(margin, t);

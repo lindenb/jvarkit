@@ -31,6 +31,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -51,9 +52,11 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.Cigar;
@@ -66,6 +69,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
@@ -111,6 +115,9 @@ public class SvToSVG extends Launcher
 	private List<String> intervalStrList = new ArrayList<>();
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+". Optional: if defined will be used to display the mismatches.")
+	private File fastaFile = null ;
+
 
 	private final List<Sample> sampleList =new ArrayList<>();
 	private double featureHeight = 10;
@@ -118,6 +125,7 @@ public class SvToSVG extends Launcher
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private Document document = null;
 	private final double arrow_w = 5;
+	private IndexedFastaSequenceFile indexedFastaSequenceFile = null;
 	
 	private final String DEBUG_READ="___";
 	
@@ -314,12 +322,29 @@ public class SvToSVG extends Launcher
 		
 		final Element sampleLabel= element("text",sample.sampleName);
 		sampleLabel.setAttribute("x", "5");
-		sampleLabel.setAttribute("y", format(y+12));
+		sampleLabel.setAttribute("y", format(y+14));
 		sampleLabel.setAttribute("class", "samplename");
 		sampleRoot.appendChild(sampleLabel);
 		y+= 20;
 		
 		for(final Sample.Region region : sample.regions) {
+			final GenomicSequence genomicSequence;
+			if(this.indexedFastaSequenceFile !=null) {
+				final ContigNameConverter ctgConver = ContigNameConverter.fromOneDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
+				final String sname = ctgConver.apply(region.interval.getContig());
+				if(StringUtil.isBlank(sname)) {
+					genomicSequence = null;
+				} else
+					{
+					genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, sname);
+					}
+				}
+			else
+				{
+				genomicSequence = null;
+				}
+			
+			
 			final Element regionRoot = element("g");
 			sampleRoot.appendChild(regionRoot);
 			
@@ -355,6 +380,17 @@ public class SvToSVG extends Launcher
 						regionRoot.insertBefore(readElement, regionRoot.getFirstChild());
 						}
 					
+					final BiPredicate<Integer, Integer> isMismatch = (readpos0,refpos1)-> {
+						if(genomicSequence==null) return false;
+						if(refpos1<1 || refpos1>genomicSequence.length()) return false;
+						char refC = Character.toUpperCase(genomicSequence.charAt(refpos1-1));
+						if(refC=='N') return false;
+						final byte bases[] = shortRead.getRecord().getReadBases();
+						if(bases==null || bases==SAMRecord.NULL_SEQUENCE || readpos0<0 || readpos0>=bases.length) return false;
+						char readC = (char)Character.toUpperCase(bases[readpos0]);
+						if(readC=='N') return false;
+						return readC!=refC;
+						};
 					
 					readElement.setAttribute("transform",
 							"translate("+leftX+","+format(y)+")");
@@ -380,7 +416,10 @@ public class SvToSVG extends Launcher
 							case M:case X: case EQ:
 								{
 								next_ref+= ce.getLength();
-								next_read+= ce.getLength();
+								
+								if(!op.equals(CigarOperator.H)) {
+									next_read+= ce.getLength();
+									}
 								final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref);
 								
 								
@@ -419,7 +458,25 @@ public class SvToSVG extends Launcher
 									}
 								path.setAttribute("d", sb.toString());
 								readElement.appendChild(path);
-																
+								
+								if(op.isAlignment() && genomicSequence!=null)
+									{
+								
+									for(int x=0;x< ce.getLength();++x)
+										{
+										if(!isMismatch.test(readpos+x, ref+x)) continue;
+										
+										final Element rectMismatch = element("rect");
+										rectMismatch.setAttribute("class", "mismatch");
+										rectMismatch.setAttribute("x", format(region.baseToPixel(ref+x)-leftX));
+										rectMismatch.setAttribute("y", format(0));
+										rectMismatch.setAttribute("width", format((region.baseToPixel(ref+x+1)-region.baseToPixel(ref+x))));
+										rectMismatch.setAttribute("height", format(this.featureHeight));
+										readElement.appendChild(rectMismatch);
+										}
+									}
+								
+								
 								break;
 								}
 							case D: case N:
@@ -505,6 +562,7 @@ public class SvToSVG extends Launcher
 					"path.opHx {stroke:yellow;fill:yellow;opacity:0.8;}\n" + 
 					"line.opNx {stroke:yellow;opacity:0.8;}\n"+
 					"line.opDx {stroke:yellow;opacity:0.8;}\n"+
+					"rect.mismatch {fill:red;opacity:0.7;}\n"+
 					"text.samplename {stroke:none;fill:black;stroke-width:1px;}\n"+
 					""
 					));
@@ -519,7 +577,8 @@ public class SvToSVG extends Launcher
 				final Element div = buildSample(sample,doc_height);
 				final Attr att = div.getAttributeNode("y");
 				div.removeAttributeNode(att);
-				doc_height += Double.parseDouble(att.getValue());
+				doc_height = (int)Double.parseDouble(att.getValue());
+				
 				mainG.appendChild(div);
 				}
 			
@@ -605,7 +664,7 @@ public class SvToSVG extends Launcher
 			frame.setAttribute("class", "frame");
 			frame.setAttribute("x", "0");
 			frame.setAttribute("y", "0");
-			frame.setAttribute("height",format(this.drawinAreaWidth));
+			frame.setAttribute("width",format(this.drawinAreaWidth));
 			frame.setAttribute("height",format(doc_height));
 			mainG.appendChild(frame);
 			
@@ -634,6 +693,10 @@ public class SvToSVG extends Launcher
 			FileOutputStream fout=null;
 			try
 				{
+				if(this.fastaFile!=null) {
+					this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.fastaFile);
+					}
+				
 				final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 				dbf.setNamespaceAware(true);
 				final DocumentBuilder db = dbf.newDocumentBuilder();
@@ -752,6 +815,7 @@ public class SvToSVG extends Launcher
 			finally
 				{
 				CloserUtil.close(fout);
+				CloserUtil.close(indexedFastaSequenceFile);
 				this.document = null;
 				}
 			}

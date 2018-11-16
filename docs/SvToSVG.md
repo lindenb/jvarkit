@@ -20,6 +20,10 @@ Usage: sv2svg [options] Files
       Default: []
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary. Optional: if defined 
+      will be used to display the mismatches.
     --version
       print version and exit
     -w, --width
@@ -74,6 +78,10 @@ http.proxy.port=124567
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/SvToSVG.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2svg/SvToSVG.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2svg/SvToSVGTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2svg/SvToSVGTest.java)
 
 
 ## Contribute
