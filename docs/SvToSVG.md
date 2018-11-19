@@ -10,6 +10,9 @@ BAM to SVG. Used to display the structural variations.
 ```
 Usage: sv2svg [options] Files
   Options:
+    --coverage, --depth
+      Coverage height. Don't print if cov '<=0'.
+      Default: 70
     -d, --duration
       Animation duration, in secs
       Default: 10
@@ -30,6 +33,8 @@ Usage: sv2svg [options] Files
     --repeat-count
       SVG animation repeat count
       Default: indefinite
+    --variant, -V
+      optional indexed VCF file.
     --version
       print version and exit
     -w, --width
@@ -152,4 +157,7 @@ $ java -jar dist/sv2svg.jar -r "9:137229907-137231907" -r "14:79838174-79840174"
 
 ![https://twitter.com/yokofakun/status/1064484537059684355](https://pbs.twimg.com/media/DsXObwuXoAAepSw.jpg)
 
+[https://twitter.com/yokofakun/status/1064503996285681666](https://twitter.com/yokofakun/status/1064503996285681666)
+
+![https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg](https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg)
 

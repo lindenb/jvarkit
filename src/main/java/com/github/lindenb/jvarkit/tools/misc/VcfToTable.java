@@ -1365,7 +1365,7 @@ public class VcfToTable extends Launcher {
 			
 			protected String variantToString(final VariantContext vc)
 				{
-				return vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
+				return vc.getContig()+":"+vc.getStart()+(vc.getStart()!=vc.getEnd()?"-"+vc.getEnd():"")+"/"+vc.getReference().getDisplayString();
 				}
 			
 			}

@@ -31,7 +31,9 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -78,6 +80,10 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
 
 
 /**
@@ -124,6 +130,9 @@ $ java -jar dist/sv2svg.jar -r "9:137229907-137231907" -r "14:79838174-79840174"
 
 ![https://twitter.com/yokofakun/status/1064484537059684355](https://pbs.twimg.com/media/DsXObwuXoAAepSw.jpg)
 
+[https://twitter.com/yokofakun/status/1064503996285681666](https://twitter.com/yokofakun/status/1064503996285681666)
+
+![https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg](https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg)
 END_DOC
  */
 @Program(name="sv2svg",
@@ -147,6 +156,10 @@ public class SvToSVG extends Launcher
 	private int svgDuration=10;
 	@Parameter(names= {"--repeat-count"},description="SVG animation repeat count")
 	private String svgRepeatCount="indefinite";
+	@Parameter(names= {"--variant","-V"},description="optional indexed VCF file.")
+	private File vcfFile=null;
+	@Parameter(names= {"--coverage","--depth"},description="Coverage height. Don't print if cov '<=0'.")
+	private int coverageHeight=70;
 
 	
 	private final List<Sample> sampleList =new ArrayList<>();
@@ -156,6 +169,7 @@ public class SvToSVG extends Launcher
 	private Document document = null;
 	private final double arrow_w = 5;
 	private IndexedFastaSequenceFile indexedFastaSequenceFile = null;
+	private VCFFileReader vcfFileReader = null;
 	
 	private final String DEBUG_READ="___";
 	
@@ -392,7 +406,47 @@ public class SvToSVG extends Launcher
 			rgnLabel.setAttribute("class", "samplename");
 			regionRoot.appendChild(rgnLabel);
 			y+= 20;
+			
 			final double y_top_region = y;
+			
+			if(this.coverageHeight>0)
+				{
+				/* draw coverage */
+				final TreeMap<Integer,Long> pos2cov = region.
+					shortReadStream().
+					filter(R->R.isDefaultShortRead()).
+					flatMapToInt(R->R.getRecord().getAlignmentBlocks().stream().flatMapToInt(RB->java.util.stream.IntStream.rangeClosed(RB.getReferenceStart(),RB.getReferenceStart()+RB.getLength()))).
+					filter(P->P>=region.interval.getStart()).
+					filter(P->P<=region.interval.getEnd()).
+					mapToObj(P->P).
+					collect(Collectors.groupingBy( Function.identity(),()->new TreeMap<>(), Collectors.counting()));
+					;
+				final long max_cov = pos2cov.values().stream().mapToLong(L->L.longValue()).max().orElse(1L);
+				final Element covPath = element("path");
+				covPath.setAttribute("class", "coverage");
+				regionRoot.appendChild(covPath);
+				final StringBuilder sb = new StringBuilder();
+				double prev_x=0;
+				sb.append( "M 0 "+format(y+this.coverageHeight));
+				for(final Integer pos:pos2cov.keySet())
+					{
+					//System.err.println("p="+pos+" "+pos2cov.get(pos));
+					final long dp = pos2cov.get(pos);
+					final double dpy= y + this.coverageHeight - (dp/(double)max_cov)*(double)this.coverageHeight;
+					sb.append(" L "+format(prev_x)+" "+format(dpy));
+					prev_x = region.baseToPixel(pos);
+					sb.append(" L "+format(prev_x)+" "+format(dpy));
+					}
+				sb.append(" L "+format(prev_x)+" "+format(y+this.coverageHeight));
+				sb.append(" L "+format(this.drawinAreaWidth)+" "+format(y+this.coverageHeight));
+				sb.append(" Z");
+				covPath.setAttribute("d", sb.toString());
+				covPath.appendChild(element("title","Covarage. Max:"+niceIntFormat.format(max_cov)));
+				y+=this.coverageHeight;
+				y+=2;
+				}
+				
+			
 			
 			/* print all lines */
 			for(int nLine=0;nLine< region.lines.size();++nLine)
@@ -608,6 +662,42 @@ public class SvToSVG extends Launcher
 					line.appendChild(element("title",niceIntFormat.format(region.interval.getStart()+(int)(region.interval.length()/10.0)*x)));
 					regionRoot.insertBefore(line, regionRoot.getFirstChild());
 					}
+				
+				/** print variants */
+				if(this.vcfFileReader!=null)
+					{
+					final VCFHeader header = this.vcfFileReader.getFileHeader();
+					final SAMSequenceDictionary vcfdict = header.getSequenceDictionary();
+					final ContigNameConverter ctgConver = (vcfdict==null?null:ContigNameConverter.fromOneDictionary(vcfdict));
+					final String sname = ctgConver==null?null:ctgConver.apply(region.interval.getContig());
+					if(!StringUtil.isBlank(sname))
+						{
+						final CloseableIterator<VariantContext> iter = this.vcfFileReader.query(region.interval.getContig(), region.interval.getStart(), region.interval.getEnd());
+						while(iter.hasNext())
+							{
+							final VariantContext ctx = iter.next();
+							if(!ctx.isVariant()) continue;
+							final double x1 = Math.max(0, region.baseToPixel(ctx.getStart()));
+							final double x2 = Math.min(region.baseToPixel(ctx.getEnd()+1),this.drawinAreaWidth);
+							final Genotype g = ctx.getGenotype(sample.sampleName);
+							
+							final Element rect = element("rect");
+							rect.setAttribute("class", "variant"+(g==null?"":g.getType().name()));
+							rect.setAttribute("x", format(x1));
+							rect.setAttribute("y", format(y_top_region));
+							rect.setAttribute("width", format(x2-x1));
+							rect.setAttribute("height", format(y-y_top_region));
+							rect.appendChild(element("title",
+									niceIntFormat.format(ctx.getStart())+"-"+
+											niceIntFormat.format(ctx.getEnd())
+											+" "+ctx.getReference().getDisplayString()));
+							regionRoot.insertBefore(rect, regionRoot.getFirstChild());
+							
+							}
+						iter.close();
+						}
+					}
+				
 				}
 		
 		
@@ -677,6 +767,12 @@ public class SvToSVG extends Launcher
 					"text.samplename {stroke:none;fill:black;stroke-width:1px;}\n"+
 					".discordant {stroke:darkred; fill:none;stroke-dasharray:2;}\n" +
 					"line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}\n"+
+					"rect.variant  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}\n"+
+					"rect.variantHOM_REF  {stroke:none;fill:green;stroke-width:1px;opacity:0.8;}\n"+
+					"rect.variantHOM_VAR  {stroke:none;fill:red;stroke-width:1px;opacity:0.8;}\n"+
+					"rect.variantHET  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}\n"+
+					"rect.variantNO_CALL  {stroke:none;fill:blue;stroke-width:1px;opacity:0.8;}\n"+
+					"path.coverage {stroke:darkslateblue;fill:darkseaGreen}\n"+
 					""
 					));
 
@@ -795,6 +891,11 @@ public class SvToSVG extends Launcher
 				{
 				if(this.fastaFile!=null) {
 					this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.fastaFile);
+					}
+				
+				if(this.vcfFile!=null)
+					{
+					this.vcfFileReader = new VCFFileReader(this.vcfFile,true);
 					}
 				
 				final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -916,6 +1017,7 @@ public class SvToSVG extends Launcher
 				{
 				CloserUtil.close(fout);
 				CloserUtil.close(this.indexedFastaSequenceFile);
+				CloserUtil.close(this.vcfFileReader);
 				this.document = null;
 				}
 			}
