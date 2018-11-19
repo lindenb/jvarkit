@@ -35,6 +35,7 @@ import java.util.TreeMap;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -426,18 +427,19 @@ public class SvToSVG extends Launcher
 				covPath.setAttribute("class", "coverage");
 				regionRoot.appendChild(covPath);
 				final StringBuilder sb = new StringBuilder();
-				double prev_x=0;
 				sb.append( "M 0 "+format(y+this.coverageHeight));
-				for(final Integer pos:pos2cov.keySet())
+				for(int k=0;k< this.drawinAreaWidth;k++)
 					{
-					//System.err.println("p="+pos+" "+pos2cov.get(pos));
-					final long dp = pos2cov.get(pos);
+					final int pos1 = region.interval.getStart()+ (int)(((k+0)/(double)this.drawinAreaWidth)*(double)region.interval.length());
+					final int pos2 = region.interval.getStart()+ (int)(((k+1)/(double)this.drawinAreaWidth)*(double)region.interval.length());
+					final double dp = IntStream.range(pos1, pos2).
+						filter(P->pos2cov.containsKey(P)).
+						mapToLong(P->pos2cov.get(P)).
+						max().
+						orElseGet(()->0L);
 					final double dpy= y + this.coverageHeight - (dp/(double)max_cov)*(double)this.coverageHeight;
-					sb.append(" L "+format(prev_x)+" "+format(dpy));
-					prev_x = region.baseToPixel(pos);
-					sb.append(" L "+format(prev_x)+" "+format(dpy));
+					sb.append(" L "+format(k)+" "+format(dpy));
 					}
-				sb.append(" L "+format(prev_x)+" "+format(y+this.coverageHeight));
 				sb.append(" L "+format(this.drawinAreaWidth)+" "+format(y+this.coverageHeight));
 				sb.append(" Z");
 				covPath.setAttribute("d", sb.toString());
