@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -44,6 +45,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
+import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
 
@@ -133,15 +135,18 @@ public class SvToSVG extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	@Parameter(names={"-r","-i","--interval","--region"},description="interval CHROM:START-END",required=true)
 	private List<String> intervalStrList = new ArrayList<>();
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+". Optional: if defined will be used to display the mismatches.")
 	private File fastaFile = null ;
+	@Parameter(names={"-d","--duration"},description="Animation duration, in secs")
+	private int svgDuration=10;
+	@Parameter(names= {"--repeat-count"},description="SVG animation repeat count")
+	private String svgRepeatCount="indefinite";
 
-
+	
 	private final List<Sample> sampleList =new ArrayList<>();
 	private double featureHeight = 10;
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
@@ -194,13 +199,6 @@ public class SvToSVG extends Launcher
 				public double getPixelEnd() {
 					return getRegion().baseToPixel(this.getEnd());
 				}
-				
-				public double getCenterX() {
-					return (getPixelStart()+getPixelEnd())/2.0;
-					}
-				public double getCenterY() {
-					return this.y + featureHeight/2.0;
-					}
 				
 				abstract boolean isDefaultShortRead();
 				abstract boolean isSplitRead();
@@ -324,12 +322,18 @@ public class SvToSVG extends Launcher
 				{
 				return  ((pos - this.interval.getStart())/(double)(1+this.interval.getEnd()-this.interval.getStart()))*(SvToSVG.this.drawinAreaWidth);
 				}
+			Stream<ShortRead> shortReadStream() {
+				return this.lines.stream().flatMap(L->L.stream());
+				}
 			}
 		
 		Sample(final String sampleName) {
 			this.sampleName = sampleName;
-		}
+			}
 		
+		Stream<Region.ShortRead> shortReadStream() {
+			return this.regions.stream().flatMap(R->R.shortReadStream());
+			}
 		}
 	
 	
@@ -339,7 +343,11 @@ public class SvToSVG extends Launcher
 		return this.decimalFormater.format(v);
 		}
 
-	private Element buildSample(final Sample sample,double y)
+	private Element buildSample(
+			final Sample sample,
+			final DocumentFragment animationLayer,
+			double y
+			)
 		{
 		final Element sampleRoot = element("g");
 		
@@ -350,7 +358,9 @@ public class SvToSVG extends Launcher
 		sampleRoot.appendChild(sampleLabel);
 		y+= 20;
 		
+		// loop over regions 
 		for(final Sample.Region region : sample.regions) {
+			// genomic sequence will be used to test if there is a mismatch. No garantee it exists.
 			final GenomicSequence genomicSequence;
 			if(this.indexedFastaSequenceFile !=null) {
 				final ContigNameConverter ctgConver = ContigNameConverter.fromOneDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
@@ -396,7 +406,7 @@ public class SvToSVG extends Launcher
 
 					final Element readElement = element("g");
 					if(shortRead.isSplitRead()) { //always in front
-						regionRoot.appendChild(readElement);
+						animationLayer.appendChild(readElement);
 						}
 					else
 						{
@@ -484,7 +494,6 @@ public class SvToSVG extends Launcher
 								
 								if(op.isAlignment() && genomicSequence!=null)
 									{
-								
 									for(int x=0;x< ce.getLength();++x)
 										{
 										if(!isMismatch.test(readpos+x, ref+x)) continue;
@@ -498,8 +507,6 @@ public class SvToSVG extends Launcher
 										readElement.appendChild(rectMismatch);
 										}
 									}
-								
-								
 								break;
 								}
 							case D: case N:
@@ -524,7 +531,37 @@ public class SvToSVG extends Launcher
 				
 				y+= (this.featureHeight+3);
 				}
+			
+			//add non-properly paired reads
+			region.shortReadStream().
+				filter(R->R.getRecord().getReadPairedFlag() && 
+						R.getRecord().getFirstOfPairFlag() && 
+						!R.getRecord().getProperPairFlag()).
+				forEach(R->{
+					final Sample.Region.ShortRead mate = region.shortReadStream().filter(
+							R2->R2.getRecord().getReadPairedFlag() &&
+							R2.getRecord().getSecondOfPairFlag() &&
+							!R2.getRecord().getProperPairFlag() && 
+							R2.getRecord().getReadName().equals(R.getRecord().getReadName())).
+							findFirst().orElse(null);
+					if(mate==null) return;
+					final double x1 = R.isNegativeStrand()?R.getPixelStart()-arrow_w:R.getPixelEnd()+arrow_w;
+					final double x2 = mate.isNegativeStrand()?mate.getPixelStart()-arrow_w:mate.getPixelEnd()+arrow_w;
+					final Element path = element("path");
+						path.setAttribute("class", "discordant");
+						StringBuilder sb = new StringBuilder();
+						sb.append( "M ").append(format(x1)).append(" ").append(format(R.y+featureHeight/2.0));
+						sb.append( "Q ").
+							append(format((x1+x2)/2.0)).append(" ").append(format((R.y+mate.y)/2.0)+(R.y==mate.y?featureHeight:0)).
+							append(" ").
+							append(format(x2)).append(" ").append(format(mate.y+featureHeight/2.0));
+						path.setAttribute("d", sb.toString());
+						animationLayer.appendChild(path);
+					});
 			}
+		
+		
+		
 		
 		final Element frame= element("rect");
 		frame.setAttribute("class","frame");
@@ -587,6 +624,7 @@ public class SvToSVG extends Launcher
 					"line.opDx {stroke:yellow;opacity:0.8;}\n"+
 					"rect.mismatch {fill:red;opacity:0.7;}\n"+
 					"text.samplename {stroke:none;fill:black;stroke-width:1px;}\n"+
+					"path.dicordant {stroke:darkred; fill:none;stroke-dasharray}\n" +
 					""
 					));
 
@@ -594,10 +632,12 @@ public class SvToSVG extends Launcher
 			mainG.setAttribute("class","maing");
 			svgRoot.appendChild(mainG);
 			
+			final DocumentFragment animationLayer = this.document.createDocumentFragment();
+			
 			//loop over each sample
 			for(final Sample sample:this.sampleList)
 				{
-				final Element div = buildSample(sample,doc_height);
+				final Element div = buildSample(sample,animationLayer,doc_height);
 				final Attr att = div.getAttributeNode("y");
 				div.removeAttributeNode(att);
 				doc_height = (int)Double.parseDouble(att.getValue());
@@ -627,47 +667,34 @@ public class SvToSVG extends Launcher
 							if(!sry.isDefaultShortRead()) continue;
 							if(srx.getContig().equals(sry.getContig())) continue;
 							
+							final double x1 = srx.isNegativeStrand()?srx.getPixelStart()-arrow_w:srx.getPixelEnd()+arrow_w;
+							final double x2 = sry.isNegativeStrand()?sry.getPixelStart()-arrow_w:sry.getPixelEnd()+arrow_w;
+							
 							Element path = element("path");
 							path.setAttribute("class", "discordant");
 							StringBuilder sb = new StringBuilder();
-							sb.append( "M ").append(format(srx.getPixelStart())).append(" ").append(format(srx.y+featureHeight/2.0));
+							sb.append( "M ").append(format(x1)).append(" ").append(format(srx.y+featureHeight/2.0));
 							sb.append( "Q ").
-								append(format((srx.getPixelEnd()+sry.getPixelStart())/2.0)).append(" ").append(format((srx.y+sry.y)/2.0)).
+								append(format((x1+x2)/2.0)).append(" ").append(format((srx.y+sry.y)/2.0)).
 								append(" ").
-								append(format(sry.getPixelStart())).append(" ").append(format(sry.y+featureHeight/2.0));
+								append(format(x2)).append(" ").append(format(sry.y+featureHeight/2.0));
 							path.setAttribute("d", sb.toString());
-							mainG.appendChild(path);
+							animationLayer.appendChild(path);
 							}
 						}
 					});
 				}
 			
 			// move split reads
-			sampleList.stream().
+			this.sampleList.stream().
 				flatMap(SN->SN.regions.stream()).
 				flatMap(R->R.lines.stream()).
 				flatMap(L->L.stream()).
 				filter(R->R.isSplitRead()).
 				map(R->(Sample.Region.SplitRead)R).
 				forEach(SR->{
-					String repeatCount="indefinite";
-					int duration=10;
-					/*if(SR.isNegativeStrand()!=SR.source.isNegativeStrand()) {
-						Element anim = element("animateTransform");
-						SR.element.appendChild(anim);
-						anim.setAttribute("attributeType","XML");
-						anim.setAttribute("attributeName","transform");
-						anim.setAttribute("type","rotate");
-						anim.setAttribute("begin","0s");
-						anim.setAttribute("from","0 "+format(SR.getCenterX()-SR.getPixelStart())+" "+format(featureHeight/2.0));
-						anim.setAttribute("to","180 "+format(SR.source.getCenterX()-SR.source.getPixelStart())+" "+format(featureHeight/2.0));
-						anim.setAttribute("dur",String.valueOf(duration)+"s");
-						anim.setAttribute("repeatCount",repeatCount);
-						anim.setAttribute("fill","freeze");
-					}*/
-					
-					
-					Element anim = element("animateTransform");
+					if(this.svgDuration<=0) return;
+					final Element anim = element("animateTransform");
 					SR.element.appendChild(anim);
 					anim.setAttribute("attributeType","XML");
 					anim.setAttribute("attributeName","transform");
@@ -675,14 +702,14 @@ public class SvToSVG extends Launcher
 					anim.setAttribute("begin","0s");
 					anim.setAttribute("from",SR.getPixelStart()+" "+SR.y);
 					anim.setAttribute("to",SR.source.getPixelStart()+" "+SR.source.y);
-					anim.setAttribute("dur",String.valueOf(duration)+"s");
-					anim.setAttribute("repeatCount",repeatCount);
+					anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
+					anim.setAttribute("repeatCount",this.svgRepeatCount);
 					anim.setAttribute("fill","freeze");
-					
-					
-					
-					
 				});
+			
+			mainG.appendChild(animationLayer);
+			
+			// frame
 			final Element frame = element("rect");
 			frame.setAttribute("class", "frame");
 			frame.setAttribute("x", "0");
@@ -696,9 +723,7 @@ public class SvToSVG extends Launcher
 		
 		private List<Sample.Region.ShortRead> getReadsByName(final String readName) {
 			return this.sampleList.stream().flatMap(
-					S->S.regions.stream().flatMap(
-							R->R.lines.stream().flatMap(
-									L->L.stream()))).
+					S->S.shortReadStream()).
 					filter(S->S.getRecord().getReadName().equals(readName)).
 					collect(Collectors.toList());
 			}
