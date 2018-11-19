@@ -301,7 +301,7 @@ public class SvToSVG extends Launcher
 						{
 						final List<ShortRead> line= this.lines.get(y);
 						final ShortRead last = line.get(line.size()-1);
-						if( baseToPixel(last.getEnd()) + arrow_w < baseToPixel(shortRead.getStart()) )
+						if( baseToPixel(last.getEnd()) + 2*arrow_w < baseToPixel(shortRead.getStart()) )
 							{
 							line.add(shortRead);
 							break;
@@ -358,6 +358,8 @@ public class SvToSVG extends Launcher
 		sampleRoot.appendChild(sampleLabel);
 		y+= 20;
 		
+	
+		
 		// loop over regions 
 		for(final Sample.Region region : sample.regions) {
 			// genomic sequence will be used to test if there is a mismatch. No garantee it exists.
@@ -388,10 +390,11 @@ public class SvToSVG extends Launcher
 			rgnLabel.setAttribute("class", "samplename");
 			regionRoot.appendChild(rgnLabel);
 			y+= 20;
+			final double y_top_region = y;
 			
 			/* print all lines */
 			for(int nLine=0;nLine< region.lines.size();++nLine)
-				{				
+				{
 				final List<Sample.Region.ShortRead> line= region.lines.get(nLine);
 				//loop over records on that line
 				for(final Sample.Region.ShortRead shortRead: line)
@@ -435,6 +438,8 @@ public class SvToSVG extends Launcher
 					final Element title = element("title",shortRead.getRecord().getPairedReadName()+" "+shortRead.getRecord().getCigarString()+" "+(shortRead.getRecord().getReadNegativeStrandFlag()?"-":"+"));
 					readElement.appendChild(title);
 					
+					final DocumentFragment insertionsFragment = this.document.createDocumentFragment();
+					
 					final Cigar cigar = shortRead.getRecord().getCigar();
 					for(int cigarIdx=0;cigarIdx< cigar.numCigarElements();cigarIdx++) {
 						final CigarElement ce = cigar.getCigarElement(cigarIdx);
@@ -443,7 +448,21 @@ public class SvToSVG extends Launcher
 						int next_read = readpos;
 						switch(op)
 							{
-							case I: readpos+= ce.getLength();continue;
+							case I: 
+								{
+								next_read += ce.getLength();
+								final Element rectInsert = element("rect");
+								rectInsert.setAttribute("class", "insert");
+								rectInsert.setAttribute("x", format(region.baseToPixel(ref)-leftX));
+								rectInsert.setAttribute("y", format(0));
+								rectInsert.setAttribute("width", format(1));
+								rectInsert.setAttribute("height", format(this.featureHeight));
+								rectInsert.appendChild(element("title", this.niceIntFormat.format(ce.getLength())));
+								
+								insertionsFragment.appendChild(rectInsert);
+								
+								break;
+								}
 							case P: continue;
 							case S:case H:
 							case M:case X: case EQ:
@@ -462,6 +481,11 @@ public class SvToSVG extends Launcher
 								final Element path = element("path");
 								path.setAttribute("class", "op"+op.name()+(shortRead.isDefaultShortRead()?"":"x"));
 								if(trace) path.setAttribute("style", "fill:blue;");
+								if(!op.isClipping() && shortRead.isDefaultShortRead() && shortRead.getRecord().getReadPairedFlag() && !shortRead.getRecord().getProperPairFlag())
+									{
+									 path.setAttribute("style", "fill:lightblue;");
+									}
+								
 								// arrow <--
 								if(cigarIdx==0 && shortRead.isNegativeStrand()) {
 									sb.append( "M ").append(format(region.baseToPixel(ref)-leftX)).append(',').append(0);
@@ -527,6 +551,7 @@ public class SvToSVG extends Launcher
 						ref = next_ref;
 						readpos = next_read; 
 						}
+					readElement.appendChild(insertionsFragment);
 					}
 				
 				y+= (this.featureHeight+3);
@@ -534,12 +559,14 @@ public class SvToSVG extends Launcher
 			
 			//add non-properly paired reads
 			region.shortReadStream().
-				filter(R->R.getRecord().getReadPairedFlag() && 
+				filter(R->R.isDefaultShortRead() && 
+						R.getRecord().getReadPairedFlag() && 
 						R.getRecord().getFirstOfPairFlag() && 
 						!R.getRecord().getProperPairFlag()).
 				forEach(R->{
 					final Sample.Region.ShortRead mate = region.shortReadStream().filter(
-							R2->R2.getRecord().getReadPairedFlag() &&
+							R2->R2.isDefaultShortRead() &&
+							R2.getRecord().getReadPairedFlag() &&
 							R2.getRecord().getSecondOfPairFlag() &&
 							!R2.getRecord().getProperPairFlag() && 
 							R2.getRecord().getReadName().equals(R.getRecord().getReadName())).
@@ -547,18 +574,39 @@ public class SvToSVG extends Launcher
 					if(mate==null) return;
 					final double x1 = R.isNegativeStrand()?R.getPixelStart()-arrow_w:R.getPixelEnd()+arrow_w;
 					final double x2 = mate.isNegativeStrand()?mate.getPixelStart()-arrow_w:mate.getPixelEnd()+arrow_w;
+					/*
 					final Element path = element("path");
 						path.setAttribute("class", "discordant");
 						StringBuilder sb = new StringBuilder();
 						sb.append( "M ").append(format(x1)).append(" ").append(format(R.y+featureHeight/2.0));
 						sb.append( "Q ").
-							append(format((x1+x2)/2.0)).append(" ").append(format((R.y+mate.y)/2.0)+(R.y==mate.y?featureHeight:0)).
+							append(format((x1+x2)/2.0)).append(" ").append(format((R.y+mate.y)/2.0)+(R.y==mate.y?0:0)).
 							append(" ").
 							append(format(x2)).append(" ").append(format(mate.y+featureHeight/2.0));
-						path.setAttribute("d", sb.toString());
-						animationLayer.appendChild(path);
+						path.setAttribute("d", sb.toString());*/
+					final Element line = element("line");
+					line.setAttribute("class", "discordant");
+					line.setAttribute("x1", format(x1));
+					line.setAttribute("y1", format(R.y+this.featureHeight/2.0));
+					line.setAttribute("x2", format(x2));
+					line.setAttribute("y2", format(mate.y+this.featureHeight/2.0));	
+					animationLayer.appendChild(line);
 					});
-			}
+			
+			
+				for(int x=1;x<10;++x)
+					{
+					final double xx = (this.drawinAreaWidth/10.0)*x;
+					final Element line = element("line");
+					line.setAttribute("class", "ruler");
+					line.setAttribute("x1", format(xx));
+					line.setAttribute("y1", format(y_top_region));
+					line.setAttribute("x2", format(xx));
+					line.setAttribute("y2", format(y));
+					line.appendChild(element("title",niceIntFormat.format(region.interval.getStart()+(int)(region.interval.length()/10.0)*x)));
+					regionRoot.insertBefore(line, regionRoot.getFirstChild());
+					}
+				}
 		
 		
 		
@@ -623,8 +671,10 @@ public class SvToSVG extends Launcher
 					"line.opNx {stroke:yellow;opacity:0.8;}\n"+
 					"line.opDx {stroke:yellow;opacity:0.8;}\n"+
 					"rect.mismatch {fill:red;opacity:0.7;}\n"+
+					"rect.insert {fill:none;stroke:red;stroke-width:1.5px}\n"+
 					"text.samplename {stroke:none;fill:black;stroke-width:1px;}\n"+
-					"path.dicordant {stroke:darkred; fill:none;stroke-dasharray}\n" +
+					".discordant {stroke:darkred; fill:none;stroke-dasharray:2;}\n" +
+					"line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}\n"+
 					""
 					));
 
@@ -863,7 +913,7 @@ public class SvToSVG extends Launcher
 			finally
 				{
 				CloserUtil.close(fout);
-				CloserUtil.close(indexedFastaSequenceFile);
+				CloserUtil.close(this.indexedFastaSequenceFile);
 				this.document = null;
 				}
 			}
