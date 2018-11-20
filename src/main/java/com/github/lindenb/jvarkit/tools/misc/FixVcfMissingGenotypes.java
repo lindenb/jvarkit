@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -34,11 +31,12 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMTagUtil;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -52,24 +50,23 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-
-
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 /**
 
@@ -122,6 +119,7 @@ gzip --best > out.vcf.gz
 
 ### History
 
+ * 2018-11-20 : adding features for structural variants
  * 2017-07-24 : rewrite whole program 
  * 2014: Creation
 
@@ -133,7 +131,7 @@ END_DOC
 @Program(name="fixvcfmissinggenotypes",
 description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref.",
 biostars={119007,263309,276811,302581},
-keywords={"sam","bam","vcf"}
+keywords={"sam","bam","vcf","sv","genotype"}
 )
 public class FixVcfMissingGenotypes extends Launcher
 	{
@@ -144,70 +142,33 @@ public class FixVcfMissingGenotypes extends Launcher
 	@Parameter(names={"-d","--depth"},description="minimal depth before setting a genotype to HOM_REF")
 	private int minDepth = 10 ;
 	@Parameter(names={"-B","--bams"},description="path of indexed BAM path with read Groups. You can put those paths in a text file having a *.list sufffix")
-	private List<String> bamList=new ArrayList<>();
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	private List<String> bamList = new ArrayList<>();
+	@Parameter(names={"-filter","--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
+	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-T","--tag"},description="FORMAT 'Tag' for fixed genotype")
 	private String fixedTag = "FXG";
-	@Parameter(names={"--fixDP"},description="Update/create DP field even if a genotype is called but there is no DP")
-	private boolean fixDP=false;
+	@Parameter(names={"--force","-f"},description="[20181120] Update all fields like DP even if the Genotype is called.")
+	private boolean forceUpdate=false;
 	@Parameter(names={"--filtered"},description="Mark fixed genotypes as FILTERED with this FILTER")
 	private String fixedGenotypesAreFiltered=null;
+	@Parameter(names={"--partition"},description=SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition partition= SAMRecordPartition.sample;
+	
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
-
-	/** return DP at given position */
-	private int fetchDP(final VariantContext ctx,final String sample,List<SamReader> samReaders)
-		{
-		int depth=0;
-		if(samReaders==null) samReaders=Collections.emptyList();
-		for(final SamReader sr: samReaders)
-			{
-			final SAMRecordIterator iter=sr.query(ctx.getContig(), ctx.getStart(), ctx.getEnd(), false);
-			while(iter.hasNext())
-				{
-				final SAMRecord rec=iter.next();
-				if(rec.getReadUnmappedFlag()) continue;
-				if(filter.filterOut(rec)) continue;
-				final SAMReadGroupRecord rg=rec.getReadGroup();
-				if(!sample.equals(rg.getSample())) continue;
-				final Cigar cigar=rec.getCigar();
-				if(cigar==null) continue;
-				int refPos=rec.getAlignmentStart();
-				for(final CigarElement ce:cigar.getCigarElements())
-					{
-					if( refPos > ctx.getEnd() ) break;
-					if(!ce.getOperator().consumesReferenceBases()) continue;
-					if( ce.getOperator().consumesReadBases())
-						{
-						for(int n=0;n< ce.getLength();++n )
-							{
-							if( refPos+n < ctx.getStart() ) continue;
-							if( refPos+n > ctx.getEnd()) break;
-							depth++;
-							}
-						}
-					refPos+= ce.getLength();
-					}
-				}
-			iter.close();
-			}
-	depth /= ( 1 + ctx.getEnd() - ctx.getStart() );
-	return depth;
-	}
 	
 	@Override
 	protected int doVcfToVcf(final String inputName,final VcfIterator in,final VariantContextWriter out) {
-		final Set<String> bamFiles=  IOUtils.unrollFiles(bamList);
-		final Map<String,List<SamReader>> sample2bam=new HashMap<>(bamFiles.size());
-
+		final List<File> bamFiles=  IOUtils.unrollFiles2018(this.bamList);
+		final Map<String,List<SamReader>> sample2bam = new HashMap<>(bamFiles.size());
+		final SamReaderFactory srf = super.createSamReaderFactory();
 		try {
 			final VCFHeader header=in.getHeader();
-			for(final String bamFile: bamFiles)
+			for(final File bamFile: bamFiles)
 				{
 				LOG.info("Reading header for "+bamFile);
-				final SamReader reader=super.openSamReader(bamFile);
+				final SamReader reader= srf.open(bamFile);
 				if(!reader.hasIndex())
 					{
 					LOG.error("No BAM index available for "+bamFile);
@@ -216,9 +177,9 @@ public class FixVcfMissingGenotypes extends Launcher
 				final SAMFileHeader samHeader=reader.getFileHeader();
 				for(final SAMReadGroupRecord g:samHeader.getReadGroups())
 					{
-					if(g.getSample()==null) continue;
-					final String sample=g.getSample();
+					final String sample = this.partition.apply(g);
 					if(StringUtil.isBlank(sample)) continue;
+					if(!header.getSampleNamesInOrder().contains(sample)) continue;
 					List<SamReader> readers = sample2bam.get(sample);
 					if(readers==null)
 						{
@@ -243,56 +204,109 @@ public class FixVcfMissingGenotypes extends Launcher
 				{
 				h2.addMetaDataLine(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
 				}
+			final String NDISC_TAG="NDISC";
+			final String NPROP_TAG="NOTPROP";
+			final String NORPHAN_TAG="NORPHAN";
+			final String NSUP_TAG="NSUP";
+			final String NCLIPPED="NCLIP";
+			if(!StringUtil.isBlank(this.fixedTag)) h2.addMetaDataLine(new VCFFormatHeaderLine(this.fixedTag,1,VCFHeaderLineType.Integer,"Genotype was set as homozygous (min depth ="+this.minDepth+")"));
+			h2.addMetaDataLine(new VCFFormatHeaderLine(NDISC_TAG,1,VCFHeaderLineType.Integer,"Number of discordant reads (mate mapped on another contig) in the interval"));
+			h2.addMetaDataLine(new VCFFormatHeaderLine(NPROP_TAG,1,VCFHeaderLineType.Integer,"Number of not propertly paired reads in the interval"));
+			h2.addMetaDataLine(new VCFFormatHeaderLine(NORPHAN_TAG,1,VCFHeaderLineType.Integer,"Number of orphan reads (mate is not mapped) in the interval"));
+			h2.addMetaDataLine(new VCFFormatHeaderLine(NSUP_TAG,1,VCFHeaderLineType.Integer,"Number of reads with supplementary alignments (SA tag)"));
+			h2.addMetaDataLine(new VCFFormatHeaderLine(NCLIPPED,1,VCFHeaderLineType.Integer,"Number of clipped reads"));
 			
-			h2.addMetaDataLine(new VCFFormatHeaderLine(this.fixedTag,1,VCFHeaderLineType.Integer,"Genotype was set as homozygous (min depth ="+this.minDepth+")"));
-			
-			
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
-			
+			final short SA_TAG = SAMTagUtil.getSingleton().SA;
+			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header).build();
 			this.recalculator.setHeader(h2);
 			out.writeHeader(h2);
 			while(in.hasNext())
 				{
-				final VariantContext ctx = progress.watch(in.next());
+				final VariantContext ctx = progress.apply(in.next());
 				boolean somethingWasChanged=false;
 				final List<Genotype> genotypes = new ArrayList<>(ctx.getNSamples());
 				for(int i=0;i< ctx.getNSamples();++i)
 					{
 					Genotype genotype = ctx.getGenotype(i);
 					final String sample = genotype.getSampleName();
-					if(!genotype.isCalled() || (!genotype.hasDP() && this.fixDP))
+					if(!genotype.isCalled() || this.forceUpdate)
 						{
+						int depth =0;
+						int orphans = 0;
+						int notProperlyPaired = 0;
+						int dicordantContigs = 0;
+						int readWithSupplAligns = 0;
+						int clippedReads = 0;
 						List<SamReader> samReaders = sample2bam.get(sample);
 						if(samReaders==null) samReaders=Collections.emptyList();
 						
-						final int depth=fetchDP(ctx,sample,samReaders);
-						
-						if(genotype.isCalled() && !genotype.hasDP())
+						for(final SamReader sr: samReaders)
 							{
-							genotype = new GenotypeBuilder(genotype).DP(depth).make();
-							somethingWasChanged=true;
-							}
-						else // genotype was not called
-							{
-							if(depth>= this.minDepth)
-								{	
-								final List<Allele> homozygous=new ArrayList<>(2);
-								homozygous.add(ctx.getReference());
-								homozygous.add(ctx.getReference());
-								final GenotypeBuilder gb=new GenotypeBuilder(genotype);
-								gb.alleles(homozygous);
-								gb.attribute(this.fixedTag, 1);
-								gb.DP(depth);
-								if(!StringUtil.isBlank(this.fixedGenotypesAreFiltered)) gb.filter(this.fixedGenotypesAreFiltered);
-								somethingWasChanged=true;
-								genotype = gb.make();
-								}
-							else if(!genotype.hasDP()) // cannot fix but we can update DP
+							final SAMRecordIterator iter=sr.query(ctx.getContig(), ctx.getStart(), ctx.getEnd(), false);
+							while(iter.hasNext())
 								{
-								genotype = new GenotypeBuilder(genotype).DP(depth).make();
-								somethingWasChanged=true;
+								final SAMRecord rec=iter.next();
+								if(rec.getReadUnmappedFlag()) continue;
+								if(this.filter.filterOut(rec)) continue;
+								if(rec.getReadPairedFlag()) {
+									if(!rec.getProperPairFlag()) {
+										++notProperlyPaired;
+										}
+									if(rec.getMateUnmappedFlag())
+										{
+										++orphans;
+										}
+									else if(!rec.getContig().equals(rec.getMateReferenceName()))
+										{
+										++dicordantContigs;
+										}
+									}
+								if(rec.getAttribute(SA_TAG)!=null) readWithSupplAligns++;
+								final SAMReadGroupRecord rg=rec.getReadGroup();
+								if(!sample.equals(this.partition.apply(rg))) continue;
+								final Cigar cigar=rec.getCigar();
+								if(cigar==null || cigar.isEmpty()) continue;
+								if(cigar.isClipped())
+									{
+									clippedReads ++;
+									}
+								int refPos = rec.getAlignmentStart();
+								for(final CigarElement ce:cigar.getCigarElements())
+									{
+									if( refPos > ctx.getEnd() ) break;
+									if(!ce.getOperator().consumesReferenceBases()) continue;
+									if( ce.getOperator().consumesReadBases())
+										{
+										for(int n=0;n< ce.getLength();++n )
+											{
+											if( refPos+n < ctx.getStart() ) continue;
+											if( refPos+n > ctx.getEnd()) break;
+											depth++;
+											}
+										}
+									refPos+= ce.getLength();
+									}
 								}
+							iter.close();
 							}
+						depth/= 1+ctx.getEnd()-ctx.getStart();
+						
+						final GenotypeBuilder  gb = new GenotypeBuilder(genotype);
+						somethingWasChanged=true;
+						gb.DP(depth);
+						if(ctx.getStart()<ctx.getEnd()) {
+							gb.attribute(NDISC_TAG, dicordantContigs);
+							gb.attribute(NPROP_TAG, notProperlyPaired);
+							gb.attribute(NORPHAN_TAG, orphans);
+							gb.attribute(NSUP_TAG, readWithSupplAligns);
+							gb.attribute(NCLIPPED, clippedReads);
+							}
+						if(!genotype.isCalled() && depth>= this.minDepth) {
+							gb.alleles(Arrays.asList(ctx.getReference(),ctx.getReference()));
+							if(!StringUtil.isBlank(this.fixedTag)) gb.attribute(this.fixedTag, 1);
+							if(!StringUtil.isBlank(this.fixedGenotypesAreFiltered)) gb.filter(this.fixedGenotypesAreFiltered);
+							}
+						genotype = gb.make();
 						}
 					genotypes.add(genotype);
 					}//end of for-each genotype
@@ -308,7 +322,7 @@ public class FixVcfMissingGenotypes extends Launcher
 					out.add(ctx);
 					}
 				}
-			progress.finish();
+			progress.close();
 
 			return 0;
 			}
