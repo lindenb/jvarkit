@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2018 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
@@ -7,19 +31,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-
+import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.VariantContextUtils;
-import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -73,17 +99,17 @@ public class VariantsInWindow extends Launcher{
 	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	 private File outputFile = null;
 
-	@Parameter(names="-select", description="Optional Jexl expression to use when selecting the adjacent variants")
-    public ArrayList<String> selectExpressions = new ArrayList<>();
-	@Parameter(names={"-shift","-windowShift"},description="Window shift (in bp.)")
+	@Parameter(names={"-vf","--variant-filter"},description="Variants we want to keep. Variant FAILING that Jexl expression will be excluded from the window." +JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
+	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
+	@Parameter(names={"-S","--shift","--windowShift"},description="Window shift."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
     protected int window_shift = 50;
-    @Parameter(names="-windowSize",description="Window Size (in bp.)")
+    @Parameter(names= {"-W","--windowSize"},description="Window Size." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
     protected int window_size = 150;
     @Parameter(names="-windowName",description="INFO Attribute name that will be added")
     protected String winName = "WINDOW";
     @Parameter(names="-noemptywin",description="Don't print Windows in INFO having zero match.")
     protected boolean hideZeroHitWindow = false;
-    @Parameter(names="-best", description="Only print the window with the hightest number of matches")
+    @Parameter(names= {"--best","-best"}, description="Only print the window with the hightest number of matches")
     protected boolean bestMatch = false;
     @Parameter(names={"-filter","--filter"}, description="if --treshold is != -1 and the number of matches is greater than threshold, set this FILTER")
     protected String filterName = "TOO_MANY_CLOSE_VARIANTS";
@@ -251,7 +277,6 @@ public class VariantsInWindow extends Launcher{
     	}
     
     private long id_generator=0L;
-    private List<JexlVCMatchExp> jexls = new ArrayList<>();
     private final List<Variant> variantBuffer = new ArrayList<>();
     private final Map<Window,Window> windowMap = new HashMap<>();
 
@@ -261,7 +286,7 @@ public class VariantsInWindow extends Launcher{
     	{
     	if(ctx==null)
     		{
-    		for(final Variant v:this.variantBuffer) writer.add(v.build());
+    		this.variantBuffer.stream().forEach(V->writer.add(V.build()));
     		this.variantBuffer.clear();
     		this.windowMap.clear();
     		return;
@@ -271,7 +296,7 @@ public class VariantsInWindow extends Launcher{
 		/* not same chromosome : dump all */
 		if( !variantBuffer.isEmpty() &&
 			!variantBuffer.get(0).ctx.getContig().equals(ctx.getContig()) ) {
-    		for(final Variant v:this.variantBuffer) writer.add(v.build());
+			this.variantBuffer.stream().forEach(V->writer.add(V.build()));
     		this.variantBuffer.clear();
     		this.windowMap.clear();
 			}
@@ -319,17 +344,8 @@ public class VariantsInWindow extends Launcher{
 
     	final Variant variant = new Variant(ctx);
     	this.variantBuffer.add(variant);
-    	boolean match=true;
-    	if(!this.jexls.isEmpty()) {
-    		match = false;
-    		for(final JexlVCMatchExp exp:this.jexls)
-	    		{
-		    	if(VariantContextUtils.match(ctx, exp)) {
-		    		match=true;
-		    		break;
-		    		}
-	    		}
-	    	}
+    	final boolean rejectVariant = !this.variantFilter.test(ctx);
+    	
     	
     	
     	int chromStart=  leftMostWindowStart(ctx);
@@ -345,7 +361,7 @@ public class VariantsInWindow extends Launcher{
     			{
     			 this.windowMap.put(win,win);
     			}
-    		if(match)
+    		if(!rejectVariant)
     			{
     			win.count_matching++;
     			}
@@ -362,20 +378,32 @@ public class VariantsInWindow extends Launcher{
 
     
     @Override
-    protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter writer) {
-    
+    protected int doVcfToVcf(
+    		final String inputName,
+    		final VcfIterator in,
+    		final VariantContextWriter writer
+    		) {
     	final VCFHeader header= new VCFHeader(in.getHeader());
     	if(header.getInfoHeaderLine(this.winName)!=null) {
     		LOG.error("VCF header already contains the INFO header ID="+this.winName);
     		}
-    	header.addMetaDataLine(new VCFInfoHeaderLine(
-    			this.winName,
-    			VCFHeaderLineCount.UNBOUNDED,
-    			VCFHeaderLineType.String,
-    			"Window : start|end|number-of-matching-variants|number-of-non-matching-variants"
-    			));
+
+    	header.addMetaDataLine(
+			this.bestMatch?
+    			new VCFInfoHeaderLine(
+	    			this.winName,
+	    			1,
+	    			VCFHeaderLineType.String,
+	    			"Window : start|end|pass-variants|filter-variants"
+	    			):
+	    		new VCFInfoHeaderLine(
+	    			this.winName,
+	    			VCFHeaderLineCount.UNBOUNDED,
+	    			VCFHeaderLineType.String,
+	    			"Window : start|end|pass-variants|filter-variants"
+	    			));
     	
-    	if(this.filterName!=null && this.treshold>0)
+    	if(!StringUtil.isBlank(this.filterName) && this.treshold>0)
     		{
     		if(header.getInfoHeaderLine(this.filterName)!=null) {
         		LOG.error("VCF header already contains the FORMAT header ID="+this.filterName);
@@ -385,13 +413,14 @@ public class VariantsInWindow extends Launcher{
         			"Filter defined in "+getProgramName()
         			));
     		}
-    	
+    	final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header).build();
     	writer.writeHeader(header);
     	while(in.hasNext()) {
-    		final VariantContext ctx = in.next();
+    		final VariantContext ctx = progress.apply(in.next());
     		mapVariant(writer,ctx);
     		}
     	flushVariants(writer,null);
+    	progress.close();
     	return 0;
     	}
     
@@ -405,27 +434,11 @@ public class VariantsInWindow extends Launcher{
     		LOG.error("Bad window shift.");
     		return -1;
     	}
-    	if(this.winName==null || this.winName.isEmpty()) {
+    	if(StringUtil.isBlank(this.winName)) {
     		LOG.error("Bad INFO ID windowName");
     		return -1;
-    	}
-    	
-    	try {
-        	final Map<String,String> exprMap=new HashMap<>();
-        	for(final String expStr:this.selectExpressions) {
-        		exprMap.put("expr"+(1+exprMap.size()), expStr);
-        		}
-        	this.jexls = VariantContextUtils.initializeMatchExps(exprMap);
-        	return doVcfToVcf(args, outputFile);
     		}
-    	catch(final Exception err) {
-    		LOG.error(err);
-    		return -1;
-    		}
-    	finally
-    		{
-    		
-    		}
+        return doVcfToVcf(args, this.outputFile);
     	}
     	
     	
