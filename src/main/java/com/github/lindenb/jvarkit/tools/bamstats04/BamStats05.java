@@ -240,7 +240,7 @@ public class BamStats05 extends Launcher
 					int geneStart = Integer.MAX_VALUE;
 					int geneEnd = 0;
 					final List<Integer> counts = new ArrayList<>();
-					final List<Interval> intervals = new ArrayList<>();
+					final List<Interval> intervals = gene2interval.get(gene);
 					final String newContig = contigNameConverter.apply(intervals.get(0).getContig());
 					if(StringUtil.isBlank(newContig)) {
 						throw new JvarkitException.ContigNotFoundInDictionary(intervals.get(0).getContig(), dict);
