@@ -83,7 +83,7 @@ $ head genes.bed
 1	179655424	179655582	ZORG
 1	179656788	179656934	ZORG
 
-$ java -jar  dist/bamstats05.jar -B genes.bed --mincoverage 10  > out.txt
+$ java -jar  dist/bamstats05.jar -B genes.bed --mincoverage 10 in.bam > out.txt
 
 $ head out.txt
 #chrom	start	end	gene	sample	length	mincov	maxcov	avg	nocoverage.bp	percentcovered
@@ -97,7 +97,7 @@ END_DOC
 @Program(name="bamstats05",
 description="Coverage statistics for a BED file, group by gene",
 keywords={"bam","coverage","statistics","bed"},
-biostars={324639,194393}
+biostars={324639,194393,35083}
 )
 public class BamStats05 extends Launcher
 	{

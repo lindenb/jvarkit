@@ -55,6 +55,7 @@ Usage: bamstats05 [options] Files
 
  * [https://www.biostars.org/p/324639](https://www.biostars.org/p/324639)
  * [https://www.biostars.org/p/194393](https://www.biostars.org/p/194393)
+ * [https://www.biostars.org/p/35083](https://www.biostars.org/p/35083)
 
 
 ## Compilation
@@ -135,7 +136,7 @@ $ head genes.bed
 1	179655424	179655582	ZORG
 1	179656788	179656934	ZORG
 
-$ java -jar  dist/bamstats05.jar -B genes.bed --mincoverage 10  > out.txt
+$ java -jar  dist/bamstats05.jar -B genes.bed --mincoverage 10 in.bam > out.txt
 
 $ head out.txt
 #chrom	start	end	gene	sample	length	mincov	maxcov	avg	nocoverage.bp	percentcovered
