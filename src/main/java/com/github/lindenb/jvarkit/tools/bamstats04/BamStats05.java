@@ -33,7 +33,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,8 +41,11 @@ import java.util.TreeMap;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -52,14 +54,15 @@ import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -67,6 +70,15 @@ import htsjdk.samtools.filter.SamRecordFilter;
 
 /**
 BEGIN_DOC
+
+## Input 
+
+input is one or more indexed bam file.
+
+One file with  the suffix '.list' is interpreted as a text file with one path per line.
+
+If there is no argument, stdin is interpreted as a list of path to the bam like in `find . -name "*.bam"`
+
 
 ## Cited In:
 
@@ -90,6 +102,10 @@ $ head out.txt
 1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
 ```
 
+## History
+
+ * 20181122 : added `--merge`, added column count.intervals
+
 END_DOC
 
 
@@ -105,13 +121,12 @@ public class BamStats05 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	@Parameter(names={"-m","--mincoverage"},description="Coverage treshold. Any depth under this value will be considered as 'not-covered'.  Default: 0")
 	private List<Integer> min_coverages = new ArrayList<>() ;
-
-	@Parameter(names={"-B","--bed"},description="bed file (columns: chrom start end GENE)",required=true)
+	@Parameter(names={"-merge","--merge"},description="[20181122] Merge overlapping intervals for the same gene.")
+	private boolean mergeOverlapping =  false;
+	@Parameter(names={"-B","--bed"},description="bed file (columns: chrom(tab)start(tab)end(tab)GENE)",required=true)
 	private File BEDILE = null;
-	
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
@@ -150,18 +165,44 @@ public class BamStats05 extends Launcher
 				 	} 
 				 else if(!intervals.get(0).getContig().equals(chrom))
 				 	{
-					throw new IOException("more than one chromosome for gene:"+gene);
+					throw new IOException("more than one chromosome for gene:"+gene+" "+intervals.get(0)+" and "+bedLine.toInterval());
 				 	}
 				else
 				 	{
-					for(final Interval interval:intervals)
-						{
-						if(interval.getEnd()<chromStart1) continue;
-						if(interval.getStart()>chromEnd1) continue;
-						throw new IOException("overlapping region: "+line+" and "+interval);
+					if(!this.mergeOverlapping) {
+						intervals.stream().
+							filter(R->R.overlaps(bedLine)).
+							findFirst().
+							ifPresent(R->{
+								throw new IllegalArgumentException("overlapping region: "+bedLine+" and "+R+
+										"\nUse option --merge to merge overlapping regions.");
+								});
 						}
 				 	}
 				intervals.add(new Interval(chrom, chromStart1, chromEnd1));
+				if(this.mergeOverlapping)
+					{
+					intervals.sort((A,B)->Integer.compare(A.getStart(),B.getStart()));
+					int x = 0;
+					while(x+1<intervals.size())
+						{
+						final Interval i1 = intervals.get(x+0);
+						final Interval i2 = intervals.get(x+1);
+						if(i1.overlaps(i2))
+							{
+							intervals.remove(x+1);
+							intervals.set(x+0,
+								new Interval(i1.getContig(),
+									Math.min(i1.getStart(), i2.getStart()),
+									Math.max(i1.getEnd(), i2.getEnd())
+									));
+							}
+						else
+							{
+							x++;
+							}
+						}
+					}
 				}
     		bedIn.close();
     		return gene2interval;
@@ -186,22 +227,26 @@ public class BamStats05 extends Launcher
 			if(rgs==null || rgs.isEmpty())
 				throw new IOException("No read groups in "+filename);
 			final Set<String> groupNames = this.groupBy.getPartitions(rgs);
-			
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			
 			
 			
 			for(final String partition : groupNames)
 				{
-				if(partition.isEmpty()) throw new IOException("Empty "+groupBy.name());
+				if(partition.isEmpty()) throw new IOException("Empty read group: "+groupBy.name()+" for "+filename);
 				for(final String gene: gene2interval.keySet())
 					{
 					int geneStart = Integer.MAX_VALUE;
 					int geneEnd = 0;
-					
 					final List<Integer> counts = new ArrayList<>();
+					final List<Interval> intervals = new ArrayList<>();
+					final String newContig = contigNameConverter.apply(intervals.get(0).getContig());
+					if(StringUtil.isBlank(newContig)) {
+						throw new JvarkitException.ContigNotFoundInDictionary(intervals.get(0).getContig(), dict);
+						}
 					
-					
-					for(final Interval interval:gene2interval.get(gene))
+					for(final Interval interval:intervals)
 						{
 						geneStart = Math.min(geneStart, interval.getStart()-1);
 						geneEnd = Math.max(geneEnd, interval.getEnd());
@@ -211,22 +256,18 @@ public class BamStats05 extends Launcher
 						if(interval_counts.length==0) continue;
 						Arrays.fill(interval_counts, 0);
 						
-						if(IN.getFileHeader().getSequenceIndex(interval.getContig())==-1)
-							{
-							throw new IllegalArgumentException("NO DICT FOR \""+interval.getContig()+"\"");
-							}
+						
 						
 						/**
 						 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
 			    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
 						 */
 					
-						SAMRecordIterator r=IN.query(new QueryInterval[]{
-								new QueryInterval(
-								header.getSequenceIndex(interval.getContig()),
+						final SAMRecordIterator r=IN.query(
+								newContig,
 								interval.getStart(),
 								interval.getEnd()
-								)},false)
+								,false)
 								;
 						while(r.hasNext())
 							{
@@ -271,8 +312,9 @@ public class BamStats05 extends Launcher
 						
 						
 					pw.print(
-							gene2interval.get(gene).get(0).getContig()+"\t"+
+							intervals.get(0).getContig()+"\t"+
 							geneStart+"\t"+geneEnd+"\t"+gene+"\t"+partition+"\t"+
+							intervals.size()+"\t"+
 							counts.size()+"\t"+
 							counts.get(0)+"\t"+
 							counts.get(counts.size()-1)
@@ -332,6 +374,7 @@ public class BamStats05 extends Launcher
 			pw.print(
 					"#chrom\t"+
 					"gene.Start"+"\t"+"gene.End"+"\t"+"gene.Name"+"\t"+groupBy.name()+"\t"+
+					"count.intervals\t"+
 					"length"+"\t"+
 					"min.cov"+"\t"+
 					"max.cov");
@@ -347,38 +390,30 @@ public class BamStats05 extends Launcher
 			pw.println();
 			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			final Set<String> files = new  HashSet<>();
+			final List<File> files = IOUtils.unrollFiles2018(args);
 			if(args.isEmpty())
 				{
-				LOG.info("reading BAM path from stdin");
+				LOG.info("reading BAM paths from stdin");
 				r = new BufferedReader(new InputStreamReader(stdin()));
 				String line;
 				while((line=r.readLine())!=null)
 					{
-					if(line.startsWith("#") || line.trim().isEmpty()) continue;
+					if(line.startsWith("#") || StringUtil.isBlank(line)) continue;
 					if(!line.endsWith(".bam"))
 						{
 						LOG.error("line should end with .bam :"+line);
 						return -1;
 						}
+					files.add(new File(line));
 					}
 				CloserUtil.close(r);
 				}
 			
-			else
-				{
-				for(final String fname:args)
-					{
-					files.addAll(IOUtils.unrollFiles(
-							Collections.singletonList(fname)
-							));
-					}
-				}
 			
-			for(final String f:files)
+			for(final File f:files)
 				{
-				in = srf.open(new File(f));
-				int tl =doWork(pw,gene2interval,f,in);
+				in = srf.open(f);
+				int tl = doWork(pw,gene2interval,f.getPath(),in);
 				CloserUtil.close(in);
 				in=null;
 				if(tl!=0) return tl;

@@ -11,7 +11,7 @@ Coverage statistics for a BED file, group by gene
 Usage: bamstats05 [options] Files
   Options:
   * -B, --bed
-      bed file (columns: chrom start end GENE)
+      bed file (columns: chrom(tab)start(tab)end(tab)GENE)
     -f, --filter, --jexl
       A JEXL Expression that will be used to filter out some sam-records (see 
       https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
@@ -30,6 +30,9 @@ Usage: bamstats05 [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
+    -merge, --merge
+      [20181122] Merge overlapping intervals for the same gene.
+      Default: false
     -m, --mincoverage
       Coverage treshold. Any depth under this value will be considered as 
       'not-covered'.  Default: 0
@@ -121,6 +124,15 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Input 
+
+input is one or more indexed bam file.
+
+One file with  the suffix '.list' is interpreted as a text file with one path per line.
+
+If there is no argument, stdin is interpreted as a list of path to the bam like in `find . -name "*.bam"`
+
+
 ## Cited In:
 
   * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
@@ -142,5 +154,9 @@ $ head out.txt
 #chrom	start	end	gene	sample	length	mincov	maxcov	avg	nocoverage.bp	percentcovered
 1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
 ```
+
+## History
+
+ * 20181122 : added `--merge`, added column count.intervals
 
 
