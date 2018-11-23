@@ -12,7 +12,7 @@ import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 public class SamScanSplitReadsTest  extends TestUtils {
 	@Test
-	public void test01() {
+	public void test01() throws java.io.IOException {
 		final File out= super.createTmpFile(".vcf");
 		Assert.assertEquals(new SamScanSplitReads().instanceMain(new String[] {
 				"-o",out.getPath(),
