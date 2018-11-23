@@ -335,7 +335,9 @@ public class MergeStructuralVariants extends Launcher{
 					call.echoed_flag  = true;
 					
 					final GenotypeBuilder gb = new GenotypeBuilder(call.ctx.getGenotype(0));
-					alleles.addAll(call.ctx.getGenotype(0).getAlleles());
+					final List<Allele> gtAlleles=call.ctx.getGenotype(0).getAlleles().stream().map(A->A.isReference()?REF_ALLELE:A).collect(Collectors.toList());
+					gb.alleles(gtAlleles);
+					alleles.addAll(gtAlleles);
 					
 					
 					gb.attribute("OV",
