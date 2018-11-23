@@ -154,6 +154,10 @@ public class MergeStructuralVariants extends Launcher{
 			// sample NON
 			return true;
 			}
+		@Override
+		public String toString() {
+			return getContig()+":"+getStart()+":"+getEnd();
+		}
 		}
 	
 	private boolean testOverlapping(final Locatable a,final Locatable b ) {		
