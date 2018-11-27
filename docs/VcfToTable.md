@@ -17,6 +17,9 @@ Usage: vcf2table [options] Files
       [20171020] output format.
       Default: text
       Possible Values: [text, html]
+    --google
+      use google charts (HTML only)
+      Default: false
     -h, --help
       print help and exit
     --helpFormat

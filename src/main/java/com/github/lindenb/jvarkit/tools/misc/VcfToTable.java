@@ -28,6 +28,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -732,6 +734,8 @@ public class VcfToTable extends Launcher {
 		private boolean hideHtmlHeader=false;
 		@Parameter(names={"--url"},description=Launcher.USER_CUSTOM_INTERVAL_URL_DESC)
 		private String userCustomUrl=null;
+		@Parameter(names={"--google"},description="use google charts (HTML only)")
+		private boolean googleChart  = false;
 
 		
 		private AbstractViewer delegate=null;
@@ -1215,21 +1219,8 @@ public class VcfToTable extends Launcher {
 					this.writeTable(margin, t);
 					}
 				
-				if(!getOwner().hideGTypes && vc.hasGenotypes()) {
-					final Table t=new Table("Type","Count","%").
-							setCaption("Genotype Types");
-					vc.getGenotypes().stream().map(G->G.getType()).
-						collect(Collectors.groupingBy(  Function.identity(), Collectors.counting())).
-							entrySet().
-							stream().
-							sorted((A,B)->B.getValue().compareTo(A.getValue())).
-							map(E->new Object[] {(Object)E.getKey().name(),(Object)E.getValue(),(Object)new Integer((int)(100.0*(E.getValue()/(double)vc.getNSamples())))}).
-							forEach(R->t.addRow(R))
-							;
-					
-					t.removeEmptyColumns();
-					this.writeTable(margin, t);
-					}
+				printGenotypesTypes(margin,vc);
+				
 				
 				if(!getOwner().hideGenotypes && vc.hasGenotypes())
 					{
@@ -1368,6 +1359,24 @@ public class VcfToTable extends Launcher {
 				return vc.getContig()+":"+vc.getStart()+(vc.getStart()!=vc.getEnd()?"-"+vc.getEnd():"")+"/"+vc.getReference().getDisplayString();
 				}
 			
+			protected void printGenotypesTypes(final String margin,final VariantContext vc) {
+				if(getOwner().hideGTypes) return;
+				if(!vc.hasGenotypes()) return;
+				final Table t=new Table("Type","Count","%").
+						setCaption("Genotype Types");
+				vc.getGenotypes().stream().map(G->G.getType()).
+					collect(Collectors.groupingBy(  Function.identity(), Collectors.counting())).
+						entrySet().
+						stream().
+						sorted((A,B)->B.getValue().compareTo(A.getValue())).
+						map(E->new Object[] {(Object)E.getKey().name(),(Object)E.getValue(),(Object)new Integer((int)(100.0*(E.getValue()/(double)vc.getNSamples())))}).
+						forEach(R->t.addRow(R))
+						;
+				
+				t.removeEmptyColumns();
+				this.writeTable(margin, t);
+				}
+			
 			}
 		
 		private class TerminalViewer extends AbstractViewer
@@ -1474,6 +1483,20 @@ public class VcfToTable extends Launcher {
 						out.writeStartElement("style");
 						out.writeCharacters(getCssStyle());
 						out.writeEndElement();//style
+						
+						if(getOwner().googleChart)
+							{
+							out.writeStartElement("script");
+							out.writeAttribute("type", "text/javascript");
+							out.writeAttribute("src", "https://www.gstatic.com/charts/loader.js");
+							out.writeCharacters("");//force blank
+							out.writeEndElement();//script
+							//
+							out.writeStartElement("script");
+							out.writeAttribute("type", "text/javascript");
+							out.writeCharacters("google.charts.load('current', {'packages':['corechart']});");
+							out.writeEndElement();//script
+							}
 						
 						out.writeEndElement();//head
 						out.writeStartElement("body");
@@ -1647,7 +1670,47 @@ public class VcfToTable extends Launcher {
 					throw new RuntimeIOException(err);
 					}				
 				}
-			
+			@Override
+			protected void printGenotypesTypes(String margin, VariantContext vc) {
+				if(!getOwner().googleChart) {
+					super.printGenotypesTypes(margin, vc);
+					return;
+					}
+				if(getOwner().hideGTypes) return;
+				if(!vc.hasGenotypes()) return;
+				//  <div id="piechart" style="width: 900px; height: 500px;"></div>
+				try {
+					final String id = "gtypes"+countVariants;
+					final StringWriter strw = new StringWriter();
+					final PrintWriter pw= new PrintWriter(strw);
+					pw.print("google.charts.setOnLoadCallback(function(){");
+					pw.print("var data = google.visualization.arrayToDataTable([");
+					pw.print("['Type', 'Count']");
+					for(final GenotypeType gt:GenotypeType.values())
+						{
+						final long n = vc.getGenotypes().stream().filter(G->G.getType().equals(gt)).count();
+						if(n==0L) continue;
+						pw.print(",['"+gt.name()+"',"+n+"]");
+						}
+					pw.print("]);");
+					pw.print("var chart = new google.visualization.PieChart(document.getElementById('"+id+"'));");
+					pw.print("chart.draw(data, {\"title\":\"Genotype Types\"});");
+					pw.print("});");
+					pw.flush();
+					
+					
+					this.out.writeStartElement("span");
+					this.out.writeAttribute("id", id);
+					this.out.writeEndElement();
+					this.out.writeStartElement("script");
+					this.out.writeCharacters(strw.toString());
+					this.out.writeEndElement();
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}	
+				}
 			}
 
 		
