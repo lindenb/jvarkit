@@ -10,20 +10,19 @@ Filter VCF annotated with external (AF or AC/AN) frequency information like vcfg
 ```
 Usage: vcfafinfofilter [options] Files
   Options:
-    -acn, --acn
-      A list of pairs of AC/AF fields separated with comma,semicolon or 
-      whitespace that will be used to calculate the AF. If an attribute 
-      contains  '*', it will be replaced by 'AC' and 'AN'. eg: 
-      'gnomad_exome_AC_NFE,gnomad_exome_AN_NFE,my_pop_*' 
-      Default: <empty string>
-    -af, --af
-      A list of AF fields, separated with comma,semicolon or whitespace that 
-      will be used to extract a AF field.
-      Default: <empty string>
     --disable-vc-attribute-recalc
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
       Default: false
+    -F, --fields
+      [20180905]How to extract the AlleleFrequencies from a variant. Multiple 
+      separated with comma or semicolon. e.g: 
+      "AC/AN;exome_CEU_*;genome_NFE_AF;another_AC/another/AN". Input is a set 
+      of AC/AN field pairs or/and AF field separated by semicolon. 'x/y' means 
+      AC/AN fields. '*' will be replaced with AC and AN, hence, 'exome_CEU_*' 
+      will be interpreted as exome_CEU_AC/exome_CEU_AN. Other field will be 
+      interpreted as an AF field.
+      Default: <empty string>
     --filter, -f
       set this filter if all ALT fails the treshold. If empty :remove the 
       variant 
