@@ -42,6 +42,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -1498,6 +1499,7 @@ public class VcfToTable extends Launcher {
 							//
 							out.writeStartElement("script");
 							out.writeAttribute("type", "text/javascript");
+							out.writeCharacters("var thechartWidth = 1000;");
 							out.writeCharacters("google.charts.load('current', {'packages':['corechart']});");
 							out.writeEndElement();//script
 							}
@@ -1721,6 +1723,7 @@ public class VcfToTable extends Launcher {
 				try {
 					printIntChart(vc,"dp","DP",V->V.hasDP(),V->V.getDP());
 					printIntChart(vc,"gq","GQ",V->V.hasGQ(),V->V.getGQ());
+					printADChart(vc);
 					}
 				catch(final XMLStreamException err)
 					{
@@ -1732,25 +1735,28 @@ public class VcfToTable extends Launcher {
 						final String prefix,
 						final String title,
 						final Predicate<Genotype> hasInfo,
-						final Function<Genotype,Number> extractor
+						final Function<Genotype,Integer> extractor
 						) throws XMLStreamException {
 				if(!vc.hasGenotypes()) return;
 				if(vc.getGenotypes().stream().noneMatch(hasInfo)) return;
 				
-				final String id = prefix+countVariants;
+				final String id = prefix + countVariants;
 				final StringWriter strw = new StringWriter();
 				final PrintWriter pw= new PrintWriter(strw);
 				pw.print("google.charts.setOnLoadCallback(function(){");
 				pw.print("var data = google.visualization.arrayToDataTable([");
 				pw.print("[\"Sample\",\""+title+"\"]");
-				for(final Genotype gt:vc.getGenotypes())
+				for(final Genotype gt : vc.getGenotypes().
+						stream().
+						filter(hasInfo).
+						sorted((A,B)->extractor.apply(A).compareTo(extractor.apply(B))).
+						collect(Collectors.toList()))
 					{
-					if(!hasInfo.test(gt)) continue;
 					pw.print(",['"+gt.getSampleName()+"',"+extractor.apply(gt)+"]");
 					}
 				pw.print("]);");
 				pw.print("var chart = new google.visualization.ColumnChart(document.getElementById('"+id+"'));");
-				pw.print("chart.draw(data, {\"title\":\""+title+" Per sample\",\"legend\": {\"position\":\"none\" }});");
+				pw.print("chart.draw(data, {\"width\":thechartWidth,\"title\":\""+title+" Per sample\",\"legend\": {\"position\":\"none\" }});");
 				pw.print("});");
 				pw.flush();
 				this.out.writeStartElement("span");
@@ -1761,6 +1767,56 @@ public class VcfToTable extends Launcher {
 				this.out.writeEndElement();
 				}
 			
+				private void printADChart(final VariantContext vc) throws XMLStreamException {
+				if(!vc.hasGenotypes()) return;
+				if(!vc.isVariant()) return;
+				if(vc.getGenotypes().stream().noneMatch(V->V.hasAD())) return;
+				
+				final String id = "ad"+countVariants;
+				final StringWriter strw = new StringWriter();
+				final PrintWriter pw= new PrintWriter(strw);
+				pw.print("google.charts.setOnLoadCallback(function(){");
+				pw.print("var data = google.visualization.arrayToDataTable([");
+				pw.print("[\"Sample\"");
+				for(int x=0;x< vc.getNAlleles();++x) pw.print(",\""+x+"\"");
+				pw.print(",{ role: 'style' }]");
+				for(final Genotype gt:vc.getGenotypes().stream().
+						filter(G->G.hasAD()).
+						sorted((A,B)->A.getType().compareTo(B.getType())).
+						collect(Collectors.toList()))
+					{
+					final int array[] = gt.getAD();
+					final double sum = IntStream.of(array).sum();
+					if(sum==0.0) continue;
+					pw.print(",['"+gt.getSampleName()+"'");
+					for(int x=0;x< vc.getNAlleles();++x)
+						{
+						pw.print(",");
+						pw.print((int)(((x<array.length?array[x]:0)/sum)*100.0));
+						}
+					pw.print(",\"stroke-color:");
+					switch(gt.getType())
+						{
+						case HOM_REF:pw.print("green");break;
+						case HOM_VAR:pw.print("red");break;
+						case HET:pw.print("orange");break;
+						case NO_CALL: pw.print("gray");break;
+						default:pw.print("black");break;
+						}
+					pw.print("\"]");
+					}
+				pw.print("]);");
+				pw.print("var chart = new google.visualization.ColumnChart(document.getElementById('"+id+"'));");
+				pw.print("chart.draw(data, {\"width\":thechartWidth,\"isStacked\": true,\"title\":\"AD Per sample\",\"legend\": {\"position\":\"bottom\" }});");
+				pw.print("});");
+				pw.flush();
+				this.out.writeStartElement("span");
+				this.out.writeAttribute("id", id);
+				this.out.writeEndElement();
+				this.out.writeStartElement("script");
+				this.out.writeCharacters(strw.toString());
+				this.out.writeEndElement();
+				}
 			}
 
 		
