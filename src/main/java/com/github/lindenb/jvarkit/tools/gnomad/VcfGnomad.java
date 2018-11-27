@@ -150,12 +150,6 @@ public class VcfGnomad extends Launcher{
 	private boolean filteredGnomad=false;
 	@Parameter(names={"-noMultiAltGnomad","--noMultiAltGnomad"},description="[20170706] Skip Multi Allelic GNOMAD Variants")
 	private boolean noMultiAltGnomad=false;
-	@Parameter(names={"--noAlleleCount"},description="do Not Insert AC /Allele Count")
-	private boolean doNotInsertAlleleCount=false;
-	@Parameter(names={"--noAlleleNumber"},description="do Not Insert AN /Allele Number")
-	private boolean doNotInsertAlleleNumber=false;
-	@Parameter(names={"--noAlleleFreq"},description="do Not Insert AF /Allele Freq.")
-	private boolean doNotInsertAlleleFreq=false;
 	@Parameter(names={"--noUpdateId"},description="do Not Update ID if it is missing in user's variant")
 	private boolean doNotUpdateId=false;
 	@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when any variant [CHROM:POS:REF] is found in nomad")
@@ -461,6 +455,7 @@ public class VcfGnomad extends Launcher{
 			for(int omeIndex=0;omeIndex<2;omeIndex++)
 				{
 				final OmeType omeType = omeIndex==0?OmeType.exome:OmeType.genome;
+				if(this.useGenomeOnly && !omeType.equals(OmeType.genome)) continue;
 				if(om2manifest[omeIndex]!=null && !om2manifest[omeIndex].acceptContig(ctx.getContig()))
 					{
 					om2manifest[omeIndex].close();
@@ -505,6 +500,7 @@ public class VcfGnomad extends Launcher{
 						else
 							{
 							LOG.error("Found more than one value ("+set+") for "+infoField);
+							progress.close();
 							return -1;
 							}
 						}
@@ -550,6 +546,7 @@ public class VcfGnomad extends Launcher{
 					else
 						{
 						LOG.error("not handled "+infoField);
+						progress.close();
 						return -1;
 						}
 					}
