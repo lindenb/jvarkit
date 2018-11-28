@@ -738,6 +738,8 @@ public class VcfToTable extends Launcher {
 		private String userCustomUrl=null;
 		@Parameter(names={"--google"},description="use google charts (HTML only)")
 		private boolean googleChart  = false;
+		@Parameter(names={"--chartsize"},description="google charts dimension (HTML only). Format (integer)x(interger). eg: '1000x500' or (width/integer) e.g: '1000'")
+		private String googleChartSizeStr  = null;
 
 		
 		private AbstractViewer delegate=null;
@@ -1499,7 +1501,6 @@ public class VcfToTable extends Launcher {
 							//
 							out.writeStartElement("script");
 							out.writeAttribute("type", "text/javascript");
-							out.writeCharacters("var thechartWidth = 1000;");
 							out.writeCharacters("google.charts.load('current', {'packages':['corechart']});");
 							out.writeEndElement();//script
 							}
@@ -1723,7 +1724,9 @@ public class VcfToTable extends Launcher {
 				try {
 					printIntChart(vc,"dp","DP",V->V.hasDP(),V->V.getDP());
 					printIntChart(vc,"gq","GQ",V->V.hasGQ(),V->V.getGQ());
-					printADChart(vc);
+					printADChart(vc,"adx","HOM_REF",G->G.isHomRef() && G.hasAD() && Arrays.stream(G.getAD()).skip(1L).anyMatch(I->I>0));
+					printADChart(vc,"ady","HET",G->G.isHet() && G.hasAD() );
+					printADChart(vc,"adz","HOM_VAR",G->G.isHomVar() && G.hasAD() && Arrays.stream(G.getAD()).limit(1L).anyMatch(I->I>0));
 					}
 				catch(final XMLStreamException err)
 					{
@@ -1756,7 +1759,7 @@ public class VcfToTable extends Launcher {
 					}
 				pw.print("]);");
 				pw.print("var chart = new google.visualization.ColumnChart(document.getElementById('"+id+"'));");
-				pw.print("chart.draw(data, {\"width\":thechartWidth,\"title\":\""+title+" Per sample\",\"legend\": {\"position\":\"none\" }});");
+				pw.print("chart.draw(data, {"+getGoogleChartDimension()+",\"title\":\""+title+"\",\"legend\": {\"position\":\"none\" }});");
 				pw.print("});");
 				pw.flush();
 				this.out.writeStartElement("span");
@@ -1767,22 +1770,29 @@ public class VcfToTable extends Launcher {
 				this.out.writeEndElement();
 				}
 			
-				private void printADChart(final VariantContext vc) throws XMLStreamException {
+				private void printADChart(
+						final VariantContext vc,
+						final String prefix,
+						final String title,
+						final Predicate<Genotype> hasType
+						) throws XMLStreamException {
 				if(!vc.hasGenotypes()) return;
 				if(!vc.isVariant()) return;
-				if(vc.getGenotypes().stream().noneMatch(V->V.hasAD())) return;
+				if(vc.getGenotypes().stream().filter(G->G.hasAD()).filter(hasType).noneMatch(V->V.hasAD())) return;
 				
-				final String id = "ad"+countVariants;
+				final String id = prefix+countVariants;
 				final StringWriter strw = new StringWriter();
 				final PrintWriter pw= new PrintWriter(strw);
 				pw.print("google.charts.setOnLoadCallback(function(){");
 				pw.print("var data = google.visualization.arrayToDataTable([");
 				pw.print("[\"Sample\"");
-				for(int x=0;x< vc.getNAlleles();++x) pw.print(",\""+x+"\"");
-				pw.print(",{ role: 'style' }]");
-				for(final Genotype gt:vc.getGenotypes().stream().
+				for(int x=0;x< vc.getNAlleles();++x) pw.print(",\"Allele "+x+"\"");
+				pw.print("]");
+				for(final Genotype gt:vc.getGenotypes().
+						stream().
 						filter(G->G.hasAD()).
-						sorted((A,B)->A.getType().compareTo(B.getType())).
+						filter(hasType).
+						sorted((A,B)->Integer.compare(A.getAD()[0], B.getAD()[0])).
 						collect(Collectors.toList()))
 					{
 					final int array[] = gt.getAD();
@@ -1794,20 +1804,11 @@ public class VcfToTable extends Launcher {
 						pw.print(",");
 						pw.print((int)(((x<array.length?array[x]:0)/sum)*100.0));
 						}
-					pw.print(",\"stroke-color:");
-					switch(gt.getType())
-						{
-						case HOM_REF:pw.print("green");break;
-						case HOM_VAR:pw.print("red");break;
-						case HET:pw.print("orange");break;
-						case NO_CALL: pw.print("gray");break;
-						default:pw.print("black");break;
-						}
-					pw.print("\"]");
+					pw.print("]");
 					}
 				pw.print("]);");
 				pw.print("var chart = new google.visualization.ColumnChart(document.getElementById('"+id+"'));");
-				pw.print("chart.draw(data, {\"width\":thechartWidth,\"isStacked\": true,\"title\":\"AD Per sample\",\"legend\": {\"position\":\"bottom\" }});");
+				pw.print("chart.draw(data, {"+getGoogleChartDimension()+",\"isStacked\": true,\"title\":\"AD per sample ("+title+")\",\"legend\": {\"position\":\"bottom\" }});");
 				pw.print("});");
 				pw.flush();
 				this.out.writeStartElement("span");
@@ -1898,12 +1899,38 @@ public class VcfToTable extends Launcher {
 			this.delegate.close();
 			this.delegate=null;
 			}
+		
+		
+		String getGoogleChartDimension() {
+			int w=0,h=0;
+			final int x= StringUtil.isBlank(this.googleChartSizeStr)?-1:this.googleChartSizeStr.indexOf('x');
+			try {
+				if(x>1) {
+					w = Integer.parseInt(this.googleChartSizeStr.substring(0, x));
+					h = Integer.parseInt(this.googleChartSizeStr.substring(x+1));
+					}
+				else if(!StringUtil.isBlank(this.googleChartSizeStr))
+					{
+					w = Integer.parseInt(this.googleChartSizeStr);
+					h = (int)(w/1.618);
+					}
+				}
+			catch(final NumberFormatException err) {
+				w = -1;
+				h = -1;
+				}
+			if(!(w>0 && h>0)) { w=1000;h=618;}
+			return  "\"width\":"+w+",\"height\":"+h;
+			}
+
 		}
 	
 	
 	@ParametersDelegate
 	private VcfToTableViewer  viewer = new VcfToTableViewer();
 
+	
+	
 	@Override
 	public int doWork(final List<String> args) {
 		VcfIterator in = null;

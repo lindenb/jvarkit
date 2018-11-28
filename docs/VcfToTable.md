@@ -10,6 +10,9 @@ convert a vcf to a table, to ease display in the terminal
 ```
 Usage: vcf2table [options] Files
   Options:
+    --chartsize
+      google charts dimension (HTML only). Format (integer)x(interger). eg: 
+      '1000x500' or (width/integer) e.g: '1000'
     --color, --colors
       [20170808] Print Terminal ANSI colors.
       Default: false
