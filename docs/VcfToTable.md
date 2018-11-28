@@ -11,8 +11,8 @@ convert a vcf to a table, to ease display in the terminal
 Usage: vcf2table [options] Files
   Options:
     --chartsize
-      google charts dimension (HTML only). Format (integer)x(interger). eg: 
-      '1000x500' or (width/integer) e.g: '1000'
+      google charts dimension (HTML only). Format (integer)x(integer). eg: 
+      '1000x500' or (width) e.g: '1000'
     --color, --colors
       [20170808] Print Terminal ANSI colors.
       Default: false
@@ -303,5 +303,14 @@ Samples
 $ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
 ```
 
+### Screenshots
+
+[https://twitter.com/yokofakun/status/1067730485487366145](https://twitter.com/yokofakun/status/1067730485487366145)
+
+![https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg](https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg)
+
+[https://twitter.com/yokofakun/status/922475502933368832](https://twitter.com/yokofakun/status/922475502933368832)
+
+![https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg](https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg)
 
 

@@ -233,6 +233,15 @@ Samples
 $ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
 ```
 
+### Screenshots
+
+[https://twitter.com/yokofakun/status/1067730485487366145](https://twitter.com/yokofakun/status/1067730485487366145)
+
+![https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg](https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg)
+
+[https://twitter.com/yokofakun/status/922475502933368832](https://twitter.com/yokofakun/status/922475502933368832)
+
+![https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg](https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg)
 
 END_DOC
 
@@ -738,7 +747,7 @@ public class VcfToTable extends Launcher {
 		private String userCustomUrl=null;
 		@Parameter(names={"--google"},description="use google charts (HTML only)")
 		private boolean googleChart  = false;
-		@Parameter(names={"--chartsize"},description="google charts dimension (HTML only). Format (integer)x(interger). eg: '1000x500' or (width/integer) e.g: '1000'")
+		@Parameter(names={"--chartsize"},description="google charts dimension (HTML only). Format (integer)x(integer). eg: '1000x500' or (width) e.g: '1000'")
 		private String googleChartSizeStr  = null;
 
 		
