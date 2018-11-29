@@ -1,5 +1,7 @@
 # Biostar103303
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Calculate Percent Spliced In (PSI).
 
 
@@ -23,6 +25,14 @@ Usage: biostar103303 [options] Files
 ```
 
 
+## Keywords
+
+ * sam
+ * bam
+ * psi
+
+
+
 ## See also in Biostars
 
  * [https://www.biostars.org/p/103303](https://www.biostars.org/p/103303)
@@ -32,11 +42,10 @@ Usage: biostar103303 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -66,25 +75,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar103303.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar103303.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue Nov 14 16:13:41 2017 +0100 ; epsitatis01, strange bug in htsjdk https://github.com/samtools/htsjdk/issues/1026 ; https://github.com/lindenb/jvarkit/commit/871a7cc3ed14df5d5b6cf19ef9bef87160795c16
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26
-Thu Apr 6 18:34:56 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/883b4ba4b693661663694256f16b137e371147fa
-Thu Nov 26 17:41:15 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/899c60335614350d463be66ec21e994b34dc55be
-Fri Oct 2 16:11:52 2015 +0200 ; bioalci ; https://github.com/lindenb/jvarkit/commit/5506708d3f20dc4a6f6b9d43805f9722d47582b5
-Tue Jul 21 17:15:14 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc3230eabbfb7c2c9763528c63c1f42ae1281351
-Sat Jun 14 13:08:42 2014 +0200 ; fix103303 ; https://github.com/lindenb/jvarkit/commit/6294613b8eff3419427ddff13a37a84fcffaba21
-Thu Jun 12 22:47:56 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/6783353ca2c14435bc4fdef44198d967d5bc02f8
-Thu Jun 12 22:39:20 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/88df95b81ced6ceabea3a80a466ccd32c6ef6178
-```
-
-</details>
 
 ## Contribute
 
