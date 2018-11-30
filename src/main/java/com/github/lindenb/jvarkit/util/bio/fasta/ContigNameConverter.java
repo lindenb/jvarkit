@@ -181,6 +181,15 @@ public static ContigNameConverter createConvertToUcsc()
 	}
 
 
+public static ContigNameConverter createConvertToEnsembl()
+	{
+	final MapBasedContigNameConverter map = new MapBasedContigNameConverter();
+	for(int i=1;i<=22;++i) map.put("chr"+i,String.valueOf(i));
+	map.put("chrX","X");map.put("chrY","Y");map.put("chrM","MT");
+	return map;
+	}
+
+/*
 private static class GRCh37Ucsc2Ensembl extends MapBasedContigNameConverter
 	{
 	GRCh37Ucsc2Ensembl() {
@@ -189,7 +198,7 @@ private static class GRCh37Ucsc2Ensembl extends MapBasedContigNameConverter
 		}
 	@Override
 	public String getName() {return "GRCh37UcscToEnsembl";}
-	}
+	}*/
 
 /** creates a ContigNameConverter from two dictionaries, just using the common chromosome names */
 public static ContigNameConverter fromDictionaries(

@@ -1063,6 +1063,7 @@ public class VcfToTable extends Launcher {
 				if(vc.hasID() && vc.getID().matches("rs[0-9]+"))
 					{
 					t.addRow("dbSNP",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/snp/"+vc.getID()));
+					t.addRow("OpenSNP",new HyperlinkDecorator("https://opensnp.org/snps/"+vc.getID()));
 					if(SequenceDictionaryUtils.isHuman(header)) {
 						t.addRow("clinvar",
 								new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D"));
