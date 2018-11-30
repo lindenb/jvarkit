@@ -1084,11 +1084,36 @@ public class VcfToTable extends Launcher {
 						"%3A"+ Math.max(1,vc.getStart()-50) +"-"+(vc.getEnd()+50)
 						));
 					}
+				
+				//beancon
+				for(int side=0;side<2;++side)
+					{
+					if(side==0 && !SequenceDictionaryUtils.isGRCh37(header)) continue;
+					if(side==1 && !SequenceDictionaryUtils.isGRCh38(header)) continue;
+					for(final Allele alt: vc.getAlternateAlleles())
+						{
+						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						//https://beacon-network.org/#/search?pos=114267128&chrom=4&allele=A&ref=G&rs=GRCh37
+						t.addRow("Beacon",new HyperlinkDecorator("https://beacon-network.org/#/search?chrom="+
+								(
+								vc.getContig().startsWith("chr")?
+								vc.getContig().substring(3):
+								vc.getContig()
+								) +
+								"&pos="+vc.getStart()+
+								"&ref="+ vc.getReference().getDisplayString()+
+								"&allele="+ alt.getDisplayString()+
+								"&rs="+ (side==0?"GRCh37":"GRCh38")
+								));
+						}
+					}
+				
 				if(SequenceDictionaryUtils.isGRCh37(header)) {
 					
 					for(final Allele alt: vc.getAlternateAlleles())
 						{
 						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						//gnomad
 						t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
 							(
 							vc.getContig().startsWith("chr")?
@@ -1965,7 +1990,7 @@ public class VcfToTable extends Launcher {
 			CloserUtil.close(viewer);
 			}
 		}
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VcfToTable().instanceMainWithExit(args);
 	}
 }

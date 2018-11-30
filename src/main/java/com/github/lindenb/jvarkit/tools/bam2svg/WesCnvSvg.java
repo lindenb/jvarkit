@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -151,10 +152,10 @@ public class WesCnvSvg  extends Launcher {
 	@Parameter(names={"-B","--bed","-b","--capture"},description=
 			"BED Capture. BED file containing the Regions to be observed.")
 	private File bedFile = null;
-	@Parameter(names={"-rgn","--region"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon")
+	@Parameter(names={"-r","-rgn","--region","--interval"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon")
 	private String bedRegions = null;
-	@Parameter(names={"-R","--ref"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidxFile = null;
+	@Parameter(names={"-R","--ref","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION,converter=ReferenceFileSupplier.StringConverter.class)
+	private ReferenceFileSupplier referenceFileSupplier = ReferenceFileSupplier.getDefaultReferenceFileSupplier();
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-height","--height"},description="Sample Track height")
@@ -295,9 +296,9 @@ public class WesCnvSvg  extends Launcher {
 		try
 			{
 			
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxFile);
+			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFileSupplier.getRequired());
 			this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
-			if(this.refDict==null || this.refDict.isEmpty()) throw new JvarkitException.FastaDictionaryMissing(this.faidxFile);
+			if(this.refDict==null || this.refDict.isEmpty()) throw new JvarkitException.FastaDictionaryMissing(this.referenceFileSupplier.toString());
 			
 			final List<Interval> userIntervals = new ArrayList<>();
 			if(!StringUtil.isBlank(this.bedRegions))
@@ -330,7 +331,7 @@ public class WesCnvSvg  extends Launcher {
 			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					validationStringency(ValidationStringency.LENIENT).
-					referenceSequence(this.faidxFile);
+					referenceSequence(this.referenceFileSupplier.getRequired());
 			for(final File bamFile:IOUtils.unrollFiles2018(args)) {
 				final BamInput bi = new BamInput();
 				bi.index = this.bamInputs.size();

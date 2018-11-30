@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.ParameterException;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IOUtil;
@@ -45,6 +46,7 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 /** fasta reference file profide. */
 public abstract class ReferenceFileSupplier implements Supplier<File> {
+	private static final Logger LOG = Logger.build(ReferenceFileSupplier.class).make();
 	/** java propery */
 	private static final String JAVA_PROP = "jvarkit.fasta.reference";
 	/** linux env variabl */
@@ -52,16 +54,21 @@ public abstract class ReferenceFileSupplier implements Supplier<File> {
 	/** catalog file */
 	private static final String CATALOG_FILE ="fasta-ref.properties";
 	
-	private static final Pattern CatalogKeyPattern = Pattern.compile("[A-Za-z][A-Za-z0-9_\\\\-]*");
+	
+	private static final String CatalogKeyPatStr = "[A-Za-z][A-Za-z0-9_\\\\-]*";
+	private static final Pattern CatalogKeyPattern = Pattern.compile(CatalogKeyPatStr);
+	
+	/** description for jcommander args */
 	public static final String OPT_DESCRIPTION =
-			"Path to an Indexed fasta Reference file. "+
+			"The parameter is the path to an Indexed fasta Reference file. "+
 			"This fasta file must be indexed with samtools faidx and with picard CreateSequenceDictionary. " +
-			"The parameter can also be a catalog key matching " + CatalogKeyPattern.pattern() +" . " +
-			"A catalog is a java property file ( https://docs.oracle.com/javase/tutorial/essential/environment/properties.html ) where the values are the path to the fasta file. " +
-			" Catalog are searched in that order : $‘PWD}/"+CATALOG_FILE +", ${HOME}/."+CATALOG_FILE +", /etc/jvarkit/" + CATALOG_FILE +
-			"If empty the key or the path will be searched in that order 1) the java property -D"+JAVA_PROP+"=pathTofastaOrCatalogKey ." +
-			" 2) the linux environement variable $"+ENV_KEY+"=pathTofastaOrCatalogKey 3) the catalogs."
+			"The parameter can also be a 'key' (matching the regular expression `" + CatalogKeyPatStr +"`) in a catalog file. " +
+			"A 'catalog' file is a java property file ( https://docs.oracle.com/javase/tutorial/essential/environment/properties.html ) where the values are the path to the fasta file. " +
+			" Catalogs are searched in that order : `${PWD}/"+CATALOG_FILE +"`, `${HOME}/."+CATALOG_FILE +"`, `/etc/jvarkit/" + CATALOG_FILE +"`. " +
+			" If the key or the path are not defined by the user, they will be searched in that order 1) the java property -D"+JAVA_PROP+"=pathTofastaOrCatalogKey ." +
+			" 2) the linux environement variable $"+ENV_KEY+"=pathTofastaOrCatalogKey 3) The catalogs."
 			;
+			
 
 	
 public static class StringConverter
@@ -75,7 +82,7 @@ public static class StringConverter
 			if(CatalogKeyPattern.matcher(path).matches()) {
 				f = ReferenceFileSupplier.searchCatalogs(path);
 				if(f==null) throw new ParameterException(
-						"Cannot find key "+path+" in the Fasta Reference Catalogs ( "+ 
+						"Cannot find key \""+path+"\" in the Fasta Reference Catalogs / property files ( "+ 
 						getCatalogFiles().stream().map(F->F.getPath()).collect(Collectors.joining(" ")) +
 						"). You might provide the path to a fasta reference instead of a catalog key"
 						);
@@ -95,6 +102,8 @@ public static class StringConverter
 		}
 	}
 	
+	
+
 	private static class FileSupplier extends ReferenceFileSupplier
 		{
 		final File fastaFile;
@@ -131,7 +140,7 @@ public static class StringConverter
 			}
 		
 		@Override
-		public File get() {
+		public synchronized File get() {
 			if(this.searched) {
 				return this.fasta;
 				}
@@ -140,6 +149,11 @@ public static class StringConverter
 			if(this.fasta!=null) return fasta;
 			this.fasta = parseVal(System.getenv(ENV_KEY));
 			if(this.fasta!=null) return fasta;
+			LOG.warn("cannot find reference fasta file using key/path = \""+this.fasta+"\".\n" +
+					"\t${"+ENV_KEY+"}="+System.getenv(ENV_KEY)+"\n" +
+					"\t-D"+JAVA_PROP+"="+System.getProperty(JAVA_PROP,null)+"\n"+
+					getCatalogFiles().stream().map(F->"\tCatalog file: "+ F.getPath()+" exists:"+F.exists()).collect(Collectors.joining("\n")) + "\n"+
+					"Check the application parameters please.");
 			return null;
 			}
 		}
@@ -170,6 +184,7 @@ public static class StringConverter
 		return null;
 		}
 	
+	/** list all potential catalog files, even if they don't exist */
 	private static List<File> getCatalogFiles() {
 		final List<File> list = new ArrayList<>();
 		/* user cwd */
@@ -187,8 +202,10 @@ public static class StringConverter
 		return list;
 		}
 	
-	/** search catalogs using a samsequencedictionary. Return NULL if not found */
+	/** search catalogs using a samsequencedictionary. Return NULL if not found or the dict is null*/
+	@SuppressWarnings("deprecation")
 	public static File searchCatalogs(final SAMSequenceDictionary dict) {
+		if(dict==null) return null;
 		for(final File catFile: getCatalogFiles()) {
 			if(!catFile.exists() || !catFile.isFile() || !catFile.canRead()) continue;
 			
@@ -206,7 +223,7 @@ public static class StringConverter
 				map(S->new File(S)).
 				filter(F->F.exists() && F.isFile() && F.canRead()).
 				filter(F->{
-					final SAMSequenceDictionary d2=SAMSequenceDictionaryExtractor.extractDictionary(F);
+					final SAMSequenceDictionary d2 = SAMSequenceDictionaryExtractor.extractDictionary(F);
 					if(d2==null || !SequenceUtil.areSequenceDictionariesEqual(d2, dict)) return false;
 					return true;
 					}).
@@ -218,12 +235,17 @@ public static class StringConverter
 		}
 	
 	public static File searchCatalogs(final String key) {
-		for(final File f: getCatalogFiles()) {
-			File fasta =  searchCatalog(f,key);
-			if(fasta!=null) return fasta;
-			}
-		return null;
+		return getCatalogFiles().
+				stream().
+				map(C->searchCatalog(C, key)).
+				filter(F->F!=null).
+				findFirst().
+				orElse(null);
 		}
+	
+	/** return the path to the fasta file. May be null */
+	@Override
+	public abstract File get();
 	
 	@Override
 	public String toString() {

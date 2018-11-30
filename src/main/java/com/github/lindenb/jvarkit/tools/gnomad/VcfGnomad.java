@@ -527,6 +527,7 @@ public class VcfGnomad extends Launcher{
 					else if(infoField.original.isFixedCount() && infoField.original.getCount()==1) {
 						final Object numbers[]=new Object[alternateAlleles.size()];
 						Arrays.fill(numbers, infoField.getDefault());
+						boolean something_found_for_an_allele = false;
 						for(int x=0;x< alternateAlleles.size();++x)
 							{
 							final Allele alt=alternateAlleles.get(x);
@@ -536,12 +537,16 @@ public class VcfGnomad extends Launcher{
 								int idx = gv.getAlternateAlleles().indexOf(alt);
 								if(idx==-1) continue;
 								if(!gv.hasAttribute(infoField.original.getID())) continue;
+								something_found_for_an_allele = true;
 								final Object val=  infoField.parse(gv.getAttribute(infoField.original.getID()));
 								if(val==null) continue;
 								numbers[x] = val;
+								
 								}
 							}
-						vcb.attribute(infoField.getOutputTag(), numbers);
+						if(something_found_for_an_allele) {
+							vcb.attribute(infoField.getOutputTag(), numbers);
+							}
 						}
 					else
 						{
