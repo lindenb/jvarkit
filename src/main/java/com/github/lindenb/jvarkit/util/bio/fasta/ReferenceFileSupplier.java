@@ -45,20 +45,28 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 /** fasta reference file profide. */
 public abstract class ReferenceFileSupplier implements Supplier<File> {
-
+	/** java propery */
 	private static final String JAVA_PROP = "jvarkit.fasta.reference";
+	/** linux env variabl */
 	private static final String ENV_KEY = "FASTA_REFERENCE";
+	/** catalog file */
+	private static final String CATALOG_FILE ="fasta-ref.properties";
+	
 	private static final Pattern CatalogKeyPattern = Pattern.compile("[A-Za-z][A-Za-z0-9_\\\\-]*");
-public static final String OPT_DESCRIPTION =
-	"";
+	public static final String OPT_DESCRIPTION =
+			"Path to an Indexed fasta Reference file. "+
+			"This fasta file must be indexed with samtools faidx and with picard CreateSequenceDictionary. " +
+			"The parameter can also be a catalog key matching " + CatalogKeyPattern.pattern() +" . " +
+			"A catalog is a java property file ( https://docs.oracle.com/javase/tutorial/essential/environment/properties.html ) where the values are the path to the fasta file. " +
+			" Catalog are searched in that order : $‘PWD}/"+CATALOG_FILE +", ${HOME}/."+CATALOG_FILE +", /etc/jvarkit/" + CATALOG_FILE +
+			"If empty the key or the path will be searched in that order 1) the java property -D"+JAVA_PROP+"=pathTofastaOrCatalogKey ." +
+			" 2) the linux environement variable $"+ENV_KEY+"=pathTofastaOrCatalogKey 3) the catalogs."
+			;
 
-
+	
 public static class StringConverter
 	implements IStringConverter<ReferenceFileSupplier>
 	{
-	
-	
-	
 	@Override
 	public ReferenceFileSupplier convert(final String path) {
 		if(!StringUtil.isBlank(path))
@@ -136,19 +144,21 @@ public static class StringConverter
 			}
 		}
 	
+	/** get required fasta file or throws an exception */
 	public File getRequired() {
 		final File f = get();
 		if(f!=null) return f;
-		throw new JvarkitException.ReferenceMissing("Reference file is missing.");
+		throw new JvarkitException.ReferenceMissing("Reference file is missing. ");
 		}
 
-	private static File searchCatalog(File propFile,String key) {
+	/** search catalog file for the given key */
+	private static File searchCatalog(final File propFile,final String key) {
 		if(StringUtil.isBlank(key) || propFile==null || !propFile.exists() || !propFile.isFile() || !propFile.canRead()) return null;
 		final Properties props = new Properties();
 		try (final FileReader r = new FileReader(propFile)) {
 			props.load(r);
 			}
-		catch(IOException err)
+		catch(final IOException err)
 			{
 			return null;
 			}
@@ -163,21 +173,21 @@ public static class StringConverter
 	private static List<File> getCatalogFiles() {
 		final List<File> list = new ArrayList<>();
 		/* user cwd */
-		File catFile = new File(System.getProperty("user.dir",null),"fasta-ref.properties");
+		File catFile = new File(System.getProperty("user.dir",null),CATALOG_FILE);
 		list.add(catFile);
 		
 		/* user home */
-		catFile = new File(System.getProperty("user.home",null),".fasta-ref.properties");
+		catFile = new File(System.getProperty("user.home",null),"." + CATALOG_FILE);
 		list.add(catFile);
 		
 		/* etc */
-		catFile = new File("/etc/jvarkit/fasta-ref.properties");
+		catFile = new File("/etc/jvarkit/" + CATALOG_FILE);
 		list.add(catFile);
-		
 		
 		return list;
 		}
 	
+	/** search catalogs using a samsequencedictionary. Return NULL if not found */
 	public static File searchCatalogs(final SAMSequenceDictionary dict) {
 		for(final File catFile: getCatalogFiles()) {
 			if(!catFile.exists() || !catFile.isFile() || !catFile.canRead()) continue;
