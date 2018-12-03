@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -95,9 +97,14 @@ public class MergeStructuralVariants extends Launcher{
 	private class CnvCall implements Locatable
 		{
 		private final VariantContext ctx;
+		private final Interval _startInterval;
+		private final Interval _endInterval;
+		
 		boolean echoed_flag = false;
 		CnvCall(final VariantContext ctx) {
 			this.ctx = ctx;
+			this._startInterval = _getInterval(ctx.getStart(), "CIPOS");
+			this._endInterval = _getInterval(ctx.getEnd(), "CIEND");
 			}
 		public String getSample() {
 			return ctx.getGenotype(0).getSampleName();
@@ -106,13 +113,51 @@ public class MergeStructuralVariants extends Launcher{
 		public String getContig() {
 			return ctx.getContig();
 			}
+		
+		private Interval _getInterval(final int pos,final String att)
+			{
+			int x0 = 0;
+			int x1 = 0;
+			// CIPOS95(lumpy) Description="Confidence interval (95%) around POS for imprecise variants
+			// CIPOS Confidence interval around POS for imprecise variant
+			for(final String suffix :new String[]{"95",""}) { 
+				if(this.ctx.hasAttribute(att + suffix)) {
+					try {
+						final List<Integer> list = this.ctx.getAttributeAsIntList(att, 0);
+						x0 = list.get(0);
+						x1 = list.get(1);
+						break;
+						}
+					catch(final Throwable err)
+						{
+						
+						}
+					}
+				}
+			return new Interval(this.getContig(),Math.max(1,pos+x0),pos+x1);
+			}
+		
+		public Interval getStartInterval() {
+			return this._startInterval;
+			}
+		
+		public Interval getEndInterval() {
+			return this._endInterval;
+			}
+		
 		@Override
 		public int getStart() {
-			return ctx.getStart();
+			return Math.min(
+				getStartInterval().getStart(),
+				getEndInterval().getStart()
+				);
 			}
 		@Override
 		public int getEnd() {
-			return ctx.getEnd();
+			return Math.max(
+				getStartInterval().getEnd(),
+				getEndInterval().getEnd()
+				);
 			}
 		
 		StructuralVariantType getType() {
@@ -160,13 +205,27 @@ public class MergeStructuralVariants extends Launcher{
 		}
 		}
 	
-	private boolean testOverlapping(final Locatable a,final Locatable b ) {		
+	private boolean testOverlapping(
+				final StructuralVariantType svType,
+				final CnvCall a,final CnvCall b ) {
+		
+		return  a.ctx.getStructuralVariantType().equals(b.ctx.getStructuralVariantType()) &&
+				a.getContig().equals(b.getContig()) &&
+				a.getStartInterval().withinDistanceOf(b.getStartInterval(), this.max_distance) &&
+				a.getEndInterval().withinDistanceOf(b.getEndInterval(), this.max_distance)
+				;
+				
+		/*
 		return a.getContig().equals(b.getContig()) &&
 			   !(a.getEnd()<b.getStart() || a.getStart()>b.getEnd()) && 
 			   Math.abs(a.getStart()-b.getStart()) <= this.max_distance &&
 			   Math.abs(a.getEnd()-b.getEnd()) <= this.max_distance
-			   ;
+			   ; */
 		}
+	
+	private int getExtendFor(final VariantContext ctx) {
+		return 0;
+	}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -219,7 +278,12 @@ public class MergeStructuralVariants extends Launcher{
 					filter(V->this.max_variant_length<=0 || (V.getEnd()-V.getStart()+1)<=this.max_variant_length).
 					map(V->new CnvCall(V)).
 					forEach(V->{
-						final Interval key = new Interval(V.getContig(), V.getStart(), V.getEnd());
+						final int extend = getExtendFor(V.ctx);
+						
+						final Interval key = new Interval(V.getContig(), 
+								Math.max(1,V.getStart()-extend),
+								V.getEnd()+extend
+								);
 						List<CnvCall> callList = all_calls.get(key);
 						if(callList==null) {
 							callList = new ArrayList<>();
@@ -271,6 +335,22 @@ public class MergeStructuralVariants extends Launcher{
 					VCFHeaderLineType.Integer,
 					"SV length"
 					));
+			metadata.add(new VCFInfoHeaderLine("CIPOS",
+					2,
+					VCFHeaderLineType.Integer,
+					"Confidence interval around POS for imprecise variants"
+					));
+			metadata.add(new VCFInfoHeaderLine("CIEND",
+					2,
+					VCFHeaderLineType.Integer,
+					"Confidence interval around END for imprecise variants"
+					));
+			
+			metadata.add(new VCFInfoHeaderLine("IMPRECISE",
+					0,
+					VCFHeaderLineType.Flag,
+					"Imprecise structural variation"
+					));
 			
 			metadata.add(new VCFFormatHeaderLine(
 					"OV",1,
@@ -301,6 +381,9 @@ public class MergeStructuralVariants extends Launcher{
 					collect(Collectors.toList());
 				
 				if(overlappingList.isEmpty()) continue;
+				
+				final StructuralVariantType svType =  overlappingList.get(0).getType();
+				
 				final CnvCall baseCall = overlappingList.stream().
 						filter(C->C.equals(interval)).
 						findFirst().
@@ -310,7 +393,7 @@ public class MergeStructuralVariants extends Launcher{
 					continue;
 					}
 				final List<CnvCall> callsToPrint = overlappingList.stream().
-						filter(C->testOverlapping(C,baseCall)).
+						filter(C->testOverlapping(svType,C,baseCall)).
 						collect(Collectors.toList())
 						;
 				
@@ -326,7 +409,33 @@ public class MergeStructuralVariants extends Launcher{
 				vcb.attribute(VCFConstants.SVTYPE, baseCall.getType().name());
 				vcb.attribute("SVLEN", (1+baseCall.getEnd()-baseCall.getStart()));
 				
-				
+				for(int side=0;side<2;side++)
+					{
+					final Function<CnvCall,Integer> extractor;
+					if(side==0)
+						{
+						extractor = C->C.getStart();
+						}
+					else
+						{
+						extractor = C->C.getEnd();
+						}
+					final List<Integer> list = Arrays.asList(
+						callsToPrint.stream().
+							mapToInt(C->extractor.apply(C)-extractor.apply(baseCall)).
+							min().
+							orElse(0),
+						callsToPrint.stream().
+							mapToInt(C->extractor.apply(C)-extractor.apply(baseCall)).
+							max().
+							orElse(0)
+						);
+					vcb.attribute(
+							side==0?"CIPOS":"CIEND", 
+							list
+							);
+					}
+				vcb.attribute("IMPRECISE", true);
 				
 				final Map<String,Genotype> sample2gt = new HashMap<>(callsToPrint.size());
 				for(final CnvCall call: callsToPrint)

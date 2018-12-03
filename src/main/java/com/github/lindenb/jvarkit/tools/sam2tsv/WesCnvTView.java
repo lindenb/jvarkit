@@ -709,6 +709,7 @@ public class WesCnvTView  extends Launcher {
 		return this.geneMap.getOverlapping(new Interval(contig,interval0.getStart(),interval0.getEnd()));
 		}
 	
+	
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.terminalWidth<=0) {
@@ -809,7 +810,30 @@ public class WesCnvTView  extends Launcher {
 				case VCF:
 					{
 					final Predicate<VariantContext> acceptVariant = V->V.hasAttribute(VCFConstants.SVTYPE) && (V.hasAttribute("SVLEN") || V.hasAttribute("SVMETHOD")/* DELLY2 */) && V.getEnd()-V.getStart()>1;
-					final Function<VariantContext,Interval> mapper = V->new Interval(V.getContig(),V.getStart(),V.getEnd());
+					final Function<VariantContext,Interval> mapper = V->{
+						int B = V.getStart();
+						int E = V.getEnd();
+						try {
+							if(V.hasAttribute("CIPOS")) {
+								final int x= V.getAttributeAsIntList("CIPOS", 0).get(0);
+								B = Math.max(B-x,1);
+								}
+							if(V.hasAttribute("CIEND")) {
+								final int x= V.getAttributeAsIntList("CIEND", 0).get(1);
+								E +=x;
+								}
+							if(E<B) {
+								final int tmp = B;
+								B = E;
+								E  = tmp;
+								}
+							}
+						catch(final Throwable err) {
+							
+							}
+						
+						return new Interval(V.getContig(),B,E);
+						};
 					if(inputs.isEmpty())
 						{
 						final VcfIterator vcfin = super.openVcfIterator(null);
