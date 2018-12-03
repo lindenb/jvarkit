@@ -146,9 +146,15 @@ public static class StringConverter
 				}
 			this.searched = true;
 			this.fasta = parseVal(System.getProperty(JAVA_PROP,null));
-			if(this.fasta!=null) return fasta;
+			if(this.fasta!=null) {
+				LOG.info("got -D"+JAVA_PROP+"="+this.fasta);
+				return fasta;
+				}
 			this.fasta = parseVal(System.getenv(ENV_KEY));
-			if(this.fasta!=null) return fasta;
+			if(this.fasta!=null) {
+				LOG.info("got ${"+ENV_KEY+"}="+this.fasta);
+				return fasta;
+				}
 			LOG.warn("cannot find reference fasta file using key/path = \""+this.fasta+"\".\n" +
 					"\t${"+ENV_KEY+"}="+System.getenv(ENV_KEY)+"\n" +
 					"\t-D"+JAVA_PROP+"="+System.getProperty(JAVA_PROP,null)+"\n"+
