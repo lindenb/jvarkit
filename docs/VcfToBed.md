@@ -134,7 +134,7 @@ The current reference is:
 
 ## Motivation
 
-I'm lazy for using awk or bioalcidaejdk and I want something that uses INFO/CIPOS and INFO/CIEND for structural variants
+I'm lazy about using awk or bioalcidaejdk for this task and I want something that uses INFO/CIPOS and INFO/CIEND for structural variants
 
 ## Input
 
@@ -167,16 +167,16 @@ $ wget -q -O - "https://github.com/hall-lab/cshl_sv_2014/blob/master/supplementa
 	java -jar dist/vcf2bed.jar |\
 	head
 
-1	869423	870280	1	345
-1	1588710	1654008	5	0
-1	1595044	1660946	6	0
-1	2566177	2566594	7	121
+1	869421	870280	1	345
+1	1588458	1654008	5	0
+1	1594882	1660946	6	0
+1	2566173	2566594	7	121
 1	2911547	2911850	8	440
 1	2919033	2919366	9	289
 1	5447228	5447439	14	380
 1	5876602	5877531	15	0
 1	5877529	5877602	16	63
-1	6619068	6619155	19_1	0
+1	6618978	6619069	19_1	0
 ```
 
 
