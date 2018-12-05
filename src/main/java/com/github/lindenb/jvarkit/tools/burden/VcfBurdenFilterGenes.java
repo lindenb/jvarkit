@@ -44,7 +44,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -52,9 +51,11 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 /**
 
 BEGIN_DOC
@@ -114,7 +115,7 @@ public class VcfBurdenFilterGenes
 	@Parameter(names={"-a","--add"},description="[20180627] Gene Names: Add this gene, multiple separated by comma,spaces,semicolon")
 	private String geneStr="";
 
-	@Parameter(names={"-filter","--filter"},description="If empty: remove the variants from the VCF. If not empty, add a token in the column filter.")
+	@Parameter(names={"-filter","--filter"},description="If empty: remove the variants from the VCF. If not empty, add a token in the column FILTER.")
 	private String filterTag = "";
 
 	private final Set<String> geneNames= new HashSet<>();
@@ -161,14 +162,14 @@ public class VcfBurdenFilterGenes
 					);
 			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
 			final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary()).logger(LOG);
+			final ProgressFactory.Watcher<VariantContext> progess=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			JVarkitVersion.getInstance().addMetaData(this, h2);
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
 				{
-				final VariantContext ctx = progess.watch(in.next());
+				final VariantContext ctx = progess.apply(in.next());
 				boolean keep=false;
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				
 				
 				
 				//not just set FILTER ?
@@ -244,7 +245,7 @@ public class VcfBurdenFilterGenes
 					if(keep) out.add(vcb.make());
 					}
 				}
-			progess.finish();
+			progess.close();
 			return RETURN_OK;
 			} catch(final Exception err) {
 				LOG.error(err);

@@ -126,7 +126,7 @@ END_DOC
 */
 @Program(name="vcfstatsjfx",
 description="GUI: VCF statistics",
-biostars= {308310},
+biostars= {308310,353051},
 keywords={"vcf","stats","jfx"}
 )
 public class VcfStatsJfx extends JfxLauncher {
