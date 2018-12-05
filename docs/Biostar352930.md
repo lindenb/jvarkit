@@ -130,7 +130,7 @@ get the sam/bam file, sort it on queryname using picard
 ```
 $ wget -q -O - "https://gist.githubusercontent.com/toddknutson/90430a0dd736898037ed18bcd044df7f/raw/87c1ea5a548ac71c628d2b72f5bd6ee6415efbcd/gistfile1.txt" |\
  	java -jar /path/to/picard.jar SortSam I=/dev/stdin O=/dev/stdout SO=queryname VALIDATION_STRINGENCY=LENIENT |\
- 	java -jar dist/biostar352930.jar```
+ 	java -jar dist/biostar352930.jar
 ```
 
 output:
