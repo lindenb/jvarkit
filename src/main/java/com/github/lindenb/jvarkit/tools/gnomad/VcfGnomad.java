@@ -154,6 +154,8 @@ public class VcfGnomad extends Launcher{
 	private boolean doNotUpdateId=false;
 	@Parameter(names={"-gf","--gnomadFilter"},description="if defined, add this FILTER when any variant [CHROM:POS:REF] is found in nomad")
 	private String inGnomadFilterName=null;
+	@Parameter(names={"-of","--overlapFilter"},description="if defined, add this FILTER when any variant overlapping [CHROM:POS] is found in nomad")
+	private String overlapGnomadFilterName=null;
 	@Parameter(names={"-filtered-in-gnomad","--filtered-in-gnomad"},description="[20180326] if not empty, add this FILTER when the **Gnomad** variant is FILTERED.")
 	private String filteredInGnomadFilterName="VARIANT_WAS_FILTERED_IN_GNOMAD";
 	@Parameter(names={"--genome"},description="[20180327] For @MKarakachoff : genome only, don't use 'exome data'")
@@ -218,7 +220,7 @@ public class VcfGnomad extends Launcher{
 			}
 		
 		/** find matching variant in tabix file, use a buffer to avoid multiple random accesses */
-		final List<VariantContext> find(final VariantContext userVariantCtx)
+		final List<VariantContext> findOverlapping(final VariantContext userVariantCtx)
 			{
 			if(!acceptContig(userVariantCtx.getContig())) return Collections.emptyList();
 			final String normContig = this.normalizeContig(userVariantCtx.getContig());
@@ -250,7 +252,7 @@ public class VcfGnomad extends Launcher{
 				}
 			
 			return this.buffer.stream().
-					filter(V->V.getContig().equals(normContig) && V.getStart()==userVariantCtx.getStart() && V.getReference().equals(userVariantCtx.getReference())).
+					filter(V->V.getContig().equals(normContig) &&  CoordMath.overlaps(V.getStart(), V.getEnd(), userVariantCtx.getStart(), userVariantCtx.getEnd())	).
 					collect(Collectors.toList());
 			}
 		
@@ -410,12 +412,14 @@ public class VcfGnomad extends Launcher{
 		for(final InfoField f: infoFields) h2.addMetaDataLine(f.geOutputHeaderLine());
 		
 		if(!StringUtil.isBlank(this.inGnomadFilterName)) {
-			h2.addMetaDataLine(new VCFFilterHeaderLine(this.inGnomadFilterName,"Variant was found in gnomad"));
+			h2.addMetaDataLine(new VCFFilterHeaderLine(this.inGnomadFilterName,"Variant CHROM/POS/REF was found in gnomad"));
 			}
 		if(!StringUtil.isBlank(this.filteredInGnomadFilterName)) {
 			h2.addMetaDataLine(new VCFFilterHeaderLine(this.filteredInGnomadFilterName,"Gnomad Variant was FILTERed"));
 			}
-		
+		if(!StringUtil.isBlank(this.overlapGnomadFilterName)) {
+			h2.addMetaDataLine(new VCFFilterHeaderLine(this.overlapGnomadFilterName,"Gnomad Variant was found overlapping the variant"));
+			}
 		
 		JVarkitVersion.getInstance().addMetaData(this, h2);
 		out.writeHeader(h2);
@@ -435,6 +439,9 @@ public class VcfGnomad extends Launcher{
 			if(!StringUtil.isBlank(this.filteredInGnomadFilterName)) {
 				filters.remove(this.filteredInGnomadFilterName);
 				}
+			if(!StringUtil.isBlank(this.overlapGnomadFilterName)) {
+				filters.remove(this.overlapGnomadFilterName);
+				}
 			
 			if(this.skipFiltered && ctx.isFiltered() )
 				{
@@ -451,6 +458,7 @@ public class VcfGnomad extends Launcher{
 			String newid = null;
 			boolean set_filter_ctx_is_in_gnomad = false;
 			boolean found_gnomad_filtered_variant = false;
+			boolean found_gnomad_overlapping_variant = false;
 			
 			for(int omeIndex=0;omeIndex<2;omeIndex++)
 				{
@@ -469,7 +477,16 @@ public class VcfGnomad extends Launcher{
 					om2manifest[omeIndex].open();
 					}
 				// variant overlapping 'ctx'
-				final List<VariantContext> gnomadVariants = om2manifest[omeIndex].find(ctx);
+				final List<VariantContext> overlappingVariants = om2manifest[omeIndex].findOverlapping(ctx);
+				if(!overlappingVariants.isEmpty()) found_gnomad_overlapping_variant = true;
+				
+				
+				final List<VariantContext> gnomadVariants = overlappingVariants.
+							stream().
+							filter(V->V.getStart()==ctx.getStart() && V.getReference().equals(ctx.getReference())).
+							collect(Collectors.toList());
+
+				
 				if( newid == null) {
 					newid = gnomadVariants.stream().filter(V->V.hasID()).map(V->V.getID()).findFirst().orElse(null);
 					}
@@ -562,6 +579,10 @@ public class VcfGnomad extends Launcher{
 			if(found_gnomad_filtered_variant && !StringUtil.isBlank(this.filteredInGnomadFilterName)) {
 				filters.add(this.filteredInGnomadFilterName);
 				}
+			if(found_gnomad_overlapping_variant && !StringUtil.isBlank(this.overlapGnomadFilterName)) {
+				filters.add(this.overlapGnomadFilterName);
+			}
+			
 			if(!this.doNotUpdateId && !ctx.hasID() && !StringUtil.isBlank(newid)) vcb.id(newid);
 			vcb.filters(filters);
 			out.add(vcb.make());

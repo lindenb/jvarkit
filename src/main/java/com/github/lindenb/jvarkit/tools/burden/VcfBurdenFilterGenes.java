@@ -68,8 +68,28 @@ gunzip -c input.vcf.gz |\
 	java -jar dit/vcfburdenfiltergenes.jar -g genes.txt
 ```
 
+### Example
+
+```
+$ wget -O - -q "https://github.com/immune-health/antigen.garnish/raw/f0453336a4859c83d27640c286d3960c1672f164/inst/extdata/testdata/antigen.garnish_hg19anno_example.vcf"  |\
+	grep -w 216371854  | cut -f 8 | tr ";" "\n"   | grep ^ANN= | cut -c5- | tr "," "\n"
+T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_206933.2|protein_coding|18/72|c.3884G>A|p.Arg1295Gln|4271/18883|3884/15609|1295/5202||
+T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_007123.5|protein_coding|18/21|c.3884G>A|p.Arg1295Gln|4271/6316|3884/4641|1295/1546||
+```
+
+```
+$ wget -O - -q "https://github.com/immune-health/antigen.garnish/raw/f0453336a4859c83d27640c286d3960c1672f164/inst/extdata/testdata/antigen.garnish_hg19anno_example.vcf"  |\
+	sed 's/PASS\t[A-Z0-9]*;/PASS\t/' |\ ## the vcf above is malformed, quick hack
+	java -jar dist/vcfburdenfiltergenes.jar -a "NM_206933.2" |\
+	grep -w 216371854  | cut -f 8 | tr ";" "\n"   | grep ^ANN= | cut -c5- | tr "," "\n"
+T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_206933.2|protein_coding|18/72|c.3884G>A|p.Arg1295Gln|4271/18883|3884/15609|1295/5202||
+```
+
+
+
 ## History
 
+  * 20181205 : snpeff scan transcriptID
   * 20180617 : for SNpEFF, now looks into GeneName OR GeneId (was only GeneName)
 
 END_DOC
@@ -77,7 +97,9 @@ END_DOC
 @Program(
 		name="vcfburdenfiltergenes",
 		description="Filter VEP/SnpEff Output from a list of genes.",
-		keywords={"gene","vcf","vep","snpeff"})
+		keywords={"gene","vcf","vep","snpeff"},
+		biostars=353011
+		)
 public class VcfBurdenFilterGenes
 	extends Launcher
 	{
@@ -87,7 +109,7 @@ public class VcfBurdenFilterGenes
 	private File outputFile = null;
 
 
-	@Parameter(names={"-g","--genes"},description="Gene file: one name per line")
+	@Parameter(names={"-g","--genes"},description="Gene/transcript file: one name per line")
 	private File geneFile = null;
 	@Parameter(names={"-a","--add"},description="[20180627] Gene Names: Add this gene, multiple separated by comma,spaces,semicolon")
 	private String geneStr="";
@@ -181,6 +203,13 @@ public class VcfBurdenFilterGenes
 						break;
 						}
 					token = pred.getGeneId();
+					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
+						{
+						newEffList.add(predStr);
+						keep=true;
+						break;
+						}
+					token = pred.getFeatureId();
 					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
 						{
 						newEffList.add(predStr);

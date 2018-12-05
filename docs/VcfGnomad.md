@@ -44,15 +44,6 @@ Usage: vcfgnomad [options] Files
     -m, --manifest
       manifest file descibing how to map a contig to an URI . 3 columns: 1) 
       exome|genome 2) contig 3) path or URL.
-    --noAlleleCount
-      do Not Insert AC /Allele Count
-      Default: false
-    --noAlleleFreq
-      do Not Insert AF /Allele Freq.
-      Default: false
-    --noAlleleNumber
-      do Not Insert AN /Allele Number
-      Default: false
     -noMultiAltGnomad, --noMultiAltGnomad
       [20170706] Skip Multi Allelic GNOMAD Variants
       Default: false
@@ -61,6 +52,9 @@ Usage: vcfgnomad [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -of, --overlapFilter
+      if defined, add this FILTER when any variant overlapping [CHROM:POS] is 
+      found in nomad
     --version
       print version and exit
 
