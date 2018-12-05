@@ -57,6 +57,8 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
 /** 
+BEGIN_DOC
+
 
 ## Motivation
 
