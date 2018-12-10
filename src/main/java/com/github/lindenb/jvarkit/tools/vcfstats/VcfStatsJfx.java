@@ -686,6 +686,8 @@ public class VcfStatsJfx extends JfxLauncher {
 				}
 			}
 		}
+	
+	
 	/** per sample/ genotype type */
 	private class DeNovoGenerator extends ChartGenerator
 		{
@@ -741,6 +743,105 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		}
 
+	
+
+	/** chrX/chrY */
+	private class MaleFemaleGenerator extends ChartGenerator
+		{
+		private class CountXY
+			{
+			final String name;
+			CountXY(final String name) {
+				this.name = name;
+				}
+			
+			long x = 0L;
+			long y = 0L;
+			
+			double score() {
+				double n=x+y;
+				if(n==0.0) return 0;
+				return x/n;
+				}
+			}
+		private final Map<String,CountXY> sample2count = new HashMap<>();
+		
+		@Override
+		String getChartTitle() {
+			return "ChrX/ChrY";
+			}
+		
+		@Override
+		Chart makeTabContent() {
+			final List<String> orderedNames = this.sample2count.values().
+					stream().
+					sorted((A,B)->Double.compare(A.score(), B.score())).
+					map(A->A.name).
+					collect(Collectors.toList());
+			
+			final NumberAxis yAxis = new NumberAxis();
+			final CategoryAxis xAxis = new CategoryAxis(
+					FXCollections.observableArrayList(orderedNames)
+					);
+			final StackedBarChart<String,Number> bc = 
+		            new StackedBarChart<String,Number>(xAxis,yAxis);
+		
+			
+			for(int y=0;y< 2;++y)
+				{
+				final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+				series1.setName(y==0?"chrX":"chrY");
+				for(final String sn:orderedNames) {
+					final CountXY countxy = this.sample2count.get(sn);
+					series1.getData().add(new XYChart.Data<String,Number>(
+							sn,(y==0?countxy.x:countxy.y)
+							));
+					}
+				bc.getData().add(series1);
+				}
+			bc.setCategoryGap(1);
+			title(bc,this.getChartTitle());
+	        xAxis.setLabel("Sample");
+	        bc.setVerticalGridLinesVisible(false);
+	        xAxis.setTickLabelRotation(90);
+	        yAxis.setLabel("ChrX/ChrY");
+	        return bc;
+			}
+		
+		
+		@Override
+		void visit(final VariantContext ctx) {
+			this.nVariants++;
+			final int where ;
+			if(ctx.getContig().equals("X") || ctx.getContig().equals("chrX"))
+				{
+				where = 23;
+				}
+			else if(ctx.getContig().equals("Y") || ctx.getContig().equals("chrY"))
+				{
+				where = 24;
+				}
+			else
+				{
+				return;
+				}
+			for(final Genotype gt:ctx.getGenotypes())
+				{
+				if(ignore_filtered_genotypes && gt.isFiltered()) continue;
+				CountXY count = this.sample2count.get(gt.getSampleName());
+				if(count==null) {
+					count = new CountXY(gt.getSampleName());
+					this.sample2count.put(gt.getSampleName(),count);
+					}
+				switch(where) {
+					case 23: count.x++;break;
+					case 24: count.y++;break;
+					default: break;
+					}
+				}
+			}
+		}
+	
 	
 	/** AD allele depth */
 	private abstract class AlleleDepthGenerator extends ChartGenerator
@@ -1307,6 +1408,12 @@ public class VcfStatsJfx extends JfxLauncher {
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			if(dict!=null && !dict.isEmpty()) {
 				chartGenerators.add(new ContigUsageGenerator(dict));
+				
+				if( (dict.getSequence("X")!=null || dict.getSequence("chrX")!=null) &&
+					(dict.getSequence("Y")!=null || dict.getSequence("chrY")!=null))
+					{
+					chartGenerators.add(new MaleFemaleGenerator());
+					}
 				}
 			final VcfTools tools = new VcfTools(header);
 			boolean hasPred = tools.getVepPredictionParser().isValid() || 

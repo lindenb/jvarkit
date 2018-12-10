@@ -29,7 +29,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.List;
 
 import javax.xml.stream.XMLEventReader;
@@ -148,7 +148,7 @@ public class Pubmed404  extends Launcher{
 		}
 	
 	private void scanArticle(
-			PrintStream out,
+			PrintWriter out,
 			final String rootName,
 			final XMLEventReader r
 			) throws XMLStreamException,IOException {
@@ -192,7 +192,7 @@ public class Pubmed404  extends Launcher{
 				}
 			
 			}//end of xml read
-		final String tokens[] = abstractText.split("[ ,()'\";\n\r]+");
+		final String tokens[] = abstractText.split("[ ,()'\";\n\r\t]+");
 		for(String token: tokens)
 			{
 			while(token.endsWith(".")) {
@@ -221,7 +221,7 @@ public class Pubmed404  extends Launcher{
 	@Override
 	public int doWork(final List<String> args) {
 		final String inputName= oneFileOrNull(args);
-		PrintStream out=null;
+		PrintWriter out=null;
 		XMLEventReader r=null;
 		InputStream in=null;
 		try {
@@ -242,8 +242,8 @@ public class Pubmed404  extends Launcher{
 			in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
 			r = xmlInputFactory.createXMLEventReader(in);
 			
-			out = super.openFileOrStdoutAsPrintStream(this.outFile);
-			out.println("#PMID\tTITLE\tYEAR\tURL\tStatus");
+			out = super.openFileOrStdoutAsPrintWriter(this.outFile);
+			out.println("#PMID\tTITLE\tYEAR\tURL\tHTTPStatus");
 			
 			while(r.hasNext()) {
 				final XMLEvent evt= r.nextEvent();
