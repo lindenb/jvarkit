@@ -44,6 +44,9 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicStatusLine;
+import org.apache.http.StatusLine;
+import org.apache.http.HttpVersion;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -106,18 +109,23 @@ public class Pubmed404  extends Launcher{
 
 	private CloseableHttpClient httpClient = null;
 	
-	private int getStatusCode(final String url) {
-		LOG.debug(url);
+	private StatusLine getStatus(final String url) {
 		HttpHead httpHead = null;
 		CloseableHttpResponse response = null;
 		try {
 			httpHead = new HttpHead(url);
 			response = this.httpClient.execute(httpHead);
-			return response.getStatusLine().getStatusCode();
+			return response.getStatusLine();
+			}
+		catch(final java.net.UnknownHostException err) {
+			return new BasicStatusLine(HttpVersion.HTTP_1_1,404,String.valueOf(err.getMessage()));
+			}
+		catch(final javax.net.ssl.SSLHandshakeException err) {
+			return new BasicStatusLine(HttpVersion.HTTP_1_1,526,String.valueOf(err.getMessage()));
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
-			return -1;
+			return new BasicStatusLine(HttpVersion.HTTP_1_1,100,String.valueOf(err.getMessage()));
 			}
 		finally
 			{
@@ -192,7 +200,7 @@ public class Pubmed404  extends Launcher{
 				}
 			
 			}//end of xml read
-		final String tokens[] = abstractText.split("[ ,()'\";\n\r\t]+");
+		final String tokens[] = abstractText.split("[\\[\\] ,()'\";\n\r\t]+");
 		for(String token: tokens)
 			{
 			while(token.endsWith(".")) {
@@ -203,7 +211,7 @@ public class Pubmed404  extends Launcher{
 				if(token.startsWith("http")) LOG.debug("strange url: "+token);
 				continue;
 			}
-			final int statusCode = getStatusCode(token);
+			final StatusLine status = getStatus(token);
 			
 			out.print(article_pmid);
 			out.print('\t');
@@ -213,8 +221,11 @@ public class Pubmed404  extends Launcher{
 			out.print('\t');
 			out.print(token);
 			out.print('\t');
-			out.print(statusCode);
+			out.print(status.getStatusCode());
+			out.print('\t');
+			out.print(status.getReasonPhrase());
 			out.println();
+			out.flush();
 			}
 		}	
 
@@ -243,7 +254,7 @@ public class Pubmed404  extends Launcher{
 			r = xmlInputFactory.createXMLEventReader(in);
 			
 			out = super.openFileOrStdoutAsPrintWriter(this.outFile);
-			out.println("#PMID\tTITLE\tYEAR\tURL\tHTTPStatus");
+			out.println("#PMID\tTITLE\tYEAR\tURL\thttp.code\thttp.reason");
 			
 			while(r.hasNext()) {
 				final XMLEvent evt= r.nextEvent();

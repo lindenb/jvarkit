@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Test if URL are reacheable in the pubmed abstracts.
+Test if URL in the pubmed abstracts are reacheable.
 
 
 ## Usage
