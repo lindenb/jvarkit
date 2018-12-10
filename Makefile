@@ -398,6 +398,7 @@ $(eval $(call compile-htsjdk-cmd,noemptyvcf,${jvarkit.package}.tools.misc.NoEmpt
 $(eval $(call compile-htsjdk-cmd,nozerovariationvcf,${jvarkit.package}.tools.misc.NoZeroVariationVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pademptyfastq,${jvarkit.package}.tools.misc.PadEmptyFastq,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmeddump,${jvarkit.package}.tools.pubmed.PubmedDump,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,pubmed404,${jvarkit.package}.tools.pubmed.Pubmed404,${jcommander.jar} ${httpclient.libs}))
 $(eval $(call compile-htsjdk-cmd,ncbigenedump,${jvarkit.package}.tools.misc.NcbiGeneDump,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedcodinglang,${jvarkit.package}.tools.pubmed.PubmedCodingLanguages,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedgender,${jvarkit.package}.tools.pubmed.PubmedGender,${jcommander.jar}))

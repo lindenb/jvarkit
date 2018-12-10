@@ -37,8 +37,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
-import com.github.lindenb.jvarkit.util.illumina.FastQName;
-import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
