@@ -1059,6 +1059,14 @@ public class VcfToTable extends Launcher {
 			
 			if(!getOwner().hideHyperlinks)
 				{
+				final Function<VariantContext, String> ucscContig = V->V.getContig().startsWith("chr")?V.getContig():"chr"+V.getContig();
+				final Function<VariantContext, String> ensemblContig = V->
+						V.getContig().startsWith("chr")?
+						V.getContig().substring(3):
+						V.getContig()
+						;
+				
+				
 				final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
 				if(vc.hasID() && vc.getID().matches("rs[0-9]+"))
 					{
@@ -1079,14 +1087,14 @@ public class VcfToTable extends Launcher {
 					if(build.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(header)) continue;
 					
 					t.addRow("UCSC "+build,new HyperlinkDecorator("http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
-						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
+						ucscContig.apply(vc) +
 						"%3A"+vc.getStart() +"-"+vc.getEnd() + "&position=" +
-						(vc.getContig().startsWith("chr")?vc.getContig():"chr"+vc.getContig()) +
+						ucscContig.apply(vc) +
 						"%3A"+ Math.max(1,vc.getStart()-50) +"-"+(vc.getEnd()+50)
 						));
 					}
 				
-				//beancon
+				//beacon , //varsome
 				for(int side=0;side<2;++side)
 					{
 					if(side==0 && !SequenceDictionaryUtils.isGRCh37(header)) continue;
@@ -1096,19 +1104,23 @@ public class VcfToTable extends Launcher {
 						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
 						//https://beacon-network.org/#/search?pos=114267128&chrom=4&allele=A&ref=G&rs=GRCh37
 						t.addRow("Beacon",new HyperlinkDecorator("https://beacon-network.org/#/search?chrom="+
-								(
-								vc.getContig().startsWith("chr")?
-								vc.getContig().substring(3):
-								vc.getContig()
-								) +
+								ensemblContig.apply(vc) +
 								"&pos="+vc.getStart()+
 								"&ref="+ vc.getReference().getDisplayString()+
 								"&allele="+ alt.getDisplayString()+
 								"&rs="+ (side==0?"GRCh37":"GRCh38")
 								));
+						t.addRow("Varsome",new HyperlinkDecorator("https://varsome.com/variant/"+
+								(side==0?"hg19/":"hg38/")+
+								ensemblContig.apply(vc) + "-"+
+								vc.getStart()+ "-"+
+								vc.getReference().getDisplayString()+"-"+
+								alt.getDisplayString()
+								));
 						}
 					}
 				
+								
 				if(SequenceDictionaryUtils.isGRCh37(header)) {
 					
 					for(final Allele alt: vc.getAlternateAlleles())
@@ -1116,11 +1128,7 @@ public class VcfToTable extends Launcher {
 						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
 						//gnomad
 						t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
-							(
-							vc.getContig().startsWith("chr")?
-							vc.getContig().substring(3):
-							vc.getContig()
-							) +
+							ensemblContig.apply(vc) +
 							"-"+vc.getStart()+
 							"-"+
 							vc.getReference().getDisplayString()+
@@ -1130,13 +1138,20 @@ public class VcfToTable extends Launcher {
 						}
 					
 					t.addRow("clinvar 37",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar/?term="+
-							( vc.getContig().startsWith("chr")? vc.getContig().substring(3): vc.getContig()) +
+							ensemblContig.apply(vc) +
 							"%5Bchr%5D+AND+"+ vc.getStart()+"%3A"+vc.getEnd()+"%5Bchrpos37%5D"
 							));
 					if(vc.getStart()!=vc.getEnd()) {
 						t.addRow("decipher",new HyperlinkDecorator("https://decipher.sanger.ac.uk/search?q="+
 								vc.getContig() + 
 								"%3A"+vc.getStart()+"-"+vc.getEnd()));
+						
+						t.addRow("dgv",new HyperlinkDecorator("http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
+								ucscContig.apply(vc) + 
+								"%3A"+vc.getStart()+"-"+vc.getEnd() + ";search=Search"
+								)
+								);
+
 						
 						String build="";
 						if(SequenceDictionaryUtils.isGRCh37(header)) build="hg19";

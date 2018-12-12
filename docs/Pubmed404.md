@@ -10,6 +10,9 @@ Test if URL in the pubmed abstracts are reacheable.
 ```
 Usage: pubmed404 [options] Files
   Options:
+    -c, --collapse
+      Only one URL per article. Print the '200/OK' first.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -17,6 +20,9 @@ Usage: pubmed404 [options] Files
       Possible Values: [usage, markdown, xml]
     -o, --output
       Output file. Optional . Default: stdout
+    -t, --timeout
+      timeout in seconds
+      Default: 5
     --version
       print version and exit
 

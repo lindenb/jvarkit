@@ -30,7 +30,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
@@ -40,6 +42,8 @@ import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import org.apache.http.client.config.CookieSpecs;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -106,14 +110,23 @@ public class Pubmed404  extends Launcher{
 	private static final Logger LOG = Logger.build(Pubmed404.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
+	@Parameter(names={"-t","--timeout"},description="timeout in seconds")
+	private int timeoutSeconds = 5;
+	@Parameter(names={"-c","--collapse"},description="Only one URL per article. Print the '200/OK' first.")
+	private boolean collapse = false;
 
 	private CloseableHttpClient httpClient = null;
-	
+	private final Pattern wsSplitter = Pattern.compile("[\\[\\] ,()'\";\n\r\t]+");
 	private StatusLine getStatus(final String url) {
 		HttpHead httpHead = null;
 		CloseableHttpResponse response = null;
+		final RequestConfig requestConfig = RequestConfig.custom().
+				setConnectTimeout(this.timeoutSeconds * 1000).
+				setCookieSpec(CookieSpecs.STANDARD).
+				build();
 		try {
 			httpHead = new HttpHead(url);
+			httpHead.setConfig(requestConfig);
 			response = this.httpClient.execute(httpHead);
 			return response.getStatusLine();
 			}
@@ -124,7 +137,6 @@ public class Pubmed404  extends Launcher{
 			return new BasicStatusLine(HttpVersion.HTTP_1_1,526,String.valueOf(err.getMessage()));
 			}
 		catch(final Throwable err) {
-			LOG.error(err);
 			return new BasicStatusLine(HttpVersion.HTTP_1_1,100,String.valueOf(err.getMessage()));
 			}
 		finally
@@ -200,10 +212,14 @@ public class Pubmed404  extends Launcher{
 				}
 			
 			}//end of xml read
-		final String tokens[] = abstractText.split("[\\[\\] ,()'\";\n\r\t]+");
+		final String tokens[] = this.wsSplitter.split(abstractText);
+		
+		final List<String> lines = new ArrayList<>();
 		for(String token: tokens)
 			{
-			while(token.endsWith(".")) {
+			while(!token.isEmpty()) {
+				int c = token.charAt(token.length()-1);
+				if(!(c=='.' || c>128)) break;
 				token=token.substring(0,token.length()-1);
 			}
 			if(token.isEmpty()) continue;
@@ -212,21 +228,41 @@ public class Pubmed404  extends Launcher{
 				continue;
 			}
 			final StatusLine status = getStatus(token);
+			final StringBuilder sb = new StringBuilder();
 			
-			out.print(article_pmid);
-			out.print('\t');
-			out.print(article_title);
-			out.print('\t');
-			out.print(article_year);
-			out.print('\t');
-			out.print(token);
-			out.print('\t');
-			out.print(status.getStatusCode());
-			out.print('\t');
-			out.print(status.getReasonPhrase());
-			out.println();
-			out.flush();
+			sb.append(article_pmid);
+			sb.append('\t');
+			sb.append(article_title);
+			sb.append('\t');
+			sb.append(article_year);
+			sb.append('\t');
+			sb.append(token);
+			sb.append('\t');
+			sb.append(status.getStatusCode());
+			sb.append('\t');
+			sb.append(status.getReasonPhrase());
+			
+			if(this.collapse && status.getStatusCode()==200)
+				{
+				out.println(sb.toString());
+				out.flush();
+				return;
+				}
+			else
+				{
+				lines.add(sb.toString());
+				}
 			}
+		if(lines.isEmpty()) return;
+		if(this.collapse)
+			{
+			out.println(lines.get(0));
+			}
+		else
+			{
+			for(final String line:lines) out.println(line);
+			}
+		out.flush();
 		}	
 
 	@Override
@@ -237,9 +273,10 @@ public class Pubmed404  extends Launcher{
 		InputStream in=null;
 		try {
 			/** create http client */
+			
+			
 			this.httpClient = HttpClients.createSystem();//createDefault();
 		
-			
 			
 			final XMLInputFactory xmlInputFactory = XMLInputFactory.newFactory();
 			xmlInputFactory.setXMLResolver(new XMLResolver() {
