@@ -63,6 +63,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -371,10 +372,11 @@ public class VcfGnomad extends Launcher{
 				{
 				for(final VCFFilterHeaderLine fh: header.getFilterLines())
 					{
+					if(fh.getID().equals(VCFConstants.PASSES_FILTERS_v4)) continue;
 					final String fid = this.filteredInGnomadFilterPrefix+"_"+ome.name().toUpperCase()+"_"+ fh.getID();
 					final VCFFilterHeaderLine fh2 = new VCFFilterHeaderLine(
 							fid,
-							"["+ome.name()+"]" + fh.getDescription()
+							"[gnomad-"+ome.name()+"]" + fh.getDescription()
 							);
 					h2.addMetaDataLine(fh2);
 					all_filters_from_gnomad.add(fid);
@@ -523,6 +525,7 @@ public class VcfGnomad extends Launcher{
 							stream().
 							filter(V->V.isFiltered()).
 							flatMap(V->V.getFilters().stream()).
+							filter(F->!F.equals(VCFConstants.PASSES_FILTERS_v4)).
 							map(F->this.filteredInGnomadFilterPrefix+"_"+omeType.name().toUpperCase()+"_"+F).
 							collect(Collectors.toList())
 							);
