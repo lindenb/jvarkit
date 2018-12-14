@@ -118,10 +118,10 @@ out.print("$(if $(realpath "+genome+"), --resource:gnomad_genome  "+genome+"  $(
 
 ## History
 
+  * 20181214 : keep gnomad FILTERs
   * 20181127 : rewritten for gnomad 2.1
 
-
- END_DOC
+END_DOC
  */
 @Program(name="vcfgnomad",
 	description="Peek annotations from gnomad",
@@ -156,8 +156,8 @@ public class VcfGnomad extends Launcher{
 	private String inGnomadFilterName=null;
 	@Parameter(names={"-of","--overlapFilter"},description="if defined, add this FILTER when any variant overlapping [CHROM:POS] is found in nomad")
 	private String overlapGnomadFilterName=null;
-	@Parameter(names={"-filtered-in-gnomad","--filtered-in-gnomad"},description="[20180326] if not empty, add this FILTER when the **Gnomad** variant is FILTERED.")
-	private String filteredInGnomadFilterName="VARIANT_WAS_FILTERED_IN_GNOMAD";
+	@Parameter(names={"-gnomad-filter-prefix","--gnomad-filter-prefix"},description="[20181214] if not empty, include the Gnomad FILTERs using this prefix.")
+	private String filteredInGnomadFilterPrefix="GNOMAD";
 	@Parameter(names={"--genome"},description="[20180327] For @MKarakachoff : genome only, don't use 'exome data'")
 	private boolean useGenomeOnly = false;
 	@Parameter(names={"--exclude"},description="[20180327] exclude gnomad INFO field matching this regular expression. Empty: accept all")
@@ -331,8 +331,7 @@ public class VcfGnomad extends Launcher{
 			return "\nINPUT : " +original.toString()+"\nOUTPUT: "+geOutputHeaderLine();
 			}
 		}
-	
-	
+		
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
@@ -349,11 +348,15 @@ public class VcfGnomad extends Launcher{
 		
 		
 		final VCFHeader h2 = new VCFHeader(h0);
+		final Set<String> all_filters_from_gnomad = new HashSet<>();
 		final List<InfoField> infoFields = new ArrayList<>();
 		for(final OmeType ome: OmeType.values())
 			{
 			
-			final ManifestEntry entry = this.manifestEntries.stream().filter(M->M.omeType.equals(ome)).findFirst().orElse(null);
+			final ManifestEntry entry = this.manifestEntries.stream().
+					filter(M->M.omeType.equals(ome)).
+					findFirst().
+					orElse(null);
 			if(entry==null) continue;
 			entry.open();
 			final VCFHeader header= entry.getHeader();
@@ -363,6 +366,21 @@ public class VcfGnomad extends Launcher{
 					GnomadVersion.v2_0
 					;
 			LOG.debug("identified as gnomad version "+this.gnomadVersion);
+			
+			if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix))
+				{
+				for(final VCFFilterHeaderLine fh: header.getFilterLines())
+					{
+					final String fid = this.filteredInGnomadFilterPrefix+"_"+ome.name().toUpperCase()+"_"+ fh.getID();
+					final VCFFilterHeaderLine fh2 = new VCFFilterHeaderLine(
+							fid,
+							"["+ome.name()+"]" + fh.getDescription()
+							);
+					h2.addMetaDataLine(fh2);
+					all_filters_from_gnomad.add(fid);
+					}
+				}
+			
 			
 			final Predicate<VCFInfoHeaderLine> acceptInfoTag;
 			if(StringUtil.isBlank(this.excludePatternStr))
@@ -414,9 +432,7 @@ public class VcfGnomad extends Launcher{
 		if(!StringUtil.isBlank(this.inGnomadFilterName)) {
 			h2.addMetaDataLine(new VCFFilterHeaderLine(this.inGnomadFilterName,"Variant CHROM/POS/REF was found in gnomad"));
 			}
-		if(!StringUtil.isBlank(this.filteredInGnomadFilterName)) {
-			h2.addMetaDataLine(new VCFFilterHeaderLine(this.filteredInGnomadFilterName,"Gnomad Variant was FILTERed"));
-			}
+		
 		if(!StringUtil.isBlank(this.overlapGnomadFilterName)) {
 			h2.addMetaDataLine(new VCFFilterHeaderLine(this.overlapGnomadFilterName,"Gnomad Variant was found overlapping the variant"));
 			}
@@ -436,9 +452,9 @@ public class VcfGnomad extends Launcher{
 			if(!StringUtil.isBlank(this.inGnomadFilterName)) {
 				filters.remove(this.inGnomadFilterName);
 				}
-			if(!StringUtil.isBlank(this.filteredInGnomadFilterName)) {
-				filters.remove(this.filteredInGnomadFilterName);
-				}
+			
+			filters.removeAll(all_filters_from_gnomad);
+			
 			if(!StringUtil.isBlank(this.overlapGnomadFilterName)) {
 				filters.remove(this.overlapGnomadFilterName);
 				}
@@ -457,7 +473,6 @@ public class VcfGnomad extends Launcher{
 			final List<Allele> alternateAlleles = ctx.getAlternateAlleles();
 			String newid = null;
 			boolean set_filter_ctx_is_in_gnomad = false;
-			boolean found_gnomad_filtered_variant = false;
 			boolean found_gnomad_overlapping_variant = false;
 			
 			for(int omeIndex=0;omeIndex<2;omeIndex++)
@@ -487,12 +502,31 @@ public class VcfGnomad extends Launcher{
 							collect(Collectors.toList());
 
 				
-				if( newid == null) {
-					newid = gnomadVariants.stream().filter(V->V.hasID()).map(V->V.getID()).findFirst().orElse(null);
-					}
+				
 				if(!gnomadVariants.isEmpty()) {
 					set_filter_ctx_is_in_gnomad=true;
-					if(gnomadVariants.stream().anyMatch(V->V.isFiltered())) found_gnomad_filtered_variant = true;
+					
+					// set new id ?
+					if( newid == null) {
+						newid = gnomadVariants.
+								stream().
+								filter(V->V.hasID()).
+								map(V->V.getID()).
+								findFirst().
+								orElse(null);
+						}
+					
+					// add FILTER(s)
+					if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix)) {
+						filters.addAll(
+							gnomadVariants.
+							stream().
+							filter(V->V.isFiltered()).
+							flatMap(V->V.getFilters().stream()).
+							map(F->this.filteredInGnomadFilterPrefix+"_"+omeType.name().toUpperCase()+"_"+F).
+							collect(Collectors.toList())
+							);
+						}
 					}
 				
 				
@@ -576,9 +610,7 @@ public class VcfGnomad extends Launcher{
 			if(set_filter_ctx_is_in_gnomad && !StringUtil.isBlank(this.inGnomadFilterName)) {
 				filters.add(this.inGnomadFilterName);
 				}
-			if(found_gnomad_filtered_variant && !StringUtil.isBlank(this.filteredInGnomadFilterName)) {
-				filters.add(this.filteredInGnomadFilterName);
-				}
+			
 			if(found_gnomad_overlapping_variant && !StringUtil.isBlank(this.overlapGnomadFilterName)) {
 				filters.add(this.overlapGnomadFilterName);
 			}

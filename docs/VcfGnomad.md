@@ -23,16 +23,15 @@ Usage: vcfgnomad [options] Files
     -filtered, --filtered
       Skip Filtered User Variants
       Default: false
-    -filtered-in-gnomad, --filtered-in-gnomad
-      [20180326] if not empty, add this FILTER when the **Gnomad** variant is 
-      FILTERED. 
-      Default: VARIANT_WAS_FILTERED_IN_GNOMAD
     -filteredGnomad, --filteredGnomad
       [20170706] Skip Filtered GNOMAD Variants
       Default: false
     --genome
       [20180327] For @MKarakachoff : genome only, don't use 'exome data'
       Default: false
+    -gnomad-filter-prefix, --gnomad-filter-prefix
+      [20181214] if not empty, include the Gnomad FILTERs using this prefix.
+      Default: GNOMAD
     -gf, --gnomadFilter
       if defined, add this FILTER when any variant [CHROM:POS:REF] is found in 
       nomad 
@@ -178,7 +177,7 @@ out.print("$(if $(realpath "+genome+"), --resource:gnomad_genome  "+genome+"  $(
 
 ## History
 
+  * 20181214 : keep gnomad FILTERs
   * 20181127 : rewritten for gnomad 2.1
-
 
 
