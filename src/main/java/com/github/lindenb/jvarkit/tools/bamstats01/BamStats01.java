@@ -496,7 +496,7 @@ public class BamStats01
 			this.out.flush();
 			this.out.close();
 			return RETURN_OK;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 		} finally
@@ -506,7 +506,7 @@ public class BamStats01
 		}
 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new BamStats01().instanceMainWithExit(args);
 		}

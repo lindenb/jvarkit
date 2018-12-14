@@ -35,6 +35,7 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -71,12 +72,9 @@ keywords="fastq"
 public class PadEmptyFastq extends Launcher
 	{
 	private static final Logger LOG=Logger.build(PadEmptyFastq.class).make();
-
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
     private File outFile=null;
-
 	private static final int DEFAULT_LENGTH=50;
-	
 	@Parameter(names={"-N"},description="number of bases/qual to be added.  -1=length of the first read ")
 	private int N=-1;//default , will use the first read length
 	
@@ -101,7 +99,7 @@ public class PadEmptyFastq extends Launcher
 				{
 				LOG.info("Read "+nReads +" reads. empty reads="+nFill);
 				}
-			if(rec.getReadString().isEmpty())
+			if(StringUtils.isBlank(rec.getReadString()))
 				{
 				++nFill;
 				if(padLength<1)
@@ -110,10 +108,8 @@ public class PadEmptyFastq extends Launcher
 					}
 				if(fillN==null)
 					{
-					final StringBuilder b1=new StringBuilder();
-					while(b1.length()< padLength) b1.append("N");
-					fillN=b1.toString();
-					fillQ=fillN.replace('N', '#');
+					fillN = StringUtils.repeat(padLength, 'N');
+					fillQ = StringUtils.repeat(padLength, '#');
 					}
 				
 				rec=new FastqRecord(
@@ -151,7 +147,7 @@ public class PadEmptyFastq extends Launcher
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
-				FastqReader fqr=new FourLinesFastqReader(stdin());
+				final FastqReader fqr=new FourLinesFastqReader(stdin());
 				copyTo(fqr,fqw);
 				fqr.close();
 				}
@@ -177,9 +173,7 @@ public class PadEmptyFastq extends Launcher
 			CloserUtil.close(fqw);
 			}
 		}
-	/**
-	 * @param args
-	 */
+	
 	public static void main(final String[] args)
 		{
 		new PadEmptyFastq().instanceMainWithExit(args);

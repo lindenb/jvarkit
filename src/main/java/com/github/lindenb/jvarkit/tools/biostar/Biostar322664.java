@@ -44,7 +44,6 @@ import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.samtools.ReadNameSortMethod;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
