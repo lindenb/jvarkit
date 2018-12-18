@@ -566,6 +566,7 @@ $(eval $(call compile-htsjdk-cmd,vcfgnomad,${jvarkit.package}.tools.gnomad.VcfGn
 $(eval $(call compile-htsjdk-cmd,vcfcomposite,${jvarkit.package}.tools.vcfcomposite.VCFComposite,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfannotwithbeacon,${jvarkit.package}.tools.ga4gh.VcfAnnotWithBeacon,${jcommander.jar} ${gson.jar} ${berkeleydb.jar} ${httpclient.libs} ))
 $(eval $(call compile-htsjdk-cmd,vcf2table,${jvarkit.package}.tools.misc.VcfToTable,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,prettytable,${jvarkit.package}.tools.misc.PrettyTable,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,goutils,${jvarkit.package}.tools.misc.GoUtils,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,variantsinwindow,${jvarkit.package}.tools.misc.VariantsInWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,casectrlcanvas,${jvarkit.package}.tools.burden.CaseControlCanvas,${jcommander.jar}))

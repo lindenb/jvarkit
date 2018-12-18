@@ -233,6 +233,15 @@ public default String pattern() {
 		}
 	}		
 
+/** create a new CharSplitter from a string. Escaped character are interpreted */
+public static CharSplitter of(final String s) {
+	if(s.equals("\\t")) return TAB;
+	if(s.equals("\\n")) return of('\n');
+	if(s.equals("\\r")) return of('\r');
+	if(s.isEmpty()) throw new IllegalArgumentException("cannot create a delimiter from an empty string.");
+	if(s.length()!=1) throw new IllegalArgumentException("cannot create a delimiter from an empty string.");
+	return of(s.charAt(0));
+	}
 
 /** create a new CharSplitter from a single character */
 public static CharSplitter of(final char c) {

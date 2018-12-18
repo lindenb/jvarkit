@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2018 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -34,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -50,6 +46,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -101,36 +98,31 @@ public class ReferenceToVCF extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 
 		if(this.bedFile!=null)
 			{
 			if(limitBed==null) limitBed=new IntervalTreeMap<Boolean>();
 			try
 				{
-				Pattern tab=Pattern.compile("[\t]");
+				final BedLineCodec codec = new BedLineCodec();
 				BufferedReader r=IOUtils.openFileForBufferedReading(this.bedFile);
 				String line;
 				while((line=r.readLine())!=null)
 					{
 					if(BedLine.isBedHeader(line)) continue;
-					if(line.startsWith("#") || line.isEmpty()) continue;
-					String tokens[]=tab.split(line,4);
-					limitBed.put(new Interval(
-							tokens[0],
-							1+Integer.parseInt(tokens[1]),
-							1+Integer.parseInt(tokens[2])
-							), true);
+					final BedLine record = codec.decode(line);
+					limitBed.put(record.toInterval(), true);
 					}
 				CloserUtil.close(r);
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
 				LOG.error(err);
 				return -1;
 				}
 			}
-		Random random=new Random(0L);
+		final Random random=new Random(0L);
 		VariantContextWriter out=null;
 		try
 			{
@@ -240,7 +232,7 @@ public class ReferenceToVCF extends Launcher
 						alleles=new ArrayList<Allele>(2);
 						
 						//REF
-						StringBuilder sb=new StringBuilder(deletion_size+2);
+						final  StringBuilder sb=new StringBuilder(deletion_size+2);
 						sb.append(genome.charAt(n));
 						int lastpos=n+1;
 						for(int n2=0;n2<deletion_size;++n2,lastpos++)
@@ -254,7 +246,7 @@ public class ReferenceToVCF extends Launcher
 						
 						alleles.add(Allele.create(""+genome.charAt(n)+genome.charAt(lastpos),false));
 						
-						VariantContextBuilder vcb=new VariantContextBuilder();
+						final  VariantContextBuilder vcb=new VariantContextBuilder();
 						vcb.chr(ssr.getSequenceName());
 						vcb.start(n+1);
 						vcb.alleles(alleles);
@@ -272,7 +264,7 @@ public class ReferenceToVCF extends Launcher
 			
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -282,7 +274,8 @@ public class ReferenceToVCF extends Launcher
 			CloserUtil.close(out);
 			}
 		}
-	public static void main(String[] args) {
+	
+	public static void main(final String[] args) {
 		new ReferenceToVCF().instanceMainWithExit(args);
 	}
 	}
