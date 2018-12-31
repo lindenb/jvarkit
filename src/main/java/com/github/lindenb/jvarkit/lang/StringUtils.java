@@ -25,6 +25,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.lang;
 
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -97,5 +99,15 @@ public static String repeat(int n,char c) {
 		n--;
 		}
 	return sb.toString();
+	}
+/** escape Http using UTF-8 */
+public static String escapeHttp(final String str) {
+	if(str==null) return null;
+	try {
+		return URLEncoder.encode(str,"UTF-8");
+		}
+	catch(UnsupportedEncodingException err) {
+		throw new IllegalArgumentException(err);
+		}
 	}
 }

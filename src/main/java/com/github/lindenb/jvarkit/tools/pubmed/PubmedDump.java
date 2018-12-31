@@ -28,7 +28,6 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.PrintWriter;
-import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +47,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -176,11 +176,11 @@ public class PubmedDump
 			
 			String url=
 					NcbiConstants.esearch()+"?db=pubmed&term="+
-					URLEncoder.encode(query.toString(), "UTF-8")+
+					StringUtils.escapeHttp(query.toString())+
 					ncbiApiKey.getAmpParamValue()+
 					"&retstart=0&retmax=0&usehistory=y&retmode=xml"+
-					(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
-					(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
+					(email==null?"":"&email="+StringUtils.escapeHttp(email))+
+					(tool==null?"":"&tool="+StringUtils.escapeHttp(tool))
 					;
 			LOG.info(url);
 			long expected_total_count=-1;
@@ -227,12 +227,12 @@ public class PubmedDump
 				LOG.info("nFound:"+total_found_so_far+"/"+expected_total_count);
 				url= NcbiConstants.efetch()+"?"+
 						"db=pubmed&WebEnv="+
-						URLEncoder.encode(WebEnv,"UTF-8")+
+						StringUtils.escapeHttp(WebEnv)+
 						ncbiApiKey.getAmpParamValue()+
-						"&query_key="+URLEncoder.encode(QueryKey,"UTF-8")+
+						"&query_key="+StringUtils.escapeHttp(QueryKey)+
 						"&retmode=xml&retmax="+ret_max+"&retstart="+total_found_so_far+
-						(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
-						(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
+						(email==null?"":"&email="+StringUtils.escapeHttp(email))+
+						(tool==null?"":"&tool="+StringUtils.escapeHttp(tool))
 						;
 				LOG.info(url);
 				int curr_count=0;

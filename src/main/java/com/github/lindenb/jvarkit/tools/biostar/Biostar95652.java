@@ -34,7 +34,6 @@ import gov.nih.nlm.ncbi.gb.GBSet;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.PrintStream;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,6 +57,7 @@ import org.xml.sax.XMLReader;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -165,7 +165,7 @@ public class Biostar95652 extends Launcher
 			w.writeAttribute("width", String.valueOf(pos2pix(this.length)));
 			w.writeAttribute("height", String.valueOf(h));
 			
-			for(DomainRegion r:this.domains)
+			for(final DomainRegion r:this.domains)
 				{
 				h=Biostar95652.this.seqHeight*0.8;
 				
@@ -374,7 +374,7 @@ public class Biostar95652 extends Launcher
 				String uri=
 						NcbiConstants.efetch()+
 						"?db=protein&rettype=gb&retmode=xml&id="+
-						URLEncoder.encode(arg,"UTF-8")+
+						StringUtils.escapeHttp(arg)+
 						this.ncbiApiKey.getAmpParamValue();
 				
 				LOG.info("Reading from "+uri);

@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,6 +52,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.igv.IgvConstants;
@@ -296,7 +296,7 @@ public class VcfToTable extends Launcher {
 		
 		protected String escapeHttp(final String s) {
 			try {
-				return URLEncoder.encode(s, "UTF-8");
+				return StringUtils.escapeHttp(s);
 				}
 			catch(final Exception err)
 				{

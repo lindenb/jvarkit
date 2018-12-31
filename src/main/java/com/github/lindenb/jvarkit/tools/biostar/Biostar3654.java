@@ -96,7 +96,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 
 import javax.xml.bind.JAXBContext;
@@ -109,6 +108,7 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -421,7 +421,7 @@ public class Biostar3654 extends Launcher
 				{
 				String uri=
 						NcbiConstants.efetch()+"?db="+database+
-						"&id="+URLEncoder.encode(acn,"UTF-8")+
+						"&id="+StringUtils.escapeHttp(acn)+
 						"&rettype=gbc&retmode=xml&seq_start="+start+"&seq_stop="+end+
 						this.ncbiApiKey.getAmpParamValue()
 						;

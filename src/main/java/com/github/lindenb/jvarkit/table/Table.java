@@ -35,7 +35,13 @@ public default void appendNewColumn(final String colName) {
 	insertNewColumn(getColumnCount(), colName);
 	}
 public default void addRow(final Object...cells) {
-	this.addRow(Arrays.asList(cells));
+	if(cells.length==1 && cells[0] instanceof List) {
+		this.addRow((List<Object>)(cells[0]));
+		}
+	else
+		{
+		this.addRow(Arrays.asList(cells));
+		}
 	}
 public void addRow(final List<Object> cells);
 

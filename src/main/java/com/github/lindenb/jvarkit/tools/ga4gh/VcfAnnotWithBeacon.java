@@ -28,7 +28,6 @@ package com.github.lindenb.jvarkit.tools.ga4gh;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URLEncoder;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.HashSet;
@@ -48,6 +47,7 @@ import org.apache.http.impl.client.HttpClients;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.TeeInputStream;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -300,7 +300,7 @@ public class VcfAnnotWithBeacon extends Launcher {
 						continue;
 					final StringBuilder buildUrl = new StringBuilder();
 					buildUrl.append("chrom=");
-					buildUrl.append(URLEncoder.encode(beaconContig, "UTF-8"));
+					buildUrl.append(StringUtils.escapeHttp(beaconContig));
 					buildUrl.append("&pos=");
 					/*
 					 * "Coordinate within a chromosome. Position is a number and is 0-based"
@@ -322,7 +322,7 @@ public class VcfAnnotWithBeacon extends Launcher {
 						continue;
 					buildUrl.append(allele);
 					buildUrl.append("&ref=");
-					buildUrl.append(URLEncoder.encode(this.genomeBuild, "UTF-8"));
+					buildUrl.append(StringUtils.escapeHttp(this.genomeBuild));
 
 					final String queryUrl = buildUrl.toString();
 

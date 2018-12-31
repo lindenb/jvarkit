@@ -33,7 +33,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.StringWriter;
-import java.net.URLEncoder;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +70,7 @@ import com.beust.jcommander.converters.IntegerConverter;
 import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
@@ -1325,18 +1325,11 @@ public static boolean isRunningJavaWebStart() {
 public static String createUrlFromInterval(final String pattern,final Interval interval)
 	{
 	if(StringUtil.isBlank(pattern) || interval==null) return null;
-	try {
-		return pattern.
-			replaceAll(Pattern.quote("${CHROM}"),URLEncoder.encode(interval.getContig(),"UTF-8")).
-			replaceAll(Pattern.quote("${START}"),String.valueOf(interval.getStart()).
-			replaceAll(Pattern.quote("${END}"),String.valueOf(interval.getEnd())))
-			;
-		}
-	catch(final IOException err)
-		{
-		LOG.error(err);
-		return null;
-		}
+	return pattern.
+		replaceAll(Pattern.quote("${CHROM}"),StringUtils.escapeHttp(interval.getContig())).
+		replaceAll(Pattern.quote("${START}"),String.valueOf(interval.getStart()).
+		replaceAll(Pattern.quote("${END}"),String.valueOf(interval.getEnd())))
+		;
 	}
 
 /** when using doVcfToVcfMultipleStream, this will be the name of the zip */

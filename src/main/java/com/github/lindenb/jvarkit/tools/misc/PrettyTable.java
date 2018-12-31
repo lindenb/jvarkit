@@ -34,6 +34,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.table.Table;
 import com.github.lindenb.jvarkit.table.TableFactory;
+import com.github.lindenb.jvarkit.table.TextExporter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -55,7 +56,9 @@ public class PrettyTable extends Launcher{
 	private boolean transpose = false;
 	@Parameter(names={"-n","--no-header"},description="The is no header")
 	private boolean noHeader = false;
-	
+	@Parameter(names={"-u","--unicode"},description="Allow unicode characters")
+	private boolean withUnicode = false;
+
 	
 @Override
 public int doWork(final List<String> args) {
@@ -134,8 +137,10 @@ public int doWork(final List<String> args) {
 			}
 		
 		out= super.openFileOrStdoutAsPrintWriter(this.outputFile);
+		TextExporter exporter=new TextExporter();
+		exporter.setAllowUnicode(this.withUnicode);
 		
-		
+		exporter.print(table, out);
 		out.flush();
 		out.close();
 		out = null;
