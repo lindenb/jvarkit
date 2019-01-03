@@ -61,7 +61,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-@Program(name="vcfgroupbypop",description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population")
+@Program(name="vcfgroupbypop",
+description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population")
 public class VcfGroupByPopulation extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfGroupByPopulation.class).make();

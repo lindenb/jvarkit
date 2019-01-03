@@ -41,11 +41,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
@@ -465,7 +465,7 @@ public class BackLocate
 		final Set<String> unknown=new HashSet<String>();
 		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
 		String line;
-		final Pattern tab=Pattern.compile("[\t]");
+		final CharSplitter tab=CharSplitter.TAB;
 		while((line=in.readLine())!=null)
 			{
 			if(line.isEmpty()) continue;
@@ -494,7 +494,7 @@ public class BackLocate
 		LOG.info("loading "+kgURI);
 		final BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
 		String line;
-		final Pattern tab=Pattern.compile("[\t]");
+		final CharSplitter tab=CharSplitter.TAB;
 		while((line=in.readLine())!=null)
 			{
 			if(line.isEmpty()) continue;

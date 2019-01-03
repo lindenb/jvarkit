@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
@@ -38,11 +39,17 @@ import com.beust.jcommander.ParameterException;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
+import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
 
 /** fasta reference file profide. */
 public abstract class ReferenceFileSupplier implements Supplier<File> {
@@ -93,6 +100,12 @@ public static class StringConverter
 				}
 			
 			IOUtil.assertFileIsReadable(f);
+			if(f.getName().endsWith(".vcf") || f.getName().endsWith(".vcf.gz")) {
+				return new VcfSupplier(f);
+				}
+			else if(f.getName().endsWith(".sam") || f.getName().endsWith(".bam")) {
+				return new BamSupplier(f);
+				}
 			return new FileSupplier(f);
 			}
 		else
@@ -123,6 +136,88 @@ public static class StringConverter
 		return new DefaultSupplier();
 		}
 	
+	private static class VcfSupplier extends ReferenceFileSupplier
+		{
+		private boolean searched = false;
+		private File fasta=null;
+		private final File vcf;
+		VcfSupplier(final File vcf) {
+			this.vcf=vcf;
+			}
+		@Override
+		public File get() {
+			if(this.searched) return this.fasta;
+			this.searched=true;
+			/* search for ##reference=file://... */
+			try(VCFFileReader r=new VCFFileReader(this.vcf, false)) {
+				final VCFHeader header=r.getFileHeader();
+				final SAMSequenceDictionary dict= header.getSequenceDictionary();
+				this.fasta = searchCatalogs(dict);
+				if(this.fasta!=null) return fasta;
+				if(dict==null) {
+					LOG.warning("cannot get fasta associated with  "+this.vcf);
+					}
+				this.fasta = header.getOtherHeaderLines().stream().
+					filter(H->H.getKey().equals("reference")).
+					map(H->H.getValue()).
+					map(L->L.startsWith("file://")?L.substring(7):L).
+					map(L->new File(L)).filter(F->F.exists() && F.isFile()).findFirst().
+					orElse(null);
+				}
+			catch(Exception err) {
+				//ignore
+				}
+			return this.fasta;
+			}
+		}
+	
+	private static class BamSupplier extends ReferenceFileSupplier
+		{
+		private boolean searched = false;
+		private File fasta=null;
+		private final File bamFile;
+		BamSupplier(final File bamFile) {
+			this.bamFile=bamFile;
+			}
+		@Override
+		public File get() {
+			if(this.searched) return this.fasta;
+			this.searched=true;
+			
+			/* search for bwa progam */
+			try(final SamReader sr= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(this.bamFile)) {
+				final SAMFileHeader header= sr.getFileHeader();
+				
+				final SAMSequenceDictionary dict= header.getSequenceDictionary();
+				this.fasta = searchCatalogs(dict);
+				if(this.fasta!=null) return fasta;
+				if(dict==null) {
+					LOG.warning("cannot get fasta associated with  "+this.bamFile);
+					}	
+				
+				this.fasta = sr.getFileHeader().
+					getProgramRecords().
+					stream().
+					filter(P->"bwa".equals(P.getProgramName())).
+					map(P->P.getCommandLine()).
+					filter(S->S!=null).
+					flatMap(S->Arrays.stream(S.split("[ \t]+"))).
+					filter(S->S.endsWith(".fa") || S.endsWith(".fasta")).
+					map(L->new File(L)).
+					filter(F->F.exists() && F.isFile()).findFirst().
+					orElse(null);
+				if(this.fasta!=null) {
+					LOG.warning("Found a bam with program read group (bwa) "+this.fasta+" : will use it as REF");
+					}
+				}
+			catch(final IOException err) {
+				//ignore
+				}
+			return this.fasta;
+			}
+		}
+	
+	
 	private static class DefaultSupplier extends ReferenceFileSupplier
 		{
 		private boolean searched = false;
@@ -134,8 +229,10 @@ public static class StringConverter
 				{
 				return searchCatalogs(s);
 				}
-			final File fasta = new File(s);
-			if(fasta.exists() && fasta.isFile()) return fasta;
+			final File file = new File(s);
+			if(file.exists() && file.isFile()) {
+				return file;
+				}
 			return null;
 			}
 		
@@ -168,7 +265,7 @@ public static class StringConverter
 	public File getRequired() {
 		final File f = get();
 		if(f!=null) return f;
-		throw new JvarkitException.ReferenceMissing("Reference file is missing. ");
+		throw new JvarkitException.ReferenceMissing("Reference file is missing.");
 		}
 
 	/** search catalog file for the given key */

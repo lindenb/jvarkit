@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-DownSample a VCF. Will keep 'n' random variant in a vcf.
+DownSample a VCF. Will keep 'n' random variants in a vcf.
 
 
 ## Usage
@@ -23,7 +23,7 @@ Usage: downsamplevcf [options] Files
       random seed. -1==use current time
       Default: -1
     -n
-      output size
+      output size. keep 'n' random variants in the input vcf
       Default: 10
 
 ```

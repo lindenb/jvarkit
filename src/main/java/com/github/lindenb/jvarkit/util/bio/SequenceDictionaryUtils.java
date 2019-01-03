@@ -31,6 +31,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -78,6 +79,18 @@ public static boolean isHuman(final VCFHeader h) {
 public static boolean isHuman(final SAMSequenceDictionary dict) {
 	return isGRCh37(dict) || isGRCh38(dict);
 	}
+
+/** extract required from IndexedFastaSequenceFile */
+public static SAMSequenceDictionary extractRequired(final IndexedFastaSequenceFile faidx) {
+	if(faidx==null) throw new IllegalArgumentException("Cannot extract dictionary because IndexedFastaSequenceFile was not provided.");
+	final SAMSequenceDictionary dict = faidx.getSequenceDictionary();
+	if(dict==null || dict.isEmpty()) 
+		{
+		throw new JvarkitException.FastaDictionaryMissing(faidx.toString());
+		}
+	return dict;
+	}
+
 
 /** extract required SAMSequenceDictionary */
 public static SAMSequenceDictionary extractRequired(final SAMFileHeader h) {

@@ -1,13 +1,28 @@
-/**
- * Author:
- * 	Pierre Lindenbaum PhD
- * Date:
- * 	Fev-2014
- * Contact:
- * 	plindenbaum@yahoo.fr
- * Motivation:
- * 	Idea from Solena: successive synonymous mutations are a stop codong
- */
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
 import java.io.BufferedReader;
@@ -25,15 +40,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.GranthamScore;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -74,31 +93,17 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-
-
-/**
- * VCFStopCodon
- * @SolenaLS 's idea: variant in the same codon give a new Amino acid undetected by annotaion tools.
- *
- */
 /**
 
 BEGIN_DOC
 
+## Motivation
 
+@SolenaLS 's idea: variant in the same codon give a new Amino acid undetected by annotaion tools.
 
-
-
-### Output
-
-
-
-#### Example
-
-
+## Example
 
 ```
-
 ##fileformat=VCFv4.2
 ##FILTER=<ID=TwoStrands,Description="(number of reads carrying both mutation) < (reads carrying variant 1 + reads carrying variant 2)">
 ##INFO=<ID=CodonVariant,Number=.,Type=String,Description="Variant affected by two distinct mutation. Format is defined in the INFO column. INFO_AC:Allele count in genotypes, for each ALT allele, in the same order as listed.INFO_AF:Allele Frequency, for each ALT allele, in the same order as listed.INFO_MLEAC:Maximum likelihood expectation (MLE) for the allele counts (not necessarily the same as the AC), for each ALT allele, in the same order as listed.INFO_MLEAF:Maximum likelihood expectation (MLE) for the allele frequency (not necessarily the same as the AF), for each ALT allele, in the same order as listed.">
@@ -111,10 +116,6 @@ BEGIN_DOC
 1	120612014	.	C	A	.	.	CodonVariant=CHROM|1|REF|C|TRANSCRIPT|uc001eik.3|cDdnaPos|7|CodonPos|7|CodonWild|GCC|AAPos|3|AAWild|A|POS1|120612014|ID1|.|PosInCodon1|1|Alt1|A|Codon1|TCC|AA1|S|INFO_MLEAC_1|1|INFO_AC_1|1|INFO_MLEAF_1|0.500|INFO_AF_1|0.500|POS2|120612013|ID2|rs200646249|PosInCodon2|2|Alt2|A|Codon2|GTC|AA2|V|INFO_MLEAC_2|1|INFO_AC_2|1|INFO_MLEAF_2|0.500|INFO_AF_2|0.500|CombinedCodon|TTC|CombinedAA|F|CombinedSO|nonsynonymous_variant|CombinedType|combined_is_new|N_READS_BOTH_VARIANTS|168|N_READS_NO_VARIANTS|1045|N_READS_TOTAL|1213|N_READS_ONLY_1|0|N_READS_ONLY_2|0,CHROM|1|REF|C|TRANSCRIPT|uc001eil.3|cDdnaPos|7|CodonPos|7|CodonWild|GCC|AAPos|3|AAWild|A|POS1|120612014|ID1|.|PosInCodon1|1|Alt1|A|Codon1|TCC|AA1|S|INFO_MLEAC_1|1|INFO_AC_1|1|INFO_MLEAF_1|0.500|INFO_AF_1|0.500|POS2|120612013|ID2|rs200646249|PosInCodon2|2|Alt2|A|Codon2|GTC|AA2|V|INFO_MLEAC_2|1|INFO_AC_2|1|INFO_MLEAF_2|0.500|INFO_AF_2|0.500|CombinedCodon|TTC|CombinedAA|F|CombinedSO|nonsynonymous_variant|CombinedType|combined_is_new|N_READS_BOTH_VARIANTS|168|N_READS_NO_VARIANTS|1045|N_READS_TOTAL|1213|N_READS_ONLY_1|0|N_READS_ONLY_2|0;EXAC03_AC_NFE=640;EXAC03_AN_NFE=48228
 
 ```
-
-
-
-
 
 #### Fields
 
@@ -153,13 +154,9 @@ N_READS_ONLY_10Number of reads carrying onlt variant 1
 N_READS_ONLY_20Number of reads carrying onlt variant 2
 ```
 
-
-
 ### See also
 
-http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615
-
-
+* http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615
 
 END_DOC
 */
@@ -175,17 +172,13 @@ public class VCFCombineTwoSnvs extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC ,required=true)
 	private String kgURI  = KnownGene.getDefaultUri();
-
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
 	private File bamIn = null;
 	
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File referenceFile = null;
-	
-	
+	@Parameter(names={"-R","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION,required=true)
+	private ReferenceFileSupplier referenceFileSupplier = ReferenceFileSupplier.getDefaultReferenceFileSupplier();
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
@@ -282,7 +275,7 @@ public class VCFCombineTwoSnvs extends Launcher
 
 			LOG.info("loading genes from "+this.kgURI);
 			in =IOUtils.openURIForBufferedReading(this.kgURI);
-			final Pattern tab=Pattern.compile("[\t]");
+			final CharSplitter tab=CharSplitter.TAB;
 			String line = null;
 			while((line=in.readLine())!=null)
 				{
@@ -566,14 +559,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 	/* used to serialize a map to string in INFO column */
 	private static String mapToString(final Map<String,Object> map)
 		{
-		final StringBuilder sb = new StringBuilder();
-		for(final String key: map.keySet()) {
-			if(sb.length()>0) sb.append("|");
-			sb.append(key);
-			sb.append("|");
-			sb.append(String.valueOf(map.get(key)));
-		}
-		return sb.toString();
+		return map.entrySet().stream().map(KV->KV.getKey()+"|"+KV.getValue()).collect(Collectors.joining("|"));
 		}
 
 	@Override
@@ -603,10 +589,10 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			final VCFHeader header= cah.header;
 			final Set<String> sampleNamesInOrder = new HashSet<>(header.getSampleNamesInOrder());
 
-			
+			final File referenceFile = this.referenceFileSupplier.getRequired();
 			LOG.info("opening REF:"+referenceFile);
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
-	        final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(referenceFile);
+	        final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 	        if(dict==null) throw new IOException("dictionary missing");
 	        
 	        if(this.bamIn!=null)
@@ -616,7 +602,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		        	{
 		        	LOG.info("opening BAM :"+this.bamIn);
 		        	final SamReader samReader = SamReaderFactory.makeDefault().
-		        			referenceSequence(this.referenceFile).
+		        			referenceSequence(referenceFile).
 		        			validationStringency(ValidationStringency.LENIENT).
 		        			open(this.bamIn)
 		        			;
@@ -1230,21 +1216,16 @@ static private class MutationComparator implements Comparator<CombinedMutation>
     		}
 		}
 	@Override
-	public int doWork(List<String> args) {
-		if(this.referenceFile==null)
-			{
-			LOG.error("Undefined REFERENCE");
-			return -1;
-			}
-		if(this.kgURI==null || this.kgURI.trim().isEmpty())
+	public int doWork(final List<String> args) {
+		if(StringUtils.isBlank(this.kgURI))
 			{
 			LOG.error("Undefined kgURI.");
 			return -1;
 			}
-		return doVcfToVcf(args,outputFile);
+		return doVcfToVcf(args,this.outputFile);
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VCFCombineTwoSnvs().instanceMainWithExit(args);
 		}
