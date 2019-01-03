@@ -416,6 +416,7 @@ $(eval $(call compile-htsjdk-cmd,prettysam,${jvarkit.package}.tools.sam2tsv.Pret
 $(eval $(call compile-htsjdk-cmd,sam4weblogo,${jvarkit.package}.tools.sam4weblogo.SAM4WebLogo,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samclipindelfraction,${jvarkit.package}.tools.misc.SamClipIndelFraction,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samextractclip,${jvarkit.package}.tools.structvar.SamExtractClip,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,vcfstrechofgt,${jvarkit.package}.tools.structvar.VcfStretchOfGt,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,samscansplitreads,${jvarkit.package}.tools.structvar.SamScanSplitReads,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,samfindclippedregions,${jvarkit.package}.tools.structvar.SamFindClippedRegions,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samfixcigar,${jvarkit.package}.tools.samfixcigar.SamFixCigar,${jcommander.jar} ))
