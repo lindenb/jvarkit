@@ -60,6 +60,7 @@ import htsjdk.tribble.readers.LineIterator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -68,8 +69,8 @@ import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
@@ -405,12 +406,12 @@ public class GroupByGene
 				pedigree = Pedigree.newParser().parse(header);
 				}
 			
-			final Pattern tab = Pattern.compile("[\t]");
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(the_dictionary).logger(LOG);
+			final CharSplitter tab = CharSplitter.TAB;
+			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(the_dictionary).logger(LOG).build();
 			while(lineiter.hasNext())
 				{
 				String line = lineiter.next();
-				final VariantContext ctx = progress.watch(this.the_codec.decode(line));
+				final VariantContext ctx = progress.apply(this.the_codec.decode(line));
 				if(!ctx.isVariant()) continue;
 				if(ignore_filtered && ctx.isFiltered()) continue;
 				
@@ -433,7 +434,7 @@ public class GroupByGene
 				}
 			CloserUtil.close(lineiter);lineiter=null;
 			sortingCollection.doneAdding();
-			
+			progress.close();
 			
 			
 			/** dump */			
@@ -501,8 +502,6 @@ public class GroupByGene
 				pw.print('\t');
 				pw.print("pedigree.controls");
 				}
-			
-			
 			if(!maleSamples.isEmpty())
 				{
 				pw.print('\t');

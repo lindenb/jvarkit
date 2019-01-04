@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.mem;
 
 import java.io.File;
@@ -14,6 +38,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.SAMFileWriter;
@@ -21,12 +46,11 @@ import htsjdk.samtools.SAMFileWriter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 /**
 
@@ -39,7 +63,9 @@ $  java -jar dist/findmyvirus.jar -V virus_chr -o category in.bam
 
 */
 @Program(name="findmyvirus",
-	description="Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. ")
+	description="Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS.",
+	keywords={"bam","virus"}
+)
 public class FindMyVirus extends Launcher
 	{
 	private static final Logger LOG= Logger.build(FindMyVirus.class).make();
@@ -136,7 +162,7 @@ public class FindMyVirus extends Launcher
 			}
 		};
 
-	@Parameter(names={"-o","--out"},description="output",required=true)
+	@Parameter(names={"-o","--out"},description="Ouptut base name",required=true)
 	private File outputFile=null;
 
 	@Parameter(names={"-V"},description=" virus chrom name")
@@ -147,50 +173,46 @@ public class FindMyVirus extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args) {
-		
-		if(virusNames.isEmpty())
+	public int doWork(final List<String> args) {		
+		if(this.virusNames.isEmpty())
 			{
 			LOG.error("no virus name");
 			return -1;
 			}
 		
-		
-		
-		
 		SamReader sfr=null;
-		SAMFileWriter sfwArray[]=new SAMFileWriter[CAT.values().length];
+		final SAMFileWriter sfwArray[]=new SAMFileWriter[CAT.values().length];
 		try
 			{
 			sfr = openSamReader(oneFileOrNull(args));
-			SAMFileHeader header=sfr.getFileHeader();
+			final SAMFileHeader header=sfr.getFileHeader();
 			for(CAT category:CAT.values())
 				{
 				LOG.info("Opening "+category);
-				SAMFileHeader header2=header.clone();
+				final SAMFileHeader header2=header.clone();
 				header2.addComment("Category:"+category.name());
 				header2.addComment("Description:"+category.getDescription());
-				SAMProgramRecord rec=header2.createProgramRecord();
+				final SAMProgramRecord rec=header2.createProgramRecord();
 				rec.setCommandLine(this.getProgramCommandLine());
 				rec.setProgramName(getProgramName());
 				rec.setProgramVersion(getVersion());
 				rec.setAttribute("CAT", category.name());
-				File outputFile=new File(this.outputFile.getParentFile(),this.outputFile.getName()+"."+category.name()+".bam");
+				final File outputFile=new File(this.outputFile.getParentFile(),this.outputFile.getName()+"."+category.name()+".bam");
 				LOG.info("Opening "+outputFile);
-				File countFile=new File(outputFile.getParentFile(),outputFile.getName()+"."+category.name()+".count.txt");
+				final File countFile=new File(outputFile.getParentFile(),outputFile.getName()+"."+category.name()+".count.txt");
+				@SuppressWarnings("resource")
 				SAMFileWriter sfw= writingBamArgs.openSAMFileWriter(outputFile, header2,  true);
 				sfw=new SAMFileWriterCount(sfw, countFile,category);
 				sfwArray[category.ordinal()]=sfw;
 				}
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
-			OtherCanonicalAlignFactory xpAlignFactory=new OtherCanonicalAlignFactory(header);
-			SAMRecordIterator iter=sfr.iterator();
+			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec=iter.next();
-				progress.watch(rec);
+				final SAMRecord rec=progress.apply(iter.next());
+				
 				CAT category=null;
-				List<OtherCanonicalAlign> xpList=Collections.emptyList();
+				
 				if(category==null && !rec.getReadPairedFlag())
 					{
 					category=CAT.unpaired;
@@ -216,15 +238,14 @@ public class FindMyVirus extends Launcher
 					{
 					category=CAT.unmapped;
 					}
-				
-				if(category==null)
-					{
-					xpList=xpAlignFactory.getXPAligns(rec);
-					}
+				final List<SAMRecord> xpList=
+						category==null?
+					SAMUtils.getOtherCanonicalAlignments(rec)
+					:Collections.emptyList();
 			
 				boolean xp_containsVirus=false;
 				boolean xp_containsChrom=false;
-				for(OtherCanonicalAlign xpa:xpList)
+				for(final SAMRecord xpa:xpList)
 					{
 					if(virusNames.contains(xpa.getReferenceName()))
 						{
@@ -332,7 +353,9 @@ public class FindMyVirus extends Launcher
 					}
 				sfwArray[category.ordinal()].addAlignment(rec);
 				}
-			for(SAMFileWriter sfw:sfwArray)
+			progress.close();
+			iter.close();
+			for(final SAMFileWriter sfw:sfwArray)
 				{
 				LOG.info("Closing "+sfw);
 				sfw.close();
@@ -361,31 +384,34 @@ public class FindMyVirus extends Launcher
 	private class SAMFileWriterCount
 		implements SAMFileWriter
 		{
-		private CAT category;
-		private SAMFileWriter delegate;
-		private File countFile;
-		private Counter<String> chrom=new Counter<String>();
-		private Counter<Integer> flags=new Counter<Integer>();
+		private final CAT category;
+		private final SAMFileWriter delegate;
+		private final File countFile;
+		private final Counter<String> chrom=new Counter<>();
+		private final Counter<Integer> flags=new Counter<>();
 		@SuppressWarnings("unused")
 		private ProgressLoggerInterface progressLogger;
 		
-		SAMFileWriterCount(SAMFileWriter delegate,File countFile,CAT category)
+		SAMFileWriterCount(
+				final SAMFileWriter delegate,
+				final File countFile,
+				final CAT category)
 			{
 			this.category=category;
 			this.countFile=countFile;
 			this.delegate=delegate;
-			for(SAMSequenceRecord rec:delegate.getFileHeader().getSequenceDictionary().getSequences())
+			for(final SAMSequenceRecord rec:SequenceDictionaryUtils.extractRequired(delegate.getFileHeader()).getSequences())
 				{
-				chrom.initializeIfNotExists(rec.getSequenceName());
+				this.chrom.initializeIfNotExists(rec.getSequenceName());
 				}
-			chrom.initializeIfNotExists(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+			this.chrom.initializeIfNotExists(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
 			}
 		@Override
-		public void setProgressLogger(ProgressLoggerInterface progressLogger) {
+		public void setProgressLogger(final ProgressLoggerInterface progressLogger) {
 			this.progressLogger=progressLogger;
 			}
 		@Override
-		public void addAlignment(SAMRecord alignment) {
+		public void addAlignment(final SAMRecord alignment) {
 			this.delegate.addAlignment(alignment);
 			this.flags.incr(alignment.getFlags());
 			if(!alignment.getReadUnmappedFlag())
@@ -404,7 +430,7 @@ public class FindMyVirus extends Launcher
 		@Override
 		public void close()
 			{
-			LOG.info("Closing SAMFileWriterCount ");
+			LOG.info("Closing SAMFileWriterCount");
 			
 			PrintWriter fw=null;
 			try
@@ -414,17 +440,17 @@ public class FindMyVirus extends Launcher
 				fw.println(this.category.name());
 				fw.println(this.category.getDescription());
 				fw.println("#CHROMOSOME\tCOUNT");
-				for(String c:this.chrom.keySetDecreasing())
+				for(final String c:this.chrom.keySetDecreasing())
 					{
 					fw.println(c+"\t"+this.chrom.count(c));
 					}
 				fw.println("Total\t"+this.chrom.getTotal());
 				
 				fw.println("#FLAG\tCOUNT\texplain");
-				for(Integer c:this.flags.keySetDecreasing())
+				for(final Integer c:this.flags.keySetDecreasing())
 					{
 					fw.print(c+"\t"+this.flags.count(c)+"\t");
-					for(SAMFlag flg:SAMFlag.values())
+					for(final SAMFlag flg:SAMFlag.values())
 						{
 						if(flg.isSet(c))
 							{
@@ -435,7 +461,7 @@ public class FindMyVirus extends Launcher
 					}
 				fw.flush();
 				}
-			catch(Exception err)
+			catch(final Exception err)
 				{
 				LOG.error(err);
 				throw new RuntimeException("Boum:"+countFile,err);
