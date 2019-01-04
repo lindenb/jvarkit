@@ -47,8 +47,8 @@ public class Algorithms {
 	
 	/** C+ lower_bound */
 	public static <T extends Comparable<T>> int lower_bound(
-			List<T> dataVector,
-	        T select
+			final List<T> dataVector,
+	        final T select
 	        )
 		{
 		return lower_bound(dataVector,0,dataVector.size(),
@@ -60,7 +60,7 @@ public class Algorithms {
 	/** C+ lower_bound */
 	public  static <T> int lower_bound(
 				final List<T> dataVector,
-				int first, 
+				final int first, 
 				final int last,
 				final T select,
 				final Comparator<T> comparator
@@ -160,15 +160,16 @@ public class Algorithms {
 			final T select
 			)
 		{
-		return equal_range(dataVector,0,dataVector.size(), select,(A,B)->A.compareTo(B));
+		return equal_range(dataVector,0,dataVector.size(), select,(A,B)->A.compareTo(B),A->A);
 		}
 	
-	public static <T> int[] equal_range(
+	public static <T,U> int[] equal_range(
 			final List<T> dataVector,
 			int first,
 			final int last,
-			final T select,
-			final Comparator<T> comparator
+			final U select,
+			final Comparator<U> comparator,
+			final Function<T,U> converter
 			) {
 		int __len = last - first;
 
@@ -176,49 +177,51 @@ public class Algorithms {
 			final int __half = __len / 2;
 			int __middle = first + __half;
 			final T mid = dataVector.get(__middle);
-			if (lower_than(mid, select,comparator)) {
+			final U midObj = converter.apply(mid);
+			if (lower_than(midObj, select,comparator)) {
 				first = __middle;
 				++first;
 				__len = __len - __half - 1;
-			} else if (lower_than(select,mid,comparator)) {
+			} else if (lower_than(select,midObj,comparator)) {
 				__len = __half;
 			} else {
-				int __left = lower_bound(dataVector, first, __middle, select, comparator);
+				int __left = lower_bound(dataVector, first, __middle, select, comparator,converter);
 				first += __len;
 				++__middle;
-				int __right = upper_bound(dataVector, __middle, first, select, comparator);
+				int __right = upper_bound(dataVector, __middle, first, select, comparator,converter);
 				return new int[] { __left, __right };
 			}
 		}
 		return new int[] { first, first };
 	}
 	
-	public static <T> Iterator<T> equal_range_iterator(
+	public static <T,U> Stream<T> equal_range_stream(
 			final List<T> dataVector,
 			int first,
 			final int last,
-			final T select,
-			final Comparator<T> comparator
+			final U select,
+			final Comparator<U> comparator,
+			final Function<T, U> converter
 			)
 		{
-		final int indexes[]= equal_range(dataVector, first, last, select, comparator);
+		final int indexes[]= equal_range(dataVector, first, last, select, comparator,converter);
 		if(indexes[0]<0) throw new IllegalStateException("index[0]="+indexes[0]);
 		if(indexes[1]<0) throw new IllegalStateException("index[1]="+indexes[1]);
 		if(indexes[0]>indexes[1]) throw new IllegalStateException("index[1]="+indexes[1]+"<index[0]="+indexes[0]);
-		if(indexes[0]==indexes[1]) return Collections.emptyIterator();
-		return dataVector.subList(indexes[0], indexes[1]).iterator();
+		if(indexes[0]==indexes[1]) return Stream.empty();
+		return dataVector.subList(indexes[0], indexes[1]).stream();
 		}
 	
-	public static <T> Stream<T> equal_range_stream(
+	public static <T,U> Iterator<T> equal_range_iterator(
 			final List<T> dataVector,
 			int first,
 			final int last,
-			final T select,
-			final Comparator<T> comparator
+			final U select,
+			final Comparator<U> comparator,
+			final Function<T,U> converter
 			)
 		{
-		final Iterator<T> iter = equal_range_iterator(dataVector, first, last, select, comparator);
-		return StreamSupport.stream(new IterableAdapter<T>(iter).spliterator(), false);
+		return equal_range_stream(dataVector, first, last, select, comparator,converter).iterator();
 		}
 	
 }
