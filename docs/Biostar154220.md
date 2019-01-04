@@ -38,6 +38,14 @@ Usage: biostar154220 [options] Files
 ```
 
 
+## Keywords
+
+ * bam
+ * sam
+ * coverage
+
+
+
 ## See also in Biostars
 
  * [https://www.biostars.org/p/154220](https://www.biostars.org/p/154220)

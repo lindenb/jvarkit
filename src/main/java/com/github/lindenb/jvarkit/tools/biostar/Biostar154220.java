@@ -47,11 +47,12 @@ import java.util.List;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 /*
 BEGIN_DOC
@@ -94,7 +95,8 @@ END_DOC
 */
 @Program(name="biostar154220",
 	description="Cap BAM to a given coverage",
-	biostars=154220
+	biostars=154220,
+	keywords={"bam","sam","coverage"}
 	)
 public class Biostar154220 extends Launcher
 	{
@@ -112,23 +114,15 @@ public class Biostar154220 extends Launcher
 	@ParametersDelegate
 	private WritingBamArgs writingBams=new WritingBamArgs();
 	
-	
-
-	@SuppressWarnings("resource")
 	private int doWork(final SamReader in) throws IOException
 		{
-		SAMFileHeader header= in.getFileHeader();
+		final SAMFileHeader header= in.getFileHeader();
 		if(header.getSortOrder()!=SAMFileHeader.SortOrder.unsorted)
 			{
 			LOG.error("input should be unsorted, reads sorted on REF/query-name e.g: see https://github.com/lindenb/jvarkit/wiki/SortSamRefName");
 			return -1;
 			}
-		SAMSequenceDictionary dict=header.getSequenceDictionary();
-		if(dict==null)
-			{
-			LOG.error("no dict !");
-			return -1;
-			}
+		final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(header);
 		SAMFileWriter out=null;
 		SAMRecordIterator iter=null;
 		int prev_tid=-1;
@@ -138,7 +132,7 @@ public class Biostar154220 extends Launcher
 			SAMFileHeader header2=header.clone();
 			header2.addComment("Biostar154220"+" "+getVersion()+" "+getProgramCommandLine());
 			out = this.writingBams.openSAMFileWriter(outputFile,header2, true);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict).logger(LOG);
+			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			iter = in.iterator();
 			List<SAMRecord> buffer=new ArrayList<>();
 			for(;;)
@@ -147,7 +141,7 @@ public class Biostar154220 extends Launcher
 				
 				if(iter.hasNext())
 					{
-					rec = progress.watch(iter.next());
+					rec = progress.apply(iter.next());
 					}
 				
 				if(rec!=null && rec.getReadUnmappedFlag())
@@ -162,11 +156,11 @@ public class Biostar154220 extends Launcher
 					buffer.get(0).getReferenceIndex().equals(rec.getReferenceIndex())
 					)
 					{
-					buffer.add(progress.watch(rec));
+					buffer.add(progress.apply(rec));
 					}
 				else if(buffer.isEmpty() && rec!=null)
 					{
-					buffer.add(progress.watch(rec));
+					buffer.add(progress.apply(rec));
 					}
 				else //dump buffer
 					{
@@ -239,7 +233,7 @@ public class Biostar154220 extends Launcher
 					}
 				}
 			depth_array=null;
-			progress.finish();
+			progress.close();
 			return 0;
 			}
 		catch(final Exception err)
@@ -256,8 +250,7 @@ public class Biostar154220 extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args) {
-
+	public int doWork(final List<String> args) {
 		if(this.capDepth<0) // -1 == infinite
 			{
 			LOG.error("Bad depth:"+this.capDepth);
@@ -269,7 +262,7 @@ public class Biostar154220 extends Launcher
 			in=openSamReader(oneFileOrNull(args));
 			return doWork(in); 
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -281,7 +274,7 @@ public class Biostar154220 extends Launcher
 		}
 
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new Biostar154220().instanceMainWithExit(args);
 		}

@@ -42,6 +42,7 @@ import java.util.zip.ZipOutputStream;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -56,17 +57,11 @@ import htsjdk.tribble.readers.LineIterator;
 
 BEGIN_DOC
 
-
 ### Example
 
-
 ```
-
 java -jar dist/biostar178713.jar -d 100000 -o out.zip in1.bed in2.bed 
-
 ```
-
-
 
 END_DOC
 */
@@ -85,8 +80,7 @@ public class Biostar178713 extends Launcher
 	@Parameter(names={"-o","--output"},description="Output file.zip .",required=true)
 	private File outputFile = null;
 
-
-	@Parameter(names={"-d","--distance"},description="Distance between bed features")
+	@Parameter(names={"-d","--distance"},description="Distance between bed features." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
 	private int distancebed = 100 ;
 
 	

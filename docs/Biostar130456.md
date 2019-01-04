@@ -14,6 +14,9 @@ Usage: biostar130456 [options] Files
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
       Default: false
+    -f, --filtered
+      remove filtered Genotype
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -41,6 +44,12 @@ Usage: biostar130456 [options] Files
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * vcf
+
 
 
 ## See also in Biostars

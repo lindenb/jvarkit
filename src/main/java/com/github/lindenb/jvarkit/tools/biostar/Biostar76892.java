@@ -29,6 +29,7 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -93,18 +94,14 @@ biostars=76892,
 keywords={"sam","bam"})
 public class Biostar76892 extends Launcher
 	{
-
 	private static final Logger LOG = Logger.build(Biostar76892.class).make();
-	
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
-	
 	@Parameter(names={"-osf","--osf"},description="only save pairs of reads which have been corrected by this program")
 	private boolean onlySaveFixed = false;
-	
-	@Parameter(names={"-d","--maxc"},description="distance beween two reads")
+	@Parameter(names={"-d","--maxc"},description="distance beween two reads."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
 	private int distance = 30 ;
 
 	@ParametersDelegate
@@ -228,7 +225,7 @@ public class Biostar76892 extends Launcher
 			}
 		}
 	
-	public static void main(String[] args)throws Exception
+	public static void main(final String[] args)throws Exception
 		{
 		new Biostar76892().instanceMainWithExit(args);
 		}

@@ -56,16 +56,10 @@ import htsjdk.samtools.util.CloserUtil;
 
 BEGIN_DOC
 
-
-
 ### Example
 
-
-
-
-```
- 
- find DIR -name "*.bam" | xargs java -jar dist/biostar172515.jar  | xmllint --format -
+``` 
+$ find DIR -name "*.bam" | xargs java -jar dist/biostar172515.jar  | xmllint --format -
 
 <?xml version="1.0" encoding="UTF-8"?>
 <bai-list>

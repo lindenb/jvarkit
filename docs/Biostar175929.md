@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/
+Construct a combination set of fasta sequences from a vcf
 
 
 ## Usage
@@ -29,6 +29,19 @@ Usage: biostar175929 [options] Files
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * fasta
+ * vcf
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/175929](https://www.biostars.org/p/175929)
+
 
 ## Compilation
 
