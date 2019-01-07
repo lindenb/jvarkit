@@ -1,0 +1,1630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSPY v5 rel. 4 U (http://www.xmlspy.com) by Michael Kholodov (National Library of Medicine) -->
+<!-- edited with XMLSpy v2005 rel. 3 U (http://www.altova.com) by Michael Feolo (NCBI/NLM/NIH) -->
+<xsd:schema targetNamespace="https://www.ncbi.nlm.nih.gov/SNP/docsum"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="https://www.ncbi.nlm.nih.gov/SNP/docsum"
+	elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xsd:element name="ExchangeSet">
+		<xsd:annotation>
+			<xsd:documentation>Set of dbSNP refSNP docsums, version 3.4</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="SourceDatabase" minOccurs="0">
+					<xsd:complexType>
+						<xsd:attribute name="taxId" type="xsd:int" use="required">
+							<xsd:annotation>
+								<xsd:documentation>NCBI taxonomy ID for
+									variation</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="organism" type="xsd:string" use="required">
+							<xsd:annotation>
+								<xsd:documentation>common name for species used as part of database
+									name.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="dbSnpOrgAbbr" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>organism abbreviation used in dbSNP.
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="gpipeOrgAbbr" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>organism abbreviation used within NCBI genome
+									pipeline data dumps.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element ref="Rs" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="Assay" minOccurs="0"/>
+				<xsd:element name="Query" minOccurs="0">
+					<xsd:complexType>
+						<xsd:attribute name="date" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>yyyy-mm-dd</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="string" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>Query terms or search
+									constraints</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Summary" minOccurs="0">
+					<xsd:complexType>
+						<xsd:attribute name="numRsIds" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of refsnp-ids in this exchange set
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="totalSeqLength" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total length of exemplar flanking
+									sequences</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="numContigHits" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of contig locations from
+									SNPContigLoc</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="numGeneHits" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of locus ids from
+									SNPContigLocusId</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="numGiHits" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of gi hits from
+									MapLink</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="num3dStructs" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of 3D structures from
+									SNP3D</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="numAlleleFreqs" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of allele frequences from
+									SubPopAllele</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="numStsHits" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of STS hits from
+									SnpInSts</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="numUnigeneCids" type="xsd:integer" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Total number of unigene cluster ids from
+									UnigeneSnp</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element ref="BaseURL" maxOccurs="unbounded" minOccurs="0"/>
+			</xsd:sequence>
+			<xsd:attribute name="setType" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>set-type: full dump; from query; single
+						refSNP</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="setDepth" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>content depth: brief XML (only refSNP properties and summary
+						subSNP element content); full XML (full refSNP, full subSNP content; all
+						flanking sequences) </xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="specVersion" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>version number of docsum.asn/docsum.dtd
+						specification</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="dbSnpBuild" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>build number of database for this export</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="generated" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>Generated date</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="Rs">
+		<xsd:annotation>
+			<xsd:documentation>defines the docsum structure for refSNP clusters, where a refSNP
+				cluster (rs) is a grouping of individual dbSNP submissions that all refer to the
+				same variation. The refsnp provides a single unified record for annotation of NCBI
+				resources such as reference genome sequence.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="Het" minOccurs="0">
+					<xsd:complexType>
+						<xsd:attribute name="type" use="required">
+							<xsd:annotation>
+								<xsd:documentation>Est=Estimated average het from allele
+									frequencies, Obs=Observed from genotype data</xsd:documentation>
+							</xsd:annotation>
+							<xsd:simpleType>
+								<xsd:restriction base="xsd:string">
+									<xsd:enumeration value="est"/>
+									<xsd:enumeration value="obs"/>
+								</xsd:restriction>
+							</xsd:simpleType>
+						</xsd:attribute>
+						<xsd:attribute name="value" type="xsd:float" use="required">
+							<xsd:annotation>
+								<xsd:documentation>Heterozygosity</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="stdError" type="xsd:float">
+							<xsd:annotation>
+								<xsd:documentation>Standard error of Het
+									estimate</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Validation">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="otherPopBatchId" type="xsd:int" minOccurs="0"
+								maxOccurs="unbounded">
+								<xsd:annotation>
+									<xsd:documentation>dbSNP batch-id's for other pop snp validation
+										data.</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="twoHit2AlleleBatchId" type="xsd:int" minOccurs="0"
+								maxOccurs="unbounded">
+								<xsd:annotation>
+									<xsd:documentation>dbSNP batch-id's for double-hit snp
+										validation data. Use batch-id to get methods, etc.
+									</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="FrequencyClass" type="xsd:int" minOccurs="0"
+								maxOccurs="unbounded">
+								<xsd:annotation>
+									<xsd:documentation>Frequency validation class (1) low frequency
+										variation that is cited in journal and other reputable
+										sources (2) greater than 5 percent minor allele freq in each
+										and all populations (4) greater than 5 percent minor allele
+										freq in 1+ populations (8) if the variant has 2+ minor
+										allele count based on freq or genotype data (16) less than 1
+										percent minor allele freq in each and all populations (32)
+										less than 1 percent minor freq in 1+ populations
+									</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="HapMapPhase" type="xsd:int" minOccurs="0"
+								maxOccurs="unbounded">
+								<xsd:annotation>
+									<xsd:documentation>alidated by HapMap Project phase1-genotyped
+										(1), Phase 1 genotyped; filtered, non-redundant
+										phase2-genotyped (2), Phase 2 genotyped; filtered,
+										non-redundant phase3-genotyped (4) Phase 3 genotyped;
+										filtered, non-redundant </xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="TGPPhase" type="xsd:int" minOccurs="0"
+								maxOccurs="unbounded">
+								<xsd:annotation>
+									<xsd:documentation>Validated by 1000 Genomes Project (TGP) pilot
+										1 (1), pilot 2 (2), pilot 3 (4) </xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="SuspectEvidence" type="xsd:string" minOccurs="0"
+								maxOccurs="unbounded">
+								<xsd:annotation>
+									<xsd:documentation>Suspected to be false SNP evidence Single
+										Nucleotide Difference - paralogous genes (1), Genotype or
+										base calling errors (2), Submission evidence or errors (4),
+										Others (8) </xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+						</xsd:sequence>
+						<xsd:attribute name="byCluster" type="xsd:boolean">
+							<xsd:annotation>
+								<xsd:documentation>at least one subsnp in cluster has frequency data
+									submitted</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="byFrequency" type="xsd:boolean">
+							<xsd:annotation>
+								<xsd:documentation>Validated by allele frequency</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="byOtherPop" type="xsd:boolean"/>
+						<xsd:attribute name="by2Hit2Allele" type="xsd:boolean">
+							<xsd:annotation>
+								<xsd:documentation>cluster has 2+ submissions, with 1+ submissions
+									assayed with a non-computational method</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="byHapMap" type="xsd:boolean">
+							<xsd:annotation>
+								<xsd:documentation>Validated by HapMap Project </xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="by1000G" type="xsd:boolean">
+							<xsd:annotation>
+								<xsd:documentation>Validated by 1000 Genomes Project
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="suspect" type="xsd:boolean">
+							<xsd:annotation>
+								<xsd:documentation>Suspected to be false SNP</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Create">
+					<xsd:annotation>
+						<xsd:documentation>date the refsnp cluster was
+							instantiated</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:attribute name="build" type="xsd:int">
+							<xsd:annotation>
+								<xsd:documentation>build number when the cluster was
+									created</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="date" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>yyyy-mm-dd</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Update" minOccurs="0">
+					<xsd:annotation>
+						<xsd:documentation>most recent date the cluster was updated (member added or
+							deleted)</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:attribute name="build" type="xsd:int">
+							<xsd:annotation>
+								<xsd:documentation>build number when the cluster was
+									updated</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="date" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>yyyy-mm-dd</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Sequence">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="Seq5" type="xsd:string" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>5' sequence that flanks the
+										variation</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="Observed" type="xsd:string">
+								<xsd:annotation>
+									<xsd:documentation>list of all nucleotide alleles observed in
+										ss-list members, correcting for reverse complementation of
+										members reported in reverse orientation</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="Seq3" type="xsd:string" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>3' sequence that flanks the
+										variation</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+						</xsd:sequence>
+						<xsd:attribute name="exemplarSs" type="xsd:int" use="required">
+							<xsd:annotation>
+								<xsd:documentation>dbSNP ss# selected as source of refSNP flanking
+									sequence, ss# part of ss-list below </xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="ancestralAllele" type="xsd:string"/>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element ref="Ss" maxOccurs="unbounded"/>
+				<xsd:element ref="Assembly" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="PrimarySequence" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="RsStruct" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element ref="RsLinkout" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="MergeHistory" minOccurs="0" maxOccurs="unbounded">
+					<xsd:complexType>
+						<xsd:attribute name="rsId" type="xsd:int" use="required">
+							<xsd:annotation>
+								<xsd:documentation>previously issued rs id whose member assays have
+									now been merged</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="buildId" type="xsd:int">
+							<xsd:annotation>
+								<xsd:documentation>build id when rs id was merged into parent
+									rs</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="orientFlip" type="xsd:boolean">
+							<xsd:annotation>
+								<xsd:documentation>TRUE if strand of rs id is reverse to parent
+									object's current strand</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="hgvs" maxOccurs="unbounded" minOccurs="0" type="xsd:string">
+					<xsd:annotation>
+						<xsd:documentation> HGVS name list </xsd:documentation>
+					</xsd:annotation>
+				</xsd:element>
+				<xsd:element name="AlleleOrigin" minOccurs="0" maxOccurs="unbounded">
+					<xsd:annotation>
+						<xsd:documentation>    
+							origin of this allele, if known
+							note that these are powers-of-two, and represent bits; thus, we can
+							represent more than one state simultaneously through a bitwise OR
+							unknown         (0),
+							germline        (1),
+							somatic         (2),
+							inherited       (4),
+							paternal        (8),
+							maternal        (16),
+							de-novo         (32),
+							biparental      (64),
+							uniparental     (128),
+							not-tested      (256),
+							tested-inconclusive (512),
+						</xsd:documentation>
+					</xsd:annotation>
+					<xsd:complexType>
+						<xsd:simpleContent>
+							<xsd:extension base="xsd:integer">
+								<xsd:attribute name="allele" type="xsd:string"/>
+							</xsd:extension>
+						</xsd:simpleContent>
+						<!--
+							<xsd:simpleType name="aoType">
+							
+							<xsd:restriction base="xsd:string">
+							<xsd:enumeration value="unknown"/>
+							<xsd:enumeration value="germline"/>
+							<xsd:enumeration value="somatic"/>
+							<xsd:enumeration value="inherited"/>
+							<xsd:enumeration value="paternal"/>
+							<xsd:enumeration value="maternal"/>
+							<xsd:enumeration value="de-novo"/>
+							<xsd:enumeration value="bipaternal"/>
+							<xsd:enumeration value="unipaternal"/>
+							<xsd:enumeration value="not-tested"/>
+							<xsd:enumeration value="tested-inconclusive"/>
+							</xsd:restriction>
+							
+							</xsd:simpleType>
+						-->
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Phenotype" minOccurs="0" maxOccurs="unbounded">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="ClinicalSignificance" minOccurs="0"
+								maxOccurs="unbounded" type="xsd:string">
+								<xsd:annotation>
+									<xsd:documentation>         
+										unknown                 (0),
+										untested                (1),
+										non-pathogenic          (2),
+										probable-non-pathogenic (3),
+										probable-pathogenic     (4),
+										pathogenic              (5),
+										drug response           (6),
+										other                   (255)
+									</xsd:documentation>
+								</xsd:annotation>
+								<!--
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:string">
+										<xsd:enumeration value="unknown"/>
+										<xsd:enumeration value="untested"/>
+										<xsd:enumeration value="non-pathogenic"/>
+										<xsd:enumeration value="probable-non-pathogenic"/>
+										<xsd:enumeration value="probable-pathogenic"/>
+										<xsd:enumeration value="pathogenic"/>
+										<xsd:enumeration value="other"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+								-->
+							</xsd:element>
+						</xsd:sequence>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="BioSource" minOccurs="0" maxOccurs="unbounded">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="Genome" minOccurs="0" maxOccurs="unbounded"
+								type="xsd:string">
+								<xsd:annotation>
+									<xsd:documentation>         
+										unknown (0) ,
+										genomic (1) ,
+										chloroplast (2) ,
+										chromoplast (3) ,
+										kinetoplast (4) ,
+										mitochondrion (5) ,
+										plastid (6) ,
+										macronuclear (7) ,
+										extrachrom (8) ,
+										plasmid (9) ,
+										transposon (10) ,
+										insertion-seq (11) ,
+										cyanelle (12) ,
+										proviral (13) ,
+										virion (14) ,
+										nucleomorph (15) ,
+										apicoplast (16) ,
+										leucoplast (17) ,
+										proplastid (18) ,
+										endogenous-virus (19) ,
+										hydrogenosome (20) ,
+										chromosome (21) ,
+										chromatophore (22)
+									</xsd:documentation>
+								</xsd:annotation>
+								<!--
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:string">
+										<xsd:enumeration value="unknown"/>
+										<xsd:enumeration value="genomic"/>
+										<xsd:enumeration value="chloroplast"/>
+										<xsd:enumeration value="chromoplast"/>
+										<xsd:enumeration value="kinetoplast"/>
+										<xsd:enumeration value="mitochondrion"/>
+										<xsd:enumeration value="plastid"/>
+										<xsd:enumeration value="macronuclear"/>
+										<xsd:enumeration value="extrachrom"/>
+										<xsd:enumeration value="plasmid"/>
+										<xsd:enumeration value="transposon"/>
+										<xsd:enumeration value="insertion"/>
+										<xsd:enumeration value="cyanelle"/>
+										<xsd:enumeration value="proviral"/>
+										<xsd:enumeration value="virion"/>
+										<xsd:enumeration value="nucleomorph"/>
+										<xsd:enumeration value="apicoplast"/>
+										<xsd:enumeration value="leucoplast"/>
+										<xsd:enumeration value="proplastid"/>
+										<xsd:enumeration value="endogenous"/>
+										<xsd:enumeration value="hydrogenosome"/>
+										<xsd:enumeration value="chromosome"/>
+										<xsd:enumeration value="chromatophore"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+								-->
+							</xsd:element>
+							<xsd:element name="Origin" minOccurs="0" maxOccurs="unbounded"
+								type="xsd:string">
+								<xsd:annotation>
+									<xsd:documentation>         
+										unknown (0) ,
+										natural (1) ,                    normal biological entity
+										natmut (2) ,                    naturally occurring mutant
+										mut (3) ,                        artificially mutagenized
+										artificial (4) ,                 artificially engineered
+										synthetic (5) ,                 purely synthetic
+										other (255)
+									</xsd:documentation>
+								</xsd:annotation>
+								<!--
+								<xsd:simpleType>
+									<xsd:restriction base="xsd:string">
+										<xsd:enumeration value="unknown"/>
+										<xsd:enumeration value="natural"/>
+										<xsd:enumeration value="natmut"/>
+										<xsd:enumeration value="mut"/>
+										<xsd:enumeration value="artificial"/>
+										<xsd:enumeration value="synthetic"/>
+										<xsd:enumeration value="other"/>
+									</xsd:restriction>
+								</xsd:simpleType>
+								-->
+							</xsd:element>
+						</xsd:sequence>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Frequency" minOccurs="0" maxOccurs="unbounded">
+					<xsd:complexType>
+						<xsd:attribute name="freq" type="xsd:double"/>
+						<xsd:attribute name="allele" type="xsd:string"/>
+						<xsd:attribute name="popId" type="xsd:integer">
+							<xsd:annotation>
+								<xsd:documentation>dbSNP Populaton ID</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="sampleSize" type="xsd:integer"/>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+			<xsd:attribute name="rsId" type="xsd:int" use="required">
+				<xsd:annotation>
+					<xsd:documentation>refSNP (rs) number</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="snpClass" use="required">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="snp"/>
+						<xsd:enumeration value="in-del"/>
+						<xsd:enumeration value="heterozygous"/>
+						<xsd:enumeration value="microsatellite"/>
+						<xsd:enumeration value="named-locus"/>
+						<xsd:enumeration value="no-variation"/>
+						<xsd:enumeration value="mixed"/>
+						<xsd:enumeration value="multinucleotide-polymorphism"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="snpType" use="required">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="notwithdrawn"/>
+						<xsd:enumeration value="artifact"/>
+						<xsd:enumeration value="gene-duplication"/>
+						<xsd:enumeration value="duplicate-submission"/>
+						<xsd:enumeration value="notspecified"/>
+						<xsd:enumeration value="ambiguous-location"/>
+						<xsd:enumeration value="low-map-quality"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="molType" use="required">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="genomic"/>
+						<xsd:enumeration value="cDNA"/>
+						<xsd:enumeration value="mito"/>
+						<xsd:enumeration value="chloro"/>
+						<xsd:enumeration value="unknown"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="validProbMin" type="xsd:integer" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>minimum reported success rate of all submissions in
+						cluster</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="validProbMax" type="xsd:integer" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>maximum reported success rate of all submissions in
+						cluster</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="genotype" type="xsd:boolean" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>at least one genotype reported for this
+						refSNP</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="bitField" type="xsd:string" use="optional"> </xsd:attribute>
+			<xsd:attribute name="taxId" type="xsd:int"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="Ss">
+		<xsd:annotation>
+			<xsd:documentation>data for an individual submission to dbSNP</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="Sequence">
+					<xsd:complexType>
+						<xsd:sequence>
+							<xsd:element name="Seq5" type="xsd:string" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>5' sequence that flanks the
+										variation</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="Observed" type="xsd:string">
+								<xsd:annotation>
+									<xsd:documentation>list of all nucleotide alleles observed in
+										ss-list members, correcting for reverse complementation of
+										memebers reported in reverse orientation</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+							<xsd:element name="Seq3" type="xsd:string" minOccurs="0">
+								<xsd:annotation>
+									<xsd:documentation>3' sequence that flanks the
+										variation</xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+						</xsd:sequence>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+			<xsd:attribute name="ssId" type="xsd:int" use="required">
+				<xsd:annotation>
+					<xsd:documentation>dbSNP accession number for submission</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="handle" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>Tag for the submitting laboratory</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="batchId" type="xsd:int" use="required">
+				<xsd:annotation>
+					<xsd:documentation>dbSNP number for batch submission</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="locSnpId" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>submission (ss#) submitter ID</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="subSnpClass">
+				<xsd:annotation>
+					<xsd:documentation>SubSNP classification by type of
+						variation</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="snp"/>
+						<xsd:enumeration value="in-del"/>
+						<xsd:enumeration value="heterozygous"/>
+						<xsd:enumeration value="microsatellite"/>
+						<xsd:enumeration value="named-locus"/>
+						<xsd:enumeration value="no-variation"/>
+						<xsd:enumeration value="mixed"/>
+						<xsd:enumeration value="multinucleotide-polymorphism"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="orient">
+				<xsd:annotation>
+					<xsd:documentation>orientation of refsnp cluster members to refsnp cluster
+						sequence</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="forward">
+							<xsd:annotation>
+								<xsd:documentation>ss flanking sequence is in same orientation as
+									seq-ss-exemplar</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="reverse">
+							<xsd:annotation>
+								<xsd:documentation>flanking sequence and alleles are reverse
+									complement of refSNP as defined by ss exemplar
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="strand">
+				<xsd:annotation>
+					<xsd:documentation>strand is defined as TOP/BOTTOM by nature of flanking
+						nucleotide sequence</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="top"/>
+						<xsd:enumeration value="bottom"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="molType">
+				<xsd:annotation>
+					<xsd:documentation>moltype from Batch table</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="genomic"/>
+						<xsd:enumeration value="cDNA"/>
+						<xsd:enumeration value="mito"/>
+						<xsd:enumeration value="chloro"/>
+						<xsd:enumeration value="unknown"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="buildId" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>dbSNP build number when ss# was added to a refSNP (rs#)
+						cluster</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="methodClass">
+				<xsd:annotation>
+					<xsd:documentation>class of method used to assay for the
+						variation</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="DHPLC">
+							<xsd:annotation>
+								<xsd:documentation>Denaturing High Pressure Liquid Chromatography
+									used to detect SNP</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="hybridize">
+							<xsd:annotation>
+								<xsd:documentation>a hybridization method (e.g. chip) was used to
+									assay for variation</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="computed">
+							<xsd:annotation>
+								<xsd:documentation>variation was mined from sequence alignment with
+									software</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="SSCP"/>
+						<xsd:enumeration value="other"/>
+						<xsd:enumeration value="unknown"/>
+						<xsd:enumeration value="RFLP"/>
+						<xsd:enumeration value="sequence">
+							<xsd:annotation>
+								<xsd:documentation>samples were sequenced and resulting alignment
+									used to define variation</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="validated">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="by-submitter">
+							<xsd:annotation>
+								<xsd:documentation>subsnp has been experimentally validated by
+									submitter</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="by-frequency">
+							<xsd:annotation>
+								<xsd:documentation>subsnp has frequency data
+									submitted</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="by-cluster">
+							<xsd:annotation>
+								<xsd:documentation>has 2+ submissions, with 1+ submission assayed
+									with a non-computational method</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="linkoutUrl" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>append loc-snp-id to this base URL to construct a pointer to
+						submitter data.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="ssAlias" type="xsd:string"/>
+			<xsd:attribute name="alleleOrigin" type="xsd:integer">
+				<!--
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="unknown"/>
+						<xsd:enumeration value="germline"/>
+						<xsd:enumeration value="somatic"/>
+						<xsd:enumeration value="inherited"/>
+						<xsd:enumeration value="paternal"/>
+						<xsd:enumeration value="maternal"/>
+						<xsd:enumeration value="de-novo"/>
+						<xsd:enumeration value="other"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+				--> </xsd:attribute>
+			<xsd:attribute name="clinicalSignificance" type="xsd:string">
+				<!--
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="unknown"/>
+						<xsd:enumeration value="untested"/>
+						<xsd:enumeration value="non-pathogenic"/>
+						<xsd:enumeration value="probable-non-pathogenic"/>
+						<xsd:enumeration value="probable-pathogenic"/>
+						<xsd:enumeration value="pathogenic"/>
+						<xsd:enumeration value="other"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+				-->
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="MapLoc">
+		<xsd:annotation>
+			<xsd:documentation>Position of a single hit of a variation on a
+				contig</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="FxnSet" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="asnFrom" type="xsd:integer" use="required">
+				<xsd:annotation>
+					<xsd:documentation>beginning of variation as feature on
+						contig</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="asnTo" type="xsd:integer" use="required">
+				<xsd:annotation>
+					<xsd:documentation>end position of variation as feature on
+						contig</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="locType" use="required">
+				<xsd:annotation>
+					<xsd:documentation>defines the seq-loc symbol if asn_from !=
+						asn_to</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="insertion">
+							<xsd:annotation>
+								<xsd:documentation>insertion on contig</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="exact">
+							<xsd:annotation>
+								<xsd:documentation>asn-from = asn-to write as
+									'asn-from'</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="deletion">
+							<xsd:annotation>
+								<xsd:documentation>deletion on contig</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="range-ins"/>
+						<xsd:enumeration value="range-exact"/>
+						<xsd:enumeration value="range-del"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="alnQuality" type="xsd:double" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>alignment qualiity</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="orient" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>orientation of refSNP sequence to contig
+						sequence</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="forward"/>
+						<xsd:enumeration value="reverse"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="physMapInt" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>chromosome position as integer for
+						sorting</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="leftFlankNeighborPos" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>nearest aligned position in 5' flanking sequence of
+						snp</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="rightFlankNeighborPos" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>nearest aligned position in 3' flanking sequence of snp
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="leftContigNeighborPos" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>nearest aligned position in 5' contig alignment of
+						snp</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="rightContigNeighborPos" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>nearest aligned position in 3' contig alignment of
+						snp</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="numberOfMismatches" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>number of Mismatched positions in this
+						alignment</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="numberOfDeletions" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>number of deletions in this alignment</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="numberOfInsertions" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>number of insetions in this alignment</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="refAllele" type="xsd:string"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="FxnSet">
+		<xsd:annotation>
+			<xsd:documentation>functional relationship of SNP (and possibly alleles) to genes at
+				contig location as defined in organism-specific bxxx_SNPContigLocusId_xxx
+				tables.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:choice/>
+			<xsd:attribute name="geneId" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>gene-id of gene as aligned to contig</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="symbol" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>symbol (official if present in Entrez Gene) of
+						gene</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="mrnaAcc" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>mRNA accession if variation in transcript</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="mrnaVer" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>mRNA sequence version if variation is in
+						transcripot</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="protAcc" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>protein accession if variation in protein</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="protVer" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>protein version if variation is in
+						protein</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="fxnClass">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="locus-region">
+							<xsd:annotation>
+								<xsd:documentation>variation in region of gene, but not in
+										transcript - deprecated</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="coding-unknown">
+							<xsd:annotation>
+								<xsd:documentation>Deprecated!</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="synonymous-codon">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001588
+										Replaced dbSNP term: cds-synon
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="non-synonymous-codon">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001583
+										Replaced dbSNP term: missense
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="mrna-utr">
+							<xsd:annotation>
+								<xsd:documentation> untranslated region - deprecated
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="intron-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001627
+										Replaced dbSNP term: intron
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="splice-region-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001630
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="reference">
+							<xsd:annotation>
+								<xsd:documentation> contig reference </xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="coding-exception">
+							<xsd:annotation>
+								<xsd:documentation> deprecated </xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="coding-sequence-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001580
+										Replaced dbSNP term: synonymy-unknown
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="nc-transcript-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001619
+										Replaced dbSNP term: gene-segment
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="downstream-variant-500B">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001634
+										Replaced dbSNP term: near-gene-3
+										NOTE: replace SO term 500B_downstream_variant with downstream_variant_500B since number beginning of string not supported
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="upstream-variant-2KB">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001636
+										Replaced dbSNP term: near-gene-5
+										NOTE: replace SO term 2KB_upstream_variant with upstream_variant_2KB since number beginning of string not supported
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="nonsense">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001587
+										Replaced dbSNP term: nonsense
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="missense">
+							<xsd:annotation>
+								<xsd:documentation> alters codon to make an altered amino acid in
+										protein product. </xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="frameshift-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001589
+										Replaced dbSNP term: frameshift
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="utr-variant-3-prime">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001624
+										Replaced dbSNP term: untranslated-3
+										NOTE: replace SO term 3_prime_UTR_variant with UTR_variant_3_prime since number beginning of string not supported
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="utr-variant-5-prime">
+							<xsd:annotation>
+								<xsd:documentation>
+									Sequence Ontology (SO) ID:0001635
+									Replace dbSNP utr-5
+									NOTE: replace SO term 5KB_upstream_variant with upstream_variant_5KB since number beginning of string not supported
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="splice-acceptor-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001574
+										Replaced dbSNP term: splice-3
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="splice-donor-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+										Sequence Ontology (SO) ID:0001575
+										Replaced dbSNP term: splice-5
+									</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="cds-indel">
+							<xsd:annotation>
+								<xsd:documentation>indel snp with length of multiple of 3bp, not
+										causing frameshift.&gt;</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="stop-gained">
+							<xsd:annotation>
+								<xsd:documentation>
+									Sequence Ontology (SO) ID:0001633
+									NOTE: replace SO term 5KB_downstream_variant with downstream_variant_5KB since number beginning of string not supported
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="stop-lost">
+							<xsd:annotation>
+								<xsd:documentation>
+									Sequence Ontology (SO) ID:0001578
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="complex-change-in-transcript">
+							<xsd:annotation>
+								<xsd:documentation>Sequence Ontology (SO) ID:0001577
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="incomplete-terminal-codon-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+									Sequence Ontology (SO) ID: 0001626
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="nmd-transcript-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+									Sequence Ontology (SO) ID: 0001621
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="mature-miRNA-variant">
+							<xsd:annotation>
+								<xsd:documentation>
+									Sequence Ontology (SO) ID: 0001620
+								</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="upstream-variant-5KB">
+							<xsd:annotation>
+								<xsd:documentation>Sequence Ontology (SO) ID: 0001635</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="downstream-variant-5KB">
+							<xsd:annotation>
+								<xsd:documentation>Sequence Ontology (SO) ID: 0001633</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+						<xsd:enumeration value="intergenic">
+							<xsd:annotation>
+								<xsd:documentation>Sequence Ontology (SO) ID: 0001628</xsd:documentation>
+							</xsd:annotation>
+						</xsd:enumeration>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="readingFrame" type="xsd:int"/>
+			<xsd:attribute name="allele" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>variation allele: * suffix indicates allele of contig at this
+						location</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="residue" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>translated amino acid residue for allele</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="aaPosition" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>position of the variant residue in peptide
+						sequence</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="mrnaPosition" type="xsd:int"/>
+			<xsd:attribute name="soTerm" type="xsd:string"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="Assembly">
+		<xsd:annotation>
+			<xsd:documentation>A collection of genome sequence records (curated gene regions (NG's),
+				contigs (NWNT's) and chromosomes (NC/AC's) produced by a genome sequence project.
+				Structure is populated from ContigInfo tables.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="Component" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="SnpStat">
+					<xsd:complexType>
+						<xsd:attribute name="mapWeight" use="required">
+							<xsd:annotation>
+								<xsd:documentation>summary measure of placement precision in the
+									assembly</xsd:documentation>
+							</xsd:annotation>
+							<xsd:simpleType>
+								<xsd:restriction base="xsd:string">
+									<xsd:enumeration value="unmapped"/>
+									<xsd:enumeration value="unique-in-contig"/>
+									<xsd:enumeration value="two-hits-in-contig"/>
+									<xsd:enumeration value="less-10-hits"/>
+									<xsd:enumeration value="multiple-hits"/>
+								</xsd:restriction>
+							</xsd:simpleType>
+						</xsd:attribute>
+						<xsd:attribute name="chromCount" type="xsd:int" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>number of distinct chromosomes in the
+									mapset</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="placedContigCount" type="xsd:int" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>number of distinct contigs [ gi |
+									accession[.version] ] in the mapset</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="unplacedContigCount" type="xsd:int" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>number of sequence postions to a contig with
+									unknown chromosomal assignment</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="seqlocCount" type="xsd:int" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>total number of sequence positions in the
+									mapset</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="hapCount" type="xsd:int" use="optional">
+							<xsd:annotation>
+								<xsd:documentation>Number of hits to alternative genomic haplotypes
+									(e.g. HLA DR region, KIR, or pseudo-autosomal regions like PAR)
+									within the assembly mapset. Note that positions on haplotypes
+									defined in other assemblies (a different assembly_group_label
+									value) will not be counted in this value.</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+			</xsd:sequence>
+			<xsd:attribute name="dbSnpBuild" type="xsd:int" use="required">
+				<xsd:annotation>
+					<xsd:documentation>dbSNP build number defining the rsid set aligned to this
+						assembly</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="genomeBuild" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>assembly build number with possible 'subbuild' version
+						numbers to reflect updates in gene annotation (human e.g. 34_3, 35_1,
+						36_1)</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="groupLabel" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>High-level classification of the assembly to distinguish
+						reference projects from alternate solutions. GroupLabel field from
+						organism/build-specific ContigInfo tables. "reference" is occasionally used
+						as the preferred assembly; standards will converge as additional organism
+						genome projects are finished. Note that some organism assembly names include
+						extended characters like '~' and '/' that may be incompatible with OS
+						filename conventions.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="assemblySource" type="xsd:string" use="optional">
+				<xsd:annotation>
+					<xsd:documentation>Name of the group(s) or organization(s) that generated the
+						assembly</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="current" type="xsd:boolean">
+				<xsd:annotation>
+					<xsd:documentation>Marks the current genomic assembly</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="reference" type="xsd:boolean"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="Assay">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="Method">
+					<xsd:complexType>
+						<xsd:sequence minOccurs="0">
+							<xsd:element name="Exception" type="xsd:string">
+								<xsd:annotation>
+									<xsd:documentation>description of deviation from/addition to
+										given method </xsd:documentation>
+								</xsd:annotation>
+							</xsd:element>
+						</xsd:sequence>
+						<xsd:attribute name="name" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>Submitters method identifier</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="Id" type="xsd:string">
+							<xsd:annotation>
+								<xsd:documentation>dbSNP method identifier</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Taxonomy">
+					<xsd:complexType>
+						<xsd:attribute name="id" type="xsd:int" use="required">
+							<xsd:annotation>
+								<xsd:documentation>NCBI taxonomy ID for
+									variation</xsd:documentation>
+							</xsd:annotation>
+						</xsd:attribute>
+						<xsd:attribute name="organism" type="xsd:string"/>
+					</xsd:complexType>
+				</xsd:element>
+				<xsd:element name="Strains" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+				<xsd:element name="Comment" type="xsd:string" minOccurs="0"/>
+				<xsd:element name="Citation" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="handle" type="xsd:string"/>
+			<xsd:attribute name="batch" type="xsd:string"/>
+			<xsd:attribute name="batchId" type="xsd:int"/>
+			<xsd:attribute name="batchType">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="snpassay"/>
+						<xsd:enumeration value="validation"/>
+						<xsd:enumeration value="doublehit"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="molType">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="genomic"/>
+						<xsd:enumeration value="cDNA"/>
+						<xsd:enumeration value="mito"/>
+						<xsd:enumeration value="chloro"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="sampleSize" type="xsd:int"/>
+			<xsd:attribute name="population" type="xsd:string"/>
+			<xsd:attribute name="linkoutUrl" type="xsd:string"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="BaseURL">
+		<xsd:annotation>
+			<xsd:documentation>URL value from dbSNP_main.BaseURL links table. attributes provide
+				context information and URL id that is referenced within individual refSNP
+				objects.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:simpleContent>
+				<xsd:extension base="xsd:string">
+					<xsd:attribute name="urlId" type="xsd:int">
+						<xsd:annotation>
+							<xsd:documentation>Resource identifier from
+								dbSNP_main.baseURL.</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="resourceName" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation>Name of linked resource</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="resourceId" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation>identifier expected by resource for
+								URL</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:simpleContent>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="PrimarySequence">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="MapLoc" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="dbSnpBuild" type="xsd:int" use="required"/>
+			<xsd:attribute name="gi" type="xsd:int" use="required"/>
+			<xsd:attribute name="source">
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="submitter"/>
+						<xsd:enumeration value="blastmb"/>
+						<xsd:enumeration value="xm"/>
+						<xsd:enumeration value="remap"/>
+						<xsd:enumeration value="hgvs"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="accession" type="xsd:string"/>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="RsStruct">
+		<xsd:annotation>
+			<xsd:documentation>structure information for SNP</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="protAcc" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>accession of the protein with variation</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="protGi" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>GI of the protein with variation</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="protLoc" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>position of the residue for the protein
+						GI</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="protResidue" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>residue specified for protein at prot-loc
+						location</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="rsResidue" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>alternative residue specified by variation
+						sequence</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="structGi" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>GI of the structure neighbor</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="structLoc" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>position of the residue for the structure
+						GI</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="structResidue" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>residue specified for protein at struct-loc
+						location</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="RsLinkout">
+		<xsd:annotation>
+			<xsd:documentation>link data for another resource</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attribute name="resourceId" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>BaseURLList.url_id</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="linkValue" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>value to append to ResourceURL.base-url for complete
+						link</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="Component">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element ref="MapLoc" maxOccurs="unbounded"/>
+			</xsd:sequence>
+			<xsd:attribute name="componentType">
+				<xsd:annotation>
+					<xsd:documentation>type of component: chromosome, contig, gene_region,
+						etc.</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="contig"/>
+						<xsd:enumeration value="mrna"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="ctgId" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>dbSNP contig_id used to join on contig hit / mapset data to
+						these assembly properties</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="accession" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>Accession[.version] for the sequence
+						component</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="name" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>contig name defined as either a submitter local id, element
+						of a whole genome assembly set, or internal NCBI local
+						id</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="chromosome" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>Organism appropriate chromosome tag, 'Un' reserved for
+						default case of unplaced components</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="start" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>component starting position on the chromosome (base 0
+						inclusive)</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="end" type="xsd:int">
+				<xsd:annotation>
+					<xsd:documentation>component ending position on the chromosome (base 0
+						inclusive)</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="orientation">
+				<xsd:annotation>
+					<xsd:documentation>orientation of this component to chromosome, forward (fwd) =
+						0, reverse (rev) = 1, unknown = NULL in
+						ContigInfo.orient.</xsd:documentation>
+				</xsd:annotation>
+				<xsd:simpleType>
+					<xsd:restriction base="xsd:string">
+						<xsd:enumeration value="fwd"/>
+						<xsd:enumeration value="rev"/>
+						<xsd:enumeration value="unknown"/>
+					</xsd:restriction>
+				</xsd:simpleType>
+			</xsd:attribute>
+			<xsd:attribute name="gi" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>NCBI gi for component sequence (equivalent to
+						accession.version) for nucleotide sequence.</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="groupTerm" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>Identifier label for the genome assembly that defines the
+						contigs in this mapset and their placement within the organism genome.
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="contigLabel" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>Display label for component</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+</xsd:schema>

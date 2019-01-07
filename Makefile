@@ -734,9 +734,11 @@ api.ncbi.dbsnp.gt:
 
 
 ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java : api.ncbi.dbsnp
-api.ncbi.dbsnp:
+	touch -c $@
+
+api.ncbi.dbsnp: ${this.dir}src/main/resources/xsd/ncbi/docsum_3.4.xsd
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} "https://ftp.ncbi.nlm.nih.gov/snp/specs/docsum_current.xsd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} $<
 
 
 ## API Ensembl
