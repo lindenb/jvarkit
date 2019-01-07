@@ -32,6 +32,7 @@ import java.util.List;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.table.HtmlExporter;
 import com.github.lindenb.jvarkit.table.Table;
 import com.github.lindenb.jvarkit.table.TableFactory;
 import com.github.lindenb.jvarkit.table.TextExporter;
@@ -40,6 +41,54 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+
+/**
+BEGIN_DOC
+
+## Example
+
+```
+$ echo -e "CHROM\tPOS\tID\nchr1\t10\trs25\nchr2\t45\tENSG00000149948" | java -jar dist/prettytable.jar 
++-------+-----+-----------------+
+| CHROM | POS | ID              |
++-------+-----+-----------------+
+| chr1  | 10  | rs25            |
+| chr2  | 45  | ENSG00000149948 |
++-------+-----+-----------------+
+```
+
+$ echo -e "CHROM\tPOS\tID\nchr1\t10\trs25\nchr2\t45\tENSG00000149948" | java -jar dist/prettytable.jar --format html | xmllint --format -
+
+```
+<html>
+  <body>
+    <table>
+      <thead>
+        <caption/>
+      </thead>
+      <tbody>
+        <tr>
+          <td>chr1</td>
+          <td>10</td>
+          <td>
+            <a title="opensnp" href="https://opensnp.org/snps/rs25">rs25</a>
+          </td>
+        </tr>
+        <tr>
+          <td>chr2</td>
+          <td>45</td>
+          <td>
+            <a title="Ensembl" href="http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q=ENSG00000149948;species=;site=ensembl">ENSG00000149948</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
+```
+END_DOC
+*/
+
 
 @Program(name="prettytable",
 description="Pretty tabular data",
@@ -58,6 +107,8 @@ public class PrettyTable extends Launcher{
 	private boolean noHeader = false;
 	@Parameter(names={"-u","--unicode"},description="Allow unicode characters")
 	private boolean withUnicode = false;
+	@Parameter(names={"-F","--format"},description="format. one of : html,text")
+	private String format = "text";
 
 	
 @Override
@@ -137,10 +188,17 @@ public int doWork(final List<String> args) {
 			}
 		
 		out= super.openFileOrStdoutAsPrintWriter(this.outputFile);
-		TextExporter exporter=new TextExporter();
-		exporter.setAllowUnicode(this.withUnicode);
+		if(this.format.equalsIgnoreCase("html")) {
+			final HtmlExporter exporter=new HtmlExporter();
+			exporter.saveTableTo(table, out);
+			}
+		else
+			{
+			final TextExporter exporter=new TextExporter();
+			exporter.setAllowUnicode(this.withUnicode);
+			exporter.saveTableTo(table, out);
+			}
 		
-		exporter.print(table, out);
 		out.flush();
 		out.close();
 		out = null;

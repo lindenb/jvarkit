@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.net;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -75,8 +74,8 @@ private boolean hasDict() {
 
 public Set<LabelledUrl> of(final String id) {
 	if(StringUtils.isBlank(id)) return Collections.emptySet();
-	final Set<LabelledUrl> L = new HashSet<>();
-	
+	final Set<LabelledUrl> L = new LinkedHashSet<>();
+	 _string(id,L);
 	return L;
 	}
 
