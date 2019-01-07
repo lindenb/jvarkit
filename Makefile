@@ -728,9 +728,9 @@ api.ncbi.insdseq:
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
 
-api.ncbi.dbsnp.gt:
+api.ncbi.dbsnp.gt: ${this.dir}src/main/resources/xsd/ncbi/genoex_1_5.xsd
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} "https://ftp.ncbi.nlm.nih.gov/snp/specs/genoex_1_5.xsd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} $<
 
 
 ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java : api.ncbi.dbsnp
