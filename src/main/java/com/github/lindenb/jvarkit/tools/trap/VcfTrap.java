@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -272,7 +273,8 @@ public class VcfTrap extends Launcher {
 								@Override
 								public char getAlt() { return '\0'; }
 								},
-							this.comparator
+							this.comparator,
+							Function.identity()
 							).
 							filter(R->var.getReference().equals(Allele.create((byte)R.getRef(),true))).
 							filter(R->var.getAlternateAlleles().stream().anyMatch(A->A.equals(Allele.create((byte)R.getAlt(),false)))).
