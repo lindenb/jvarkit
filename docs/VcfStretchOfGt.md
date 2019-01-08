@@ -97,4 +97,16 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Example
+
+```
+$ java -jar dist/vcfstrechofgt.jar -p src/test/resources/test_vcf01.ped src/test/resources/test_vcf01.vcf
+
+#chrom	start0	end0	length	count.affected.variants	average.affected.depth	count.other.variants
+1	870316	870317	1	1	5.0	0
+1	919500	919501	1	1	0.0	0
+1	963703	963704	1	1	0.0	0
+1	1004201	1004202	1	1	0.0	0
+```
+
 
