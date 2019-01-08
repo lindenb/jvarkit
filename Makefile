@@ -40,8 +40,6 @@ tmp.dir=${this.dir}_tmp-${htsjdk.version}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
 export dist.dir?=${this.dir}dist
 
-mysql.version?=5.1.34
-mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
 bigwig.version=20150429
 bigwig.jar?=lib/BigWig.jar
 bigwig.log4j.jar=$(dir ${bigwig.jar})/log4j-1.2.15.jar
@@ -776,18 +774,6 @@ ${dist.dir}/jvarkit-${htsjdk.version}.jar : ${htsjdk.jars} ${bigwig.jars} \
 	${JAVAC} -d ${tmp.dir} -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java $(filter %.java,$^)
 	${JAR} cf $@ -C ${tmp.dir} .
 	rm -rf ${tmp.dir}
-
-##
-## Download mysql connector for java
-## 
-${mysql.jar} :
-	echo "Downloading mysql connector for java version ${mysql.version} from oracle"
-	mkdir -p $(dir $@)
-	curl -Lk ${curl.proxy} -o jeter.tar.gz "http://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-${mysql.version}.tar.gz" 
-	tar xvfz  jeter.tar.gz  --strip-components=1 "mysql-connector-java-${mysql.version}/mysql-connector-java-${mysql.version}-bin.jar"
-	mv mysql-connector-java-${mysql.version}-bin.jar $@
-	rm jeter.tar.gz
-
 
 ##
 ## Broad BigWig

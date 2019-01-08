@@ -9,6 +9,9 @@ avro.libs = $(lib.dir)/org/apache/avro/avro-tools/${avro.tools.version}/avro-too
 
 lib.dir?=lib
 
+mysql.jar = \
+	 $(lib.dir)/mysql/mysql-connector-java/5.1.47/mysql-connector-java-5.1.47.jar
+
 htsjdk.version=2.15.0
 htsjdk.jars  =  \
 	$(lib.dir)/com/github/samtools/htsjdk/${htsjdk.version}/htsjdk-${htsjdk.version}.jar \
@@ -139,7 +142,7 @@ spring.batch.jars = \
 	
 	
 
-all_maven_jars = $(sort ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} ${spring.batch.jars})
+all_maven_jars = $(sort ${mysql.jar} ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} ${spring.batch.jars})
 
 ${all_maven_jars}  : 
 	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"
