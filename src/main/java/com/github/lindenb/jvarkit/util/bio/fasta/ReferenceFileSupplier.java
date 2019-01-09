@@ -238,6 +238,7 @@ public static class StringConverter
 		
 		@Override
 		public synchronized File get() {
+			new RuntimeException().printStackTrace();
 			if(this.searched) {
 				return this.fasta;
 				}
@@ -258,6 +259,11 @@ public static class StringConverter
 					getCatalogFiles().stream().map(F->"\tCatalog file: "+ F.getPath()+" exists:"+F.exists()).collect(Collectors.joining("\n")) + "\n"+
 					"Check the application parameters please.");
 			return null;
+			}
+		/** overriding this one because the '--help' menu will call 'get' to get a default value and display an error message */
+		@Override
+		public String toString() {
+			return "<<Default Fasta Reference Supplier>>";
 			}
 		}
 	

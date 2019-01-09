@@ -380,6 +380,22 @@ private static class OneDictionary extends ContigNameConverter
 		final SAMSequenceRecord ssr = this.dict.getSequence(c2);
 		if(ssr!=null) return ssr.getSequenceName();
 		
+		// chrUn_gl000247 vs GL000247.1
+		if(contig.startsWith("chrUn_gl"))
+			{
+			String c3=contig.substring(8);
+			for(final SAMSequenceRecord ssr2 :this.dict.getSequences())
+				{
+				String c4 = ssr2.getSequenceName();
+				if(!c4.startsWith("GL")) continue;
+				c4=c4.substring(2);
+				if(c4.equals(c3)) return ssr2.getSequenceName();
+				if(!c4.startsWith(c3)) continue;
+				c4=c4.substring(c3.length());
+				if(c4.startsWith(".")) return ssr2.getSequenceName();
+				}	
+			}
+		
 		return null;
 		}
 	@Override

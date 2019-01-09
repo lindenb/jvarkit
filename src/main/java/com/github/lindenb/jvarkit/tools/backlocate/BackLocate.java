@@ -25,11 +25,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.backlocate;
 
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.annotation.Strand;
-import htsjdk.tribble.readers.LineIterator;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,19 +42,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.AminoAcids;
+import com.github.lindenb.jvarkit.util.bio.AminoAcids.AminoAcid;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 /**
  BEGIN_DOC
@@ -89,6 +95,21 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3268	CCA	C	chr1	120480547	Exon 20
 NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
 ```
 
+```
+$ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /path/to/human_g1k_v37.fasta | grep -v "##" | java -jar dist/prettytable.jar 
+
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+| #User.Gene | AA1 | petide.pos.1 | AA2 | knownGene.name | knownGene.strand | knownGene.AA | index0.in.rna | wild.codon | potential.var.codons | base.in.rna | chromosome | index0.in.genomic | exon    | extra.user.data |
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3267          | CCA        | .                    | C           | 1          | 120480548         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3268          | CCA        | .                    | C           | 1          | 120480547         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3269          | CCA        | .                    | A           | 1          | 120480546         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3267          | CCA        | .                    | C           | 1          | 120480548         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3268          | CCA        | .                    | C           | 1          | 120480547         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3269          | CCA        | .                    | A           | 1          | 120480546         | Exon 20 | Interesting     |
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+```
+
 
 ## See also
 
@@ -99,6 +120,7 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
 
 ## History
 
+ * 2019: add extra user data
  * 2017: Moved to jcommander
  * 2014: Moved to jvarkit
  * Nov 2014 : removed all the dependencies to SQL and DAS; use a local indexed genome
@@ -128,21 +150,21 @@ public class BackLocate
 	@Parameter(names={"-k","--kg"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String knownGeneURI = KnownGene.getDefaultUri();
 
-	@Parameter(names={"-x","--kgxref"},description="UCSC kgXRef URI")
+	@Parameter(names={"-x","-X","--kgxref"},description="UCSC kgXRef URI. Must have at least 5 columns. $1 is knowGene-Id $5  is protein identifier.")
 	private String kgXRef = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
 
-	@Parameter(names={"-R","--reference"},description=ReferenceGenomeFactory.OPT_DESCRIPTION,required=true)
-	private String indexedRefUri=null;
+	@Parameter(names={"-R","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION,required=true,converter=ReferenceFileSupplier.StringConverter.class)
+	private ReferenceFileSupplier refSupplier=ReferenceFileSupplier.getDefaultReferenceFileSupplier();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 
 	
 
-	private ReferenceGenome referenceGenome = null;
-	private ReferenceContig genomicContig = null;
-	private final Map<String,Set<String>> geneSymbol2kg=new HashMap<>();
-	private final Map<String,KnownGene> knwonGenes=new HashMap<>();
+	private IndexedFastaSequenceFile referenceGenome = null;
+	private GenomicSequence genomicContig = null;
+	private final Map<String,Set<String>> geneSymbol2kg = new HashMap<>(50_000);
+	private final Map<String,KnownGene> kgIdToKnownGene = new HashMap<>(100_000);
 	/** get a genetic code from a chromosome name (either std or mitochondrial */
 	private static GeneticCode getGeneticCodeByChromosome(final String chr)
 		{
@@ -154,9 +176,9 @@ public class BackLocate
 	static private class RNASequence extends AbstractCharSequence
 		{
 		final List<Integer> genomicPositions=new ArrayList<Integer>();
-		final ReferenceContig genomic;
+		final GenomicSequence genomic;
 		final char strand;
-		RNASequence(final ReferenceContig genomic,final char strand)
+		RNASequence(final GenomicSequence genomic,final char strand)
 			{
 			this.genomic=genomic;
 			this.strand=strand;
@@ -208,8 +230,10 @@ public class BackLocate
 		final PrintStream out,
 		final KnownGene gene,
 		final String geneName,
-		char aa1,char aa2,
-		int peptidePos1
+		final AminoAcid aa1,
+		final AminoAcid aa2,
+		int peptidePos1,
+		final String extraUserData
 		) throws IOException
 		{
 		
@@ -220,17 +244,18 @@ public class BackLocate
 	        		
 	        		
 		if(this.genomicContig==null ||
-		   !this.genomicContig.hasName(gene.getContig())
+		   !this.genomicContig.getChrom().equals(gene.getContig())
 	       )
 	        	{
-	        	LOG.info("fetch genome");
-	        	this.genomicContig= this.referenceGenome.getContig(gene.getContig());
-	        	if(this.genomicContig==null) {
-	        		LOG.warn("No contig "+gene.getContig()+" in reference genome.");
+	        	final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
+	        	final SAMSequenceRecord ssr =dict.getSequence(gene.getContig());
+	        	if(ssr==null) {
+	        		LOG.warn(JvarkitException.ContigNotFoundInDictionary.getMessage(gene.getContig(), dict));
 	        		return;
 	        		}
+	        	this.genomicContig= new GenomicSequence(this.referenceGenome,gene.getContig());
 	        	}
-        	    		
+        	
 	     if(gene.isPositiveStrand())
     		{    		
     		int exon_index=0;
@@ -298,17 +323,17 @@ public class BackLocate
 	        		
 	     if(wildProt==null)
 	    	 {
-	    	 stderr().println("#no protein found for transcript:"+gene.getName());
+	    	 stderr().println("##no protein found for transcript:"+gene.getName());
 	    	 return;
 	    	 }
 	    int peptideIndex0= peptidePos1-1;
         if(peptideIndex0 >=wildProt.length())
         	{
-        	out.println("#index out of range for :"+gene.getName()+" petide length="+wildProt.length());
+        	out.println("##index out of range for :"+gene.getName()+" petide length="+wildProt.length());
         	return;
         	}
     
-        if(wildProt.charAt(peptideIndex0)!=aa1)
+        if(wildProt.charAt(peptideIndex0)!=aa1.getOneLetterCode())
         	{
         	out.println("##Warning ref aminod acid for "+gene.getName() +"  ["+peptidePos1+"] is not the same ("+wildProt.charAt(peptideIndex0)+"/"+aa1+")");
         	}
@@ -331,11 +356,11 @@ public class BackLocate
         final char bases[]=new char[]{'A','C','G','T'};
         for(int codon_pos=0;codon_pos<3;++codon_pos)
         	{
-        	StringBuilder sb=new StringBuilder(wildCodon);
+        	final StringBuilder sb=new StringBuilder(wildCodon);
         	for(char mutBase:bases)
         		{
         		sb.setCharAt(codon_pos, mutBase);
-        		if(geneticCode.translate(sb.charAt(0), sb.charAt(1), sb.charAt(2))==Character.toUpperCase(aa2))
+        		if(geneticCode.translate(sb.charAt(0), sb.charAt(1), sb.charAt(2))==Character.toUpperCase(aa2.getOneLetterCode()))
         			{
         			possibleAltCodons.add(sb.toString());
         			}
@@ -346,11 +371,11 @@ public class BackLocate
         	{
         	out.print(geneName);
         	out.print('\t');
-        	out.print(aa1);
+        	out.print(aa1.getThreeLettersCode());
         	out.print('\t');
         	out.print(peptidePos1);
         	out.print('\t');
-        	out.print(aa2);
+        	out.print(aa2.getThreeLettersCode());
         	out.print('\t');
         	out.print(gene.getName());
         	out.print('\t');
@@ -368,13 +393,7 @@ public class BackLocate
         		}
         	else
         		{
-        		boolean first=true;
-        		for(String mutCodon:possibleAltCodons)
-        			{
-        			if(!first) out.print('|');
-        			first=false;
-        			out.print(mutCodon);
-        			}
+        		out.print(String.join("|", possibleAltCodons));
         		}
         	out.print('\t');
         	out.print(wildRNA.charAt(indexInRna));
@@ -384,7 +403,7 @@ public class BackLocate
         	out.print(wildRNA.genomicPositions.get(indexInRna));
         	out.print('\t');
         	String exonName=null;
-        	for(KnownGene.Exon exon : gene.getExons())
+        	for(final KnownGene.Exon exon : gene.getExons())
 				{
 				int genome=wildRNA.genomicPositions.get(indexInRna);
 				if(exon.getStart()<=genome && genome< exon.getEnd())
@@ -403,6 +422,8 @@ public class BackLocate
             	out.print('\t');
             	out.print(s.substring(0,peptideIndex0)+"["+aa1+"/"+aa2+"/"+wildProt.charAt(peptideIndex0)+"]"+(peptideIndex0+1<s.length()?s.substring(peptideIndex0+1):""));
         		}
+        	out.print('\t');
+        	out.print(extraUserData);
         	out.println();
         	}
 		}
@@ -420,23 +441,46 @@ public class BackLocate
 			}
 		}
 	
-	private void run(PrintStream out,LineIterator in) throws IOException
+	
+	private void run(final PrintStream out,final BufferedReader in) throws IOException
 		{
-		while(in.hasNext())
+		final CharSplitter tab=CharSplitter.TAB;
+		String line;
+		while((line=in.readLine())!=null)
 			{
-			String line=in.next();
-			if(line.startsWith("#") || line.trim().isEmpty()) continue;
-			int n=line.indexOf('\t');
-			if(n==0 || n==-1) throw new IOException("Bad line. No tab found in "+line);
-			String geneName=line.substring(0,n).trim();
-			if(geneName.isEmpty()) throw new IOException("Bad line. No gene in "+geneName);
-			String mut=line.substring(n+1).trim();
-			if(!mut.matches("[A-Za-z\\*][0-9]+[A-Za-z\\*]")) throw new IOException("Bad mutation  in "+line);
-			char aa1= mut.substring(0,1).toUpperCase().charAt(0);
-			char aa2= mut.substring(mut.length()-1).toUpperCase().charAt(0);
-			int position1=Integer.parseInt(mut.substring(1,mut.length()-1));
-			if(position1==0) throw new IOException("Bad position  in "+line);
-			Set<String> kgIds= this.geneSymbol2kg.get(geneName.toUpperCase());
+			if(line.startsWith("#") || StringUtils.isBlank(line)) continue;
+			final String tokens[] = JvarkitException.TokenErrors.atLeast(2,tab.split(line,3));
+			final String geneName=tokens[0].trim();
+			if(StringUtils.isBlank(geneName)) throw new IOException("Bad line. No gene in "+geneName);
+			final String mut=tokens[1].trim();
+			int x0=0,x1=0;
+			while(x1<mut.length() && Character.isLetter(mut.charAt(x1))) {
+				++x1;
+			}
+			String substr = mut.substring(x0,x1);
+			final AminoAcids.AminoAcid aa1 =  substr.length()==1?
+					AminoAcids.getAminoAcidFromOneLetterCode(substr.charAt(0)):
+					AminoAcids.getAminoAcidFromThreeLettersCode(substr)
+					;
+			if(aa1==null) throw new JvarkitException.UserError("Bad mutation "+mut+" (cannot parse left AA)");
+			
+			x0=x1;
+			while(x1<mut.length() && Character.isDigit(mut.charAt(x1))) {
+				++x1;
+			}
+			substr = mut.substring(x0,x1);
+			if(!StringUtils.isInteger(substr)) throw new JvarkitException.UserError("Bad mutation "+mut+" (cannot parse position)");
+			final int position1 = Integer.parseInt(substr);
+			if(position1==0) throw new IOException("Bad position in protein ("+substr+") in "+line);
+			
+			substr = mut.substring(x1);
+			final AminoAcids.AminoAcid aa2 =  substr.length()==1?
+					AminoAcids.getAminoAcidFromOneLetterCode(substr.charAt(0)):
+					AminoAcids.getAminoAcidFromThreeLettersCode(substr)
+					;
+			if(aa2==null) throw new JvarkitException.UserError("Bad mutation "+mut+" (cannot parse right AA)");
+			
+			final Set<String> kgIds= this.geneSymbol2kg.get(geneName.toUpperCase());
 			if(kgIds==null || kgIds.isEmpty())
 				{
 				LOG.warn("No kgXref found for "+geneName);
@@ -444,22 +488,20 @@ public class BackLocate
 				}
 			
 			
-			for(String kgId:kgIds)
+			for(final String kgId:kgIds)
 				{
-				KnownGene kg=this.knwonGenes.get(kgId);
+				final KnownGene kg=this.kgIdToKnownGene.get(kgId);
 				if(kg==null) continue;
-				backLocate(out,kg, geneName, aa1, aa2, position1);
+				backLocate(out,kg, geneName, aa1, aa2, position1,tokens.length>2?tokens[2]:".");
 				}
 			}
 		}
 	
 	
-	private void loadKnownGenesFromUri(String kgURI) throws IOException
+	private void loadKnownGenesFromUri(final String kgURI) throws IOException
 		{
-		if(this.referenceGenome.getDictionary()==null)
-			{
-			throw new JvarkitException.FastaDictionaryMissing("No sequence dictionary in "+this.indexedRefUri);
-			}
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
+		final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
 		
 		LOG.info("loading genes");
 		final Set<String> unknown=new HashSet<String>();
@@ -470,62 +512,75 @@ public class BackLocate
 			{
 			if(line.isEmpty()) continue;
 			final String tokens[]=tab.split(line);
-			final KnownGene g=new KnownGene(tokens);
-			final Interval rgn=new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd());
-			if(this.referenceGenome.getDictionary().getSequence(rgn.getContig())==null)
+			final KnownGene g =new KnownGene(tokens);
+			final String contig = converter.apply(g.getContig());
+			if(StringUtils.isBlank(contig))
 				{
 				if(!unknown.contains(g.getContig()))
 					{
-					LOG.warn("The reference doesn't contain chromosome "+g.getContig());
+					LOG.warn(JvarkitException.ContigNotFoundInDictionary.getMessage(g.getContig(), dict));
 					unknown.add(g.getContig());
 					}
 				continue;
 				}
+			g.setChrom(contig);
 			
-			this.knwonGenes.put(g.getName(),g);
+			this.kgIdToKnownGene.put(g.getName(),g);
 			}
 		in.close();
-		LOG.info("genes:"+this.knwonGenes.size());
+		LOG.info("genes:"+this.kgIdToKnownGene.size());
 		}
 	
 	private void loadkgXRefFromUri(String kgURI) throws IOException
 		{
-		
+		int ignored_kgname = 0;
 		LOG.info("loading "+kgURI);
 		final BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
 		String line;
 		final CharSplitter tab=CharSplitter.TAB;
 		while((line=in.readLine())!=null)
 			{
-			if(line.isEmpty()) continue;
+			if(StringUtils.isBlank(line)) continue;
 			final String tokens[]=tab.split(line);
 			final String kgId=tokens[0];
-			if(!this.knwonGenes.containsKey(kgId)) continue;
-			final String geneSymbol=tokens[4];
-			Set<String> kglist= this.geneSymbol2kg.get(geneSymbol.toUpperCase());
+			if(StringUtils.isBlank(kgId)) continue;
+			
+			if(!this.kgIdToKnownGene.containsKey(kgId)) {
+				++ignored_kgname;
+				continue;
+				}
+			if(tokens.length< 4) {
+				LOG.warning(JvarkitException.TokenErrors.getMessage(5, tokens));
+				continue;
+				}
+			
+			final String geneSymbol=tokens[4].toUpperCase();
+			
+			if(StringUtils.isBlank(geneSymbol)) continue;
+			
+			Set<String> kglist= this.geneSymbol2kg.get(geneSymbol);
 			if(kglist==null)
 				{
-				kglist=new HashSet<String>();
-				geneSymbol2kg.put(geneSymbol.toUpperCase(),kglist);
+				kglist = new HashSet<String>();
+				this.geneSymbol2kg.put(geneSymbol,kglist);
 				}
 			kglist.add(kgId);//kgID
 			}
 		in.close();
-		LOG.info("kgxref:"+geneSymbol2kg.size());
+		LOG.info("kgxref:"+this.geneSymbol2kg.size()+" . Count ignored because not found in kg file: "+ignored_kgname);
 		}
 
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		PrintStream out=null;
-		try {			
-			if(StringUtil.isBlank(this.indexedRefUri))
-				{
-				throw new JvarkitException.CommandLineError("Reference file was not provided");
-				}
-			this.referenceGenome = 
-					new ReferenceGenomeFactory().		
-					open(this.indexedRefUri);
+		BufferedReader in=null;
+		try {
+			LOG.warn("ici");
+			final File faidx = this.refSupplier.getRequired();
+			LOG.warn("ici");
+			this.referenceGenome = new IndexedFastaSequenceFile(faidx);
+			
 			
 			if(StringUtil.isBlank(this.knownGeneURI))
 				{
@@ -577,11 +632,12 @@ public class BackLocate
             	out.print('\t');
             	out.print("protein");
         		}
+        	out.print('\t');
+        	out.print("extra.user.data");
         	out.println();
 			if(args.isEmpty())
 				{
-				LOG.info("reading from stdin");
-				final LineIterator in=IOUtils.openStdinForLineIterator();
+				in=super.openBufferedReader(null);
 				this.run(out,in);
 				CloserUtil.close(in);
 				}
@@ -589,8 +645,7 @@ public class BackLocate
 				{
 				for(final String filename:args)
 					{
-					LOG.info("reading from "+filename);
-					final LineIterator in=IOUtils.openURIForLineIterator(filename);
+					in=super.openBufferedReader(filename);
 					this.run(out,in);
 					CloserUtil.close(in);
 					}
@@ -606,6 +661,7 @@ public class BackLocate
 			CloserUtil.close(this.referenceGenome);
 			this.referenceGenome=null;
 			CloserUtil.close(out);
+			CloserUtil.close(in);
 			}	
 		}
 		

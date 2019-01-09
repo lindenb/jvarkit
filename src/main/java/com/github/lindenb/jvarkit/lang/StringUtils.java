@@ -106,8 +106,15 @@ public static String escapeHttp(final String str) {
 	try {
 		return URLEncoder.encode(str,"UTF-8");
 		}
-	catch(UnsupportedEncodingException err) {
+	catch(final UnsupportedEncodingException err) {
 		throw new IllegalArgumentException(err);
 		}
+	}
+/** return first letter as UpperCase and reminder to lowerCase . Return null if argument is null */
+public static String toTitle(final String s) {
+	if(s==null) return null;
+	if(s.isEmpty()) return s;
+	if(s.length()==1) return s.toUpperCase();
+	return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
 	}
 }
