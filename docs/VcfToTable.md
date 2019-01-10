@@ -23,6 +23,9 @@ Usage: vcf2table [options] Files
     --google
       use google charts (HTML only)
       Default: false
+    -H, --header
+      Print Header
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -76,9 +79,6 @@ Usage: vcf2table [options] Files
       http://software.broadinstitute.org/software/igv/book/export/html/189) 
     --version
       print version and exit
-    -H
-      Print Header
-      Default: false
 
 ```
 

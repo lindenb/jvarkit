@@ -712,7 +712,7 @@ public class VcfToTable extends Launcher {
 		{
 		@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 		private File outputFile = null;
-		@Parameter(names={"-H"},description="Print Header")
+		@Parameter(names={"-H","--header"},description="Print Header")
 		private boolean printHeader=false;
 		@Parameter(names={"-g","--hideGenotypes"},description="Hide All genotypes")
 		private boolean hideGenotypes=false;
@@ -804,13 +804,14 @@ public class VcfToTable extends Launcher {
 					{
 					/** INFO */
 						{
-						final Table t=new Table("ID","Type","Count","Description").setCaption("INFO");
+						final Table t=new Table("ID","Type","Count","CountType","Description").setCaption("INFO");
 						header.getInfoHeaderLines().stream().
 							map(F->{
-									final List<Object> r=new ArrayList<>();
+									final List<Object> r=new ArrayList<>(5);
 									r.add(F.getID());
 									r.add(F.getType()==null?null:F.getType().name());
 									r.add(F.isFixedCount()?F.getCount():null);
+									r.add(F.getCountType());
 									r.add(F.getDescription());
 									return r;
 									}).
@@ -820,13 +821,14 @@ public class VcfToTable extends Launcher {
 						}
 					/** FORMAT */
 						{
-						final Table t=new Table("ID","Type","Count","Description").setCaption("FORMAT");
+						final Table t=new Table("ID","Type","Count","CountType","Description").setCaption("FORMAT");
 						header.getFormatHeaderLines().stream().
 							map(F->{
-									final List<Object> r=new ArrayList<>();
+									final List<Object> r=new ArrayList<>(5);
 									r.add(F.getID());
 									r.add(F.getType()==null?null:F.getType().name());
 									r.add(F.isFixedCount()?F.getCount():null);
+									r.add(F.getCountType());
 									r.add(F.getDescription());
 									return r;
 									}).
