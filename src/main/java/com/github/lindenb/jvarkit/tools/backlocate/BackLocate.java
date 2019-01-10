@@ -39,10 +39,10 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -50,6 +50,7 @@ import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.AminoAcids;
 import com.github.lindenb.jvarkit.util.bio.AminoAcids.AminoAcid;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
@@ -186,8 +187,8 @@ public class BackLocate
 		@Override
 		public char charAt(int i)
 			{
-			char c=genomic.charAt(this.genomicPositions.get(i));
-			return (strand=='+'?c:complement(c));
+			final char c= Character.toUpperCase(genomic.charAt(this.genomicPositions.get(i)));
+			return (strand=='+'?c:AcidNucleics.complement(c));
 			}
 		@Override
 		public int length()
@@ -236,8 +237,8 @@ public class BackLocate
 		final String extraUserData
 		) throws IOException
 		{
-		
-		final GeneticCode geneticCode=getGeneticCodeByChromosome(gene.getChromosome());
+		final Set<String> messages = new LinkedHashSet<>();
+		final GeneticCode geneticCode = getGeneticCodeByChromosome(gene.getChromosome());
 		RNASequence wildRNA=null;
 		ProteinCharSequence wildProt=null;
 		
@@ -333,14 +334,11 @@ public class BackLocate
         	return;
         	}
     
-        if(wildProt.charAt(peptideIndex0)!=aa1.getOneLetterCode())
+        if(wildProt.charAt(peptideIndex0)!= Character.toUpperCase(aa1.getOneLetterCode()))
         	{
-        	out.println("##Warning ref aminod acid for "+gene.getName() +"  ["+peptidePos1+"] is not the same ("+wildProt.charAt(peptideIndex0)+"/"+aa1+")");
+        	messages.add("REF aminod acid ["+peptidePos1+"] is not the same ("+wildProt.charAt(peptideIndex0)+"/"+aa1+")");
         	}
-        else
-        	{
-        	out.println("##"+gene.getName());
-        	}
+       
         int indexesInRNA[]=new int[]{
         	0+ peptideIndex0*3,
         	1+ peptideIndex0*3,
@@ -423,23 +421,14 @@ public class BackLocate
             	out.print(s.substring(0,peptideIndex0)+"["+aa1+"/"+aa2+"/"+wildProt.charAt(peptideIndex0)+"]"+(peptideIndex0+1<s.length()?s.substring(peptideIndex0+1):""));
         		}
         	out.print('\t');
+        	out.print(messages.isEmpty()?".":String.join(";",messages));
+        	out.print('\t');
         	out.print(extraUserData);
         	out.println();
         	}
 		}
 
 	
-	private static char complement(char c)
-		{
-		switch(c)
-			{
-			case 'A':case 'a': return 'T';
-			case 'T':case 't': return 'A';
-			case 'G':case 'g': return 'C';
-			case 'C':case 'c': return 'G';
-			default:throw new IllegalArgumentException(""+c);
-			}
-		}
 	
 	
 	private void run(final PrintStream out,final BufferedReader in) throws IOException
@@ -632,6 +621,8 @@ public class BackLocate
             	out.print('\t');
             	out.print("protein");
         		}
+        	out.print('\t');
+        	out.print("messages");
         	out.print('\t');
         	out.print("extra.user.data");
         	out.println();

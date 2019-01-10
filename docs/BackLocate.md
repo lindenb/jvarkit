@@ -160,6 +160,21 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3268	CCA	C	chr1	120480547	Exon 20
 NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
 ```
 
+```
+$ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /path/to/human_g1k_v37.fasta | grep -v "##" | java -jar dist/prettytable.jar 
+
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+| #User.Gene | AA1 | petide.pos.1 | AA2 | knownGene.name | knownGene.strand | knownGene.AA | index0.in.rna | wild.codon | potential.var.codons | base.in.rna | chromosome | index0.in.genomic | exon    | extra.user.data |
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3267          | CCA        | .                    | C           | 1          | 120480548         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3268          | CCA        | .                    | C           | 1          | 120480547         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3269          | CCA        | .                    | A           | 1          | 120480546         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3267          | CCA        | .                    | C           | 1          | 120480548         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3268          | CCA        | .                    | C           | 1          | 120480547         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3269          | CCA        | .                    | A           | 1          | 120480546         | Exon 20 | Interesting     |
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+```
+
 
 ## See also
 
