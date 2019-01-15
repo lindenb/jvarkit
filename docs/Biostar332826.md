@@ -10,6 +10,10 @@ Fast Extraction of Variants from a list of IDs
 ```
 Usage: biostar332826 [options] Files
   Options:
+    -d, --delete
+      When found , remove the ID from the list of identifiers. Should be 
+      faster but don't use it if two variants have the same ID.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -17,6 +21,9 @@ Usage: biostar332826 [options] Files
       Possible Values: [usage, markdown, xml]
     -r, -i, --ids
       A list of identifiers, one per line
+    -v, --inverse
+      Inverse: don't print the variants containing the IDS.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -24,10 +31,6 @@ Usage: biostar332826 [options] Files
     -R, -I
       A semicolon/comma/space separated list of identifiers
       Default: <empty string>
-    -d, -delete
-      When found , remove the ID from the list of identifiers. Should be 
-      faster but don't use it if two variants have the same ID.
-      Default: false
 
 ```
 
@@ -48,7 +51,7 @@ Usage: biostar332826 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git

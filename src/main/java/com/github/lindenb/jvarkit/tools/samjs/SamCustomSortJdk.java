@@ -258,7 +258,7 @@ public class SamCustomSortJdk
 			pw.println("import htsjdk.samtools.*;");
 			pw.println("import htsjdk.samtools.util.*;");
 			pw.println("import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;");
-			pw.println("import javax.annotation.Generated;");
+			pw.println("import javax.annotation.processing.Generated;");
 
 			pw.println("@Generated(value=\""+SamCustomSortJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
 			pw.println("public class "+javaClassName+" extends "+

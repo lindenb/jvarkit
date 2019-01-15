@@ -51,7 +51,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.function.Predicate;
-import javax.annotation.Generated;
+import javax.annotation.processing.Generated;
 
 /**
 

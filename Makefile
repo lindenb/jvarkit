@@ -26,13 +26,15 @@ JAVAH?=javah
 JAVA?=java
 JAVACC?=javacc
 JAR?=jar
-XJC?=xjc
+
 
 #
 # include java libraries from Maven
 #
 include maven.mk
 
+
+XJC?=$(JAVA) -cp "$(subst $(SPACE),:,${xjc_jars})" -DenableExternalEntityProcessing=true com.sun.tools.xjc.XJCFacade
 
 src.dir=${this.dir}src/main/java
 generated.dir=${this.dir}src/main/generated-sources
@@ -94,12 +96,12 @@ $(1)  : ${htsjdk.jars} \
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir}
 	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
 	cp -v "$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" "${tmp.dir}/$(dir $(subst .,/,$(2)))"
-	echo '### Printing javac version : it should be Oracle 1.8 (you should avoid OpenJDK). if Not, check your $$$${PATH}.'
-	${JAVAC} -version 2> $$(addsuffix .jdkversion,$$@) && \
+	echo '### Printing javac version : it should be OpenJdk 11. if Not, check your $$$${PATH}.'
+	${JAVAC} -version 2>&1 > $$(addsuffix .jdkversion,$$@) && \
 		cat $$(addsuffix .jdkversion,$$@) && \
-		grep -E '1\.8\.[0-9_]+' $$(addsuffix .jdkversion,$$@) && \
+		grep -E '11\.[0-9_]+\.[0-9_]+' $$(addsuffix .jdkversion,$$@) && \
 		rm $$(addsuffix .jdkversion,$$@)
-	#information about the java jre/sdk. For future use of openjdk
+	#information about the java jre/sdk.
 	echo -n "javac=" > "${tmp.dir}/META-INF/jdk.properties"
 	which ${JAVAC} >> "${tmp.dir}/META-INF/jdk.properties"
 	echo -n "jar=" >> "${tmp.dir}/META-INF/jdk.properties"
@@ -175,17 +177,14 @@ define compile_biostar_cmd
 $(call compile-htsjdk-cmd,biostar$(1),${jvarkit.package}.tools.biostar.Biostar$(1),$(2))
 endef
 
-# 
-# All executables
-#
-GALAXY_APPS=vcffixindels vcftail vcfhead vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfmulti2oneallele vcfin vcffilterso vcffilterjs vcfburdensplitter vcfpredictions \
-	vcfpolyx vcfburdenfiltergenes vcfbed vcfbedsetfilter
 
 
 gatk_apps:$(if ${gatk.jar},gatkwalkers,)
 	
 
-APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
+APPS= vcffixindels vcftail vcfhead vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac \
+	vcfmulti2oneallele vcfin vcffilterso vcffilterjs vcfburdensplitter vcfpredictions \
+	vcfpolyx vcfburdenfiltergenes vcfbed vcfbedsetfilter gatk_apps vcftrio vcffamilies  groupbygene \
 	 addlinearindextobed	allelefreqcalc	almostsortedvcf	backlocate	bam2fastq lowresbam2raster bam2raster	bam2svg \
 	bam2xml bam2wig		bamcmpcoverage	bamindexreadnames	bamliftover	bamqueryreadnames \
 	bamrenamechr	bamsnvwig	bamstats04	bamstats05 bamtreepack	batchigvpictures	bedliftover \
@@ -226,21 +225,13 @@ APPS= ${GALAXY_APPS} gatk_apps vcftrio vcffamilies  groupbygene \
 	indexcovjfx indexcov2vcf samcustomsortjdk
 
 
-.PHONY: all tests $(APPS) clean download_all_maven library top   galaxy burden 
+.PHONY: all tests $(APPS) clean download_all_maven library top    burden 
 
 
 
 
 
 all: $(APPS)
-
-
-galaxy: ${GALAXY_APPS}
-	mkdir -p '${galaxy.dir}'
-	cp ${this.dir}src/main/resources/xml/tool_dependencies.xml ${galaxy.dir}/tool_dependencies.xml
-	echo "$^" | tr " " "\n" | awk 'BEGIN {printf("<section id=\"jvk\" name=\"JVARKIT\">\n");} {printf("  <tool file=\"jvarkit/%s\"/>\n",$$1);} END { printf("</section>\n");}' >  ${galaxy.dir}/tool_conf.fragment
-	-planemo  lint --skip "tests"  ${galaxy.dir}/*.xml
-	
 
 burden: vcfburden vcfburdensplitter vcfburdenfisherh vcfburdenfisherv vcfburdenmaf vcfburdenexac vcfburdenfiltergenes vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcfmovefilterstoinfo
 
@@ -268,7 +259,7 @@ tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb  ${bigwig.
 
 
 #bigwig
-$(eval $(call compile-htsjdk-cmd,vcfbigwig,${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${jcommander.jar} ${bigwig.jars}))
+$(eval $(call compile-htsjdk-cmd,vcfbigwig,${jvarkit.package}.tools.vcfbigwig.VCFBigWig,${jcommander.jar} ${bigwig.jars} ${jaxb.jars}))
 $(eval $(call compile-htsjdk-cmd,vcfensemblreg,	${jvarkit.package}.tools.ensemblreg.VcfEnsemblReg,${bigwig.jars} ${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,105754,${bigwig.jar} ${jcommander.jar} ))
 # common math
@@ -314,39 +305,39 @@ $(eval $(call compile_biostar_cmd,76892,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,77288,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,77828,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,78285,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,78400,${jcommander.jar} ))
+$(eval $(call compile_biostar_cmd,78400,${jcommander.jar} ${jaxb.jars}))
 $(eval $(call compile_biostar_cmd,81455,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,84452,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,84786,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,86363,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,86480,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,90204,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,95652,${jcommander.jar} api.ncbi.gb))
-$(eval $(call compile_biostar_cmd,3654,${jcommander.jar} api.ncbi.insdseq api.ncbi.blast))
+$(eval $(call compile_biostar_cmd,95652,${jcommander.jar}  ${jaxb.jars} api.ncbi.gb))
+$(eval $(call compile_biostar_cmd,3654,${jcommander.jar} ${jaxb.jars} api.ncbi.insdseq api.ncbi.blast))
 $(eval $(call compile_biostar_cmd,154220,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,140111,${jcommander.jar} api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
-$(eval $(call compile_biostar_cmd,160470,${jcommander.jar} api.ncbi.blast ))
+$(eval $(call compile_biostar_cmd,140111,${jcommander.jar} ${jaxb.jars} api.ncbi.dbsnp.gt ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/gt/package-info.java))
+$(eval $(call compile_biostar_cmd,160470,${jcommander.jar} ${jaxb.jars} api.ncbi.blast ))
 $(eval $(call compile_biostar_cmd,165777,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,170742,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,172515,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,173114,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,175929,${jcommander.jar} ))
+$(eval $(call compile_biostar_cmd,175929,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,178713,${jcommander.jar}))
-$(eval $(call compile_biostar_cmd,214299,${jcommander.jar} ))
-$(eval $(call compile_biostar_cmd,234081,${jcommander.jar} ))
-$(eval $(call compile_biostar_cmd,234230,${jcommander.jar} ))
+$(eval $(call compile_biostar_cmd,214299,${jcommander.jar}))
+$(eval $(call compile_biostar_cmd,234081,${jcommander.jar}))
+$(eval $(call compile_biostar_cmd,234230,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,251649,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,322664,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,332826,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,336589,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,352930,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} api.ncbi.blast ))
+$(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} ${jaxb.jars} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
-$(eval $(call compile-htsjdk-cmd,gb2gff,${jvarkit.package}.tools.genbank.GenbankToGff3,${jcommander.jar} api.ncbi.gb ))
-$(eval $(call compile-htsjdk-cmd,blastmapannots,${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations,${jcommander.jar} api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
-$(eval $(call compile-htsjdk-cmd,blastn2snp,${jvarkit.package}.tools.blast.BlastNToSnp,${jcommander.jar} api.ncbi.blast ))
-$(eval $(call compile-htsjdk-cmd,reduceblast,${jvarkit.package}.tools.blast.ReduceBlast,${jcommander.jar} api.ncbi.blast ))
-$(eval $(call compile-htsjdk-cmd,mergeblastxml,${jvarkit.package}.tools.blast.MergeBlastXml,${jcommander.jar} api.ncbi.blast))
+$(eval $(call compile-htsjdk-cmd,gb2gff,${jvarkit.package}.tools.genbank.GenbankToGff3,${jcommander.jar} ${jaxb.jars} api.ncbi.gb ))
+$(eval $(call compile-htsjdk-cmd,blastmapannots,${jvarkit.package}.tools.blastmapannots.BlastMapAnnotations,${jcommander.jar} ${jaxb.jars} api.ncbi.blast api.ncbi.gb ${generated.dir}/java/org/uniprot/package-info.java))
+$(eval $(call compile-htsjdk-cmd,blastn2snp,${jvarkit.package}.tools.blast.BlastNToSnp,${jcommander.jar} ${jaxb.jars} api.ncbi.blast ))
+$(eval $(call compile-htsjdk-cmd,reduceblast,${jvarkit.package}.tools.blast.ReduceBlast,${jcommander.jar} ${jaxb.jars} api.ncbi.blast ))
+$(eval $(call compile-htsjdk-cmd,mergeblastxml,${jvarkit.package}.tools.blast.MergeBlastXml,${jcommander.jar} ${jaxb.jars} api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,buildwpontology,${jvarkit.package}.tools.misc.BuildWikipediaOntology,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bwamemdigest,${jvarkit.package}.tools.mem.BWAMemDigest,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bwamemnop,${jvarkit.package}.tools.mem.BWAMemNOp,${jcommander.jar}))
@@ -357,7 +348,7 @@ $(eval $(call compile-htsjdk-cmd,cmpbamsandbuild,${jvarkit.package}.tools.cmpbam
 $(eval $(call compile-htsjdk-cmd,coveragenormalizer,${jvarkit.package}.tools.misc.CoverageNormalizer,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,downsamplevcf,${jvarkit.package}.tools.misc.DownSampleVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,evs2bed,${jvarkit.package}.tools.evs2bed.DumpExomeVariantServerData,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,evs2vcf,${jvarkit.package}.tools.evs2bed.EvsToVcf,${jcommander.jar} api.evs))
+$(eval $(call compile-htsjdk-cmd,evs2vcf,${jvarkit.package}.tools.evs2bed.EvsToVcf,${jcommander.jar} ${jaxb.jars} api.evs))
 $(eval $(call compile-htsjdk-cmd,evs2xml,${jvarkit.package}.tools.evs2bed.EvsDumpXml,${jcommander.jar} api.evs))
 $(eval $(call compile-htsjdk-cmd,fastq2fasta,${jvarkit.package}.tools.misc.FastqToFasta,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,fastqentropy,${jvarkit.package}.tools.fastq.FastqEntropy,${jcommander.jar}))
@@ -390,7 +381,7 @@ $(eval $(call compile-htsjdk-cmd,impactofduplicates,${jvarkit.package}.tools.imp
 $(eval $(call compile-htsjdk-cmd,kg2bed,${jvarkit.package}.tools.misc.KnownGenesToBed,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,liftover2svg,${jvarkit.package}.tools.liftover.LiftOverToSVG,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,mapuniprot,${jvarkit.package}.tools.misc.MapUniProtFeatures,${jcommander.jar} ${generated.dir}/java/org/uniprot/package-info.java))
-$(eval $(call compile-htsjdk-cmd,mergesplittedblast,${jvarkit.package}.tools.blast.MergeSplittedBlast,${jcommander.jar} api.ncbi.blast))
+$(eval $(call compile-htsjdk-cmd,mergesplittedblast,${jvarkit.package}.tools.blast.MergeSplittedBlast,${jcommander.jar} ${jaxb.jars} api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,metrics2xml,${jvarkit.package}.tools.metrics2xml.PicardMetricsToXML,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,ncbitaxonomy2xml,${jvarkit.package}.tools.misc.NcbiTaxonomyToXml,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,ngsfilessummary,${jvarkit.package}.tools.ngsfiles.NgsFilesSummary,${jcommander.jar}))
@@ -406,7 +397,7 @@ $(eval $(call compile-htsjdk-cmd,pubmedmap,${jvarkit.package}.tools.pubmed.Pubme
 $(eval $(call compile-htsjdk-cmd,pubmedgraph,${jvarkit.package}.tools.pubmed.PubmedGraph,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedorcidgraph,${jvarkit.package}.tools.pubmed.PubmedOrcidGraph,${jcommander.jar} ${berkeleydb.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedauthorgraph,${jvarkit.package}.tools.pubmed.PubmedAuthorGraph,${jcommander.jar} ${berkeleydb.jar}))
-$(eval $(call compile-htsjdk-cmd,pubmedfilterjs,${jvarkit.package}.tools.pubmed.PubmedFilterJS,${jcommander.jar} api.ncbi.pubmed))
+$(eval $(call compile-htsjdk-cmd,pubmedfilterjs,${jvarkit.package}.tools.pubmed.PubmedFilterJS,${jcommander.jar} ${jaxb.jars} api.ncbi.pubmed))
 $(eval $(call compile-htsjdk-cmd,referencetovcf,${jvarkit.package}.tools.misc.ReferenceToVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,sam2json,${jvarkit.package}.tools.misc.SamToJson,${jcommander.jar} ${gson.jar} ))
 $(eval $(call compile-htsjdk-cmd,sam2psl,${jvarkit.package}.tools.misc.SamToPsl,${jcommander.jar} ))
@@ -458,7 +449,7 @@ $(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterj
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.vcffilterso.VcfFilterSequenceOntology,${jcommander.jar} vcfpredictions))
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,${jcommander.jar} ${jaxb.jars}))
 $(eval $(call compile-htsjdk-cmd,vcf2bed,${jvarkit.package}.tools.misc.VcfToBed,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,splitvcf,${jvarkit.package}.tools.misc.SplitVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,forkvcf,${jvarkit.package}.tools.misc.ForkVcf,${jcommander.jar}  ))
@@ -492,8 +483,8 @@ $(eval $(call compile-htsjdk-cmd,vcftrio,${jvarkit.package}.tools.vcftrios.VCFTr
 $(eval $(call compile-htsjdk-cmd,vcffamilies,${jvarkit.package}.tools.vcftrios.VCFFamilies,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfvcf,${jvarkit.package}.tools.vcfvcf.VcfVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,worldmapgenome,${jvarkit.package}.tools.circular.WorldMapGenome,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${jcommander.jar} ${generated.dir}/java/org/uniprot/package-info.java ))
-$(eval $(call compile-htsjdk-cmd,blastfilterjs,${jvarkit.package}.tools.blast.BlastFilterJS,${jcommander.jar} api.ncbi.blast))
+$(eval $(call compile-htsjdk-cmd,uniprotfilterjs,${jvarkit.package}.tools.misc.UniprotFilterJS,${jcommander.jar} ${jaxb.jars} ${generated.dir}/java/org/uniprot/package-info.java ))
+$(eval $(call compile-htsjdk-cmd,blastfilterjs,${jvarkit.package}.tools.blast.BlastFilterJS,${jcommander.jar} ${jaxb.jars} api.ncbi.blast))
 $(eval $(call compile-htsjdk-cmd,skipxmlelements,${jvarkit.package}.tools.misc.SkipXmlElements,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,minicaller,${jvarkit.package}.tools.calling.MiniCaller,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfcomparecallersonesample,${jvarkit.package}.tools.vcfcmp.VcfCompareCallersOneSample,${jcommander.jar}))
@@ -505,7 +496,7 @@ $(eval $(call compile-htsjdk-cmd,bamtile,${jvarkit.package}.tools.misc.BamTile,$
 $(eval $(call compile-htsjdk-cmd,xcontaminations,${jvarkit.package}.tools.xcontamination.XContaminations,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,139647,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfburden,${jvarkit.package}.tools.misc.VcfBurden,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,${jcommander.jar} ${gson.jar} api.ncbi.blast api.ncbi.insdseq ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java  ))
+$(eval $(call compile-htsjdk-cmd,bioalcidae,${jvarkit.package}.tools.bioalcidae.BioAlcidae,${jcommander.jar} ${gson.jar} ${jaxb.jars} api.ncbi.blast api.ncbi.insdseq ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java  ))
 $(eval $(call compile-htsjdk-cmd,bioalcidaejdk,${jvarkit.package}.tools.bioalcidae.BioAlcidaeJdk,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfbedsetfilter,${jvarkit.package}.tools.vcfbed.VCFBedSetFilter,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfreplacetag,${jvarkit.package}.tools.vcfstripannot.VCFReplaceTag,${jcommander.jar}))
@@ -677,23 +668,23 @@ all-jnlp : $(addprefix ${dist.dir}/,$(addsuffix .jar, buildwpontology batchigvpi
 	 		-dname "CN=Pierre Lindenbaum, OU=INSERM, O=INSERM, L=Nantes, ST=Nantes, C=Fr"
 
 ${generated.dir}/java/org/uniprot/package-info.java : api.uniprot
-api.uniprot :
+api.uniprot : ${xjc_jars}
 	rm -rf ${generated.dir}/java/org/uniprot/
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java -p org.uniprot ${xjc.proxy} "https://www.uniprot.org/docs/uniprot.xsd" 
 
 
-api.ncbi.pubmed : 
+api.ncbi.pubmed : ${xjc_jars}
 	rm -rf  ${generated.dir}/java/gov/nih/nlm/ncbi/pubmed/
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.pubmed -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_100101.dtd"
 	
 
-api.evs:
+api.evs: ${xjc_jars}
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java -p edu.washington.gs.evs ${xjc.proxy} -wsdl "http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
-api.ncbi.blast:
+api.ncbi.blast: ${xjc_jars}
 	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/blast
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.blast -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd"
@@ -702,33 +693,33 @@ api.ncbi.esearch:
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.esearch -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/eSearch_020511.dtd"
 
-api.ncbi.elink:
+api.ncbi.elink: ${xjc_jars}
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.elink -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/corehtml/query/DTD/eLink_020511.dtd"
 
 
 api.ncbi.gb: ${generated.dir}/java/gov/nih/nlm/ncbi/gb/ObjectFactory.java
-${generated.dir}/java/gov/nih/nlm/ncbi/gb/ObjectFactory.java :
+${generated.dir}/java/gov/nih/nlm/ncbi/gb/ObjectFactory.java : ${xjc_jars}
 	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/gb
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.gb -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_GBSeq.dtd"
 
-api.ncbi.taxonomy:
+api.ncbi.taxonomy: ${xjc_jars}
 	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/taxonomy
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.taxonomy -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/entrez/query/DTD/taxon.dtd"
 
-api.ncbi.tseq:
+api.ncbi.tseq: ${xjc_jars}
 	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/tseq
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.tseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/NCBI_TSeq.dtd"
 
-api.ncbi.insdseq:
+api.ncbi.insdseq: ${xjc_jars}
 	rm -rf  ${generated.dir}/gov/nih/nlm/ncbi/insdseq
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
 
-api.ncbi.dbsnp.gt: ${this.dir}src/main/resources/xsd/ncbi/genoex_1_5.xsd
+api.ncbi.dbsnp.gt: ${this.dir}src/main/resources/xsd/ncbi/genoex_1_5.xsd ${xjc_jars}
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} $<
 
@@ -736,7 +727,7 @@ api.ncbi.dbsnp.gt: ${this.dir}src/main/resources/xsd/ncbi/genoex_1_5.xsd
 ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java : api.ncbi.dbsnp
 	touch -c $@
 
-api.ncbi.dbsnp: ${this.dir}src/main/resources/xsd/ncbi/docsum_3.4.xsd
+api.ncbi.dbsnp: ${this.dir}src/main/resources/xsd/ncbi/docsum_3.4.xsd ${xjc_jars}
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} $<
 
@@ -805,9 +796,9 @@ $(addprefix lib/, commons-validator/commons-validator/1.4.0/commons-validator-1.
 	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o $@ "http://central.maven.org/maven2/$(patsubst lib/%,%,$@)"
 
 ## API EVS
-src/main/generated-sources/java/edu/washington/gs/evs/package-info.java :
+src/main/generated-sources/java/edu/washington/gs/evs/package-info.java : ${xjc_jars}
 	mkdir -p ${generated.dir}/java
-	${JAVA_HOME}/bin/xjc ${xjc.proxy} -d ${generated.dir}/java \
+	${XJC} ${xjc.proxy} -d ${generated.dir}/java \
 		-p edu.washington.gs.evs \
 		"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl"
 
@@ -897,7 +888,7 @@ ${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/JVark
 	rm -rf "${tmp.dir}"
 	mkdir -p ${tmp.dir}/META-INF/services
 	echo "com.github.lindenb.jvarkit.annotproc.JVarkitAnnotationProcessor" > ${tmp.dir}/META-INF/services/javax.annotation.processing.Processor
-	echo '### Printing javac version : it should be Oracle 1.8 (NOT OpenJDK). if Not, check your $$$${PATH}.'
+	echo '### Printing javac version : it should be Java 11. if Not, check your $$$${PATH}.'
 	${JAVAC} -version
 	#compile
 	${JAVAC} -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<

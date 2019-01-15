@@ -64,7 +64,7 @@ import org.w3c.dom.Node;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@SupportedSourceVersion(SourceVersion.RELEASE_8)
+@SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	private static final Logger LOG = Logger.build(JVarkitAnnotationProcessor.class).make();
 	

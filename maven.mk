@@ -139,11 +139,41 @@ spring.batch.jars = \
 	$(lib.dir)/org/springframework/spring-core/5.0.0.RELEASE/spring-core-5.0.0.RELEASE.jar \
 	$(lib.dir)/org/springframework/spring-expression/5.0.0.RELEASE/spring-expression-5.0.0.RELEASE.jar \
 	$(lib.dir)/org/springframework/spring-tx/4.0.5.RELEASE/spring-tx-4.0.5.RELEASE.jar
-	
-	
 
-all_maven_jars = $(sort ${mysql.jar} ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} ${spring.batch.jars})
+jaxb.jars = \
+	$(lib.dir)/javax/xml/bind/jaxb-api/2.2.11/jaxb-api-2.2.11.jar \
+	$(lib.dir)/javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.jar \
+	$(lib.dir)/com/sun/xml/bind/jaxb-impl/2.2.11/jaxb-impl-2.2.11.jar 
+	
+	
+JAXB_VERSION=2.2.11
+
+xjc_jars= \
+	$(lib.dir)/com/beust/jcommander/1.72/jcommander-1.72.jar \
+	$(lib.dir)/com/sun/istack/istack-commons-runtime/3.0.8/istack-commons-runtime-3.0.8.jar \
+	$(lib.dir)/com/sun/istack/istack-commons-tools/3.0.8/istack-commons-tools-3.0.8.jar \
+	$(lib.dir)/com/sun/xml/bind/external/rngom/2.2.11/rngom-2.2.11.jar \
+	$(lib.dir)/com/sun/xml/dtd-parser/dtd-parser/1.4.1/dtd-parser-1.4.1.jar \
+	$(lib.dir)/com/sun/xsom/xsom/20140925/xsom-20140925.jar \
+	$(lib.dir)/jakarta/activation/jakarta.activation-api/1.2.1/jakarta.activation-api-1.2.1.jar \
+	$(lib.dir)/javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.jar \
+	$(lib.dir)/javax/xml/bind/jaxb-api/2.4.0-b180830.0359/jaxb-api-2.4.0-b180830.0359.jar \
+	$(lib.dir)/junit/junit/4.13-beta-1/junit-4.13-beta-1.jar \
+	$(lib.dir)/org/apache/ant/ant-launcher/1.10.5/ant-launcher-1.10.5.jar \
+	$(lib.dir)/org/apache/ant/ant/1.10.5/ant-1.10.5.jar \
+	$(lib.dir)/org/glassfish/jaxb/codemodel/2.2.11/codemodel-2.2.11.jar \
+	$(lib.dir)/org/glassfish/jaxb/jaxb-core/2.3.0.1/jaxb-core-2.3.0.1.jar \
+	$(lib.dir)/org/glassfish/jaxb/jaxb-xjc/2.2.11/jaxb-xjc-2.2.11.jar \
+	$(lib.dir)/org/glassfish/jaxb/txw2/2.3.0.1/txw2-2.3.0.1.jar \
+	$(lib.dir)/org/hamcrest/hamcrest-core/2.1/hamcrest-core-2.1.jar \
+	$(lib.dir)/org/hamcrest/hamcrest/2.1/hamcrest-2.1.jar \
+	$(lib.dir)/org/testng/testng/7.0.0-beta3/testng-7.0.0-beta3.jar \
+	$(lib.dir)/relaxngDatatype/relaxngDatatype/20020414/relaxngDatatype-20020414.jar
+
+
+all_maven_jars = $(sort ${mysql.jar} ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} ${spring.batch.jars} ${jaxb.jars} ${xjc_jars})
+
 
 ${all_maven_jars}  : 
-	mkdir -p $(dir $@) && curl -Lk ${curl.proxy} -o "$@" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)"
+	mkdir -p $(dir $@) && wget -O "$(addsuffix .tmp,$@)" "http://central.maven.org/maven2/$(patsubst ${lib.dir}/%,%,$@)" && mv -v "$(addsuffix .tmp,$@)" "$@"
 

@@ -140,7 +140,7 @@ The user's code will be inserted in the following template:
  5  import htsjdk.samtools.util.*;
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
- 8  import javax.annotation.Generated;
+ 8  import javax.annotation.processing.Generated;
  9  @Generated(value="Optimizer",date="2017-07-10T11:20:07+0200")
 10  public class __CLASS__ extends  __BASE__ {
 11  public __CLASS__(final Map<String,Object> params) {
@@ -649,7 +649,7 @@ public class Optimizer extends Launcher
 			w.println("import htsjdk.samtools.util.*;");
 			w.println("import htsjdk.variant.variantcontext.*;");
 			w.println("import htsjdk.variant.vcf.*;");
-			w.println("import javax.annotation.Generated;");
+			w.println("import javax.annotation.processing.Generated;");
 			w.println("@Generated(value=\""+Optimizer.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
 			w.println("public class "+className+" extends "+Solution.class.getName().replace("$", ".")+ "{");
 			w.println("public "+className+"(final Map<String,Object> params) {");

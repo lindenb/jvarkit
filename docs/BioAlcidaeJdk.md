@@ -90,7 +90,7 @@ Usage: bioalcidaejdk [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -238,7 +238,7 @@ when reading a VCF, a new class extending `VcfHandler` will be compiled. The use
      4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
-     7  import javax.annotation.Generated;
+     7  import javax.annotation.processing.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:00:49+0200")
      9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.VcfHandler {
     10    public Custom1694491176() {
@@ -264,7 +264,7 @@ when reading a SAM/BAM, a new class extending `SAMHandler` will be compiled. The
      4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
-     7  import javax.annotation.Generated;
+     7  import javax.annotation.processing.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:09:20+0200")
      9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.SAMHandler {
     10    public Custom1694491176() {
@@ -292,7 +292,7 @@ when reading a Fastq, a new class extending `FastqHandler` will be compiled. The
  5  import htsjdk.samtools.util.*;
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
- 8  import javax.annotation.Generated;
+ 8  import javax.annotation.processing.Generated;
  9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:46:47+0200")
 10  public class BioAlcidaeJdkCustom220769712 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastqHandler {
 11    public BioAlcidaeJdkCustom220769712() {
@@ -320,7 +320,7 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
  8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
- 9  import javax.annotation.Generated;
+ 9  import javax.annotation.processing.Generated;
 10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
 11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
 12    public BioAlcidaeJdkCustom298960668() {

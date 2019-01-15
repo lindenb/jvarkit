@@ -107,7 +107,7 @@ The user code will be inserted in the following java code:
  3  import java.util.function.*;
  4  import htsjdk.samtools.*;
  5  import htsjdk.samtools.util.*;
- 6  import javax.annotation.Generated;
+ 6  import javax.annotation.processing.Generated;
  7  @Generated(value="SamJdk",date="2017-08-07T14:48:39+0200")
  8  public class SamJdkCustom756098808 extends com.github.lindenb.jvarkit.tools.samjs.SamJdk.AbstractFilter {
  9    public SamJdkCustom756098808(final SAMFileHeader header) {
@@ -505,7 +505,7 @@ public class SamJdk
 			pw.println("import java.util.function.*;");
 			pw.println("import htsjdk.samtools.*;");
 			pw.println("import htsjdk.samtools.util.*;");
-			pw.println("import javax.annotation.Generated;");
+			pw.println("import javax.annotation.processing.Generated;");
 
 			pw.println("@Generated(value=\""+SamJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
 			pw.println("public class "+javaClassName+" extends "+
