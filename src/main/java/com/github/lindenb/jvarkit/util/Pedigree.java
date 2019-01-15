@@ -494,7 +494,10 @@ public class Pedigree
 		return getPersons().stream().filter(P->P.getStatus()==Status.unaffected).collect(Collectors.toSet());
 		}
 	
-	
+	@Override
+	public String toString() {
+		return "<<Pedigree>>";
+		}
 	
 	@Deprecated //use Pedigree.Parser.parse
 	public static Pedigree readPedigree(final File f) throws IOException

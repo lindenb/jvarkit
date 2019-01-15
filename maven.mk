@@ -143,7 +143,11 @@ spring.batch.jars = \
 jaxb.jars = \
 	$(lib.dir)/javax/xml/bind/jaxb-api/2.2.11/jaxb-api-2.2.11.jar \
 	$(lib.dir)/javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.jar \
-	$(lib.dir)/com/sun/xml/bind/jaxb-impl/2.2.11/jaxb-impl-2.2.11.jar 
+	$(lib.dir)/org/glassfish/jaxb/jaxb-core/2.2.11/jaxb-core-2.2.11.jar \
+	$(lib.dir)/org/glassfish/jaxb/jaxb-runtime/2.2.11/jaxb-runtime-2.2.11.jar\
+	$(lib.dir)/com/sun/istack/istack-commons-runtime/3.0.8/istack-commons-runtime-3.0.8.jar
+	
+
 	
 	
 JAXB_VERSION=2.2.11

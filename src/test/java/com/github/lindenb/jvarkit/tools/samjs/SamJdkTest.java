@@ -24,12 +24,11 @@ public class SamJdkTest extends TestUtils {
 	@Test(dataProvider="src1")
 	public void test1(final String inBam,final String expr) throws IOException {
 		final File out = createTmpFile(".bam");
-		Assert.assertEquals(0,new SamJdk().instanceMain(newCmd().add(
+		Assert.assertEquals(new SamJdk().instanceMain(newCmd().add(
         		"-o",out.getPath(),
         		"-e",expr,
         		inBam
-        		).
-				make()));
+        		).make()),0);
 		assertIsValidBam(out);
 		}
 }

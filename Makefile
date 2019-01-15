@@ -246,10 +246,10 @@ tests: ${testng.jars} ${dist.dir}/testsng.jar
 		-log 2 -d "test-output" -testjar ${dist.dir}/testsng.jar
 	rm -vf ${dist.dir}/testsng.jar
 
-tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb  ${bigwig.jars}  ${mysql.jar} ${jetty.jars} ${common.math3.libs}  ${gson.jar} ${berkeleydb.jar}
+tests2: ${testng.jars} ${htsjdk.jars}  ${httpclient.libs} api.ncbi.gb  ${bigwig.jars}  ${mysql.jar} ${jetty.jars} ${common.math3.libs}  ${gson.jar} ${berkeleydb.jar}  ${jaxb.jars}
 	rm -rf "${tmp.dir}"
 	mkdir -p "${tmp.dir}"
-	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${generated.dir}/java:src/test/java:src/main/java `find src/test/java -type f -name "*.java"`
+	${JAVAC} -d ${tmp.dir} -cp "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${generated.dir}/java:src/test/java:src/main/java `find src/test/java -type f -name "*.java" | grep -i -v jfx | grep -v SimplePlotTest`
 	${JAVA} \
 		-Dhttp.nonProxyHosts="localhost" \
 		$(if ${http.proxy.host},-Dhttp.proxyHost=${http.proxy.host} -Dhttps.proxyHost=${http.proxy.host}) \

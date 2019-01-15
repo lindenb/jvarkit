@@ -16,7 +16,7 @@ public void testIsGRCh37() {
 	
 	Assert.assertFalse(SequenceDictionaryUtils.isGRCh37(
 			SequenceDictionaryUtils.extractRequired(
-					new File(SRC_TEST_RESOURCE+"/rotavirus.fa"))));
+					new File(SRC_TEST_RESOURCE+"/rotavirus_rf.fa"))));
 	}
 @Test
 public void testIsHuman() {
@@ -26,7 +26,7 @@ public void testIsHuman() {
 	
 	Assert.assertFalse(SequenceDictionaryUtils.isHuman(
 			SequenceDictionaryUtils.extractRequired(
-					new File(SRC_TEST_RESOURCE+"/rotavirus.fa"))));
+					new File(SRC_TEST_RESOURCE+"/rotavirus_rf.fa"))));
 	}
 
 }

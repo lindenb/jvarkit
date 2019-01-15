@@ -472,12 +472,12 @@ public class VCFComposite extends Launcher {
 			}
 		
 		if(this.pedigree.getAffected().isEmpty()) {
-			LOG.error("No Affected sample in "+this.pedigreeFile);
+			LOG.error("No Affected sample in pedigre. " + this.pedigree);
 			return -1;
 			}
 		
 		if(this.pedigree.getUnaffected().isEmpty()) {
-			LOG.error("No Unaffected sample in "+this.pedigreeFile);
+			LOG.error("No Unaffected sample in " + this.pedigree);
 			return -1;
 			}
 		header.addMetaDataLine(new VCFInfoHeaderLine(INFO_TAG, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Variant of VCFComposite"));
