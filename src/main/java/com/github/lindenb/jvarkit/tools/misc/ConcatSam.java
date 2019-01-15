@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -223,8 +223,7 @@ public class ConcatSam extends Launcher
 				queryIntervals.add(new QueryInterval(referenceIndex, i.getStart(), i.getEnd()));
 				}
 			Collections.sort(queryIntervals);
-			
-			return queryIntervals.toArray(QueryInterval.optimizeIntervals(new QueryInterval[queryIntervals.size()]));
+			return queryIntervals.toArray(QueryInterval.optimizeIntervals(queryIntervals.toArray(new QueryInterval[queryIntervals.size()])));
 			}
 
 		

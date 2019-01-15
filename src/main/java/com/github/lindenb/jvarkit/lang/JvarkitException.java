@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -379,6 +380,13 @@ public static class TokenErrors  extends FileFormatError
 	public TokenErrors(final String msg,final String tokens[]) {
 		this(msg,Arrays.asList(tokens));
 		}
+	
+	/** return basic message when there is no*/
+	public static String getMessage(final int expected,final String[] array) {
+		
+		return "Expected "+(array==null?0:array.length)+" tokens. But got "+vertical(Arrays.asList(array));
+		}
+	/** check there is at least 'expected' tokens , and return the array */
 	public static String[] atLeast(final int expected,final String tokens[]) {
 		if(tokens==null || tokens.length<expected) throw new TokenErrors(expected,tokens);
 		return tokens;

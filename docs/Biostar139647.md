@@ -33,6 +33,15 @@ Usage: biostar139647 [options] Files
 ```
 
 
+## Keywords
+
+ * msa
+ * sam
+ * bam
+ * clustal
+
+
+
 ## See also in Biostars
 
  * [https://www.biostars.org/p/139647](https://www.biostars.org/p/139647)

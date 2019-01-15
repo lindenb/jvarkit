@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.net.URLEncoder;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,8 +38,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -49,7 +52,10 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -62,6 +68,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPr
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -226,6 +233,15 @@ Samples
 $ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
 ```
 
+### Screenshots
+
+[https://twitter.com/yokofakun/status/1067730485487366145](https://twitter.com/yokofakun/status/1067730485487366145)
+
+![https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg](https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg)
+
+[https://twitter.com/yokofakun/status/922475502933368832](https://twitter.com/yokofakun/status/922475502933368832)
+
+![https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg](https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg)
 
 END_DOC
 
@@ -280,7 +296,7 @@ public class VcfToTable extends Launcher {
 		
 		protected String escapeHttp(final String s) {
 			try {
-				return URLEncoder.encode(s, "UTF-8");
+				return StringUtils.escapeHttp(s);
 				}
 			catch(final Exception err)
 				{
@@ -376,8 +392,15 @@ public class VcfToTable extends Launcher {
 				{
 				return "https://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&GO=MainBrowse&DATA="+str;
 				}
+			else if(IOUtil.isUrl(str))
+				{
+				return str;
+				}
 			return null;
 			}
+		
+		
+		
 		@Override
 		void beginXml(final XMLStreamWriter w) throws XMLStreamException {
 			final String u = this.getURL();
@@ -689,7 +712,7 @@ public class VcfToTable extends Launcher {
 		{
 		@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 		private File outputFile = null;
-		@Parameter(names={"-H"},description="Print Header")
+		@Parameter(names={"-H","--header"},description="Print Header")
 		private boolean printHeader=false;
 		@Parameter(names={"-g","--hideGenotypes"},description="Hide All genotypes")
 		private boolean hideGenotypes=false;
@@ -713,12 +736,19 @@ public class VcfToTable extends Launcher {
 		private boolean hidePredictions=false;
 		@Parameter(names={"--hideGTypes"},description="[20180221] hide Genotype.Type table")
 		private boolean hideGTypes=false;
+		@Parameter(names={"--hideHyperlinks"},description="[20191102] hide Hyperlinks table.")
+		private boolean hideHyperlinks=false;
+
 		@Parameter(names={"--format"},description="[20171020] output format.")
 		private OutputFormat outputFormat=OutputFormat.text;
 		@Parameter(names={"--no-html-header"},description="[20171023] ignore html header for HTML output.")
 		private boolean hideHtmlHeader=false;
 		@Parameter(names={"--url"},description=Launcher.USER_CUSTOM_INTERVAL_URL_DESC)
 		private String userCustomUrl=null;
+		@Parameter(names={"--google"},description="use google charts (HTML only)")
+		private boolean googleChart  = false;
+		@Parameter(names={"--chartsize"},description="google charts dimension (HTML only). Format (integer)x(integer). eg: '1000x500' or (width) e.g: '1000'")
+		private String googleChartSizeStr  = null;
 
 		
 		private AbstractViewer delegate=null;
@@ -774,13 +804,14 @@ public class VcfToTable extends Launcher {
 					{
 					/** INFO */
 						{
-						final Table t=new Table("ID","Type","Count","Description").setCaption("INFO");
+						final Table t=new Table("ID","Type","Count","CountType","Description").setCaption("INFO");
 						header.getInfoHeaderLines().stream().
 							map(F->{
-									final List<Object> r=new ArrayList<>();
+									final List<Object> r=new ArrayList<>(5);
 									r.add(F.getID());
 									r.add(F.getType()==null?null:F.getType().name());
 									r.add(F.isFixedCount()?F.getCount():null);
+									r.add(F.getCountType());
 									r.add(F.getDescription());
 									return r;
 									}).
@@ -790,13 +821,14 @@ public class VcfToTable extends Launcher {
 						}
 					/** FORMAT */
 						{
-						final Table t=new Table("ID","Type","Count","Description").setCaption("FORMAT");
+						final Table t=new Table("ID","Type","Count","CountType","Description").setCaption("FORMAT");
 						header.getFormatHeaderLines().stream().
 							map(F->{
-									final List<Object> r=new ArrayList<>();
+									final List<Object> r=new ArrayList<>(5);
 									r.add(F.getID());
 									r.add(F.getType()==null?null:F.getType().name());
 									r.add(F.isFixedCount()?F.getCount():null);
+									r.add(F.getCountType());
 									r.add(F.getDescription());
 									return r;
 									}).
@@ -1027,6 +1059,114 @@ public class VcfToTable extends Launcher {
 				 this.writeTable(margin, t);
 				}
 			
+			if(!getOwner().hideHyperlinks)
+				{
+				final Function<VariantContext, String> ucscContig = V->V.getContig().startsWith("chr")?V.getContig():"chr"+V.getContig();
+				final Function<VariantContext, String> ensemblContig = V->
+						V.getContig().startsWith("chr")?
+						V.getContig().substring(3):
+						V.getContig()
+						;
+				
+				
+				final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
+				if(vc.hasID() && vc.getID().matches("rs[0-9]+"))
+					{
+					t.addRow("dbSNP",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/snp/"+vc.getID()));
+					t.addRow("OpenSNP",new HyperlinkDecorator("https://opensnp.org/snps/"+vc.getID()));
+					if(SequenceDictionaryUtils.isHuman(header)) {
+						t.addRow("clinvar",
+								new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D"));
+						}
+					}
+				t.addRow("IGV",new HyperlinkDecorator("https://"+ IgvConstants.DEFAULT_HOST +":"+IgvConstants.DEFAULT_PORT+"/goto?locus="+
+						vc.getContig()+"%3A"+vc.getStart() +"-"+vc.getEnd()
+						));
+			
+				
+				for(final String build: new String[] {"hg19","hg38"}) {
+					if(build.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(header)) continue;
+					if(build.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(header)) continue;
+					
+					t.addRow("UCSC "+build,new HyperlinkDecorator("http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
+						ucscContig.apply(vc) +
+						"%3A"+vc.getStart() +"-"+vc.getEnd() + "&position=" +
+						ucscContig.apply(vc) +
+						"%3A"+ Math.max(1,vc.getStart()-50) +"-"+(vc.getEnd()+50)
+						));
+					}
+				
+				//beacon , //varsome
+				for(int side=0;side<2;++side)
+					{
+					if(side==0 && !SequenceDictionaryUtils.isGRCh37(header)) continue;
+					if(side==1 && !SequenceDictionaryUtils.isGRCh38(header)) continue;
+					for(final Allele alt: vc.getAlternateAlleles())
+						{
+						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						//https://beacon-network.org/#/search?pos=114267128&chrom=4&allele=A&ref=G&rs=GRCh37
+						t.addRow("Beacon",new HyperlinkDecorator("https://beacon-network.org/#/search?chrom="+
+								ensemblContig.apply(vc) +
+								"&pos="+vc.getStart()+
+								"&ref="+ vc.getReference().getDisplayString()+
+								"&allele="+ alt.getDisplayString()+
+								"&rs="+ (side==0?"GRCh37":"GRCh38")
+								));
+						t.addRow("Varsome",new HyperlinkDecorator("https://varsome.com/variant/"+
+								(side==0?"hg19/":"hg38/")+
+								ensemblContig.apply(vc) + "-"+
+								vc.getStart()+ "-"+
+								vc.getReference().getDisplayString()+"-"+
+								alt.getDisplayString()
+								));
+						}
+					}
+				
+								
+				if(SequenceDictionaryUtils.isGRCh37(header)) {
+					
+					for(final Allele alt: vc.getAlternateAlleles())
+						{
+						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						//gnomad
+						t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
+							ensemblContig.apply(vc) +
+							"-"+vc.getStart()+
+							"-"+
+							vc.getReference().getDisplayString()+
+							"-"+
+							alt.getDisplayString()
+							));
+						}
+					
+					t.addRow("clinvar 37",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar/?term="+
+							ensemblContig.apply(vc) +
+							"%5Bchr%5D+AND+"+ vc.getStart()+"%3A"+vc.getEnd()+"%5Bchrpos37%5D"
+							));
+					if(vc.getStart()!=vc.getEnd()) {
+						t.addRow("decipher",new HyperlinkDecorator("https://decipher.sanger.ac.uk/search?q="+
+								vc.getContig() + 
+								"%3A"+vc.getStart()+"-"+vc.getEnd()));
+						
+						t.addRow("dgv",new HyperlinkDecorator("http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
+								ucscContig.apply(vc) + 
+								"%3A"+vc.getStart()+"-"+vc.getEnd() + ";search=Search"
+								)
+								);
+
+						
+						String build="";
+						if(SequenceDictionaryUtils.isGRCh37(header)) build="hg19";
+						if(SequenceDictionaryUtils.isGRCh38(header)) build="hg38";
+						if(!StringUtil.isBlank(build)) {
+							t.addRow("Hi-C",new HyperlinkDecorator("http://promoter.bx.psu.edu/hi-c/view.php?method=Hi-C&species=human&assembly="+build+
+									"&source=inside&tissue=GM12878&type=Lieberman-raw&resolution=25&c_url=&transfer=&gene=&chr="+vc.getContig()+"&start="+vc.getStart()+"&end="+vc.getEnd()+"&sessionID=&browser=none"));	
+							}
+						}
+					}
+				this.writeTable(margin, t);
+				}
+			
 			if(!getOwner().hideInfo)
 				{		
 				/* INFO */
@@ -1105,7 +1245,7 @@ public class VcfToTable extends Launcher {
 				if(!getOwner().hidePredictions && this.vcfTools.getAnnPredictionParser().isValid())
 					{
 					Table t = new Table("SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",
-							"BioType","HGVsc","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
+							"BioType","HGVsc","HGVsp","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
 					
 					for(final AnnPrediction P: this.vcfTools.getAnnPredictionParser().getPredictions(vc)) {
 						final List<Object> r=new ArrayList<>();
@@ -1122,6 +1262,7 @@ public class VcfToTable extends Launcher {
 						r.add(new GenelinkDecorator(P.getFeatureId()));
 						r.add(P.getTranscriptBioType());
 						r.add(P.getHGVSc());
+						r.add(P.getHGVSp());
 						r.add(P.getRank());
 						r.add(P.getCDNAPos());
 						r.add(P.getCDSPos());
@@ -1134,21 +1275,9 @@ public class VcfToTable extends Launcher {
 					this.writeTable(margin, t);
 					}
 				
-				if(!getOwner().hideGTypes && vc.hasGenotypes()) {
-					final Table t=new Table("Type","Count","%").
-							setCaption("Genotype Types");
-					vc.getGenotypes().stream().map(G->G.getType()).
-						collect(Collectors.groupingBy(  Function.identity(), Collectors.counting())).
-							entrySet().
-							stream().
-							sorted((A,B)->B.getValue().compareTo(A.getValue())).
-							map(E->new Object[] {(Object)E.getKey().name(),(Object)E.getValue(),(Object)new Integer((int)(100.0*(E.getValue()/(double)vc.getNSamples())))}).
-							forEach(R->t.addRow(R))
-							;
-					
-					t.removeEmptyColumns();
-					this.writeTable(margin, t);
-					}
+				printGenotypesTypes(margin,vc);
+				printCharts(margin,vc);
+				
 				
 				if(!getOwner().hideGenotypes && vc.hasGenotypes())
 					{
@@ -1284,9 +1413,29 @@ public class VcfToTable extends Launcher {
 			
 			protected String variantToString(final VariantContext vc)
 				{
-				return vc.getContig()+"/"+vc.getStart()+"/"+vc.getReference().getDisplayString();
+				return vc.getContig()+":"+vc.getStart()+(vc.getStart()!=vc.getEnd()?"-"+vc.getEnd():"")+"/"+vc.getReference().getDisplayString();
 				}
 			
+			protected void printGenotypesTypes(final String margin,final VariantContext vc) {
+				if(getOwner().hideGTypes) return;
+				if(!vc.hasGenotypes()) return;
+				final Table t=new Table("Type","Count","%").
+						setCaption("Genotype Types");
+				vc.getGenotypes().stream().map(G->G.getType()).
+					collect(Collectors.groupingBy(  Function.identity(), Collectors.counting())).
+						entrySet().
+						stream().
+						sorted((A,B)->B.getValue().compareTo(A.getValue())).
+						map(E->new Object[] {(Object)E.getKey().name(),(Object)E.getValue(),(Object)new Integer((int)(100.0*(E.getValue()/(double)vc.getNSamples())))}).
+						forEach(R->t.addRow(R))
+						;
+				
+				t.removeEmptyColumns();
+				this.writeTable(margin, t);
+				}
+			protected void printCharts(final String margin,final VariantContext vc) {
+				
+				}
 			}
 		
 		private class TerminalViewer extends AbstractViewer
@@ -1393,6 +1542,20 @@ public class VcfToTable extends Launcher {
 						out.writeStartElement("style");
 						out.writeCharacters(getCssStyle());
 						out.writeEndElement();//style
+						
+						if(getOwner().googleChart)
+							{
+							out.writeStartElement("script");
+							out.writeAttribute("type", "text/javascript");
+							out.writeAttribute("src", "https://www.gstatic.com/charts/loader.js");
+							out.writeCharacters("");//force blank
+							out.writeEndElement();//script
+							//
+							out.writeStartElement("script");
+							out.writeAttribute("type", "text/javascript");
+							out.writeCharacters("google.charts.load('current', {'packages':['corechart']});");
+							out.writeEndElement();//script
+							}
 						
 						out.writeEndElement();//head
 						out.writeStartElement("body");
@@ -1566,7 +1729,147 @@ public class VcfToTable extends Launcher {
 					throw new RuntimeIOException(err);
 					}				
 				}
+			@Override
+			protected void printGenotypesTypes(String margin, VariantContext vc) {
+				if(!getOwner().googleChart) {
+					super.printGenotypesTypes(margin, vc);
+					return;
+					}
+				if(getOwner().hideGTypes) return;
+				if(!vc.hasGenotypes()) return;
+				//  <div id="piechart" style="width: 900px; height: 500px;"></div>
+				try {
+					final String id = "gtypes"+countVariants;
+					final StringWriter strw = new StringWriter();
+					final PrintWriter pw= new PrintWriter(strw);
+					pw.print("google.charts.setOnLoadCallback(function(){");
+					pw.print("var data = google.visualization.arrayToDataTable([");
+					pw.print("['Type', 'Count']");
+					for(final GenotypeType gt:GenotypeType.values())
+						{
+						final long n = vc.getGenotypes().stream().filter(G->G.getType().equals(gt)).count();
+						if(n==0L) continue;
+						pw.print(",['"+gt.name()+"',"+n+"]");
+						}
+					pw.print("]);");
+					pw.print("var chart = new google.visualization.PieChart(document.getElementById('"+id+"'));");
+					pw.print("chart.draw(data, {\"title\":\"Genotype Types\"});");
+					pw.print("});");
+					pw.flush();
+					
+					
+					this.out.writeStartElement("span");
+					this.out.writeAttribute("id", id);
+					this.out.writeEndElement();
+					this.out.writeStartElement("script");
+					this.out.writeCharacters(strw.toString());
+					this.out.writeEndElement();
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}	
+				}
 			
+			protected void printCharts(final String margin,final VariantContext vc) {
+				if(!getOwner().googleChart) return;
+				try {
+					printIntChart(vc,"dp","DP",V->V.hasDP(),V->V.getDP());
+					printIntChart(vc,"gq","GQ",V->V.hasGQ(),V->V.getGQ());
+					printADChart(vc,"adx","HOM_REF",G->G.isHomRef() && G.hasAD() && Arrays.stream(G.getAD()).skip(1L).anyMatch(I->I>0));
+					printADChart(vc,"ady","HET",G->G.isHet() && G.hasAD() );
+					printADChart(vc,"adz","HOM_VAR",G->G.isHomVar() && G.hasAD() && Arrays.stream(G.getAD()).limit(1L).anyMatch(I->I>0));
+					}
+				catch(final XMLStreamException err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				}
+			private void printIntChart(
+						final VariantContext vc,
+						final String prefix,
+						final String title,
+						final Predicate<Genotype> hasInfo,
+						final Function<Genotype,Integer> extractor
+						) throws XMLStreamException {
+				if(!vc.hasGenotypes()) return;
+				if(vc.getGenotypes().stream().noneMatch(hasInfo)) return;
+				
+				final String id = prefix + countVariants;
+				final StringWriter strw = new StringWriter();
+				final PrintWriter pw= new PrintWriter(strw);
+				pw.print("google.charts.setOnLoadCallback(function(){");
+				pw.print("var data = google.visualization.arrayToDataTable([");
+				pw.print("[\"Sample\",\""+title+"\"]");
+				for(final Genotype gt : vc.getGenotypes().
+						stream().
+						filter(hasInfo).
+						sorted((A,B)->extractor.apply(A).compareTo(extractor.apply(B))).
+						collect(Collectors.toList()))
+					{
+					pw.print(",['"+gt.getSampleName()+"',"+extractor.apply(gt)+"]");
+					}
+				pw.print("]);");
+				pw.print("var chart = new google.visualization.ColumnChart(document.getElementById('"+id+"'));");
+				pw.print("chart.draw(data, {"+getGoogleChartDimension()+",\"title\":\""+title+"\",\"legend\": {\"position\":\"none\" }});");
+				pw.print("});");
+				pw.flush();
+				this.out.writeStartElement("span");
+				this.out.writeAttribute("id", id);
+				this.out.writeEndElement();
+				this.out.writeStartElement("script");
+				this.out.writeCharacters(strw.toString());
+				this.out.writeEndElement();
+				}
+			
+				private void printADChart(
+						final VariantContext vc,
+						final String prefix,
+						final String title,
+						final Predicate<Genotype> hasType
+						) throws XMLStreamException {
+				if(!vc.hasGenotypes()) return;
+				if(!vc.isVariant()) return;
+				if(vc.getGenotypes().stream().filter(G->G.hasAD()).filter(hasType).noneMatch(V->V.hasAD())) return;
+				
+				final String id = prefix+countVariants;
+				final StringWriter strw = new StringWriter();
+				final PrintWriter pw= new PrintWriter(strw);
+				pw.print("google.charts.setOnLoadCallback(function(){");
+				pw.print("var data = google.visualization.arrayToDataTable([");
+				pw.print("[\"Sample\"");
+				for(int x=0;x< vc.getNAlleles();++x) pw.print(",\"Allele "+x+"\"");
+				pw.print("]");
+				for(final Genotype gt:vc.getGenotypes().
+						stream().
+						filter(G->G.hasAD()).
+						filter(hasType).
+						sorted((A,B)->Integer.compare(A.getAD()[0], B.getAD()[0])).
+						collect(Collectors.toList()))
+					{
+					final int array[] = gt.getAD();
+					final double sum = IntStream.of(array).sum();
+					if(sum==0.0) continue;
+					pw.print(",['"+gt.getSampleName()+"'");
+					for(int x=0;x< vc.getNAlleles();++x)
+						{
+						pw.print(",");
+						pw.print((int)(((x<array.length?array[x]:0)/sum)*100.0));
+						}
+					pw.print("]");
+					}
+				pw.print("]);");
+				pw.print("var chart = new google.visualization.ColumnChart(document.getElementById('"+id+"'));");
+				pw.print("chart.draw(data, {"+getGoogleChartDimension()+",\"isStacked\": true,\"title\":\"AD per sample ("+title+")\",\"legend\": {\"position\":\"bottom\" }});");
+				pw.print("});");
+				pw.flush();
+				this.out.writeStartElement("span");
+				this.out.writeAttribute("id", id);
+				this.out.writeEndElement();
+				this.out.writeStartElement("script");
+				this.out.writeCharacters(strw.toString());
+				this.out.writeEndElement();
+				}
 			}
 
 		
@@ -1648,12 +1951,38 @@ public class VcfToTable extends Launcher {
 			this.delegate.close();
 			this.delegate=null;
 			}
+		
+		
+		String getGoogleChartDimension() {
+			int w=0,h=0;
+			final int x= StringUtil.isBlank(this.googleChartSizeStr)?-1:this.googleChartSizeStr.indexOf('x');
+			try {
+				if(x>1) {
+					w = Integer.parseInt(this.googleChartSizeStr.substring(0, x));
+					h = Integer.parseInt(this.googleChartSizeStr.substring(x+1));
+					}
+				else if(!StringUtil.isBlank(this.googleChartSizeStr))
+					{
+					w = Integer.parseInt(this.googleChartSizeStr);
+					h = (int)(w/1.618);
+					}
+				}
+			catch(final NumberFormatException err) {
+				w = -1;
+				h = -1;
+				}
+			if(!(w>0 && h>0)) { w=1000;h=618;}
+			return  "\"width\":"+w+",\"height\":"+h;
+			}
+
 		}
 	
 	
 	@ParametersDelegate
 	private VcfToTableViewer  viewer = new VcfToTableViewer();
 
+	
+	
 	@Override
 	public int doWork(final List<String> args) {
 		VcfIterator in = null;
@@ -1679,7 +2008,7 @@ public class VcfToTable extends Launcher {
 			CloserUtil.close(viewer);
 			}
 		}
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VcfToTable().instanceMainWithExit(args);
 	}
 }

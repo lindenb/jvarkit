@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,6 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Comparator;
@@ -55,7 +54,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /*
@@ -182,7 +181,7 @@ public class Biostar145820 extends Launcher
 			
 			
 			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(samReader.getFileHeader()).logger(LOG);
+			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(samReader.getFileHeader()).logger(LOG).build();
 			iter=samReader.iterator();
 
 			
@@ -196,13 +195,13 @@ public class Biostar145820 extends Launcher
 			sorter.setDestructiveIteration(true);
 			while(iter.hasNext())
 				{
-				final SAMRecord rec = progress.watch(iter.next());
+				final SAMRecord rec = progress.apply(iter.next());
 				if(this.filter.filterOut(rec)) {
 					continue;
 				}
 				final RandSamRecord r=new RandSamRecord();
 				r.rand_index  = random.nextInt();
-				r.samRecord =  progress.watch(rec);
+				r.samRecord =  rec;
 
 				sorter.add(r);
 				}
@@ -221,7 +220,7 @@ public class Biostar145820 extends Launcher
 				
 			iter2.close();iter2=null;
 			sorter.cleanup();
-			progress.finish();
+			progress.close();
 			}
 		catch(final Exception e)
 			{
@@ -239,7 +238,7 @@ public class Biostar145820 extends Launcher
 		}
 
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args)
 		{
 		new Biostar145820().instanceMainWithExit(args);
 		}

@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSPY v5 rel. 4 U (http://www.xmlspy.com) by Michael Kholodov (National Library of Medicine) -->
+<!-- edited with XMLSpy v2005 rel. 3 U (http://www.altova.com) by Michael Feolo (NCBI/NLM/NIH) -->
+<xs:schema targetNamespace="https://www.ncbi.nlm.nih.gov/SNP/geno" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="https://www.ncbi.nlm.nih.gov/SNP/geno" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:element name="Population">
+		<xs:annotation>
+			<xs:documentation>A Population contained in this GenoExchange</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="popClass" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Population Class</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="self" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>Population class value</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="popId" type="xs:int" use="required">
+				<xs:annotation>
+					<xs:documentation>dbSNP Population Identifier</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="handle" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>dbSNP Submitter's handle </xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="locPopId" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>Submitter's Population Identifier</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="Individual">
+		<xs:annotation>
+			<xs:documentation>a cluster of samples from subjects or inbred strains thought to have the same  genomic composition</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="SourceInfo" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>source information pertaining to a molecular sample that can be clustered to an individual</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="source" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Defines the numbering space for this individual</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="sourceType" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Repository, Currator, Submitter, NCBI</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="ncbiPedId" type="xs:int"/>
+						<xs:attribute name="pedId" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Pedigree iidentifier in source's identifier space</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="indId" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>individual identifier in source's identifier space.  Note; This identifier is unique to one individual in the NCBI source. </xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="maId" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Mother's identifier in source's identifier space.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="paId" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Father's identifier in source's identifier space.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="srcIndGroup" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Sources subspecies, breed,affection status, or other grouping of samples.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="SubmitInfo" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>submission information pertaining to a molecular sample that can be clustered to an individual</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="popId" type="xs:int">
+							<xs:annotation>
+								<xs:documentation>Pedigree iidentifier in source's identifier space</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="submittedIndId" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>individual identifier in source's identifier space.  Note; This identifier is unique to one individual when the source is NCBI. </xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="subIndGroup" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Submitters subspecies, breed,affection status, or other grouping of samples.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="indId" type="xs:int" use="required">
+				<xs:annotation>
+					<xs:documentation>Individual Identifier</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="taxId" type="xs:int">
+				<xs:annotation>
+					<xs:documentation>Entrez taxonomy identifier </xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="sex" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Sex of the individual</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="strain" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Strain, used when individual is from an organism with inbred strains.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="indGroup" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>NCBI curated subspecies, breed,affection status, or other grouping of samples </xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="SnpInfo">
+		<xs:annotation>
+			<xs:documentation>A  clustered Genomic Variation contained in this GenoExchange</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="SnpLoc" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Location information of rs cluster</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="genomicAssembly" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>NCBI genome Assembly --> defined as a concatenation of build identifier and contig label. SNPContigLoc.build_id:ContigInfo.contig_label from dbSNP database.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="geneSymbol" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>GeneSymbol used by entrez gene.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="geneId" type="xs:int">
+							<xs:annotation>
+								<xs:documentation>Gene identifier used by entrez gene.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="locusId" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Used previously by LocusLink now entrez gene.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="chrom" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Chromosome</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="start" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Start location in chomosome coordinates</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="end" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>End location in chomosome coordinates</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="locType" type="xs:int">
+							<xs:annotation>
+								<xs:documentation>SNPContigLoc.loc_type</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="rsOrientToChrom" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Orientation of rs in chromosome coordinates</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="contigAllele" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Allele at this position on the contig. Note: the contig and the chromosome can be reverse-oriented as well as the snp to contig</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="contig" type="xs:string"><xs:annotation><xs:documentation>Contig accession:version</xs:documentation>
+						</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="SsInfo" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Submitted SNP information</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="ByPop" minOccurs="0" maxOccurs="unbounded">
+								<xs:annotation>
+									<xs:documentation>Population </xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element name="AlleleFreq" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Allele frequencies</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:attribute name="allele" type="xs:string" use="required">
+													<xs:annotation>
+														<xs:documentation>snp allele</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+												<xs:attribute name="freq" type="xs:double">
+													<xs:annotation>
+														<xs:documentation>Allele frequency</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+												<xs:attribute name="afSource" type="xs:string">
+													<xs:annotation>
+														<xs:documentation>Source of the allele frequency data input. 
+1) AF allele frequency submission
+2) GF genotype frequency submission
+3) IG individual genotype submission</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="GTypeFreq" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Genotype frequency Information</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:attribute name="gtype" type="xs:string" use="required">
+													<xs:annotation>
+														<xs:documentation>Genotype</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+												<xs:attribute name="freq" type="xs:double">
+													<xs:annotation>
+														<xs:documentation>Genotype frequency</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+											</xs:complexType>
+										</xs:element>
+										<xs:element name="GTypeByInd" minOccurs="0" maxOccurs="unbounded">
+											<xs:annotation>
+												<xs:documentation>Genotype by Individual</xs:documentation>
+											</xs:annotation>
+											<xs:complexType>
+												<xs:attribute name="gtype" type="xs:string" use="required">
+													<xs:annotation>
+														<xs:documentation>Genotype in SS orientation</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+												<xs:attribute name="indId" type="xs:int">
+													<xs:annotation>
+														<xs:documentation>individual Identifier--> Key to Individual element</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+												<xs:attribute name="flag" type="xs:string">
+													<xs:annotation>
+														<xs:documentation>genotype flag --> key to FlagDesc</xs:documentation>
+													</xs:annotation>
+												</xs:attribute>
+											</xs:complexType>
+										</xs:element>
+									</xs:sequence>
+									<xs:attribute name="popId" type="xs:int" use="required">
+										<xs:annotation>
+											<xs:documentation>Population identifier</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="probeId" type="xs:int">
+										<xs:annotation>
+											<xs:documentation>probe id in Entrez probe db.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="subHet" type="xs:double">
+										<xs:annotation>
+											<xs:documentation>Submitted heterozygosity</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="estHet" type="xs:double">
+										<xs:annotation>
+											<xs:documentation>Estimated heterzygosity either observed from genotypes or estimated from allele frequencies.</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="hwProb" type="xs:double">
+										<xs:annotation>
+											<xs:documentation>Hardy-Weinberg probability upper bound</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="hwChi2" type="xs:double">
+										<xs:annotation>
+											<xs:documentation>Hardy-Weinberg chi squared value</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="hwDf" type="xs:double">
+										<xs:annotation>
+											<xs:documentation>Hardy-Weinberg degrees of freedom</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+									<xs:attribute name="sampleSize" type="xs:int">
+										<xs:annotation>
+											<xs:documentation>Number of chomosomes</xs:documentation>
+										</xs:annotation>
+									</xs:attribute>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+						<xs:attribute name="ssId" type="xs:int" use="required">
+							<xs:annotation>
+								<xs:documentation>dbSNP submitted snp Identifier </xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="locSnpId" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Submitter's snp identifier</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="ssOrientToRs" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>Orientation of this ss to it's rs cluster </xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="topBottom" type="xs:string">
+							<xs:annotation>
+								<xs:documentation>alleles are in top or bottom strand orientation to the flanking sequence of this ss as defined by Illimina algorithm an assembly diallelic snps only.</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="GTypeFreq" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Genotype frequency Information pertaining to rs cluster</xs:documentation>
+					</xs:annotation>
+					<xs:complexType>
+						<xs:attribute name="gtype" type="xs:string" use="required">
+							<xs:annotation>
+								<xs:documentation>Genotype</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+						<xs:attribute name="freq" type="xs:double">
+							<xs:annotation>
+								<xs:documentation>Genotype Frequency</xs:documentation>
+							</xs:annotation>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+			<xs:attribute name="rsId" type="xs:int" use="required">
+				<xs:annotation>
+					<xs:documentation>Reference snp identifier; Note; This identifier groups ssId to a single variation.</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="observed" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Observed alleles for this variation</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="FlagDesc">
+		<xs:annotation>
+			<xs:documentation>List of allele flag descriptions.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:attribute name="flag" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>Allele flag</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="desc" type="xs:string" use="required">
+				<xs:annotation>
+					<xs:documentation>Allele flag description</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="GenoExchange">
+		<xs:annotation>
+			<xs:documentation>Structure used for the exchange of dbSNP genotype information</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="Population" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="Individual" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="Pedigree" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="SnpInfo" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="FlagDesc" maxOccurs="unbounded"/>
+			</xs:sequence>
+			<xs:attribute name="dbSNPBuildNo" type="xs:string"/>
+			<xs:attribute name="reportType">
+				<xs:annotation>
+					<xs:documentation>Type of report
+1) gene
+2) chromosome
+3) region
+4) snp
+5) individual</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="gene"/>
+						<xs:enumeration value="chromosome"/>
+						<xs:enumeration value="region"/>
+						<xs:enumeration value="snp"/>
+						<xs:enumeration value="individual"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:attribute>
+			<xs:attribute name="reportId" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Name for this GenoExchange</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="Pedigree">
+		<xs:annotation>
+			<xs:documentation> A Pedigree contained in this GenoExchange</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:attribute name="ncbiPedId">
+				<xs:annotation>
+					<xs:documentation>dbSNP unique pedigree identifier</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="authority" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Authority Name  for this pedigree</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+			<xs:attribute name="authorityPedId" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Pedigree Identifier in the Authoritity's numbering system</xs:documentation>
+				</xs:annotation>
+			</xs:attribute>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,18 +35,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
@@ -214,10 +214,11 @@ public class ConvertBamChromosomes
 			}
 		}
 	
+	@SuppressWarnings("deprecation")
 	@Override
 	public int doWork(final List<String> args) {
-		final Pattern SEMICOLON_PAT = Pattern.compile("[;]"); 
-	   	final Pattern COMMA_PAT = Pattern.compile("[,]");
+		final CharSplitter SEMICOLON_PAT = CharSplitter.SEMICOLON;
+	   	final CharSplitter COMMA_PAT = CharSplitter.COMMA;
 
 		if(this.referenceFile==null && this.mappingFile==null) {
 			LOG.error("reference undefined and mapping file is undefined");
@@ -236,12 +237,8 @@ public class ConvertBamChromosomes
 				LOG.error("File header missing");
 				return -1;
 				}
-			final SAMSequenceDictionary dictIn = inHeader.getSequenceDictionary();
-			if(dictIn==null)
-				{
-				LOG.error(JvarkitException.BamDictionaryMissing.getMessage("user's input"));
-				return -1;
-				}
+			final SAMSequenceDictionary dictIn = SequenceDictionaryUtils.extractRequired(inHeader);
+			
 			if(dictIn.isEmpty())
 				{
 				LOG.error("input Sequence dict is empty");
@@ -315,7 +312,8 @@ public class ConvertBamChromosomes
 				outHeader.setSortOrder(SortOrder.unsorted);
 				}
 			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(inHeader);
+			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
+					newInstance().dictionary(inHeader).logger(LOG).build();
 			
 			sfw = this.writingBamArgs.openSAMFileWriter(this.output, outHeader, true);
 			
@@ -324,7 +322,7 @@ public class ConvertBamChromosomes
 			SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				final SAMRecord rec1=progress.watch(iter.next());
+				final SAMRecord rec1=progress.apply(iter.next());
 				String newName1=null;
 				String newName2=null;
 				if(!SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getReferenceName()))
@@ -389,6 +387,7 @@ public class ConvertBamChromosomes
 				LOG.warning("Unmapped chromosomes: "+unmappedChromosomes);
 				}
 			LOG.warning("num ignored read:"+num_ignored);
+			progress.close();
 			return 0;
 			}
 		catch(final Exception err)

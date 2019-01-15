@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -102,7 +102,7 @@ https://twitter.com/yokofakun/status/522415314425090048
 END_DOC
  */
 @Program(name="bam2svg",
-description="BAM to raster graphics",
+description="BAM to Scalar Vector Graphics (SVG)",
 keywords={"bam","alignment","graphics","visualization","svg"}
 )
 public class BamToSVG extends Launcher

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
-@Program(name="vcfgroupbypop",description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population")
+@Program(name="vcfgroupbypop",
+description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population")
 public class VcfGroupByPopulation extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfGroupByPopulation.class).make();

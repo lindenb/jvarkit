@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.mem;
 
 import java.io.File;
@@ -16,6 +40,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.SAMRecordFactory;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SAMValidationError;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -24,8 +49,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
 /**
 BEGIN_DOC
@@ -133,7 +156,6 @@ public class BWAMemNOp extends Launcher
 			{
 			r = super.openSamReader(oneFileOrNull(args));
 			SAMFileHeader header=r.getFileHeader();
-			OtherCanonicalAlignFactory ocaf=new OtherCanonicalAlignFactory(header);
 			w = writingBamArgs.openSAMFileWriter(outputFile, header, true);
 			
 			SAMRecordFactory samRecordFactory=new DefaultSAMRecordFactory();
@@ -162,7 +184,7 @@ public class BWAMemNOp extends Launcher
 					continue;
 					}
 				rec.getAlignmentStart();
-				List<OtherCanonicalAlign> xps=ocaf.getXPAligns(rec);
+				final List<SAMRecord> xps=SAMUtils.getOtherCanonicalAlignments(rec);
 				if(xps.isEmpty())
 					{
 					if(!print_only_spit_read) w.addAlignment(rec);
@@ -170,7 +192,7 @@ public class BWAMemNOp extends Launcher
 					}
 				
 				boolean found_one=false;
-				for(OtherCanonicalAlign  xp:xps)
+				for(final SAMRecord  xp:xps)
 					{
 					if(!rec.getReferenceName().equals(xp.getReferenceName())) continue;
 					if(xp.getReadNegativeStrandFlag()!=rec.getReadNegativeStrandFlag() ) continue;
@@ -227,9 +249,9 @@ public class BWAMemNOp extends Launcher
 					
 					found_one=true;
 					
-					for(SAMTagAndValue tav: rec.getAttributes())
+					for(final SAMTagAndValue tav: rec.getAttributes())
 						{
-						if(tav.tag.equals(ocaf.getAttributeKey())) continue;
+						if(tav.tag.equals("SA")) continue;
 						if(tav.tag.equals("NM")) continue;
 						newrec.setAttribute(tav.tag, tav.value);
 						}

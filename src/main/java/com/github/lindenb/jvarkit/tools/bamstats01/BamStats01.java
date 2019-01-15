@@ -2,7 +2,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -496,7 +496,7 @@ public class BamStats01
 			this.out.flush();
 			this.out.close();
 			return RETURN_OK;
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 		} finally
@@ -506,7 +506,7 @@ public class BamStats01
 		}
 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new BamStats01().instanceMainWithExit(args);
 		}

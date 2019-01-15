@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -52,9 +51,11 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 /**
 
 BEGIN_DOC
@@ -68,8 +69,28 @@ gunzip -c input.vcf.gz |\
 	java -jar dit/vcfburdenfiltergenes.jar -g genes.txt
 ```
 
+### Example
+
+```
+$ wget -O - -q "https://github.com/immune-health/antigen.garnish/raw/f0453336a4859c83d27640c286d3960c1672f164/inst/extdata/testdata/antigen.garnish_hg19anno_example.vcf"  |\
+	grep -w 216371854  | cut -f 8 | tr ";" "\n"   | grep ^ANN= | cut -c5- | tr "," "\n"
+T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_206933.2|protein_coding|18/72|c.3884G>A|p.Arg1295Gln|4271/18883|3884/15609|1295/5202||
+T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_007123.5|protein_coding|18/21|c.3884G>A|p.Arg1295Gln|4271/6316|3884/4641|1295/1546||
+```
+
+```
+$ wget -O - -q "https://github.com/immune-health/antigen.garnish/raw/f0453336a4859c83d27640c286d3960c1672f164/inst/extdata/testdata/antigen.garnish_hg19anno_example.vcf"  |\
+	sed 's/PASS\t[A-Z0-9]*;/PASS\t/' |\ ## the vcf above is malformed, quick hack
+	java -jar dist/vcfburdenfiltergenes.jar -a "NM_206933.2" |\
+	grep -w 216371854  | cut -f 8 | tr ";" "\n"   | grep ^ANN= | cut -c5- | tr "," "\n"
+T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_206933.2|protein_coding|18/72|c.3884G>A|p.Arg1295Gln|4271/18883|3884/15609|1295/5202||
+```
+
+
+
 ## History
 
+  * 20181205 : snpeff scan transcriptID
   * 20180617 : for SNpEFF, now looks into GeneName OR GeneId (was only GeneName)
 
 END_DOC
@@ -77,7 +98,9 @@ END_DOC
 @Program(
 		name="vcfburdenfiltergenes",
 		description="Filter VEP/SnpEff Output from a list of genes.",
-		keywords={"gene","vcf","vep","snpeff"})
+		keywords={"gene","vcf","vep","snpeff"},
+		biostars=353011
+		)
 public class VcfBurdenFilterGenes
 	extends Launcher
 	{
@@ -87,12 +110,12 @@ public class VcfBurdenFilterGenes
 	private File outputFile = null;
 
 
-	@Parameter(names={"-g","--genes"},description="Gene file: one name per line")
+	@Parameter(names={"-g","--genes"},description="Gene/transcript file: one name per line")
 	private File geneFile = null;
 	@Parameter(names={"-a","--add"},description="[20180627] Gene Names: Add this gene, multiple separated by comma,spaces,semicolon")
 	private String geneStr="";
 
-	@Parameter(names={"-filter","--filter"},description="If empty: remove the variants from the VCF. If not empty, add a token in the column filter.")
+	@Parameter(names={"-filter","--filter"},description="If empty: remove the variants from the VCF. If not empty, add a token in the column FILTER.")
 	private String filterTag = "";
 
 	private final Set<String> geneNames= new HashSet<>();
@@ -139,14 +162,14 @@ public class VcfBurdenFilterGenes
 					);
 			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
 			final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary()).logger(LOG);
+			final ProgressFactory.Watcher<VariantContext> progess=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			JVarkitVersion.getInstance().addMetaData(this, h2);
 			out.writeHeader(h2);
 			while(in.hasNext() &&  !out.checkError())
 				{
-				final VariantContext ctx = progess.watch(in.next());
+				final VariantContext ctx = progess.apply(in.next());
 				boolean keep=false;
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				
 				
 				
 				//not just set FILTER ?
@@ -187,6 +210,13 @@ public class VcfBurdenFilterGenes
 						keep=true;
 						break;
 						}
+					token = pred.getFeatureId();
+					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
+						{
+						newEffList.add(predStr);
+						keep=true;
+						break;
+						}
 					}
 				
 				
@@ -215,7 +245,7 @@ public class VcfBurdenFilterGenes
 					if(keep) out.add(vcb.make());
 					}
 				}
-			progess.finish();
+			progess.close();
 			return RETURN_OK;
 			} catch(final Exception err) {
 				LOG.error(err);

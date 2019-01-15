@@ -1,5 +1,7 @@
 # Biostar140111
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 How to obtain human genotype data from dpSNP ftp?
 
 
@@ -30,11 +32,10 @@ Usage: biostar140111 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -64,18 +65,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar140111.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar140111.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu Apr 6 18:34:56 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/883b4ba4b693661663694256f16b137e371147fa
-Wed Jun 17 15:29:12 2015 +0200 ;  end -> start in SVG ; https://github.com/lindenb/jvarkit/commit/20ad5d7db7c76e287e8d09261cd2109615530349
-Wed Jun 17 09:33:25 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7741efa7e9839e699efb11586bd37167c5bf6347
-```
-
-</details>
 
 ## Contribute
 

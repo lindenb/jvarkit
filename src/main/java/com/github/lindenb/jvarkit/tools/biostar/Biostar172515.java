@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -56,16 +56,10 @@ import htsjdk.samtools.util.CloserUtil;
 
 BEGIN_DOC
 
-
-
 ### Example
 
-
-
-
-```
- 
- find DIR -name "*.bam" | xargs java -jar dist/biostar172515.jar  | xmllint --format -
+``` 
+$ find DIR -name "*.bam" | xargs java -jar dist/biostar172515.jar  | xmllint --format -
 
 <?xml version="1.0" encoding="UTF-8"?>
 <bai-list>

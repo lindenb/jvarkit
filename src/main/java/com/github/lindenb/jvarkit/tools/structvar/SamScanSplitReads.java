@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2015 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,615 +21,461 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2017 creation
-
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMUtils;
-import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
 
+## Motivation
+
+finds the regions having some clipped reads.
+
+input is a set of BAM files. One file ending with '.list' is interpreted as a file containing some path to the bams.
+
+output is a VCF file
+
 ## Example:
 
-content of circos.conf 
-
 ```
-karyotype = /commun/data/packages/circos/circos-0.69-2/data/karyotype/karyotype.human.hg19.txt
-chromosomes_units = 1000000
-
-
-<<include ideogram.conf>>
-<<include ticks.conf>>
-
-<links>
-<link>
-file          = __FILENAME__
-radius        = 0.99r
-bezier_radius = 0r
-color         = black_a4
-thickness     = 2
-</link>
-</links>
-
-
-<image>
-# Included from Circos distribution.
-<<include etc/image.conf>>
-</image>
-
-<<include etc/colors_fonts_patterns.conf>>
-
-# Debugging, I/O an dother system parameters
-# Included from Circos distribution.
-<<include etc/housekeeping.conf>>
-
+$ java -jar dist/samscansplitreads.jar src/test/resources/S*.bam 2> /dev/null 
+##fileformat=VCFv4.2
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=M3,Number=1,Type=Float,Description="Median size of the clip in 3'">
+##FORMAT=<ID=M5,Number=1,Type=Float,Description="Median size of the clip in 5'">
+##FORMAT=<ID=N3,Number=1,Type=Integer,Description="Number of clipped reads in 3'">
+##FORMAT=<ID=N5,Number=1,Type=Integer,Description="Number of clipped reads in 5'">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth; some reads may have been filtered">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">
+##contig=<ID=RF01,length=3302>
+##contig=<ID=RF02,length=2687>
+##contig=<ID=RF03,length=2592>
+##contig=<ID=RF04,length=2362>
+##contig=<ID=RF05,length=1579>
+##contig=<ID=RF06,length=1356>
+##contig=<ID=RF07,length=1074>
+##contig=<ID=RF08,length=1059>
+##contig=<ID=RF09,length=1062>
+##contig=<ID=RF10,length=751>
+##contig=<ID=RF11,length=666>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S3	S4	S5	S1	S2
+RF01	195	.	N	<SPLIT>	.	.	DP=1;END=199;SVLEN=5	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:0:4.00:0:1	./.	./.
+RF01	509	.	N	<SPLIT>	.	.	DP=1;END=577;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:68.00:0:1:0	./.
+RF01	725	.	N	<SPLIT>	.	.	DP=2;END=793;SVLEN=69	GT:DP:M3:M5:N3:N5	0/1:1:68.00:0:1:0	./.	./.	./.	0/1:1:68.00:0:1:0
+RF01	903	.	N	<SPLIT>	.	.	DP=2;END=1000;SVLEN=98	GT:DP:M3:M5:N3:N5	./.	./.	0/1:2:68.00:0:2:0	./.	./.
+RF01	1607	.	N	<SPLIT>	.	.	DP=2;END=1616;SVLEN=10	GT:DP:M3:M5:N3:N5	0/1:1:0:9.00:0:1	./.	./.	./.	0/1:1:0:9.00:0:1
+RF01	1672	.	N	<SPLIT>	.	.	DP=2;END=1682;SVLEN=11	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:9.00:0:1	./.	0/1:1:0:3.00:0:1	./.
+RF01	1822	.	N	<SPLIT>	.	.	DP=1;END=1890;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:68.00:0:1:0	./.
+RF01	1926	.	N	<SPLIT>	.	.	DP=1;END=1994;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:68.00:0:1:0	./.
+RF01	2377	.	N	<SPLIT>	.	.	DP=2;END=2385;SVLEN=9	GT:DP:M3:M5:N3:N5	0/1:1:0:8.00:0:1	./.	./.	./.	0/1:1:0:8.00:0:1
+RF01	2542	.	N	<SPLIT>	.	.	DP=2;END=2610;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	0/1:2:68.00:4.00:1:1	./.	./.
+RF01	2689	.	N	<SPLIT>	.	.	DP=1;END=2691;SVLEN=3	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:2.00:0:1	./.	./.	./.
+RF01	2719	.	N	<SPLIT>	.	.	DP=2;END=2787;SVLEN=69	GT:DP:M3:M5:N3:N5	0/1:1:68.00:0:1:0	./.	./.	./.	0/1:1:68.00:0:1:0
+RF01	3230	.	N	<SPLIT>	.	.	DP=2;END=3231;SVLEN=2	GT:DP:M3:M5:N3:N5	0/1:1:0:1.00:0:1	./.	./.	./.	0/1:1:0:1.00:0:1
+RF02	3	.	N	<SPLIT>	.	.	DP=2;END=6;SVLEN=4	GT:DP:M3:M5:N3:N5	0/1:1:0:3.00:0:1	./.	./.	./.	0/1:1:0:3.00:0:1
+RF02	343	.	N	<SPLIT>	.	.	DP=4;END=451;SVLEN=109	GT:DP:M3:M5:N3:N5	0/1:1:0:3.00:0:1	./.	./.	0/1:2:68.00:0:2:0	0/1:1:0:3.00:0:1
+RF02	513	.	N	<SPLIT>	.	.	DP=1;END=581;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	./.	./.
+RF02	661	.	N	<SPLIT>	.	.	DP=1;END=729;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	./.	./.
+RF02	818	.	N	<SPLIT>	.	.	DP=4;END=848;SVLEN=31	GT:DP:M3:M5:N3:N5	0/1:2:0:8.00:0:2	./.	./.	./.	0/1:2:0:8.00:0:2
+RF02	957	.	N	<SPLIT>	.	.	DP=1;END=966;SVLEN=10	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:9.00:0:1	./.	./.	./.
+RF02	1095	.	N	<SPLIT>	.	.	DP=1;END=1163;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	./.	./.
+RF02	1707	.	N	<SPLIT>	.	.	DP=2;END=1725;SVLEN=19	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:9.00:0:1	0/1:1:0:2.00:0:1	./.	./.
+RF02	1811	.	N	<SPLIT>	.	.	DP=1;END=1821;SVLEN=11	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:0:10.00:0:1	./.
+RF02	1883	.	N	<SPLIT>	.	.	DP=2;END=1951;SVLEN=69	GT:DP:M3:M5:N3:N5	0/1:1:68.00:0:1:0	./.	./.	./.	0/1:1:68.00:0:1:0
+RF02	2220	.	N	<SPLIT>	.	.	DP=1;END=2224;SVLEN=5	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:0:4.00:0:1	./.
+RF02	2515	.	N	<SPLIT>	.	.	DP=3;END=2663;SVLEN=149	GT:DP:M3:M5:N3:N5	./.	./.	0/1:3:68.00:4.00:2:1	./.	./.
+RF03	500	.	N	<SPLIT>	.	.	DP=2;END=569;SVLEN=70	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	0/1:1:0:2.00:0:1	./.	./.
+RF03	739	.	N	<SPLIT>	.	.	DP=2;END=823;SVLEN=85	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:2:68.00:2.00:1:1	./.
+RF03	1072	.	N	<SPLIT>	.	.	DP=3;END=1147;SVLEN=76	GT:DP:M3:M5:N3:N5	0/1:1:0:2.00:0:1	./.	0/1:1:68.00:0:1:0	./.	0/1:1:0:2.00:0:1
+RF03	1207	.	N	<SPLIT>	.	.	DP=3;END=1350;SVLEN=144	GT:DP:M3:M5:N3:N5	./.	./.	0/1:2:68.00:0:2:0	0/1:1:68.00:0:1:0	./.
+RF03	1729	.	N	<SPLIT>	.	.	DP=3;END=1809;SVLEN=81	GT:DP:M3:M5:N3:N5	0/1:1:68.00:0:1:0	0/1:1:0:7.00:0:1	./.	./.	0/1:1:68.00:0:1:0
+RF03	1924	.	N	<SPLIT>	.	.	DP=2;END=1926;SVLEN=3	GT:DP:M3:M5:N3:N5	0/1:1:0:2.00:0:1	./.	./.	./.	0/1:1:0:2.00:0:1
+RF03	2153	.	N	<SPLIT>	.	.	DP=1;END=2221;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:68.00:0:1:0	./.	./.
+RF04	173	.	N	<SPLIT>	.	.	DP=1;END=181;SVLEN=9	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:8.00:0:1	./.	./.	./.
+RF04	579	.	N	<SPLIT>	.	.	DP=2;END=678;SVLEN=100	GT:DP:M3:M5:N3:N5	./.	./.	0/1:2:68.00:0:2:0	./.	./.
+RF04	704	.	N	<SPLIT>	.	.	DP=2;END=707;SVLEN=4	GT:DP:M3:M5:N3:N5	0/1:1:0:3.00:0:1	./.	./.	./.	0/1:1:0:3.00:0:1
+RF04	754	.	N	<SPLIT>	.	.	DP=1;END=822;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:68.00:0:1:0	./.	./.
+RF04	879	.	N	<SPLIT>	.	.	DP=1;END=887;SVLEN=9	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:0:8.00:0:1	./.
+RF04	966	.	N	<SPLIT>	.	.	DP=2;END=1091;SVLEN=126	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	0/1:1:68.00:0:1:0	./.
+RF04	1119	.	N	<SPLIT>	.	.	DP=1;END=1187;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	./.	./.
+RF04	1378	.	N	<SPLIT>	.	.	DP=1;END=1380;SVLEN=3	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:0:2.00:0:1	./.	./.
+RF04	1793	.	N	<SPLIT>	.	.	DP=2;END=1920;SVLEN=128	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:2:68.00:0:2:0	./.
+RF04	2070	.	N	<SPLIT>	.	.	DP=1;END=2071;SVLEN=2	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:0:1.00:0:1	./.
+RF05	112	.	N	<SPLIT>	.	.	DP=2;END=115;SVLEN=4	GT:DP:M3:M5:N3:N5	0/1:1:0:3.00:0:1	./.	./.	./.	0/1:1:0:3.00:0:1
+RF05	252	.	N	<SPLIT>	.	.	DP=1;END=256;SVLEN=5	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:0:4.00:0:1	./.
+RF05	427	.	N	<SPLIT>	.	.	DP=1;END=433;SVLEN=7	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:0:6.00:0:1	./.	./.
+RF05	529	.	N	<SPLIT>	.	.	DP=1;END=530;SVLEN=2	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:0:1.00:0:1	./.	./.
+RF05	560	.	N	<SPLIT>	.	.	DP=2;END=563;SVLEN=4	GT:DP:M3:M5:N3:N5	0/1:1:0:3.00:0:1	./.	./.	./.	0/1:1:0:3.00:0:1
+RF05	750	.	N	<SPLIT>	.	.	DP=1;END=754;SVLEN=5	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:4.00:0:1	./.	./.	./.
+RF05	841	.	N	<SPLIT>	.	.	DP=1;END=909;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	./.	./.
+RF05	960	.	N	<SPLIT>	.	.	DP=1;END=1028;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	./.	0/1:1:68.00:0:1:0	./.
+RF05	1434	.	N	<SPLIT>	.	.	DP=1;END=1436;SVLEN=3	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:2.00:0:1	./.	./.	./.
+RF06	26	.	N	<SPLIT>	.	.	DP=1;END=29;SVLEN=4	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:0:3.00:0:1	./.	./.
+RF06	253	.	N	<SPLIT>	.	.	DP=1;END=321;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	./.	./.
+RF06	465	.	N	<SPLIT>	.	.	DP=2;END=533;SVLEN=69	GT:DP:M3:M5:N3:N5	0/1:1:68.00:0:1:0	./.	./.	./.	0/1:1:68.00:0:1:0
+RF06	691	.	N	<SPLIT>	.	.	DP=2;END=762;SVLEN=72	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:4.00:0:1	./.	0/1:1:68.00:0:1:0	./.
+RF06	1045	.	N	<SPLIT>	.	.	DP=3;END=1133;SVLEN=89	GT:DP:M3:M5:N3:N5	./.	0/1:2:68.00:3.00:1:1	./.	0/1:1:68.00:0:1:0	./.
+RF06	1224	.	N	<SPLIT>	.	.	DP=1;END=1292;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:68.00:0:1:0	./.	./.
+RF07	223	.	N	<SPLIT>	.	.	DP=2;END=225;SVLEN=3	GT:DP:M3:M5:N3:N5	0/1:1:0:2.00:0:1	./.	./.	./.	0/1:1:0:2.00:0:1
+RF07	345	.	N	<SPLIT>	.	.	DP=2;END=420;SVLEN=76	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	0/1:1:0:4.00:0:1	./.
+RF07	790	.	N	<SPLIT>	.	.	DP=1;END=792;SVLEN=3	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:0:2.00:0:1	./.	./.
+RF07	845	.	N	<SPLIT>	.	.	DP=2;END=913;SVLEN=69	GT:DP:M3:M5:N3:N5	0/1:1:68.00:0:1:0	./.	./.	./.	0/1:1:68.00:0:1:0
+RF08	54	.	N	<SPLIT>	.	.	DP=2;END=57;SVLEN=4	GT:DP:M3:M5:N3:N5	0/1:1:0:3.00:0:1	./.	./.	./.	0/1:1:0:3.00:0:1
+RF08	295	.	N	<SPLIT>	.	.	DP=1;END=296;SVLEN=2	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:0:1.00:0:1	./.	./.
+RF08	668	.	N	<SPLIT>	.	.	DP=1;END=736;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	0/1:1:68.00:0:1:0	./.	./.	./.
+RF08	896	.	N	<SPLIT>	.	.	DP=1;END=904;SVLEN=9	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:8.00:0:1	./.	./.	./.
+RF10	192	.	N	<SPLIT>	.	.	DP=1;END=196;SVLEN=5	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:4.00:0:1	./.	./.	./.
+RF10	433	.	N	<SPLIT>	.	.	DP=1;END=501;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:68.00:0:1:0	./.	./.
+RF11	7	.	N	<SPLIT>	.	.	DP=3;END=133;SVLEN=127	GT:DP:M3:M5:N3:N5	./.	0/1:1:0:5.00:0:1	0/1:1:68.00:0:1:0	0/1:1:68.00:0:1:0	./.
+RF11	179	.	N	<SPLIT>	.	.	DP=1;END=247;SVLEN=69	GT:DP:M3:M5:N3:N5	./.	./.	0/1:1:68.00:0:1:0	./.	./.
 ```
+## history
 
-content of ideogram.conf 
-
-```
-<ideogram>
-
-<spacing>
-## espace entre les contig
-default = 0r
-</spacing>
-
-radius    = 0.95r
-thickness = 30p
-fill      = yes
-
-## stroke du radius
-stroke_color     = red
-stroke_thickness = 3p
-
-# show labels (chromosome names )
-show_label       = yes
-label_font       = default 
-label_radius     = 1r + 75p
-label_size       = 30
-label_parallel   = yes
-
-
-</ideogram>
-```
-
-content of ticks.conf
-
-```
-show_ticks          = yes
-show_tick_labels    = yes
-
-<ticks>
-radius           = 1r
-color            = black
-thickness        = 2p
-
-# the tick label is derived by multiplying the tick position
-# by 'multiplier' and casting it in 'format':
-#
-# sprintf(format,position*multiplier)
-#
-
-multiplier       = 1e-6
-
-# %d   - integer
-# %f   - float
-# %.1f - float with one decimal
-# %.2f - float with two decimals
-#
-# for other formats, see http://perldoc.perl.org/functions/sprintf.html
-
-format           = %d
-
-<tick>
-spacing        = 5u
-size           = 10p
-</tick>
-
-<tick>
-spacing        = 25u
-size           = 15p
-show_label     = yes
-label_size     = 20p
-label_offset   = 10p
-format         = %d
-</tick>
-
-</ticks>
-```
-
-generate circos:
-
-
-```
-$ java -jar dist/samscansplitreads.jar -msr 2 input.bam > input.dat
-$ cut -f1-7 input.dat | awk '{OFS="\t";f=$7/50.0;if(f>1.0) f=1.0;if(f<0.5) f=0.5;$1=sprintf("hs%s",$1);$4=sprintf("hs%s",$4);$7=sprintf("thickness=%s,color=%s",f,($1==$4?"blue":"red"));print;}' > tmp.txt
-cat circos.conf | sed 's%__FILENAME__%tmp.txt%' >  tmp.txt.conf
-circos-0.69-2/bin/circos  -outputdir ./  -outputfile output  -conf  tmp.txt.conf
-```
-
-
+ * 2018-11-14 rewritten from scratch
 
 END_DOC
 */
-@Program(name="samscansplitreads",description="scan split reads",keywords={"sam","sv","splitreads"})
+@Program(name="samscansplitreads",
+	description="scan split reads",
+	keywords={"sam","sv","splitreads","clip"}
+		)
 	public class SamScanSplitReads extends Launcher {
-	private static long ID_GENERATOR=0L;
 	private static final Logger LOG = Logger.build(SamScanSplitReads.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
-	private int extentd=20;
-	
-	@Parameter(names={"-F","--format"},
-			description="Output format. if 'vcf', will save the file as a vcf file",
-			hidden=true /* this option is not mature */
-			)
-	private String outputFormat="txt";
-	@Parameter(names={"--defaultSampleName"},description="Default Sample name if not read group")
-	private String defaultSampleName="UNDEFINED";
-	
-	@Parameter(names={"--normalize"},description="Optional. Normalize count to this value. e.g '1' ")
-	private Integer nomalizeReadCount=null;
+	private int extentd=10;
+	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition partition = SAMRecordPartition.sample;
+	@Parameter(names={"-r","--rgn"},description="limit to that region CHROM:START-END")
+	private String intervalStr = null;
+	@Parameter(names={"-B","--bed"},description="limit to that bed file")
+	private File intervalBed = null;
+	@Parameter(names={"--buffer-size"},description="dump buffer every 'x' bases. Most users should not use this.")
+	private int buffer_dump_size = 10_000;
 
-	@Parameter(names={"-msr","--minSupportingReads"},description="Minimal number of supporting reads.")
-	private int minSupportingReads=0;
-
-	private Map<String,IntervalTreeMap<Set<Arc>>> sample2database = new HashMap<>();
-	
-	private final Comparator<SAMRecord> coordinateComparator=new Comparator<SAMRecord>()
-		{
-	    @Override
-	    public int compare(final SAMRecord samRecord1, final SAMRecord samRecord2) {
-	        final String ref1 = samRecord1.getReferenceName();
-	        final String ref2 = samRecord2.getReferenceName();
-	        final int cmp = ref1.compareTo(ref2);
-	        if (cmp != 0) return cmp;
-	        return samRecord1.getAlignmentStart() - samRecord2.getAlignmentStart();
-	    }
-	
-		};
-		
-		
-	
+	private static final byte VOID_TO_LEFT = (byte)1; 
+	private static final byte RIGHT_TO_VOID = (byte)2; 
 	
 	private static class Arc
 		{
-		long id;
-		int countSupportingReads=0;
-		Interval intervalFrom;
-		Interval intervalTo;
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + (int) (id ^ (id >>> 32));
-			return result;
+		String sample;
+		int tid;
+		byte type;
+		int chromStart;
+		int chromEnd;
+		boolean consummed = false;
+		int length() {
+			return chromEnd-chromStart;
 			}
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj) return true;
-			if (obj == null) return false;
-			final Arc other = (Arc) obj;
-			return id == other.id;
-			}
-		boolean intersects(final Arc arc) {
-			return intersects(arc.intervalFrom,arc.intervalTo);
-			}
-		boolean intersects(final Interval i1,final Interval i2) {
-			if( this.intervalFrom.intersects(i1) &&
-				    this.intervalTo.intersects(i2) ) return true;
+		}
+		
+	
+	private void dump(
+			final SAMSequenceDictionary dict,
+			final IntervalTreeMap<List<Arc>> database,
+			final VariantContextWriter vcw,
+			final Set<String> samples,
+			final Integer before
+			) { 
+		final Allele REF = Allele.create("N", true);
+		final Allele SPLIT = Allele.create("<SPLIT>", false);
+		final ContigDictComparator ctgCmp  = new ContigDictComparator(dict);
+		final List<Interval> intervals  = database.keySet().stream().
+				map(R-> new Interval(
+					R.getContig(),
+					Math.max(1,R.getStart() - this.extentd),
+					R.getEnd() + this.extentd
+					)).
+				filter(R->(before==null?true:R.getEnd() < before.intValue())).
+				sorted((A,B)->{
+					int i = ctgCmp.compare(A.getContig(), B.getContig());
+					if(i!=0) return i;
+					i = A.getStart() - B.getStart();
+					if(i!=0) return i;
+					return A.getEnd() - B.getEnd();
+					}).
+				collect(Collectors.toList());
+		
+		for(final Interval interval0:intervals) {
+		
+			final List<Arc> arcs = database.getOverlapping(interval0).
+					stream().
+					flatMap(L->L.stream()).
+					filter(A->!A.consummed).
+					collect(Collectors.toList());
 			
-			if( this.intervalFrom.intersects(i2) &&
-				    this.intervalTo.intersects(i1) ) return true;
-			return false;
-			}
-		@Override
-		public String toString() {
-			return "[" + intervalFrom.toString()+" -> "+intervalTo.toString()+"]";
-			}
-		}
-	
-	private Interval extendInterval(final Interval i1) {
-		if(this.extentd<=0) return i1;
-		return new Interval(i1.getContig(),
-				Math.max(i1.getStart()-this.extentd,0),
-				i1.getEnd()+this.extentd
-				);
-		}
-	
-	private Interval merge(Interval i1,Interval i2) {
-		if(!i1.intersects(i2)) throw new IllegalArgumentException(""+i1+"/"+i2);
-		return new Interval(i1.getContig(),
-				Math.min(i1.getStart(), i2.getStart()),
-				Math.max(i1.getEnd(), i2.getEnd())
-				);
-		}
-	
-	private void analyseSamPair(final IntervalTreeMap<Set<Arc>> database,final SAMRecord rec1,final SAMRecord rec2)
-		{
-		int diff = coordinateComparator.compare(rec1, rec2);
-		if(diff==0) return;
-		if(diff>0) {
-			analyseSamPair(database,rec2,rec1);
-			return;
-			}
-		
-		final Interval interval1 = extendInterval(new Interval(rec1.getReferenceName(),rec1.getAlignmentStart(), rec1.getAlignmentEnd()));
-		final Interval interval2 = extendInterval(new Interval(rec2.getReferenceName(),rec2.getAlignmentStart(), rec2.getAlignmentEnd()));
-		if( interval1.intersects(interval2)) return;
-		
-		
-		final Set<Arc> merge=new HashSet<>();
-		final Collection<Set<Arc>> col= database.getOverlapping(interval1);
-		for(final Set<Arc> arcset:col)
-			{
-			for(final Arc arc:arcset)
-				{
-				if(!arc.intersects(interval1,interval2)) continue;
-				merge.add(arc);
-				}
-			}
-		
-		if(!merge.isEmpty())
-			{
-			//remove from database
-			for(final Set<Arc> arcset:col)
-				{
-				arcset.removeAll(merge);
-				}
-			final List<Arc> mergeList=new ArrayList<>(merge);
-			//merge new arc with at least one arc in database
-			boolean check_one_overlap=false;
-			for(final Arc arc: mergeList)
-				{
-				if(!arc.intervalFrom.intersects(interval1)) continue;
-				if(!arc.intervalTo.intersects(interval2)) continue;
-				arc.intervalFrom = merge(arc.intervalFrom,interval1);
-				arc.intervalTo = merge(arc.intervalTo,interval2);
-				arc.countSupportingReads++;
-				check_one_overlap=true;
-				break;
-				}
-			if(!check_one_overlap) throw new IllegalStateException();
-			int x=0;
-			while(x+1<mergeList.size())
-				{
-				int y=x+1;
-				while(y<mergeList.size())
+			if(arcs.isEmpty()) continue;
+			arcs.forEach(A->A.consummed=true);
+			
+			
+			final VariantContextBuilder vcb = new VariantContextBuilder();
+			final Set<Allele> alleles = new HashSet<>();
+			alleles.add(REF);
+			final List<Genotype> genotypes = new ArrayList<>(samples.size());
+			
+			
+			vcb.chr(dict.getSequence(arcs.get(0).tid).getSequenceName());
+			final int chromStart = arcs.stream().mapToInt(A->A.chromStart).min().getAsInt();
+			vcb.start(chromStart);
+			final int chromEnd = arcs.stream().mapToInt(A->A.chromEnd).max().getAsInt();
+			vcb.stop(chromEnd);
+			
+			vcb.attribute(VCFConstants.END_KEY, chromEnd);
+			vcb.attribute("SVLEN", 1+chromEnd-chromStart);
+			
+			int depth = 0;
+			int nsamples = 0;
+			for(final String sample : samples) {
+			
+				final List<Arc> sampleArcs = arcs.stream().filter(A->A.sample.equals(sample)).collect(Collectors.toList());
+				if(sampleArcs.isEmpty())
 					{
-					final Arc arcx = mergeList.get(x);
-					final Arc arcy = mergeList.get(y);
-					if(arcx.intersects(arcy))
+					genotypes.add(GenotypeBuilder.createMissing(sample, 2));
+					}
+				else
+					{
+					final GenotypeBuilder gb = new GenotypeBuilder(sample);
+					alleles.add(SPLIT);
+					gb.alleles(Arrays.asList(REF,SPLIT));
+					final int countCat1= (int)sampleArcs.stream().filter(A->A.type==VOID_TO_LEFT).count();
+					final int countCat2= (int)sampleArcs.stream().filter(A->A.type==RIGHT_TO_VOID).count();
+					gb.DP(countCat1+countCat2);
+					gb.attribute("N5", countCat1);
+					gb.attribute("N3", countCat2);
+					
+					if(countCat1>0)
 						{
-						LOG.debug("mergin "+arcx+" "+arcy+" "+ID_GENERATOR);
-						
-						arcx.intervalFrom = merge(arcx.intervalFrom,arcy.intervalFrom);
-						arcx.intervalTo = merge(arcx.intervalTo,arcy.intervalTo);
-						arcx.countSupportingReads+=arcx.countSupportingReads;
-						mergeList.remove(y);
+						gb.attribute("M5",Percentile.median().evaluate(sampleArcs.stream().filter(A->A.type==VOID_TO_LEFT).mapToInt(A->A.length())));
 						}
 					else
 						{
-						++y;
+						gb.attribute("M5",0);
 						}
+					if(countCat2>0) 
+						{
+						gb.attribute("M3", Percentile.median().evaluate(sampleArcs.stream().filter(A->A.type==RIGHT_TO_VOID).mapToInt(A->A.length())));
+						}
+					else
+						{
+						gb.attribute("M3",0);
+						}
+					depth+=countCat1+countCat2;
+					genotypes.add(gb.make());
+					++nsamples;
 					}
-				
-				++x;
 				}
-			for(final Arc arc: mergeList)
-				{
-				Set<Arc> arcset = database.get(arc.intervalFrom);
-				if(arcset==null) {
-					arcset=new HashSet<>();
-					 database.put(arc.intervalFrom,arcset);
-					}
-				arcset.add(arc);
-				}
+			vcb.genotypes(genotypes);
+			vcb.alleles(alleles);
+			vcb.attribute(VCFConstants.DEPTH_KEY, depth);
+			vcb.attribute("NSAMPLES", nsamples);
+			vcw.add(vcb.make());
 			}
-		else
-			{
-			final Arc arc = new Arc();
-			arc.id = ++ID_GENERATOR;
-			arc.countSupportingReads=1;
-			arc.intervalFrom = interval1;
-			arc.intervalTo = interval2;
-			Set<Arc> arcset = database.get(interval1);
-			if(arcset==null) {
-				arcset=new HashSet<>();
-				database.put(interval1,arcset);
-				}
-			arcset.add(arc);
-			if(ID_GENERATOR%1000==0) LOG.info(ID_GENERATOR);
-			}
+		
 		}
-	
-	private void analyseSamRecord(final SAMRecord rec) {
-		if(rec.getReadUnmappedFlag()) return;
-		if(rec.getReadFailsVendorQualityCheckFlag()) return;
-		if(rec.isSecondaryOrSupplementary()) return;
-		if(rec.getDuplicateReadFlag()) return;
 		
-		final List<SAMRecord> others= SAMUtils.getOtherCanonicalAlignments(rec);
-		if(others.isEmpty()) return;
-		String sample=this.defaultSampleName;
-		final SAMReadGroupRecord g=rec.getReadGroup();
-		if(g!=null) {
-			final String sa = g.getSample();
-			if(sa!=null) sample=sa;
-			}
-		
-		IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
-		if(database==null) {
-			database=new IntervalTreeMap<Set<Arc>>();
-			this.sample2database.put(sample, database);
-			}
-		
-		for(final SAMRecord other:others)
-			{
-			analyseSamPair(database,rec,other);
-			}
-		}
-	
-		private void scanFile(SamReader r) {
-			final SAMSequenceDictionaryProgress progess= new SAMSequenceDictionaryProgress(r.getFileHeader());
-			final SAMRecordIterator iter = r.iterator();
-			while(iter.hasNext())
-				{
-				analyseSamRecord(progess.watch(iter.next()));
-				}
-			progess.finish();
-			iter.close();
-			}
-	
-		private void saveAsVcf(Set<String> sampleNames,SAMSequenceDictionary dict) throws IOException {
-			 final Function<String,Integer> contig2tid = S -> {
-				 int i= dict.getSequenceIndex(S);
-				 if( i == -1 ) throw new IllegalArgumentException("cannot find contig "+S+" in dictionary");
-				 return i;
-			 }; 
-			
-			 final Comparator<Interval> intervalComparator=new Comparator<Interval>()
-				{
-			    @Override
-			    public int compare(final Interval r1, final Interval r2) {
-			        final int cmp = contig2tid.apply(r1.getContig())-contig2tid.apply(r2.getContig());
-			        if (cmp != 0) return cmp;
-			        return r1.getStart() - r2.getStart();
-			    	}
-				};
 
+		
+	@Override
+	public int doWork(final List<String> args) {
+	 	ConcatSam.ConcatSamIterator iter = null;
+	 	VariantContextWriter vcw= null;
+	 	final  IntervalTreeMap<List<Arc>> database = new IntervalTreeMap<>(); 
+		try {
+			final ConcatSam.Factory concatFactory = new ConcatSam.Factory();
+			concatFactory.setEnableUnrollList(true);
+			concatFactory.addInterval(this.intervalStr);
+			if(this.intervalBed!=null)
+				{
+				final BedLineCodec codec = new BedLineCodec();
+				final BufferedReader br = IOUtils.openFileForBufferedReading(this.intervalBed);
+				br.lines().
+					filter(L->!StringUtil.isBlank(L)).
+					map(L->codec.decode(L)).
+					filter(L->L!=null).
+					forEach(B->concatFactory.addInterval(B.getContig()+":"+B.getStart()+"-"+B.getEnd()));
+				br.close();
+				}
 			
-			final Allele REF = Allele.create("N", true);
+			
+			iter = concatFactory.open(args);
+			
+			final SAMSequenceDictionary dict = iter.getFileHeader().getSequenceDictionary();
+			
+			final Set<String> samples = iter.getFileHeader().getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtil.isBlank(S)).collect(Collectors.toSet());
+			if(samples.isEmpty())
+				{
+				iter.close();
+				LOG.error("No samples defined");
+				return -1;
+				}
+			
+			
+		
 			
 			final Set<VCFHeaderLine> meta=new HashSet<>();
 			VCFStandardHeaderLines.addStandardFormatLines(meta,false,
 					VCFConstants.GENOTYPE_KEY,
 					VCFConstants.DEPTH_KEY
 					);
-			sampleNames.addAll(this.sample2database.keySet());
-			if(sampleNames.isEmpty()) sampleNames.add(this.defaultSampleName);
-			VCFHeader header=new VCFHeader(meta,sampleNames);
+			VCFStandardHeaderLines.addStandardInfoLines(meta,false,
+					VCFConstants.DEPTH_KEY,
+					VCFConstants.END_KEY
+					);
+			meta.add(new VCFFormatHeaderLine("N5", 1, VCFHeaderLineType.Integer,"Number of clipped reads in 5'"));
+			meta.add(new VCFFormatHeaderLine("N3", 1, VCFHeaderLineType.Integer,"Number of clipped reads in 3'"));
+			meta.add(new VCFFormatHeaderLine("M5", 1, VCFHeaderLineType.Float,"Median size of the clip in 5'"));
+			meta.add(new VCFFormatHeaderLine("M3", 1, VCFHeaderLineType.Float,"Median size of the clip in 3'"));
+			meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
+			meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of sample having some split reads"));
+			
+			
+			final VCFHeader header=new VCFHeader(meta,samples);
+			JVarkitVersion.getInstance().addMetaData(this, header);
 			header.setSequenceDictionary(dict);
-			VariantContextWriter vcw = super.openVariantContextWriter(outputFile);
+			vcw = super.openVariantContextWriter(outputFile);
 			vcw.writeHeader(header);
-			final List<Arc> all_arcs = new ArrayList<>();
 			
-			for(final String sample: this.sample2database.keySet())
+			
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
+					newInstance().
+					dictionary(iter.getFileHeader().getSequenceDictionary()).
+					logger(LOG).
+					build();
+			
+			String prevContig=null;
+			while(iter.hasNext())
 				{
-				final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
-				for(final Interval interval: database.keySet()) {
-					for(final Arc arc: database.get(interval))
-						{
-						all_arcs.add(arc);
-						}
-					}
-				}
-			
-			Collections.sort(all_arcs, (A1,A2)->intervalComparator.compare(A1.intervalFrom, A2.intervalFrom));
-			
-			for(final Arc row:all_arcs)
-				{
-				final List<Genotype> genotypes = new ArrayList<>();
-				final Set<Allele> alleles =  new HashSet<>();
-				for(final String sample: this.sample2database.keySet())
-					{
-					final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
-						for(final Arc arc: database.get(row.intervalFrom))
-							{
-							if(!arc.equals(row)) continue;
-							final Allele alt = Allele.create(
-									new StringBuilder().append("<").
-									append(arc.intervalFrom.getContig()).append(":").append(arc.intervalFrom.getStart()).append("-").append(arc.intervalFrom.getEnd()).
-									append("|").
-									append(arc.intervalTo.getContig()).append(":").append(arc.intervalTo.getStart()).append("-").append(arc.intervalTo.getEnd()).
-									append(">").toString()
-									, false);
-							alleles.add(alt);
-							final Genotype g = new GenotypeBuilder(sample).alleles(Collections.singletonList(alt)).DP(arc.countSupportingReads).make();
-							genotypes.add(g);
-							}
-					}
-				alleles.add(REF);
-				VariantContextBuilder vcb=new VariantContextBuilder().
-						chr(row.intervalFrom.getContig()).
-						start(row.intervalFrom.getStart()).
-						stop(row.intervalFrom.getStart()).
-						alleles(alleles).
-						genotypes(genotypes);
-				vcw.add(vcb.make());				
-				}
-			vcw.close();
-			}
-
-		
-		private void saveAsText() throws IOException {
-			PrintWriter out = super.openFileOrStdoutAsPrintWriter(outputFile);
-			
-			double maxCount=0.0;
-			for(final String sample: this.sample2database.keySet())
-				{
-				final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
-				for(final Interval interval: database.keySet()) {
-					for(final Arc arc: database.get(interval))
-						{
-						maxCount=Math.max(arc.countSupportingReads, maxCount);
-						}
-					}
-				}
-			
-			for(final String sample: this.sample2database.keySet())
-				{
-				final IntervalTreeMap<Set<Arc>> database = this.sample2database.get(sample);
-				for(final Interval interval: database.keySet()) {
-					for(final Arc arc: database.get(interval))
-						{
-						if(arc.countSupportingReads<this.minSupportingReads) continue;
-						out.print(arc.intervalFrom.getContig());
-						out.print("\t");
-						out.print(arc.intervalFrom.getStart()-1);
-						out.print("\t");
-						out.print(arc.intervalFrom.getEnd());
-						out.print("\t");
-						out.print(arc.intervalTo.getContig());
-						out.print("\t");
-						out.print(arc.intervalTo.getStart()-1);
-						out.print("\t");
-						out.print(arc.intervalTo.getEnd());
-						out.print("\t");
-						if(this.nomalizeReadCount==null) {
-							out.print(arc.countSupportingReads);
-							}
-						else
-							{
-							out.print(this.nomalizeReadCount.doubleValue()*(arc.countSupportingReads/maxCount));
-							}
-						out.print("\t");
-						out.print(sample);
-						out.println();
-						}
-					}
-				}
-			out.flush();
-			out.close();
-		}
-		
-		private Set<String> samples(SAMFileHeader header )
-			{
-			return header.getReadGroups().stream().
-					map(G->G.getSample()).filter(S->S!=null).
-					collect(Collectors.toSet());
-			}
-		
-		@Override
-		public int doWork(final List<String> args) {
-		 	 SamReader r = null;
-		 	 SAMSequenceDictionary dic=null;
-		 	 final Set<String> sampleNames=new TreeSet<>();
-			try {
-				if(args.isEmpty()) {
-					LOG.info("read stdin");
-					r= openSamReader(null);
-					sampleNames.addAll(samples(r.getFileHeader()));
-					dic = r.getFileHeader().getSequenceDictionary();
-					if(dic==null) {
-						LOG.error("SAM input is missing a dictionary");
-						return -1;
-						}
-					scanFile(r);
-					r.close();
-					r=null;
-					}
-				else for(final String filename:args)
-					{
-					LOG.info("read "+filename);
-					r= openSamReader(filename);
-					sampleNames.addAll(samples(r.getFileHeader()));
-					final SAMSequenceDictionary dict2 = r.getFileHeader().getSequenceDictionary();
-					if(dict2==null) {
-						LOG.error("SAM input is missing a dictionary");
-						return -1;
-						}
-					else if(dic==null)
-						{
-						dic=dict2;
-						}
-					else if(!SequenceUtil.areSequenceDictionariesEqual(dic, dict2))
-						{
-						LOG.error("incompatibles sequences dictionaries");
-						return -1;
-						}
-					scanFile(r);
-					r.close();
-					r=null;
-					}
+				final SAMRecord rec = progress.apply(iter.next());
 				
-				if("vcf".equalsIgnoreCase(this.outputFormat) || (this.outputFile!=null && (this.outputFile.getName().endsWith(".vcf") || this.outputFile.getName().endsWith(".vcf.gz")))) {
-					saveAsVcf(sampleNames,dic);
+				if(rec.getReadUnmappedFlag()) continue;
+				if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+				if(rec.isSecondaryOrSupplementary()) continue;
+				if(rec.getDuplicateReadFlag()) continue;
+				
+				
+				final Cigar cigar = rec.getCigar();
+				if(cigar==null || cigar.isEmpty() || !cigar.isClipped()) continue;
+				
+				final String sample= this.partition.getPartion(rec, null);
+				if(StringUtil.isBlank(sample))continue;
+				
+				if(!rec.getContig().equals(prevContig)) {
+					dump(dict,database,vcw,samples,null);
+					database.clear();
+					prevContig = rec.getContig();
 					}
 				else
 					{
-					saveAsText();
+					final int before = rec.getUnclippedStart() - this.buffer_dump_size;
+					dump(dict,database,vcw,samples,before);
+					database.entrySet().removeIf(entries->entries.getKey().getEnd()< before);
 					}
+
 				
-				return 0;
-		} catch (Exception e) {
+				
+				for(int side=0;side<2;++side) {
+					final int chromStart;
+					final int chromEnd;
+					final byte type;
+					if(side==0) {
+						if(!cigar.isLeftClipped())
+							{
+							continue;
+							}
+						chromStart = rec.getUnclippedStart();
+						chromEnd = rec.getStart() - 1;
+						type = VOID_TO_LEFT;
+						}
+					else  {
+						if(!cigar.isRightClipped())
+							{
+							continue;
+							}
+						chromStart = rec.getStart()+1;
+						chromEnd = rec.getUnclippedEnd();
+						type = RIGHT_TO_VOID;
+						}
+					//final int length = chromEnd  - chromStart;
+					//NON peux augmenter la puissance if(length < 2) continue;
+					
+					final Arc arc = new Arc();
+					arc.sample = sample;
+					arc.tid = rec.getReferenceIndex();
+					arc.chromStart = chromStart;
+					arc.chromEnd = chromEnd;
+					arc.type = type;
+					
+					final Interval rgn = new Interval(rec.getReferenceName(), chromStart, chromEnd);
+					List<Arc> list = database.get(rgn);
+					if(list==null) {
+						list = new ArrayList<>();
+						database.put(rgn,list);
+						}
+					list.add(arc);
+					}
+				}
+			dump(dict,database,vcw,samples,null);
+			iter.close();iter=null;
+			progress.close();
+			vcw.close();vcw=null;
+			return 0;
+			} 
+		catch (final Exception e) {
 			LOG.error(e);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(r);	
+			CloserUtil.close(iter);	
+			CloserUtil.close(vcw);	
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new SamScanSplitReads().instanceMainWithExit(args);
 	}
 	// 

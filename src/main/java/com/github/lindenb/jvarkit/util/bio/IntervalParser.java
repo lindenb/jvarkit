@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@ public class IntervalParser {
 	private static final Logger LOG = Logger.build(IntervalParser.class).make();
 	private static final int MAX_CONTIG_LENGTH = Integer.MAX_VALUE - 1000;
 	public static final String OPT_DESC= 
-			"An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\"  or \"chrom:start-end+extend\"."
+			"An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\"  or \"chrom:start-end+extend\" or \"chrom:start-end+extend-percent%\"."
 			+ "A program might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)" ;
 	private SAMSequenceDictionary dict=null;
 	private boolean raiseExceptionOnError=true;
@@ -278,7 +278,21 @@ public class IntervalParser {
 				else
 					{
 					end = parseBigInteger(s.substring(hyphen+1,plus));
-					extend = parseBigInteger(s.substring(plus+1));
+					
+					final String extendString = s.substring(plus+1).trim();
+					// chr12:345-678+100%
+					if(extendString.endsWith("%"))
+						{
+						final long fragLen =  end.subtract(start).longValueExact();
+						final double percent = Double.parseDouble(extendString.substring(0,extendString.length()-1).trim())/100.0;
+						if(percent<0) throw new IllegalArgumentException("Negative percent in "+s);
+						extend = BigInteger.valueOf(Math.max(0L,(long)(fragLen*percent)));
+						}
+					// chr12:345-678+100
+					else
+						{
+						extend = parseBigInteger(extendString);
+						}
 					}
 				start = start.subtract(extend);
 				if(start.compareTo(BigInteger.ZERO)<0) start=BigInteger.ZERO;

@@ -10,6 +10,9 @@ convert a vcf to a table, to ease display in the terminal
 ```
 Usage: vcf2table [options] Files
   Options:
+    --chartsize
+      google charts dimension (HTML only). Format (integer)x(integer). eg: 
+      '1000x500' or (width) e.g: '1000'
     --color, --colors
       [20170808] Print Terminal ANSI colors.
       Default: false
@@ -17,6 +20,12 @@ Usage: vcf2table [options] Files
       [20171020] output format.
       Default: text
       Possible Values: [text, html]
+    --google
+      use google charts (HTML only)
+      Default: false
+    -H, --header
+      Print Header
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -36,6 +45,9 @@ Usage: vcf2table [options] Files
       Default: false
     -hr, --hideHomRefs
       Hide HOM_REF genotypes
+      Default: false
+    --hideHyperlinks
+      [20191102] hide Hyperlinks table.
       Default: false
     --hideInfo
       [20170808] hide INFO table.
@@ -67,9 +79,6 @@ Usage: vcf2table [options] Files
       http://software.broadinstitute.org/software/igv/book/export/html/189) 
     --version
       print version and exit
-    -H
-      Print Header
-      Default: false
 
 ```
 
@@ -294,5 +303,14 @@ Samples
 $ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
 ```
 
+### Screenshots
+
+[https://twitter.com/yokofakun/status/1067730485487366145](https://twitter.com/yokofakun/status/1067730485487366145)
+
+![https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg](https://pbs.twimg.com/media/DtFXEhLWkAE5roc.jpg)
+
+[https://twitter.com/yokofakun/status/922475502933368832](https://twitter.com/yokofakun/status/922475502933368832)
+
+![https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg](https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg)
 
 

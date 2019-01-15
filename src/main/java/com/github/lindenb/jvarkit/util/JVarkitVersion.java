@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,7 @@ import java.util.jar.Manifest;
 
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.vcf.VCFHeader;
@@ -147,6 +148,15 @@ public VCFHeader addMetaData(final Launcher app,final VCFHeader header) {
 			app.getProgramName()+".meta",
 			getLabel()+" cmd:"+
 			app.getProgramCommandLine().replaceAll("[\\\n\r\"\']+", " ").trim())
+			);
+	return header;
+	}
+
+public SAMFileHeader addMetaData(final Launcher app,final SAMFileHeader header) {
+	header.addComment(
+			app.getProgramName()+". "+
+			getLabel()+". cmd:"+
+			app.getProgramCommandLine().replaceAll("[\\\n\r\"\']+", " ").trim()
 			);
 	return header;
 	}

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,10 +44,12 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
@@ -95,6 +97,7 @@ grep NCBI135_
 
 ## History
 
+2018-10-31: add buffered list to speed up things
 2017-06-08: more intelligent for AlleleCount.A and AlleleCount.R
 2018-07-13: ignore spanning deletions, (for @SolenaSLS)
 
@@ -136,6 +139,8 @@ public class VcfPeekVcf extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names={"-b","--buffer-size"},description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variant in a defined window.")
+	private int buffer_size = 100_000;
 
 	
 	@ParametersDelegate
@@ -143,7 +148,8 @@ public class VcfPeekVcf extends Launcher
 
 	private final Set<String> peek_info_tags=new HashSet<String>();
 	private VCFFileReader indexedVcfFileReader=null;
-	
+	private final List<VariantContext> buffer = new ArrayList<>();
+	private Interval last_buffer_interval = null;
 	
 	
 	public VcfPeekVcf()
@@ -159,6 +165,49 @@ public class VcfPeekVcf extends Launcher
 		{
 		return this.ignoreSpanningDel && A.equals(Allele.SPAN_DEL);
 		}
+	
+	private List<VariantContext> getOverlappingBuffer(
+			final String contig,
+			final int start,
+			final int end
+			) {
+		if(	!(
+			this.last_buffer_interval!=null &&
+			this.last_buffer_interval.getContig().equals(contig) &&
+			this.last_buffer_interval.getStart() < start && 
+			end < this.last_buffer_interval.getEnd()
+			))
+			{
+			this.buffer.clear();
+			
+			this.last_buffer_interval = new Interval(
+					contig,
+					Math.max(0,start-1),
+					(end+1+this.buffer_size)
+					);
+			
+			final CloseableIterator<VariantContext> t = this.indexedVcfFileReader.query(
+					contig,
+					Math.max(0,start-1),
+					(end+1+this.buffer_size)
+					);
+			
+			while(t.hasNext())
+				{
+				VariantContext ctx = t.next();
+				if(ctx.hasGenotypes()) //reduce memory
+					{
+					ctx = new VariantContextBuilder(ctx).noGenotypes().make();
+					}
+				this.buffer.add(ctx);
+				}
+			t.close();
+			}
+		return this.buffer.stream().
+				filter(V->V.getContig().equals(contig) && CoordMath.overlaps(V.getStart(), V.getEnd(), start, end)).
+				collect(Collectors.toList());
+		}
+	
 	
 	/** public for knime */
 	@Override
@@ -231,10 +280,15 @@ public class VcfPeekVcf extends Launcher
 			JVarkitVersion.getInstance().addMetaData(this, h2);
 			
 			out.writeHeader(h2);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(h).logger(LOG);
+			final ProgressFactory.Watcher<VariantContext> progress = 
+					ProgressFactory.newInstance().
+					dictionary(h).
+					logger(LOG).
+					build()
+					;
 			while(vcfIn.hasNext())
 				{
-				final VariantContext ctx=progress.watch(vcfIn.next());
+				final VariantContext ctx=progress.apply(vcfIn.next());
 				final String outContig = nameConverter.apply(ctx.getContig());
 				if(outContig==null)
 					{
@@ -243,14 +297,9 @@ public class VcfPeekVcf extends Launcher
 					}
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				CloseableIterator<VariantContext> iter= this.indexedVcfFileReader.query(
-						outContig,
-						Math.max(0,ctx.getStart()-1),
-						(ctx.getEnd()+1)
-						);
-				while(iter.hasNext())
+				
+				for(final VariantContext ctx2 : this.getOverlappingBuffer(outContig,ctx.getStart(),ctx.getEnd()))
 					{
-					final VariantContext ctx2=iter.next();
 					if(!outContig.equals(ctx2.getContig())) continue;
 					if(ctx.getStart()!=ctx2.getStart()) continue;
 					if(!ctx.getReference().equals(ctx2.getReference())) continue;
@@ -366,14 +415,12 @@ public class VcfPeekVcf extends Launcher
 						}
 					if(somethingWasChanged) break;
 					}
-				iter.close();
-				iter=null;
 				
 				out.add(vcb.make());
 					
 				if(out.checkError()) break;
 				}
-			progress.finish();
+			progress.close();
 			if(!unmatchedcontigs.isEmpty())
 				{
 				LOG.debug("Unmatched contigs: "+unmatchedcontigs.stream().collect(Collectors.joining("; ")));
@@ -391,6 +438,10 @@ public class VcfPeekVcf extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		this.indexedVcfFileReader = null;
+		if(this.buffer_size<1) {
+			LOG.error("bad buffer-size");
+			return -1;
+			}
 		try
 			{
 			this.peek_info_tags.addAll(this.tagsAsString.stream().

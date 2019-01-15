@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -396,6 +396,16 @@ return new VariantContextBuilder(variant).
 $ java -jar dist/vcffilterjdk.jar --body -e 'String prev_contig=null;int prev_end=-1; public Object apply(final VariantContext vc) {boolean ret=!(vc.getContig().equals(prev_contig)  && vc.getStart() - prev_end <=5); prev_contig=vc.getContig();prev_end=vc.getEnd();return ret; }'  in.vcf
 ```
 
+## Example
+
+> how to filter a multi-VCF for sex-specific genotypes?
+
+see https://bioinformatics.stackexchange.com/questions/5518
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().allMatch(G->(G.getSampleName().endsWith("M") && G.isHet()) || (G.getSampleName().endsWith("F") && G.isHomRef())); ' input.vcf
+```
+
 END_DOC
  */
 @Program(
@@ -403,7 +413,9 @@ END_DOC
 		description="Filtering VCF with in-memory-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
 		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,
-				304979,310155,317388,319148,327035,337645,343569},
+				304979,310155,317388,319148,327035,337645,343569,
+				347173,351205,351404,354126
+				},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 		)
 public class VcfFilterJdk

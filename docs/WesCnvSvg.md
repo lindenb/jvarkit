@@ -39,18 +39,31 @@ Usage: wescnvsvg [options] Files
       IGV : "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" 
       , UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
       Default: none
+    -r, -rgn, --region, --interval
+      Interval regions: 'CHR:START-END'. multiple separated with spaces or 
+      semicolon 
     -o, --output
       Output file. Optional . Default: stdout
     -p, -percentile, --percentile
       How to compute the percentil of a region
       Default: AVERAGE
       Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
-  * -R, --ref
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
-    -rgn, --region
-      Interval regions: 'CHR:START-END'. multiple separated with spaces or 
-      semicolon 
+    -R, --ref, --reference
+      The parameter is the path to an Indexed fasta Reference file. This fasta 
+      file must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary. The parameter can also be a 'key' (matching 
+      the regular expression `[A-Za-z][A-Za-z0-9_\\-]*`) in a catalog file. A 
+      'catalog' file is a java property file ( 
+      https://docs.oracle.com/javase/tutorial/essential/environment/properties.html 
+      ) where the values are the path to the fasta file.  Catalogs are 
+      searched in that order : `${PWD}/fasta-ref.properties`, 
+      `${HOME}/.fasta-ref.properties`, `/etc/jvarkit/fasta-ref.properties`.  
+      If the key or the path are not defined by the user, they will be 
+      searched in that order 1) the java property 
+      -Djvarkit.fasta.reference=pathTofastaOrCatalogKey . 2) the linux 
+      environement variable $FASTA_REFERENCE=pathTofastaOrCatalogKey 3) The 
+      catalogs. 
+      Default: Fasta Reference File: null
     -smooth, --smooth
       Smoothing pixel window size. Negative=don't smooth
       Default: 100
@@ -186,5 +199,10 @@ https://twitter.com/yokofakun/status/1040592885786263554
 https://twitter.com/yokofakun/status/1040577235856580608
 
 ![ScreenShot](https://pbs.twimg.com/media/DnDfaGLXcAArg0P.jpg)
+
+https://twitter.com/yokofakun/status/1057625407913111557
+
+![ScreenShot](https://pbs.twimg.com/media/Dq1whOTX0AAzkZc.jpg)
+
 
 

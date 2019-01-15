@@ -82,6 +82,10 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/327035](https://www.biostars.org/p/327035)
  * [https://www.biostars.org/p/337645](https://www.biostars.org/p/337645)
  * [https://www.biostars.org/p/343569](https://www.biostars.org/p/343569)
+ * [https://www.biostars.org/p/347173](https://www.biostars.org/p/347173)
+ * [https://www.biostars.org/p/351205](https://www.biostars.org/p/351205)
+ * [https://www.biostars.org/p/351404](https://www.biostars.org/p/351404)
+ * [https://www.biostars.org/p/354126](https://www.biostars.org/p/354126)
 
 
 ## Compilation
@@ -452,6 +456,16 @@ return new VariantContextBuilder(variant).
 
 ```
 $ java -jar dist/vcffilterjdk.jar --body -e 'String prev_contig=null;int prev_end=-1; public Object apply(final VariantContext vc) {boolean ret=!(vc.getContig().equals(prev_contig)  && vc.getStart() - prev_end <=5); prev_contig=vc.getContig();prev_end=vc.getEnd();return ret; }'  in.vcf
+```
+
+## Example
+
+> how to filter a multi-VCF for sex-specific genotypes?
+
+see https://bioinformatics.stackexchange.com/questions/5518
+
+```
+java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().allMatch(G->(G.getSampleName().endsWith("M") && G.isHet()) || (G.getSampleName().endsWith("F") && G.isHomRef())); ' input.vcf
 ```
 
 

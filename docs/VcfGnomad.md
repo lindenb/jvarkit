@@ -10,25 +10,31 @@ Peek annotations from gnomad
 ```
 Usage: vcfgnomad [options] Files
   Options:
-    -ac, --alleleconcordance
-      ALL Alt allele must be found in gnomad before setting a FILTER
-      Default: false
     --bufferSize
-      When we're looking for variant in Exac, load the variants for 'N' bases 
-      instead of doing a random access for each variant
-      Default: 100000
+      When we're looking for variant in Gnomad, load the variants for 'N' 
+      bases instead of doing a random access for each variant. A distance 
+      specified as a positive integer.Comma are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 10000
+    --exclude
+      [20180327] exclude gnomad INFO field matching this regular expression. 
+      Empty: accept all
+      Default: controls|non_cancer|non_neuro|non_topmed
     -filtered, --filtered
       Skip Filtered User Variants
       Default: false
-    -filtered-in-gnomad, --filtered-in-gnomad
-      [20180326] if not empty, add this FILTER when the **Gnomad** variant is 
-      FILTERED. 
-      Default: FILTERED_IN_GNOMAD
     -filteredGnomad, --filteredGnomad
       [20170706] Skip Filtered GNOMAD Variants
       Default: false
+    --genome
+      [20180327] For @MKarakachoff : genome only, don't use 'exome data'
+      Default: false
+    -gnomad-filter-prefix, --gnomad-filter-prefix
+      [20181214] if not empty, include the Gnomad FILTERs using this prefix.
+      Default: GNOMAD
     -gf, --gnomadFilter
-      if defined, add this FILTER when the variant is found in nomad
+      if defined, add this FILTER when any variant [CHROM:POS:REF] is found in 
+      nomad 
     -h, --help
       print help and exit
     --helpFormat
@@ -37,25 +43,17 @@ Usage: vcfgnomad [options] Files
     -m, --manifest
       manifest file descibing how to map a contig to an URI . 3 columns: 1) 
       exome|genome 2) contig 3) path or URL.
-    --noAlleleCount
-      do Not Insert AC /Allele Count
-      Default: false
-    --noAlleleFreq
-      do Not Insert AF /Allele Freq.
-      Default: false
-    --noAlleleNumber
-      do Not Insert AN /Allele Number
-      Default: false
     -noMultiAltGnomad, --noMultiAltGnomad
       [20170706] Skip Multi Allelic GNOMAD Variants
       Default: false
+    --noUpdateId
+      do Not Update ID if it is missing in user's variant
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    --streaming
-      [20170707] Don't use tabix random-access (which are ok for small inputs) 
-      but you a streaming process (better to annotate a large WGS file). 
-      Assume dictionaries are sorted the same way.
-      Default: false
+    -of, --overlapFilter
+      if defined, add this FILTER when any variant overlapping [CHROM:POS] is 
+      found in nomad
     --version
       print version and exit
 
@@ -140,7 +138,13 @@ The current reference is:
    * 2d column is a contig name e.g: '1' .  Use '*' for 'any' chromosome
    * 3d column is a URL or file path where to find the data
  
- 
+
+```
+$ cat ./gnomad.manifest 
+exome   *       /commun/data/pubdb/broadinstitute.org/gnomad/release/2.1/vcf/exomes/gnomad.exomes.r2.1.sites.vcf.gz
+genome  *       /commun/data/pubdb/broadinstitute.org/gnomad/release/2.1/vcf/genomes/gnomad.genomes.r2.1.sites.vcf.gz
+```
+
 ## Example:
  
  ```
@@ -155,7 +159,7 @@ The current reference is:
  ```
 
 ## Note to self: Another alternative with VariantAnnotator,
-
+manifestFile
 but I think it slower...
 
 (javascript / Makefile generation)
@@ -171,5 +175,9 @@ var genome="/commun/data/pubdb/broadinstitute.org/gnomad/release-170228/vcf/geno
 out.print("$(if $(realpath "+genome+"), --resource:gnomad_genome  "+genome+"  $(foreach A,${GFIELDS}, -E gnomad_genome.${A} ) )");
 ```
 
+## History
+
+  * 20181214 : keep gnomad FILTERs
+  * 20181127 : rewritten for gnomad 2.1
 
 

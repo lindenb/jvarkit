@@ -40,8 +40,6 @@ tmp.dir=${this.dir}_tmp-${htsjdk.version}
 tmp.mft=${tmp.dir}/META-INF/MANIFEST.MF
 export dist.dir?=${this.dir}dist
 
-mysql.version?=5.1.34
-mysql.jar?=lib/mysql-connector-java-${mysql.version}-bin.jar
 bigwig.version=20150429
 bigwig.jar?=lib/BigWig.jar
 bigwig.log4j.jar=$(dir ${bigwig.jar})/log4j-1.2.15.jar
@@ -291,6 +289,7 @@ $(eval $(call compile-htsjdk-cmd,bam2fastq,${jvarkit.package}.tools.fastq.BamToF
 $(eval $(call compile-htsjdk-cmd,bam2raster,${jvarkit.package}.tools.bam2graphics.Bam2Raster,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,lowresbam2raster,${jvarkit.package}.tools.bam2graphics.LowResBam2Raster,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2svg,${jvarkit.package}.tools.bam2svg.BamToSVG,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,sv2svg,${jvarkit.package}.tools.bam2svg.SvToSVG,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bam2wig,${jvarkit.package}.tools.bam2wig.Bam2Wig,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bamcmpcoverage,${jvarkit.package}.tools.misc.BamCmpCoverage,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samaddpi,${jvarkit.package}.tools.misc.SamAddPI,${jcommander.jar}))
@@ -340,6 +339,7 @@ $(eval $(call compile_biostar_cmd,251649,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,322664,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,332826,${jcommander.jar}))
 $(eval $(call compile_biostar_cmd,336589,${jcommander.jar}))
+$(eval $(call compile_biostar_cmd,352930,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,blast2sam,${jvarkit.package}.tools.blast2sam.BlastToSam,${jcommander.jar} api.ncbi.blast ))
 $(eval $(call compile-htsjdk-cmd,blastfastq,${jvarkit.package}.tools.bwamempcr.BlastFastQ))
 $(eval $(call compile-htsjdk-cmd,gb2gff,${jvarkit.package}.tools.genbank.GenbankToGff3,${jcommander.jar} api.ncbi.gb ))
@@ -398,6 +398,7 @@ $(eval $(call compile-htsjdk-cmd,noemptyvcf,${jvarkit.package}.tools.misc.NoEmpt
 $(eval $(call compile-htsjdk-cmd,nozerovariationvcf,${jvarkit.package}.tools.misc.NoZeroVariationVCF,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pademptyfastq,${jvarkit.package}.tools.misc.PadEmptyFastq,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmeddump,${jvarkit.package}.tools.pubmed.PubmedDump,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,pubmed404,${jvarkit.package}.tools.pubmed.Pubmed404,${jcommander.jar} ${httpclient.libs}))
 $(eval $(call compile-htsjdk-cmd,ncbigenedump,${jvarkit.package}.tools.misc.NcbiGeneDump,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedcodinglang,${jvarkit.package}.tools.pubmed.PubmedCodingLanguages,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,pubmedgender,${jvarkit.package}.tools.pubmed.PubmedGender,${jcommander.jar}))
@@ -415,6 +416,7 @@ $(eval $(call compile-htsjdk-cmd,prettysam,${jvarkit.package}.tools.sam2tsv.Pret
 $(eval $(call compile-htsjdk-cmd,sam4weblogo,${jvarkit.package}.tools.sam4weblogo.SAM4WebLogo,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samclipindelfraction,${jvarkit.package}.tools.misc.SamClipIndelFraction,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samextractclip,${jvarkit.package}.tools.structvar.SamExtractClip,${jcommander.jar} ))
+$(eval $(call compile-htsjdk-cmd,vcfstrechofgt,${jvarkit.package}.tools.structvar.VcfStretchOfGt,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,samscansplitreads,${jvarkit.package}.tools.structvar.SamScanSplitReads,${jcommander.jar} ))
 $(eval $(call compile-htsjdk-cmd,samfindclippedregions,${jvarkit.package}.tools.structvar.SamFindClippedRegions,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,samfixcigar,${jvarkit.package}.tools.samfixcigar.SamFixCigar,${jcommander.jar} ))
@@ -457,6 +459,7 @@ $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.vcffilters
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,vcf2bed,${jvarkit.package}.tools.misc.VcfToBed,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,splitvcf,${jvarkit.package}.tools.misc.SplitVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,forkvcf,${jvarkit.package}.tools.misc.ForkVcf,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfin,${jvarkit.package}.tools.vcfcmp.VcfIn,${jcommander.jar}  ))
@@ -564,6 +567,7 @@ $(eval $(call compile-htsjdk-cmd,vcfgnomad,${jvarkit.package}.tools.gnomad.VcfGn
 $(eval $(call compile-htsjdk-cmd,vcfcomposite,${jvarkit.package}.tools.vcfcomposite.VCFComposite,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfannotwithbeacon,${jvarkit.package}.tools.ga4gh.VcfAnnotWithBeacon,${jcommander.jar} ${gson.jar} ${berkeleydb.jar} ${httpclient.libs} ))
 $(eval $(call compile-htsjdk-cmd,vcf2table,${jvarkit.package}.tools.misc.VcfToTable,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,prettytable,${jvarkit.package}.tools.misc.PrettyTable,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,goutils,${jvarkit.package}.tools.misc.GoUtils,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,variantsinwindow,${jvarkit.package}.tools.misc.VariantsInWindow,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,casectrlcanvas,${jvarkit.package}.tools.burden.CaseControlCanvas,${jcommander.jar}))
@@ -591,6 +595,7 @@ $(eval $(call compile-htsjdk-cmd,faidxsplitter,${jvarkit.package}.tools.misc.Fai
 $(eval $(call compile-htsjdk-cmd,vcfclusteredreadedge,${jvarkit.package}.tools.misc.VcfClusteredReadEdge,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfgapfrequent,${jvarkit.package}.tools.structvar.VcfGapFrequent,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,mergecnvnator,${jvarkit.package}.tools.structvar.MergeCnvNator,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,mergesv,${jvarkit.package}.tools.structvar.MergeStructuralVariants,${jcommander.jar}))
 
 
 $(eval $(call compile-htsjdk-cmd,vcfburdengoenrichment,${jvarkit.package}.tools.burden.VcfBurdenGoEnrichment,${jcommander.jar}))
@@ -723,15 +728,17 @@ api.ncbi.insdseq:
 	mkdir -p ${generated.dir}/java
 	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.insdseq -dtd ${xjc.proxy} "https://www.ncbi.nlm.nih.gov/dtd/INSD_INSDSeq.dtd"
 
-api.ncbi.dbsnp.gt:
+api.ncbi.dbsnp.gt: ${this.dir}src/main/resources/xsd/ncbi/genoex_1_5.xsd
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} "https://ftp.ncbi.nlm.nih.gov/snp/specs/genoex_1_5.xsd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp.gt ${xjc.proxy} $<
 
 
 ${generated.dir}/java/gov/nih/nlm/ncbi/dbsnp/package-info.java : api.ncbi.dbsnp
-api.ncbi.dbsnp:
+	touch -c $@
+
+api.ncbi.dbsnp: ${this.dir}src/main/resources/xsd/ncbi/docsum_3.4.xsd
 	mkdir -p ${generated.dir}/java
-	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} "https://ftp.ncbi.nlm.nih.gov/snp/specs/docsum_current.xsd"
+	${XJC} -d ${generated.dir}/java  -p gov.nih.nlm.ncbi.dbsnp ${xjc.proxy} $<
 
 
 ## API Ensembl
@@ -769,18 +776,6 @@ ${dist.dir}/jvarkit-${htsjdk.version}.jar : ${htsjdk.jars} ${bigwig.jars} \
 	${JAVAC} -d ${tmp.dir} -g -classpath "$(subst $(SPACE),:,$(filter %.jar,$^))" -sourcepath ${src.dir}:${generated.dir}/java $(filter %.java,$^)
 	${JAR} cf $@ -C ${tmp.dir} .
 	rm -rf ${tmp.dir}
-
-##
-## Download mysql connector for java
-## 
-${mysql.jar} :
-	echo "Downloading mysql connector for java version ${mysql.version} from oracle"
-	mkdir -p $(dir $@)
-	curl -Lk ${curl.proxy} -o jeter.tar.gz "http://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-${mysql.version}.tar.gz" 
-	tar xvfz  jeter.tar.gz  --strip-components=1 "mysql-connector-java-${mysql.version}/mysql-connector-java-${mysql.version}-bin.jar"
-	mv mysql-connector-java-${mysql.version}-bin.jar $@
-	rm jeter.tar.gz
-
 
 ##
 ## Broad BigWig

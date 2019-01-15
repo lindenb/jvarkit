@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -95,14 +95,14 @@ public enum SAMRecordPartition
 			default: throw new IllegalStateException(this.name());
 			}
 		}
-	/** extract all distinct non-null labels from a set of read-groups */
+	/** extract all distinct non-null/non-empty labels from a set of read-groups */
 	public Set<String> getPartitions(final Collection<SAMReadGroupRecord> rgs) {
 		if(rgs==null || rgs.isEmpty()) return Collections.emptySet();
 		final Set<String> set = new TreeSet<>();
 		for(final SAMReadGroupRecord rg:rgs)
 			{
 			final String partition = this.apply(rg);
-			if(partition==null ) continue;
+			if(StringUtil.isBlank(partition)) continue;
 			set.add(partition);
 			}
 		return set;

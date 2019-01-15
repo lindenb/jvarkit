@@ -14,6 +14,10 @@ Usage: vcfpeekvcf [options] Files
       How alt allele must be found in the variants of the indexed file.
       Default: none
       Possible Values: [none, all, at_least_one]
+    -b, --buffer-size
+      buffer size (in bp). We don't do a random access for each variant. 
+      Instead of this, load all the variant in a defined window.
+      Default: 100000
     -h, --help
       print help and exit
     --helpFormat
@@ -50,12 +54,6 @@ Usage: vcfpeekvcf [options] Files
       Default: false
     --version
       print version and exit
-    -contigConverter
-      Contig converter. I will do my best to convert the contig names (e.g 
-      'chr1' -> '1'): But what should I do when comparing two dictionaries 
-      with different notations
-      Default: SKIP
-      Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
 
 ```
 
@@ -159,6 +157,7 @@ grep NCBI135_
 
 ## History
 
+2018-10-31: add buffered list to speed up things
 2017-06-08: more intelligent for AlleleCount.A and AlleleCount.R
 2018-07-13: ignore spanning deletions, (for @SolenaSLS)
 

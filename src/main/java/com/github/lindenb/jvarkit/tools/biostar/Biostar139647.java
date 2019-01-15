@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -98,7 +98,8 @@ END_DOC
 
 @Program(name="biostar139647",
 	description="Convert alignment in Fasta/Clustal format to SAM/BAM file",
-	biostars= 139647
+	biostars= 139647,
+	keywords={"msa","sam","bam","clustal"}
 	)
 public class Biostar139647 extends Launcher
 	{
@@ -107,8 +108,6 @@ public class Biostar139647 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-R","--refname"},description="reference name. Optional")
 	private String REF = "chrUn";
 	
@@ -334,8 +333,8 @@ public class Biostar139647 extends Launcher
 				n=0;
 				while(n+1< cigars.size())
 					{
-					CigarElement c1= cigars.get(n);
-					CigarElement c2= cigars.get(n+1);
+					final CigarElement c1= cigars.get(n);
+					final CigarElement c2= cigars.get(n+1);
 					
 					if(c1.getOperator().equals(c2.getOperator()))
 						{

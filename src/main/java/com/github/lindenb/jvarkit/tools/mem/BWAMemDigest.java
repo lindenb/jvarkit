@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -37,14 +37,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlign;
-import com.github.lindenb.jvarkit.util.picard.OtherCanonicalAlignFactory;
 
 import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -93,7 +91,7 @@ public class BWAMemDigest extends Launcher
 					);
 	    	}
     	
-    	public void xp(SAMRecord record,long readNum,OtherCanonicalAlign xp)
+    	public void xp(final SAMRecord record,long readNum,final SAMRecord xp)
     		{
     		stdout().println(
 					bed(record)+
@@ -172,7 +170,6 @@ public class BWAMemDigest extends Launcher
 		try {
 			r = super.openSamReader(oneFileOrNull(args));
 			
-			SAMFileHeader header=r.getFileHeader();
 		
 		if(IGNORE_BED!=null)
 			{
@@ -197,7 +194,6 @@ public class BWAMemDigest extends Launcher
 			in.close();
 			}
 		
-		OtherCanonicalAlignFactory xPalignFactory=new OtherCanonicalAlignFactory(header);
 		SAMRecordIterator iter=r.iterator();	
 		long readNum=0L;
 		while(iter.hasNext())
@@ -236,7 +232,7 @@ public class BWAMemDigest extends Launcher
 				output.insertion(record, readNum, countS, countM);
 				}
 			
-			for(OtherCanonicalAlign xp: xPalignFactory.getXPAligns(record))
+			for(final SAMRecord xp: SAMUtils.getOtherCanonicalAlignments(record))
 				{
 				if(ignore!=null &&
 						ignore.containsOverlapping(new Interval(

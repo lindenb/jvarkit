@@ -11,7 +11,9 @@ split bed file into several bed files where each region is separated of any othe
 Usage: biostar178713 [options] Files
   Options:
     -d, --distance
-      Distance between bed features
+      Distance between bed features.A distance specified as a positive 
+      integer.Comma are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb 
       Default: 100
     -h, --help
       print help and exit
@@ -96,16 +98,10 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-
 ### Example
 
-
 ```
-
 java -jar dist/biostar178713.jar -d 100000 -o out.zip in1.bed in2.bed 
-
 ```
-
-
 
 

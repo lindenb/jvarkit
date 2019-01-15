@@ -256,6 +256,8 @@ https://twitter.com/yokofakun/status/1053204927202369536
 
 ![https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg](https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg)
 
+https://twitter.com/yokofakun/status/1057627022665502721
 
+![https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg](https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg)
 
 

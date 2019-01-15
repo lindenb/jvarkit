@@ -24,8 +24,9 @@ Usage: backlocate [options] Files
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz
-    -x, --kgxref
-      UCSC kgXRef URI
+    -x, -X, --kgxref
+      UCSC kgXRef URI. Must have at least 5 columns. $1 is knowGene-Id $5  is 
+      protein identifier.
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz
     -o, --out
       Output file. Optional . Default: stdout
@@ -33,11 +34,21 @@ Usage: backlocate [options] Files
       print mRNA & protein sequences
       Default: false
   * -R, --reference
-      Indexed Genome Reference. It can be a the path to fasta file that must 
-      be indexed with samtools faidx and with picard CreateSequenceDictionary. 
-      It can also be a BioDAS dsn url like 
-      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BioDAS references are 
-      slower, but allow to work without a local reference file.
+      The parameter is the path to an Indexed fasta Reference file. This fasta 
+      file must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary. The parameter can also be a 'key' (matching 
+      the regular expression `[A-Za-z][A-Za-z0-9_\\-]*`) in a catalog file. A 
+      'catalog' file is a java property file ( 
+      https://docs.oracle.com/javase/tutorial/essential/environment/properties.html 
+      ) where the values are the path to the fasta file.  Catalogs are 
+      searched in that order : `${PWD}/fasta-ref.properties`, 
+      `${HOME}/.fasta-ref.properties`, `/etc/jvarkit/fasta-ref.properties`.  
+      If the key or the path are not defined by the user, they will be 
+      searched in that order 1) the java property 
+      -Djvarkit.fasta.reference=pathTofastaOrCatalogKey . 2) the linux 
+      environement variable $FASTA_REFERENCE=pathTofastaOrCatalogKey 3) The 
+      catalogs. 
+      Default: <<Default Fasta Reference Supplier>>
     --version
       print version and exit
 
@@ -63,11 +74,10 @@ Usage: backlocate [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -97,31 +107,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue Jan 16 16:53:30 2018 +0100 ; added samAddPi , lumpy-sv merge, ref to jvarkit ; https://github.com/lindenb/jvarkit/commit/3f2ca8fed91617367bec5bbb8fb704e4ecdf586b
-Mon Nov 6 18:36:08 2017 +0100 ; add biostars 15992 ; https://github.com/lindenb/jvarkit/commit/c392165274dfd88b211ca6ddd8e45db5cb5fb78f
-Thu Jul 6 19:24:32 2017 +0200 ; recompile ; https://github.com/lindenb/jvarkit/commit/c50120a6e41e990cbf57b6f06c9a9116a6926829
-Mon Jun 26 17:29:03 2017 +0200 ; burden ; https://github.com/lindenb/jvarkit/commit/a3b7abf21d07f0366e81816ebbb2cce26b2341e7
-Thu May 25 13:37:47 2017 +0200 ; format help ; https://github.com/lindenb/jvarkit/commit/cdb95fb8e7d7686bb137b45ef831479aefc2dca1
-Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
-Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d
-Thu Mar 30 17:38:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bba625df69e00a0aa54de192cdce6fda110a65b4
-Thu Nov 26 12:58:31 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/cfdff2e66fbeaa4627b50361a09196be2a2e1477
-Tue Nov 24 16:06:19 2015 +0100 ; fix https://github.com/lindenb/jvarkit/issues/36 ; https://github.com/lindenb/jvarkit/commit/eac04e587d9e0f784dd1a00c2d1245891a537568
-Tue Nov 3 22:42:18 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/4e4a9319be20626f0ea01dc2316c6420ba8e7dac
-Thu Sep 24 13:25:17 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/45943517fc1ae993f0d5c7fe5ee1e7d68fc92afe
-Wed Sep 23 21:31:51 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b2e626494b0af83f8ffc5e905bf1851f747424a1
-Tue Aug 11 17:25:02 2015 +0200 ; backlocate : potential alt codons ; https://github.com/lindenb/jvarkit/commit/1c7bc5e674136947586779a2aac53e576db4a67f
-Tue Jun 9 12:17:32 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3601851f8d35e25d0130b1cb765c936e53292750
-Wed Nov 5 12:07:30 2014 +0100 ; backlocate no more DAS/SQL ; https://github.com/lindenb/jvarkit/commit/f8cb884544354a7c62d4440b58e8e74c2045a6cd
-Thu Jun 19 19:30:34 2014 +0200 ; backlocate ; https://github.com/lindenb/jvarkit/commit/dadac3fc79b107ace5d4137cb1fe3a9c9ef5b606
-```
-
-</details>
 
 ## Contribute
 
@@ -175,6 +160,21 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3268	CCA	C	chr1	120480547	Exon 20
 NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
 ```
 
+```
+$ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /path/to/human_g1k_v37.fasta | grep -v "##" | java -jar dist/prettytable.jar 
+
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+| #User.Gene | AA1 | petide.pos.1 | AA2 | knownGene.name | knownGene.strand | knownGene.AA | index0.in.rna | wild.codon | potential.var.codons | base.in.rna | chromosome | index0.in.genomic | exon    | extra.user.data |
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3267          | CCA        | .                    | C           | 1          | 120480548         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3268          | CCA        | .                    | C           | 1          | 120480547         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eik.3     | -                | P            | 3269          | CCA        | .                    | A           | 1          | 120480546         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3267          | CCA        | .                    | C           | 1          | 120480548         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3268          | CCA        | .                    | C           | 1          | 120480547         | Exon 20 | Interesting     |
+| NOTCH2     | Pro | 1090         | Met | uc001eil.3     | -                | P            | 3269          | CCA        | .                    | A           | 1          | 120480546         | Exon 20 | Interesting     |
++------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
+```
+
 
 ## See also
 
@@ -185,6 +185,7 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
 
 ## History
 
+ * 2019: add extra user data
  * 2017: Moved to jcommander
  * 2014: Moved to jvarkit
  * Nov 2014 : removed all the dependencies to SQL and DAS; use a local indexed genome

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -471,7 +471,8 @@ public class VcfCadd extends Launcher
 				{
 				final String head = this.tabix.readLine();
 				if(!head.startsWith("#")) break;
-				if(head.startsWith("#Chrom\tPos\tRef"))
+				if(head.startsWith("#Chrom\tPos\tRef") ||
+				   head.startsWith("#Chr\tPos\tRef"))
 					{
 					this.headerLabel = Arrays.asList(TAB.split(head));
 					break;
@@ -488,6 +489,7 @@ public class VcfCadd extends Launcher
 				this.headerLabel2column.put(this.headerLabel.get(i), i);
 				}
 			Integer col = this.headerLabel2column.get("#Chrom");
+			if(col==null) col = this.headerLabel2column.get("#Chr");
 			if(col==null || col.intValue()!=0) {
 				LOG.error("Illegal Header: Cannot get column index of #Chrom at 0");
 				return -1;

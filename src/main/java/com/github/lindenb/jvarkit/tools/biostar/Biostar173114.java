@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -47,11 +47,7 @@ import htsjdk.samtools.SamReader;
 BEGIN_DOC
 
 
-
-
 ### Example
-
-
 
 ```
  $ java -jar dist/biostar173114.jar --keepSequence    my.bam  
@@ -76,7 +72,6 @@ Re	0	rotavirus	3	60	70M	*	0	0	CTTTTAATGCTTTTCAGTGGTTGCTGCTCAAGAAGGCGTCTCCTGATGAG
 Rf	0	rotavirus	3	60	70M	*	0	0	CTTTTAATGGTTATGAGTGGTTGGTGCACAAGATGGAGTCTACTCAGCAGATGGTACTCTCTATAATTAA	*
 R10	0	rotavirus	3	60	70M	*	0	0	CTTTTAAAGCTTTTCAGTGGTTGCTGCTCAAGATGGAGTCTACTCAGCAGATGGTACTCTCTATTCTTAA	*
 R11	0	rotavirus	3	60	70M	*	0	0	CTTTTAAAGCTTTTCAGAGGTTGCTGCTCAAGATGTAGTCTACTCAGGAGATTGTAAGCTCTATTATTAA	
-
 ```
 
 ## See also
@@ -136,7 +131,6 @@ public class Biostar173114 extends Launcher
 			while (iter.hasNext()) {
 				final SAMRecord record = progress.watch(iter.next());
 
-				
 				if(!this.keepAttributes)
 					{
 					final SAMReadGroupRecord g=record.getReadGroup();

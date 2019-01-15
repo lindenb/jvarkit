@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -205,7 +205,9 @@ https://twitter.com/yokofakun/status/1053204927202369536
 
 ![https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg](https://pbs.twimg.com/media/Dp28R1VWwAA7frV.jpg)
 
+https://twitter.com/yokofakun/status/1057627022665502721
 
+![https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg](https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg)
 
 END_DOC
  */
@@ -707,6 +709,7 @@ public class WesCnvTView  extends Launcher {
 		return this.geneMap.getOverlapping(new Interval(contig,interval0.getStart(),interval0.getEnd()));
 		}
 	
+	
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.terminalWidth<=0) {
@@ -806,8 +809,31 @@ public class WesCnvTView  extends Launcher {
 				{
 				case VCF:
 					{
-					final Predicate<VariantContext> acceptVariant = V->V.hasAttribute(VCFConstants.SVTYPE) && V.hasAttribute("SVLEN") && V.getEnd()-V.getStart()>1;
-					final Function<VariantContext,Interval> mapper = V->new Interval(V.getContig(),V.getStart(),V.getEnd());
+					final Predicate<VariantContext> acceptVariant = V->V.hasAttribute(VCFConstants.SVTYPE) && (V.hasAttribute("SVLEN") || V.hasAttribute("SVMETHOD")/* DELLY2 */) && V.getEnd()-V.getStart()>1;
+					final Function<VariantContext,Interval> mapper = V->{
+						int B = V.getStart();
+						int E = V.getEnd();
+						try {
+							if(V.hasAttribute("CIPOS")) {
+								final int x= V.getAttributeAsIntList("CIPOS", 0).get(0);
+								B = Math.max(B-x,1);
+								}
+							if(V.hasAttribute("CIEND")) {
+								final int x= V.getAttributeAsIntList("CIEND", 0).get(1);
+								E +=x;
+								}
+							if(E<B) {
+								final int tmp = B;
+								B = E;
+								E  = tmp;
+								}
+							}
+						catch(final Throwable err) {
+							
+							}
+						
+						return new Interval(V.getContig(),B,E);
+						};
 					if(inputs.isEmpty())
 						{
 						final VcfIterator vcfin = super.openVcfIterator(null);

@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2017 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -181,6 +181,15 @@ public static ContigNameConverter createConvertToUcsc()
 	}
 
 
+public static ContigNameConverter createConvertToEnsembl()
+	{
+	final MapBasedContigNameConverter map = new MapBasedContigNameConverter();
+	for(int i=1;i<=22;++i) map.put("chr"+i,String.valueOf(i));
+	map.put("chrX","X");map.put("chrY","Y");map.put("chrM","MT");
+	return map;
+	}
+
+/*
 private static class GRCh37Ucsc2Ensembl extends MapBasedContigNameConverter
 	{
 	GRCh37Ucsc2Ensembl() {
@@ -189,7 +198,7 @@ private static class GRCh37Ucsc2Ensembl extends MapBasedContigNameConverter
 		}
 	@Override
 	public String getName() {return "GRCh37UcscToEnsembl";}
-	}
+	}*/
 
 /** creates a ContigNameConverter from two dictionaries, just using the common chromosome names */
 public static ContigNameConverter fromDictionaries(
@@ -370,6 +379,22 @@ private static class OneDictionary extends ContigNameConverter
 			}
 		final SAMSequenceRecord ssr = this.dict.getSequence(c2);
 		if(ssr!=null) return ssr.getSequenceName();
+		
+		// chrUn_gl000247 vs GL000247.1
+		if(contig.startsWith("chrUn_gl"))
+			{
+			String c3=contig.substring(8);
+			for(final SAMSequenceRecord ssr2 :this.dict.getSequences())
+				{
+				String c4 = ssr2.getSequenceName();
+				if(!c4.startsWith("GL")) continue;
+				c4=c4.substring(2);
+				if(c4.equals(c3)) return ssr2.getSequenceName();
+				if(!c4.startsWith(c3)) continue;
+				c4=c4.substring(c3.length());
+				if(c4.startsWith(".")) return ssr2.getSequenceName();
+				}	
+			}
 		
 		return null;
 		}

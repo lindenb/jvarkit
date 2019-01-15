@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ import java.util.Map;
 import java.util.Set;
 
 import htsjdk.samtools.util.CloserUtil;
-
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -48,10 +48,11 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -88,6 +89,7 @@ END_DOC
 @Program(
 		name="biostar130456",
 		description="Individual VCF files from main VCF file",
+		keywords={"vcf"},
 		biostars=130456
 		)
 public class Biostar130456 extends Launcher
@@ -104,9 +106,11 @@ public class Biostar130456 extends Launcher
 
 	@Parameter(names={"-x","--uncalled"},description="remove uncalled genotypes")
 	private boolean remove_uncalled = false;
-
 	@Parameter(names={"-z","--homref"},description="remove homzygote REF/REF")
 	private boolean remove_homref = false;
+	@Parameter(names={"-f","--filtered"},description="remove filtered Genotype")
+	private boolean remove_filtered = false;
+	
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
@@ -114,7 +118,7 @@ public class Biostar130456 extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-			if(this.filepattern==null || !filepattern.contains(SAMPLE_TAG))
+			if(StringUtils.isBlank(this.filepattern) || !filepattern.contains(SAMPLE_TAG))
 				{
 				LOG.error("File pattern is missing "+SAMPLE_TAG);
 				return -1;
@@ -131,7 +135,7 @@ public class Biostar130456 extends Launcher
 				this.recalculator.setHeader(header);
 				
 				final Set<String> samples = new HashSet<String>(header.getSampleNamesInOrder());
-				final Map<String,VariantContextWriter> sample2writer=new HashMap<String,VariantContextWriter>(samples.size());
+				final Map<String,VariantContextWriter> sample2writer=new HashMap<>(samples.size());
 	
 				if(samples.isEmpty())
 					{
@@ -155,22 +159,25 @@ public class Biostar130456 extends Launcher
 					
 					sample2writer.put(sample, w);
 					}
-				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
+				final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 				while(in.hasNext())
 					{
-					final VariantContext ctx= progress.watch(in.next());
+					final VariantContext ctx= progress.apply(in.next());
 					for(final String sample: samples)
 						{
 						final Genotype g= ctx.getGenotype(sample);
 						if(g==null) continue;
-						if(remove_uncalled && (!g.isAvailable() || !g.isCalled() || g.isNoCall()))
-							{
-							continue;
-							}
+						if(remove_uncalled && !g.isCalled() ) continue;
 						if(remove_homref && g.isHomRef()) continue;
+						if(remove_filtered && g.isFiltered()) continue;
 						final VariantContextWriter w= sample2writer.get(sample);
 						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 						final GenotypeBuilder gb=new GenotypeBuilder(g);
+						final Set<Allele> alleles=new HashSet<>(3);
+						alleles.add(ctx.getReference());
+						alleles.addAll(g.getAlleles());
+						alleles.remove(Allele.NO_CALL);
+						vcb.alleles(alleles);
 						vcb.genotypes(Collections.singletonList(gb.make()));
 						final VariantContext ctx2= this.recalculator.apply(vcb.make());
 						w.add(ctx2);
@@ -179,10 +186,9 @@ public class Biostar130456 extends Launcher
 				for(final String sample:samples)
 					{
 					LOG.info("Closing for sample "+sample);
-					final VariantContextWriter w= sample2writer.get(sample);
-					w.close();
+					CloserUtil.close(sample2writer.get(sample));
 					}
-				progress.finish();
+				progress.close();
 				out.flush();
 				return RETURN_OK;
 				}
@@ -202,5 +208,4 @@ public class Biostar130456 extends Launcher
 		{
 		new Biostar130456().instanceMainWithExit(args);
 		}
-
 	}

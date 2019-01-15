@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -38,7 +38,8 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
 
 /**
@@ -75,17 +76,19 @@ public class DownSampleVcf extends Launcher
 	protected int doVcfToVcf(final String inputName, final VcfIterator in, final VariantContextWriter out) {
 		final Random rand=new Random(this.seed==-1L?System.currentTimeMillis():this.seed);
 		final List<VariantContext>  buffer=new ArrayList<>(this.reservoir_size);
-		final VCFHeader h2=new VCFHeader(in.getHeader());
+		
+		final VCFHeader h1=in.getHeader();
+		final SAMSequenceDictionary dict=h1.getSequenceDictionary();
+		final VCFHeader h2=new VCFHeader(h1);
 		super.addMetaData(h2);
-		final SAMSequenceDictionaryProgress progess=
-				new SAMSequenceDictionaryProgress(in.getHeader()).
-				logger(LOG);
+		
+		final ProgressFactory.Watcher<VariantContext> progess=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 		out.writeHeader(h2);
 		if(this.reservoir_size!=0)
 			{
 			while(in.hasNext())
 				{	
-				final VariantContext ctx = progess.watch(in.next());
+				final VariantContext ctx = progess.apply(in.next());
 				if(buffer.size() < this.reservoir_size)
 					{
 					buffer.add(ctx);
@@ -95,10 +98,13 @@ public class DownSampleVcf extends Launcher
 					buffer.set(rand.nextInt(buffer.size()), ctx);
 					}
 				}
-			
 			}
-		buffer.stream().forEach(V->out.add(V));
-		progess.finish();
+		
+		buffer.
+			stream().
+			sorted(dict==null?VCFUtils.createChromPosRefComparator():VCFUtils.createTidPosRefComparator(dict)).
+			forEach(V->out.add(V));
+		progess.close();
 		return 0;
 		}
 	@Override

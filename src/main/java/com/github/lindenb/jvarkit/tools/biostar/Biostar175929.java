@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -128,7 +128,10 @@ END_DOC
 
 
 @Program(name="biostar175929",
-	description="Construct a combination set of fasta sequences from a vcf see also https://www.biostars.org/p/175929/")
+	description="Construct a combination set of fasta sequences from a vcf",
+	biostars=175929,
+	keywords={"fasta","vcf"}
+	)
 public class Biostar175929 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar175929.class).make();
@@ -136,7 +139,6 @@ public class Biostar175929 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-x","--extend"},description="extend FASTA sequence by 'n' bases")
 	private int extendBases = 100 ;
@@ -216,7 +218,7 @@ public class Biostar175929 extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		if(this.faidx==null) 
 			{
@@ -266,7 +268,7 @@ public class Biostar175929 extends Launcher
 			}
 		}
 	
-	public static void main(String[] args)throws Exception
+	public static void main(final String[] args)throws Exception
 		{
 		new Biostar175929().instanceMainWithExit(args);
 		}

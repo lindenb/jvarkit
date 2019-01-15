@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2016 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -52,6 +51,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
@@ -63,7 +63,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
@@ -179,7 +179,7 @@ public class VCFPredictions extends Launcher
 	@Parameter(names={"-R","--reference"},description="[20180122](moved to faidx/DAS). "+ReferenceGenomeFactory.OPT_DESCRIPTION,required=true)
 	private String referenceGenomeSource = null;
 
-	
+	/** a sequence with one or more altered base/amino-acid */
 	private static class MutedSequence extends DelegateCharSequence
 		{
 		private final Map<Integer, Character> pos2char=new TreeMap<Integer, Character>();
@@ -196,13 +196,12 @@ public class VCFPredictions extends Launcher
 		@Override
 		public char charAt(final int i)
 			{
-			final Character c= pos2char.get(i);
-			return c==null?getDelegate().charAt(i):c;
-			}
-		
+			return this.pos2char.getOrDefault(i, getDelegate().charAt(i));
+			}		
 		}
 	
 	
+	/** a protein, cdna translated with a given genetic code. */
 	private static class ProteinCharSequence extends DelegateCharSequence
 		{
 		private final GeneticCode geneticCode;
@@ -241,7 +240,7 @@ public class VCFPredictions extends Launcher
 		String wildCodon="";
 		String mutCodon="";
 		Integer position_protein=null;
-		Set<SequenceOntologyTree.Term> seqont=new HashSet<SequenceOntologyTree.Term>();
+		final Set<SequenceOntologyTree.Term> seqont=new HashSet<>();
 		
 		
 		public String toString()
@@ -356,7 +355,7 @@ public class VCFPredictions extends Launcher
 			
 			in = IOUtils.openURIForBufferedReading(this.kgURI);
 			String line;
-			final Pattern tab = Pattern.compile("[\t]");
+			final CharSplitter tab = CharSplitter.TAB;
 			while ((line = in.readLine()) != null) {
 				if (StringUtil.isBlank(line))
 					continue;
@@ -403,7 +402,7 @@ public class VCFPredictions extends Launcher
 	
 	private  boolean isSimpleBase(final Allele a)
 		{
-		if(a.isSymbolic()) return false;
+		if(a.isSymbolic() || a.isNoCall()) return false;
 		final String s=a.getBaseString();
 		if(s.length()!=1) return false;
 		switch(s.charAt(0))
@@ -497,10 +496,10 @@ public class VCFPredictions extends Launcher
 		final SequenceOntologyTree.Term _500bp_downstream_variant=soTree.getTermByAcn("SO:0001634");
 		
 		
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		while(r.hasNext())
 			{
-			final VariantContext ctx=progress.watch(r.next());
+			final VariantContext ctx=progress.apply(r.next());
 			final String normalizedContig=contigNameConverter.apply(ctx.getContig());
 			final List<KnownGene> genes=new ArrayList<>();
 			
@@ -892,7 +891,7 @@ public class VCFPredictions extends Launcher
 			vb.attribute(thetag, info.toArray());
 			w.add(vb.make());
 			}
-		
+		progress.close();
 		return RETURN_OK;
 		} catch(Exception err ) {
 			LOG.error(err);

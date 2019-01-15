@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -98,7 +98,7 @@ END_DOC
 @Program(name="bamstats04",
 	description="Coverage statistics for a BED file.",
 	keywords={"sam","bam","coverage","depth","statistics","bed"},
-	biostars= {309673}
+	biostars= {309673,348251}
 	)
 public class BamStats04 extends Launcher
 	{

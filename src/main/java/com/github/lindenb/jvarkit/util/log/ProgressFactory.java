@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -274,7 +274,7 @@ private static class WatcherImpl<T extends Locatable>
 		final long numBasesRemains=Math.max(0,referenceLength-numBasesDone);
 		
 		final double percentDone=numBasesDone/(double)this.referenceLength;
-		final double millisecPerBase=(double)(diff_millisec)/numBasesDone;
+		final double millisecPerBase=(double)(now-this.startMillisec)/numBasesDone;
 		final long timeRemain=(long)(numBasesRemains*millisecPerBase);
 		
 		

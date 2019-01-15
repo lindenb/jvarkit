@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2018 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,6 +48,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -85,12 +87,11 @@ public class NoZeroVariationVCF extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx = null;
+	@Parameter(names={"-R","-r","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION)
+	private ReferenceFileSupplier referenceFileSupplier = ReferenceFileSupplier.getDefaultReferenceFileSupplier();
 	@Parameter(names={"-f","--filter"},description="FILTER name")
 	private String filter = "FAKESNP";
 	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
 	
 	@Override
 	protected int doVcfToVcf(
@@ -98,132 +99,124 @@ public class NoZeroVariationVCF extends Launcher
 			final VcfIterator in,
 			final VariantContextWriter out
 			) {
-		final VCFHeader header=in.getHeader();
-		if(in.hasNext())
-			{
-			LOG.info("found a variant in VCF.");
-			VCFUtils.copyHeaderAndVariantsTo(in, out);
-			}
-		else
-			{
-			LOG.info("no a variant in VCF. Creating a fake Variant");
-			final Set<VCFHeaderLine> meta = new HashSet<>();
-			
-			meta.add(new VCFFilterHeaderLine(this.filter, "Fake SNP created because vcf input was empty."));
-			meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
-			meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY,true));
-			meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY,true));
-			
-			
-			
-			for(final VCFHeaderLine L:meta) header.addMetaDataLine(L);
-			out.writeHeader(header);
-			final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
-			if(dict==null || dict.isEmpty())
-				{
-				throw new JvarkitException.FastaDictionaryMissing(this.faidx);
-				}
-			//choose random chrom, best is 'random' , but not 1...23,X,Y, etc...
-			String chrom=dict.getSequence(0).getSequenceName();
-			
-			for(final SAMSequenceRecord ssr:dict.getSequences())
-				{
-				final String ssn=ssr.getSequenceName();
-				if(ssn.contains("_")) { chrom=ssn; break;}
-				}
-			
-			for(final SAMSequenceRecord ssr:dict.getSequences())
-				{
-				final String ssn=ssr.getSequenceName();
-				if(ssn.toLowerCase().contains("random")) { chrom=ssn; break;}
-				if(ssn.toLowerCase().contains("gl")) { chrom=ssn; break;}
-				}
-			
-			GenomicSequence gseq=new GenomicSequence(this.indexedFastaSequenceFile,
-					chrom
-					);
-			char ref='N';
-			char alt='N';
-			int POS=0;
-			for(POS=0;POS< gseq.length();++POS)
-				{
-				ref=Character.toUpperCase(gseq.charAt(POS));
-				if(ref=='N') continue;
-				switch(ref)
+			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+			try {
+				final File faidx = this.referenceFileSupplier.getRequired();
+				 indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
+		
+				final VCFHeader header=in.getHeader();
+				if(in.hasNext())
 					{
-					case 'A': alt='T'; break;
-					case 'T': alt='G'; break;
-					case 'G': alt='C'; break;
-					case 'C': alt='A'; break;
-					default:break;
-					}
-				if(alt=='N') continue;
-				break;
-				}
-			if(alt=='N') throw new RuntimeException("found only N");
-			final VariantContextBuilder vcb=new VariantContextBuilder();
-			
-			final Allele a1=Allele.create((byte)ref,true);
-			final Allele a2=Allele.create((byte)alt,false);
-			final List<Allele> la1a2=new ArrayList<Allele>(2);
-			la1a2.add(a1);
-			la1a2.add(a2);
-			
-			final List<Genotype> genotypes=new ArrayList<Genotype>(header.getSampleNamesInOrder().size());
-
-			vcb.chr(gseq.getChrom());
-			vcb.start(POS+1);
-			vcb.stop(POS+1);
-			vcb.filter("FAKESNP");
-			vcb.alleles(la1a2);
-			vcb.log10PError(-0.1);
-			for(final String sample:header.getSampleNamesInOrder())
-				{
-				final GenotypeBuilder gb=new GenotypeBuilder(sample);
-				
-				if(genotypes.isEmpty()) {
-					gb.DP(1);
-					gb.GQ(1);
-					gb.alleles(la1a2);
-					gb.noAD();
-					gb.noPL();
-					genotypes.add(gb.make());
+					LOG.info("found a variant in VCF.");
+					VCFUtils.copyHeaderAndVariantsTo(in, out);
 					}
 				else
 					{
-					genotypes.add(GenotypeBuilder.createMissing(sample, 2));
+					LOG.info("no a variant in VCF. Creating a fake Variant");
+					final Set<VCFHeaderLine> meta = new HashSet<>();
+					
+					meta.add(new VCFFilterHeaderLine(this.filter, "Fake SNP created because vcf input was empty."));
+					meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
+					meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY,true));
+					meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY,true));
+					
+					
+					
+					for(final VCFHeaderLine L:meta) header.addMetaDataLine(L);
+					out.writeHeader(header);
+					final SAMSequenceDictionary dict= indexedFastaSequenceFile.getSequenceDictionary();
+					if(dict==null || dict.isEmpty())
+						{
+						throw new JvarkitException.FastaDictionaryMissing(faidx);
+						}
+					//choose random chrom, best is 'random' , but not 1...23,X,Y, etc...
+					String chrom=dict.getSequence(0).getSequenceName();
+					
+					for(final SAMSequenceRecord ssr:dict.getSequences())
+						{
+						final String ssn=ssr.getSequenceName();
+						if(ssn.contains("_")) { chrom=ssn; break;}
+						}
+					
+					for(final SAMSequenceRecord ssr:dict.getSequences())
+						{
+						final String ssn=ssr.getSequenceName();
+						if(ssn.toLowerCase().contains("random")) { chrom=ssn; break;}
+						if(ssn.toLowerCase().contains("gl")) { chrom=ssn; break;}
+						}
+					
+					GenomicSequence gseq=new GenomicSequence(indexedFastaSequenceFile,
+							chrom
+							);
+					char ref='N';
+					char alt='N';
+					int POS=0;
+					for(POS=0;POS< gseq.length();++POS)
+						{
+						ref=Character.toUpperCase(gseq.charAt(POS));
+						if(ref=='N') continue;
+						switch(ref)
+							{
+							case 'A': alt='T'; break;
+							case 'T': alt='G'; break;
+							case 'G': alt='C'; break;
+							case 'C': alt='A'; break;
+							default:break;
+							}
+						if(alt=='N') continue;
+						break;
+						}
+					if(alt=='N') throw new RuntimeException("found only N");
+					final VariantContextBuilder vcb=new VariantContextBuilder();
+					
+					final Allele a1=Allele.create((byte)ref,true);
+					final Allele a2=Allele.create((byte)alt,false);
+					final List<Allele> la1a2= Arrays.asList(a1,a2);
+					
+					final List<Genotype> genotypes=new ArrayList<Genotype>(header.getSampleNamesInOrder().size());
+		
+					vcb.chr(gseq.getChrom());
+					vcb.start(POS+1);
+					vcb.stop(POS+1);
+					vcb.filter(this.filter);
+					vcb.alleles(la1a2);
+					vcb.log10PError(-0.1);
+					for(final String sample:header.getSampleNamesInOrder())
+						{
+						final GenotypeBuilder gb=new GenotypeBuilder(sample);
+						
+						if(genotypes.isEmpty()) {
+							gb.DP(0);
+							gb.GQ(0);
+							gb.alleles(la1a2);
+							gb.AD(new int[]{0,0});
+							gb.noPL();
+							genotypes.add(gb.make());
+							}
+						else
+							{
+							genotypes.add(GenotypeBuilder.createMissing(sample, 2));
+							}
+						}
+					vcb.genotypes(genotypes);
+					vcb.noID();
+					out.add(vcb.make());
 					}
+				return 0;
 				}
-			vcb.genotypes(genotypes);
-			vcb.noID();
-			out.add(vcb.make());
+		catch(final Exception err) {
+			LOG.error(err);
+			return -1;
 			}
-		return 0;
+		finally {
+			CloserUtil.close(indexedFastaSequenceFile);
+			indexedFastaSequenceFile =null;
+			}
+		
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		
-		if(this.faidx==null)
-			{
-			LOG.error("Indexed fasta file missing.");
-			return -1;
-			}
-		try
-			{
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
-			
-			return doVcfToVcf(args,this.outputFile);
-			}
-		catch(final Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}	
-		finally
-			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			this.indexedFastaSequenceFile =null;
-			}
+		return doVcfToVcf(args,this.outputFile);
 		}
 
 	public static void main(final String[] args)

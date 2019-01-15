@@ -1,5 +1,7 @@
 # VcfInjectPedigree
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Injects a pedigree (.ped) file in the VCF header
 
 
@@ -52,11 +54,10 @@ Usage: vcfinjectpedigree [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -86,24 +87,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfInjectPedigree.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
-Thu Sep 7 17:40:15 2017 +0200 ; move vcffilterso to spring ; https://github.com/lindenb/jvarkit/commit/21b527faa9f615f0eb8d479e42efa2b8bfe6dcce
-Thu Sep 7 15:26:22 2017 +0200 ; adding unit test with testng ; https://github.com/lindenb/jvarkit/commit/980b8937646e706a83b10f6b1ceeb015f37bbcc1
-Wed Sep 6 18:09:53 2017 +0200 ; moving to spring xml component ; https://github.com/lindenb/jvarkit/commit/2a697f0a6ac81ad0975fedd43ca2ff916f2920f0
-Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
-Thu Jun 22 13:16:05 2017 +0200 ; vcfloopovergenes ; https://github.com/lindenb/jvarkit/commit/aa4a6f29c853efddcee5678f9441d9994a2deee6
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Tue May 9 20:36:16 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/517cc3660251857061fa955cce5c8e07362c5bee
-Mon Apr 18 17:34:40 2016 +0200 ; cnot burden ; https://github.com/lindenb/jvarkit/commit/e0403a175b479d9e8bec1ced1e3f35715f404ad8
-Fri Apr 15 17:09:59 2016 +0200 ; inject pedigree ; https://github.com/lindenb/jvarkit/commit/f9a18a1ce155a78b2e430d8d7860d0cab8f33722
-```
-
-</details>
 
 ## Contribute
 

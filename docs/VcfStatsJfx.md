@@ -70,6 +70,7 @@ Usage: vcfstatsjfx [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/308310](https://www.biostars.org/p/308310)
+ * [https://www.biostars.org/p/353051](https://www.biostars.org/p/353051)
 
 
 ## Compilation

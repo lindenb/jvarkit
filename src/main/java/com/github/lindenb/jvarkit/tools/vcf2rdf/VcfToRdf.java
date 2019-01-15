@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2014 Pierre Lindenbaum
+Copyright (c) 2019 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -71,16 +71,11 @@ BEGIN_DOC
 
 
 ```
-
 $  java -jar dist/vcf2rdf.jar < in.vcf | xmllint --format -
-
 ```
 
 
-
-
-```
-
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:vcf="http://github.com/lindenb/jvarkit/" xmlns:xsd="http://www.w3.org/2001/XMLSchema#">
   <vcf:Chromosome rdf:about="urn:chromosome/1">
@@ -273,9 +268,7 @@ $  java -jar dist/vcf2rdf.jar < in.vcf | xmllint --format -
     <vcf:pl>3734,0,3449</vcf:pl>
   </vcf:Genotype>
 </rdf:RDF>
-
 ```
-
 
 
 ### Example
