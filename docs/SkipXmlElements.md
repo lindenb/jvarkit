@@ -1,5 +1,7 @@
 # SkipXmlElements
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filter XML elements with a javascript  (java rhino) expression. Context contain 'element' the current element. It implementsthe interface Tag described in  SkipXmlElements.class
 
 
@@ -35,11 +37,10 @@ Usage: skipxmlelements [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -69,20 +70,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SkipXmlElements.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SkipXmlElements.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Thu May 4 13:06:07 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/b2f8f945cb8838c0289a7d850ce24603417eccde
-Thu Mar 12 22:50:18 2015 +0100 ; update pubmed dtd ; https://github.com/lindenb/jvarkit/commit/4abe0d0393b545f4138ca22dbbd328210f32f697
-Thu Mar 5 17:39:59 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/f46d3dd4db827d4cc35dea1e7ffc94e0b0c276d0
-Wed Mar 4 23:12:33 2015 +0100 ; keep element and descendant ; https://github.com/lindenb/jvarkit/commit/ec2325d2e4dcacaf797ea757b215a0dca0c73d39
-Wed Mar 4 19:02:01 2015 +0100 ; a program to filter XML stream using a javascript expression . Used to reduce the size of the stream before XSLT. #tweet ; https://github.com/lindenb/jvarkit/commit/08daf63a706921a6440d7145f5e74c30240d0444
-```
-
-</details>
 
 ## Contribute
 

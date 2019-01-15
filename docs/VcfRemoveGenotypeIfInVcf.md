@@ -1,5 +1,7 @@
 # VcfRemoveGenotypeIfInVcf
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix
 
 
@@ -36,11 +38,10 @@ Usage: vcfresetvcf [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -70,22 +71,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRemoveGenotypeIfInVcf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRemoveGenotypeIfInVcf.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
-Fri May 12 19:41:30 2017 +0200 ; fix make, empty doc ; https://github.com/lindenb/jvarkit/commit/52fcf6d46a779fd7153ebc032fae643d2e266e7e
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Tue Apr 25 17:33:00 2017 +0200 ; fix make ; https://github.com/lindenb/jvarkit/commit/621fdfbe039f474e187e8f5c67ff17b368b77289
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Mon Feb 9 16:09:26 2015 +0100 ; increment missing ; https://github.com/lindenb/jvarkit/commit/2e99719b810b2da1874fcb44bcbe0819ea5ed6ed
-Fri Feb 6 10:42:46 2015 +0100 ; keep genotype if it contains unknown ALT #tweet ; https://github.com/lindenb/jvarkit/commit/1c038db0b5ec34adac0eb4b314772333a5300f21
-Thu Feb 5 17:18:05 2015 +0100 ; Reset Genotypes in a VCF if ALT found in another VCF #tweet ; https://github.com/lindenb/jvarkit/commit/70fc067324b36b50b37d7def077e632043c049bc
-```
-
-</details>
 
 ## Contribute
 

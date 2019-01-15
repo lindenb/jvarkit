@@ -1,5 +1,7 @@
 # CompareBamAndBuild
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Compare two  BAM files mapped on two different builds. Requires a liftover chain file
 
 
@@ -37,11 +39,10 @@ Usage: cmpbamsandbuild [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -71,22 +72,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBamAndBuild.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBamAndBuild.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri Jun 2 16:31:30 2017 +0200 ; circos / lumpy ; https://github.com/lindenb/jvarkit/commit/7bddffca3899196e568fb5e1a479300c0038f74f
-Thu May 11 10:59:12 2017 +0200 ; samcolortag ; https://github.com/lindenb/jvarkit/commit/dfd3239dc49af52966e2259bf0a5f52dd34aac8e
-Tue Apr 18 13:24:50 2017 +0200 ; cont-cleanup ; https://github.com/lindenb/jvarkit/commit/a86c8971fe5ebb3f8de175c75e78f2d0e5325cfd
-Tue Dec 6 17:34:29 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/41a44d15844a7de5fa8ac856b9465454a105e18c
-Mon Jun 15 17:24:26 2015 +0200 ; vep as xml base 64 ; https://github.com/lindenb/jvarkit/commit/d629603576c14a970208c9599b39ecb2a8b39994
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Fri Mar 7 18:02:00 2014 +0100 ; compare bam/build ; https://github.com/lindenb/jvarkit/commit/6897d7ce8013c9e4bf3669218e58a7dfeb87d8ab
-```
-
-</details>
 
 ## Contribute
 

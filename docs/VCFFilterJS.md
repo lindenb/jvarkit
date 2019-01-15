@@ -1,5 +1,7 @@
 # VCFFilterJS
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filtering VCF with javascript expressions
 
 
@@ -72,11 +74,10 @@ Usage: vcffilterjs [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -106,47 +107,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VCFFilterJS.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VCFFilterJS.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Oct 4 14:04:58 2017 +0200 ; hidding git history in markdown details ; https://github.com/lindenb/jvarkit/commit/74a86447414541ffc90d6b7b50c3794aaf5159fa
-Wed Oct 4 09:14:09 2017 +0200 ; fix doc vcffilterjs ; https://github.com/lindenb/jvarkit/commit/0e5bf94b941fc09af78e76f1adb3c1bf82ff00f2
-Tue Aug 8 17:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/2d33719edc69a979a2b6366351ca6f0b59959755
-Thu Jul 6 17:31:09 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a0eaa65f9197fd51d1c495c7ed3c65f43a06aa9c
-Wed Jul 5 11:08:10 2017 +0200 ; vcffilterjdk ; https://github.com/lindenb/jvarkit/commit/b25cc45aa3a057f0dad46f0d83669bc88cc95e0c
-Thu May 18 10:38:01 2017 +0200 ; vcfilterjs ; https://github.com/lindenb/jvarkit/commit/437e95c1e567ec25812c12608f3df409f24c2fa1
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Sat May 13 16:29:30 2017 +0200 ; alpha bam2raster ; https://github.com/lindenb/jvarkit/commit/460cb09e79dfa5207d6bd38f79aa5f9fed158663
-Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
-Fri May 5 15:06:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4d2bbfed84609bdf14eb1b14a35ab24eb8ad5b26
-Thu May 4 14:27:36 2017 +0200 ; fix make ; https://github.com/lindenb/jvarkit/commit/044933b2091b68f3241c60c85de5dd605ae02756
-Wed Feb 22 19:07:03 2017 +0100 ; refactor prediction parsers ; https://github.com/lindenb/jvarkit/commit/dc7f7797c60d63cd09d3b7712fb81033cd7022cb
-Thu Jul 7 17:21:44 2016 +0200 ; json, filterjs,... ; https://github.com/lindenb/jvarkit/commit/96ec92c986ddd3a75ab1a9b72b12e82b0df50959
-Fri Feb 19 17:36:28 2016 +0100 ; .github dir , filter in js , grantham score ; https://github.com/lindenb/jvarkit/commit/94d74481e3e488aeb890235cee47c595229cf18b
-Fri Feb 19 09:41:06 2016 +0100 ; added option -Filter to vcffilterjs ; https://github.com/lindenb/jvarkit/commit/0c40527a6f551d0685612994659df3151a3c2388
-Sun Jan 24 17:22:56 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/85ccc09cf03e49ad647c27ecdca999b48ac8a16b
-Fri Nov 27 15:22:25 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/04a83d5b9f0e69fd2f7087e519b0de3e2b4f9863
-Tue Nov 3 22:42:18 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/4e4a9319be20626f0ea01dc2316c6420ba8e7dac
-Thu Apr 23 14:49:03 2015 +0200 ; https://github.com/lindenb/jvarkit/wiki/VCFJoinVcfJS a tool joining VCFs using javascript expressions #tweet ; https://github.com/lindenb/jvarkit/commit/3bfe1131ce5990276125635f46baa6cd4cdbd859
-Thu Mar 12 16:57:07 2015 +0100 ; tool to compare VCF with one sample called with multiple methods #tweet ; https://github.com/lindenb/jvarkit/commit/351c259dc9f1d8bebab19b3dc57fc6a610257542
-Fri Feb 20 17:50:08 2015 +0100 ; continue integration in knime ; https://github.com/lindenb/jvarkit/commit/5693e07342a30f21c807a4e3a655e3446019458f
-Fri Feb 20 14:34:17 2015 +0100 ; VCF javascript filter now injects VEP and SNPEFF predictions #tweet ; https://github.com/lindenb/jvarkit/commit/3154597d00319846474f41c05cbe3266acd8cd3d
-Tue Feb 10 18:27:20 2015 +0100 ; making things available from knime ; https://github.com/lindenb/jvarkit/commit/4f34ad10912b09507bb14dadbe6b5b36808b0165
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Fri Dec 13 10:44:23 2013 +0100 ; vcf-js moved to argc/argv ; https://github.com/lindenb/jvarkit/commit/c0f97684b04f20a8509d5c8bde3d031a0366031a
-Fri Oct 11 15:39:02 2013 +0200 ; picard v.100: deletion of VcfIterator :-( ; https://github.com/lindenb/jvarkit/commit/e88fab449b04aed40c2ff7f9d0cf8c8b6ab14a31
-Fri Sep 6 15:11:11 2013 +0200 ; moved code for latest version of picard (1.97). Using VCFIterator instead of ASciiLineReader ; https://github.com/lindenb/jvarkit/commit/810877c10406a017fd5a31dacff7e8401089d429
-Sun Jul 21 14:17:59 2013 +0200 ; vcf trios, added git HASH in METAINF/Manifest ; https://github.com/lindenb/jvarkit/commit/1854d3695563b91471861164f5e8903042493470
-Wed Jul 17 17:19:54 2013 +0200 ; many things, updating code, moving sources... ; https://github.com/lindenb/jvarkit/commit/e81829c941f1d0a4ae8334f463ab5cf8ea740c07
-Wed Jun 5 19:01:41 2013 +0200 ; aln format ; https://github.com/lindenb/jvarkit/commit/7c5a24f5ea82dbc9c66e8d538a00e008e5f6f97e
-Sun May 26 18:21:21 2013 +0200 ; README ; https://github.com/lindenb/jvarkit/commit/b391000b3b9d63da9b6faa519adc56b33c6ce546
-Sun May 26 17:45:59 2013 +0200 ; filter js ; https://github.com/lindenb/jvarkit/commit/0bde0696a866f4f4c8bb2d489a34dd24b257a205
-```
-
-</details>
 
 ## Contribute
 

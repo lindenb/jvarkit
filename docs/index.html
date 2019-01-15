@@ -42,7 +42,7 @@
 <tr id="vcfin"><th><a href="VcfIn.html" title="VcfIn">vcfin</a></th><td>Only prints variants that are contained/not contained into another VCF</td><td>vcf compare</td><td/><td/></tr>
 <tr id="vcfpredictions"><th><a href="VCFPredictions.html" title="VCFPredictions">vcfpredictions</a></th><td>Basic Variant Effect prediction using ucsc-known gene</td><td>vcf annotation prediction</td><td/><td/></tr>
 <tr id="vcffilterso"><th><a href="VcfFilterSequenceOntology.html" title="VcfFilterSequenceOntology">vcffilterso</a></th><td>Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.&lt;</td><td>vcf filter sequenceontology prediction so</td><td/><td/></tr>
-<tr id="vcffilterjs"><th><a href="VCFFilterJS.html" title="VCFFilterJS">vcffilterjs</a></th><td>Filtering VCF with javascript expressions</td><td>vcf filter javascript json nashorn</td><td>[ID:0000003]i_use_it_regularly</td><td/></tr>
+<tr id="vcffilterjs"><th><a href="VCFFilterJS.html" title="VCFFilterJS">vcffilterjs</a></th><td>Filtering VCF with javascript expressions</td><td>vcf filter javascript json nashorn</td><td/><td/></tr>
 <tr id="vcfpolyx"><th><a href="VCFPolyX.html" title="VCFPolyX">vcfpolyx</a></th><td>Number of repeated REF bases around POS.</td><td>vcf repeat</td><td/><td/></tr>
 <tr id="vcfbed"><th><a href="VCFBed.html" title="VCFBed">vcfbed</a></th><td>Transfer information from a BED to a VCF</td><td>bed vcf annotation</td><td/><td/></tr>
 <tr id="vcftrio"><th><a href="VCFTrios.html" title="VCFTrios">vcftrio</a></th><td>Find mendelian incompatibilitie / denovo variants in a VCF</td><td>vcf mendelian pedigree denovo</td><td/><td/></tr>
@@ -88,23 +88,22 @@
 <tr id="cmpbamsandbuild"><th><a href="CompareBamAndBuild.html" title="CompareBamAndBuild">cmpbamsandbuild</a></th><td>Compare two  BAM files mapped on two different builds. Requires a liftover chain file</td><td/><td/><td/></tr>
 <tr id="coveragenormalizer"><th><a href="CoverageNormalizer.html" title="CoverageNormalizer">coveragenormalizer</a></th><td>normalize BAM coverage</td><td/><td/><td/></tr>
 <tr id="downsamplevcf"><th><a href="DownSampleVcf.html" title="DownSampleVcf">downsamplevcf</a></th><td>DownSample a VCF. Will keep 'n' random variants in a vcf.</td><td>vcf</td><td/><td/></tr>
-<tr id="evs2bed"><th><a href="DumpExomeVariantServerData.html" title="DumpExomeVariantServerData">evs2bed</a></th><td>Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.</td><td/><td/><td/></tr>
 <tr id="evs2vcf"><th><a href="EvsToVcf.html" title="EvsToVcf">evs2vcf</a></th><td>Download data from EVS http://evs.gs.washington.edu/EVS as a BED chrom/start/end/XML For later use, see VCFTabixml.</td><td/><td/><td/></tr>
 <tr id="evsdumpxml"><th><a href="EvsDumpXml.html" title="EvsDumpXml">evsdumpxml</a></th><td>Download data from EVS http://evs.gs.washington.edu/EVS as XML file.</td><td/><td/><td/></tr>
 <tr id="fastq2fasta"><th><a href="FastqToFasta.html" title="FastqToFasta">fastq2fasta</a></th><td>fastq -&gt; fasta</td><td>fastq fasta</td><td/><td><span style="color:orange;" title="deprecated">use awk, samtools...</span>. </td></tr>
 <tr id="kg2bed"><th><a href="KnownGenesToBed.html" title="KnownGenesToBed">kg2bed</a></th><td>converts UCSC knownGenes file to BED.</td><td>ucsc bed knownGenes</td><td/><td/></tr>
-<tr id="fastqentropy"><th><a href="FastqEntropy.html" title="FastqEntropy">fastqentropy</a></th><td>Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))</td><td>fastq</td><td>[ID:0000005]unmaintained</td><td/></tr>
+<tr id="fastqentropy"><th><a href="FastqEntropy.html" title="FastqEntropy">fastqentropy</a></th><td>Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))</td><td>fastq</td><td/><td/></tr>
 <tr id="fastqgrep"><th><a href="FastqGrep.html" title="FastqGrep">fastqgrep</a></th><td>Grep reads names in fastq</td><td>fastq</td><td/><td><span style="color:orange;" title="deprecated">use picard</span>. </td></tr>
-<tr id="fastqjs"><th><a href="FastqJavascript.html" title="FastqJavascript">fastqjs</a></th><td>Filters a FASTQ file using javascript( java nashorn engine). </td><td>fastq</td><td>[ID:0000005]unmaintained</td><td/></tr>
-<tr id="fastqphred64to33"><th><a href="ConvertPhred64toFastq33.html" title="ConvertPhred64toFastq33">fastqphred64to33</a></th><td>Convert Illumina Fastq 64 encoding to Fastq 33</td><td>fastq</td><td>[ID:0000005]unmaintained</td><td/></tr>
+<tr id="fastqjs"><th><a href="FastqJavascript.html" title="FastqJavascript">fastqjs</a></th><td>Filters a FASTQ file using javascript( java nashorn engine). </td><td>fastq</td><td/><td/></tr>
+<tr id="fastqphred64to33"><th><a href="ConvertPhred64toFastq33.html" title="ConvertPhred64toFastq33">fastqphred64to33</a></th><td>Convert Illumina Fastq 64 encoding to Fastq 33</td><td>fastq</td><td/><td/></tr>
 <tr id="fastqrevcomp"><th><a href="FastqRevComp.html" title="FastqRevComp">fastqrevcomp</a></th><td>produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )</td><td>fastq</td><td/><td/></tr>
-<tr id="fastqshuffle"><th><a href="FastqShuffle.html" title="FastqShuffle">fastqshuffle</a></th><td>Shuffle Fastq files</td><td>fastq</td><td>[ID:0000005]unmaintained</td><td/></tr>
-<tr id="fastqsplitinterleaved"><th><a href="FastqSplitInterleaved.html" title="FastqSplitInterleaved">fastqsplitinterleaved</a></th><td>Split interleaved Fastq files.</td><td>fastq</td><td>[ID:0000005]unmaintained</td><td/></tr>
+<tr id="fastqshuffle"><th><a href="FastqShuffle.html" title="FastqShuffle">fastqshuffle</a></th><td>Shuffle Fastq files</td><td>fastq</td><td/><td/></tr>
+<tr id="fastqsplitinterleaved"><th><a href="FastqSplitInterleaved.html" title="FastqSplitInterleaved">fastqsplitinterleaved</a></th><td>Split interleaved Fastq files.</td><td>fastq</td><td/><td/></tr>
 <tr id="findallcoverageatposition"><th><a href="FindAllCoverageAtPosition.html" title="FindAllCoverageAtPosition">findallcoverageatposition</a></th><td>Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?</td><td>bam coverage search depth</td><td/><td/></tr>
 <tr id="findavariation"><th><a href="FindAVariation.html" title="FindAVariation">findavariation</a></th><td>Finds a specific mutation in a list of VCF files</td><td>vcf variation search</td><td/><td/></tr>
 <tr id="findcorruptedfiles"><th><a href="FindCorruptedFiles.html" title="FindCorruptedFiles">findcorruptedfiles</a></th><td>Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)</td><td>vcf bam fastq bed</td><td/><td/></tr>
-<tr id="findmyvirus"><th><a href="FindMyVirus.html" title="FindMyVirus">findmyvirus</a></th><td>Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS. </td><td/><td/><td/></tr>
-<tr id="findnewsplicesites"><th><a href="FindNewSpliceSites.html" title="FindNewSpliceSites">findnewsplicesites</a></th><td>use the 'N' operator in the cigar string to find unknown splice sites</td><td>rnaseq splice</td><td>[ID:0000008]it_was_a_one_shot</td><td/></tr>
+<tr id="findmyvirus"><th><a href="FindMyVirus.html" title="FindMyVirus">findmyvirus</a></th><td>Find my Virus. Created for Adrien Inserm. Proportion of reads mapped on HOST/VIRUS.</td><td>bam virus</td><td/><td/></tr>
+<tr id="findnewsplicesites"><th><a href="FindNewSpliceSites.html" title="FindNewSpliceSites">findnewsplicesites</a></th><td>use the 'N' operator in the cigar string to find unknown splice sites</td><td>rnaseq splice</td><td/><td/></tr>
 <tr id="fixvarscanmissingheader "><th><a href="FixVarScanMissingVCFHeader.html" title="FixVarScanMissingVCFHeader">fixvarscanmissingheader </a></th><td>Fix the sample name in the #CHROM header and fix VCF header missingh in varscan2. Sometimes, but not always, it happends. See  http://seqanswers.com/forums/showthread.php?t=33235 </td><td/><td/><td/></tr>
 <tr id="fixvcf"><th><a href="FixVCF.html" title="FixVCF">fixvcf</a></th><td>Fix a VCF if INFO or FILTER are missing</td><td/><td/><td/></tr>
 <tr id="fixvcfformat"><th><a href="FixVcfFormat.html" title="FixVcfFormat">fixvcfformat</a></th><td>Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453</td><td/><td/><td/></tr>
@@ -122,7 +121,7 @@
 <tr id="samjmx"><th><a href="SamJmx.html" title="SamJmx">samjmx</a></th><td>Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html</td><td>sam bam jmx monitoring</td><td/><td/></tr>
 <tr id="ngsfilessummary"><th><a href="NgsFilesSummary.html" title="NgsFilesSummary">ngsfilessummary</a></th><td>Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples.</td><td>sam bam vcf util</td><td/><td/></tr>
 <tr id="noemptyvcf"><th><a href="NoEmptyVCF.html" title="NoEmptyVCF">noemptyvcf</a></th><td>If VCF is empty or doesn't exists, create a dummy one</td><td/><td/><td><span style="color:orange;" title="deprecated">Was developped at the time where VEP didn't send an output if there was no variant, just a header in the source vcf.</span>. </td></tr>
-<tr id="nozerovariationvcf"><th><a href="NoZeroVariationVCF.html" title="NoZeroVariationVCF">nozerovariationvcf</a></th><td>cat a whole VCF, or, if there is no variant, creates a fake one</td><td/><td/><td/></tr>
+<tr id="nozerovariationvcf"><th><a href="NoZeroVariationVCF.html" title="NoZeroVariationVCF">nozerovariationvcf</a></th><td>cat a whole VCF, or, if there is no variant, creates a fake one</td><td>vcf</td><td/><td/></tr>
 <tr id="pademptyfastq"><th><a href="PadEmptyFastq.html" title="PadEmptyFastq">pademptyfastq</a></th><td>Pad empty fastq sequence/qual with N/#</td><td>fastq</td><td/><td><span style="color:orange;" title="deprecated">use awk</span>. </td></tr>
 <tr id="pubmeddump"><th><a href="PubmedDump.html" title="PubmedDump">pubmeddump</a></th><td>Dump XML results from pubmed/Eutils</td><td>ncbi pubmed xml</td><td/><td/></tr>
 <tr id="pubmedorcidgraph"><th><a href="PubmedOrcidGraph.html" title="PubmedOrcidGraph">pubmedorcidgraph</a></th><td>Creates a graph from Pubmed and Authors' Orcid identifiers</td><td>pubmed ncbi orcid</td><td/><td/></tr>
@@ -171,7 +170,7 @@
 <tr id="vcfstripannot"><th><a href="VCFStripAnnotations.html" title="VCFStripAnnotations">vcfstripannot</a></th><td>Removes one or more field from the INFO/FORMAT column of a VCF.</td><td>vcf</td><td/><td><span style="color:orange;" title="deprecated">Use bcftools annotate -x </span>. </td></tr>
 <tr id="vcftabixml"><th><a href="VCFTabixml.html" title="VCFTabixml">vcftabixml</a></th><td> annotate a value from a vcf+xml file</td><td>vcf xml</td><td/><td/></tr>
 <tr id="vcfvcf"><th><a href="VcfVcf.html" title="VcfVcf">vcfvcf</a></th><td>Get the INFO from a VCF and use it for another VCF</td><td/><td/><td><span style="color:orange;" title="deprecated">obsolete. use GATK</span>. </td></tr>
-<tr id="worldmapgenome"><th><a href="WorldMapGenome.html" title="WorldMapGenome">worldmapgenome</a></th><td>Genome/Map of the world. Input is a BED file: chrom/start/end/country.</td><td>gis</td><td>[ID:0000017]just_a_proof_of_concept</td><td/></tr>
+<tr id="worldmapgenome"><th><a href="WorldMapGenome.html" title="WorldMapGenome">worldmapgenome</a></th><td>Genome/Map of the world. Input is a BED file: chrom/start/end/country.</td><td>gis</td><td/><td/></tr>
 <tr id="uniprotfilterjs"><th><a href="UniprotFilterJS.html" title="UniprotFilterJS">uniprotfilterjs</a></th><td>Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. Context contain 'entry' an uniprot entry and 'index', the index in the XML file.</td><td>unitprot javascript xjc xml</td><td/><td/></tr>
 <tr id="skipxmlelements"><th><a href="SkipXmlElements.html" title="SkipXmlElements">skipxmlelements</a></th><td>Filter XML elements with a javascript  (java rhino) expression. Context contain 'element' the current element. It implementsthe interface Tag described in  SkipXmlElements.class</td><td>xml javascript</td><td/><td/></tr>
 <tr id="vcfensemblvep"><th><a href="VcfEnsemblVepRest.html" title="VcfEnsemblVepRest">vcfensemblvep</a></th><td>Annotate a VCF with ensembl REST API</td><td>vcf annotation rest ensembl xml xslt xsl</td><td/><td/></tr>
@@ -188,7 +187,7 @@
 <tr id="vcf2bam"><th><a href="VcfToBam.html" title="VcfToBam">vcf2bam</a></th><td>vcf to bam</td><td>ref vcf bam</td><td/><td/></tr>
 <tr id="vcffilterxpath"><th><a href="VcfFilterXPath.html" title="VcfFilterXPath">vcffilterxpath</a></th><td>Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document</td><td>vcf xml xpath</td><td/><td/></tr>
 <tr id="biostar140111"><th><a href="Biostar140111.html" title="Biostar140111">biostar140111</a></th><td>How to obtain human genotype data from dpSNP ftp?</td><td/><td/><td/></tr>
-<tr id="extendrefwithreads"><th><a href="ExtendReferenceWithReads.html" title="ExtendReferenceWithReads">extendrefwithreads</a></th><td>Extending ends of sequences with the help of reads</td><td>read fastq reference sam bam</td><td>[ID:0000015]i_wrote_it_for_biostars</td><td/></tr>
+<tr id="extendrefwithreads"><th><a href="ExtendReferenceWithReads.html" title="ExtendReferenceWithReads">extendrefwithreads</a></th><td>Extending ends of sequences with the help of reads</td><td>read fastq reference sam bam</td><td/><td/></tr>
 <tr id="pcrslicereads"><th><a href="PcrSliceReads.html" title="PcrSliceReads">pcrslicereads</a></th><td>Mark PCR reads to their PCR amplicon</td><td>pcr sam bam cigar</td><td/><td/></tr>
 <tr id="vcfjmx"><th><a href="VcfJmx.html" title="VcfJmx">vcfjmx</a></th><td>Monitor/interrupt/break a VCF stream with java JMX http://www.oracle.com/technetwork/articles/java/javamanagement-140525.html</td><td>java jmx vcf</td><td/><td/></tr>
 <tr id="gtf2xml"><th><a href="Gtf2Xml.html" title="Gtf2Xml">gtf2xml</a></th><td>Convert GTF/GFF to XML</td><td>xml gtf gff</td><td/><td/></tr>
@@ -215,7 +214,7 @@
 <tr id="pubmedmap"><th><a href="PubmedMap.html" title="PubmedMap">pubmedmap</a></th><td>Use Pubmed Author's Affiliation to map the authors in the world.</td><td>pubmed xml gis map</td><td/><td/></tr>
 <tr id="splitvcf"><th><a href="SplitVcf.html" title="SplitVcf">splitvcf</a></th><td>split a vcf using a named list of intervals...</td><td>vcf</td><td/><td/></tr>
 <tr id="forkvcf"><th><a href="GBrowserHtml.html" title="GBrowserHtml">forkvcf</a></th><td>Fork a VCF.</td><td/><td/><td/></tr>
-<tr id="bim2vcf"><th><a href="BimToVcf.html" title="BimToVcf">bim2vcf</a></th><td>convert a .bim to a .vcf</td><td/><td/><td/></tr>
+<tr id="bim2vcf"><th><a href="BimToVcf.html" title="BimToVcf">bim2vcf</a></th><td>convert a .bim to a .vcf . For @FlorianeS44</td><td>bim vcf</td><td/><td/></tr>
 <tr id="concatsam"><th><a href="ConcatSam.html" title="ConcatSam">concatsam</a></th><td>concat sam files</td><td>sam bam</td><td/><td/></tr>
 <tr id="samreadlengthdistribution"><th><a href="SamReadLengthDistribution.html" title="SamReadLengthDistribution">samreadlengthdistribution</a></th><td>Sam read length distribution</td><td>sam bam histogram</td><td/><td/></tr>
 <tr id="biostar214299"><th><a href="Biostar214299.html" title="Biostar214299">biostar214299</a></th><td>Extract allele specific reads from bamfiles</td><td>sam bam variant snp</td><td/><td/></tr>
@@ -286,7 +285,7 @@
 <tr id="vcfbigwig"><th><a href="VCFBigWig.html" title="VCFBigWig">vcfbigwig</a></th><td>Annotate a VCF with values from a bigwig file</td><td>vcf wig wiggle bigwig</td><td/><td/></tr>
 <tr id="vcfnocall2homref"><th><a href="VcfNoCallToHomRef.html" title="VcfNoCallToHomRef">vcfnocall2homref</a></th><td>Convert the UNCALLED gentoypes in a VCF to HOM_REF. This tool can be used after using GATK CombineVariants.</td><td>vcf</td><td/><td/></tr>
 <tr id="gff2kg"><th><a href="Gff2KnownGene.html" title="Gff2KnownGene">gff2kg</a></th><td>Convert GFF3/GTF format to UCSC knownGene format.</td><td>gff ,gtf knownGene ucsc convert</td><td/><td/></tr>
-<tr id="minicaller"><th><a href="MiniCaller.html" title="MiniCaller">minicaller</a></th><td>Simple and Stupid Variant Caller designed for @AdrienLeger2</td><td>bam sam calling vcf</td><td>[ID:0000005]unmaintained</td><td/></tr>
+<tr id="minicaller"><th><a href="MiniCaller.html" title="MiniCaller">minicaller</a></th><td>Simple and Stupid Variant Caller designed for @AdrienLeger2</td><td>bam sam calling vcf</td><td/><td/></tr>
 <tr id="vcfoptimizeped4skat"><th><a href="VcfOptimizePedForSkat.html" title="VcfOptimizePedForSkat">vcfoptimizeped4skat</a></th><td>Optimize ped file for SKAT</td><td>vcf pedigree skat burden</td><td/><td/></tr>
 <tr id="vcfskatslidingwindow"><th><a href="VcfSkatSlidingWindow.html" title="VcfSkatSlidingWindow">vcfskatslidingwindow</a></th><td>SkatFactory Over genome using a sliding window.</td><td>vcf pedigree skat burden</td><td/><td/></tr>
 <tr id="vcfskat"><th><a href="VcfSkat.html" title="VcfSkat">vcfskat</a></th><td>Calculate SKAT score for a VCF.</td><td>vcf pedigree skat burden</td><td/><td/></tr>
@@ -310,7 +309,7 @@
 <tr id="vcfstatsjfx"><th><a href="VcfStatsJfx.html" title="VcfStatsJfx">vcfstatsjfx</a></th><td>GUI: VCF statistics</td><td>vcf stats jfx</td><td/><td/></tr>
 <tr id="vcfancestralalleles"><th><a href="VcfAncestralAllele.html" title="VcfAncestralAllele">vcfancestralalleles</a></th><td>Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README</td><td>vcf sort</td><td/><td/></tr>
 <tr id="vcfgo"><th><a href="VcfGeneOntology.html" title="VcfGeneOntology">vcfgo</a></th><td>Find the GO terms for VCF annotated with SNPEFF or VEP</td><td>vcf go</td><td/><td><span style="color:orange;" title="deprecated">do not use this</span>. </td></tr>
-<tr id="vcfcomparecallersonesample"><th><a href="VcfCompareCallersOneSample.html" title="VcfCompareCallersOneSample">vcfcomparecallersonesample</a></th><td>For my colleague Julien: VCF with one sample called using different callers. Only keep variant if it was found in min&lt;x=other-files&lt;=max</td><td/><td/><td/></tr>
+<tr id="vcfcomparecallersonesample"><th><a href="VcfCompareCallersOneSample.html" title="VcfCompareCallersOneSample">vcfcomparecallersonesample</a></th><td>For my colleague Julien: VCF with one sample called using different callers. Only keep variant if it was found in min&lt;x=other-files&lt;=max</td><td>vcf compare</td><td/><td/></tr>
 <tr id="bednonoverlappingset"><th><a href="BedNonOverlappingSet.html" title="BedNonOverlappingSet">bednonoverlappingset</a></th><td>Split a Bed file into non-overlapping data set.</td><td>bed</td><td/><td/></tr>
 <tr id="vcfafinfofilter"><th><a href="VcfAfInfoFilter.html" title="VcfAfInfoFilter">vcfafinfofilter</a></th><td>Filter VCF annotated with external (AF or AC/AN) frequency information like vcfgnomad</td><td>vcf annotation gnomad</td><td/><td/></tr>
 <tr id="biostar322664"><th><a href="Biostar322664.html" title="Biostar322664">biostar322664</a></th><td>Extract PE Reads (with their mates) supporting variants in vcf file</td><td>sam bam vcf</td><td/><td/></tr>
@@ -336,6 +335,10 @@
 <tr id="biostar352930"><th><a href="Biostar352930.html" title="Biostar352930">biostar352930</a></th><td>Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the same name carrying this information.</td><td>sam bam</td><td/><td/></tr>
 <tr id="pubmed404"><th><a href="Pubmed404.html" title="Pubmed404">pubmed404</a></th><td>Test if URL in the pubmed abstracts are reacheable.</td><td>pubmed url</td><td/><td/></tr>
 <tr id="vcfstrechofgt"><th><a href="VcfStretchOfGt.html" title="VcfStretchOfGt">vcfstrechofgt</a></th><td>Try to finds deletion by searching strech of HOM_REF/HOM_VAR/NO_CALL Genotypes.</td><td>vcf deletion</td><td/><td/></tr>
+<tr id="haloplexparasite"><th><a href="HaloplexParasite.html" title="HaloplexParasite">haloplexparasite</a></th><td>for @SolenaLS : remove artctifacts from haloplex that gives indels in GATK hapcaller </td><td>vcf haloplex</td><td/><td/></tr>
+<tr id="ngsfilesscanner"><th><a href="NgsFilesScanner.html" title="NgsFilesScanner">ngsfilesscanner</a></th><td>Build a persistent database of NGS file. Dump as XML.</td><td>ngs bam sam vcf xml</td><td/><td/></tr>
+<tr id="ngsworkflow"><th><a href="NgsWorkflow.html" title="NgsWorkflow">ngsworkflow</a></th><td>ngs workflow</td><td>ngs workflow pipeline bam vcf</td><td/><td/></tr>
+<tr id="vcfburdensplitter2"><th><a href="VcfBurdenSplitter2.html" title="VcfBurdenSplitter2">vcfburdensplitter2</a></th><td>new version</td><td>vcf burden gene vep snpeff prediction</td><td/><td/></tr>
 </tbody>
 
 </table>

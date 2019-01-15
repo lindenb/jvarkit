@@ -208,10 +208,10 @@ public class VcfFilterXPath
 		xpath.setNamespaceContext(new NamespaceContext()
 			{
 			@Override
-			public Iterator<? extends Object> getPrefixes(String namespaceURI)
+			public Iterator<String> getPrefixes(String namespaceURI)
 				{
-				List<String> L=new ArrayList<>();
-				for(String pfx:prefix2uri.keySet())
+				final List<String> L=new ArrayList<>();
+				for(final String pfx:prefix2uri.keySet())
 					{
 					if(prefix2uri.get(pfx).equals(namespaceURI))
 						{
@@ -223,7 +223,7 @@ public class VcfFilterXPath
 				}
 			
 			@Override
-			public String getPrefix(String namespaceURI)
+			public String getPrefix(final String namespaceURI)
 				{
 				for(String pfx:prefix2uri.keySet())
 					{

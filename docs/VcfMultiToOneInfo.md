@@ -1,5 +1,7 @@
 # VcfMultiToOneInfo
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 'one INFO with N values' to 'N variants with one INFO'
 
 
@@ -41,11 +43,10 @@ Usage: vcfmulti2oneinfo [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -75,19 +76,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfMultiToOneInfo.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfMultiToOneInfo.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Tue Apr 25 15:40:45 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/16aeb209fda502b60dd75689b85d1304f469775b
-Mon Jan 25 18:43:22 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/f49222d5a112d79fc4148f2a2a56e46a7ee5f517
-Sat Jan 23 14:55:35 2016 +0100 ; factory builder ; https://github.com/lindenb/jvarkit/commit/d70912b7dbbca748cf4d45a0ba44a6bc70f804d7
-Wed Jan 6 17:39:57 2016 +0100 ; VcfMultiToOneInfo ; https://github.com/lindenb/jvarkit/commit/4bea71a6d15bdb12288d2c34ffc43892004476c9
-```
-
-</details>
 
 ## Contribute
 

@@ -1,5 +1,7 @@
 # FindAllCoverageAtPosition
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?
 
 
@@ -64,11 +66,10 @@ Usage: findallcoverageatposition [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -98,24 +99,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindAllCoverageAtPosition.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindAllCoverageAtPosition.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Nov 20 15:01:11 2017 +0100 ; adding partition for bamstats04, Partiton.OPT_DESC ; https://github.com/lindenb/jvarkit/commit/9f4e9dd12ffa66dc87e773bc7afa7040d507bfee
-Sun Jun 25 16:43:47 2017 +0200 ; loop over gene in region ; https://github.com/lindenb/jvarkit/commit/a491397b51bb7149fcdccad8c5dab9bdf6fd83fa
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d
-Wed Apr 5 13:49:50 2017 +0200 ; cont, fix bug in findallcovatpos ; https://github.com/lindenb/jvarkit/commit/7db18c7fe90fd5bf64d3ff3a4505607a1974ce6b
-Thu Mar 30 17:38:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bba625df69e00a0aa54de192cdce6fda110a65b4
-Tue Jul 12 16:26:04 2016 +0200 ; bim2vcf ; https://github.com/lindenb/jvarkit/commit/6df744a561505df03f56e0b18d75587f032fcdbe
-Mon Nov 16 12:21:53 2015 +0100 ; blastfilterjs ; https://github.com/lindenb/jvarkit/commit/6b885d465b47f339d323f909c2ae7a88641f08a4
-Fri Nov 28 12:48:02 2014 +0100 ; typo ; https://github.com/lindenb/jvarkit/commit/4869a203808dbd7871aa6a272b412d491fd1f5ce
-Fri Nov 28 12:44:44 2014 +0100 ; find all coverages ; https://github.com/lindenb/jvarkit/commit/a8c96e489787bf94d752e6bbd7c091175617459b
-```
-
-</details>
 
 ## Contribute
 

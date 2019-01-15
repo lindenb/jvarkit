@@ -1,5 +1,7 @@
 # CompareBams
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Compare two or more BAM files
 
 
@@ -32,8 +34,9 @@ Usage: cmpbams [options] Files
       Output file. Optional . Default: stdout
     -r, --region
       An interval as the following syntax : "chrom:start-end" or 
-      "chrom:middle+extend"  or "chrom:start-end+extend".A program might use a 
-      Reference sequence to fix the chromosome name (e.g: 1->chr1)
+      "chrom:middle+extend"  or "chrom:start-end+extend" or 
+      "chrom:start-end+extend-percent%".A program might use a Reference 
+      sequence to fix the chromosome name (e.g: 1->chr1)
       Default: <empty string>
     -F, --sam
       use sam flag for comparaison
@@ -58,11 +61,10 @@ Usage: cmpbams [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -92,20 +94,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Fri Jun 2 16:31:30 2017 +0200 ; circos / lumpy ; https://github.com/lindenb/jvarkit/commit/7bddffca3899196e568fb5e1a479300c0038f74f
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Tue Apr 18 13:24:50 2017 +0200 ; cont-cleanup ; https://github.com/lindenb/jvarkit/commit/a86c8971fe5ebb3f8de175c75e78f2d0e5325cfd
-Thu Oct 31 17:13:55 2013 +0100 ; stuff for comparing bams ; https://github.com/lindenb/jvarkit/commit/fc2598c96eaa7b3001aac99b2c8d6026f78facdd
-Mon May 6 18:56:46 2013 +0200 ; moving to git ; https://github.com/lindenb/jvarkit/commit/55158d13f0950f16c4a3cc3edb92a87905346ee1
-```
-
-</details>
 
 ## Contribute
 

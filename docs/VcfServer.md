@@ -54,11 +54,10 @@ Usage: vcfserver [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -88,25 +87,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfserver/VcfServer.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfserver/VcfServer.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Nov 8 09:00:21 2017 +0100 ; changed igv to custom url ; https://github.com/lindenb/jvarkit/commit/7972f506165e45c3b1300aecd00d1109b52d57dc
-Tue Nov 7 16:33:40 2017 +0100 ; Hyperlinks to IGV ; https://github.com/lindenb/jvarkit/commit/b41b49dfc9e1948eb76085c343b69a4ac0520f16
-Tue Oct 31 17:21:38 2017 +0100 ; tviewserver / vcfserver : added screenshots ; https://github.com/lindenb/jvarkit/commit/2a991b2e352fb30b8e0a94144fcda8d52c2f653a
-Mon Oct 30 17:26:13 2017 +0100 ; updating vcf server, vcfpolyx, answer biostars ; https://github.com/lindenb/jvarkit/commit/428a7ea5a848d974fa2e09555ad94de014febdde
-Sat Oct 28 18:13:58 2017 +0200 ; vcf server: description ; https://github.com/lindenb/jvarkit/commit/7abb1d5513bdd8f9f249a290b418b75b3a237771
-Sat Oct 28 18:04:34 2017 +0200 ; vcf server ; https://github.com/lindenb/jvarkit/commit/1ba12c148566055ec896ddec9b7c2d7674cf8236
-Fri Oct 27 23:58:05 2017 +0200 ; javascript for vcfserver ; https://github.com/lindenb/jvarkit/commit/2fbecaea195213025f9d860e7ba121887f247d2c
-Fri Oct 27 19:58:25 2017 +0200 ; text output for server ; https://github.com/lindenb/jvarkit/commit/b146971af0577da23b25d84338d608325f9432c2
-Fri Oct 27 18:13:18 2017 +0200 ; cont vcf server ; https://github.com/lindenb/jvarkit/commit/abc4d04da94e86f7d4955e24ffdec9632afd7bdc
-Fri Oct 27 15:15:11 2017 +0200 ; adding vcf server and https://www.biostars.org/p/279942/#280255 ; https://github.com/lindenb/jvarkit/commit/3eabba0b8c06b88f90193f958e47a725d105216a
-Fri Oct 27 13:05:17 2017 +0200 ; starting vcf server ; https://github.com/lindenb/jvarkit/commit/7a514c92bc44037f3f61538dfd1bf0147ac353af
-```
-
-</details>
 
 ## Contribute
 

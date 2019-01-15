@@ -1,5 +1,7 @@
 # BlastFilterJS
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit.
 
 
@@ -37,11 +39,10 @@ Usage: blastfilterjs [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -71,17 +72,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/BlastFilterJS.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/BlastFilterJS.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Tue May 9 12:56:11 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/9bb79d41ffeb58983b93209b7b66484fd35da515
-Mon Nov 16 12:21:53 2015 +0100 ; blastfilterjs ; https://github.com/lindenb/jvarkit/commit/6b885d465b47f339d323f909c2ae7a88641f08a4
-```
-
-</details>
 
 ## Contribute
 

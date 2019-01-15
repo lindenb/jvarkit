@@ -1,5 +1,7 @@
 # ImpactOfDuplicates
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Impact of Duplicates per BAM.
 
 
@@ -41,11 +43,10 @@ Usage: impactofduplicates [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -75,22 +76,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/impactdup/ImpactOfDuplicates.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/impactdup/ImpactOfDuplicates.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Thu Apr 20 17:51:46 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/c3b0181c8698f30edaed6b0d9e4350cc425f0dd3
-Thu May 26 16:43:07 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/60ada53779722d3b5f4bff4d31b08cb518a38541
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Mon May 13 18:12:28 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/be5187139288dd6e21844fc26bee814f5e9ac9f3
-Tue May 7 18:02:10 2013 +0200 ; impact duplicates ; https://github.com/lindenb/jvarkit/commit/b9ddcd7866ae2dae9a2a431860089edcf496677c
-```
-
-</details>
 
 ## Contribute
 

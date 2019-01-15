@@ -1,5 +1,7 @@
 # VcfIndexTabix
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Index and sort a VCF on the fly with Tabix
 
 
@@ -43,11 +45,10 @@ Usage: vcfindextabix [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -77,22 +78,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfIndexTabix.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfIndexTabix.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Tue May 9 10:40:20 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/88cfdecb60c1f193ae8b3176ad86181c4a15256b
-Thu May 4 14:27:36 2017 +0200 ; fix make ; https://github.com/lindenb/jvarkit/commit/044933b2091b68f3241c60c85de5dd605ae02756
-Mon Jan 25 18:43:22 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/f49222d5a112d79fc4148f2a2a56e46a7ee5f517
-Tue Sep 15 10:51:01 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ac8707d91503a75fabbc6bd2a2035092177249f8
-Wed May 20 12:10:16 2015 +0200 ; vcf index tabix ; https://github.com/lindenb/jvarkit/commit/b73558a884ab1429f2c20721ff963d650faa12f6
-Tue May 19 17:40:33 2015 +0200 ; vcf index tabix ; https://github.com/lindenb/jvarkit/commit/9c0d532b734ce8f5d9e2a2b67c4b2e3a764ca1d6
-```
-
-</details>
 
 ## Contribute
 

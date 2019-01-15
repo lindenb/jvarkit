@@ -1,5 +1,7 @@
 # Bam2Wig
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)
 
 
@@ -38,9 +40,9 @@ Usage: bam2wig [options] Files
       Possible Values: [usage, markdown, xml]
     --region, --interval
       Limit analysis to this interval. An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or 
-      "chrom:start-end+extend".A program might use a Reference sequence to fix 
-      the chromosome name (e.g: 1->chr1)
+      "chrom:start-end" or "chrom:middle+extend"  or "chrom:start-end+extend" 
+      or "chrom:start-end+extend-percent%".A program might use a Reference 
+      sequence to fix the chromosome name (e.g: 1->chr1)
     --mindepth, --mindp
       When using display READ_GROUPS, What is the minimal read depth that 
       should be considered ?
@@ -48,7 +50,10 @@ Usage: bam2wig [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     --partition
-      When using display READ_GROUPS, how should we partition the ReadGroup ?
+      When using display READ_GROUPS, how should we partition the ReadGroup ? 
+      Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     --pedigree, -ped
@@ -84,11 +89,10 @@ Usage: bam2wig [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -118,27 +122,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2wig/Bam2Wig.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2wig/Bam2Wig.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Nov 15 19:35:51 2017 +0100 ; bam2wig + ped ; https://github.com/lindenb/jvarkit/commit/244b5369fe9fcd87dfc1ec1f93c5607301fb8d08
-Wed Nov 15 17:24:52 2017 +0100 ; adding Percentile, rewritten bam2wig, tests ; https://github.com/lindenb/jvarkit/commit/ecd0a198cb13ef05744c08b651a28448d360ef1d
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Fri May 5 21:02:19 2017 +0200 ; git move usage builder ; https://github.com/lindenb/jvarkit/commit/cc2f3aea9ca8fbb617b7f57a15b3294b6d6680e5
-Fri Apr 7 16:35:31 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/54c5a476e62e021ad18e7fd0d84bf9e5396c8c96
-Thu Nov 26 12:58:31 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/cfdff2e66fbeaa4627b50361a09196be2a2e1477
-Thu Oct 1 14:55:56 2015 +0200 ; bam2wig ; https://github.com/lindenb/jvarkit/commit/dd0835cd10122f2196335ebff9b7f6d7f40c265c
-Thu Oct 16 17:24:57 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f0697329ae2147544cd191da0a67824313227a3f
-Fri May 23 15:00:53 2014 +0200 ; cont moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/81f98e337322928b07dfcb7a4045ba2464b7afa7
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Fri Mar 21 17:23:31 2014 +0100 ; continue ; https://github.com/lindenb/jvarkit/commit/3040855327a6578d058b81309e3d1aa631933497
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Tue Dec 3 17:50:17 2013 +0100 ; bam2wig ; https://github.com/lindenb/jvarkit/commit/25835dce4a1c841d0805416b9c389699060cf578
-```
-
-</details>
 
 ## Contribute
 

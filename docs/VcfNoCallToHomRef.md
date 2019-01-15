@@ -1,5 +1,7 @@
 # VcfNoCallToHomRef
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Convert the UNCALLED gentoypes in a VCF to HOM_REF. This tool can be used after using GATK CombineVariants.
 
 
@@ -68,11 +70,10 @@ Usage: vcfnocall2homref [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -102,16 +103,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfNoCallToHomRef.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfNoCallToHomRef.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Oct 9 15:02:56 2017 +0200 ; adding tests, fixing doc ; https://github.com/lindenb/jvarkit/commit/d413e4841552cb4aa7d8eaa444704ea54e9321bd
-Thu Sep 14 13:10:00 2017 +0200 ; opss forgot the source ; https://github.com/lindenb/jvarkit/commit/2d1db69c6f4107dc989fb79e1138c7301da35232
-```
-
-</details>
 
 ## Contribute
 

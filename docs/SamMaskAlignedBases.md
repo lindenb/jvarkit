@@ -1,5 +1,7 @@
 # SamMaskAlignedBases
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Mask bases aligned on Reference.
 
 
@@ -31,11 +33,10 @@ Usage: sammaskalignedbases [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -65,17 +66,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SamMaskAlignedBases.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SamMaskAlignedBases.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Tue May 9 10:40:20 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/88cfdecb60c1f193ae8b3176ad86181c4a15256b
-Fri Mar 25 17:18:27 2016 +0100 ; sammask ; https://github.com/lindenb/jvarkit/commit/b9c834afec6c7c9904baecd2fb2b61e57261da0f
-```
-
-</details>
 
 ## Contribute
 

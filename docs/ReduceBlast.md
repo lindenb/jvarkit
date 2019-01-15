@@ -1,5 +1,7 @@
 # ReduceBlast
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Reduce the size of XML blast, by removing iterations that have no Hit
 
 
@@ -37,11 +39,10 @@ Usage: reduceblast [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -71,17 +72,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/ReduceBlast.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/ReduceBlast.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Tue May 9 12:56:11 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/9bb79d41ffeb58983b93209b7b66484fd35da515
-Tue May 17 12:25:33 2016 +0200 ; bam format was ignored ; https://github.com/lindenb/jvarkit/commit/947b48244f25bc7bedafd3ab833daec8ed4034cb
-```
-
-</details>
 
 ## Contribute
 

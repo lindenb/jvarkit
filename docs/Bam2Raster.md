@@ -59,9 +59,9 @@ Usage: bam2raster [options] Files
       faidx and with picard CreateSequenceDictionary
   * -r, --region
       Restrict to that region. An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or 
-      "chrom:start-end+extend".A program might use a Reference sequence to fix 
-      the chromosome name (e.g: 1->chr1)
+      "chrom:start-end" or "chrom:middle+extend"  or "chrom:start-end+extend" 
+      or "chrom:start-end+extend-percent%".A program might use a Reference 
+      sequence to fix the chromosome name (e.g: 1->chr1)
     -srf, --samRecordFilter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
@@ -101,7 +101,7 @@ Usage: bam2raster [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -212,7 +212,7 @@ BAMS=	S1|f1.bam \
 
 define run
 $(1)_$(3)_$(4).png: $(2)
-	java -jar dist/bam2raster.jar -clip --highlight $(4)  --mapqopacity handler1 --nobase -r "chr$(3):$(4)+50"   --reference /commun/data/pubdb/broadinstitute.org/bundle/1.5/b37/human_g1k_v37_prefix.fasta -o $$@ $$<
+	java -jar dist/bam2raster.jar -clip --highlight $(4)  --mapqopacity handler1 --nobase -r "chr$(3):$(4)+50"   --reference human_g1k_v37_prefix.fasta -o $$@ $$<
 
 IMAGES+=$(1)_$(3)_$(4).png
 
@@ -238,5 +238,8 @@ all2: ${IMAGES}
 ![http://i.imgur.com/lBSpTSW.png](http://i.imgur.com/lBSpTSW.png)
 
 
+## History
+
+  * 20180917 REF is now required.
 
 

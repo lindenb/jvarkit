@@ -1,5 +1,7 @@
 # BamIndexReadNames
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Build a dictionary of read names to be searched with BamQueryReadNames
 
 
@@ -22,11 +24,10 @@ Usage: bamindexreadnames [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -56,18 +57,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamindexnames/BamIndexReadNames.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamindexnames/BamIndexReadNames.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
-Wed Apr 19 17:58:48 2017 +0200 ; rm-xml ; https://github.com/lindenb/jvarkit/commit/95f05cfd4e04f5013c22274c49db7bcc4cbbb1c8
-Tue Dec 8 20:40:37 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/077ab77af3285464454df574e38a58b6ca43c64a
-Tue Aug 5 12:09:43 2014 +0200 ; bam index read names ; https://github.com/lindenb/jvarkit/commit/749748d92fd5868fb36d01334502192a5a767fe5
-```
-
-</details>
 
 ## Contribute
 

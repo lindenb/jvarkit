@@ -48,11 +48,10 @@ Usage: pubmedgraph [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -82,22 +81,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGraph.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedGraph.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue Nov 7 10:25:46 2017 +0100 ; tools for trap-score.org ; https://github.com/lindenb/jvarkit/commit/54bf01ddbf3594f5a5b4aee149d67604df343af7
-Fri Nov 3 09:47:30 2017 +0100 ; updated code for ncbi api_key ; https://github.com/lindenb/jvarkit/commit/1a6c7673fd0ec2473433d78e24b1cbd6cfe6e4ca
-Thu Nov 2 19:54:56 2017 +0100 ; added NCBI API key ; https://github.com/lindenb/jvarkit/commit/fa13648014a42cd307b25f8661385e9f62d42bea
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
-Thu Jul 28 09:48:29 2016 +0200 ; NCBI moved API to https ; https://github.com/lindenb/jvarkit/commit/d207e023a06d2ae7afd2e05d2f1369b8a713974b
-Tue Jun 16 17:40:00 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f394e306c86bd45240d165c69748acf44f0b38ec
-Mon Jun 15 21:35:36 2015 +0200 ; pubmed graph ; https://github.com/lindenb/jvarkit/commit/3fd6216961e9aca27a1013a7b2aab63afe819d52
-```
-
-</details>
 
 ## Contribute
 

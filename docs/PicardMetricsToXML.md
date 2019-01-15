@@ -1,5 +1,7 @@
 # PicardMetricsToXML
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 transforms a picard metrics file to XML. See http://plindenbaum.blogspot.fr/2013/02/making-use-of-picard-metrics-files.html
 
 
@@ -35,11 +37,10 @@ Usage: picardmetrics2xml [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -69,23 +70,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/metrics2xml/PicardMetricsToXML.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/metrics2xml/PicardMetricsToXML.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Thu Jul 6 17:31:09 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/a0eaa65f9197fd51d1c495c7ed3c65f43a06aa9c
-Fri May 19 17:10:13 2017 +0200 ; cont doc ; https://github.com/lindenb/jvarkit/commit/d2aea1eaa554d0498b197fb8fac01893b10ceb83
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Mon May 1 15:40:19 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/11aa7fcf4cc15aecc2cc2019fc2df8752731a278
-Thu Sep 22 18:14:13 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/9fe3df782c58b831b2ffb2c6db7fbcb376f3954a
-Mon Jan 18 16:58:08 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/83f80fdbe8d6be71539cfdbf60d61ce7ead9c0fd
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Tue Nov 19 14:07:53 2013 +0100 ; picard metrics ; https://github.com/lindenb/jvarkit/commit/ac310657998dd8fe86cc3d09dec28fdef8e2c4e5
-Mon May 6 18:56:46 2013 +0200 ; moving to git ; https://github.com/lindenb/jvarkit/commit/55158d13f0950f16c4a3cc3edb92a87905346ee1
-```
-
-</details>
 
 ## Contribute
 

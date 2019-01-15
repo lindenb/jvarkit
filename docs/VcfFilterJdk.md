@@ -92,7 +92,7 @@ Usage: vcffilterjdk [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -194,7 +194,7 @@ The user code will be inserted in the following java code:
  4  import htsjdk.samtools.util.*;
  5  import htsjdk.variant.variantcontext.*;
  6  import htsjdk.variant.vcf.*;
- 7  import javax.annotation.Generated;
+ 7  import  javax.annotation.processing.Generated;
  8  @Generated("VcfFilterJdk")
  9  public class VcfFilterJdkCustom123 extends com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk.AbstractFilter {
 10    public VcfFilterJdkCustom123(final VCFHeader header) {

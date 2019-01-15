@@ -39,8 +39,9 @@ Usage: minicaller [options] Files
       samtools faidx and with picard CreateSequenceDictionary.
     -r, --region
       An interval as the following syntax : "chrom:start-end" or 
-      "chrom:middle+extend"  or "chrom:start-end+extend".A program might use a 
-      Reference sequence to fix the chromosome name (e.g: 1->chr1)
+      "chrom:middle+extend"  or "chrom:start-end+extend" or 
+      "chrom:start-end+extend-percent%".A program might use a Reference 
+      sequence to fix the chromosome name (e.g: 1->chr1)
     --version
       print version and exit
 
@@ -59,11 +60,10 @@ Usage: minicaller [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -93,28 +93,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/calling/MiniCaller.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/calling/MiniCaller.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Thu Nov 30 10:36:07 2017 +0100 ; moving to read+jexl expression, new answer for samjdk on biostars ; https://github.com/lindenb/jvarkit/commit/f9615d4184c51a1546200e88a74ac1c6729b05a3
-Mon Nov 20 15:01:11 2017 +0100 ; adding partition for bamstats04, Partiton.OPT_DESC ; https://github.com/lindenb/jvarkit/commit/9f4e9dd12ffa66dc87e773bc7afa7040d507bfee
-Wed Oct 4 17:05:37 2017 +0200 ; reading google scholar, answers to reviewers ; https://github.com/lindenb/jvarkit/commit/871a481468fbd1877f02bc171cf080c5e1d3190f
-Mon Sep 11 14:48:00 2017 +0200 ; adding tests, add test files for gnomad ; https://github.com/lindenb/jvarkit/commit/bc90c3c76e38e677a2fe824ce29bd7705dde3bd0
-Wed Jun 28 17:33:30 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3c252f19e5cad0ec87d250a5b9884b6f2d6fe856
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Sat Apr 29 18:45:47 2017 +0200 ; partition ; https://github.com/lindenb/jvarkit/commit/7d72633d50ee333fcad0eca8aaa8eec1a475cc4d
-Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
-Mon Dec 14 17:18:02 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/9b271459821d8061aa07e98bc7f30232597f47c9
-Fri Mar 6 14:57:39 2015 +0100 ; wrote a simple and stupid variant caller for @AdrienLeger2 ; https://github.com/lindenb/jvarkit/commit/8c4fa55e9f9e7c8df8641417d17f942a10bae9d7
-```
-
-</details>
 
 ## Contribute
 

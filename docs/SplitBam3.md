@@ -1,5 +1,7 @@
 # SplitBam3
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Split a BAM by chromosome group
 
 
@@ -39,11 +41,10 @@ Usage: splitbam3 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -73,21 +74,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/splitbam/SplitBam3.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/splitbam/SplitBam3.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue May 9 10:40:20 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/88cfdecb60c1f193ae8b3176ad86181c4a15256b
-Wed Jun 8 12:51:03 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3a139dad3aa0c899b4a84c9a0d2908d47ecccd58
-Tue Mar 22 17:19:22 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/97e0e23bddd49049c71d56d495d090c0af636670
-Thu May 28 17:32:37 2015 +0200 ;  issue: https://github.com/lindenb/jvarkit/issues/28 ; https://github.com/lindenb/jvarkit/commit/4e10a0934f4a75b88c802583a8e19b1c228438fc
-Tue Mar 31 19:05:54 2015 +0200 ; bamstats02 ; https://github.com/lindenb/jvarkit/commit/3f01c89c98c2df5be453f2dd5f16d5eb4cced6a4
-Thu Mar 19 16:38:00 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/fe6480ef56d91e683467200bbe805a726c4c6457
-Tue Mar 17 16:59:10 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/b74a74277f72f240dab3360a49fdb8357f7bfbbd
-```
-
-</details>
 
 ## Contribute
 

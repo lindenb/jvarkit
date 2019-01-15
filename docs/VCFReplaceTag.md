@@ -1,5 +1,7 @@
 # VCFReplaceTag
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Replace the key for INFO/FORMAT/FILTER
 
 
@@ -36,11 +38,10 @@ Usage: vcfreplacetag [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -70,21 +71,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFReplaceTag.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFReplaceTag.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Tue Apr 4 17:45:44 2017 +0200 ; fix bug in replace tag ; https://github.com/lindenb/jvarkit/commit/8e2a57c24f82df69c730b944f4aed99f082fb3c5
-Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
-Mon Jan 18 16:58:08 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/83f80fdbe8d6be71539cfdbf60d61ce7ead9c0fd
-Thu May 21 15:13:01 2015 +0200 ; vcf peek info ; https://github.com/lindenb/jvarkit/commit/b451191e148ad57f498032e2f81adc1051336c07
-Tue May 19 17:40:33 2015 +0200 ; vcf index tabix ; https://github.com/lindenb/jvarkit/commit/9c0d532b734ce8f5d9e2a2b67c4b2e3a764ca1d6
-```
-
-</details>
 
 ## Contribute
 

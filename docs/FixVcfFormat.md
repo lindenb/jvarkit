@@ -1,5 +1,7 @@
 # FixVcfFormat
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453
 
 
@@ -22,11 +24,10 @@ Usage: fixvcfformat [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -56,20 +57,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfFormat.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfFormat.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 29 16:53:42 2017 +0200 ; moved to docs ; https://github.com/lindenb/jvarkit/commit/6c0535d7add884e75b424af89a4f00aff6fae75f
-Thu May 4 13:06:07 2017 +0200 ; moving to jcommander ; https://github.com/lindenb/jvarkit/commit/b2f8f945cb8838c0289a7d850ce24603417eccde
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Tue Feb 18 18:05:31 2014 +0100 ; sortvcf on info, vcfutils parse header, pad call/format for fixvcfformat, vcfcadd ; https://github.com/lindenb/jvarkit/commit/6123910f68df940c1f3986d142f9b0414f76a43a
-Sun Feb 2 18:55:03 2014 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/abd24b56ec986dada1e5162be5bbd0dac0c2d57c
-Tue Dec 10 12:30:02 2013 +0100 ; cont. ; https://github.com/lindenb/jvarkit/commit/88a74712aabfc418d7ed390fff6e965e7491b210
-```
-
-</details>
 
 ## Contribute
 

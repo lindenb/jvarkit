@@ -1,5 +1,7 @@
 # PubmedFilterJS
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Filters Pubmed XML with a javascript  (java rhino) expression. Context contain 'article' a  PubmedBookArticle or a PubmedArticle and 'index', the index in the XML file.
 
 
@@ -37,11 +39,10 @@ Usage: pubmedfilterjs [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -71,22 +72,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedFilterJS.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/pubmed/PubmedFilterJS.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri May 19 17:10:13 2017 +0200 ; cont doc ; https://github.com/lindenb/jvarkit/commit/d2aea1eaa554d0498b197fb8fac01893b10ceb83
-Fri Apr 14 17:55:48 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/298923b61cb33a9a3d187baf115e13cff4b74251
-Wed Apr 5 20:37:28 2017 +0200 ; fix pubmed dtd ; https://github.com/lindenb/jvarkit/commit/b9cdddc89997662bd29971e88da307d48de84b86
-Tue Apr 4 17:09:36 2017 +0200 ; vcfgnomad ; https://github.com/lindenb/jvarkit/commit/eac33a01731eaffbdc401ec5fd917fe345b4a181
-Mon Dec 14 12:37:25 2015 +0100 ; pubmed filter js ; https://github.com/lindenb/jvarkit/commit/4a801c730cafb01176646ea1969f8314bb1bbdf4
-Mon Dec 14 12:34:42 2015 +0100 ; pubmed filter js ; https://github.com/lindenb/jvarkit/commit/b94e9618802392f54fdf44233072c4cb716bab6c
-Mon Jun 15 17:24:26 2015 +0200 ; vep as xml base 64 ; https://github.com/lindenb/jvarkit/commit/d629603576c14a970208c9599b39ecb2a8b39994
-Mon Sep 1 15:47:33 2014 +0200 ; fix error in shuffle. pubmed filter js ; https://github.com/lindenb/jvarkit/commit/1c690742a61ba809e342eacd5d2a214134bfab72
-```
-
-</details>
 
 ## Contribute
 

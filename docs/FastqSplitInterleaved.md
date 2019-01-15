@@ -1,5 +1,7 @@
 # FastqSplitInterleaved
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Split interleaved Fastq files.
 
 
@@ -32,11 +34,10 @@ Usage: fastqsplitinterleaved [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -66,20 +67,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplitInterleaved.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplitInterleaved.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri May 12 19:41:30 2017 +0200 ; fix make, empty doc ; https://github.com/lindenb/jvarkit/commit/52fcf6d46a779fd7153ebc032fae643d2e266e7e
-Fri May 12 18:07:46 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ca96bce803826964a65de33455e5231ffa6ea9bd
-Tue Apr 18 13:24:50 2017 +0200 ; cont-cleanup ; https://github.com/lindenb/jvarkit/commit/a86c8971fe5ebb3f8de175c75e78f2d0e5325cfd
-Fri Jun 17 13:56:39 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/865252a44fc018f46b4280788cec65a1383dcc18
-Mon Sep 1 15:47:33 2014 +0200 ; fix error in shuffle. pubmed filter js ; https://github.com/lindenb/jvarkit/commit/1c690742a61ba809e342eacd5d2a214134bfab72
-Mon Sep 1 12:18:15 2014 +0200 ; split interleaved fastq ; https://github.com/lindenb/jvarkit/commit/5be82f90e563427ea157e3ecdbba1922a0dc37a3
-```
-
-</details>
 
 ## Contribute
 

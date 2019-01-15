@@ -1,5 +1,7 @@
 # VCFTabixml
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
  annotate a value from a vcf+xml file
 
 
@@ -37,11 +39,10 @@ Usage: vcftabixml [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -71,34 +72,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcftabixml/VCFTabixml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcftabixml/VCFTabixml.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Tue Apr 18 17:44:13 2017 +0200 ; javacc + samfilter ; https://github.com/lindenb/jvarkit/commit/695e7cb606ba96feeeabbd2a359aacd38cf36ae0
-Mon Jun 8 17:24:41 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f9a941d604f378ff40a32666c8381cb2450c7cfa
-Fri Jun 5 12:42:21 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/cc909f9f4ceea181bb65e4203e3fdbde176c6f2f
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Mon May 12 14:06:30 2014 +0200 ; continue moving to htsjdk ; https://github.com/lindenb/jvarkit/commit/011f098b6402da9e204026ee33f3f89d5e0e0355
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Mon Oct 21 11:56:13 2013 +0200 ; Merge branch 'master' of https://github.com/lindenb/jvarkit ; https://github.com/lindenb/jvarkit/commit/e42d75062273a78b07c4a2efe3647aa9e36853cb
-Fri Oct 11 15:39:02 2013 +0200 ; picard v.100: deletion of VcfIterator :-( ; https://github.com/lindenb/jvarkit/commit/e88fab449b04aed40c2ff7f9d0cf8c8b6ab14a31
-Wed Oct 9 17:36:01 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/05b7b3b975cb3c2b0dc8aa674a5fa26e10778bb2
-Fri Oct 4 17:21:55 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/33910ef83d0c7ff92d6506173c4f76524d0bed30
-Wed Sep 18 17:39:34 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7713393b28bc5004c6d8047a24bb9b84d2294fef
-Wed Sep 18 05:09:21 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/500379da9ebbe900bce535de7bccc272e632b70d
-Tue Sep 17 18:57:12 2013 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/47456854eb086ecafa8760b5bfd51a5e20a90376
-Fri Sep 6 15:11:11 2013 +0200 ; moved code for latest version of picard (1.97). Using VCFIterator instead of ASciiLineReader ; https://github.com/lindenb/jvarkit/commit/810877c10406a017fd5a31dacff7e8401089d429
-Fri Jul 26 12:42:54 2013 +0200 ; vcfrabixml ; https://github.com/lindenb/jvarkit/commit/6ef20a70315a073f63dd495619a9a2f36b62c56d
-Sun Jul 21 14:17:59 2013 +0200 ; vcf trios, added git HASH in METAINF/Manifest ; https://github.com/lindenb/jvarkit/commit/1854d3695563b91471861164f5e8903042493470
-Fri Jul 19 18:23:32 2013 +0200 ; code for fixvcf ; https://github.com/lindenb/jvarkit/commit/99cb799aac12c5b6217e830f403e0e8ce5cf7bf6
-Tue Jul 16 19:56:40 2013 +0200 ; disease ontology ; https://github.com/lindenb/jvarkit/commit/3ca2d21908b547d021a7a58e56693956f395a167
-Mon May 6 18:56:46 2013 +0200 ; moving to git ; https://github.com/lindenb/jvarkit/commit/55158d13f0950f16c4a3cc3edb92a87905346ee1
-```
-
-</details>
 
 ## Contribute
 

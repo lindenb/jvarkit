@@ -56,11 +56,10 @@ Usage: vcfpredictions [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -90,23 +89,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFPredictions.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFPredictions.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Feb 5 16:49:25 2018 +0100 ; dev... ; https://github.com/lindenb/jvarkit/commit/2aa034d55daeacef151532e8c659c2a596ede119
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Mon May 15 12:10:21 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/b4895dd40d1c34f345cd2807f7a81395ba27e8ee
-Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
-Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
-Tue May 31 18:35:56 2016 +0200 ; fix interval maps ; https://github.com/lindenb/jvarkit/commit/f6afe341076b9da7c63c33b64c96d15d6cc7b596
-Wed Mar 30 17:45:00 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/ef77dce3c82c470017916555304df6a470fbdad4
-Fri Mar 18 16:37:36 2016 +0100 ; fix classpath ; https://github.com/lindenb/jvarkit/commit/3bf36638a2eff5274717e186c8d917c2902a2245
-Fri Mar 18 16:28:59 2016 +0100 ; pred ; https://github.com/lindenb/jvarkit/commit/f52bf3c5eff5c9ecc0ea11356e84058096552d3e
-```
-
-</details>
 
 ## Contribute
 

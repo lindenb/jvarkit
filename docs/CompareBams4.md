@@ -1,5 +1,7 @@
 # CompareBams4
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Compare two BAM files. Print a tab-delimited report
 
 
@@ -45,11 +47,10 @@ Usage: cmpbams4 [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -79,23 +80,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams4.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams4.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri Nov 10 17:07:13 2017 +0100 ; samjdk with pair mode, added sortmethod, fixed trapindex, fat-jar ; https://github.com/lindenb/jvarkit/commit/7eba4eda059e4ddbef27544cd87910131cf1f4a9
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Fri Apr 21 18:16:07 2017 +0200 ; scan sv ; https://github.com/lindenb/jvarkit/commit/49b99018811ea6a624e3df556627ebdbf3f16eab
-Thu Apr 20 17:17:22 2017 +0200 ; continue transition jcommander ; https://github.com/lindenb/jvarkit/commit/fcf5def101925bea9ddd001d8260cf65aa52d6a0
-Tue Apr 18 17:44:13 2017 +0200 ; javacc + samfilter ; https://github.com/lindenb/jvarkit/commit/695e7cb606ba96feeeabbd2a359aacd38cf36ae0
-Tue Apr 18 13:24:50 2017 +0200 ; cont-cleanup ; https://github.com/lindenb/jvarkit/commit/a86c8971fe5ebb3f8de175c75e78f2d0e5325cfd
-Mon Dec 12 13:17:00 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/91b443a14fe47871dc35efdf58c38729fec9d5a9
-Wed Dec 7 14:34:07 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/2a7c6206a09a8524db50766b7c6fb70dcc6ace0a
-Tue Dec 6 17:34:29 2016 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/41a44d15844a7de5fa8ac856b9465454a105e18c
-```
-
-</details>
 
 ## Contribute
 

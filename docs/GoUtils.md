@@ -27,11 +27,11 @@ Usage: goutils [options] Files
     -go-divisions, --go-divisions
       limit the gene ontology tree to those divisions. empty: all possible 
       divisions. 
-      Default: [cellular_component, biological_process, molecular_function]
+      Default: [biological_process, cellular_component, molecular_function]
     -go-relations, --go-relations
       limit the gene ontology tree to those relationships. empty: all possible 
       relationships. 
-      Default: [positively_regulates, is_a, regulates, negatively_regulates, part_of]
+      Default: [is_a, negatively_regulates, regulates, part_of, positively_regulates]
     -h, --help
       print help and exit
     --helpFormat
@@ -59,7 +59,7 @@ Usage: goutils [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git

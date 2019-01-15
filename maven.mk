@@ -168,7 +168,8 @@ xjc_jars= \
 	$(lib.dir)/org/hamcrest/hamcrest-core/2.1/hamcrest-core-2.1.jar \
 	$(lib.dir)/org/hamcrest/hamcrest/2.1/hamcrest-2.1.jar \
 	$(lib.dir)/org/testng/testng/7.0.0-beta3/testng-7.0.0-beta3.jar \
-	$(lib.dir)/relaxngDatatype/relaxngDatatype/20020414/relaxngDatatype-20020414.jar
+	$(lib.dir)/relaxngDatatype/relaxngDatatype/20020414/relaxngDatatype-20020414.jar \
+	$(lib.dir)/com/sun/xml/bind/jaxb-impl/2.2.11/jaxb-impl-2.2.11.jar 
 
 
 all_maven_jars = $(sort ${mysql.jar} ${testng.jars} ${drools.jar} ${javacc.jar} ${jcommander.jar} ${velocity.jars} ${htsjdk.jars} ${web.frameworks.jar} ${spring-beans.jars} ${jetty.jars} ${derby.jars} ${slf4j.jars} ${httpclient.libs} ${avro.libs} ${common.math3.libs} ${apache.commons.cli.jars} ${commons.validator.jars} ${gson.jar} ${derby-tools.jar} ${spring.batch.jars} ${jaxb.jars} ${xjc_jars})

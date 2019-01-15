@@ -1,5 +1,7 @@
 # EvsDumpXml
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Download data from EVS http://evs.gs.washington.edu/EVS as XML file.
 
 
@@ -42,11 +44,10 @@ Usage: evsdumpxml [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -76,18 +77,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/evs2bed/EvsDumpXml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/evs2bed/EvsDumpXml.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Wed May 3 17:57:20 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/db456cbf0b6586ea60a4fe8ea05a5af7457d5d6e
-Fri Feb 6 10:42:46 2015 +0100 ; keep genotype if it contains unknown ALT #tweet ; https://github.com/lindenb/jvarkit/commit/1c038db0b5ec34adac0eb4b314772333a5300f21
-Thu Feb 5 17:18:05 2015 +0100 ; Reset Genotypes in a VCF if ALT found in another VCF #tweet ; https://github.com/lindenb/jvarkit/commit/70fc067324b36b50b37d7def077e632043c049bc
-```
-
-</details>
 
 ## Contribute
 

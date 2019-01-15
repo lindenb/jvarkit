@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Extract Clipped Sequences from a SAM. Ouput is a FASTQ
+Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ
 
 
 ## Usage
@@ -52,14 +52,13 @@ Usage: samextractclip [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/125874](https://www.biostars.org/p/125874)
- * [https://www.biostars.org/p/308828](https://www.biostars.org/p/308828)
 
 
 ## Compilation
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -96,6 +95,7 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamExtractClipTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/SamExtractClipTest.java)
 
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -118,14 +118,13 @@ The current reference is:
 
 
 
-
 ### Example
 
 
-
 ```
+$ curl -L -s "https://raw.githubusercontent.com/samtools/samtools/develop/test/dat/mpileup.1.sam" |\
+	java -jar dist/samextractclip.jar 2> /dev/null 
 
-$ curl -L -s "https://raw.githubusercontent.com/samtools/samtools/develop/test/dat/mpileup.1.sam" | java -jar dist/samextractclip.jar 2> /dev/null 
 @ERR013140.3521432/1:0:17:1:99
 AGAGGTCCCCAACTTCTTTGCA
 +

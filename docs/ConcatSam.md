@@ -1,5 +1,7 @@
 # ConcatSam
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 concat sam files
 
 
@@ -18,9 +20,9 @@ Usage: concatsam [options] Files
       Possible Values: [usage, markdown, xml]
     -r, --region, --interval
       Limit analysis to this interval. An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or 
-      "chrom:start-end+extend".A program might use a Reference sequence to fix 
-      the chromosome name (e.g: 1->chr1)
+      "chrom:start-end" or "chrom:middle+extend"  or "chrom:start-end+extend" 
+      or "chrom:start-end+extend-percent%".A program might use a Reference 
+      sequence to fix the chromosome name (e.g: 1->chr1)
     -merge, --merge
       Don't really concatenate one sam after the other, use a 
       htsjdk.samtools.MergingSamRecordIterator. Similar to Picard 
@@ -48,11 +50,10 @@ Usage: concatsam [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -82,22 +83,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ConcatSam.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ConcatSam.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Fri Dec 15 17:59:36 2017 +0100 ; pretty sam ; https://github.com/lindenb/jvarkit/commit/9a76f347cbc5392c52b21eb12179d38efcf1d9d1
-Wed Nov 29 16:40:28 2017 +0100 ; sam transloc ; https://github.com/lindenb/jvarkit/commit/9b83677697adc04d1cd7411b2181fa933a47583d
-Tue Nov 28 16:00:23 2017 +0100 ; improving concat sam: adding a factory fastq getReadHeader is deprecated , replace with getReadName adding test ; https://github.com/lindenb/jvarkit/commit/53ce7c69ba98c3b85d8d7ca08f8a11e321a5fe1d
-Wed May 17 14:09:36 2017 +0200 ; fix typo bioalcidae ; https://github.com/lindenb/jvarkit/commit/9db2344e7ce840df02c5a7b4e2a91d6f1a5f2e8d
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Mon Apr 24 17:49:35 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/d822a90a1eaba26a4d874472ccd45e689e8ba063
-Tue Sep 27 15:25:14 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/4c626a9e2db6af9e3f690b53ed138ff38d4b21c3
-Thu Sep 22 21:21:51 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/16d069ebf4b746ba3e84ee9e6f53b7b137a31257
-```
-
-</details>
 
 ## Contribute
 

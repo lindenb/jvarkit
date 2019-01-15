@@ -1,5 +1,7 @@
 # KnimeToText
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 converts a Knime Workflow to a html representation.
 
 
@@ -34,11 +36,10 @@ Usage: knime2txt [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -68,15 +69,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/KnimeToText.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/KnimeToText.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue May 30 15:53:50 2017 +0200 ; knime2txt ; https://github.com/lindenb/jvarkit/commit/1891bde552dafd0074533029f5de67468c4e805f
-```
-
-</details>
 
 ## Contribute
 

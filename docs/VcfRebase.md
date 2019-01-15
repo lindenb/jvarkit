@@ -1,5 +1,7 @@
 # VcfRebase
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Restriction sites overlaping variations in a vcf
 
 
@@ -54,11 +56,10 @@ Usage: vcfrefbase [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -88,27 +89,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfrebase/VcfRebase.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfrebase/VcfRebase.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Thu Sep 21 17:14:45 2017 +0200 ; moving to factories ; https://github.com/lindenb/jvarkit/commit/dede8184edc7e773732bdd393f47f204fd900d79
-Fri Aug 11 15:52:02 2017 +0200 ; git history, formatting ; https://github.com/lindenb/jvarkit/commit/cf2eb57ad251cd15ae1332db9dcd062cae607d38
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Thu Mar 30 17:38:36 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/bba625df69e00a0aa54de192cdce6fda110a65b4
-Mon Mar 27 17:55:22 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/3b7033dcb365493f62d7b78ca4410b6bf3cd716d
-Mon Nov 30 16:53:51 2015 +0100 ; cont ; https://github.com/lindenb/jvarkit/commit/89f3cbe043ac8c52735feec5b45e43cf873b7179
-Mon Jun 22 14:55:09 2015 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/44c533625c38c0538767462793a990e7b3bc5b3d
-Mon Jun 1 15:27:11 2015 +0200 ; change getChrom() to getContig() ; https://github.com/lindenb/jvarkit/commit/5abd60afcdc2d5160164ae6e18087abf66d8fcfe
-Fri Jan 23 09:07:46 2015 +0100 ; MAPQ=0 in samstats01, updated SequenceOntology , updated vep ; https://github.com/lindenb/jvarkit/commit/388c0adae3f111c3d77819a19c756755e40bf5f3
-Mon May 12 10:28:28 2014 +0200 ; first sed on files ; https://github.com/lindenb/jvarkit/commit/79ae202e237f53b7edb94f4326fee79b2f71b8e8
-Fri Dec 6 15:55:48 2013 +0100 ; bamstats 01 : count X and Y ; https://github.com/lindenb/jvarkit/commit/6c29728c3b83cde2247659e1c39aa355971f1f6d
-Fri Nov 15 12:33:13 2013 +0100 ; vcf rebase ; https://github.com/lindenb/jvarkit/commit/a966b4adf21e22309466eaf84da60518bb078bf0
-```
-
-</details>
 
 ## Contribute
 

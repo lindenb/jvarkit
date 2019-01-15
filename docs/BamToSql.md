@@ -1,5 +1,7 @@
 # BamToSql
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Convert a SAM/BAM to sqlite statements
 
 
@@ -26,8 +28,9 @@ Usage: bam2sql [options] Files
       faidx and with picard CreateSequenceDictionary
     -r, --region
       An interval as the following syntax : "chrom:start-end" or 
-      "chrom:middle+extend"  or "chrom:start-end+extend".A program might use a 
-      Reference sequence to fix the chromosome name (e.g: 1->chr1)
+      "chrom:middle+extend"  or "chrom:start-end+extend" or 
+      "chrom:start-end+extend-percent%".A program might use a Reference 
+      sequence to fix the chromosome name (e.g: 1->chr1)
       Default: <empty string>
     --version
       print version and exit
@@ -47,11 +50,10 @@ Usage: bam2sql [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -81,21 +83,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BamToSql.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BamToSql.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Aug 7 09:53:19 2017 +0200 ; fixed unicode problems after https://github.com/lindenb/jvarkit/issues/82 ; https://github.com/lindenb/jvarkit/commit/68254c69b027a9ce81d8b211447f1c0bf02dc626
-Fri Jun 2 16:31:30 2017 +0200 ; circos / lumpy ; https://github.com/lindenb/jvarkit/commit/7bddffca3899196e568fb5e1a479300c0038f74f
-Wed May 24 17:27:28 2017 +0200 ; lowres bam2raster & fix doc ; https://github.com/lindenb/jvarkit/commit/6edcfd661827927b541e7267195c762e916482a0
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Wed Apr 5 18:39:50 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/d6aa6472783ac31192a4803cdef55580edc8e1d8
-Thu Apr 14 17:07:26 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/50a28cae08b48fa4c8b4ac76cc9636997e3c2543
-Thu Apr 14 12:36:51 2016 +0200 ; bam2sql ; https://github.com/lindenb/jvarkit/commit/bfc712a2e3cafe30a15d0161011918446eb9a5c3
-```
-
-</details>
 
 ## Contribute
 

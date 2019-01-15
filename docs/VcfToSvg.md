@@ -1,5 +1,7 @@
 # VcfToSvg
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 write a vcf to svg , with gene context
 
 
@@ -26,8 +28,10 @@ Usage: vcf2svg [options] Files
       What kind of help
       Possible Values: [usage, markdown, xml]
   * -k, --knownGenes
-      UCSC knownGene URI. Beware chromosome names are formatted the same as 
-      your REFERENCE. A typical KnownGene file is 
+      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
+      GFF/GTF because one transcript is described using only one line.	Beware 
+      chromosome names are formatted the same as your REFERENCE. A typical 
+      KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
@@ -63,11 +67,10 @@ Usage: vcf2svg [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -97,22 +100,10 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvg.java)
 
+### Unit Tests
 
-<details>
-<summary>Git History</summary>
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvgTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfToSvgTest.java)
 
-```
-Wed Jul 26 18:09:38 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/576fdd17812f9a47491945cb8bb74990ffb084c9
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Mon May 22 17:20:59 2017 +0200 ; moving to jcommaner ; https://github.com/lindenb/jvarkit/commit/60cbfa764f7f5bacfdb78e48caf8f9b66e53a6a0
-Thu May 11 16:20:27 2017 +0200 ; move to jcommander ; https://github.com/lindenb/jvarkit/commit/15b6fabdbdd7ce0d1e20ca51e1c1a9db8574a59e
-Wed Apr 12 17:48:18 2017 +0200 ; vcf2svg, jconsole ; https://github.com/lindenb/jvarkit/commit/e4d329f75d6f0de7db56f976d1fc6527149efd99
-Wed Apr 12 11:48:07 2017 +0200 ; mergeblastxml ; https://github.com/lindenb/jvarkit/commit/34bbaa3a8bb1dca3c2417b8bf893feda574f214b
-Tue Apr 11 21:06:56 2017 +0200 ; vcf2svg ; https://github.com/lindenb/jvarkit/commit/42633d114593236f0c90832f65ef72bd283b1623
-Tue Apr 11 18:16:30 2017 +0200 ; vcf2svg ; https://github.com/lindenb/jvarkit/commit/064d84395b6b48d495c4fffa5819abebb0aba83c
-```
-
-</details>
 
 ## Contribute
 

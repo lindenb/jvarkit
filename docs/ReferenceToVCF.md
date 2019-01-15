@@ -1,5 +1,7 @@
 # ReferenceToVCF
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Creates a VCF containing all the possible substitutions from a Reference Genome.
 
 
@@ -43,11 +45,10 @@ Usage: referencetovcf [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -77,20 +78,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ReferenceToVCF.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/ReferenceToVCF.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Tue Jun 6 18:06:17 2017 +0200 ; postponed vcf ; https://github.com/lindenb/jvarkit/commit/bcd52318caf3cd76ce8662485ffaacaabde97caf
-Sun Jun 4 21:53:22 2017 +0200 ; writing bcf ; https://github.com/lindenb/jvarkit/commit/784fdac37cd7e6eca04e35d0a3ddad8637826b4a
-Mon May 15 17:17:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/fc77d9c9088e4bc4c0033948eafb0d8e592f13fe
-Mon Apr 10 17:44:58 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/1a3303b52707e9ba8c9b913e0f82d2735698d24e
-Thu Sep 11 17:17:39 2014 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/59b009e383f94d8f697b91fc7b2b0b08a2969f8a
-Wed Sep 10 16:23:21 2014 +0200 ; Tool to generate all mutations in a reference ; https://github.com/lindenb/jvarkit/commit/c53e80ff6f6cf3d3cc30d555fa26f36b53669a62
-```
-
-</details>
 
 ## Contribute
 

@@ -95,6 +95,12 @@ public class VcfOptimizePedForSkat extends Launcher
 		@SuppressWarnings("unused")
 		VCFHeader header;
 		final List<VariantContext> variants = new ArrayList<>();
+
+		@Override
+		public void setHeader(final VCFHeader header) {
+			this.header = header;
+			}
+
 		@Override
 		public void writeHeader(final VCFHeader header) {
 			this.header = header;

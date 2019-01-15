@@ -1,5 +1,7 @@
 # VcfBurdenFilterExac
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Burden filter 3 - Exac
 
 
@@ -50,11 +52,10 @@ Usage: vcfburdenexac [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -84,23 +85,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFilterExac.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/burden/VcfBurdenFilterExac.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Wed Sep 20 15:52:53 2017 +0200 ; moving to amalgamation ; https://github.com/lindenb/jvarkit/commit/fca74f53afa062f238c8a899ee0ee6e7cd15136c
-Fri Sep 8 11:29:13 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/0c5035b59124ca18aba0405d0c616b565a32d10e
-Fri Aug 4 16:40:02 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/57f08e720a97f952bab81961431d83accdefeae3
-Mon Jun 26 17:29:03 2017 +0200 ; burden ; https://github.com/lindenb/jvarkit/commit/a3b7abf21d07f0366e81816ebbb2cce26b2341e7
-Fri Jun 23 15:26:55 2017 +0200 ; updated vcf2multiallele ; https://github.com/lindenb/jvarkit/commit/775e8ddcc38a3e283cf49d9287b06510d7634e31
-Mon May 22 14:34:36 2017 +0200 ; canvas burden ; https://github.com/lindenb/jvarkit/commit/ce6092de9cc4bea4d35d848410f5559d3d76e235
-Wed May 10 20:57:52 2017 +0200 ; YC tag ; https://github.com/lindenb/jvarkit/commit/a9515d969d27c76ccd0814a093e886d71904b0f2
-Thu Apr 21 10:39:25 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/7adf87adc987efbe89def5c530f5a84be0c841d4
-Mon Apr 18 17:34:40 2016 +0200 ; cnot burden ; https://github.com/lindenb/jvarkit/commit/e0403a175b479d9e8bec1ced1e3f35715f404ad8
-```
-
-</details>
 
 ## Contribute
 
