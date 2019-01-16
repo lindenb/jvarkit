@@ -4,7 +4,7 @@ import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -101,8 +101,8 @@ public class RExporter extends ChartExporter {
 			if(serie_index>0) {
 				pw.print(",axes=FALSE");
 				}
-			lim(pw,'x',NumberAxis.class.cast(chart.getXAxis()));
-			lim(pw,'y',NumberAxis.class.cast(chart.getYAxis()));
+			lim(pw,'x',NumberAxis.class.cast(chart.getXAxis()),chart,D->D.getY());
+			lim(pw,'y',NumberAxis.class.cast(chart.getYAxis()),chart,D->D.getY());
 			pw.print(",pch="+serie_index);
 			pw.print(",type=\""+type+"\"");
 			lab(pw,'x',chart.getXAxis());
@@ -186,13 +186,13 @@ public class RExporter extends ChartExporter {
 		pw.print("lab=");
 		pw.print(quoteR.apply(axis.getLabel()));
 		}
-	private void lim(final PrintWriter pw,char yx,final NumberAxis axis) {
+	private void lim(final PrintWriter pw,char yx,final NumberAxis axis,XYChart<?, ?> chart,final Function<XYChart.Data<?, ?>,Object> extractor) {
 		pw.print(",");
 		pw.print(yx);
 		pw.print("lim=c(");
-		pw.print(axis.getLowerBound());
+		pw.print(lowerBound(axis,chart,extractor));
 		pw.print(",");
-		pw.print(axis.getUpperBound());
+		pw.print(upperBound(axis,chart,extractor));
 		pw.print(")");
 		}
 	private void title(final PrintWriter pw,final Chart c) {
@@ -245,5 +245,21 @@ public class RExporter extends ChartExporter {
 		LOG.warn("I don't know how to save a "+chart.getClass()+". Export is still experimental.");
 		}
 
+	private double lowerBound(final NumberAxis axis,final XYChart<?, ?> chart,final Function<XYChart.Data<?, ?>,Object> extractor) {
+		if(axis.getLowerBound()!=null) return axis.getLowerBound();
+		return chart.getData().stream().
+			flatMap(S->S.getData().stream()).
+			map(extractor).
+			mapToDouble(O->Number.class.cast(O).doubleValue()).
+			min().orElse(0.0);
+		}
+	private double upperBound(final NumberAxis axis,final XYChart<?, ?> chart,final Function<XYChart.Data<?, ?>,Object> extractor) {
+		if(axis.getUpperBound()!=null) return axis.getUpperBound();
+		return chart.getData().stream().
+			flatMap(S->S.getData().stream()).
+			map(extractor).
+			mapToDouble(O->Number.class.cast(O).doubleValue()).
+			max().orElse(0.0);
+		}
 
 }

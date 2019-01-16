@@ -27,12 +27,15 @@ package com.github.lindenb.jvarkit.lang;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.text.DecimalFormat;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import htsjdk.samtools.util.StringUtil;
 
 public class StringUtils extends StringUtil {
+	private static final DecimalFormat NICE_INT_FORMAT = new DecimalFormat("###,###");
+
 
 private static <T> boolean _is(final String s,Function<String,T> fun,final Predicate<T> validator) {
 	if(isBlank(s)) return false;
@@ -156,5 +159,10 @@ public static String escapeC(final String str) {
 		i++;
 		}
 	return str;
+	}
+
+/** return long number with comma as thousand separator */
+public static final String niceInt(long n) {
+	return StringUtils.NICE_INT_FORMAT.format(n);
 	}
 }

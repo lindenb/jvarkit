@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-display jfx chart of case/control maf from a VCF and a pedigree
+chart of case/control maf from a VCF and a pedigree
 
 
 ## Usage
@@ -21,10 +21,6 @@ Usage: casectrljfx [options] Files
     --helpFormat
       What kind of help
       Possible Values: [usage, markdown, xml]
-    --legendside
-      Legend side
-      Default: RIGHT
-      Possible Values: [TOP, BOTTOM, LEFT, RIGHT]
     --limit
       Limit to 'N' variants. negative==no limit; All point are loaded in 
       memory. The more variants you have, the more your need memory
@@ -60,9 +56,6 @@ Usage: casectrljfx [options] Files
       Possible Values: [all, males, females]
     --title
       Default title for the graph
-    --tooltip
-      add mouse Tooltip the point (requires more memory)
-      Default: false
     --version
       print version and exit
 
@@ -85,7 +78,7 @@ Usage: casectrljfx [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -153,5 +146,8 @@ java -jar dist/casectrljfx.jar --pedigree  mutations.ped mutations.vcf
 
 ![screenshot](https://pbs.twimg.com/media/C_EYa54W0AAopkl.jpg)
 
+## History
+
+  * removed JFX because openjdk doesn't support JFX
 
 

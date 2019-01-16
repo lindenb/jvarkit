@@ -218,11 +218,11 @@ APPS= vcffixindels vcftail vcfhead vcfburdenfisherh vcfburdenfisherv vcfburdenma
 	vcfremovegenotypejs vcfgenesplitter bamstats02 bamstats02view sammaskalignedbases biostar105754 gff2kg \
 	bam2sql vcfinjectpedigree vcfburdenrscriptv vcffilternotinpedigree vcfderby01 vcf2zip pubmedgender pubmedmap vcfdoest splitvcf \
 	forkvcf gbrowserhtml bim2vcf queue2make concatsam samreadlengthdistribution biostar214299 \
-	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230 jfxngs vcfgnomad vcf2svg mergeblastxml \
-	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang casectrljfx biostar251649 samcolortag vcf2table \
+	vcfmovefilterstoinfo gatkcodegen cmpbams4 vcfeigen01 biostar234081 biostar234230  vcfgnomad vcf2svg mergeblastxml \
+	vcfannotwithbeacon commbams samscansplitreads samretrieveseqandqual pubmedcodinglang  biostar251649 samcolortag vcf2table \
 	variantsinwindow  knime2txt lumpyvcf2circos vcfucsc xsltstream vcfloopovergenes vcffilterjdk samjdk vcfnocall2homref \
 	vcfserver tviewserver vcftrap prettysam vcfremoveunusedalt lumpysort samaddpi goutils gb2gff \
-	indexcovjfx indexcov2vcf samcustomsortjdk
+	indexcov2vcf samcustomsortjdk
 
 
 .PHONY: all tests $(APPS) clean download_all_maven library top    burden 

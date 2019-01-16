@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public abstract class XYChart<X, Y> extends Chart {
@@ -99,6 +100,7 @@ public List<XYChart.Series<X, Y>> getData() {
 	}
 
 
+
 @Override
 public void update() {
 	if(getXAxis().isString() && getYAxis().isNumber())
@@ -107,9 +109,12 @@ public void update() {
 				flatMap(S->S.getData().stream()).
 				map(D->String.class.cast(D.getXValue())).
 				collect(Collectors.toCollection(LinkedHashSet::new));
-		final CategoryAxis cat=CategoryAxis.class.cast(getXAxis());
-		cat.getCategories().clear();
-		cat.getCategories().addAll(set);
+		final CategoryAxis catx=CategoryAxis.class.cast(getXAxis());
+		catx.getCategories().clear();
+		catx.getCategories().addAll(set);
+		
+		
+		
 		}
 	}
 
