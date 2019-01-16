@@ -117,4 +117,44 @@ public static String toTitle(final String s) {
 	if(s.length()==1) return s.toUpperCase();
 	return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
 	}
+/** escape C string , returns null is str is null */
+public static String escapeC(final String str) {
+	if(str==null) return null;
+	
+	int i=0;
+	while(i< str.length())
+		{
+		char c = str.charAt(i);
+		switch(c)
+			{
+			case '\'': 
+			case '\"':
+			case '\n':
+			case '\t':
+			case '\\':
+				{
+				final StringBuilder sb = new StringBuilder(str.length()+1);
+				sb.append(str.substring(0, i));
+				while(i< str.length())
+					{
+					c = str.charAt(i);
+					switch(c)
+						{
+						case '\'': sb.append("\\\'");break;
+						case '\"': sb.append("\\\"");break;
+						case '\n': sb.append("\\n");break;
+						case '\t': sb.append("\\t");break;
+						case '\\': sb.append("\\\\");break;
+						default: sb.append(c);break;
+						}
+					i++;
+					}
+				return sb.toString();
+				}
+			default: break;
+			}
+		i++;
+		}
+	return str;
+	}
 }

@@ -22,12 +22,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+package com.github.lindenb.jvarkit.chart;
 
-package com.github.lindenb.jvarkit.gexf;
+import java.util.Collections;
+import java.util.List;
 
-public class GexfConstants {
-public static final String XMLNS="http://www.gexf.net/1.3";
-public static final String XMLNS_VIZ="http://www.gexf.net/1.3/viz";
-public static final String XSI_SCHEMA_LOCATION="http://www.gexf.net/1.3 http://www.gexf.net/1.3/gexf.xsd";
-public static final String VERSION="1.3";
+public class BarChart<X,Y> extends XYChart<X,Y> {
+	private double categoryGap=1.0;
+	
+	public BarChart(Axis<X> xAxis, Axis<Y> yAxis, List<XYChart.Series<X,Y>> data) {
+		super(xAxis,yAxis,data);
+	}
+	
+	public BarChart(Axis<X> xAxis, Axis<Y> yAxis) {
+		this(xAxis,yAxis,Collections.emptyList());
+	}
+	public void setCategoryGap(double categoryGap) {
+		this.categoryGap = categoryGap;
+	}
+	public double getCategoryGap() {
+		return categoryGap;
+	}
 }

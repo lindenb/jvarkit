@@ -27,6 +27,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,16 +40,24 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
+import com.github.lindenb.jvarkit.chart.Axis;
+import com.github.lindenb.jvarkit.chart.BarChart;
+import com.github.lindenb.jvarkit.chart.BubbleChart;
+import com.github.lindenb.jvarkit.chart.CategoryAxis;
+import com.github.lindenb.jvarkit.chart.Chart;
+import com.github.lindenb.jvarkit.chart.NumberAxis;
+import com.github.lindenb.jvarkit.chart.PieChart;
+import com.github.lindenb.jvarkit.chart.RExporter;
+import com.github.lindenb.jvarkit.chart.ScatterChart;
+import com.github.lindenb.jvarkit.chart.StackedBarChart;
+import com.github.lindenb.jvarkit.chart.XYChart;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -58,31 +67,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Side;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.chart.Axis;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.BubbleChart;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.Chart;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.PieChart;
-import javafx.scene.chart.ScatterChart;
-import javafx.scene.chart.StackedBarChart;
-import javafx.scene.chart.XYChart;
-import javafx.scene.chart.XYChart.Series;
-import javafx.scene.image.WritableImage;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
+
 /**
 BEGIN_DOC 
 
@@ -157,15 +142,19 @@ gunzip -c src/test/resources/S1.R1.fq.gz | \
 	sort | uniq -c |\
 	java -jar dist/simpleplot.jar -su -t STACKED_XYV --xlabel "Position"
 ```
+
+## History
+
+  * 2019: removed jfx as openjdk doesn't support it... output is now R
  
  
 END_DOC
  */
 @Program(name="simpleplot",
-description="simple figure plotter using java JFX. You'd better use gnuplot or R.",
-keywords={"char","figure","jfx"})
+description="simple figure plotter output is a R script",
+keywords={"char","figure"})
 
-public class SimplePlot extends JfxLauncher {
+public class SimplePlot extends Launcher {
 	private static final Logger LOG = Logger.build(SimplePlot.class).make();
 	
 	
@@ -196,7 +185,7 @@ public class SimplePlot extends JfxLauncher {
 	
 	/** base generator for a Chart Maker */
 	private abstract class ChartSupplier
-		implements Supplier<Node>
+		implements Supplier<Chart>
 		{
 		private SAMSequenceDictionary _dict = null;
 		protected Pattern delimiter = Pattern.compile("[\t]");
@@ -272,12 +261,8 @@ public class SimplePlot extends JfxLauncher {
 		protected SAMSequenceDictionary getDictionary()
 			{
 			if(this._dict==null) {
-				if(SimplePlot.this.faidx == null) {
-					throw new JvarkitException.DictionaryMissing("undefined reference file.");
-					}
-				
 				this._dict = new SAMSequenceDictionary(
-						SAMSequenceDictionaryExtractor.extractDictionary(SimplePlot.this.faidx).
+						SequenceDictionaryUtils.extractRequired(SimplePlot.this.faidx).
 							getSequences().
 							stream().
 							filter(C->min_contig_size<0|| C.getSequenceLength()>= SimplePlot.this.min_contig_size).
@@ -399,12 +384,11 @@ public class SimplePlot extends JfxLauncher {
 		@Override
 		public Chart get() {
 			final Map<String,Double> key2count = getKeyValueMap();			
-			final ObservableList<PieChart.Data> pieChartData =
-					FXCollections.observableList(
-							key2count.entrySet().stream().
-							map(KV->new PieChart.Data(KV.getKey(),KV.getValue())).
-							collect(Collectors.toList())
-							);
+			final List<PieChart.Data> pieChartData =
+						key2count.entrySet().stream().
+						map(KV->new PieChart.Data(KV.getKey(),KV.getValue())).
+						collect(Collectors.toList())
+						;
 			final  PieChart chart = new PieChart(pieChartData);
 			return chart;
 			}
@@ -415,12 +399,11 @@ public class SimplePlot extends JfxLauncher {
 		@Override
 		public Chart get() {
 			final Map<String,Double> key2count = getKeyValueMap();			
-			final ObservableList<StackedBarChart.Data<String,Number>> data =
-					FXCollections.observableList(
-							key2count.entrySet().stream().
-							map(KV->new StackedBarChart.Data<String,Number>(KV.getKey(),KV.getValue())).
-							collect(Collectors.toList())
-							);
+			final List<StackedBarChart.Data<String,Number>> data =
+				key2count.entrySet().stream().
+				map(KV->new StackedBarChart.Data<String,Number>(KV.getKey(),KV.getValue())).
+				collect(Collectors.toList())
+				;
 			final XYChart.Series<String, Number> series1 =
 			            new XYChart.Series<String, Number>(data);
 			final CategoryAxis xAxis = new CategoryAxis();
@@ -449,7 +432,7 @@ public class SimplePlot extends JfxLauncher {
 				header = this.delimiter.split(firstLine);
 				if(header.length<=1) return null;
 				}
-			final List<XYChart.Series<String, Number>> series = FXCollections.observableArrayList();
+			final List<XYChart.Series<String, Number>> series = new ArrayList<>();
 
 			for(;;)
 				{
@@ -535,7 +518,7 @@ public class SimplePlot extends JfxLauncher {
 					}
 				if(series == null) //first time we see the serie/header
 					{
-					series= FXCollections.observableArrayList();
+					series= new ArrayList<>();
 					for(int x=1;x<header.length;++x) {
 						final XYChart.Series<String, Number> serie = new XYChart.Series<>();
 						serie.setName(header[x]);
@@ -658,8 +641,8 @@ public class SimplePlot extends JfxLauncher {
 			}
 		}
 
+	@SuppressWarnings("unused")
 	private class BubbleChartSupplier extends ChartSupplier {
-		
 		int num_cols=2;
 		
 		BubbleChartSupplier numCols(int n) {
@@ -671,7 +654,7 @@ public class SimplePlot extends JfxLauncher {
 		public Chart get() {
 			final MinMax minmaxX = new MinMax();
 			final MinMax minmaxY = new MinMax();
-			final Series<Number, Number> serie = new Series<>();
+			final XYChart.Series<Number, Number> serie = new XYChart.Series<>();
 			for(;;)
 				{
 				String line = lineSupplier.get();
@@ -706,11 +689,12 @@ public class SimplePlot extends JfxLauncher {
 	}
 	
 
+	@SuppressWarnings("unused")
 	private class HeatmapSupplier extends ChartSupplier {
 		
 		
 		@Override
-		public Node get() {
+		public Chart get() {
 			for(;;) {
 				final String line = lineSupplier.get();
 				if(line==null) break;
@@ -750,10 +734,10 @@ public class SimplePlot extends JfxLauncher {
 	private File outputFile = null;
 	@Parameter(names= {"-chrompos","--chrom-position"},description = "When reading a genomic file. Input is not a BED file but a CHROM(tab)POS file. e.g: output of `samtools depth`")
 	private boolean input_is_chrom_position=false;
-	@Parameter(names= {"--title-side"},description = "Title side")
-	private Side titleSide=Side.TOP;
-	@Parameter(names= {"--legend-side"},description = "Legend side")
-	private Side legendSide=Side.RIGHT;
+	//@Parameter(names= {"--title-side"},description = "Title side")
+	//private Side titleSide=Side.TOP;
+	//@Parameter(names= {"--legend-side"},description = "Legend side")
+	//private Side legendSide=Side.RIGHT;
 	@Parameter(names= {"--title"},description = "Chart Title")
 	private String chartTitle = "";
 	@Parameter(names= {"--hide-legend"},description = "Hide Legend")
@@ -776,26 +760,14 @@ public class SimplePlot extends JfxLauncher {
 	
 	
 	@Override
-	public int doWork(final Stage primaryStage,final List<String> args) {
-		Node chartNode =null;
+	public int doWork(final List<String> args) {
+		Chart chartNode =null;
 		try
 			{
 			
-			final BufferedReader br;
-			if(args.isEmpty())
-				{
-				// open stdin
-				br = IOUtils.openStdinForBufferedReader();
-				}
-			else if(args.size()==1)
-				{
-				br = IOUtils.openURIForBufferedReading(args.get(0));
-				}
-			else
-				{
-				LOG.error("Illegal Number of arguments: " + args);
-				return -1;
-				}
+			
+			final BufferedReader br= super.openBufferedReader(oneFileOrNull(args));
+			
 			
 			this.lineSupplier = ()-> {
 				try {for(;;) {
@@ -831,6 +803,34 @@ public class SimplePlot extends JfxLauncher {
 					}
 				}
 			CloserUtil.close(br);
+			
+			if(chartNode==null) {
+				LOG.error("No chart was generated");
+				return -1;
+			}
+			
+			if(StringUtil.isBlank(this.chartTitle)) {
+				chartNode.setLegendVisible(false);
+				}
+			else
+				{
+				//chart.setTitleSide(this.titleSide);
+				chartNode.setTitle(this.chartTitle);
+				}
+			//chart.setLegendSide(this.legendSide);
+			chartNode.setLegendVisible(!this.hide_legend);
+			
+		
+		
+		
+	  		LOG.info("saving as "+this.outputFile+" and exiting.");
+	  		try(PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
+				final RExporter exporter=new RExporter();
+				exporter.exportToR(pw,chartNode);
+				pw.flush();
+				pw.close();
+				}
+
 			}
 		catch(final Exception err) {
 			LOG.error(err);
@@ -840,89 +840,16 @@ public class SimplePlot extends JfxLauncher {
 			{
 			
 			}
-		if(chartNode==null) {
-			LOG.error("No chart was generated");
-			return -1;
-		}
 		
-		if(chartNode instanceof Chart) {
-			final Chart chart = Chart.class.cast(chartNode);
-			if(this.outputFile!=null) 
-				{
-				chart.setAnimated(false);
-				}
+		
 			
-			if(StringUtil.isBlank(this.chartTitle)) {
-				chart.setLegendVisible(false);
-				}
-			else
-				{
-				chart.setTitleSide(this.titleSide);
-				chart.setTitle(this.chartTitle);
-				}
-			chart.setLegendSide(this.legendSide);
-			chart.setLegendVisible(!this.hide_legend);
-			}
+			
 		
-		
-		if(this.outputFile!=null) 
-			{
-      		LOG.info("saving as "+this.outputFile+" and exiting.");
-      		final Node theNode = chartNode;
-			primaryStage.setOnShown(WE->{
-	       		 try
-	       		 	{
-	       			saveImageAs(theNode,this.outputFile);
-	       		 	}
-	       		 catch(final IOException err)
-	       		 	{
-	       			LOG.error(err);
-	       			setExitStatus(-1);
-	       		 	}
-	       		 Platform.exit();
-				});
-			}
-		if(!(chartNode instanceof Parent)) {
-			LOG.error("not an instance of parent??");
-			return -1;
-			}
-		final Screen scr = Screen.getPrimary();
-		Scene scene  = new Scene(
-				Parent.class.cast(chartNode),
-				scr.getBounds().getWidth()-100,
-				scr.getBounds().getHeight()-100
-				);
-		primaryStage.setScene(scene);
-        primaryStage.show();
         return 0;
 		}
 	
-	/** save chart in file */
-	private void saveImageAs(
-			final Node chartNode,
-			final File file)
-		 	throws IOException
-	 	{
-		if(file.getName().endsWith(".R") && (chartNode instanceof Chart))
-			{
-			try(PrintWriter pw = new PrintWriter(file)) {
-				final JFXChartExporter exporter=new JFXChartExporter(pw);
-				exporter.exportToR(Chart.class.cast(chartNode));
-				pw.flush();
-				pw.close();
-				}
-			}
-		else
-			{
-			
-			final WritableImage image = chartNode.snapshot(new SnapshotParameters(), null);
-			final String format=(file.getName().toLowerCase().endsWith(".png")?"png":"jpg");
-	        ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
-		 	}
-	 	}
-
 	
 	public static void main(final String[] args) {
-		Application.launch(args);
+		new SimplePlot().instanceMainWithExit(args);
 		}
 	}

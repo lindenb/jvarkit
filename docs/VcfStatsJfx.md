@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-GUI: VCF statistics
+VCF statistics
 
 
 ## Usage
@@ -29,9 +29,7 @@ Usage: vcfstatsjfx [options] Files
       For the 'contig' Panel, normalize on contig length.
       Default: false
     -o, --output
-      output images in directory or zip file (filename ends with '.zip') or 
-      'R' file (filename ends with '.R' **UNDER CONSTRUCTION**) . If defined, 
-      the application will exit automatically
+      Output file. Optional . Default: stdout
     --predictions-per-sample, -pps
       Show Predictions per sample.
       Default: false
@@ -63,7 +61,6 @@ Usage: vcfstatsjfx [options] Files
 
  * vcf
  * stats
- * jfx
 
 
 
@@ -77,7 +74,7 @@ Usage: vcfstatsjfx [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -149,5 +146,9 @@ grep -E '(^#|missense)' input.vcf | java -jar dist/vcfstatsjfx.jar --stdin
 
 ![https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4](https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4 "animation")
 
+
+## History
+
+   *  removed JFX/gui because openjdk doesn't support jfx :-(
 
 

@@ -122,4 +122,11 @@ public static SAMSequenceDictionary extractRequired(final File f) {
 		}
 	return dict;
 	}
+/** return true if dict has X|chrX AND Y|chrY */
+public static boolean hasXY(final SAMSequenceDictionary dict) {
+	if(dict==null) return false;
+	if(dict.getSequence("X")==null && dict.getSequence("chrX")==null) return false;
+	if(dict.getSequence("Y")==null && dict.getSequence("chrY")==null) return false;
+	return true;
+}
 }

@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-simple figure plotter using java JFX. You'd better use gnuplot or R.
+simple figure plotter output is a R script
 
 
 ## Usage
@@ -22,10 +22,6 @@ Usage: simpleplot [options] Files
     --hide-legend
       Hide Legend
       Default: false
-    --legend-side
-      Legend side
-      Default: RIGHT
-      Possible Values: [TOP, BOTTOM, LEFT, RIGHT]
     --min-reference-size
       When using a *.dict file, discard the contigs having a length < 'size'. 
       Useful to discard the small unused contigs like 'chrM'. -1 : ignore.
@@ -46,10 +42,6 @@ Usage: simpleplot [options] Files
     --title
       Chart Title
       Default: <empty string>
-    --title-side
-      Title side
-      Default: TOP
-      Possible Values: [TOP, BOTTOM, LEFT, RIGHT]
     --type, -t
       type
       Default: UNDEFINED
@@ -68,14 +60,13 @@ Usage: simpleplot [options] Files
 
  * char
  * figure
- * jfx
 
 
 ## Compilation
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
@@ -205,6 +196,10 @@ gunzip -c src/test/resources/S1.R1.fq.gz | \
 	sort | uniq -c |\
 	java -jar dist/simpleplot.jar -su -t STACKED_XYV --xlabel "Position"
 ```
+
+## History
+
+  * 2019: removed jfx as openjdk doesn't support it... output is now R
  
  
 

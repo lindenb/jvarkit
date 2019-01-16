@@ -12,15 +12,16 @@ lib.dir?=lib
 mysql.jar = \
 	 $(lib.dir)/mysql/mysql-connector-java/5.1.47/mysql-connector-java-5.1.47.jar
 
-htsjdk.version=2.15.0
+htsjdk.version=2.18.1
 htsjdk.jars  =  \
-	$(lib.dir)/com/github/samtools/htsjdk/${htsjdk.version}/htsjdk-${htsjdk.version}.jar \
+	$(lib.dir)/com/github/samtools/htsjdk/2.18.1/htsjdk-2.18.1.jar \
 	$(lib.dir)/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar \
-	$(lib.dir)/gov/nih/nlm/ncbi/ngs-java/1.2.4/ngs-java-1.2.4.jar \
+	$(lib.dir)/gov/nih/nlm/ncbi/ngs-java/2.9.0/ngs-java-2.9.0.jar \
 	$(lib.dir)/org/apache/commons/commons-compress/1.4.1/commons-compress-1.4.1.jar \
 	$(lib.dir)/org/apache/commons/commons-jexl/2.1.1/commons-jexl-2.1.1.jar \
 	$(lib.dir)/org/tukaani/xz/1.5/xz-1.5.jar \
 	$(lib.dir)/org/xerial/snappy/snappy-java/1.1.4/snappy-java-1.1.4.jar
+
 
 
 commons.loggging.jars = \
@@ -96,7 +97,7 @@ jcommander.jar= \
 
 
 testng.jars = \
-	$(lib.dir)/org/testng/testng/6.11/testng-6.11.jar \
+	$(lib.dir)/org/testng/testng/6.14.3/testng-6.14.3.jar \
 	${jcommander.jar}
 
 javacc.jar=\

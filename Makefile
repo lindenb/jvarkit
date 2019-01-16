@@ -594,7 +594,7 @@ $(eval $(call compile-htsjdk-cmd,vcfskatslidingwindow,${jvarkit.package}.tools.s
 $(eval $(call compile-htsjdk-cmd,vcfskat,${jvarkit.package}.tools.skat.VcfSkat,${jcommander.jar}  ${jaxb.jars}))
 ##$(eval $(call compile-htsjdk-cmd,vcfspringfilter,${jvarkit.package}.tools.misc.VcfSpringFilter,${jcommander.jar} ${spring-beans.jars}))
 ##$(eval $(call compile-htsjdk-cmd,testsng,${jvarkit.package}.tools.tests.TestNg01,${testng.jars}  ${bigwig.jars} ${jaxb.jars}))
-##$(eval $(call compile-htsjdk-cmd,simpleplot,${jvarkit.package}.tools.misc.SimplePlot,${jcommander.jar}))
+$(eval $(call compile-htsjdk-cmd,simpleplot,${jvarkit.package}.tools.misc.SimplePlot,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,cytoband2svg,${jvarkit.package}.tools.misc.CytobandToSvg,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcfancestralalleles,${jvarkit.package}.tools.onekgenomes.VcfAncestralAllele,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,bednonoverlappingset,${jvarkit.package}.tools.misc.BedNonOverlappingSet,${jcommander.jar}))
