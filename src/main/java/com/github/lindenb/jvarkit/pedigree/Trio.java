@@ -23,13 +23,20 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.pedigree;
+import java.util.Set;
 
-/** phenotype sample of an individual */
-public enum Status {
-	missing(-9),unaffected(0),affected(1);
-
-	private final int v;
-	Status(int v) { this.v = v;}
-	
-	public int intValue() { return this.v;}
-}
+public interface Trio extends SampleSet {
+	public default boolean hasFather() { return getFather()!=null;}
+	public default boolean hasMother() { return getMother()!=null;}
+	public default Sample getFather() { return getChild().getFather();}
+	public default Sample getMother() { return getChild().getMother();}
+	public Sample getChild();
+	@Override
+	public Set<Sample> getSamples() {
+		final Set<Sample> L = new HashSet<>(3);
+		if(hasFather()) L.add(getFather());
+		if(hasMother()) L.add(getMother());
+		L.add(getChild());
+		return L;
+		}
+	}

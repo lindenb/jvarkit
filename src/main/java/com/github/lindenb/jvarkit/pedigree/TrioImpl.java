@@ -23,13 +23,36 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.pedigree;
+import java.util.Set;
 
-/** phenotype sample of an individual */
-public enum Status {
-	missing(-9),unaffected(0),affected(1);
-
-	private final int v;
-	Status(int v) { this.v = v;}
+class TrioImpl implements Trio {
+	private final Sample child;
+	TrioImpl(final Sample child)
+		{
+		this.child=child;
+		if(child==null) throw new IllegalArgumentException("child==null");
+		if(!child.hasFather() && !child.hasMother() ) throw new IllegalArgumentException("child without parents "+child);
+		}
+	@Override
+	public Sample getChild() { return this.child;}
 	
-	public int intValue() { return this.v;}
-}
+	@Override
+	public Set<Trio> getTrios() {
+		return Collections.singletonSet(this);		
+		}
+	@Override
+	public int hashCode() {
+		return getChild().hashCode();	
+		}
+	@Override
+	public boolean equals(final Object o)
+		{
+		if(o==this) return true;
+		if(o==null || !(o instanceof TrioImpl)) return false;
+		return getChild().equals(TrioImpl.class.cast(o).getChild());
+		}
+	@Override
+	public String toString() {
+		return "trio(child:"+getChild()+",father:"getFather()+",mother:"+getMother()+")";		
+		}
+	}

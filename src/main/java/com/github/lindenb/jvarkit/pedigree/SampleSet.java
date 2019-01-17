@@ -24,12 +24,30 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.pedigree;
 
-/** phenotype sample of an individual */
-public enum Status {
-	missing(-9),unaffected(0),affected(1);
+import java.util.Set;
 
-	private final int v;
-	Status(int v) { this.v = v;}
-	
-	public int intValue() { return this.v;}
-}
+/* a collection of samples */
+public interface SampleSet {
+	/** return the samples in this SampleSet */
+	public Set<Sample> getSamples();
+	/** find a sample in this SampleSet . returns the sample with this id or null if not found */
+	public default Sample getSampleById(final String id) {
+		if(id==null) return null;
+		Sample ret = null;
+		for(final Sample sample: this. getSamples())
+			{
+			if(!id.equals(sample.getId()) ) continue;
+			if(ret!=null) throw new IllegalStateException("ambigous sample id "+id+" found twice "+ret+" and "+ sample);
+			ret = sample;
+			}
+		return ret;
+		}
+	/** return all the trios in this SampleSet */
+	public Set<Trio> getTrios() {
+		return this. getSamples().
+			stream().
+			filter(S->sample.hasFather() || sample.hasMother()).
+			map(S->new TrioImpl(sample)).
+			collect(Collectors.toSet());
+		}
+	}
