@@ -56,7 +56,7 @@ import javax.xml.bind.annotation.XmlType;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -294,7 +294,7 @@ public class VcfRemoveUnusedAlt extends Launcher {
 		@Override 
 		protected int doVcfToVcf(
 				final String inputName, 
-				final VcfIterator in,
+				final VCFIterator in,
 				final VariantContextWriter delegate) {
 			try
 				{

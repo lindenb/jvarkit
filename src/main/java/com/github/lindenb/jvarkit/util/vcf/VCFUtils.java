@@ -76,6 +76,9 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFIteratorBuilder;
+
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -194,7 +197,7 @@ public class VCFUtils
 		}
 		header.addMetaDataLine(hl);
 	}
-	
+
 	/** find a codec from the lines header. if not found, return default codec */
 	public static AbstractVCFCodec findCodecFromLines(final List<String> list)
 		{
@@ -261,46 +264,41 @@ public class VCFUtils
 	 * 
 	 * @param IN input stream
 	 * */
-	public static  VcfIterator createVcfIteratorFromStream(final InputStream in) throws IOException
+	@Deprecated
+	public static  VCFIterator createVCFIteratorFromStream(final InputStream in) throws IOException
 		{
-		return new VcfIteratorImpl(in);	
+		return createVCFIteratorFromInputStream(in);
 		}
 	
 	/** create a VCF iterator
 	 * 
 	 * @param IN input vcf file
 	 * */
-	public static  VcfIterator createVcfIteratorFromFile(final File vcfOrBcfFile) throws IOException
+	public static  VCFIterator createVCFIteratorFromFile(final File vcfOrBcfFile) throws IOException
 		{
 		IOUtil.assertFileIsReadable(vcfOrBcfFile);
-		if(Arrays.asList(IOUtil.VCF_EXTENSIONS).
-				stream().
-				anyMatch(S->vcfOrBcfFile.getName().endsWith(S)))
-			{
-			return new BcfOrVcfIteratorImpl(vcfOrBcfFile);
-			}
-		return new VcfIteratorImpl(IOUtils.openFileForBufferedReading(vcfOrBcfFile));	
+		return new VCFIteratorBuilder().open(vcfOrBcfFile);
 		}
 	
 	/** create a VCF iterator
 	 * 
 	 * @param IN input vcf file
 	 * */
-	public static  VcfIterator createVcfIteratorFromInputStream(final InputStream in) throws IOException
+	public static  VCFIterator createVCFIteratorFromInputStream(final InputStream in) throws IOException
 		{
-		return new VcfIteratorImpl(in);	
+		return new VCFIteratorBuilder().open(in);	
 		}
 
 	/** create a VCF iterator from LineReader
 	 * 
 	 * @param IN input vcf file
 	 * */
-	public static  VcfIterator createVcfIteratorFromLineIterator(
+	public static  VCFIterator createVCFIteratorFromLineIterator(
 			final LineIterator lineIterator,
 			boolean allowConcatenatedVcf
 			) throws IOException
 		{
-		return new VcfIteratorLineIterator(lineIterator,allowConcatenatedVcf);	
+		return new VCFIteratorLineIterator(lineIterator,allowConcatenatedVcf);	
 		}
 
 	
@@ -308,11 +306,11 @@ public class VCFUtils
 	 * 
 	 * @param IN : input uri or null for stdin
 	 * */
-	public static  VcfIterator createVcfIterator(final String IN) throws IOException
+	public static  VCFIterator createVCFIterator(final String IN) throws IOException
 		{
 		if(IN==null)
 			{
-			return createVcfIteratorStdin();
+			return createVCFIteratorStdin();
 			}
 		else if(Arrays.asList(IOUtil.VCF_EXTENSIONS).stream().anyMatch(S->IN.endsWith(S))
 				&& !IOUtils.isRemoteURI(IN))
@@ -322,20 +320,20 @@ public class VCFUtils
 					IN.substring(7):
 					IN
 					);
-			return createVcfIteratorFromFile(bcfFile);
+			return createVCFIteratorFromFile(bcfFile);
 			}
 		else
 			{
-			return new VcfIteratorImpl(IOUtils.openURIForReading(IN));
+			return createVCFIteratorFromInputStream(IOUtils.openURIForReading(IN));
 			}
 		}
 	/** create a VCF iterator
 	 * 
 	 * @param IN : input uri or null for stdin
 	 * */
-	public static  VcfIterator createVcfIteratorStdin() throws IOException
+	public static  VCFIterator createVCFIteratorStdin() throws IOException
 		{
-		return new VcfIteratorImpl(System.in);
+		return createVCFIteratorFromInputStream(System.in);
 		}
 	
 	public static  VariantContextWriter createVariantContextWriterToStdout()
@@ -354,9 +352,9 @@ public class VCFUtils
 		}
 
 	/** wrap delegate into a VCF iterator printing progress */
-	public static VcfIterator wrapInProgress(final VcfIterator delegate)
+	public static VCFIterator wrapInProgress(final VCFIterator delegate)
 		{
-		return new VcfIteratorProgress(delegate);
+		return new VCFIteratorProgress(delegate);
 		}
 	
 	/** checkError but don't flush everything each time */
@@ -520,7 +518,7 @@ public class VCFUtils
 	/**
 	 * 
 	 */
-	public CloseableIterator<VcfIterator> readConcatenatedVcfFile(final BufferedReader r) throws IOException {
+	public CloseableIterator<VCFIterator> readConcatenatedVcfFile(final BufferedReader r) throws IOException {
 		return new VcfFileIterator(IOUtils.toLineIterator(r));
 	}
 	
@@ -756,15 +754,15 @@ public class VCFUtils
 		}
     
     /** wrap a VCF iterator that checks that variants are sorted in a VCF file */
-    public static VcfIterator createAssertSortedVcfIterator(final VcfIterator iter, final Comparator<VariantContext> cmp) {
-    	return new AssertSortedVcfIterator(iter,cmp);
+    public static VCFIterator createAssertSortedVCFIterator(final VCFIterator iter, final Comparator<VariantContext> cmp) {
+    	return new AssertSortedVCFIterator(iter,cmp);
     }
     
-    private static class AssertSortedVcfIterator implements VcfIterator {
-    	private final VcfIterator iter;
+    private static class AssertSortedVCFIterator implements VCFIterator {
+    	private final VCFIterator iter;
     	private final Comparator<VariantContext> cmp;
     	private VariantContext prev = null;
-    	AssertSortedVcfIterator(final VcfIterator iter, final Comparator<VariantContext> cmp) {
+    	AssertSortedVCFIterator(final VCFIterator iter, final Comparator<VariantContext> cmp) {
     		this.iter = iter;
     		this.cmp = cmp;
     		this.prev = null;
@@ -792,33 +790,31 @@ public class VCFUtils
     		this.prev = ctx;
     		return ctx;
     		}
-    	@Override
-    	public AbstractVCFCodec getCodec() {
-    		return this.iter.getCodec();
-    		}
+    	//@Override
+    	// public AbstractVCFCodec getCodec() { return this.iter.getCodec(); }
     	@Override
     	public VCFHeader getHeader() {
     		return this.iter.getHeader();
     		}
     	@Override
-    	public void close() throws IOException {
+    	public void close() {
     		CloserUtil.close(this.iter);
     		}
     	}
     
     
-    private static class VcfFileIterator extends AbstractIterator<VcfIterator>
-    	implements CloseableIterator<VcfIterator>{
+    private static class VcfFileIterator extends AbstractIterator<VCFIterator>
+    	implements CloseableIterator<VCFIterator>{
     	private  LineIterator lr;
     	public VcfFileIterator(final LineIterator lr) {
 		this.lr = lr;
     	}
     	
     	@Override
-    	protected VcfIterator advance() {
+    	protected VCFIterator advance() {
     		if(lr==null) return null;
     		if(!lr.hasNext()) { CloserUtil.close(lr);lr=null; return null;}
-    		return new MyVcfIterator() ;
+    		return new MyVCFIterator() ;
     		}
     	
     	@Override
@@ -828,9 +824,9 @@ public class VCFUtils
     		lr=null;
     		}
     	
-    	private class MyVcfIterator extends VcfIteratorImpl
+    	private class MyVCFIterator extends VcfIteratorImpl
     		{
-    		MyVcfIterator() {
+    		MyVCFIterator() {
     			super(VcfFileIterator.this.lr);
     			}
     		
@@ -846,12 +842,12 @@ public class VCFUtils
     		}
     }
     
-    private static class VcfIteratorLineIterator implements VcfIterator {
+    private static class VCFIteratorLineIterator implements VCFIterator {
     	private final CodecAndHeader cah;
     	final LineIterator lineIter;
     	final boolean allowConcatenatedVcf;
     	private boolean closed=false;
-    	VcfIteratorLineIterator(final LineIterator lineIter,
+    	VCFIteratorLineIterator(final LineIterator lineIter,
     			boolean allowConcatenatedVcf
     			)
     		{
@@ -866,7 +862,7 @@ public class VCFUtils
 			this.cah = com.github.lindenb.jvarkit.util.vcf.VCFUtils.parseHeader(headerLines);
     		}
     	
-    	@Override
+    	//@Override
     	public AbstractVCFCodec getCodec() {
     		return this.cah.codec;
     		}
@@ -897,7 +893,7 @@ public class VCFUtils
     		}
     	
     	@Override
-    	public void close() throws IOException {
+    	public void close()  {
     		if(closed) return;
     		closed=true;
     		/* consumme remaining variants */
@@ -914,12 +910,13 @@ public class VCFUtils
     	
     	}
     
-    private static class VcfIteratorProgress  implements VcfIterator
+	@Deprecated
+    private static class VCFIteratorProgress  implements VCFIterator
     	{
-    	private final VcfIterator delegate;
+    	private final VCFIterator delegate;
     	private SAMSequenceDictionaryProgress progress;
     	
-    	VcfIteratorProgress(final VcfIterator delegate) {
+    	VCFIteratorProgress(final VCFIterator delegate) {
     		this.delegate=delegate;
     		this.progress = new SAMSequenceDictionaryProgress(delegate.getHeader());
     	}
@@ -935,21 +932,15 @@ public class VCFUtils
 		}
 
 		@Override
-		public void close() throws IOException {
+		public void close()  {
 			this.delegate.close();
 			this.progress.finish();
 			
 		}
 
-		@Override
-		public AbstractVCFCodec getCodec() {
-			return this.delegate.getCodec();
-		}
+		//@Override public AbstractVCFCodec getCodec() { return this.delegate.getCodec(); }
 
-		@Override
-		public VCFHeader getHeader() {
-			return this.delegate.getHeader();
-		}
+		@Override public VCFHeader getHeader() { return this.delegate.getHeader(); }
 
 		@Override
 		public VariantContext peek() {
@@ -958,13 +949,13 @@ public class VCFUtils
     	
     	}
     
-    public static void copyHeaderAndVariantsTo(final VcfIterator iter,final VariantContextWriter w) {
+    public static void copyHeaderAndVariantsTo(final VCFIterator iter,final VariantContextWriter w) {
     	w.writeHeader(iter.getHeader());
     	copyVariantsTo(iter,w);
     	}
 
     
-    public static long copyVariantsTo(final VcfIterator iter,final VariantContextWriter w) {
+    public static long copyVariantsTo(final VCFIterator iter,final VariantContextWriter w) {
     	long n=0L;
     	while(iter.hasNext()) {
     		w.add(iter.next());
@@ -999,62 +990,4 @@ public class VCFUtils
 			}
 		return attributes;
 		}
-    /**
-     * Implementation of a VcfIterator
-     * wrapping a VCFFileReader
-     *
-     */
-    private static class BcfOrVcfIteratorImpl
-    	extends AbstractIterator<VariantContext>
-    	implements VcfIterator
-    	{
-    	private final File bcfFile;
-    	private VCFFileReader vcfFileReader;
-    	private CloseableIterator<VariantContext> delegate;
-    	private final VCFCodec codec = new VCFCodec();
-    	private final VCFHeader header;
-    	BcfOrVcfIteratorImpl(final File bcfFile)
-    		{
-    		Objects.requireNonNull(bcfFile);
-    		IOUtil.assertFileIsReadable(bcfFile);
-    		this.bcfFile = bcfFile;
-    		this.vcfFileReader = new VCFFileReader(bcfFile,false);
-    		this.header = this.vcfFileReader.getFileHeader();
-    		this.delegate = this.vcfFileReader.iterator();
-    		try {
-				this.codec.readHeader(VCFUtils.convertVCFHeaderToLineIterator(this.header));
-			} catch (final IOException err) {
-				throw new RuntimeIOException(err);
-				}
-    		}
-    	protected void finalize() {
-    		close();
-    		}
-    	@Override
-    	public AbstractVCFCodec getCodec() {
-    		return this.codec;
-    		}
-    	@Override
-    	public VCFHeader getHeader() {
-    		return this.header;
-    		}
-    	
-    	@Override
-    	protected VariantContext advance() {
-    		return  this.delegate!=null && this.delegate.hasNext()?
-    				this.delegate.next():
-    				null;
-    		}
-    	@Override
-    	public void close()  {
-    		CloserUtil.close(this.delegate);
-    		CloserUtil.close(this.vcfFileReader);
-    		this.vcfFileReader = null;
-    		this.delegate = null;
-    		}
-    	@Override
-    	public String toString() {
-    		return "VCF/BCF iterator with source: "+this.bcfFile;
-    		}
-    	}
 	}

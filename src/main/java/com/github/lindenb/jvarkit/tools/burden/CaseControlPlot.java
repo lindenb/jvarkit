@@ -51,7 +51,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -377,13 +377,13 @@ public class CaseControlPlot extends Launcher
 	public int doWork(final List<String> args)
 		{
 		ArchiveFactory archiveFactory=null;
-		VcfIterator in = null;
+		VCFIterator in = null;
 		VariantContextWriter teeVariantWriter = null;
 		final List<CaseControlExtractor> excractors = new ArrayList<>();
 		try
 			{
 			
-			in = super.openVcfIterator(oneFileOrNull(args));
+			in = super.openVCFIterator(oneFileOrNull(args));
 			final VCFHeader header= in.getHeader();
 			excractors.addAll( parseConfigFile(header) ) ;
 			final Pedigree pedigree;

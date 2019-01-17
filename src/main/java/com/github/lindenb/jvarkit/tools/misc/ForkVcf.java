@@ -52,7 +52,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 
@@ -226,13 +226,13 @@ public class ForkVcf
 		}
 		
 		BufferedReader r=null;
-		VcfIterator in =null;
+		VCFIterator in =null;
 		PrintWriter manifestWriter=null;
 		final List<SplitGroup> groups = new ArrayList<>();
 		VCFBuffer vcfBuffer=null;
 		try 
 			{
-			in = openVcfIterator(oneFileOrNull(args));
+			in = openVCFIterator(oneFileOrNull(args));
 			manifestWriter = (this.manifestFile==null?
 					new PrintWriter(new NullOuputStream()):
 					IOUtils.openFileForPrintWriter(this.manifestFile)
@@ -270,7 +270,7 @@ public class ForkVcf
 				final long variant_per_file= Math.max(1L,(long)Math.ceil(count_variants/(double)this.number_of_files));
 
 				LOG.info("done buffering. n="+count_variants+" now forking "+variant_per_file+" variants for "+this.number_of_files+" files.");
-				VcfIterator iter2=vcfBuffer.iterator();
+				VCFIterator iter2=vcfBuffer.iterator();
 				long count_ctx=0L;
 				while(iter2.hasNext()) {
 					if(groups.isEmpty() || count_ctx>=variant_per_file)

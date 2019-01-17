@@ -63,7 +63,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
 
@@ -229,7 +229,7 @@ public class VCFAnnoBam extends Launcher {
 			}
 	
     @Override
-    protected int doVcfToVcf(final String inputName, final VcfIterator r,final  VariantContextWriter w) {
+    protected int doVcfToVcf(final String inputName, final VCFIterator r,final  VariantContextWriter w) {
 		BufferedReader bedIn=null;
 		final List<SamReader> samReaders=new ArrayList<SamReader>();
 		final IntervalTreeMap<Rgn> capture=new IntervalTreeMap<Rgn>();

@@ -42,7 +42,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -143,9 +143,9 @@ public class VcfToBed  extends Launcher {
 	
 	private void scan(String uriOrNull,final PrintWriter pw)
 		{
-		VcfIterator iter = null;
+		VCFIterator iter = null;
 		try {
-			iter =  super.openVcfIterator(uriOrNull);
+			iter =  super.openVCFIterator(uriOrNull);
 			final SAMSequenceDictionary dictIn = iter.getHeader().getSequenceDictionary();
 			
 			final ContigNameConverter ctgNameConverter ;

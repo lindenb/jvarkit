@@ -40,7 +40,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -73,7 +73,7 @@ public class DownSampleVcf extends Launcher
 	private long seed=-1L;
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, final VcfIterator in, final VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName, final VCFIterator in, final VariantContextWriter out) {
 		final Random rand=new Random(this.seed==-1L?System.currentTimeMillis():this.seed);
 		final List<VariantContext>  buffer=new ArrayList<>(this.reservoir_size);
 		

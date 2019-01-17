@@ -25,7 +25,7 @@ Usage: pcrslicereads [options] Files
       Output file. Optional . Default: stdout
     --random
        random seed
-      Default: java.util.Random@544fe44c
+      Default: java.util.Random@71318ec4
     --samoutputformat
       Sam output format.
       Default: SAM

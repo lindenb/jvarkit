@@ -69,7 +69,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 import com.google.gson.JsonElement;
@@ -570,9 +570,9 @@ public class BioAlcidae
 	public  int executeAsVcf(final String source) throws IOException
 		{
 		LOG.info("source: "+source);
-		VcfIterator in=null;
+		VCFIterator in=null;
 		try {
-			in = VCFUtils.createVcfIterator(source);
+			in = VCFUtils.createVCFIterator(source);
 			return executeAsVcf(in);
 			} 
 		catch (Exception e)
@@ -586,10 +586,10 @@ public class BioAlcidae
 			}
 		}
 	
-	public  int executeAsVcf(final VcfIterator in) throws IOException
+	public  int executeAsVcf(final VCFIterator in) throws IOException
 		{
 		try {
-			bindings.put("codec",in.getCodec());
+			bindings.put("codec",VCFUtils.createDefaultVCFCodec());
 			bindings.put("header",in.getHeader());
 			bindings.put("iter",in);
 			bindings.put("format","vcf");

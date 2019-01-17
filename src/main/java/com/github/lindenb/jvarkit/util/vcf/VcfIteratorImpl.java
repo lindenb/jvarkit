@@ -40,9 +40,9 @@ import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFIterator;
 
-/** net.sf.picard.vcf.VCFIterator deleted from from picard 1.100 */
-public class VcfIteratorImpl implements VcfIterator
+public class VcfIteratorImpl implements htsjdk.variant.vcf.VCFIterator
 	{
 	/** associated VCF codec */
     private final AbstractVCFCodec vcfCodec;
@@ -71,7 +71,7 @@ public class VcfIteratorImpl implements VcfIterator
 	    this.vcfCodec=cah.codec;
 		}
 	
-	@Override
+	//@Override
 	public AbstractVCFCodec getCodec()
 		{
 		return this.vcfCodec;

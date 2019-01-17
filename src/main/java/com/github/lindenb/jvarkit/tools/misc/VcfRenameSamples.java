@@ -53,7 +53,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 
 import com.beust.jcommander.Parameter;
@@ -109,7 +109,7 @@ public class VcfRenameSamples extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator in,
+			final VCFIterator in,
 			final VariantContextWriter out
 			) {
 		final VCFHeader header1=in.getHeader();

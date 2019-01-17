@@ -50,7 +50,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -203,7 +203,7 @@ public class VcfBurdenFisherV
 			
 			@Override
 			public void close() {
-				VcfIterator in2  = null;
+				VCFIterator in2  = null;
 				try {
 					for(final Pedigree.Person person : this.indi2supervariant.keySet() ) {
 						final SuperVariant superVariant = indi2supervariant.get(person);
@@ -268,7 +268,7 @@ public class VcfBurdenFisherV
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
-		final VcfIterator in,
+		final VCFIterator in,
 		final VariantContextWriter delegate)
 		{
 		final VariantContextWriter  out = this.component.open(delegate);

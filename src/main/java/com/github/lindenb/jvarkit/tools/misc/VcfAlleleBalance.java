@@ -41,7 +41,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -99,7 +99,7 @@ public class VcfAlleleBalance extends Launcher {
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
-		final VcfIterator iterin,
+		final VCFIterator iterin,
 		final VariantContextWriter out
 		) {
 

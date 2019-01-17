@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -942,7 +942,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			throw new IOException(msg);
 			}
 		boolean fail_flag=false;
-		VcfIterator iter=null;
+		VCFIterator iter=null;
 		VariantContextWriter variantContextWriter = null;
 		try
 			{
@@ -987,7 +987,7 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			outVcfFile = new File(filename);
 			outVcfIndexFile = new File(indexFilename);
 			LOG.info("opening "+vcfIn);
-			iter = VCFUtils.createVcfIterator(vcfIn);
+			iter = VCFUtils.createVCFIterator(vcfIn);
 			
 			
 			

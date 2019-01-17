@@ -35,7 +35,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -191,7 +191,7 @@ public class ConvertVcfChromosomes extends com.github.lindenb.jvarkit.util.jcomm
 		{
 		}
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator iterin, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {
 		final ContigNameConverter customMapping = ContigNameConverter.fromFile(mappingFile);
 		final Set<String> unseen=new HashSet<>();
 		final VCFHeader header1=iterin.getHeader();

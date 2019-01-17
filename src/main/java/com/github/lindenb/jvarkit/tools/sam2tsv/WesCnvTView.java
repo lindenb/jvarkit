@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -836,7 +836,7 @@ public class WesCnvTView  extends Launcher {
 						};
 					if(inputs.isEmpty())
 						{
-						final VcfIterator vcfin = super.openVcfIterator(null);
+						final VCFIterator vcfin = super.openVCFIterator(null);
 						while(vcfin.hasNext())
 							{
 							final VariantContext ctx = vcfin.next();

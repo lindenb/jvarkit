@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.readers.DelegateVcfIterator;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -179,8 +179,8 @@ public <T extends Locatable> CloseableIterator<T> build(final Iterator<T> delega
 	return new LogIter<>(delegate,build());
 	}
 
-public VcfIterator build(final VcfIterator delegate) {
-	return new VcfIteratorWatcher(delegate,build());
+public VCFIterator build(final VCFIterator delegate) {
+	return new VCFIteratorWatcher(delegate,build());
 	}
 
 public <T extends Locatable> Watcher<T> build() {
@@ -432,24 +432,17 @@ private static class LogIter<T extends Locatable>
 		}
 	}
 
-private static class VcfIteratorWatcher extends DelegateVcfIterator
+private static class VCFIteratorWatcher extends DelegateVcfIterator
 	{
 	final Watcher<VariantContext> watcher;
-	VcfIteratorWatcher(final VcfIterator delegate,final Watcher<VariantContext> watcher) {
+	VCFIteratorWatcher(final VCFIterator delegate,final Watcher<VariantContext> watcher) {
 		super(delegate);
 		this.watcher=watcher;
 		}
 	@Override
 	public boolean hasNext() {
 		boolean b = super.hasNext();
-		if(!b) {
-			try {
-				close();
-				}
-			catch(final IOException err) {
-				throw new RuntimeIOException(err);
-				}
-			}
+		if(!b) close();
 		return b;
 		}
 	@Override
@@ -457,7 +450,7 @@ private static class VcfIteratorWatcher extends DelegateVcfIterator
 		return watcher.apply(super.next());
 		}
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		super.close();
 		watcher.close();
 		}

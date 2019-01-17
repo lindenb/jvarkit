@@ -42,7 +42,7 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -293,12 +293,12 @@ public class LumpyVcfToCircos extends Launcher {
 	
 	@Override
 	public int doWork(List<String> args) {
-	VcfIterator r=null;
+	VCFIterator r=null;
 	ArchiveFactory archiveFactory=null;
 	PrintWriter pw=null;
 	PrintWriter conf=null;
 	try {
-		r = super.openVcfIterator(oneFileOrNull(args));
+		r = super.openVCFIterator(oneFileOrNull(args));
 		
 		final VCFHeader header =r.getHeader();
 		final SAMSequenceDictionary dict = header.getSequenceDictionary();

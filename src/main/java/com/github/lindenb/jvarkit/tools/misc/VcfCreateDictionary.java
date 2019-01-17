@@ -35,7 +35,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -80,7 +80,7 @@ public class VcfCreateDictionary extends Launcher
 
 	@Override
 	public int doWork(final List<String> args) {
-		VcfIterator in = null;
+		VCFIterator in = null;
 		Writer out= null;
 		
 		if (this.outputFile != null && !outputFile.getName().endsWith(".dict")) {
@@ -94,7 +94,7 @@ public class VcfCreateDictionary extends Launcher
 			int optind=0;
 			do
 				{
-				in = super.openVcfIterator(args.isEmpty()?null:args.get(optind));
+				in = super.openVCFIterator(args.isEmpty()?null:args.get(optind));
 				final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
 	
 				while(in.hasNext())

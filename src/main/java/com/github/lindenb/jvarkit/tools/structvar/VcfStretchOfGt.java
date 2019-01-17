@@ -38,7 +38,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
@@ -104,10 +104,10 @@ public class VcfStretchOfGt extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		VcfIterator iter=null;
+		VCFIterator iter=null;
 		PrintWriter w=null;
 		try {
-			iter = super.openVcfIterator(oneFileOrNull(args));
+			iter = super.openVCFIterator(oneFileOrNull(args));
 			final VCFHeader header=iter.getHeader();
 			if(!header.hasGenotypingData()) {
 				LOG.error("No genotype in input");

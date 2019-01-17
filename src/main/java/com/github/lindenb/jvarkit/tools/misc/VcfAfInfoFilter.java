@@ -41,7 +41,7 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -117,7 +117,7 @@ public class VcfAfInfoFilter extends Launcher{
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final  VcfIterator in,
+			final  VCFIterator in,
 			final  VariantContextWriter out
 			) {
 		try

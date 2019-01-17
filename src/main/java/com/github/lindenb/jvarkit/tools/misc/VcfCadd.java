@@ -60,7 +60,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -374,7 +374,7 @@ public class VcfCadd extends Launcher
 	}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName, VCFIterator in, VariantContextWriter out) {
 			
 			try {
 			final VCFHeader header=in.getHeader();

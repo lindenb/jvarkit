@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -102,7 +102,7 @@ public class VcfConcat extends Launcher
 	
 	private int fromFiles(final VariantContextWriter out) throws IOException
 		{
-		List<VcfIterator> inputs=new ArrayList<VcfIterator>(this.inputFiles.size());
+		List<VCFIterator> inputs=new ArrayList<VCFIterator>(this.inputFiles.size());
 		List<String> inputFiles=new ArrayList<>(this.inputFiles.size());
 		List<String> samples=new ArrayList<>();
 		SAMSequenceDictionary dict=null;
@@ -114,7 +114,7 @@ public class VcfConcat extends Launcher
 			for(String vcfFile:this.inputFiles)
 				{
 				LOG.info("Opening "+vcfFile);
-				VcfIterator r=VCFUtils.createVcfIterator(vcfFile);
+				VCFIterator r=VCFUtils.createVCFIterator(vcfFile);
 				
 				/* check VCF dict */
 				VCFHeader header = r.getHeader();
@@ -179,7 +179,7 @@ public class VcfConcat extends Launcher
 				
 				while(idx < inputs.size())
 					{
-					VcfIterator in= inputs.get(idx);
+					VCFIterator in= inputs.get(idx);
 					if(!in.hasNext())
 						{
 						CloserUtil.close(in);

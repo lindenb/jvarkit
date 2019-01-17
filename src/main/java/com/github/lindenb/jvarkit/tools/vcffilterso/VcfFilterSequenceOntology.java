@@ -76,7 +76,7 @@ import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
@@ -736,7 +736,7 @@ public class VcfFilterSequenceOntology
 		}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator iter, final VariantContextWriter delegate) {	
+	protected int doVcfToVcf(final String inputName,final VCFIterator iter, final VariantContextWriter delegate) {	
 		final VariantContextWriter out = this.component.open(delegate);
 		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
 		out.writeHeader(iter.getHeader());

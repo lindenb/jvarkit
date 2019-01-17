@@ -73,7 +73,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 @Program(
 	name="allelefreqcalc",
@@ -94,10 +94,10 @@ public class AlleleFrequencyCalculator extends Launcher
 	public int doWork(final List<String> args)
 		{
 		PrintStream out = null;
-		VcfIterator in = null;
+		VCFIterator in = null;
 		try
 			{
-			in = super.openVcfIterator(oneAndOnlyOneFile(args));
+			in = super.openVCFIterator(oneAndOnlyOneFile(args));
 		
 			out = openFileOrStdoutAsPrintStream(outputFile);
 			

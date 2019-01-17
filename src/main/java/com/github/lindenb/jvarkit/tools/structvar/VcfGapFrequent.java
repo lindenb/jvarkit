@@ -20,7 +20,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -240,7 +240,7 @@ public class VcfGapFrequent extends Launcher {
 			return -1;
 			}
 		
-		VcfIterator in = null;
+		VCFIterator in = null;
 		try 
 			{
 			
@@ -260,7 +260,7 @@ public class VcfGapFrequent extends Launcher {
 				return -1;
 				}
 			
-			in= super.openVcfIterator(oneFileOrNull(args));
+			in= super.openVCFIterator(oneFileOrNull(args));
 			final VCFHeader header = in.getHeader();
 			
 			

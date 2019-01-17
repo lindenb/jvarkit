@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
@@ -299,19 +299,19 @@ public class VcfBurden extends Launcher
 	private int doWork2(List<String> args) {
 		ZipOutputStream zout=null;
 		FileOutputStream fout=null;
-		VcfIterator in=null;
+		VCFIterator in=null;
 		try
 			{
 			if(args.isEmpty())
 				{
 				LOG.info("reading from stdin.");
-				in = VCFUtils.createVcfIteratorStdin();
+				in = VCFUtils.createVCFIteratorStdin();
 				}
 			else if(args.size()==1)
 				{
 				String filename=args.get(0);
 				LOG.info("reading from "+filename);
-				in = VCFUtils.createVcfIterator(filename);
+				in = VCFUtils.createVCFIterator(filename);
 				}
 			else
 				{

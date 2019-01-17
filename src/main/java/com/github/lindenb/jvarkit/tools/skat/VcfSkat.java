@@ -49,7 +49,7 @@ import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -178,7 +178,7 @@ public class VcfSkat extends Launcher
 		}
 	
 	@Override
-	public int doVcfToVcf(final String inputName,final VcfIterator r, final VariantContextWriter delegate)
+	public int doVcfToVcf(final String inputName,final VCFIterator r, final VariantContextWriter delegate)
 		{
 		final CtxWriterFactory.CtxWriter out = this.component.open(delegate);
 		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(r.getHeader()).logger(LOG);

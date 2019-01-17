@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /*
  
@@ -120,7 +120,7 @@ public class VcfToBam extends Launcher
 	
 	
 	
-	private void run(VcfIterator vcfIterator) throws IOException
+	private void run(VCFIterator vcfIterator) throws IOException
 		{
 		 long id_generator=0L;
 		 SAMFileWriter samFileWriter =null;
@@ -391,11 +391,11 @@ public class VcfToBam extends Launcher
 			LOG.error("bad fragment size");
 			return -1;
 			}
-		VcfIterator iter=null;
+		VCFIterator iter=null;
 		try
 			{
 			this.indexedFastaSequenceFile= new IndexedFastaSequenceFile(this.faidx);
-			iter  = super.openVcfIterator(super.oneFileOrNull(args));
+			iter  = super.openVCFIterator(super.oneFileOrNull(args));
 			run(iter);
 			return 0;
 			}

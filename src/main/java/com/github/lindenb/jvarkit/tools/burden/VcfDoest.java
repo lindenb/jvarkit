@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -249,7 +249,7 @@ public class VcfDoest
 		CloseableIterator<TranscriptInfo> iter2=null;
 		try {
 			while(lr.hasNext()) {
-				VcfIterator in = VCFUtils.createVcfIteratorFromLineIterator(lr,true);
+				VCFIterator in = VCFUtils.createVCFIteratorFromLineIterator(lr,true);
 				final VCFHeader header=in.getHeader();
 				
 				final Pedigree pedigree = Pedigree.newParser().parse(header);

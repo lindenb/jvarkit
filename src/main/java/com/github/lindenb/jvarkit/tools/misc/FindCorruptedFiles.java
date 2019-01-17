@@ -55,8 +55,9 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 /*
 
@@ -236,10 +237,10 @@ public class FindCorruptedFiles extends Launcher
 
 
     
-    private void testVcf(File f,InputStream in) throws IOException,TribbleException
+    private void testVcf(final File f,InputStream in) throws IOException,TribbleException
     	{
     	long n=0;
-    	VcfIterator iter=new VcfIteratorImpl(in);
+    	final VCFIterator iter= VCFUtils.createVCFIteratorFromStream(in);
     	iter.getHeader();
     	while(iter.hasNext() &&  (NUM<0 || n<NUM))
     		{

@@ -183,7 +183,7 @@ At the time of writing, we have:
 		{
     	protected VcfTools tools = null;
     	protected VCFHeader header = null;
-    	protected VcfIterator iter = null;
+    	protected VCFIterator iter = null;
 		public Stream<VariantContext> stream()
 			{
 			return StreamSupport.stream(

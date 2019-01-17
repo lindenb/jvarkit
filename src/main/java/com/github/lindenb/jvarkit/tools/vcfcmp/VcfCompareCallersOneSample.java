@@ -49,7 +49,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 
@@ -141,9 +141,9 @@ public class VcfCompareCallersOneSample
 		File inputFile=null;
 		final List<EqualRangeVcfIterator> listChallengers = new ArrayList<>();
 		VariantContextWriter vcw=null;
-		VcfIterator in=null;
+		VCFIterator in=null;
 		try {
-			 in  = super.openVcfIterator(oneFileOrNull(args));
+			 in  = super.openVCFIterator(oneFileOrNull(args));
 			
 			
 			VCFHeader header=in.getHeader();
@@ -176,7 +176,7 @@ public class VcfCompareCallersOneSample
 					LOG.error("Ignoring challenger (self): "+cf);
 					continue;
 					}
-				VcfIterator cin = VCFUtils.createVcfIteratorFromFile(cf);
+				VCFIterator cin = VCFUtils.createVCFIteratorFromFile(cf);
 				VCFHeader ch=cin.getHeader();
 				if(ch.getNGenotypeSamples()!=1)
 					{

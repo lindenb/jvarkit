@@ -45,7 +45,7 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -218,7 +218,7 @@ public class VcfSkatSlidingWindow extends Launcher
 			LOG.info("setting njobs to "+this.nJobs);
 			}
 		
-		VcfIterator r=null;
+		VCFIterator r=null;
 		try {	
 			final VCFHeader header;
 			final SAMSequenceDictionary dict;

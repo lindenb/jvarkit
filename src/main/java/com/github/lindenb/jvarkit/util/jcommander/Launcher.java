@@ -76,7 +76,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -919,8 +919,8 @@ protected Status parseArgs(final String args[])
 	 return Status.OK;
 	}
 
-protected VcfIterator openVcfIterator(final String inputNameOrNull) throws IOException {
-	return VCFUtils.createVcfIterator(inputNameOrNull);
+protected VCFIterator openVCFIterator(final String inputNameOrNull) throws IOException {
+	return VCFUtils.createVCFIterator(inputNameOrNull);
 }
 
 /**
@@ -958,16 +958,16 @@ protected VCFHeader addMetaData(final VCFHeader header)
 	return header;
 	}
 
-protected int doVcfToVcf(final String inputName,final VcfIterator iterin,final VariantContextWriter out){
+protected int doVcfToVcf(final String inputName,final VCFIterator iterin,final VariantContextWriter out){
 	LOG.debug("using default doVcfToVcf ??");
 	VCFUtils.copyHeaderAndVariantsTo(iterin, out);
 	return 0;
 	}
 protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
-	VcfIterator iterin=null;
+	VCFIterator iterin=null;
 	VariantContextWriter w=null;
 	try {
-		iterin = openVcfIterator(inputNameOrNull);
+		iterin = openVCFIterator(inputNameOrNull);
 		w = openVariantContextWriter(outorNull);
 		int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
 		w.close();
@@ -1368,7 +1368,7 @@ protected int doVcfToVcfMultipleStream(
 		final String filename = String.format("%04d.vcf",(++n_vcf));
 			
 		/* create VCF iterator */
-		final com.github.lindenb.jvarkit.util.vcf.VcfIterator in = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVcfIteratorFromLineIterator(lineIter, true);
+		final htsjdk.variant.vcf.VCFIterator in = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVCFIteratorFromLineIterator(lineIter, true);
 		
 			
 		/* if zip: add new entry */

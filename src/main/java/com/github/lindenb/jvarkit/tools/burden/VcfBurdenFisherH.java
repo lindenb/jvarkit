@@ -61,7 +61,7 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -346,7 +346,7 @@ public class VcfBurdenFisherH
 	
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, final VcfIterator r, final VariantContextWriter delegate) {
+	protected int doVcfToVcf(final String inputName, final VCFIterator r, final VariantContextWriter delegate) {
 		final VariantContextWriter w = this.component.open(delegate);
 		w.writeHeader(r.getHeader());
 		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(r.getHeader()).logger(LOG);

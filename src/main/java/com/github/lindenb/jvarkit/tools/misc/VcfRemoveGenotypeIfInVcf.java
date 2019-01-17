@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -89,7 +89,7 @@ public class VcfRemoveGenotypeIfInVcf extends Launcher {
 
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 		long genotypes_reset_count=0;
 		long genotypes_empty=0;
 		long variant_changed=0;

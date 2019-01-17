@@ -51,7 +51,7 @@ import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -141,7 +141,7 @@ public int doWork(final List<String> args) {
 		return -1;
 		}
 	TabixKnownGeneFileReader tabix = null;
-	VcfIterator r=null;
+	VCFIterator r=null;
 	OutputStream outputStream=null;
 	XMLStreamWriter w=null;
 	PrintWriter manifestW=null;
@@ -162,7 +162,7 @@ public int doWork(final List<String> args) {
 		
 		final Set<String> chromosomes = tabix.getChromosomes();
 		final XMLOutputFactory xof=XMLOutputFactory.newInstance();
-		r= super.openVcfIterator(super.oneFileOrNull(args));
+		r= super.openVCFIterator(super.oneFileOrNull(args));
 		final VCFHeader header=r.getHeader();
 		while(r.hasNext())
 			{

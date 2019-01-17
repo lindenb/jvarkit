@@ -47,7 +47,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -335,7 +335,7 @@ public class VcfIn extends Launcher
 	
 	private int scanFileSorted(
 			final VariantContextWriter vcw,
-			final VcfIterator userVcfIn,
+			final VCFIterator userVcfIn,
 			String externalDatabaseURI
 			)
 		{
@@ -355,7 +355,7 @@ public class VcfIn extends Launcher
 					VCFUtils.createTidPosComparator(userVcfDict)
 					;
 			equalRangeDbIter = new EqualRangeVcfIterator(
-					VCFUtils.createVcfIterator(externalDatabaseURI),userVcfComparator);
+					VCFUtils.createVCFIterator(externalDatabaseURI),userVcfComparator);
 
 			this.addMetaData(header);
 			vcw.writeHeader(header);
@@ -439,7 +439,7 @@ public class VcfIn extends Launcher
 
 	private int scanUsingTabix(
 			final VariantContextWriter vcw,
-			final VcfIterator vcfIn,
+			final VCFIterator vcfIn,
 			final List<String> databasesPaths
 			)
 		{
@@ -542,11 +542,11 @@ public class VcfIn extends Launcher
 		
 		final String userVcfUri = oneFileOrNull(args);
 		VariantContextWriter w=null;
-		VcfIterator in=null;
+		VCFIterator in=null;
 		try {
 			in = (userVcfUri==null?
-					VCFUtils.createVcfIteratorFromInputStream(stdin()):
-					VCFUtils.createVcfIterator(userVcfUri)
+					VCFUtils.createVCFIteratorFromInputStream(stdin()):
+					VCFUtils.createVCFIterator(userVcfUri)
 					);
 			
 			final List<String> externalDatabaseUris = 

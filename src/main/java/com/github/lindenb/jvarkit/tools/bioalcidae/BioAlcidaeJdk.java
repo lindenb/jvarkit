@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -113,7 +113,7 @@ At the time of writing, we have:
 		{
     	protected VcfTools tools = null;
     	protected VCFHeader header = null;
-    	protected VcfIterator iter = null;
+    	protected VCFIterator iter = null;
 		public Stream<VariantContext> stream()
 			{
 			return StreamSupport.stream(
@@ -760,7 +760,7 @@ public class BioAlcidaeJdk
 		{
     	protected VcfTools tools = null;
     	protected VCFHeader header = null;
-    	protected VcfIterator iter = null;
+    	protected VCFIterator iter = null;
 		public Stream<VariantContext> stream()
 			{
 			return StreamSupport.stream(
@@ -785,7 +785,7 @@ public class BioAlcidaeJdk
 	    		vcfHandler.out = out;
 	    		vcfHandler.inputFile = inputFile;
 				//
-				vcfHandler.iter = VCFUtils.createVcfIterator(inputFile);
+				vcfHandler.iter = VCFUtils.createVCFIterator(inputFile);
 				vcfHandler.header = vcfHandler.iter.getHeader();
 				vcfHandler.tools = new VcfTools(vcfHandler.header);
 				vcfHandler.initialize();

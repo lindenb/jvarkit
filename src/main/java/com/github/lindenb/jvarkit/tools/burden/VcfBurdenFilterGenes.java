@@ -44,7 +44,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -129,7 +129,7 @@ public class VcfBurdenFilterGenes
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator in,
+			final VCFIterator in,
 			final VariantContextWriter out
 			) 
 		{

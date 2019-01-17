@@ -86,7 +86,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 /*
 BEGIN_DOC
 
@@ -423,7 +423,7 @@ public class VCFMerge
 	
 	private void copyTo(final InputStream in) throws IOException
 		{
-		final VcfIterator iter= VCFUtils.createVcfIteratorFromInputStream(in);
+		final VCFIterator iter= VCFUtils.createVCFIteratorFromInputStream(in);
 		final VariantContextWriter out= this.openVariantContextWriter(outputFile);
 		VCFUtils.copyHeaderAndVariantsTo(iter, out);
 		CloserUtil.close(out);

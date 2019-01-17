@@ -54,7 +54,7 @@ import htsjdk.samtools.util.StringUtil;
 
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -213,7 +213,7 @@ public class VcfPeekVcf extends Launcher
 	@Override
 	public int doVcfToVcf(
 			final String inputName, 
-			final VcfIterator vcfIn,
+			final VCFIterator vcfIn,
 			final VariantContextWriter out)
 		{
 		try

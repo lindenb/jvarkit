@@ -153,7 +153,7 @@ The current reference is:
 
 ## Motivation
 
-Filters a BAM using a java expression compiled in memory.
+Filters a BAM using a java expression compiled at runtime.
 
 
 ## About the script

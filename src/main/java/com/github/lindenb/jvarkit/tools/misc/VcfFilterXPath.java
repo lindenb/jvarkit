@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 @Program(name="vcffilterxpath",
 	description="Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document",
@@ -100,7 +100,7 @@ public class VcfFilterXPath
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 		try {
 			//TODO in jdk8 replace with http://docs.oracle.com/javase/8/docs/api/java/util/Base64.html
 			VCFHeader header=in.getHeader();

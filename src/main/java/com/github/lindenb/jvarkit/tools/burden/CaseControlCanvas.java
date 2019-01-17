@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -473,13 +473,13 @@ public static class Main extends Launcher
 			return -1;
 			}
 		BufferedReader r=null;
-		VcfIterator in = null;
+		VCFIterator in = null;
 		VariantContextWriter teeVariantWriter = null;
 		try {
 			final CaseControlCanvas instance=new  CaseControlCanvas(this.title,this.configuration);
 			if(!this.inputIsText) {
 				instance.setPainter(this.defaultPainter);
-				in = super.openVcfIterator(oneFileOrNull(args));
+				in = super.openVCFIterator(oneFileOrNull(args));
 				
 				final VCFHeader header= in.getHeader();
 				final Pedigree pedigree;

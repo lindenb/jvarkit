@@ -63,7 +63,7 @@ import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.sleepycat.bind.tuple.StringBinding;
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
@@ -301,12 +301,12 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     	LOG.debug("readVCF  "+f);
     	    	
 
-    	VcfIterator r=null;
+    	VCFIterator r=null;
     	InputStream in=null;
     	try
     		{
     	
-    		r=VCFUtils.createVcfIteratorFromFile(f);
+    		r=VCFUtils.createVCFIteratorFromFile(f);
         	VCFHeader header=r.getHeader();
         	
         	

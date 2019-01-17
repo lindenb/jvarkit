@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
@@ -633,7 +633,7 @@ public class VcfToSql extends Launcher
 		final Map<String,SelectStmt> filter2filterid = new HashMap<String,SelectStmt>();
 		final Map<String,SelectStmt> chrom2chromId = new HashMap<String,SelectStmt>();
 		
-		final VcfIterator r=VCFUtils.createVcfIteratorFromFile(filename);
+		final VCFIterator r=VCFUtils.createVCFIteratorFromFile(filename);
 		final VCFHeader header=r.getHeader();
 		
 		/* parse samples */

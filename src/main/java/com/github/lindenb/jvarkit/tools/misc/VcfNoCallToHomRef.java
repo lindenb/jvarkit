@@ -63,7 +63,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
  BEGIN_DOC
@@ -324,7 +324,7 @@ public class VcfNoCallToHomRef extends  Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator in,
+			final VCFIterator in,
 			final VariantContextWriter delegate
 			) 
 		{

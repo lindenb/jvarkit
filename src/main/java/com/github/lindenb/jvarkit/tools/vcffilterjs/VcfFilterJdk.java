@@ -57,7 +57,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -783,7 +783,7 @@ public class VcfFilterJdk
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator iter,
+			final VCFIterator iter,
 			final VariantContextWriter delegate
 			)
 		{	

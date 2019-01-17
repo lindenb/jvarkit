@@ -38,17 +38,17 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 public class EqualRangeVcfIterator 
 	implements Closeable
 	{	
-	private VcfIterator in;
+	private VCFIterator in;
 	private final List<VariantContext> buffer=new ArrayList<>();
 	private VariantContext prev_ctx=null;
 	private final Comparator<VariantContext> ctxComparator;
 	public EqualRangeVcfIterator(
-			final VcfIterator in,
+			final VCFIterator in,
 			final Comparator<VariantContext> ctxComparator)
 		{
 		this.in = in;
@@ -100,7 +100,7 @@ public class EqualRangeVcfIterator
 		}
 	
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		CloserUtil.close(this.in);
 		in=null;
 		}

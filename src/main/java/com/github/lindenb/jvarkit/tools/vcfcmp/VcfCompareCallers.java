@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -278,14 +278,14 @@ public class VcfCompareCallers
 	private class PeekVCF implements Closeable
 		{
 		final String uri;
-		final VcfIterator iter;
+		final VCFIterator iter;
 		final VCFHeader header;
 		final List<VariantContext> buffer = new ArrayList<>();
 		final SAMSequenceDictionary dict;
 		private int debug_multiple=0;
 		int count=0;
 		private final List<VariantContextUtils.JexlVCMatchExp> jexlVCMatchExps = new ArrayList<>();
-		PeekVCF(final VcfIterator iterator,final String uri) throws IOException {
+		PeekVCF(final VCFIterator iterator,final String uri) throws IOException {
 			this.uri = uri;
 			this.iter = iterator;
 			this.header = this.iter.getHeader();
@@ -428,14 +428,14 @@ public class VcfCompareCallers
 			if(args.size()==1)
 				{
 				LOG.info("Reading from VCF1=stdin and VCF2="+ args.get(0));
-				vcfIterator1 = new PeekVCF(VCFUtils.createVcfIteratorFromInputStream(stdin()),"<STDIN>");
-				vcfIterator2 = new PeekVCF(VCFUtils.createVcfIterator( args.get(0)),args.get(0));
+				vcfIterator1 = new PeekVCF(VCFUtils.createVCFIteratorFromInputStream(stdin()),"<STDIN>");
+				vcfIterator2 = new PeekVCF(VCFUtils.createVCFIterator( args.get(0)),args.get(0));
 				}
 			else if(args.size()==2)
 				{
 				LOG.info("Reading from VCF1="+ args.get(0)+" and VCF2="+ args.get(1));
-				vcfIterator1 = new PeekVCF(VCFUtils.createVcfIterator( args.get(0)), args.get(0));
-				vcfIterator2 = new PeekVCF(VCFUtils.createVcfIterator( args.get(1)), args.get(1));
+				vcfIterator1 = new PeekVCF(VCFUtils.createVCFIterator( args.get(0)), args.get(0));
+				vcfIterator2 = new PeekVCF(VCFUtils.createVCFIterator( args.get(1)), args.get(1));
 				}
 			else
 				{

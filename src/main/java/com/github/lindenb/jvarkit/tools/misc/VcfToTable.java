@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
@@ -1985,11 +1985,11 @@ public class VcfToTable extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		VcfIterator in = null;
+		VCFIterator in = null;
 		
 		
 		try {
-			in = super.openVcfIterator(oneFileOrNull(args));
+			in = super.openVCFIterator(oneFileOrNull(args));
 			viewer.writeHeader(in.getHeader());
 			while(!this.viewer.checkError() && in.hasNext())
 				{

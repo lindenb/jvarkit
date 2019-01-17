@@ -48,14 +48,14 @@ public abstract class AbstractFastqReader
     private FastqRecord nextRecord=null;
     protected String seqHeader=null;
     
-    protected AbstractFastqReader(File fastqFile)
+    protected AbstractFastqReader(final File fastqFile)
     	{
     	this.nextRecord=null;
     	this.fastqFile=fastqFile;
     	}
 
     
-    public void setValidationStringency( ValidationStringency validationStringency) {
+    public void setValidationStringency(final ValidationStringency validationStringency) {
 		this.validationStringency = validationStringency;
 		}
     

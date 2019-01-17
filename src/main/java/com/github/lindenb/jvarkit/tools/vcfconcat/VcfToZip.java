@@ -49,7 +49,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 
@@ -130,7 +130,7 @@ public class VcfToZip extends Launcher
 			return -1;
 		}
 		LineIterator lr=null;
-		VcfIterator in = null;
+		VCFIterator in = null;
 		ZipOutputStream zout =null;
 		FileOutputStream fout=null;
 		int num_vcfs= 0;
@@ -163,7 +163,7 @@ public class VcfToZip extends Launcher
 				
 				while(lr.hasNext()) {
 					++num_vcfs;
-					in = VCFUtils.createVcfIteratorFromLineIterator(lr,true);
+					in = VCFUtils.createVCFIteratorFromLineIterator(lr,true);
 					final VCFHeader header= in.getHeader();
 					String filename=null;
 					if(this.titleHeaderStr!=null && !this.titleHeaderStr.isEmpty()) {

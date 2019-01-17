@@ -51,7 +51,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -154,7 +154,7 @@ public class VcfAnnotWithBeacon extends Launcher {
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName,final VcfIterator iter,final VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName,final VCFIterator iter,final VariantContextWriter out) {
 		CloseableHttpClient httpClient=null;
 		InputStream contentInputStream = null;
 		

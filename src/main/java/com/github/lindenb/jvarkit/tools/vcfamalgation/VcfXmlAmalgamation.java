@@ -67,7 +67,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -260,7 +260,7 @@ public class VcfXmlAmalgamation extends Launcher {
 		}
 	
 	@Override
-	public int doVcfToVcf(final String inputName, final VcfIterator r, final VariantContextWriter delegate)
+	public int doVcfToVcf(final String inputName, final VCFIterator r, final VariantContextWriter delegate)
 		{
 		final VariantContextWriter out = this.component.open(delegate);
 		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(r.getHeader()).logger(LOG);

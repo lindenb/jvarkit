@@ -65,7 +65,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -374,10 +374,10 @@ public class VcfBurdenSplitter2
 		@Override
 		public int doWork(final List<String> args) {
 			VariantContextWriter w=null;
-			VcfIterator in=null;
+			VCFIterator in=null;
 			try
 				{
-				in = VCFUtils.createVcfIterator(super.oneFileOrNull(args));
+				in = VCFUtils.createVCFIterator(super.oneFileOrNull(args));
 				w= this.instance.open(output);
 				VCFUtils.copyHeaderAndVariantsTo(in, w);
 				w.close();

@@ -33,7 +33,7 @@ import java.io.IOException;
 
 
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
@@ -366,28 +366,28 @@ public class SAMSequenceDictionaryProgress
 		getLogger().info("done: N="+getCount());
 		}
 
-	public static VcfIterator wrap(Logger log,VcfIterator r)
+	public static VCFIterator wrap(Logger log,VCFIterator r)
 		{
-		return new LogVcfIterator(log,r);
+		return new LogVCFIterator(log,r);
 		}
 	
-	private static class LogVcfIterator  implements VcfIterator
+	private static class LogVCFIterator  implements VCFIterator
 		{
-		private final VcfIterator delegate;
+		private final VCFIterator delegate;
 		private final SAMSequenceDictionaryProgress progress;
-		LogVcfIterator(final Logger log,VcfIterator delegate) {
+		LogVCFIterator(final Logger log,VCFIterator delegate) {
 			this.delegate=delegate;
 			this.progress=new SAMSequenceDictionaryProgress(delegate.getHeader()).logger(log);
 			}
-		@Override
-		public AbstractVCFCodec getCodec() { return this.delegate.getCodec(); }
+		//@Override
+		//public AbstractVCFCodec getCodec() { return this.delegate.getCodec(); }
 		@Override
 		public VCFHeader getHeader() { return this.delegate.getHeader();}
 		@Override
 		public VariantContext peek() { return this.delegate.peek();}
 
 		@Override
-		public void close() throws IOException {
+		public void close()  {
 			this.delegate.close();
 			this.progress.finish();
 			}

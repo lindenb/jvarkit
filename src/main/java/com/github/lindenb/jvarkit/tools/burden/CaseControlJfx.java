@@ -45,7 +45,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -303,7 +303,7 @@ public class CaseControlJfx extends Launcher {
 		public int doWork(final List<String> args) {
 			final VariantPartition partition;
 			Pedigree pedigree = null;
-			VcfIterator in = null;
+			VCFIterator in = null;
 			try {
 				
 				switch(this.partitionType)
@@ -318,7 +318,7 @@ public class CaseControlJfx extends Launcher {
 					case n_alts : partition = new NAltsPartition(); break;
 					default: throw new IllegalStateException(this.partitionType.name());
 					}
-				in = openVcfIterator(oneFileOrNull(args));
+				in = openVCFIterator(oneFileOrNull(args));
 				
 				if(this.pedigreeFile!=null)
 					{

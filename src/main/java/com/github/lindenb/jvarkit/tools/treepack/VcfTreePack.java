@@ -50,7 +50,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -222,7 +222,7 @@ public class VcfTreePack extends  AbstractTreePackCommandLine
 	}
 
 
-	void scan(final VcfIterator iter)
+	void scan(final VCFIterator iter)
 		 {
 		 final VCFHeader header=iter.getHeader();
 		 super.bindings.put("header", header);
@@ -321,7 +321,7 @@ public class VcfTreePack extends  AbstractTreePackCommandLine
 		
 		
 		
-		VcfIterator in=null;
+		VCFIterator in=null;
  		try
 			{
 			parseConfigFile();
@@ -335,7 +335,7 @@ public class VcfTreePack extends  AbstractTreePackCommandLine
 			if(args.isEmpty())
 				{
 				LOG.info("Reading stdin");
-				in=VCFUtils.createVcfIteratorFromStream(stdin());
+				in=VCFUtils.createVCFIteratorFromStream(stdin());
 				scan(in);
 				CloserUtil.close(in);
 				}
@@ -343,7 +343,7 @@ public class VcfTreePack extends  AbstractTreePackCommandLine
 				{
 				for(final String f: args)
 					{
-					in=VCFUtils.createVcfIterator(f);
+					in=VCFUtils.createVCFIterator(f);
 					scan(in);
 					CloserUtil.close(in);
 					}

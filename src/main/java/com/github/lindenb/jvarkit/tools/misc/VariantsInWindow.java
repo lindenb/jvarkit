@@ -40,7 +40,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
@@ -380,7 +380,7 @@ public class VariantsInWindow extends Launcher{
     @Override
     protected int doVcfToVcf(
     		final String inputName,
-    		final VcfIterator in,
+    		final VCFIterator in,
     		final VariantContextWriter writer
     		) {
     	final VCFHeader header= new VCFHeader(in.getHeader());

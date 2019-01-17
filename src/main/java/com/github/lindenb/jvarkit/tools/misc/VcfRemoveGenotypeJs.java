@@ -47,7 +47,7 @@ import javax.script.Bindings;
 import javax.script.CompiledScript;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 
@@ -137,7 +137,7 @@ public class VcfRemoveGenotypeJs extends Launcher {
 
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 		try {
 		this.script  = super.compileJavascript(scriptExpr, scriptFile);
 		final	VCFHeader h2=new VCFHeader(in.getHeader());

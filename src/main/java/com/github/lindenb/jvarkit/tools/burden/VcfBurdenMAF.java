@@ -63,7 +63,7 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 /**
 
 BEGIN_DOC
@@ -396,7 +396,7 @@ public class VcfBurdenMAF
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
-		final VcfIterator in,
+		final VCFIterator in,
 		final VariantContextWriter delegate)
 		{
 		final VariantContextWriter  out = this.component.open(delegate);
