@@ -10,5 +10,4 @@ public default boolean isEmpty() {
 public default Family getFamilyById(final String id) {
 	return getFamilies().stream().filter(F->F.getId().equals(id)).findAny().orElse(null);
 	}
-
 }

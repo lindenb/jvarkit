@@ -12,9 +12,9 @@ lib.dir?=lib
 mysql.jar = \
 	 $(lib.dir)/mysql/mysql-connector-java/5.1.47/mysql-connector-java-5.1.47.jar
 
-htsjdk.version=2.18.1
+htsjdk.version=2.18.2
 htsjdk.jars  =  \
-	$(lib.dir)/com/github/samtools/htsjdk/2.18.1/htsjdk-2.18.1.jar \
+	$(lib.dir)/com/github/samtools/htsjdk/2.18.2/htsjdk-2.18.2.jar \
 	$(lib.dir)/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar \
 	$(lib.dir)/gov/nih/nlm/ncbi/ngs-java/2.9.0/ngs-java-2.9.0.jar \
 	$(lib.dir)/org/apache/commons/commons-compress/1.4.1/commons-compress-1.4.1.jar \

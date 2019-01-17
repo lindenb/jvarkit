@@ -1,8 +1,5 @@
 package com.github.lindenb.jvarkit.pedigree;
 
-import com.github.lindenb.jvarkit.util.Pedigree.Sex;
-import com.github.lindenb.jvarkit.util.Pedigree.Status;
-
 public interface Sample {
 	public String getId();
 	public Family getFamily();
@@ -14,5 +11,9 @@ public interface Sample {
 
 	public default boolean isAffected() { return Status.affected.equals(this.getStatus());}
 	public default boolean isUnaffected() { return Status.unaffected.equals(this.getStatus());}
-
+        
+	public boolean hasFather();
+	public boolean hasMother();
+	public Sample getFather();
+	public Sample getMother();
 }
