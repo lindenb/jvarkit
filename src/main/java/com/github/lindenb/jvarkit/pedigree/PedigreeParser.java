@@ -27,21 +27,36 @@ package com.github.lindenb.jvarkit.pedigree;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 
 
+/**
+ * A class parsing pedigrees
+ */
 public class PedigreeParser {
+private static final List<String> PEDFILE_EXTENSIONS=Arrays.asList(".ped",".pedigree",".fam");
+	
+/** return valid extensions for a pedigree file */
+public static List<String> getPedigreeFileExtensions() {
+	return PEDFILE_EXTENSIONS;
+}
 
 /** default sex parser for string */ 
 private static final Function<String, Sex> DEFAULT_SEX_PARSER = S->{
@@ -94,6 +109,29 @@ public static Pedigree empty() {
 
 private static class PedigreeImpl implements Pedigree {
 	private final Map<String,Family> id2families = new TreeMap<>();
+	
+	@Override
+	public Set<Sample> getSamples() {
+		return this.id2families.values().
+				stream().
+				flatMap(F->F.getSamples().stream()).
+				collect(Collectors.toCollection(TreeSet::new));
+		}
+	
+	@Override
+	public Sample getSampleById(String id) {
+		if(id==null) return null;
+		Sample ret = null;
+		for(final Family fam: this.id2families.values())
+			{
+			Sample sample = fam.getSampleById(id);
+			if(sample==null) continue;
+			if(ret!=null) throw new IllegalStateException("ambigous sample id "+id+" found twice "+ret+" and "+ sample);
+			ret = sample;
+			}
+		return ret;
+		}
+	
 	@Override
 	public Collection<Family> getFamilies() {
 		return this.id2families.values();
@@ -105,11 +143,30 @@ private static class PedigreeImpl implements Pedigree {
 	public String toString() {
 		return "pedigree families.count=" + getFamilies().size();
 		}
+	
+	void validate() {
+		for(final Family f:this.id2families.values())
+			{
+			FamilyImpl.class.cast(f).validate();
+			}
+		}
+	}
+
+private boolean _statusRequired = false;
+
+/** set statusRequired, default is false */
+public PedigreeParser setStatusRequired(boolean statusRequired) {
+	this._statusRequired = statusRequired;
+	return this;
+	}
+
+public boolean isStatusRequired() {
+	return _statusRequired;
 	}
 
 /** parse pedigree file */
 public Pedigree parse(final File pedFile) throws IOException {
-	try(final BufferedReader br=IOUtils.open(pedFile)) {
+	try(final BufferedReader br=IOUtils.openFileForBufferedReading(pedFile)) {
 		return parse(br);
 		}
 	}
@@ -133,7 +190,8 @@ public Pedigree parse(final BufferedReader br)throws IOException
 		final String status = (tokens.length>5?tokens[5]:"");
 		build(ped, famId, indiId, fatherId, motherId, sex, status);
 		}
-	return ped.validate();
+	ped.validate();
+	return ped;
 	}
 
 private void build(final PedigreeImpl ped,final String famId,final String indiId,final String fatherId,final String motherId,final String sexxx,final String status)
@@ -145,7 +203,7 @@ private void build(final PedigreeImpl ped,final String famId,final String indiId
 		ped.id2families.put(famId, fam);
 		}
 	if(fam.id2individuals.containsKey(indiId)) throw new IllegalArgumentException("duplicate individual: "+String.join(" ; ", famId,indiId,fatherId,motherId,sexxx,status));
-	final PersonImpl p= new PersonImpl(fam,indiId);
+	final SampleImpl p= new SampleImpl(fam,indiId);
 	p.fatherId=fatherId;
 	p.motherId=motherId;
 	
@@ -156,9 +214,9 @@ private void build(final PedigreeImpl ped,final String famId,final String indiId
 	
 	if(!StringUtils.isBlank(status))
 		{
-		p.status = getStatusParse().apply(status);
+		p.status = getStatusParser().apply(status);
 		}
-	else if(this.statusRequired) {
+	else if(this.isStatusRequired()) {
 		throw new IllegalArgumentException("status must be declared");
 		}
 		
@@ -169,13 +227,16 @@ private static class FamilyImpl implements Family
 	{
 	private final PedigreeImpl ped;
 	private final String id;
-	private Map<String,SampleImpl> id2individuals = new TreeMap<>();
+	private final Map<String,SampleImpl> id2individuals = new TreeMap<>();
 	private FamilyImpl(final PedigreeImpl ped,final String id) {
 		this.ped = ped;
 		this.id = id;
 		if(StringUtils.isBlank(id)) throw new IllegalArgumentException("Family id cannot be empty");
 		}
-
+	@Override
+	public Pedigree getPedigree() {
+		return this.ped;
+		}
 	@Override
 	public String getId() {
 		return this.id;
@@ -185,9 +246,9 @@ private static class FamilyImpl implements Family
 		return this.id2individuals.get(s);
 		}
 	@Override
-	public java.util.Collection<? extends Sample> getSamples()
+	public Set<Sample> getSamples()
 		{
-		return Collections.unmodifiableCollection(this.id2individuals.values());
+		return new TreeSet<>(this.id2individuals.values());
 		}
 	@Override
 	public int hashCode() {
@@ -200,7 +261,6 @@ private static class FamilyImpl implements Family
 		if (obj == null || !(obj instanceof FamilyImpl)) {
 			return false;
 			}
-		
 		final FamilyImpl other = (FamilyImpl) obj;
 		return id.equals(other.id);
 		}
@@ -209,9 +269,13 @@ private static class FamilyImpl implements Family
 	public String toString() {
 		return this.id;
 		}
+	
+	void validate() {
+		id2individuals.values().stream().forEach(SampleImpl::validate);
+		}
 	}
 
-private static class PersonImpl implements Sample
+private static class SampleImpl implements Sample
 		{
 		private final FamilyImpl family;
 		private final String id;
@@ -220,7 +284,7 @@ private static class PersonImpl implements Sample
 		Sex sex=Sex.unknown;
 		Status status=Status.unaffected;
 		
-		PersonImpl(final FamilyImpl family,final String id) {
+		SampleImpl(final FamilyImpl family,final String id) {
 			this.family = family;
 			this.id = id;
 			if(StringUtils.isBlank(id)) throw new IllegalArgumentException("bad sample empty id");
@@ -239,62 +303,40 @@ private static class PersonImpl implements Sample
 			return this.id;
 			}
 		
-		private Sample getParent(final String s)
+		private Sample _getParent(final String s)
 			{
-			if(s==null || s.isEmpty() || s.equals("0")) return null;
+			if(StringUtils.isBlank(s) || s.equals("0")) return null;
 			return getFamily().getSampleById(s);
 			}
-		
-		public Sample getParent( int zeroOrOne) {
-			switch(zeroOrOne) {
-			case 0: return getFather();
-			case 1: return getMother();
-			default: throw new IllegalArgumentException("0 or 1 but got "+zeroOrOne);
-			} }
-		
-		private boolean hasParent(final String s)
-			{
-			return !(StringUtils.isBlank(s) || s.equals("0"));
-			}
-		
-		@Override
-		public boolean hasFather() {
-			return hasParent(this.fatherId);
-			}
-		
-		@Override
-		public boolean hasMother() {
-			return hasParent(this.motherId);
-		}
-		
+				
 		public Sample getFather()
 			{
-			return getParent(fatherId);
+			return _getParent(this.fatherId);
 			}
 		
 		public Sample getMother()
 			{
-			return getParent(motherId);
+			return _getParent(this.motherId);
 			}
 		
 		@Override
 		public Status getStatus()
 			{
-			return status;
+			return this.status;
 			}
 		
 		@Override
 		public Sex getSex()
 			{
-			return sex;
+			return this.sex;
 			}
 		
 		@Override
 		public int hashCode() {
 			final int prime = 31;
 			int result = 1;
-			result = prime * result + family.hashCode();
-			result = prime * result + id.hashCode();
+			result = prime * result + this.family.hashCode();
+			result = prime * result + this.id.hashCode();
 			return result;
 			}
 		
@@ -304,24 +346,16 @@ private static class PersonImpl implements Sample
 			if (obj == null || !(obj instanceof SampleImpl)) {
 				return false;
 			}
-			final PersonImpl p =(PersonImpl)obj;
+			final SampleImpl p =(SampleImpl)obj;
 			return	this.family.equals(p.family) &&
 					this.id.equals(p.id);
 			}
 		
-		//@Override
-		public boolean hasUniqId() 
-			{
-			return (Pedigree.this.families.values().
-					stream().
-					flatMap(F->F.getIndividuals().stream())).
-					filter(P->getId().equals(P.getId())).count() ==1L;
-			}
 		
 		//@Override
 		public Sample validate() throws IllegalStateException {
 			if(this.fatherId!=null && !this.fatherId.equals("0")) {
-				final PersonImpl parent = this.family.individuals.get(this.fatherId);
+				final SampleImpl parent = this.family.id2individuals.get(this.fatherId);
 				if(parent==null) throw new IllegalStateException(
 					"Individual "+this.toString()+" has father "+this.fatherId+" "+
 					"but he is missing in family."
@@ -332,7 +366,7 @@ private static class PersonImpl implements Sample
 					);
 			}
 			if(this.motherId!=null && !this.motherId.equals("0")) {
-				final PersonImpl parent = this.family.individuals.get(this.motherId);
+				final SampleImpl parent = this.family.id2individuals.get(this.motherId);
 				if(parent==null) throw new IllegalStateException(
 					"Individual "+this.toString()+" has mother "+this.motherId+" "+
 					"but she is missing in family."
@@ -350,4 +384,8 @@ private static class PersonImpl implements Sample
 			return family+":"+this.id;
 			}
 		}
+
+
+
+
 }

@@ -24,13 +24,21 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.pedigree;
 
-import java.util.Set;
+import java.util.Iterator;
 
 /** A Family from a Family */
-public interface Family extends SampleSet {
+public interface Family extends SampleSet, Iterable<Sample>,Comparable<Family> {
 	/** get family id */
 	public String getId();
 	/** get associated pedigree */
 	public Pedigree getPedigree();
-}
+	@Override
+	public default Iterator<Sample> iterator() {
+		return getSamples().iterator();
+		}
+	@Override
+	public default int compareTo(final Family o) {
+		return this.getId().compareTo(o.getId());
+		}
+	}
 

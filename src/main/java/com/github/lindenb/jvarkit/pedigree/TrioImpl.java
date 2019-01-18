@@ -23,6 +23,7 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.pedigree;
+import java.util.Collections;
 import java.util.Set;
 
 class TrioImpl implements Trio {
@@ -38,7 +39,7 @@ class TrioImpl implements Trio {
 	
 	@Override
 	public Set<Trio> getTrios() {
-		return Collections.singletonSet(this);		
+		return Collections.singleton(this);		
 		}
 	@Override
 	public int hashCode() {
@@ -53,6 +54,6 @@ class TrioImpl implements Trio {
 		}
 	@Override
 	public String toString() {
-		return "trio(child:"+getChild()+",father:"getFather()+",mother:"+getMother()+")";		
+		return "trio(child:"+getChild()+",father:"+ getFather()+",mother:"+getMother()+")";		
 		}
 	}

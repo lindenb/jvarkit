@@ -24,14 +24,22 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.pedigree;
 import java.util.List;
+
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
 import java.util.Collections;
 import java.util.Arrays;
 
-public interface Sample {
+/** a sample in a family in a pedigree */
+public interface Sample extends Comparable<Sample> {
 	public String getId();
 	public Family getFamily();
 	public Status getStatus();
 	public Sex getSex();
+	
+	
+	public default Pedigree getPedigree() { return getFamily().getPedigree();}
+
 	
 	public default boolean isMale() { return Sex.male.equals(this.getSex());}
 	public default boolean isFemale() { return Sex.female.equals(this.getSex());}
@@ -39,10 +47,25 @@ public interface Sample {
 	public default boolean isAffected() { return Status.affected.equals(this.getStatus());}
 	public default boolean isUnaffected() { return Status.unaffected.equals(this.getStatus());}
         
-	public boolean hasFather();
-	public boolean hasMother();
+	public default boolean hasFather() { return getFather()!=null;}
+	public default boolean hasMother() { return getMother()!=null;}
+	/** return the father of this sample, or null */
 	public Sample getFather();
+	/** return the mother of this sample, or null */
 	public Sample getMother();
+	
+	/** get parent using index 0: father, 1: mother, other values will throw an exception */
+	public default Sample getParent( int zeroOrOne) {
+		switch(zeroOrOne) {
+		case 0: return getFather();
+		case 1: return getMother();
+		default: throw new IllegalArgumentException("0 or 1 but got "+zeroOrOne);
+		} 
+	}
+	
+	
+	
+	/** get the parents of this individual */
 	public default List<Sample> getParents() {
 		final Sample f = getFather();
 		final Sample m = getFather();
@@ -55,5 +78,23 @@ public interface Sample {
 			if(m!=null) return Arrays.asList(f,m);
 			return Collections.singletonList(f);
 			}
+		}
+	
+	/** return true if sample has unique id in the pedigree */
+	public default boolean hasUniqId() 
+		{
+		return getPedigree().
+				getSamples().
+				stream().
+				filter(P->getId().equals(P.getId())).
+				limit(2L).
+				count() ==1L;
+		}
+	
+	@Override
+	default int compareTo(final Sample o) {
+		int i = getFamily().compareTo(o.getFamily());
+		if(i!=0) return i;
+		return getId().compareTo(o.getId());
 		}
 	}

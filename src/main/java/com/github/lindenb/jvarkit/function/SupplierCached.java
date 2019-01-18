@@ -21,19 +21,30 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-package com.github.lindenb.jvarkit.pedigree;
+package com.github.lindenb.jvarkit.function;
 
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.Objects;
+import java.util.function.Supplier;
 
-public interface Pedigree extends SampleSet,Iterable<Family> {
-public Collection<Family> getFamilies();
-public default boolean isEmpty() {
-	return getFamilies().isEmpty();
+/**
+ * A  <code>Supplier&lt;T&gt;</code> caching the result 
+ */
+public class SupplierCached<T> implements Supplier<T> {
+	private Supplier<T> delegate;//set to null when getSync is called
+	private T cached = null;
+	public SupplierCached(final Supplier<T> delegate) {
+		this.delegate = Objects.requireNonNull(delegate);
 	}
-public Family getFamilyById(final String id);
-@Override
-public default Iterator<Family> iterator() {
-	return getFamilies().iterator();
+	
+	private synchronized T getSync() {
+		if(this.delegate == null) return this.cached;
+		this.cached = this.delegate.get();
+		this.delegate = null;// free delegate
+		return this.cached;
+	}
+	
+	@Override
+	public T get() {
+		return this.delegate == null ? this.cached: getSync();
 	}
 }

@@ -25,6 +25,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.pedigree;
 
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /* a collection of samples */
 public interface SampleSet {
@@ -43,11 +45,11 @@ public interface SampleSet {
 		return ret;
 		}
 	/** return all the trios in this SampleSet */
-	public Set<Trio> getTrios() {
+	public default Set<Trio> getTrios() {
 		return this. getSamples().
 			stream().
-			filter(S->sample.hasFather() || sample.hasMother()).
-			map(S->new TrioImpl(sample)).
-			collect(Collectors.toSet());
+			filter(S->S.hasFather() || S.hasMother()).
+			map(S->new TrioImpl(S)).
+			collect(Collectors.toCollection(TreeSet::new));
 		}
 	}

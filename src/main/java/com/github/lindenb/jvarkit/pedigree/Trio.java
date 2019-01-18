@@ -23,20 +23,42 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.pedigree;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
-public interface Trio extends SampleSet {
+/** a trio children/father/mother */
+public interface Trio extends SampleSet, Iterable<Sample>, Comparable<Trio> {
 	public default boolean hasFather() { return getFather()!=null;}
 	public default boolean hasMother() { return getMother()!=null;}
 	public default Sample getFather() { return getChild().getFather();}
 	public default Sample getMother() { return getChild().getMother();}
+	
+	/** return the parents of the child */
+	public default List<Sample> getParents() {
+		return getChild().getParents();
+	}
+	
+	/** child of this trio */
 	public Sample getChild();
+	
 	@Override
-	public Set<Sample> getSamples() {
-		final Set<Sample> L = new HashSet<>(3);
+	public default Iterator<Sample> iterator() {
+		return getSamples().iterator();
+		}
+	
+	@Override
+	public default Set<Sample> getSamples() {
+		final Set<Sample> L = new TreeSet<>();
 		if(hasFather()) L.add(getFather());
 		if(hasMother()) L.add(getMother());
 		L.add(getChild());
 		return L;
+		}
+	@Override
+	public default int compareTo(final Trio o) {
+		return getChild().compareTo(o.getChild());
 		}
 	}
