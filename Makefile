@@ -89,8 +89,7 @@ define compile-htsjdk-cmd
 
 $(1)  : ${htsjdk.jars} \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
-		$(3) \
-		${dist.dir}/annotproc.jar
+		$(3) 
 	echo "### COMPILING $(1) ######"
 	rm -f ${tmp.dir}/markdown.flag
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir}
@@ -108,17 +107,16 @@ $(1)  : ${htsjdk.jars} \
 	which ${JAR} >> "${tmp.dir}/META-INF/jdk.properties"
 	echo -n "java=" >> "${tmp.dir}/META-INF/jdk.properties"
 	which ${JAVA} >> "${tmp.dir}/META-INF/jdk.properties"
-	echo "classpath=$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))" >> "${tmp.dir}/META-INF/jdk.properties"
+	echo "classpath=$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" >> "${tmp.dir}/META-INF/jdk.properties"
 	echo -n "self=" >> "${tmp.dir}/META-INF/jdk.properties"
 	echo "${dist.dir}/$(1)$(if ${standalone},-fat).jar" >> "${tmp.dir}/META-INF/jdk.properties"
 	#compile
 	${JAVAC} \
-		-J-Djvarkit.libs.jars='$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))' \
+		-J-Djvarkit.libs.jars='$$(subst $$(SPACE),:,$$(filter %.jar,$$^))' \
 		-J-Djvarkit.main.class='$(2)' \
 		-J-Djvarkit.this.dir='${this.dir}' \
-		-processorpath ${dist.dir}/annotproc.jar \
 		-d ${tmp.dir} \
-		-g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))" \
+		-g -classpath "$$(subst $$(SPACE),:,$$(filter %.jar,$$^))" \
 		-sourcepath ${src.dir}:${generated.dir}/java $$(filter %.java,$$^)
 ifeq (${standalone},yes)
 	$$(foreach J,$$(filter %.jar,$$^),unzip -o $${J} -d ${tmp.dir};) 
@@ -128,7 +126,7 @@ endif
 	echo "Main-Class: $(2)" >> ${tmp.mft}
 	echo "Htsjdk-Version: ${htsjdk.version}" >> ${tmp.mft}
 ifneq (${standalone},yes)
-	echo "Class-Path: $$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^))) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
+	echo "Class-Path: $$(realpath $$(filter %.jar,$$^)) ${dist.dir}/$(1).jar" | fold -w 71 | awk '{printf("%s%s\n",(NR==1?"": " "),$$$$0);}' >>  ${tmp.mft}
 endif
 	echo -n "Git-Hash: " >> ${tmp.mft}
 	$$(if $$(realpath .git/refs/heads/master),cat $$(realpath .git/refs/heads/master), echo "undefined")  >> ${tmp.mft} 
@@ -142,7 +140,7 @@ endif
 ifeq (${standalone},yes)
 	echo -n ' -jar "${dist.dir}/$(1)-fat.jar" '  >> ${dist.dir}/$(1)
 else
-	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$(filter-out ${dist.dir}/annotproc.jar,$$^)))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
+	echo -n ' -cp "$$(subst $$(SPACE),:,$$(realpath $$(filter %.jar,$$^))):${dist.dir}/$(1).jar" $(2) '  >> ${dist.dir}/$(1)
 endif
 	echo '"$$$$@"' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
@@ -880,19 +878,6 @@ ${this.dir}src/main/cpp/htslib/Makefile:
 
 
 include jfx.mk
-
-## Java annotation processing:
-${dist.dir}/annotproc.jar: ${src.dir}/com/github/lindenb/jvarkit/annotproc/JVarkitAnnotationProcessor.java
-	mkdir -p $(dir $@) 
-	rm -rf "${tmp.dir}"
-	mkdir -p ${tmp.dir}/META-INF/services
-	echo "com.github.lindenb.jvarkit.annotproc.JVarkitAnnotationProcessor" > ${tmp.dir}/META-INF/services/javax.annotation.processing.Processor
-	echo '### Printing javac version : it should be Java 11. if Not, check your $$$${PATH}.'
-	${JAVAC} -version
-	#compile
-	${JAVAC} -d ${tmp.dir} -sourcepath ${src.dir}:${generated.dir}/java $<
-	${JAR} cvf $@ -C ${tmp.dir} .
-	rm -rf "${tmp.dir}"
 
 ## Knime helper
 knimehelper: ${dist.dir}/knimehelper.jar

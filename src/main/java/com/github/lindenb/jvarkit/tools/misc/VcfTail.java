@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -77,7 +78,7 @@ END_DOC
 @Program(
 	name="vcftail",
 	description="print the last variants of a vcf",keywords={"vcf"})
-public class VcfTail extends com.github.lindenb.jvarkit.util.jcommander.Launcher
+public class VcfTail extends Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfTail.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT,required=false)

@@ -24,20 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.jcommander;
 
-import java.io.InputStream;
-import java.io.PrintStream;
-
 /** a java executable */
-public interface IProgram {
-public String getProgramName();
-public String getProgramSynopsis();
+public interface IProgramMetaData {
+public String getName();
+public default String getShortDesc() { return getName();}
 public default int[] getBiostars()  { return new int[0];}
-public default String[] getProgramKeywords() { return new String[0];}
-public String getCompileDate();
-public String getGitHash();
+public default String[] getKeywords() { return new String[0];}
+public default String[] getCitedIn() { return new String[0];}
 public default String getVersion() { return "0.1";}
-public default PrintStream stderr() { return System.err;}
-public default PrintStream stdout() { return System.out;}
-public default InputStream stdin() { return System.in;}
 public default String getDeprecationMessage() { return null;}
+public default boolean isGeneratingDoc() { return true;}
 }
