@@ -448,7 +448,7 @@ $(eval $(call compile-htsjdk-cmd,vcffilterjs,${jvarkit.package}.tools.vcffilterj
 $(eval $(call compile-htsjdk-cmd,vcffilterso,${jvarkit.package}.tools.vcffilterso.VcfFilterSequenceOntology,${jcommander.jar} ${jaxb.jars} vcfpredictions))
 $(eval $(call compile-htsjdk-cmd,vcffixindels,${jvarkit.package}.tools.vcffixindels.VCFFixIndels,${jcommander.jar}  ))
 $(eval $(call compile-htsjdk-cmd,vcfgo,${jvarkit.package}.tools.vcfgo.VcfGeneOntology,${jcommander.jar}))
-$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,${jcommander.jar} ${jaxb.jars}))
+$(eval $(call compile-htsjdk-cmd,vcfhead,${jvarkit.package}.tools.misc.VcfHead,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,vcf2bed,${jvarkit.package}.tools.misc.VcfToBed,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,splitvcf,${jvarkit.package}.tools.misc.SplitVcf,${jcommander.jar}))
 $(eval $(call compile-htsjdk-cmd,forkvcf,${jvarkit.package}.tools.misc.ForkVcf,${jcommander.jar}  ))

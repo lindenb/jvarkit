@@ -1,0 +1,129 @@
+apply plugin: 'java'
+
+ repositories {
+        mavenCentral()
+	}
+
+configurations {
+  compile
+  compile2.extendsFrom compile
+}
+
+def group1 = [ group: 'com.github.samtools', name: 'htsjdk', version: '2.18.2']
+
+dependencies {
+	compile group1
+        compile group: 'com.beust', name: 'jcommander', version: '1.64'
+}
+
+
+
+ant.lifecycleLogLevel = "INFO"
+
+class CompileJvarkit extends DefaultTask {
+	String jdkTarget = "1.8"
+	String jdkSource = "1.8"
+	String tmpDir = "tmp"
+	String srcDir = "src/main/java"
+        String  mainClass = ""
+	String otherSources=[];
+	String configName = "compile"
+	String getMainPackage() {
+		String s= mainClass;
+		int dollar = s.indexOf('$');
+		if(dollar!=-1) s=s.substring(0,dollar);
+		int dot = s.lastIndexOf('.');
+		if(dot==-1) return "";
+		return s.substring(0,dot);
+		}
+
+	String getMainSource() {
+		String s= mainClass;
+		int dollar = s.indexOf('$');
+		if(dollar!=-1) s=s.substring(0,dollar);
+		return srcDir + "/" + mainClass.replace('.','/')+".java";
+		}
+	def copyResources =  {
+
+		}
+	def getJavaSources() {
+		return [ getMainSource() ];	
+		}
+	def copySources() {
+		ant.mkdir(dir:"${tmpDir}/" + getMainPackage().replace('.','/') )
+		ant.copy(
+			file: getMainSource(),
+			todir:"${tmpDir}/" + getMainPackage().replace('.','/')
+			)
+		}
+
+	def getAntInclude() {
+		String s=getMainSource();
+		int slash = s.lastIndexOf('/');
+		return "**"+s.substring(slash);	
+		}
+	
+	def compileSources() {
+		ant.javac(
+			destdir: this.tmpDir,
+			srcdir: this.srcDir,
+			includeantruntime:false,
+			failonerror: true,
+			fork: true,
+			classpath : project.configurations.compile.asPath,
+			target: this.jdkTarget,
+			source: this.jdkSource
+			)  {
+				include(name:getAntInclude())
+			}
+		}
+	def generateDoc() {
+	}
+
+	def packageJar() {
+		ant.mkdir(dir:"dist")
+		ant.mkdir(dir:this.tmpDir+"/lib")
+		
+		project.configurations.compile.files.collect{ $it -> ant.copy(file:$it,toDir:this.tmpDir+"/lib") }
+
+		ant.jar(destfile:"dist/${name}.jar",
+			basedir:this.tmpDir
+			){
+ 			 manifest {
+				attribute(name:"Main-Class",value:this.mainClass)
+				attribute(name:'Class-Path',value: getConfiguration().files.collect { "jar://lib/$it.name" }.join(' '))
+				}
+			}
+		}
+
+	def cleanup()
+		{
+		}
+	
+	def getConfiguration() {
+		return project.configurations.find{it.name == this.configName}		
+		}	
+
+	@TaskAction
+       	def doIt() {
+		ant.mkdir(dir:"${tmpDir}/META-INF")
+                println "Compililing "+getMainSource();
+		copyResources();
+		copySources();
+		compileSources();
+		packageJar()
+		generateDoc();
+		cleanup();
+
+    	}
+}
+
+//apply plugin: CompileJvarkit
+
+task vcfhead(type: CompileJvarkit) {
+	mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfHead'
+}
+
+
+
+

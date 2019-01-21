@@ -61,6 +61,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
@@ -278,9 +279,15 @@ public class IOUtils {
 			//do we have .... azdazpdoazkd.vcf.gz?param=1&param=2
 			int question=uri.indexOf('?');
 			if(question!=-1) uri=uri.substring(0, question);
-			if(uri.endsWith(".gz"))
-				{
-				return tryBGZIP(in);
+			if(isCompressedExtention(uri)) {
+				if(uri.endsWith(".gz"))
+					{
+					return tryBGZIP(in);
+					}
+				else if(uri.endsWith(".bz2"))
+					{
+					return new BZip2CompressorInputStream(in);
+					}
 				}
 			return in;
 			}
@@ -299,7 +306,7 @@ public class IOUtils {
 	public static Reader openFileForReader(final File file) throws IOException
 		{
 		IOUtil.assertFileIsReadable(file);
-		if(file.getName().endsWith(".gz"))
+		if(isCompressedExtention(file.getName()))
 			{
 			return new InputStreamReader(openFileForReading(file));
 			}
@@ -307,6 +314,11 @@ public class IOUtils {
 		}
 
 
+	/** return true if the file has a compressed suffix '.gz' or '.bz2' */
+	public static final boolean isCompressedExtention(final String s) {
+		return s!=null && (s.endsWith(".gz") || s.endsWith(".bz2"));
+	}
+	
 	public static InputStream openFileForReading(final File file) throws IOException
 		{
 		return openPathForReading(file.toPath());
@@ -341,6 +353,10 @@ public class IOUtils {
         	{
             return new BlockCompressedOutputStream(file);
         	}
+        else if (file.getName().endsWith(".bz2"))
+	    	{
+	        return new BZip2CompressorOutputStream(Files.newOutputStream(file.toPath()));
+	    	}
         else if (file.getName().endsWith(".gz"))
 	    	{
 	        return new GZIPOutputStream(Files.newOutputStream(file.toPath()),true);
@@ -354,7 +370,7 @@ public class IOUtils {
     /** open a printwriter, compress if it ends with *.gz  */
     public static PrintWriter openFileForPrintWriter(final File file) throws IOException
 		{
-	    if (file.getName().endsWith(".gz"))
+	    if (isCompressedExtention(file.getName()))
 	    	{
 	        return new PrintWriter(openFileForWriting(file));
 	    	}

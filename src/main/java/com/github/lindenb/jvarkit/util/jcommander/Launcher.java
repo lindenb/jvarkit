@@ -1199,12 +1199,12 @@ protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(File out) throws jav
 	}
 
 
-/** open output (file or stdout) as PrintStream */
-protected java.io.PrintStream openFileOrStdoutAsPrintStream(File out) throws java.io.IOException
+/** open output (file or stdout if out is null ) as PrintStream */
+protected java.io.PrintStream openFileOrStdoutAsPrintStream(final File out) throws java.io.IOException
 	{
 	if(out!=null)
 		{
-		if(out.getName().endsWith(".gz"))
+		if(out.getName().endsWith(".gz") || out.getName().endsWith(".bz2"))
 			{
 			final java.io.OutputStream os = this.openFileOrStdoutAsStream(out);
 			if(os instanceof java.io.PrintStream) {
