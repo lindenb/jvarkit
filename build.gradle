@@ -29,9 +29,107 @@ dependencies {
 
 }
 
+class JarFile
+	{
+	private final String repo;
+	String server;
+	boolean test=false;
+	JarFile(final String repo) {
+		this.repo = repo;
+		}
+	JarFile setTest() {
+		this.test=true;
+		return this;
+		}
+	JarFile setServer(String s) {
+		this.server=s;
+		return this;
+		}
+	@Override
+	public int hashCode() { return this.repo.hashCode();}
+	@Override
+	public boolean equals(Object o) {
+		if(o==this) return true;
+		if(o==null || !(o instanceof JarFile)) return false;
+		return this.repo.equals(JarFile.class.cast(o).repo);
+		}
+	@Override
+	public String toString() {
+		return this.repo;
+		}
+	private String[] split() {
+		return this.repo.split("[/]");
+		}
+	String getGroup() { return split()[0];}
+	String getArctifact() { return split()[1];}
+	String getVersion() { return split()[3];}
+	
+	public String getServer() {
+		return this.server==null?"http://central.maven.org/maven2":this.server;
+		}
+	
+	public String getUrl() {
+		return getServer() + getRelativeFile();
+		}
+	
+	public String getRelativeDirectory() {
+		return getGroup().replace('.','/')+"/"+getArctifact();
+		}
+	public String getRelativeFile() {
+		return getRelativeDirectory()+"/"+getArctifact()+getVersion()+".jar";
+		}
+	public void download(project)
+		{
+		File f= new File(""+getRelativeFile());
+		if(!f.exist())
+			{
+			project.ant.mkdir(f.getParent());
+			project.ant.get(
+				url:getUrl(),
+				file: getRelativeFile();
+				);
+			}
+		}
+	}
 
+final Map<String,Library> libraries = new HashMap<>();
 
+class Library
+	{
+	private final Set<JarFile> files = new HashSet<>();
+	Library() {
+		}
+	Library add(String s) {
+		return this.add(new JarFile(s));
+		}
+	Library add(JarFile f) {
+		this.files.add(f);
+		return this;
+		}
+	Library add(Library L) {
+		if(L==this) {
+			this.files.addAll(L.files);
+			}
+		return this;
+		}
+	}
 
+libraries.put("htsjdk",new Library().
+	add("com.github.samtools:htsjdk:jar:2.18.2").
+	add("commons-logging:commons-logging:jar:1.1.1").
+	add("gov.nih.nlm.ncbi:ngs-java:jar:2.9.0").
+	add("org.apache.commons:commons-jexl:jar:2.1.1").
+	add("org.apache.commons:commons-compress:jar:1.4.1").
+	add("org.tukaani:xz:jar:1.5").
+	add("org.xerial.snappy:snappy-java:jar:1.1.4")
+	);
+libraries.put("jcommander",new Library().
+	add("com.beust:jcommander:jar:1.72")
+	);
+libraries.put("testng",new Library().
+	add(libraries.get("jcommander")).
+	add(new JarFile("org.testng:testng:jar:6.14.3").setTest())
+	);
 
 // https://stackoverflow.com/questions/28498688
 
@@ -52,6 +150,11 @@ public class CompileJVarkit extends DefaultTask {
 		this.tmpDir = baseDir + "/tmp"
 		this.distDir = baseDir + "/dist"
 		this.docDir = baseDir + "/docs"
+		String jvm = java.lang.System.getProperty("jvarkit.target",null);
+		if(jvm!=null && !jvm.isEmpty()) {
+			jdkTarget = jvm;
+			jdkSource = jvm;
+			}
 		}
 	String getMainPackage() {
 		String s= this.mainClass;
@@ -74,7 +177,7 @@ public class CompileJVarkit extends DefaultTask {
 		return "**"+s.substring(slash);	
 		}
 	public String toString() {
-		return 	this.name+" "+this.mainClass;
+		return 	""+this.getName()+" "+this.mainClass;
 		}
 	
 	public String getGitHash() {
@@ -159,7 +262,7 @@ public class CompileJVarkit extends DefaultTask {
 			ant.unzip(src:it,dest:this.tmpDir,overwrite:true)
 			}
 
-		ant.jar(destfile: this.distDir+"/${this.name}.jar",
+		ant.jar(destfile: this.distDir+"/"+this.getName()+".jar",
 			basedir:this.tmpDir
 			){
  			 manifest {
