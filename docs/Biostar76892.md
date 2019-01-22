@@ -16,8 +16,7 @@ Usage: biostar76892 [options] Files
     -h, --help
       print help and exit
     --helpFormat
-      What kind of help
-      Possible Values: [usage, markdown, xml]
+      What kind of help. One of [usage,markdown,xml].
     -d, --maxc
       distance beween two reads.A distance specified as a positive 
       integer.Comma are removed. The following suffixes are interpreted : 
@@ -56,7 +55,7 @@ Usage: biostar76892 [options] Files
 
 * java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
-* curl/wget
+* wget
 * git
 
 
@@ -147,5 +146,4 @@ Z:BBAABBBBAAABBBCBAABCBA@BAAAAAAABAAAAACCCBABAAAAAAACBAAAAABABA@AA@AAABBAAAAACB@
 T0G0T0G0C1G0G0T0G1C0A0G0T0T0G0C0A4C1A0T0G0C0G0T0G2G0G1C0G0T0G0A1C0G0T0G1G0C2T2T0C0G0T0G0T0A0T1       RG:Z:idp63088   XG:i:0  BI:Z:BABADDCCBBBCBBCBAABCBA@AABAAA@AAAAA@BBBB
 BAAA@AA@AABA@@A@@A@BA@@A@AA@AAAAAAABB@BAAAAAAAA@CBAAABBBBAAAA       AM:i:37 NM:i:74 SM:i:37 XM:i:0  XO:i:0  MQ:i:37 XT:A:U  rv:i:1
 ```
-
 

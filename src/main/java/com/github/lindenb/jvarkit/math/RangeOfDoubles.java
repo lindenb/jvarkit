@@ -93,7 +93,7 @@ private final List<Range> ranges;
 
 /** generate RangeOfIntegers from a String with values separated with semicolons */
 public RangeOfDoubles(final String s) {
-	this(Arrays.asList(s.split(";")).stream().filter(S->!S.trim().isEmpty()).mapToDouble(S->new Double(S)).toArray());
+	this(Arrays.asList(s.split(";")).stream().filter(S->!S.trim().isEmpty()).mapToDouble(S->Double.valueOf(S)).toArray());
 	}
 
 public RangeOfDoubles(final double array[]) {

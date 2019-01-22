@@ -13,8 +13,7 @@ Usage: addlinearindextobed [options] Files
     -h, --help
       print help and exit
     --helpFormat
-      What kind of help
-      Possible Values: [usage, markdown, xml]
+      What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
   * -R, --reference
@@ -38,7 +37,7 @@ Usage: addlinearindextobed [options] Files
 
 * java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
-* curl/wget
+* wget
 * git
 
 
@@ -104,5 +103,4 @@ $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta
 3095123207      Y       58819361        58917656
 3095271502      Y       58967656        59363566
 ```
-
 

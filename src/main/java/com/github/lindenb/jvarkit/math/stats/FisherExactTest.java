@@ -197,7 +197,7 @@ public class FisherExactTest implements DoubleSupplier,Comparable<FisherExactTes
     
     @Override
     public int compareTo(final FisherExactTest o) {
-    	return new Double( this.getAsDouble()).compareTo(new Double(o.getAsDouble()));
+    	return Double.valueOf( this.getAsDouble()).compareTo(Double.valueOf(o.getAsDouble()));
     	}
     
     public static void main(String[] args) {

@@ -30,8 +30,7 @@ Usage: vcffilterso [options] Files
     -h, --help
       print help and exit
     --helpFormat
-      What kind of help
-      Possible Values: [usage, markdown, xml]
+      What kind of help. One of [usage,markdown,xml].
     -i, --invert
       invert SO:Term selection
       Default: false
@@ -83,7 +82,7 @@ Usage: vcffilterso [options] Files
 
 * java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
-* curl/wget
+* wget
 * git
 
 
@@ -203,6 +202,5 @@ SO:0001599	3D_polypeptide_structure_variant
 
  * 2018-02-07 refactored a large part of the code
  * 2017 moved to jcommander
-
 
 

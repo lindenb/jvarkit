@@ -20,8 +20,7 @@ Usage: variantsinwindow [options] Files
     -h, --help
       print help and exit
     --helpFormat
-      What kind of help
-      Possible Values: [usage, markdown, xml]
+      What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
     -treshold, --treshold
@@ -72,7 +71,7 @@ Usage: variantsinwindow [options] Files
 
 * java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
-* curl/wget
+* wget
 * git
 
 
@@ -155,5 +154,4 @@ rotavirus	520	.	T	A	53.99	.	AC1=1;AF1=0.125;BQB=0.215002;DP=2372;DP4=1055,856,22
 rotavirus	1054	.	C	G	15.65	TOO_MANY_CLOSE_VARIANTS	AC1=2;AF1=0.249999;BQB=1;DP=487;DP4=0,364,0,120;FQ=16.8692;G3=0.75,2.21169e-28,0.25;HWE=0.0339211;MQ=60;MQ0F=0;MQB=1;PV4=1,1,1,1;RPB=0.95941;SGB=42.7815;VDB=1.4013e-45;WINDOW=1044|1053|3|0,1045|1054|2|0,1046|1055|1|0,1047|1056|1|0,1048|1057|1|0,1049|1058|1|0,1050|1059|1|0,1051|1060|1|0,1052|1061|1|0,1053|1062|1|0,1054|1063|2|0	GT:PL	0/0:0,255,90	1/1:63,235,0	0/0:0,255,99	0/0:0,132,66
 rotavirus	1064	.	G	A	21.56	TOO_MANY_CLOSE_VARIANTS	AC1=2;AF1=0.25;BQB=0.683886;DP=250;DP4=0,219,0,31;FQ=22.8019;G3=0.75,2.37734e-17,0.25;HWE=0.033921;MQ=60;MQ0F=0;MQB=1;PV4=1,1.22605e-06,1,1;RPB=0.935144;SGB=8.40135;VDB=2.70971e-16;WINDOW=1054|1063|2|0,1055|1064|1|0,1056|1065|1|0,1057|1066|1|0,1058|1067|1|0,1059|1068|1|0,1060|1069|1|0,1061|1070|1|0,1062|1071|1|0,1063|1072|1|0,1064|1073|1|0	GT:PL	0/0:0,244,70	0/0:0,199,65	0/0:0,217,68	1/1:69,84,0
 ```
-
 

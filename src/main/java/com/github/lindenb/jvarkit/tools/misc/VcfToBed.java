@@ -124,7 +124,7 @@ public class VcfToBed  extends Launcher {
 	private ReferenceFileSupplier referenceFileSupplier=null;
 	@Parameter(names={"-c","--no-ci"},description="For structural variant, ignore the extention of the boundaries using INFO/CIPOS and INFO/CIEND")
 	private boolean ignoreCi = false;
-	@Parameter(names={"-x","--slop"},description="Extends interval by 'x' bases on both sides. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-x","--slop"},description="Extends interval by 'x' bases on both sides. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int slopSize = 0;
 	@Parameter(names={"-F","--format"},description="output format")
 	private OutputFormat outputFormat = OutputFormat.bed;

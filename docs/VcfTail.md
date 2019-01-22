@@ -19,8 +19,7 @@ Usage: vcftail [options] Files
     -h, --help
       print help and exit
     --helpFormat
-      What kind of help
-      Possible Values: [usage, markdown, xml]
+      What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
     --outputbcf
@@ -49,7 +48,7 @@ Usage: vcftail [options] Files
 
 * java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
-* curl/wget
+* wget
 * git
 
 
@@ -117,5 +116,4 @@ grep -v "##"| cut -f 1,2,4,5
 chr1    935492  G   T
 chr1    1334052 CTAGAG  C
 ```
-
 

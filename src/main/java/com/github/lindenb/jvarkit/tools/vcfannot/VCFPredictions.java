@@ -427,7 +427,7 @@ public class VCFPredictions extends Launcher
 		this.referenceGenome=new ReferenceGenomeFactory().
 				open(this.referenceGenomeSource);
 		loadKnownGenesFromUri();
-		final VCFHeader header=(VCFHeader)r.getHeader();
+		final VCFHeader header= r.getHeader();
 		
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
 		

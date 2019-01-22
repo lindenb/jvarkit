@@ -81,7 +81,7 @@ public class VcfHead extends Launcher
 	private File output=null;
 	@Parameter(names={"-n","-N","--count"},description="number of variants")
 	private long count=10;
-	@Parameter(names={"-c","--bycontig"},descriptionKey="Print first variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
+	@Parameter(names={"-c","--bycontig"},description="Print first variant for each contig; Implies VCF is sorted",order=1)
 	private boolean by_contig=false;
 	
 	public VcfHead()

@@ -63,7 +63,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import htsjdk.variant.vcf.VCFIterator;
+import com.github.lindenb.jvarkit.util.jcommander.CmdUsageBuilder;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -79,9 +79,11 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFIterator;
 
 
-public class Launcher implements IProgram {
+
+public class Launcher {
 private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
@@ -96,7 +98,7 @@ public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 
 
 @ParametersDelegate
-private UsageBuider usageBuilder = null;
+private CmdUsageBuilder usageBuilder = null;
 
 /** custom instance of jcommander, don't add same command twice. */
 private class MyJCommander extends JCommander
@@ -391,14 +393,14 @@ public static class VcfWriterOnDemand
 		}
 	}
 
-
+@SuppressWarnings("unchecked")
 public Launcher()
 	{
 	final Class<?> clazz=Launcher.this.getClass();
-	this.usageBuilder = new IProgram.UsageBuider(clazz,getProgramMetaData());
-	if(!StringUtils.isBlank(getProgramMetaData().getName()))
+	this.usageBuilder = new CmdUsageBuilder(clazz);
+	if(this.usageBuilder.hasProgram())
 		{
-		this.programName = getProgramMetaData().getName();
+		this.programName = this.usageBuilder.getProgram().name();
 		}
 	else
 		{
@@ -425,12 +427,13 @@ public Launcher()
 	catch(final java.security.AccessControlException err) {
 	}
 	
-	 @SuppressWarnings({"rawtypes","unchecked","serial"})
+	@SuppressWarnings({"rawtypes","unchecked","serial"})
 	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(Dimension.class,DimensionConverter.class);
 		    put(SamRecordFilter.class,SamFilterParser.StringConverter.class);
 		    put(Random.class,RandomConverter.class);
 		}};	
+
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
 			@SuppressWarnings("unchecked")
 			@Override
@@ -443,15 +446,6 @@ public Launcher()
 	this.jcommander.addObject(this);	
 	}
 
-public IProgramMetaData getProgramMetaData () {
-	return new IProgramMetaData() {
-		@Override
-		public String getName() {
-			return "undefined";
-			}
-		};
-	}
-
 public String getProgramName()
 	{
 	return this.programName;
@@ -460,20 +454,17 @@ public String getProgramName()
 public String getCompileDate()
 	{
 	return this.usageBuilder.getCompileDate();
-}
+	}
 
 public String getGitHash()
-{
+	{
 	return this.usageBuilder.getGitHash();
-}
+	}
 
 public String getVersion()
-{
+	{
 	return this.usageBuilder.getVersion();
-}
-
-
-
+	}
 
 
 protected JCommander getJCommander()

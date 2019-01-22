@@ -91,7 +91,6 @@ $(1)  : ${htsjdk.jars} \
 		$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2)))) \
 		$(3) 
 	echo "### COMPILING $(1) ######"
-	rm -f ${tmp.dir}/markdown.flag
 	mkdir -p ${tmp.dir}/META-INF ${dist.dir}
 	mkdir -p ${tmp.dir}/$(dir $(subst .,/,$(2)))
 	cp -v "$(addsuffix .java,$(addprefix ${src.dir}/,$(subst .,/,$(2))))" "${tmp.dir}/$(dir $(subst .,/,$(2)))"
@@ -145,8 +144,8 @@ endif
 	echo '"$$$$@"' >> ${dist.dir}/$(1)
 	chmod  ugo+rx ${dist.dir}/$(1)
 	# generate markdown if needed
-	-if [ -e "${tmp.dir}/markdown.flag" ] && [ "${TRAVIS}" != "true" ] && [ "${standalone}" != "yes" ] ; then \
-		${JAVA} -jar "${dist.dir}/$(1)$(if ${standalone},-fat).jar" --help --helpFormat markdown > "${this.dir}docs/$(notdir $(subst .,/,$(2))).md" ;\
+	-if [ "${TRAVIS}" != "true" ] && [ "${standalone}" != "yes" ] ; then \
+		${JAVA} -Djvarkit.doc.dir=${this.dir}docs  -Djvarkit.src.dir=${this.dir}src/main/java -jar "${dist.dir}/$(1)$(if ${standalone},-fat).jar" --help --helpFormat make-doc  ;\
 	fi
 	#cleanup
 	rm -rf "${tmp.dir}"

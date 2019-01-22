@@ -348,7 +348,7 @@ public class VcfBurdenRscriptV
 						final String str= String.valueOf(O);
 						if(str.isEmpty() || str.equals(".")) return null;
 						try {
-							return new Double(str);
+							return Double.valueOf(str);
 							}
 						catch (final NumberFormatException e) {
 							LOG.warn("bad cadd number "+O);

@@ -65,6 +65,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
+@Deprecated
 public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	private static final Logger LOG = Logger.build(JVarkitAnnotationProcessor.class).make();
 	

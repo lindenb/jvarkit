@@ -1,129 +1,206 @@
+//import org.gradle.internal.logging.text.StyledTextOutput 
+//import org.gradle.internal.logging.text.StyledTextOutput.Style
+
 apply plugin: 'java'
 
  repositories {
         mavenCentral()
+	maven {
+		url ( "http://clojars.org/repo")
+		}
 	}
 
 configurations {
   compile
   compile2.extendsFrom compile
+  compile3.extendsFrom compile
 }
+ext {
+	htsjdkVersion = '2.18.2'
+	}
 
-def group1 = [ group: 'com.github.samtools', name: 'htsjdk', version: '2.18.2']
+def group1 = [ group: 'com.github.samtools', name: 'htsjdk', version: ext.htsjdkVersion]
 
 dependencies {
 	compile group1
         compile group: 'com.beust', name: 'jcommander', version: '1.64'
+ 	compile2 group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
+	compile3 group: 'org.clojars.chapmanb', name: 'bigwig', version: 'r39'
+
 }
 
 
 
-ant.lifecycleLogLevel = "INFO"
 
-class CompileJvarkit extends DefaultTask {
-	String jdkTarget = "1.8"
-	String jdkSource = "1.8"
-	String tmpDir = "tmp"
-	String srcDir = "src/main/java"
-        String  mainClass = ""
-	String otherSources=[];
+
+// https://stackoverflow.com/questions/28498688
+
+
+public class CompileJVarkit extends DefaultTask {
+	String mainClass = ''
+	String srcDir =''
+	String tmpDir = ""
+	String distDir = ""	
+	String docDir = ""
+	String jdkTarget = "11"
+	String jdkSource = "11"
 	String configName = "compile"
+	
+	CompileJVarkit() {
+		def baseDir = this.getProject().projectDir.getPath();
+		this.srcDir = baseDir + "/src/main/java"
+		this.tmpDir = baseDir + "/tmp"
+		this.distDir = baseDir + "/dist"
+		this.docDir = baseDir + "/docs"
+		}
 	String getMainPackage() {
-		String s= mainClass;
+		String s= this.mainClass;
 		int dollar = s.indexOf('$');
 		if(dollar!=-1) s=s.substring(0,dollar);
 		int dot = s.lastIndexOf('.');
 		if(dot==-1) return "";
 		return s.substring(0,dot);
 		}
-
-	String getMainSource() {
-		String s= mainClass;
+	String getMainJavaSource() {
+		String s = this.mainClass;
 		int dollar = s.indexOf('$');
 		if(dollar!=-1) s=s.substring(0,dollar);
-		return srcDir + "/" + mainClass.replace('.','/')+".java";
+		s = this.srcDir + "/" + s.replace('.','/')+".java";
+		return s;
 		}
-	def copyResources =  {
-
-		}
-	def getJavaSources() {
-		return [ getMainSource() ];	
-		}
-	def copySources() {
-		ant.mkdir(dir:"${tmpDir}/" + getMainPackage().replace('.','/') )
-		ant.copy(
-			file: getMainSource(),
-			todir:"${tmpDir}/" + getMainPackage().replace('.','/')
-			)
-		}
-
-	def getAntInclude() {
-		String s=getMainSource();
+	String getAntInclude() {
+		String s= this.getMainJavaSource();
 		int slash = s.lastIndexOf('/');
 		return "**"+s.substring(slash);	
 		}
+	public String toString() {
+		return 	this.name+" "+this.mainClass;
+		}
 	
-	def compileSources() {
+	public String getGitHash() {
+	    try {
+		def stdout = new ByteArrayOutputStream()
+		    project.exec {
+			commandLine 'git', 'rev-parse', '--short', 'HEAD'
+			standardOutput = stdout
+		    }
+		    return stdout.toString().trim()
+		}
+	    catch(Exception err) { return "undefined";}
+	    }
+
+	def getConfiguration() {
+		//System.err.println("SEACHING "+ this.configName);
+		//project.configurations.each{ System.err.println("conf : "+it.name); } 
+		def c= project.configurations.find{it.name == this.configName}
+		//System.err.println("GOT::"+this.configName +" =  "+c);
+		if(c==null) throw new GradleException("Cannot find config "+this.configName+" "+c);
+		
+		return c;	
+		}	
+
+
+	 @TaskAction
+	 void doIt() {
+
+		
+
+		/** prepare directories */
+		ant.mkdir(dir:"${this.tmpDir}/META-INF")
+		ant.mkdir(dir:"${this.distDir}")
+		
+
+		/** copy main source */
+		ant.mkdir(dir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/') )
+		ant.copy(
+			file: this.getMainJavaSource(),
+			todir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/')
+			)
+		/* compile sources */
+		//System.err.println("JAVA_PATH="+getConfiguration().asPath);
 		ant.javac(
 			destdir: this.tmpDir,
 			srcdir: this.srcDir,
 			includeantruntime:false,
 			failonerror: true,
 			fork: true,
-			classpath : project.configurations.compile.asPath,
+			classpath : getConfiguration().asPath,
 			target: this.jdkTarget,
 			source: this.jdkSource
 			)  {
-				include(name:getAntInclude())
+				include(name: this.getAntInclude())
+				 compilerarg(value:'-Xlint')
 			}
-		}
-	def generateDoc() {
-	}
+	
+		/* shall we download Sequence Ontology ? */
+		File soTreeClassFile = new File("${this.tmpDir}/com/github/lindenb/jvarkit/util/so/SequenceOntologyTree.class");
+		if(soTreeClassFile.exists())
+			{
+			ant.mkdir(dir:"${this.tmpDir}/META-INF/so")
+			final File soOwlFile = new File( this.getProject().projectDir.getPath()+"/src/main/resources/so/so-simple.owl");
+			if(!soOwlFile.exists())
+				{
+				System.err.println("download to "+soOwlFile);
+				ant.mkdir(dir:soOwlFile.parent)
+				ant.get(
+					src:"https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/so-simple.owl",
+					verbose:true,
+					dest:soOwlFile
+					);
+				}
+			System.err.println("copy to "+soOwlFile);
+			ant.copy(
+				file: soOwlFile,
+				todir:"${this.tmpDir}/META-INF/so"
+				)
+			}
 
-	def packageJar() {
-		ant.mkdir(dir:"dist")
-		ant.mkdir(dir:this.tmpDir+"/lib")
-		
-		project.configurations.compile.files.collect{ $it -> ant.copy(file:$it,toDir:this.tmpDir+"/lib") }
+		this.getConfiguration().files.each {
+			ant.unzip(src:it,dest:this.tmpDir,overwrite:true)
+			}
 
-		ant.jar(destfile:"dist/${name}.jar",
+		ant.jar(destfile: this.distDir+"/${this.name}.jar",
 			basedir:this.tmpDir
 			){
  			 manifest {
 				attribute(name:"Main-Class",value:this.mainClass)
-				attribute(name:'Class-Path',value: getConfiguration().files.collect { "jar://lib/$it.name" }.join(' '))
+				attribute(name:"Htsjdk-Version", value: project.ext.htsjdkVersion)
+				attribute(name:"Git-Hash",value: getGitHash())
 				}
 			}
+		//remove tmpDir
+		ant.delete( dir :  this.tmpDir )
+		// done : https://stackoverflow.com/questions/14516693/
+		project.logger.lifecycle("jar file generated :" + this.distDir+"/${this.name}.jar")
+
+		/* generate doc */
+		ant.java(
+			jar :  this.distDir+"/${this.name}.jar" , fork: true
+			) {
+			jvmarg(value: "-Djvarkit.doc.dir=${this.docDir}");
+			arg(value: "--help")
+			arg(value: "--helpFormat")
+			arg(value: "make-doc")
+			}
+
 		}
+	}
 
-	def cleanup()
-		{
+String biostar2java(int i) {
+	return "com.github.lindenb.jvarkit.tools.biostar.Biostar"+i;
+	}
+
+task("vcfhead", type: CompileJVarkit) { mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfHead' }
+task("vcftail", type: CompileJVarkit) {
+		mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfTail'
+		configName='compile2'
 		}
-	
-	def getConfiguration() {
-		return project.configurations.find{it.name == this.configName}		
-		}	
-
-	@TaskAction
-       	def doIt() {
-		ant.mkdir(dir:"${tmpDir}/META-INF")
-                println "Compililing "+getMainSource();
-		copyResources();
-		copySources();
-		compileSources();
-		packageJar()
-		generateDoc();
-		cleanup();
-
-    	}
-}
-
-//apply plugin: CompileJvarkit
-
-task vcfhead(type: CompileJvarkit) {
-	mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfHead'
-}
-
-
-
-
+task("vcffilterso", type: CompileJVarkit) {
+		mainClass = 'com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology'
+		configName='compile2'
+		}
+task("addlinearindextobed", type: CompileJVarkit) { mainClass = 'com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed' }
+task("biostar105754", type: CompileJVarkit) {
+		mainClass = biostar2java(105754)
+		configName='compile3'
+		}

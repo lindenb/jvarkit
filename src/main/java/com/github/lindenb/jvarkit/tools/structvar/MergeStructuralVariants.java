@@ -87,7 +87,7 @@ public class MergeStructuralVariants extends Launcher{
 	private static final Logger LOG = Logger.build(MergeStructuralVariants.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-	@Parameter(names={"-d","--distance"},description="Two intervals are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-d","--distance"},description="Two intervals are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int max_distance = 100;
 	@Parameter(names={"-m","--max-length"},description="ignore variant longer than 'x' bases. Ignore this parameter if 'x' <=0 ")
 	private int max_variant_length = -1;

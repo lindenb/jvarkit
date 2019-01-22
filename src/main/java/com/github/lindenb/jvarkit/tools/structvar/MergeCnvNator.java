@@ -224,7 +224,7 @@ public class MergeCnvNator extends Launcher{
 				if(s.isEmpty()) return null;
 				if(s.equals("nan") || s.equals("-nan")) return null;
 				try {
-					return new Double(s);
+					return Double.valueOf(s);
 					}
 				catch(final NumberFormatException err) {
 					LOG.warn(err);

@@ -278,12 +278,25 @@ public class SequenceOntologyTree
 				{
 				if(INSTANCE==null)
 					{
-					INSTANCE= createDefault();
+					INSTANCE= createNewInstance();
 					}
 				}
 			}
 		return INSTANCE;
 		}
+	
+	/** try first to read from /META-INF/so/so-simple.owl using createFromInputStream if it fails calls createDefault */
+	public static SequenceOntologyTree createNewInstance() {
+		try(final InputStream in =SequenceOntologyTree.class.getResourceAsStream("/META-INF/so/so-simple.owl");)
+			{
+			if(in!=null) return SequenceOntologyTree.createFromInputStream(in);
+			}
+		catch(final Exception error) {
+			// ignore
+			}
+		return SequenceOntologyTree.createDefault();	
+		}
+
 	public static SequenceOntologyTree createFromInputStream(final InputStream in) throws IOException
 		{
 		return new OwlLoader().parse(in);

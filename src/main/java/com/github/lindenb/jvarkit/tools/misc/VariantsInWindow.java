@@ -101,9 +101,9 @@ public class VariantsInWindow extends Launcher{
 
 	@Parameter(names={"-vf","--variant-filter"},description="Variants we want to keep. Variant FAILING that Jexl expression will be excluded from the window." +JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
-	@Parameter(names={"-S","--shift","--windowShift"},description="Window shift."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-S","--shift","--windowShift"},description="Window shift."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
     protected int window_shift = 50;
-    @Parameter(names= {"-W","--windowSize"},description="Window Size." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+    @Parameter(names= {"-W","--windowSize"},description="Window Size." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
     protected int window_size = 150;
     @Parameter(names="-windowName",description="INFO Attribute name that will be added")
     protected String winName = "WINDOW";

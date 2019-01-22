@@ -101,7 +101,7 @@ public class Biostar76892 extends Launcher
 	
 	@Parameter(names={"-osf","--osf"},description="only save pairs of reads which have been corrected by this program")
 	private boolean onlySaveFixed = false;
-	@Parameter(names={"-d","--maxc"},description="distance beween two reads."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-d","--maxc"},description="distance beween two reads."+DistanceParser.OPT_DESCRIPTION,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int distance = 30 ;
 
 	@ParametersDelegate
