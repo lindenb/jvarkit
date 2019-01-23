@@ -1,5 +1,5 @@
 language: java
-script: gradle all
+script: ./gradlew all
 jdk:
    - openjdk11
 
@@ -9,3 +9,5 @@ before_install:
    - sudo apt-get update -qq 
    - sudo apt-get install gradle
    - chmod +x gradlew
+   - ./gradlew assemble
+   - ./gradlew check
