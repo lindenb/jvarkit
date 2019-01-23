@@ -1,10 +1,8 @@
 language: java
-script: make all
+script: gradle all
 jdk:
    - openjdk11
 before_install:
    - sudo apt-get update -qq 
-   - sudo apt-get install xsltproc
-   - sudo apt-get install curl
    - sudo apt-get install gradle
 

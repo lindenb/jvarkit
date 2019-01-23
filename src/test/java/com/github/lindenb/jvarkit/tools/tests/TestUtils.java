@@ -613,7 +613,7 @@ protected File sortBamOnQueryName(final Path bamFile,final Predicate<SAMRecord> 
 	return sortedBam;
 	}
 protected List<Interval> randomIntervalsFromDict(final File dictFile,int n) throws IOException{
-	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(dictFile);
+	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(dictFile.toPath());
 	final List<Interval> rgns = new ArrayList<>(n);
 	if(dict==null) return rgns;
 	while(n>0)

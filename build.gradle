@@ -1,5 +1,9 @@
 //import org.gradle.internal.logging.text.StyledTextOutput 
 //import org.gradle.internal.logging.text.StyledTextOutput.Style
+import  java.util.stream.Collectors ;
+
+defaultTasks 'top'
+
 /*
 dependencies {
 	compile group1
@@ -9,6 +13,11 @@ dependencies {
 
 }*/
 
+ext {
+	libraries = new HashMap<>();
+	htsjdkVersion = "2.18.2"
+	}
+
 class JarFile
 	{
 	private final String repo;
@@ -16,6 +25,9 @@ class JarFile
 	boolean test=false;
 	JarFile(final String repo) {
 		this.repo = repo;
+		}
+	boolean isTest() {
+		return this.test;
 		}
 	JarFile setTest() {
 		this.test=true;
@@ -35,10 +47,10 @@ class JarFile
 		}
 	@Override
 	public String toString() {
-		return this.repo;
+		return this.repo+" -> "+getUrl()+" "+ getRelativeFile();
 		}
 	private String[] split() {
-		return this.repo.split("[/]");
+		return this.repo.split("[\\:]");
 		}
 	String getGroup() { return split()[0];}
 	String getArctifact() { return split()[1];}
@@ -49,34 +61,42 @@ class JarFile
 		}
 	
 	public String getUrl() {
-		return getServer() + getRelativeFile();
+		return getServer() + "/" + getRelativeFile();
 		}
 	
 	public String getRelativeDirectory() {
-		return getGroup().replace('.','/')+"/"+getArctifact();
+		return getGroup().replace('.','/')+"/"+getArctifact()+"/"+getVersion();
 		}
 	public String getRelativeFile() {
-		return getRelativeDirectory()+"/"+getArctifact()+getVersion()+".jar";
+		return getRelativeDirectory()+"/"+getArctifact()+"-"+getVersion()+".jar";
 		}
 	public void download(project)
 		{
-		File f= new File(""+getRelativeFile());
-		if(!f.exist())
+		final File f= this.toFile(project);
+		if(!f.exists())
 			{
-			project.ant.mkdir(f.getParent());
+			project.logger.lifecycle("Downloading "+this.getUrl()+" to "+ f);
+			project.ant.mkdir(dir:f.getParent());
 			project.ant.get(
-				url:getUrl(),
-				file: getRelativeFile();
+				src:getUrl(),
+				verbose: true,
+				dest: f
 				);
 			}
 		}
+	public File toFile(project)
+		{
+		def baseDir = project.projectDir.getPath()+"/lib";
+		final File f= new File(baseDir,getRelativeFile());
+		return f;
+		}
 	}
 
-final Map<String,Library> libraries = new HashMap<>();
+
 
 class Library
 	{
-	private final Set<JarFile> files = new HashSet<>();
+	private final def files = new HashSet<>();
 	Library() {
 		}
 	Library add(String s) {
@@ -87,15 +107,27 @@ class Library
 		return this;
 		}
 	Library add(Library L) {
-		if(L==this) {
+		if(L!=this) {
 			this.files.addAll(L.files);
 			}
+		if(this.isEmpty() && !L.isEmpty()) throw new  GradleException("uh ?"+L);
 		return this;
+		}
+	Library withoutTest() {
+		final Library L=new Library().add(this);
+		L.files.removeIf{it->it.isTest()};
+		return L;
+		}
+	boolean isEmpty() { return files.isEmpty();}
+	public String toString() {
+		return files.toString();
 		}
 	}
 
+
+
 libraries.put("htsjdk",new Library().
-	add("com.github.samtools:htsjdk:jar:2.18.2").
+	add("com.github.samtools:htsjdk:jar:" + ext.htsjdkVersion ).
 	add("commons-logging:commons-logging:jar:1.1.1").
 	add("gov.nih.nlm.ncbi:ngs-java:jar:2.9.0").
 	add("org.apache.commons:commons-jexl:jar:2.1.1").
@@ -110,6 +142,16 @@ libraries.put("testng",new Library().
 	add(libraries.get("jcommander")).
 	add(new JarFile("org.testng:testng:jar:6.14.3").setTest())
 	);
+libraries.put("bigwig",new Library().
+	add(new JarFile("org.clojars.chapmanb:bigwig:jar:r39").setServer("http://clojars.org/repo"))
+	);
+libraries.put("jaxb",new Library().
+	add("javax.xml.bind:jaxb-api:jar:2.2.11").
+	add("com.sun.xml.bind:jaxb-core:jar:2.2.11").
+	add("org.glassfish.jaxb:jaxb-core:jar:2.2.11").
+	add("org.glassfish.jaxb:txw2:jar:2.2.11")
+	);
+
 
 // https://stackoverflow.com/questions/28498688
 
@@ -117,19 +159,23 @@ libraries.put("testng",new Library().
 public class CompileJVarkit extends DefaultTask {
 	String mainClass = ''
 	String srcDir =''
+	String testDir =''
 	String tmpDir = ""
 	String distDir = ""	
 	String docDir = ""
+	String testNgDir=""
 	String jdkTarget = "11"
 	String jdkSource = "11"
-	Library libraries = new Library();
+	Library jarLibs = new Library();
 	
 	CompileJVarkit() {
 		def baseDir = this.getProject().projectDir.getPath();
 		this.srcDir = baseDir + "/src/main/java"
+		this.testDir = baseDir + "/src/test/java"
 		this.tmpDir = baseDir + "/tmp"
 		this.distDir = baseDir + "/dist"
 		this.docDir = baseDir + "/docs"
+		this.testNgDir = baseDir+"/tests-output"
 		String jvm = java.lang.System.getProperty("jvarkit.target",null);
 		if(jvm!=null && !jvm.isEmpty()) {
 			jdkTarget = jvm;
@@ -137,8 +183,9 @@ public class CompileJVarkit extends DefaultTask {
 			}
 		}
 	boolean isFatJar() {
-		return !java.lang.System.getProperty("jvarkit.fat.jar","true").equals("true");
+		return java.lang.System.getProperty("jvarkit.fat.jar","true").equals("true");
 		}
+	
 	String getMainPackage() {
 		String s= this.mainClass;
 		int dollar = s.indexOf('$');
@@ -147,6 +194,18 @@ public class CompileJVarkit extends DefaultTask {
 		if(dot==-1) return "";
 		return s.substring(0,dot);
 		}
+	File getMainJavaTestFile() {
+		String s= java.lang.System.getenv("TRAVIS");
+		if(s!=null && s.equals("true")) return null;
+		if(java.lang.System.getProperty("jvarkit.disable.test","false").equals("true")) return null;
+
+		String s = this.testDir +"/"+ getTestNgClass().replace('.','/')+".java";
+
+		File f = new File(s);
+
+		if(!f.exists()) return null;
+		return f;
+		}
 	String getMainJavaSource() {
 		String s = this.mainClass;
 		int dollar = s.indexOf('$');
@@ -154,10 +213,24 @@ public class CompileJVarkit extends DefaultTask {
 		s = this.srcDir + "/" + s.replace('.','/')+".java";
 		return s;
 		}
+	String getTestNgClass() {
+		String s = this.mainClass;
+		int dollar = s.indexOf('$');
+		if(dollar!=-1) s=s.substring(0,dollar);
+		return s+"Test";
+		}
 	String getAntInclude() {
 		String s= this.getMainJavaSource();
 		int slash = s.lastIndexOf('/');
 		return "**"+s.substring(slash);	
+		}
+	String getAntTestInclude() {
+		String s= this.getMainJavaSource();
+		int slash = s.lastIndexOf('/');
+		s= s.substring(slash);
+		int dot = s.lastIndexOf('.');
+		s= s.substring(0,dot);
+		return "**"+s+"Test.java";	
 		}
 	public String toString() {
 		return 	""+this.getName()+" "+this.mainClass;
@@ -184,20 +257,17 @@ public class CompileJVarkit extends DefaultTask {
 		
 		return c;	
 		}	
-
-	String getClassPathWithoutTest()
-		{
-		}
+	
+	
 	 @TaskAction
 	 void doIt() {
-
+		if(this.jarLibs.isEmpty()) throw new GradleException("Empty ?? "+this.jarLibs);
 		
-
 		/** prepare directories */
 		ant.mkdir(dir:"${this.tmpDir}/META-INF")
 		ant.mkdir(dir:"${this.distDir}")
 		/** download libraries */
-		for(JarF j: this.libaries)
+		for(final JarFile j: this.jarLibs.files)
 			{
 			j.download(this.project);
 			}
@@ -210,13 +280,15 @@ public class CompileJVarkit extends DefaultTask {
 			)
 		/* compile sources */
 		//System.err.println("JAVA_PATH="+getConfiguration().asPath);
+		final Set<File> classpath1 = this.jarLibs.withoutTest().files.collect{it->it.toFile(project)} as Set;
+		
 		ant.javac(
 			destdir: this.tmpDir,
 			srcdir: this.srcDir,
 			includeantruntime:false,
 			failonerror: true,
 			fork: true,
-			classpath : this.getClassPath(),
+			classpath : classpath1.collect{it->it.path}.join(":"),
 			target: this.jdkTarget,
 			source: this.jdkSource
 			)  {
@@ -247,25 +319,27 @@ public class CompileJVarkit extends DefaultTask {
 				)
 			}
 		if(isFatJar()) {
-			this.getConfiguration().files.each {
-				ant.unzip(src:it,dest:this.tmpDir,overwrite:true)
+			for(final File jf:classpath1) {
+				ant.unzip(src:jf,dest:this.tmpDir,overwrite:true)
 				}
 			}
-
-		ant.jar(destfile: this.distDir+"/"+this.getName()+".jar",
+		final File distJar = new File(this.distDir+"/"+this.getName()+".jar")
+		final String now = new Date().format("yyyyMMddHHmmss");
+		ant.jar(destfile: distJar,
 			basedir:this.tmpDir
 			){
  			 manifest {
 				attribute(name:"Main-Class",value:this.mainClass)
 				attribute(name:"Htsjdk-Version", value: project.ext.htsjdkVersion)
 				attribute(name:"Git-Hash",value: getGitHash())
-				attribute(name:(isFatJar()?"Ignore-Class-Path":"Class-Path"),value:getClassPath().join(" "));
+				attribute(name:"Compile-Date",value: now)
+				attribute(name:(isFatJar()?"Ignore-Class-Path":"Class-Path"), value: classpath1.collect{it.path}.join(" "));
 				}
 			}
 		//remove tmpDir
 		ant.delete( dir :  this.tmpDir )
 		// done : https://stackoverflow.com/questions/14516693/
-		project.logger.lifecycle("jar file generated :" + this.distDir+"/${this.name}.jar")
+		project.logger.lifecycle("jar file generated :" + distJar)
 
 		/* generate doc */
 		ant.java(
@@ -276,7 +350,63 @@ public class CompileJVarkit extends DefaultTask {
 			arg(value: "--helpFormat")
 			arg(value: "make-doc")
 			}
+		/** test */
+		final File testJava = getMainJavaTestFile();
+		if(!isFatJar() || testJava==null)
+			{
+			project.logger.warn("No Test will be executed for "+this.getName() +"test-file:"+testJava+" fat:"+isFatJar());
+			}
+		else
+			{
+			ant.mkdir(dir: this.tmpDir)
+			ant.mkdir(dir: this.testNgDir+"/"+getName());
+			project.logger.warn("Test will be executed in "+this.testNgDir+"/"+getName()+"/index.html");
+			final Set<File> classpath2 = new HashSet<>();
+			classpath2.add(distJar);
+			for(JarFile f:this.jarLibs.files)
+				{
+				if(!f.isTest()) continue;
+				classpath2.add(f.toFile(project));
+				}	
+			
+			
+			ant.javac(
+				destdir: this.tmpDir,
+				srcdir: this.testDir+":"+ this.srcDir,
+				includeantruntime:false,
+				failonerror: true,
+				fork: true,
+				classpath : classpath2.collect{it->it.path}.join(":"),
+				target: this.jdkTarget,
+				source: this.jdkSource
+				) 	
+				{
+				include(name: getAntTestInclude())
+				compilerarg(value:'-Xlint')
+				}
+			
+			ant.echo(message:"<!DOCTYPE suite SYSTEM \"http://testng.org/testng-1.0.dtd\">" +
+					"<suite name=\"SuiteAll\">"+
+					"<test name=\"${name}\">" +
+					"<classes><class name=\"" +getTestNgClass()+ "\"/></classes>" +
+					"</test></suite>"
+					,
+				file: this.tmpDir+"/testng.xml"
+				)
 
+			ant.java(
+				classname : "org.testng.TestNG",
+				fork: true,
+				failonerror: false,
+				classpath : classpath2.collect{it->it.path}.join(":")
+				) {
+				arg(value: "-d")
+				arg(value: this.testNgDir+"/"+getName())
+				arg(value: "${this.tmpDir}/testng.xml");
+				}
+			
+			ant.delete( dir :  this.tmpDir )
+			}
 		}
 	}
 
@@ -286,27 +416,879 @@ String biostar2java(int i) {
 
 Library combineLibs(String...array)
 	{
-	Library L= new Library();
+	final Library L= new Library();
 	for(String n: array)
 		{
-		Library l2=libraries.get(n);
+		final Library l2= libraries.get(n);
 		if(l2==null) throw new GradleException("Cannot find library "+n);
 		L.add(l2);
 		}
 	return L;
 	}
 
-task("vcfhead", type: CompileJVarkit) { mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfHead' }
-task("vcftail", type: CompileJVarkit) {
-		mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfTail'
-		libraries= combineLibs("htsjdk","tesng","jcommander")
-		}
-task("vcffilterso", type: CompileJVarkit) {
+def all=new ArrayList<>();
+
+all.add( task("vcffilterso", type: CompileJVarkit) {
 		mainClass = 'com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology'
-		libraries= combineLibs("htsjdk","tesng","jcommander")
-		}
-task("addlinearindextobed", type: CompileJVarkit) { mainClass = 'com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed' }
-task("biostar105754", type: CompileJVarkit) {
+		jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+		});
+all.add( task("biostar105754", type: CompileJVarkit) {
 		mainClass = biostar2java(105754)
-		libraries= combineLibs("htsjdk","tesng","jcommander")
-		}
+		jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
+		});
+
+/** simple tasks, just jcommander+htsjdk */
+all.add( task("addlinearindextobed", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("allelefreqcalc", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("almostsortedvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.sortvcfonref.AlmostSortedVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("backlocate", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.backlocate.BackLocate"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bam2fastq", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastq.BamToFastq"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bam2raster", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bam2sql", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamToSql"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bam2svg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2svg.BamToSVG"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bam2wig", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bam2xml", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2xml.Bam2Xml"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamclip2insertion", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamClipToInsertion"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamcmpcoverage", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamCmpCoverage"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamindexreadnames", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bamindexnames.BamIndexReadNames"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamqueryreadnames", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bamindexnames.BamQueryReadNames"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamrenamechr", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.ConvertBamChromosomes"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamslicebed", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pcr.BamSliceBed"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamstats04", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bamstats04.BamStats04"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamstats05", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bamstats04.BamStats05"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bamtile", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamTile"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bedindextabix", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedIndexTabix"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bedliftover", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.liftover.BedLiftOver"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bednonoverlappingset", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedNonOverlappingSet"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bedrenamechr", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.ConvertBedChromosomes"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bioalcidaejdk", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
+all.add( task("biostar59647", type: CompileJVarkit) {
+	mainClass = biostar2java(59647)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar76892", type: CompileJVarkit) {
+	mainClass = biostar2java(76892)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar77288", type: CompileJVarkit) {
+	mainClass = biostar2java(77288)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar77828", type: CompileJVarkit) {
+	mainClass = biostar2java(77828)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar78285", type: CompileJVarkit) {
+	mainClass = biostar2java(78285)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar81455", type: CompileJVarkit) {
+	mainClass = biostar2java(81455)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar84452", type: CompileJVarkit) {
+	mainClass = biostar2java(84452)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar84786", type: CompileJVarkit) {
+	mainClass = biostar2java(84786)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar86363", type: CompileJVarkit) {
+	mainClass = biostar2java(86363)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar86480", type: CompileJVarkit) {
+	mainClass = biostar2java(86480)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar90204", type: CompileJVarkit) {
+	mainClass = biostar2java(90204)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar103303", type: CompileJVarkit) {
+	mainClass = biostar2java(103303)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar139647", type: CompileJVarkit) {
+	mainClass = biostar2java(139647)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar145820", type: CompileJVarkit) {
+	mainClass = biostar2java(145820)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar154220", type: CompileJVarkit) {
+	mainClass = biostar2java(154220)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar165777", type: CompileJVarkit) {
+	mainClass = biostar2java(165777)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar170742", type: CompileJVarkit) {
+	mainClass = biostar2java(170742)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar172515", type: CompileJVarkit) {
+	mainClass = biostar2java(172515)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar173114", type: CompileJVarkit) {
+	mainClass = biostar2java(173114)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar175929", type: CompileJVarkit) {
+	mainClass = biostar2java(175929)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar178713", type: CompileJVarkit) {
+	mainClass = biostar2java(178713)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar214299", type: CompileJVarkit) {
+	mainClass = biostar2java(214299)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar234081", type: CompileJVarkit) {
+	mainClass = biostar2java(234081)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar234230", type: CompileJVarkit) {
+	mainClass = biostar2java(234230)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar251649", type: CompileJVarkit) {
+	mainClass = biostar2java(251649)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar322664", type: CompileJVarkit) {
+	mainClass = biostar2java(322664)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar332826", type: CompileJVarkit) {
+	mainClass = biostar2java(332826)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar336589", type: CompileJVarkit) {
+	mainClass = biostar2java(336589)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("biostar352930", type: CompileJVarkit) {
+	mainClass = biostar2java(352930)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("buildwpontology", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BuildWikipediaOntology"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bwamemdigest", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.mem.BWAMemDigest"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("bwamemnop", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.mem.BWAMemNOp"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("casectrlcanvas", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("casectrljfx", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.CaseControlJfx"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("cmpbamsandbuild", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.CompareBamAndBuild"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("coveragenormalizer", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.CoverageNormalizer"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("cytoband2svg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.CytobandToSvg"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("downsamplevcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.DownSampleVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("extendrefwithreads", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.extendref.ExtendReferenceWithReads"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("faidxsplitter", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FaidxSplitter"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastgenotypegvcfs", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gvcf.FastGenotypeGVCFs"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastq2fasta", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FastqToFasta"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastqentropy", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqEntropy"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastqgrep", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FastqGrep"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastqjs", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqJavascript"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastqphred64to33", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastq.ConvertPhred64toFastq33"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastqrevcomp", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FastqRevComp"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastqshuffle", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqShuffle"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fastqsplitinterleaved", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqSplitInterleaved"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("findallcoverageatposition", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("findavariation", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FindAVariation"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("findcorruptedfiles", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FindCorruptedFiles"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("findmyvirus", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.mem.FindMyVirus"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("findnewsplicesites", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.rnaseq.FindNewSpliceSites"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fixvarscanmissingheader", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FixVarScanMissingVCFHeader"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fixvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FixVCF"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("fixvcfformat", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FixVcfFormat"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("gcanddepth", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("genomicjaspar", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.jaspar.GenomicJaspar"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("genscan", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.genscan.GenScan"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("gexftr", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gephi.GexfTransformer"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("goutils", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.GoUtils"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("groupbygene", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("gtf2xml", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.Gtf2Xml"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("howmanybamdict", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.HowManyBamDict"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("igvreview", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.igvreview.IgvReview"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("ilmnfastqstats", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.IlluminaStatsFastq"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("impactofduplicates", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.impactdup.ImpactOfDuplicates"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("indexcovjfx", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.IndexCovJfx"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("knime2txt", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.KnimeToText"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("liftover2svg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.liftover.LiftOverToSVG"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("localrealignreads", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.LocalRealignReads"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("lowresbam2raster", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("lumpyvcf2circos", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.lumpysv.LumpyVcfToCircos"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("mergecnvnator", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.MergeCnvNator"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("mergesv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.MergeStructuralVariants"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("metrics2xml", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.metrics2xml.PicardMetricsToXML"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("minicaller", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.calling.MiniCaller"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("msa2vcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.msa2vcf.MsaToVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("ncbigenedump", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.NcbiGeneDump"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("ncbitaxonomy2xml", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.NcbiTaxonomyToXml"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("ngsfilessummary", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("noemptyvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.NoEmptyVCF"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("nozerovariationvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.NoZeroVariationVCF"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pademptyfastq", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pcrclipreads", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pcr.PcrClipReads"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pcrslicereads", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pcr.PcrSliceReads"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("prettytable", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.PrettyTable"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pubmedcodinglang", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pubmed.PubmedCodingLanguages"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pubmeddump", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pubmed.PubmedDump"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pubmedgender", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pubmed.PubmedGender"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pubmedgraph", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pubmed.PubmedGraph"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("pubmedmap", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.pubmed.PubmedMap"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("referencetovcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.ReferenceToVCF"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("sam4weblogo", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samaddpi", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamAddPI"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samclipindelfraction", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamClipIndelFraction"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samcolortag", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.samjs.SamColorTag"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samcustomsortjdk", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.samjs.SamCustomSortJdk"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samfindclippedregions", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samjdk", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.samjs.SamJdk"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samjmx", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.jmx.SamJmx"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samjs", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.samjs.SamJavascript"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samretrieveseqandqual", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamRetrieveSeqAndQual"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samshortinvert", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamShortInvertion"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("samtranslocations", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamTranslocations"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("sigframe", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.sigframe.SigFrame"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("simpleplot", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.SimplePlot"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("skipxmlelements", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.SkipXmlElements"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("sortsamrefname", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.SortSamRefName"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("sortvcfoninfo", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("splitbytile", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.splitbytitle.SplitByTile"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("splitread", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.splitread.SplitRead"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("splitvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.SplitVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("sv2svg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2svg.SvToSVG"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("trapindexer", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.trap.TrapIndexer"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("tview", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.tview.TViewCmd"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("variantsinwindow", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VariantsInWindow"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2bam", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToBam"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2bed", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToBed"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2hilbert", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2ps", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToPostscript"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2sql", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcf2sql.VcfToSql"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2svg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToSvg"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2table", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToTable"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcf2xml", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfafinfofilter", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfAfInfoFilter"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfallelebalance", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfAlleleBalance"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfancestralalleles", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.onekgenomes.VcfAncestralAllele"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfannobam", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfannobam.VCFAnnoBam"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfbed", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfbed.VCFBed"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfburden", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfBurden"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfburdengoenrichment", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenGoEnrichment"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfburdenrscriptv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenRscriptV"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfburdensplitter", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenSplitter"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfburdensplitter2", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenSplitter2"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcadd", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfCadd"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcalledwithanothermethod", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfCalledWithAnotherMethod"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfclusteredreadedge", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfClusteredReadEdge"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcmppred", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VCFComparePredictions"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcombinetwosnvs", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcomm", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VCFComm"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcompare", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VCFCompare"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcomparecallers", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallers"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcomparecallersonesample", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallersOneSample"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcomparegt", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VCFCompareGT"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcomposite", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfcomposite.VCFComposite"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfconcat", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfcutsamples", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfCutSamples"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfdoest", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfDoest"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfepistatis01", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.epistasis.VcfEpistatis01"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcffilterxpath", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfFilterXPath"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfgapfrequent", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.VcfGapFrequent"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfgetvariantbyindex", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfGetVariantByIndex"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfgo", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfgroupbypop", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfGroupByPopulation"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfhead", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfHead"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfindextabix", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfIndexTabix"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfjaspar", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.jaspar.VcfJaspar"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfjmx", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.jmx.VcfJmx"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfliftover", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.liftover.VcfLiftOver"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfloopovergenes", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfmakedict", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfmerge", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfmulti2one", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfmulti2oneinfo", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneInfo"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfnocall2homref", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfpeekvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfphylotree", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.phylo.VcfPhyloTree"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
+all.add( task("vcfregulomedb", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRegulomeDB"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfremovegenotypejs", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeJs"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfrenamechr", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfrenamesamples", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRenameSamples"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfreplacetag", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfstripannot.VCFReplaceTag"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfresetvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfsetdict", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfsimulator", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfSimulator"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfstats", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfstats.VcfStats"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfstatsjfx", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfstats.VcfStatsJfx"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcftrio", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("vcfvcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfvcf.VcfVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("wescnvsvg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2svg.WesCnvSvg"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("worldmapgenome", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.circular.WorldMapGenome"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("xcontaminations", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.xcontamination.XContaminations"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all.add( task("xsltstream", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.XsltStream"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
+
+
+/** bottom task */
+ task("all",dependsOn:all) {
+	doLast {
+		project.logger.warn("all tasks done.");
+	       }
+	} 
+
+ task("top") {
+	doLast {
+		project.logger.warn("This  is the top target. Run 'gradlew name-of-target' to build the desired target. Run 'gradlew all' if you're Pierre Lindenbaum. See http://lindenb.github.io/jvarkit/  for a list of the available tools.");
+	       }
+	} 
+
