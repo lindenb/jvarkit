@@ -1,33 +1,13 @@
 //import org.gradle.internal.logging.text.StyledTextOutput 
 //import org.gradle.internal.logging.text.StyledTextOutput.Style
-
-apply plugin: 'java'
-
- repositories {
-        mavenCentral()
-	maven {
-		url ( "http://clojars.org/repo")
-		}
-	}
-
-configurations {
-  compile
-  compile2.extendsFrom compile
-  compile3.extendsFrom compile
-}
-ext {
-	htsjdkVersion = '2.18.2'
-	}
-
-def group1 = [ group: 'com.github.samtools', name: 'htsjdk', version: ext.htsjdkVersion]
-
+/*
 dependencies {
 	compile group1
         compile group: 'com.beust', name: 'jcommander', version: '1.64'
  	compile2 group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
 	compile3 group: 'org.clojars.chapmanb', name: 'bigwig', version: 'r39'
 
-}
+}*/
 
 class JarFile
 	{
@@ -142,7 +122,7 @@ public class CompileJVarkit extends DefaultTask {
 	String docDir = ""
 	String jdkTarget = "11"
 	String jdkSource = "11"
-	String configName = "compile"
+	Library libraries = new Library();
 	
 	CompileJVarkit() {
 		def baseDir = this.getProject().projectDir.getPath();
@@ -155,6 +135,9 @@ public class CompileJVarkit extends DefaultTask {
 			jdkTarget = jvm;
 			jdkSource = jvm;
 			}
+		}
+	boolean isFatJar() {
+		return !java.lang.System.getProperty("jvarkit.fat.jar","true").equals("true");
 		}
 	String getMainPackage() {
 		String s= this.mainClass;
@@ -202,7 +185,9 @@ public class CompileJVarkit extends DefaultTask {
 		return c;	
 		}	
 
-
+	String getClassPathWithoutTest()
+		{
+		}
 	 @TaskAction
 	 void doIt() {
 
@@ -211,7 +196,11 @@ public class CompileJVarkit extends DefaultTask {
 		/** prepare directories */
 		ant.mkdir(dir:"${this.tmpDir}/META-INF")
 		ant.mkdir(dir:"${this.distDir}")
-		
+		/** download libraries */
+		for(JarF j: this.libaries)
+			{
+			j.download(this.project);
+			}
 
 		/** copy main source */
 		ant.mkdir(dir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/') )
@@ -227,7 +216,7 @@ public class CompileJVarkit extends DefaultTask {
 			includeantruntime:false,
 			failonerror: true,
 			fork: true,
-			classpath : getConfiguration().asPath,
+			classpath : this.getClassPath(),
 			target: this.jdkTarget,
 			source: this.jdkSource
 			)  {
@@ -257,9 +246,10 @@ public class CompileJVarkit extends DefaultTask {
 				todir:"${this.tmpDir}/META-INF/so"
 				)
 			}
-
-		this.getConfiguration().files.each {
-			ant.unzip(src:it,dest:this.tmpDir,overwrite:true)
+		if(isFatJar()) {
+			this.getConfiguration().files.each {
+				ant.unzip(src:it,dest:this.tmpDir,overwrite:true)
+				}
 			}
 
 		ant.jar(destfile: this.distDir+"/"+this.getName()+".jar",
@@ -269,6 +259,7 @@ public class CompileJVarkit extends DefaultTask {
 				attribute(name:"Main-Class",value:this.mainClass)
 				attribute(name:"Htsjdk-Version", value: project.ext.htsjdkVersion)
 				attribute(name:"Git-Hash",value: getGitHash())
+				attribute(name:(isFatJar()?"Ignore-Class-Path":"Class-Path"),value:getClassPath().join(" "));
 				}
 			}
 		//remove tmpDir
@@ -293,17 +284,29 @@ String biostar2java(int i) {
 	return "com.github.lindenb.jvarkit.tools.biostar.Biostar"+i;
 	}
 
+Library combineLibs(String...array)
+	{
+	Library L= new Library();
+	for(String n: array)
+		{
+		Library l2=libraries.get(n);
+		if(l2==null) throw new GradleException("Cannot find library "+n);
+		L.add(l2);
+		}
+	return L;
+	}
+
 task("vcfhead", type: CompileJVarkit) { mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfHead' }
 task("vcftail", type: CompileJVarkit) {
 		mainClass = 'com.github.lindenb.jvarkit.tools.misc.VcfTail'
-		configName='compile2'
+		libraries= combineLibs("htsjdk","tesng","jcommander")
 		}
 task("vcffilterso", type: CompileJVarkit) {
 		mainClass = 'com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology'
-		configName='compile2'
+		libraries= combineLibs("htsjdk","tesng","jcommander")
 		}
 task("addlinearindextobed", type: CompileJVarkit) { mainClass = 'com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed' }
 task("biostar105754", type: CompileJVarkit) {
 		mainClass = biostar2java(105754)
-		configName='compile3'
+		libraries= combineLibs("htsjdk","tesng","jcommander")
 		}
