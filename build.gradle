@@ -167,6 +167,7 @@ public class CompileJVarkit extends DefaultTask {
 	String jdkTarget = "11"
 	String jdkSource = "11"
 	Library jarLibs = new Library();
+	boolean requireJfx = false;
 	
 	CompileJVarkit() {
 		def baseDir = this.getProject().projectDir.getPath();
@@ -182,6 +183,16 @@ public class CompileJVarkit extends DefaultTask {
 			jdkSource = jvm;
 			}
 		}
+	boolean isJavaFxAvailable() {
+		try {
+		    this.getClass().getClassLoader().loadClass("javafx.embed.swing.JFXPanel");
+		    return null;
+		    }
+		catch (ClassNotFoundException e) {
+		 	return false;
+			}
+		}
+
 	boolean isFatJar() {
 		return java.lang.System.getProperty("jvarkit.fat.jar","true").equals("true");
 		}
@@ -195,8 +206,8 @@ public class CompileJVarkit extends DefaultTask {
 		return s.substring(0,dot);
 		}
 	File getMainJavaTestFile() {
-		String s= java.lang.System.getenv("TRAVIS");
-		if(s!=null && s.equals("true")) return null;
+		String travis = java.lang.System.getenv("TRAVIS");
+		if(travis!=null && travis.equals("true")) return null;
 		if(java.lang.System.getProperty("jvarkit.disable.test","false").equals("true")) return null;
 
 		String s = this.testDir +"/"+ getTestNgClass().replace('.','/')+".java";
@@ -261,6 +272,11 @@ public class CompileJVarkit extends DefaultTask {
 	
 	 @TaskAction
 	 void doIt() {
+		if(this.requireJfx && !isJavaFxAvailable())
+			{
+			project.logger.warn("I won't compile "+getName()+" because the current jvm doesn't support javafx");
+			return;
+			}
 		if(this.jarLibs.isEmpty()) throw new GradleException("Empty ?? "+this.jarLibs);
 		
 		/** prepare directories */
@@ -304,7 +320,7 @@ public class CompileJVarkit extends DefaultTask {
 			final File soOwlFile = new File( this.getProject().projectDir.getPath()+"/src/main/resources/so/so-simple.owl");
 			if(!soOwlFile.exists())
 				{
-				System.err.println("download to "+soOwlFile);
+				project.logger.warn("download to "+soOwlFile);
 				ant.mkdir(dir:soOwlFile.parent)
 				ant.get(
 					src:"https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/so-simple.owl",
@@ -359,7 +375,7 @@ public class CompileJVarkit extends DefaultTask {
 		else
 			{
 			ant.mkdir(dir: this.tmpDir)
-			ant.mkdir(dir: this.testNgDir+"/"+getName());
+
 			project.logger.warn("Test will be executed in "+this.testNgDir+"/"+getName()+"/index.html");
 			final Set<File> classpath2 = new HashSet<>();
 			classpath2.add(distJar);
@@ -393,12 +409,12 @@ public class CompileJVarkit extends DefaultTask {
 					,
 				file: this.tmpDir+"/testng.xml"
 				)
-
+			ant.mkdir(dir: this.testNgDir+"/"+getName());
 			ant.java(
 				classname : "org.testng.TestNG",
 				fork: true,
 				failonerror: false,
-				classpath : classpath2.collect{it->it.path}.join(":")
+				classpath : this.tmpDir+":"+classpath2.collect{it->it.path}.join(":")
 				) {
 				arg(value: "-d")
 				arg(value: this.testNgDir+"/"+getName())
@@ -798,6 +814,7 @@ all.add( task("howmanybamdict", type: CompileJVarkit) {
 all.add( task("igvreview", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.igvreview.IgvReview"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	requireJfx = true
 	});
 all.add( task("ilmnfastqstats", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.IlluminaStatsFastq"
@@ -810,6 +827,7 @@ all.add( task("impactofduplicates", type: CompileJVarkit) {
 all.add( task("indexcovjfx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.IndexCovJfx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	requireJfx = true
 	});
 all.add( task("knime2txt", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.KnimeToText"
