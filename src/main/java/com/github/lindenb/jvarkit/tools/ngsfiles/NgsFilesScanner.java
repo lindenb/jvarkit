@@ -406,9 +406,8 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     private void recursive(File f) throws IOException
     	{
     	if(f==null || !f.exists() || !f.canRead()) return;
-    	
-    	if(f.getName().startsWith(".")) return;
-    	
+    	if(f.getName().startsWith(".") && f.getName().length()==1) return;
+    	LOG.info(f);
     	if(f.isDirectory() && f.canRead())
     		{
     		if(f.getName().toLowerCase().equals("tmp")) return;
@@ -438,14 +437,14 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	    		}
     		
     		
-    		File array[]=f.listFiles(this.fileFilter);
+    		final File array[]=f.listFiles(this.fileFilter);
     		if(array!=null)
     			{
     			for(File f2:array) recursive(f2);    		
     			}
     		
     		
-    		Counter<String> fastqSamples=getFastqSampleInDirectory(f);
+    		final Counter<String> fastqSamples=getFastqSampleInDirectory(f);
     		if(!fastqSamples.isEmpty())
     			{
     			fastqDir(f, fastqSamples);
@@ -466,14 +465,13 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
     
 
     
-    @Parameter(names="-B",description="berkeley.db.home",required=true)
+    @Parameter(names={"-B","--bdb-home"},description="berkeleydb home directory",required=true)
     private File bdbHome=null;
-    @Parameter(names="-D",description="dump as XML to stdout and exit")
+    @Parameter(names={"-D","--dump"},description="dump as XML to stdout and exit")
     private boolean dump=false;
     
     @Override
-    public int doWork(List<String> args) {
-		boolean dump=false;
+    public int doWork(final List<String> args) {
 		EnvironmentConfig envCfg=new EnvironmentConfig();
 		Environment env=null;
 		
@@ -494,16 +492,24 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 		OutputStream xmlout=null;
 		try
 			{
-			
-			if(!dump && args.size()==1)
+			if(dump)
+				{
+				if(!args.isEmpty()) {
+					LOG.error("dump/illegal number of arguments");
+					return -1;
+					}
+				}
+			else {
+			     if(args.size()==1)
 				{
 				root=new File(args.get(0));
 				}
-			else if(!(dump && args.isEmpty()))
+			      else
 				{
-				LOG.error("illegal.number.of.arguments");
+				LOG.error("expected one file for root");
 				return -1;
 				}
+			}
 			
 			envCfg.setAllowCreate(!dump);
 			envCfg.setReadOnly(dump);
@@ -541,14 +547,14 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 	    		cursor=this.database.openCursor(this.txn, null);
 	    		while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
 	    			{
-	    			File file=new File(StringBinding.entryToString(key));
+	    			final File file=new File(StringBinding.entryToString(key));
 	    			if(isEntryShouldBeDeleted(file))
 	    				{
 	    				LOG.info("deleting entry for "+file);
 	    				//cursor.delete();//no env is read only
 	    				continue;
 	    				}
-	    			StringReader sr=new StringReader(StringBinding.entryToString(data));
+	    			final StringReader sr=new StringReader(StringBinding.entryToString(data));
 	    			XMLEventReader xr=xif.createXMLEventReader(sr);
 	    			while(xr.hasNext())
 	    				{
@@ -590,7 +596,7 @@ public class NgsFilesScanner extends AbstractScanNgsFilesProgram
 				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;

@@ -4,14 +4,6 @@ import  java.util.stream.Collectors ;
 
 defaultTasks 'top'
 
-/*
-dependencies {
-	compile group1
-        compile group: 'com.beust', name: 'jcommander', version: '1.64'
- 	compile2 group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
-	compile3 group: 'org.clojars.chapmanb', name: 'bigwig', version: 'r39'
-
-}*/
 
 ext {
 	libraries = new HashMap<>();
@@ -143,7 +135,8 @@ libraries.put("testng",new Library().
 	add(new JarFile("org.testng:testng:jar:6.14.3").setTest())
 	);
 libraries.put("bigwig",new Library().
-	add(new JarFile("org.clojars.chapmanb:bigwig:jar:r39").setServer("http://clojars.org/repo"))
+	add(new JarFile("org.clojars.chapmanb:bigwig:jar:r39").setServer("http://clojars.org/repo")).
+	add("log4j:log4j:jar:1.2.15")
 	);
 libraries.put("jaxb",new Library().
 	add("javax.xml.bind:jaxb-api:jar:2.2.11").
@@ -151,7 +144,9 @@ libraries.put("jaxb",new Library().
 	add("org.glassfish.jaxb:jaxb-core:jar:2.2.11").
 	add("org.glassfish.jaxb:txw2:jar:2.2.11")
 	);
-
+libraries.put("berkeleydb",new Library().
+	add(new JarFile("com.sleepycat:je:jar:7.3.7").setServer("http://download.oracle.com/maven"))
+	);
 
 // https://stackoverflow.com/questions/28498688
 
@@ -168,7 +163,8 @@ public class CompileJVarkit extends DefaultTask {
 	String jdkSource = "11"
 	Library jarLibs = new Library();
 	boolean requireJfx = false;
-	
+	String deprecatedMsg = null;
+
 	CompileJVarkit() {
 		def baseDir = this.getProject().projectDir.getPath();
 		this.srcDir = baseDir + "/src/main/java"
@@ -272,6 +268,10 @@ public class CompileJVarkit extends DefaultTask {
 	
 	 @TaskAction
 	 void doIt() {
+		if(this.deprecatedMsg!=null) {
+			project.logger.warn("[DEPRECATED] "+getName()+" : I won't create this project because it is deprecated : "+this.deprecatedMsg);
+			return;			
+			}
 		if(this.requireJfx && !isJavaFxAvailable())
 			{
 			project.logger.warn("I won't compile "+getName()+" because the current jvm doesn't support javafx");
@@ -370,7 +370,8 @@ public class CompileJVarkit extends DefaultTask {
 		final File testJava = getMainJavaTestFile();
 		if(!isFatJar() || testJava==null)
 			{
-			project.logger.warn("No Test will be executed for "+this.getName() +"test-file:"+testJava+" fat:"+isFatJar());
+			project.logger.warn("No Test will be executed for "+this.getName());
+			project.logger.debug(" (test-file:"+testJava+" fat:"+isFatJar()+")"
 			}
 		else
 			{
@@ -1294,7 +1295,26 @@ all.add( task("xsltstream", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.XsltStream"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+/* other */
+all.add( task("vcfbigwig", type: CompileJVarkit) {
+	mainClass =  "com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig","jaxb")
+	});
 
+all.add( task("vcfensemblreg", type: CompileJVarkit) {
+	mainClass =  "com.github.lindenb.jvarkit.tools.ensemblreg.VcfEnsemblReg"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
+	deprecatedMsg = "Structure of ensembl reg has changed"
+	});
+
+all.add( task("ngsfilesscanner", type: CompileJVarkit) {
+	mainClass =  "com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesScanner"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","berkeleydb")
+	});
+all.add( task("biostar92368", type: CompileJVarkit) {
+	mainClass = biostar2java(92368)
+	jarLibs = combineLibs("htsjdk","testng","jcommander","berkeleydb")
+	});
 
 
 /** bottom task */

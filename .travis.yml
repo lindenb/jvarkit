@@ -1,5 +1,7 @@
 language: java
-script: ./gradlew all
+script:
+  - gradle -v
+  - ./gradlew all
 jdk:
    - openjdk11
 
