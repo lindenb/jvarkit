@@ -183,6 +183,21 @@ public abstract class OpenJdkCompiler {
 				if(!selfjar.isEmpty()) {
 					classpath += File.pathSeparator+ selfjar;
 					}
+				else
+					{
+					// https://stackoverflow.com/questions/9399393/
+					try
+						{
+						final java.security.CodeSource codeSource = getClass().getProtectionDomain().getCodeSource();
+						final java.net.URL codeUrl = codeSource==null?null:codeSource.getLocation();
+						final String myjar=codeUrl.toURI().getPath();
+						if(myjar!=null && !myjar.isEmpty()) classpath += File.pathSeparator+ myjar;
+						}
+					catch(final Throwable err)
+						{
+						LOG.debug("cannot get self jar:"+err.getMessage());
+						}
+					}
 				
 				final List<String> cmd = new ArrayList<>();
 				cmd.add(getJavacExe());
