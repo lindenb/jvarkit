@@ -107,11 +107,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 BEGIN_DOC
 ## Motivation
 
-Takes IGV pictures in batch. Save as HTML+png images or OpenOffice/ODP.
+Takes IGV pictures in batch. Save as HTML+png images
 
 ## Screenshot
 
 ![screenshot](http://i.imgur.com/pasROkt.jpg)
+
+## History
+
+2019: removed open office support
 
 END_DOC
 */
@@ -132,7 +136,6 @@ class BatchIGVPicturesFrame extends JFrame
 	private static final String PREF_IGV_SLEEP="igv.sleep";
 	private static final String PREF_FORMAT="out.fmt";
 	private static final int FORMAT_HTML=0;
-	private static final int FORMAT_PPT=1;
 	
 	String about="";
 	private Preferences preferences;
@@ -335,308 +338,7 @@ class BatchIGVPicturesFrame extends JFrame
 				}
 			}
 		}
-	/** save image as OpenOffice Presentation */
-	private class PPTSlave
-	extends AbstractSlave
-		{
-		private  class PictAndMut
-			{
-			Mutation mut;
-			String file;
-			Dimension dim;
-			}
-		private InputStream openODPResource(String filename)
-			throws IOException
-			{
-			filename="META-INF/opendocument/odp/"+filename;//no head '/'
-			Enumeration<URL> resources = getClass().getClassLoader()
-					  .getResources(filename);
-			
-			while (resources.hasMoreElements())
-				{
-				URL url=resources.nextElement();
-				InputStream in=url.openStream();
-				if(in!=null) return in;
-				}
-			throw new IOException("Cannot open resource:"+filename);
-			}
-		
-		private void copyODPResource(
-				ZipOutputStream zout,
-				String filename,
-				String outname)
-			throws IOException
-			{
-			ZipEntry zentry=new ZipEntry(outname);
-			zout.putNextEntry(zentry);
-			InputStream is=openODPResource(filename);
-			IOUtils.copyTo(is, zout);
-			zout.flush();
-			is.close();
-			zout.closeEntry();
-			}
-		private void copyODPResource(
-				ZipOutputStream zout,
-				String filename)
-			throws IOException
-			{
-			copyODPResource(zout,filename,filename);
-			}
-		
-		private String odpns(String localname)
-			{
-			return "urn:oasis:names:tc:opendocument:xmlns:"+localname+":1.0";
-			}
-		
-		@Override
-		public void run()
-			{
-			File resultFileOut=new File(pathOut+".odp");
-				
-			File pngFile=null;
-			PrintWriter igvout =null;
-			BufferedReader igvin =null;
-			FileOutputStream fout=null;
-			ZipOutputStream zout=null;
-			IgvSocket igvSocket=null;
-			PrintWriter igvLog=null;
-			List<PictAndMut> pictures=new ArrayList<PictAndMut>(this.mutations.size());
-			try {
-				igvLog=new PrintWriter(new NullOuputStream());
-				fout=new FileOutputStream(resultFileOut);
-				zout=new ZipOutputStream(fout);
-				pngFile=File.createTempFile("igv_", ".png");
-				
-				igvSocket=createIgvSocket();
-				igvout=igvSocket.getWriter();
-				igvin=igvSocket.getReader();
 
-				igvout.println("snapshotDirectory "+pngFile.getParentFile());				 
-				igvLog.println(igvin.readLine());
-				igvout.println("setSleepInterval "+(waitMiliSecs+1));				 
-				igvLog.println(igvin.readLine());
-				
-				copyODPResource(zout,"mimetype");
-				copyODPResource(zout,"meta.xml");
-				
-				copyODPResource(zout,"settings.xml");
-				
-
-				
-				int index=0;
-				for(Mutation m:this.mutations)
-					{
-					if(this!=BatchIGVPicturesFrame.this.currentSlave) break;
-					log("Drawing "+(++index)+"/"+this.mutations.size()+" "+m);
-					
-					int chromStart= Math.max(1,m.position - extend);
-					int chromEnd =  m.position + extend;
-					igvout.println("goto "+m.chrom+":"+chromStart+"-"+chromEnd);
-					igvout.flush();
-					
-					igvLog.println(igvin.readLine()); 
-					igvout.println("snapshot "+pngFile.getName());
-					igvout.flush();
-					igvLog.println(igvin.readLine());
-					
-					BufferedImage dest=scale(pngFile);
-					String entryName="Pictures/"+m.chrom+"_"+m.position+".png";
-					
-					PictAndMut pam=new PictAndMut();
-					pam.dim=new Dimension(dest.getWidth(), dest.getHeight());
-					pam.mut=m;
-					pam.file=entryName;
-					pictures.add(pam);
-					ZipEntry zentry=new ZipEntry(entryName);
-					zout.putNextEntry(zentry);
-					
-					ImageIO.write(dest, "png",zout);
-					zout.closeEntry();
-					dest=null;
-					
-					
-					dest=null;
-					log("Sleep "+waitMiliSecs+" millisecs...");
-					Thread.sleep(waitMiliSecs);
-					}
-				CloserUtil.close(igvout);igvout=null;
-				CloserUtil.close(igvin);igvin=null;
-				CloserUtil.close(igvSocket);igvSocket=null;
-
-				
-				{
-				/* content.xml */
-				ZipEntry zentry=new ZipEntry("content.xml");
-				zout.putNextEntry(zentry);
-				InputStream is=openODPResource("content.xml");
-				XMLOutputFactory xof=XMLOutputFactory.newFactory();
-				XMLInputFactory xif=XMLInputFactory.newFactory();
-				XMLEventReader xi=xif.createXMLEventReader(is);
-				XMLEventWriter xw=xof.createXMLEventWriter(zout);
-				while(xi.hasNext())
-					{
-					XMLEvent evt=xi.nextEvent();
-					xw.add(evt);
-					if(evt.isStartElement())
-						{
-						StartElement SE=evt.asStartElement();
-						QName qName=SE.getName();
-						if(qName.getLocalPart().equals("presentation") &&
-							qName.getNamespaceURI().equals(odpns("office")))
-							{
-							XMLEventFactory xef=XMLEventFactory.newFactory();
-							ArrayList<Attribute> attributes;
-							ArrayList<Namespace> namespaces;
-							for(PictAndMut pam:pictures)
-								{
-								final String XLINK="http://www.w3.org/1999/xlink";
-								attributes=new ArrayList<Attribute>();
-								namespaces=new ArrayList<Namespace>();
-								attributes.add(xef.createAttribute("draw",odpns("drawing"),"master-page-name",""));
-								evt=xef.createStartElement("draw",odpns("drawing"),"page",attributes.iterator(),namespaces.iterator());
-								xw.add(evt);
-								attributes=new ArrayList<Attribute>();
-								namespaces=new ArrayList<Namespace>();
-								attributes.add(xef.createAttribute("presentation",odpns("presentation"),"style-name",""));
-								double width_cm=20.0;
-								double height_cm= (width_cm/pam.dim.width)*pam.dim.getHeight();
-								attributes.add(xef.createAttribute("svg",odpns("svg-compatible"),"width",""+width_cm+"cm"));
-								attributes.add(xef.createAttribute("svg",odpns("svg-compatible"),"height",""+height_cm+"cm"));
-								attributes.add(xef.createAttribute("svg",odpns("svg-compatible"),"x","0cm"));
-								attributes.add(xef.createAttribute("svg",odpns("svg-compatible"),"y","0cm"));
-								attributes.add(xef.createAttribute("presentation",odpns("presentation"),"class","title"));
-								evt=xef.createStartElement("draw",odpns("drawing"),"frame",attributes.iterator(),namespaces.iterator());
-								xw.add(evt);
-								attributes=new ArrayList<Attribute>();
-								namespaces=new ArrayList<Namespace>();
-								attributes.add(xef.createAttribute("xlink",XLINK,"type","simple"));
-								attributes.add(xef.createAttribute("xlink",XLINK,"show","embed"));
-								attributes.add(xef.createAttribute("xlink",XLINK,"actuate","onLoad"));
-								attributes.add(xef.createAttribute("xlink",XLINK,"href",pam.file));
-								evt=xef.createStartElement("draw",odpns("drawing"),"image",attributes.iterator(),namespaces.iterator());
-								xw.add(evt);
-								attributes=new ArrayList<Attribute>();
-								namespaces=new ArrayList<Namespace>();
-								evt=xef.createStartElement("text",odpns("text"),"p",attributes.iterator(),namespaces.iterator());
-								xw.add(evt);
-								xw.add(xef.createCharacters(pam.mut.toString()));
-								evt=xef.createEndElement("text",odpns("text"),"p");
-								xw.add(evt);
-								evt=xef.createEndElement("draw",odpns("drawing"),"image");
-								xw.add(evt);
-								evt=xef.createEndElement("draw",odpns("drawing"),"frame");
-								xw.add(evt);
-								evt=xef.createEndElement("draw",odpns("drawing"),"page");
-								xw.add(evt);
-
-								}
-							}
-						}
-					}
-				xw.flush();
-				xi.close();
-				is.close();
-				zout.closeEntry();
-				}
-				
-				copyODPResource(zout,"thumbnail.png","Thumbnails/thumbnail.png");
-
-				copyODPResource(zout,"styles.xml");
-				//copyODPResource(zout,"manifest.xml","META-INF/manifest.xml");
-
-				{
-				/* content.xml */
-				ZipEntry zentry=new ZipEntry("META-INF/manifest.xml");
-				zout.putNextEntry(zentry);
-				PrintWriter pw=new PrintWriter(zout);
-				pw.println(
-				"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"+
-				"<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.2\">\n"+
-				" <manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.2\" manifest:media-type=\"application/vnd.oasis.opendocument.presentation\"/>\n"+
-				" <manifest:file-entry manifest:full-path=\"meta.xml\" manifest:media-type=\"text/xml\"/>\n");
-				for(PictAndMut pam:pictures)
-					{
-					pw.println(" <manifest:file-entry manifest:full-path=\""+
-							pam.file+
-							"\" manifest:media-type=\"image/png\"/>\n");
-					}
-				pw.print(
-				" <manifest:file-entry manifest:full-path=\"settings.xml\" manifest:media-type=\"text/xml\"/>\n"+
-				" <manifest:file-entry manifest:full-path=\"content.xml\" manifest:media-type=\"text/xml\"/>\n"+
-				" <manifest:file-entry manifest:full-path=\"Thumbnails/thumbnail.png\" manifest:media-type=\"image/png\"/>\n"+
-				" <manifest:file-entry manifest:full-path=\"Configurations2/accelerator/current.xml\" manifest:media-type=\"\"/>\n"+
-				" <manifest:file-entry manifest:full-path=\"Configurations2/\" manifest:media-type=\"application/vnd.sun.xml.ui.configuration\"/>\n"+
-				" <manifest:file-entry manifest:full-path=\"styles.xml\" manifest:media-type=\"text/xml\"/>\n"+
-				"</manifest:manifest>");
-				pw.flush();
-				/*
-				InputStream is=openODPResource("manifest.xml");
-				XMLOutputFactory xof=XMLOutputFactory.newFactory();
-				XMLInputFactory xif=XMLInputFactory.newFactory();
-				XMLEventReader xi=xif.createXMLEventReader(is);
-				XMLEventWriter xw=xof.createXMLEventWriter(zout);
-				boolean seen=false;
-				while(xi.hasNext())
-					{
-					XMLEvent evt=xi.nextEvent();
-					xw.add(evt);
-					if(!seen && evt.isStartElement())
-						{
-						StartElement SE=evt.asStartElement();
-						QName qName=SE.getName();
-						if(qName.getLocalPart().equals("file-entry") &&
-							qName.getNamespaceURI().equals(odpns("manifest")))
-							{
-							seen=true;
-							XMLEventFactory xef=XMLEventFactory.newFactory();
-							ArrayList<Attribute> attributes;
-							ArrayList<Namespace> namespaces;
-							for(PictAndMut pam:pictures)
-								{
-								attributes=new ArrayList<Attribute>();
-								namespaces=new ArrayList<Namespace>();
-								attributes.add(xef.createAttribute("manifest",odpns("manifest"),"full-path",pam.file));
-								attributes.add(xef.createAttribute("manifest",odpns("manifest"),"media-type","image/png"));
-								evt=xef.createStartElement("manifest",odpns("manifest"),"file-entry",attributes.iterator(),namespaces.iterator());
-								xw.add(evt);
-								evt=xef.createEndElement("manifest",odpns("manifest"),"file-entry");
-								xw.add(evt);
-								}
-							}
-						}
-					}
-				xw.flush();
-				xi.close();
-				is.close();
-				*/
-				zout.closeEntry();
-				}
-				
-				
-				
-	
-				log("Done.");
-				
-				zout.flush();
-				zout.finish();
-				} 
-			catch (Exception e)
-				{
-				e.printStackTrace();
-				log("Error "+e.getMessage());
-				}
-			finally
-				{
-				CloserUtil.close(igvSocket);
-				CloserUtil.close(igvout);
-				CloserUtil.close(igvin);
-				CloserUtil.close(zout);
-				CloserUtil.close(fout);
-				CloserUtil.close(igvLog);
-				pngFile.delete();
-				}
-			}
-		}
 
 	
 	
@@ -783,7 +485,7 @@ class BatchIGVPicturesFrame extends JFrame
 		/* FORMAT */
 		lbl=new JLabel("Format:",JLabel.RIGHT);
 		top.add(lbl);
-		this.cboxFormat =new JComboBox<String>(new String[]{"HTML","PPT/ODP"});
+		this.cboxFormat =new JComboBox<String>(new String[]{"HTML"});
 		this.cboxFormat.setSelectedIndex(preferences.getInt(PREF_FORMAT, FORMAT_HTML));
 		lbl.setLabelFor(this.cboxFormat);
 		top.add(this.cboxFormat);
@@ -962,15 +664,8 @@ class BatchIGVPicturesFrame extends JFrame
 		stopPaint();
 		int fotmat=Math.max(this.cboxFormat.getSelectedIndex(),0);
 		
-		this.currentSlave=null;
-		if(fotmat==FORMAT_HTML)
-			{
-			this.currentSlave=new HtmlSlave();
-			}
-		else
-			{
-			this.currentSlave=new PPTSlave();
-			}
+		this.currentSlave= new HtmlSlave();
+		
 
 		this.currentSlave.igvHost= this.tfIgvHost.getText().trim();
 		this.currentSlave.igvPort= this.spinnerIgvPort.getNumber().intValue();
@@ -981,7 +676,7 @@ class BatchIGVPicturesFrame extends JFrame
 			
 			this.currentSlave.mutations=loadMutations(new StringReader(this.snpArea.getText()));
 			}
-		catch (Exception e) {
+		catch (final Exception e) {
 			JOptionPane.showMessageDialog(this,"Cannot parse SNPs area:"+e.getMessage());
 			stopPaint();
 			return;
@@ -1030,15 +725,7 @@ class BatchIGVPicturesFrame extends JFrame
 			selectedFile=new File(this.currentSlave.pathOut+".html");
 
 			}
-		else if(fotmat==FORMAT_PPT)
-			{
-			if(this.currentSlave.pathOut.endsWith(".odp"))
-				{
-				this.currentSlave.pathOut=this.currentSlave.pathOut.substring(0,this.currentSlave.pathOut.length()-4);
-				}
-			selectedFile=new File(this.currentSlave.pathOut+".odp");
-
-			}
+		
 		else
 			{
 			throw new IllegalStateException();

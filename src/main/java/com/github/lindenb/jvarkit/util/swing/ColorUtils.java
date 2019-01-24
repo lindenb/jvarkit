@@ -459,7 +459,7 @@ public class ColorUtils
                 return null;
                 }
             }
-        final Color color= (Color)text2color.get(c);
+        final Color color= text2color.get(c);
         if(color==null) throw new IllegalArgumentException("Illegal Color:"+c);
         return color;
         }

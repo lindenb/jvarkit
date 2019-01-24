@@ -97,7 +97,7 @@ private class BlastIterationCodec extends AbstractDataCodec<Iteration>
 		String xmlStr;
 		try
 			{
-			xmlStr=super.readString(dis);
+			xmlStr=AbstractDataCodec.readString(dis);
 			}
 		catch(Exception err)
 			{
@@ -118,9 +118,9 @@ private class BlastIterationCodec extends AbstractDataCodec<Iteration>
 		try
 			{
 			MergeBlastXml.this.marshaller.marshal(hit,sw);
-			super.writeString(dos, sw.toString());
+			AbstractDataCodec.writeString(dos, sw.toString());
 			}
-		catch(JAXBException err)
+		catch(final JAXBException err)
 			{
 			LOG.error(err);
 			throw new RuntimeIOException(err);

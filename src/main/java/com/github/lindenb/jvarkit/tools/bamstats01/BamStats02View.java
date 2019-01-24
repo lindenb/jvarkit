@@ -730,7 +730,7 @@ public class BamStats02View
 				if(label==null || label.isEmpty()) continue;
 				DefaultTreePack dtp= (DefaultTreePack)label2node.get(label);
 				
-				List<CategoryAndCount> cacL= (List<CategoryAndCount>)label2treepackList.get(label);
+				List<CategoryAndCount> cacL= label2treepackList.get(label);
 				if(dtp==null) 
 					{
 					dtp =new DefaultTreePack();

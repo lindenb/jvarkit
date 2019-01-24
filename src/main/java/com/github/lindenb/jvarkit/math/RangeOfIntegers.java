@@ -100,7 +100,7 @@ private final List<Range> ranges;
 public RangeOfIntegers(final String s) {
 	this(Arrays.asList(s.split(";")).stream().
 			filter(S->!S.trim().isEmpty()).
-			mapToInt(S->new Integer(S)).
+			mapToInt(S->Integer.valueOf(S)).
 			toArray());
 	}
 

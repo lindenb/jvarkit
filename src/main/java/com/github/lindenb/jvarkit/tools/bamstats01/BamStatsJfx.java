@@ -602,7 +602,6 @@ public class BamStatsJfx extends Launcher {
 				exporter.exportToR(pw, chart);
 				}
 			pw.flush();
-			pw.close();
 			}
 		}
 	 
