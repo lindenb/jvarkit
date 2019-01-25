@@ -313,6 +313,14 @@ public  class CmdUsageBuilder
 				sb.append("The java jar file will be installed in the `dist` directory.\n");
 				sb.append("\n");
 				
+				if(hasProgram() && !StringUtils.isBlank(getProgram().creationDate()))
+					{
+					sb.append("\n## Creation Date\n\n").
+						append(getProgram().creationDate()).
+						append("\n\n");
+					}
+
+
 				sb.append("## Source code \n\n");
 				
 				sb.append(hyperlink("https://github.com/lindenb/jvarkit/tree/master/src/main/java/"+

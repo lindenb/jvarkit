@@ -28,11 +28,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -46,6 +47,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.Cigar;
@@ -61,8 +63,8 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.IntervalUtil;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -101,29 +103,41 @@ public class ScanRetroCopy extends Launcher
 	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private File faidx = null;
-
 	@Parameter(names={"-k","-K","--kg","-kg"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String knownGeneUri = KnownGene.getDefaultUri();
-	@Parameter(names={"-n","--min-cigar-size"},description="Min cigar size")
+	@Parameter(names={"-n","--min-cigar-size"},description="Minimal cigar element size.")
 	private int minCigarSize = 10;
 	@Parameter(names={"--bai","-bai","--with-bai"},description="Use random access BAM using the bai and using the knownGene data.")
 	private boolean use_bai;
+	@Parameter(names={"--partition"},description=SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition partiton=SAMRecordPartition.sample;
+	@Parameter(names={"--coding"},description="ignore non-coding transcript ")
+	private boolean onlyCodingTranscript=false;
 
 	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
-	private final IntervalTreeMap<List<KnownGene>> knownGeneMap = new IntervalTreeMap<>();
-	private SAMSequenceDictionary refDict = null;
-	private ContigNameConverter refCtgNameConverter = null;
 	private static final String ATT_BEST_MATCHING_LENGTH="LEN";
 	private static final String ATT_RETRO_DESC="RCP";
+	
+	private static class PerSample {
+		int countSupportingReads = 0;
+		int bestLength=0;
+		}
+	
 	private class Match
 		{
-		String sampleName;
 		String contig;
 		int pos0=0;
 		Set<String> attributes = new HashSet<>();
-		int countSupportingReads = 0;
-		int bestLength=0;
+		final Map<String,PerSample> sampleMap = new HashMap<>();
+		
+		PerSample getSample(final String sample) {
+			PerSample p = this.sampleMap.get(sample);
+			if(p==null) {
+				p=new PerSample();
+				this.sampleMap.put(sample, p);
+				}
+			return p;
+		}
 		
 		VariantContext build() {
 			final VariantContextBuilder vcb = new VariantContextBuilder();
@@ -135,14 +149,17 @@ public class ScanRetroCopy extends Launcher
 			final List<Allele> alleles = Arrays.asList(ref,alt);
 			vcb.alleles(alleles);
 			vcb.attribute(ATT_RETRO_DESC,new ArrayList<>(this.attributes));
-			vcb.attribute(VCFConstants.DEPTH_KEY,countSupportingReads);
-			vcb.attribute(ATT_BEST_MATCHING_LENGTH,this.bestLength);
-			
-			final GenotypeBuilder gb = new GenotypeBuilder(this.sampleName, alleles);/** always het */
-			gb.DP(this.countSupportingReads);
-			gb.attribute(ATT_BEST_MATCHING_LENGTH, this.bestLength);
-			vcb.genotypes(gb.make());
-			
+			vcb.attribute(VCFConstants.DEPTH_KEY,this.sampleMap.values().stream().mapToInt(M->M.countSupportingReads).sum());
+			vcb.attribute(ATT_BEST_MATCHING_LENGTH,this.sampleMap.values().stream().mapToInt(M->M.bestLength).max().orElse(0));
+			final List<Genotype> genotypes = new ArrayList<>(this.sampleMap.size());
+			for(final String sample:this.sampleMap.keySet()) {
+				final PerSample perSample = this.sampleMap.get(sample);
+				final GenotypeBuilder gb = new GenotypeBuilder(sample, alleles);/** always het */
+				gb.DP(perSample.countSupportingReads);
+				gb.attribute(ATT_BEST_MATCHING_LENGTH, perSample.bestLength);
+				genotypes.add(gb.make());
+				}
+			vcb.genotypes(genotypes);
 			return vcb.make();
 			}
 		}
@@ -153,10 +170,13 @@ public class ScanRetroCopy extends Launcher
 		VariantContextWriter vcw0=null;
 		GenomicSequence genomicSequence=null;
 		CloseableIterator<SAMRecord> iter = null;
+		final IntervalTreeMap<List<KnownGene>> knownGeneMap = new IntervalTreeMap<>();
+		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+
 		try {
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
-			this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
-			this.refCtgNameConverter = ContigNameConverter.fromOneDictionary(refDict);
+			indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
+			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
+			final ContigNameConverter refCtgNameConverter = ContigNameConverter.fromOneDictionary(refDict);
 			
 			LOG.info("Loading "+this.knownGeneUri);
 			try(BufferedReader br= IOUtils.openURIForBufferedReading(this.knownGeneUri)) {
@@ -168,61 +188,75 @@ public class ScanRetroCopy extends Launcher
 					final String tokens[]=tab.split(line);
 					final KnownGene kg=new KnownGene(tokens);
 					if(kg.getExonCount()<2) continue;
-					final String ctg = this.refCtgNameConverter.apply(kg.getContig());
+					if(this.onlyCodingTranscript && kg.getCdsStart()==kg.getCdsEnd())continue; 
+					final String ctg = refCtgNameConverter.apply(kg.getContig());
 					if(StringUtils.isBlank(ctg)) continue;
 					kg.setChrom(ctg);
 					final Interval interval = new Interval(ctg,kg.getTxStart()+1,kg.getTxEnd(),kg.isNegativeStrand(),kg.getName());
-					List<KnownGene> L=  this.knownGeneMap.get(interval);
+					List<KnownGene> L=  knownGeneMap.get(interval);
 					if(L==null) {
 						L=new ArrayList<KnownGene>();
-						this.knownGeneMap.put(interval,L);
+						knownGeneMap.put(interval,L);
 						}
 					L.add(kg);
 					}
 				
 				}
 
-			if(this.knownGeneMap.isEmpty()) {
+			if(knownGeneMap.isEmpty()) {
 				LOG.error("no gene found in "+this.knownGeneUri);
 				return -1;
 				}
-			LOG.info("Number of transcripts: "+ this.knownGeneMap.values().stream().flatMap(L->L.stream()).count());
+			LOG.info("Number of transcripts: "+ knownGeneMap.values().stream().flatMap(L->L.stream()).count());
 			
 			final List<Match> matchBuffer=new ArrayList<>();
 			sr = super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader samFileHeader = sr.getFileHeader();
+			if(!samFileHeader.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
+				LOG.error("input is not sorted on coordinate");
+				return -1;
+			}
+			
 			if(this.use_bai && !sr.hasIndex()) {
 				LOG.warning("Cannot used bai because input is not indexed");
 				}
 			
 			if(this.use_bai && sr.hasIndex())
 				{
+				LOG.info("building intervals...");
 				final SAMSequenceDictionary samdict= SequenceDictionaryUtils.extractRequired(samFileHeader);
 
 				final ContigNameConverter samConvert = ContigNameConverter.fromOneDictionary(samdict);
-				final List<QueryInterval> intervalsL = this.knownGeneMap.keySet().
+				final List<QueryInterval> intervalsL = knownGeneMap.values().
 						stream().
-						filter(RGN->samConvert.apply(RGN.getContig())!=null).
-						map(RGN->new QueryInterval(samdict.getSequenceIndex(samConvert.apply(RGN.getContig())), RGN.getStart(), RGN.getEnd())).
+						flatMap(K->K.stream()).
+						filter(KG->samConvert.apply(KG.getContig())!=null).
+						flatMap(KG->KG.getExons().stream()).
+						flatMap(exon->{
+							// we need the reads overlapping the exon bounds
+							final int tid=samdict.getSequenceIndex(samConvert.apply(exon.getGene().getContig()));
+							final QueryInterval q1=new QueryInterval(tid,exon.getStart()+1,exon.getStart()+1);
+							final QueryInterval q2=new QueryInterval(tid,exon.getEnd(),exon.getEnd());
+							return Arrays.stream(new QueryInterval[]{q1,q2});
+						}).
 						sorted().
 						collect(Collectors.toList());
 				
 				final QueryInterval intervals[]=QueryInterval.optimizeIntervals(intervalsL.toArray(new QueryInterval[intervalsL.size()]));
-				LOG.debug("query bam using "+intervals.length+" random access intervals.");
+				intervalsL.clear();//GC
+				LOG.debug("Query bam using "+intervals.length+" random access intervals.");
 				iter = sr.queryOverlapping(intervals);
 				}
 			else
 				{
 				iter= sr.iterator();
 				}
+			final Set<String> samples = this.partiton.getPartitions(samFileHeader);
+			if(samples.isEmpty()) {
+				LOG.error("No sample was defined in the read group of the input bam.");
+				return -1;
+				}
 			
-			
-			
-			final String sampleName= samFileHeader.getReadGroups().
-					stream().
-					map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).
-					findAny().
-					orElse("SAMPLE");
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
 			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY,true));
@@ -234,21 +268,21 @@ public class ScanRetroCopy extends Launcher
 			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY,true));
 			metaData.add(new VCFInfoHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
 			metaData.add(new VCFFormatHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
-			metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Retrocopy attributes geneName|exon|"));
+			metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
+					"Retrocopy attributes: transcript-id|strand|exon-1|exon-2|pos2"));
 
 			
-			final VCFHeader header=new VCFHeader(metaData, Collections.singletonList(sampleName));
-			header.setSequenceDictionary(this.refDict);
-			
+			final VCFHeader header=new VCFHeader(metaData, samples);
+			header.setSequenceDictionary(refDict);
 			
 			
 			vcw0=super.openVariantContextWriter(this.outputFile);
 			final VariantContextWriter vcw=vcw0;
 			vcw.writeHeader(header);
 			
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(this.refDict).logger(LOG).build();
+			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(samFileHeader).logger(LOG).build();
 			
-			
+			final Predicate<CigarElement> isCandidateCigarElement=(C)->C.getOperator().equals(CigarOperator.S) && C.getLength()>=this.minCigarSize;
 		
 			while(iter.hasNext()) {
 				final SAMRecord rec = progress.apply(iter.next());
@@ -257,7 +291,7 @@ public class ScanRetroCopy extends Launcher
 				if(bases==null || bases==SAMRecord.NULL_SEQUENCE) continue;
 				final Cigar cigar = rec.getCigar();
 				if(cigar==null || cigar.numCigarElements()<2 || !cigar.isClipped()) continue;
-				final String refContig = this.refCtgNameConverter.apply(rec.getContig());
+				final String refContig = refCtgNameConverter.apply(rec.getContig());
 				
 				if(StringUtils.isBlank(refContig)) continue;
 				
@@ -266,20 +300,22 @@ public class ScanRetroCopy extends Launcher
 				final CigarElement leftCigar = cigar.getCigarElement(0);
 				final CigarElement rightCigar = cigar.getCigarElement(cigar.numCigarElements()-1);
 				
-				if(!(
-					(leftCigar.getOperator().equals(CigarOperator.S) && leftCigar.getLength()>= this.minCigarSize) ||
-					(rightCigar.getOperator().equals(CigarOperator.S) && rightCigar.getLength()>= this.minCigarSize)
-					)) continue;
+				/* both ends are not candidate */
+				if(!isCandidateCigarElement.test(leftCigar) && !isCandidateCigarElement.test(rightCigar) ) continue;
+				/* get sample */
+				final String sampleName = this.partiton.getPartion(rec, null);
+				if(StringUtils.isBlank(sampleName)) continue;
 				
-				
-				final List<KnownGene> genes = this.knownGeneMap.getOverlapping(
+				final List<KnownGene> genes = knownGeneMap.getOverlapping(
 						new Interval(refContig,rec.getUnclippedStart(),rec.getUnclippedEnd())
-						).stream().flatMap(L->L.stream()).collect(Collectors.toList());
+						).stream().
+						flatMap(L->L.stream()).
+						collect(Collectors.toList());
 				if(genes.isEmpty()) continue;
 				
 
 				if(genomicSequence==null || !genomicSequence.getChrom().equals(refContig)) {
-					genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, refContig);
+					genomicSequence = new GenomicSequence(indexedFastaSequenceFile, refContig);
 					/* dump buffer */
 					matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
 					matchBuffer.clear();
@@ -329,8 +365,7 @@ public class ScanRetroCopy extends Launcher
 								int genomic0 = exonLeft.getEnd()-1;
 								// paranoid check
 								final CigarElement cigarLeft = cigar.getCigarElement(0);
-								if(!cigarLeft.getOperator().equals(CigarOperator.S)) continue;
-								if(cigarLeft.getLength() < this.minCigarSize ) continue;
+								if(!isCandidateCigarElement.test(cigarLeft)) continue;
 								//remove one base to get position before exon-junction
 								// last base of cigar string
 								int cigar_index0 = cigarLeft.getLength()-1;
@@ -354,14 +389,22 @@ public class ScanRetroCopy extends Launcher
 									{
 									LOG.debug("MEW MATCH0");
 									match = new Match();
-									match.sampleName = sampleName;
 									match.contig = refContig;
 									match.pos0= exonRight.getStart();
 									matchBuffer.add(match);
 									}
-								match.countSupportingReads++;
-								match.attributes.add(knownGene.getName()+"|"+exonRight.getIndex()+"|");
-								match.bestLength=Math.max(match.bestLength, matchLength);
+								final PerSample perSample = match.getSample(sampleName);
+															
+								
+								match.attributes.add(
+										knownGene.getName()+"|"+
+									    knownGene.getStrand().encodeAsChar()+"|Exon"+
+										(1+exonRight.getIndex())+"|Exon"+
+									    (1+exonLeft.getIndex())+"|"+
+										exonLeft.getEnd()
+										);
+								perSample.countSupportingReads++;
+								perSample.bestLength=Math.max(perSample.bestLength, matchLength);
 								}
 							else /* test last cigar */
 								{
@@ -377,12 +420,12 @@ public class ScanRetroCopy extends Launcher
 								// exon too short
 								if(exonRight.getEnd()-exonRight.getStart()< this.minCigarSize) continue;
 								
-								// last base of previous exon
+								// first base of next exon
 								int genomic0 = exonRight.getStart();
 								// paranoid check
 								final CigarElement cigarRight = cigar.getLastCigarElement();
-								if(!cigarRight.getOperator().equals(CigarOperator.S)) continue;
-								if(cigarRight.getLength() < this.minCigarSize ) continue;
+								if(!isCandidateCigarElement.test(cigarRight)) continue;
+								
 								//remove one base to get position before exon-junction
 								// last base of cigar string
 								int cigar_index0 = 0;
@@ -406,14 +449,23 @@ public class ScanRetroCopy extends Launcher
 									{
 									LOG.debug("MEW MATCH1");
 									match = new Match();
-									match.sampleName = sampleName;
 									match.contig = refContig;
 									match.pos0 = exonRight.getEnd()-1;
 									matchBuffer.add(match);
 									}
-								match.countSupportingReads++;
+								final PerSample perSample = match.getSample(sampleName);
+								
+								match.attributes.add(
+										knownGene.getName()+"|"+
+									    knownGene.getStrand().encodeAsChar()+"|Exon"+
+										(1+exonLeft.getIndex())+"|Exon"+
+									    (1+exonRight.getIndex())+"|"+
+									    (exonRight.getStart()+1)
+										);
+								
+								perSample.countSupportingReads++;
 								match.attributes.add(knownGene.getName()+"|"+exonLeft.getIndex());
-								match.bestLength=Math.max(match.bestLength, matchLength);
+								perSample.bestLength=Math.max(perSample.bestLength, matchLength);
 								}
 							}
 						}
@@ -440,7 +492,7 @@ public class ScanRetroCopy extends Launcher
 			CloserUtil.close(iter);
 			CloserUtil.close(sr);
 			CloserUtil.close(vcw0);
-			CloserUtil.close(this.indexedFastaSequenceFile);
+			CloserUtil.close(indexedFastaSequenceFile);
 			}
 		}
 	

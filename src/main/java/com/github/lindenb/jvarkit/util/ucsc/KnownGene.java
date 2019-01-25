@@ -64,7 +64,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 	/** returns the UCSC URL for knownGene for the given UCSC build e.g: 'hg19' */
 	public static String getUri(final String ucscBuild)
 		{
-		return "http://hgdownload.cse.ucsc.edu/goldenPath/"+ ucscBuild +"/database/knownGene.txt.gz";
+		return "http://hgdownload.cse.ucsc.edu/goldenPath/"+ ucscBuild +"/database/wgEncodeGencodeBasicV17.txt.gz";
 		}
 	
 	/** returns the default UCSC URL for knownGene */
@@ -648,7 +648,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		
 		public List<Exon> getExons()
 			{
-			List<Exon> L=new ArrayList<Exon>(getExonCount());
+			final List<Exon> L=new ArrayList<Exon>(getExonCount());
 			for(int i=0;i< getExonCount();++i)
 				{	
 				L.add(getExon(i));
