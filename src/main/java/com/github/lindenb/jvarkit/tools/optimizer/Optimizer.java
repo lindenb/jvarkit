@@ -45,7 +45,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
+import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -667,10 +667,10 @@ public class Optimizer extends Launcher
 					replaceAll("__CLASS__", className)
 					;
 			
-			LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(code));
+			LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(code));
 
 			
-			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
+			final OpenJdkCompiler inMemoryCompiler = OpenJdkCompiler.getInstance();
 			final Class<?> clazz = inMemoryCompiler.compileClass(className,code);
 			this.solutionConstructor =clazz.getConstructor(Map.class);
 			

@@ -75,7 +75,7 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMTagUtil;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
@@ -350,7 +350,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	//TODO upgrade htsjdk and use SAMUtils
     	static List<SuplementaryAlign> fromSamRecord(final SAMRecord record) {
     		if(record==null)  return Collections.emptyList();
-    		final Object saValue = record.getAttribute( SAMTagUtil.getSingleton().SA );
+    		final Object saValue = record.getAttribute( SAMTag.SA.getBinaryTag() );
     		if( saValue == null || !(saValue instanceof String) ) return Collections.emptyList();
     		final String semiColonStrs[] = SEMICOLON_PAT.split((String)saValue);
     		final List<SuplementaryAlign> alignments = new ArrayList<>( semiColonStrs.length );
@@ -966,7 +966,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	
 	    table.getColumns().add(tc);
 	    
-    	final short SA = SAMTagUtil.getSingleton().makeBinaryTag("SA");
+    	final short SA = SAMTag.SA.getBinaryTag();
     	table.getColumns().add(makeColumn("SA",REC->REC.getAttribute(SA)==null?null:"*"));
     	table.getColumns().add(makeColumn("NM",REC->REC.getIntegerAttribute("NM")));
 

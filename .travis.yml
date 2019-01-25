@@ -1,15 +1,12 @@
 language: java
+
 script:
   - gradle -v
-  - ./gradlew all
+  - gradle all
+
 jdk:
    - openjdk11
-
-sudo: required
 
 before_install:
    - sudo apt-get update -qq 
    - sudo apt-get install gradle
-   - chmod +x gradlew
-   - ./gradlew assemble
-   - ./gradlew check

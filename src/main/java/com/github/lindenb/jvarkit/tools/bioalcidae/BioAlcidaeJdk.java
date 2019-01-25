@@ -44,7 +44,7 @@ import java.util.stream.StreamSupport;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
+import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
@@ -79,11 +79,15 @@ BEGIN_DOC
 Bioinformatics file java-based reformatter. Something like awk for VCF, BAM, SAM...
 
 This program takes as input a VCF or a BAM on stdin or as a file.
-The user provides a piece of java code that will be compiled at runtime in memory an executed.
+The user provides a piece of java code that will be compiled at runtime an executed.
 
 ## Why  this name, 'BioAlcidae' ?
 
 As 'bioalcidae' looks like an 'awk' for bioinformatics, we used '[Alcidae](https://en.wikipedia.org/wiki/Alcidae)', the taxonomic Family of the '[auk](https://en.wikipedia.org/wiki/Auk)' species.
+
+## History
+
+  * 2019-01 migrating to openjdk11: switched to in-memory compiling to external compiling.
 
 ## Base classes 
 
@@ -738,10 +742,10 @@ public class BioAlcidaeJdk
 				
 				if(!this.hideGeneratedCode)
 					{
-					LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
+					LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
 					}
 
-				final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
+				final OpenJdkCompiler inMemoryCompiler = OpenJdkCompiler.getInstance();
 				final Class<?> compiledClass = inMemoryCompiler.compileClass(
 						javaClassName,
 						codeWriter.toString()

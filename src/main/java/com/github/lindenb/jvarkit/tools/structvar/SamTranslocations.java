@@ -49,7 +49,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMTagUtil;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
@@ -254,7 +254,7 @@ public class SamTranslocations extends Launcher {
 		PrintWriter pw = null;
 		SamReader samReader = null;
 		SAMRecordIterator iter = null;
-		final short SA = SAMTagUtil.getSingleton().SA;
+		final short SA = SAMTag.SA.getBinaryTag();
 		try {
 			String inputName = oneFileOrNull(args);
 			samReader = super.openSamReader(inputName);

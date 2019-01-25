@@ -31,7 +31,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SAMTagUtil;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
@@ -216,7 +216,7 @@ public class FixVcfMissingGenotypes extends Launcher
 			h2.addMetaDataLine(new VCFFormatHeaderLine(NSUP_TAG,1,VCFHeaderLineType.Integer,"Number of reads with supplementary alignments (SA tag)"));
 			h2.addMetaDataLine(new VCFFormatHeaderLine(NCLIPPED,1,VCFHeaderLineType.Integer,"Number of clipped reads"));
 			
-			final short SA_TAG = SAMTagUtil.getSingleton().SA;
+			final short SA_TAG = SAMTag.SA.getBinaryTag();
 			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header).build();
 			this.recalculator.setHeader(h2);
 			out.writeHeader(h2);
