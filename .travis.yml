@@ -9,6 +9,12 @@ cache:
    - $HOME/.gradle/wrapper/
    - $HOME/.m2
 
+matrix:
+  fast_finish: true
+  include:
+     - jdk: openjdk11
+
+
 script:
     -  chmox -x ./gradlew ; ./gradlew all
 
