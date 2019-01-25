@@ -1,9 +1,19 @@
 language: java
 
-script: gradle all
+sudo: true
+before_cache:
+   - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
+cache:
+  directories:
+   - $HOME/.gradle/caches/
+   - $HOME/.gradle/wrapper/
+   - $HOME/.m2
+
+script:
+    -  chmox -x ./gradlew ; ./gradlew all
 
 jdk:
-   - openjdk11
+    - openjdk11
 
 before_install:
    - sudo apt-get update -qq 
