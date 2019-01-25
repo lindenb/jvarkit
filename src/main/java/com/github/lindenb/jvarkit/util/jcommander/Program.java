@@ -41,4 +41,8 @@ public @interface Program {
 	public boolean generate_doc() default true;
 	/** bibliographic references for this paper, this paper was published in... */
 	public String[] references() default {};
+	/** creation date , if any */
+	public String creationDate() default "";
+	/** modification date , if any */
+	public String modificationDate() default "";
 }

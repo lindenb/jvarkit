@@ -51,7 +51,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.function.Predicate;
-import javax.annotation.processing.Generated;
+//import javax.annotation.processing.Generated;
 
 /**
 
@@ -110,7 +110,7 @@ private java.util.Comparator<Integer> intcmp():{}
 */
 
 
-@Generated("javacc")
+//@Generated("javacc")
 public class SamFilterParser implements SamFilterParserConstants {
                 private static final Logger LOG = Logger.build(SamFilterParser.class).make();
 

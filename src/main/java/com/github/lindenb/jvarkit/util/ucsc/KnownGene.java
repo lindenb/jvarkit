@@ -708,14 +708,16 @@ public class KnownGene implements Iterable<Integer>,Feature
 		
 		
 		
-		
+		/** an abstract RNA : start() and end() on genomic sequence need to be defined*/
 		abstract class RNA extends DelegateCharSequence
 			{
+			/** cache length */
 			private Integer _length=null;
 			RNA(final CharSequence sequence)
 				{
 				super(sequence);
 				}
+			/** get Gene associated to this RNA */
 			public final KnownGene getKnownGene()
 				{
 				return KnownGene.this;
@@ -724,6 +726,19 @@ public class KnownGene implements Iterable<Integer>,Feature
 			protected abstract int start();
 			/** end of mRNA (could be transcription or traduction */
 			protected abstract int end();
+			
+			public String getContig() {
+				return getKnownGene().getContig();
+				}
+			
+			/** return 0-based position in genomic coordinate !!! */
+			public int getGenomicStart0() {
+				return start();
+			}
+			/** return 0-based position in genomic coordinate !!! */
+			public int getGenomicEnd0() {
+				return end();
+			}
 			
 		
 			/** convert the genomic position to the position in the RNA, return -1 if RNA not in genomic pos */
@@ -822,26 +837,26 @@ public class KnownGene implements Iterable<Integer>,Feature
 			@Override
 			public int length()
 				{
-				if(_length==null)
+				if(this._length==null)
 					{
-					_length=0;
-					for(Exon ex:getKnownGene().getExons())
+					this._length=0;
+					for(final Exon ex:getKnownGene().getExons())
 						{
 						if(this.start()>=ex.getEnd()) continue;
 						if(this.end()<=ex.getStart()) break;
 						int beg=Math.max(this.start(), ex.getStart());
 						int end=Math.min(this.end(), ex.getEnd());
-						_length+=(end-beg);
+						this._length+=(end-beg);
 						}
 					}
-				return _length;
+				return this._length;
 				}
 			@Override
 			public char charAt(int index0)
 				{
 				if(index0<0) throw new IllegalArgumentException("negative index:"+index0);
 				if(index0>=this.length()) throw new IndexOutOfBoundsException("index:"+index0 +" < "+this.length());
-				int n=convertToGenomicCoordinate(index0);
+				int n= convertToGenomicCoordinate(index0);
 				if(n==-1) 	throw new IndexOutOfBoundsException("0<=index:="+index0+"<"+length());
 				if(getKnownGene().isPositiveStrand())
 					{
@@ -856,7 +871,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			}
 		
 		
-		
+		/** same as RNA but without the UTR, starts is cdsStart, end is cdsEnd */
 		public class CodingRNA  extends RNA
 			{
 			CodingRNA(final CharSequence sequence)

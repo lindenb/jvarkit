@@ -510,7 +510,8 @@ public class CompileJVarkit extends DefaultTask {
 			fork: true,
 			classpath : classpath1.collect{it->it.path}.join(":"),
 			target: this.jdkTarget,
-			source: this.jdkSource
+			source: this.jdkSource,
+			debug: true
 			)  {
 				include(name: this.getAntInclude())
 				include(name: "**/package-info.java")
@@ -1995,6 +1996,12 @@ all.add( task("biostar140111", type: CompileJVarkit) {
 	});
 // $(eval $(call compile-htsjdk-cmd,gephicmd,${jvarkit.package}.tools.gephi.GephiCmd,${jcommander.jar} $(lib.dir)/org/gephi/gephi.jar ))
 
+all.add( task("scanretrocopy", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.retrocopy.ScanRetroCopy"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jdkTarget="8"
+	jdkSource="8"
+	});
 
 /** bottom task */
 
