@@ -1652,6 +1652,8 @@ all.add( task("illuminadir", type: CompileJVarkit) {
 all.add( task("kg2bed", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.KnownGenesToBed"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jdkTarget="8"
+	jdkSource="8"
 	});
 all.add( task("mergesplittedblast", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.blast.MergeSplittedBlast"
