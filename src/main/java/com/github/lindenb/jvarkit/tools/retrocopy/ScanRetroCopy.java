@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.retrocopy;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -62,6 +64,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -115,19 +118,38 @@ public class ScanRetroCopy extends Launcher
 	private SAMRecordPartition partiton=SAMRecordPartition.sample;
 	@Parameter(names={"--coding"},description="ignore non-coding transcript ")
 	private boolean onlyCodingTranscript=false;
+	@Parameter(names={"--save-gene","-S"},description="Optional. save per-gene info in this file.")
+	private File saveGeneTo=null;
+	@Parameter(names={"--malus"},description="use malus value in score. bad idea. Due to alernative splicing, there is often a cigar 'M' containing the next exon.",hidden=true)
+	private boolean use_malus=false;
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private ContigNameConverter refCtgNameConverter =null;
 	private GenomicSequence genomicSequence=null;
+	private PrintWriter saveGenePw=null;
 
 	private static final String ATT_BEST_MATCHING_LENGTH="MAXLEN";
 	private static final String ATT_RETRO_DESC="RCP";
 	private final Predicate<CigarElement> isCandidateCigarElement=(C)->C.getOperator().equals(CigarOperator.S) && C.getLength()>=this.minCigarSize;
-
+	private final Map<String,GeneInfo> geneIdToInfo=new HashMap<>();
+	
+	/*  what was found for each gene */
+	private static class GeneInfo
+		{
+		final KnownGene gene;
+		final Set<Interval> intronSet=new HashSet<>();
+		GeneInfo(final KnownGene gene) {
+			this.gene = gene;
+			}
+		
+		}
+	
+	/* per-sample-information */
 	private static class PerSample {
 		int countSupportingReads = 0;
 		int bestLength=0;
 		}
+	/* one-based sequence for a cigarelement */
 	private class CigarLocatable 
 		extends AbstractCharSequence
 		implements Locatable
@@ -193,7 +215,7 @@ public class ScanRetroCopy extends Launcher
 		}
 	
 	/** exon with one based coordinate */
-	private class ExonOne implements Locatable
+	private class ExonOne extends AbstractCharSequence implements Locatable
 		{
 		private final KnownGene.Exon delegate;
 		ExonOne(final KnownGene.Exon delegate) {
@@ -219,9 +241,20 @@ public class ScanRetroCopy extends Launcher
 		public String toString() {
 			return delegate.getName()+"["+getContig()+":"+getStart()+"-"+getEnd()+"]";
 			}
+		/** implements charAt in CHROMOSOME space */
 		public char charAt1(int gpos1) {
+			if(gpos1<getStart() || gpos1> getEnd()) throw new IndexOutOfBoundsException(gpos1+" "+getStart()+" "+getEnd());
 			if(gpos1<1 || gpos1>genomicSequence.length()) return 'N';
 			return genomicSequence.charAt(gpos1-1);
+			}
+		@Override
+		public int length() {
+			return CoordMath.getLength(getStart(), getEnd());
+			}
+		@Override
+		/** WARNING: implements charAt in exon space, NOT chromosome space */
+		public char charAt(int index) {
+			return charAt1(getStart()+index);
 			}
 		}
 		
@@ -233,10 +266,10 @@ public class ScanRetroCopy extends Launcher
 		final int chromEnd0;
 		final Set<String> attributes = new HashSet<>();
 		final Map<String,PerSample> sampleMap = new HashMap<>();
-		Match(final String contig,final int chromStart0,final int chromEnd0) {
-			this.contig=contig;
-			this.chromStart0 = chromStart0;
-			this.chromEnd0 = chromEnd0;
+		Match(final KnownGene.Intron intron) {
+			this.contig=intron.getGene().getContig();
+			this.chromStart0 = intron.getStart();
+			this.chromEnd0 = intron.getEnd();
 			}
 		
 		PerSample getSample(final String sample) {
@@ -280,7 +313,36 @@ public class ScanRetroCopy extends Launcher
 			return vcb.make();
 			}
 		}
-	
+	private void saveGeneInfo(final GeneInfo info) {
+		saveGenePw.print(info.gene.getContig());
+		saveGenePw.print('\t');
+		saveGenePw.print(info.gene.getStart());
+		saveGenePw.print('\t');
+		saveGenePw.print(info.gene.getEnd());
+		saveGenePw.print('\t');
+		saveGenePw.print(info.gene.getName());
+		saveGenePw.print('\t');
+		saveGenePw.print(info.gene.getStrand().encodeAsChar());
+		saveGenePw.print('\t');
+		saveGenePw.print(info.gene.getExonCount());
+		saveGenePw.print('\t');
+		saveGenePw.print(info.gene.getIntronCount());//intron
+		saveGenePw.print('\t');
+		saveGenePw.print(info.intronSet.size());//intron
+		saveGenePw.print('\t');
+		saveGenePw.print(info.intronSet.size()==info.gene.getIntronCount()?"ALL_INTRONS":".");//intron
+		saveGenePw.print('\t');
+		saveGenePw.print(info.intronSet.stream().sorted().map(I->I.getContig()+":"+(I.getStart()-1)+"-"+I.getEnd()).collect(Collectors.joining(" ")));//intron
+		saveGenePw.println();
+		}
+	private void reportGene(final KnownGene gene,final Match match) {
+		GeneInfo g=this.geneIdToInfo.get(gene.getName());
+		if(g==null) {
+			g=new  GeneInfo(gene);
+			this.geneIdToInfo.put(gene.getName(),g);
+			}
+		g.intronSet.add(new Interval(gene.getContig(),match.chromStart0+1,match.chromEnd0));
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -372,7 +434,7 @@ public class ScanRetroCopy extends Launcher
 				LOG.error("No sample was defined in the read group of the input bam.");
 				return -1;
 				}
-			
+			/** build vcf header */
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
 			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY,true));
@@ -394,17 +456,28 @@ public class ScanRetroCopy extends Launcher
 			final VCFHeader header=new VCFHeader(metaData, samples);
 			header.setSequenceDictionary(refDict);
 			
-			
+			/* open vcf for writing*/
 			vcw0=super.openVariantContextWriter(this.outputFile);
 			final VariantContextWriter vcw=vcw0;
 			vcw.writeHeader(header);
 			
+			/* save gene writer */
+			if(this.saveGeneTo!=null) {
+				this.saveGenePw = super.openFileOrStdoutAsPrintWriter(this.saveGeneTo);
+				}
+			else
+				{
+				this.saveGenePw = new PrintWriter(new NullOuputStream());
+				}
+				
 			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(samFileHeader).logger(LOG).build();
-			
+			long count_reads = 0L;
 		
 			while(iter.hasNext()) {
 				final SAMRecord rec = progress.apply(iter.next());
 				if(rec.getReadUnmappedFlag()) continue;
+				if(rec.isSecondaryOrSupplementary()) continue;
+				if(rec.getDuplicateReadFlag()) continue;
 				final byte bases[]=rec.getReadBases();
 				if(bases==null || bases==SAMRecord.NULL_SEQUENCE) continue;
 				final Cigar cigar = rec.getCigar();
@@ -431,21 +504,26 @@ public class ScanRetroCopy extends Launcher
 						collect(Collectors.toList());
 				if(genes.isEmpty()) continue;
 				
+				count_reads++;
 
 				if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(refContig)) {
 					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, refContig);
 					/* dump buffer */
 					matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
 					matchBuffer.clear();
+					/* dump genes */
+					this.geneIdToInfo.values().stream().forEach(G->saveGeneInfo(G));
+					this.geneIdToInfo.clear();
 					}
-				else
+				else if(count_reads%1_000_000==0)
 					{
-					/* dump buffer. DOesn't work. Not a big deal
+					final int min_start=  genes.stream().mapToInt(G->G.getStart()-1_000_000/*arbitrary, useful */).min().orElse(0);
+					/* dump buffer. DOesn't work */
 					int i=0;
 					while(i < matchBuffer.size())
 						{
 						final Match match=matchBuffer.get(i);
-						if((match.chromEnd0+1)+this.minCigarSize <rec.getUnclippedStart())
+						if((match.chromEnd0+1)+this.minCigarSize < min_start)
 							{
 							vcw.add(match.build());
 							matchBuffer.remove(i);
@@ -455,7 +533,7 @@ public class ScanRetroCopy extends Launcher
 							i++;
 							}
 						}
-					*/
+					
 					}
 				
 				/* test each side of the clipped read */
@@ -465,7 +543,7 @@ public class ScanRetroCopy extends Launcher
 					if(ce_side.getLength()< this.minCigarSize) continue;
 					for(final KnownGene knownGene:genes) {
 						for(int exonIndex=0;exonIndex< knownGene.getExonCount();exonIndex++) {
-							if(side==0)
+							if(side==0) /* looking at cigar string in 5' */
 								{
 								if(exonIndex==0) continue;
 								
@@ -476,7 +554,6 @@ public class ScanRetroCopy extends Launcher
 								final CigarLocatable cigarS = new CigarLocatable(refContig, rec,0);
 								// current exon
 								final ExonOne exonRight = new ExonOne(knownGene.getExon(exonIndex));
-								
 								if(!cigarM.overlaps(exonRight)) continue;
 								if(!(exonRight.getStart() >= cigarM.getStart())) continue;
 								// get next exon
@@ -491,7 +568,7 @@ public class ScanRetroCopy extends Launcher
 									continue;
 								}
 								
-								int matchLength= malus;
+								int matchLength= (this.use_malus?malus:0);
 								int readIdx0=cigarS.size()-1;
 								// loop over sequence
 								while(readIdx0 >=0 && genomic1 >= exonLeft.getStart()) {
@@ -508,18 +585,18 @@ public class ScanRetroCopy extends Launcher
 								
 								if(matchLength<this.minCigarSize) continue;
 								
+								final KnownGene.Intron intron=knownGene.getIntron(exonIndex-1); 
 								
-								final int chromStart0 = exonLeft.getStart()-1;
-								final int chromEnd0 = exonLeft.getEnd()-1;
 								//find match or create new
 								Match match = matchBuffer.stream().
-										filter(B->B.chromStart0==chromStart0 && B.chromEnd0==chromEnd0).
+										filter(B->B.chromStart0==intron.getStart() && B.chromEnd0==intron.getEnd()).
 										findFirst().orElse(null);
 								if(match==null)
 									{
 									//LOG.debug("MEW MATCH0 "+knownGene.getName());
-									match = new Match(refContig,chromStart0,chromEnd0);
-									//TODO restore matchBuffer.add(match);
+									match = new Match(intron);
+									matchBuffer.add(match);
+									reportGene(knownGene,match);
 									}
 								final PerSample perSample = match.getSample(sampleName);
 															
@@ -527,8 +604,8 @@ public class ScanRetroCopy extends Launcher
 								match.attributes.add(
 										knownGene.getName()+"|"+
 									    knownGene.getStrand().encodeAsChar()+"|"+
-										exonLeft.getName()+"|"+
-									    exonRight.getName()
+										exonLeft.getName()+"|"+ StringUtils.right(exonLeft,this.minCigarSize)+"|"+
+										StringUtils.left(exonRight,this.minCigarSize)+"|"+exonRight.getName()
 										);
 								perSample.countSupportingReads++;
 								perSample.bestLength=Math.max(perSample.bestLength, matchLength);
@@ -558,7 +635,7 @@ public class ScanRetroCopy extends Launcher
 									continue;
 								}
 								
-								int matchLength= malus;
+								int matchLength= (this.use_malus?malus:0);
 								int readIdx0=0;
 								// loop over sequence
 								while(readIdx0 <cigarS.size() && genomic1 <= exonRight.getEnd()) {
@@ -575,22 +652,24 @@ public class ScanRetroCopy extends Launcher
 								
 								if(matchLength<this.minCigarSize) continue;
 								//find match or create new
-								final int chromStart0 = exonLeft.getEnd()-1;
-								final int chromEnd0 = exonRight.getStart()-1;
-								Match match = matchBuffer.stream().filter(B->B.chromStart0==chromStart0 && B.chromEnd0==chromEnd0).findFirst().orElse(null);
+								
+								final KnownGene.Intron intron=knownGene.getIntron(exonIndex); 
+								
+								Match match = matchBuffer.stream().filter(B->B.chromStart0==intron.getStart() && B.chromEnd0==intron.getEnd()).findFirst().orElse(null);
 								if(match==null)
 									{
 									//LOG.debug("MEW MATCH1 "+knownGene.getName());
-									match = new Match(refContig,chromStart0,chromEnd0);
+									match = new Match(intron);
 									matchBuffer.add(match);
+									reportGene(knownGene,match);
 									}
 								final PerSample perSample = match.getSample(sampleName);
 								
 								match.attributes.add(
 										knownGene.getName()+"|"+
 									    knownGene.getStrand().encodeAsChar()+"|"+
-										exonLeft.getName()+"|"+
-									    exonRight.getName()
+									    exonLeft.getName()+"|"+ StringUtils.right(exonLeft,this.minCigarSize)+"|"+
+										StringUtils.left(exonRight,this.minCigarSize)+"|"+exonRight.getName()
 										);
 								
 								perSample.countSupportingReads++;
@@ -603,12 +682,19 @@ public class ScanRetroCopy extends Launcher
 			/* dump buffer */
 			matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
 			matchBuffer.clear();
+			/* dump gene */
+			this.geneIdToInfo.values().stream().forEach(G->saveGeneInfo(G));
+			this.geneIdToInfo.clear();
+			
 			progress.close();
 			vcw.close();
 			iter.close();
 			iter=null;
 			sr.close();
 			sr=null;
+			this.saveGenePw.flush();
+			this.saveGenePw.close();
+			this.saveGenePw=null;
 			return 0;
 			}
 		catch(final Exception err)
@@ -622,11 +708,11 @@ public class ScanRetroCopy extends Launcher
 			CloserUtil.close(sr);
 			CloserUtil.close(vcw0);
 			CloserUtil.close(this.indexedFastaSequenceFile);
+			CloserUtil.close(this.saveGenePw);
 			}
 		}
 	
 	public static void main(final String[] args) {
 		new ScanRetroCopy().instanceMainWithExit(args);
 	}
-
 }

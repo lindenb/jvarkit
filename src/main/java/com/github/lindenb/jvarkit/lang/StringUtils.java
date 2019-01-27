@@ -165,4 +165,15 @@ public static String escapeC(final String str) {
 public static final String niceInt(long n) {
 	return StringUtils.NICE_INT_FORMAT.format(n);
 	}
+
+/** return left part of a string */
+public static final String left(final CharSequence s,int len) {
+	if(s.length()<=len) return s.toString();
+	return s.subSequence(0, len).toString();
+	}
+/** return right part of a string */
+public static final String right(final CharSequence s,int len) {
+	if(s.length()<=len) return s.toString();
+	return s.subSequence(s.length()-len,s.length()).toString();
+	}
 }

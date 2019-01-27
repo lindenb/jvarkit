@@ -625,18 +625,25 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.exonEnds[index];
 			}
 		
-
+		/** exon[0] is first from 5' to 3' on genomic */
 		public Exon getExon(int index)
 			{
 			return new Exon(index);
 			}
+		/** intron[0] is intron after exon[0] from 5' to 3' on genomic */
 		public Intron getIntron(int i)
 			{
 			return new Intron(i);
 			}
+		/** get number of exons */
 		public int getExonCount()
 			{
 			return this.exonStarts.length;
+			}
+		/** get number of introns */
+		public int getIntronCount()
+			{
+			return Math.max(getExonCount()-1,0);
 			}
 		
 		public Map<String,String> getAttributes()
