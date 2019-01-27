@@ -90,6 +90,12 @@ BEGIN_DOC
 ```
 $  java -jar  dist/scanretrocopy.jar --bai -R human_g1k_v37.fasta \
 	"http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00096/high_coverage_alignment/HG00096.wgs.ILLUMINA.bwa.GBR.high_cov_pcr_free.20140203.bam"
+	
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00096
+2	179296982	.	C	<RETROCOPY>	108	.	AC=1;AF=0.500;AN=2;DP=108;END=179300872;MAXLEN=121;RCP=ENST00000325748.4|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2,ENST00000438687.3|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2,ENST00000487082.1|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2,ENST00000432031.2|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2;SVLEN=3891;SVTYPE=DEL	GT:DP:MAXLEN	0/1:108:121
+2	179301047	.	C	<RETROCOPY>	48	.	AC=1;AF=0.500;AN=2;DP=48;END=179306337;MAXLEN=60;RCP=ENST00000325748.4|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3,ENST00000432031.2|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3,ENST00000438687.3|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3,ENST00000487082.1|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3;SVLEN=5291;SVTYPE=DEL	GT:DP:MAXLEN	0/1:48:60
+
+	
 ```
 
 END_DOC
@@ -112,7 +118,7 @@ public class ScanRetroCopy extends Launcher
 	private String knownGeneUri = KnownGene.getDefaultUri();
 	@Parameter(names={"-n","--min-cigar-size"},description="Minimal cigar element size.")
 	private int minCigarSize = 10;
-	@Parameter(names={"--bai","-bai","--with-bai"},description="Use random access BAM using the bai and using the knownGene data.")
+	@Parameter(names={"--bai","-bai","--with-bai"},description="Use random access BAM using the bai and using the knownGene data. May be slow at startup")
 	private boolean use_bai;
 	@Parameter(names={"--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partiton=SAMRecordPartition.sample;
@@ -243,7 +249,14 @@ public class ScanRetroCopy extends Launcher
 			}
 		/** implements charAt in CHROMOSOME space */
 		public char charAt1(int gpos1) {
-			if(gpos1<getStart() || gpos1> getEnd()) throw new IndexOutOfBoundsException(gpos1+" "+getStart()+" "+getEnd());
+			if(gpos1<getStart()) {
+				LOG.error("charAt1 out of bound ??"+gpos1+" <"+getStart());
+				return 'N';
+				}
+			if(gpos1>getEnd()) {
+				LOG.error("charAt1 out of bound ??"+gpos1+" >"+getEnd());
+				return 'N';
+				}
 			if(gpos1<1 || gpos1>genomicSequence.length()) return 'N';
 			return genomicSequence.charAt(gpos1-1);
 			}
@@ -422,7 +435,7 @@ public class ScanRetroCopy extends Launcher
 				
 				final QueryInterval intervals[]=QueryInterval.optimizeIntervals(intervalsL.toArray(new QueryInterval[intervalsL.size()]));
 				intervalsL.clear();//GC
-				LOG.debug("Query bam using "+intervals.length+" random access intervals.");
+				LOG.debug("Query bam using "+intervals.length+" random access intervals. Please wait...");
 				iter = sr.queryOverlapping(intervals);
 				}
 			else
@@ -507,13 +520,17 @@ public class ScanRetroCopy extends Launcher
 				count_reads++;
 
 				if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(refContig)) {
+					if(this.genomicSequence!=null) {
+						/* DUMP things BEFORE changing the reference sequence!!! */
+						/* dump buffer */
+						matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
+						matchBuffer.clear();
+						/* dump genes */
+						this.geneIdToInfo.values().stream().forEach(G->saveGeneInfo(G));
+						this.geneIdToInfo.clear();		
+						}			
+					/* now, we can change genomicSequence */
 					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, refContig);
-					/* dump buffer */
-					matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
-					matchBuffer.clear();
-					/* dump genes */
-					this.geneIdToInfo.values().stream().forEach(G->saveGeneInfo(G));
-					this.geneIdToInfo.clear();
 					}
 				else if(count_reads%1_000_000==0)
 					{

@@ -1,5 +1,5 @@
 language: java
-
+dist: trusty
 sudo: true
 before_cache:
    - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
@@ -9,6 +9,9 @@ cache:
    - $HOME/.gradle/wrapper/
    - $HOME/.m2
 
+jdk:
+    - openjdk11
+
 matrix:
   fast_finish: true
   include:
@@ -16,10 +19,7 @@ matrix:
 
 
 script:
-    -  chmox -x ./gradlew ; ./gradlew all
-
-jdk:
-    - openjdk11
+    -  gradle all
 
 before_install:
    - sudo apt-get update -qq 
