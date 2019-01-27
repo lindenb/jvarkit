@@ -492,10 +492,10 @@ public class ScanRetroCopy extends Launcher
 				{
 				this.saveGenePw = new PrintWriter(new NullOuputStream());
 				}
-				
+			
+			
 			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(samFileHeader).logger(LOG).build();
-			long count_reads = 0L;
-		
+			
 			while(iter.hasNext()) {
 				final SAMRecord rec = progress.apply(iter.next());
 				if(rec.getReadUnmappedFlag()) continue;
@@ -504,31 +504,16 @@ public class ScanRetroCopy extends Launcher
 				final byte bases[]=rec.getReadBases();
 				if(bases==null || bases==SAMRecord.NULL_SEQUENCE) continue;
 				final Cigar cigar = rec.getCigar();
-				if(cigar==null || cigar.numCigarElements()<2 || !cigar.isClipped()) continue;
+				if(cigar==null || cigar.numCigarElements()<2) continue;
 				final String refContig = this.refCtgNameConverter.apply(rec.getContig());
 				
 				if(StringUtils.isBlank(refContig)) continue;
 				
-				
-				
-				final CigarElement leftCigar = cigar.getCigarElement(0);
-				final CigarElement rightCigar = cigar.getCigarElement(cigar.numCigarElements()-1);
-				
-				/* both ends are not candidate */
-				if(!isCandidateCigarElement.test(leftCigar) && !isCandidateCigarElement.test(rightCigar) ) continue;
 				/* get sample */
 				final String sampleName = this.partiton.getPartion(rec, null);
 				if(StringUtils.isBlank(sampleName)) continue;
-				
-				final List<KnownGene> genes = knownGeneMap.getOverlapping(
-						new Interval(refContig,rec.getUnclippedStart(),rec.getUnclippedEnd())
-						).stream().
-						flatMap(L->L.stream()).
-						collect(Collectors.toList());
-				if(genes.isEmpty()) continue;
-				
-				count_reads++;
 
+				/* new reference sequence */
 				if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(refContig)) {
 					if(this.genomicSequence!=null) {
 						/* DUMP things BEFORE changing the reference sequence!!! */
@@ -542,32 +527,69 @@ public class ScanRetroCopy extends Launcher
 					/* now, we can change genomicSequence */
 					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, refContig);
 					}
-				else if(count_reads%1_000_000==0)
+								
+				//scan for deletion that could be an intron 
+				for(int cigar_idx=0;cigar_idx<cigar.numCigarElements();++cigar_idx)
 					{
-					final int min_start=  genes.stream().mapToInt(G->G.getStart()-1_000_000/*arbitrary, useful */).min().orElse(0);
-					/* dump buffer. DOesn't work */
-					int i=0;
-					while(i < matchBuffer.size())
-						{
-						final Match match=matchBuffer.get(i);
-						if((match.chromEnd0+1)+this.minCigarSize < min_start)
+					final CigarElement ce=cigar.getCigarElement(cigar_idx);
+					if(ce.getLength()< this.minCigarSize) continue;
+					if(!(ce.getOperator().equals(CigarOperator.N) || ce.getOperator().equals(CigarOperator.D))) continue;
+					final CigarLocatable cigarD = new CigarLocatable(refContig, rec, cigar_idx);
+					final Interval intronInterval = new Interval(refContig,cigarD.getStart(),cigarD.getEnd());
+					/** find knownGene intron  having the same location */
+					final List<KnownGene.Intron> introns = knownGeneMap.getOverlapping(
+							intronInterval
+							).stream().
+							flatMap(L->L.stream()).
+							flatMap(K->K.getIntrons().stream()).
+							filter(I->I.getStart()==intronInterval.getStart() && I.getEnd()==intronInterval.getEnd()).
+							collect(Collectors.toList());
+					for(final KnownGene.Intron intron:introns) {
+						Match match = matchBuffer.stream().
+								filter(B->B.chromStart0==intron.getStart() && B.chromEnd0==intron.getEnd()).
+								findFirst().orElse(null);
+						if(match==null)
 							{
-							vcw.add(match.build());
-							matchBuffer.remove(i);
+							LOG.debug("MEW MATCH INTRON ");
+							match = new Match(intron);
+							matchBuffer.add(match);
+							reportGene(intron.getGene(),match,sampleName);
 							}
-						else
-							{
-							i++;
-							}
+						final PerSample perSample = match.getSample(sampleName);
+						
+						final ExonOne exonLeft = new ExonOne(intron.getGene().getExon(intron.getIndex()));
+						final ExonOne exonRight = new ExonOne(intron.getGene().getExon(intron.getIndex()+1));
+						
+						match.attributes.add(
+								intron.getGene().getName()+"|"+
+								intron.getGene().getStrand().encodeAsChar()+"|"+
+								exonLeft.getName()+"|"+ StringUtils.right(exonLeft,this.minCigarSize)+"|"+
+								StringUtils.left(exonRight,this.minCigarSize)+"|"+exonRight.getName()
+								);
+						perSample.countSupportingReads++;
+						perSample.bestLength=Math.max(perSample.bestLength, ce.getLength());
 						}
-					
 					}
+				
+				
+				final CigarElement leftCigar = cigar.getCigarElement(0);
+				final CigarElement rightCigar = cigar.getCigarElement(cigar.numCigarElements()-1);
+				
+				/* both ends are not candidate */
+				if(!isCandidateCigarElement.test(leftCigar) && !isCandidateCigarElement.test(rightCigar) ) continue;
+				
+				final List<KnownGene> genes = knownGeneMap.getOverlapping(
+						new Interval(refContig,rec.getUnclippedStart(),rec.getUnclippedEnd())
+						).stream().
+						flatMap(L->L.stream()).
+						collect(Collectors.toList());
+				if(genes.isEmpty()) continue;
+				
 				
 				/* test each side of the clipped read */
 				for(int side=0;side<2;++side) {
 					final CigarElement ce_side = (side==0?leftCigar:rightCigar);
-					if(!ce_side.getOperator().equals(CigarOperator.S)) continue;
-					if(ce_side.getLength()< this.minCigarSize) continue;
+					if(!isCandidateCigarElement.test(ce_side)) continue;
 					for(final KnownGene knownGene:genes) {
 						for(int exonIndex=0;exonIndex< knownGene.getExonCount();exonIndex++) {
 							if(side==0) /* looking at cigar string in 5' */

@@ -369,6 +369,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			}
 		}
 		
+	/** an intron in a knownGene */
 	public class Intron extends Segment
 			{
 			Intron(int index)
@@ -655,10 +656,20 @@ public class KnownGene implements Iterable<Integer>,Feature
 		
 		public List<Exon> getExons()
 			{
-			final List<Exon> L=new ArrayList<Exon>(getExonCount());
+			final List<Exon> L=new ArrayList<>(getExonCount());
 			for(int i=0;i< getExonCount();++i)
 				{	
 				L.add(getExon(i));
+				}
+			return L;
+			}
+		/** return a list of intron for this gene */
+		public List<Intron> getIntrons()
+			{
+			final List<Intron> L=new ArrayList<>(getIntronCount());
+			for(int i=0;i< getIntronCount();++i)
+				{	
+				L.add(getIntron(i));
 				}
 			return L;
 			}
