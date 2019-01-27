@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -137,7 +138,7 @@ public class ScanRetroCopy extends Launcher
 	private static final String ATT_BEST_MATCHING_LENGTH="MAXLEN";
 	private static final String ATT_RETRO_DESC="RCP";
 	private final Predicate<CigarElement> isCandidateCigarElement=(C)->C.getOperator().equals(CigarOperator.S) && C.getLength()>=this.minCigarSize;
-	private final Map<String,GeneInfo> geneIdToInfo=new HashMap<>();
+	private final Map<String,Map<String,GeneInfo>> sample2geneinfo=new HashMap<>();
 	
 	/*  what was found for each gene */
 	private static class GeneInfo
@@ -214,10 +215,6 @@ public class ScanRetroCopy extends Launcher
 			final byte bases[]=this.record.getReadBases();
 			return Character.toUpperCase((char)bases[this.readStart0+readPos0]);
 			}
-		@Override
-		public String toString() {
-			return getCigarElement().getOperator()+"["+getContig()+":"+getStart()+"-"+getEnd()+"]";
-			}
 		}
 	
 	/** exon with one based coordinate */
@@ -243,10 +240,7 @@ public class ScanRetroCopy extends Launcher
 		public String getName() {
 			return "Exon"+(this.delegate.getIndex()+1);
 		}
-		@Override
-		public String toString() {
-			return delegate.getName()+"["+getContig()+":"+getStart()+"-"+getEnd()+"]";
-			}
+		
 		/** implements charAt in CHROMOSOME space */
 		public char charAt1(int gpos1) {
 			if(gpos1<getStart()) {
@@ -326,33 +320,49 @@ public class ScanRetroCopy extends Launcher
 			return vcb.make();
 			}
 		}
-	private void saveGeneInfo(final GeneInfo info) {
-		saveGenePw.print(info.gene.getContig());
-		saveGenePw.print('\t');
-		saveGenePw.print(info.gene.getStart());
-		saveGenePw.print('\t');
-		saveGenePw.print(info.gene.getEnd());
-		saveGenePw.print('\t');
-		saveGenePw.print(info.gene.getName());
-		saveGenePw.print('\t');
-		saveGenePw.print(info.gene.getStrand().encodeAsChar());
-		saveGenePw.print('\t');
-		saveGenePw.print(info.gene.getExonCount());
-		saveGenePw.print('\t');
-		saveGenePw.print(info.gene.getIntronCount());//intron
-		saveGenePw.print('\t');
-		saveGenePw.print(info.intronSet.size());//intron
-		saveGenePw.print('\t');
-		saveGenePw.print(info.intronSet.size()==info.gene.getIntronCount()?"ALL_INTRONS":".");//intron
-		saveGenePw.print('\t');
-		saveGenePw.print(info.intronSet.stream().sorted().map(I->I.getContig()+":"+(I.getStart()-1)+"-"+I.getEnd()).collect(Collectors.joining(" ")));//intron
-		saveGenePw.println();
+	private void saveGeneInfo() {
+		for(final String sampleName: this.sample2geneinfo.keySet()) {
+			for(final GeneInfo info: this.sample2geneinfo.get(sampleName).values()) {
+				saveGenePw.print(info.gene.getContig());
+				saveGenePw.print('\t');
+				saveGenePw.print(info.gene.getStart());
+				saveGenePw.print('\t');
+				saveGenePw.print(info.gene.getEnd());
+				saveGenePw.print('\t');
+				saveGenePw.print(info.gene.getName());
+				saveGenePw.print('\t');
+				saveGenePw.print(info.gene.getStrand().encodeAsChar());
+				saveGenePw.print('\t');
+				saveGenePw.print(info.gene.isNonCoding()?"NON_CODING":".");
+				saveGenePw.print('\t');
+				saveGenePw.print(info.gene.getExonCount());
+				saveGenePw.print('\t');
+				saveGenePw.print(info.gene.getIntronCount());//intron
+				saveGenePw.print('\t');
+				saveGenePw.print(info.intronSet.size());//intron
+				saveGenePw.print('\t');
+				saveGenePw.print(info.intronSet.size()==info.gene.getIntronCount()?"ALL_INTRONS":".");//intron
+				saveGenePw.print('\t');
+				saveGenePw.print(String.valueOf((int)((info.intronSet.size()/(double)info.gene.getIntronCount())*100.0))+"%");//percent
+				saveGenePw.print('\t');
+				saveGenePw.print(info.intronSet.stream().sorted().map(I->I.getContig()+":"+(I.getStart()-1)+"-"+I.getEnd()).collect(Collectors.joining(" ")));//intron
+				saveGenePw.print('\t');
+				saveGenePw.print(sampleName);
+				saveGenePw.println();
+				}
+			}
 		}
-	private void reportGene(final KnownGene gene,final Match match) {
-		GeneInfo g=this.geneIdToInfo.get(gene.getName());
+	private void reportGene(final KnownGene gene,final Match match,final String sampleName) {
+		Map<String,GeneInfo> geneIdToInfo = this.sample2geneinfo.get(sampleName);
+		if(geneIdToInfo==null) {
+			geneIdToInfo = new HashMap<>();
+			this.sample2geneinfo.put(sampleName,geneIdToInfo);
+			}
+		
+		GeneInfo g= geneIdToInfo.get(gene.getName());
 		if(g==null) {
 			g=new  GeneInfo(gene);
-			this.geneIdToInfo.put(gene.getName(),g);
+			geneIdToInfo.put(gene.getName(),g);
 			}
 		g.intronSet.add(new Interval(gene.getContig(),match.chromStart0+1,match.chromEnd0));
 		}
@@ -463,10 +473,10 @@ public class ScanRetroCopy extends Launcher
 			metaData.add(new VCFInfoHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
 			metaData.add(new VCFFormatHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
 			metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Retrocopy attributes: transcript-id|strand|exon-1|exon-2"));
-
-			
+					"Retrocopy attributes: transcript-id|strand|exon-left|exon-left-bases|exon-right-bases|exon-right"));
+		
 			final VCFHeader header=new VCFHeader(metaData, samples);
+			JVarkitVersion.getInstance().addMetaData(this, header);
 			header.setSequenceDictionary(refDict);
 			
 			/* open vcf for writing*/
@@ -526,8 +536,8 @@ public class ScanRetroCopy extends Launcher
 						matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
 						matchBuffer.clear();
 						/* dump genes */
-						this.geneIdToInfo.values().stream().forEach(G->saveGeneInfo(G));
-						this.geneIdToInfo.clear();		
+						saveGeneInfo();
+						this.sample2geneinfo.clear();		
 						}			
 					/* now, we can change genomicSequence */
 					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, refContig);
@@ -613,7 +623,7 @@ public class ScanRetroCopy extends Launcher
 									//LOG.debug("MEW MATCH0 "+knownGene.getName());
 									match = new Match(intron);
 									matchBuffer.add(match);
-									reportGene(knownGene,match);
+									reportGene(knownGene,match,sampleName);
 									}
 								final PerSample perSample = match.getSample(sampleName);
 															
@@ -678,7 +688,7 @@ public class ScanRetroCopy extends Launcher
 									//LOG.debug("MEW MATCH1 "+knownGene.getName());
 									match = new Match(intron);
 									matchBuffer.add(match);
-									reportGene(knownGene,match);
+									reportGene(knownGene,match,sampleName);
 									}
 								final PerSample perSample = match.getSample(sampleName);
 								
@@ -700,8 +710,8 @@ public class ScanRetroCopy extends Launcher
 			matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
 			matchBuffer.clear();
 			/* dump gene */
-			this.geneIdToInfo.values().stream().forEach(G->saveGeneInfo(G));
-			this.geneIdToInfo.clear();
+			this.saveGeneInfo();
+			this.sample2geneinfo.clear();
 			
 			progress.close();
 			vcw.close();
