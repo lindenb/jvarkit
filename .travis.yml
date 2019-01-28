@@ -33,5 +33,8 @@ install:
    - wget -O "gradle-5.1.1-bin.zip" "https://services.gradle.org/distributions/gradle-5.1.1-bin.zip"
    - sudo mkdir -p /opt/gradle
    - sudo unzip -d /opt/gradle gradle-5.1.1-bin.zip
-   - export PATH=$PATH:/opt/gradle/gradle-5.1.1/bin
+   - export PATH=/opt/gradle/gradle-5.1.1/bin:${PATH}
+   - gradle --version
    - chmod +x ./gradlew
+   - gradle --version
+   - ./gradlew all
