@@ -266,7 +266,7 @@ public class ScanRetroCopy extends Launcher
 		}
 		
 		
-	private class Match
+	private class Match implements Comparable<Match>
 		{
 		final String contig;
 		final int chromStart0;
@@ -277,6 +277,14 @@ public class ScanRetroCopy extends Launcher
 			this.contig=intron.getGene().getContig();
 			this.chromStart0 = intron.getStart();
 			this.chromEnd0 = intron.getEnd();
+			}
+		@Override
+		public int compareTo(final Match o) {
+			int i= contig.compareTo(o.contig);
+			if(i!=0)return i;
+			i= Integer.compare(chromStart0,o.chromStart0);
+			if(i!=0)return i;
+			return Integer.compare(chromEnd0,o.chromEnd0);
 			}
 		
 		PerSample getSample(final String sample) {
@@ -351,7 +359,9 @@ public class ScanRetroCopy extends Launcher
 				saveGenePw.println();
 				}
 			}
+		this.sample2geneinfo.clear();
 		}
+	
 	private void reportGene(final KnownGene gene,final Match match,final String sampleName) {
 		Map<String,GeneInfo> geneIdToInfo = this.sample2geneinfo.get(sampleName);
 		if(geneIdToInfo==null) {
@@ -516,13 +526,12 @@ public class ScanRetroCopy extends Launcher
 				/* new reference sequence */
 				if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(refContig)) {
 					if(this.genomicSequence!=null) {
-						/* DUMP things BEFORE changing the reference sequence!!! */
+						/* DUMP things BEFORE changing the reference sequence!!! */						
 						/* dump buffer */
-						matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
+						matchBuffer.stream().sorted().map(B->B.build()).forEach(V->vcw.add(V));
 						matchBuffer.clear();
 						/* dump genes */
-						saveGeneInfo();
-						this.sample2geneinfo.clear();		
+						saveGeneInfo();		
 						}			
 					/* now, we can change genomicSequence */
 					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, refContig);
@@ -642,11 +651,11 @@ public class ScanRetroCopy extends Launcher
 										findFirst().orElse(null);
 								if(match==null)
 									{
-									//LOG.debug("MEW MATCH0 "+knownGene.getName());
 									match = new Match(intron);
 									matchBuffer.add(match);
-									reportGene(knownGene,match,sampleName);
 									}
+								reportGene(knownGene,match,sampleName);
+								
 								final PerSample perSample = match.getSample(sampleName);
 															
 								
@@ -707,11 +716,11 @@ public class ScanRetroCopy extends Launcher
 								Match match = matchBuffer.stream().filter(B->B.chromStart0==intron.getStart() && B.chromEnd0==intron.getEnd()).findFirst().orElse(null);
 								if(match==null)
 									{
-									//LOG.debug("MEW MATCH1 "+knownGene.getName());
 									match = new Match(intron);
 									matchBuffer.add(match);
-									reportGene(knownGene,match,sampleName);
 									}
+								reportGene(knownGene,match,sampleName);
+								
 								final PerSample perSample = match.getSample(sampleName);
 								
 								match.attributes.add(
@@ -729,7 +738,7 @@ public class ScanRetroCopy extends Launcher
 					}
 				}
 			/* dump buffer */
-			matchBuffer.stream().map(B->B.build()).forEach(V->vcw.add(V));
+			matchBuffer.stream().sorted().map(B->B.build()).forEach(V->vcw.add(V));
 			matchBuffer.clear();
 			/* dump gene */
 			this.saveGeneInfo();
