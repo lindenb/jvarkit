@@ -1811,7 +1811,9 @@ all.add( task("vcfbiomart", type: CompileJVarkit) {
 all.add( task("vcfdas", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfdas.VcfDistributedAnnotationSystem"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb","jetty")
+	deprecatedMsg = "deprecated, won't compile"
 	});
+
 all.add( task("vcffilterjs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")

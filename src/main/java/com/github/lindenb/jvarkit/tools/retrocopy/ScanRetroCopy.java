@@ -76,6 +76,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -137,6 +138,7 @@ public class ScanRetroCopy extends Launcher
 
 	private static final String ATT_BEST_MATCHING_LENGTH="MAXLEN";
 	private static final String ATT_RETRO_DESC="RCP";
+	private static final String ATT_FILTER_NONDOCODING="NON_CODING";
 	private final Predicate<CigarElement> isCandidateCigarElement=(C)->C.getOperator().equals(CigarOperator.S) && C.getLength()>=this.minCigarSize;
 	private final Map<String,Map<String,GeneInfo>> sample2geneinfo=new HashMap<>();
 	
@@ -273,6 +275,7 @@ public class ScanRetroCopy extends Launcher
 		final int chromEnd0;
 		final Set<String> attributes = new HashSet<>();
 		final Map<String,PerSample> sampleMap = new HashMap<>();
+		boolean non_coding = true;
 		Match(final KnownGene.Intron intron) {
 			this.contig=intron.getGene().getContig();
 			this.chromStart0 = intron.getStart();
@@ -324,6 +327,7 @@ public class ScanRetroCopy extends Launcher
 				gb.attribute(ATT_BEST_MATCHING_LENGTH, perSample.bestLength);
 				genotypes.add(gb.make());
 				}
+			if(this.non_coding) vcb.filter(ATT_FILTER_NONDOCODING);
 			vcb.genotypes(genotypes);
 			return vcb.make();
 			}
@@ -341,7 +345,7 @@ public class ScanRetroCopy extends Launcher
 				saveGenePw.print('\t');
 				saveGenePw.print(info.gene.getStrand().encodeAsChar());
 				saveGenePw.print('\t');
-				saveGenePw.print(info.gene.isNonCoding()?"NON_CODING":".");
+				saveGenePw.print(info.gene.isNonCoding()?ATT_FILTER_NONDOCODING:".");
 				saveGenePw.print('\t');
 				saveGenePw.print(info.gene.getExonCount());
 				saveGenePw.print('\t');
@@ -484,7 +488,8 @@ public class ScanRetroCopy extends Launcher
 			metaData.add(new VCFFormatHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
 			metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
 					"Retrocopy attributes: transcript-id|strand|exon-left|exon-left-bases|exon-right-bases|exon-right"));
-		
+			metaData.add(new VCFFilterHeaderLine(ATT_FILTER_NONDOCODING,"Only non-coding transcripts"));
+
 			final VCFHeader header=new VCFHeader(metaData, samples);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			header.setSequenceDictionary(refDict);
@@ -562,8 +567,9 @@ public class ScanRetroCopy extends Launcher
 							LOG.debug("MEW MATCH INTRON ");
 							match = new Match(intron);
 							matchBuffer.add(match);
-							reportGene(intron.getGene(),match,sampleName);
 							}
+						reportGene(intron.getGene(),match,sampleName);
+						if(!intron.getGene().isNonCoding()) match.non_coding=false;
 						final PerSample perSample = match.getSample(sampleName);
 						
 						final ExonOne exonLeft = new ExonOne(intron.getGene().getExon(intron.getIndex()));
@@ -655,7 +661,7 @@ public class ScanRetroCopy extends Launcher
 									matchBuffer.add(match);
 									}
 								reportGene(knownGene,match,sampleName);
-								
+								if(!knownGene.isNonCoding()) match.non_coding=false;
 								final PerSample perSample = match.getSample(sampleName);
 															
 								
@@ -719,6 +725,7 @@ public class ScanRetroCopy extends Launcher
 									match = new Match(intron);
 									matchBuffer.add(match);
 									}
+								if(!knownGene.isNonCoding()) match.non_coding=false;
 								reportGene(knownGene,match,sampleName);
 								
 								final PerSample perSample = match.getSample(sampleName);
