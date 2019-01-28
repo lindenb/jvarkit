@@ -658,6 +658,7 @@ Library combineLibs(String...array)
 	}
 
 def all=new ArrayList<>();
+def all2=new ArrayList<>();
 
 
 
@@ -668,22 +669,22 @@ all.add( task("vcffilterso", type: CompileJVarkit) {
 		mainClass = 'com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology'
 		jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 		});
-all.add( task("biostar105754", type: CompileJVarkit) {
+all2.add( task("biostar105754", type: CompileJVarkit) {
 		mainClass = biostar2java(105754)
 		jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
 		});
 
 /** simple tasks, just jcommander+htsjdk */
-all.add( task("addlinearindextobed", type: CompileJVarkit) {
+all2.add( task("addlinearindextobed", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("allelefreqcalc", type: CompileJVarkit) {
+all2.add( task("allelefreqcalc", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
-all.add( task("almostsortedvcf", type: CompileJVarkit) {
+all2.add( task("almostsortedvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sortvcfonref.AlmostSortedVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
@@ -692,7 +693,7 @@ all.add( task("backlocate", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.backlocate.BackLocate"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bam2fastq", type: CompileJVarkit) {
+all2.add( task("bam2fastq", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.BamToFastq"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
@@ -701,7 +702,7 @@ all.add( task("bam2raster", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bam2sql", type: CompileJVarkit) {
+all2.add( task("bam2sql", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamToSql"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -713,32 +714,32 @@ all.add( task("bam2wig", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bam2xml", type: CompileJVarkit) {
+all2.add( task("bam2xml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2xml.Bam2Xml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bamclip2insertion", type: CompileJVarkit) {
+all2.add( task("bamclip2insertion", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamClipToInsertion"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
-all.add( task("bamcmpcoverage", type: CompileJVarkit) {
+all2.add( task("bamcmpcoverage", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamCmpCoverage"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bamindexreadnames", type: CompileJVarkit) {
+all2.add( task("bamindexreadnames", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bamindexnames.BamIndexReadNames"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bamliftover", type: CompileJVarkit) {
+all2.add( task("bamliftover", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.liftover.BamLiftOver"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bamqueryreadnames", type: CompileJVarkit) {
+all2.add( task("bamqueryreadnames", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bamindexnames.BamQueryReadNames"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bamrenamechr", type: CompileJVarkit) {
+all2.add( task("bamrenamechr", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.ConvertBamChromosomes"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -754,23 +755,23 @@ all.add( task("bamstats05", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bamstats04.BamStats05"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bamtile", type: CompileJVarkit) {
+all2.add( task("bamtile", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamTile"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bedindextabix", type: CompileJVarkit) {
+all2.add( task("bedindextabix", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedIndexTabix"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bedliftover", type: CompileJVarkit) {
+all2.add( task("bedliftover", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.liftover.BedLiftOver"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bednonoverlappingset", type: CompileJVarkit) {
+all2.add( task("bednonoverlappingset", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedNonOverlappingSet"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bedrenamechr", type: CompileJVarkit) {
+all2.add( task("bedrenamechr", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.ConvertBedChromosomes"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -779,131 +780,131 @@ all.add( task("bioalcidaejdk", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
-all.add( task("biostar59647", type: CompileJVarkit) {
+all2.add( task("biostar59647", type: CompileJVarkit) {
 	mainClass = biostar2java(59647)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar76892", type: CompileJVarkit) {
+all2.add( task("biostar76892", type: CompileJVarkit) {
 	mainClass = biostar2java(76892)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar77288", type: CompileJVarkit) {
+all2.add( task("biostar77288", type: CompileJVarkit) {
 	mainClass = biostar2java(77288)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar77828", type: CompileJVarkit) {
+all2.add( task("biostar77828", type: CompileJVarkit) {
 	mainClass = biostar2java(77828)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar78285", type: CompileJVarkit) {
+all2.add( task("biostar78285", type: CompileJVarkit) {
 	mainClass = biostar2java(78285)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar81455", type: CompileJVarkit) {
+all2.add( task("biostar81455", type: CompileJVarkit) {
 	mainClass = biostar2java(81455)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar84452", type: CompileJVarkit) {
+all2.add( task("biostar84452", type: CompileJVarkit) {
 	mainClass = biostar2java(84452)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar84786", type: CompileJVarkit) {
+all2.add( task("biostar84786", type: CompileJVarkit) {
 	mainClass = biostar2java(84786)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar86363", type: CompileJVarkit) {
+all2.add( task("biostar86363", type: CompileJVarkit) {
 	mainClass = biostar2java(86363)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar86480", type: CompileJVarkit) {
+all2.add( task("biostar86480", type: CompileJVarkit) {
 	mainClass = biostar2java(86480)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar90204", type: CompileJVarkit) {
+all2.add( task("biostar90204", type: CompileJVarkit) {
 	mainClass = biostar2java(90204)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar103303", type: CompileJVarkit) {
+all2.add( task("biostar103303", type: CompileJVarkit) {
 	mainClass = biostar2java(103303)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar139647", type: CompileJVarkit) {
+all2.add( task("biostar139647", type: CompileJVarkit) {
 	mainClass = biostar2java(139647)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar145820", type: CompileJVarkit) {
+all2.add( task("biostar145820", type: CompileJVarkit) {
 	mainClass = biostar2java(145820)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar154220", type: CompileJVarkit) {
+all2.add( task("biostar154220", type: CompileJVarkit) {
 	mainClass = biostar2java(154220)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar165777", type: CompileJVarkit) {
+all2.add( task("biostar165777", type: CompileJVarkit) {
 	mainClass = biostar2java(165777)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar170742", type: CompileJVarkit) {
+all2.add( task("biostar170742", type: CompileJVarkit) {
 	mainClass = biostar2java(170742)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar172515", type: CompileJVarkit) {
+all2.add( task("biostar172515", type: CompileJVarkit) {
 	mainClass = biostar2java(172515)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar173114", type: CompileJVarkit) {
+all2.add( task("biostar173114", type: CompileJVarkit) {
 	mainClass = biostar2java(173114)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar175929", type: CompileJVarkit) {
+all2.add( task("biostar175929", type: CompileJVarkit) {
 	mainClass = biostar2java(175929)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar178713", type: CompileJVarkit) {
+all2.add( task("biostar178713", type: CompileJVarkit) {
 	mainClass = biostar2java(178713)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar214299", type: CompileJVarkit) {
+all2.add( task("biostar214299", type: CompileJVarkit) {
 	mainClass = biostar2java(214299)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar234081", type: CompileJVarkit) {
+all2.add( task("biostar234081", type: CompileJVarkit) {
 	mainClass = biostar2java(234081)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar234230", type: CompileJVarkit) {
+all2.add( task("biostar234230", type: CompileJVarkit) {
 	mainClass = biostar2java(234230)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar251649", type: CompileJVarkit) {
+all2.add( task("biostar251649", type: CompileJVarkit) {
 	mainClass = biostar2java(251649)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar322664", type: CompileJVarkit) {
+all2.add( task("biostar322664", type: CompileJVarkit) {
 	mainClass = biostar2java(322664)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar332826", type: CompileJVarkit) {
+all2.add( task("biostar332826", type: CompileJVarkit) {
 	mainClass = biostar2java(332826)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar336589", type: CompileJVarkit) {
+all2.add( task("biostar336589", type: CompileJVarkit) {
 	mainClass = biostar2java(336589)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("biostar352930", type: CompileJVarkit) {
+all2.add( task("biostar352930", type: CompileJVarkit) {
 	mainClass = biostar2java(352930)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("buildwpontology", type: CompileJVarkit) {
+all2.add( task("buildwpontology", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BuildWikipediaOntology"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bwamemdigest", type: CompileJVarkit) {
+all2.add( task("bwamemdigest", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.mem.BWAMemDigest"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("bwamemnop", type: CompileJVarkit) {
+all2.add( task("bwamemnop", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.mem.BWAMemNOp"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -915,11 +916,11 @@ all.add( task("casectrljfx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.CaseControlJfx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("cmpbamsandbuild", type: CompileJVarkit) {
+all2.add( task("cmpbamsandbuild", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.CompareBamAndBuild"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("coveragenormalizer", type: CompileJVarkit) {
+all2.add( task("coveragenormalizer", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.CoverageNormalizer"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -927,11 +928,11 @@ all.add( task("cytoband2svg", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.CytobandToSvg"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("downsamplevcf", type: CompileJVarkit) {
+all2.add( task("downsamplevcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.DownSampleVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("extendrefwithreads", type: CompileJVarkit) {
+all2.add( task("extendrefwithreads", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.extendref.ExtendReferenceWithReads"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -939,19 +940,19 @@ all.add( task("faidxsplitter", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FaidxSplitter"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fastgenotypegvcfs", type: CompileJVarkit) {
+all2.add( task("fastgenotypegvcfs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gvcf.FastGenotypeGVCFs"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fastq2fasta", type: CompileJVarkit) {
+all2.add( task("fastq2fasta", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FastqToFasta"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fastqentropy", type: CompileJVarkit) {
+all2.add( task("fastqentropy", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqEntropy"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fastqgrep", type: CompileJVarkit) {
+all2.add( task("fastqgrep", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FastqGrep"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -959,7 +960,7 @@ all.add( task("fastqjs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqJavascript"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fastqphred64to33", type: CompileJVarkit) {
+all2.add( task("fastqphred64to33", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.ConvertPhred64toFastq33"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -967,11 +968,11 @@ all.add( task("fastqrevcomp", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FastqRevComp"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fastqshuffle", type: CompileJVarkit) {
+all2.add( task("fastqshuffle", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqShuffle"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fastqsplitinterleaved", type: CompileJVarkit) {
+all2.add( task("fastqsplitinterleaved", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqSplitInterleaved"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -987,31 +988,31 @@ all.add( task("findcorruptedfiles", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FindCorruptedFiles"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("findmyvirus", type: CompileJVarkit) {
+all2.add( task("findmyvirus", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.mem.FindMyVirus"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("findnewsplicesites", type: CompileJVarkit) {
+all2.add( task("findnewsplicesites", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.rnaseq.FindNewSpliceSites"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fixvarscanmissingheader", type: CompileJVarkit) {
+all2.add( task("fixvarscanmissingheader", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FixVarScanMissingVCFHeader"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fixvcf", type: CompileJVarkit) {
+all2.add( task("fixvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FixVCF"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("fixvcfformat", type: CompileJVarkit) {
+all2.add( task("fixvcfformat", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FixVcfFormat"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("gcanddepth", type: CompileJVarkit) {
+all2.add( task("gcanddepth", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("genomicjaspar", type: CompileJVarkit) {
+all2.add( task("genomicjaspar", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.jaspar.GenomicJaspar"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1019,7 +1020,7 @@ all.add( task("genscan", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.genscan.GenScan"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("gexftr", type: CompileJVarkit) {
+all2.add( task("gexftr", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gephi.GexfTransformer"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1035,20 +1036,20 @@ all.add( task("gtf2xml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.Gtf2Xml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("howmanybamdict", type: CompileJVarkit) {
+all2.add( task("howmanybamdict", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.HowManyBamDict"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("igvreview", type: CompileJVarkit) {
+all2.add( task("igvreview", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.igvreview.IgvReview"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	requireJfx = true
 	});
-all.add( task("ilmnfastqstats", type: CompileJVarkit) {
+all2.add( task("ilmnfastqstats", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.IlluminaStatsFastq"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("impactofduplicates", type: CompileJVarkit) {
+all2.add( task("impactofduplicates", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.impactdup.ImpactOfDuplicates"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1057,11 +1058,11 @@ all.add( task("indexcovjfx", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	requireJfx = true
 	});
-all.add( task("knime2txt", type: CompileJVarkit) {
+all2.add( task("knime2txt", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.KnimeToText"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("liftover2svg", type: CompileJVarkit) {
+all2.add( task("liftover2svg", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.liftover.LiftOverToSVG"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1073,7 +1074,7 @@ all.add( task("lowresbam2raster", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("lumpyvcf2circos", type: CompileJVarkit) {
+all2.add( task("lumpyvcf2circos", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.lumpysv.LumpyVcfToCircos"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1085,7 +1086,7 @@ all.add( task("mergesv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.MergeStructuralVariants"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("metrics2xml", type: CompileJVarkit) {
+all2.add( task("metrics2xml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.metrics2xml.PicardMetricsToXML"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1117,7 +1118,7 @@ all.add( task("nozerovariationvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.NoZeroVariationVCF"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("pademptyfastq", type: CompileJVarkit) {
+all2.add( task("pademptyfastq", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.PadEmptyFastq"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1161,15 +1162,15 @@ all.add( task("sam4weblogo", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("samaddpi", type: CompileJVarkit) {
+all2.add( task("samaddpi", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamAddPI"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("samclipindelfraction", type: CompileJVarkit) {
+all2.add( task("samclipindelfraction", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamClipIndelFraction"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("samcolortag", type: CompileJVarkit) {
+all2.add( task("samcolortag", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.samjs.SamColorTag"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1177,7 +1178,7 @@ all.add( task("samcustomsortjdk", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.samjs.SamCustomSortJdk"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("samfindclippedregions", type: CompileJVarkit) {
+all2.add( task("samfindclippedregions", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1193,7 +1194,7 @@ all.add( task("samjs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.samjs.SamJavascript"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("samretrieveseqandqual", type: CompileJVarkit) {
+all2.add( task("samretrieveseqandqual", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamRetrieveSeqAndQual"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1225,11 +1226,11 @@ all.add( task("sortvcfoninfo", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("splitbytile", type: CompileJVarkit) {
+all2.add( task("splitbytile", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.splitbytitle.SplitByTile"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("splitread", type: CompileJVarkit) {
+all2.add( task("splitread", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.splitread.SplitRead"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1261,11 +1262,11 @@ all.add( task("vcf2bed", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToBed"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcf2hilbert", type: CompileJVarkit) {
+all2.add( task("vcf2hilbert", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcf2ps", type: CompileJVarkit) {
+all2.add( task("vcf2ps", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToPostscript"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1309,7 +1310,7 @@ all.add( task("vcfburden", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfBurden"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfburdengoenrichment", type: CompileJVarkit) {
+all2.add( task("vcfburdengoenrichment", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenGoEnrichment"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1333,11 +1334,11 @@ all.add( task("vcfcalledwithanothermethod", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfCalledWithAnotherMethod"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfclusteredreadedge", type: CompileJVarkit) {
+all2.add( task("vcfclusteredreadedge", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfClusteredReadEdge"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfcmppred", type: CompileJVarkit) {
+all2.add( task("vcfcmppred", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VCFComparePredictions"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1413,7 +1414,7 @@ all.add( task("vcfindextabix", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfIndexTabix"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfjaspar", type: CompileJVarkit) {
+all2.add( task("vcfjaspar", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.jaspar.VcfJaspar"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1453,7 +1454,7 @@ all.add( task("vcfpeekvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfphylotree", type: CompileJVarkit) {
+all2.add( task("vcfphylotree", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.phylo.VcfPhyloTree"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1462,7 +1463,7 @@ all.add( task("vcfregulomedb", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRegulomeDB"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfremovegenotypejs", type: CompileJVarkit) {
+all2.add( task("vcfremovegenotypejs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeJs"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1478,7 +1479,7 @@ all.add( task("vcfreplacetag", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfstripannot.VCFReplaceTag"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfresetvcf", type: CompileJVarkit) {
+all2.add( task("vcfresetvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1486,7 +1487,7 @@ all.add( task("vcfsetdict", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfsimulator", type: CompileJVarkit) {
+all2.add( task("vcfsimulator", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfSimulator"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1528,7 +1529,7 @@ all.add( task("vcfbigwig", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig","jaxb")
 	});
 
-all.add( task("vcfensemblreg", type: CompileJVarkit) {
+all2.add( task("vcfensemblreg", type: CompileJVarkit) {
 	mainClass =  "com.github.lindenb.jvarkit.tools.ensemblreg.VcfEnsemblReg"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
 	deprecatedMsg = "Structure of ensembl reg has changed"
@@ -1604,7 +1605,7 @@ all.add( task("blastn2snp", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["blast"]
 	});
-all.add( task("reduceblast", type: CompileJVarkit) {
+all2.add( task("reduceblast", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.blast.ReduceBlast"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["blast"]
