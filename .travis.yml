@@ -26,5 +26,5 @@ before_install:
    - sudo apt-get install gradle
 
 install:
-   - chmox +x ./gradlew
+   - chmod +x ./gradlew
    - ./gradlew wrapper --gradle-version=5.1.1 
