@@ -25,7 +25,14 @@ script:
     -  gradle all
 
 before_install:
-   - sudo apt-get update -qq 
-   - sudo apt-get install gradle=5.1.1 
+   - sudo apt-get update -qq
 
-install: true
+   
+
+install:
+   - wget -O "gradle-5.1.1-bin.zip" "https://services.gradle.org/distributions/gradle-5.1.1-bin.zip"
+   - sudo mkdir -p /opt/gradle
+   - sudo unzip -d /opt/gradle gradle-5.1.1-bin.zip
+   - export PATH=$PATH:/opt/gradle/gradle-5.1.1/bin
+   - chmod +x ./gradlew
+   - ./gradlew wrapper --gradle-version=5.1.1 --distribution-type=bin
