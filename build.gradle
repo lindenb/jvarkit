@@ -1994,7 +1994,7 @@ all.add( task("biostar3654", type: CompileJVarkit) {
 all.add( task("biostar140111", type: CompileJVarkit) {
 	mainClass = biostar2java(140111)
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["dbsnp"]
+	xsdFiles = ["dbsnp","genoex"]
 	});
 // $(eval $(call compile-htsjdk-cmd,gephicmd,${jvarkit.package}.tools.gephi.GephiCmd,${jcommander.jar} $(lib.dir)/org/gephi/gephi.jar ))
 
