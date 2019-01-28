@@ -35,4 +35,3 @@ install:
    - sudo unzip -d /opt/gradle gradle-5.1.1-bin.zip
    - export PATH=$PATH:/opt/gradle/gradle-5.1.1/bin
    - chmod +x ./gradlew
-   - ./gradlew wrapper --gradle-version=5.1.1 --distribution-type=bin
