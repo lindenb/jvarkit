@@ -681,10 +681,12 @@ all.add( task("addlinearindextobed", type: CompileJVarkit) {
 all.add( task("allelefreqcalc", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
 all.add( task("almostsortedvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sortvcfonref.AlmostSortedVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
 all.add( task("backlocate", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.backlocate.BackLocate"
@@ -693,6 +695,7 @@ all.add( task("backlocate", type: CompileJVarkit) {
 all.add( task("bam2fastq", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.BamToFastq"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
 all.add( task("bam2raster", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster"
@@ -717,6 +720,7 @@ all.add( task("bam2xml", type: CompileJVarkit) {
 all.add( task("bamclip2insertion", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamClipToInsertion"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
 all.add( task("bamcmpcoverage", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BamCmpCoverage"
@@ -1978,25 +1982,30 @@ all.add( task("vcfskat", type: CompileJVarkit) {
 all.add( task("biostar130456", type: CompileJVarkit) {
 	mainClass = biostar2java(130456)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	endMsg = "written for biostar. never used."
 	});
 all.add( task("biostar78400", type: CompileJVarkit) {
 	mainClass = biostar2java(78400)
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	endMsg = "written for biostar. never used."
 	});
 all.add( task("biostar95652", type: CompileJVarkit) {
 	mainClass = biostar2java(95652)
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["gb"]
+	endMsg = "written for biostar. never used."
 	});
 all.add( task("biostar3654", type: CompileJVarkit) {
 	mainClass = biostar2java(3654)
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["insdseq","blast"]
+	endMsg = "written for biostar. never used."
 	});
 all.add( task("biostar140111", type: CompileJVarkit) {
 	mainClass = biostar2java(140111)
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["dbsnp","genoex"]
+	endMsg = "written for biostar. never used."
 	});
 // $(eval $(call compile-htsjdk-cmd,gephicmd,${jvarkit.package}.tools.gephi.GephiCmd,${jcommander.jar} $(lib.dir)/org/gephi/gephi.jar ))
 
