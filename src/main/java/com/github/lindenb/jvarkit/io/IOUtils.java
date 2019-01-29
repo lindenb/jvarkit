@@ -179,11 +179,19 @@ public class IOUtils {
 	
 	public static void copyTo(final InputStream in,final File f) throws IOException
 		{
-		final OutputStream fous= Files.newOutputStream(f.toPath());
+		copyTo(in,f.toPath());
+		}
+	
+	/** copy input stream to path */
+	public static void copyTo(final InputStream in,final Path path) throws IOException
+		{
+		final OutputStream fous= Files.newOutputStream(path);
 		copyTo(in,fous);
 		fous.flush();
 		fous.close();
 		}
+
+	
 	public static void copyTo(final InputStream in,final OutputStream out) throws IOException
 		{
 		final byte buffer[]=new byte[2048];
@@ -337,6 +345,12 @@ public class IOUtils {
 			}
 		return Objects.requireNonNull(in,"cannot open "+path);
 		}
+	
+	public static BufferedReader openPathForBufferedReading(final Path path) throws IOException
+		{
+		return  new BufferedReader(new InputStreamReader(openPathForReading(path), Charset.forName("UTF-8")));
+		}
+	
 	public static BufferedReader openFileForBufferedReading(File file) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(openFileForReading(file), Charset.forName("UTF-8")));

@@ -25,8 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.log;
 
 import java.io.Closeable;
-import java.io.IOException;
-import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,6 +34,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.readers.DelegateVcfIterator;
 
@@ -48,7 +48,6 @@ import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -58,15 +57,65 @@ public class ProgressFactory {
 private static final Logger LOG=Logger.build( ProgressFactory.class).make();
 private SAMSequenceDictionary _dictionary = null;
 private Logger _logger = LOG;
-private int everySeconds = 10;
+private int everySeconds = ProgressFactory.getDefaultEverySeconds();
 private String _prefix;
 private boolean _validateContigInDict = true;
 private boolean _validateOrderInDict = false;
-private boolean _runInBackground  = true;
-private boolean _silent  = false;
+private boolean _runInBackground  = ProgressFactory.isDefaultRunningInBackground();
+private boolean _silent  = ProgressFactory.isDefaultSilent();
 
 private ProgressFactory() {
 }
+
+
+/** default is false, unless ` -Djvarkit.progress.silent=true` is defined */
+public static boolean isDefaultSilent() {
+	try {
+		if("true".equals(System.getProperty("jvarkit.progress.silent", ""))) return true;
+	} catch (Throwable e) {
+		//ignore
+	}
+	return false;
+	}
+
+/* private stuff at cea */
+private static boolean isRunningAtTgcc() {
+	try {
+		final String s = System.getenv("CCC_ORG");
+		if(s!=null && s.startsWith("fg")) return true;
+		}
+	catch (Throwable e) {
+		}
+	return false;
+	}
+
+/** default is true, unless ` -Djvarkit.progress.background=false` is defined */
+public static boolean isDefaultRunningInBackground() {
+	try {
+		if("false".equals(System.getProperty("jvarkit.progress.background", ""))) return false;
+		if(isRunningAtTgcc()) return false;
+		}
+	catch (Throwable e) {
+		}
+	return true;
+	}
+
+/** default is 10, unless ` -Djvarkit.progress.everysecs=1234` is defined */
+public static int getDefaultEverySeconds() {
+	try {
+		final String s=System.getProperty("jvarkit.progress.everysecs", null);
+		if(s!=null) {
+			int n = Integer.parseInt(s);
+			if(n>=1) return n;
+			}
+		}
+	catch(final NumberFormatException err) {
+		//ignore
+		}
+	if(isRunningAtTgcc()) return 60;
+	return 10;
+	}
+
 
 /** run logger in background */
 public ProgressFactory threaded(final boolean b) {
@@ -240,7 +289,6 @@ private static class WatcherImpl<T extends Locatable>
 	private long cumulLengthDone[]=null;
 	private long referenceLength=0L;
 	private String _logPrefix = null;
-	private final DecimalFormat niceInt = new DecimalFormat("###,###");
 
 	
 	@Override
@@ -253,7 +301,7 @@ private static class WatcherImpl<T extends Locatable>
 			}
 		else
 			{
-			if(diff_millisec* 1000 <this._everySeconds) return;
+			if(diff_millisec / 1_000 <= this._everySeconds) return;
 			}
 		final T last = this.previousLocatable;
 		this.lastCallMillisec = now;
@@ -379,7 +427,7 @@ private static class WatcherImpl<T extends Locatable>
 		}
 	
 	private String format(final long loc) {
-		return this.niceInt.format(loc);
+		return StringUtils.niceInt(loc);
 	}
 	
 	private  String loc2str(final Locatable loc) {

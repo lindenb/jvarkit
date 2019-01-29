@@ -130,6 +130,9 @@ public class ScanRetroCopy extends Launcher
 	private File saveGeneTo=null;
 	@Parameter(names={"--malus"},description="use malus value in score. bad idea. Due to alernative splicing, there is often a cigar 'M' containing the next exon.",hidden=true)
 	private boolean use_malus=false;
+	@Parameter(names={"--min-depth","-D"},description="Min number of reads to set FILTER=PASS.",hidden=true)
+	private int min_depth=5;
+
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private ContigNameConverter refCtgNameConverter =null;
@@ -139,6 +142,8 @@ public class ScanRetroCopy extends Launcher
 	private static final String ATT_BEST_MATCHING_LENGTH="MAXLEN";
 	private static final String ATT_RETRO_DESC="RCP";
 	private static final String ATT_FILTER_NONDOCODING="NON_CODING";
+	private static final String ATT_SAMPLES="SAMPLES";
+	private static final String ATT_LOW_DEPTH="LowQual";
 	private final Predicate<CigarElement> isCandidateCigarElement=(C)->C.getOperator().equals(CigarOperator.S) && C.getLength()>=this.minCigarSize;
 	private final Map<String,Map<String,GeneInfo>> sample2geneinfo=new HashMap<>();
 	
@@ -318,6 +323,9 @@ public class ScanRetroCopy extends Launcher
 			vcb.attribute(VCFConstants.SVTYPE,"DEL");
 			vcb.attribute(VCFConstants.END_KEY,chromEnd0+1);
 			vcb.attribute("SVLEN",(chromEnd0-chromStart0)+1);
+			vcb.attribute(ATT_SAMPLES, new ArrayList<>(this.sampleMap.keySet()));
+			
+			
 			vcb.log10PError(sum_count/-10.0);
 			final List<Genotype> genotypes = new ArrayList<>(this.sampleMap.size());
 			for(final String sample:this.sampleMap.keySet()) {
@@ -327,7 +335,19 @@ public class ScanRetroCopy extends Launcher
 				gb.attribute(ATT_BEST_MATCHING_LENGTH, perSample.bestLength);
 				genotypes.add(gb.make());
 				}
-			if(this.non_coding) vcb.filter(ATT_FILTER_NONDOCODING);
+			boolean filter_set=false;
+			if(this.non_coding) {
+				vcb.filter(ATT_FILTER_NONDOCODING);
+				filter_set=true;
+				}
+			if(sum_count< min_depth) {
+				vcb.filter(ATT_LOW_DEPTH);
+				filter_set=true;
+				}
+			if(!filter_set) {
+				vcb.passFilters();
+				}
+			
 			vcb.genotypes(genotypes);
 			return vcb.make();
 			}
@@ -489,7 +509,13 @@ public class ScanRetroCopy extends Launcher
 			metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
 					"Retrocopy attributes: transcript-id|strand|exon-left|exon-left-bases|exon-right-bases|exon-right"));
 			metaData.add(new VCFFilterHeaderLine(ATT_FILTER_NONDOCODING,"Only non-coding transcripts"));
+			metaData.add(new VCFInfoHeaderLine(ATT_SAMPLES,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Samples found. partition:"+this.partiton.name()));
+			metaData.add(new VCFFilterHeaderLine(ATT_LOW_DEPTH,"Number of read is lower than :"+this.min_depth));
 
+			
+			
+			
+			
 			final VCFHeader header=new VCFHeader(metaData, samples);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			header.setSequenceDictionary(refDict);

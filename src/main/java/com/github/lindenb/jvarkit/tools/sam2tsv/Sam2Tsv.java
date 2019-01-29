@@ -37,8 +37,8 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
@@ -144,7 +144,7 @@ Sam2tsv was cited in :
   * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).
   * "Linkage of A-to-I RNA editing in metazoans and the impact on genome evolution "  Molecular Biology and Evolution, msx274, https://doi.org/10.1093/molbev/msx274
   * "Vex-seq: high-throughput identification of the impact of genetic variation on pre-mRNA splicing efficiency" Genome Biology201819:71 https://doi.org/10.1186/s13059-018-1437-x
-
+  * "Accurate detection of m6A RNA modifications in native RNA sequences" Huanle Liu, Oguzhan Begik, Morghan C Lucas, Christopher E Mason, Schraga Schwartz, John S Mattick, Martin A Smith, Eva Maria Novoa bioRxiv 525741; doi: https://doi.org/10.1101/525741 
 
 END_DOC
 */
@@ -460,15 +460,15 @@ public class Sam2Tsv
 		final Row row=new Row();
 		SAMRecordIterator iter=null;
 		try{
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader());
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(r.getFileHeader()).logger(LOG).build();
 			iter=r.iterator();	
 			while(iter.hasNext())
 				{
-				row.rec =progress.watch(iter.next());
+				row.rec =progress.apply(iter.next());
 				printAln(row);
 				if(this.out.checkError()) break;
 				}
-			progress.finish();
+			progress.close();
 			}
 		catch(final Exception err)
 			{

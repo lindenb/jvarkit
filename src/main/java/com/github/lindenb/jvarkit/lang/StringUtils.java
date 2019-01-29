@@ -27,6 +27,8 @@ package com.github.lindenb.jvarkit.lang;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -176,4 +178,23 @@ public static final String right(final CharSequence s,int len) {
 	if(s.length()<=len) return s.toString();
 	return s.subSequence(s.length()-len,s.length()).toString();
 	}
+/** return md5 of a string */
+public static final String md5(final String in) {
+	final MessageDigest _md5;
+	try {
+		_md5 = java.security.MessageDigest.getInstance("MD5");
+	} catch (final NoSuchAlgorithmException e) {
+		throw new RuntimeException("MD5 algorithm not found", e);
+		}
+	
+	_md5.reset();
+	_md5.update(in.getBytes());
+	String s = new java.math.BigInteger(1, _md5.digest()).toString(16);
+	if (s.length() != 32) {
+		final String zeros = "00000000000000000000000000000000";
+		s = zeros.substring(0, 32 - s.length()) + s;
+		}
+	return s;
+	}
+
 }
