@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.chart;
 import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
  import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -174,6 +175,23 @@ public class RExporter extends ChartExporter {
 		}
 
 
+	private void exportHeatMap(final PrintWriter pw,
+		final HeatMapChart<String,String,Double> map) {
+		if(map.isEmpty()) {
+			LOG.warn("empty chart");
+			return;
+			}
+		final Set<String> xlabels = map.getXValues();
+		final Set<String> ylabels = map.getYValues();
+		pw.print("heatmap(as.matrix(c(");
+		for(final String x: xlabels) {
+			for(final String y: ylabels) {
+				pw.print(map.get(x, y).orElse(0.0));
+				}
+			}
+		pw.print(")))");
+		pw.println();
+		}
 
 	private void exportBarChartNSToR(final PrintWriter pw,final XYChart<Number, String> chart)  {
 		LOG.warn("I don't know how to save a "+chart.getClass()+". Export is still experimental.");
@@ -212,6 +230,10 @@ public class RExporter extends ChartExporter {
 		if(chart instanceof PieChart) {
 			exportPieChartToR(pw,PieChart.class.cast(chart));
 			return;
+			}
+		else if(chart instanceof HeatMapChart) {
+			final HeatMapChart<String,String,Double> heat = HeatMapChart.class.cast(chart);
+			exportHeatMap(pw, heat);
 			}
 		else if(chart instanceof ScatterChart ||
 				chart instanceof LineChart)
@@ -262,4 +284,5 @@ public class RExporter extends ChartExporter {
 			max().orElse(0.0);
 		}
 
+	
 }

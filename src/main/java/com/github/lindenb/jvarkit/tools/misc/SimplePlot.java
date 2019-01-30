@@ -47,6 +47,7 @@ import com.github.lindenb.jvarkit.chart.BarChart;
 import com.github.lindenb.jvarkit.chart.BubbleChart;
 import com.github.lindenb.jvarkit.chart.CategoryAxis;
 import com.github.lindenb.jvarkit.chart.Chart;
+import com.github.lindenb.jvarkit.chart.HeatMapChart;
 import com.github.lindenb.jvarkit.chart.NumberAxis;
 import com.github.lindenb.jvarkit.chart.PieChart;
 import com.github.lindenb.jvarkit.chart.RExporter;
@@ -202,7 +203,36 @@ public class SimplePlot extends Launcher {
 				return new LinkedHashMap<>();
 				}
 			}
-
+		protected Object[] nextTriple() {
+			for(;;)
+				{
+				final String line = lineSupplier.get();
+				if(line==null) return null;
+				final String x;
+				final String y;
+				final Double val;
+				if(input_is_sort_uniq)
+					{
+					final Object array[] = parseSortUniq(line);
+					if(array==null) continue;
+					val = Double.class.cast(array[0]);
+					String remain[] =this.delimiter.split(String.class.cast(array[1]));
+					if(remain.length<2) continue;
+					x=remain[0];
+					y=remain[1];
+					}
+				else
+					{
+					final String tokens[] = this.delimiter.split(line);
+					if(tokens.length<3) continue;
+					x=tokens[0];
+					y=tokens[1];
+					val = parseDouble.apply(tokens[2]);
+					}
+				if(val==null || val.doubleValue()<0) continue;
+				return new Object[] {x,y,val};
+				}
+			}
 		
 		protected <T> void updateAxisX(final Axis<T> axis) {
 			if(!StringUtil.isBlank(xlabel))
@@ -561,36 +591,7 @@ public class SimplePlot extends Launcher {
 				new BarChart<>(xAxis, yAxis)
 				;
 			}
-		private Object[] nextTriple() {
-			for(;;)
-				{
-				final String line = lineSupplier.get();
-				if(line==null) return null;
-				final String x;
-				final String y;
-				final Double val;
-				if(input_is_sort_uniq)
-					{
-					final Object array[] = parseSortUniq(line);
-					if(array==null) continue;
-					val = Double.class.cast(array[0]);
-					String remain[] =this.delimiter.split(String.class.cast(array[1]));
-					if(remain.length<2) continue;
-					x=remain[0];
-					y=remain[1];
-					}
-				else
-					{
-					final String tokens[] = this.delimiter.split(line);
-					if(tokens.length<3) continue;
-					x=tokens[0];
-					y=tokens[1];
-					val = parseDouble.apply(tokens[2]);
-					}
-				if(val==null || val.doubleValue()<0) continue;
-				return new Object[] {x,y,val};
-				}
-			}
+
 		
 		
 		@Override
@@ -689,25 +690,23 @@ public class SimplePlot extends Launcher {
 	}
 	
 
-	@SuppressWarnings("unused")
 	private class HeatmapSupplier extends ChartSupplier {
 		
 		
 		@Override
 		public Chart get() {
+			final HeatMapChart<String, String, Double> map=new HeatMapChart<>();
 			for(;;) {
-				final String line = lineSupplier.get();
-				if(line==null) break;
-				final String tokens[] = super.delimiter.split(line);
-				if(tokens.length!=3) {
-					LOG.warn("expected 3 tokens in "+line);
-					continue;
+				final Object[] triple= nextTriple();
+				if(triple==null) break;
+				final String x=String.class.cast(triple[0]);
+				final String y=String.class.cast(triple[1]);
+				if(map.contains(x,y)) {
+					LOG.warn("duplicate x/y "+x+"/"+y);
 					}
-				Double value = parseDouble.apply(tokens[2]);
-				if(value==null) continue;
-				
+				map.put(x,y,Double.class.cast(triple[2]));
 				}
-			return null;
+			return map;
 		}
 	}
 	
@@ -720,7 +719,8 @@ public class SimplePlot extends Launcher {
 		STACKED_HISTOGRAM,
 		STACKED_HISTOGRAM_PIVOTED,
 		XYV,
-		STACKED_XYV
+		STACKED_XYV,
+		HEATMAP
 	};
 	
 
@@ -796,6 +796,8 @@ public class SimplePlot extends Launcher {
 						setStacked(this.chartType==PlotType.STACKED_XYV).
 						get();
 					break;
+				case HEATMAP:
+					chartNode = new HeatmapSupplier().get();					
 				default:
 					{
 					LOG.error("Bad chart type : " + this.chartType);
