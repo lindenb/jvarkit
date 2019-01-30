@@ -131,7 +131,7 @@ public class ScanRetroCopy extends Launcher
 	@Parameter(names={"--malus"},description="use malus value in score. bad idea. Due to alernative splicing, there is often a cigar 'M' containing the next exon.",hidden=true)
 	private boolean use_malus=false;
 	@Parameter(names={"--min-depth","-D"},description="Min number of reads to set FILTER=PASS.",hidden=true)
-	private int min_depth=5;
+	private int min_depth=10;
 
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -144,6 +144,7 @@ public class ScanRetroCopy extends Launcher
 	private static final String ATT_FILTER_NONDOCODING="NON_CODING";
 	private static final String ATT_SAMPLES="SAMPLES";
 	private static final String ATT_LOW_DEPTH="LowQual";
+	private static final String ATT_COUNT_SUPPORTING_READS="SU";
 	private final Predicate<CigarElement> isCandidateCigarElement=(C)->C.getOperator().equals(CigarOperator.S) && C.getLength()>=this.minCigarSize;
 	private final Map<String,Map<String,GeneInfo>> sample2geneinfo=new HashMap<>();
 	
@@ -160,8 +161,12 @@ public class ScanRetroCopy extends Launcher
 	
 	/* per-sample-information */
 	private static class PerSample {
-		int countSupportingReads = 0;
+		int countSupportingReadsLeft = 0;
+		int countSupportingReadsRight = 0;
 		int bestLength=0;
+		int countSupportingReads() {
+			return countSupportingReadsLeft + countSupportingReadsRight;
+		}
 		}
 	/* one-based sequence for a cigarelement */
 	private class CigarLocatable 
@@ -271,8 +276,7 @@ public class ScanRetroCopy extends Launcher
 			return charAt1(getStart()+index);
 			}
 		}
-		
-		
+	
 	private class Match implements Comparable<Match>
 		{
 		final String contig;
@@ -295,6 +299,10 @@ public class ScanRetroCopy extends Launcher
 			return Integer.compare(chromEnd0,o.chromEnd0);
 			}
 		
+		Interval toInterval() {
+			return new Interval(contig,chromStart0+1,chromEnd0);
+		}
+		
 		PerSample getSample(final String sample) {
 			PerSample p = this.sampleMap.get(sample);
 			if(p==null) {
@@ -314,11 +322,11 @@ public class ScanRetroCopy extends Launcher
 			final List<Allele> alleles = Arrays.asList(ref,alt);
 			vcb.alleles(alleles);
 			vcb.attribute(ATT_RETRO_DESC,new ArrayList<>(this.attributes));
-			final int sum_count = this.sampleMap.values().stream().mapToInt(M->M.countSupportingReads).sum();
+			final int sum_count = this.sampleMap.values().stream().mapToInt(M->M.countSupportingReads()).sum();
 			vcb.attribute(VCFConstants.DEPTH_KEY,sum_count);
 			vcb.attribute(ATT_BEST_MATCHING_LENGTH,this.sampleMap.values().stream().mapToInt(M->M.bestLength).max().orElse(0));
-			vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,2);
-			vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,1);
+			vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,this.sampleMap.size()*2);
+			vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,this.sampleMap.size());
 			vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,0.5);
 			vcb.attribute(VCFConstants.SVTYPE,"DEL");
 			vcb.attribute(VCFConstants.END_KEY,chromEnd0+1);
@@ -331,8 +339,9 @@ public class ScanRetroCopy extends Launcher
 			for(final String sample:this.sampleMap.keySet()) {
 				final PerSample perSample = this.sampleMap.get(sample);
 				final GenotypeBuilder gb = new GenotypeBuilder(sample, alleles);/** always het */
-				gb.DP(perSample.countSupportingReads);
+				gb.DP(perSample.countSupportingReads());
 				gb.attribute(ATT_BEST_MATCHING_LENGTH, perSample.bestLength);
+				gb.attribute(ATT_COUNT_SUPPORTING_READS,new int[] {perSample.countSupportingReadsLeft,perSample.countSupportingReadsRight});
 				genotypes.add(gb.make());
 				}
 			boolean filter_set=false;
@@ -341,7 +350,7 @@ public class ScanRetroCopy extends Launcher
 				filter_set=true;
 				}
 			if(sum_count< min_depth) {
-				vcb.filter(ATT_LOW_DEPTH);
+				vcb.filter(ATT_LOW_DEPTH+min_depth);
 				filter_set=true;
 				}
 			if(!filter_set) {
@@ -506,11 +515,12 @@ public class ScanRetroCopy extends Launcher
 			metaData.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"Variation Length"));
 			metaData.add(new VCFInfoHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
 			metaData.add(new VCFFormatHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
+			metaData.add(new VCFFormatHeaderLine(ATT_COUNT_SUPPORTING_READS, 2,VCFHeaderLineType.Integer,"Count supporting reads [intron-left/intron-right]"));
 			metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
 					"Retrocopy attributes: transcript-id|strand|exon-left|exon-left-bases|exon-right-bases|exon-right"));
 			metaData.add(new VCFFilterHeaderLine(ATT_FILTER_NONDOCODING,"Only non-coding transcripts"));
 			metaData.add(new VCFInfoHeaderLine(ATT_SAMPLES,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Samples found. partition:"+this.partiton.name()));
-			metaData.add(new VCFFilterHeaderLine(ATT_LOW_DEPTH,"Number of read is lower than :"+this.min_depth));
+			metaData.add(new VCFFilterHeaderLine(ATT_LOW_DEPTH+this.min_depth,"Number of read is lower than :"+this.min_depth));
 
 			
 			
@@ -568,6 +578,13 @@ public class ScanRetroCopy extends Launcher
 					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, refContig);
 					}
 								
+				
+				/* record, the intron we found, because one record must be counted only once for the DEPTH as a proof of junction, whatever
+				 * is the number of transcripts. Otherwise we're going to increase the DP with the number of transcripts
+				 */
+				final Set<Interval> intron_found_so_far = new HashSet<>();
+
+				
 				//scan for deletion that could be an intron 
 				for(int cigar_idx=0;cigar_idx<cigar.numCigarElements();++cigar_idx)
 					{
@@ -607,7 +624,11 @@ public class ScanRetroCopy extends Launcher
 								exonLeft.getName()+"|"+ StringUtils.right(exonLeft,this.minCigarSize)+"|"+
 								StringUtils.left(exonRight,this.minCigarSize)+"|"+exonRight.getName()
 								);
-						perSample.countSupportingReads++;
+						if(!intron_found_so_far.contains(match.toInterval())) {
+							perSample.countSupportingReadsRight++;
+							perSample.countSupportingReadsLeft++;// yes i count it twice, not a big deal, rare event
+							intron_found_so_far.add(match.toInterval());
+							}
 						perSample.bestLength=Math.max(perSample.bestLength, ce.getLength());
 						}
 					}
@@ -697,7 +718,11 @@ public class ScanRetroCopy extends Launcher
 										exonLeft.getName()+"|"+ StringUtils.right(exonLeft,this.minCigarSize)+"|"+
 										StringUtils.left(exonRight,this.minCigarSize)+"|"+exonRight.getName()
 										);
-								perSample.countSupportingReads++;
+								if(!intron_found_so_far.contains(match.toInterval())) {
+									perSample.countSupportingReadsRight++;
+									intron_found_so_far.add(match.toInterval());
+									}
+								
 								perSample.bestLength=Math.max(perSample.bestLength, matchLength);
 								}
 							else /* test last cigar */
@@ -741,6 +766,7 @@ public class ScanRetroCopy extends Launcher
 									}
 								
 								if(matchLength<this.minCigarSize) continue;
+
 								//find match or create new
 								
 								final KnownGene.Intron intron=knownGene.getIntron(exonIndex); 
@@ -763,7 +789,10 @@ public class ScanRetroCopy extends Launcher
 										StringUtils.left(exonRight,this.minCigarSize)+"|"+exonRight.getName()
 										);
 								
-								perSample.countSupportingReads++;
+								if(!intron_found_so_far.contains(match.toInterval())) {
+									perSample.countSupportingReadsLeft++;
+									intron_found_so_far.add(match.toInterval());
+									}
 								perSample.bestLength=Math.max(perSample.bestLength, matchLength);
 								}
 							}

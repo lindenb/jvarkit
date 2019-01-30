@@ -51,6 +51,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -124,8 +125,11 @@ public class IOUtils {
     public static File getDefaultTmpDir() {
     	return new File(System.getProperty("java.io.tmpdir","."));
     	}
-	
-	
+    /** Returns a default tmp directory as a nio Path. */
+    public static Path getDefaultTempDir() {
+    	return Paths.get(System.getProperty("java.io.tmpdir","."));
+    	}
+    
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
 		copyTo(f.toPath(),fous);

@@ -2016,7 +2016,13 @@ all.add( task("scanretrocopy", type: CompileJVarkit) {
 	jdkTarget="8"
 	jdkSource="8"
 	});
-
+all2.add( task("onethousandbams", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.onekgenomes.OneThousandBam"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jdkTarget="8"
+	jdkSource="8"
+	endMsg = "written for isabel. not much tested/used."
+	});
 /** bottom task */
 
 

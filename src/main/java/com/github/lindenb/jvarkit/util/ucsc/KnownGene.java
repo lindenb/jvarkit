@@ -64,7 +64,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 	/** returns the UCSC URL for knownGene for the given UCSC build e.g: 'hg19' */
 	public static String getUri(final String ucscBuild)
 		{
-		return "http://hgdownload.cse.ucsc.edu/goldenPath/"+ ucscBuild +"/database/wgEncodeGencodeBasicV17.txt.gz";
+		return "http://hgdownload.cse.ucsc.edu/goldenPath/"+ ucscBuild +"/database/wgEncodeGencodeBasicV19.txt.gz";
 		}
 	
 	/** returns the default UCSC URL for knownGene */
