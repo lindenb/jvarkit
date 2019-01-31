@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.chart;
 import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
  import java.util.stream.Collectors;
@@ -175,22 +176,34 @@ public class RExporter extends ChartExporter {
 		}
 
 
-	private void exportHeatMap(final PrintWriter pw,
-		final HeatMapChart<String,String,Double> map) {
+	private <T extends Number > void exportHeatMap(final PrintWriter pw,
+		final HeatMapChart<T> map) {
 		if(map.isEmpty()) {
 			LOG.warn("empty chart");
 			return;
 			}
-		final Set<String> xlabels = map.getXValues();
-		final Set<String> ylabels = map.getYValues();
-		pw.print("heatmap(as.matrix(c(");
-		for(final String x: xlabels) {
-			for(final String y: ylabels) {
-				pw.print(map.get(x, y).orElse(0.0));
+		final List<String> xlabels = map.getXAxis().getCategories();
+		final List<String> ylabels =  map.getYAxis().getCategories();
+		boolean first=true;
+		pw.print("heatmap(matrix(c(");
+		for(final String y: xlabels) {
+			for(final String x: xlabels) {
+					final Optional<T> v=map.get(x, y);
+					if(!first) pw.print(",");
+					first=false;
+					pw.print(v.isPresent()?String.valueOf(v.get()):"NA");
 				}
 			}
-		pw.print(")))");
-		pw.println();
+		pw.print("),ncol=" +xlabels.size()+",nrow="+ylabels.size());
+		pw.print(",dimnames=list(");
+		vectorR(pw, ylabels.stream().map(quoteR).iterator());
+		pw.print(",");
+		vectorR(pw, xlabels.stream().map(quoteR).iterator());
+		pw.print(")),scale=\"none\",Colv=NA,Rowv=NA");
+		lab(pw,'x', map.getXAxis());
+		lab(pw,'y', map.getYAxis());
+		title(pw, map);
+		pw.println(")");
 		}
 
 	private void exportBarChartNSToR(final PrintWriter pw,final XYChart<Number, String> chart)  {
@@ -232,8 +245,9 @@ public class RExporter extends ChartExporter {
 			return;
 			}
 		else if(chart instanceof HeatMapChart) {
-			final HeatMapChart<String,String,Double> heat = HeatMapChart.class.cast(chart);
+			final HeatMapChart<? extends Number> heat = HeatMapChart.class.cast(chart);
 			exportHeatMap(pw, heat);
+			return;
 			}
 		else if(chart instanceof ScatterChart ||
 				chart instanceof LineChart)

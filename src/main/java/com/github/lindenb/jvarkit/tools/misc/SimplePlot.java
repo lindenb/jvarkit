@@ -144,6 +144,16 @@ gunzip -c src/test/resources/S1.R1.fq.gz | \
 	java -jar dist/simpleplot.jar -su -t STACKED_XYV --xlabel "Position"
 ```
 
+
+### Example
+
+HeatMap
+
+```
+echo -e "A\tA\t1\nA\tB\t2\nB\tA\t3\nB\tB\t10" | java -jar dist/simpleplot.jar  -t HEATMAP
+```
+
+
 ## History
 
   * 2019: removed jfx as openjdk doesn't support it... output is now R
@@ -224,7 +234,10 @@ public class SimplePlot extends Launcher {
 				else
 					{
 					final String tokens[] = this.delimiter.split(line);
-					if(tokens.length<3) continue;
+					if(tokens.length<3) {
+						LOG.warn("got "+ tokens.length +" tokens expected at least 3. Skeeping "+line);						
+						continue;
+						}
 					x=tokens[0];
 					y=tokens[1];
 					val = parseDouble.apply(tokens[2]);
@@ -695,7 +708,7 @@ public class SimplePlot extends Launcher {
 		
 		@Override
 		public Chart get() {
-			final HeatMapChart<String, String, Double> map=new HeatMapChart<>();
+			final HeatMapChart<Double> map=new HeatMapChart<>();
 			for(;;) {
 				final Object[] triple= nextTriple();
 				if(triple==null) break;
@@ -706,6 +719,8 @@ public class SimplePlot extends Launcher {
 					}
 				map.put(x,y,Double.class.cast(triple[2]));
 				}
+			updateAxisX(map.getXAxis());
+			updateAxisY(map.getYAxis());
 			return map;
 		}
 	}
@@ -797,7 +812,8 @@ public class SimplePlot extends Launcher {
 						get();
 					break;
 				case HEATMAP:
-					chartNode = new HeatmapSupplier().get();					
+					chartNode = new HeatmapSupplier().get();
+					break;					
 				default:
 					{
 					LOG.error("Bad chart type : " + this.chartType);
@@ -822,15 +838,11 @@ public class SimplePlot extends Launcher {
 			//chart.setLegendSide(this.legendSide);
 			chartNode.setLegendVisible(!this.hide_legend);
 			
-		
-		
-		
-	  		LOG.info("saving as "+this.outputFile+" and exiting.");
+
 	  		try(PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
 				final RExporter exporter=new RExporter();
 				exporter.exportToR(pw,chartNode);
 				pw.flush();
-				pw.close();
 				}
 
 			}

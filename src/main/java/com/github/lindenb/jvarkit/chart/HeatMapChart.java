@@ -27,20 +27,18 @@ package com.github.lindenb.jvarkit.chart;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.chart.PieChart.Data;
 
-public class HeatMapChart<X, Y,Z> extends Chart {
-public static class Key<X,Y>
-	extends AbstractData<X,Y>
+public class HeatMapChart<Z extends Number> extends Chart {
+public static class Data
+	extends AbstractData<String,String>
 	{
-	public Key(final X x,final Y y) {
+	public Data(final String x,final String y) {
 		super(x,y);
 		}
-	public X getXValue() { return this.getX();}
-	public Y getYValue() { return this.getY();}
 	@Override
 	public int hashCode() {
 		return getX().hashCode()*31 + getY().hashCode();
@@ -48,57 +46,85 @@ public static class Key<X,Y>
 	public boolean equals(final Object o) {
 		if(o==this) return true;
 		if(o==null || !(o instanceof Data)) return false;
-		final Key<?,?> d=Key.class.cast(o);
+		final Data d=Data.class.cast(o);
 		return	this.getX().equals(d.getX()) &&
 				this.getY().equals(d.getY());
 		}
 	}
+private class HeatCategoryAxis extends CategoryAxis
+	{
+	private boolean dirty_flag=true;
+	private final Function<Data,String> extractor;
+	HeatCategoryAxis(final Function<Data,String> extractor) {
+		this.extractor = extractor;
+		}
+	HeatCategoryAxis update() {
+		if(dirty_flag) {
+			dirty_flag=false;
+			getCategories().clear();
+			getCategories().addAll(HeatMapChart.this.getData().keySet().stream().map(this.extractor).collect(Collectors.toCollection(()->new TreeSet<>())));
+			}
+		return this;
+		}
+	}
 
-private final Map<Key<X,Y>,Z> data = new HashMap<>();
 
+
+private final Map<Data,Z> data = new HashMap<>();
+private final HeatCategoryAxis xAxis = new HeatCategoryAxis(D->D.getX());
+private final HeatCategoryAxis yAxis = new HeatCategoryAxis(D->D.getY());
+
+
+
+	
 public HeatMapChart() {
 	}
 
-public Optional<Z> get(final X x,final Y y) {
-	return get(new Key<>(x,y));
+public Optional<Z> get(final String x,final String y) {
+	return get(new Data(x,y));
 	}
 
-
-public Optional<Z> get(final Key<X,Y> key) {
+public Optional<Z> get(final Data key) {
 	return Optional.ofNullable(this.getData().get(key));
 	}
 
-public boolean contains(final Key<X,Y> key) {
+public boolean contains(final Data key) {
 	return this.data.containsKey(key);
 	}
-public boolean contains(final X x,final Y y) {
-	return this.contains(new Key<>(x,y));
+public boolean contains(final String x,final String y) {
+	return this.contains(new Data(x,y));
 	}
 
-public void put(final Key<X,Y> key,final Z z) {
+public void put(final Data key,final Z z) {
 	this.data.put(key, z);
 	}
-public void put(final X x,final Y y,final Z z) {
-	this.put(new Key<>(x,y),z);
+public void put(final String x,final String y,final Z z) {
+	this.xAxis.dirty_flag=true;
+	this.yAxis.dirty_flag=true;
+	this.put(new Data(x,y),z);
 	}
 
-public Set<X> getXValues() {
-	return getData().keySet().stream().map(K->K.getX()).collect(Collectors.toSet());
+public CategoryAxis getXAxis() {
+	return this.xAxis.update();
 	}
-public Set<Y> getYValues() {
-	return getData().keySet().stream().map(K->K.getY()).collect(Collectors.toSet());
+
+public CategoryAxis getYAxis() {
+	return this.yAxis.update();
 	}
+
 
 public boolean isEmpty() {
 	return this.getData().isEmpty();
 	}
 
-public Map<Key<X,Y>,Z>  getData() {
+public Map<Data,Z>  getData() {
 	return data;
 	}
 
 @Override
 public void update() {
+	this.xAxis.update();
+	this.yAxis.update();
 	}
 
 

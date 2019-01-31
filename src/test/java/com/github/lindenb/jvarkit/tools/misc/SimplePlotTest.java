@@ -7,7 +7,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.testng.annotations.Test;
-
+import org.testng.Assert;
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 public class SimplePlotTest extends TestUtils {
@@ -35,51 +35,51 @@ private File histo1(final boolean sort_uniq) throws IOException {
 @Test(enabled=false)
 public void testHistogram01() throws IOException{
 	final File in = histo1(false);
-	final File imgOut = super.createTmpFile(".png");
+	final File imgOut = super.createTmpFile(".R");
 	launch(new String[] {
 			"-t","SIMPLE_HISTOGRAM",
 			"-o",imgOut.getPath(),
 			in.getPath()
 			});
-	super.assertIsImage(imgOut);
+	//super.assertIsImage(imgOut);
 	}
 @Test(enabled=false)
 public void testHistogram02() throws IOException{
 	final File in = histo1(true);
-	final File imgOut = super.createTmpFile(".png");
+	final File imgOut = super.createTmpFile(".R");
 	launch(new String[] {
 			"-t","SIMPLE_HISTOGRAM",
 			"-su",
 			"-o",imgOut.getPath(),
 			in.getPath()
 			});
-	super.assertIsImage(imgOut);
+	//super.assertIsImage(imgOut);
 	}
 @Test(enabled=false)
 public void testPie01() throws IOException{
 	final File in = histo1(false);
-	final File imgOut = super.createTmpFile(".png");
+	final File imgOut = super.createTmpFile(".R");
 	launch(new String[] {
 			"-t","PIE",
 			"-o",imgOut.getPath(),
 			in.getPath()
 			});
-	super.assertIsImage(imgOut);
+	//super.assertIsImage(imgOut);
 	}
 @Test(enabled=false)
 public void testPie02() throws IOException{
 	final File in = histo1(true);
-	final File imgOut = super.createTmpFile(".png");
+	final File imgOut = super.createTmpFile(".R");
 	launch(new String[] {
 			"-t","PIE",
 			"-su",
 			"-o",imgOut.getPath(),
 			in.getPath()
 			});
-	super.assertIsImage(imgOut);
+	//super.assertIsImage(imgOut);
 	}
 
 private void launch(final String[] args) {
-	testJfxApplication(SimplePlot.class,args);
-}
+	Assert.assertEquals(new SimplePlot().instanceMain(args),0);
+	}
 }
