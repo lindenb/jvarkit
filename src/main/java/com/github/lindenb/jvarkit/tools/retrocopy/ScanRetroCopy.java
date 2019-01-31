@@ -96,9 +96,96 @@ $  java -jar  dist/scanretrocopy.jar --bai -R human_g1k_v37.fasta \
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00096
 2	179296982	.	C	<RETROCOPY>	108	.	AC=1;AF=0.500;AN=2;DP=108;END=179300872;MAXLEN=121;RCP=ENST00000325748.4|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2,ENST00000438687.3|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2,ENST00000487082.1|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2,ENST00000432031.2|-|Exon1|CTCAGTTCAT|CTATATCCAA|Exon2;SVLEN=3891;SVTYPE=DEL	GT:DP:MAXLEN	0/1:108:121
 2	179301047	.	C	<RETROCOPY>	48	.	AC=1;AF=0.500;AN=2;DP=48;END=179306337;MAXLEN=60;RCP=ENST00000325748.4|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3,ENST00000432031.2|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3,ENST00000438687.3|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3,ENST00000487082.1|-|Exon2|CTACATTTGT|TAAAGAAATG|Exon3;SVLEN=5291;SVTYPE=DEL	GT:DP:MAXLEN	0/1:48:60
-
 	
 ```
+
+## Note to self
+
+get a report per gene:
+
+```
+find dir -type f  -name "*.tsv" -exec cut -f 4,13 '{}' ';' | awk '{G[$1]=1;S[$2]=1;H[sprintf("%s~%s",$1,$2)]=1;} END{for(g in G) {printf("%s\t",g);n=0;for(s in S) {k=sprintf("%s~%s",g,s);if(k in H){n++;printf("%s;",s);}} printf("\t%d\n",n);}}' | sort -t $'\t' -k3,3n 
+```
+
+more flexibility with a `jjs` script
+
+```
+var br = new java.io.BufferedReader( new java.io.InputStreamReader(java.lang.System.in));
+var line;
+var samples={};
+var genes={};
+var map={};
+while((line=br.readLine())!=null) {
+	if(line.startsWith("#")) continue;
+	//if(line.contains("LowQual")) continue;
+	if(line.contains("NON_CODING")) continue;
+	var columns = line.split(/\t/);
+	var qual=parseInt(columns[5]);
+
+
+	var infos=columns[7].split(/\;/);
+	var sample="";
+	for(var i in infos)
+		{
+		var info=infos[i];
+		if(info.startsWith("SAMPLES="))
+			{
+			var eq=info.indexOf("=");
+			sample=info.substr(eq+1);
+			samples[sample]=1;
+			break;
+			}
+		}
+	for(var i in infos)
+		{
+		var info=infos[i];
+		if(info.startsWith("RCP="))
+			{
+			var eq=info.indexOf("=");
+			var rcps=info.substring(eq+1).split(/[,]/);
+			for(var j in rcps)
+				{
+				var gene =rcps[j].split(/\|/)[0];
+				if(gene in genes)
+					{
+					genes[gene].score = Math.max(genes[gene].score,qual);
+					}
+				else
+					{
+					genes[gene]={
+						"score":qual,
+						"samples":{}
+						};
+					}
+				genes[gene].samples[sample]=1;
+				}
+			}
+		}
+	}
+
+var out=java.lang.System.out;
+for(var gene in genes)
+ {
+ var n=0;
+ var array=[];
+ for(var sample in genes[gene].samples) {
+    array.push(sample);
+    n++;
+    }
+ if(n>1) continue;
+ out.print(gene);
+ out.print("\t");
+ out.print(genes[gene].score);
+ out.print("\t");
+  out.print(array.join(";"));
+ out.print("\t");
+ out.print(n);
+ out.println();
+ }
+
+```
+
+
 
 END_DOC
 
@@ -457,7 +544,7 @@ public class ScanRetroCopy extends Launcher
 			sr = super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader samFileHeader = sr.getFileHeader();
 			if(!samFileHeader.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
-				LOG.error("input is not sorted on coordinate");
+				LOG.error("input is not sorted on coordinate but \""+samFileHeader.getSortOrder()+"\"");
 				return -1;
 			}
 			

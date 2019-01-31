@@ -234,7 +234,7 @@ public class CompileJVarkit extends DefaultTask {
 			jdkSource = jvm;
 			}
 		}
-	void runXJC()
+	void runXJC() /* see also https://dzone.com/articles/running-jaxb-xjc-compiler-with-openjdk-11 */
 		{
 		if(this.xsdFiles.size()==0) return;
 		/** download required lib for xjc */
