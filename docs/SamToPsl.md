@@ -21,15 +21,23 @@ Usage: sam2psl [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -s, --single
-      treat all reads as single end
+      treat all reads as single end.
       Default: false
     --version
       print version and exit
     -B, bed12
-      export as BED 12
+      Export as BED 12.
       Default: false
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * psl
+
 
 ## Compilation
 
@@ -116,6 +124,10 @@ used as a custom track in the **UCSC genome browser**.
 
 ### See also
 
-* bedtools/bamtobed : http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html
+  * bedtools/bamtobed : http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html
 
+## Cited in
+
+  *  "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
+Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978 
 

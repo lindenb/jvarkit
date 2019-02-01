@@ -88,23 +88,28 @@ used as a custom track in the **UCSC genome browser**.
 
 ### See also
 
-* bedtools/bamtobed : http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html
+  * bedtools/bamtobed : http://bedtools.readthedocs.org/en/latest/content/tools/bamtobed.html
 
+## Cited in
+
+  *  "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
+Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978 
 
 END_DOC
 */
 @Program(name="sam2psl",
 	deprecatedMsg="use bedtools/bamtobed",
-	description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12")
+	description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12",
+	keywords={"sam","bam","psl"}
+	)
 public class SamToPsl extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamToPsl.class).make();
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-	@Parameter(names={"-s","--single"},description="treat all reads as single end")
+	@Parameter(names={"-s","--single"},description="treat all reads as single end.")
 	private boolean handle_paired_reads=false;
-	@Parameter(names={"-B","bed12"},description="export as BED 12")
+	@Parameter(names={"-B","bed12"},description="Export as BED 12.")
 	private boolean output_bed12=false;
 	
 	private PrintWriter out = null;
@@ -125,8 +130,8 @@ public class SamToPsl extends Launcher
 		}
 	private static List<Align> scancigar(int read0,int ref0,SAMRecord rec)
 		{
-		List<Align> L=new ArrayList<Align>();
-		for(CigarElement ce:rec.getCigar().getCigarElements())
+		final List<Align> L=new ArrayList<Align>();
+		for(final CigarElement ce:rec.getCigar().getCigarElements())
 			{
 			switch(ce.getOperator())
 				{
@@ -326,7 +331,7 @@ public class SamToPsl extends Launcher
 			{
 			final  SAMRecord rec=progress.watch(iter.next());
 			if(rec.getReadUnmappedFlag()) continue;
-			for(final PslAlign a:makePslAlign(rec,dict))
+			for(final PslAlign a: makePslAlign(rec,dict))
 				{
 				out.println(toString(a,rec));
 				}
@@ -356,7 +361,7 @@ public class SamToPsl extends Launcher
 			b.append((int)(((rec.getMappingQuality()>=255?0:rec.getMappingQuality())/255.0))*1000);
 			//strand - Defines the strand - either '+' or '-'.
 			b.append('\t');
-			b.append((char)a.getStrand());
+			b.append(a.getStrand());
 			//thickStart - The starting position at which the feature is drawn thickly (for example, the start codon in gene displays).
 			b.append('\t');
 			b.append(a.getTStart());
@@ -398,7 +403,7 @@ public class SamToPsl extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
 		SamReader sfr=null;
 		try
@@ -407,10 +412,11 @@ public class SamToPsl extends Launcher
 			this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
 			scan(sfr);
 			this.out.flush();
-			LOG.info("done");
-			return RETURN_OK;
+			this.out.close();
+			this.out = null;
+			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -422,10 +428,7 @@ public class SamToPsl extends Launcher
 			this.out=null;
 			}
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new SamToPsl().instanceMainWithExit(args);
 		}
