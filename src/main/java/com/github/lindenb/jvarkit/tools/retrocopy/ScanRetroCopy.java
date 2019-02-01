@@ -455,17 +455,25 @@ public class ScanRetroCopy extends Launcher
 				saveInsertionsPw.print("\t");
 				saveInsertionsPw.print(this.chromEnd0);
 				saveInsertionsPw.print("\t");
-				saveInsertionsPw.print(findGenes.apply(this.toInterval()));
-				saveInsertionsPw.print("\t");
 				saveInsertionsPw.print(r.getContig());
 				saveInsertionsPw.print("\t");
 				saveInsertionsPw.print(r.getStart()-1);
 				saveInsertionsPw.print("\t");
 				saveInsertionsPw.print(r.getEnd());
 				saveInsertionsPw.print("\t");
-				saveInsertionsPw.print(findGenes.apply(r));
+				saveInsertionsPw.print(".");//name
 				saveInsertionsPw.print("\t");
-				saveInsertionsPw.print(count_evidence);
+				saveInsertionsPw.print(count_evidence);//score
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(".");//strand 1
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(".");//strand 2
+				saveInsertionsPw.print("\t");
+
+				// "Any number of additional, user-defined fields ..."
+				saveInsertionsPw.print(findGenes.apply(this.toInterval()));
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(findGenes.apply(r));
 				saveInsertionsPw.print("\t");
 				if(r.overlaps(this.toInterval())) 
 					{
@@ -1012,7 +1020,7 @@ public class ScanRetroCopy extends Launcher
 				}
 			/* dump buffer */
 			matchBuffer.stream().sorted().map(B->B.build()).forEach(V->vcw.add(V));
-			matchBuffer.stream().sorted().forEach(M->saveJunctions());
+			matchBuffer.stream().sorted().forEach(M->M.saveJunctions());
 			matchBuffer.clear();
 			/* dump gene & junctions */
 			this.saveGeneInfo();

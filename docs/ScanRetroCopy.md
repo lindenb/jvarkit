@@ -17,6 +17,11 @@ Usage: scanretrocopy [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --junction-distance, -d
+      for junctions, merge sites with a distance lower than this value. A 
+      distance specified as a positive integer.Comma are removed. The 
+      following suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 1000
     -k, -K, --kg, -kg
       UCSC knownGene File/URL. The knowGene format is a compact alternative to 
       GFF/GTF because one transcript is described using only one line.	Beware 
@@ -40,6 +45,8 @@ Usage: scanretrocopy [options] Files
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --save-bedpe, -P
+      Optional. save possible sites of insertions in this Bed-PE file..
     --save-gene, -S
       Optional. save per-gene info in this file.
     --version
