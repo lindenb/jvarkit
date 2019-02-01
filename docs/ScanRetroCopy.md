@@ -10,6 +10,8 @@ Scan BAM for retrocopies
 ```
 Usage: scanretrocopy [options] Files
   Options:
+    --bedpe, -P, -J
+      Optional. Save possible sites of insertion in this Bed-PE file.
     --coding
       ignore non-coding transcript
       Default: false
@@ -45,8 +47,6 @@ Usage: scanretrocopy [options] Files
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
-    --save-bedpe, -P
-      Optional. save possible sites of insertions in this Bed-PE file..
     --save-gene, -S
       Optional. save per-gene info in this file.
     --version
