@@ -80,6 +80,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -340,7 +341,7 @@ public class VCFMerge
 		// missing samples ?
 		final Set<String> remainingSamples=new HashSet<String>(header.getSampleNamesInOrder());
 		remainingSamples.removeAll(sample2genotype.keySet());
-		for(final String sampleName:remainingSamples)
+		for(final String sampleName : remainingSamples)
 			{
 			final Genotype missing = createMissingGenotype(sampleName,row.get(0).getReference());
 			sample2genotype.put(sampleName,missing);
@@ -392,7 +393,7 @@ public class VCFMerge
 				{
 				return workUsingPeekOrSorting();
 				}
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Exception err)
 			{
@@ -409,7 +410,7 @@ public class VCFMerge
 	
 	private int workUsingPeekOrSorting() throws IOException
 		{
-		if(filesAreSorted)
+		if(this.filesAreSorted)
 			{
 			return workUsingPeekIterator();
 			}
@@ -544,9 +545,9 @@ public class VCFMerge
 				metaData.addAll(p.header.getMetaDataInInputOrder());
 				if(this.global_dictionary==null)
 					{
-					this.global_dictionary=p.header.getSequenceDictionary();
+					this.global_dictionary= SequenceDictionaryUtils.extractRequired(p.header);
 					}
-				else if(!SequenceUtil.areSequenceDictionariesEqual(this.global_dictionary, p.header.getSequenceDictionary()))
+				else if(!SequenceUtil.areSequenceDictionariesEqual(this.global_dictionary, SequenceDictionaryUtils.extractRequired(p.header)))
 					{
 					throw new JvarkitException.DictionariesAreNotTheSame(this.global_dictionary, p.header.getSequenceDictionary());
 					}

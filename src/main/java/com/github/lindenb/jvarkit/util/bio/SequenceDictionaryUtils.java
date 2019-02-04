@@ -104,6 +104,18 @@ public static SAMSequenceDictionary extractRequired(final SAMFileHeader h) {
 	}
 
 /** extract required SAMSequenceDictionary */
+public static SAMSequenceDictionary extractRequired(final VCFHeader h) {
+	if(h==null) throw new IllegalArgumentException("Cannot extract dictionary because VCF header was not provided.");
+	final SAMSequenceDictionary dict = h.getSequenceDictionary();
+	if(dict==null || dict.isEmpty()) 
+		{
+		throw new JvarkitException.BamDictionaryMissing("<vcf>");
+		}
+	return dict;
+	}
+
+
+/** extract required SAMSequenceDictionary */
 public static SAMSequenceDictionary extractRequired(final File f) {
 	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
 	@SuppressWarnings("deprecation")

@@ -180,6 +180,16 @@ gunzip -c src/test/resources/S1.R1.fq.gz | \
 	java -jar dist/simpleplot.jar -su -t STACKED_XYV --xlabel "Position"
 ```
 
+
+### Example
+
+HeatMap
+
+```
+echo -e "A\tA\t1\nA\tB\t2\nB\tA\t3\nB\tB\t10" | java -jar dist/simpleplot.jar  -t HEATMAP
+```
+
+
 ## History
 
   * 2019: removed jfx as openjdk doesn't support it... output is now R

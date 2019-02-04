@@ -184,9 +184,13 @@ public class RExporter extends ChartExporter {
 			}
 		final List<String> xlabels = map.getXAxis().getCategories();
 		final List<String> ylabels =  map.getYAxis().getCategories();
+		if(xlabels.size()<2 || ylabels.size()<2) {
+			LOG.warn("HeatMap must have at least 2 rows and 2 columns");
+			return;
+			}
 		boolean first=true;
 		pw.print("heatmap(matrix(c(");
-		for(final String y: xlabels) {
+		for(final String y: ylabels) {
 			for(final String x: xlabels) {
 					final Optional<T> v=map.get(x, y);
 					if(!first) pw.print(",");
