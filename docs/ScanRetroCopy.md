@@ -10,6 +10,8 @@ Scan BAM for retrocopies
 ```
 Usage: scanretrocopy [options] Files
   Options:
+    --bam
+      Optional: save matching read in this bam file
     --bedpe, -P, -J
       Optional. Save possible sites of insertion in this Bed-PE file.
     --coding

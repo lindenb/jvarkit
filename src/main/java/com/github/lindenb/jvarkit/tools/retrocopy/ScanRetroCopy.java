@@ -35,6 +35,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -62,6 +64,8 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
@@ -230,12 +234,14 @@ public class ScanRetroCopy extends Launcher
 		splitter=NoSplitter.class
 		)
 	private int merge_distance = 1_000;
-
+	@Parameter(names={"--bam"},description="Optional: save matching read in this bam file")
+	private File saveBamTo = null;
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private ContigNameConverter refCtgNameConverter =null;
 	private GenomicSequence genomicSequence=null;
 	private PrintWriter saveGenePw=null;
+	private PrintWriter saveInsertionsPw = null;
 
 	private static final String ATT_BEST_MATCHING_LENGTH="MAXLEN";
 	private static final String ATT_RETRO_DESC="RCP";
@@ -416,7 +422,82 @@ public class ScanRetroCopy extends Launcher
 			if(this.junctions==null) this.junctions=new ArrayList<>();
 			this.junctions.add(mateInterval);
 			}
-		
+
+		private void saveJunctions() {
+			final Function<Interval,String> findGenes = R->{
+				final String s1 = String.join(";",knownGenesMap.getOverlapping(R).
+						stream().
+						flatMap(G->G.stream()).
+						map(G->G.getName()).
+						collect(Collectors.toCollection(()->new TreeSet<String>())));
+				final boolean coding = knownGenesMap.getOverlapping(R).
+						stream().
+						flatMap(G->G.stream()).
+						anyMatch(G->!G.isNonCoding());
+
+				return (s1.isEmpty()?".":s1)+"\t"+(coding?".":ATT_FILTER_NONDOCODING);
+				};
+			if(this.junctions==null || this.junctions.isEmpty()) return;
+			final List<Interval> L=new ArrayList<>(this.junctions);
+			Collections.sort(L);
+			int i=0;
+			while(i<L.size()) {
+				Interval r = L.get(i);
+				int j=i+1;
+				int count_evidence =1;
+				while(j<L.size() ) {
+					final Interval m = L.get(j);
+					if(!r.withinDistanceOf(m, ScanRetroCopy.this.merge_distance)) break;
+					r= new Interval(r.getContig(),Math.min(r.getStart(), m.getStart()),Math.max(r.getEnd(), m.getEnd()));
+					L.remove(j);
+					++count_evidence;
+					}
+				i=j;
+
+				saveInsertionsPw.print(this.contig);
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(this.chromStart0);
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(this.chromEnd0);
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(r.getContig());
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(r.getStart()-1);
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(r.getEnd());
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(".");//name
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(count_evidence);//score
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(".");//strand 1
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(".");//strand 2
+				saveInsertionsPw.print("\t");
+
+				// "Any number of additional, user-defined fields ..."
+				saveInsertionsPw.print(findGenes.apply(this.toInterval()));
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(findGenes.apply(r));
+				saveInsertionsPw.print("\t");
+				if(r.overlaps(this.toInterval())) 
+					{
+					saveInsertionsPw.print("0");
+					}
+				else if(r.contigsMatch(this.toInterval())) {
+					saveInsertionsPw.print(Math.abs(Math.min((this.chromStart0+1)-r.getEnd(),r.getStart()-this.chromEnd0)));
+					}
+				else
+					{
+					saveInsertionsPw.print("NOT_SAME_CONTIG");
+					}
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print( this.sampleMap.values().stream().mapToInt(M->M.countSupportingReads()).sum());
+				saveInsertionsPw.print("\t");
+				saveInsertionsPw.print(String.join(";",this.sampleMap.keySet()));
+				saveInsertionsPw.println();
+				}
+			}		
 		
 		Interval toInterval() {
 			return new Interval(contig,chromStart0+1,chromEnd0);
@@ -588,7 +669,7 @@ public class ScanRetroCopy extends Launcher
 		SamReader sr = null;
 		VariantContextWriter vcw0=null;
 		CloseableIterator<SAMRecord> iter = null;
-
+		SAMFileWriter sfw = null;
 		try {
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
@@ -632,6 +713,11 @@ public class ScanRetroCopy extends Launcher
 				LOG.error("input is not sorted on coordinate but \""+samFileHeader.getSortOrder()+"\"");
 				return -1;
 			}
+			
+			if(this.saveBamTo!=null) {
+				sfw = new SAMFileWriterFactory().
+						makeSAMOrBAMWriter(samFileHeader, true, this.saveBamTo);
+				}
 			
 			if(this.use_bai && !sr.hasIndex()) {
 				LOG.warning("Cannot used bai because input is not indexed");
@@ -719,6 +805,13 @@ public class ScanRetroCopy extends Launcher
 				{
 				this.saveGenePw = new PrintWriter(new NullOuputStream());
 				}
+			if(this.saveBedPeTo!=null) {
+				this.saveInsertionsPw = super.openFileOrStdoutAsPrintWriter(this.saveBedPeTo);
+				}
+			else
+				{
+				this.saveInsertionsPw = new PrintWriter(new NullOuputStream());
+				}
 			
 			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(samFileHeader).logger(LOG).build();
 			
@@ -732,6 +825,7 @@ public class ScanRetroCopy extends Launcher
 				final Cigar cigar = rec.getCigar();
 				if(cigar==null || cigar.numCigarElements()<2) continue;
 				final String refContig = this.refCtgNameConverter.apply(rec.getContig());
+				boolean save_read_to_bam = false;
 				
 				if(StringUtils.isBlank(refContig)) continue;
 				
@@ -745,6 +839,7 @@ public class ScanRetroCopy extends Launcher
 						/* DUMP things BEFORE changing the reference sequence!!! */						
 						/* dump buffer */
 						matchBuffer.stream().sorted().map(B->B.build()).forEach(V->vcw.add(V));
+						matchBuffer.stream().sorted().forEach(M->M.saveJunctions());
 						matchBuffer.clear();
 						/* dump genes  */
 						saveGeneInfo();
@@ -786,6 +881,7 @@ public class ScanRetroCopy extends Launcher
 							LOG.debug("MEW MATCH INTRON ");
 							match = new Match(intron);
 							matchBuffer.add(match);
+							save_read_to_bam= true;
 							}
 						reportGene(intron.getGene(),match,sampleName);
 						if(!intron.getGene().isNonCoding()) match.non_coding=false;
@@ -818,18 +914,19 @@ public class ScanRetroCopy extends Launcher
 				final CigarElement rightCigar = cigar.getCigarElement(cigar.numCigarElements()-1);
 				
 				/* both ends are not candidate */
-				if(!isCandidateCigarElement.test(leftCigar) && !isCandidateCigarElement.test(rightCigar) ) continue;
+				if(!isCandidateCigarElement.test(leftCigar) && !isCandidateCigarElement.test(rightCigar) ) {
+					if(save_read_to_bam && sfw!=null) sfw.addAlignment(rec);
+					continue;
+				}
 				
 				final List<KnownGene> genes = this.knownGenesMap.getOverlapping(
 						new Interval(refContig,rec.getUnclippedStart(),rec.getUnclippedEnd())
 						).stream().
 						flatMap(L->L.stream()).
 						collect(Collectors.toList());
-				if(genes.isEmpty()) continue;
-				
 				
 				/* test each side of the clipped read */
-				for(int side=0;side<2;++side) {
+				for(int side=0;side<2 && !genes.isEmpty();++side) {
 					final CigarElement ce_side = (side==0?leftCigar:rightCigar);
 					if(!isCandidateCigarElement.test(ce_side)) continue;
 					for(final KnownGene knownGene:genes) {
@@ -906,7 +1003,7 @@ public class ScanRetroCopy extends Launcher
 									}
 								
 								perSample.bestLength=Math.max(perSample.bestLength, matchLength);
-								
+								save_read_to_bam = true;
 								}
 							else /* test last cigar */
 								{
@@ -979,13 +1076,16 @@ public class ScanRetroCopy extends Launcher
 									intron_found_so_far.add(match.toInterval());
 									}
 								perSample.bestLength=Math.max(perSample.bestLength, matchLength);
+								save_read_to_bam = true;
 								}
 							}
 						}
-					}
+					} //end for side
+				if(save_read_to_bam && sfw!=null) sfw.addAlignment(rec);
 				}
 			/* dump buffer */
 			matchBuffer.stream().sorted().map(B->B.build()).forEach(V->vcw.add(V));
+			matchBuffer.stream().sorted().forEach(M->M.saveJunctions());
 			matchBuffer.clear();
 			/* dump gene & junctions */
 			this.saveGeneInfo();
@@ -1000,7 +1100,14 @@ public class ScanRetroCopy extends Launcher
 			this.saveGenePw.flush();
 			this.saveGenePw.close();
 			this.saveGenePw=null;
+			this.saveInsertionsPw.flush();
+			this.saveInsertionsPw.close();
+			this.saveInsertionsPw=null; 
 			
+			if(sfw!=null) {
+				sfw.close();
+				sfw=null;
+				}
 			return 0;
 			}
 		catch(final Exception err)
@@ -1013,8 +1120,10 @@ public class ScanRetroCopy extends Launcher
 			CloserUtil.close(iter);
 			CloserUtil.close(sr);
 			CloserUtil.close(vcw0);
+			CloserUtil.close(sfw);
 			CloserUtil.close(this.indexedFastaSequenceFile);
 			CloserUtil.close(this.saveGenePw);
+			CloserUtil.close(this.saveInsertionsPw); 
 			}
 		}
 	
