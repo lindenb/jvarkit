@@ -685,7 +685,7 @@ public class BioAlcidaeJdk
 					code = this.scriptExpr;
 					}
 				
-				
+				final String generatedClass = OpenJdkCompiler.getGeneratedAnnotationClassName();
 				final StringWriter codeWriter=new StringWriter();
 				final PrintWriter pw = new PrintWriter(codeWriter);
 				pw.println("import java.util.*;");
@@ -697,7 +697,6 @@ public class BioAlcidaeJdk
 				pw.println("import htsjdk.variant.variantcontext.*;");
 				pw.println("import htsjdk.variant.vcf.*;");
 				pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
-				pw.println("import javax.annotation.processing.Generated;");
 				pw.println("import htsjdk.variant.vcf.*;");
 				
 				pw.println("/** begin user's packages */");
@@ -713,8 +712,9 @@ public class BioAlcidaeJdk
 				pw.println("/** end user's packages */");
 				
 				
-
-				pw.println("@Generated(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+				if(!StringUtil.isBlank(generatedClass)) {
+					pw.println("@"+generatedClass+"(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+					}
 				pw.println("public class "+javaClassName+" extends "+ baseClass +" {");
 				
 				pw.println("  public "+javaClassName+"() {");

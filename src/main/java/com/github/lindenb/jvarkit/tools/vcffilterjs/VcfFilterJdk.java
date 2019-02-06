@@ -654,6 +654,7 @@ public class VcfFilterJdk
 					final String javaClassName =VcfFilterJdk.class.getSimpleName()+
 							"Custom"+ Math.abs(rand.nextInt());
 					
+					final String generatedClassName= OpenJdkCompiler.getGeneratedAnnotationClassName();
 					final StringWriter codeWriter=new StringWriter();
 					final PrintWriter pw = new PrintWriter(codeWriter);
 					pw.println("import java.util.*;");
@@ -662,9 +663,10 @@ public class VcfFilterJdk
 					pw.println("import htsjdk.samtools.util.*;");
 					pw.println("import htsjdk.variant.variantcontext.*;");
 					pw.println("import htsjdk.variant.vcf.*;");
-					pw.println("import  javax.annotation.processing.Generated;");
 	
-					pw.println("@Generated(value=\""+VcfFilterJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+					if(!StringUtil.isBlank(generatedClassName)) {
+						pw.println("@"+generatedClassName+"(value=\""+VcfFilterJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+						}
 					pw.println("public class "+javaClassName+" extends "+AbstractFilter.class.getName().replace('$', '.')+" {");
 					pw.println("  public "+javaClassName+"(final VCFHeader header) {");
 					pw.println("  super(header);");

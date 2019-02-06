@@ -61,6 +61,24 @@ public abstract class OpenJdkCompiler {
 	
 	public abstract Class<?> compileClass(final String className,final String javaCode);
 	
+	/** get full class name for the @Generated annotation. May be null. */
+	public static String getGeneratedAnnotationClassName() {
+		for(final String className: new String[]{
+				"javax.annotation.Generated",
+				"javax.annotation.processing.Generated"
+				}) {
+			try {
+				final Class<?> c = Class.forName(className);
+				if(c==null || !c.isAnnotation()) continue;
+				return className;
+				}
+			catch(final ClassNotFoundException  err) {
+				//ignore
+				}
+			}
+		return null;
+		}
+	
 	/** append line numbers to code */
 	public static String beautifyCode(final String sourceCode)
 		{
@@ -226,14 +244,14 @@ public abstract class OpenJdkCompiler {
 				exec("jar",cmd);
 				
 				
-				URLClassLoader child = new URLClassLoader(
+				final URLClassLoader child = new URLClassLoader(
 						new URL[] {jarFile.toURI().toURL()},
 						this.getClass().getClassLoader()
 						);
 				final Class<?> compiledClass = Class.forName(className, true, child);
 				return compiledClass;
 				}
-			catch(Exception err) {
+			catch(final Exception err) {
 				throw new RuntimeException(err);
 				}
 			finally

@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -231,7 +232,8 @@ public class ScanRetroCopy extends Launcher
 	@Parameter(names={"--junction-distance","-d"},description="for junctions, merge sites with a distance lower than this value. "+
 		DistanceParser.OPT_DESCRIPTION,
 		converter=DistanceParser.StringConverter.class,
-		splitter=NoSplitter.class
+		splitter=NoSplitter.class,
+		hidden=true
 		)
 	private int merge_distance = 1_000;
 	@Parameter(names={"--bam"},description="Optional: save matching read in this bam file")
@@ -410,15 +412,24 @@ public class ScanRetroCopy extends Launcher
 			return Integer.compare(chromEnd0,o.chromEnd0);
 			}
 		
-		void findJunctions(final SAMRecord rec) {
+		void findJunctions(
+				final SAMRecord rec,
+				final Collection<KnownGene> ignoreThoseOverlappingGenes /* prupose: ignore genes overlapping "rec" (probably same gene= */
+				) {
 			if(!rec.getReadPairedFlag()) return;
 			if(rec.getProperPairFlag()) return;
 			if(rec.getMateUnmappedFlag()) return;
 			
 			final String mateCtg = refCtgNameConverter.apply(rec.getMateReferenceName());
 			if(StringUtils.isBlank(mateCtg)) return;
-			final Interval mateInterval = new Interval(mateCtg,rec.getMateAlignmentStart(),rec.getMateAlignmentStart());
+			final Interval mateInterval = new Interval(mateCtg,rec.getMateAlignmentStart(),rec.getMateAlignmentStart());		
 			if(mateInterval.withinDistanceOf(toInterval(),ScanRetroCopy.this.merge_distance)) return;
+
+			if(ignoreThoseOverlappingGenes.stream().
+				map(G->new Interval(G.getContig(),G.getStart()+1,G.getEnd())).
+				anyMatch(R->R.overlaps(mateInterval))) {			
+				return;
+				}	
 			if(this.junctions==null) this.junctions=new ArrayList<>();
 			this.junctions.add(mateInterval);
 			}
@@ -886,7 +897,9 @@ public class ScanRetroCopy extends Launcher
 						reportGene(intron.getGene(),match,sampleName);
 						if(!intron.getGene().isNonCoding()) match.non_coding=false;
 						
-						match.findJunctions(rec);
+						match.findJunctions(rec,
+								this.knownGenesMap.getOverlapping(intronInterval).stream().flatMap(L->L.stream()).collect(Collectors.toList())
+								);
 						
 						final PerSample perSample = match.getSample(sampleName);
 						
@@ -987,7 +1000,7 @@ public class ScanRetroCopy extends Launcher
 								reportGene(knownGene,match,sampleName);
 								if(!knownGene.isNonCoding()) match.non_coding=false;
 								
-								match.findJunctions(rec);
+								match.findJunctions(rec,genes);
 								
 								final PerSample perSample = match.getSample(sampleName);
 								
@@ -1058,7 +1071,7 @@ public class ScanRetroCopy extends Launcher
 									matchBuffer.add(match);
 									}
 								if(!knownGene.isNonCoding()) match.non_coding=false;
-								match.findJunctions(rec);
+								match.findJunctions(rec,genes);
 								reportGene(knownGene,match,sampleName);
 								
 								final PerSample perSample = match.getSample(sampleName);

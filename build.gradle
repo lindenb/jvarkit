@@ -212,8 +212,8 @@ public class CompileJVarkit extends DefaultTask {
 	String distDir = ""	
 	String docDir = ""
 	String testNgDir=""
-	String jdkTarget = "11"
-	String jdkSource = "11"
+	String jdkTarget = "8"
+	String jdkSource = "8"
 	Library jarLibs = new Library();
 	boolean requireJfx = false;
 	String deprecatedMsg = null;
@@ -449,6 +449,18 @@ public class CompileJVarkit extends DefaultTask {
 		return 	""+this.getName()+" "+this.mainClass;
 		}
 	
+	private String getExecutablePath(String exe) {
+	    try {
+		def stdout = new ByteArrayOutputStream()
+		    project.exec {
+			commandLine 'which', exe
+			standardOutput = stdout
+		    }
+		    return stdout.toString().trim();
+		}
+	    catch(Exception err) { return "";}
+	    }
+
 	public String getGitHash() {
 	    try {
 		def stdout = new ByteArrayOutputStream()
@@ -497,7 +509,17 @@ public class CompileJVarkit extends DefaultTask {
 		this.runXJC();
 		/** copy main source */
 		ant.mkdir(dir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/') )
-		
+
+		/** opendjk properties , required for external compilation */
+		final File distJar = new File(this.distDir+"/"+this.getName()+".jar")
+
+		ant.echo(message: "java="+getExecutablePath("java")+"\n"+
+				"javac="+getExecutablePath("javac")+"\n"+
+				"jar="+getExecutablePath("jar")+"\n"+
+				"self="+ distJar.getPath() +"\n"
+				,file: "${this.tmpDir}/META-INF/jdk.properties");
+
+
 		/* compile sources */
 		//System.err.println("JAVA_PATH="+getConfiguration().asPath);
 		final Set<File> classpath1 = this.jarLibs.withoutTest().files.collect{it->it.toFile(project)} as Set;
@@ -553,7 +575,7 @@ public class CompileJVarkit extends DefaultTask {
 				}
 			}
 		/* jar tmp dir */
-		final File distJar = new File(this.distDir+"/"+this.getName()+".jar")
+		
 		final String now = new Date().format("yyyyMMddHHmmss");
 		ant.jar(destfile: distJar,
 			basedir:this.tmpDir
@@ -1938,7 +1960,7 @@ all.add( task("vcfeigen01", type: CompileJVarkit) {
 
 all.add( task("vcfgnomad", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfannotwithbeacon", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ga4gh.VcfAnnotWithBeacon"

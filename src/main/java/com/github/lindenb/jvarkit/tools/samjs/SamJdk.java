@@ -43,6 +43,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -372,7 +373,7 @@ END_DOC
 	keywords={"sam","bam","java","jdk","filter"},
 	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,
 		287057,299673,301080,305526,306034,309143,327317,335998,
-                336965,340479,342675,345679},
+                336965,340479,342675,345679,362298},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJdk
@@ -497,7 +498,7 @@ public class SamJdk
 			final Random rand= new  Random(System.currentTimeMillis());
 			final String javaClassName =SamJdk.class.getSimpleName()+
 					"Custom"+ Math.abs(rand.nextInt());
-			
+			final String generatedClassName = OpenJdkCompiler.getGeneratedAnnotationClassName();
 			final StringWriter codeWriter=new StringWriter();
 			final PrintWriter pw = new PrintWriter(codeWriter);
 			pw.println("import java.util.*;");
@@ -505,9 +506,9 @@ public class SamJdk
 			pw.println("import java.util.function.*;");
 			pw.println("import htsjdk.samtools.*;");
 			pw.println("import htsjdk.samtools.util.*;");
-			pw.println("import javax.annotation.processing.Generated;");
-
-			pw.println("@Generated(value=\""+SamJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+			if(!StringUtils.isBlank(generatedClassName)) {
+				pw.println("@"+generatedClassName+"(value=\""+SamJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+				}
 			pw.println("public class "+javaClassName+" extends "+
 					(this.pair_mode?AbstractListFilter.class:AbstractFilter.class).getName().replace('$', '.')+" {");
 			pw.println("  public "+javaClassName+"(final SAMFileHeader header) {");
