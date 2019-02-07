@@ -2059,6 +2059,12 @@ all2.add( task("onethousandbams", type: CompileJVarkit) {
 	jdkSource="8"
 	endMsg = "written for isabel. not much tested/used."
 	});
+all.add( task("samviewwithmate", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.viewmate.SamViewWithMate"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
+
 /** bottom task */
 
 task("all2",dependsOn:all2) {
