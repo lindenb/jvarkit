@@ -36,6 +36,12 @@ Usage: illuminadir [options] Files
  * workflow
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/362767](https://www.biostars.org/p/362767)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

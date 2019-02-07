@@ -27,8 +27,6 @@ package com.github.lindenb.jvarkit.tools.viewmate;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,15 +50,18 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -70,6 +71,14 @@ import htsjdk.samtools.util.Locatable;
 
 /*
 BEGIN_DOC
+
+## How it works
+
+Two modes:
+
+  * The streaming mode is set if the input is `stdin` or if the bam file is NOT indexed. The input is scanned and any read (or mate) that overlap a region is written.
+
+  * The other mode use the bam index. First we scan the regions, we collect the other regions and the names of the reads (requires memory), the bam is opened a second time and we collect the reads.
 
 ## Example
 
@@ -107,6 +116,8 @@ public class SamViewWithMate
 	private List<String> regionList = new ArrayList<>();
 	@Parameter(names={"-b","--bed"},description="Bed file containing the region.")
 	private File bedFile = null;
+	@Parameter(names={"-st","--streaming"},description="Force Streaming mode even if bam is indexed. Warning: Streaming mode doesn't garantee that all mates will be fetched because a read only contains the start position of the mate of which may be out of the user's intervals, unless the MC (mate cigar) attribute is defined.")
+	private boolean forceStreaming=false;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
@@ -119,10 +130,15 @@ public class SamViewWithMate
 		SAMRecordIterator  iter=null;
 		try
 			{
-			final String input = oneAndOnlyOneFile(args);
-			final Path bamFile = Paths.get(input);
-			IOUtil.assertFileIsReadable(bamFile);
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(bamFile);
+			final String input = oneFileOrNull(args);
+			samFileReader = openSamReader(input);
+			final SAMFileHeader header = samFileReader.getFileHeader();
+			if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
+				LOG.error("input is not sorted on coordinate.");
+				return -1;
+				}
+			
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			final Function<Locatable,QueryInterval> interval2query= RGN->{
 				int tid = dict.getSequenceIndex(RGN.getContig());
 				if(tid<0) throw new JvarkitException.ContigNotFoundInDictionary(RGN.getContig(), dict);
@@ -164,56 +180,110 @@ public class SamViewWithMate
 				LOG.warn("NO REGION DEFINED!!");
 				}
 			
-			QueryInterval queryArray[]= QueryInterval.optimizeIntervals(queryList.toArray(new QueryInterval[queryList.size()]));
-			final IntervalTreeMap<Boolean> intervalTreeMap=new IntervalTreeMap<>();
-			Arrays.stream(queryArray).
-				map(A->new Interval(dict.getSequence(A.referenceIndex).getSequenceName(),A.start,A.end)).
-				forEach(R->intervalTreeMap.put(R, Boolean.TRUE));
+			final Function<QueryInterval,Interval> query2interval= REC->{
+				return new Interval(
+						dict.getSequence(REC.referenceIndex).getSequenceName(),
+						REC.start,
+						REC.end
+						);
+				};
+
 			
-						
-			final Set<String> readNames = new HashSet<>(100_000);
-			final SamReaderFactory srf = super.createSamReaderFactory();
-			samFileReader = srf.open(bamFile);
-			if(!samFileReader.hasIndex()) {
-				LOG.error("Sam file is not indexed "+bamFile);
-				return -1;
+			final Function<SAMRecord,Interval> mate2interval= REC->{
+				if(!REC.getReadPairedFlag()) throw new IllegalStateException();
+				if(REC.getMateUnmappedFlag()) throw new IllegalStateException();
+			
+				return new Interval(
+						REC.getMateReferenceName(),
+						REC.getMateAlignmentStart(),
+						(SAMUtils.getMateCigar(REC)!=null?SAMUtils.getMateAlignmentEnd(REC):REC.getMateAlignmentStart())
+						);
+				};
+			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().logger(LOG).dictionary(dict).build();
+			JVarkitVersion.getInstance().addMetaData(this, header);
+			
+			final SAMProgramRecord smr = header.createProgramRecord();
+			smr.setProgramName(this.getProgramName());
+			smr.setProgramVersion(this.getGitHash());
+			smr.setCommandLine(this.getProgramCommandLine());
+			
+        	sw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
+
+			if(queryList.isEmpty())
+				{
+				// nothing to do
 				}
-			
-			
-			iter=samFileReader.query(queryArray, false);
-			while(iter.hasNext()) {
-				final SAMRecord rec = iter.next();
-				
-				if(rec.getReadPairedFlag()) {
-					if(!rec.getMateUnmappedFlag()) {
-						final Interval rgn = new Interval(rec.getMateReferenceName(), rec.getMateAlignmentStart(), rec.getAlignmentStart());
-						if(intervalTreeMap.containsOverlapping(rgn)) continue;
-						readNames.add(rec.getReadName());						
-						final QueryInterval Q0= new QueryInterval(rec.getMateReferenceIndex(), rgn.getStart(),rgn.getEnd());
-						//LOG.debug("Adding "+rec.getReadName()+ " "+rgn);
-						queryList.add(Q0);
+			else if(forceStreaming || input==null || !samFileReader.hasIndex()) {
+				if(!forceStreaming) {
+					LOG.warning("input is stdin or bam is not indexed. Using a streaming mode");
+					}
+				final IntervalTreeMap<Boolean> intervalTreeMap=new IntervalTreeMap<>();
+				Arrays.stream(QueryInterval.optimizeIntervals(queryList.toArray(new QueryInterval[queryList.size()]))).
+					map(query2interval).
+					forEach(R->intervalTreeMap.put(R, Boolean.TRUE));
+				iter=samFileReader.iterator();
+				while(iter.hasNext()) {
+					final SAMRecord rec = progress.apply(iter.next());
+
+					if((!rec.getReadUnmappedFlag() && intervalTreeMap.containsOverlapping(rec)) ||
+						(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag() && intervalTreeMap.containsOverlapping(mate2interval.apply(rec)))) {
+						rec.setAttribute(SAMTag.PG.name(), smr.getId());
+						sw.addAlignment(rec);
 						}
 					}
+				iter.close();
+				iter=null;
 				}
-			iter.close();
-			samFileReader.close();
-			
-			// recompile intervals because we might have added some
-			queryArray= QueryInterval.optimizeIntervals(queryList.toArray(new QueryInterval[queryList.size()]));
-			// re-open			
-			samFileReader = srf.open(bamFile);
-			final SAMFileHeader header = samFileReader.getFileHeader();
-			JVarkitVersion.getInstance().addMetaData(this, header);
-	        	sw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
-			iter=samFileReader.query(queryArray, false);
-			while(iter.hasNext()) {
-				final SAMRecord rec = iter.next();
-				if(!(intervalTreeMap.containsOverlapping(rec) || readNames.contains(rec.getReadName()))) {
-					continue;
+			else
+				{
+				QueryInterval queryArray[]= QueryInterval.optimizeIntervals(queryList.toArray(new QueryInterval[queryList.size()]));
+
+
+				final IntervalTreeMap<Boolean> intervalTreeMap=new IntervalTreeMap<>();
+				Arrays.stream(queryArray).
+					map(query2interval).
+					forEach(R->intervalTreeMap.put(R, Boolean.TRUE));
+						
+				final Set<String> readNames = new HashSet<>(100_000);
+				
+				iter=samFileReader.query(queryArray, false);
+				while(iter.hasNext()) {
+					final SAMRecord rec = progress.apply(iter.next());
+
+					if(rec.getReadPairedFlag()) {
+						if(!rec.getMateUnmappedFlag()) {
+							final Interval rgn = mate2interval.apply(rec);
+							if(intervalTreeMap.containsOverlapping(rgn)) continue;//we'll catch it anyway
+							readNames.add(rec.getReadName());						
+							final QueryInterval Q0= new QueryInterval(rec.getMateReferenceIndex(), rgn.getStart(),rgn.getEnd());
+
+
+							queryList.add(Q0);
+							}
+						}
 					}
-				sw.addAlignment(rec);
+				iter.close();
+				iter=null;
+				samFileReader.close();
+				
+				// recompile intervals because we might have added some
+				queryArray= QueryInterval.optimizeIntervals(queryList.toArray(new QueryInterval[queryList.size()]));
+				// re-open			
+				samFileReader = super.openSamReader(input);				
+				iter=samFileReader.query(queryArray, false);
+				while(iter.hasNext()) {
+					final SAMRecord rec = iter.next();
+					if(!(intervalTreeMap.containsOverlapping(rec) || readNames.contains(rec.getReadName()))) {
+						continue;
+						}
+if(rec.getStart()==137230246) LOG.info("got "+rec.getSAMString()+" "+intervalTreeMap.getOverlapping(rec));
+					rec.setAttribute(SAMTag.PG.name(), smr.getId());
+					sw.addAlignment(rec);
+					}
+				iter.close();
+				iter=null;
 				}
-			iter.close();
+			progress.close();
 			sw.close();
 			return RETURN_OK;
 			}

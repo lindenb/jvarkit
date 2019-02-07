@@ -31,6 +31,12 @@ Usage: samviewwithmate [options] Files
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    -st, --streaming
+      Force Streaming mode even if bam is indexed. Warning: Streaming mode 
+      doesn't garantee that all mates will be fetched because a read only 
+      contains the start position of the mate of which may be out of the 
+      user's intervals, unless the MC (mate cigar) attribute is defined.
+      Default: false
     --version
       print version and exit
 
@@ -76,6 +82,10 @@ The java jar file will be installed in the `dist` directory.
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMate.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMate.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMateTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMateTest.java)
+
 
 ## Contribute
 
@@ -97,6 +107,14 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## How it works
+
+Two modes:
+
+  * The streaming mode is set if the input is `stdin` or if the bam file is NOT indexed. The input is scanned and any read (or mate) that overlap a region is written.
+
+  * The other mode use the bam index. First we scan the regions, we collect the other regions and the names of the reads (requires memory), the bam is opened a second time and we collect the reads.
 
 ## Example
 
