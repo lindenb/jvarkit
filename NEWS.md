@@ -1,5 +1,7 @@
 ## 2019-01
 
+programs using java-jfx are on hold or deprecated.
+
 moving everything to gradle and openjdk
 
 removed: gatkcodegen , evs2bed, ngsworkflow vcfamalgamation vcfspringfilter gephicmd

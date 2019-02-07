@@ -1,6 +1,9 @@
 /*
  grep -F "call compile-htsjdk-cmd," Makefile | cut -d, -f 2 | while read F; do grep  -w "\"${F}\"" build.gradle > /dev/null || echo $F; done | grep -v -F 'biostar$(1)' | head -n 1 | xargs  -I{} grep ",{},"  Makefile
 
+
+
+gradle -Djvarkit.delete.jar=true -Djvarkit.disable.test=true all all2
 */
 
 //import org.gradle.internal.logging.text.StyledTextOutput 
@@ -659,6 +662,15 @@ public class CompileJVarkit extends DefaultTask {
 				}
 			
 			ant.delete( dir :  this.tmpDir )
+			}
+		/** delete the jar at the if specified , jars can be big and I just want to generate the doc*/
+		if(java.lang.System.getProperty("jvarkit.delete.jar","false").equals("true")) {
+			project.logger.warn("delete jar "+ distJar);
+			ant.delete(file: distJar)
+			}
+		/** message at the end */
+		if(this.endMsg!=null && !this.endMsg.trim().isEmpty()) {
+			project.logger.info("\n#\n#\n# "+ this.endMsg+"\n#\n#\n");
 			}
 		}
 	}
@@ -2049,6 +2061,11 @@ all2.add( task("onethousandbams", type: CompileJVarkit) {
 	});
 /** bottom task */
 
+task("all2",dependsOn:all2) {
+	doLast {
+		project.logger.warn("all2 tasks done.");
+	       }
+	} 
 
 task("all",dependsOn:all) {
 	doLast {

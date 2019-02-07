@@ -32,7 +32,7 @@ Usage: fastqshuffle [options] Files
       Default: false
     -r
       random seed
-      Default: java.util.Random@429bd883
+      Default: java.util.Random@17d10166
 
 ```
 
