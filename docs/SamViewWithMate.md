@@ -76,6 +76,10 @@ The java jar file will be installed in the `dist` directory.
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMate.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMate.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMateTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/viewmate/SamViewWithMateTest.java)
+
 
 ## Contribute
 
