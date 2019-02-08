@@ -133,10 +133,7 @@ public class SamViewWithMate
 			final String input = oneFileOrNull(args);
 			samFileReader = openSamReader(input);
 			final SAMFileHeader header = samFileReader.getFileHeader();
-			if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
-				LOG.error("input is not sorted on coordinate.");
-				return -1;
-				}
+			
 			
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			final Function<Locatable,QueryInterval> interval2query= RGN->{
@@ -176,9 +173,6 @@ public class SamViewWithMate
 					}
 				}
 			Collections.sort(queryList);
-			if(queryList.isEmpty()) {
-				LOG.warn("NO REGION DEFINED!!");
-				}
 			
 			final Function<QueryInterval,Interval> query2interval= REC->{
 				return new Interval(
@@ -211,6 +205,7 @@ public class SamViewWithMate
 
 			if(queryList.isEmpty())
 				{
+				LOG.warn("NO REGION DEFINED!!");
 				// nothing to do
 				}
 			else if(forceStreaming || input==null || !samFileReader.hasIndex()) {
@@ -236,8 +231,11 @@ public class SamViewWithMate
 				}
 			else
 				{
+				if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
+					LOG.error("input is not sorted on coordinate.");
+					return -1;
+					}
 				QueryInterval queryArray[]= QueryInterval.optimizeIntervals(queryList.toArray(new QueryInterval[queryList.size()]));
-
 
 				final IntervalTreeMap<Boolean> intervalTreeMap=new IntervalTreeMap<>();
 				Arrays.stream(queryArray).
@@ -276,7 +274,6 @@ public class SamViewWithMate
 					if(!(intervalTreeMap.containsOverlapping(rec) || readNames.contains(rec.getReadName()))) {
 						continue;
 						}
-if(rec.getStart()==137230246) LOG.info("got "+rec.getSAMString()+" "+intervalTreeMap.getOverlapping(rec));
 					rec.setAttribute(SAMTag.PG.name(), smr.getId());
 					sw.addAlignment(rec);
 					}
