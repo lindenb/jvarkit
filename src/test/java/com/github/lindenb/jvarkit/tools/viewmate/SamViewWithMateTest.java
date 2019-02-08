@@ -13,11 +13,10 @@ import htsjdk.samtools.SamReaderFactory;
 
 public class SamViewWithMateTest  extends TestUtils {
 
+
 private void test01(boolean withIndex) throws IOException {
 	final File input = new File(SRC_TEST_RESOURCE+"/HG02260.transloc.chr9.14.bam");
 	final File output = super.createTmpFile(".bam");
-	
-	
 	
 	Assert.assertEquals(0,new SamViewWithMate().instanceMain(
     		newCmd().add(
@@ -36,6 +35,7 @@ private void test01(boolean withIndex) throws IOException {
 		}
     
 	}
+
 @Test
 public void testWithIndex() throws IOException {
 	test01(true);
@@ -44,4 +44,5 @@ public void testWithIndex() throws IOException {
 public void testWithoutIndex() throws IOException {
 	test01(false);
 	}
+
 }
