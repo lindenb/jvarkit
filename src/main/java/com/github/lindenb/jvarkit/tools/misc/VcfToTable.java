@@ -1128,6 +1128,19 @@ public class VcfToTable extends Launcher {
 					for(final Allele alt: vc.getAlternateAlleles())
 						{
 						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						// marvel https://twitter.com/julawang/status/1094666160711323649
+						t.addRow("Marrvel",new HyperlinkDecorator("http://marrvel.org/search/variant/"+
+							ensemblContig.apply(vc) +
+							"-"+vc.getStart()+
+							" "+
+							vc.getReference().getDisplayString()+
+							">"+
+							alt.getDisplayString()
+							));
+						}
+					for(final Allele alt: vc.getAlternateAlleles())
+						{
+						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
 						//gnomad
 						t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
 							ensemblContig.apply(vc) +
