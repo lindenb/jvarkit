@@ -104,11 +104,13 @@ public class KnownGene implements Iterable<Integer>,Feature
 		return getChromosome();
 		}
 	
+	/** +1 based position. This is txStart+1 */
 	@Override
 	public final int getStart() {
 		return getTxStart() + 1;
 		}
 	
+	/** +1 based position. This is getTxEnd */
 	@Override
 	public final  int getEnd() {
 		return getTxEnd();
@@ -195,9 +197,15 @@ public class KnownGene implements Iterable<Integer>,Feature
 			this.index=index;
 			}
 		
-		public int getIndex()
+		/** return 0 based index */
+		public final int getIndex()
 			{
 			return index;
+			}
+		
+		/** shortcut to getGene().getContig() */
+		public String getContig() {
+			return this.getGene().getContig();
 			}
 		
 		public KnownGene getGene()
@@ -226,7 +234,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		 * */
 		public Iterator<Integer> iterator(boolean useTranscriptDirection)
 			{
-			IntIter iter=new IntIter();
+			final IntIter iter=new IntIter();
 			if(useTranscriptDirection && this.isNegativeStrand())
 				{
 				iter.beg=this.getEnd()-1;
@@ -376,20 +384,21 @@ public class KnownGene implements Iterable<Integer>,Feature
 				{
 				super(index);
 				}
-			
+			/** the zero based position */
 			@Override
 			public int getStart()
 				{
-				return getGene().getExonEnd(getIndex());
+				return getGene().getIntronStart(getIndex());
 				}
-			
+			/** the zero based position */
 			@Override
 			public int getEnd()
 				{
-				return getGene().getExonStart(getIndex()+1);
+				return getGene().getIntronEnd(getIndex());
 				}
 			
 			@Override
+			/** get intron name using one-based human order (according to strand */
 			public String getName() {
 				if(getGene().isPositiveStrand())
 					{
@@ -626,6 +635,19 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.exonEnds[index];
 			}
 		
+		/** get 0-based start for the index-th intron */
+		public int getIntronStart(int index)
+			{
+			return this.getExonEnd(index);
+			}
+		
+		/** get 0-based end for the index-th intron */
+		public int getIntronEnd(int index)
+			{
+			return this.getExonStart(index+1);
+			}
+
+		
 		/** exon[0] is first from 5' to 3' on genomic */
 		public Exon getExon(int index)
 			{
@@ -716,10 +738,6 @@ public class KnownGene implements Iterable<Integer>,Feature
 				int n=beg;
 				beg+=shift;
 				return n;
-				}
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
 				}
 			}
 		
@@ -1039,6 +1057,12 @@ public class KnownGene implements Iterable<Integer>,Feature
 				return this.geneticCode;
 				}
 			}
+		
+		@Override
+		public String toString() {
+			return getName()+"["+getContig()+":"+getTxStart()+"-"+getTxEnd()+"]";
+			}
+		
 		
 		/** load knownGene file/uri as an IntervalTreeMap. Intervals in the IntervalTreeMap are *1-based* (interval.start= kg.txStart+1)*/
 		public static IntervalTreeMap<List<KnownGene>> loadUriAsIntervalTreeMap(

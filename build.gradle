@@ -2063,6 +2063,10 @@ all.add( task("samviewwithmate", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.viewmate.SamViewWithMate"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all.add( task("kg2fa", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.kg2fa.KnownGeneToFasta"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 
 /** bottom task */

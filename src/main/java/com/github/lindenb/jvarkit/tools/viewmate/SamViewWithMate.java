@@ -1,4 +1,3 @@
-
 /*
 The MIT License (MIT)
 
@@ -103,7 +102,8 @@ END_DOC
 	description="Extract reads within given region(s), and their mates",
 	keywords={"sam","bam"},
 	biostars={151403,105714},
-	creationDate="2019-02-07"
+	creationDate="2019-02-07",
+	modificationDate="2019-02-13"
 	)
 public class SamViewWithMate
 	extends Launcher
@@ -118,6 +118,9 @@ public class SamViewWithMate
 	private File bedFile = null;
 	@Parameter(names={"-st","--streaming"},description="Force Streaming mode even if bam is indexed. Warning: Streaming mode doesn't garantee that all mates will be fetched because a read only contains the start position of the mate of which may be out of the user's intervals, unless the MC (mate cigar) attribute is defined.")
 	private boolean forceStreaming=false;
+	@Parameter(names={"-u","--unmapped"},description="Also search for the unmapped mates. Not available in streaming mode.")
+	private boolean look_in_unmapped = false;
+
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
@@ -136,7 +139,7 @@ public class SamViewWithMate
 			
 			
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-			final Function<Locatable,QueryInterval> interval2query= RGN->{
+			final Function<Locatable,QueryInterval> interval2query = RGN->{
 				int tid = dict.getSequenceIndex(RGN.getContig());
 				if(tid<0) throw new JvarkitException.ContigNotFoundInDictionary(RGN.getContig(), dict);
 				return new QueryInterval(tid, RGN.getStart(), RGN.getEnd());
@@ -212,6 +215,11 @@ public class SamViewWithMate
 				if(!forceStreaming) {
 					LOG.warning("input is stdin or bam is not indexed. Using a streaming mode");
 					}
+				if(look_in_unmapped)
+					{
+					LOG.error("cannot use --unmapped in streaming mode");
+					return -1;
+					}
 				final IntervalTreeMap<Boolean> intervalTreeMap=new IntervalTreeMap<>();
 				Arrays.stream(QueryInterval.optimizeIntervals(queryList.toArray(new QueryInterval[queryList.size()]))).
 					map(query2interval).
@@ -231,6 +239,7 @@ public class SamViewWithMate
 				}
 			else
 				{
+				boolean search_in_unmapped_flag = false;
 				if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
 					LOG.error("input is not sorted on coordinate.");
 					return -1;
@@ -247,18 +256,23 @@ public class SamViewWithMate
 				iter=samFileReader.query(queryArray, false);
 				while(iter.hasNext()) {
 					final SAMRecord rec = progress.apply(iter.next());
-
-					if(rec.getReadPairedFlag()) {
-						if(!rec.getMateUnmappedFlag()) {
-							final Interval rgn = mate2interval.apply(rec);
-							if(intervalTreeMap.containsOverlapping(rgn)) continue;//we'll catch it anyway
-							readNames.add(rec.getReadName());						
-							final QueryInterval Q0= new QueryInterval(rec.getMateReferenceIndex(), rgn.getStart(),rgn.getEnd());
-
-
-							queryList.add(Q0);
+					if(!rec.getReadPairedFlag()) continue;
+					
+					if(rec.getMateUnmappedFlag()) {
+						if(look_in_unmapped) {
+							readNames.add(rec.getReadName());
+							search_in_unmapped_flag = true;
 							}
 						}
+					else 
+						{
+						final Interval rgn = mate2interval.apply(rec);
+						if(intervalTreeMap.containsOverlapping(rgn)) continue;//we'll catch it anyway
+						readNames.add(rec.getReadName());						
+						final QueryInterval Q0= new QueryInterval(rec.getMateReferenceIndex(), rgn.getStart(),rgn.getEnd());
+						queryList.add(Q0);
+						}
+						
 					}
 				iter.close();
 				iter=null;
@@ -279,6 +293,22 @@ public class SamViewWithMate
 					}
 				iter.close();
 				iter=null;
+				
+				//search unmapped if needed
+				if(search_in_unmapped_flag) {
+					iter=samFileReader.queryUnmapped();
+					while(iter.hasNext()) {
+						final SAMRecord rec = iter.next();
+						if(!readNames.contains(rec.getReadName())) {
+							continue;
+							}
+						rec.setAttribute(SAMTag.PG.name(), smr.getId());
+						sw.addAlignment(rec);
+						}
+					iter.close();
+					iter=null;
+					}
+				
 				}
 			progress.close();
 			sw.close();

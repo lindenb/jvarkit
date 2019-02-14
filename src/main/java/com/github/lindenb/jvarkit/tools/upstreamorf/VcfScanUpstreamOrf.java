@@ -131,6 +131,22 @@ public class VcfScanUpstreamOrf extends Launcher
 		public char charAt(int index) {
 			return this.bases.get(index).base;
 			}
+		int find(final CharSequence dna,int startPos) {
+			while(startPos>=0 &&  startPos+this.length() <= dna.length()) {
+				// find ATG 
+				
+				char baseA = Character.toUpperCase(dna.charAt(startPos+0));
+				if(baseA!='A') { startPos++; continue;}
+				char baseT = Character.toUpperCase(dna.charAt(startPos+1));
+				if(baseT!='T') { startPos++; continue;}
+				char baseG = Character.toUpperCase(dna.charAt(startPos+2));
+				if(baseG!='G') { startPos++; continue;}
+				
+				return startPos;
+				}
+			
+			return -1;
+			}
 		}
 	
 	

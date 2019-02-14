@@ -15,7 +15,7 @@ Usage: scanretrocopy [options] Files
     --bedpe, -P, -J
       Optional. Save possible sites of insertion in this Bed-PE file.
     --coding
-      ignore non-coding transcript
+      ignore non-coding transcripts.
       Default: false
     -h, --help
       print help and exit
@@ -31,8 +31,12 @@ Usage: scanretrocopy [options] Files
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
     -n, --min-cigar-size
-      Minimal cigar element size.
+      Minimal cigar element length.
       Default: 10
+    --min-depth, -D
+      In a transcript one must found at least 'D' reads with a clipp-length> 
+      'min-cigar-size'. 
+      Default: 1
     -o, --output
       Output file. Optional . Default: stdout
     --partition
@@ -44,8 +48,6 @@ Usage: scanretrocopy [options] Files
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
-    --save-gene, -S
-      Optional. save per-gene info in this file.
     --version
       print version and exit
     --bai, -bai, --with-bai
@@ -61,6 +63,7 @@ Usage: scanretrocopy [options] Files
  * sam
  * bam
  * cigar
+ * clip
  * sv
  * retrocopy
 
