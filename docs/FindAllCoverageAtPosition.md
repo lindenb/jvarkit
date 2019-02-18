@@ -10,6 +10,9 @@ Find depth at specific position in a list of BAM files. My colleague Estelle ask
 ```
 Usage: findallcoverageatposition [options] Files
   Options:
+    -x, --extend
+      [20190218]extend by 'x' base to try to cahc close clipped reads
+      Default: 500
     -filter, --filter
       [20171201](moved to jexl). A JEXL Expression that will be used to filter 
       out some sam-records (see 

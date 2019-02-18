@@ -108,7 +108,8 @@ END_DOC
 @Program(name="findallcoverageatposition",
 	keywords={"bam","coverage","search","depth"},
 	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
-	biostars= {259223,250099}
+	biostars= {259223,250099},
+	modificationDate="20190218"
 	)
 public class FindAllCoverageAtPosition extends Launcher
 	{
@@ -131,6 +132,10 @@ public class FindAllCoverageAtPosition extends Launcher
 	private SamRecordFilter filter = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-r","-R","--reference"},description="[20171201]"+Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File referenceFileFile=null;
+	@Parameter(names={"-x","--extend"},description="[20190218]extend by 'x' base to try to cahc close clipped reads")
+	private int extend=500;
+
+	
 	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
@@ -208,7 +213,7 @@ public class FindAllCoverageAtPosition extends Launcher
     
     private Mutation convertFromSamHeader(final File f,SAMFileHeader h,final Mutation src)
     	{
-    	SAMSequenceDictionary dict=h.getSequenceDictionary();
+    	final SAMSequenceDictionary dict=h.getSequenceDictionary();
     	if(dict==null)
     		{
     		LOG.warn("No dictionary in "+h);
@@ -293,14 +298,22 @@ public class FindAllCoverageAtPosition extends Launcher
 					
 					final Mutation m = convertFromSamHeader(f,header,src);
 					if(m==null) continue;
-					iter=samReader.query(m.chrom, m.pos-1, m.pos+1,	false);
+					iter = samReader.query(m.chrom,
+							Math.max(1,m.pos-this.extend),
+							m.pos+this.extend,
+							false
+							);
 					while(iter.hasNext())
 						{
 						final SAMRecord rec=iter.next();
 						if(rec.getReadUnmappedFlag()) continue;
 						if(this.filter.filterOut(rec)) continue;
 						final Cigar cigar=rec.getCigar();
-						if(cigar==null) continue;
+						if(cigar==null || cigar.isEmpty()) continue;
+						if(rec.getUnclippedEnd() < m.pos) continue;
+						if(rec.getUnclippedStart() > m.pos) continue;
+						if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) continue;
+						
 						final String readString = rec.getReadString().toUpperCase();
 						String sampleName=DEFAULT_SAMPLE_NAME;
 						final SAMReadGroupRecord rg=rec.getReadGroup();
@@ -429,7 +442,10 @@ public class FindAllCoverageAtPosition extends Launcher
     @Override
     public int doWork(final List<String> args) {
     	final Set<Mutation> mutations=new TreeSet<>();
-
+    	if(this.extend<1) {
+    		LOG.error("-x should be >=1");
+    		return -1;
+    	}
 		
 		BufferedReader r = null;
 		try

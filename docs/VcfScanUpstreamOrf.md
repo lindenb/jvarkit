@@ -13,10 +13,25 @@ Usage: vcfscanupstreamorf [options] Files
     --canonical
       reduce the number of transcripts. Keep one if some share the same UTR
       Default: false
+    --dac
+      disable scan for ATG creation
+      Default: false
+    --dad
+      disable scan for ATG deletion
+      Default: false
+    --dsc
+      disable scan for STOP creation
+      Default: false
+    --dsd
+      disable scan for STOP deletion
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --kal
+      disable scan for Kozak change
+      Default: false
     -k, -K, --kg, -kg
       UCSC knownGene File/URL. The knowGene format is a compact alternative to 
       GFF/GTF because one transcript is described using only one line.	Beware 
@@ -71,10 +86,6 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrf.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrfTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrfTest.java)
 
 
 ## Contribute

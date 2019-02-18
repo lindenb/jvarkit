@@ -118,6 +118,17 @@ public class VcfScanUpstreamOrf extends Launcher
 	private boolean print_uorf_only = false;
 	@Parameter(names={"--plus"},description="only transcripts on '+' strand. For debugging only",hidden=true)
 	private boolean plus_strand_only = false;
+	@Parameter(names={"--dac"},description="disable scan for ATG creation")
+	private boolean disable_atg_create = false;
+	@Parameter(names={"--dad"},description="disable scan for ATG deletion")
+	private boolean disable_atg_delete = false;
+	@Parameter(names={"--dsc"},description="disable scan for STOP creation")
+	private boolean disable_stop_create = false;
+	@Parameter(names={"--dsd"},description="disable scan for STOP deletion")
+	private boolean disable_stop_delete = false;
+	@Parameter(names={"--kal"},description="disable scan for Kozak change")
+	private boolean disable_kozak_alteration= false;
+
 	
 	
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
@@ -545,11 +556,11 @@ public class VcfScanUpstreamOrf extends Launcher
 
 		
 		void invoke() {
-			removeATG();
-			removeStop();
-			findDeNovoATG();
-			deNovoStop();
-			kozakAlteration();
+			if(!disable_atg_delete) removeATG();
+			if(!disable_stop_delete) removeStop();
+			if(!disable_atg_create) findDeNovoATG();
+			if(!disable_stop_create) deNovoStop();
+			if(!disable_kozak_alteration) kozakAlteration();
 			}
 		
 		void removeStop() {
