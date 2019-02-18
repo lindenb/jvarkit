@@ -215,7 +215,7 @@ public class ScanRetroCopy extends Launcher
 	@Parameter(names={"-k","-K","--kg","-kg"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String knownGeneUri = KnownGene.getDefaultUri();
 	@Parameter(names={"-n","--min-cigar-size"},description="Minimal cigar element length.")
-	private int minCigarSize = 10;
+	private int minCigarSize = 6;
 	@Parameter(names={"-m"},description="Ignore reads having a clip lower than this value",hidden=true)
 	private int _priv_ignoreCigarSize = 1;
 	@Parameter(names={"--bai","-bai","--with-bai"},description="Use random access BAM using the bai and using the knownGene data. May be slow at startup")
@@ -226,7 +226,7 @@ public class ScanRetroCopy extends Launcher
 	private boolean onlyCodingTranscript=false;
 	@Parameter(names={"--malus"},description="use malus value in score. bad idea. Due to alernative splicing, there is often a cigar 'M' containing the next exon.",hidden=true)
 	private boolean use_malus=false;
-	@Parameter(names={"--min-depth","-D"},description="In a transcript one must found at least 'D' reads with a clipp-length> 'min-cigar-size'.")
+	@Parameter(names={"--min-depth","-D"},description="In a transcript one must found at least 'D' reads with a clip-length> 'min-cigar-size'.")
 	private int min_depth=1;
 	@Parameter(names={"--low-depth","-d"},description="Min number of reads to set FILTER=PASS.",hidden=true)
 	private int low_depth_threshold=10;
@@ -241,6 +241,8 @@ public class ScanRetroCopy extends Launcher
 	private int merge_distance = 1_000;
 	@Parameter(names={"--bam"},description="Optional: save matching read in this bam file")
 	private File saveBamTo = null;
+	@Parameter(names={"--both"},description="Force the constraint that both sides of a deleted intron should have at least '--min-depth' reads ")
+	private boolean force_both_side=false;
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private ContigNameConverter refCtgNameConverter =null;
@@ -470,6 +472,9 @@ public class ScanRetroCopy extends Launcher
 		int longestClip() {
 			return all().max().orElse(0);
 			}
+		double average() {
+			return all().average().orElse(0.0);
+			}
 		}
 	
 	private class GeneInfo
@@ -508,7 +513,15 @@ public class ScanRetroCopy extends Launcher
 			}
 		
 		boolean hasValidDepth() {
-			return all().anyMatch(X->X.hasValidDepth());
+			if(ScanRetroCopy.this.force_both_side)
+				{
+				return this.intron_5_side.stream().anyMatch(X->X.hasValidDepth()) &&
+					   this.intron_3_side.stream().anyMatch(X->X.hasValidDepth());
+				}
+			else
+				{
+				return all().anyMatch(X->X.hasValidDepth());
+				}
 			}
 		int bestDepth() {
 			return all().filter(V->V.hasValidDepth()).mapToInt(M->M.bestDepth()).max().orElse(0);
@@ -529,10 +542,12 @@ public class ScanRetroCopy extends Launcher
 			gb.DP(bestDepth());
 			gb.attribute(ATT_BEST_MATCHING_LENGTH, longestClip());
 			final StringBuilder sb=new StringBuilder();
+			final String formatDbl="%.2f";
+			
 			for(int intron_index=0;intron_index < kg.getIntronCount();++intron_index) {
 				if(intron_index>0) sb.append("|");
 				sb.append("i").append(intron_index).append(",");
-				sb.append(hasValidDepth(intron_index)?"Y":".").append(",");
+				sb.append(hasValidDepth(intron_index)?"Y":"N").append(",");
 				
 				sb.append(this.intron_5_side.get(intron_index).bestDepth());
 				sb.append(",");
@@ -541,10 +556,11 @@ public class ScanRetroCopy extends Launcher
 				sb.append(this.intron_5_side.get(intron_index).longestClip());
 				sb.append(",");
 				sb.append(this.intron_3_side.get(intron_index).longestClip());
-				
-				//sb..append(",");
+				sb.append(",");
+				sb.append(String.format(formatDbl,this.intron_5_side.get(intron_index).average()));
+				sb.append(",");
+				sb.append(String.format(formatDbl,this.intron_3_side.get(intron_index).average()));
 
-				
 				
 				}
 			gb.attribute(ATT_GT_INTRON,sb.toString());
@@ -947,7 +963,8 @@ public class ScanRetroCopy extends Launcher
 			metaData.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"Variation Length"));
 			metaData.add(new VCFInfoHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
 			metaData.add(new VCFFormatHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
-			metaData.add(new VCFFormatHeaderLine(ATT_GT_INTRON, 1,VCFHeaderLineType.String,"Introns info"));//TODO
+			metaData.add(new VCFFormatHeaderLine(ATT_GT_INTRON, 1,VCFHeaderLineType.String,
+						"Introns info: (intron-0-idx,valid,dp-5,dp-3,max-len-5,max-len-3,avg-5,avg-3)*"));
 			
 			
 			//metaData.add(new VCFFormatHeaderLine(ATT_COUNT_SUPPORTING_READS, 2,VCFHeaderLineType.Integer,"Count supporting reads [intron-left/intron-right]"));

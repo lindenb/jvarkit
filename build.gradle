@@ -2068,6 +2068,11 @@ all.add( task("kg2fa", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
+all.add( task("vcfscanupstreamorf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.VcfScanUpstreamOrf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 
 /** bottom task */
 

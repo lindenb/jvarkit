@@ -28,6 +28,21 @@ import java.util.Set;
 
 public class AcidNucleics {
 
+/** return true is base is [A,T,G,C] regardless of the case */
+public static boolean isATGC(char c) {
+	switch(c) {
+		case 'A': case 'a':
+		case 'C': case 'c':
+		case 'G': case 'g':
+		case 'T': case 't':
+			return true;
+		default: return false;
+		}
+	}
+public static boolean isATGC(byte c) {
+	return isATGC((char)c);
+	}
+
 /** return the reverse complement of the sequence */	
 public static String reverseComplement(final CharSequence seq)
 	{

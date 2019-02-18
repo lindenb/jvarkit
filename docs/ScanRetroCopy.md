@@ -14,6 +14,10 @@ Usage: scanretrocopy [options] Files
       Optional: save matching read in this bam file
     --bedpe, -P, -J
       Optional. Save possible sites of insertion in this Bed-PE file.
+    --both
+      Force the constraint that both sides of a deleted intron should have at 
+      least '--min-depth' reads
+      Default: false
     --coding
       ignore non-coding transcripts.
       Default: false
@@ -32,9 +36,9 @@ Usage: scanretrocopy [options] Files
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
     -n, --min-cigar-size
       Minimal cigar element length.
-      Default: 10
+      Default: 6
     --min-depth, -D
-      In a transcript one must found at least 'D' reads with a clipp-length> 
+      In a transcript one must found at least 'D' reads with a clip-length> 
       'min-cigar-size'. 
       Default: 1
     -o, --output

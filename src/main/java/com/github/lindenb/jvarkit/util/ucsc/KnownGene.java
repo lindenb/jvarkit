@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -189,20 +190,8 @@ public class KnownGene implements Iterable<Integer>,Feature
 		}
 
 	
-	public abstract class Segment implements Iterable<Integer>
+	public abstract class AbstractSegment
 		{
-		private final int index;
-		protected Segment(int index)
-			{
-			this.index=index;
-			}
-		
-		/** return 0 based index */
-		public final int getIndex()
-			{
-			return index;
-			}
-		
 		/** shortcut to getGene().getContig() */
 		public String getContig() {
 			return this.getGene().getContig();
@@ -222,6 +211,35 @@ public class KnownGene implements Iterable<Integer>,Feature
 	    	{
 	    	return getGene().isNegativeStrand();
 	    	}
+		public abstract String getName();
+		/** the zero based position */
+		public abstract int getStart();
+		/** the zero based position */
+		public abstract int getEnd();
+		
+		/** return true if the segment contans the genomic position 0-based */
+		public boolean contains(int position0)
+			{
+			return getStart()<=position0 && position0< getEnd();
+			}
+		}
+	
+	public abstract class Segment 
+		extends AbstractSegment 
+		implements Iterable<Integer>
+		{
+		private final int index;
+		protected Segment(int index)
+			{
+			this.index=index;
+			}
+		
+		/** return 0 based index */
+		public final int getIndex()
+			{
+			return index;
+			}
+		
 		
 		@Override
 		public Iterator<Integer> iterator()
@@ -250,11 +268,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return iter;
 			}
 		
-		/** return true if the exon contans the genomic position 0-based */
-		public boolean contains(int position)
-			{
-			return getStart()<=position && position< getEnd();
-			}
+		
 		public abstract boolean isSplicingAcceptor(int position);
 		public abstract boolean isSplicingDonor(int position);
 		public boolean isSplicing(int position)
@@ -262,13 +276,8 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return isSplicingAcceptor(position) || isSplicingDonor(position);
 			}
 		
-		public abstract String getName();
-		/** the zero based position */
-		public abstract int getStart();
-		/** the zero based position */
-		public abstract int getEnd();
 		}
-	
+		
 	public class Exon extends Segment
 		{
 		private Exon(final int index)
