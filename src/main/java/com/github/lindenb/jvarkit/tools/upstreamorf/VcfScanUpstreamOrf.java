@@ -128,6 +128,8 @@ public class VcfScanUpstreamOrf extends Launcher
 	private boolean disable_stop_delete = false;
 	@Parameter(names={"--kal"},description="disable scan for Kozak change")
 	private boolean disable_kozak_alteration= false;
+	@Parameter(names={"--strong"},description="only accept events that are related to 'Strong' Kozak pattern.")
+	private boolean only_strong_kozak= false;
 
 	
 	
@@ -175,9 +177,12 @@ public class VcfScanUpstreamOrf extends Launcher
 		Strong,Moderate,Weak,nil
 	}
 	
-	
+	/* kozak consensus length */
 	private static final int KOZAK_LENGTH=7;
+	/* position of ATG in the kozak sequence */
 	private static final int KOZAK_ATG=3;
+	
+	/* a Kozak consensus */
 	private class KozakSequence
 		extends AbstractCharSequence
 		{
@@ -200,9 +205,7 @@ public class VcfScanUpstreamOrf extends Launcher
 			if(charAt(KOZAK_ATG+2)!='G') return false;
 			return true;
 			}
-		private void assertATG() {
-			if(!hasATG()) throw new IllegalStateException(this.toString()+"="+this.offset_beg);
-			}
+
 		
 		KozakStrength getStrength() {
 			char c0 = charAt(0);
@@ -263,8 +266,8 @@ public class VcfScanUpstreamOrf extends Launcher
 					;
 			}
 		
-		/** find best ATG upstream of stop 'best' is first in frame with atg with best kozak*/
-		int findBestATG(int stop_pos) {
+		/** find best ATG upstream of stop 'best' is first in frame with atg with best kozak. returns -1 if not found*/
+		int findBestATG(final int stop_pos) {
 			int best=-1;
 			for(int idx=stop_pos-1;idx>=0;--idx) {
 				if(idx%3 == stop_pos%3 && isStop(idx)  )
@@ -294,12 +297,9 @@ public class VcfScanUpstreamOrf extends Launcher
 			
 			return best;
 			}
-
-		
-		
 		
 		/** find best stop starting from ATG. 'best' is first in frame with atg */
-		int findBestStop(int ATG_pos) {
+		int findBestStop(final int ATG_pos) {
 			if(isStop(ATG_pos)) throw new IllegalStateException("cannot be a stop !");
 			int stop=-1;
 			for(int idx=ATG_pos; idx+2 <  this.length();idx++) {
@@ -578,7 +578,9 @@ public class VcfScanUpstreamOrf extends Launcher
 				
 				
 				final KozakSequence kozakSequence = this.getKozakContext(pos_ATG);
-
+				if(acceptKozak(kozakSequence)) {
+					continue;
+					}
 				final StringBuilder sb =getAnnotPrefix(pos_ATG);
 				kozakSequence.annotate(sb);
 				this.delegate.annotStop(sb, pos_ATG, pos_stop);
@@ -598,7 +600,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				final int pos_ATG = this.delegate.findBestATG(pos_stop);
 				if(pos_ATG==-1) continue;
 				final KozakSequence kozakSequence = this.getKozakContext(pos_ATG);
-
+				if(!acceptKozak(kozakSequence)) continue;
+				
 				final StringBuilder sb =getAnnotPrefix(pos_ATG);
 				
 				kozakSequence.annotate(sb);
@@ -619,7 +622,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				
 				final int pos_A = this.alt_position0 - i;
 				final KozakSequence kozakSequence = this.delegate.getKozakContext(pos_A);
-	
+				if(!acceptKozak(kozakSequence)) continue;
+				
 				final int stop = this.findBestStop(pos_A);
 				
 				final StringBuilder sb =getAnnotPrefix(pos_A);
@@ -640,7 +644,7 @@ public class VcfScanUpstreamOrf extends Launcher
 				final int pos_A = this.alt_position0 - i;
 				
 				final KozakSequence kozakSequence = this.getKozakContext(pos_A);
-		  		kozakSequence.assertATG();
+				if(!acceptKozak(kozakSequence)) continue;
 				final int stop = this.findBestStop(pos_A);
 				
 				final StringBuilder sb =getAnnotPrefix(pos_A);
@@ -657,8 +661,13 @@ public class VcfScanUpstreamOrf extends Launcher
 				final int pos_A = kozak_start+ KOZAK_ATG;
 				final KozakSequence kozak1 = this.delegate.getKozakContext(pos_A);
 				if(kozak1.getStrength()==KozakStrength.nil) continue;
+				
 				final KozakSequence kozak2 = this.getKozakContext(pos_A);
 				if(kozak2.getStrength()==KozakStrength.nil) continue;
+				
+				if(!acceptKozak(kozak1) && !acceptKozak(kozak2)) {
+					continue;
+					}
 				
 				final StringBuilder sb = getAnnotPrefix(pos_A);
 				
@@ -681,7 +690,10 @@ public class VcfScanUpstreamOrf extends Launcher
 			}
 		}
 	
-	
+	private boolean acceptKozak(final KozakSequence k) {
+		if(this.only_strong_kozak && !KozakStrength.Strong.equals(k.getStrength())) return false;
+		return true;
+	}
 	
 	/** rconvert transcript to interval return null if there is no UTR */
 	private Interval kgToUTRInterval(final KnownGene kg) {

@@ -46,6 +46,9 @@ Usage: vcfscanupstreamorf [options] Files
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --strong
+      only accept events that are related to 'Strong' Kozak pattern.
+      Default: false
     --uorf-only
       only print variants having something to say about an uorf
       Default: false
@@ -86,6 +89,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrf.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrfTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/upstreamorf/VcfScanUpstreamOrfTest.java)
 
 
 ## Contribute
