@@ -309,21 +309,29 @@ public class VcfGnomadPext extends Launcher{
 									!this.restrictTissues.isEmpty() &&
 									!this.restrictTissues.contains(key)
 									) continue;
-								
+								final JsonElement v = kv.getValue();
+								if(v.isJsonNull()) continue;
+								if(v.getAsJsonPrimitive().isString()) {
+									final String strv = v.getAsString();
+									if(strv.equals("NaN")) continue;
+									}
 								
 								if(sb2.length()>0) sb2.append("|");
-								sb2.append(kv.getKey());
+								sb2.append(key);
 								sb2.append(":");
 								sb2.append(kv.getValue().getAsString());
 								}
+							
 							sb.append(sb2.toString());
 							}
-						
+						if(sb.length()==0) sb.append(".");
 						altInfo.add(sb.toString());
 						}
 					}
-				
-				vcb.attribute(pexInfo.getID(), altInfo);
+				//at least none is '.'
+				if(altInfo.stream().anyMatch(S->!S.equals("."))) {
+					vcb.attribute(pexInfo.getID(), altInfo);
+				}
 			
 				out.add(vcb.make());
 				}
