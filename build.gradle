@@ -2072,6 +2072,11 @@ all.add( task("vcfscanupstreamorf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.VcfScanUpstreamOrf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all.add( task("vcfgnomadpext", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gnomadpext.VcfGnomadPext"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
+	endMsg = "not tested/used for now"
+	});
 
 
 /** bottom task */

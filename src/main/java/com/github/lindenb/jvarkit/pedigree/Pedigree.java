@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.pedigree;
 import java.util.Collection;
 import java.util.Iterator;
 
+/** descript a pedigree which is a container of Family */
 public interface Pedigree extends SampleSet,Iterable<Family> {
 public Collection<Family> getFamilies();
 public default boolean isEmpty() {

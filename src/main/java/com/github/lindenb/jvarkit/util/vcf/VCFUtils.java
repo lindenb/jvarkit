@@ -462,11 +462,11 @@ public class VCFUtils
 			}
 		return meta2;
 		}
-	public static boolean isVcfFile(File f)
+	public static boolean isVcfFile(final File f)
 		{
 		if(f==null || !f.isFile()) return false;
-		String s=f.getName();
-		return s.endsWith(".vcf") || s.endsWith(".vcf.gz");
+		final String s=f.getName();
+		return s.endsWith(".vcf") || s.endsWith(".vcf.gz")|| s.endsWith(".vcf.bgz");
 		}
 	
 	/** returns true if file ends with .vcf.gz and a .tbi file is associated */
@@ -474,7 +474,7 @@ public class VCFUtils
 		{
 		if(!isVcfFile(f)) return false;
 		final String filename=f.getName();
-		if(!filename.endsWith(".vcf.gz")) return false;
+		if(!(filename.endsWith(".vcf.gz")|| filename.endsWith(".vcf.bgz"))) return false;
 		final File index=new File(f.getParentFile(),
 				filename+ TabixUtils.STANDARD_INDEX_EXTENSION
 				);

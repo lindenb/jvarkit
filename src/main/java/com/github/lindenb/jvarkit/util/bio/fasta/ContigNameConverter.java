@@ -41,6 +41,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -116,7 +117,7 @@ private static class MapBasedContigNameConverter extends ContigNameConverter
 		}
 	@Override
 	protected String find(final String contig) {
-		return this.map.getOrDefault(contig,contig);
+		return this.map.getOrDefault(contig,null);
 		}
 	@Override
 	public String getName() {
@@ -400,6 +401,8 @@ private static class OneDictionary extends ContigNameConverter
 		}
 	@Override
 	public String getName() {
+		if(SequenceDictionaryUtils.isGRCh37(this.dict)) return "GRCh37";
+		if(SequenceDictionaryUtils.isGRCh38(this.dict)) return "GRCh38";
 		return "OneDictionary";
 		}
 	}

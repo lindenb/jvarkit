@@ -28,7 +28,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-/* a collection of samples */
+/** A collection of samples */
 public interface SampleSet {
 	/** return the samples in this SampleSet */
 	public Set<Sample> getSamples();
