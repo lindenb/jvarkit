@@ -33,7 +33,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -48,14 +47,19 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 
 /**
@@ -67,8 +71,8 @@ BEGIN_DOC
  Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/
 
 
- *  mapping quality is set to zero if a read on strand - overlap the 5' side of the PCR fragment
- *  mapping quality is set to zero if a read on strand + overlap the 3' side of the PCR fragment
+ *  mapping quality is set to zero if a read on mapped strand - overlap the 5' side of the PCR fragment
+ *  mapping quality is set to zero if a read on mapped strand + overlap the 3' side of the PCR fragment
  *  mapping quality is set to zero if no PCR fragment is found
 
 
@@ -141,7 +145,8 @@ END_DOC
 @Program(name="pcrclipreads",
 	description="Soft clip bam files based on PCR target regions",
 	biostars={147136,178308},
-	keywords={"sam","bam","pcr","bed"}
+	keywords={"sam","bam","pcr","bed"},
+	modificationDate="20190220"
 	)
 public class PcrClipReads extends Launcher
 	{
@@ -215,19 +220,19 @@ public class PcrClipReads extends Launcher
 			spr.setProgramVersion(this.getGitHash());
 			spr.setCommandLine(getProgramCommandLine().replace('\t', ' '));
 			}
-		header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
+		JVarkitVersion.getInstance().addMetaData(this, header2);
 		header2.setSortOrder(SortOrder.unsorted);
 		SAMFileWriter sw=null;
 		SAMRecordIterator iter = null;
 		try
 			{
-			sw = this.writingBamArgs.openSAMFileWriter(outputFile,header2, false);
+			sw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header2, false);
 			
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header1).logger(LOG);
+			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(header1).logger(LOG).build();
 			iter =  reader.iterator();
 			while(iter.hasNext())
 				{
-				SAMRecord rec= progress.watch(iter.next());
+				SAMRecord rec= progress.apply(iter.next());
 				
 				if(this.onlyFlag!=-1 &&  (rec.getFlags() & this.onlyFlag) != 0) {
 					sw.addAlignment(rec);
@@ -256,6 +261,8 @@ public class PcrClipReads extends Launcher
 					continue;
 					}
 				// strand is '+' and overap in 3' of PCR fragment
+				//    REC     >>>>>>>
+				//    FRAG       xxxxxxxxx
 				if( !rec.getReadNegativeStrandFlag() &&
 					fragment.getStart()< rec.getAlignmentEnd() &&
 					rec.getAlignmentEnd()< fragment.getEnd())
@@ -278,7 +285,7 @@ public class PcrClipReads extends Launcher
 				rec = readClipper.clip(rec, fragment);
 				sw.addAlignment(rec);
 				}
-			progress.finish();
+			progress.close();
 			return 0;
 			}
 		catch(final Exception err)
@@ -310,8 +317,8 @@ public class PcrClipReads extends Launcher
 				LOG.error("No SAM header in input");
 				return -1;
 				}
-			final SAMSequenceDictionary dict = header.getSequenceDictionary();
-		
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			LOG.info("reading bed File "+this.bedFile);
 			r= IOUtils.openFileForBufferedReading(this.bedFile);
 			String line;
@@ -324,18 +331,17 @@ public class PcrClipReads extends Launcher
 					LOG.warn("Ignoring bed line "+line);
 					continue;
 					}
+				Interval i = bedLine.toInterval();
+				final String ctg = contigNameConverter.apply(i.getContig());
 				
-				if(dict!=null)
+				if(StringUtils.isBlank(ctg)) {
+					throw new JvarkitException.ContigNotFoundInDictionary(bedLine.getContig(), dict);
+					}
+				else if(!i.getContig().equals(ctg))
 					{
-					if(dict.getSequenceIndex(bedLine.getContig())==-1) {
-						LOG.warn("unknown contig in "+bedLine+". Available are "+
-								dict.getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(", ")) +
-								". Skipping.");
-						continue;
-						}
+					i = new Interval(ctg,i.getStart(),i.getEnd());
 					}
 				
-				final Interval i = bedLine.toInterval();
 				this.bedIntervals.put(i, i);
 				}
 			CloserUtil.close(r);r=null;
