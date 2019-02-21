@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.upstreamorf;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -35,6 +36,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
@@ -53,6 +55,7 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -472,7 +475,14 @@ public class VcfScanUpstreamOrf extends Launcher
 			this.base_buffer[index] = c;
 			return c;
 			}
-				
+		
+		void printFastaDNA(final PrintWriter pw) {
+			
+		}
+		void printFastaPep(final PrintWriter pw) {
+			
+		}
+
 		}
 	
 	private class MutatedUTR extends AbstractUTRSequence
@@ -722,59 +732,6 @@ public class VcfScanUpstreamOrf extends Launcher
 		final VariantContextWriter out
 		) {
 		try {
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
-			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
-			this.refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);
-						
-			
-			LOG.info("Loading "+this.knownGeneUri);
-			try(BufferedReader br= IOUtils.openURIForBufferedReading(this.knownGeneUri)) {
-				String line;
-				final Set<String> unknownContigs = new HashSet<>();
-				final CharSplitter tab=CharSplitter.TAB;
-				while((line=br.readLine())!=null)
-					{
-					if(StringUtils.isBlank(line))continue;
-					
-					final String tokens[]=tab.split(line);
-					final KnownGene kg=new KnownGene(tokens);
-					if(this.plus_strand_only && !kg.isPositiveStrand()) continue;
-					
-					final String refContig=this.refCtgNameConverter.apply(kg.getContig());
-					if(StringUtils.isBlank(refContig)) {
-						if(unknownContigs.add(kg.getContig())) {
-							LOG.warn("unknown contig: "+kg.getContig());
-							}
-						continue;
-						}
-					kg.setChrom(refContig);
-					
-					
-					final Interval interval = kgToUTRInterval(kg);
-					if(interval==null) continue;
-					if(kg.isPositiveStrand()) {}
-					List<KnownGene> L =  this.knownGeneMap.get(interval);
-					if(L==null) {
-						L=new ArrayList<>();
-						this.knownGeneMap.put(interval,L);
-						}
-					if(this.canonical_utr) {
-						if(L.stream().
-							map(K->kgToUTRInterval(K)).
-							anyMatch(R->R.isNegativeStrand()==interval.isNegativeStrand() && R.equals(interval))
-							) continue;
-						}
-					L.add(kg);
-					}
-				
-				LOG.info("number of transcripts :"+this.knownGeneMap.values().stream().flatMap(L->L.stream()).count());
-				}
-  
-			if(this.knownGeneMap.isEmpty()) {
-				LOG.error("no transcripts found in "+this.knownGeneUri);
-				return -1;
-				}
-
 			/** build vcf header */						
 			final VCFHeader header= iter.getHeader();
 			header.addMetaDataLine(this.infoAddATG);
@@ -912,9 +869,112 @@ public class VcfScanUpstreamOrf extends Launcher
 			}
 		}
 	
+	private int saveArchive(final File outFile) {
+		try {
+			final ArchiveFactory archive=ArchiveFactory.open(outFile);
+			
+			
+			
+			final PrintWriter pw1=archive.openWriter("uorf/sequence.dna.fa");
+			final PrintWriter pw2=archive.openWriter("uorf/sequence.pep.fa");
+		
+			for(final KnownGene kg:this.knownGeneMap.values().
+					stream().
+					flatMap(L->L.stream()).
+					sorted((A,B)->kgToUTRInterval(A).compareTo(kgToUTRInterval(B))).
+					collect(Collectors.toList())) {
+				/* new reference sequence */
+				if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(kg.getContig())) {
+					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, kg.getContig());
+					}
+				final UpstreamORF uorf=new UpstreamORF(kg);
+				uorf.printFastaDNA(pw1);
+				uorf.printFastaPep(pw2);
+				};
+			pw1.flush(); pw1.close();
+			pw2.flush(); pw2.close();
+			
+			archive.close();
+			return 0;
+		} catch(Exception err) {
+			LOG.error(err);
+			return -1;
+		}
+	}
+	
 	@Override
 	public int doWork(final List<String> args) {
-		return super.doVcfToVcf(args, this.outputFile);
+		try {
+			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
+			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+			this.refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);
+						
+			LOG.info("Loading "+this.knownGeneUri);
+			try(BufferedReader br= IOUtils.openURIForBufferedReading(this.knownGeneUri)) {
+				String line;
+				final Set<String> unknownContigs = new HashSet<>();
+				final CharSplitter tab=CharSplitter.TAB;
+				while((line=br.readLine())!=null)
+					{
+					if(StringUtils.isBlank(line))continue;
+					
+					final String tokens[]=tab.split(line);
+					final KnownGene kg=new KnownGene(tokens);
+					if(this.plus_strand_only && !kg.isPositiveStrand()) continue;
+					
+					final String refContig=this.refCtgNameConverter.apply(kg.getContig());
+					if(StringUtils.isBlank(refContig)) {
+						if(unknownContigs.add(kg.getContig())) {
+							LOG.warn("unknown contig: "+kg.getContig());
+							}
+						continue;
+						}
+					kg.setChrom(refContig);
+					
+					
+					final Interval interval = kgToUTRInterval(kg);
+					if(interval==null) continue;
+					if(kg.isPositiveStrand()) {}
+					List<KnownGene> L =  this.knownGeneMap.get(interval);
+					if(L==null) {
+						L=new ArrayList<>();
+						this.knownGeneMap.put(interval,L);
+						}
+					if(this.canonical_utr) {
+						if(L.stream().
+							map(K->kgToUTRInterval(K)).
+							anyMatch(R->R.isNegativeStrand()==interval.isNegativeStrand() && R.equals(interval))
+							) continue;
+						}
+					L.add(kg);
+					}
+				
+				LOG.info("number of transcripts :"+this.knownGeneMap.values().stream().flatMap(L->L.stream()).count());
+				}
+  
+			if(this.knownGeneMap.isEmpty()) {
+				LOG.error("no transcripts found in "+this.knownGeneUri);
+				return -1;
+				}
+			
+			if(this.outputFile!=null && (this.outputFile.isDirectory() || this.outputFile.getName().endsWith(".zip"))) {
+				return this.saveArchive(this.outputFile);
+				}
+			else
+				{
+				return super.doVcfToVcf(args, this.outputFile);
+				}
+			}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(this.indexedFastaSequenceFile);
+			}
+		
 		}
 	
 	public static void main(final String[] args) {
