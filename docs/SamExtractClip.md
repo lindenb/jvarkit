@@ -163,8 +163,9 @@ TGCTTGA
 ```
 
 
-### Hstory
+### History
 
+* 20190221 : handle sam records without quality https://github.com/lindenb/jvarkit/issues/121
 * 20180412 : fastq is now reverse complemented if read was on negative strand
 
 

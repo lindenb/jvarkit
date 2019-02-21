@@ -110,8 +110,8 @@ The current reference is:
  Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/
 
 
- *  mapping quality is set to zero if a read on strand - overlap the 5' side of the PCR fragment
- *  mapping quality is set to zero if a read on strand + overlap the 3' side of the PCR fragment
+ *  mapping quality is set to zero if a read on mapped strand - overlap the 5' side of the PCR fragment
+ *  mapping quality is set to zero if a read on mapped strand + overlap the 3' side of the PCR fragment
  *  mapping quality is set to zero if no PCR fragment is found
 
 
