@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene.MessengerRNA;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -440,8 +441,32 @@ public class VcfScanUpstreamOrf extends Launcher
 			this.base_buffer = new char[this.genomic_indexes0.length];
 			Arrays.fill(this.base_buffer, NO_BASE);
 			}
+		
+		
+		/* get intervals for BED format */
+		List<int[]> getThickInternals() {
+			final List<int[]> L = new ArrayList<>();
+			final KnownGene kg = this.getGene();
+			for(int ex=0;ex < kg.getExonCount();++ex) {
+				final int array[] = new int[2];
+				if(kg.isPositiveStrand()) {
+					if( kg.getExonStart(ex) >=kg.getCdsStart() ) break;
+					array[0] = kg.getExonStart(ex);
+					array[1] = Math.min(kg.getExonEnd(ex), kg.getCdsStart());
+					}
+				else
+					{
+					if( kg.getExonEnd(ex) < kg.getCdsEnd() ) continue;
+					array[0] = Math.max(kg.getExonEnd(ex), kg.getCdsEnd());
+					array[1] = kg.getExonEnd(ex);
+					}
+				L.add(array);
+				}
+			return L;
+			}
+		
 		@Override
-		public KnownGene getGene() {
+		public final KnownGene getGene() {
 			return this.knownGene;
 			}
 		
@@ -527,7 +552,6 @@ public class VcfScanUpstreamOrf extends Launcher
 			return getRNA().getGene();
 			}
 		
-		
 		@Override
 		public final int getStart() {
 			return 1 + this.convertOrfToGenomicIndex0(0);
@@ -574,6 +598,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				}
 			}
 		
+		
+		
 		public OpenReadingFrame getBestOpenReadingFrame() {
 			OpenReadingFrame best=null;
 			for(int i=0;i +2< this.length();i++) {
@@ -585,85 +611,93 @@ public class VcfScanUpstreamOrf extends Launcher
 						break;
 					}
 				}
-				final OpenReadingFrame orf = new OpenReadingFrame(this,i,stop);
+				final OpenReadingFrame orf = new OpenReadingFrame(this.getRNA(),i,stop);
 				if(best==null || orf.isBetterThan(best)) {
 					best=orf;
 					}
 				}
 			return best;
 			}
-		
 		}
 	
 	
-	/** an ORF in an UpstreamORF */
-	private class OpenReadingFrame extends AbstractCharSequence 
+	/** an ORF in an UpstreamORF, a subsectiobn of an mRNA */
+	private class OpenReadingFrame extends AbstractRNASequence 
 		{
-		private final AbstractRNASequence mRNA;
-		private final int atg;
-		private final int stop_or_neg;
-		OpenReadingFrame(AbstractRNASequence mRNA,final int atg,final int stop_or_neg) {
+		private final KnownGeneRNA mRNA;
+		private final int atg0;
+		private final int past_end0;
+		//private final int chromStart0;
+		OpenReadingFrame(final KnownGeneRNA mRNA,final int atg0,final int stop_or_neg) {
 			this.mRNA = mRNA;
-			this.atg = atg;
-			this.stop_or_neg = stop_or_neg;
+			this.atg0 = atg0;
+			this.past_end0 = (stop_or_neg<0?mRNA.length():stop_or_neg);
+			
+			final int pos0 = this.mRNA.convertOrfToGenomicIndex0(atg0);
+			final int pos1 = stop_or_neg==-1?-1:this.mRNA.convertGenomicIndex0ToOrf(stop_or_neg);
+			
+			if(this.mRNA.getGene().isPositiveStrand()) {
+				//this.chromStart0 = pos0;
+				
+				}
+			else {
+				//this.chromStart0 = 	
+				}
+			}
+		@Override
+		public final KnownGene getGene() {
+			return this.mRNA.getGene();
+			}
+		
+		@Override
+		public final int getStart() {
+			return this.mRNA.getStart();
+			}
+		
+		@Override
+		public final int getEnd() {
+			return this.mRNA.getEnd();
+			}
+		
+		@Override
+		protected final int convertGenomicIndex0ToOrf(int genomic0) {
+			return this.mRNA.convertGenomicIndex0ToOrf(genomic0);
+			}
+		
+		@Override
+		boolean containsGenomicPos0(int genomic0) {
+			return this.mRNA.containsGenomicPos0(genomic0);
+			}
+		@Override
+		protected int convertOrfToGenomicIndex0(int index) {
+			return this.mRNA.convertOrfToGenomicIndex0(index);
 			}
 		
 		@Override
 		public int length() {
-			final int end=(this.stop_or_neg<0?this.mRNA.length():this.stop_or_neg);
-			return end - this.atg;
+			return this.past_end0 - this.atg0;
 			}
 		@Override
 		public char charAt(int index) {
-			if(index<0 || index>=length()) throw new IndexOutOfBoundsException("idx="+index);
-			return mRNA.charAt(this.atg+index);
+			throwIfNotInRange(index);
+			return this.mRNA.charAt(this.atg0+index);
 			}
 		/** get kozak context for the ATG of this sequence */
 		KozakSequence getKozakSequence() {
-			return this.mRNA.getKozakContext(this.atg);
+			return this.getKozakContext(this.atg0);
 			}
 		KozakStrength getKozakStrength() {
 			return getKozakSequence().getStrength();
 			}
 		public boolean isBetterThan(final OpenReadingFrame o) {
-			if(this.stop_or_neg<0 && o.stop_or_neg>=0) return false;
-			if(o.stop_or_neg<0 && this.stop_or_neg>=0) return true;
 			int i= Integer.compare(this.length(), o.length());
 			if(i!=0) return i>0;
 			i= getKozakStrength().compareTo(o.getKozakStrength());
 			if(i!=0) return i<0;
 			return false;
 			}
-		
-		private int[] getTxStartEnd0() {
-			final int a[]=new int[2];
-			a[0]=this.mRNA.getStart()-1;
-			a[1]=this.mRNA.getEnd();
-			return a;
-			}
-		
-		private int[] getCdsStartEnd0() {
-			final int a[]=new int[2];
-			int atg0 = this.mRNA.convertOrfToGenomicIndex0(this.atg);
-			int stop0 ;
-			if(this.stop_or_neg<0) {
-				stop0 = this.mRNA.getEnd();
-				}
-			else
-				{
-				stop0 =this.mRNA.convertOrfToGenomicIndex0(this.stop_or_neg);
-				}
-			if(atg0<stop0) {
-				a[0]=atg0;
-				a[1]=stop0;
-				}
-			else
-				{
-				a[0]=stop0+1;
-				a[1]=atg0+1;
-				}
-			return a;
-		}
+	
+		// private int[] getCdsStartEnd0() {}
 		
 		
 		private String getLabel() {
@@ -681,6 +715,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				}
 			return sb.toString();
 			}
+
+		
 		
 		void printFastaDNA(final PrintWriter pw) {
 			pw.println(">"+getLabel()+"|pep:"+translate());
@@ -691,13 +727,10 @@ public class VcfScanUpstreamOrf extends Launcher
 			pw.println(this.translate());
 			}
 		void printBed(final PrintWriter pw) {
-			final int txStartEnd[]=getTxStartEnd0();
-			final int cdsStartEnd[]=getCdsStartEnd0();
-			// s     
-			
+			final List<int[]> x=this.mRNA.getThickInternals();
 			pw.print(this.mRNA.getContig()); pw.print('\t');//chrom
-			pw.print(txStartEnd[0]); pw.print('\t');//chromStart
-			pw.print(txStartEnd[1]); pw.print('\t');//chromEnd
+			pw.print(this.mRNA.getStart()-1); pw.print('\t');//chromStart
+			pw.print(this.mRNA.getEnd()); pw.print('\t');//chromEnd
 			pw.print(this.mRNA.getGene().getName()+".uorf"); pw.print('\t');//name
 			switch(getKozakStrength())
 				{
@@ -708,8 +741,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				}
 			pw.print('\t');//score
 			pw.print(this.mRNA.isPositiveStrand()?"+":"-"); pw.print('\t');//strand
-			pw.print(cdsStartEnd[0]); pw.print('\t');//thickStart
-			pw.print(cdsStartEnd[1]); pw.print('\t');//thickEnd
+			pw.print(this.getStart()-1); pw.print('\t');//thickStart
+			pw.print(this.getEnd()); pw.print('\t');//thickEnd
 			switch(getKozakStrength())
 				{
 				case Strong: pw.print("255,0,0");break;
@@ -719,7 +752,7 @@ public class VcfScanUpstreamOrf extends Launcher
 				}
 			pw.print('\t');// score itemRgb
 			pw.print("1\t");// blockCount
-			pw.print(txStartEnd[1]-txStartEnd[0]);pw.print('\t');// blockSizes
+			//TODO pw.print(txStartEnd[1]-txStartEnd[0]);pw.print('\t');// blockSizes
 			pw.print("0");// blockStarts
 			pw.println();
 			}
@@ -744,7 +777,7 @@ public class VcfScanUpstreamOrf extends Launcher
 				final int x0 = Algorithms.upper_bound(mRNA.genomic_indexes0, cdsEnd);
 				this._length = x1-x0;
 				}
-			}			
+			}		
 		
 		@Override
 		protected final KnownGeneRNA getRNA() {
