@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -134,6 +135,7 @@ samtools view -h input.bam | java -jar dist/sam2tsv.jar
  *  Moved to a standard argc/argv command line
  *  2014-04: added qual and samflag. Fixed a bug in soft-clip
  *  2014-11: manage hard+soft clip
+ *  2019-02 : manage reads without qualities
 
 ### Citations
 
@@ -151,24 +153,19 @@ END_DOC
 @Program(name="sam2tsv",
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","tsv"},
-	biostars={157232,59647,253828,264875,277493})
+	biostars={157232,59647,253828,264875,277493},
+	modificationDate="20190222")
 public class Sam2Tsv
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Sam2Tsv.class).make();
 
-
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-A","--printAlignments"},description="Print Alignments")
 	private boolean printAlignment = false;
-
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File refFile = null;
-	
-	
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
@@ -276,11 +273,14 @@ public class Sam2Tsv
 		{
 		final SAMRecord rec = row.rec;
 		if(rec==null) return;
-		Cigar cigar=rec.getCigar();
+		final Cigar cigar=rec.getCigar();
 		if(cigar==null) return;
 		
 		row.readbases = rec.getReadBases();
-		row.readQuals = rec.getBaseQualities();
+		row.readQuals = rec.getBaseQualities()==SAMRecord.NULL_QUALS?
+				StringUtils.repeat(row.readbases.length,'#').getBytes():
+				rec.getBaseQualities()
+				;
 		if(row.readbases==null )
 			{
 			row.op=null;
@@ -302,36 +302,36 @@ public class Sam2Tsv
 			}
 		
 		//fix hard clipped reads
-		StringBuilder fixReadBases=new StringBuilder(row.readbases.length);
-		StringBuilder fixReadQuals=new StringBuilder(row.readbases.length);
+		final StringBuilder fixReadBases=new StringBuilder(row.readbases.length);
+		final  StringBuilder fixReadQuals=new StringBuilder(row.readbases.length);
 		int readIndex = 0;
 		for (final CigarElement ce : cigar.getCigarElements())
-		 {
-		 final CigarOperator op= ce.getOperator();
-		 
-		 for(int i=0;i< ce.getLength();++i)
-			{
-			if(op.equals(CigarOperator.H))
+			 {
+			 final CigarOperator op= ce.getOperator();
+			 
+			 for(int i=0;i< ce.getLength();++i)
 				{
-				
-				fixReadBases.append('*');
-				fixReadQuals.append('*');
+				if(op.equals(CigarOperator.H))
+					{
+					
+					fixReadBases.append('*');
+					fixReadQuals.append('*');
+					}
+				else if(!op.consumesReadBases())
+					{
+					break;
+					}
+				else
+					{
+					fixReadBases.append((char)row.readbases[readIndex]);
+					fixReadQuals.append(
+							row.readQuals==null ||
+							row.readQuals.length<=readIndex ?
+							'*':(char)row.readQuals[readIndex]);
+					readIndex++;
+					}
 				}
-			else if(!op.consumesReadBases())
-				{
-				break;
-				}
-			else
-				{
-				fixReadBases.append((char)row.readbases[readIndex]);
-				fixReadQuals.append(
-						row.readQuals==null ||
-						row.readQuals.length<=readIndex ?
-						'*':(char)row.readQuals[readIndex]);
-				readIndex++;
-				}
-			}
-		 }
+			 }
 		row.readbases = fixReadBases.toString().getBytes();
 		row.readQuals = fixReadQuals.toString().getBytes();
 
@@ -465,6 +465,10 @@ public class Sam2Tsv
 			while(iter.hasNext())
 				{
 				row.rec =progress.apply(iter.next());
+				if(row.rec.getReadBases()==SAMRecord.NULL_SEQUENCE) {
+					LOG.warn("Ignoring read without sequence: "+row.rec.getReadName());
+					continue;
+					}
 				printAln(row);
 				if(this.out.checkError()) break;
 				}
