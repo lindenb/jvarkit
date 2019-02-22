@@ -25,6 +25,10 @@ Usage: vcfscanupstreamorf [options] Files
     --dsd
       disable scan for STOP deletion
       Default: false
+    --exclude-cds
+      remove a uORF it if enterely overlaps a coding region of the exon of an 
+      alternative transcript.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -42,7 +46,9 @@ Usage: vcfscanupstreamorf [options] Files
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
     -o, --output
-      Output file. Optional . Default: stdout
+      Output file. Optional . Default: stdout. If there is no argument and 
+      'output' is a directory or it ends with '.zip' an archive containing the 
+      fasta+bed of the uORF is created and the program exits.
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -120,7 +126,9 @@ The current reference is:
 
 part of this code was inspired from: https://github.com/ImperialCardioGenetics/uORFs/blob/master/5primeUTRannotator/five_prime_UTR_annotator.pm
 
-## Example
+## Examples
+
+### Example 1
 
 ```
  wget -q -O - "https://storage.googleapis.com/gnomad-public/release/2.1/vcf/genomes/gnomad.genomes.r2.1.sites.chr1.vcf.bgz" |\
@@ -141,4 +149,42 @@ part of this code was inspired from: https://github.com/ImperialCardioGenetics/u
 1	90032	rs866094671	C	T	14378.50	.	UORF_ADD_ATG=transcript:ENST00000466430.1|strand:-|utr-start:89295|utr-end:120932|alt:A|atg-pos:90032|cap-atg:2010|atg-cds:738|atg-frame:atg-in-cds-frame|kozak-seq:TTCATGG|kozak-strength:Moderate|stop-frame:in-frame-stop|stop-pos:89951|atg-stop:81|pep:MGQLVSRAARETKPQCTFYSLCAHQTC,transcript:ENST00000495576.1|strand:-|utr-start:89551|utr-end:91105|alt:A|atg-pos:90032|cap-atg:837|atg-cds:482|atg-frame:atg-out-of-cds-frame|kozak-seq:TTCATGG|kozak-strength:Moderate|stop-frame:in-frame-stop|stop-pos:89951|atg-stop:81|pep:MGQLVSRAARETKPQCTFYSLCAHQTC
 ```
 
+### extract to bed format
+
+```
+track name="uORF" description="uORF for http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz"
+#chrom	chromStart	chromEnd	name	score	strand	thickStart	thickEnd	itemRgb	blockCount	blockSizes	blockStarts
+chr1	34553	36081	ENST00000417324.1.uorf	100	-	35140	35736	0,0,255	1	1528	0
+chr1	89294	120932	ENST00000466430.1.uorf	500	-	91254	91491	0,255,0	1	31638	0
+chr1	89550	91105	ENST00000495576.1.uorf	100	-	90431	90590	0,0,255	1	1555	0
+chr1	139789	140339	ENST00000493797.1.uorf	500	-	139816	140223	0,255,0	1	550	0
+chr1	141473	149707	ENST00000484859.1.uorf	1000	-	146708	146978	255,0,0	1	8234	0
+chr1	142807	146831	ENST00000490997.1.uorf	1000	-	142988	146482	255,0,0	1	4024	0
+chr1	157783	157887	ENST00000410691.1.uorf	0	-	157848	157887	0,0,0	1	104	0
+chr1	236111	267253	ENST00000424587.2.uorf	100	-	236759	236918	0,0,255	1	31142	0
+chr1	453632	460480	ENST00000450983.1.uorf	1000	-	453980	454166	255,0,0	1	6848	0
+chr1	521368	523833	ENST00000417636.1.uorf	500	-	522285	523620	0,255,0	1	2465	0
+chr1	529838	532878	ENST00000357876.5.uorf	500	-	530001	532684	0,255,0	1	3040	0
+chr1	562756	564390	ENST00000452176.1.uorf	500	-	562878	562995	0,255,0	1	1634	0
+chr1	646721	655580	ENST00000414688.1.uorf	500	-	647189	655553	0,255,0	1	8859	0
+chr1	677192	685396	ENST00000416385.1.uorf	100	-	682910	683180	0,0,255	1	8204	0
+chr1	693612	693716	ENST00000411249.1.uorf	0	-	693689	693716	0,0,0	1	104	0
+chr1	694411	700305	ENST00000417659.1.uorf	100	-	700133	700208	0,0,255	1	5894	0
+chr1	700236	714006	ENST00000428504.1.uorf	500	-	705034	709660	0,255,0	1	13770	0
+chr1	736258	745541	ENST00000447500.1.uorf	500	-	741231	745515	0,255,0	1	9283	0
+chr1	745488	753092	ENST00000435300.1.uorf	500	-	752900	753047	0,255,0	1	7604	0
+chr1	761585	762902	ENST00000473798.1.uorf	500	-	762082	762571	0,255,0	1	1317	0
+chr1	803450	812283	ENST00000446136.1.uorf	100	-	810390	812268	0,0,255	1	8833	0
+chr1	852249	855072	ENST00000417705.1.uorf	100	-	852976	854794	0,0,255	1	2823	0
+chr1	889805	894689	ENST00000487214.1.uorf	1000	-	889839	894620	255,0,0	1	4884	0
+chr1	916546	917473	ENST00000341290.2.uorf	1000	-	916549	917473	255,0,0	1	927	0
+chr1	931345	933431	ENST00000606034.1.uorf	100	-	931510	932137	0,0,255	1	2086	0
+chr1	935353	935552	ENST00000428771.2.uorf	500	-	935487	935544	0,255,0	1	199	0
+chr1	947376	948573	ENST00000458555.1.uorf	100	-	947459	947507	0,0,255	1	1197	0
+chr1	997587	998668	ENST00000442292.2.uorf	500	-	997810	998119	0,255,0	1	1081	0
+chr1	1019305	1051623	ENST00000482816.1.uorf	1000	-	1019401	1026923	255,0,0	1	32318	0
+chr1	1026923	1027554	ENST00000379320.1.uorf	100	-	1027028	1027400	0,0,255	1	631	0
+chr1	1026923	1041507	ENST00000379319.1.uorf	100	-	1041338	1041410	0,0,255	1	14584	0
+(...)
+```
 

@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +42,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
@@ -51,6 +53,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -75,7 +78,9 @@ BEGIN_DOC
 
 part of this code was inspired from: https://github.com/ImperialCardioGenetics/uORFs/blob/master/5primeUTRannotator/five_prime_UTR_annotator.pm
 
-## Example
+## Examples
+
+### Example 1
 
 ```
  wget -q -O - "https://storage.googleapis.com/gnomad-public/release/2.1/vcf/genomes/gnomad.genomes.r2.1.sites.chr1.vcf.bgz" |\
@@ -96,6 +101,44 @@ part of this code was inspired from: https://github.com/ImperialCardioGenetics/u
 1	90032	rs866094671	C	T	14378.50	.	UORF_ADD_ATG=transcript:ENST00000466430.1|strand:-|utr-start:89295|utr-end:120932|alt:A|atg-pos:90032|cap-atg:2010|atg-cds:738|atg-frame:atg-in-cds-frame|kozak-seq:TTCATGG|kozak-strength:Moderate|stop-frame:in-frame-stop|stop-pos:89951|atg-stop:81|pep:MGQLVSRAARETKPQCTFYSLCAHQTC,transcript:ENST00000495576.1|strand:-|utr-start:89551|utr-end:91105|alt:A|atg-pos:90032|cap-atg:837|atg-cds:482|atg-frame:atg-out-of-cds-frame|kozak-seq:TTCATGG|kozak-strength:Moderate|stop-frame:in-frame-stop|stop-pos:89951|atg-stop:81|pep:MGQLVSRAARETKPQCTFYSLCAHQTC
 ```
 
+### extract to bed format
+
+```
+track name="uORF" description="uORF for http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz"
+#chrom	chromStart	chromEnd	name	score	strand	thickStart	thickEnd	itemRgb	blockCount	blockSizes	blockStarts
+chr1	34553	36081	ENST00000417324.1.uorf	100	-	35140	35736	0,0,255	1	1528	0
+chr1	89294	120932	ENST00000466430.1.uorf	500	-	91254	91491	0,255,0	1	31638	0
+chr1	89550	91105	ENST00000495576.1.uorf	100	-	90431	90590	0,0,255	1	1555	0
+chr1	139789	140339	ENST00000493797.1.uorf	500	-	139816	140223	0,255,0	1	550	0
+chr1	141473	149707	ENST00000484859.1.uorf	1000	-	146708	146978	255,0,0	1	8234	0
+chr1	142807	146831	ENST00000490997.1.uorf	1000	-	142988	146482	255,0,0	1	4024	0
+chr1	157783	157887	ENST00000410691.1.uorf	0	-	157848	157887	0,0,0	1	104	0
+chr1	236111	267253	ENST00000424587.2.uorf	100	-	236759	236918	0,0,255	1	31142	0
+chr1	453632	460480	ENST00000450983.1.uorf	1000	-	453980	454166	255,0,0	1	6848	0
+chr1	521368	523833	ENST00000417636.1.uorf	500	-	522285	523620	0,255,0	1	2465	0
+chr1	529838	532878	ENST00000357876.5.uorf	500	-	530001	532684	0,255,0	1	3040	0
+chr1	562756	564390	ENST00000452176.1.uorf	500	-	562878	562995	0,255,0	1	1634	0
+chr1	646721	655580	ENST00000414688.1.uorf	500	-	647189	655553	0,255,0	1	8859	0
+chr1	677192	685396	ENST00000416385.1.uorf	100	-	682910	683180	0,0,255	1	8204	0
+chr1	693612	693716	ENST00000411249.1.uorf	0	-	693689	693716	0,0,0	1	104	0
+chr1	694411	700305	ENST00000417659.1.uorf	100	-	700133	700208	0,0,255	1	5894	0
+chr1	700236	714006	ENST00000428504.1.uorf	500	-	705034	709660	0,255,0	1	13770	0
+chr1	736258	745541	ENST00000447500.1.uorf	500	-	741231	745515	0,255,0	1	9283	0
+chr1	745488	753092	ENST00000435300.1.uorf	500	-	752900	753047	0,255,0	1	7604	0
+chr1	761585	762902	ENST00000473798.1.uorf	500	-	762082	762571	0,255,0	1	1317	0
+chr1	803450	812283	ENST00000446136.1.uorf	100	-	810390	812268	0,0,255	1	8833	0
+chr1	852249	855072	ENST00000417705.1.uorf	100	-	852976	854794	0,0,255	1	2823	0
+chr1	889805	894689	ENST00000487214.1.uorf	1000	-	889839	894620	255,0,0	1	4884	0
+chr1	916546	917473	ENST00000341290.2.uorf	1000	-	916549	917473	255,0,0	1	927	0
+chr1	931345	933431	ENST00000606034.1.uorf	100	-	931510	932137	0,0,255	1	2086	0
+chr1	935353	935552	ENST00000428771.2.uorf	500	-	935487	935544	0,255,0	1	199	0
+chr1	947376	948573	ENST00000458555.1.uorf	100	-	947459	947507	0,0,255	1	1197	0
+chr1	997587	998668	ENST00000442292.2.uorf	500	-	997810	998119	0,255,0	1	1081	0
+chr1	1019305	1051623	ENST00000482816.1.uorf	1000	-	1019401	1026923	255,0,0	1	32318	0
+chr1	1026923	1027554	ENST00000379320.1.uorf	100	-	1027028	1027400	0,0,255	1	631	0
+chr1	1026923	1041507	ENST00000379319.1.uorf	100	-	1041338	1041410	0,0,255	1	14584	0
+(...)
+```
 
 END_DOC
 
@@ -103,12 +146,14 @@ END_DOC
 @Program(name="vcfscanupstreamorf",
 description="Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
 keywords={"vcf","uorf"},
-creationDate="2019-02-18"
+creationDate="2019-02-18",
+modificationDate="2019-02-21"
 )
 public class VcfScanUpstreamOrf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfScanUpstreamOrf.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT+
+			". If there is no argument and 'output' is a directory or it ends with '.zip' an archive containing the fasta+bed of the uORF is created and the program exits.")
 	private File outputFile = null;
 	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
@@ -117,6 +162,8 @@ public class VcfScanUpstreamOrf extends Launcher
 	private String knownGeneUri = KnownGene.getDefaultUri();
 	@Parameter(names={"--canonical"},description="reduce the number of transcripts. Keep one if some share the same UTR")
 	private boolean canonical_utr = false;
+	@Parameter(names={"--exclude-cds"},description="remove a uORF it if enterely overlaps a coding region of the exon of an alternative transcript.")
+	private boolean exclude_cds_overlaping_alternative = false;
 	@Parameter(names={"--uorf-only"},description="only print variants having something to say about an uorf")
 	private boolean print_uorf_only = false;
 	@Parameter(names={"--plus"},description="only transcripts on '+' strand. For debugging only",hidden=true)
@@ -242,6 +289,110 @@ public class VcfScanUpstreamOrf extends Launcher
 			}
 		
 		}
+	private final static char NO_BASE='\0';
+	
+	private class KnownGeneRNA 
+		extends AbstractUTRSequence
+		{
+		final KnownGene knownGene;
+		private final int genomic_indexes0[];
+		private final char base_buffer[];
+		KnownGeneRNA(final KnownGene knownGene) {
+			this.knownGene=knownGene;
+			final List<Integer> L=new ArrayList<>(3_000);
+			for(int exon_index=0;exon_index< knownGene.getExonCount();++exon_index) {
+				int beg = knownGene.getExonStart(exon_index);
+				final int end = knownGene.getExonEnd(exon_index);
+				while(beg<end)
+					{
+					L.add(beg);
+					++beg;
+					}
+				}
+				
+			this.genomic_indexes0 = L.stream().mapToInt(Integer::intValue).toArray();
+			this.base_buffer = new char[this.genomic_indexes0.length];
+			Arrays.fill(this.base_buffer, NO_BASE);
+			}
+		@Override
+		public KnownGene getGene() {
+			return this.knownGene;
+			}
+		@Override
+		public String getContig() {
+			return this.getGene().getContig();
+			}
+		@Override
+		public int getStart() {
+			return 1+this.getGene().getTxStart();
+			}
+		@Override
+		public int getEnd() {
+			return this.getGene().getTxEnd();
+			}
+		@Override
+		public int length() {
+			return this.base_buffer.length;
+			}
+		
+		boolean containsGenomicPos0(int genomic0) {
+			final int idx =  Arrays.binarySearch(this.genomic_indexes0,genomic0);
+			return idx>= 0 &&  idx < this.length();
+			}
+		
+		int convertGenomicIndex0ToOrf(int g0) {
+			final int x= Arrays.binarySearch(this.genomic_indexes0, g0);
+			if( x<0 || x >= this.genomic_indexes0.length || this.genomic_indexes0[x]!=g0)
+				{
+				throw new IndexOutOfBoundsException("idx="+g0 +" len="+this.length()+" got x="+x+" contig.length="+genomicSequence.length());
+				}
+			if(isPositiveStrand()) {
+				return x;
+				}
+			else
+				{
+				return (this.genomic_indexes0.length-1)-x;
+				}
+			}
+		
+		@Override
+		protected int convertOrfToGenomicIndex0(final int index) {
+			if(index<0 || index>=this.length()) throw new IndexOutOfBoundsException("idx="+index +" length="+this.length());
+			return this.genomic_indexes0[index];
+			}
+		
+		@Override
+		public char charAt(int index_in_rna) {
+			if(index_in_rna<0 || index_in_rna>=this.length()) throw new IndexOutOfBoundsException(String.valueOf(index_in_rna));
+			if(this.base_buffer[index_in_rna]!=NO_BASE) {
+				return this.base_buffer[index_in_rna];
+				}
+			
+			final int index_in_offsets;
+			if(getGene().isNegativeStrand()) {
+				index_in_offsets= (this.length()-1)-index_in_rna;
+				}
+			else
+				{
+				index_in_offsets = index_in_rna;
+				}
+			
+			final int g0  = this.convertOrfToGenomicIndex0(index_in_offsets);
+			char c = Character.toUpperCase(VcfScanUpstreamOrf.this.genomicSequence.charAt(g0));
+			if(getGene().isNegativeStrand()) {
+				c=AcidNucleics.complement(c);
+				}
+			this.base_buffer[index_in_rna]=c;
+			
+			return c;
+			}
+		
+		@Override
+		protected void annotStop(StringBuilder sb, int pos_ATG, int pos_stop) {
+			this.annotStopBase(sb, pos_ATG, pos_stop);
+			}
+		}
+	
 	
 	private abstract class AbstractUTRSequence extends AbstractCharSequence
 		implements Locatable
@@ -348,13 +499,12 @@ public class VcfScanUpstreamOrf extends Launcher
 				}
 			return sb.toString();
 			}
+		
+		protected abstract void annotStop(final StringBuilder sb,final int pos_ATG,final int pos_stop);
+
+		
 		/** add annotation about stop */
-		protected void annotStop(final StringBuilder sb,final int pos_ATG,final int pos_stop) {
-			if(pos_stop==-1) {
-				sb.append("stop:no");
-				return;
-				}
-			
+		protected final void annotStopBase(final StringBuilder sb,final int pos_ATG,final int pos_stop) {
 			if(pos_ATG!=-1)
 				{
 				sb. append("stop-frame:").
@@ -368,120 +518,232 @@ public class VcfScanUpstreamOrf extends Launcher
 					;
 				}
 			}
-
 		}
-	
-	private class UpstreamORF
-		extends AbstractUTRSequence
+	/** an ORF in an UpstreamORF */
+	private class OpenReadingFrame extends AbstractCharSequence 
 		{
-		final KnownGene knownGene; 
-		private final int genomic_indexes0[];
-		private final char base_buffer[];
+		private final UpstreamORF upstreamorf;
+		private final int atg;
+		private final int stop_or_neg;
+		OpenReadingFrame(UpstreamORF upstreamorf,final int atg,final int stop_or_neg) {
+			this.upstreamorf = upstreamorf;
+			this.atg = atg;
+			this.stop_or_neg = stop_or_neg;
+		}
+		@Override
+		public int length() {
+			final int end=(this.stop_or_neg<0?this.upstreamorf.length():this.stop_or_neg);
+			return end - this.atg;
+			}
+		@Override
+		public char charAt(int index) {
+			if(index<0 || index>=length()) throw new IndexOutOfBoundsException("idx="+index);
+			return upstreamorf.charAt(this.atg+index);
+			}
+		KozakSequence getKozakSequence() {
+			return this.upstreamorf.getKozakContext(this.atg);
+			}
+		KozakStrength getKozakStrength() {
+			return getKozakSequence().getStrength();
+			}
+		public boolean isBetterThan(final OpenReadingFrame o) {
+			if(this.stop_or_neg<0 && o.stop_or_neg>=0) return false;
+			if(o.stop_or_neg<0 && this.stop_or_neg>=0) return true;
+			int i= Integer.compare(this.length(), o.length());
+			if(i!=0) return i>0;
+			i= getKozakStrength().compareTo(o.getKozakStrength());
+			if(i!=0) return i<0;
+			return false;
+			}
 		
-		UpstreamORF(final KnownGene knownGene) {
-			this.knownGene=knownGene;
-			final List<Integer> L=new ArrayList<>();
-			if(knownGene.isPositiveStrand())
-				{				
-				for(int exon_index=0;exon_index< knownGene.getExonCount();++exon_index) {
-					if(knownGene.getExonStart(exon_index) >= knownGene.getCdsStart()) break;
-					int beg = knownGene.getExonStart(exon_index);
-					final int end = Math.min(knownGene.getExonEnd(exon_index),knownGene.getCdsStart());
-					while(beg<end)
-						{
-						L.add(beg);
-						++beg;
-						}
-					}
+		private int[] getTxStartEnd0() {
+			final int a[]=new int[2];
+			a[0]=this.upstreamorf.getStart()-1;
+			a[1]=this.upstreamorf.getEnd();
+			return a;
+		}
+		private int[] getCdsStartEnd0() {
+			final int a[]=new int[2];
+			int atg0 = this.upstreamorf.convertOrfToGenomicIndex0(this.atg);
+			int stop0 ;
+			if(this.stop_or_neg<0) {
+				stop0 = this.upstreamorf.getEnd();
 				}
 			else
 				{
-				for(int exon_index=0;exon_index< knownGene.getExonCount();++exon_index) {
-					if(knownGene.getExonEnd(exon_index) < knownGene.getCdsEnd()) continue;
-					int beg = Math.max(knownGene.getExonStart(exon_index),knownGene.getCdsEnd());
-					final int end = knownGene.getExonEnd(exon_index);
-					while(beg<end)
-						{
-						L.add(beg);
-						++beg;
-						}
-					}
-				//Collections.reverse(L); no , will use binary search later 
+				stop0 =this.upstreamorf.convertOrfToGenomicIndex0(this.stop_or_neg);
 				}
-			this.genomic_indexes0 = L.stream().mapToInt(Integer::intValue).toArray();
-			this.base_buffer = new char[this.genomic_indexes0.length];
-			Arrays.fill(this.base_buffer, '\0');
+			if(atg0<stop0) {
+				a[0]=atg0;
+				a[1]=stop0;
+				}
+			else
+				{
+				a[0]=stop0+1;
+				a[1]=atg0+1;
+				}
+			return a;
+		}
+		
+		
+		private String getLabel() {
+			return new StringBuilder(this.upstreamorf.getGene().getName()).
+					append("|strand:").
+					append(this.upstreamorf.isPositiveStrand()?"+":"-").
+					toString();
+					
+			}
+
+		String translate() {
+			final StringBuilder sb= new StringBuilder();
+			for(int x=0;x+2< this.length();x+=3) {
+				sb.append(geneticCode.translate(charAt(x), charAt(x+1), charAt(x+2)));
+				}
+			return sb.toString();
 			}
 		
+		void printFastaDNA(final PrintWriter pw) {
+			pw.println(">"+getLabel()+"|pep:"+translate());
+			pw.println(this.toString());
+			}
+		void printFastaPep(final PrintWriter pw) {
+			pw.println(">"+getLabel());
+			pw.println(this.translate());
+			}
+		void printBed(final PrintWriter pw) {
+			final int txStartEnd[]=getTxStartEnd0();
+			final int cdsStartEnd[]=getCdsStartEnd0();
+			// s     
+			
+			pw.print(this.upstreamorf.getContig()); pw.print('\t');//chrom
+			pw.print(txStartEnd[0]); pw.print('\t');//chromStart
+			pw.print(txStartEnd[1]); pw.print('\t');//chromEnd
+			pw.print(this.upstreamorf.getGene().getName()+".uorf"); pw.print('\t');//name
+			switch(getKozakStrength())
+				{
+				case Strong: pw.print(1000);break;
+				case Moderate: pw.print(500);break;
+				case Weak: pw.print(100);break;
+				default: pw.print(0);break;
+				}
+			pw.print('\t');//score
+			pw.print(this.upstreamorf.isPositiveStrand()?"+":"-"); pw.print('\t');//strand
+			pw.print(cdsStartEnd[0]); pw.print('\t');//thickStart
+			pw.print(cdsStartEnd[1]); pw.print('\t');//thickEnd
+			switch(getKozakStrength())
+				{
+				case Strong: pw.print("255,0,0");break;
+				case Moderate: pw.print("0,255,0");break;
+				case Weak: pw.print("0,0,255");break;
+				default: pw.print("0,0,0");break;
+				}
+			pw.print('\t');// score itemRgb
+			pw.print("1\t");// blockCount
+			pw.print(txStartEnd[1]-txStartEnd[0]);pw.print('\t');// blockSizes
+			pw.print("0");// blockStarts
+			pw.println();
+			}
+		}
+	
+	/** the 5' UTR of an mRNA */
+	private class UpstreamORF
+		extends AbstractUTRSequence
+		{
+		final KnownGeneRNA mRNA; 
+		final int _length;
+		UpstreamORF(final KnownGeneRNA mRNA) {
+			this.mRNA=mRNA;
+			if(mRNA.isPositiveStrand()) {
+				this._length =  mRNA.convertGenomicIndex0ToOrf(mRNA.getGene().getCdsStart());
+				}
+			else
+				{
+				final int cdsEnd = mRNA.getGene().getCdsEnd();
+				final int x1 =  mRNA.length();
+				final int x0 = Algorithms.lower_bound(mRNA.genomic_indexes0, cdsEnd);
+				this._length = x1-x0;
+				}
+			}
+		
+		public OpenReadingFrame getBestOpenReadingFrame() {
+			OpenReadingFrame best=null;
+			for(int i=0;i +2< this.length();i++) {
+				if(!isATG(i)) continue;
+				int stop=-1;
+				for(int j=i+3;j+2<this.length();j+=3) {
+					if(isStop(j)) {
+						stop=j;
+						break;
+					}
+				}
+				final OpenReadingFrame orf = new OpenReadingFrame(this,i,stop);
+				if(best==null || orf.isBetterThan(best)) {
+					best=orf;
+					}
+				}
+			return best;
+			}
+			
 		
 		@Override
 		KnownGene getGene() {
-			return this.knownGene;
+			return this.mRNA.getGene();
 			}
 		
 		@Override
 		public final int length() {
-			return this.genomic_indexes0.length;
+			return this._length;
 			}
 		
 		boolean containsGenomicPos0(int genomic0) {
-			final int x= Arrays.binarySearch(this.genomic_indexes0, genomic0);
-			return x>=0 && x < this.genomic_indexes0.length;
+			final int idx =  Arrays.binarySearch(this.mRNA.genomic_indexes0,genomic0);
+			return idx>= 0 &&  idx < this.length();
 			}
-		
-		int convertGenomicIndex0ToOrf(int g0) {
-			final int x= Arrays.binarySearch(this.genomic_indexes0, g0);
-			if( x<0 || x >= this.genomic_indexes0.length || this.genomic_indexes0[x]!=g0)
-				{
-				throw new IndexOutOfBoundsException("idx="+g0 +" length="+genomicSequence.length());
-				}
-			if(isPositiveStrand()) {
-				return x;
-				}
-			else
-				{
-				return (this.genomic_indexes0.length-1)-x;
-				}
-			}
-		
+	
 		@Override
-		protected int convertOrfToGenomicIndex0(final int index) {
-			if(index<0 || index>=this.length()) throw new IndexOutOfBoundsException("idx="+index +" length="+this.length());
-			if(isPositiveStrand()) {
-				return this.genomic_indexes0[index];
-				}
-			else
+		protected int convertOrfToGenomicIndex0(int idx) {
+			if( idx>=0 &&   idx < this.length())
 				{
-				return this.genomic_indexes0[(this.genomic_indexes0.length-1)-index];
+				return this.mRNA.convertOrfToGenomicIndex0(idx);
 				}
+			throw new IndexOutOfBoundsException(String.valueOf(idx));
 			}
+		
+		protected int convertGenomicIndex0ToOrf(int genomic0) {
+			final int idx = mRNA.convertGenomicIndex0ToOrf(genomic0);
+			if( idx>=0 &&   idx < this.length())
+				{
+				return idx;
+				}
+			throw new IndexOutOfBoundsException(String.valueOf(genomic0));
+			}
+		
 
 		@Override
 		public final char charAt(final int index) {
-			if(this.base_buffer[index]!='\0')
+			if( index>=0 &&   index< this.length())
 				{
-				return this.base_buffer[index];
+				return mRNA.charAt(index);
 				}
-			
-			final int genomic_pos0 = this.convertOrfToGenomicIndex0(index);
-			char c;
-			if(isPositiveStrand()) {
-				c= genomicSequence.charAt(genomic_pos0);
-				}
-			else {
-				c= AcidNucleics.complement(genomicSequence.charAt(genomic_pos0));
-				}
-			c= Character.toUpperCase(c);
-			this.base_buffer[index] = c;
-			return c;
+			throw new IndexOutOfBoundsException(String.valueOf(index));
 			}
 		
-		void printFastaDNA(final PrintWriter pw) {
-			
-		}
-		void printFastaPep(final PrintWriter pw) {
-			
-		}
+		@Override
+		protected void annotStop(StringBuilder sb, int pos_ATG, int pos_stop) {
+			if(pos_stop<0) {
+				sb.append("stop:no");
+				}
+			else if(pos_stop>=this.length())
+				{
+				sb.append("stop:in-cds");
+				this.mRNA.annotStop(sb, pos_ATG, pos_stop);
+				}
+			else
+				{
+				sb.append("stop:in-utr");
+				annotStopBase(sb, pos_ATG, pos_stop);
+				}
+			}
 
 		}
 	
@@ -534,6 +796,23 @@ public class VcfScanUpstreamOrf extends Launcher
 				!this.remove_stop_set.isEmpty() ||
 				!this.kozak_alterations_set.isEmpty()
 				;
+			}
+		
+		@Override
+		protected void annotStop(StringBuilder sb, int pos_ATG, int pos_stop) {
+			if(pos_stop<0) {
+				sb.append("stop:no");
+				}
+			else if(pos_stop>=this.length())
+				{
+				sb.append("stop:in-cds");
+				this.delegate.mRNA.annotStop(sb, pos_ATG, pos_stop);
+				}
+			else
+				{
+				sb.append("stop:in-utr");
+				annotStopBase(sb, pos_ATG, pos_stop);
+				}
 			}
 		
 		/* return atg shift position if alt base creates a new ATG: 0,1,2 or -1 if there is no new ATG */
@@ -634,7 +913,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				final KozakSequence kozakSequence = this.delegate.getKozakContext(pos_A);
 				if(!acceptKozak(kozakSequence)) continue;
 				
-				final int stop = this.findBestStop(pos_A);
+				// yes we use mRNA.findBest because stop can be beyond CDS
+				final int stop = this.delegate.mRNA.findBestStop(pos_A);
 				
 				final StringBuilder sb =getAnnotPrefix(pos_A);
 					
@@ -707,24 +987,41 @@ public class VcfScanUpstreamOrf extends Launcher
 	
 	/** rconvert transcript to interval return null if there is no UTR */
 	private Interval kgToUTRInterval(final KnownGene kg) {
-		if(kg.isPositiveStrand()) {
-			//no utr
-			if(kg.getStart()>=kg.getCdsStart()) return null;
-			return new Interval(kg.getContig(),kg.getStart()+1,kg.getCdsStart(),false,kg.getName());
+		if(kg.isNonCoding()) {
+			throw new IllegalStateException();
+			}
+		else if(kg.isPositiveStrand()) {
+			if(kg.getTxStart()>=kg.getCdsStart()) return null;
+			return new Interval(kg.getContig(),kg.getTxStart()+1,kg.getCdsStart(),false,kg.getName());
 			}
 		else  if(kg.isNegativeStrand())
 			{
-			//no utr
 			if(kg.getCdsEnd()>=kg.getEnd()) return null;
-			return new Interval(kg.getContig(),kg.getCdsEnd()/* no +1 */,kg.getEnd(),true,kg.getName());
+			return new Interval(kg.getContig(),kg.getCdsEnd()/* no +1 */,kg.getTxEnd(),true,kg.getName());
 			}
 		else
 			{
-			LOG.info("bad strand in "+kg);
-			return null;
+			throw new IllegalStateException("bad strand");
 			}
 		}
-		
+	
+	private boolean overlapCDS(final Interval uorf,final KnownGene kg) {
+		for(int i=0;i< kg.getExonCount();i++) {
+			if(kg.getCdsStart()> kg.getExonEnd(i)) continue;
+			if(kg.getCdsEnd()< kg.getExonStart(i)) return false;
+			int exB1 = 1+ Math.max(kg.getExonStart(i),kg.getCdsStart());
+			int exE1 = Math.min(kg.getExonEnd(i),kg.getCdsEnd());
+			if(exE1<=exB1) continue;
+			if(exB1<=uorf.getStart() && uorf.getEnd()<=exE1) {
+				//LOG.debug("match with "+kg.getName());
+				return true;
+				}
+			}
+		return false;
+	}
+	
+	
+	
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
@@ -779,9 +1076,11 @@ public class VcfScanUpstreamOrf extends Launcher
 				
 				final List<UpstreamORF> uorfs = kgGenes.
 						stream().
+						map(KG->new KnownGeneRNA(KG)).
+						filter(KG->KG.containsGenomicPos0(ctx.getStart()-1)).
 						map(KG->new UpstreamORF(KG)).
 						filter(KG->KG.containsGenomicPos0(ctx.getStart()-1)).
-						sorted((A,B)->Integer.compare(A.knownGene.getStart(),B.knownGene.getStart())).
+						sorted((A,B)->Integer.compare(A.getStart(),B.getStart())).
 						collect(Collectors.toList());
 				
 				if(uorfs.isEmpty()) {
@@ -869,30 +1168,51 @@ public class VcfScanUpstreamOrf extends Launcher
 			}
 		}
 	
-	private int saveArchive(final File outFile) {
+	private int saveArchive(final File outFile,final SAMSequenceDictionary dict) {
 		try {
 			final ArchiveFactory archive=ArchiveFactory.open(outFile);
+			final ContigDictComparator ctgCmp=  new ContigDictComparator(dict);
+			final Comparator<Locatable> locCmp1=(A,B)->{
+				int i= ctgCmp.compare(A.getContig(), B.getContig());
+				if(i!=0) return i;
+				i =  Integer.compare(A.getStart(), B.getStart());
+				if(i!=0) return i;
+				return  Integer.compare(A.getEnd(), B.getEnd());
+				};
+			final Comparator<KnownGene> locCmp2=(A,B)->{
+				return  locCmp1.compare(kgToUTRInterval(A),kgToUTRInterval(B));
+				};
 			
+			final PrintWriter pw1=archive.openWriter("uorf-dna.fa");
+			final PrintWriter pw2=archive.openWriter("uorf-pep.fa");
+			final PrintWriter pw3=archive.openWriter("uorf.bed");
+			pw3.println("track name=\"uORF\" description=\"uORF for "+this.knownGeneUri+"\"");
+			pw3.println("#chrom\tchromStart\tchromEnd\tname\tscore\tstrand\tthickStart\tthickEnd\titemRgb\tblockCount\tblockSizes\tblockStarts");
 			
-			
-			final PrintWriter pw1=archive.openWriter("uorf/sequence.dna.fa");
-			final PrintWriter pw2=archive.openWriter("uorf/sequence.pep.fa");
-		
+			final ProgressFactory.Watcher<Locatable> progress=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			for(final KnownGene kg:this.knownGeneMap.values().
 					stream().
 					flatMap(L->L.stream()).
-					sorted((A,B)->kgToUTRInterval(A).compareTo(kgToUTRInterval(B))).
+					sorted(locCmp2).
 					collect(Collectors.toList())) {
 				/* new reference sequence */
 				if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(kg.getContig())) {
 					this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, kg.getContig());
 					}
-				final UpstreamORF uorf=new UpstreamORF(kg);
-				uorf.printFastaDNA(pw1);
-				uorf.printFastaPep(pw2);
+				
+				final KnownGeneRNA mRNA=new KnownGeneRNA(kg);
+				final UpstreamORF uorf=new UpstreamORF(mRNA);
+				progress.apply(uorf);
+				final OpenReadingFrame orf = uorf.getBestOpenReadingFrame();
+				if(orf==null) continue;
+				orf.printFastaDNA(pw1);
+				orf.printFastaPep(pw2);
+				orf.printBed(pw3);
 				};
 			pw1.flush(); pw1.close();
 			pw2.flush(); pw2.close();
+			pw3.flush(); pw3.close();
+			progress.close();
 			
 			archive.close();
 			return 0;
@@ -914,12 +1234,16 @@ public class VcfScanUpstreamOrf extends Launcher
 				String line;
 				final Set<String> unknownContigs = new HashSet<>();
 				final CharSplitter tab=CharSplitter.TAB;
+				// tmp IntervalTreeMap for gene, will be used to remove uORF overlapping alternate transcript with CDS */
+				final IntervalTreeMap<List<KnownGene>> tmpTreeMap = new IntervalTreeMap<>();
 				while((line=br.readLine())!=null)
 					{
-					if(StringUtils.isBlank(line))continue;
+					if(StringUtils.isBlank(line) || line.startsWith("#"))continue;
 					
 					final String tokens[]=tab.split(line);
 					final KnownGene kg=new KnownGene(tokens);
+					if(kg.isNonCoding()) continue;
+					
 					if(this.plus_strand_only && !kg.isPositiveStrand()) continue;
 					
 					final String refContig=this.refCtgNameConverter.apply(kg.getContig());
@@ -930,11 +1254,36 @@ public class VcfScanUpstreamOrf extends Launcher
 						continue;
 						}
 					kg.setChrom(refContig);
+					final Interval interval = new Interval(
+						refContig,
+						kg.getTxStart()+1,
+						kg.getTxEnd()
+						);
 					
-					
+					List<KnownGene> L =  tmpTreeMap.get(interval);
+					if(L==null) {
+						L=new ArrayList<>();
+						tmpTreeMap.put(interval,L);
+						}
+					L.add(kg);
+					}
+				
+				for(final KnownGene kg:tmpTreeMap.values().stream().flatMap(L->L.stream()).collect(Collectors.toList())) {
 					final Interval interval = kgToUTRInterval(kg);
-					if(interval==null) continue;
-					if(kg.isPositiveStrand()) {}
+					if(interval==null || interval.getLengthOnReference()<1) continue;
+					
+					if(this.exclude_cds_overlaping_alternative) {
+						if(tmpTreeMap.getOverlapping(interval).
+							stream().
+							flatMap(L->L.stream()).
+							filter(G->G!=kg).//same object in memory
+							anyMatch(K->overlapCDS(interval,K))
+							) {
+							//LOG.debug("overlap "+kg.getName());
+							continue;
+							}
+						}
+					
 					List<KnownGene> L =  this.knownGeneMap.get(interval);
 					if(L==null) {
 						L=new ArrayList<>();
@@ -957,8 +1306,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				return -1;
 				}
 			
-			if(this.outputFile!=null && (this.outputFile.isDirectory() || this.outputFile.getName().endsWith(".zip"))) {
-				return this.saveArchive(this.outputFile);
+			if(this.outputFile!=null && args.isEmpty() && (this.outputFile.isDirectory() || this.outputFile.getName().endsWith(".zip"))) {
+				return this.saveArchive(this.outputFile,refDict);
 				}
 			else
 				{
