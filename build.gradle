@@ -1728,7 +1728,7 @@ all.add( task("sam2psl", type: CompileJVarkit) {
 	});
 all.add( task("sam2tsv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("wescnvtview", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sam2tsv.WesCnvTView"

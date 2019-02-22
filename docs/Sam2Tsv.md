@@ -174,7 +174,7 @@ samtools view -h input.bam | java -jar dist/sam2tsv.jar
  *  Moved to a standard argc/argv command line
  *  2014-04: added qual and samflag. Fixed a bug in soft-clip
  *  2014-11: manage hard+soft clip
- *  2019-02 : manage reads without qualities
+ *  2019-02 : manage reads without qualities, contig name converter
 
 ### Citations
 

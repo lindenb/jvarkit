@@ -34,7 +34,10 @@ import java.io.PrintWriter;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -49,6 +52,7 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 /**
 
@@ -135,7 +139,7 @@ samtools view -h input.bam | java -jar dist/sam2tsv.jar
  *  Moved to a standard argc/argv command line
  *  2014-04: added qual and samflag. Fixed a bug in soft-clip
  *  2014-11: manage hard+soft clip
- *  2019-02 : manage reads without qualities
+ *  2019-02 : manage reads without qualities, contig name converter
 
 ### Citations
 
@@ -169,6 +173,8 @@ public class Sam2Tsv
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
+	private SAMSequenceDictionary refDict = null;
+	private ContigNameConverter contigNameConverter = null;
 	/** lines for alignments */
 	private StringBuilder L1=null;
 	private StringBuilder L2=null;
@@ -313,7 +319,6 @@ public class Sam2Tsv
 				{
 				if(op.equals(CigarOperator.H))
 					{
-					
 					fixReadBases.append('*');
 					fixReadQuals.append('*');
 					}
@@ -337,9 +342,11 @@ public class Sam2Tsv
 
 		if(this.indexedFastaSequenceFile!=null)
 			{
-			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(rec.getReferenceName()))
+			final String ctg = this.contigNameConverter.apply(rec.getContig());
+			if(StringUtils.isBlank(ctg)) throw new JvarkitException.ContigNotFoundInDictionary(rec.getContig(),this.refDict);
+			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(ctg))
 				{
-				this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, rec.getReferenceName());
+				this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile,ctg);
 				}
 			}
 		
@@ -497,9 +504,11 @@ public class Sam2Tsv
 		SamReader samFileReader=null;
 		try
 			{
-			if(refFile!=null)
+			if(this.refFile!=null)
 				{
 				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+				this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+				this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 				}
 			this.out  =  openFileOrStdoutAsPrintWriter(outputFile);
 			this.out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
@@ -511,7 +520,7 @@ public class Sam2Tsv
 			this.out.flush();this.out.close();this.out=null;
 			return RETURN_OK;
 			}
-		catch (final Exception e)
+		catch (final Throwable e)
 			{
 			LOG.error(e);
 			return -1;
