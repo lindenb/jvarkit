@@ -44,6 +44,7 @@ Usage: pubmeddump [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/270498](https://www.biostars.org/p/270498)
+ * [https://www.biostars.org/p/365479](https://www.biostars.org/p/365479)
 
 
 ## Compilation
@@ -119,4 +120,5 @@ $  java -jar dist/pubmeddump.jar "Lindenbaum P" | grep ArticleTitle
 ## See also
 
  * https://gist.github.com/lindenb/6bfb49fd8bc3dd27d99f
+ * https://gist.github.com/lindenb/5d7773a93d8c2b0edbd4c01bf8834919
 

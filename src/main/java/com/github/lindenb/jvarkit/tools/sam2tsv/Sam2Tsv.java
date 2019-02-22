@@ -214,7 +214,6 @@ public class Sam2Tsv
 			byte c= readPos==-1 || this.readQuals==null || this.readPos>=this.readQuals.length?(byte)0:this.readQuals[this.readPos];
 			return SAMUtils.phredToFastq(c);
 			}
-		
 		}
 	
 	private void writeAln(final Row row)

@@ -48,6 +48,7 @@ Usage: xsltstream [options] Files
  * [https://www.biostars.org/p/282602](https://www.biostars.org/p/282602)
  * [https://www.biostars.org/p/335867](https://www.biostars.org/p/335867)
  * [https://www.biostars.org/p/343432](https://www.biostars.org/p/343432)
+ * [https://www.biostars.org/p/365479](https://www.biostars.org/p/365479)
 
 
 ## Compilation
@@ -400,5 +401,40 @@ https://www.biostars.org/p/335867/#335885
 
 How to download database of Human protein sequences with sub cellular locations?
 
-see https://gist.github.com/lindenb/b3c726adecde90e37acd92bc940dfdd5 
+see https://gist.github.com/lindenb/b3c726adecde90e37acd92bc940dfdd5
+
+## Example
+
+https://www.biostars.org/p/365479/ "Bioinformatics word cloud to use in classes bioinformatics"
+
+```xslt
+<?xml version='1.0'  encoding="UTF-8" ?>
+<xsl:stylesheet  xmlns:xsl='http://www.w3.org/1999/XSL/Transform' version='1.0' >
+<xsl:output method="text" encoding="UTF-8"/>
+
+<xsl:template match="/">
+<xsl:apply-templates select="*"/>
+</xsl:template>
+
+<xsl:template match="*">
+<xsl:apply-templates select="PubmedArticle"/>
+</xsl:template>
+
+<xsl:template match="PubmedArticle">
+<xsl:variable name="year" select="MedlineCitation/Article/Journal/JournalIssue/PubDate/Year/text()"/>
+<xsl:for-each select="MedlineCitation/MeshHeadingList/MeshHeading/DescriptorName">
+<xsl:value-of select="$year"/>
+<xsl:text>	</xsl:text>
+<xsl:value-of select="./text()"/>
+<xsl:text>
+</xsl:text>
+</xsl:for-each>
+</xsl:template>
+
+</xsl:stylesheet>
+```
+
+
+see https://gist.github.com/lindenb/5d7773a93d8c2b0edbd4c01bf8834919
+
 
