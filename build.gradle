@@ -1986,7 +1986,7 @@ all.add( task("lumpysort", type: CompileJVarkit) {
 
 all.add( task("vcffilterjdk", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("optimizer", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.optimizer.Optimizer"

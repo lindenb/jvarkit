@@ -26,7 +26,6 @@ package com.github.lindenb.jvarkit.tools.vcffilterjs;
 
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
@@ -37,26 +36,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
@@ -76,9 +67,9 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 /**
 BEGIN_DOC
 
@@ -406,17 +397,24 @@ see https://bioinformatics.stackexchange.com/questions/5518
 java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().allMatch(G->(G.getSampleName().endsWith("M") && G.isHet()) || (G.getSampleName().endsWith("F") && G.isHomRef())); ' input.vcf
 ```
 
+## History:
+
+  * 20190222 : removed some jaxb stuff
+  * 201901 : OpenJdk doesn't support anymore in-memory compiling. Switching to OpenJdkCompiler
+
+
 END_DOC
  */
 @Program(
 		name="vcffilterjdk",
-		description="Filtering VCF with in-memory-compiled java expressions",
+		description="Filtering VCF with dynamically-compiled java expressions",
 		keywords={"vcf","filter","java","jdk"},
 		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,
 				304979,310155,317388,319148,327035,337645,343569,
-				347173,351205,351404,354126
+				347173,351205,351404,354126,302217
 				},
-		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
+		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
+		modificationDate="20190222"
 		)
 public class VcfFilterJdk
 	extends Launcher
@@ -428,321 +426,48 @@ public class VcfFilterJdk
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
-	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
+	@Parameter(names={"-F","--filter"},description="If not empty, variants won't be discarded and this name will be used in the FILTER column")
+	private String filteredTag = "";
 	
+	@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
+	private String scriptExpr=null;
 	
-	@XmlType(name="vcffilterjdk")
-	@XmlRootElement(name="vcffilterjdk")
-	@XmlAccessorType(XmlAccessType.FIELD)
-	public static class CtxWriterFactory 
-		implements VariantContextWriterFactory
-			{
-			@XmlElement(name="filter")
-			@Parameter(names={"-F","--filter"},description="If not empty, variants won't be discarded and this name will be used in the FILTER column")
-			private String filteredTag = "";
-			
-			@XmlElement(name="expression")
-			@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
-			private String scriptExpr=null;
-			
-			@XmlElement(name="script-file")
-			@Parameter(names={"-f","--script"},description=" (js file). Optional.")
-			private File scriptFile=null;
-			
-			@XmlElement(name="no-code")
-			@Parameter(names={"--nocode"},description=" Don't show the generated code")
-			private boolean hideGeneratedCode=false;
-			
-			@XmlElement(name="body")
-			@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
-			private boolean user_code_is_body=false;
-			
-			@XmlElement(name="save-code-in-directory")
-			@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
-			private File saveCodeInDir=null;
-			
-			@XmlElement(name="variable")
-			@Parameter(names={"-vn","--variable"},description="[20180716] how to name the VariantContext in the code. htsjdk/gatk often use 'vc'.")
-			private String variantVariable="variant";
-			
-			@XmlElement(name="recalc")
-			@Parameter(names={"-rc","--recalc"},description="[20180716] recalc attributes like INFO/AF, INFO/AC, INFO/AN... if the number of genotypes has been altered. Recal is not applied if there is no genotype.")
-			private boolean recalcAttributes = false;
-			
-			@XmlElement(name="extra-filters")
-			@Parameter(names={"-xf","--extra-filters"},description="[20180716] extra FILTERs names that will be added in the VCF header and that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- . Multiple separated by space/comma")
-			private String extraFilters = "";
+	@Parameter(names={"-f","--script"},description=" (js file). Optional.")
+	private File scriptFile=null;
+	
+	@Parameter(names={"--nocode"},description=" Don't show the generated code")
+	private boolean hideGeneratedCode=false;
+	
+	@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
+	private boolean user_code_is_body=false;
+	
+	@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
+	private File saveCodeInDir=null;
+	
+	@Parameter(names={"-vn","--variable"},description="[20180716] how to name the VariantContext in the code. htsjdk/gatk often use 'vc'.")
+	private String variantVariable="variant";
+	
+	@Parameter(names={"-rc","--recalc"},description="[20180716] recalc attributes like INFO/AF, INFO/AC, INFO/AN... if the number of genotypes has been altered. Recal is not applied if there is no genotype.")
+	private boolean recalcAttributes = false;
+	
+	@Parameter(names={"-xf","--extra-filters"},description="[20180716] extra FILTERs names that will be added in the VCF header and that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- . Multiple separated by space/comma")
+	private String extraFilters = "";
 
 			
-			@XmlTransient
-			private String code = null;
-			@XmlTransient
-			private Constructor<?> constructor = null;
 			
-			private class CtxWriter extends DelegateVariantContextWriter
-				{	
-				private final VCFFilterHeaderLine filterHeaderLine = (filteredTag.trim().isEmpty()?null:
-					new VCFFilterHeaderLine(CtxWriterFactory.this.filteredTag.trim(),"Filtered with "+VcfFilterJdk.class.getSimpleName())
-					);
-
-				private AbstractFilter filter_instance;
-				private VariantAttributesRecalculator recalculator = null;
 				
-				CtxWriter(final VariantContextWriter delegate) {
-					super(delegate);
-					}
-				@Override
-				public void writeHeader(final VCFHeader header) {
-					final VCFHeader h2 = new VCFHeader(header);
-					
-					if(recalcAttributes && header.hasGenotypingData())
-						{
-						this.recalculator = new VariantAttributesRecalculator();
-						this.recalculator.setHeader(h2);
-						}
-					else
-						{
-						this.recalculator = null;
-						}
-					
-					if(this.filterHeaderLine!=null)
-						{
-						h2.addMetaDataLine(this.filterHeaderLine);
-						}
-					// add genotype filter key if missing
-					if(h2.getFormatHeaderLine(VCFConstants.GENOTYPE_FILTER_KEY)==null)
-						{
-						h2.addMetaDataLine(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY, true));
-						}
-					
-					for(final String xf: Arrays.stream(extraFilters.split("[ ,;]+")).
-							filter(S->!StringUtil.isBlank(S)).
-							collect(Collectors.toSet())
-							)
-						{
-						h2.addMetaDataLine(new VCFFilterHeaderLine(xf,"Custom FILTER inserted with "+VcfFilterJdk.class.getSimpleName()));
-						}
-					
-					try {
-						this.filter_instance = (AbstractFilter)CtxWriterFactory.this.constructor.newInstance(header);
-						}
-					catch(final Throwable err) {
-						throw new RuntimeException(err);
-						}
-					
-					
-					super.writeHeader(h2);
-					}
 				
-				/** recalculate INFO/AF, INFO/AN ... variables and 'add' */ 
-				private void recalcAndAdd(final VariantContext ctx) {
-					super.add(this.recalculator !=null ?
-						this.recalculator.apply(ctx):
-						ctx
-						);
-					}
 				
-				@Override
+				
+				
 				public void add(final VariantContext variation) {
-					final Object stop = this.filter_instance.userData.get("STOP");
-					if(Boolean.TRUE.equals(stop)) return;
-					
-					final Object result = this.filter_instance.apply(variation);
-					// result is an array of a collection of variants
-					if(result!=null && (result.getClass().isArray() || (result instanceof Collection)))
-						{
-						final  Collection<?> col;
-						if(result.getClass().isArray())
-							{
-							final Object array[]=(Object[])result;
-							col= Arrays.asList(array);
-							}
-						else
-							{
-							col =( Collection<?>)result;
-							}
-						// write all of variants
-						for(final Object item:col)
-							{
-							if(item==null) throw new JvarkitException.UserError("item in array is null");
-							if(!(item instanceof VariantContext)) throw new JvarkitException.UserError("item in array is not a VariantContext "+item.getClass());
-							this.recalcAndAdd(VariantContext.class.cast(item));
-							}
-						}
-					// result is a VariantContext
-					else if(result!=null && (result instanceof VariantContext)) {
-						this.recalcAndAdd(VariantContext.class.cast(result));
-						}
-					else
-						{
-						boolean accept=true;
-						if(result==null)
-							{
-							accept=false;
-							}
-						else if(result instanceof Boolean)
-							{
-							if(Boolean.FALSE.equals(result)) accept = false;
-							}
-						else if(result instanceof Number)
-							{
-							if(((Number)result).intValue()!=1) accept = false;
-							}
-						else
-							{
-							LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
-							accept = false;
-							}
-						if (!accept)
-							{
-							if(this.filterHeaderLine!=null)
-								{
-								final VariantContextBuilder vcb = new VariantContextBuilder(variation);
-								vcb.filter(this.filterHeaderLine.getID());
-								this.recalcAndAdd(vcb.make());
-								}
-							return;
-							}
-						
-						// set PASS filter if needed
-						if(this.filterHeaderLine!=null && !variation.isFiltered())
-							{
-							this.recalcAndAdd( new VariantContextBuilder(variation).passFilters().make());
-							return;
-							}
-						this.recalcAndAdd(variation);
-						}
 					}
-				@Override
-				public void close() {
-					this.filter_instance = null;
-					super.close();
-					}
-				}
-			
-			private String getVariantVariableName() {
-				return StringUtil.isBlank(this.variantVariable)?"variant":this.variantVariable;
-			}
-			
-			@Override
-			public int initialize() {
-				try 
-					{
-					if(this.scriptFile!=null && !StringUtil.isBlank(this.scriptExpr))
-						{
-						LOG.error("script file and expression both defined");
-						return -1;
-						}
 				
-					if(this.scriptFile==null && StringUtil.isBlank(this.scriptExpr))
-						{
-						LOG.error("script file or expression missing");
-						return -1;
-						}
-
-					
-					if(this.scriptFile!=null)
-						{
-						this.code = IOUtil.slurp(this.scriptFile);
-						}
-					else
-						{
-						this.code = this.scriptExpr;
-						}
-					final Random rand= new  Random(System.currentTimeMillis());
-					final String javaClassName =VcfFilterJdk.class.getSimpleName()+
-							"Custom"+ Math.abs(rand.nextInt());
-					
-					final String generatedClassName= OpenJdkCompiler.getGeneratedAnnotationClassName();
-					final StringWriter codeWriter=new StringWriter();
-					final PrintWriter pw = new PrintWriter(codeWriter);
-					pw.println("import java.util.*;");
-					pw.println("import java.util.stream.*;");
-					pw.println("import java.util.function.*;");
-					pw.println("import htsjdk.samtools.util.*;");
-					pw.println("import htsjdk.variant.variantcontext.*;");
-					pw.println("import htsjdk.variant.vcf.*;");
-	
-					if(!StringUtil.isBlank(generatedClassName)) {
-						pw.println("@"+generatedClassName+"(value=\""+VcfFilterJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
-						}
-					pw.println("public class "+javaClassName+" extends "+AbstractFilter.class.getName().replace('$', '.')+" {");
-					pw.println("  public "+javaClassName+"(final VCFHeader header) {");
-					pw.println("  super(header);");
-					pw.println("  }");
-					if(this.user_code_is_body)
-						{
-						pw.println("   /** user's code starts here */");
-						pw.println(code);
-						pw.println(    "/** user's code ends here */");
-						}
-					else
-						{
-						pw.println("  @Override");
-						pw.println("  public Object apply(final VariantContext "+getVariantVariableName()+") {");
-						pw.println("   /** user's code starts here */");
-						pw.println(code);
-						pw.println(    "/** user's code ends here */");
-						pw.println("   }");
-						}
-					pw.println("}");
-					pw.flush();
-					
-					
-					if(!this.hideGeneratedCode)
-						{
-						LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
-						}
-					
-					if(this.saveCodeInDir!=null)
-						{
-						PrintWriter cw=null;
-						try 
-							{
-							IOUtil.assertDirectoryIsWritable(this.saveCodeInDir);
-							cw = new PrintWriter(new File(this.saveCodeInDir,javaClassName+".java"));
-							cw.write(codeWriter.toString());
-							cw.flush();
-							cw.close();
-							cw=null;
-							LOG.info("saved "+javaClassName+".java in "+this.saveCodeInDir);
-							}
-						catch(final Exception err)
-							{
-							throw new RuntimeIOException(err);
-							}
-						finally
-							{
-							CloserUtil.close(cw);
-							}
-						}
-					
-					final OpenJdkCompiler compiler = OpenJdkCompiler.getInstance();
-					final Class<?> compiledClass = compiler.compileClass(
-							javaClassName,
-							codeWriter.toString()
-							);
-					this.constructor = compiledClass.getDeclaredConstructor(VCFHeader.class);
-					return 0;
-					}
-				catch(final Exception err) {
-					LOG.error(err);
-					return -1;
-					}
-				}
+				
 			
-			@Override
-			public CtxWriter open(final VariantContextWriter delegate) {
-				return new CtxWriter(delegate);
-				}
-			@Override
-			public void close() throws IOException {
-				this.code = null;
-				this.constructor = null;
-				}
 			
-			}
+			
+			
 	
 	public static class AbstractFilter
 		extends VcfTools
@@ -781,61 +506,289 @@ public class VcfFilterJdk
 		
 		}
 	
+	private String getVariantVariableName() {
+		return StringUtil.isBlank(this.variantVariable)?"variant":this.variantVariable;
+		}
+	
 	
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
 			final VCFIterator iter,
-			final VariantContextWriter delegate
+			final VariantContextWriter out
 			)
 		{	
-		final CtxWriterFactory.CtxWriter out = this.component.open(delegate);
-		final VCFHeader header = iter.getHeader();
-		JVarkitVersion.getInstance().addMetaData(this, header);
-		out.writeHeader(header);
+		ProgressFactory.Watcher<VariantContext> progress = null;
+		String code = null;
 		
-		out.filter_instance.userData.put("first.variant", Boolean.TRUE);
-		out.filter_instance.userData.put("last.variant", Boolean.FALSE);
+		try {
+			
+			if(this.scriptFile!=null)
+				{
+				code = IOUtil.slurp(this.scriptFile);
+				}
+			else
+				{
+				code = this.scriptExpr;
+				}
+			final Random rand= new  Random(System.currentTimeMillis());
+			final String javaClassName =VcfFilterJdk.class.getSimpleName()+
+					"Custom"+ Math.abs(rand.nextInt());
+			
+			final String generatedClassName= OpenJdkCompiler.getGeneratedAnnotationClassName();
+			final StringWriter codeWriter=new StringWriter();
+			final PrintWriter pw = new PrintWriter(codeWriter);
+			pw.println("import java.util.*;");
+			pw.println("import java.util.stream.*;");
+			pw.println("import java.util.function.*;");
+			pw.println("import htsjdk.samtools.util.*;");
+			pw.println("import htsjdk.variant.variantcontext.*;");
+			pw.println("import htsjdk.variant.vcf.*;");
+	
+			if(!StringUtil.isBlank(generatedClassName)) {
+				pw.println("@"+generatedClassName+"(value=\""+VcfFilterJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+				}
+			pw.println("public class "+javaClassName+" extends "+AbstractFilter.class.getName().replace('$', '.')+" {");
+			pw.println("  public "+javaClassName+"(final VCFHeader header) {");
+			pw.println("  super(header);");
+			pw.println("  }");
+			if(this.user_code_is_body)
+				{
+				pw.println("   /** user's code starts here */");
+				pw.println(code);
+				pw.println(    "/** user's code ends here */");
+				}
+			else
+				{
+				pw.println("  @Override");
+				pw.println("  public Object apply(final VariantContext "+getVariantVariableName()+") {");
+				pw.println("   /** user's code starts here */");
+				pw.println(code);
+				pw.println(    "/** user's code ends here */");
+				pw.println("   }");
+				}
+			pw.println("}");
+			pw.flush();
+			
+			
+			if(!this.hideGeneratedCode)
+				{
+				LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
+				}
+			
+			if(this.saveCodeInDir!=null)
+				{
+				PrintWriter cw=null;
+				try 
+					{
+					IOUtil.assertDirectoryIsWritable(this.saveCodeInDir);
+					cw = new PrintWriter(new File(this.saveCodeInDir,javaClassName+".java"));
+					cw.write(codeWriter.toString());
+					cw.flush();
+					cw.close();
+					cw=null;
+					LOG.info("saved "+javaClassName+".java in "+this.saveCodeInDir);
+					}
+				catch(final Exception err)
+					{
+					throw new RuntimeIOException(err);
+					}
+				finally
+					{
+					CloserUtil.close(cw);
+					}
+				}
+			
+			final OpenJdkCompiler compiler = OpenJdkCompiler.getInstance();
+			final Class<?> compiledClass = compiler.compileClass(
+					javaClassName,
+					codeWriter.toString()
+					);
+			final Constructor<?> constructor = compiledClass.getDeclaredConstructor(VCFHeader.class);
+				
+				
+				
+			final VCFHeader header = iter.getHeader();
 
-		final  SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
-		while (iter.hasNext() && !out.checkError())
-			{				
-			out.add(progress.watch(iter.next()));
+				
+			final AbstractFilter filter_instance;
+			;
+
+				
+			/* change header */	
 			
-			out.filter_instance.userData.put("first.variant", Boolean.FALSE);
-			out.filter_instance.userData.put("last.variant", !iter.hasNext());
 			
+			final VCFHeader h2 = new VCFHeader(header);
 			
-			final Object stop = out.filter_instance.userData.get("STOP");
-			if(Boolean.TRUE.equals(stop)) break;
-			}
-		progress.finish();
-		out.close();
-		return 0;
-		}
-	
-	
-	@Override
-	public int doWork(final List<String> args) {
-		try 
-			{			
-			if(this.component.initialize()!=0) {
-				LOG.error("Cannot initialize");
+			/** recalculate INFO/AF, INFO/AN ... variables and 'add' */ 
+			final Consumer<VariantContext> recalcAndAdd;
+			
+			if(this.recalcAttributes && header.hasGenotypingData())
+				{
+				final VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
+				recalculator.setHeader(h2);
+				recalcAndAdd = V->out.add(recalculator.apply(V));
+				}
+			else
+				{
+				recalcAndAdd = V->out.add(V);
+				}
+			
+			final VCFFilterHeaderLine filterHeaderLine = 
+				StringUtils.isBlank(filteredTag)?
+				null:
+				new VCFFilterHeaderLine(this.filteredTag.trim(),"Filtered with "+VcfFilterJdk.class.getSimpleName())
+				;
+			
+			if(filterHeaderLine!=null)
+				{
+				h2.addMetaDataLine(filterHeaderLine);
+				}
+			// add genotype filter key if missing
+			if(h2.getFormatHeaderLine(VCFConstants.GENOTYPE_FILTER_KEY)==null)
+				{
+				h2.addMetaDataLine(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY, true));
+				}
+			
+			for(final String xf: Arrays.stream(this.extraFilters.split("[ ,;]+")).
+					filter(S->!StringUtil.isBlank(S)).
+					collect(Collectors.toSet())
+					)
+				{
+				h2.addMetaDataLine(new VCFFilterHeaderLine(xf,"Custom FILTER inserted with "+VcfFilterJdk.class.getSimpleName()));
+				}
+			
+			try {
+				filter_instance = (AbstractFilter)constructor.newInstance(header);
+				}
+			catch(final Throwable err) {
+				LOG.error(err);
 				return -1;
 				}
-			return doVcfToVcf(args, this.outputFile);
+			
+			/* end change header */
+			
+			JVarkitVersion.getInstance().addMetaData(this, h2);
+			out.writeHeader(h2);
+			
+			filter_instance.userData.put("first.variant", Boolean.TRUE);
+			filter_instance.userData.put("last.variant", Boolean.FALSE);
+	
+			progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			while (iter.hasNext() && !out.checkError())
+				{				
+				final VariantContext variation=progress.apply(iter.next());
+				
+				/* handle variant */
+				final Object result = filter_instance.apply(variation);
+				// result is an array of a collection of variants
+				if(result!=null && (result.getClass().isArray() || (result instanceof Collection)))
+					{
+					final  Collection<?> col;
+					if(result.getClass().isArray())
+						{
+						final Object array[]=(Object[])result;
+						col= Arrays.asList(array);
+						}
+					else
+						{
+						col =( Collection<?>)result;
+						}
+					// write all of variants
+					for(final Object item:col)
+						{
+						if(item==null) throw new JvarkitException.UserError("item in array is null");
+						if(!(item instanceof VariantContext)) throw new JvarkitException.UserError("item in array is not a VariantContext "+item.getClass());
+						recalcAndAdd.accept(VariantContext.class.cast(item));
+						}
+					}
+				// result is a VariantContext
+				else if(result!=null && (result instanceof VariantContext)) {
+					recalcAndAdd.accept(VariantContext.class.cast(result));
+					}
+				else
+					{
+					boolean accept=true;
+					if(result==null)
+						{
+						accept=false;
+						}
+					else if(result instanceof Boolean)
+						{
+						if(Boolean.FALSE.equals(result)) accept = false;
+						}
+					else if(result instanceof Number)
+						{
+						if(((Number)result).intValue()!=1) accept = false;
+						}
+					else
+						{
+						LOG.warn("Script returned something that is not a boolean or a number:"+result.getClass());
+						accept = false;
+						}
+					if (!accept)
+						{
+						if(filterHeaderLine!=null)
+							{
+							final VariantContextBuilder vcb = new VariantContextBuilder(variation);
+							vcb.filter(filterHeaderLine.getID());
+							recalcAndAdd.accept(vcb.make());
+							}
+						continue;
+						}
+					
+					// set PASS filter if needed
+					if(filterHeaderLine!=null && !variation.isFiltered())
+						{
+						recalcAndAdd.accept( new VariantContextBuilder(variation).passFilters().make());
+						continue;
+						}
+					recalcAndAdd.accept(variation);
+					}
+
+				
+				
+				/* end handle variant */
+				
+				filter_instance.userData.put("first.variant", Boolean.FALSE);
+				filter_instance.userData.put("last.variant", !iter.hasNext());
+				
+				
+				final Object stop = filter_instance.userData.get("STOP");
+				if(Boolean.TRUE.equals(stop)) break;
+				}
+			progress.close();
+			progress = null;
+			out.close();
+			return 0;
 			}
-		catch(final Exception err)
-			{
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(this.component);
+			code = null;
+			CloserUtil.close(progress);
 			}
 		}
 	
+	@Override
+	public int doWork(final List<String> args) {
+		if(this.scriptFile!=null && !StringUtil.isBlank(this.scriptExpr))
+			{
+			LOG.error("script file and expression both defined");
+			return -1;
+			}
+	
+		if(this.scriptFile==null && StringUtil.isBlank(this.scriptExpr))
+			{
+			LOG.error("script file or expression missing");
+			return -1;
+			}	
+		return doVcfToVcf(args, this.outputFile);
+		}
+
 	public static void main(final String[] args) throws Exception
 		{
 		new VcfFilterJdk().instanceMainWithExit(args);

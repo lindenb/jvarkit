@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Filtering VCF with in-memory-compiled java expressions
+Filtering VCF with dynamically-compiled java expressions
 
 
 ## Usage
@@ -451,4 +451,10 @@ see https://bioinformatics.stackexchange.com/questions/5518
 ```
 java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().allMatch(G->(G.getSampleName().endsWith("M") && G.isHet()) || (G.getSampleName().endsWith("F") && G.isHomRef())); ' input.vcf
 ```
+
+## History:
+
+  * 20190222 : removed some jaxb stuff
+  * 201901 : OpenJdk doesn't support anymore in-memory compiling. Switching to OpenJdkCompiler
+
 
