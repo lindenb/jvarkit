@@ -245,7 +245,7 @@ public class Algorithms {
 	            final int half = len / 2;
 	            final int middle = first + half;
 
-	            if (select < dataVector[middle] )
+	            if (!(select < dataVector[middle]))
 	                    {
 	                    first = middle + 1;
 	                    len = len - half - 1;
