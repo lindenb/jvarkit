@@ -79,8 +79,30 @@ public default void dump() {
 
 
 static abstract class AbstractParanoid implements Paranoid {
-	
-	
+	public abstract String where();
+	protected String toString(final StackTraceElement STE) {
+		return "   "+STE.getClassName()+" in \""+STE.getFileName()+"\" "+STE.getMethodName()+" line "+STE.getLineNumber();
+		}
+	}
+
+static class Silent extends AbstractParanoid {
+	@Override
+	public Paranoid raise(String msg) {
+		return this;
+		}
+	@Override
+	public String where() {
+		return "";
+		}
+	}
+
+static class Printer extends AbstractParanoid {
+	@Override
+	public Paranoid raise(String msg) {
+		System.err.println(String.valueOf(msg)+" "+where());
+		return this;
+		}
+	@Override
 	public String where() {
 		String msg="undefined";
 		try {
@@ -89,9 +111,10 @@ static abstract class AbstractParanoid implements Paranoid {
 				{
 				final String s= Arrays.stream(array).
 					filter(STE->!STE.getClassName().startsWith(Paranoid.class.getName())).
-					//filter(STE->STE.getClassName().startsWith("com.github.lindenb.")).
+					filter(STE->STE.getClassName().startsWith("com.github.lindenb.")).
+					findFirst().
 					map(STE->STE.getClassName()+" in \""+STE.getFileName()+"\" "+STE.getMethodName()+" line "+STE.getLineNumber()).
-					collect(Collectors.joining("\n"));
+					orElse(msg)
 					;
 				return s.isEmpty()?msg:s;
 				}
@@ -102,16 +125,24 @@ static abstract class AbstractParanoid implements Paranoid {
 		}
 	}
 
-static class Silent extends AbstractParanoid {
-	@Override
-	public Paranoid raise(String msg) {
-		return this;
-		}
-	}
+
 static class Eager extends AbstractParanoid {
 	@Override
-	public Paranoid raise(String msg) {
-		throw new AssertionError(String.valueOf(msg)+" "+where());
+	public Paranoid raise(final String msg) {
+		
+		throw new AssertionError(String.valueOf(msg)+"\n"+where());
+		}
+	@Override
+	public String where() {
+		try {
+			return Arrays.stream(Thread.currentThread().getStackTrace()).
+				filter(STE->!STE.getClassName().startsWith(Paranoid.class.getName())).
+				map(SE->toString(SE)).
+				collect(Collectors.joining("\n"));
+			}
+		catch(final Throwable err) {
+			return "";
+			}
 		}
 	}
 
@@ -122,4 +153,8 @@ public static Paranoid createSilentInstance() {
 public static Paranoid createThrowingInstance() { 
 	return new Eager();
 	}
+public static Paranoid createStderrInstance() { 
+	return new Printer();
+	}
+
 }

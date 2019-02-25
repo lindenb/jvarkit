@@ -31,8 +31,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -294,11 +296,9 @@ public class VcfScanUpstreamOrf extends Launcher
 			return KOZAK_LENGTH;
 			}
 		
-		void annotate(final StringBuilder sb) {
-			sb.append("kozak-seq:").append(this.toString()).
-			append("|kozak-strength:").
-			append(this.getStrength().name()).
-			append("|");
+		void annotate(final Map<String,String> sb) {
+			sb.put("kozak-seq",this.toString());
+			sb.put("kozak-strength",this.getStrength().name());
 			}
 		
 		}
@@ -356,11 +356,12 @@ public class VcfScanUpstreamOrf extends Launcher
 					;
 			}
 		
-		/** find best ATG upstream of stop 'best' is first in frame with atg with best kozak. returns -1 if not found*/
+		/** find best ATG upstream of stop 'best' is first in frame with atg */
 		int findBestATG(final int stop_pos) {
+			PARANOID.assertTrue(isStop(stop_pos));
 			int best=-1;
-			for(int idx=stop_pos-1;idx>=0;--idx) {
-				if(idx%3 == stop_pos%3 && isStop(idx)  )
+			for(int idx=stop_pos-3;idx>=0;idx-=3) {
+				if(isStop(idx))
 					{
 					//there is another stop at this position in frame, not a good candidate
 					return -1;
@@ -372,10 +373,6 @@ public class VcfScanUpstreamOrf extends Launcher
 				else if(best==-1) {
 					best= idx;
 					}
-				else if(best%3 != stop_pos%3) //not in frame
-					{
-					// nothing
-					}
 				else  {
 					final KozakSequence kozak1= getKozakContext(best);
 					final KozakSequence kozak2= getKozakContext(idx);
@@ -384,7 +381,6 @@ public class VcfScanUpstreamOrf extends Launcher
 						}
 					}
 				}
-			
 			return best;
 			}
 		
@@ -392,13 +388,10 @@ public class VcfScanUpstreamOrf extends Launcher
 		int findBestStop(final int ATG_pos) {
 			if(isStop(ATG_pos)) throw new IllegalStateException("cannot be a stop !");
 			int stop=-1;
-			for(int idx=ATG_pos; idx+2 <  this.length();idx++) {
-				if(isStop(idx)) {
-					stop=idx;
-					if(stop%3==ATG_pos%3) return stop;
-					}
+			for(int idx=ATG_pos+3; idx+2 <  this.length();idx+=3) {
+				if(isStop(idx)) return stop;
 				}
-			return stop;
+			return -1;
 			}
 		/** get the strand of the gene */
 		protected final boolean isPositiveStrand() {
@@ -415,7 +408,7 @@ public class VcfScanUpstreamOrf extends Launcher
 			}
 		
 		/** return peptide between pos_atg and post_stop or '.' if they're not in frame */
-		String translate(int pos_ATG,int pos_stop) {
+		String translate(final int pos_ATG,final int pos_stop) {
 			if(pos_ATG>=pos_stop) throw new IllegalStateException("atg"+pos_ATG+">stop="+pos_stop);
 			if(pos_ATG%3 != pos_stop%3) return ".";
 			final StringBuilder sb=new StringBuilder();
@@ -440,17 +433,37 @@ public class VcfScanUpstreamOrf extends Launcher
 	
 	
 	/** wraps a UCSC gene into a CharSequence */
-	private class KnownGeneRNA 
+	private abstract class AbstractKnownGeneRNA 
 		extends AbstractRNASequence
 		{
-		private final KnownGene knownGene;
+		protected AbstractKnownGeneRNA() {
+			}
+
+		@Override
+		public abstract KnownGene getGene();
+		
+		@Override
+		public final int getChromStart() {
+			return getGene().getTxStart();
+			}
+		@Override
+		public final int getChromEnd() {
+			return getGene().getTxEnd();
+			}
+		}
+	
+	/** wraps a UCSC gene into a CharSequence */
+	private class KnownGeneRNA 
+		extends AbstractKnownGeneRNA
+		{
+		private final KnownGene knownGene; 
 		/** maps RNA index to genomic index in ascending order */
 		private final int genomic_indexes0[];
 		/** maps RNA index to base, in RNA order */
 		private final char base_buffer[];
 		
 		KnownGeneRNA(final KnownGene knownGene) {
-			this.knownGene=knownGene;
+			this.knownGene = knownGene;
 			final List<Integer> L=new ArrayList<>(3_000);
 			for(int exon_index=0;exon_index< knownGene.getExonCount();++exon_index) {
 				int beg = knownGene.getExonStart(exon_index);
@@ -468,22 +481,11 @@ public class VcfScanUpstreamOrf extends Launcher
 			Arrays.fill(this.base_buffer, NO_BASE);
 			}
 		
-		
-		
-		
 		@Override
-		public final KnownGene getGene() {
+		public KnownGene getGene() {
 			return this.knownGene;
 			}
 		
-		@Override
-		public int getChromStart() {
-			return getGene().getTxStart();
-			}
-		@Override
-		public int getChromEnd() {
-			return getGene().getTxEnd();
-			}
 		
 		@Override
 		public int length() {
@@ -531,12 +533,49 @@ public class VcfScanUpstreamOrf extends Launcher
 			}	
 		}
 	
-	
+	private class MutatedKnownGeneRNA extends AbstractKnownGeneRNA
+		{
+		private final MutatedUTR delegate;
+		MutatedKnownGeneRNA(final MutatedUTR delegate)  {
+			this.delegate = delegate;
+			}
+
+		@Override
+		public KnownGene getGene() {
+			return getWildRNA().getGene();
+			}
+		private KnownGeneRNA getWildRNA() {
+			return delegate.delegate.getRNA();
+		}
+		
+		@Override
+		public char charAt(int index) {
+			throwIfNotInRange(index);
+			if(index==delegate.alt_position0) return delegate.alt_base;
+			return getWildRNA().charAt(index);
+			}
+		@Override
+		boolean containsGenomicPos0(int genomic0) {
+			return getWildRNA().containsGenomicPos0(genomic0);
+			}
+		@Override
+		protected int convertGenomicIndex0ToOrf(int genomic0) {
+			return getWildRNA().convertGenomicIndex0ToOrf(genomic0);
+			}
+		@Override
+		protected int convertOrfToGenomicIndex0(int index) {
+			return getWildRNA().convertOrfToGenomicIndex0(index);
+			}
+		@Override
+		public int length() {
+			return getWildRNA().length();
+			}
+		}
 	
 	/** base class for UORF or mutated-UROF */
 	private abstract class AbstractUTRSequence extends AbstractRNASequence
 		{
-		protected abstract KnownGeneRNA getRNA();
+		protected abstract AbstractKnownGeneRNA getRNA();
 		
 		@Override
 		public final KnownGene getGene() {
@@ -581,19 +620,16 @@ public class VcfScanUpstreamOrf extends Launcher
 			}
 		
 		/** add annotation about stop */
-		protected final void annotStop(final StringBuilder sb,final int pos_ATG,final int pos_stop) {
-			if(pos_ATG!=-1)
-				{
-				sb. append("stop-frame:").
-					append(pos_stop%3 == pos_ATG%3?"in-frame-stop":"not-in-frame-stop").
-					append("|stop-pos:").
-					append(1+this.convertOrfToGenomicIndex0(pos_stop)).
-					append("|atg-stop:").
-					append(pos_stop-pos_ATG).
-					append("|pep:").
-					append(pos_stop%3 == pos_ATG%3?translate(pos_ATG,pos_stop):".")
-					;
-				}
+		protected final void annotStop(final Map<String,String> sb,final int pos_ATG,final int pos_stop) {
+			PARANOID.assertGe(pos_ATG, 0);
+			if(pos_stop<0) return;
+			PARANOID.assertEq(pos_ATG%3,pos_stop%3);
+			
+			sb.put("stop-pos",String.valueOf(1+this.getRNA().convertOrfToGenomicIndex0(pos_stop)));
+			sb.put("atg~stop",String.valueOf(pos_stop-pos_ATG));
+			sb.put("stop",pos_stop>=this.length()?"in-cds":"in-uorf");
+			sb.put("pep",this.getRNA().translate(pos_ATG,pos_stop));
+				
 			}
 		
 		
@@ -640,7 +676,7 @@ public class VcfScanUpstreamOrf extends Launcher
 			return this.uorf;
 			}
 		
-		public KnownGeneRNA getRNA() {
+		public AbstractKnownGeneRNA getRNA() {
 			return this.getUORF().getRNA();
 			}
 		@Override
@@ -848,6 +884,7 @@ public class VcfScanUpstreamOrf extends Launcher
 	/** mutated version of UpstreamORF */
 	private class MutatedUTR extends AbstractUTRSequence
 		{
+		final MutatedKnownGeneRNA mutatedRNA;
 		final UpstreamORF delegate;
 		final int genomic_index0_of_variant;
 		final char alt_base;
@@ -865,11 +902,12 @@ public class VcfScanUpstreamOrf extends Launcher
 			this.alt_base= delegate.isPositiveStrand() ? c: AcidNucleics.complement(c);
 			this.alt_position0 = delegate.convertGenomicIndex0ToOrf(this.genomic_index0_of_variant);
 			if(delegate.convertOrfToGenomicIndex0(this.alt_position0)!=this.genomic_index0_of_variant) throw new IllegalStateException();
+			this.mutatedRNA = new MutatedKnownGeneRNA(this);
 			}
 		
 		@Override
-		protected KnownGeneRNA getRNA() {
-			return this.delegate.getRNA();
+		protected AbstractKnownGeneRNA getRNA() {
+			return this.mutatedRNA;
 			}
 		
 		@Override
@@ -894,31 +932,21 @@ public class VcfScanUpstreamOrf extends Launcher
 			}
 		
 		/* return atg shift position if alt base creates a new ATG: 0,1,2 or -1 if there is no new ATG */
-		private StringBuilder getAnnotPrefix(final int pos_ATG) {
+		private Map<String,String> getAnnotPrefix(final int pos_ATG) {
 			final int dist_from_cap = pos_ATG;
 			final int dist_to_cds_start = this.length() - pos_ATG ;
-
 			
-			return new StringBuilder("transcript:").
-				append(this.getGene().getName()).
-				append("|strand:").
-				append(this.isPositiveStrand()?"+":"-").
-				append("|utr-start:").
-				append(this.getChromStart()+1).
-				append("|utr-end:").
-				append(this.getChromEnd()).
-				append("|alt:").
-				append(this.alt_base).
-				append("|atg-pos:").
-				append(1+this.delegate.convertOrfToGenomicIndex0(pos_ATG)).
-				append("|cap-atg:").
-				append(dist_from_cap).
-				append("|atg-cds:").
-				append(dist_to_cds_start).
-				append("|atg-frame:").
-				append( dist_to_cds_start % 3 !=0 ? "atg-out-of-cds-frame" :  "atg-in-cds-frame").
-				append("|")
-				;
+			final Map<String,String> hash = new LinkedHashMap<>();
+			hash.put("transcript", this.getGene().getName());
+			hash.put("strand",this.isPositiveStrand()?"+":"-");
+			hash.put("utr-start",String.valueOf(this.getChromStart()+1));
+			hash.put("utr-end",String.valueOf(this.getChromEnd()));
+			hash.put("alt",String.valueOf(this.alt_base));
+			hash.put("alt-pos",String.valueOf(1+this.delegate.convertOrfToGenomicIndex0(pos_ATG)));
+			hash.put("cap~atg",String.valueOf(dist_from_cap));
+			hash.put("atg~cds",String.valueOf(dist_to_cds_start));
+			hash.put("atg-frame", dist_to_cds_start % 3 !=0 ? "atg-out-of-cds-frame" :  "atg-in-cds-frame");
+			return hash;
 			}
 
 		
@@ -929,6 +957,9 @@ public class VcfScanUpstreamOrf extends Launcher
 			if(!disable_stop_create) deNovoStop();
 			if(!disable_kozak_alteration) kozakAlteration();
 			}
+		private String toString(final Map<String,String> map) {
+			return map.entrySet().stream().map(K->K.getKey()+":"+K.getValue()).collect(Collectors.joining("|"));
+		}
 		
 		void removeStop() {
 			for(int i=0;i<3;i++) {
@@ -938,24 +969,22 @@ public class VcfScanUpstreamOrf extends Launcher
 				
 				final int pos_stop = this.alt_position0 - i;
 				
-				final int pos_ATG = this.delegate.findBestATG(pos_stop);
+				final int pos_ATG = this.findBestATG(pos_stop);
 				if(pos_ATG==-1) continue;
-				if(pos_ATG>=pos_stop) throw new IllegalStateException(""+pos_ATG+"/"+pos_stop);
-				
-				
+				PARANOID.assertLt(pos_ATG,pos_stop);
 				
 				final KozakSequence kozakSequence = this.getKozakContext(pos_ATG);
-				if(acceptKozak(kozakSequence)) {
+				if(!acceptKozak(kozakSequence)) {
 					continue;
 					}
-				final StringBuilder sb =getAnnotPrefix(pos_ATG);
+				final Map<String,String> sb =getAnnotPrefix(pos_ATG);
 				kozakSequence.annotate(sb);
 				this.delegate.annotStop(sb, pos_ATG, pos_stop);
 				
-				this.remove_stop_set.add(sb.toString());
+				this.remove_stop_set.add(toString(sb));
 				}
 			}
-		
+		/** find de NOVO stop added to uORF */
 		void deNovoStop() {
 			for(int i=0;i<3;i++) {
 				// stop added
@@ -964,46 +993,49 @@ public class VcfScanUpstreamOrf extends Launcher
 			    
 				final int pos_stop = this.alt_position0 - i;
 				
-				final int pos_ATG = this.delegate.findBestATG(pos_stop);
+				
+				final int pos_ATG = this.findBestATG(pos_stop);
 				if(pos_ATG==-1) continue;
+				PARANOID.assertLt(pos_ATG,pos_stop);
+				
 				final KozakSequence kozakSequence = this.getKozakContext(pos_ATG);
 				if(!acceptKozak(kozakSequence)) continue;
 				
-				final StringBuilder sb =getAnnotPrefix(pos_ATG);
+				final Map<String,String> sb =getAnnotPrefix(pos_ATG);
 				
 				kozakSequence.annotate(sb);
 				
 				this.annotStop(sb, pos_ATG, pos_stop);
 				
-				this.denovo_stop_set.add(sb.toString());
+				this.denovo_stop_set.add(toString(sb));
 				}
 			}
 
-		
-		
+		/** ATG in uORF removed */
 		void removeATG() {
 			for(int i=0;i<3;i++) {
 				if(!this.delegate.isATG(this.alt_position0 - i /* yes minus */)) continue;
 				if(this.isATG(this.alt_position0 - i)) continue;
 				
 				
-				final int pos_A = this.alt_position0 - i;
-				final KozakSequence kozakSequence = this.delegate.getKozakContext(pos_A);
+				final int pos_ATG = this.alt_position0 - i;
+				final KozakSequence kozakSequence = this.delegate.getKozakContext(pos_ATG);
 				if(!acceptKozak(kozakSequence)) continue;
 				
 				// yes we use mRNA.findBest because stop can be beyond CDS
-				final int stop = this.delegate.mRNA.findBestStop(pos_A);
+				final int pos_stop = this.delegate.getRNA().findBestStop(pos_ATG);
+				if(pos_stop==-1) continue;
+				PARANOID.assertLt(pos_ATG,pos_stop);
 				
-				final StringBuilder sb =getAnnotPrefix(pos_A);
-					
+				final Map<String,String> sb = getAnnotPrefix(pos_ATG);
 				kozakSequence.annotate(sb);
-				annotStop(sb, pos_A, stop);
+				annotStop(sb, pos_ATG, pos_stop);
 				
-				this.remove_atg_set.add(sb.toString());
+				this.remove_atg_set.add(toString(sb));
 				}
 			}
 		
-		
+		/** ATG in uORF added */
 		void findDeNovoATG() {
 			for(int i=0;i<3;i++) {
 				//must be atg denovo
@@ -1013,12 +1045,16 @@ public class VcfScanUpstreamOrf extends Launcher
 				
 				final KozakSequence kozakSequence = this.getKozakContext(pos_A);
 				if(!acceptKozak(kozakSequence)) continue;
-				final int stop = this.findBestStop(pos_A);
+				// yes we use mRNA.findBest because stop can be beyond CDS
+				final int stop = this.getRNA().findBestStop(pos_A);
+				if(stop==-1) continue;
 				
-				final StringBuilder sb =getAnnotPrefix(pos_A);
+				PARANOID.assertLt(pos_A,stop);
+				
+				final Map<String,String> sb =getAnnotPrefix(pos_A);
 				kozakSequence.annotate(sb);
 				this.annotStop(sb,pos_A,stop);
-				this.denovo_atg_set.add(sb.toString());
+				this.denovo_atg_set.add(toString(sb));
 				}
 			}
 		
@@ -1027,6 +1063,8 @@ public class VcfScanUpstreamOrf extends Launcher
 				final int kozak_start = this.alt_position0 - i;
 				if(kozak_start<0 || kozak_start+KOZAK_LENGTH>=this.length()) continue;
 				final int pos_A = kozak_start+ KOZAK_ATG;
+				if(!isATG(pos_A)) continue;
+				if(!this.delegate.isATG(pos_A)) continue;
 				final KozakSequence kozak1 = this.delegate.getKozakContext(pos_A);
 				if(kozak1.getStrength()==KozakStrength.nil) continue;
 				
@@ -1037,23 +1075,20 @@ public class VcfScanUpstreamOrf extends Launcher
 					continue;
 					}
 				
-				final StringBuilder sb = getAnnotPrefix(pos_A);
+				final int stop = this.getRNA().findBestStop(pos_A);
+				if(stop<0) continue;
+
 				
-				sb.
-					append("kozak-ref-seq:").
-					append(kozak1.toString()).
-					append("|kozak-ref-strength:").
-					append(kozak1.getStrength().name()).
-					append("|kozak-alt-seq:").
-					append(kozak2.toString()).
-					append("|kozak-alt-strength:").
-					append(kozak2.getStrength().name()).
-					append("|")
-					;
-				final int stop = this.findBestStop(pos_A);
+				final Map<String,String> sb = getAnnotPrefix(pos_A);
+				
+				sb.put("kozak-ref-seq",kozak1.toString());
+				sb.put("kozak-ref-strength",kozak1.getStrength().name());
+				sb.put("kozak-alt-seq",kozak2.toString());
+				sb.put("kozak-alt-strength",kozak2.getStrength().name());
+				
 				annotStop(sb, pos_A, stop);
 				
-				this.kozak_alterations_set.add(sb.toString());
+				this.kozak_alterations_set.add(toString(sb));
 				}
 			}
 		}
@@ -1396,7 +1431,7 @@ public class VcfScanUpstreamOrf extends Launcher
 				return super.doVcfToVcf(args, this.outputFile);
 				}
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
