@@ -317,18 +317,23 @@ public class IOUtils {
 
 	public static Reader openFileForReader(final File file) throws IOException
 		{
+		return openFileForReader(file.toPath());
+		}
+	
+	/** open file with reader, detect with extension if file is compressed */
+	public static Reader openFileForReader(final Path file) throws IOException
+		{
 		IOUtil.assertFileIsReadable(file);
-		if(isCompressedExtention(file.getName()))
+		if(isCompressedExtention(file.getFileName().toString()))
 			{
-			return new InputStreamReader(openFileForReading(file));
+			return new InputStreamReader(openPathForReading(file));
 			}
-		return new FileReader(file);
+		return Files.newBufferedReader(file);
 		}
 
-
-	/** return true if the file has a compressed suffix '.gz' or '.bz2' */
+	/** return true if the file has a compressed suffix '.bfz' or '.gz' or '.bz2' */
 	public static final boolean isCompressedExtention(final String s) {
-		return s!=null && (s.endsWith(".gz") || s.endsWith(".bz2"));
+		return s!=null && (s.endsWith(".gz") || s.endsWith(".bgz") || s.endsWith(".bz2"));
 	}
 	
 	public static InputStream openFileForReading(final File file) throws IOException
@@ -355,7 +360,7 @@ public class IOUtils {
 		return  new BufferedReader(new InputStreamReader(openPathForReading(path), Charset.forName("UTF-8")));
 		}
 	
-	public static BufferedReader openFileForBufferedReading(File file) throws IOException
+	public static BufferedReader openFileForBufferedReading(final File file) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(openFileForReading(file), Charset.forName("UTF-8")));
 		}
@@ -367,7 +372,7 @@ public class IOUtils {
    
     public static OutputStream openFileForWriting(final File file) throws IOException
     	{
-        if (file.getName().endsWith(".vcf.gz"))
+        if (file.getName().endsWith(".vcf.gz") || file.getName().endsWith(".bgz"))
         	{
             return new BlockCompressedOutputStream(file);
         	}
@@ -454,7 +459,7 @@ public class IOUtils {
     /** read String from DataInputStream
      * motivation: readUTF can't print lines larger than USHORTMAX
      *  */
-    public static String readString(DataInputStream in) throws IOException
+    public static String readString(final DataInputStream in) throws IOException
     	{
     	int llength=in.readInt();
     	if(llength==-1) return null;

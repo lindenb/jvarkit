@@ -707,6 +707,12 @@ public int doWork(final List<String> args)
 	{
 	return -1;
 	}
+
+/** instanceMain with Collection to make test-unit easier to write , just call `args.toArray` */
+public final int instanceMain(final Collection<String> args) {
+	return instanceMain(args.toArray(new String[args.size()]));
+	}
+	
 public int instanceMain(final String args[]) {
 	int ret=RETURN_OK;
 	try 

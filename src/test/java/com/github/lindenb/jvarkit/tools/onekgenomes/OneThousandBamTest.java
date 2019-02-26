@@ -6,10 +6,13 @@ import java.io.PrintWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import org.testng.Assert;
 
 import htsjdk.samtools.util.IOUtil;
+import org.testng.annotations.Test;
 
 public class OneThousandBamTest  extends TestUtils {
+	@Test
 	public void test01() throws IOException
 	{
 	final File tmpDir  = IOUtil.createTempDir("tmp", ".TMP");
@@ -33,7 +36,7 @@ public class OneThousandBamTest  extends TestUtils {
 	     		"-B",bed,
 	     		urlList
 	     		).make()),0);
-		Assert.assertIsBam(output);
+		this.assertIsValidBam(output);
 		
 		} 
 	finally

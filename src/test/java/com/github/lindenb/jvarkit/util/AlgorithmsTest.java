@@ -46,4 +46,37 @@ public class AlgorithmsTest {
 		Assert.assertEquals(0,Algorithms.lower_bound(data,-1));
 		Assert.assertEquals(data.size(),Algorithms.upper_bound(data,60));
     	}
+    
+    @Test
+	public void testInts() {
+		final int L[]= new int[] {1,1,2,5,5,5,8};
+		Assert.assertTrue(Algorithms.isSorted(L));
+
+		//
+		int lb = Algorithms.lower_bound(L, 2);
+		Assert.assertEquals(lb, 2);
+		lb = Algorithms.lower_bound(L, 1);
+		Assert.assertEquals(lb,0);
+		lb = Algorithms.lower_bound(L,0);
+		Assert.assertEquals(lb,0);
+		lb = Algorithms.lower_bound(L,4);
+		Assert.assertEquals(lb,3);
+		lb = Algorithms.lower_bound(L,8);
+		Assert.assertEquals(lb,6);
+		lb = Algorithms.lower_bound(L,10);
+		Assert.assertEquals(lb,L.length);
+		
+		//
+		lb = Algorithms.upper_bound(L, 2);
+		Assert.assertEquals(lb, 3);
+		lb = Algorithms.upper_bound(L, 1);
+		Assert.assertEquals(lb,2);
+		lb = Algorithms.upper_bound(L,0);
+		Assert.assertEquals(lb,0);
+		lb = Algorithms.upper_bound(L,4);
+		Assert.assertEquals(lb,3);
+		lb = Algorithms.upper_bound(L,10);
+		Assert.assertEquals(lb,L.length);
+		}
+    
 	}

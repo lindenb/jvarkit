@@ -436,9 +436,10 @@ public class CompileJVarkit extends DefaultTask {
 		return s+"Test";
 		}
 	String getAntInclude() {
-		String s= this.getMainJavaSource();
-		int slash = s.lastIndexOf('/');
-		return "**"+s.substring(slash);
+		final String s= this.getMainJavaSource();
+		final int slash = s.lastIndexOf('/');
+		String s2 =  "**"+s.substring(slash);
+		return s2;
 		}
 	String getAntTestInclude() {
 		String s= this.getMainJavaSource();
@@ -486,7 +487,7 @@ public class CompileJVarkit extends DefaultTask {
 		return c;	
 		}	
 	
-	
+
 	 @TaskAction
 	 void doIt() {
 		if(this.deprecatedMsg!=null) {
@@ -510,9 +511,10 @@ public class CompileJVarkit extends DefaultTask {
 			}
 		/** run xjc if needed */
 		this.runXJC();
+		
 		/** copy main source */
 		ant.mkdir(dir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/') )
-
+			
 		/** opendjk properties , required for external compilation */
 		final File distJar = new File(this.distDir+"/"+this.getName()+".jar")
 
@@ -527,6 +529,8 @@ public class CompileJVarkit extends DefaultTask {
 		//System.err.println("JAVA_PATH="+getConfiguration().asPath);
 		final Set<File> classpath1 = this.jarLibs.withoutTest().files.collect{it->it.toFile(project)} as Set;
 		
+		/** not the 'big test' */
+
 		ant.javac(
 			destdir: this.tmpDir,
 			srcdir: this.srcDir+":"+this.tmpDir,
@@ -543,13 +547,12 @@ public class CompileJVarkit extends DefaultTask {
 				include(name: "**/ObjectFactory.java")
 				compilerarg(value:'-Xlint')
 			}
-	
+		
 		ant.copy(
 			file: this.getMainJavaSource(),
 			todir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/')
 			)
-
-
+			
 		/* shall we download Sequence Ontology ? */
 		File soTreeClassFile = new File("${this.tmpDir}/com/github/lindenb/jvarkit/util/so/SequenceOntologyTree.class");
 		if(soTreeClassFile.exists())
@@ -578,13 +581,12 @@ public class CompileJVarkit extends DefaultTask {
 				}
 			}
 		/* jar tmp dir */
-		
 		final String now = new Date().format("yyyyMMddHHmmss");
 		ant.jar(destfile: distJar,
 			basedir:this.tmpDir
 			){
  			 manifest {
-				attribute(name:"Main-Class",value:this.mainClass)
+				attribute(name:"Main-Class",value: this.mainClass )
 				attribute(name:"Htsjdk-Version", value: project.ext.htsjdkVersion)
 				attribute(name:"Git-Hash",value: getGitHash())
 				attribute(name:"Compile-Date",value: now)
@@ -595,7 +597,8 @@ public class CompileJVarkit extends DefaultTask {
 		ant.delete( dir :  this.tmpDir )
 		// done : https://stackoverflow.com/questions/14516693/
 		project.logger.lifecycle("jar file generated :" + distJar)
-
+		
+		
 		/* generate doc */
 		ant.java(
 			jar :  this.distDir+"/${this.name}.jar" , fork: true
@@ -605,7 +608,10 @@ public class CompileJVarkit extends DefaultTask {
 			arg(value: "--helpFormat")
 			arg(value: "make-doc")
 			}
+		
+
 		/** test */
+		
 		final File testJava = getMainJavaTestFile();
 		if(!isFatJar() || testJava==null)
 			{
@@ -623,7 +629,7 @@ public class CompileJVarkit extends DefaultTask {
 				{
 				if(!f.isTest()) continue;
 				classpath2.add(f.toFile(project));
-				}	
+				}
 			
 			
 			ant.javac(
@@ -637,34 +643,29 @@ public class CompileJVarkit extends DefaultTask {
 				source: this.jdkSource
 				) 	
 				{
+				include(name:"**/MiniTestNG.java")
 				include(name: getAntTestInclude())
 				compilerarg(value:'-Xlint')
 				}
 			
-			ant.echo(message:"<!DOCTYPE suite SYSTEM \"http://testng.org/testng-1.0.dtd\">" +
-					"<suite name=\"SuiteAll\">"+
-					"<test name=\"${name}\">" +
-					"<classes><class name=\"" +getTestNgClass()+ "\"/></classes>" +
-					"</test></suite>"
-					,
-				file: this.tmpDir+"/testng.xml"
-				)
+			
 			ant.mkdir(dir: this.testNgDir+"/"+getName());
 			ant.java(
-				classname : "org.testng.TestNG",
+				classname : "com.github.lindenb.jvarkit.tools.tests.MiniTestNG",
 				fork: true,
 				failonerror: false,
 				classpath : this.tmpDir+":"+classpath2.collect{it->it.path}.join(":")
 				) {
 				arg(value: "-d")
 				arg(value: this.testNgDir+"/"+getName())
-				arg(value: "${this.tmpDir}/testng.xml");
+				arg(value: getTestNgClass());
 				}
 			
 			ant.delete( dir :  this.tmpDir )
 			}
+		
 		/** delete the jar at the if specified , jars can be big and I just want to generate the doc*/
-		if(java.lang.System.getProperty("jvarkit.delete.jar","false").equals("true")) {
+		if( java.lang.System.getProperty("jvarkit.delete.jar","false").equals("true")) {
 			project.logger.warn("delete jar "+ distJar);
 			ant.delete(file: distJar)
 			}
@@ -2077,6 +2078,8 @@ all.add( task("vcfgnomadpext", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
 	endMsg = "not tested/used for now"
 	});
+
+
 
 
 /** bottom task */

@@ -75,7 +75,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
-
+@Deprecated
 public class TestUtils {
 	protected final String SRC_TEST_RESOURCE="./src/test/resources";
 	private final List<Path> deletePathsAtExit = new Vector<>();

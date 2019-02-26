@@ -60,11 +60,13 @@ import htsjdk.samtools.util.StringUtil;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -120,10 +122,8 @@ public class FindAllCoverageAtPosition extends Launcher
 
 	@Parameter(names={"-p","--position"},description="-p chrom:pos . Multiple separated by space. Add this chrom/position. Required")
 	private String positionStr = "";
-
 	@Parameter(names={"-f","--posfile"},description="File containing positions. if file suffix is '.bed': all positions in the range will be scanned.")
 	private File positionFile = null;
-
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
@@ -132,7 +132,7 @@ public class FindAllCoverageAtPosition extends Launcher
 	private SamRecordFilter filter = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-r","-R","--reference"},description="[20171201]"+Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File referenceFileFile=null;
-	@Parameter(names={"-x","--extend"},description="[20190218]extend by 'x' base to try to cahc close clipped reads")
+	@Parameter(names={"-x","--extend"},description="[20190218]extend by 'x' base to try to catch close clipped reads. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend=500;
 
 	
@@ -277,7 +277,7 @@ public class FindAllCoverageAtPosition extends Launcher
 				for(final Mutation src:mutations)
 					{
 					final Map<String, CigarAndBases> sample2count=new TreeMap<String,CigarAndBases>();
-					for(SAMReadGroupRecord rg:header.getReadGroups())
+					for(final SAMReadGroupRecord rg:header.getReadGroups())
 						{
 						if(rg!=null)
 							{
