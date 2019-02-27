@@ -1,13 +1,14 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
@@ -22,13 +23,16 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 
-public class Biostar78400Test extends TestUtils {
+public class Biostar78400Test {
+	private final TestSupport support = new TestSupport();
 
+	
 @Test
 public void test01() throws IOException {
+	try {
 	final String flowcell="HS20001259127";
 	final String lane = "1";
-	final File in = createTmpFile(".bam");
+	final Path in = support.createTmpPath(".bam");
 	SAMFileHeader header=new SAMFileHeader();
 	header.setSortOrder(SortOrder.unsorted);
 	SAMFileWriter sfw =new SAMFileWriterFactory().makeBAMWriter(header, true, in);
@@ -40,10 +44,10 @@ public void test01() throws IOException {
 	SAMUtils.makeReadUnmapped(rec);
 	sfw.addAlignment(rec);
 	sfw.close();
-	assertIsValidBam(in);
+	support.assertIsValidBam(in);
 	
-	final File xml = createTmpFile(".xml");
-	PrintWriter pw = new PrintWriter(xml);
+	final Path xml = support.createTmpPath(".xml");
+	PrintWriter pw = new PrintWriter(Files.newOutputStream(xml));
 	pw.println("<?xml version=\"1.0\"?><read-groups>"
 			+ "<flowcell name=\""+flowcell+"\"><lane index=\""+ lane+"\">"
 			+ "<group ID=\"X1\"><library>L1</library><platform>P1</platform>"
@@ -57,33 +61,36 @@ public void test01() throws IOException {
 			);
 	pw.flush();
 	pw.close();
-	assertIsXml(xml);
+	support.assertIsXml(xml);
+		
+		final Path out = support.createTmpPath(".bam");
+		Assert.assertEquals(
+			new Biostar78400().instanceMain(new String[] {
+			"-o",out.toString(),
+			"-x",xml.toString(),
+			in.toString()
+			}),0);
 	
-	final File out = createTmpFile(".bam");
-	Assert.assertEquals(
-		new Biostar78400().instanceMain(newCmd().
-		add("-o").add(out).
-		add("-x").add(xml).
-		add(in).
-		make()
-		),0);
-	
-	SamReader r= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT).open(out);
-	Assert.assertTrue(r.getFileHeader()!=null);
-	Assert.assertTrue(r.getFileHeader().getReadGroups()!=null);
-	Assert.assertFalse(r.getFileHeader().getReadGroups().isEmpty());
-	SAMRecordIterator iter = r.iterator();
-	Assert.assertTrue(iter.hasNext());
-	rec = iter.next();
-	SAMReadGroupRecord rg = rec.getReadGroup();
-	Assert.assertNotNull(rg);
-	Assert.assertEquals(rg.getId(),"X1");
-	Assert.assertEquals(rg.getSample(),"S1");
-	
-	Assert.assertFalse(iter.hasNext());
-	
-	iter.close();
-	r.close();
+		SamReader r= SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT).open(out);
+		Assert.assertTrue(r.getFileHeader()!=null);
+		Assert.assertTrue(r.getFileHeader().getReadGroups()!=null);
+		Assert.assertFalse(r.getFileHeader().getReadGroups().isEmpty());
+		SAMRecordIterator iter = r.iterator();
+		Assert.assertTrue(iter.hasNext());
+		rec = iter.next();
+		SAMReadGroupRecord rg = rec.getReadGroup();
+		Assert.assertNotNull(rg);
+		Assert.assertEquals(rg.getId(),"X1");
+		Assert.assertEquals(rg.getSample(),"S1");
+		
+		Assert.assertFalse(iter.hasNext());
+		
+		iter.close();
+		r.close();
+		} 
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 	
 }

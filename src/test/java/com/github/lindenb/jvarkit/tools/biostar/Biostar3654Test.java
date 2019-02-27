@@ -1,22 +1,29 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class Biostar3654Test extends TestUtils {
+public class Biostar3654Test {
+	
+private final TestSupport support = new TestSupport();
+	
 public void test01() throws IOException
 	{
-	final File out = super.createTmpFile(".txt");
-	Assert.assertEquals(
-			new Biostar59647().instanceMain(newCmd().
-			add("-o").add(out).
-			add(SRC_TEST_RESOURCE+"/rotavirus_rf.blastn.01.xml").
-			make()
-			),0);
-	assertIsNotEmpty(out);
+	try {
+		final Path out = support.createTmpPath(".txt");
+		Assert.assertEquals(
+				new Biostar59647().instanceMain(new String[] {
+				"-o",out.toString(),
+				support.resource("rotavirus_rf.blastn.01.xml")
+				}),0);
+		support.assertIsNotEmpty(out);
+		}
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 }

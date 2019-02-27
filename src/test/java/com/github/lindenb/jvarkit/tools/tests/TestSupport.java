@@ -28,11 +28,16 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -282,6 +287,17 @@ public class TestSupport {
 		final long n=br.lines().count();
 		br.close();
 		return n;
+		}
+	public Path sortBamOnQueryName(final Path bamFile,final Predicate<SAMRecord> pred) throws IOException {
+		final Path sortedBam = this.createTmpPath(".bam");
+		SamReader sr = SamReaderFactory.makeDefault().open(bamFile);
+		SAMFileHeader outHeader= sr.getFileHeader().clone();
+		outHeader.setSortOrder(SortOrder.queryname);
+		SAMFileWriter w=new SAMFileWriterFactory().makeBAMWriter(outHeader, false, sortedBam);
+		sr.iterator().stream().filter(R->pred==null?true:pred.test(R)).forEach(R->w.addAlignment(R));
+		w.close();
+		sr.close();
+		return sortedBam;
 		}
 
 }

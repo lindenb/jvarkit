@@ -202,6 +202,14 @@ libraries.put("derby",new Library().
 	add("org.apache.derby:derbyclient:jar:10.12.1.1")
 	);
 
+libraries.put("jena",new Library().
+	add("commons-cli:commons-cli:jar:1.4").
+	add("commons-codec:commons-codec:jar:1.11").
+	add("org.apache.jena:jena-iri:jar:3.10.0").
+	add("org.apache.jena:jena-base:jar:3.10.0").
+	add("org.slf4j:slf4j-api:jar:1.7.25")
+	);
+
 // https://stackoverflow.com/questions/28498688
 
 

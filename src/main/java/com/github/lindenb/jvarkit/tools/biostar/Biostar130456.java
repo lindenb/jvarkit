@@ -82,14 +82,14 @@ chr2	130	microsat1	GTC	G,GTCT	50	PASS	AA=G;DP=9;NS=3	GT:DP:GQ	1/1:3:40
 
 ## See also
 
- * GATK SelectVariants with option -sn 
+ * GATK SelectVariants with option -sn , or bcftools view --samples-file
 
 END_DOC
 */
 @Program(
 		name="biostar130456",
-		description="Individual VCF files from main VCF file",
-		keywords={"vcf"},
+		description="Split individual VCF files from multisamples VCF file",
+		keywords={"vcf","samples","sample"},
 		biostars=130456
 		)
 public class Biostar130456 extends Launcher
