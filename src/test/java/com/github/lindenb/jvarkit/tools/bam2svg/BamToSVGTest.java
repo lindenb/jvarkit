@@ -1,17 +1,14 @@
 package com.github.lindenb.jvarkit.tools.bam2svg;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 
 public class BamToSVGTest{

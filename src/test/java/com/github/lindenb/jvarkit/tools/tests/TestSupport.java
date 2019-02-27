@@ -28,6 +28,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 
+import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -98,6 +99,15 @@ public class TestSupport {
 		Assert.assertNotNull(f,"File is null");
 		Assert.assertFalse(Files.size(f)==0L,"file "+f+" is empty");
 		}
+	
+	public void assertIsValidBam(final Path bamFile) throws IOException {
+		final SamReader sr= SamReaderFactory.makeDefault().
+				validationStringency(ValidationStringency.SILENT).
+				open(bamFile);
+		sr.iterator().stream().count();
+		sr.close();
+		}
+
 	
 	public void assertIsXml(final Path f) {
 		Exception err=null;
@@ -214,6 +224,29 @@ public class TestSupport {
 		;
 	}
 	
+	public Stream<String> allVcfOrBcf() {
+		return Arrays.asList(
+				"ExAC.r1.sites.vep.vcf.gz","gnomad.exomes.r2.0.1.sites.vcf.gz",
+				"gnomad.genomes.r2.0.1.sites.1.vcf.gz",
+				"rotavirus_rf.ann.vcf.gz",
+				"rotavirus_rf.freebayes.vcf.gz",
+				"rotavirus_rf.unifiedgenotyper.vcf.gz",
+				"rotavirus_rf.vcf.gz",
+				"S1.vcf.gz","S2.vcf.gz","S3.vcf.gz",
+				"S4.vcf.gz","S5.vcf.gz",
+				"test_vcf01.vcf","toy.vcf.gz").
+			stream().
+			map(S->resource(S))
+		;
+	}
+	
+	public Stream<String> allFasta() {
+		return Arrays.asList("rotavirus_rf.fa","toy.fa").
+				stream().
+				map(S->resource(S))
+			;
+		}
+	
 	public boolean isBamIndexed(final Path b) {
 		try {
 			SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
@@ -232,5 +265,23 @@ public class TestSupport {
 				filter(S->isBamIndexed(Paths.get(S)))
 				;
 	}
-	
+	public long wc(final Path f) throws IOException
+		{
+		if(f.getFileName().toString().endsWith(".bam") || f.getFileName().toString().endsWith(".sam")) {
+			final SamReader sr = SamReaderFactory.makeDefault().
+					validationStringency(ValidationStringency.SILENT).
+					open(f);
+			final SAMRecordIterator iter =sr.iterator();
+			final long n= iter.stream().count();
+			iter.close();
+			sr.close();
+			return n;
+			}
+		
+		final BufferedReader br = IOUtils.openPathForBufferedReading(f);
+		final long n=br.lines().count();
+		br.close();
+		return n;
+		}
+
 }

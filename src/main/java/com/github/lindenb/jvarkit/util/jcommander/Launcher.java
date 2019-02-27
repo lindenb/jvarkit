@@ -435,7 +435,6 @@ public Launcher()
 		}};	
 
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
-			@SuppressWarnings("unchecked")
 			@Override
 			public Class<? extends IStringConverter<?>> getConverter(@SuppressWarnings("rawtypes") Class forType) {		
 				return MAP.get(forType);
@@ -709,7 +708,7 @@ public int doWork(final List<String> args)
 	}
 
 /** instanceMain with Collection to make test-unit easier to write , just call `args.toArray` */
-public final int instanceMain(final Collection<String> args) {
+public final int instanceMain(final List<String> args) {
 	return instanceMain(args.toArray(new String[args.size()]));
 	}
 	

@@ -428,7 +428,7 @@ public synchronized void removeTmpFiles() {
 
 	}
 
-protected void assertIsValidBam(final File bamFile) throws IOException {
+public void assertIsValidBam(final File bamFile) throws IOException {
 	final SamReader sr= SamReaderFactory.makeDefault().
 			validationStringency(ValidationStringency.SILENT).
 			open(bamFile);
@@ -436,7 +436,7 @@ protected void assertIsValidBam(final File bamFile) throws IOException {
 	sr.close();
 	}
 
-protected void assertIsXml(final File f) {
+public void assertIsXml(final File f) {
 	Exception err=null; 
 	try {
 		Assert.assertTrue(f.exists(), "file "+f+" should exist");
@@ -494,12 +494,12 @@ protected long assertIsBed(final File f) {
 }
 
 
-protected void assertIsNotEmpty(final File f) throws IOException {
+public void assertIsNotEmpty(final File f) throws IOException {
 	Assert.assertNotNull(f,"File is null");
 	Assert.assertFalse(f.length()==0L,"file "+f+" is empty");
 	}
 
-protected void assertIsImage(final File f) throws IOException {
+public void assertIsImage(final File f) throws IOException {
 	Assert.assertNotNull(f,"File is null");
 	try {
 		ImageIO.read(f);
