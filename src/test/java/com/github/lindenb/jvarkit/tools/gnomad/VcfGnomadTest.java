@@ -1,77 +1,99 @@
 package com.github.lindenb.jvarkit.tools.gnomad;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class VcfGnomadTest extends TestUtils {
+public class VcfGnomadTest {
+	private final TestSupport support = new TestSupport();
+
+	
 @DataProvider(name="src01")
 public Object[][] testData01() {
 	return new Object[][] {
-		{SRC_TEST_RESOURCE+"/test_vcf01.vcf"}
+		{support.resource("test_vcf01.vcf")}
 		
 	};
 }
 
-private File createManifest() throws IOException {
-	final File manifestFile = super.createTmpFile(".mft");
-	final PrintWriter pw = new PrintWriter(manifestFile);
-	pw.println("exome\t*\t"+SRC_TEST_RESOURCE+"/gnomad.exomes.r2.0.1.sites.vcf.gz");
-	pw.println("genome\t*\t"+SRC_TEST_RESOURCE+"/gnomad.genomes.r2.0.1.sites.1.vcf.gz");
+private Path createManifest() throws IOException {
+	final Path manifestFile = support.createTmpPath(".mft");
+	final PrintWriter pw = new PrintWriter(Files.newOutputStream(manifestFile));
+	pw.println("exome\t*\t"+support.resource("gnomad.exomes.r2.0.1.sites.vcf.gz"));
+	pw.println("genome\t*\t"+support.resource("gnomad.genomes.r2.0.1.sites.1.vcf.gz"));
 	pw.flush();
 	pw.close();
-	assertTsvTableIsConsitent(manifestFile, null);
+	support.assertTsvTableIsConsitent(manifestFile, null);
 	return manifestFile;
 }
 
 @Test(dataProvider="src01")
 public void test01(final String vcfpath) throws IOException {
-	final File mFile = createManifest();
-	final File vcfOut = super.createTmpFile(".vcf");
-	
-	Assert.assertEquals(new VcfGnomad().instanceMain(newCmd().
-			add("-o",vcfOut.getPath()).
-			add("-m",mFile.getPath()).
-			add("-ac").
-			add("--gnomadFilter","MYF111").
-			add(vcfpath).make()
-			),0);
-	assertIsVcf(vcfOut);
+	try {
+		final Path mFile = createManifest();
+		final Path vcfOut = support.createTmpPath(".vcf");
+		
+		Assert.assertEquals(new VcfGnomad().instanceMain(new String[]{
+				"-o",vcfOut.toString(),
+				"-m",mFile.toString(),
+				"-ac",
+				"--gnomadFilter","MYF111",
+				vcfpath
+				}),0);
+		support.assertIsVcf(vcfOut);
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
 	}
 
 @Test(dataProvider="src01")
 public void testStreaming(final String vcfpath) throws IOException {
-	final File mFile = createManifest();
-	final File vcfOut = super.createTmpFile(".vcf");
-	
-	Assert.assertEquals(new VcfGnomad().instanceMain(newCmd().
-			add("-o",vcfOut.getPath()).
-			add("-m",mFile.getPath()).
-			add("--streaming").
-			add(vcfpath).make()
-			),0);
-	assertIsVcf(vcfOut);
+	try {
+		final Path mFile = createManifest();
+		final Path vcfOut = support.createTmpPath(".vcf");
+		
+		Assert.assertEquals(new VcfGnomad().instanceMain(new String[] {
+				"-o",vcfOut.toString(),
+				"-m",mFile.toString(),
+				"--streaming",
+				vcfpath
+			}),0);
+		support.assertIsVcf(vcfOut);
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
 	}
 
 @Test(dataProvider="src01")
 public void testFilterGenotypes(final String vcfpath) throws IOException {
-	final File mFile = createManifest();
-	final File vcfOut = super.createTmpFile(".vcf");
-	
-	Assert.assertEquals(new VcfGnomad().instanceMain(newCmd().
-			add("-o",vcfOut.getPath()).
-			add("-m",mFile.getPath()).
-			add("-ac").
-			add("--gtfilter","MYF111").
-			add(vcfpath).make()
-			),0);
-	assertIsVcf(vcfOut);
+	try {
+		final Path mFile = createManifest();
+		final Path vcfOut = support.createTmpPath(".vcf");
+		
+		Assert.assertEquals(new VcfGnomad().instanceMain(new String[] {
+			"-o",vcfOut.toString(),
+			"-m",mFile.toString(),
+			"-ac",
+			"--gtfilter","MYF111",
+			vcfpath
+			}),0);
+		support.assertIsVcf(vcfOut);
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
 	}
 
 }

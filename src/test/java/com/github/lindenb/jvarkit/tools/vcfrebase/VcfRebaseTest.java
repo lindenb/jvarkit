@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.ga4gh;
+package com.github.lindenb.jvarkit.tools.vcfrebase;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -7,30 +7,31 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.bio.RebaseTest;
 
-public class VcfAnnotWithBeaconTest  {
+@AlsoTest(RebaseTest.class)
+public class VcfRebaseTest {
 	private final TestSupport support = new TestSupport();
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][]{
-			{support.resource("test_vcf01.vcf")},
-			{support.resource("gnomad.genomes.r2.0.1.sites.1.vcf.gz")},
-			{support.resource("gnomad.exomes.r2.0.1.sites.vcf.gz")},
-			{support.resource("/ExAC.r1.sites.vep.vcf.gz")}
+			{support.resource("S1.vcf.gz"),support.resource("rotavirus_rf.fa")},
+			{support.resource("toy.vcf.gz"),support.resource("toy.fa")}
 			};
 		}
-	
-	@Test(dataProvider="src1",enabled=false)
-	public void test1(final String vcf) throws IOException {
+	@Test(dataProvider="src1")
+	public void test1(final String vcf,final String ref) throws IOException {
 			try {
 			final Path out = support.createTmpPath(".vcf");
 			Assert.assertEquals(
-				new VcfAnnotWithBeacon().instanceMain(new String[] {
+				new VcfRebase().instanceMain(new String[] {
 				"-o",out.toString(),
-				"--cert",
-				"--tee",
+				"-R",ref,
+				"-E","EcoRI",
+				"-E","BamHI",
 				vcf}
 				),0);
 			support.assertIsVcf(out);
@@ -39,4 +40,5 @@ public class VcfAnnotWithBeaconTest  {
 			support.removeTmpFiles();
 			}
 		}
+	
 }

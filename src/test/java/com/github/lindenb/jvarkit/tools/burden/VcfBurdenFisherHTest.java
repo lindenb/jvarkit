@@ -2,12 +2,14 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.Reporter;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -16,11 +18,25 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
-public class VcfBurdenFisherHTest extends TestUtils{
-	@Test(dataProvider="all-vcf-files")
+public class VcfBurdenFisherHTest  {
+	
+	
+	private final TestSupport support = new TestSupport();
+
+	@DataProvider(name = "src1")
+	public Object[][] createData1() {
+		return (Object[][])support.
+				allVcfOrBcf().
+				map(F->new Object[] {F}).
+				toArray()
+				;
+		}
+	
+	@Test(dataProvider="src1")
 	public void test01(final String inputFile) 
 		throws IOException
 		{
+		try {
 		final VCFFileReader r0 = new VCFFileReader(new File(inputFile),false);
 		final VCFHeader vcfheader = r0.getFileHeader();
 		if(vcfheader.getNGenotypeSamples()<2) {
@@ -28,8 +44,8 @@ public class VcfBurdenFisherHTest extends TestUtils{
 			return;
 		}
 		final CloseableIterator<VariantContext> iter = r0.iterator();
-		final File inputVcf = super.createTmpFile(".vcf");
-		final VariantContextWriter w= VCFUtils.createVariantContextWriter(inputVcf);
+		final Path inputVcf = support.createTmpPath(".vcf");
+		final VariantContextWriter w= VCFUtils.createVariantContextWriter(inputVcf.toFile());
 		w.writeHeader(vcfheader);
 		iter.stream().
 			filter(V->V.getAlleles().size()==2).
@@ -39,20 +55,21 @@ public class VcfBurdenFisherHTest extends TestUtils{
 		r0.close();
 
 		
-		final File ped = super.createRandomPedigreeFromFile(inputVcf.getPath());
+		final Path ped = support.createRandomPedigreeFromFile(inputFile);
 		if(ped==null) {
 			 Reporter.getCurrentTestResult().setAttribute("warn", "No Pedigree for "+inputFile);
 			return;
 		}
-		final File output = super.createTmpFile(".vcf");
+		final Path output = support.createTmpPath(".vcf");
 		
-		Assert.assertEquals(new VcfBurdenFisherH().instanceMain(
-        		newCmd().add(
-        		"-o",output,
-        		"--pedigree",ped,
-        		inputFile).make()
-        	),0);
-        assertIsVcf(output);
+		Assert.assertEquals(new VcfBurdenFisherH().instanceMain(new String[] {
+        	"-o",output.toString(),
+        	"--pedigree",ped.toString()
+			}),0);
+		support.assertIsVcf(output);
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 
 }

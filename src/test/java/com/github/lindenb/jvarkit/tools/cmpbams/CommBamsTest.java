@@ -1,26 +1,41 @@
 package com.github.lindenb.jvarkit.tools.cmpbams;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 
-public class CommBamsTest extends TestUtils {
+public class CommBamsTest{
+	private final TestSupport support = new TestSupport();
 
-@Test(dataProvider="all-sam-or-bam-files")
-public void test1(final String bampath) throws Exception
-	{
-	final File out = super.createTmpFile(".txt");
-	final File sortedBam1= sortBamOnQueryName(Paths.get(bampath),R->random.nextDouble()<0.5);
-	final File sortedBam2= sortBamOnQueryName(Paths.get(bampath),R->random.nextDouble()<0.5);
-	Assert.assertEquals(new CommBams().instanceMain(new String[] {
-		"-o",out.getPath(),
-		sortedBam1.getPath(),
-		sortedBam2.getPath(),
-		}),0);	
-	}
+	@DataProvider(name = "src1")
+	public Object[][] createData1() {
+		return (Object[][])support.
+				allSamOrBams().
+				map(F->new Object[] {F}).
+				toArray()
+				;
+		}
+		
+	@Test(dataProvider="src1")
+	public void test1(final String bampath) throws Exception
+		{
+		try {
+		final Path out = support.createTmpPath(".txt");
+		final Path sortedBam1= support.sortBamOnQueryName(Paths.get(bampath),R->support.random.nextDouble()<0.5);
+		final Path sortedBam2= support.sortBamOnQueryName(Paths.get(bampath),R->support.random.nextDouble()<0.5);
+		Assert.assertEquals(new CommBams().instanceMain(new String[] {
+			"-o",out.toString(),
+			sortedBam1.toString(),
+			sortedBam2.toString(),
+			}),0);
+		} finally {
+			support.removeTmpFiles();
+		}
+		}
 }

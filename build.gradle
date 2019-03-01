@@ -648,8 +648,9 @@ public class CompileJVarkit extends DefaultTask {
 				fork: true,
 				classpath : classpath2.collect{it->it.path}.join(":"),
 				target: this.jdkTarget,
-				source: this.jdkSource
-				) 	
+				source: this.jdkSource,
+				debug: true
+				)
 				{
 				include(name:"**/MiniTestNG.java")
 				include(name: getAntTestInclude())
@@ -1875,7 +1876,7 @@ all.add( task("vcfpolyx", type: CompileJVarkit) {
 	});
 all.add( task("vcfrebase", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfremoveunusedalt", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRemoveUnusedAlt"

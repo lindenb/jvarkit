@@ -2,18 +2,19 @@ package com.github.lindenb.jvarkit.tools.tests;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Vector;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipInputStream;
 
@@ -42,8 +43,10 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
 
 public class TestSupport {
+	public final Random random = new Random();
 	protected final String SRC_TEST_RESOURCE="./src/test/resources";
 	private final List<Path> deletePathsAtExit = new Vector<>();
 	
@@ -298,6 +301,90 @@ public class TestSupport {
 		w.close();
 		sr.close();
 		return sortedBam;
+		}
+	public Path createRandomPedigreeFromFile(final String vcfFile) throws IOException {
+		class TmpSample {
+			String fam="F1";
+			String name;
+			String father="0";
+			String mother="0";
+			int sex=0;
+			int status=0;
+			}
+		final Path vcfIn = Paths.get(vcfFile);
+		final VCFFileReader r= new VCFFileReader(vcfIn,false);
+		final VCFHeader header=r.getFileHeader();
+		r.close();
+		final List<String> samples= new ArrayList<>(header.getSampleNamesInOrder());
+		final List<TmpSample> ped= new ArrayList<>();
+		if(samples.isEmpty()) return null;
+		while(!samples.isEmpty())
+			{
+			final TmpSample indi = new TmpSample();
+			indi.name = samples.remove(0);
+			indi.fam = ped.stream().
+					filter(P->P.father.equals(indi.name) || P.mother.equals(indi.name)).
+					map(P->P.fam).findFirst().orElse("F"+this.random.nextInt()
+					);
+			if(ped.stream().anyMatch(P->P.father.equals(indi.name))) {
+				indi.sex=1;
+				}
+			else if(ped.stream().anyMatch(P->P.mother.equals(indi.name))) {
+				indi.sex=2;
+				}
+			else
+				{
+				indi.sex = this.random.nextBoolean()?1:2;
+				}
+			if(random.nextBoolean())
+				{
+				final List<String> remain=new ArrayList<>(samples);
+				if(!remain.isEmpty())
+					{
+					indi.father = remain.remove(0);
+					}
+				else
+					{
+					indi.father = "0";
+					}
+				if(!remain.isEmpty())
+					{
+					indi.mother = remain.remove(0);
+					}
+				else
+					{
+					indi.mother = "0";
+					}
+				}
+			else
+				{
+				indi.father = "0";
+				indi.mother = "0";
+				}
+			
+			indi.status = this.random.nextInt(2);
+			ped.add(indi);
+			}
+		final Path pedFile = createTmpPath(".ped");
+		final PrintWriter pw  = new PrintWriter(Files.newBufferedWriter(pedFile));
+		for(TmpSample ts:ped)
+			{
+			pw.print(ts.fam);
+			pw.print('\t');
+			pw.print(ts.name);
+			pw.print('\t');
+			pw.print(ts.father);
+			pw.print('\t');
+			pw.print(ts.mother);
+			pw.print('\t');
+			pw.print(ts.sex);
+			pw.print('\t');
+			pw.print(ts.status);
+			pw.println();
+			}
+		pw.flush();
+		pw.close();
+		return pedFile;
 		}
 
 }

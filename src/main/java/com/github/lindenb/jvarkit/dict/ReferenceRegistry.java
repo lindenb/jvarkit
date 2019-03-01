@@ -67,7 +67,7 @@ public Optional<Path> getReferenceByName(final String name);
 /** find Dict of reference sequence using a name. e.g "hg19" */
 public default Optional<SAMSequenceDictionary> getDictionaryByName(final String name) {
 	Optional<Path> path = this.getReferenceByName(name);
-	if(path.isEmpty()) return Optional.empty();
+	if(!path.isPresent()) return Optional.empty();
 	return Optional.of(SequenceDictionaryUtils.extractRequired(path.get()));
 }
 

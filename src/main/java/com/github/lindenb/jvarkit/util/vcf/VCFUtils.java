@@ -380,9 +380,7 @@ public class VCFUtils
 			return this.lastCheckError;
 			}
 		}
-	
-	
-	
+
 	
 	
 	/**
