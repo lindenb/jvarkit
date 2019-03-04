@@ -4,12 +4,14 @@ import java.io.IOException;
 
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 
-public class CustomSeekableStreamFactoryTest  extends TestUtils {
+public class CustomSeekableStreamFactoryTest  {
+	private final TestSupport support = new TestSupport();
+
 	private CustomSeekableStreamFactory getFactory() {
 		return new CustomSeekableStreamFactory(SeekableStreamFactory.getInstance());
 	}
@@ -23,7 +25,7 @@ public class CustomSeekableStreamFactoryTest  extends TestUtils {
 	
 	@Test
 	public void testFile() throws IOException {
-		SeekableStream st = getFactory().getStreamFor(SRC_TEST_RESOURCE+"/S5.bam");
+		SeekableStream st = getFactory().getStreamFor(support.resource("S5.bam"));
 		consumme(st);
 		st.close();
 		}

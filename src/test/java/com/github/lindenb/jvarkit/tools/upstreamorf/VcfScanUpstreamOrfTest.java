@@ -1,17 +1,18 @@
 package com.github.lindenb.jvarkit.tools.upstreamorf;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.io.ArchiveFactoryTest;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.AlgorithmsTest;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 
-@AlsoTest(AlgorithmsTest.class)
+@AlsoTest(value= {AlgorithmsTest.class,ArchiveFactoryTest.class,KnownGeneTest.class})
 public class VcfScanUpstreamOrfTest {
 	private final TestSupport support =new TestSupport();
 	@Test

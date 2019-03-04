@@ -1,48 +1,50 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-import htsjdk.samtools.util.Interval;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class BedNonOverlappingSetTest extends TestUtils {
+public class BedNonOverlappingSetTest {
+	
+	private final TestSupport support = new TestSupport();
+
+	
 	@Test
     public void test01() throws IOException {
-	final File tmpBed =super.createTmpFile(".bed");
-    final PrintWriter pw = new PrintWriter(tmpBed);
-	for(final Interval i:super.randomIntervalsFromDict(new File(SRC_TEST_RESOURCE+"/rotavirus_rf.fa"), 1000))
-		{
-		pw.println(i.getContig()+"\t"+(i.getStart()-1)+"\t"+i.getEnd());
-		}
+	try {
+	final Path tmpBed =support.createTmpPath(".bed");
+    final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(tmpBed));
+    pw.println("RF01\t1\t100");
+    pw.println("RF01\t10\t110");
+
 	pw.flush();
 	pw.close();
-	assertIsBed(tmpBed);
-	File pat= File.createTempFile("tmp.__SETID__.", ".bed");
+	support.assertIsBed(tmpBed);
+	Path pat= Files.createTempFile("tmp.__SETID__.", ".bed");
 	Assert.assertEquals(
-			new BedNonOverlappingSet().instanceMain(newCmd().add(
-					"-o",pat.getPath(),
+			new BedNonOverlappingSet().instanceMain(new String[] {
+					"-o",pat.toString(),
 					"-x","10",
-					"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.fa",
-					tmpBed.getPath()
-			).make()),0);
-	for(final File bf:pat.getParentFile().listFiles(new FileFilter() {
-		@Override
-		public boolean accept(File f) {
-			return f.isFile() && f.exists() && f.getName().startsWith("tmp.") && f.getName().endsWith(".bed");
-			}
-		}))
+					"-R",support.resource("rotavirus_rf.fa"),
+					tmpBed.toString()
+			}),0);
+	for(final Path bf: Files.list(pat.getParent()).filter(F->F.getFileName().toString().startsWith("tmp.") && F.getFileName().toString().endsWith(".bed")).collect(Collectors.toList()))
 		{
-		assertIsBed(bf);
-		bf.delete();
+		support.assertIsBed(bf);
+		Files.deleteIfExists(bf);
 		}
 	
-	pat.delete();
+	Files.deleteIfExists(pat);
+	} finally {
+		support.removeTmpFiles();
+	}
 	}
 }

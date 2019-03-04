@@ -1,31 +1,34 @@
 package com.github.lindenb.jvarkit.tools.jaspar;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class VcfJasparTest extends TestUtils {
+public class VcfJasparTest  {
+	private final TestSupport support = new TestSupport();
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][]{
-			{SRC_TEST_RESOURCE+"/toy.vcf.gz",SRC_TEST_RESOURCE+"/toy.fa"},
-			{SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz",SRC_TEST_RESOURCE+"/rotavirus_rf.fa"}
+			{support.resource("toy.vcf.gz"),support.resource("toy.fa")},
+			{support.resource("rotavirus_rf.vcf.gz"),support.resource("rotavirus_rf.fa")}
 			};
 	}
 
 	
 	@Test(dataProvider="src1")
 	public void test01(final String vcfin,final String ref) throws IOException {
-    	final File output = super.createTmpFile(".vcf");
-    	final File matrixFile = super.createTmpFile(".tmp");
-    	final PrintWriter pw = new PrintWriter(matrixFile);
+		try {
+    	final Path output = support.createTmpPath(".vcf");
+    	final Path matrixFile = support.createTmpPath(".tmp");
+    	final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(matrixFile));
     	pw.println(">MA0002.2\tRUNX1");
     	pw.println("A  [ 287  234  123   57    0   87    0   17   10  131  500 ]");
     	pw.println("C  [ 496  485 1072    0   75  127    0   42  400  463  158 ]");
@@ -48,11 +51,14 @@ public class VcfJasparTest extends TestUtils {
     	pw.close();
     	
         Assert.assertEquals(new VcfJaspar().instanceMain(new String[]{
-        		"-o",output.getPath(),
+        		"-o",output.toString(),
         		"-R",ref,
-        		"-J",matrixFile.getPath(),
+        		"-J",matrixFile.toString(),
         		vcfin
         	}),0);
-        super.assertIsVcf(output);
+        support.assertIsVcf(output);
+	} finally {
+		support.removeTmpFiles();
+	}
     	}
 }
