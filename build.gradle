@@ -1880,7 +1880,7 @@ all.add( task("vcfrebase", type: CompileJVarkit) {
 	});
 all.add( task("vcfremoveunusedalt", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRemoveUnusedAlt"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfstripannot", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"

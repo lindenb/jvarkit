@@ -1,6 +1,5 @@
 package com.github.lindenb.jvarkit.tools.bioalcidae;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 

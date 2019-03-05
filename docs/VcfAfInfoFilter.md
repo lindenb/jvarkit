@@ -120,7 +120,7 @@ The current reference is:
 
 I'm often asked to filter out variant that are too frequent in gnomad, but I must keep the data if any ALT allele is NOT in gnomad.
 
-This tool filters VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomad.
+This tool filters VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomadPext.
 
 ## Example
 

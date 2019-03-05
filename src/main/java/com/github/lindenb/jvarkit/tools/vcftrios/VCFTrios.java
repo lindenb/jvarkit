@@ -322,25 +322,10 @@ public class VCFTrios
 				}
 			}
 	
-			
-				
-				
-				
-
-				
-			
-			
-			
-			
-			
-	
-	
-
 	
     public VCFTrios()
     	{
     	}
-	
 
 	@Override
 	public int doWork(final List<String> args) {

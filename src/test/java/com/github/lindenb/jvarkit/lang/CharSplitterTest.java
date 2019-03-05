@@ -7,9 +7,8 @@ import java.util.stream.Collectors;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
-public class CharSplitterTest extends TestUtils{
+public class CharSplitterTest {
 @Test
 public void testCount() {
 	

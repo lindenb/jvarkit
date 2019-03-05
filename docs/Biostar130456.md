@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Individual VCF files from main VCF file
+Split individual VCF files from multisamples VCF file
 
 
 ## Usage
@@ -48,6 +48,8 @@ Usage: biostar130456 [options] Files
 ## Keywords
 
  * vcf
+ * samples
+ * sample
 
 
 
@@ -125,5 +127,5 @@ chr2	130	microsat1	GTC	G,GTCT	50	PASS	AA=G;DP=9;NS=3	GT:DP:GQ	1/1:3:40
 
 ## See also
 
- * GATK SelectVariants with option -sn 
+ * GATK SelectVariants with option -sn , or bcftools view --samples-file
 

@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Vector;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipInputStream;
 
@@ -387,4 +388,9 @@ public class TestSupport {
 		return pedFile;
 		}
 
+	public Object[][] toArrayArray(Stream<Object[]> st) {
+		final List<Object[]> L=  st.collect(Collectors.toList());
+		return L.toArray(new Object[L.size()][]);
+		}
+	
 }

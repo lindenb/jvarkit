@@ -34,8 +34,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,6 +50,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -70,7 +69,6 @@ import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.SAMException;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.BlockCompressedStreamConstants;
@@ -408,10 +406,18 @@ public class IOUtils {
 		{
     	return new SynchronousLineReader(openFileForReading(file));
 		}
+    
     /** @return a LineIterator that should be closed with CloserUtils */
-    public static LineIterator openFileForLineIterator(File file) throws IOException
+    public static LineIterator openPathForLineIterator(final Path file) throws IOException
   		{
-  		return  new LineIteratorImpl(openFileForLineReader(file));
+  		return  new com.github.lindenb.jvarkit.util.iterator.LineIterator(openPathForBufferedReading(file));
+  		}
+
+    
+    /** @return a LineIterator that should be closed with CloserUtils */
+    public static LineIterator openFileForLineIterator(final File file) throws IOException
+  		{
+  		return openPathForLineIterator(file.toPath());
   		}
     
     public static LineReader openStdinForLineReader() throws IOException
@@ -652,30 +658,7 @@ public class IOUtils {
 	/** converts a BufferedReader to a line Iterator */
 	public static  LineIterator toLineIterator(final BufferedReader r)
 		{
-		return new BuffReadIter(r);
-		}
-	private static class BuffReadIter 
-		extends AbstractIterator<String>
-		implements LineIterator
-		{
-		private BufferedReader in;
-		BuffReadIter(final BufferedReader in)
-			{
-			this.in=in;
-			}
-		@Override
-		protected String advance()
-			{
-			if(in==null) return null;
-			final String s;
-			try {
-				s = in.readLine();
-				if(s==null) {CloserUtil.close(this.in);this.in=null;}
-				return s;
-			} catch (final IOException e) {
-				throw new RuntimeIOException(e);
-				}
-			}
+		return new com.github.lindenb.jvarkit.util.iterator.LineIterator(r);
 		}
 	
 	/** Prevent an output stream to be closed. 
@@ -701,13 +684,18 @@ public class IOUtils {
 		if(w==null) return;
 		try { w.flush();} catch(Throwable err) {}
 	}
+	
 	/** write something in a file */
-	public static void cat(final Object o,final File out, boolean append)
+	public static void cat(final Object o,final Path out, boolean append)
 		{
 		PrintWriter w=null;
 		try
 			{
-			w= new PrintWriter( new FileWriter(out, append));
+			w= new PrintWriter(
+					append?
+					Files.newBufferedWriter(out, StandardOpenOption.APPEND):
+					Files.newBufferedWriter(out)
+					);
 			w.print(o);
 			w.flush();
 			w.close();
@@ -722,6 +710,14 @@ public class IOUtils {
 			if(w!=null) w.close();
 			}
 		}
+
+	
+	/** write something in a file */
+	public static void cat(final Object o,final File out, boolean append)
+		{
+		cat(o,out.toPath(),append);
+		}
+	
 	/** create tmp directory into existing another directory */
 	 public static File createTempDir(final String prefix, final String suffix,final File parentDir) {
 	     IOUtil.assertDirectoryIsWritable(parentDir);   
