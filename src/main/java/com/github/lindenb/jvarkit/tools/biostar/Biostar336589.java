@@ -140,7 +140,7 @@ END_DOC
 @Program(name="biostar336589",
 description="displays circular map as SVG from BED and REF file",
 keywords= {"genome","browser","circular","bed","svg"},
-biostars=336589
+biostars= {336589,367522}
 )
 
 public class Biostar336589 extends Launcher{
@@ -656,7 +656,7 @@ public class Biostar336589 extends Launcher{
 			}
 		else if(maxScore>0)
 			{
-			final float f = (float)((arc.score/(float)maxScore));
+			final float f = ((arc.score/(float)maxScore));
 			final Color c = between(scoreColorStart,scoreColorEnd,f);
 			
 			w.writeAttribute("style", "fill:rgb(" +

@@ -1329,7 +1329,7 @@ public class VcfStatsJfx extends Launcher {
 			return 0;
 			}
 		catch(final Exception err) {
-			err.printStackTrace();
+			LOG.error(err)
 			return -1;
 			}
 		finally

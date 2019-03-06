@@ -20,10 +20,10 @@ public class ConvertBamChromosomesTest {
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
-		return (Object[][])support.
+		return support.toArrayArray(support.
 				allSamOrBams().
-				map(F->new Object[] {F}).
-				toArray()
+				map(F->new Object[] {F})
+				)
 				;
 		}
 	

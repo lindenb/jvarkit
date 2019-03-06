@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -30,6 +31,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 
+import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
@@ -40,8 +42,11 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.fastq.FastqReader;
+import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
@@ -166,6 +171,23 @@ public class TestSupport {
 			CloserUtil.close(is);
 		}
 	}
+	
+	public void assertIsFastq(final Path f) {
+		Exception err=null; 
+		FastqReader fqr =null;
+		try {
+			fqr = new FastqReader(f.toFile());
+			Iterator<FastqRecord> iter =fqr.iterator();
+			while(iter.hasNext()) iter.next();
+		}catch (final Exception e) {
+			err= e;
+		} finally {
+			CloserUtil.close(fqr);
+		}
+		Assert.assertNull(err,"file "+f+" should be fastq : "+err);
+	}
+
+	
 	
 	public void assertTsvTableIsConsitent(final Path f,Predicate<String> ignoreLine) {
 		final CharSplitter tab=CharSplitter.TAB;
@@ -392,5 +414,65 @@ public class TestSupport {
 		final List<Object[]> L=  st.collect(Collectors.toList());
 		return L.toArray(new Object[L.size()][]);
 		}
-	
+
+	public Path addClippingToBam(final Path bamFile) throws IOException {
+		final String bases = "ATGC";
+		Path clippedBam = this.createTmpPath(".bam");
+		SamReader sr = SamReaderFactory.makeDefault().open(bamFile);
+		SAMFileHeader inHeader = sr.getFileHeader();
+		boolean createIndex = sr.hasIndex() && inHeader.getSortOrder().equals(SortOrder.coordinate);
+		if(createIndex) {
+				final Path parent = bamFile.getParent();
+				final String baiFname = IOUtil.basename(clippedBam.toFile()) + ".bai";// deprecated? BAMIndex.BAI_INDEX_SUFFIX;
+				final Path bai = parent.resolve(baiFname);
+			this.deletePathsAtExit.add(bai);
+			}
+		final SAMFileWriter w=new SAMFileWriterFactory().
+				setCreateIndex(createIndex).
+				makeBAMWriter(inHeader, true, clippedBam);
+		sr.iterator().stream().map(R->{
+			if(R.getReadUnmappedFlag() || R.getCigar()==null) return R;
+			if(R.getCigar().isClipped()) return R;
+			if(R.getBaseQualities().equals(SAMRecord.NULL_QUALS)) return R;
+			if(R.getBaseQualityString().equals(SAMRecord.NULL_QUALS_STRING)) return R;
+			for(int side=0;side<2;side++) {
+				
+				final String cigar;
+				boolean hard = this.random.nextBoolean();
+				final int clipLen = 1+this.random.nextInt(100);
+				final StringBuilder seq = new StringBuilder();
+				final StringBuilder qual = new StringBuilder();
+				
+				if(hard) {
+					cigar = String.valueOf(clipLen)+"H";
+					} 
+				else
+					{
+					cigar = String.valueOf(clipLen)+"S";
+					
+					
+					for(int x=0;x<clipLen;++x) {
+						seq.append(bases.charAt(this.random.nextInt(bases.length())));
+						qual.append("#");
+						}
+					}
+				if(side==0) {
+					R.setReadString(seq.toString()+R.getReadString());
+					R.setBaseQualityString(qual.toString()+R.getBaseQualityString());
+					R.setCigarString(cigar+R.getCigarString());
+					}
+				else
+					{
+					R.setCigarString(R.getCigarString()+cigar);
+					R.setReadString(R.getReadString()+seq.toString());
+					R.setBaseQualityString(R.getBaseQualityString()+qual.toString());
+					}
+				}
+			return R;
+			}).forEach(R->w.addAlignment(R));
+		w.close();
+		sr.close();
+		assertIsValidBam(bamFile);
+		return bamFile;
+		}
 }

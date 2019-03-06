@@ -207,7 +207,18 @@ libraries.put("jena",new Library().
 	add("commons-codec:commons-codec:jar:1.11").
 	add("org.apache.jena:jena-iri:jar:3.10.0").
 	add("org.apache.jena:jena-base:jar:3.10.0").
+	add("org.apache.jena:jena-core:jar:3.10.0").
 	add("org.slf4j:slf4j-api:jar:1.7.25")
+	);
+libraries.put("arq",new Library().
+	add(libraries.get("jena")).
+	add("org.apache.jena:jena-arq:jar:3.10.0").
+	add("com.github.jsonld-java:jsonld-java:jar:0.12.1").
+	add("org.apache.commons:commons-lang3:jar:3.4").
+	add("org.apache.httpcomponents:httpclient:jar:4.5.5").
+	add("org.apache.httpcomponents:httpclient-cache:jar:4.5.5").
+	add("org.apache.jena:jena-shaded-guava:jar:3.10.0").
+	add("org.apache.thrift:libthrift:jar:0.10.0")
 	);
 
 // https://stackoverflow.com/questions/28498688
@@ -2088,8 +2099,11 @@ all.add( task("vcfgnomadpext", type: CompileJVarkit) {
 	endMsg = "not tested/used for now"
 	});
 
-
-
+all2.add( task("vcfsparql", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfsparql.VcfSparql"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","arq")
+	endMsg = "Just a proof of concept, it's very slow."
+	});
 
 /** bottom task */
 

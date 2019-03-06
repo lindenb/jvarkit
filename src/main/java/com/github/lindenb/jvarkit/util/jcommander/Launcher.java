@@ -822,15 +822,22 @@ protected java.io.PrintStream openFileOrStdoutAsPrintStream(final File out) thro
 /** open output (file or stdout) as OutputStream */
 protected java.io.OutputStream openFileOrStdoutAsStream(final File out) throws java.io.IOException
 	{
+	return openPathOrStdoutAsStream(out==null?null:out.toPath());
+	}
+
+/** open output (file or stdout) as OutputStream */
+protected java.io.OutputStream openPathOrStdoutAsStream(final Path out) throws java.io.IOException
+	{
 	if(out!=null)
 		{
-		return  IOUtils.openFileForWriting(out);
+		return  IOUtils.openPathForWriting(out);
 		}
 	else
 		{
 		return stdout();
 		}
 	}
+
 
 /** create a new SamReaderFactory */
 protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()

@@ -89,6 +89,7 @@ Usage: biostar336589 [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/336589](https://www.biostars.org/p/336589)
+ * [https://www.biostars.org/p/367522](https://www.biostars.org/p/367522)
 
 
 ## Compilation

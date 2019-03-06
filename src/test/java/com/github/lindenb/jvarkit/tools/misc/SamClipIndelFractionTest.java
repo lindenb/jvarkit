@@ -1,23 +1,42 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class SamClipIndelFractionTest extends TestUtils{
-	@Test(dataProvider="all-sam-or-bam-files")
+public class SamClipIndelFractionTest{
+	
+	private final TestSupport support = new TestSupport();
+
+	@DataProvider(name = "src1")
+	public Object[][] createData1() {
+		return support.toArrayArray(support.
+				allSamOrBams().
+				map(F->new Object[] {F})
+				)
+				;
+		}
+	
+	@Test(dataProvider="src1")
 	public void test1(final String samFile) throws IOException {
-		final File out = createTmpFile(".txt");
-		final File in = addClippingToBam(new File(samFile));
+		try {
+		final Path out = support.createTmpPath(".txt");
+		final Path in = support.addClippingToBam(Paths.get(samFile));
 		Assert.assertEquals(
-			new SamClipIndelFraction().instanceMain(newCmd().add(
-					"-o",out,
-					in
-			).make()),0);
-		super.assertIsNotEmpty(out);
+			new SamClipIndelFraction().instanceMain(new String[] {
+					"-o",out.toString(),
+					in.toString()
+			}),0);
+		support.assertIsNotEmpty(out);
+		}
+		finally {
+			support.removeTmpFiles();
+		}
 	}
 }

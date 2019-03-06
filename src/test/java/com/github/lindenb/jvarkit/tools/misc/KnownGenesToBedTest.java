@@ -1,30 +1,41 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 
-public class KnownGenesToBedTest extends TestUtils{
-	
+@AlsoTest({KnownGeneTest.class,BedLineCodecTest.class})
+public class KnownGenesToBedTest{
+	private  final TestSupport support = new TestSupport();
+
 @DataProvider(name = "src1")
 public Object[][] createData1() {
 	return new Object[][]{
-		{SRC_TEST_RESOURCE+"/rotavirus_rf.knowngenes.tsv.gz"}
+		{support.resource("rotavirus_rf.knowngenes.tsv.gz")}
 		};
 	}
 @Test(dataProvider="src1")
 public void test(final String kgfile) throws IOException {
-	File out =super.createTmpFile(".bed");
-	Assert.assertEquals(new KnownGenesToBed().instanceMain(new String[] {
-			"-o",out.getPath(),
-			kgfile
-			}),0);
-	Assert.assertTrue(out.exists());
-	assertIsBed(out);
+	try {
+		Path out =support.createTmpPath(".bed");
+		Assert.assertEquals(new KnownGenesToBed().instanceMain(new String[] {
+				"-o",out.toString(),
+				kgfile
+				}),0);
+		Assert.assertTrue(Files.exists(out));
+		support.assertIsBed(out);
+		} 
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 }

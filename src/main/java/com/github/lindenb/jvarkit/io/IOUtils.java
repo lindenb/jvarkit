@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.io;
 
@@ -368,24 +364,41 @@ public class IOUtils {
         return new BufferedWriter(new OutputStreamWriter(openFileForWriting(file)), Defaults.BUFFER_SIZE);
     	}
    
+    /** output path for writing. The following extensions
+     * are interpretted : vcf.gz, .bgz , .gz, .bz2 
+     * @param file
+     * @return
+     * @throws IOException
+     */
+    public static OutputStream openPathForWriting(final Path file) throws IOException
+		{
+    	if(file==null) throw new IllegalArgumentException("path is null");
+    	final String base = file.getFileName().toString();
+	    if (base.endsWith(".vcf.gz") || base.endsWith(".bgz"))
+	    	{
+	        return new BlockCompressedOutputStream(
+	        		file,
+	        		BlockCompressedOutputStream.getDefaultCompressionLevel(),
+	        		BlockCompressedOutputStream.getDefaultDeflaterFactory()
+	        		);
+	    	}
+	    else if (base.endsWith(".bz2"))
+	    	{
+	        return new BZip2CompressorOutputStream(Files.newOutputStream(file));
+	    	}
+	    else if (base.endsWith(".gz"))
+	    	{
+	        return new GZIPOutputStream(Files.newOutputStream(file),true);
+	    	}
+	    else
+	    	{
+	        return Files.newOutputStream(file);
+	    	}         
+		}
+    
     public static OutputStream openFileForWriting(final File file) throws IOException
     	{
-        if (file.getName().endsWith(".vcf.gz") || file.getName().endsWith(".bgz"))
-        	{
-            return new BlockCompressedOutputStream(file);
-        	}
-        else if (file.getName().endsWith(".bz2"))
-	    	{
-	        return new BZip2CompressorOutputStream(Files.newOutputStream(file.toPath()));
-	    	}
-        else if (file.getName().endsWith(".gz"))
-	    	{
-	        return new GZIPOutputStream(Files.newOutputStream(file.toPath()),true);
-	    	}
-        else
-        	{
-            return Files.newOutputStream(file.toPath());
-        	}         
+    	return openPathForWriting(file.toPath());
     	}
     
     /** open a printwriter, compress if it ends with *.gz  */
@@ -603,6 +616,36 @@ public class IOUtils {
 			}
 		return new ArrayList<>(fileset);
 		}
+	
+	 /** 
+     * new version of unrollFiles
+     * only one list
+     * duplicate file are removed
+     * return List of Files
+     */
+	public static List<Path> unrollPaths(final java.util.List<String> args)
+		{
+		if(args.isEmpty()) return Collections.emptyList();
+		final LinkedHashSet<Path> fileset = new LinkedHashSet<>();
+		if(args.size()==1 && args.get(0).endsWith(".list"))
+			{
+			final File listFile = new File(args.get(0));
+			IOUtil.assertFileIsReadable(listFile);
+			IOUtil.readLines(listFile).forEach(s->{
+				if (s.endsWith("#")) return;
+				if (StringUtil.isBlank(s)) return;
+				fileset.add(Paths.get(s));
+				});
+			}
+		else
+			{
+			fileset.addAll(args.stream().
+					map(S->Paths.get(S)).
+					collect(Collectors.toList()/* to list to keep oreder */));
+			}
+		return new ArrayList<>(fileset);
+		}
+	
 	 /** 
      * new version of unrollFiles in 2018, for common usage...
      * only one list

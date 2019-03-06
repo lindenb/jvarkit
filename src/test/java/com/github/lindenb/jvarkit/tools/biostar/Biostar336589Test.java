@@ -9,11 +9,15 @@ import java.util.Random;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
+
+@AlsoTest({VCFUtilsTest.class,BedLineCodec.class})
 public class Biostar336589Test  {
 
-	
 private final TestSupport support = new TestSupport();
 private final Random random = new Random();
 	

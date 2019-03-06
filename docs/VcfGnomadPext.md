@@ -102,7 +102,7 @@ https://www.biorxiv.org/content/10.1101/554444v1
 ## Example
 
 ```
-# index the database with tabix
+# bgzip if needed and index the database with tabix
 $ bgzip data.tsv
 $ tabix -f -b 2 -e 2 -s 1 -c 'c' data.tsv.gz
 
