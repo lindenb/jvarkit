@@ -22,7 +22,10 @@ public class VcfSparqlTest {
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		List<String> L1= Arrays.asList(support.resource("S1.vcf.gz"),support.resource("rotavirus_rf.vcf.gz"));
-		List<String> L2= Arrays.asList("SELECT distinct *\n WHERE {  ?s ?p ?o .\n  }");
+		List<String> L2= Arrays.asList(
+				"SELECT distinct *\n WHERE {  ?s ?p ?o .\n  }",
+				"select ?a ?b ?c  {?a a <"+VariantGraph.NS+"Genotype> . ?a ?b ?c .}"
+				);
 		List<Object[]> L3 = new ArrayList<>();
 		for(String s1:L1)
 			for(String s2:L2)

@@ -56,6 +56,31 @@ class JarFile
 	String getArctifact() { return split()[1];}
 	String getVersion() { return split()[3];}
 	
+	boolean isSameArctifact(JarFile other) {
+		if( !this.getGroup().equals(other.getGroup())) return false;
+		if( !this.getArctifact().equals(other.getArctifact())) return false;
+		
+		return true;
+		}
+
+	boolean isReplacing(JarFile other) {
+		if( !isSameArctifact(other) ) return false;
+		def t1 = this.getVersion().split("[\\.]");
+		def t2 = other.getVersion().split("[\\.]");
+		for(int i=0;i< t1.length && i<t2.length;i++) {
+			try {
+				int i1 = Integer.parseInt(t1[i]);
+				int i2 = Integer.parseInt(t2[i]);
+				if(i1!=i2) return i1>i2;
+				}
+			catch(Exception err)
+				{
+				return false;
+				}			
+			}
+		return false;
+		}
+
 	public String getServer() {
 		return this.server==null?"http://central.maven.org/maven2":this.server;
 		}
@@ -96,19 +121,34 @@ class JarFile
 
 class Library
 	{
-	private final def files = new HashSet<>();
+	private final def files = new ArrayList<>();
 	Library() {
 		}
 	Library add(String s) {
 		return this.add(new JarFile(s));
 		}
 	Library add(JarFile f) {
+		for(int i=0;i< this.files.size();i++)
+			{
+			JarFile fold = this.files.get(i);
+			if(fold.isSameArctifact(f))
+				{
+				if(f.isReplacing(fold)) {
+					//System.err.println("##replace "+fold+" with "+f);
+					this.files.set(i,f);
+					}
+				return this;
+				}
+			}
 		this.files.add(f);
 		return this;
 		}
 	Library add(Library L) {
 		if(L!=this) {
-			this.files.addAll(L.files);
+			for(int i=0;i< L.files.size();i++)
+				{
+				this.add(L.files.get(i));
+				}
 			}
 		if(this.isEmpty() && !L.isEmpty()) throw new  GradleException("uh ?"+L);
 		return this;

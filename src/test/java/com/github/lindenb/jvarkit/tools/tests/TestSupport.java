@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +32,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 
-import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
@@ -475,4 +475,19 @@ public class TestSupport {
 		assertIsValidBam(bamFile);
 		return bamFile;
 		}
+	
+	public Object[][] combine2(Stream<?> col1,Stream<?> col2) {
+		List<Object[]> L = new ArrayList<>();
+		List<Object> L1 = col1.map(O->Object.class.cast(O)).collect(Collectors.toList());
+		List<Object> L2 = col2.map(O->Object.class.cast(O)).collect(Collectors.toList());
+		for(int x=0;x< L1.size();++x) {
+			for(int y=0;y< L2.size();++y) {
+				Object row[] = new Object[] {L1.get(x),L2.get(y)};
+				L.add(row);
+				}
+			}
+		
+		return toArrayArray(L.stream());
+	}
+	
 }

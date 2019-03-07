@@ -27,11 +27,14 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -40,10 +43,10 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -90,7 +93,8 @@ END_DOC
 @Program(
 	name="faidxsplitter",
 	description="Split bed of reference genome into overlapping parts",
-	keywords={"vcf","reference","bed"}
+	keywords={"vcf","reference","bed"},
+	modificationDate="20190307"
 	)
 public class FaidxSplitter  extends Launcher
 	{
@@ -98,7 +102,7 @@ public class FaidxSplitter  extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected File outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	protected File faidx = null;
+	protected Path faidx = null;
 	@Parameter(names={"-gap","--gaps","--gap"},description="gap file. A bed file containing the known gaps in the genome. "
 			+ "E.g: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/gap.txt.gz ")
 	protected String gapSource = null;
@@ -159,12 +163,8 @@ public class FaidxSplitter  extends Launcher
 				LOG.info("bad parameters");
 				return -1;
 				}
-			final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
-			if(dict==null)
-				{
-				LOG.error("no dictionary found");
-				return -1;
-				}
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidx);
+			
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			final BedLineCodec codec = new BedLineCodec();
 			final Pattern excludePat = Pattern.compile(this.excludeChromStr);
@@ -191,13 +191,17 @@ public class FaidxSplitter  extends Launcher
 			if(this.geneSource!=null) {
 				LOG.info("loading genes "+this.geneSource);
 				String line;
+				final Set<String> notFound = new HashSet<>();
 				final BufferedReader br=IOUtils.openURIForBufferedReading(this.geneSource);
 				while((line=br.readLine())!=null)
 					{
 					final BedLine gene = codec.decode(line);
 					if(gene==null) continue;
 					final String contig2 = contigNameConverter.apply(gene.getContig());
-					if(StringUtil.isBlank(contig2)) continue;
+					if(StringUtil.isBlank(contig2)) {
+						if(notFound.add(gene.getContig())) LOG.warn("gene contig not found :"+gene.getContig());
+						continue;
+					}
 					if(excludePat.matcher(contig2).matches()) continue;
 					
 					final Interval g = new Interval(contig2, gene.getStart(), gene.getEnd());
@@ -211,24 +215,28 @@ public class FaidxSplitter  extends Launcher
 			
 			if(this.gapSource!=null) {
 				LOG.info("loading gaps "+this.gapSource);
+				final Set<String> notFound = new HashSet<>();
 				String line;
 				final BufferedReader br=IOUtils.openURIForBufferedReading(this.gapSource);
 				while((line=br.readLine())!=null)
 					{
 					final BedLine gap0 = codec.decode(line);
 					if(gap0==null) continue;
-					String contig2 = contigNameConverter.apply(gap0.getContig());
-					if(StringUtil.isBlank(contig2)) continue;
+					final String contig2 = contigNameConverter.apply(gap0.getContig());
+					if(StringUtil.isBlank(contig2)) {
+						if(notFound.add(gap0.getContig())) LOG.warn("gap contig not found :"+gap0.getContig());
+						continue;
+					}
 					if(excludePat.matcher(contig2).matches()) continue;
 					final Interval gap = new Interval(contig2,gap0.getStart(),gap0.getEnd());
 					
 					
 					final Collection<Interval> genes = geneMap.getOverlapping(gap);
-					for(final Interval i:genes) {
-						if(!gap.overlaps(i)) throw new IllegalStateException();
-						LOG.warn("gene "+i +" overlap gap "+gap+ " "+this.split(i, gap));
-						geneMap.remove(i);
-						this.split(i,gap).forEach(N->geneMap.put(N, N));
+					for(final Interval gene_interval :genes) {
+						if(!gap.overlaps(gene_interval)) throw new IllegalStateException();
+						LOG.warn("gene "+gene_interval +" overlap gap "+gap+ " "+this.split(gene_interval, gap));
+						geneMap.remove(gene_interval);
+						this.split(gene_interval,gap).forEach(N->geneMap.put(N, N));
 						}
 					if(geneMap.containsOverlapping(gap)) throw new IllegalStateException();
 						
@@ -251,6 +259,7 @@ public class FaidxSplitter  extends Launcher
 				if(i!=0) return i;
 				return A.getStart()-B.getStart();
 				});
+			/* start writing output */
 			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			for(final Interval interval : intervals2) {
 				if(interval.length()<= this.window_size)
@@ -263,6 +272,7 @@ public class FaidxSplitter  extends Launcher
 					{
 					int chromEnd  = Math.min(interval.getEnd(),start+this.window_size);
 					
+					// extend interval while there is a gene that shouldn't be broken */
 					for(;;)
 						{
 						final Interval record = new Interval(
@@ -273,6 +283,7 @@ public class FaidxSplitter  extends Launcher
 
 
 						final Interval gene = findGene.apply(record);
+						// no gene 
 						if( gene==null ||record.contains(gene) ) break;
 						
 						if(gene.getStart() < record.getStart()) throw new IllegalStateException(
