@@ -153,7 +153,7 @@ END_DOC
  */
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
-	biostars=73021,
+	biostars= {73021,368200},
 	keywords={"sam","bam","visualization","logo"}
 	)
 public class SAM4WebLogo extends Launcher

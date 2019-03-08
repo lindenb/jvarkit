@@ -8,13 +8,19 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.lang.StringUtilsTest;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
-public class AFExtractorFactoryTest extends TestUtils {
+@AlsoTest({StringUtilsTest.class})
+public class AFExtractorFactoryTest {
 
+private final TestSupport support = new TestSupport();
+
+	
 @DataProvider(name="data01")
 public Object[][] data01(){
 	return new Object[][] {
@@ -37,7 +43,7 @@ void test01(String key,int expect,int expectValids) {
 @Test(dataProvider="data01")
 void testValid(String key,int expect,int expectValids) throws IOException
 	{
-	final VCFFileReader ft =  new VCFFileReader(Paths.get(SRC_TEST_RESOURCE+"/test_vcf01.vcf"),false);
+	final VCFFileReader ft =  new VCFFileReader(Paths.get(support.resource("test_vcf01.vcf")),false);
 	final AFExtractorFactory ex = new AFExtractorFactory();
 	final VCFHeader header =  ft.getFileHeader();
 	

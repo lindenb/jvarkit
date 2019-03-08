@@ -164,6 +164,10 @@ private static class ACANFieldsExtractor implements AFExtractor
 		this.anAttr = anAttr;
 		if(StringUtil.isBlank(this.acAttr)) throw new IllegalArgumentException("AC is blank");
 		if(StringUtil.isBlank(this.anAttr)) throw new IllegalArgumentException("AN is blank");
+		if( (acAttr.contains("AN") && !acAttr.contains("AC")) && 
+			(anAttr.contains("AC") && !anAttr.contains("AN"))) {
+			LOG.warn("most probably the arguments have been swiched ac="+acAttr+";an="+anAttr);
+			}
 		if(this.acAttr.equals(this.anAttr)) throw new IllegalArgumentException(acAttr+"="+this.anAttr);
 		}
 	@Override

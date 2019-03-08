@@ -10,7 +10,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +37,7 @@ import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -47,6 +47,8 @@ import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
@@ -55,6 +57,18 @@ public class TestSupport {
 	public final Random random = new Random();
 	protected final String SRC_TEST_RESOURCE="./src/test/resources";
 	private final List<Path> deletePathsAtExit = new Vector<>();
+	
+	public Predicate<String> bamHasIndex = (F)->{
+		final Path p = Paths.get(F);
+		if(!Files.exists(p)) return false;
+		try (SamReader sr = SamReaderFactory.makeDefault().open(p)) {
+			return sr.hasIndex();
+			}
+		catch(Exception err) {
+			return false;
+			}
+		};
+	
 	
 	private ReferenceRegistry refCatalog =new ReferenceRegistry() {
 			@Override
@@ -91,7 +105,9 @@ public class TestSupport {
 	}
 
 	
-	protected synchronized Path deleteOnExit(final Path f) {
+	
+	
+	public synchronized Path deleteOnExit(final Path f) {
 		if(f!=null) this.deletePathsAtExit.add(f);
 		return f;
 		}
@@ -489,5 +505,18 @@ public class TestSupport {
 		
 		return toArrayArray(L.stream());
 	}
-	
+	public List<Interval> randomIntervalsFromDict(final Path dictFile,int n,int maxLen) throws IOException{
+		final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(dictFile);
+		final List<Interval> rgns = new ArrayList<>(n);
+		if(dict==null) return rgns;
+		while(n>0)
+			{
+			final SAMSequenceRecord ssr = dict.getSequence(random.nextInt(dict.size()));
+			final int L = 1 + random.nextInt(Math.min(maxLen,ssr.getSequenceLength()-1));
+			final int start = 1 + random.nextInt(ssr.getSequenceLength() -L);
+			rgns.add(new Interval(ssr.getSequenceName(), start, start+L));
+			n--;
+			}
+		return rgns;
+		}
 }

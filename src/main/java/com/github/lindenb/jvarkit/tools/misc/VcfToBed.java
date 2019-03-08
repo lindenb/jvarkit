@@ -40,6 +40,7 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.variant.vcf.VCFIterator;
@@ -128,9 +129,9 @@ public class VcfToBed  extends Launcher {
 	private int slopSize = 0;
 	@Parameter(names={"-F","--format"},description="output format")
 	private OutputFormat outputFormat = OutputFormat.bed;
-	@Parameter(names={"-m","--min"},description="Optional filter: min sequence length. " + DistanceParser.OPT_DESCRIPTION)
+	@Parameter(names={"-m","--min"},description="Optional filter: min sequence length. " + DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
 	private String minLengthStr = null;
-	@Parameter(names={"-M","--max"},description="Optional filter: max sequence length. " + DistanceParser.OPT_DESCRIPTION)
+	@Parameter(names={"-M","--max"},description="Optional filter: max sequence length. " + DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
 	private String maxLengthStr = null;
 	@Parameter(names={"-header","--header"},description="Print Header")
 	private boolean printHeader= false;

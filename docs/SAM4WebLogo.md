@@ -57,6 +57,7 @@ Usage: sam4weblogo [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/73021](https://www.biostars.org/p/73021)
+ * [https://www.biostars.org/p/368200](https://www.biostars.org/p/368200)
 
 
 ## Compilation

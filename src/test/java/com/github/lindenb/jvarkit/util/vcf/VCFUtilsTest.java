@@ -15,7 +15,10 @@ import com.github.lindenb.jvarkit.lang.CharSplitterTest;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
 
-@AlsoTest({IOUtilsTest.class,CharSplitterTest.class,SequenceDictionaryUtilsTest.class})
+@AlsoTest({IOUtilsTest.class,CharSplitterTest.class,
+	SequenceDictionaryUtilsTest.class,
+	AFExtractorFactoryTest.class
+	})
 public class VCFUtilsTest {
 
 @DataProvider(name="src01")

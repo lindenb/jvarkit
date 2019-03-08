@@ -15,11 +15,10 @@ public class AlleleFrequencyCalculatorTest {
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
-		return (Object[][])support.
-				allVcfOrBcf().
-				map(F->new Object[] {F}).
-				toArray()
-				;
+		return support.toArrayArray(
+				support.allVcfOrBcf().
+				map(F->new Object[] {F})
+				);
 		}
 	
 	@Test(dataProvider="src1")

@@ -10,14 +10,14 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest(VCFUtilsTest.class)
+@AlsoTest(LauncherTest.class)
 public class VcfHeadTest {
 
 	private final TestSupport support = new TestSupport();
 
-	@DataProvider(name="src01")
+	@DataProvider(name="src1")
 	public Object[][] testData01() {
 			return support.combine2(
 					support.allVcfOrBcf(),

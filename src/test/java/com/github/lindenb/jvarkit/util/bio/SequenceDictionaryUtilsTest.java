@@ -10,7 +10,7 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverterTest;
 
-@AlsoTest({StringUtilsTest.class,ContigNameConverterTest.class})
+@AlsoTest({StringUtilsTest.class,ContigNameConverterTest.class,IntervalParserTest.class})
 public class SequenceDictionaryUtilsTest  {
 	private  final TestSupport support = new TestSupport();
 

@@ -2061,9 +2061,10 @@ all.add( task("tviewserver", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.tview.TViewServer"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jetty")
 	});
-all.add( task("vcftrap", type: CompileJVarkit) {
+all2.add( task("vcftrap", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.trap.VcfTrap"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	endMsg = "never used"
 	});
 all.add( task("vcfoptimizeped4skat", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.skat.VcfOptimizePedForSkat"
