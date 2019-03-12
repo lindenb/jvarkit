@@ -165,7 +165,8 @@ public class VcfGnomad extends Launcher{
 	private boolean useGenomeOnly = false;
 	@Parameter(names={"--exclude"},description="[20180327] exclude gnomad INFO field matching this regular expression. Empty: accept all")
 	private String excludePatternStr = "controls|non_cancer|non_neuro|non_topmed";
-
+	@Parameter(names={"--ani"},description="[20190311] for allele numbers 'AN' to be variant-count-type=Integer (not 'A' as declared in gnomad)")
+	private boolean alleleNumber_is_integer = false;
 	
 	/** entries mapping chromosome/type->vcf.gz */
 	private List<ManifestEntry> manifestEntries=new ArrayList<>();
@@ -313,7 +314,8 @@ public class VcfGnomad extends Launcher{
 				{
 				return VCFHeaderLineCount.INTEGER;
 				}
-			if(	this.original.getCountType().equals(VCFHeaderLineCount.A) &&
+			if(	VcfGnomad.this.alleleNumber_is_integer &&
+					this.original.getCountType().equals(VCFHeaderLineCount.A) &&
 					(this.original.getID().startsWith("AN_") || this.original.getID().contains("_AN_"))&&
 					gnomadVersion.equals(GnomadVersion.v2_1))
 					{

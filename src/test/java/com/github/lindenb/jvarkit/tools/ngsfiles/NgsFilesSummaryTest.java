@@ -1,61 +1,70 @@
 package com.github.lindenb.jvarkit.tools.ngsfiles;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
-
-import htsjdk.samtools.util.IOUtil;
-
-public class NgsFilesSummaryTest extends TestUtils{
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+public class NgsFilesSummaryTest {
+	
+private	final TestSupport support = new TestSupport();	
+	
 @Test
 public void test01()throws IOException {
-	final File pathFile = super.createTmpFile(".txt");
-	final PrintWriter pw = new PrintWriter(pathFile);
-	_collectFiles(new File("./src/test/resources/"),
-			(D,N)->N.endsWith(".vcf") || 
-			       N.endsWith(".vcf.gz") || 
-			       N.endsWith(".bam")  || 
-			       N.endsWith(".fq.gz")
-			       ).forEach(L->pw.println(L));
-	pw.flush();
-	pw.close();
-	final File out =  super.createTmpFile(".txt");
-	Assert.assertEquals(new NgsFilesSummary().instanceMain(newCmd().
-		add("-o",out.getPath()).
-		add(pathFile).make()
-		),0);
-	assertTsvTableIsConsitent(out, null);
-	Assert.assertTrue(IOUtil.slurpLines(out).stream().
-			anyMatch(L->L.contains("VCF") && 
-					L.contains("S1") && 
-					L.contains("vcf.gz"))
-			);
+	try {
+		final Path pathFile = support.createTmpPath(".txt");
+		final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(pathFile));
+		support.allVcfOrBcf().forEach(L->pw.println(L));
+		support.allSamOrBams().forEach(L->pw.println(L));
+		pw.flush();
+		pw.close();
+		final Path out =  support.createTmpPath(".txt");
+		Assert.assertEquals(new NgsFilesSummary().instanceMain(new String[] {
+			"-o",out.toString(),
+			pathFile.toString()
+			}),0);
+		support.assertTsvTableIsConsitent(out, null);
+		Assert.assertTrue(Files.lines(out).
+				anyMatch(L->L.contains("VCF") && 
+						L.contains("S1") && 
+						L.contains("vcf.gz"))
+				);
+		} 
+	finally
+		{
+		support.removeTmpFiles();
+		}
 	}
 
+@Test
 public void test02() 
 		throws IOException
 		{
-		final File tmp1 = super.createTmpFile(".txt");
-		final PrintWriter pw = new PrintWriter(tmp1);
-		for(int i=1;i<=5;++i)
-			{
-			pw.println(SRC_TEST_RESOURCE+"/S"+i+".bam");
-			pw.println(SRC_TEST_RESOURCE+"/S"+i+".vcf.gz");
+		try {
+			final Path tmp1 = support.createTmpPath(".txt");
+			final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(tmp1));
+			for(int i=1;i<=5;++i)
+				{
+				pw.println(support.resource("S"+i+".bam"));
+				pw.println(support.resource("S"+i+".vcf.gz"));
+				}
+			pw.println(support.resource("rotavirus_rf.vcf.gz"));
+			pw.flush();
+			pw.close();
+			
+			final Path out = support.createTmpPath(".txt");
+			Assert.assertEquals(0,new NgsFilesSummary().instanceMain(new String[] {
+				"-o",out.toString(),
+				tmp1.toString()
+				}));
+			support.assertTsvTableIsConsitent(out, null);
 			}
-		pw.println(SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz");
-		pw.flush();
-		pw.close();
-		
-		final File out = super.createTmpFile(".txt");
-		Assert.assertEquals(0,new NgsFilesSummary().instanceMain(new String[] {
-			"-o",out.getPath(),
-			tmp1.getPath()
-			}));
-		assertTsvTableIsConsitent(out, null);
+		finally {
+			support.removeTmpFiles();
+			}
 		}
 }

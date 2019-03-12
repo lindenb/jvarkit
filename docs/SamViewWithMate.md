@@ -57,6 +57,7 @@ Usage: samviewwithmate [options] Files
 
  * [https://www.biostars.org/p/151403](https://www.biostars.org/p/151403)
  * [https://www.biostars.org/p/105714](https://www.biostars.org/p/105714)
+ * [https://www.biostars.org/p/368754](https://www.biostars.org/p/368754)
 
 
 ## Compilation

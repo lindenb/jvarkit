@@ -48,10 +48,12 @@ public class AFExtractorFactory {
 /** an interface that can extract allele frequencies for each allele in a variant */
 public static interface AFExtractor
 	{
-	/** validate the VCF header, return true on failure */
+	/** validate the VCF header, return false on failure */
 	public boolean validateHeader(final VCFHeader header);
-	/** return the frequencies for each allele. Item of the list may be null. List is never null */
+	/** return the frequencies for each ALT allele. Item of the list may be null. List is never null */
 	public List<Double> parse(final VariantContext ctx);
+	/** return a now for this extractor */
+	public String getName();
 	}
 
 public static final String OPT_DESC= 
@@ -141,7 +143,10 @@ private static class AFFieldExtractor implements AFExtractor
 		if(obj==null || !(obj instanceof AFFieldExtractor)) return false;
 		return this.afAttr.equals(AFFieldExtractor.class.cast(obj).afAttr);
 		}
-	
+	@Override
+	public String getName() {
+		return "INFO/"+this.afAttr;
+		}
 	@Override
 	public String toString() {
 		return "AF Extractor using INFO/"+this.afAttr;
@@ -267,11 +272,14 @@ private static class ACANFieldsExtractor implements AFExtractor
 				this.anAttr.equals(ACANFieldsExtractor.class.cast(obj).anAttr)
 				;
 		}
-
+	@Override
+	public String getName() {
+		return "INFO/"+this.acAttr +"~INFO/"+this.anAttr;
+		}
 	
 	@Override
 	public String toString() {
-		return "AF Extractor using INFO/"+this.acAttr+" and INFO/"+this.anAttr;
+		return "AF Extractor using " + getName();
 		}
 	}
 

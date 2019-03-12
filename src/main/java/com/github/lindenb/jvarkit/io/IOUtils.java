@@ -325,10 +325,6 @@ public class IOUtils {
 		return Files.newBufferedReader(file);
 		}
 
-	/** return true if the file has a compressed suffix '.bfz' or '.gz' or '.bz2' */
-	public static final boolean isCompressedExtention(final String s) {
-		return s!=null && (s.endsWith(".gz") || s.endsWith(".bgz") || s.endsWith(".bz2"));
-	}
 	
 	public static InputStream openFileForReading(final File file) throws IOException
 		{
@@ -364,6 +360,23 @@ public class IOUtils {
         return new BufferedWriter(new OutputStreamWriter(openFileForWriting(file)), Defaults.BUFFER_SIZE);
     	}
    
+    
+	/** return true if the file has a compressed suffix '.bfz' or '.gz' or '.bz2' */
+	public static final boolean isCompressedExtention(final String s) {
+		return s!=null && (
+			s.endsWith(".gz") ||
+			s.endsWith(".bgz") ||
+			s.endsWith(".bz2")
+			);
+		}
+
+    
+    /** return true if path has an interpretable compressed suffix */
+    public static boolean isCompressed(final Path out) {
+    		final String suff= Objects.requireNonNull(out).getFileName().toString();
+    		return	isCompressedExtention(suff);
+    		}
+    
     /** output path for writing. The following extensions
      * are interpretted : vcf.gz, .bgz , .gz, .bz2 
      * @param file
@@ -373,22 +386,28 @@ public class IOUtils {
     public static OutputStream openPathForWriting(final Path file) throws IOException
 		{
     	if(file==null) throw new IllegalArgumentException("path is null");
-    	final String base = file.getFileName().toString();
-	    if (base.endsWith(".vcf.gz") || base.endsWith(".bgz"))
-	    	{
-	        return new BlockCompressedOutputStream(
-	        		file,
-	        		BlockCompressedOutputStream.getDefaultCompressionLevel(),
-	        		BlockCompressedOutputStream.getDefaultDeflaterFactory()
-	        		);
-	    	}
-	    else if (base.endsWith(".bz2"))
-	    	{
-	        return new BZip2CompressorOutputStream(Files.newOutputStream(file));
-	    	}
-	    else if (base.endsWith(".gz"))
-	    	{
-	        return new GZIPOutputStream(Files.newOutputStream(file),true);
+    	if(isCompressed(file)) {
+	    	final String base = file.getFileName().toString();
+		    if (base.endsWith(".vcf.gz") || base.endsWith(".bgz"))
+		    	{
+		        return new BlockCompressedOutputStream(
+		        		file,
+		        		BlockCompressedOutputStream.getDefaultCompressionLevel(),
+		        		BlockCompressedOutputStream.getDefaultDeflaterFactory()
+		        		);
+		    	}
+		    else if (base.endsWith(".bz2"))
+		    	{
+		        return new BZip2CompressorOutputStream(Files.newOutputStream(file));
+		    	}
+		    else if (base.endsWith(".gz"))
+		    	{
+		        return new GZIPOutputStream(Files.newOutputStream(file),true);
+		    	}
+		    else
+		    	{
+		    	throw new IllegalStateException("bad suffix ?? "+file);
+		    	}
 	    	}
 	    else
 	    	{
@@ -404,16 +423,21 @@ public class IOUtils {
     /** open a printwriter, compress if it ends with *.gz  */
     public static PrintWriter openFileForPrintWriter(final File file) throws IOException
 		{
-	    if (isCompressedExtention(file.getName()))
+	    return openPathForPrintWriter(file.toPath());
+		}
+    
+    /** open a printwriter, compress if it ends with *.gz  */
+    public static PrintWriter openPathForPrintWriter(final Path file) throws IOException
+		{
+	    if (isCompressed(file))
 	    	{
-	        return new PrintWriter(openFileForWriting(file));
+	        return new PrintWriter(openPathForWriting(file));
 	    	}
 	    else
 	    	{
-	        return new PrintWriter(file);
+	        return new PrintWriter(Files.newBufferedWriter(file));
 	    	}         
 		}
-
     
     public static LineReader openFileForLineReader(File file) throws IOException
 		{

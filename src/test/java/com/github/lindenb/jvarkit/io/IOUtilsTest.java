@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
@@ -28,6 +29,15 @@ public class IOUtilsTest {
 		for(int i=0;i<10;i++) Assert.assertEquals((int)'A', is.read());
 		Assert.assertEquals(-1, is.read());
 	}
+	
+	
+@Test
+public void testSuffix() {
+	Assert.assertTrue(IOUtils.isCompressed(Paths.get("x.gz")));
+	Assert.assertTrue(IOUtils.isCompressed(Paths.get("x.bgz")));
+	Assert.assertTrue(IOUtils.isCompressed(Paths.get("x.bz2")));
+	Assert.assertFalse(IOUtils.isCompressed(Paths.get("x.vcf")));
+}
 	
 @Test
 void testWrite() throws IOException {

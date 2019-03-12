@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -778,15 +779,17 @@ public InputStream stdin(final InputStream in) {InputStream old=_stdin; this._st
 
 
 /** open output (file or stdout) as PrintWriter */
-protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(File out) throws java.io.IOException
+protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(final File out) throws java.io.IOException
+	{
+	return this.openPathOrStdoutAsPrintWriter(out==null?null:out.toPath());
+	}
+
+/** open output (path or stdout) as PrintWriter */
+protected java.io.PrintWriter openPathOrStdoutAsPrintWriter(final Path out) throws java.io.IOException
 	{
 	if(out!=null)
 		{
-		if(out.getName().endsWith(".gz"))
-			{
-			return new java.io.PrintWriter(this.openFileOrStdoutAsStream(out));
-			}
-		return new java.io.PrintWriter(out);
+		return IOUtils.openPathForPrintWriter(out);
 		}
 	else
 		{
@@ -798,26 +801,22 @@ protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(File out) throws jav
 /** open output (file or stdout if out is null ) as PrintStream */
 protected java.io.PrintStream openFileOrStdoutAsPrintStream(final File out) throws java.io.IOException
 	{
+	return this.openPathOrStdoutAsPrintStream(out==null?null:out.toPath());
+	}
+
+/** open output (file or stdout if out is null ) as PrintStream */
+protected java.io.PrintStream openPathOrStdoutAsPrintStream(final Path out) throws java.io.IOException
+	{
 	if(out!=null)
 		{
-		if(out.getName().endsWith(".gz") || out.getName().endsWith(".bz2"))
-			{
-			final java.io.OutputStream os = this.openFileOrStdoutAsStream(out);
-			if(os instanceof java.io.PrintStream) {
-				return java.io.PrintStream.class.cast(os);
-				}
-			else
-				{
-				return new java.io.PrintStream(os);
-				}
-			}
-		return new java.io.PrintStream(out);
+		return new PrintStream(IOUtils.openPathForWriting(out));
 		}
 	else
 		{
 		return stdout();
 		}
 	}
+
 
 /** open output (file or stdout) as OutputStream */
 protected java.io.OutputStream openFileOrStdoutAsStream(final File out) throws java.io.IOException

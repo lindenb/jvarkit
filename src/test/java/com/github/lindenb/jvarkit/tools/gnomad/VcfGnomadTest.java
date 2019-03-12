@@ -108,6 +108,7 @@ public void testHeaderV2_1(final String vcfpath) throws IOException {
 		
 		Assert.assertEquals(new VcfGnomad().instanceMain(new String[]{
 				"-o",vcfOut.toString(),
+				"--ani",
 				"-m",manifestFile.toString(),
 				vcfpath
 				}),0);
