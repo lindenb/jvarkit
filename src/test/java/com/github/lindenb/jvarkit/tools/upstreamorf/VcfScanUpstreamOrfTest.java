@@ -10,10 +10,11 @@ import com.github.lindenb.jvarkit.io.ArchiveFactoryTest;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.AlgorithmsTest;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
-@AlsoTest(value= {AlgorithmsTest.class,ArchiveFactoryTest.class,KnownGeneTest.class,VCFUtilsTest.class})
+@AlsoTest(value= {LauncherTest.class,AlgorithmsTest.class,ArchiveFactoryTest.class,KnownGeneTest.class,VCFUtilsTest.class})
 public class VcfScanUpstreamOrfTest {
 	private final TestSupport support =new TestSupport();
 	@Test

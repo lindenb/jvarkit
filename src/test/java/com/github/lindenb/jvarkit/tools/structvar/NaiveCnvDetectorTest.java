@@ -1,29 +1,38 @@
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-public class NaiveCnvDetectorTest extends TestUtils {
+@AlsoTest(LauncherTest.class)
+public class NaiveCnvDetectorTest {
+	
+	private final TestSupport support = new TestSupport();
+	
+	
 @Test
 public void testOneFile() throws IOException {
-	final File out= super.createTmpFile(".tsv");
-	final File tmp= super.createTmpFile(".tmp");
-	final PrintWriter pw=new PrintWriter(tmp);
+	try {
+	final Path out= support.createTmpPath(".tsv");
+	final Path tmp= support.createTmpPath(".tmp");
+	final PrintWriter pw=IOUtils.openPathForPrintWriter(tmp);
 	for(int i=1;i< 100_000;++i)
 		{
 		pw.print("chr1\t");
 		pw.print(i);
 		for(int j=0;j< 30;++j)
 			{
-			int depth=50+(random.nextInt(10)*(random.nextBoolean()?1:-1));
+			int depth=50+(support.random.nextInt(10)*(support.random.nextBoolean()?1:-1));
 			if(j==40 && i> 10_000 && i<20_000) depth/=2;
 			pw.print("\t");
 			pw.print(depth);
@@ -33,54 +42,64 @@ public void testOneFile() throws IOException {
 	pw.flush();
 	pw.close();
 	Assert.assertEquals(new NaiveCnvDetector().instanceMain(new String[] {
-			"-o",out.getPath(),
-			tmp.getPath()}),
+			"-o",out.toString(),
+			tmp.toString()}),
 			0);
-	super.assertTsvTableIsConsitent(out, null);
+	support.assertTsvTableIsConsitent(out, null);
+	} finally 
+	{
+		support.removeTmpFiles();
+	}
 	}
 
 @Test
 public void testMultipleFiles() throws IOException {
-	final File listF= super.createTmpFile(".list");
-	final List<File> tmps= new ArrayList<>(10);
-	for(int x=0;x<10;++x) {
-		final File tmp = super.createTmpFile(".tmp");
-		tmps.add(tmp);
-		final PrintWriter pw=new PrintWriter(tmp);
-		for(int i=1;i< 100_000;++i)
-			{
-			pw.print("chr1\t");
-			pw.print(i);
-			pw.print("\t");
-			int depth=50+(random.nextInt(10)*(random.nextBoolean()?1:-1));
-			if(x==5 && i> 10_000 && i<20_000) depth/=2;
-			pw.print(depth);
-			pw.println();
+	try {
+		final Path listF= support.createTmpPath(".list");
+		final List<Path> tmps= new ArrayList<>(10);
+		for(int x=0;x<10;++x) {
+			final Path tmp = support.createTmpPath(".tmp");
+			tmps.add(tmp);
+			final PrintWriter pw=IOUtils.openPathForPrintWriter(tmp);
+			for(int i=1;i< 100_000;++i)
+				{
+				pw.print("chr1\t");
+				pw.print(i);
+				pw.print("\t");
+				int depth=50+(support.random.nextInt(10)*(support.random.nextBoolean()?1:-1));
+				if(x==5 && i> 10_000 && i<20_000) depth/=2;
+				pw.print(depth);
+				pw.println();
+				}
+			pw.flush();
+			pw.close();
 			}
+		PrintWriter pw=IOUtils.openPathForPrintWriter(listF);
+		for(final Path tmpF : tmps)
+			pw.println(tmpF.toString());
 		pw.flush();
 		pw.close();
+		
+		final Path dict=support.createTmpPath(".dict");
+		pw=IOUtils.openPathForPrintWriter(dict);
+		pw.println("@HD\tVN:1.5\tSO:unsorted");
+		pw.println("@SQ\tSN:chr1\tLN:10000000");
+		pw.flush();
+		pw.close();
+		
+		
+		final Path out= support.createTmpPath(".tsv");
+		Assert.assertEquals(new NaiveCnvDetector().instanceMain(new String[] {
+				"-o",out.toString(),
+				"-R",dict.toString(),
+				listF.toString()}),
+				0);
+		support.assertTsvTableIsConsitent(out, null);
 		}
-	PrintWriter pw=new PrintWriter(listF);
-	for(final File tmpF : tmps)
-		pw.println(tmpF.getPath());
-	pw.flush();
-	pw.close();
-	
-	final File dict=super.createTmpFile(".dict");
-	pw=new PrintWriter(dict);
-	pw.println("@HD\tVN:1.5\tSO:unsorted");
-	pw.println("@SQ\tSN:chr1\tLN:10000000");
-	pw.flush();
-	pw.close();
-	
-	
-	final File out= super.createTmpFile(".tsv");
-	Assert.assertEquals(new NaiveCnvDetector().instanceMain(new String[] {
-			"-o",out.getPath(),
-			"-R",dict.getPath(),
-			listF.getPath()}),
-			0);
-	super.assertTsvTableIsConsitent(out, null);
+	finally 
+		{
+		support.removeTmpFiles();
+		}
 	}
 
 
