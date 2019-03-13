@@ -33,11 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -120,13 +115,9 @@ public class VcfBurdenFisherV
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
-	@XmlType(name="vcfburdenfisherv")
-	@XmlRootElement(name="vcfburdenfisherv")
-	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 		{
-		@XmlElement(name="ignore-filter")
 		@Parameter(names={"-if","--ignorefilter"},
 			description="accept variants having a FILTER column. Default is ignore variants with a FILTER column")
 		private boolean acceptFiltered = false;

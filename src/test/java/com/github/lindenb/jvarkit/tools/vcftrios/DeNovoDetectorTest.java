@@ -10,15 +10,13 @@ import java.util.stream.Collectors;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
-
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 
-public class DeNovoDetectorTest extends TestUtils {
+public class DeNovoDetectorTest  {
 
 	private Allele a1 = Allele.create("A", true);
 	private Allele a2 = Allele.create("T", false);

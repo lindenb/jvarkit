@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -380,8 +381,25 @@ public class VCFUtils
 			return this.lastCheckError;
 			}
 		}
-
 	
+	/**
+	 * create a VariantContextWriter
+	 * @param OUT output path or null to stdout
+	 * @return
+	 * @throws IOException
+	 */
+	public static  VariantContextWriter createVariantContextWriterToPath(final Path pathorNull) throws IOException
+		{
+		if(pathorNull==null) {
+			return createVariantContextWriterToStdout();
+			}
+		final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+		vcwb.setCreateMD5(false);
+		vcwb.setReferenceDictionary(null);
+		vcwb.clearOptions();
+		vcwb.setOutputPath(pathorNull);
+		return new VariantContextWriterDelayedFlush(vcwb.build());
+		}
 	
 	/**
 	 * create a VariantContextWriter
@@ -391,20 +409,7 @@ public class VCFUtils
 	 */
 	public static  VariantContextWriter createVariantContextWriter(final File OUT) throws IOException
 		{
-		if(OUT==null)
-			{
-			return createVariantContextWriterToStdout();
-			}
-		else
-			{
-			IOUtil.assertFileIsWritable(OUT);
-			final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
-			vcwb.setCreateMD5(false);
-			vcwb.setReferenceDictionary(null);
-			vcwb.clearOptions();
-			vcwb.setOutputFile(OUT);
-			return new VariantContextWriterDelayedFlush(vcwb.build());
-			}
+		return createVariantContextWriterToPath(OUT==null?null:OUT.toPath());
 		}
 	
 	public static SAMSequenceRecord contigLineToSamSequenceRecord(String line)

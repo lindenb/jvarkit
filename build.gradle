@@ -1990,7 +1990,7 @@ all.add( task("vcfburdenfisherh", type: CompileJVarkit) {
 	});
 all.add( task("vcfburdenfisherv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherV"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcffilternotinpedigree", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfFilterNotInPedigree"

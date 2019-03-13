@@ -311,6 +311,26 @@ public class OBOParser {
 				}
 			}
 		
+		/** parse ontology using file extension. '.obo' or 'obo.gz' are interpretted as OBO. Default is RDF/XML */
+		public OBOntology parseByExtension(final Path path) throws IOException,XMLStreamException {
+			String suff  = path.getFileName().toString();
+			if(suff.endsWith(".obo") || suff.endsWith(".obo.gz")) {
+				return parseObo(path);
+				}
+			else
+				{
+				return parseOwl(path);
+				}
+			}
+		
+		
+		public OBOntology parseObo(final Path path) throws IOException,XMLStreamException
+			{
+			try(BufferedReader r=IOUtils.openPathForBufferedReading(path)) {
+				return parseObo(r);
+				}
+			}
+
 		
 		public OBOntology parseObo(final BufferedReader br) throws IOException,XMLStreamException
 			{

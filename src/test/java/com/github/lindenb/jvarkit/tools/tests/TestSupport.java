@@ -68,7 +68,16 @@ public class TestSupport {
 			return false;
 			}
 		};
-	
+	public Predicate<String> vcfhasIndex = (F)->{
+		final Path p = Paths.get(F);
+		if(!Files.exists(p)) return false;
+		try (VCFFileReader sr = new VCFFileReader(p,true)) {
+			return sr.isQueryable();
+			}
+		catch(Throwable err) {
+			return false;
+			}
+		};
 	
 	private ReferenceRegistry refCatalog =new ReferenceRegistry() {
 			@Override
