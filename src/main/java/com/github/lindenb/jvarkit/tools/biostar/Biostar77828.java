@@ -12,6 +12,7 @@ import java.util.Random;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -21,13 +22,19 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 /**
 BEGIN_DOC
 
+## input
 
+input is a bed file
+
+## see also
+
+  * https://gist.github.com/lindenb/6130880/
 
 END_DOC
  */
 @Program(name="biostar77828",
 description="Divide the human genome among X cores, taking into account gaps",
-		biostars=77828,
+		biostars= {77828,369434},
 		keywords={"workflow","reference","parallel"}
 		)
 public class Biostar77828 extends Launcher
@@ -35,17 +42,12 @@ public class Biostar77828 extends Launcher
 
 	private static final Logger LOG = Logger.build(Biostar77828.class).make();
 
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-minc","--minc"},description="min core")
 	private int MINC = 20 ;
-
 	@Parameter(names={"-maxc","--maxc"},description="max core")
 	private int MAXC = 30 ;
-
 	@Parameter(names={"-iter","--iter"},description="number of iterations")
 	private long N_ITERATIONS = 1000000 ;
 
@@ -58,10 +60,10 @@ public class Biostar77828 extends Launcher
     	
     private static class Segment implements Comparable<Segment>
     	{
-    	String chrom;
-    	int start;
-    	int end;
-    	String name;
+    	final String chrom;
+    	final int start;
+    	final int end;
+    	final String name;
     	
     	Segment(String chrom,int start,int end)
     		{
@@ -81,7 +83,7 @@ public class Biostar77828 extends Launcher
     		return end-start;
     		}
     	@Override
-    	public int compareTo(Segment o)
+    	public int compareTo(final Segment o)
     		{
     		int i=chrom.compareTo(o.chrom);
     		if(i!=0) return i;
@@ -93,12 +95,10 @@ public class Biostar77828 extends Launcher
     
     private static class Core
     	{
-    	List<Segment> segments=new ArrayList<Segment>();
+    	final List<Segment> segments=new ArrayList<Segment>();
     	long length()
     		{
-    		long L=0L;
-    		for(Segment s:this.segments) L+=s.size();
-    		return L;
+    		return this.segments.stream().mapToLong(S->S.size()).sum();
     		}
     	void simplify()
 			{
@@ -106,8 +106,8 @@ public class Biostar77828 extends Launcher
 			int i=0;
 			while(i+1< this.segments.size())
 				{
-				Segment S1=this.segments.get(i);
-				Segment S2=this.segments.get(i+1);
+				final Segment S1=this.segments.get(i);
+				final Segment S2=this.segments.get(i+1);
 				if(S1.chrom.equals(S2.chrom) && S1.end==S2.start)
 					{
 					this.segments.set(i, new Segment(S1.chrom, S1.start, S1.end,S1.name));
@@ -271,7 +271,7 @@ public class Biostar77828 extends Launcher
     	return sol;
     	}
     @Override
-    public int doWork(List<String> args) {
+    public int doWork(final List<String> args) {
 		PrintStream pw =null;
     	try
 	    	{
@@ -283,7 +283,7 @@ public class Biostar77828 extends Launcher
 	    	String line;
 	    	while((line=in.readLine())!=null)
 				{		
-	    		if(line.isEmpty() || line.startsWith("#")) continue;
+	    		if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
 	    		final BedLine bedLine = codec.decode(line);
 	    		if(bedLine==null) continue;
     			if(bedLine.getColumnCount()<3) throw new IOException("bad BED input "+bedLine);
@@ -334,12 +334,10 @@ public class Biostar77828 extends Launcher
     	finally {
     		CloserUtil.close(pw);
     	}
-    	}
+    }
 
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+    
+	public static void main(final String[] args) {
 		new Biostar77828().instanceMainWithExit(args);
 
 	}
