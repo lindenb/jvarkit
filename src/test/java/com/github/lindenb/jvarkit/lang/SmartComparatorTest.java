@@ -4,9 +4,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
-
-public class SmartComparatorTest extends TestUtils {
+public class SmartComparatorTest  {
 	@DataProvider(name="t0")
 	public Object[][] getTestData0() {
 		return new Object[][] {

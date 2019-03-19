@@ -9,10 +9,14 @@ import org.testng.Reporter;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
+@AlsoTest(LauncherTest.class)
 public class VcfFilterNotInPedigreeTest  {
 	private final TestSupport support = new TestSupport();
 
@@ -33,7 +37,7 @@ public class VcfFilterNotInPedigreeTest  {
 			final VCFFileReader r0 = new VCFFileReader(Paths.get(inputFile),false);
 			final VCFHeader vcfheader = r0.getFileHeader();
 			if(vcfheader.getNGenotypeSamples()<1) {
-				r0.clo extends TestUtilse();
+				r0.close();
 				return;
 			}
 			r0.close();

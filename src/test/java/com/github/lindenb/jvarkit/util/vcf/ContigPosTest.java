@@ -4,9 +4,8 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
-public class ContigPosTest extends TestUtils{
+public class ContigPosTest{
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {

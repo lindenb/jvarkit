@@ -9,9 +9,8 @@ import java.io.IOException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
-public class DataSerializableCodecTest extends TestUtils {
+public class DataSerializableCodecTest {
 	private static class XClass implements DataSerializable
 		{
 		String s;

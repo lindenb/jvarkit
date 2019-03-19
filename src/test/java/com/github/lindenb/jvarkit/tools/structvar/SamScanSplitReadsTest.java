@@ -1,17 +1,11 @@
 package com.github.lindenb.jvarkit.tools.structvar;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
