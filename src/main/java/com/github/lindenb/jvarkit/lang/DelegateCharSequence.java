@@ -22,12 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.lang;
 
+/** implementation of AbstractCharSequence */
 public class DelegateCharSequence
 	extends AbstractCharSequence
 	{
@@ -36,9 +34,10 @@ public class DelegateCharSequence
 		{
 		this.delegate=delegate;
 		}
+	/** get delegate sequence */
 	public CharSequence getDelegate()
 		{
-		return delegate;
+		return this.delegate;
 		}
 	@Override
 	public char charAt(int index)

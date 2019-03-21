@@ -1572,9 +1572,10 @@ all.add( task("vcfrenamesamples", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRenameSamples"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfreplacetag", type: CompileJVarkit) {
+all2.add( task("vcfreplacetag", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfstripannot.VCFReplaceTag"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	deprecatedMsg="Use `bcftools annotate -c ` "
 	});
 all2.add( task("vcfresetvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfRemoveGenotypeIfInVcf"

@@ -376,7 +376,7 @@ public class Gff2KnownGene extends Launcher {
 			}
 			pw.print("\t");
 			
-			for(final Iterator<Map.Entry<String,String>> metainfoiter = first.delegate.iterator();
+			for(final Iterator<Map.Entry<String,String>> metainfoiter = first.delegate.getAttributeIterator();
 					metainfoiter.hasNext();)  {
 				final Map.Entry<String, String> entry = metainfoiter.next();
 				if(entry==null) continue;

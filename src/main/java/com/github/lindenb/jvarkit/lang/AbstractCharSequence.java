@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.lang;
 
+/** An abstract char sequence */
 public abstract class AbstractCharSequence
 	implements CharSequence
 	{
@@ -67,6 +68,7 @@ public abstract class AbstractCharSequence
 	@Override
 	public CharSequence subSequence(final int start,final int end)
 		{
+		if(start==0 && end==this.length()) return this;
 		return new SubSequence(this,start,end);
 		}
 	}

@@ -5,6 +5,10 @@
 Replace the key for INFO/FORMAT/FILTER
 
 
+## DEPRECATED
+
+use `bcftools annotate` with option `-c`
+
 ## Usage
 
 ```
@@ -76,11 +80,13 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Deprecated 
+
+use `bcftools annotate` with option `-c`
+
 ## Example
 
 ```bash
 $   java -jar dist/vcfreplacetag.jar -t INFO -k VDB/NEWNAME ~/jeter.vcf 
 ```
-
-
 
