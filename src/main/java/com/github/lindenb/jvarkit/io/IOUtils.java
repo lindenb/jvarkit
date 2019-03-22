@@ -301,7 +301,7 @@ public class IOUtils {
 			{
 			uri=uri.substring(7);
 			}
-		return openFileForReading(new File(uri));
+		return openPathForReading(Paths.get(uri));
 		}
 	
 	public static BufferedReader openURIForBufferedReading(String uri) throws IOException

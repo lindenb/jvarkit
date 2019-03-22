@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.io;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -95,4 +96,32 @@ void testWrite() throws IOException {
 		support.removeTmpFiles();
 	}
 	}
+
+
+@Test
+public void testRemoteInputStream() throws IOException {
+	String url="https://en.wikipedia.org/wiki/Main_Page";
+	Assert.assertTrue(IOUtils.isRemoteURI(url));
+	boolean got_byte=false;
+	try(InputStream br=IOUtils.openURIForReading(url))
+		{
+		;
+		got_byte  = (br.read()!=-1);
+		}
+	Assert.assertTrue(got_byte);
+	}
+
+
+@Test
+public void testRemoteReader() throws IOException {
+	String url="https://en.wikipedia.org/wiki/Main_Page";
+	Assert.assertTrue(IOUtils.isRemoteURI(url));
+	boolean got_byte=false;
+	try(BufferedReader br=IOUtils.openURIForBufferedReading(url))
+		{
+		got_byte    = (br.read()!=-1);
+		}
+	Assert.assertTrue(got_byte);
+	}
+
 }

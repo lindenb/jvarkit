@@ -31,13 +31,13 @@ public Object[][] createData1() {
 	
 @Test
 void test01() throws IOException {
-	final VCFFileReader r=new VCFFileReader(Paths.get("rotavirus_rf.vcf.gz"),false);
+	final VCFFileReader r=new VCFFileReader(Paths.get(support.resource("rotavirus_rf.vcf.gz")),false);
 	Assert.assertTrue(ProgressFactory.newInstance().dictionary(r).stream(r.iterator()).count()>0);
 	r.close();
 	}
 @Test
 void test02() throws IOException {
-	final VCFFileReader r=new VCFFileReader(Paths.get("rotavirus_rf.vcf.gz"),false);
+	final VCFFileReader r=new VCFFileReader(Paths.get(support.resource("rotavirus_rf.vcf.gz")),false);
 	Assert.assertTrue(ProgressFactory.newInstance().stream(r.iterator()).count()>0);
 	r.close();
 	}

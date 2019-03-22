@@ -36,9 +36,14 @@ import java.util.function.ToIntBiFunction;
 	Provenance: https://gist.github.com/arq5x/5408712
 	
  */
-
+@SuppressWarnings("fallthrough")
 public class GranthamScore implements ToIntBiFunction<Character, Character>{
 		private static final int DEFAULT_SCORE=255;
+		
+		
+		public static int getDefaultScore() {
+			return DEFAULT_SCORE;
+			}
 		
 		public static int score(final char aa1,final char aa2) {
 			switch(aa1) {

@@ -30,7 +30,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -47,18 +49,19 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.GranthamScore;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
@@ -79,9 +82,11 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -156,7 +161,8 @@ N_READS_ONLY_20Number of reads carrying onlt variant 2
 
 ### See also
 
-* http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615
+ * http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615
+ * https://www.biorxiv.org/content/10.1101/573378v2
 
 END_DOC
 */
@@ -164,7 +170,8 @@ END_DOC
 
 @Program(name="vcfcombinetwosnvs",
 	description="Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert",
-	keywords={"vcf","annotation","prediction","protein"}
+	keywords={"vcf","annotation","prediction","protein","mnv"},
+	modificationDate="20190322"
 	)
 public class VCFCombineTwoSnvs extends Launcher
 	{
@@ -172,13 +179,12 @@ public class VCFCombineTwoSnvs extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC ,required=true)
+	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String kgURI  = KnownGene.getDefaultUri();
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
-	private File bamIn = null;
-	
-	@Parameter(names={"-R","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION,required=true)
-	private ReferenceFileSupplier referenceFileSupplier = ReferenceFileSupplier.getDefaultReferenceFileSupplier();
+	private Path bamIn = null;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path referencePath;
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
@@ -270,41 +276,45 @@ public class VCFCombineTwoSnvs extends Launcher
 		{
 		BufferedReader in = null;
 		try {
-			final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
-	        if(dict==null) throw new IOException("dictionary missing");
-
+			final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+			final ContigNameConverter  ctgNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			LOG.info("loading genes from "+this.kgURI);
 			in =IOUtils.openURIForBufferedReading(this.kgURI);
 			final CharSplitter tab=CharSplitter.TAB;
 			String line = null;
+			int count_non_coding = 0;
+			final Set<String> ignored=new HashSet<>();
 			while((line=in.readLine())!=null)
 				{
 				line= line.trim();
 				if(line.isEmpty()) continue;
 				String tokens[]=tab.split(line);
 				final KnownGene g=new KnownGene(tokens);
-				if(g.isNonCoding()) continue;
-				if(dict.getSequence(g.getContig())==null)
-					{
-					LOG.warn("Unknown chromosome "+g.getContig()+" in dictionary");
+				if(g.isNonCoding()) {
+					++count_non_coding;
+					continue;
+				}
+				final String ctg = ctgNameConverter.apply(g.getContig());
+				
+				if(StringUtils.isBlank(ctg)) {
+					if(ignored.add(g.getContig()))
+						{
+						LOG.warn("Unknown chromosome "+g.getContig()+" in dictionary");
+						}
 					continue;
 					}
+				g.setChrom(ctg);
 				//use 1 based interval
-				final Interval interval=new Interval(
-						g.getContig(),
-						g.getTxStart()+1,
-						g.getTxEnd()
-						);
+				final Interval interval=new Interval( ctg, g.getTxStart()+1, g.getTxEnd() );
 				List<KnownGene> lkg= this.knownGenes.get(interval);
 				if(lkg==null) {
 					lkg=new ArrayList<>(2);
 					this.knownGenes.put(interval, lkg);
-				}
-				
+					}
 				lkg.add(g);
 				}
 			CloserUtil.close(in);in=null;
-			LOG.info("genes:"+knownGenes.size());
+			LOG.info("transcripts:"+knownGenes.size()+" discarded:" +count_non_coding +" non-coding transcript(s).");
 			}
 		finally
 			{
@@ -327,7 +337,7 @@ public class VCFCombineTwoSnvs extends Launcher
 		int count_reads_having_variant2 = 0;
 		}
 	
-	static private class AbstractContext {
+	static private class AbstractContext implements Locatable{
 		String contig;
 		int genomicPosition1=0;
 		String id=VCFConstants.EMPTY_ID_FIELD;
@@ -336,8 +346,22 @@ public class VCFCombineTwoSnvs extends Launcher
 		int sorting_id;
 		/* original vcf line */
 		String vcfLine=null;
+		
+		@Override
+		public String getContig() {
+			return this.contig;
+			}
+		@Override
+		public int getStart() {
+			return genomicPosition1;
+			}
+		@Override
+		public int getEnd() {
+			return genomicPosition1;
+			}
 		}
 	
+	/** A mutation in a Transcript */
 	static private class Variant extends AbstractContext
 		{
 		String transcriptName;
@@ -345,7 +369,8 @@ public class VCFCombineTwoSnvs extends Launcher
 		int position_in_cdna=-1;
 		String wildCodon=null;
 		String mutCodon=null;
-		
+		// genotypes carrying ALT may be empty but not null. 0 or 1
+		byte genotypes[];
 		Variant()
 			{
 			
@@ -359,10 +384,26 @@ public class VCFCombineTwoSnvs extends Launcher
 			this.strand = (byte)(gene.isNegativeStrand()?'-':'+');
 			this.refAllele = ctx.getReference();
 			this.altAllele = allele;
-			//this.genotypes.addAll(ctx.getGenotypes());
+			
+			this.genotypes = new byte[ctx.getNSamples()];
+			for(int i=0;i< ctx.getNSamples();i++) {
+				final Genotype gt = ctx.getGenotype(i);
+				this.genotypes[i] = (byte)(gt.getAlleles().contains(allele)?1:0);
+			}
+			
 			}
 		int positionInCodon() { return  position_in_cdna%3;}
 		int codonStart() { return this.position_in_cdna - this.positionInCodon();}
+		
+		boolean isSharingOneSampleWith(final Variant other) {
+			if(this.genotypes.length==0) return true;// no sample in the VCF
+			for(int i=0;i< this.genotypes.length;i++) {
+				if(this.genotypes[i]!=(byte)1) continue;
+				if(other.genotypes[i]!=(byte)1) continue;
+				return true;
+			}
+			return false;
+		}
 		
 		/** get specific info for this variant */
 		private void _getInfo(final  Map<String,Object> info,int suffix) {
@@ -434,6 +475,10 @@ public class VCFCombineTwoSnvs extends Launcher
 			
 			variant.vcfLine = readString(dis);
 			
+			final int n_genotypes = dis.readInt();
+			variant.genotypes = new byte[n_genotypes];
+			dis.readFully(variant.genotypes);
+			
 			return variant;
 		}
 
@@ -452,6 +497,9 @@ public class VCFCombineTwoSnvs extends Launcher
 			dos.writeInt(v.sorting_id);
 			
 			writeString(dos, v.vcfLine);
+			
+			dos.writeInt(v.genotypes.length);
+			dos.write(v.genotypes);
 		}
 
 		@Override
@@ -465,7 +513,7 @@ public class VCFCombineTwoSnvs extends Launcher
 		final SAMSequenceDictionary dict;
 		VariantComparator(final SAMSequenceDictionary dict) {
 			this.dict = dict;
-		}
+			}
 		int contig(final Variant v) { return dict.getSequenceIndex(v.contig);}
 		@Override
 		public int compare(final Variant o1,final  Variant o2) {
@@ -589,31 +637,30 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			final VCFHeader header= cah.header;
 			final Set<String> sampleNamesInOrder = new HashSet<>(header.getSampleNamesInOrder());
 
-			final File referenceFile = this.referenceFileSupplier.getRequired();
-			LOG.info("opening REF:"+referenceFile);
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(referenceFile);
+			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referencePath);
 	        final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
-	        if(dict==null) throw new IOException("dictionary missing");
 	        
 	        if(this.bamIn!=null)
 	        	{
 	        	/** unroll and open bam file */
-	        	for(final File bamFile : IOUtils.unrollFileCollection(Collections.singletonList(this.bamIn)))
+	        	for(final Path bamFile : IOUtils.unrollPaths(Collections.singletonList(this.bamIn.toString())))
 		        	{
 		        	LOG.info("opening BAM :"+this.bamIn);
 		        	final SamReader samReader = SamReaderFactory.makeDefault().
-		        			referenceSequence(referenceFile).
+		        			referenceSequence(this.referencePath).
 		        			validationStringency(ValidationStringency.LENIENT).
 		        			open(this.bamIn)
 		        			;
 		        	if(!samReader.hasIndex())
 		        		{
-		        		 throw new IOException("Sam file is NOT indexed: "+bamFile);
+		        		samReader.close();
+		        		throw new IOException("Sam file is NOT indexed: "+bamFile);
 		        		}
 		        	final SAMFileHeader samHeader = samReader.getFileHeader();
 		        	if(samHeader.getSequenceDictionary()==null || 
 		        		!SequenceUtil.areSequenceDictionariesEqual(dict, samReader.getFileHeader().getSequenceDictionary())) {
-		        		 throw new IOException(bamFile+" and REF don't have the same Sequence Dictionary.");
+		        		samReader.close(); 
+		        		throw new JvarkitException.DictionariesAreNotTheSame(dict,samReader.getFileHeader().getSequenceDictionary());
 		        		}
 		        	/* get sample name */
 		        	String sampleName=null;
@@ -632,7 +679,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		        	}
 		        	if(!sampleNamesInOrder.contains(sampleName)) {
 		        		samReader.close();
-		        		LOG.warn("no sample "+sampleName+" in vcf");
+		        		LOG.warn("no sample "+sampleName+" in vcf. Ignoring "+bamFile);
 		        		continue;
 		        	}
 		        	sample2samReader.put(sampleName, samReader);
@@ -653,11 +700,11 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 			
 			
-	       SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+	       ProgressFactory.Watcher<VariantContext> progress1= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		   String vcfLine=null;
 	       while((vcfLine=bufferedReader.readLine())!=null)
 				{
-				final VariantContext ctx= progress.watch(cah.codec.decode(vcfLine));
+				final VariantContext ctx= progress1.apply(cah.codec.decode(vcfLine));
 				/* discard non SNV variant */
 				if(!ctx.isVariant() || ctx.isIndel())
 					{
@@ -665,16 +712,13 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					}
 				
 				/* find the overlapping genes : extend the interval of the variant to include the stop codon */
-				final Collection<KnownGene> genes= new ArrayList<>();
-				
-				for(List<KnownGene> lkg:this.knownGenes.getOverlapping(
-						new Interval(ctx.getContig(),
-						Math.max(1,ctx.getStart()-3),
-						ctx.getEnd()+3
-						)))
-					{
-					genes.addAll(lkg);
-					}
+				final Collection<KnownGene> genes=  this.knownGenes.getOverlapping(
+					new Interval(ctx.getContig(),
+					Math.max(1,ctx.getStart()-3),
+					ctx.getEnd()+3
+					)).stream().flatMap(L->L.stream()).
+					collect(Collectors.toList());
+					
 				
 				final List<Allele> alternateAlleles =  ctx.getAlternateAlleles();
 				
@@ -687,7 +731,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 						}
 					}
 				}
-			progress.finish();
+	       	progress1.close();
 			this.variants.doneAdding();
 			
 			mutations = SortingCollection.newInstance(CombinedMutation.class,
@@ -705,7 +749,8 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				);
 			
 			varIter = this.variants.iterator();
-			progress=new SAMSequenceDictionaryProgress(header);
+			
+		    ProgressFactory.Watcher<Variant> progress2= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			final ArrayList<Variant> buffer= new ArrayList<>();
 			for(;;)
 				{
@@ -713,7 +758,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				if(varIter.hasNext())
 					{
 					variant = varIter.next();
-					progress.watch(variant.contig, variant.genomicPosition1);
+					progress2.apply(variant);
 					}
 				if(variant==null || !(!buffer.isEmpty() && buffer.get(0).contig.equals(variant.contig) &&  buffer.get(0).transcriptName.equals(variant.transcriptName)))
 					{
@@ -730,8 +775,10 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								{
 								throw new IllegalStateException();
 								}
+							// no sample share the two variants
+							if(!v1.isSharingOneSampleWith(v2)) continue;
 							
-							final StringBuilder combinedCodon = new StringBuilder(v1.wildCodon);
+  							final StringBuilder combinedCodon = new StringBuilder(v1.wildCodon);
 							combinedCodon.setCharAt(v1.positionInCodon(), v1.mutCodon.charAt(v1.positionInCodon()));
 							combinedCodon.setCharAt(v2.positionInCodon(), v2.mutCodon.charAt(v2.positionInCodon()));
 							
@@ -972,7 +1019,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 								
 								m2.sorting_id = ID_GENERATOR++;
 								mutations.add(m2);
-							}
+								}
 							
 							}
 						}
@@ -982,7 +1029,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					}
 				buffer.add(variant);
 				}
-			progress.finish();
+			progress2.close();
 			mutations.doneAdding();
 			varIter.close();varIter=null;
 			variants.cleanup();variants=null;
@@ -1013,7 +1060,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			w = super.openVariantContextWriter(saveAs);
 			w.writeHeader(header2);
 			
-			progress=new SAMSequenceDictionaryProgress(header);
+		    ProgressFactory.Watcher<CombinedMutation> progress3= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			mutIter = mutations.iterator();
 			for(;;)
 				{
@@ -1021,7 +1068,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				if(mutIter.hasNext())
 					{
 					mutation = mutIter.next();
-					progress.watch(mutation.contig, mutation.genomicPosition1);
+					progress3.apply(mutation);
 					}
 				if(mutation==null || !(!mBuffer.isEmpty() &&
 						mBuffer.get(0).contig.equals(mutation.contig) &&  
@@ -1080,14 +1127,14 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 					}
 				mBuffer.add(mutation);
 				}
-			progress.finish();
+			progress3.close();
 			mutIter.close();
 			mutations.cleanup();mutations=null;
 			
 			
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

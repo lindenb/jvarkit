@@ -356,7 +356,7 @@ private static class OneDictionary extends ContigNameConverter
 		if(this.dict.getSequenceIndex(contig)!=-1) return contig;
 		
 	
-		if(contig.equals("chrM"))
+		if(contig.equals("chrM") || contig.equals("chrMT"))
 			{
 			SAMSequenceRecord ssr = this.dict.getSequence("M");
 			if(ssr==null) ssr = this.dict.getSequence("MT");
