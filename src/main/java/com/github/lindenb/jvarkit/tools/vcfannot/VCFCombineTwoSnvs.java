@@ -54,7 +54,9 @@ import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.Paranoid;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.GranthamScore;
@@ -67,6 +69,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
@@ -188,7 +191,7 @@ public class VCFCombineTwoSnvs extends Launcher
 	private String kgURI  = KnownGene.getDefaultUri();
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
 	private Path bamIn = null;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true )
 	private Path referencePath;
 	@Parameter(names={"-P","--bedpe"},description="save optional report as bedpe")
 	private Path bedPePath = null;
@@ -208,7 +211,9 @@ public class VCFCombineTwoSnvs extends Launcher
 	/** genetic Code used */
 	private static final GeneticCode GENETIC_CODE = GeneticCode.getStandard();
 	/**  map transcript to their sequence */
-	private WeakHashMap<String, CDNASequence> kgId2transcript = new WeakHashMap<>();
+	private final WeakHashMap<String, CDNASequence> kgId2transcriptCache = new WeakHashMap<>();
+	/** because 'I'm paranoid */
+	private final Paranoid paranoiac = Paranoid.createThrowingInstance();
 	
 	private class CDNASequence extends AbstractCharSequence
 		{
@@ -231,25 +236,12 @@ public class VCFCombineTwoSnvs extends Launcher
 	    			}
 	    		}
 	    	
-	    	//TODO think about stop codon
 	    	if(this.knownGene.isPositiveStrand()) {
-	    		// add the stop codon
-	    		for(int x=0;x<3;++x) {
-		    		final int pos0 = this.knownGene.getCdsEnd()+x;
-		    		genomicPositions.add(pos0);
-		    		final char base =Character.toUpperCase(genomicSequence.charAt(pos0));
-		    		this.sequence.append(base);
-		    		}
+	    		// nothing
 	    		}
 	    	else
 	    		{
-	    		/* add the stop codon */
-	    		for(int x=0;x<3;x++){
-		    		final int pos0 = (this.knownGene.getCdsStart()-1)-x;
-		    		genomicPositions.add(0,pos0);
-		    		final char base = Character.toUpperCase(genomicSequence.charAt(pos0));
-		    		this.sequence.append(base);
-		    		}
+	    			
 	    		Collections.reverse(genomicPositions);
 	    		this.sequence.reverse();
 	    		
@@ -258,10 +250,19 @@ public class VCFCombineTwoSnvs extends Launcher
     				}
 	    		}
 	    	
+	    	paranoiac.assertGt(this.sequence.length(), 3);
+	    	
 	    	this.genomic2cnda=new HashMap<>(genomicPositions.size());
 	    	for(int i=0;i< genomicPositions.size();i++) {
 	    		this.genomic2cnda.put(genomicPositions.get(i),i);
 	    		}
+	    	/*
+	    	paranoiac.assertTrue(GENETIC_CODE.isStopCodon(
+	    			this.sequence.charAt(this.sequence.length()-3),
+	    			this.sequence.charAt(this.sequence.length()-2),
+	    			this.sequence.charAt(this.sequence.length()-1)
+	    			),knownGene.getName()+" "+knownGene.getStrand()+" "+knownGene.getContig()+" "+knownGene.getCdsStart()+" "+knownGene.getCdsEnd());
+	    	*/
 			}
 		@Override
 		public char charAt(int index) {
@@ -277,44 +278,21 @@ public class VCFCombineTwoSnvs extends Launcher
 	/** mutated cdna */
 	private static class MutedSequence extends DelegateCharSequence
 		{
-		private int begin=-1;
-		private int end=-1;
-		private String newseq=null;
+		private int pos0;
+		private char newbase;
 	
-		MutedSequence(final CharSequence wild)
+		MutedSequence(final CharSequence wild,int pos0,final char newbase)
 			{
 			super(wild);
+			this.pos0 = pos0;
+			this.newbase=newbase;
+			if(this.pos0 > getDelegate().length()) throw new IndexOutOfBoundsException();
 			}
 		
-		void setMutation(int begin,int end,final String newseq)
-			{
-			if(this.newseq!=null) throw new IllegalStateException();
-			this.newseq = newseq;
-			this.begin=begin;
-			this.end=end;
-			if(this.begin>this.end) throw new IllegalArgumentException();
-			if(this.end> getDelegate().length()) throw new IndexOutOfBoundsException();
-			}
-		@Override
-		public int length() {
-			int L = getDelegate().length();
-			if(this.newseq!=null) {
-				L-=(this.end-this.begin);
-				L+=this.newseq.length();
-				}
-			return L;
-			}
 		@Override
 		public char charAt(int index)
 			{
-			if(this.newseq==null || index < this.begin ) return getDelegate().charAt(index);
-			int idx2= index-this.begin;
-			if(idx2 < this.newseq.length())
-				{
-				return this.newseq.charAt(idx2);
-				}
-			idx2-=this.newseq.length();
-			return getDelegate().charAt(this.end+idx2);
+			return index==this.pos0?newbase:getDelegate().charAt(index);
 			}
 		
 		}
@@ -482,11 +460,6 @@ public class VCFCombineTwoSnvs extends Launcher
 			return set;
 		}
 		
-		boolean isSharingOneSampleWith(final Variant other) {
-			if(this.genotypes.length==0) return true;// no sample in the VCF
-			return !getSharedSampleIndexes(other).isEmpty();
-			}
-		
 		/** get specific info for this variant */
 		private void _getInfo(final  Map<String,Object> info,int suffix) {
 			//data about this
@@ -590,22 +563,23 @@ public class VCFCombineTwoSnvs extends Launcher
 		}
 		
 		}
+	/** equal range comparator */
 	static private class VariantComparatorOne implements Comparator<Variant>
 		{
-		final SAMSequenceDictionary dict;
+		final ContigDictComparator contigDictComparator;
 		VariantComparatorOne(final SAMSequenceDictionary dict) {
-			this.dict = dict;
+			this.contigDictComparator = new ContigDictComparator(dict);
 			}
-		private int contig(final Variant v) { return dict.getSequenceIndex(v.contig);}
 		@Override
 		public int compare(final Variant o1,final  Variant o2) {
-			int i= contig(o1) - contig(o2);
+			int i= this.contigDictComparator.compare(o1.getContig(),o2.getContig());
 			if(i!=0) return i;
 			i= o1.transcriptName.compareTo(o2.transcriptName);
 			return i;
 			}
 		}
 	
+	/** sorting collection comparator */
 	static private class VariantComparatorTwo extends VariantComparatorOne
 		{
 		VariantComparatorTwo(final SAMSequenceDictionary dict) {
@@ -627,6 +601,8 @@ public class VCFCombineTwoSnvs extends Launcher
 		String info=null;
 		String filter = VCFConstants.UNFILTERED;
 		int grantham_score = -1;
+		// genotypes carrying ALT may be empty but not null. 0 or 1
+		final Set<Integer> sampleIndexes=new HashSet<>();
 		}
 
 	static private class MutationCodec extends AbstractDataCodec<CombinedMutation>
@@ -650,6 +626,13 @@ public class VCFCombineTwoSnvs extends Launcher
 			mutation.filter = dis.readUTF();
 			mutation.grantham_score = dis.readInt();
 			mutation.vcfLine = readString(dis);
+			
+			int n_samples = dis.readInt();
+			while(n_samples>0) {
+				mutation.sampleIndexes.add(dis.readInt());
+				n_samples--;
+			}
+			
 			return mutation;
 		}
 	
@@ -665,6 +648,10 @@ public class VCFCombineTwoSnvs extends Launcher
 			dos.writeUTF(v.filter);
 			dos.writeInt(v.grantham_score);
 			writeString(dos, v.vcfLine);
+			dos.writeInt(v.sampleIndexes.size());
+			for(final int sampleId: v.sampleIndexes) {
+				dos.writeInt(sampleId);
+			}
 		}
 	
 		@Override
@@ -673,21 +660,34 @@ public class VCFCombineTwoSnvs extends Launcher
 		}
 		
 		}
-	
-static private class MutationComparator implements Comparator<CombinedMutation>
+
+static private class MutationComparatorOne implements Comparator<CombinedMutation>
 	{
-	final SAMSequenceDictionary dict;
-	MutationComparator(final SAMSequenceDictionary dict) {
-		this.dict = dict;
+	final ContigDictComparator contigDictComparator;
+	MutationComparatorOne(final SAMSequenceDictionary dict) {
+		this.contigDictComparator = new ContigDictComparator(dict);
 	}
-	int contig(final CombinedMutation v) { return dict.getSequenceIndex(v.contig);}
 	@Override
 	public int compare(final CombinedMutation o1, final CombinedMutation o2) {
-		int i= contig(o1) - contig(o2);
+		int i= contigDictComparator.compare(o1.getContig(), o2.getContig());
 		if(i!=0) return i;
 		i= o1.genomicPosition1-o2.genomicPosition1;
 		if(i!=0) return i;
 		i =  o1.refAllele.compareTo(o2.refAllele);
+		return i;
+		}
+	}
+
+	
+static private class MutationComparatorTwo extends MutationComparatorOne
+	{
+	MutationComparatorTwo(final SAMSequenceDictionary dict) {
+		super(dict);
+		}
+	
+	@Override
+	public int compare(final CombinedMutation o1, final CombinedMutation o2) {
+		int i= super.compare(o1, o2);
 		if(i!=0) return i;
 		return o1.sorting_id - o2.sorting_id;
 		}
@@ -794,13 +794,12 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 			
 			
-			
-			
 	       ProgressFactory.Watcher<VariantContext> progress1= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		   String vcfLine=null;
 	       while((vcfLine=bufferedReader.readLine())!=null)
 				{
 				final VariantContext ctx= progress1.apply(cah.codec.decode(vcfLine));
+								
 				/* discard non SNV variant */
 				if(!ctx.isVariant() || ctx.isIndel())
 					{
@@ -837,7 +836,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 			mutations = SortingCollection.newInstance(CombinedMutation.class,
 					new MutationCodec(),
-					new MutationComparator(dict),
+					new MutationComparatorTwo(dict),
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpPaths()
 					);
@@ -858,6 +857,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			while(eqVarIter.hasNext())
 				{
 				final List<Variant> buffer= eqVarIter.next();
+				
 				if(buffer.size()<2) continue;
 				
 				for(int i=0;i+1< buffer.size();++i)
@@ -873,7 +873,8 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 							throw new IllegalStateException();
 							}
 						// no sample share the two variants
-						if(!v1.isSharingOneSampleWith(v2)) continue;
+						final Set<Integer> sharedSamplesIdx = v1.getSharedSampleIndexes(v2);
+						if(sharedSamplesIdx.isEmpty() && !sampleList.isEmpty()) continue;
 						
 						final StringBuilder combinedCodon = new StringBuilder(v1.wildCodon);
 						combinedCodon.setCharAt(v1.positionInCodon(), v1.mutCodon.charAt(v1.positionInCodon()));
@@ -1099,7 +1100,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 							m1.info = mapToString(info1);
 							m1.filter = filter;
 							m1.grantham_score = grantham_score;
-
+							m1.sampleIndexes.addAll(sharedSamplesIdx);
 							m1.sorting_id = ID_GENERATOR++;
 							mutations.add(m1);
 							
@@ -1113,7 +1114,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 							m2.info = mapToString(info2);
 							m2.filter = filter;
 							m2.grantham_score = grantham_score;
-							
+							m2.sampleIndexes.addAll(sharedSamplesIdx);
 							m2.sorting_id = ID_GENERATOR++;
 							mutations.add(m2);
 							
@@ -1143,15 +1144,17 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 							bedPeReport.print('\t');
 							bedPeReport.print(kg.isNegativeStrand()?"-":"+");//strand2
 							bedPeReport.print('\t');
-							final Set<Integer> sharedSampleIndex = v1.getSharedSampleIndexes(v2);
-							if(sharedSampleIndex.isEmpty()){
+							if(sharedSamplesIdx.isEmpty()){
 								bedPeReport.print('.');
 								}
 							else
 								{
-								bedPeReport.print(sharedSampleIndex.stream().map(I->sampleList.get(I.intValue())).collect(Collectors.joining(";")));
+								bedPeReport.print(sharedSamplesIdx.stream().map(I->sampleList.get(I.intValue())).collect(Collectors.joining(";")));
 								}
-							
+							bedPeReport.print('\t');
+							bedPeReport.print(combinedSO);
+							bedPeReport.print('\t');
+							bedPeReport.print(String.join(":",pwild,p1,p2,pCombined));
 							bedPeReport.println();
 							}
 						}
@@ -1167,23 +1170,28 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			bedPeReport.close();
 			bedPeReport=null;
 			
-			final ArrayList<CombinedMutation> mBuffer= new ArrayList<>();
 			
 			final VCFHeader header2 = new VCFHeader(header);
+			
 			header2.addMetaDataLine(new VCFHeaderLine(getProgramName()+"AboutQUAL", "QUAL is filled with Grantham Score  http://www.ncbi.nlm.nih.gov/pubmed/4843792"));
 			
 			final StringBuilder infoDesc =new StringBuilder("Variant affected by two distinct mutation. Format is defined in the INFO column. ");
 			
 			
-			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
+			final VCFInfoHeaderLine CodonVariantHeader = new VCFInfoHeaderLine(
 					"CodonVariant",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
 					infoDesc.toString()
 					);
+			header2.addMetaDataLine(CodonVariantHeader);
+			final VCFInfoHeaderLine CodonSampleHeader = new VCFInfoHeaderLine(
+					"Samples",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
+					"Samples that could be affected"
+					);
+			header2.addMetaDataLine(CodonSampleHeader);
 			
 			
+			JVarkitVersion.getInstance().addMetaData(this, header2);
 			
-			super.addMetaData(header2);
-			header2.addMetaDataLine(infoHeaderLine);
 			
 			
 			if(!sample2samReader.isEmpty())
@@ -1196,72 +1204,72 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 		    ProgressFactory.Watcher<CombinedMutation> progress3= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			mutIter = mutations.iterator();
-			for(;;)
+			EqualRangeIterator<CombinedMutation> eqRangeMutIter = new EqualRangeIterator<>(mutIter, new MutationComparatorOne(dict));
+			
+			while(eqRangeMutIter.hasNext())
 				{
-				CombinedMutation mutation = null;
-				if(mutIter.hasNext())
-					{
-					mutation = mutIter.next();
-					progress3.apply(mutation);
-					}
-				if(mutation==null || !(!mBuffer.isEmpty() &&
-						mBuffer.get(0).contig.equals(mutation.contig) &&  
-						mBuffer.get(0).genomicPosition1 == mutation.genomicPosition1 &&  
-						mBuffer.get(0).refAllele.equals(mutation.refAllele)))
-					{
-					if(!mBuffer.isEmpty())
-						{
-						//default grantham score used in QUAL
-						int grantham_score = -1;
-						//default filter fails
-						String filter=vcfFilterHeaderLine.getID();
-						final CombinedMutation first  = mBuffer.get(0);
-						final Set<String> info = new HashSet<>();
-						final VariantContext ctx  = cah.codec.decode(first.vcfLine);
-						
-						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-						vcb.chr(first.contig);
-						vcb.start(first.genomicPosition1);
-						vcb.stop(first.genomicPosition1 + first.refAllele.length()-1);
-						if( !first.id.equals(VCFConstants.EMPTY_ID_FIELD)) vcb.id(first.id);
-						
-						
+				final List<CombinedMutation> mBuffer = eqRangeMutIter.next();
+				if(mBuffer.isEmpty()) break;				
+				progress3.apply(mBuffer.get(0));
+			
+				//default grantham score used in QUAL
+				int grantham_score = -1;
+				//default filter fails
+				String filter=vcfFilterHeaderLine.getID();
+				final CombinedMutation first  = mBuffer.get(0);
+				final Set<String> info = new HashSet<>();
+				final VariantContext ctx  = cah.codec.decode(first.vcfLine);
+				
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.chr(first.contig);
+				vcb.start(first.genomicPosition1);
+				vcb.stop(first.genomicPosition1 + first.refAllele.length()-1);
+				if( !first.id.equals(VCFConstants.EMPTY_ID_FIELD)) vcb.id(first.id);
+				
+				for(final CombinedMutation m:mBuffer){	
 					
-						for(final CombinedMutation m:mBuffer){	
-							
-							info.add(m.info);
-							grantham_score=Math.max(grantham_score, m.grantham_score);
-							if(VCFConstants.UNFILTERED.equals(m.filter)) {
-								filter = null; //at least one SNP is ok one this line
-							}
-						}
-						vcb.unfiltered();
-						if(filter!=null && !sample2samReader.isEmpty())
-							{
-							vcb.filter(filter);
-							}
-						else
-							{
-							vcb.passFilters();
-							}
-						
-						vcb.attribute(infoHeaderLine.getID(), new ArrayList<String>(info));
-						
-						if(grantham_score>0) {
-							vcb.log10PError(grantham_score/-10.0);
-						} else
-						{
-							vcb.log10PError(VariantContext.NO_LOG10_PERROR);
-						}
-						
-						w.add(vcb.make());
-						}
-					mBuffer.clear();
-					if(mutation==null) break;
+					info.add(m.info);
+					grantham_score=Math.max(grantham_score, m.grantham_score);
+					if(VCFConstants.UNFILTERED.equals(m.filter)) {
+						filter = null; //at least one SNP is ok one this line
 					}
-				mBuffer.add(mutation);
+				}
+				
+				if(!sampleList.isEmpty())
+					{
+					vcb.attribute(CodonSampleHeader.getID(),
+							new ArrayList<>(
+								mBuffer.
+								stream().
+								flatMap(S->S.sampleIndexes.stream()).
+								map(IDX->sampleList.get(IDX)).
+								collect(Collectors.toSet())
+								)
+							);
+					}
+				vcb.unfiltered();
+				if(filter!=null && !sample2samReader.isEmpty())
+					{
+					vcb.filter(filter);
+					}
+				else
+					{
+					vcb.passFilters();
+					}
+				
+				vcb.attribute(CodonVariantHeader.getID(), new ArrayList<String>(info));
+				
+				if(grantham_score>0) {
+					vcb.log10PError(grantham_score/-10.0);
+					}
+				else {
+					vcb.log10PError(VariantContext.NO_LOG10_PERROR);
+					}
+				
+				w.add(vcb.make());	
 				}
 			progress3.close();
+			eqRangeMutIter.close();
 			mutIter.close();
 			mutations.cleanup();mutations=null;
 			
@@ -1293,7 +1301,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 	
 	
 	private CDNASequence getTranscript(final KnownGene kg) {
-		CDNASequence mrna= this.kgId2transcript.get(kg.getName());
+		CDNASequence mrna= this.kgId2transcriptCache.get(kg.getName());
 		if(mrna!=null && mrna.knownGene.getContig().equals(kg.getContig())) return mrna;
 		
 		if(genomicSequence==null || !genomicSequence.getChrom().equals(kg.getContig()))
@@ -1304,7 +1312,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 
 		
 		mrna = new CDNASequence(kg);
-		this.kgId2transcript.put(kg.getName(), mrna);
+		this.kgId2transcriptCache.put(kg.getName(), mrna);
 		return mrna;
 	}
 	
@@ -1330,9 +1338,16 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		final Variant variant = new Variant(ctx,allele,gene);
 		variant.sorting_id = ID_GENERATOR++;
 		variant.position_in_cdna= position_in_cnda.intValue();
-		final char mutBase= wildRNA.charAt(variant.position_in_cdna);
-		final MutedSequence mutRNA=new MutedSequence(wildRNA);
-		mutRNA.setMutation(variant.position_in_cdna, variant.position_in_cdna++,""+mutBase 	);
+		char mutBase= Character.toUpperCase(allele.getDisplayString().charAt(0));
+		if(gene.isNegativeStrand()) mutBase= AcidNucleics.complement(mutBase);
+		
+		
+		final MutedSequence mutRNA = new MutedSequence(
+				wildRNA,
+				variant.position_in_cdna,
+				mutBase
+				);
+		
 		
 		variant.wildCodon="";
 		variant.mutCodon="";
@@ -1345,8 +1360,11 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		variant.wildCodon = variant.wildCodon.toUpperCase();
 		variant.mutCodon = variant.mutCodon.toUpperCase();
 		variant.vcfLine  = vcfLine;
+		
+		
+		
 		if(variant.wildCodon.equals(variant.mutCodon)) {
-			LOG.info("Uh??????? "+allele+" "+ctx);
+			LOG.info("Uh??????? "+allele+" "+ctx.getContig()+":"+ctx.getStart()+" "+position_in_cnda+" "+wildRNA.length()+" "+variant.wildCodon+" "+variant.mutCodon);
 			return;
 			}
 		
