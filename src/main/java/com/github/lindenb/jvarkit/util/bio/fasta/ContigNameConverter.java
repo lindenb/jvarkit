@@ -32,8 +32,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -337,6 +339,13 @@ public static ContigNameConverter fromOneContig(final String contig)
 private static class OneDictionary extends ContigNameConverter
 	{
 	private final SAMSequenceDictionary dict;
+	@SuppressWarnings("serial")
+	private final Set<String> mitochrondrials = new HashSet<>() {{{
+		add("M");
+		add("MT");
+		add("chrM");
+		add("chrMT");
+	}}};
 	OneDictionary( final SAMSequenceDictionary dict)
 		{
 		this.dict = dict;
@@ -355,19 +364,18 @@ private static class OneDictionary extends ContigNameConverter
 	protected String find(final String contig) {
 		if(this.dict.getSequenceIndex(contig)!=-1) return contig;
 		
-	
-		if(contig.equals("chrM") || contig.equals("chrMT"))
+		if(this.mitochrondrials.contains(contig))
 			{
-			SAMSequenceRecord ssr = this.dict.getSequence("M");
-			if(ssr==null) ssr = this.dict.getSequence("MT");
-			if(ssr!=null) return ssr.getSequenceName();
+			final Optional<String> mitName = this.mitochrondrials.
+				stream().
+				filter(S->!S.equals(contig)).
+				map(S->this.dict.getSequence(S)).
+				filter(SSR->SSR!=null).
+				map(SSR->SSR.getSequenceName()).
+				findFirst();
+			if(mitName.isPresent()) return mitName.get();
 			}
-		else if(contig.equals("M") || contig.equals("MT"))
-			{
-			SAMSequenceRecord ssr = this.dict.getSequence("chrM");
-			if(ssr==null) ssr = this.dict.getSequence("chrMT");
-			if(ssr!=null) return ssr.getSequenceName();
-			}
+		
 		
 		final String c2;
 		if(contig.startsWith("chr"))
