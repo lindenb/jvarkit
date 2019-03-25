@@ -30,9 +30,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -42,26 +42,34 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.Paranoid;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.GranthamScore;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
@@ -183,9 +191,11 @@ public class VCFCombineTwoSnvs extends Launcher
 	private String kgURI  = KnownGene.getDefaultUri();
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
 	private Path bamIn = null;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true )
 	private Path referencePath;
-	
+	@Parameter(names={"-P","--bedpe"},description="save optional report as bedpe")
+	private Path bedPePath = null;
+
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
@@ -200,48 +210,89 @@ public class VCFCombineTwoSnvs extends Launcher
 	private SortingCollection<Variant> variants= null;
 	/** genetic Code used */
 	private static final GeneticCode GENETIC_CODE = GeneticCode.getStandard();
+	/**  map transcript to their sequence */
+	private final WeakHashMap<String, CDNASequence> kgId2transcriptCache = new WeakHashMap<>();
+	/** because 'I'm paranoid */
+	private final Paranoid paranoiac = Paranoid.createThrowingInstance();
+	
+	private class CDNASequence extends AbstractCharSequence
+		{
+		final KnownGene knownGene;
+		final StringBuilder sequence = new StringBuilder(1_000);
+		final Map<Integer, Integer> genomic2cnda;
+		CDNASequence(final KnownGene knownGene) {
+			this.knownGene=knownGene;
+			final List<Integer> genomicPositions = new ArrayList<>();
+			
+	    	for(int exon_index=0;exon_index< this.knownGene.getExonCount();++exon_index)
+	    		{
+	    		int pos0 = Math.max(this.knownGene.getCdsStart(),this.knownGene.getExonStart(exon_index));
+	    		final int end0 =  Math.min(this.knownGene.getExonEnd(exon_index),this.knownGene.getCdsEnd());
+	    		while(pos0<end0) {
+	    			genomicPositions.add(pos0);
+	    			char base = Character.toUpperCase(genomicSequence.charAt(pos0));
+	    			this.sequence.append(base);
+	    			pos0++;
+	    			}
+	    		}
+	    	
+	    	if(this.knownGene.isPositiveStrand()) {
+	    		// nothing
+	    		}
+	    	else
+	    		{
+	    			
+	    		Collections.reverse(genomicPositions);
+	    		this.sequence.reverse();
+	    		
+	    		for(int i=0;i< this.sequence.length();i++) {
+	    			this.sequence.setCharAt(i, AcidNucleics.complement(this.sequence.charAt(i)));
+    				}
+	    		}
+	    	
+	    	paranoiac.assertGt(this.sequence.length(), 3);
+	    	
+	    	this.genomic2cnda=new HashMap<>(genomicPositions.size());
+	    	for(int i=0;i< genomicPositions.size();i++) {
+	    		this.genomic2cnda.put(genomicPositions.get(i),i);
+	    		}
+	    	/*
+	    	paranoiac.assertTrue(GENETIC_CODE.isStopCodon(
+	    			this.sequence.charAt(this.sequence.length()-3),
+	    			this.sequence.charAt(this.sequence.length()-2),
+	    			this.sequence.charAt(this.sequence.length()-1)
+	    			),knownGene.getName()+" "+knownGene.getStrand()+" "+knownGene.getContig()+" "+knownGene.getCdsStart()+" "+knownGene.getCdsEnd());
+	    	*/
+			}
+		@Override
+		public char charAt(int index) {
+			return this.sequence.charAt(index);
+			}
+		
+		@Override
+		public int length() {
+			return  this.sequence.length();
+			}
+		}
 	
 	/** mutated cdna */
 	private static class MutedSequence extends DelegateCharSequence
 		{
-		private int begin=-1;
-		private int end=-1;
-		private String newseq=null;
+		private int pos0;
+		private char newbase;
 	
-		MutedSequence(final CharSequence wild)
+		MutedSequence(final CharSequence wild,int pos0,final char newbase)
 			{
 			super(wild);
+			this.pos0 = pos0;
+			this.newbase=newbase;
+			if(this.pos0 > getDelegate().length()) throw new IndexOutOfBoundsException();
 			}
 		
-		void setMutation(int begin,int end,final String newseq)
-			{
-			if(this.newseq!=null) throw new IllegalStateException();
-			this.newseq = newseq;
-			this.begin=begin;
-			this.end=end;
-			if(this.begin>this.end) throw new IllegalArgumentException();
-			if(this.end> getDelegate().length()) throw new IndexOutOfBoundsException();
-			}
-		@Override
-		public int length() {
-			int L = getDelegate().length();
-			if(this.newseq!=null) {
-				L-=(this.end-this.begin);
-				L+=this.newseq.length();
-				}
-			return L;
-			}
 		@Override
 		public char charAt(int index)
 			{
-			if(this.newseq==null || index < this.begin ) return getDelegate().charAt(index);
-			int idx2= index-this.begin;
-			if(idx2 < this.newseq.length())
-				{
-				return this.newseq.charAt(idx2);
-				}
-			idx2-=this.newseq.length();
-			return getDelegate().charAt(this.end+idx2);
+			return index==this.pos0?newbase:getDelegate().charAt(index);
 			}
 		
 		}
@@ -392,17 +443,21 @@ public class VCFCombineTwoSnvs extends Launcher
 			}
 			
 			}
+		/** position in codin 0 or 1 or 2 */
 		int positionInCodon() { return  position_in_cdna%3;}
+		/** start position in cdna of the codon overlapped by the mutation */
 		int codonStart() { return this.position_in_cdna - this.positionInCodon();}
 		
-		boolean isSharingOneSampleWith(final Variant other) {
-			if(this.genotypes.length==0) return true;// no sample in the VCF
+		
+		Set<Integer> getSharedSampleIndexes(final Variant other) {
+			if(this.genotypes.length==0) return Collections.emptySet();
+			final Set<Integer> set = new TreeSet<>();
 			for(int i=0;i< this.genotypes.length;i++) {
 				if(this.genotypes[i]!=(byte)1) continue;
 				if(other.genotypes[i]!=(byte)1) continue;
-				return true;
-			}
-			return false;
+				set.add(i);
+				}
+			return set;
 		}
 		
 		/** get specific info for this variant */
@@ -508,18 +563,31 @@ public class VCFCombineTwoSnvs extends Launcher
 		}
 		
 		}
-	static private class VariantComparator implements Comparator<Variant>
+	/** equal range comparator */
+	static private class VariantComparatorOne implements Comparator<Variant>
 		{
-		final SAMSequenceDictionary dict;
-		VariantComparator(final SAMSequenceDictionary dict) {
-			this.dict = dict;
+		final ContigDictComparator contigDictComparator;
+		VariantComparatorOne(final SAMSequenceDictionary dict) {
+			this.contigDictComparator = new ContigDictComparator(dict);
 			}
-		int contig(final Variant v) { return dict.getSequenceIndex(v.contig);}
 		@Override
 		public int compare(final Variant o1,final  Variant o2) {
-			int i= contig(o1) - contig(o2);
+			int i= this.contigDictComparator.compare(o1.getContig(),o2.getContig());
 			if(i!=0) return i;
 			i= o1.transcriptName.compareTo(o2.transcriptName);
+			return i;
+			}
+		}
+	
+	/** sorting collection comparator */
+	static private class VariantComparatorTwo extends VariantComparatorOne
+		{
+		VariantComparatorTwo(final SAMSequenceDictionary dict) {
+			super(dict);
+			}
+		@Override
+		public int compare(final Variant o1,final  Variant o2) {
+			int i= super.compare(o1, o2);
 			if(i!=0) return i;
 			i= o1.position_in_cdna-o2.position_in_cdna;
 			if(i!=0) return i;
@@ -533,6 +601,8 @@ public class VCFCombineTwoSnvs extends Launcher
 		String info=null;
 		String filter = VCFConstants.UNFILTERED;
 		int grantham_score = -1;
+		// genotypes carrying ALT may be empty but not null. 0 or 1
+		final Set<Integer> sampleIndexes=new HashSet<>();
 		}
 
 	static private class MutationCodec extends AbstractDataCodec<CombinedMutation>
@@ -556,6 +626,13 @@ public class VCFCombineTwoSnvs extends Launcher
 			mutation.filter = dis.readUTF();
 			mutation.grantham_score = dis.readInt();
 			mutation.vcfLine = readString(dis);
+			
+			int n_samples = dis.readInt();
+			while(n_samples>0) {
+				mutation.sampleIndexes.add(dis.readInt());
+				n_samples--;
+			}
+			
 			return mutation;
 		}
 	
@@ -571,6 +648,10 @@ public class VCFCombineTwoSnvs extends Launcher
 			dos.writeUTF(v.filter);
 			dos.writeInt(v.grantham_score);
 			writeString(dos, v.vcfLine);
+			dos.writeInt(v.sampleIndexes.size());
+			for(final int sampleId: v.sampleIndexes) {
+				dos.writeInt(sampleId);
+			}
 		}
 	
 		@Override
@@ -579,21 +660,34 @@ public class VCFCombineTwoSnvs extends Launcher
 		}
 		
 		}
-	
-static private class MutationComparator implements Comparator<CombinedMutation>
+
+static private class MutationComparatorOne implements Comparator<CombinedMutation>
 	{
-	final SAMSequenceDictionary dict;
-	MutationComparator(final SAMSequenceDictionary dict) {
-		this.dict = dict;
+	final ContigDictComparator contigDictComparator;
+	MutationComparatorOne(final SAMSequenceDictionary dict) {
+		this.contigDictComparator = new ContigDictComparator(dict);
 	}
-	int contig(final CombinedMutation v) { return dict.getSequenceIndex(v.contig);}
 	@Override
 	public int compare(final CombinedMutation o1, final CombinedMutation o2) {
-		int i= contig(o1) - contig(o2);
+		int i= contigDictComparator.compare(o1.getContig(), o2.getContig());
 		if(i!=0) return i;
 		i= o1.genomicPosition1-o2.genomicPosition1;
 		if(i!=0) return i;
 		i =  o1.refAllele.compareTo(o2.refAllele);
+		return i;
+		}
+	}
+
+	
+static private class MutationComparatorTwo extends MutationComparatorOne
+	{
+	MutationComparatorTwo(final SAMSequenceDictionary dict) {
+		super(dict);
+		}
+	
+	@Override
+	public int compare(final CombinedMutation o1, final CombinedMutation o2) {
+		int i= super.compare(o1, o2);
 		if(i!=0) return i;
 		return o1.sorting_id - o2.sorting_id;
 		}
@@ -625,8 +719,8 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		SortingCollection<CombinedMutation> mutations = null;
 		CloseableIterator<Variant> varIter = null;
 		CloseableIterator<CombinedMutation> mutIter = null;
-		Map<String,SamReader> sample2samReader = new HashMap<>();
-
+		final Map<String,SamReader> sample2samReader = new HashMap<>();
+		PrintWriter bedPeReport = null;
 		try {
 			bufferedReader = inputName==null?
 						IOUtils.openStreamForBufferedReader(stdin()):
@@ -635,13 +729,15 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 			/* get VCF header */
 			final VCFHeader header= cah.header;
-			final Set<String> sampleNamesInOrder = new HashSet<>(header.getSampleNamesInOrder());
+			final List<String> sampleList = header.getSampleNamesInOrder();
 
 			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referencePath);
 	        final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 	        
 	        if(this.bamIn!=null)
 	        	{
+				final Set<String> sampleSet = new HashSet<>(sampleList);
+
 	        	/** unroll and open bam file */
 	        	for(final Path bamFile : IOUtils.unrollPaths(Collections.singletonList(this.bamIn.toString())))
 		        	{
@@ -677,7 +773,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		        		LOG.warn("no sample in "+ bamFile);
 		        		continue;
 		        	}
-		        	if(!sampleNamesInOrder.contains(sampleName)) {
+		        	if(!sampleSet.contains(sampleName)) {
 		        		samReader.close();
 		        		LOG.warn("no sample "+sampleName+" in vcf. Ignoring "+bamFile);
 		        		continue;
@@ -690,13 +786,11 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 
 			this.variants = SortingCollection.newInstance(Variant.class,
 					new VariantCodec(),
-					new VariantComparator(dict),
+					new VariantComparatorTwo(dict),
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpPaths()
 					);
 			this.variants.setDestructiveIteration(true);
-			
-			
 			
 			
 			
@@ -705,6 +799,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 	       while((vcfLine=bufferedReader.readLine())!=null)
 				{
 				final VariantContext ctx= progress1.apply(cah.codec.decode(vcfLine));
+								
 				/* discard non SNV variant */
 				if(!ctx.isVariant() || ctx.isIndel())
 					{
@@ -734,9 +829,14 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 	       	progress1.close();
 			this.variants.doneAdding();
 			
+			bedPeReport = this.bedPePath==null?
+						new PrintWriter(new NullOuputStream()):
+						IOUtils.openPathForPrintWriter(this.bedPePath)
+						;
+			
 			mutations = SortingCollection.newInstance(CombinedMutation.class,
 					new MutationCodec(),
-					new MutationComparator(dict),
+					new MutationComparatorTwo(dict),
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpPaths()
 					);
@@ -749,307 +849,349 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 				);
 			
 			varIter = this.variants.iterator();
+			@SuppressWarnings("resource")
+			EqualRangeIterator<Variant> eqVarIter=new EqualRangeIterator<>(varIter, new VariantComparatorOne(dict));
 			
 		    ProgressFactory.Watcher<Variant> progress2= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
-			final ArrayList<Variant> buffer= new ArrayList<>();
-			for(;;)
+			
+			while(eqVarIter.hasNext())
 				{
-				Variant variant = null;
-				if(varIter.hasNext())
+				final List<Variant> buffer= eqVarIter.next();
+				
+				if(buffer.size()<2) continue;
+				
+				for(int i=0;i+1< buffer.size();++i)
 					{
-					variant = varIter.next();
-					progress2.apply(variant);
-					}
-				if(variant==null || !(!buffer.isEmpty() && buffer.get(0).contig.equals(variant.contig) &&  buffer.get(0).transcriptName.equals(variant.transcriptName)))
-					{
-					if(!buffer.isEmpty()) {
-					for(int i=0;i< buffer.size();++i)
+					final Variant v1  = buffer.get(i);
+					for(int j=i+1;j< buffer.size();++j)
 						{
-						final Variant v1  = buffer.get(i);
-						for(int j=i+1;j< buffer.size();++j)
+						final Variant v2  = buffer.get(j);
+						if(v1.codonStart() != v2.codonStart()) continue;
+						if(v1.positionInCodon() == v2.positionInCodon()) continue;
+						if(!v1.wildCodon.equals(v2.wildCodon))
 							{
-							final Variant v2  = buffer.get(j);
-							if(v1.codonStart() != v2.codonStart()) continue;
-							if(v1.positionInCodon() == v2.positionInCodon()) continue;
-							if(!v1.wildCodon.equals(v2.wildCodon))
+							throw new IllegalStateException();
+							}
+						// no sample share the two variants
+						final Set<Integer> sharedSamplesIdx = v1.getSharedSampleIndexes(v2);
+						if(sharedSamplesIdx.isEmpty() && !sampleList.isEmpty()) continue;
+						
+						final StringBuilder combinedCodon = new StringBuilder(v1.wildCodon);
+						combinedCodon.setCharAt(v1.positionInCodon(), v1.mutCodon.charAt(v1.positionInCodon()));
+						combinedCodon.setCharAt(v2.positionInCodon(), v2.mutCodon.charAt(v2.positionInCodon()));
+						
+						final String pwild = new ProteinCharSequence(v1.wildCodon).getString();
+						final String p1 = new ProteinCharSequence(v1.mutCodon).getString();
+						final String p2 = new ProteinCharSequence(v2.mutCodon).getString();
+						final String pCombined = new ProteinCharSequence(combinedCodon).getString();
+						final String combinedSO;
+						final String combinedType;
+						
+						/* both AA are synonymous, while combined is not */
+						if(!pCombined.equals(pwild) && p1.equals(pwild) && p2.equals(pwild)) {
+							combinedType = "combined_is_nonsynonymous";
+							if(pCombined.equals("*"))
 								{
-								throw new IllegalStateException();
+								/* http://www.sequenceontology.org/browser/current_svn/term/SO:0001587 */
+								combinedSO="stop_gained";
 								}
-							// no sample share the two variants
-							if(!v1.isSharingOneSampleWith(v2)) continue;
-							
-  							final StringBuilder combinedCodon = new StringBuilder(v1.wildCodon);
-							combinedCodon.setCharAt(v1.positionInCodon(), v1.mutCodon.charAt(v1.positionInCodon()));
-							combinedCodon.setCharAt(v2.positionInCodon(), v2.mutCodon.charAt(v2.positionInCodon()));
-							
-							final String pwild = new ProteinCharSequence(v1.wildCodon).getString();
-							final String p1 = new ProteinCharSequence(v1.mutCodon).getString();
-							final String p2 = new ProteinCharSequence(v2.mutCodon).getString();
-							final String pCombined = new ProteinCharSequence(combinedCodon).getString();
-							final String combinedSO;
-							final String combinedType;
-							
-							/* both AA are synonymous, while combined is not */
-							if(!pCombined.equals(pwild) && p1.equals(pwild) && p2.equals(pwild)) {
-								combinedType = "combined_is_nonsynonymous";
-								if(pCombined.equals("*"))
-									{
-									/* http://www.sequenceontology.org/browser/current_svn/term/SO:0001587 */
-									combinedSO="stop_gained";
-									}
-								else if(pwild.equals("*"))
-									{
-									/* http://www.sequenceontology.org/browser/current_svn/term/SO:0002012 */
-									combinedSO="stop_lost";
-									}
-								else
-									{
-									/* http://www.sequenceontology.org/miso/current_svn/term/SO:0001992 */
-									combinedSO="nonsynonymous_variant";
-									}
-								}
-							else if(!pCombined.equals(p1) && !pCombined.equals(p2) && !pCombined.equals(pwild))
+							else if(pwild.equals("*"))
 								{
-								combinedType = "combined_is_new";
-								if(pCombined.equals("*"))
-									{
-									/* http://www.sequenceontology.org/browser/current_svn/term/SO:0001587 */
-									combinedSO="stop_gained";
-									}
-								else
-									{
-									/* http://www.sequenceontology.org/miso/current_svn/term/SO:0001992 */
-									combinedSO="nonsynonymous_variant";
-									}
+								/* http://www.sequenceontology.org/browser/current_svn/term/SO:0002012 */
+								combinedSO="stop_lost";
 								}
 							else
 								{
-								combinedType = null;
-								combinedSO = null;
+								/* http://www.sequenceontology.org/miso/current_svn/term/SO:0001992 */
+								combinedSO="nonsynonymous_variant";
 								}
-							/** ok, there is something interesting here ,
-							 * create two new Mutations carrying the
-							 * two variants 
-							 */
-							if( combinedSO != null)
+							}
+						else if(!pCombined.equals(p1) && !pCombined.equals(p2) && !pCombined.equals(pwild))
+							{
+							combinedType = "combined_is_new";
+							if(pCombined.equals("*"))
 								{
-								/** grantham score is max found combined vs (p1/p2/wild)*/
-								int grantham_score= GranthamScore.score(pCombined.charAt(0), pwild.charAt(0));
-								grantham_score = Math.max(grantham_score,GranthamScore.score(pCombined.charAt(0), p1.charAt(0)));
-								grantham_score = Math.max(grantham_score,GranthamScore.score(pCombined.charAt(0), p2.charAt(0)));
-								
-								
-								/** info that will be displayed in the vcf */
-								final Map<String,Object> info1 = v1.getInfo(v2);
-								final Map<String,Object> info2 = v2.getInfo(v1);
-								//filter for this combined: default it fails the filter
-								String filter = vcfFilterHeaderLine.getID();
-								
-								final Map<String,Object> combinedMap = new LinkedHashMap<>();
-								combinedMap.put("CombinedCodon",combinedCodon);
-								combinedMap.put("CombinedAA",pCombined);
-								combinedMap.put("CombinedSO",combinedSO);
-								combinedMap.put("CombinedType",combinedType);
-								combinedMap.put("GranthamScore", grantham_score);
-								
-								info1.putAll(combinedMap);
-								info2.putAll(combinedMap);
-								
-								final Map<String,CoverageInfo> sample2coverageInfo = new HashMap<>(sample2samReader.size());
-								final int chromStart = Math.min(v1.genomicPosition1,v2.genomicPosition1);
-								final int chromEnd = Math.max(v1.genomicPosition1,v2.genomicPosition1);
+								/* http://www.sequenceontology.org/browser/current_svn/term/SO:0001587 */
+								combinedSO="stop_gained";
+								}
+							else
+								{
+								/* http://www.sequenceontology.org/miso/current_svn/term/SO:0001992 */
+								combinedSO="nonsynonymous_variant";
+								}
+							}
+						else
+							{
+							combinedType = null;
+							combinedSO = null;
+							}
+						/** ok, there is something interesting here ,
+						 * create two new Mutations carrying the
+						 * two variants 
+						 */
+						if( combinedSO != null)
+							{
+							/** grantham score is max found combined vs (p1/p2/wild)*/
+							int grantham_score= GranthamScore.score(pCombined.charAt(0), pwild.charAt(0));
+							grantham_score = Math.max(grantham_score,GranthamScore.score(pCombined.charAt(0), p1.charAt(0)));
+							grantham_score = Math.max(grantham_score,GranthamScore.score(pCombined.charAt(0), p2.charAt(0)));
+							
+							
+							/** info that will be displayed in the vcf */
+							final Map<String,Object> info1 = v1.getInfo(v2);
+							final Map<String,Object> info2 = v2.getInfo(v1);
+							//filter for this combined: default it fails the filter
+							String filter = vcfFilterHeaderLine.getID();
+							
+							final Map<String,Object> combinedMap = new LinkedHashMap<>();
+							combinedMap.put("CombinedCodon",combinedCodon);
+							combinedMap.put("CombinedAA",pCombined);
+							combinedMap.put("CombinedSO",combinedSO);
+							combinedMap.put("CombinedType",combinedType);
+							combinedMap.put("GranthamScore", grantham_score);
+							
+							info1.putAll(combinedMap);
+							info2.putAll(combinedMap);
+							
+							final Map<String,CoverageInfo> sample2coverageInfo = new HashMap<>(sample2samReader.size());
+							final int chromStart = Math.min(v1.genomicPosition1,v2.genomicPosition1);
+							final int chromEnd = Math.max(v1.genomicPosition1,v2.genomicPosition1);
 
-								
-								
-								/* get phasing info for each sample*/
-								for(final String sampleName : sample2samReader.keySet() ) {
-									final SamReader samReader = sample2samReader.get(sampleName);
-									final CoverageInfo covInfo = new CoverageInfo();
-									sample2coverageInfo.put(sampleName, covInfo);
+							
+							
+							/* get phasing info for each sample*/
+							for(final String sampleName : sample2samReader.keySet() ) {
+								final SamReader samReader = sample2samReader.get(sampleName);
+								final CoverageInfo covInfo = new CoverageInfo();
+								sample2coverageInfo.put(sampleName, covInfo);
 
-									SAMRecordIterator  iter = null;
-									try {
-										iter = samReader.query(v1.contig,
-												chromStart,
-												chromEnd,
-												false
-												);
-										while(iter.hasNext()) {
-											final SAMRecord rec = iter.next();
-											if(rec.getReadUnmappedFlag()) continue;
-											if(rec.isSecondaryOrSupplementary()) continue;
-											if(rec.getDuplicateReadFlag()) continue;
-											if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-											
-											// get DEPTh for variant 1
-											if(rec.getAlignmentStart()<= v1.genomicPosition1 && v1.genomicPosition1<=rec.getAlignmentEnd()) {
-												covInfo.depth1++;
-												}
-											// get DEPTh for variant 2
-											if(rec.getAlignmentStart()<= v2.genomicPosition1 && v2.genomicPosition1<=rec.getAlignmentEnd()) {
-												covInfo.depth2++;
-												}
-											
-											if(rec.getAlignmentEnd()<chromEnd) continue;
-											if(rec.getAlignmentStart()>chromStart) continue;
-											final Cigar cigar  =  rec.getCigar();
-											if(cigar==null) continue;
-											final byte bases[] = rec.getReadBases();
-											if(bases==null) continue;
-											int refpos1=rec.getAlignmentStart();
-											int readpos = 0;
-											boolean found_variant1_on_this_read=false;
-											boolean found_variant2_on_this_read=false;
-											/** loop over cigar */
-											for(final CigarElement ce:cigar.getCigarElements()) {
-												final CigarOperator op = ce.getOperator();
-												switch(op)
-													{
-													case P: continue;
-													case S: case I: readpos+=ce.getLength();break;
-													case D: case N: refpos1+=ce.getLength(); break;
-													case H: continue;
-													case EQ:case M:case X:
-														for(int x=0;x< ce.getLength();++x)
+								SAMRecordIterator  iter = null;
+								try {
+									iter = samReader.query(v1.contig,
+											chromStart,
+											chromEnd,
+											false
+											);
+									while(iter.hasNext()) {
+										final SAMRecord rec = iter.next();
+										if(rec.getReadUnmappedFlag()) continue;
+										if(rec.isSecondaryOrSupplementary()) continue;
+										if(rec.getDuplicateReadFlag()) continue;
+										if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+										
+										// get DEPTh for variant 1
+										if(rec.getAlignmentStart()<= v1.genomicPosition1 && v1.genomicPosition1<=rec.getAlignmentEnd()) {
+											covInfo.depth1++;
+											}
+										// get DEPTh for variant 2
+										if(rec.getAlignmentStart()<= v2.genomicPosition1 && v2.genomicPosition1<=rec.getAlignmentEnd()) {
+											covInfo.depth2++;
+											}
+										
+										if(rec.getAlignmentEnd()<chromEnd) continue;
+										if(rec.getAlignmentStart()>chromStart) continue;
+										final Cigar cigar  =  rec.getCigar();
+										if(cigar==null) continue;
+										final byte bases[] = rec.getReadBases();
+										if(bases==null) continue;
+										int refpos1=rec.getAlignmentStart();
+										int readpos = 0;
+										boolean found_variant1_on_this_read=false;
+										boolean found_variant2_on_this_read=false;
+										/** loop over cigar */
+										for(final CigarElement ce:cigar.getCigarElements()) {
+											final CigarOperator op = ce.getOperator();
+											switch(op)
+												{
+												case P: continue;
+												case S: case I: readpos+=ce.getLength();break;
+												case D: case N: refpos1+=ce.getLength(); break;
+												case H: continue;
+												case EQ:case M:case X:
+													for(int x=0;x< ce.getLength();++x)
+														{
+														if(refpos1 == v1.genomicPosition1 && same(bases[readpos],v1.altAllele))
 															{
-															if(refpos1 == v1.genomicPosition1 && same(bases[readpos],v1.altAllele))
-																{
-																found_variant1_on_this_read = true;
-																}
-															else if(refpos1 == v2.genomicPosition1  && same(bases[readpos],v2.altAllele))
-																{
-																found_variant2_on_this_read = true;
-																}
-															refpos1++;
-															readpos++;
+															found_variant1_on_this_read = true;
 															}
-														break;
-													default: throw new IllegalStateException(op.name());
-													}
-												/* skip remaining bases after last variant */
-												if(refpos1>chromEnd) break;
-											}/* end of loop over cigar */
-											
-										/* sum-up what we found */
-										if( found_variant1_on_this_read && found_variant2_on_this_read) {
-											covInfo.count_reads_having_both_variants++; }
-										else if( !found_variant1_on_this_read && !found_variant2_on_this_read) {
-											covInfo.count_reads_having_no_variants++; }
-										else if( found_variant1_on_this_read) {
-											covInfo.count_reads_having_variant1++;
-										}else if( found_variant2_on_this_read) {
-											covInfo.count_reads_having_variant2++;
-										}
+														else if(refpos1 == v2.genomicPosition1  && same(bases[readpos],v2.altAllele))
+															{
+															found_variant2_on_this_read = true;
+															}
+														refpos1++;
+														readpos++;
+														}
+													break;
+												default: throw new IllegalStateException(op.name());
+												}
+											/* skip remaining bases after last variant */
+											if(refpos1>chromEnd) break;
+										}/* end of loop over cigar */
 										
-										
-										}/* end of loop over reads */
-										
-									} finally {
-										iter.close();
-										iter=null;
-										
+									/* sum-up what we found */
+									if( found_variant1_on_this_read && found_variant2_on_this_read) {
+										covInfo.count_reads_having_both_variants++; }
+									else if( !found_variant1_on_this_read && !found_variant2_on_this_read) {
+										covInfo.count_reads_having_no_variants++; }
+									else if( found_variant1_on_this_read) {
+										covInfo.count_reads_having_variant1++;
+									}else if( found_variant2_on_this_read) {
+										covInfo.count_reads_having_variant2++;
 									}
 									
-									info1.put("N_READS_BOTH_VARIANTS_"+sampleName, covInfo.count_reads_having_both_variants);
-									info2.put("N_READS_BOTH_VARIANTS_"+sampleName, covInfo.count_reads_having_both_variants);
-									info1.put("N_READS_NO_VARIANTS_"+sampleName, covInfo.count_reads_having_no_variants);
-									info2.put("N_READS_NO_VARIANTS_"+sampleName, covInfo.count_reads_having_no_variants);
-									info1.put("N_READS_TOTAL_"+sampleName,
-											covInfo.count_reads_having_both_variants +
-											covInfo.count_reads_having_no_variants +
-											covInfo.count_reads_having_variant1+
-											covInfo.count_reads_having_variant2
-											);
-									info2.put("N_READS_TOTAL_"+sampleName,
-											covInfo.count_reads_having_both_variants +
-											covInfo.count_reads_having_no_variants +
-											covInfo.count_reads_having_variant1+
-											covInfo.count_reads_having_variant2
-											);
-									//count for variant 1
-									info1.put("N_READS_ONLY_1_"+sampleName, covInfo.count_reads_having_variant1);
-									info1.put("N_READS_ONLY_2_"+sampleName, covInfo.count_reads_having_variant2);
-									info1.put("DEPTH_1_"+sampleName, covInfo.depth1);
-									//inverse previous count
-									info2.put("N_READS_ONLY_1_"+sampleName, covInfo.count_reads_having_variant2);
-									info2.put("N_READS_ONLY_2_"+sampleName, covInfo.count_reads_having_variant1);
-									info2.put("DEPTH_2_"+sampleName, covInfo.depth2);
 									
-									/* number of reads with both variant is greater than
-									 * reads carrying only one variant: reset the filter 
-									 */
-									if(2*covInfo.count_reads_having_both_variants>(covInfo.count_reads_having_variant1+covInfo.count_reads_having_variant2)) {
-										/* reset filter */
-										filter = VCFConstants.UNFILTERED;
-										info1.put("FILTER_1_"+sampleName,".");
-										info2.put("FILTER_2_"+sampleName,".");
-										}
-									else
-										{
-										info1.put("FILTER_1_"+sampleName,vcfFilterHeaderLine.getID());
-										info2.put("FILTER_2_"+sampleName,vcfFilterHeaderLine.getID());
-										}
-								}/* end of loop over bams */
-								
-								
-								final CombinedMutation m1 = new CombinedMutation();
-								m1.contig = v1.contig;
-								m1.genomicPosition1 = v1.genomicPosition1;
-								m1.id = v1.id ;
-								m1.refAllele = v1.refAllele;
-								m1.altAllele = v1.altAllele;
-								m1.vcfLine = v1.vcfLine;
-								m1.info = mapToString(info1);
-								m1.filter = filter;
-								m1.grantham_score = grantham_score;
-
-								m1.sorting_id = ID_GENERATOR++;
-								mutations.add(m1);
-								
-								final CombinedMutation m2 = new CombinedMutation();
-								m2.contig = v2.contig;
-								m2.genomicPosition1 = v2.genomicPosition1;
-								m2.id = v2.id ;
-								m2.refAllele = v2.refAllele;
-								m2.altAllele = v2.altAllele;
-								m2.vcfLine = v2.vcfLine;
-								m2.info = mapToString(info2);
-								m2.filter = filter;
-								m2.grantham_score = grantham_score;
-								
-								m2.sorting_id = ID_GENERATOR++;
-								mutations.add(m2);
+									}/* end of loop over reads */
+									
+								} finally {
+									iter.close();
+									iter=null;
+									
 								}
+								
+								info1.put("N_READS_BOTH_VARIANTS_"+sampleName, covInfo.count_reads_having_both_variants);
+								info2.put("N_READS_BOTH_VARIANTS_"+sampleName, covInfo.count_reads_having_both_variants);
+								info1.put("N_READS_NO_VARIANTS_"+sampleName, covInfo.count_reads_having_no_variants);
+								info2.put("N_READS_NO_VARIANTS_"+sampleName, covInfo.count_reads_having_no_variants);
+								info1.put("N_READS_TOTAL_"+sampleName,
+										covInfo.count_reads_having_both_variants +
+										covInfo.count_reads_having_no_variants +
+										covInfo.count_reads_having_variant1+
+										covInfo.count_reads_having_variant2
+										);
+								info2.put("N_READS_TOTAL_"+sampleName,
+										covInfo.count_reads_having_both_variants +
+										covInfo.count_reads_having_no_variants +
+										covInfo.count_reads_having_variant1+
+										covInfo.count_reads_having_variant2
+										);
+								//count for variant 1
+								info1.put("N_READS_ONLY_1_"+sampleName, covInfo.count_reads_having_variant1);
+								info1.put("N_READS_ONLY_2_"+sampleName, covInfo.count_reads_having_variant2);
+								info1.put("DEPTH_1_"+sampleName, covInfo.depth1);
+								//inverse previous count
+								info2.put("N_READS_ONLY_1_"+sampleName, covInfo.count_reads_having_variant2);
+								info2.put("N_READS_ONLY_2_"+sampleName, covInfo.count_reads_having_variant1);
+								info2.put("DEPTH_2_"+sampleName, covInfo.depth2);
+								
+								/* number of reads with both variant is greater than
+								 * reads carrying only one variant: reset the filter 
+								 */
+								if(2*covInfo.count_reads_having_both_variants>(covInfo.count_reads_having_variant1+covInfo.count_reads_having_variant2)) {
+									/* reset filter */
+									filter = VCFConstants.UNFILTERED;
+									info1.put("FILTER_1_"+sampleName,".");
+									info2.put("FILTER_2_"+sampleName,".");
+									}
+								else
+									{
+									info1.put("FILTER_1_"+sampleName,vcfFilterHeaderLine.getID());
+									info2.put("FILTER_2_"+sampleName,vcfFilterHeaderLine.getID());
+									}
+							}/* end of loop over bams */
 							
+							
+							final CombinedMutation m1 = new CombinedMutation();
+							m1.contig = v1.contig;
+							m1.genomicPosition1 = v1.genomicPosition1;
+							m1.id = v1.id ;
+							m1.refAllele = v1.refAllele;
+							m1.altAllele = v1.altAllele;
+							m1.vcfLine = v1.vcfLine;
+							m1.info = mapToString(info1);
+							m1.filter = filter;
+							m1.grantham_score = grantham_score;
+							m1.sampleIndexes.addAll(sharedSamplesIdx);
+							m1.sorting_id = ID_GENERATOR++;
+							mutations.add(m1);
+							
+							final CombinedMutation m2 = new CombinedMutation();
+							m2.contig = v2.contig;
+							m2.genomicPosition1 = v2.genomicPosition1;
+							m2.id = v2.id ;
+							m2.refAllele = v2.refAllele;
+							m2.altAllele = v2.altAllele;
+							m2.vcfLine = v2.vcfLine;
+							m2.info = mapToString(info2);
+							m2.filter = filter;
+							m2.grantham_score = grantham_score;
+							m2.sampleIndexes.addAll(sharedSamplesIdx);
+							m2.sorting_id = ID_GENERATOR++;
+							mutations.add(m2);
+							
+							bedPeReport.print(m1.contig);
+							bedPeReport.print('\t');
+							bedPeReport.print(m1.genomicPosition1-1);
+							bedPeReport.print('\t');
+							bedPeReport.print(m1.genomicPosition1);
+							bedPeReport.print('\t');
+							bedPeReport.print(m2.contig);
+							bedPeReport.print('\t');
+							bedPeReport.print(m2.genomicPosition1-1);
+							bedPeReport.print('\t');
+							bedPeReport.print(m2.genomicPosition1);
+							bedPeReport.print('\t');
+							bedPeReport.print(v1.transcriptName);//name
+							bedPeReport.print('\t');
+							bedPeReport.print(grantham_score==GranthamScore.getDefaultScore()?0:(int)((grantham_score/255.0)*1000.0));//score
+							bedPeReport.print('\t');
+							final KnownGene kg= this.knownGenes.getOverlapping(new Interval(v1.getContig(),v1.genomicPosition1-1,v1.genomicPosition1+1)).
+									stream().
+									flatMap(L->L.stream()).
+									filter(P->P.getContig().equals(v1.contig) && P.getName().equals(v1.transcriptName)).
+									findFirst().orElseThrow(IllegalStateException::new);
+							
+							bedPeReport.print(kg.isNegativeStrand()?"-":"+");//strand1
+							bedPeReport.print('\t');
+							bedPeReport.print(kg.isNegativeStrand()?"-":"+");//strand2
+							bedPeReport.print('\t');
+							if(sharedSamplesIdx.isEmpty()){
+								bedPeReport.print('.');
+								}
+							else
+								{
+								bedPeReport.print(sharedSamplesIdx.stream().map(I->sampleList.get(I.intValue())).collect(Collectors.joining(";")));
+								}
+							bedPeReport.print('\t');
+							bedPeReport.print(combinedSO);
+							bedPeReport.print('\t');
+							bedPeReport.print(String.join(":",pwild,p1,p2,pCombined));
+							bedPeReport.println();
 							}
 						}
-					}
-					buffer.clear();
-					if(variant==null) break;
-					}
-				buffer.add(variant);
+					}					
 				}
 			progress2.close();
 			mutations.doneAdding();
+			eqVarIter.close();eqVarIter=null;
 			varIter.close();varIter=null;
 			variants.cleanup();variants=null;
-			final ArrayList<CombinedMutation> mBuffer= new ArrayList<>();
+			
+			bedPeReport.flush();
+			bedPeReport.close();
+			bedPeReport=null;
+			
 			
 			final VCFHeader header2 = new VCFHeader(header);
+			
 			header2.addMetaDataLine(new VCFHeaderLine(getProgramName()+"AboutQUAL", "QUAL is filled with Grantham Score  http://www.ncbi.nlm.nih.gov/pubmed/4843792"));
 			
 			final StringBuilder infoDesc =new StringBuilder("Variant affected by two distinct mutation. Format is defined in the INFO column. ");
 			
 			
-			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
+			final VCFInfoHeaderLine CodonVariantHeader = new VCFInfoHeaderLine(
 					"CodonVariant",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
 					infoDesc.toString()
 					);
+			header2.addMetaDataLine(CodonVariantHeader);
+			final VCFInfoHeaderLine CodonSampleHeader = new VCFInfoHeaderLine(
+					"Samples",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
+					"Samples that could be affected"
+					);
+			header2.addMetaDataLine(CodonSampleHeader);
 			
 			
+			JVarkitVersion.getInstance().addMetaData(this, header2);
 			
-			super.addMetaData(header2);
-			header2.addMetaDataLine(infoHeaderLine);
 			
 			
 			if(!sample2samReader.isEmpty())
@@ -1062,72 +1204,72 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			
 		    ProgressFactory.Watcher<CombinedMutation> progress3= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			mutIter = mutations.iterator();
-			for(;;)
+			EqualRangeIterator<CombinedMutation> eqRangeMutIter = new EqualRangeIterator<>(mutIter, new MutationComparatorOne(dict));
+			
+			while(eqRangeMutIter.hasNext())
 				{
-				CombinedMutation mutation = null;
-				if(mutIter.hasNext())
-					{
-					mutation = mutIter.next();
-					progress3.apply(mutation);
-					}
-				if(mutation==null || !(!mBuffer.isEmpty() &&
-						mBuffer.get(0).contig.equals(mutation.contig) &&  
-						mBuffer.get(0).genomicPosition1 == mutation.genomicPosition1 &&  
-						mBuffer.get(0).refAllele.equals(mutation.refAllele)))
-					{
-					if(!mBuffer.isEmpty())
-						{
-						//default grantham score used in QUAL
-						int grantham_score = -1;
-						//default filter fails
-						String filter=vcfFilterHeaderLine.getID();
-						final CombinedMutation first  = mBuffer.get(0);
-						final Set<String> info = new HashSet<>();
-						final VariantContext ctx  = cah.codec.decode(first.vcfLine);
-						
-						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-						vcb.chr(first.contig);
-						vcb.start(first.genomicPosition1);
-						vcb.stop(first.genomicPosition1 + first.refAllele.length()-1);
-						if( !first.id.equals(VCFConstants.EMPTY_ID_FIELD)) vcb.id(first.id);
-						
-						
+				final List<CombinedMutation> mBuffer = eqRangeMutIter.next();
+				if(mBuffer.isEmpty()) break;				
+				progress3.apply(mBuffer.get(0));
+			
+				//default grantham score used in QUAL
+				int grantham_score = -1;
+				//default filter fails
+				String filter=vcfFilterHeaderLine.getID();
+				final CombinedMutation first  = mBuffer.get(0);
+				final Set<String> info = new HashSet<>();
+				final VariantContext ctx  = cah.codec.decode(first.vcfLine);
+				
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.chr(first.contig);
+				vcb.start(first.genomicPosition1);
+				vcb.stop(first.genomicPosition1 + first.refAllele.length()-1);
+				if( !first.id.equals(VCFConstants.EMPTY_ID_FIELD)) vcb.id(first.id);
+				
+				for(final CombinedMutation m:mBuffer){	
 					
-						for(final CombinedMutation m:mBuffer){	
-							
-							info.add(m.info);
-							grantham_score=Math.max(grantham_score, m.grantham_score);
-							if(VCFConstants.UNFILTERED.equals(m.filter)) {
-								filter = null; //at least one SNP is ok one this line
-							}
-						}
-						vcb.unfiltered();
-						if(filter!=null && !sample2samReader.isEmpty())
-							{
-							vcb.filter(filter);
-							}
-						else
-							{
-							vcb.passFilters();
-							}
-						
-						vcb.attribute(infoHeaderLine.getID(), new ArrayList<String>(info));
-						
-						if(grantham_score>0) {
-							vcb.log10PError(grantham_score/-10.0);
-						} else
-						{
-							vcb.log10PError(VariantContext.NO_LOG10_PERROR);
-						}
-						
-						w.add(vcb.make());
-						}
-					mBuffer.clear();
-					if(mutation==null) break;
+					info.add(m.info);
+					grantham_score=Math.max(grantham_score, m.grantham_score);
+					if(VCFConstants.UNFILTERED.equals(m.filter)) {
+						filter = null; //at least one SNP is ok one this line
 					}
-				mBuffer.add(mutation);
+				}
+				
+				if(!sampleList.isEmpty())
+					{
+					vcb.attribute(CodonSampleHeader.getID(),
+							new ArrayList<>(
+								mBuffer.
+								stream().
+								flatMap(S->S.sampleIndexes.stream()).
+								map(IDX->sampleList.get(IDX)).
+								collect(Collectors.toSet())
+								)
+							);
+					}
+				vcb.unfiltered();
+				if(filter!=null && !sample2samReader.isEmpty())
+					{
+					vcb.filter(filter);
+					}
+				else
+					{
+					vcb.passFilters();
+					}
+				
+				vcb.attribute(CodonVariantHeader.getID(), new ArrayList<String>(info));
+				
+				if(grantham_score>0) {
+					vcb.log10PError(grantham_score/-10.0);
+					}
+				else {
+					vcb.log10PError(VariantContext.NO_LOG10_PERROR);
+					}
+				
+				w.add(vcb.make());	
 				}
 			progress3.close();
+			eqRangeMutIter.close();
 			mutIter.close();
 			mutations.cleanup();mutations=null;
 			
@@ -1144,7 +1286,7 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 			CloserUtil.close(this.indexedFastaSequenceFile);
 			CloserUtil.close(mutIter);
 			CloserUtil.close(varIter);
-			
+			CloserUtil.close(bedPeReport);
 			if(this.variants!=null) this.variants.cleanup();
 			if(mutations!=null) mutations.cleanup();
 			this.variants=null;
@@ -1155,6 +1297,24 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		
 		
 		}
+	
+	
+	
+	private CDNASequence getTranscript(final KnownGene kg) {
+		CDNASequence mrna= this.kgId2transcriptCache.get(kg.getName());
+		if(mrna!=null && mrna.knownGene.getContig().equals(kg.getContig())) return mrna;
+		
+		if(genomicSequence==null || !genomicSequence.getChrom().equals(kg.getContig()))
+			{
+			LOG.info("getting genomic Sequence for "+kg.getContig());
+			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, kg.getContig());
+			}
+
+		
+		mrna = new CDNASequence(kg);
+		this.kgId2transcriptCache.put(kg.getName(), mrna);
+		return mrna;
+	}
 	
 	private void challenge(
 			final VariantContext ctx,
@@ -1170,97 +1330,46 @@ static private class MutationComparator implements Comparator<CombinedMutation>
 		if(ctx.getReference().length()!=1) return;
 		if(allele.equals(Allele.SPAN_DEL)) return;
 		
-		if(genomicSequence==null || !genomicSequence.getChrom().equals(ctx.getContig()))
-			{
-			LOG.info("getting genomic Sequence for "+gene.getContig());
-			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, gene.getContig());
-			}
+		final CDNASequence wildRNA = this.getTranscript(gene);
 		final int positionContext0 = ctx.getStart() -1;
+		final Integer position_in_cnda = wildRNA.genomic2cnda.get(positionContext0);
+		if(position_in_cnda==null) return;
+				
+		final Variant variant = new Variant(ctx,allele,gene);
+		variant.sorting_id = ID_GENERATOR++;
+		variant.position_in_cdna= position_in_cnda.intValue();
+		char mutBase= Character.toUpperCase(allele.getDisplayString().charAt(0));
+		if(gene.isNegativeStrand()) mutBase= AcidNucleics.complement(mutBase);
 		
 		
-		Variant variant=null;
-		final StringBuilder wildRNA=new StringBuilder(1000);
-		final MutedSequence mutRNA=new MutedSequence(wildRNA);
-    	
-		if(gene.isPositiveStrand())
+		final MutedSequence mutRNA = new MutedSequence(
+				wildRNA,
+				variant.position_in_cdna,
+				mutBase
+				);
+		
+		
+		variant.wildCodon="";
+		variant.mutCodon="";
+		for(int i=0;i< 3;++i)
 			{
-	    	for(int exon_index=0;exon_index< gene.getExonCount();++exon_index)
-	    		{
-	    		final KnownGene.Exon exon= gene.getExon(exon_index);
-	    		int genomicPosition = Math.max(gene.getCdsStart() , exon.getStart());
-	    		for(;;)
-					{
-					// we need to consider the last stop codon
-					if( genomicPosition>=exon.getEnd() ||
-						genomicPosition>= gene.getCdsEnd())
-						{
-						break;
-						}
-
-					wildRNA.append(genomicSequence.charAt(genomicPosition));
-					
-					if(variant==null && positionContext0 ==genomicPosition)
-						{
-						variant = new Variant(ctx,allele,gene);
-						variant.sorting_id = ID_GENERATOR++;
-						variant.position_in_cdna=wildRNA.length()-1;
-						char mutBase= allele.getBaseString().charAt(0);
-						mutRNA.setMutation( wildRNA.length()-1, wildRNA.length(),""+mutBase 	);
-						}
-					++genomicPosition;
-					}
-	    		}
+			final int pos = variant.codonStart()+i;
+			variant.wildCodon += (pos< wildRNA.length()?wildRNA.charAt(pos):'*');
+			variant.mutCodon +=  (pos< mutRNA.length()?mutRNA.charAt(pos):'*');
 			}
-		else
-			{
-			int exon_index = gene.getExonCount()-1;
-			while(exon_index >=0)
-				{
-				final KnownGene.Exon exon= gene.getExon(exon_index);
-				int genomicPosition = Math.min(gene.getCdsEnd()-1, exon.getEnd()-1);
-				for(;;) {					
-					if( genomicPosition< exon.getStart() ||
-						genomicPosition<gene.getCdsStart())
-						{
-						break;
-						}
-	
-					wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(genomicPosition)));
-					
-					if(variant==null && positionContext0 == genomicPosition )
-						{
-						variant = new Variant(ctx,allele,gene);
-						variant.sorting_id = ID_GENERATOR++;
-						variant.position_in_cdna=wildRNA.length()-1;
-						char mutBase=AcidNucleics.complement(allele.getBaseString().charAt(0));
-						mutRNA.setMutation( wildRNA.length()-1, wildRNA.length(),""+mutBase 	);
-						}
-					--genomicPosition;
-    				}
-    			--exon_index;
-    			}
+		variant.wildCodon = variant.wildCodon.toUpperCase();
+		variant.mutCodon = variant.mutCodon.toUpperCase();
+		variant.vcfLine  = vcfLine;
+		
+		
+		
+		if(variant.wildCodon.equals(variant.mutCodon)) {
+			LOG.info("Uh??????? "+allele+" "+ctx.getContig()+":"+ctx.getStart()+" "+position_in_cnda+" "+wildRNA.length()+" "+variant.wildCodon+" "+variant.mutCodon);
+			return;
 			}
-        	
-    	if(variant!=null)
-    		{
-    		variant.wildCodon="";
-    		variant.mutCodon="";
-    		for(int i=0;i< 3;++i)
-    			{
-    			int pos = variant.codonStart()+i;
-    			variant.wildCodon += (pos< wildRNA.length()?wildRNA.charAt(pos):'*');
-    			variant.mutCodon +=  (pos< mutRNA.length()?mutRNA.charAt(pos):'*');
-    			}
-    		variant.wildCodon = variant.wildCodon.toUpperCase();
-    		variant.mutCodon = variant.mutCodon.toUpperCase();
-    		variant.vcfLine  = vcfLine;
-    		if(variant.wildCodon.equals(variant.mutCodon)) {
-    			LOG.info("Uh??????? "+allele+" "+ctx);
-    			return;
-    			}
-    		
-    		this.variants.add(variant);
-    		}
+		
+		this.variants.add(variant);
+		
 		}
 	@Override
 	public int doWork(final List<String> args) {

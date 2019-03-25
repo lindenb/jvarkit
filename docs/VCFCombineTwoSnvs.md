@@ -13,6 +13,8 @@ Usage: vcfcombinetwosnvs [options] Files
     -B, --bam
       Optional indexed BAM file used to get phasing information. This can be a 
       list of bam if the filename ends with '.list'
+    -P, --bedpe
+      save optional report as bedpe
     -h, --help
       print help and exit
     --helpFormat
@@ -34,7 +36,7 @@ Usage: vcfcombinetwosnvs [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
-    -R, --reference
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     --tmpDir
