@@ -101,9 +101,9 @@ public class TabixFileReader implements Closeable
 			{
     		if(parseReg[0]==-1)
     			{
-    			LOG.warning("unknown chromosome in \""+rgn+"\". Available are: "+getChromosomes());
+    			//LOG.warning("unknown chromosome in \""+rgn+"\". Available are: "+getChromosomes());
     			}
-    		LOG.warning("cannot parse region "+rgn);
+    		//LOG.warning("cannot parse region "+rgn);
 			return null;
 			}
     	return parseReg;

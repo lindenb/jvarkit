@@ -340,7 +340,7 @@ private static class OneDictionary extends ContigNameConverter
 	{
 	private final SAMSequenceDictionary dict;
 	@SuppressWarnings("serial")
-	private final Set<String> mitochrondrials = new HashSet<>() {{{
+	private final Set<String> mitochrondrials = new HashSet<String>() {{{
 		add("M");
 		add("MT");
 		add("chrM");

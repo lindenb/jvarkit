@@ -1981,7 +1981,7 @@ all.add( task("indexcov2vcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.IndexCovToVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","math")
 	});
-all.add( task("validatecnv", type: CompileJVarkit) {
+all2.add( task("validatecnv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.ValidateCnv"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","math")
 	});

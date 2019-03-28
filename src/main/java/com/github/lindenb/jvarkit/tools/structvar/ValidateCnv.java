@@ -24,28 +24,33 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.BufferedReader;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+import org.apache.commons.math3.stat.descriptive.moment.Variance;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -53,19 +58,18 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.StructuralVariantType;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
@@ -73,27 +77,24 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 
 /**
 BEGIN_DOC
 
- ## Building dgv bed:
+## Motivation
 
-```
-$ wget -O - -q "http://dgv.tcag.ca/dgv/docs/GRCh37_hg19_variants_2016-05-15.txt" | 
-	grep -v '^variantaccession' | 
-	awk -F $'\t' '{printf("%s\t%s\t%s\t%s\n",$2,$3,$4,$1);}' | 
-	sort -t $'\t' -k1,1V -k2,2n > dgv.bed
-```
+only SVTYPE=DEL or SVTYPE=INS are considered
 
 END_DOC
 
  */
 @Program(name="validatecnv",
-	description="experimental CNV detection. Look depths before/after putative known CNV.",
+	description="experimental CNV detection. Look variange of depths before/after putative known CNV.",
 	keywords= {"cnv","bam","sam","vcf"},
+	modificationDate="20190328",
 	generate_doc=false
 	)
 public class ValidateCnv extends Launcher
@@ -101,83 +102,104 @@ public class ValidateCnv extends Launcher
 	private static final Logger LOG = Logger.build(ValidateCnv.class).make();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
-	@Parameter(names={"-B","--bed"},description="Bed file of CNV.",required=true)
-	private File bedFile=null;	
+	private Path outputFile=null;
+	@Parameter(names={"-B","--bams","--bam"},description="Path to bam. File with suffix .list is interpretted as a file containing a list of paths to bams.")
+	private List<Path> bamFiles = new ArrayList<>();
 	@Parameter(names={"-x","--extend"},description="Search the boundaries in a region that is 'x'*(CNV-length)")
 	private double extendFactor=0.1;	
 	@Parameter(names={"-md","--min-dp"},description="At least one of the bounds must have a median-depth greater than this value.")
 	private int min_depth = 20;
-	@Parameter(names={"-E","-del","--del","--deletion"},description="Deletion Treshold. Which fraction of the median depth is considered as aa deletion. Must be <1.0" )
-	private double deletion_treshold = 0.5;
-	@Parameter(names={"-U","-dup","--dup","--duplication"},description="Duplication Treshold. Which fraction of the median depth is considered as a duplication. Must be >1.0" )
-	private double duplication_treshold = 1.5;
+	@Parameter(names={"--min"},description="Min abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int min_abs_sv_size = 50;
+	@Parameter(names={"--max"},description="Max abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int max_abs_sv_size = 1_000_000;
+	@Parameter(names={"--ignore-uncalled"},description="Ignore NO_CALL/HOM_REF genotypes")
+	private boolean ignore_no_call = false;
+	@Parameter(names={"--dicard"},description="Dicard variant where all Called Genotypes have been filtered.")
+	private boolean discard_all_filtered_variant = false;
+	@Parameter(names={"--max-variance"},description="Maximum tolerated variance in one genomic segment.")
+	private double max_variance = 20.0;
+	@Parameter(names={"--median-adjust"},description="TODO.")
+	private double median_factor = 10.0;
+	
+	private final Median medianCalc =new Median();
+	private final Variance varianceCalc =new Variance();
 
 	
+	private class Coverage
+		{
+		final OptionalDouble median;
+		final OptionalDouble variance;
+		
+		Coverage(final double array[],int array_start,int array_end) {
+			final int len = array_end-array_start;
+			if(len>0) {
+				double m = medianCalc.evaluate(array, array_start, len);
+				median = OptionalDouble.of(m);
+				double v = Math.abs(varianceCalc.evaluate(array, array_start, len));
+				variance = OptionalDouble.of(v);
+				}
+			else
+				{
+				LOG.debug("len="+len+"??");
+				median = OptionalDouble.empty();
+				variance = OptionalDouble.empty();
+				}
+			}
+		@Override
+		public String toString() {
+			return "median:"+ (median.isPresent()?".":String.valueOf(median.getAsDouble()))+" "+
+					"variance:"+(variance.isPresent()?".":String.valueOf(variance.getAsDouble()))
+					;
+			}
+		}
+	
+	
+	/** BAM input */
 	private class Input implements Closeable
 		{
-		SamReader samReader;
-		SAMFileHeader header;
-		SAMSequenceDictionary dict;
-		ContigNameConverter ctgNameConverter;
-		String sampleName;
-		Input(final String uri) throws IOException {
+		final SamReader samReader;
+		final SAMFileHeader header;
+		final SAMSequenceDictionary dict;
+		final ContigNameConverter ctgNameConverter;
+		final String sampleName;
+		Input(final Path uri) throws IOException {
 			final SamInputResource sri = SamInputResource.of(uri);
 			this.samReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT).open(sri);
 			this.header  = samReader.getFileHeader();
 			this.dict = this.header.getSequenceDictionary();
 			this.ctgNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
-			this.sampleName = this.header.getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtil.isBlank(S)).findFirst().orElse(uri);
+			this.sampleName = this.header.getReadGroups().stream().
+						map(R->R.getSample()).
+						filter(S->!StringUtil.isBlank(S)).
+						findFirst().
+						orElseThrow(()->new IllegalArgumentException("no ReadGroup/SM defined in "+uri));
 			}
 		@Override
-		public void close() throws IOException {
-			this.samReader.close();
+		public void close() {
+			CloserUtil.close(this.samReader);
 			}
-		public OptionalDouble medianCov(final Locatable interval)
-			{
-			final String contig = this.ctgNameConverter.apply(interval.getContig());
-			if(StringUtil.isBlank(contig)) return OptionalDouble.empty();
-			final int array_size = 1+(interval.getEnd()-interval.getStart());
-			if(array_size<=0) {
-				LOG.warn("skipping negative interval "+interval);
-				return OptionalDouble.empty();
-			}
-			CloseableIterator<SAMRecord> iter = this.samReader.queryOverlapping(contig,interval.getStart(),interval.getEnd());
-			final double array[]=new double[array_size];
-			Arrays.fill(array, 0);
-			while(iter.hasNext()) {
-				final SAMRecord rec= iter.next();
-				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-				if(rec.getDuplicateReadFlag()) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				final Cigar cigar = rec.getCigar();
-				if(cigar==null || cigar.isEmpty()) continue;
-				int ref=rec.getStart();
-				for(final CigarElement ce:cigar) {
-					final CigarOperator op =ce.getOperator();
-					if(op.consumesReferenceBases())
-						{
-						if(op.consumesReadBases()) {
-							for(int x=0;x < ce.getLength();++x)
-								{
-								final int p = ref+x - interval.getStart();
-								if(p<0 || p>=array.length) continue;
-								array[p]++;
-								}
-							}
-						ref+=ce.getLength();
-						}
-					}
-				}
-			iter.close();
-			final Median median = new Median();
-			return OptionalDouble.of(median.evaluate(array));
-			}
-		
 		}
 	
 
+	private boolean isSameMedianDepth(OptionalDouble dp1,OptionalDouble dp2) {
+		if(!dp1.isPresent()) return true;
+		if(!dp2.isPresent()) return true;
+		double v1=dp1.getAsDouble();
+		double v1a  = v1/this.median_factor;
+		double v2=dp2.getAsDouble();
+		double v2a  = v2/this.median_factor;
+		if(v2 < v1 - v1a) return false;
+		if(v2 > v1 + v1a) return false;
+		if(v1 < v2 - v2a) return false;
+		if(v1 > v2 + v2a) return false;
+		return true;
+	}
+	private boolean isHightVariance(OptionalDouble va) {
+		if(!va.isPresent()) return false;
+		double v1=va.getAsDouble();
+		return v1> this.max_variance;
+	}
 	
 	@Override
 	public int doWork(final List<String> args) {		
@@ -186,38 +208,46 @@ public class ValidateCnv extends Launcher
 			LOG.error("bad extend factor "+this.extendFactor);
 			return -1;
 			}
-		if(this.deletion_treshold>=1.0)
-			{
-			LOG.error("bad deletion treshold . Must be <1.0 but got "+this.deletion_treshold);
-			return -1;
-			}
-		if(this.duplication_treshold<=1.0)
-			{
-			LOG.error("bad dup treshold . Must be >1.0 but got "+this.duplication_treshold);
-			return -1;
-			}
+		
+		
+		final Map<String,Input> sample2bam = new HashMap<>();
 		final List<Input> inputs = new ArrayList<>();
 		VariantContextWriter out = null;
-		BufferedReader bedIn = null;
+		VCFIterator iterIn = null;
 		try
 			{
-			final BedLineCodec bedCodec = new BedLineCodec();
-			bedIn = IOUtils.openFileForBufferedReading(this.bedFile);
 			
-			final List<String> urls;
-			if(args.size()==1 && args.get(0).endsWith(".list")) {
-				urls = IOUtil.slurpLines(new File(args.get(0)));
-				}
-			else
-				{
-				urls = args;
+			
+			iterIn = super.openVCFIterator(oneFileOrNull(args));
+			final VCFHeader header0 = iterIn.getHeader();
+			if(!header0.hasGenotypingData()) {
+				LOG.error("No genotype in input");
+				return -1;
 				}
 			
-			for(final String url:urls)
-				{
-				if(StringUtil.isBlank(url)) continue;
-				inputs.add(new Input(url));
+			for(final Path p: this.bamFiles) {
+				for(final Path p2:IOUtils.unrollPath(p)) {
+					final Input input = new Input(p2);
+					if(sample2bam.containsKey(input.sampleName)) {
+						LOG.error("sample "+input.sampleName+" specified twice.");
+						input.close();
+						return -1;
+						}
+					if(!header0.getSampleNameToOffset().containsKey(input.sampleName)) {
+						LOG.error("sample "+input.sampleName+" is not present in vcf.");
+						input.close();
+						continue;
+					}
+					sample2bam.put(input.sampleName, input);
 				}
+			}
+			if(sample2bam.isEmpty()) {
+				LOG.error("no bam was defined");
+				return -1;
+			}
+			
+			final SAMSequenceDictionary dict/* may be null*/ = header0.getSequenceDictionary();
+			
 			final Set<VCFHeaderLine> metadata = new HashSet<>();
 			
 			final VCFFormatHeaderLine leftMedianDepth = 
@@ -226,11 +256,24 @@ public class ValidateCnv extends Launcher
 			final VCFFormatHeaderLine rightMedianDepth = 
 					new VCFFormatHeaderLine("RDP",1,VCFHeaderLineType.Integer,"Right median depth or -1");
 			metadata.add(rightMedianDepth);
+			final VCFFormatHeaderLine midMedianDepth = 
+					new VCFFormatHeaderLine("MDP",1,VCFHeaderLineType.Integer,"Middle median depth or -1");
+			metadata.add(midMedianDepth);
+			final VCFFormatHeaderLine leftVarianceDepth = 
+					new VCFFormatHeaderLine("LVA",1,VCFHeaderLineType.Integer,"Left variance depth or -1");
+			metadata.add(leftVarianceDepth);
+			final VCFFormatHeaderLine rightVarianceDepth = 
+					new VCFFormatHeaderLine("RVA",1,VCFHeaderLineType.Integer,"Right variance depth or -1");
+			metadata.add(rightVarianceDepth);
+			final VCFFormatHeaderLine midVarianceDepth = 
+					new VCFFormatHeaderLine("MVA",1,VCFHeaderLineType.Integer,"Middle variance depth or -1");
+			metadata.add(midVarianceDepth);
 			
 			
 			VCFStandardHeaderLines.addStandardFormatLines(metadata, true,
 					VCFConstants.DEPTH_KEY,
-					VCFConstants.GENOTYPE_KEY
+					VCFConstants.GENOTYPE_KEY,
+					VCFConstants.GENOTYPE_FILTER_KEY
 					);
 			VCFStandardHeaderLines.addStandardInfoLines(metadata, true,
 					VCFConstants.DEPTH_KEY,
@@ -238,124 +281,182 @@ public class ValidateCnv extends Launcher
 					);
 
 			
-			final VCFHeader header = new VCFHeader(metadata,
-					inputs.stream().map(S->S.sampleName).collect(Collectors.toList())
-					);
+			final VCFHeader header = new VCFHeader(header0);
+			JVarkitVersion.getInstance().addMetaData(this, header);
+			metadata.stream().forEach(M->header.addMetaDataLine(M));
+			final boolean lumpyInput= 	LumpyConstants.isLumpyHeader(header);
 			
-			
-			out =  super.openVariantContextWriter(this.outputFile);
+			out =  VCFUtils.createVariantContextWriterToPath(this.outputFile);
 			out.writeHeader(header);
-			final Allele refAllele = Allele.create("N", true);
-			final Allele delAllele = Allele.create("<DEL>", false);
-			final Allele dupAllele = Allele.create("<DUP>", false);
-			String line;
 			
-			while((line=bedIn.readLine())!=null)
+			while(iterIn.hasNext())
 				{
-				final BedLine bedLine = bedCodec.decode(line);
-				if(bedLine==null) continue;
-				final int length = bedLine.getEnd()-bedLine.getStart();
-				final int extend = 1+(int)(length/this.extendFactor);
+				final VariantContext ctx = iterIn.next();
+				final StructuralVariantType svType = ctx.getStructuralVariantType();
+				if(!(svType==StructuralVariantType.DEL || svType==StructuralVariantType.INS) ) {
+					continue;
+				}
+				final int svLen;
+				if(ctx.hasAttribute("SVLEN")) {
+					svLen = Math.abs(ctx.getAttributeAsInt("SVLEN", -1));
+				} else {
+					svLen = ctx.getLengthOnReference();
+				}
+				if(svLen< this.min_abs_sv_size) continue;
+				if(svLen> this.max_abs_sv_size) continue;
 				
+				final int extend = 1+(int)(svLen/this.extendFactor);
 				
+				final int leftPos =  Math.max(1, ctx.getStart()-extend);
+				final int array_mid_start = ctx.getStart()-leftPos;
+				final int array_mid_end = ctx.getEnd()-leftPos;
+				int rightPos =  ctx.getEnd()+extend;
 				
-				
-				
-				final List<Genotype> genotypes = new ArrayList<>(inputs.size());
-				for(final Input input:inputs)
-					{
-					OptionalDouble mid = input.medianCov(bedLine);
-					final OptionalDouble left = input.medianCov(new Interval(
-							bedLine.getContig(),
-							Math.max(0, bedLine.getStart()-extend),
-							Math.max(0, bedLine.getStart()-1)
-							));
-					final OptionalDouble right = input.medianCov(new Interval(
-							bedLine.getContig(),
-							bedLine.getEnd()+1,
-							bedLine.getEnd()+extend
-							));
-					
-					
-					final Genotype gt;
-					
-					if(mid.isPresent())
-						{
-						final double midV = mid.getAsDouble();
-						final GenotypeBuilder gb = new GenotypeBuilder(input.sampleName);
-						gb.DP((int)midV);
-						gb.attribute(leftMedianDepth.getID(),left.isPresent()?(int)left.getAsDouble():-1);
-						gb.attribute(rightMedianDepth.getID(),left.isPresent()?(int)right.getAsDouble():-1);
-						
-						if(left.isPresent() &&  right.isPresent())
-							{
-							double leftV = left.getAsDouble();
-							double rightV = right.getAsDouble();
-							if(leftV < this.min_depth || rightV<this.min_depth)
-								{
-								gt = GenotypeBuilder.createMissing(input.sampleName, 2);
-								}
-							else if(midV <= leftV*this.deletion_treshold &&
-									midV <= rightV*this.deletion_treshold )
-								{
-								System.err.println(leftV+" / "+midV+" / "+rightV);
-								gb.alleles(Arrays.asList(refAllele,delAllele));
-								gt = gb.make();
-								}
-							else if(midV >= leftV*this.duplication_treshold &&
-									midV>= rightV*this.duplication_treshold &&
-									midV >= this.min_depth
-									)
-								{
-								gb.alleles(Arrays.asList(refAllele,dupAllele));
-								gt = gb.make();
-								}
-							else
-								{
-								gb.alleles(Arrays.asList(refAllele,refAllele));
-								gt = gb.make();
-								}
-							}
-						else
-							{
-							gt = GenotypeBuilder.createMissing(input.sampleName, 2);
-							}
-						
+				if(dict!=null) {
+					final SAMSequenceRecord ssr = dict.getSequence(ctx.getContig());
+					if(ssr!=null) {
+						rightPos = Math.min(rightPos, ssr.getSequenceLength());
 						}
-					else
-						{
-						gt = GenotypeBuilder.createMissing(input.sampleName, 2);
-						}
-					
-					genotypes.add(gt);
 					}
 				
-				final Set<Allele> alleles = new HashSet<>();
-				alleles.add(refAllele);
-				alleles.addAll(genotypes.stream().flatMap(G->G.getAlleles().stream()).filter(A->!A.isNoCall()).collect(Collectors.toSet()));
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
-				final VariantContextBuilder vcb = new VariantContextBuilder(
-						this.bedFile.getPath(),
-						bedLine.getContig(),
-						bedLine.getStart(),
-						bedLine.getEnd(),
-						alleles
-						);
-				if(!StringUtil.isBlank(bedLine.get(3)))
+			    boolean found_passing_gt =false;
+				
+				final List<Genotype> genotypes = new ArrayList<>(ctx.getNSamples());
+				for(final Genotype gt : ctx.getGenotypes())
 					{
-					vcb.id(bedLine.get(3));
+					boolean gt_has_sv = true;
+					if(lumpyInput && gt.getAttributeAsInt("SU", 0)==0) {
+						gt_has_sv=false;
+						}
+					else if(!lumpyInput && (gt.isHomRef() || gt.isNoCall())) {
+						genotypes.add(gt);
+						gt_has_sv=false;
+						}
+					
+					if(!gt_has_sv && this.ignore_no_call) {
+						genotypes.add(gt);
+						continue;
+						}
+					
+					final Input input = sample2bam.get(gt.getSampleName());
+					if(input==null) {
+						genotypes.add(gt);
+						continue;
+						}
+					final String ctg2 =  input.ctgNameConverter.apply(ctx.getContig());
+					if(StringUtils.isBlank(ctg2)) {
+						genotypes.add(gt);
+						continue;
+						}
+					
+					final double coverage[] = new double[rightPos-leftPos+1];
+					Arrays.fill(coverage, 0.0);
+					
+					try(CloseableIterator<SAMRecord> iter2 = input.samReader.queryOverlapping(ctg2, leftPos, rightPos)) {
+						while(iter2.hasNext()) {
+							final SAMRecord rec = iter2.next();
+							if(rec.getReadUnmappedFlag()) continue;
+							if(rec.getReadUnmappedFlag()) continue;
+							if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+							if(rec.getDuplicateReadFlag()) continue;
+							if(rec.isSecondaryOrSupplementary()) continue;
+							final Cigar cigar = rec.getCigar();
+							if(cigar==null || cigar.isEmpty()) continue;
+							int ref=rec.getStart();
+							for(final CigarElement ce:cigar) {
+								final CigarOperator op = ce.getOperator();
+								if(op.consumesReferenceBases())
+									{
+									if(op.consumesReadBases()) {
+										for(int x=0;x < ce.getLength() && ref+x < coverage.length ;++x)
+											{
+											final int p = ref+x - leftPos;
+											if(p<0 || p>=coverage.length) continue;
+											coverage[p]++;
+											}
+										}
+									ref+=ce.getLength();
+									}
+								}
+							}// end while iter record
+						}//end try
+					
+					final Coverage covL = new Coverage(coverage,0, array_mid_start);
+					final Coverage covM = new Coverage(coverage,array_mid_start, array_mid_end);
+					final Coverage covR = new Coverage(coverage,array_mid_end, coverage.length);
+					
+					LOG.debug(covL);
+					LOG.debug(covM);
+					LOG.debug(covR);
+					
+					final GenotypeBuilder gb = new GenotypeBuilder(gt);
+					
+					gb.attribute(leftMedianDepth.getID(),covL.median.isPresent()? covL.median.getAsDouble():-1);
+					gb.attribute(midMedianDepth.getID(),covM.median.isPresent()? covM.median.getAsDouble():-1);
+					gb.attribute(rightMedianDepth.getID(),covR.median.isPresent()? covR.median.getAsDouble():-1);
+					gb.attribute(leftVarianceDepth.getID(),covL.variance.isPresent()? covL.variance.getAsDouble():-1);
+					gb.attribute(midVarianceDepth.getID(),covM.variance.isPresent()? covM.variance.getAsDouble():-1);
+					gb.attribute(rightVarianceDepth.getID(),covR.variance.isPresent()? covR.variance.getAsDouble():-1);
+					
+					// high variance left
+					if(isHightVariance(covL.variance)) {
+						gb.filter("HIGHVARL");
+						genotypes.add(gb.make());
+						continue;
+						}
+					// high variance left
+					if(isHightVariance(covR.variance)) {
+						gb.filter("HIGHVARR");
+						genotypes.add(gb.make());
+						continue;
+						}
+
+					if(
+						(covL.median.isPresent() && covL.median.getAsDouble() < this.min_depth) ||
+					    (covR.median.isPresent() && covR.median.getAsDouble() < this.min_depth)
+						) {
+						gb.filter("LOWDP");
+						genotypes.add(gb.make());
+						continue;
+						}
+					// big difference of depth left/right
+					if(!isSameMedianDepth(covL.median, covR.median)) {
+						gb.filter("DIFFLR");
+						genotypes.add(gb.make());
+						continue;
+						}
+					// no difference between mid and left
+					if(gt_has_sv && isSameMedianDepth(covL.median, covM.median))
+						{
+						gb.filter("DIFFLM");
+						genotypes.add(gb.make());
+						continue;
+						}
+					// no difference between mid and right
+					if(gt_has_sv && isSameMedianDepth(covM.median, covR.median))
+						{
+						gb.filter("DIFFMR");
+						genotypes.add(gb.make());
+						continue;
+						}
+					
+					if(gt_has_sv) found_passing_gt = true;
+					genotypes.add(gb.make());
 					}
-				vcb.attribute(VCFConstants.END_KEY, bedLine.getEnd());
+				
+				if(!found_passing_gt && this.discard_all_filtered_variant) {
+					continue;
+					}
+				
 				vcb.genotypes(genotypes);
 				
 				out.add(vcb.make());
 				}
 			
-			bedIn.close();
 			out.close();
-			CloserUtil.close(inputs);
-
-			
+			iterIn.close();
 			return 0;
 			}
 		catch(final Exception err)
@@ -365,14 +466,13 @@ public class ValidateCnv extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(bedIn);
+			CloserUtil.close(iterIn);
 			CloserUtil.close(inputs);
 			CloserUtil.close(out);
+			sample2bam.values().forEach(F->F.close());
 			}
 		}
 	
-	
-
 	
 	public static void main(final String[] args) {
 		new ValidateCnv().instanceMainWithExit(args);

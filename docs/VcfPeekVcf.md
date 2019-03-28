@@ -16,7 +16,9 @@ Usage: vcfpeekvcf [options] Files
       Possible Values: [none, all, at_least_one]
     -b, --buffer-size
       buffer size (in bp). We don't do a random access for each variant. 
-      Instead of this, load all the variant in a defined window.
+      Instead of this, load all the variants in a defined window. A distance 
+      specified as a positive integer.Comma are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 100000
     -h, --help
       print help and exit
@@ -27,9 +29,6 @@ Usage: vcfpeekvcf [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    --outputbcf
-      Output bcf (for streams)
-      Default: false
     -p, --prefix
       prefix all database tags with this prefix to avoid collisions
       Default: <empty string>
@@ -45,12 +44,6 @@ Usage: vcfpeekvcf [options] Files
     -t, --tags
       tag1,tag2,tag... the INFO keys to peek from the indexed file
       Default: []
-    --vcfcreateindex
-      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
-      Default: false
-    --vcfmd5
-      VCF, create MD5 checksum when writing a VCF/BCF to a file.
-      Default: false
     --version
       print version and exit
 

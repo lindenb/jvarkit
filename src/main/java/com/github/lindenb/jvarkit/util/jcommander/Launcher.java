@@ -132,7 +132,7 @@ private List<String> files = new ArrayList<>();
 
 private String programName="";
 
-public class CompressionArgs
+public static class CompressionArgs
 	{
 	@Parameter(names={"--compression"},description="Compression Level.",converter=CompressionConverter.class)
 	public IntSupplier compressionLevel=CompressionConverter.getDefault();

@@ -139,7 +139,7 @@ public class VcfPeekVcf extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variant in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
+	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variants in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
 	private int buffer_size = 100_000;
 
 	private final Set<String> peek_info_tags=new HashSet<String>();
@@ -421,7 +421,7 @@ public class VcfPeekVcf extends Launcher
 			
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -452,7 +452,7 @@ public class VcfPeekVcf extends Launcher
 
 			return doVcfToVcf(args, this.outputFile);
 			} 
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

@@ -59,6 +59,8 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
@@ -528,19 +530,29 @@ public class IOUtils {
 			}
 		}
     public static final String UNROLL_FILE_MESSAGE="if filename ends with '.list' it is interpreted as a list of file (one file per line)";
-	/** unrol one file if needed, If file is null, returns empty list*/
+	
+    /** unroll one file if it ends with '.list' , else its a singleton of file. If file is null, returns empty list*/
     public static List<File> unrollFile(final File file)
+		{
+		return unrollPath(file==null?null:file.toPath()).
+				stream().
+				map(F->F.toFile()).
+				collect(Collectors.toList())
+				;
+		}
+    /** unroll one file if it ends with '.list' , else its a singleton of file. If file is null, returns empty list*/
+    public static List<Path> unrollPath(final Path file)
 		{
 		if(file==null) return Collections.emptyList();
 		IOUtil.assertFileIsReadable(file);
-		if(!file.getName().endsWith(".list")) return Collections.singletonList(file);
+		if(!file.getFileName().toString().endsWith(".list")) return Collections.singletonList(file);
 		try {
-			return Files.readAllLines(file.toPath()).stream().
-				filter(L->!(L.isEmpty() || L.startsWith("#"))).
-				map(L->new File(L)).
+			return Files.readAllLines(file).stream().
+				filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
+				map(L->Paths.get(L)).
 				collect(Collectors.toList());
 			} 
-		catch (IOException e) {
+		catch (final IOException e) {
 			throw new RuntimeIOException(e);
 			}
 		}
