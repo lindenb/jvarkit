@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 
-import org.apache.commons.math3.stat.descriptive.moment.Variance;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
 import com.beust.jcommander.Parameter;
@@ -50,6 +49,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.Cigar;
@@ -59,6 +59,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -121,9 +122,10 @@ public class ValidateCnv extends Launcher
 	private double max_variance = 20.0;
 	@Parameter(names={"--median-adjust"},description="TODO.")
 	private double median_factor = 10.0;
+	@Parameter(names={"--min-read-support-del"},description="min number of read supporting deletion.")
+	private int min_read_supporting_del=3;
 	
 	private final Median medianCalc =new Median();
-	private final Variance varianceCalc =new Variance();
 
 	
 	private class Coverage
@@ -136,8 +138,13 @@ public class ValidateCnv extends Launcher
 			if(len>0) {
 				double m = medianCalc.evaluate(array, array_start, len);
 				median = OptionalDouble.of(m);
-				double v = Math.abs(varianceCalc.evaluate(array, array_start, len));
-				variance = OptionalDouble.of(v);
+				double v = 0;
+				int n=0;
+				for(int i=array_start;i< array_end;i++) {
+					v+=Math.abs(array[i]-m);
+					n++;
+					}
+				variance = OptionalDouble.of(v/n);
 				}
 			else
 				{
@@ -268,7 +275,9 @@ public class ValidateCnv extends Launcher
 			final VCFFormatHeaderLine midVarianceDepth = 
 					new VCFFormatHeaderLine("MVA",1,VCFHeaderLineType.Integer,"Middle variance depth or -1");
 			metadata.add(midVarianceDepth);
-			
+			final VCFFormatHeaderLine nReadsSupportingDel = 
+					new VCFFormatHeaderLine("RSD",1,VCFHeaderLineType.Integer,"Read supporting deletion");
+			metadata.add(nReadsSupportingDel);
 			
 			VCFStandardHeaderLines.addStandardFormatLines(metadata, true,
 					VCFConstants.DEPTH_KEY,
@@ -286,6 +295,7 @@ public class ValidateCnv extends Launcher
 			metadata.stream().forEach(M->header.addMetaDataLine(M));
 			final boolean lumpyInput= 	LumpyConstants.isLumpyHeader(header);
 			
+			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header0).logger(LOG).build();
 			out =  VCFUtils.createVariantContextWriterToPath(this.outputFile);
 			out.writeHeader(header);
 			
@@ -353,7 +363,7 @@ public class ValidateCnv extends Launcher
 					
 					final double coverage[] = new double[rightPos-leftPos+1];
 					Arrays.fill(coverage, 0.0);
-					
+					int n_reads_supporting_deletions = 0;
 					try(CloseableIterator<SAMRecord> iter2 = input.samReader.queryOverlapping(ctg2, leftPos, rightPos)) {
 						while(iter2.hasNext()) {
 							final SAMRecord rec = iter2.next();
@@ -364,13 +374,38 @@ public class ValidateCnv extends Launcher
 							if(rec.isSecondaryOrSupplementary()) continue;
 							final Cigar cigar = rec.getCigar();
 							if(cigar==null || cigar.isEmpty()) continue;
+							
+							// any read supporting deletion ?
+							if(svType==StructuralVariantType.DEL &&
+								rec.getReadPairedFlag() && 
+								!rec.getProperPairFlag() &&
+								rec.getReadLength() < svLen
+								)
+								{
+								final List<SAMRecord> suppl = SAMUtils.getOtherCanonicalAlignments(rec);
+								if(rec.getStart() <= ctx.getStart() && 
+										suppl.stream().
+											filter(R->R.getContig().equals(ctg2)).
+											anyMatch(R->R.getEnd()>=ctx.getEnd())
+										) {
+										n_reads_supporting_deletions++; 
+										}
+								else if(rec.getEnd() >= ctx.getEnd() &&
+										suppl.stream().
+										filter(R->R.getContig().equals(ctg2)).
+										anyMatch(R->R.getStart()<=ctx.getStart())
+										) {
+										n_reads_supporting_deletions++; 
+										}
+								}
+							
 							int ref=rec.getStart();
 							for(final CigarElement ce:cigar) {
 								final CigarOperator op = ce.getOperator();
 								if(op.consumesReferenceBases())
 									{
 									if(op.consumesReadBases()) {
-										for(int x=0;x < ce.getLength() && ref+x < coverage.length ;++x)
+										for(int x=0;x < ce.getLength() && ref+x - leftPos < coverage.length ;++x)
 											{
 											final int p = ref+x - leftPos;
 											if(p<0 || p>=coverage.length) continue;
@@ -386,63 +421,75 @@ public class ValidateCnv extends Launcher
 					final Coverage covL = new Coverage(coverage,0, array_mid_start);
 					final Coverage covM = new Coverage(coverage,array_mid_start, array_mid_end);
 					final Coverage covR = new Coverage(coverage,array_mid_end, coverage.length);
-					
-					LOG.debug(covL);
-					LOG.debug(covM);
-					LOG.debug(covR);
-					
+										
 					final GenotypeBuilder gb = new GenotypeBuilder(gt);
+					gb.attribute(nReadsSupportingDel.getDescription(), n_reads_supporting_deletions);
 					
-					gb.attribute(leftMedianDepth.getID(),covL.median.isPresent()? covL.median.getAsDouble():-1);
-					gb.attribute(midMedianDepth.getID(),covM.median.isPresent()? covM.median.getAsDouble():-1);
-					gb.attribute(rightMedianDepth.getID(),covR.median.isPresent()? covR.median.getAsDouble():-1);
-					gb.attribute(leftVarianceDepth.getID(),covL.variance.isPresent()? covL.variance.getAsDouble():-1);
-					gb.attribute(midVarianceDepth.getID(),covM.variance.isPresent()? covM.variance.getAsDouble():-1);
-					gb.attribute(rightVarianceDepth.getID(),covR.variance.isPresent()? covR.variance.getAsDouble():-1);
+					
+					
+					gb.attribute(leftMedianDepth.getID(),covL.median.isPresent()? (int)covL.median.getAsDouble():-1);
+					gb.attribute(midMedianDepth.getID(),covM.median.isPresent()? (int)covM.median.getAsDouble():-1);
+					gb.attribute(rightMedianDepth.getID(),covR.median.isPresent()? (int)covR.median.getAsDouble():-1);
+					gb.attribute(leftVarianceDepth.getID(),covL.variance.isPresent()? (int)covL.variance.getAsDouble():-1);
+					gb.attribute(midVarianceDepth.getID(),covM.variance.isPresent()? (int)covM.variance.getAsDouble():-1);
+					gb.attribute(rightVarianceDepth.getID(),covR.variance.isPresent()? (int)covR.variance.getAsDouble():-1);
+					
+					final Set<String> gtFilters = new HashSet<>();
+					
+					// there are some split read that could support the SV in non-called
+					if(!gt_has_sv && n_reads_supporting_deletions >= this.min_read_supporting_del ) {
+						gtFilters.add("SPLITREAD");
+						}
 					
 					// high variance left
 					if(isHightVariance(covL.variance)) {
-						gb.filter("HIGHVARL");
-						genotypes.add(gb.make());
-						continue;
+						gtFilters.add("HIGHVARL");
 						}
+					
 					// high variance left
 					if(isHightVariance(covR.variance)) {
-						gb.filter("HIGHVARR");
-						genotypes.add(gb.make());
-						continue;
+						gtFilters.add("HIGHVARR");
 						}
-
-					if(
-						(covL.median.isPresent() && covL.median.getAsDouble() < this.min_depth) ||
-					    (covR.median.isPresent() && covR.median.getAsDouble() < this.min_depth)
-						) {
-						gb.filter("LOWDP");
-						genotypes.add(gb.make());
-						continue;
+					//low dp left
+					if(covL.median.isPresent() && covL.median.getAsDouble() < this.min_depth) {
+						gtFilters.add("LOWDPL");
 						}
+					//low dp right
+					if(covR.median.isPresent() && covR.median.getAsDouble() < this.min_depth) {
+						gtFilters.add("LOWDPR");
+						}
+					
 					// big difference of depth left/right
 					if(!isSameMedianDepth(covL.median, covR.median)) {
-						gb.filter("DIFFLR");
-						genotypes.add(gb.make());
-						continue;
+						gtFilters.add("DIFFLR");
 						}
 					// no difference between mid and left
 					if(gt_has_sv && isSameMedianDepth(covL.median, covM.median))
 						{
-						gb.filter("DIFFLM");
-						genotypes.add(gb.make());
-						continue;
+						gtFilters.add("DIFFLM");
 						}
 					// no difference between mid and right
 					if(gt_has_sv && isSameMedianDepth(covM.median, covR.median))
 						{
-						gb.filter("DIFFMR");
-						genotypes.add(gb.make());
-						continue;
+						gtFilters.add("DIFFMR");
+						}
+					// gt is NOT called but there is a diff beween L and M
+					if(!gt_has_sv && !isSameMedianDepth(covL.median, covM.median)) {
+						gtFilters.add("NELM");
 						}
 					
-					if(gt_has_sv) found_passing_gt = true;
+					// gt is NOT called but there is a diff beween M and R
+					if(!gt_has_sv && !isSameMedianDepth(covM.median, covR.median)) {
+						gtFilters.add("NEMR");
+						}
+					
+					if(gtFilters.isEmpty()) {
+						if(gt_has_sv) found_passing_gt = true;
+						}
+					else
+						{
+						gb.filter(String.join("~",gtFilters));
+						}
 					genotypes.add(gb.make());
 					}
 				
@@ -450,11 +497,15 @@ public class ValidateCnv extends Launcher
 					continue;
 					}
 				
+				if(found_passing_gt && !ctx.isFiltered()) {
+					vcb.passFilters();
+				}
+				
 				vcb.genotypes(genotypes);
 				
 				out.add(vcb.make());
 				}
-			
+			progress.close();
 			out.close();
 			iterIn.close();
 			return 0;
