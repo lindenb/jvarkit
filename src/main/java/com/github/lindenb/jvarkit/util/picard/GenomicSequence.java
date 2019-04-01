@@ -33,6 +33,8 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
+import java.util.OptionalInt;
+
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
@@ -65,6 +67,14 @@ public class GenomicSequence
 		public double getGCPercent();
 		/** return GC% as int between 0 and 100 . return -1 if interval isEmpty */
 		public int getGCPercentAsInteger();
+		/** return GC% as optional */
+		public default OptionalInt getOptGCPercent() {
+			return isEmpty()?
+					OptionalInt.empty():
+					OptionalInt.of(getGCPercentAsInteger())
+					;
+			}
+
 		}
 	
 	private static class GCPercentImpl

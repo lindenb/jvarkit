@@ -36,12 +36,11 @@ import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 
-import org.apache.commons.math3.stat.descriptive.rank.Median;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -77,7 +76,9 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
@@ -88,6 +89,14 @@ BEGIN_DOC
 ## Motivation
 
 only SVTYPE=DEL or SVTYPE=INS are considered
+
+## Example
+
+```
+find DIR -type f -name "*.bam" > bam.list
+$ java -jar ${JVARKIT_HOME}/dist/validatecnv.jar \
+	-B bam.list --min-read-support-del 1 --median-adjust 0.5 --max-variance 15 --extend 0.33 20190320.MANTA.vcf 
+```
 
 END_DOC
 
@@ -110,22 +119,22 @@ public class ValidateCnv extends Launcher
 	private double extendFactor=0.1;	
 	@Parameter(names={"-md","--min-dp"},description="At least one of the bounds must have a median-depth greater than this value.")
 	private int min_depth = 20;
+	@Parameter(names={"-cd","--critical-dp"},description="The middle section shouldn't have any point with a DP lower than this value (prevent HOM_VAR deletions)")
+	private int critical_middle_depth = 1;
 	@Parameter(names={"--min"},description="Min abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_abs_sv_size = 50;
 	@Parameter(names={"--max"},description="Max abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_abs_sv_size = 1_000_000;
-	@Parameter(names={"--ignore-uncalled"},description="Ignore NO_CALL/HOM_REF genotypes")
-	private boolean ignore_no_call = false;
 	@Parameter(names={"--dicard"},description="Dicard variant where all Called Genotypes have been filtered.")
 	private boolean discard_all_filtered_variant = false;
 	@Parameter(names={"--max-variance"},description="Maximum tolerated variance in one genomic segment.")
-	private double max_variance = 20.0;
+	private double max_variance = 10.0;
 	@Parameter(names={"--median-adjust"},description="TODO.")
-	private double median_factor = 10.0;
+	private double median_factor = 0.33;
 	@Parameter(names={"--min-read-support-del"},description="min number of read supporting deletion.")
 	private int min_read_supporting_del=3;
 	
-	private final Median medianCalc =new Median();
+	private final Mean medianCalc =new Mean();
 
 	
 	private class Coverage
@@ -148,7 +157,6 @@ public class ValidateCnv extends Launcher
 				}
 			else
 				{
-				LOG.debug("len="+len+"??");
 				median = OptionalDouble.empty();
 				variance = OptionalDouble.empty();
 				}
@@ -189,13 +197,13 @@ public class ValidateCnv extends Launcher
 		}
 	
 
-	private boolean isSameMedianDepth(OptionalDouble dp1,OptionalDouble dp2) {
+	private boolean isSameMedianDepth(final OptionalDouble dp1,final OptionalDouble dp2) {
 		if(!dp1.isPresent()) return true;
 		if(!dp2.isPresent()) return true;
 		double v1=dp1.getAsDouble();
-		double v1a  = v1/this.median_factor;
+		double v1a  = v1*this.median_factor;
 		double v2=dp2.getAsDouble();
-		double v2a  = v2/this.median_factor;
+		double v2a  = v2*this.median_factor;
 		if(v2 < v1 - v1a) return false;
 		if(v2 > v1 + v1a) return false;
 		if(v1 < v2 - v2a) return false;
@@ -257,6 +265,12 @@ public class ValidateCnv extends Launcher
 			
 			final Set<VCFHeaderLine> metadata = new HashSet<>();
 			
+			final VCFInfoHeaderLine infoSVSamples = 
+					new VCFInfoHeaderLine("PASSING_SAMPLES",VCFHeaderLineCount.UNBOUNDED,
+							VCFHeaderLineType.String,
+							"Samples that could carry a SV");
+			metadata.add(infoSVSamples);
+			
 			final VCFFormatHeaderLine leftMedianDepth = 
 					new VCFFormatHeaderLine("LDP",1,VCFHeaderLineType.Integer,"Left median depth or -1");
 			metadata.add(leftMedianDepth);
@@ -293,7 +307,6 @@ public class ValidateCnv extends Launcher
 			final VCFHeader header = new VCFHeader(header0);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			metadata.stream().forEach(M->header.addMetaDataLine(M));
-			final boolean lumpyInput= 	LumpyConstants.isLumpyHeader(header);
 			
 			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header0).logger(LOG).build();
 			out =  VCFUtils.createVariantContextWriterToPath(this.outputFile);
@@ -315,7 +328,9 @@ public class ValidateCnv extends Launcher
 				if(svLen< this.min_abs_sv_size) continue;
 				if(svLen> this.max_abs_sv_size) continue;
 				
-				final int extend = 1+(int)(svLen/this.extendFactor);
+				final int extend = 1+(int)(svLen*this.extendFactor);
+				
+				
 				
 				final int leftPos =  Math.max(1, ctx.getStart()-extend);
 				final int array_mid_start = ctx.getStart()-leftPos;
@@ -329,34 +344,24 @@ public class ValidateCnv extends Launcher
 						}
 					}
 				
+				//System.err.println(""+leftPos+" "+ctx.getStart()+" "+ctx.getEnd()+" "+rightPos);
+				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
-			    boolean found_passing_gt =false;
+			    final Set<String> sv_samples = new HashSet<>(header.getSampleNamesInOrder());
 				
 				final List<Genotype> genotypes = new ArrayList<>(ctx.getNSamples());
 				for(final Genotype gt : ctx.getGenotypes())
-					{
-					boolean gt_has_sv = true;
-					if(lumpyInput && gt.getAttributeAsInt("SU", 0)==0) {
-						gt_has_sv=false;
-						}
-					else if(!lumpyInput && (gt.isHomRef() || gt.isNoCall())) {
-						genotypes.add(gt);
-						gt_has_sv=false;
-						}
-					
-					if(!gt_has_sv && this.ignore_no_call) {
-						genotypes.add(gt);
-						continue;
-						}
-					
+					{					
 					final Input input = sample2bam.get(gt.getSampleName());
 					if(input==null) {
+						sv_samples.remove(gt.getSampleName());
 						genotypes.add(gt);
 						continue;
 						}
 					final String ctg2 =  input.ctgNameConverter.apply(ctx.getContig());
 					if(StringUtils.isBlank(ctg2)) {
+						sv_samples.remove(gt.getSampleName());
 						genotypes.add(gt);
 						continue;
 						}
@@ -364,7 +369,11 @@ public class ValidateCnv extends Launcher
 					final double coverage[] = new double[rightPos-leftPos+1];
 					Arrays.fill(coverage, 0.0);
 					int n_reads_supporting_deletions = 0;
-					try(CloseableIterator<SAMRecord> iter2 = input.samReader.queryOverlapping(ctg2, leftPos, rightPos)) {
+					try(CloseableIterator<SAMRecord> iter2 = input.samReader.queryOverlapping(
+							ctg2,
+							leftPos,
+							rightPos
+							)) {
 						while(iter2.hasNext()) {
 							final SAMRecord rec = iter2.next();
 							if(rec.getReadUnmappedFlag()) continue;
@@ -405,9 +414,9 @@ public class ValidateCnv extends Launcher
 								if(op.consumesReferenceBases())
 									{
 									if(op.consumesReadBases()) {
-										for(int x=0;x < ce.getLength() && ref+x - leftPos < coverage.length ;++x)
+										for(int x=0;x < ce.getLength() && ref + x - leftPos < coverage.length ;++x)
 											{
-											final int p = ref+x - leftPos;
+											final int p = ref + x - leftPos;
 											if(p<0 || p>=coverage.length) continue;
 											coverage[p]++;
 											}
@@ -423,7 +432,7 @@ public class ValidateCnv extends Launcher
 					final Coverage covR = new Coverage(coverage,array_mid_end, coverage.length);
 										
 					final GenotypeBuilder gb = new GenotypeBuilder(gt);
-					gb.attribute(nReadsSupportingDel.getDescription(), n_reads_supporting_deletions);
+					gb.attribute(nReadsSupportingDel.getID(), n_reads_supporting_deletions);
 					
 					
 					
@@ -436,8 +445,18 @@ public class ValidateCnv extends Launcher
 					
 					final Set<String> gtFilters = new HashSet<>();
 					
+					//prevent HOM_VAR
+					for(int j=array_mid_start;j< array_mid_end;j++)
+						{
+						if(coverage[j]<this.critical_middle_depth)
+							{
+							gtFilters.add("HOMVAR");
+							break;
+							}
+						}
 					// there are some split read that could support the SV in non-called
-					if(!gt_has_sv && n_reads_supporting_deletions >= this.min_read_supporting_del ) {
+					if(svType==StructuralVariantType.DEL &&
+						n_reads_supporting_deletions < this.min_read_supporting_del ) {
 						gtFilters.add("SPLITREAD");
 						}
 					
@@ -464,41 +483,39 @@ public class ValidateCnv extends Launcher
 						gtFilters.add("DIFFLR");
 						}
 					// no difference between mid and left
-					if(gt_has_sv && isSameMedianDepth(covL.median, covM.median))
+					if(isSameMedianDepth(covL.median, covM.median))
 						{
 						gtFilters.add("DIFFLM");
 						}
 					// no difference between mid and right
-					if(gt_has_sv && isSameMedianDepth(covM.median, covR.median))
+					if(isSameMedianDepth(covM.median, covR.median))
 						{
 						gtFilters.add("DIFFMR");
 						}
-					// gt is NOT called but there is a diff beween L and M
-					if(!gt_has_sv && !isSameMedianDepth(covL.median, covM.median)) {
+					// no diff beween L and M
+					if(isSameMedianDepth(covL.median, covM.median)) {
 						gtFilters.add("NELM");
 						}
 					
-					// gt is NOT called but there is a diff beween M and R
-					if(!gt_has_sv && !isSameMedianDepth(covM.median, covR.median)) {
+					// no diff beween M and R
+					if(isSameMedianDepth(covM.median, covR.median)) {
 						gtFilters.add("NEMR");
 						}
 					
-					if(gtFilters.isEmpty()) {
-						if(gt_has_sv) found_passing_gt = true;
-						}
-					else
-						{
+					if(!gtFilters.isEmpty()) {
+						sv_samples.remove(gt.getSampleName());
 						gb.filter(String.join("~",gtFilters));
 						}
 					genotypes.add(gb.make());
 					}
 				
-				if(!found_passing_gt && this.discard_all_filtered_variant) {
+				if(sv_samples.isEmpty() && this.discard_all_filtered_variant) {
 					continue;
 					}
 				
-				if(found_passing_gt && !ctx.isFiltered()) {
-					vcb.passFilters();
+				if(!sv_samples.isEmpty() ) {
+					vcb.attribute(infoSVSamples.getID(),new ArrayList<>(sv_samples));
+					if(!ctx.isFiltered()) vcb.passFilters();
 				}
 				
 				vcb.genotypes(genotypes);
@@ -510,7 +527,7 @@ public class ValidateCnv extends Launcher
 			iterIn.close();
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

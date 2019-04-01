@@ -25,8 +25,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.bamstats04;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -40,15 +41,16 @@ import java.util.function.IntUnaryOperator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
@@ -64,7 +66,9 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 
 /**
 BEGIN_DOC
@@ -98,22 +102,23 @@ END_DOC
 @Program(name="bamstats04",
 	description="Coverage statistics for a BED file.",
 	keywords={"sam","bam","coverage","depth","statistics","bed"},
-	biostars= {309673,348251}
+	biostars= {309673,348251},
+	modificationDate="20190329"
 	)
 public class BamStats04 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BamStats04.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-cov","--cov"},description="add this min coverage value to ask wether the position is not covered. Use with care: any depth below this treshold will be trimmed to zero.")
 	private List<Integer> minCoverages = new ArrayList<>() ;
 	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
-	private File bedFile = null;
-	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added." + ReferenceGenomeFactory.OPT_DESCRIPTION)
-	private String faidxUri = null;
+	private Path bedFile = null;
+	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added.")
+	private Path faidxUri = null;
 	@Parameter(names={"-partition","--partition"},description="[20171120]"+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
 	
@@ -155,11 +160,12 @@ public class BamStats04 extends Launcher
 	
 	@Override
 		public int doWork(final List<String> args) {
-			if(this.bedFile==null || !this.bedFile.exists()) {
+			if(this.bedFile==null || !Files.exists(this.bedFile)) {
 				LOG.error("undefined option -B (bed file)");
 				return -1;
 			}
-			if(args.isEmpty())  {
+			final List<Path> bamPaths = IOUtils.unrollPaths(args);
+			if(bamPaths.isEmpty())  {
 				LOG.error("Bam files missing");
 				return -1;
 				}
@@ -173,18 +179,20 @@ public class BamStats04 extends Launcher
 			BufferedReader bedIn=null;
 			final List<SamReader> samReaders = new ArrayList<>(args.size());
 			PrintWriter pw = null;
-			ReferenceGenome referenceGenome = null;
-			ReferenceContig referenceContig = null;
+			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+			GenomicSequence genomicSequence = null;
+			SAMSequenceDictionary fastaDict = null;
 			try
 				{
 				final BedLineCodec codec= new BedLineCodec();
 				final Set<String> all_partitions = new TreeSet<>();
-				bedIn=IOUtils.openFileForBufferedReading(this.bedFile);
-				SAMSequenceDictionary dict = null;
+				bedIn=IOUtils.openPathForBufferedReading(this.bedFile);
+				SAMSequenceDictionary samDict = null;
 				
-				for(final String filename: IOUtils.unrollFiles(args)) {
-					LOG.info(filename);
-					final SamReader samReader = super.openSamReader(filename);
+				final SamReaderFactory srf = super.createSamReaderFactory();
+				if(this.faidxUri!=null) srf.referenceSequence(faidxUri);
+				for(final Path filename:bamPaths) {
+					final SamReader samReader = srf.open(filename);
 					if(!samReader.hasIndex()) {
 						LOG.error(filename+" is not indexed");
 						samReader.close();
@@ -211,20 +219,16 @@ public class BamStats04 extends Launcher
 							all_partitions.add(this.partition.apply(rg,NO_PARTITION));
 							}
 						}
-					final SAMSequenceDictionary d = samFileheader.getSequenceDictionary();
-					if(d==null) {
-						samReader.close();
-						LOG.error(JvarkitException.BamDictionaryMissing.getMessage(filename));
-						return -1;
-						}
+					final SAMSequenceDictionary d = SequenceDictionaryUtils.extractRequired(samFileheader);
+					
 					
 					samReaders.add(samReader);
 						
-					if(dict==null) {
-						dict=d;
+					if(samDict==null) {
+						samDict=d;
 						}
-					else if(!SequenceUtil.areSequenceDictionariesEqual(d, dict)) {
-						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(d, dict));
+					else if(!SequenceUtil.areSequenceDictionariesEqual(d, samDict)) {
+						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(d, samDict));
 						return -1;
 						}
 					}
@@ -233,16 +237,21 @@ public class BamStats04 extends Launcher
 					LOG.error("No Bam defined");
 					return -1;
 				}
+				final ContigNameConverter samCtgConverter = ContigNameConverter.fromOneDictionary(samDict);
 				
-				
-				if(!StringUtil.isBlank(this.faidxUri)) {
-					referenceGenome = new ReferenceGenomeFactory().open(this.faidxUri);
-				}
-				pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+				if(this.faidxUri!=null) {
+					indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxUri);
+					fastaDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
+					if(!SequenceUtil.areSequenceDictionariesEqual(fastaDict, samDict)) {
+						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(fastaDict, samDict));
+						return -1;
+						}
+					}
+				pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 				pw.print(
 					"#chrom\tstart\tend\tlength\t"+
 					this.partition.name()+
-					(referenceGenome==null?"":"\tgc_percent")
+					(indexedFastaSequenceFile==null?"":"\tgc_percent")
 					);
 				
 				pw.print("\tmincov\tmaxcov");
@@ -265,7 +274,8 @@ public class BamStats04 extends Launcher
 					if(line.isEmpty() || line.startsWith("#")) continue;
 					final BedLine bedLine = codec.decode(line);
 					if(bedLine==null) continue;
-					if(dict.getSequence(bedLine.getContig())==null)
+					final String ctg2 = samCtgConverter.apply(bedLine.getContig());
+					if(StringUtils.isBlank(ctg2))
 						{
 						LOG.error("Unknown contig in "+line);
 						return -1;
@@ -276,8 +286,14 @@ public class BamStats04 extends Launcher
 						LOG.info("ignoring "+bedLine);
 						continue;
 						}
-					if(referenceGenome!=null && (referenceContig==null || !referenceContig.hasName(bedLine.getContig()))) {
-						referenceContig = referenceGenome.getContig(bedLine.getContig());
+					if(indexedFastaSequenceFile!=null && (genomicSequence==null || !genomicSequence.getChrom().equals(ctg2))) {
+						if(fastaDict.getSequence(ctg2)!=null) {
+							genomicSequence = new GenomicSequence(indexedFastaSequenceFile,bedLine.getContig());
+							}
+						else
+							{
+							genomicSequence = null;
+							}
 						}
 					
 					final Map<String, IntervalStat> sample2stats= new HashMap<>(all_partitions.size());
@@ -292,7 +308,7 @@ public class BamStats04 extends Launcher
 			    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
 						 */
 						final SAMRecordIterator r=samReader.queryOverlapping(
-								bedLine.getContig(),
+								ctg2,
 								bedLine.getStart(),
 								bedLine.getEnd()
 								);
@@ -301,7 +317,7 @@ public class BamStats04 extends Launcher
 							final SAMRecord rec=r.next();
 							if(rec.getReadUnmappedFlag()) continue;
 							if(this.filter.filterOut(rec)) continue;
-							if(!rec.getReferenceName().equals(bedLine.getContig())) continue;
+							if(!rec.getReferenceName().equals(ctg2)) continue;
 							
 							
 							final String partition;
@@ -328,9 +344,9 @@ public class BamStats04 extends Launcher
 						r.close();
 						} // end of loop over sam Readers
 					
-					final OptionalInt gcPercentInt = (referenceContig==null?
+					final OptionalInt gcPercentInt = (genomicSequence==null?
 						OptionalInt.empty():
-						referenceContig.getGCPercent(bedLine.getStart()-1,bedLine.getEnd()).getGCPercentAsInteger()
+						genomicSequence.getGCPercent(bedLine.getStart()-1,bedLine.getEnd()).getOptGCPercent()
 						);
 					
 					
@@ -339,16 +355,15 @@ public class BamStats04 extends Launcher
 						Arrays.sort(stat.counts);
 						
 						pw.print(
-								bedLine.getContig()+"\t"+
+								ctg2+"\t"+
 								(bedLine.getStart()-1)+"\t"+
 								(bedLine.getEnd())+"\t"+
 								stat.counts.length+"\t"+
 								partitionName
 								);
-						if(referenceGenome!=null) {
+						if(indexedFastaSequenceFile!=null) {
 							pw.print("\t");
 							if(gcPercentInt.isPresent()) pw.print(gcPercentInt.getAsInt());
-							
 							}
 						pw.print(
 							"\t"+
@@ -388,7 +403,6 @@ public class BamStats04 extends Launcher
 					}
 				pw.flush();
 				pw.close();pw=null;
-				LOG.info("done");
 				return RETURN_OK;
 				}
 		catch(final Exception err)
@@ -398,7 +412,7 @@ public class BamStats04 extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(referenceGenome);
+			CloserUtil.close(indexedFastaSequenceFile);
 			CloserUtil.close(pw);
 			CloserUtil.close(bedIn);
 			CloserUtil.close(samReaders);

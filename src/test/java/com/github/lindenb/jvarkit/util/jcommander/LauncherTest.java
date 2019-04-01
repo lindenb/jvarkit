@@ -7,12 +7,21 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.util.CounterTest;
 import com.github.lindenb.jvarkit.util.bio.IntervalParserTest;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIteratorTest;
+import com.github.lindenb.jvarkit.util.iterator.FilterIteratorTest;
+import com.github.lindenb.jvarkit.util.iterator.LineIteratorTest;
+import com.github.lindenb.jvarkit.util.iterator.MergingIteratorTest;
 import com.github.lindenb.jvarkit.util.log.ProgressFactoryTest;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparatorTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
 @AlsoTest({IOUtilsTest.class,VCFUtilsTest.class,StringUtilsTest.class,IntervalParserTest.class,CounterTest.class,BedLineCodecTest.class,
-	ProgressFactoryTest.class,ContigDictComparatorTest.class,SmartComparatorTest.class})
+	ProgressFactoryTest.class,ContigDictComparatorTest.class,SmartComparatorTest.class,
+	EqualRangeIteratorTest.class,
+	FilterIteratorTest.class,
+	LineIteratorTest.class,
+	MergingIteratorTest.class
+	})
 public class LauncherTest {
 
 }
