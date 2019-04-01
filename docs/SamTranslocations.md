@@ -24,6 +24,13 @@ Usage: samtranslocations [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --low-complexity
+      zone of low complexity (=many discordant reads). If the number of 
+      buffered reads * this number per sample, clear the buffer
+      Default: 2000
+    --max-sa
+      ignore reads having more that SA:Z supplementary alignments.
+      Default: 4
     -m, --min
       Min number of events to validate the translocation
       Default: 3

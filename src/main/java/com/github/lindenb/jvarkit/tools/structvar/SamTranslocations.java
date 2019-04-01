@@ -64,6 +64,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamFileHeaderMerger;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -130,6 +131,10 @@ public class SamTranslocations extends Launcher {
 	private Path bedFile = null;
 	@Parameter(names={"--chrom-regex"},description="Only consider the chromosomes matching the following regular expression.")
 	private String chromRegex="(chr)?([1-9][0-9]*|X|Y)";
+	@Parameter(names={"--low-complexity"},description="zone of low complexity (=many discordant reads). If the number of buffered reads * this number per sample, clear the buffer")
+	private long max_complexity_buffer = 2_000L;
+	@Parameter(names={"--max-sa"},description="ignore reads having more that SA:Z supplementary alignments.")
+	private long max_sa_attribute = 4;
 
 	/* for the data I tested there was a bug in the sorting (reads not sorted on FLAG see htsjdk.samtools.SAMRecordCoordinateComparator)
 	 but we just need fileOrderCompare */
@@ -198,7 +203,7 @@ public class SamTranslocations extends Launcher {
 			
 	
 			
-			//final short SA = SAMTag.SA.getBinaryTag();
+			final short SA = SAMTag.SA.getBinaryTag();
 			
 			final FilterIterator<SAMRecord> fsi=new FilterIterator<>(iter1, 
 					(SR)->{
@@ -210,6 +215,12 @@ public class SamTranslocations extends Launcher {
 						if(rg==null) return false;
 						final String sn  = rg.getSample();
 						if(StringUtils.isBlank(sn)) return false;
+						
+						if(max_sa_attribute>0 &&
+							SR.getAttribute(SA)!=null &&
+							SAMUtils.getOtherCanonicalAlignments(SR).size() > max_sa_attribute) {
+							return false;
+							}
 						
 						if(SR.getReadPairedFlag() &&
 							!SR.getMateUnmappedFlag() &&
@@ -482,7 +493,15 @@ public class SamTranslocations extends Launcher {
 						candidates.add(rec2);
 						}
 					}
-				
+				else
+					{
+					continue;
+					}
+				if((long)buffer.size()> max_complexity_buffer*samReaders.size())
+					{
+					LOG.warn("zone of low complexity: clearing before near "+ rec.getContig()+":"+rec.getStart());
+					buffer.clear();
+					}
 				if(candidates.size()<this.min_number_of_events) continue;
 				
 
