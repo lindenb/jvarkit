@@ -25,9 +25,13 @@ Usage: samtranslocations [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     --low-complexity
-      zone of low complexity (=many discordant reads). If the number of 
-      buffered reads * this number per sample, clear the buffer
+      zone of low complexity (=many discordant reads). In those region the 
+      software will 'freeze'. If the number of buffered reads * this number 
+      per sample then clear the buffer
       Default: 2000
+    --mapq
+      min mapping quality.
+      Default: 0
     --max-sa
       ignore reads having more that SA:Z supplementary alignments.
       Default: 4

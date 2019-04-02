@@ -131,10 +131,13 @@ public class SamTranslocations extends Launcher {
 	private Path bedFile = null;
 	@Parameter(names={"--chrom-regex"},description="Only consider the chromosomes matching the following regular expression.")
 	private String chromRegex="(chr)?([1-9][0-9]*|X|Y)";
-	@Parameter(names={"--low-complexity"},description="zone of low complexity (=many discordant reads). If the number of buffered reads * this number per sample, clear the buffer")
+	@Parameter(names={"--low-complexity"},description="zone of low complexity (=many discordant reads). In those region the software will 'freeze'. "
+			+ "If the number of buffered reads * this number per sample then clear the buffer")
 	private long max_complexity_buffer = 2_000L;
 	@Parameter(names={"--max-sa"},description="ignore reads having more that SA:Z supplementary alignments.")
 	private long max_sa_attribute = 4;
+	@Parameter(names={"--mapq"},description="min mapping quality.")
+	private int min_mapq = 0;
 
 	/* for the data I tested there was a bug in the sorting (reads not sorted on FLAG see htsjdk.samtools.SAMRecordCoordinateComparator)
 	 but we just need fileOrderCompare */
@@ -210,7 +213,7 @@ public class SamTranslocations extends Launcher {
 						if(SR.getReadUnmappedFlag())  return false;
 						if(SR.getDuplicateReadFlag()) return false;
 						if(SR.isSecondaryOrSupplementary()) return false;
-						
+						if(SR.getMappingQuality()<=min_mapq) return false;
 						final SAMReadGroupRecord rg=SR.getReadGroup();
 						if(rg==null) return false;
 						final String sn  = rg.getSample();
@@ -218,7 +221,10 @@ public class SamTranslocations extends Launcher {
 						
 						if(max_sa_attribute>0 &&
 							SR.getAttribute(SA)!=null &&
-							SAMUtils.getOtherCanonicalAlignments(SR).size() > max_sa_attribute) {
+							SAMUtils.getOtherCanonicalAlignments(SR).
+							stream().
+							filter(R->allowedContigs[R.getReferenceIndex()]).
+							count() > max_sa_attribute) {
 							return false;
 							}
 						
@@ -497,12 +503,16 @@ public class SamTranslocations extends Launcher {
 					{
 					continue;
 					}
-				if((long)buffer.size()> max_complexity_buffer*samReaders.size())
+				if((long)buffer.size()> this.max_complexity_buffer*samReaders.size())
 					{
-					LOG.warn("zone of low complexity: clearing before near "+ rec.getContig()+":"+rec.getStart());
+					//final long end = rec.getUnclippedEnd();
+					//buffer.remove(0);
+					//buffer.removeIf(R->R.getReferenceIndex().equals(rec.getReferenceIndex()) && R.getStart()<=end);
 					buffer.clear();
+					LOG.warn("zone of low complexity: clearing buffer near "+ rec.getContig()+":"+rec.getStart());
+					continue;
 					}
-				if(candidates.size()<this.min_number_of_events) continue;
+				if(candidates.isEmpty() || candidates.size()<this.min_number_of_events) continue;
 				
 
 				//check in both sides
