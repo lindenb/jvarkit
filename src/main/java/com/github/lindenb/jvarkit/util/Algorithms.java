@@ -224,4 +224,64 @@ public class Algorithms {
 		return equal_range_stream(dataVector, first, last, select, comparator,converter).iterator();
 		}
 	
+	
+	// integer data ========================================================
+	
+	public static boolean isSorted(final int dataVector[]) {
+		for(int i=0;i+1< dataVector.length;i++) {
+			if(dataVector[i]>dataVector[i+1]) return false;
+			}
+		return true;
+		}
+	
+	public static int upper_bound(final int dataVector[],final int select) {
+		return upper_bound(dataVector, 0,dataVector.length,select);
+		}
+	
+	public static int upper_bound(final int dataVector[],int first,int last,int select) {
+		int len = last - first;
+	    while (len > 0)
+	            {
+	            final int half = len / 2;
+	            final int middle = first + half;
+
+	            if (!(select < dataVector[middle]))
+	                    {
+	                    first = middle + 1;
+	                    len = len - half - 1;
+	                    }
+	            else
+	                    {
+	                    len = half;
+	                    }
+	            }
+		return first;
+		}
+	
+	public static int lower_bound(final int dataVector[],final int select) {
+		return lower_bound(dataVector, 0,dataVector.length,select);
+		}
+
+	public static int lower_bound(final int dataVector[],int first,int last,final int select)
+	    {
+	    int len = last - first;
+	    while (len > 0)
+	            {
+	            final int half = len / 2;
+	            final int middle = first + half;
+	
+	            if (dataVector[middle] < select)
+	                    {
+	                    first = middle + 1;
+	                    len = len - half - 1;
+	                    }
+	            else
+	                    {
+	                    len = half;
+	                    }
+	            }
+	    return first;
+	    }
+
+	
 }

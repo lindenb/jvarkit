@@ -35,7 +35,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -67,7 +67,7 @@ public class VcfSpringFilter extends Launcher {
 	
 	interface VcfChain
 		{
-		int doFilter(VcfIterator in,VariantContextWriter out);
+		int doFilter(VCFIterator in,VariantContextWriter out);
 		}
 	
 	private ApplicationContext springApplicationContext = null;
@@ -78,7 +78,7 @@ public class VcfSpringFilter extends Launcher {
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		VcfIterator vcfIn  = null;
+		VCFIterator vcfIn  = null;
 		VariantContextWriter vcfOut=null;
 		try {
 			if(this.springCongigFiles.isEmpty())
@@ -110,7 +110,7 @@ public class VcfSpringFilter extends Launcher {
 			final VariantContextWriter writer = VariantContextWriter.class.cast(o);
 			
 			final String inputFile= oneFileOrNull(args);
-			vcfIn = super.openVcfIterator(inputFile);
+			vcfIn = super.openVCFIterator(inputFile);
 			
 			
 			return ret;

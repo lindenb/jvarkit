@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.bio;
 
 import java.io.File;
+import java.nio.file.Path;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
@@ -104,22 +105,48 @@ public static SAMSequenceDictionary extractRequired(final SAMFileHeader h) {
 	}
 
 /** extract required SAMSequenceDictionary */
-public static SAMSequenceDictionary extractRequired(final File f) {
-	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
-	@SuppressWarnings("deprecation")
-	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(f);
+public static SAMSequenceDictionary extractRequired(final VCFHeader h) {
+	if(h==null) throw new IllegalArgumentException("Cannot extract dictionary because VCF header was not provided.");
+	final SAMSequenceDictionary dict = h.getSequenceDictionary();
 	if(dict==null || dict.isEmpty()) 
 		{
-		if(f.getName().endsWith(".sam") || f.getName().endsWith(".bam") || f.getName().endsWith(".cram"))
-			{
-			throw new JvarkitException.BamDictionaryMissing(f);
-			}
-		if(f.getName().endsWith(".vcf") || f.getName().endsWith(".bcf") || f.getName().endsWith(".vcf.gz"))
-			{
-			throw new JvarkitException.VcfDictionaryMissing(f);
-			}
-		throw new JvarkitException.DictionaryMissing(f.getPath());
+		throw new JvarkitException.BamDictionaryMissing("<vcf>");
 		}
 	return dict;
 	}
+
+/** extract required SAMSequenceDictionary */
+public static SAMSequenceDictionary extractRequired(final Path f) {
+	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
+	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(f);
+	if(dict==null || dict.isEmpty()) 
+		{
+		if(f.getFileName().endsWith(".sam") || f.getFileName().endsWith(".bam") || f.getFileName().endsWith(".cram"))
+			{
+			throw new JvarkitException.BamDictionaryMissing(f);
+			}
+		if(f.getFileName().endsWith(".vcf") || f.getFileName().endsWith(".bcf") || f.getFileName().endsWith(".vcf.gz"))
+			{
+			throw new JvarkitException.VcfDictionaryMissing(f.toString());
+			}
+		throw new JvarkitException.DictionaryMissing(f.toString());
+		}
+	return dict;
+	}
+/** return true if dict has X|chrX AND Y|chrY */
+
+
+/** extract required SAMSequenceDictionary */
+public static SAMSequenceDictionary extractRequired(final File f) {
+	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
+	return extractRequired(f.toPath());
+	}
+
+/** return true if dict has X|chrX AND Y|chrY */
+public static boolean hasXY(final SAMSequenceDictionary dict) {
+	if(dict==null) return false;
+	if(dict.getSequence("X")==null && dict.getSequence("chrX")==null) return false;
+	if(dict.getSequence("Y")==null && dict.getSequence("chrY")==null) return false;
+	return true;
+}
 }

@@ -323,7 +323,8 @@ END_DOC
 
 @Program(name="illuminadir",
 	description="Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.",
-	keywords={"json","xml","illumina","fastq","workflow"}
+	keywords={"json","xml","illumina","fastq","workflow"},
+	biostars=362767
 	)
 public class IlluminaDirectory
 	extends Launcher

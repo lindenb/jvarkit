@@ -58,7 +58,7 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -122,7 +122,7 @@ public class VcfClusteredReadEdge extends Launcher
 
 	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator in,final VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName,final VCFIterator in,final VariantContextWriter out) {
 		final List<File> bamFiles=  IOUtils.unrollFiles2018(this.bamList);
 		final Map<String,List<SamReader>> sample2bam=new HashMap<>(bamFiles.size());
 		final SamReaderFactory srf = super.createSamReaderFactory();

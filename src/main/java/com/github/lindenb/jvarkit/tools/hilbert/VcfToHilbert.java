@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 
@@ -440,10 +440,10 @@ public class VcfToHilbert extends Launcher
 			LOG.error("Bad image size:" +this.imageWidth);
 			return -1;
 			}
-		VcfIterator iter=null;
+		VCFIterator iter=null;
 		try
 			{
-			iter = this.openVcfIterator(oneFileOrNull(args));
+			iter = this.openVCFIterator(oneFileOrNull(args));
 			
 			final VCFHeader header=iter.getHeader();
 			this.dict = header.getSequenceDictionary();

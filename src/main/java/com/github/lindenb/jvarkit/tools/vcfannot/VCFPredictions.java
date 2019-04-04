@@ -66,7 +66,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 
 
@@ -419,7 +419,7 @@ public class VCFPredictions extends Launcher
 	
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, final VcfIterator r, VariantContextWriter w)
+	protected int doVcfToVcf(final String inputName, final VCFIterator r, VariantContextWriter w)
 		{
 		ReferenceContig genomicSequence=null;
 		try {
@@ -427,7 +427,7 @@ public class VCFPredictions extends Launcher
 		this.referenceGenome=new ReferenceGenomeFactory().
 				open(this.referenceGenomeSource);
 		loadKnownGenesFromUri();
-		final VCFHeader header=(VCFHeader)r.getHeader();
+		final VCFHeader header= r.getHeader();
 		
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
 		

@@ -48,7 +48,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfCadd;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 
@@ -170,7 +170,7 @@ public class VcfBurdenRscriptV
 		 mail matile April 11: requires calling R for SKAT: needs
 		 matrix of samples and genotypes */
 		PrintWriter pw = null;
-		VcfIterator in = null;
+		VCFIterator in = null;
 		LineIterator lr = null;
 		long vcf_id = System.currentTimeMillis();
 		try {
@@ -201,7 +201,7 @@ public class VcfBurdenRscriptV
 			
 			while(lr.hasNext()) {
 			vcf_id++;
-			in = VCFUtils.createVcfIteratorFromLineIterator(lr,true);
+			in = VCFUtils.createVCFIteratorFromLineIterator(lr,true);
 			
 			final VCFHeader header=in.getHeader();
 			final Set<Pedigree.Person> samples;
@@ -348,7 +348,7 @@ public class VcfBurdenRscriptV
 						final String str= String.valueOf(O);
 						if(str.isEmpty() || str.equals(".")) return null;
 						try {
-							return new Double(str);
+							return Double.valueOf(str);
 							}
 						catch (final NumberFormatException e) {
 							LOG.warn("bad cadd number "+O);

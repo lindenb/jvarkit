@@ -1,10 +1,40 @@
 language: java
-script: make all
-jdk:
-   - oraclejdk8
-before_install:
-   - sudo apt-get update -qq 
-   - sudo apt-get install xsltproc
-   - sudo apt-get install curl
-   - sudo apt-get install gradle
+dist: trusty
+sudo: true
+before_cache:
+   - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
+cache:
+  directories:
+   - $HOME/.gradle/caches/
+   - $HOME/.gradle/wrapper/
+   - $HOME/.m2
 
+env:
+   - GRADLE_VERSION=5.1.1
+
+jdk:
+    - openjdk11
+
+matrix:
+  fast_finish: true
+  include:
+     - jdk: openjdk11
+
+
+script:
+    -  gradle all
+
+before_install:
+   - sudo apt-get update -qq
+
+   
+
+install:
+   - wget -O "gradle-5.1.1-bin.zip" "https://services.gradle.org/distributions/gradle-5.1.1-bin.zip"
+   - sudo mkdir -p /opt/gradle
+   - sudo unzip -d /opt/gradle gradle-5.1.1-bin.zip
+   - export PATH=/opt/gradle/gradle-5.1.1/bin:${PATH}
+   - gradle --version
+   - gradle wrapper
+   - chmod +x ./gradlew
+   - ./gradlew all

@@ -52,7 +52,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
@@ -143,7 +143,7 @@ public class VcfGnomad extends Launcher{
 	private File outputFile = null;
 	@Parameter(names={"-m","--manifest"},description="manifest file descibing how to map a contig to an URI . 3 columns: 1) exome|genome 2) contig 3) path or URL.")
 	private File manifestFile=null;
-	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Gnomad, load the variants for 'N' bases instead of doing a random access for each variant. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Gnomad, load the variants for 'N' bases instead of doing a random access for each variant. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int gnomadBufferSize= 10_000;
 	@Parameter(names={"-filtered","--filtered"},description="Skip Filtered User Variants")
 	private boolean skipFiltered=false;
@@ -336,7 +336,7 @@ public class VcfGnomad extends Launcher{
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator iter,
+			final VCFIterator iter,
 			final VariantContextWriter out
 			)
 		{

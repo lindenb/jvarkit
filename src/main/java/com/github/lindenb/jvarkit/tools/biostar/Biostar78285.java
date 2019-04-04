@@ -473,10 +473,10 @@ public class Biostar78285 extends Launcher
 							}
 						}
 					
-					vcb.attribute(VCFConstants.DEPTH_KEY, (int)count.values().stream().mapToInt(S->S.dp).sum());
+					vcb.attribute(VCFConstants.DEPTH_KEY, count.values().stream().mapToInt(S->S.dp).sum());
 					vcb.genotypes(count.values().stream().
 							map(C->new GenotypeBuilder(C.sample, NO_CALLS).
-									DP((int)C.dp).
+									DP(C.dp).
 									attribute("DR",C.negative_strand).
 									attribute("DF",C.dp-C.negative_strand).
 									make()).

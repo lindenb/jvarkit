@@ -31,7 +31,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 /**
 
 ## Example
@@ -85,7 +85,7 @@ public class VcfJaspar extends Launcher
 		}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator in,final VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName,final VCFIterator in,final VariantContextWriter out) {
 		GenomicSequence genomicSequence=null;
 		final VCFHeader header=new VCFHeader(in.getHeader());
 		addMetaData(header);

@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
@@ -1128,6 +1128,19 @@ public class VcfToTable extends Launcher {
 					for(final Allele alt: vc.getAlternateAlleles())
 						{
 						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						// marvel https://twitter.com/julawang/status/1094666160711323649
+						t.addRow("Marrvel",new HyperlinkDecorator("http://marrvel.org/search/variant/"+
+							ensemblContig.apply(vc) +
+							"-"+vc.getStart()+
+							" "+
+							vc.getReference().getDisplayString()+
+							">"+
+							alt.getDisplayString()
+							));
+						}
+					for(final Allele alt: vc.getAlternateAlleles())
+						{
+						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
 						//gnomad
 						t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
 							ensemblContig.apply(vc) +
@@ -1985,11 +1998,11 @@ public class VcfToTable extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		VcfIterator in = null;
+		VCFIterator in = null;
 		
 		
 		try {
-			in = super.openVcfIterator(oneFileOrNull(args));
+			in = super.openVCFIterator(oneFileOrNull(args));
 			viewer.writeHeader(in.getHeader());
 			while(!this.viewer.checkError() && in.hasNext())
 				{

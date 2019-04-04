@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -133,7 +133,7 @@ public class HaloplexParasite extends Launcher {
 	}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 	SamReader samReader = null;
 	final List<Mutation> mutations = new ArrayList<>();
 	try {

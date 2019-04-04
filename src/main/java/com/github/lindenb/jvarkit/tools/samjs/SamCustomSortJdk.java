@@ -35,7 +35,7 @@ import java.util.Random;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
+import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -64,7 +64,7 @@ BEGIN_DOC
 
 ## Motivation
 
-Sort a BAM using a java expression compiled in memory.
+Sort a BAM using a java expression compiled at runtime
 
 ## How it works
 
@@ -130,11 +130,14 @@ sort on amount of reference sequence covered, using the cigar string
  java -jar dist/samcustomsortjdk.jar  --body -e 'private int score(final SAMRecord R) { if(R.getReadUnmappedFlag() || R.getCigar()==null) return 0; return R.getCigar().getReferenceLength();} @Override public int compare(SAMRecord a,SAMRecord b) { return Integer.compare(score(a),score(b));}' in.bam
  ```
 
+## History
+
+ * 2019-01: migrating to openjkd: switched to in-memory compiling to external compiling
 
 END_DOC
 */
 @Program(name="samcustomsortjdk",
-	description="Sort a BAM file using a java expression compiled in memory.",
+	description="Sort a BAM file using a java expression compiled at runtime.",
 	keywords={"sam","bam","java","jdk","sort"},
 	biostars={305181}
 	)
@@ -258,7 +261,7 @@ public class SamCustomSortJdk
 			pw.println("import htsjdk.samtools.*;");
 			pw.println("import htsjdk.samtools.util.*;");
 			pw.println("import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;");
-			pw.println("import javax.annotation.Generated;");
+			pw.println("import javax.annotation.processing.Generated;");
 
 			pw.println("@Generated(value=\""+SamCustomSortJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
 			pw.println("public class "+javaClassName+" extends "+
@@ -287,7 +290,7 @@ public class SamCustomSortJdk
 			
 			if(!hideGeneratedCode)
 				{
-				LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
+				LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
 				}
 			
 			if(this.saveCodeInDir!=null)
@@ -314,7 +317,7 @@ public class SamCustomSortJdk
 					}
 				}
 			
-			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
+			final OpenJdkCompiler inMemoryCompiler = OpenJdkCompiler.getInstance();
 			final Class<?> compiledClass = inMemoryCompiler.compileClass(
 					javaClassName,
 					codeWriter.toString()
@@ -324,6 +327,7 @@ public class SamCustomSortJdk
 			
 			samFileReader= openSamReader(oneFileOrNull(args));
 			final SAMFileHeader headerIn = samFileReader.getFileHeader();
+			@SuppressWarnings("unchecked")
 			final StableSort customComparator = new StableSort(( Comparator<SAMRecord>)ctor.newInstance(headerIn));
 			final BAMRecordCodec bamRecordCodec=new BAMRecordCodec(headerIn);
 			

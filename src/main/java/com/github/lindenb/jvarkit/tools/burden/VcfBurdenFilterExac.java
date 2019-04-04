@@ -51,7 +51,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -140,7 +140,7 @@ public class VcfBurdenFilterExac
 		private class CtxWriter extends DelegateVariantContextWriter
 			{
 			private final String exacPopulations[];
-			private final VcfIterator exacIn;
+			private final VCFIterator exacIn;
 			private final VCFFileReader tabix;
 			private final EqualRangeVcfIterator equalRange;
 			private final VCFHeader exacHeader;
@@ -162,7 +162,7 @@ public class VcfBurdenFilterExac
 					else
 						{
 						this.tabix=null;
-						this.exacIn = VCFUtils.createVcfIteratorFromFile(CtxWriterFactory.this.exacFile);
+						this.exacIn = VCFUtils.createVCFIteratorFromFile(CtxWriterFactory.this.exacFile);
 						this.equalRange = new EqualRangeVcfIterator(exacIn, VCFUtils.createTidPosComparator(exacIn.getHeader().getSequenceDictionary()));
 						this.exacHeader = exacIn.getHeader();
 						}
@@ -367,9 +367,9 @@ public class VcfBurdenFilterExac
 	 
 	@Override
 	protected int doVcfToVcf(
-			final String inputName,final VcfIterator vcfIterator,
+			final String inputName,final VCFIterator vcfIterator,
 			final VariantContextWriter delegate) {
-			final VcfIterator in = VCFUtils.createAssertSortedVcfIterator(vcfIterator, VCFUtils.createTidPosComparator(vcfIterator.getHeader().getSequenceDictionary()));
+			final VCFIterator in = VCFUtils.createAssertSortedVCFIterator(vcfIterator, VCFUtils.createTidPosComparator(vcfIterator.getHeader().getSequenceDictionary()));
 			final VariantContextWriter out  = this.component.open(delegate);
 			
 			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);

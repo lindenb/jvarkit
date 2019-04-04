@@ -173,10 +173,6 @@ public class FastqRecordTreePack extends AbstractTreePackCommandLine
 	private static final Logger LOG = Logger.build(FastqRecordTreePack.class).make();
 
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
-
 	@Parameter(names={"-c","--config"},description="XML config file")
 	private File configFile = null;
 

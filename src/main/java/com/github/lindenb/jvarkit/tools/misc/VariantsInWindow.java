@@ -40,7 +40,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
@@ -101,9 +101,9 @@ public class VariantsInWindow extends Launcher{
 
 	@Parameter(names={"-vf","--variant-filter"},description="Variants we want to keep. Variant FAILING that Jexl expression will be excluded from the window." +JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
-	@Parameter(names={"-S","--shift","--windowShift"},description="Window shift."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-S","--shift","--windowShift"},description="Window shift."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
     protected int window_shift = 50;
-    @Parameter(names= {"-W","--windowSize"},description="Window Size." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+    @Parameter(names= {"-W","--windowSize"},description="Window Size." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
     protected int window_size = 150;
     @Parameter(names="-windowName",description="INFO Attribute name that will be added")
     protected String winName = "WINDOW";
@@ -380,7 +380,7 @@ public class VariantsInWindow extends Launcher{
     @Override
     protected int doVcfToVcf(
     		final String inputName,
-    		final VcfIterator in,
+    		final VCFIterator in,
     		final VariantContextWriter writer
     		) {
     	final VCFHeader header= new VCFHeader(in.getHeader());

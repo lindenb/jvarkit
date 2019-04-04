@@ -1,5 +1,7 @@
 # GBrowserHtml
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Fork a VCF.
 
 
@@ -27,11 +29,10 @@ Usage: forkvcf [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 * GNU Make >= 3.81
 * curl/wget
 * git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
 
 
 ### Download and Compile
@@ -61,22 +62,6 @@ http.proxy.port=124567
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GBrowserHtml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GBrowserHtml.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon May 15 10:41:51 2017 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/c13a658b2ed3bc5dd6ade57190e1dab05bf70612
-Sun May 7 13:21:47 2017 +0200 ; rm xml ; https://github.com/lindenb/jvarkit/commit/f37088a9651fa301c024ff5566534162bed8753d
-Thu Apr 27 17:22:22 2017 +0200 ; cont jcommander ; https://github.com/lindenb/jvarkit/commit/0a27a246a537d2b48201596067652ea26bfc28d6
-Mon Jul 11 21:13:44 2016 +0200 ; readdepth ; https://github.com/lindenb/jvarkit/commit/e12fae61c73485adcc95ab4be7315f970cffe6bb
-Mon Jul 11 16:10:20 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/f9925f9b6eeb54b7bf98036670a2f8802427f1d5
-Mon Jul 11 12:34:46 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/af2e43a15f876d82aa659bc254ec8d0c22565606
-Sun Jul 10 13:40:10 2016 +0200 ; cont ; https://github.com/lindenb/jvarkit/commit/e3c1bccc2868126750ce88174886751dc18b21cf
-Fri Jul 8 17:32:51 2016 +0200 ; html ; https://github.com/lindenb/jvarkit/commit/15ff9478b449d7deb4ac0a037d0fe9f643639708
-```
-
-</details>
 
 ## Contribute
 

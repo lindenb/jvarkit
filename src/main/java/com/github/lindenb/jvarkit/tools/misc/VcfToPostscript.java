@@ -27,7 +27,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -265,7 +265,7 @@ public class VcfToPostscript extends Launcher
 	
 
 
-	private void run(final VcfIterator in)
+	private void run(final VCFIterator in)
 		    {
 		    for(;;)
 			    {
@@ -330,11 +330,11 @@ public class VcfToPostscript extends Launcher
 
 	@Override
 	public int doWork(List<String> args) {
-		VcfIterator iter=null;
+		VCFIterator iter=null;
 		BufferedReader r=null;
 		try
 			{
-			iter = super.openVcfIterator( oneFileOrNull(args));
+			iter = super.openVCFIterator( oneFileOrNull(args));
 			this.outw = super.openFileOrStdoutAsPrintStream(this.outputFile);
 			final SAMSequenceDictionary dict=iter.getHeader().getSequenceDictionary();
 

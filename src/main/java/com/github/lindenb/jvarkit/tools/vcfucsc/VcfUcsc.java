@@ -52,7 +52,7 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -254,7 +254,7 @@ public class VcfUcsc extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName, 
-			final VcfIterator in, 
+			final VCFIterator in, 
 			final VariantContextWriter out
 			) 
 		{

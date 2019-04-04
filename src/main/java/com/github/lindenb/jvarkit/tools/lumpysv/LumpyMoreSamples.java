@@ -39,7 +39,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.QueryInterval;
@@ -139,12 +139,12 @@ public class LumpyMoreSamples extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-	VcfIterator r=null;
+	VCFIterator r=null;
 	VariantContextWriter vcw=null;
 	final Map<String,SamReader> sample2samreaders = new HashMap<>();
 
 	try {
-		r = super.openVcfIterator(oneFileOrNull(args));
+		r = super.openVCFIterator(oneFileOrNull(args));
 		
 		final VCFHeader headerIn =r.getHeader();
 		final SAMSequenceDictionary dict = headerIn.getSequenceDictionary();

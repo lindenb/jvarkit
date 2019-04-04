@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 @Program(name="vcfgroupbypop",
 description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population")
@@ -120,7 +120,7 @@ public class VcfGroupByPopulation extends Launcher
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator vcfIn, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator vcfIn, VariantContextWriter out) {
 		try {
 			
 			Reader r=IOUtils.openFileForBufferedReading(this.mappingFile);

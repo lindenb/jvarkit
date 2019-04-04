@@ -81,7 +81,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -504,7 +504,7 @@ public class VcfEnsemblVepRest
 		
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, final VcfIterator vcfIn, final VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName, final VCFIterator vcfIn, final VariantContextWriter out) {
 	    try {
 		final VCFHeader header=vcfIn.getHeader();
 		final List<VariantContext> buffer=new ArrayList<>(this.batchSize+1);

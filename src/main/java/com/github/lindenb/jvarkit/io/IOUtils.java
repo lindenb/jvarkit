@@ -51,6 +51,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -61,6 +62,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
@@ -123,8 +125,11 @@ public class IOUtils {
     public static File getDefaultTmpDir() {
     	return new File(System.getProperty("java.io.tmpdir","."));
     	}
-	
-	
+    /** Returns a default tmp directory as a nio Path. */
+    public static Path getDefaultTempDir() {
+    	return Paths.get(System.getProperty("java.io.tmpdir","."));
+    	}
+    
 	public static void copyTo(final File f,final OutputStream fous) throws IOException
 		{
 		copyTo(f.toPath(),fous);
@@ -178,11 +183,19 @@ public class IOUtils {
 	
 	public static void copyTo(final InputStream in,final File f) throws IOException
 		{
-		final OutputStream fous= Files.newOutputStream(f.toPath());
+		copyTo(in,f.toPath());
+		}
+	
+	/** copy input stream to path */
+	public static void copyTo(final InputStream in,final Path path) throws IOException
+		{
+		final OutputStream fous= Files.newOutputStream(path);
 		copyTo(in,fous);
 		fous.flush();
 		fous.close();
 		}
+
+	
 	public static void copyTo(final InputStream in,final OutputStream out) throws IOException
 		{
 		final byte buffer[]=new byte[2048];
@@ -278,9 +291,15 @@ public class IOUtils {
 			//do we have .... azdazpdoazkd.vcf.gz?param=1&param=2
 			int question=uri.indexOf('?');
 			if(question!=-1) uri=uri.substring(0, question);
-			if(uri.endsWith(".gz"))
-				{
-				return tryBGZIP(in);
+			if(isCompressedExtention(uri)) {
+				if(uri.endsWith(".gz"))
+					{
+					return tryBGZIP(in);
+					}
+				else if(uri.endsWith(".bz2"))
+					{
+					return new BZip2CompressorInputStream(in);
+					}
 				}
 			return in;
 			}
@@ -299,7 +318,7 @@ public class IOUtils {
 	public static Reader openFileForReader(final File file) throws IOException
 		{
 		IOUtil.assertFileIsReadable(file);
-		if(file.getName().endsWith(".gz"))
+		if(isCompressedExtention(file.getName()))
 			{
 			return new InputStreamReader(openFileForReading(file));
 			}
@@ -307,6 +326,11 @@ public class IOUtils {
 		}
 
 
+	/** return true if the file has a compressed suffix '.gz' or '.bz2' */
+	public static final boolean isCompressedExtention(final String s) {
+		return s!=null && (s.endsWith(".gz") || s.endsWith(".bz2"));
+	}
+	
 	public static InputStream openFileForReading(final File file) throws IOException
 		{
 		return openPathForReading(file.toPath());
@@ -325,6 +349,12 @@ public class IOUtils {
 			}
 		return Objects.requireNonNull(in,"cannot open "+path);
 		}
+	
+	public static BufferedReader openPathForBufferedReading(final Path path) throws IOException
+		{
+		return  new BufferedReader(new InputStreamReader(openPathForReading(path), Charset.forName("UTF-8")));
+		}
+	
 	public static BufferedReader openFileForBufferedReading(File file) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(openFileForReading(file), Charset.forName("UTF-8")));
@@ -341,6 +371,10 @@ public class IOUtils {
         	{
             return new BlockCompressedOutputStream(file);
         	}
+        else if (file.getName().endsWith(".bz2"))
+	    	{
+	        return new BZip2CompressorOutputStream(Files.newOutputStream(file.toPath()));
+	    	}
         else if (file.getName().endsWith(".gz"))
 	    	{
 	        return new GZIPOutputStream(Files.newOutputStream(file.toPath()),true);
@@ -354,7 +388,7 @@ public class IOUtils {
     /** open a printwriter, compress if it ends with *.gz  */
     public static PrintWriter openFileForPrintWriter(final File file) throws IOException
 		{
-	    if (file.getName().endsWith(".gz"))
+	    if (isCompressedExtention(file.getName()))
 	    	{
 	        return new PrintWriter(openFileForWriting(file));
 	    	}

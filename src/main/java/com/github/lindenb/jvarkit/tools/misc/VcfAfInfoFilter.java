@@ -41,7 +41,7 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -62,7 +62,7 @@ BEGIN_DOC
 
 I'm often asked to filter out variant that are too frequent in gnomad, but I must keep the data if any ALT allele is NOT in gnomad.
 
-This tool filters VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomad.
+This tool filters VCF containing external allele frequency information (AF or AC/AN). Used as a  complement of VcfGnomadPext.
 
 ## Example
 
@@ -117,7 +117,7 @@ public class VcfAfInfoFilter extends Launcher{
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final  VcfIterator in,
+			final  VCFIterator in,
 			final  VariantContextWriter out
 			) {
 		try

@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.lang;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -96,7 +97,10 @@ public static class VcfDictionaryMissing extends DictionaryMissing
 		}
 	
 	public VcfDictionaryMissing(final File file) {
-		this(file.getPath());
+		this(file.toPath());
+		}
+	public VcfDictionaryMissing(final Path file) {
+		this(file.toString());
 		}
 	public VcfDictionaryMissing(final String file) {
 		super(getMessage(file));
@@ -118,8 +122,11 @@ public static class BamDictionaryMissing extends DictionaryMissing
 		if(dict==null || dict.isEmpty()) throw new BamDictionaryMissing(file);
 		return dict;
 		}
+	public BamDictionaryMissing(final Path file) {
+		this(file.toString());
+		}
 	public BamDictionaryMissing(final File file) {
-		this(file.getPath());
+		this(file.toPath());
 		}
 	public BamDictionaryMissing(final String file) {
 		super(getMessage(file));

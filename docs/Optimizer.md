@@ -1,5 +1,7 @@
 # Optimizer
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Genetic-Programming-like parameters optimizer
 
 
@@ -14,8 +16,7 @@ Usage: optimizer [options] Files
     -h, --help
       print help and exit
     --helpFormat
-      What kind of help
-      Possible Values: [usage, markdown, xml]
+      What kind of help. One of [usage,markdown,xml].
     -seed, --random
       Random seed. -1 == current time
       Default: -1
@@ -36,11 +37,7 @@ Usage: optimizer [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) . Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-* GNU Make >= 3.81
-* curl/wget
-* git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 
 
 ### Download and Compile
@@ -48,27 +45,16 @@ Usage: optimizer [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make optimizer
+$ ./gradlew optimizer
 ```
 
-The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
-The required libraries will be downloaded and installed in the `dist` directory.
+The java jar file will be installed in the `dist` directory.
 
-### edit 'local.mk' (optional)
-
-The a file **local.mk** can be created edited to override/add some definitions.
-
-For example it can be used to set the HTTP proxy:
-
-```
-http.proxy.host=your.host.com
-http.proxy.port=124567
-```
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/optimizer/Optimizer.java
-](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/optimizer/Optimizer.java
-)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/optimizer/Optimizer.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/optimizer/Optimizer.java)
+
+
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -170,7 +156,7 @@ The user's code will be inserted in the following template:
  5  import htsjdk.samtools.util.*;
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
- 8  import javax.annotation.Generated;
+ 8  import javax.annotation.processing.Generated;
  9  @Generated(value="Optimizer",date="2017-07-10T11:20:07+0200")
 10  public class __CLASS__ extends  __BASE__ {
 11  public __CLASS__(final Map<String,Object> params) {
@@ -188,5 +174,4 @@ in __CLASS__ User must implement:
 * 'compareTo' to compare two solutions
 * 'execute' to compute the result with the current params. Returns '0' on success.
 * 'delete' remove resources associated to this Solution.
-
 

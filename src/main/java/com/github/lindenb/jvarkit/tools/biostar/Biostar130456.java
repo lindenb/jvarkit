@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -124,13 +124,13 @@ public class Biostar130456 extends Launcher
 				return -1;
 				}
 			PrintStream out = null;
-			VcfIterator in=null;
+			VCFIterator in=null;
 			final String inputName= oneFileOrNull(args);
 
 			try
 				{
 				out = openFileOrStdoutAsPrintStream(outputFile);
-				in = super.openVcfIterator(inputName);
+				in = super.openVCFIterator(inputName);
 				final VCFHeader header=in.getHeader();
 				this.recalculator.setHeader(header);
 				

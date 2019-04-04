@@ -32,7 +32,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
@@ -226,10 +226,10 @@ public class Biostar175929 extends Launcher
 			return -1;
 			}
 		IndexedFastaSequenceFile reference = null;
-		VcfIterator iter=null;
+		VCFIterator iter=null;
 		try {
 			reference = new IndexedFastaSequenceFile(this.faidx);
-			iter = super.openVcfIterator(oneFileOrNull(args));
+			iter = super.openVCFIterator(oneFileOrNull(args));
 			this.pw = openFileOrStdoutAsPrintWriter(this.outputFile);
 			final List<VariantContext> variants = new ArrayList<>();
 			for(;;)

@@ -44,11 +44,12 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.filter.SamRecordFilter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /**
@@ -118,8 +119,9 @@ TGCTTGA
 ```
 
 
-### Hstory
+### History
 
+* 20190221 : handle sam records without quality https://github.com/lindenb/jvarkit/issues/121
 * 20180412 : fastq is now reverse complemented if read was on negative strand
 
 
@@ -133,7 +135,9 @@ END_DOC
 @Program(name="samextractclip",
 	description="Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ",
 	keywords= {"sam","bam","fastq","clip"},
-	biostars= {125874})
+	biostars= {125874},
+	modificationDate="20190221"
+	)
 public class SamExtractClip extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamExtractClip.class).make();
@@ -206,16 +210,26 @@ public class SamExtractClip extends Launcher
 		int startend[]=new int[2];
 		final SAMFileHeader header=r.getFileHeader();
 		//w=swf.make(header, System.out);
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
+		final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		final SAMRecordIterator it= r.iterator();
 		while(it.hasNext())
 			{
-			final SAMRecord rec=progress.watch(it.next());
+			final SAMRecord rec=progress.apply(it.next());
 			if(rec.getReadUnmappedFlag()) continue;
 			if(this.samRecordFilter.filterOut(rec)) continue;
 			
 			final Cigar cigar=rec.getCigar();
 			if(cigar==null || cigar.isEmpty()) continue;
+			
+			// https://github.com/lindenb/jvarkit/issues/121
+			
+			if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) {
+				LOG.warning("skipping read "+rec.getReadName()+" without sequence string");
+				continue;
+			}
+			
+			
+		
 			
 			String suffix="";
 			if(rec.getReadPairedFlag())
@@ -227,6 +241,20 @@ public class SamExtractClip extends Launcher
 			startend[0]=0;
 			startend[1]=rec.getReadLength();
 			boolean found=false;
+			
+			final String srcBaseString = rec.getReadString();
+			final String srcQualString ;
+			
+			// https://github.com/lindenb/jvarkit/issues/121
+			if(rec.getBaseQualities()==SAMRecord.NULL_QUALS)
+				{
+				srcQualString = StringUtils.repeat(srcBaseString.length(),'#');
+				}
+			else
+				{
+				srcQualString = rec.getBaseQualityString();
+				}
+			
 			for(int side=0;side<2;++side)
 				{
 				final CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
@@ -236,17 +264,19 @@ public class SamExtractClip extends Launcher
 				found=true;
 				String clippedSeq;
 				String clippedQual;
+				
+				
 				if(side==0)
 					{
 					startend[0]=ce.getLength();
-					clippedSeq= rec.getReadString().substring(0, startend[0]);
-					clippedQual=rec.getBaseQualityString().substring(0, startend[0]);
+					clippedSeq = srcBaseString.substring(0, startend[0]);
+					clippedQual = srcQualString.substring(0, startend[0]);
 					}
 				else
 					{
 					startend[1]=rec.getReadLength()-ce.getLength();
-					clippedSeq= rec.getReadString().substring(startend[1]);
-					clippedQual=rec.getBaseQualityString().substring(startend[1]);
+					clippedSeq = srcBaseString.substring(startend[1]);
+					clippedQual = srcQualString.substring(startend[1]);
 					}
 				
 				if( rec.getReadNegativeStrandFlag())
@@ -264,12 +294,12 @@ public class SamExtractClip extends Launcher
 				}
 			if(!found) continue;
 			
-			String bases=rec.getReadString();
-			String qual=rec.getBaseQualityString();
+			String bases= srcBaseString;
+			String qual= srcQualString;
 			if( rec.getReadNegativeStrandFlag())
 				{
-				bases=AcidNucleics.reverseComplement(bases);
-				qual=new StringBuilder(qual).reverse().toString();
+				bases = AcidNucleics.reverseComplement(bases);
+				qual = new StringBuilder(qual).reverse().toString();
 				}
 			
 			if(this.print_original_read)
@@ -293,7 +323,7 @@ public class SamExtractClip extends Launcher
 				}
 			}
 		it.close();
-		progress.finish();
+		progress.close();
 		}
 	
 	public static void main(final String[] args)

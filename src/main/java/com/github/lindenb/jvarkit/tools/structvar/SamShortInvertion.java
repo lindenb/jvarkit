@@ -50,7 +50,7 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMTagUtil;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
@@ -318,7 +318,7 @@ public class SamShortInvertion extends Launcher
 					dictionary(iter.getFileHeader().getSequenceDictionary()).
 					logger(LOG).
 					build();
-			final short SA_TAG = SAMTagUtil.getSingleton().SA;
+			final short SA_TAG = SAMTag.SA.getBinaryTag();
 			
 			String prevContig=null;
 			while(iter.hasNext())

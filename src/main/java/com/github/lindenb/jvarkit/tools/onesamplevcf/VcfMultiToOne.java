@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /*
 BEGIN_DOC
@@ -258,7 +258,7 @@ public class VcfMultiToOne extends Launcher
 	public int doWork(final List<String> arguments) {
 		VariantContextWriter  out=null;
 		Set<String> args= IOUtils.unrollFiles(arguments);
-		List<VcfIterator> inputs=new ArrayList<>(args.size()+1);
+		List<VCFIterator> inputs=new ArrayList<>(args.size()+1);
 		List<String> inputFiles=new ArrayList<>(args.size()+1);
 		
 		
@@ -266,7 +266,7 @@ public class VcfMultiToOne extends Launcher
 			{
 			if(args.isEmpty() && arguments.isEmpty())
 				{
-				inputs.add(VCFUtils.createVcfIteratorStdin());
+				inputs.add(VCFUtils.createVCFIteratorStdin());
 				inputFiles.add("stdin");
 				}
 			else if(args.isEmpty())
@@ -278,7 +278,7 @@ public class VcfMultiToOne extends Launcher
 				{
 				for(final String vcfFile: args)
 					{
-					inputs.add(VCFUtils.createVcfIterator(vcfFile));
+					inputs.add(VCFUtils.createVCFIterator(vcfFile));
 					inputFiles.add(VCFUtils.escapeInfoField(vcfFile));
 					}
 				}
@@ -286,7 +286,7 @@ public class VcfMultiToOne extends Launcher
 			final Set<String> sampleNames=new HashSet<String>();
 
 			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
-			for(final VcfIterator in:inputs)
+			for(final VCFIterator in:inputs)
 				{
 				final VCFHeader header = in.getHeader();
 				if(dict==null)
@@ -349,7 +349,7 @@ public class VcfMultiToOne extends Launcher
 				
 				while(idx < inputs.size())
 					{
-					final VcfIterator in= inputs.get(idx);
+					final VCFIterator in= inputs.get(idx);
 					if(!in.hasNext())
 						{
 						CloserUtil.close(in);

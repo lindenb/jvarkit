@@ -43,7 +43,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -109,7 +109,7 @@ public class VcfJmx extends Launcher
 	
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in,
+	protected int doVcfToVcf(String inputName, VCFIterator in,
 			VariantContextWriter out)
 		{
 		String name=this.projectName;

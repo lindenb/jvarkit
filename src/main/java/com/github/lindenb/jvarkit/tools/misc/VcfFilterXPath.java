@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 @Program(name="vcffilterxpath",
 	description="Filter a VCF with a XPATH expression on a INFO tag containing a base64 encodede xml document",
@@ -100,7 +100,7 @@ public class VcfFilterXPath
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 		try {
 			//TODO in jdk8 replace with http://docs.oracle.com/javase/8/docs/api/java/util/Base64.html
 			VCFHeader header=in.getHeader();
@@ -208,10 +208,10 @@ public class VcfFilterXPath
 		xpath.setNamespaceContext(new NamespaceContext()
 			{
 			@Override
-			public Iterator<? extends Object> getPrefixes(String namespaceURI)
+			public Iterator<String> getPrefixes(String namespaceURI)
 				{
-				List<String> L=new ArrayList<>();
-				for(String pfx:prefix2uri.keySet())
+				final List<String> L=new ArrayList<>();
+				for(final String pfx:prefix2uri.keySet())
 					{
 					if(prefix2uri.get(pfx).equals(namespaceURI))
 						{
@@ -223,7 +223,7 @@ public class VcfFilterXPath
 				}
 			
 			@Override
-			public String getPrefix(String namespaceURI)
+			public String getPrefix(final String namespaceURI)
 				{
 				for(String pfx:prefix2uri.keySet())
 					{

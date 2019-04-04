@@ -80,7 +80,7 @@ public class Biostar178713 extends Launcher
 	@Parameter(names={"-o","--output"},description="Output file.zip .",required=true)
 	private File outputFile = null;
 
-	@Parameter(names={"-d","--distance"},description="Distance between bed features." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-d","--distance"},description="Distance between bed features." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int distancebed = 100 ;
 
 	

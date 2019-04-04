@@ -22,9 +22,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfstats;
 
-import java.io.Closeable;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
@@ -37,31 +35,31 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.Vector;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
+import com.github.lindenb.jvarkit.chart.BarChart;
+import com.github.lindenb.jvarkit.chart.CategoryAxis;
+import com.github.lindenb.jvarkit.chart.Chart;
+import com.github.lindenb.jvarkit.chart.NumberAxis;
+import com.github.lindenb.jvarkit.chart.RExporter;
+import com.github.lindenb.jvarkit.chart.StackedBarChart;
+import com.github.lindenb.jvarkit.chart.XYChart;
 import com.github.lindenb.jvarkit.math.RangeOfDoubles;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
@@ -70,49 +68,17 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.concurrent.Task;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.Node;
-import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.Chart;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.StackedBarChart;
-import javafx.scene.chart.XYChart;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Label;
-import javafx.scene.image.WritableImage;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
+
 /*
 BEGIN_DOC
 
 ## Examples
 
 ```
- java -jar dist/vcfstatsjfx.jar input.vcf.gz
+ java -jar dist/vcfstatsjfx.jar input.vcf.gz  | Rscript -
+ 
 ```
 
-```
-grep -E '(^#|missense)' input.vcf | java -jar dist/vcfstatsjfx.jar --stdin 
-```
 
 ## Screenshot
 
@@ -122,24 +88,26 @@ grep -E '(^#|missense)' input.vcf | java -jar dist/vcfstatsjfx.jar --stdin
 ![https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4](https://video.twimg.com/tweet_video/DaVQGvXXkAAMSBw.mp4 "animation")
 
 
+## History
+
+   *  removed JFX/gui because openjdk doesn't support jfx :-(
+
 END_DOC
 */
 @Program(name="vcfstatsjfx",
-description="GUI: VCF statistics",
+description="VCF statistics",
 biostars= {308310,353051},
-keywords={"vcf","stats","jfx"}
+keywords={"vcf","stats"}
 )
-public class VcfStatsJfx extends JfxLauncher {
+public class VcfStatsJfx extends Launcher {
 	private static final Logger LOG=Logger.build(VcfStatsJfx.class).make();
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
-	private final ReentrantLock lock = new ReentrantLock();
-	private ProgressBar progressBar;
 
-	@Parameter(names={"-s","--seconds"},description="Refresh screen every 's' seconds")
+	@Parameter(names={"-s","--seconds"},description="Save Rscript screen every 's' seconds, if output was defined.")
 	private int refreshEverySeconds = 15;
 	@Parameter(names={"--max-concordance"},description="Max number of concordance to display. disable if <=0 ")
 	private int max_condordance = 100;
-	@Parameter(names={"-o","--output"},description="output images in directory or zip file (filename ends with '.zip') or 'R' file (filename ends with '.R' **UNDER CONSTRUCTION**) . If defined, the application will exit automatically")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"--trancheIndelSize"},description="tranches for the Indel size "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers indelTranches =new RangeOfIntegers(-1000,-100,-50,-20,-15,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,15,20,50,100,1000);
@@ -159,28 +127,14 @@ public class VcfStatsJfx extends JfxLauncher {
 	private String titlePrefix="";
 
 	
-	private volatile boolean stop = false;
-	private class ChartGenerator
+	private abstract class ChartGenerator
 		{
-		Tab tab;
 		boolean enabled = true;
 		long nVariants = 0;
 		boolean isEnabled() {
 			return enabled;
 			}
-		String getChartTitle() {
-			return "untitled";
-		}
-			
-		String getTabTitle() {
-			return getChartTitle();
-		}
-		Tab makeTab() {
-			this.tab = new Tab(getTabTitle());
-			this.tab.setClosable(true);
-			this.tab.setOnClosed(AE->{this.enabled=false;});
-			return this.tab;
-			}
+		abstract String getChartTitle();
 		
 		void title(final Chart c,final String s) {
 			c.setTitle(
@@ -193,55 +147,18 @@ public class VcfStatsJfx extends JfxLauncher {
 		void visit(final VariantContext ctx) {
 			
 			}
-		Node makeTabContent() {
-			return null;
-			}
+		abstract Chart makeChart();
 		
-		void refresh() {
-			if(!isEnabled()) return;
-			final Node node = makeTabContent();
-			if(node==null) return;
-			if(outputFile!=null && node instanceof Chart)
-				{
-				Chart.class.cast(node).setAnimated(false);
-				}
-			this.tab.setContent(node);
-			}
-		public String getFilename() {
-			return getTabTitle().replaceAll("[^A-Za-z_0-9]+","")+".png";
-			}
+		
+		// public String getFilename() { return getTabTitle().replaceAll("[^A-Za-z_0-9]+","")+".png";}
 		
 		protected boolean isCalled(final Genotype g) {
 			if(g==null || !g.isCalled() || !g.isAvailable()) return false;
 			if(ignore_filtered_genotypes && g.isFiltered()) return false;
 			return g.getAlleles().stream().anyMatch(A->A.isCalled() && !A.isReference());
 			}
-		protected void saveR(final JFXChartExporter exporter) {
-		 	if(!isEnabled()) return;
-		 	final Node content = this.tab.getContent();
-		 	if(content==null || !(content instanceof Chart)) return;
-		 	final Chart chart = Chart.class.cast(content);
-		 	exporter.exportToR(chart);
-			}
-		protected void saveImageAs(final File dir)
-			 	throws IOException
-			 	{
-			 	if(!isEnabled()) return;
-			 	final Node content = this.tab.getContent();
-			 	if(content==null) return;
-	    		WritableImage image = content.snapshot(new SnapshotParameters(), null);
-	    		final File file = new File(getFilename());
-	            ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", file);
-			 	}
-		protected void saveImageAs(final ZipOutputStream zout)
-			 	throws IOException
-			 	{
-			 	if(!isEnabled()) return;
-			 	final Node content = this.tab.getContent();
-			 	if(content==null) return;
-	    		WritableImage image = content.snapshot(new SnapshotParameters(), null);
-	            ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", zout);
-			 	}
+	
+		
 		}
 	
 	private class VariantTypeGenerator extends ChartGenerator
@@ -254,14 +171,13 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
 
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(
-						Arrays.asList(VariantContext.Type.values()).
+					Arrays.asList(VariantContext.Type.values()).
 							stream().map(I->I.name()).
-							collect(Collectors.toList()))
+							collect(Collectors.toList())
 					);
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final BarChart<String,Number> bc = 
@@ -294,14 +210,13 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
 	
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(
 						Arrays.asList(StructuralVariantType.values()).
 							stream().map(I->I.name()).
-							collect(Collectors.toList()))
+							collect(Collectors.toList())
 					);
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final BarChart<String,Number> bc = 
@@ -342,12 +257,10 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
 	
-			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(count.keySet())
-					);
+			final CategoryAxis xAxis = new CategoryAxis( count.keySet());
 			final XYChart.Series<String,Number> series1 = new XYChart.Series<>();
 			final BarChart<String,Number> bc = 
 			            new BarChart<String,Number>(xAxis,yAxis);
@@ -395,13 +308,13 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(this.dict.getSequences().stream().
+					this.dict.getSequences().stream().
 							map(S->S.getSequenceName()).
 							filter(S->count.count(S)>0).
-							collect(Collectors.toList()))
+							collect(Collectors.toList())
 					);
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final BarChart<String,Number> bc = 
@@ -443,7 +356,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			if(this.count.getCountCategories()==0) return null;
 			final NumberAxis yAxis = new NumberAxis();
 			final int max_count  = count.keySet().stream().mapToInt(I->I.intValue()).max().orElse(1);
@@ -453,9 +366,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 			
 			
-			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(L)
-					);
+			final CategoryAxis xAxis = new CategoryAxis(L);
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final BarChart<String,Number> bc = 
 			            new BarChart<String,Number>(xAxis,yAxis);
@@ -500,7 +411,7 @@ public class VcfStatsJfx extends JfxLauncher {
 		abstract String getChartTitle();
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final List<String> categories = new ArrayList<>(this.sample2count.size());
 			for(final String sn: this.sample2count.keySet().
@@ -518,7 +429,7 @@ public class VcfStatsJfx extends JfxLauncher {
 						));
 				}
 			final NumberAxis yAxis = new NumberAxis();
-			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(categories));
+			final CategoryAxis xAxis = new CategoryAxis(categories);
 			final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
 	
 			bc.getData().add(series1);
@@ -634,10 +545,10 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(IsIgnoringHomRef()?
+					IsIgnoringHomRef()?
 						this.samples.stream().sorted((S1,S2)->
 							{
 							return Long.compare(
@@ -646,7 +557,7 @@ public class VcfStatsJfx extends JfxLauncher {
 									);
 							}).collect(Collectors.toList()):
 						this.samples)
-					);
+					;
 			final StackedBarChart<String,Number> bc = 
 		            new StackedBarChart<String,Number>(xAxis,yAxis);
 		
@@ -701,13 +612,13 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final Set<String> deNovoSamples = new TreeSet<>(sample2hiConfDeNovo.keySet());
 			deNovoSamples.addAll(sample2loConfDeNovo.keySet());
 			
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(deNovoSamples)
+					deNovoSamples
 					);
 			final StackedBarChart<String,Number> bc = 
 		            new StackedBarChart<String,Number>(xAxis,yAxis);
@@ -772,7 +683,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final List<String> orderedNames = this.sample2count.values().
 					stream().
 					sorted((A,B)->Double.compare(A.score(), B.score())).
@@ -781,7 +692,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(orderedNames)
+					orderedNames
 					);
 			final StackedBarChart<String,Number> bc = 
 		            new StackedBarChart<String,Number>(xAxis,yAxis);
@@ -857,11 +768,10 @@ public class VcfStatsJfx extends JfxLauncher {
 		
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			
 			final NumberAxis yAxis = new NumberAxis();
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(
 						this.sample2count.keySet().stream().sorted((S1,S2)->
 							{
 							return Long.compare(
@@ -869,7 +779,7 @@ public class VcfStatsJfx extends JfxLauncher {
 									sample2count.get(S2).getTotal()
 									);
 							}).collect(Collectors.toList())
-					));
+					);
 			final StackedBarChart<String,Number> bc = 
 		            new StackedBarChart<String,Number>(xAxis,yAxis);
 		
@@ -931,12 +841,12 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			if(this.count.isEmpty() || max_condordance<1) return null;
 			
 			final List<String> bestPairs = this.count.keySetDecreasing().stream().limit(max_condordance).collect(Collectors.toList());
 			final NumberAxis yAxis = new NumberAxis();
-			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(bestPairs));
+			final CategoryAxis xAxis = new CategoryAxis(bestPairs);
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			
 			final BarChart<String,Number> bc = 
@@ -998,7 +908,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			if(this.count.isEmpty()) return null;
 			int max_no_call = this.count.keySet().stream().mapToInt(G->G.intValue()).max().orElse(0);
 			if(max_no_call==0) return null;
@@ -1010,7 +920,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			if(L.isEmpty()) return null;
 			
 			final NumberAxis yAxis = new NumberAxis();
-			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(L));
+			final CategoryAxis xAxis = new CategoryAxis(L);
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			
 			final BarChart<String,Number> bc = 
@@ -1069,7 +979,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();
 			
 			
@@ -1087,11 +997,10 @@ public class VcfStatsJfx extends JfxLauncher {
 			if(L.isEmpty()) return null;
 			
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(
 							L.stream().
 							map(R->R.toString()).
 							collect(Collectors.toList()))
-					);
+					;
 			
 			for(final RangeOfIntegers.Range range : L)
 				{
@@ -1135,7 +1044,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			final NumberAxis yAxis = new NumberAxis();		
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			final List<RangeOfIntegers.Range> L = new ArrayList<>( indelTranches.getRanges());
@@ -1150,11 +1059,10 @@ public class VcfStatsJfx extends JfxLauncher {
 			if(L.isEmpty()) return null;
 			
 			final CategoryAxis xAxis = new CategoryAxis(
-					FXCollections.observableArrayList(
 							L.stream().
 							map(R->R.toString()).
 							collect(Collectors.toList()))
-					);
+					;
 			
 			for(final RangeOfIntegers.Range range : L)
 				{
@@ -1212,7 +1120,7 @@ public class VcfStatsJfx extends JfxLauncher {
 			return "Predictions "+(this.sampleName==null?"":this.sampleName);
 			}
 		@Override
-		Chart makeTabContent() {
+		Chart makeChart() {
 			if(this.countTerms.isEmpty()) return null;
 			final XYChart.Series<String, Number> series1 = new XYChart.Series<>();
 			
@@ -1226,7 +1134,7 @@ public class VcfStatsJfx extends JfxLauncher {
 						
 				}
 			final NumberAxis yAxis = new NumberAxis();
-			final CategoryAxis xAxis = new CategoryAxis(FXCollections.observableArrayList(FXCollections.observableArrayList(this.countTerms.keySet().stream().map(T->T.getLabel()).collect(Collectors.toList()))));
+			final CategoryAxis xAxis = new CategoryAxis(this.countTerms.keySet().stream().map(T->T.getLabel()).collect(Collectors.toList()));
 			final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
 
 			bc.getData().add(series1);
@@ -1274,143 +1182,49 @@ public class VcfStatsJfx extends JfxLauncher {
 		}
 	
 	
-	private final List<ChartGenerator> chartGenerators = new Vector<>();
-	private class VariantContextRunner
-		extends Task<Void>
-		implements Runnable,Closeable
-		
-		{
-		final VcfIterator iter;
-		
-		VariantContextRunner(final VcfIterator vcfFileReader)
-			{
-			this.iter = vcfFileReader;
-			}
-		@Override
-		protected Void call() throws Exception {
-			refreshCharts();
-			long last = -1L;
-			
-			Platform.runLater(()->{
-				progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-				});
-			while(!VcfStatsJfx.this.stop && this.iter.hasNext()) {
-				final VariantContext ctx = this.iter.next();
-				try 
-					{
-					lock.lock();
-					for(final ChartGenerator cg: chartGenerators) {
-						if(!cg.isEnabled()) continue;
-						cg.visit(ctx);
-						}
-					}
-				finally
-					{
-					lock.unlock();
-					}
-				final long now = System.currentTimeMillis();
-				if(last<0L || now - last > refreshEverySeconds * 1000) {
-					last=now;
-					refreshCharts();
-					}
-				}
-			
-			refreshCharts();
-			
-			Platform.runLater(()->{
-				progressBar.setProgress(1.0);
-				});
-			
-			if(outputFile!=null && !stop)
-	        	{
-				LOG.info("saving as "+outputFile+ " in "+refreshEverySeconds+ " secs.");;
-        		new java.util.Timer().schedule( 
-    		        new java.util.TimerTask() {
-    		            @Override
-    		            public void run() {
-    		            Platform.runLater(()->{
-		        		 try
-		        		 	{
-		        			if(!stop) saveImagesAs(outputFile);
-		        		 	}
-		        		 catch(final IOException err)
-		        		 	{
-		        			LOG.error(err);
-		        			System.exit(-1);
-		        		 	}
-		        		 LOG.info("Platform.exit called");
-		        		 Platform.exit();
-    		            	});}
-    		            },refreshEverySeconds*1000);
-	        	 	
-	        	}
-			return null;
-			}
-		@Override
-		public void close() throws IOException {
-			CloserUtil.close(this.iter);
-			}
-		}
+	private final List<ChartGenerator> chartGenerators = new ArrayList<>();
 	
-	 void refreshCharts() {
-		Platform.runLater(()->{
-			try {
-				lock.lock();
-				for(final ChartGenerator cg:chartGenerators) {
-					if(!cg.isEnabled()) continue;
-					cg.refresh();
-					}
-				}
-			finally
-				{
-				lock.unlock();
-				}
-			});
+	
+	private void save() throws IOException {
+		try (final PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
+		final RExporter exporter = new RExporter();
+		for(final ChartGenerator cg: this.chartGenerators) {
+			LOG.info("saving "+cg.getChartTitle());
+			if(!cg.isEnabled()) continue;
+			final Chart chart = cg.makeChart();
+			if(chart==null) continue;
+			exporter.exportToR(pw, chart);
+			}
+		pw.flush();
+		pw.close();
 		}
+	}
+
+
 	
 	@Override
-	protected int doWork(final Stage primaryStage, final List<String> args) {
-		
+	public int doWork(final List<String> args) {
+		VCFIterator iter = null;
 		try {
-			final VcfIterator vcfIterator;
-			if(args.size()==1) {
-				vcfIterator = VCFUtils.createVcfIteratorFromFile(new File(args.get(0)));
-				}
-			else if(args.isEmpty() && this.vcf_stdin)
-				{
-				vcfIterator = VCFUtils.createVcfIteratorFromInputStream(System.in);
-				}
-			else if(args.isEmpty())
-				{
-				final FileChooser fc = new FileChooser();
-				final File f = fc.showOpenDialog(null);
-				if(f==null) return -1;
-				vcfIterator = VCFUtils.createVcfIteratorFromFile(f);
-				}
-			else
-				{
-				LOG.error("illegal number of arguments.");
-				return -1;
-				}
-			final VCFHeader header =  vcfIterator.getHeader();
-			chartGenerators.add(new VariantTypeGenerator());
+			iter =  super.openVCFIterator(oneFileOrNull(args));
+			
+			final VCFHeader header =  iter.getHeader();
+			this.chartGenerators.add(new VariantTypeGenerator());
 			if(!header.getFilterLines().isEmpty())
 				{
-				chartGenerators.add(new FilterUsageGenerator(header.getFilterLines()));
+				this.chartGenerators.add(new FilterUsageGenerator(header.getFilterLines()));
 				}
-			chartGenerators.add(new NumAltsGenerator());
-			chartGenerators.add(new VariantSizesGenerator());
+			this.chartGenerators.add(new NumAltsGenerator());
+			this.chartGenerators.add(new VariantSizesGenerator());
 			
 			if(header.getInfoHeaderLine(VCFConstants.SVTYPE)!=null) {
-				chartGenerators.add(new StructuralVariantTypeGenerator());
+				this.chartGenerators.add(new StructuralVariantTypeGenerator());
 				}
 			
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			if(dict!=null && !dict.isEmpty()) {
-				chartGenerators.add(new ContigUsageGenerator(dict));
-				
-				if( (dict.getSequence("X")!=null || dict.getSequence("chrX")!=null) &&
-					(dict.getSequence("Y")!=null || dict.getSequence("chrY")!=null))
+				this.chartGenerators.add(new ContigUsageGenerator(dict));
+				if(SequenceDictionaryUtils.hasXY(dict))
 					{
 					chartGenerators.add(new MaleFemaleGenerator());
 					}
@@ -1487,62 +1301,32 @@ public class VcfStatsJfx extends JfxLauncher {
 						}
 					}
 				}
-			
-			final VariantContextRunner runner = new VariantContextRunner(vcfIterator);
-			
-			primaryStage.setOnShowing(AE->{
-				new Thread(runner).start();
-			});
-			primaryStage.setOnCloseRequest(AE->{
-				stop = true;
-				CloserUtil.close(runner);
-			});
-			final BorderPane contentPane=new BorderPane();
-			final TabPane tabPane = new TabPane();
-			final MenuBar menuBar = new MenuBar();
-		    Menu menu = new Menu("File");
-		    MenuItem item;
-		    item=new MenuItem("About...");
-		    item.setOnAction(AE->doMenuAbout(AE));
-		    menu.getItems().add(item);
-		    menu.getItems().add(new SeparatorMenuItem());
-		    item=new MenuItem("Save Current image as... (.R,.png,.jpg)");
-		    item.setOnAction(AE->{doMenuSaveCurrentImage(tabPane.getSelectionModel().getSelectedItem());});
-		    menu.getItems().add(item);
-		    item=new MenuItem("Save All images in directory... ");
-		    item.setOnAction(AE->doMenuSaveAllImages());
-		    menu.getItems().add(item);
-		    item=new MenuItem("Save All images as ... (.R,.zip)");
-		    item.setOnAction(AE->doMenuSaveAllImagesInFile());
-		    menu.getItems().add(item);
-		    menu.getItems().add(new SeparatorMenuItem());
-		    item=new MenuItem("Quit");
-		    item.setOnAction(AE->{stop=true;Platform.exit();});
-		    menu.getItems().add(item);
-		    menuBar.getMenus().add(menu);
-		    contentPane.setTop(menuBar);
-		    
-		    progressBar = new ProgressBar();
-			
-			
-			contentPane.setCenter(tabPane);
-			contentPane.setBottom(new HBox(new Label("Progress:"),this.progressBar));
-			
-			
 			chartGenerators.removeIf(G->!G.isEnabled());
-			for(final ChartGenerator g:chartGenerators) {
-				tabPane.getTabs().add(g.makeTab());
-				}
-			final Screen scr = Screen.getPrimary();
-			final Scene scene  = new Scene(
-					contentPane,
-					scr.getBounds().getWidth()-100,
-					scr.getBounds().getHeight()-100
-					);
-			primaryStage.setScene(scene);
-			primaryStage.setTitle(getClass().getSimpleName());
 			
-	        primaryStage.show();
+			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			long last = -1L;
+			while(iter.hasNext())
+				{
+				final VariantContext ctx = progress.apply(iter.next());
+				
+				for(final ChartGenerator cg: this.chartGenerators) {
+					if(!cg.isEnabled()) continue;
+					cg.visit(ctx);
+					}
+				if(this.outputFile!=null)
+					{
+					final long now = System.currentTimeMillis();
+					if(last<0L || now - last > this.refreshEverySeconds * 1000) {
+						last=now;
+						save();
+						}
+					}
+				}
+			progress.close();
+			
+			save();
+			
+			return 0;
 			}
 		catch(final Exception err) {
 			err.printStackTrace();
@@ -1550,138 +1334,13 @@ public class VcfStatsJfx extends JfxLauncher {
 			}
 		finally
 			{
-			
+			CloserUtil.close(iter);
 			}
-		return 0;
 		}
 	
-	private void doMenuSaveAllImagesInFile()
-		{
-		final FileChooser fc = new FileChooser();
-		final File f = fc.showSaveDialog(null);
-		if(f==null) return;
-		if(!(f.getName().endsWith(".R") || f.getName().endsWith(".zip"))){
-			  final Alert alert=new Alert(AlertType.ERROR,
-					  "Filename must end with .R or .zip:"+f);
-	          alert.showAndWait();
-	          return;
-			}
-		try {
-			saveImagesAs(f);
-			}
-    	catch (final IOException e) {
-            super.displayAlert(e);
-        	}
-		}
 	
-	private void doMenuSaveAllImages() {
-		final DirectoryChooser fc = new DirectoryChooser();
-		final File dir = fc.showDialog(null);
-		if(dir==null) return;
-		if(!dir.exists() || !dir.isDirectory()) {
-			  final Alert alert=new Alert(AlertType.ERROR,
-					  "Bad directory :"+dir);
-	          alert.showAndWait();
-	          return;
-			}
-		try {
-			saveImagesAs(dir);
-			}
-    	catch (final IOException e) {
-    		 super.displayAlert(e);
-        	}
-		}
-	
-	private void doMenuSaveCurrentImage(final Tab tab) {
-		if(tab==null) return;
-		final Node content =  tab.getContent();
-	 	if(content==null) return;
-		final FileChooser fc = new FileChooser();
-		final File file = fc.showSaveDialog(null);
-    	if(file==null) return;
-    	
-    	
-    	PrintWriter pw= null;
-    	try {
-    		if(file.getName().endsWith(".R")) {
-        		if(content instanceof Chart) {
-            		pw = new PrintWriter(file);
-            		JFXChartExporter exporter = new JFXChartExporter(pw);
-            		exporter.exportToR(Chart.class.cast(content));
-	        		pw.flush();
-	        		pw.close();
-        			}
-        		}
-    		else
-	    		{
-	    		final WritableImage image = content.snapshot(new SnapshotParameters(), null);
-				
-	    		final String format = file.getName().toLowerCase().endsWith("png")?"png":"jpg";
-				ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
-	    		}
-    		}
-    	catch (final IOException e) {
-    		super.displayAlert(e);
-            LOG.error(e);
-        	}
-    	finally
-    		{
-    		CloserUtil.close(pw);
-    		}
-		}
-	
-	private void saveImagesAs(final File out) throws IOException {
-		PrintWriter pw =null;
-		FileOutputStream fout = null;
-		try {
-			if(out.getName().endsWith(".R")) {
-				pw = new PrintWriter(out);
-				final JFXChartExporter chartExporter = new JFXChartExporter(pw);
-				for(final ChartGenerator  cg:this.chartGenerators) {
-					if(!cg.isEnabled()) continue;
-					LOG.info("saving "+cg.getFilename());
-					cg.saveR(chartExporter);
-					}
-				pw.flush();
-				pw.close();
-				}
-			else if(out.getName().endsWith(".zip")) {
-				fout = new FileOutputStream(out);
-				final ZipOutputStream zout = new ZipOutputStream(fout);
-				for(final ChartGenerator  cg:this.chartGenerators) {
-					if(!cg.isEnabled()) continue;
-					LOG.info("saving "+cg.getFilename());
-					final ZipEntry zipEntry = new ZipEntry(cg.getFilename());
-					zout.putNextEntry(zipEntry);
-					cg.saveImageAs(zout);
-					zout.closeEntry();
-					}
-				zout.finish();
-				zout.close();
-				fout.close();
-				}
-			else
-				{
-				IOUtil.assertDirectoryIsWritable(out);
-				for(final ChartGenerator  cg:this.chartGenerators) {
-					if(!cg.isEnabled()) continue;
-					LOG.info("saving "+cg.getFilename());
-					cg.saveImageAs(out);
-					}
-				}
-			} 
-	catch(final Exception err) {
-		super.displayAlert(err);
-		}
-	finally
-		{
-		CloserUtil.close(pw);
-		CloserUtil.close(fout);
-		}
-	}
-
 	public static void main(final String[] args) {
-		Application.launch(args);
+		new VcfStatsJfx().instanceMainWithExit(args);
 	}
 
 }

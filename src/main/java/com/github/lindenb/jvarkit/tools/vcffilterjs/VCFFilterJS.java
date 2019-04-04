@@ -47,7 +47,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -380,7 +380,7 @@ public class VCFFilterJS
 		}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator r,final VariantContextWriter w) {
+	protected int doVcfToVcf(final String inputName,final VCFIterator r,final VariantContextWriter w) {
 		try
 			{
 			

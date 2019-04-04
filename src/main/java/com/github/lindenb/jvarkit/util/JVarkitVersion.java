@@ -27,6 +27,8 @@ package com.github.lindenb.jvarkit.util;
 
 import java.io.InputStream;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
@@ -164,12 +166,10 @@ public SAMFileHeader addMetaData(final Launcher app,final SAMFileHeader header) 
 
 public String getLabel() {
 	return String.join(" ",
-			"compilation:",
-			getCompilationDate(),
-			"githash:",
-			getGitHash(),
-			"htsjdk:",
-			getHtsjdkVersion()
+			"compilation:"+ getCompilationDate(),
+			"githash:"+ getGitHash(),
+			"htsjdk:"+ getHtsjdkVersion(),
+			"date:" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date())
 			);
 	
 	

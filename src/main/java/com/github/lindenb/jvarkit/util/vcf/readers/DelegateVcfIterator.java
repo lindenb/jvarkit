@@ -2,19 +2,19 @@ package com.github.lindenb.jvarkit.util.vcf.readers;
 
 import java.io.IOException;
 
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
-public class DelegateVcfIterator implements VcfIterator{
-	private final VcfIterator delegate;
-	public DelegateVcfIterator(final VcfIterator delegate) {
+public class DelegateVcfIterator implements VCFIterator{
+	private final VCFIterator delegate;
+	public DelegateVcfIterator(final VCFIterator delegate) {
 		this.delegate=delegate;
 		}
 	
-	protected VcfIterator getDelegate() {
+	protected VCFIterator getDelegate() {
 		return delegate;
 		}
 	
@@ -29,15 +29,13 @@ public class DelegateVcfIterator implements VcfIterator{
 	}
 
 	@Override
-	public void close() throws IOException {
+	public void close()  {
 		getDelegate().close();
 		
 	}
 
-	@Override
-	public AbstractVCFCodec getCodec() {
-		return getDelegate().getCodec();
-	}
+	//@Override
+	//public AbstractVCFCodec getCodec() { return getDelegate().getCodec();}
 
 	@Override
 	public VCFHeader getHeader() {

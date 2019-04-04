@@ -56,7 +56,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 
 /**
@@ -142,7 +142,7 @@ public class VcfCutSamples
 	}
 
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in,VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in,VariantContextWriter out) {
 		VCFHeader header=in.getHeader();
 		final Set<String> samples1=new HashSet<String>(header.getSampleNamesInOrder());
 		

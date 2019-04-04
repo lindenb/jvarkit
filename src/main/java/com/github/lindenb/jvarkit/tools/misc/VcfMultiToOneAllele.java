@@ -57,7 +57,7 @@ import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.beust.jcommander.Parameter;
@@ -510,7 +510,7 @@ public class VcfMultiToOneAllele
 	@Override
 	public int doVcfToVcf(
 			final String inputName,
-			final VcfIterator r,
+			final VCFIterator r,
 			final VariantContextWriter delegate
 			)   
 		{

@@ -30,10 +30,13 @@ package com.github.lindenb.jvarkit.util.picard;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
 /**
  * 
@@ -136,12 +139,9 @@ public class GenomicSequence
 		{	
 		this.indexedFastaSequenceFile=indexedFastaSequenceFile;
 		if(this.indexedFastaSequenceFile==null) throw new NullPointerException("IndexedFastaSequenceFile is null");
-		if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
-			{
-			throw new IllegalArgumentException("No sequence dictionary in the reference. Use picard CreateSequenceDictionary to index the sequence https://broadinstitute.github.io/picard/command-line-overview.html.");
-			}
-		this.samSequenceRecord=this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(chrom);
-		if(this.samSequenceRecord==null) throw new IllegalArgumentException("not chromosome "+chrom+" in reference.");
+		final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
+		this.samSequenceRecord= dict.getSequence(chrom);
+		if(this.samSequenceRecord==null) throw new JvarkitException.ContigNotFoundInDictionary(chrom,dict);
 		}
 	
 	public SAMSequenceRecord getSAMSequenceRecord()

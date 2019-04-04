@@ -41,8 +41,9 @@ import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -65,7 +66,7 @@ BEGIN_DOC
 
 ## Motivation
 
-Filters a BAM using a java expression compiled in memory.
+Filters a BAM using a java expression compiled at runtime.
 
 
 ## About the script
@@ -107,7 +108,7 @@ The user code will be inserted in the following java code:
  3  import java.util.function.*;
  4  import htsjdk.samtools.*;
  5  import htsjdk.samtools.util.*;
- 6  import javax.annotation.Generated;
+ 6  import javax.annotation.processing.Generated;
  7  @Generated(value="SamJdk",date="2017-08-07T14:48:39+0200")
  8  public class SamJdkCustom756098808 extends com.github.lindenb.jvarkit.tools.samjs.SamJdk.AbstractFilter {
  9    public SamJdkCustom756098808(final SAMFileHeader header) {
@@ -372,7 +373,7 @@ END_DOC
 	keywords={"sam","bam","java","jdk","filter"},
 	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,
 		287057,299673,301080,305526,306034,309143,327317,335998,
-                336965,340479,342675,345679},
+                336965,340479,342675,345679,362298},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
 	)
 public class SamJdk
@@ -470,6 +471,7 @@ public class SamJdk
 		if(failingReadsWriter!=null) failingReadsWriter.addAlignment(rec);
 		}
 	
+		
 	@Override
 	public int doWork(final List<String> args) {
 		SAMRecordIterator iter=null;
@@ -496,7 +498,7 @@ public class SamJdk
 			final Random rand= new  Random(System.currentTimeMillis());
 			final String javaClassName =SamJdk.class.getSimpleName()+
 					"Custom"+ Math.abs(rand.nextInt());
-			
+			final String generatedClassName = OpenJdkCompiler.getGeneratedAnnotationClassName();
 			final StringWriter codeWriter=new StringWriter();
 			final PrintWriter pw = new PrintWriter(codeWriter);
 			pw.println("import java.util.*;");
@@ -504,9 +506,9 @@ public class SamJdk
 			pw.println("import java.util.function.*;");
 			pw.println("import htsjdk.samtools.*;");
 			pw.println("import htsjdk.samtools.util.*;");
-			pw.println("import javax.annotation.Generated;");
-
-			pw.println("@Generated(value=\""+SamJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+			if(!StringUtils.isBlank(generatedClassName)) {
+				pw.println("@"+generatedClassName+"(value=\""+SamJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+				}
 			pw.println("public class "+javaClassName+" extends "+
 					(this.pair_mode?AbstractListFilter.class:AbstractFilter.class).getName().replace('$', '.')+" {");
 			pw.println("  public "+javaClassName+"(final SAMFileHeader header) {");
@@ -535,7 +537,7 @@ public class SamJdk
 			
 			if(!hideGeneratedCode)
 				{
-				LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
+				LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
 				}
 			
 			if(this.saveCodeInDir!=null)
@@ -561,12 +563,10 @@ public class SamJdk
 					CloserUtil.close(cw);
 					}
 				}
+			final OpenJdkCompiler compiler = OpenJdkCompiler.getInstance();
 			
-			final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
-			final Class<?> compiledClass = inMemoryCompiler.compileClass(
-					javaClassName,
-					codeWriter.toString()
-					);
+			final Class<?> compiledClass = compiler.compileClass(javaClassName,codeWriter.toString());
+			
 			final Constructor<?> ctor=compiledClass.getDeclaredConstructor(SAMFileHeader.class);
 			
 			

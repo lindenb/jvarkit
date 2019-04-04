@@ -51,7 +51,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 
@@ -159,7 +159,7 @@ public class VcfIndexTabix
 		{
 		}
 	
-	private int doVcfToVcf(String inputName, final VcfIterator vcfIn,final File outFile) throws IOException {
+	private int doVcfToVcf(String inputName, final VCFIterator vcfIn,final File outFile) throws IOException {
 		
 
 		SortingVCFWriter sortingVCW=null;
@@ -223,11 +223,11 @@ public class VcfIndexTabix
 			return 1;
 			}
 		
-		VcfIterator iter = null;
+		VCFIterator iter = null;
 		try {
 			
 			final String inputName=oneFileOrNull(args);
-			iter =  super.openVcfIterator(inputName);
+			iter =  super.openVCFIterator(inputName);
 			return doVcfToVcf(inputName==null?"STDIN":inputName, iter, outputFile);
 		} catch (Exception e) {
 			LOG.error(e);

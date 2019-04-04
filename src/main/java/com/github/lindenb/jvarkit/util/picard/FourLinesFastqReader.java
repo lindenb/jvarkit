@@ -61,7 +61,7 @@ public class FourLinesFastqReader
 		super(null);
 		try {
 			this.lineReader= IOUtils.openStreamForLineReader(in);
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			throw new RuntimeIOException(e);
 			}
 		}

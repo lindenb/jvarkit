@@ -40,7 +40,7 @@ import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMTagUtil;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -294,7 +294,7 @@ public class CompareBams4  extends Launcher
 		final PeekableIterator<SAMRecord> iters[]=new PeekableIterator[]{null,null};
 		final List<List<SAMRecord>> recordLists = Arrays.asList(new ArrayList<SAMRecord>(),new ArrayList<SAMRecord>());
 		final Counter<Diff> diffs = new Counter<>();
-		final short NM_TAG = SAMTagUtil.getSingleton().NM;
+		final short NM_TAG = SAMTag.NM.getBinaryTag();
 		if(args.size() !=2)
 			{
 			LOG.error("Expected two and only two bams please, but got "+args.size());

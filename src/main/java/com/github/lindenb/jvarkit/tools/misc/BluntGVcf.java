@@ -10,7 +10,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.ContigPos;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -31,7 +31,7 @@ public class BluntGVcf extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName, 
-			final VcfIterator in,
+			final VCFIterator in,
 			final  VariantContextWriter out
 			)
 		{

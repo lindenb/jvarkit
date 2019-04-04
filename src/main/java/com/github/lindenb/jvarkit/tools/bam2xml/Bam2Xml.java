@@ -215,7 +215,6 @@ public class Bam2Xml extends Launcher
 
 	public static class SAMXMLWriter implements SAMFileWriter
 		{
-		//private final SAMTagUtil tagUtil = new SAMTagUtil();
 		private long id_generator=0L;
 		private ProgressLoggerInterface progress;
 		private XMLStreamWriter w;

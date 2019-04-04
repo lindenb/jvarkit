@@ -77,7 +77,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -551,7 +551,7 @@ public class XContaminations extends Launcher
 			}	
 		
 		SAMRecordIterator iter=null;
-		VcfIterator in=null;
+		VCFIterator in=null;
 		Map<String,SamReader> sample2samReader=new HashMap<>();
 		VariantContextWriter vcfw = null;
 		try {
@@ -559,11 +559,11 @@ public class XContaminations extends Launcher
 			
 			if(args.get(0).equals("-"))
 				{
-				in = super.openVcfIterator(null);
+				in = super.openVCFIterator(null);
 				}
 			else
 				{
-				in = super.openVcfIterator(args.get(0));
+				in = super.openVCFIterator(args.get(0));
 				}
 			
 			

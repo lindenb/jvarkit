@@ -49,6 +49,12 @@ public abstract class GeneticCode
 			return "FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNKKSS**VVVVAAAADDEEGGGG";
 			}
 		};
+		
+	/** test for stop-codon amino acid*/
+	public boolean isStop(char aminoacid) {
+		return aminoacid=='*';
+	}
+		
 	/** get the genetic-code table (NCBI data) */ 
 	protected abstract String getNCBITable();
 	
@@ -64,6 +70,13 @@ public abstract class GeneticCode
 			default: return -1;
 			}
 		}
+	
+	/** test if translation is stop */
+	public boolean isStopCodon(char b1,char b2,char b3)
+		{
+		return isStop(translate(b1,b2,b3));
+		}
+	
 	/** translate cDNA to aminoacid */
 	public char translate(char b1,char b2,char b3)
 		{

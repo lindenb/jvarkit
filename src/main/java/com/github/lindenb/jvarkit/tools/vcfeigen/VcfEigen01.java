@@ -45,7 +45,7 @@ import javax.xml.bind.annotation.XmlType;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -241,7 +241,7 @@ public class VcfEigen01
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator iter,
+			final VCFIterator iter,
 			final VariantContextWriter delegate
 			) {	
 		final VariantContextWriter out = this.component.open(delegate);

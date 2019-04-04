@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.io.StringWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,39 +43,27 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IStringConverterFactory;
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
-import com.beust.jcommander.converters.IntegerConverter;
-import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import com.github.lindenb.jvarkit.util.jcommander.CmdUsageBuilder;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -92,9 +79,10 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFIterator;
 
 
-@IncludeSourceInJar
+
 public class Launcher {
 private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
@@ -107,367 +95,10 @@ public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web
 protected static final int RETURN_OK=0;
 public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 
-/** need to decouple from Launcher for JXF applications that cannot extends 'Launcher' */
-public static  class UsageBuider
-	{
-	/** main class */
-	private Class<?> mainClass=Object.class;
-	
-	@Parameter(names = {"-h","--help"},description="print help and exit", help = true)
-	public boolean print_help = false;
-	@Parameter(names = {"--helpFormat"},description="What kind of help", help = true)
-	public HelpFormat helpFormat = HelpFormat.usage;
-	@Parameter(names = {"--version"}, help = true,description="print version and exit")
-	public boolean print_version = false;
 
-	private enum HelpFormat {usage,markdown,xml}
-	
-	public UsageBuider(Class<?> mainClass) {
-		this.mainClass = mainClass;
-	}
-	
-	public boolean shouldPrintUsage() {
-		return this.print_help;
-	}
-	
-	public void usage(final JCommander jc) {
-		if(this.helpFormat.equals(HelpFormat.xml))
-			{
-			final Document dom;
-			try {
-				dom = this.xmlUsage(jc);
-				}
-			catch(final Exception err)
-				{
-				err.printStackTrace();
-				System.err.println("An error occured. Cannot produce XML");
-				return ;
-				}
-
-			try {
-				final Transformer transformer = TransformerFactory.newInstance().newTransformer();
-
-				final DOMSource source = new DOMSource(dom);
-				final StreamResult result = new StreamResult(new StringWriter());
-
-				if(!this.helpFormat.equals(HelpFormat.xml))
-					{
-					System.err.println("TODO");
-					}
-				else
-					{
-					transformer.setOutputProperty(OutputKeys.STANDALONE,"yes");
-					transformer.transform(source, result);
-					final String xmlString = result.getWriter().toString();
-					System.out.println(xmlString);
-					}
-				}
-			catch(final Exception err)
-				{
-				err.printStackTrace();
-				System.err.println("An error occured. Cannot produce XML");
-				}
-			}
-		else
-			{
-			System.out.println(getUsage(jc));
-			}
-		}
-
-	
-	public String getUsage(final JCommander jc) {
-		final StringBuilder sb=new StringBuilder();
-		this.usage(jc,sb);
-		return sb.toString();
-		}
-	public String hyperlink(final String url)
-		{
-		return "["+url+"]("+url+")";
-		}
-	
-	private void include(final StringBuilder sb,String className) {
-	InputStream in=null;
-	try {
-		int dollar=className.indexOf('$');
-		if(dollar!=-1) className=className.substring(0, dollar);
-		className=className.replace('.', '/')+".java";
-		in=getMainClass().getResourceAsStream("/"+className);
-		if(in!=null){
-			BufferedReader r=new BufferedReader(new InputStreamReader(in));
-			String line;
-			boolean ok=false;
-			while((line=r.readLine())!=null)
-				{
-				if(line.contains("BEGIN"+"_DOC"))
-					{
-					ok=true;
-					}
-				else if(line.contains("END"+"_DOC") && !line.contains(".END_DOCUMENT"))
-					{
-					if(!ok) LOG.warn("END_"+"DOC without BEGIN"+"_DOC "+line.trim());
-					ok=false;
-					}
-				else if(ok)
-					{
-					if(line.trim().startsWith("@@INCLUDE"))
-						{
-						int n=line.indexOf(" ");
-						if(n==-1)  n=line.indexOf("\t");
-						if(n==-1)  n=line.indexOf("=");
-						if(n!=-1) {
-							line=line.substring(n+1).trim();
-							if(!line.isEmpty())
-								{
-								include(sb, line);
-								}
-							}
-						}
-					else
-						{
-						sb.append(line).append("\n");
-						}
-					}
-				}
-			r.close();
-			if(ok) LOG.warn("BEGIN_"+"DOC without END");
-			}
-		else
-			{
-			LOG.debug("cannot find java code for "+className);
-			}
-		}
-	catch(final Exception err) {
-		
-		}
-	finally
-		{
-		CloserUtil.close(in);
-		}
-	}
-	
-	/** create usage as XML. No DTD. Might change in the future */
-	private Document xmlUsage(final JCommander jc) throws Exception {
-		final Class<?> clazz = getMainClass();			
-		final Program programdesc = clazz.getAnnotation(Program.class);
-
-		final Document dom = DocumentBuilderFactory.newInstance().
-					newDocumentBuilder().
-					newDocument();
-		final Element root = dom.createElement("program");
-		Element e1;
-		dom.appendChild(root);
-		if(programdesc!=null)
-			{
-			root.setAttribute("name", programdesc.name());
-			e1 = dom.createElement("description");
-			root.appendChild(e1);
-			e1.appendChild(dom.createTextNode(programdesc.description()));
-			for(final String kw : programdesc.keywords())
-				{
-				e1 = dom.createElement("keyword");
-				root.appendChild(e1);
-				e1.appendChild(dom.createTextNode(kw));
-				}
-			
-			for(final int bid : programdesc.biostars())
-				{
-				e1 = dom.createElement("biostar");
-				root.appendChild(e1);
-				e1.appendChild(dom.createTextNode("https://www.biostars.org/p/"+bid));
-				}
-			}
-		e1 = dom.createElement("parameters");
-		root.appendChild(e1);
-		for(final ParameterDescription pd:jc.getParameters())
-			{
-			final Element e2= dom.createElement("parameter");
-			e2.setAttribute("help",String.valueOf(pd.isHelp()));
-			e1.appendChild(e2);
-			for(final String name : pd.getParameter().names())
-				{
-				final Element e3 = dom.createElement("name");
-				e2.appendChild(e3);
-				e3.appendChild(dom.createTextNode(name));
-				}
-			final Element e3 = dom.createElement("description");
-			e2.appendChild(e3);
-			e3.appendChild(dom.createTextNode(pd.getDescription()));
-			}
-		
-	return dom;
-	}	
-	
-	
-	public void usage(final JCommander jc,final StringBuilder sb) {
-
-		final Class<?> clazz = getMainClass();
-		
-		final Program programdesc = clazz.getAnnotation(Program.class);
-		
-		if(programdesc!=null){
-			jc.setProgramName(programdesc.name());
-		} else
-			{
-			jc.setProgramName(clazz.getSimpleName());
-			}
-		if(this.helpFormat.equals(HelpFormat.markdown))  
-			{
-			sb.append("# "+clazz.getSimpleName()+"\n\n");
-			
-			sb.append("![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)").append("\n\n");
-			
-			if(programdesc!=null){
-				
-				sb.append(programdesc.description()).
-					append("\n\n");
-				
-				if(!programdesc.deprecatedMsg().isEmpty())
-					{
-					sb.append("\n## DEPRECATED\n\n").
-						append(programdesc.deprecatedMsg()).
-						append("\n");
-					}
-				}
-			}
-		
-		
-		if(this.helpFormat.equals(HelpFormat.markdown)) sb.append("\n## Usage\n\n```\n");
-		jc.usage(sb);
-		if(this.helpFormat.equals(HelpFormat.markdown)) sb.append("\n```\n\n");
-
-		if(programdesc!=null && this.helpFormat.equals(HelpFormat.markdown)){
-			if(programdesc.keywords()!=null && programdesc.keywords().length>0) {
-				sb.append("\n## Keywords\n\n");
-				for(String sk:programdesc.keywords()) sb.append(" * "+sk+"\n");
-				sb.append("\n\n");
-			}
-			if(programdesc.biostars()!=null && programdesc.biostars().length>0) {
-				sb.append("\n## See also in Biostars\n\n");
-				for(int postid:programdesc.biostars()) sb.append(" * "+hyperlink("https://www.biostars.org/p/"+postid)+"\n");
-				sb.append("\n\n");
-			}	
-		}
-		
-		if(this.helpFormat.equals(HelpFormat.markdown))
-			{
-			final String progName=(programdesc==null?"software":programdesc.name());
-			sb.append("## Compilation\n");
-			sb.append("\n");
-			sb.append("### Requirements / Dependencies\n");
-			sb.append("\n");
-			sb.append("* java [compiler SDK 1.8](http://www.oracle.com/technetwork/java/index.html) (**NOT the old java 1.7 or 1.6**, not the new 1.9) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
-			sb.append("* GNU Make >= 3.81\n");
-			sb.append("* curl/wget\n");
-			sb.append("* git\n");
-			sb.append("\n");
-			sb.append("\n");
-			sb.append("### Download and Compile\n");
-			sb.append("\n");
-			sb.append("```bash\n");
-			sb.append("$ git clone \"https://github.com/lindenb/jvarkit.git\"\n");
-			sb.append("$ cd jvarkit\n");
-			sb.append("$ make "+progName+"\n");
-			sb.append("```\n");
-			sb.append("\n");
-			sb.append("The *.jar libraries are not included in the main jar file, [so you shouldn\'t move them](https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).");
-			sb.append("\n");
-			sb.append("The required libraries will be downloaded and installed in the `dist` directory.\n");
-			sb.append("\n");
-			sb.append("Experimental: you can also create a [fat jar](https://stackoverflow.com/questions/19150811/) which contains classes from all the libraries, on which your project depends (it's bigger). Those fat-jar are generated by adding `standalone=yes` to the gnu make command, for example ` make "+progName+" standalone=yes`.\n");
-			sb.append("\n");
-			sb.append("### edit \'local.mk\' (optional)\n");
-			sb.append("\n");
-			sb.append("The a file **local.mk** can be created edited to override/add some definitions.\n");
-			sb.append("\n");
-			sb.append("For example it can be used to set the HTTP proxy:\n");
-			sb.append("\n");
-			sb.append("```\n");
-			sb.append("http.proxy.host=your.host.com\n");
-			sb.append("http.proxy.port=124567\n");
-			sb.append("```\n");
-			
-			sb.append("## Source code \n\n");
-			
-			sb.append(hyperlink("https://github.com/lindenb/jvarkit/tree/master/src/main/java/"+
-				clazz.getName().replace('.','/')+".java")+"\n");
-			sb.append("\n");
-			
-			final File unitTestFile = new File("src/test/java/"+clazz.getName().replace('.','/')+"Test.java");
-			if(unitTestFile.exists()) {
-				sb.append("### Unit Tests\n\n");
-				sb.append(hyperlink("https://github.com/lindenb/jvarkit/tree/master/src/test/java/"+
-						clazz.getName().replace('.','/')+"Test.java")+"\n");
-				sb.append("\n");
-			}
-			sb.append("\n");
-			sb.append("## Contribute\n");
-			sb.append("\n");
-			sb.append("- Issue Tracker: "+hyperlink("http://github.com/lindenb/jvarkit/issues")+"\n");
-			sb.append("- Source Code: "+hyperlink("http://github.com/lindenb/jvarkit")+"\n");
-			sb.append("\n");
-			sb.append("## License\n");
-			sb.append("\n");
-			sb.append("The project is licensed under the MIT license.\n");
-			sb.append("\n");
-			sb.append("## Citing\n");
-			sb.append("\n");
-			sb.append("Should you cite **"+progName +"** ? "+hyperlink("https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md")+"\n");
-			sb.append("\n");
-			sb.append("The current reference is:\n");
-			sb.append("\n");
-			
-			
-			final String references[]= (programdesc==null?new String[0]:programdesc.references());
-			
-			
-			if(references==null || references.length==0) {
-				sb.append(hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
-				sb.append("\n");
-				sb.append("> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.\n");
-				sb.append("> "+hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
-				sb.append("\n");
-				}
-			else
-				{
-				for(final String ref:references) {
-					sb.append(" * ");
-					sb.append(ref);
-					sb.append("\n");
-					}
-				sb.append("\n");
-				}
-			}
-		if( this.helpFormat.equals(HelpFormat.markdown) ) {
-			include(sb,clazz.getName());
-			}
-		}
-	
-	public Class<?> getMainClass()
-		{
-		return mainClass;
-		}
-	
-	public String getCompileDate()
-		{
-		return JVarkitVersion.getInstance().getCompilationDate();
-		}
-
-	public String getGitHash()
-		{
-		return JVarkitVersion.getInstance().getGitHash();
-		}
-	
-	public String getVersion()
-		{
-		return getGitHash();
-		}
-	
-	
-
-	}
 
 @ParametersDelegate
-private UsageBuider usageBuilder = null;
+private CmdUsageBuilder usageBuilder = null;
 
 /** custom instance of jcommander, don't add same command twice. */
 private class MyJCommander extends JCommander
@@ -487,43 +118,6 @@ private class MyJCommander extends JCommander
 	}
 	
 
-/**
- * Special converter for Zip compression. Bound the values between 0 and 9
- * "best" is interpreted as BEST_COMPRESSION
- * "none" is no compression
- */
-public static class CompressionConverter
-extends IntegerConverter implements Function<String, Integer> {
-	public CompressionConverter() {
-		super("");
-		}
-	public CompressionConverter(final String arg) {
-		super(arg);
-		}
-
-	@Override
-	public final Integer apply(String t) {
-		return convert(t);
-		}
-	
-	@Override
-	public Integer convert(final String s) {
-		if(s!=null) {
-			if(s.equals("best")) return Deflater.BEST_COMPRESSION;
-			if(s.equals("none")) return Deflater.NO_COMPRESSION;
-		}
-		final Integer n = super.convert(s);
-		if(n!=null) {
-			if(n<0) return Deflater.NO_COMPRESSION;
-			if(n>9) return Deflater.BEST_COMPRESSION;
-		}
-		return n;
-	}
-	@Override
-	public String toString() {
-		return "Compression converter";
-		}
-	}
 
 
 
@@ -540,7 +134,7 @@ private String programName="";
 public class CompressionArgs
 	{
 	@Parameter(names={"--compression"},description="Compression Level.",converter=CompressionConverter.class)
-	public int compressionLevel=5;
+	public IntSupplier compressionLevel=CompressionConverter.getDefault();
 	}
 public CompressionArgs compressionArgs=new CompressionArgs();
 
@@ -799,15 +393,14 @@ public static class VcfWriterOnDemand
 		}
 	}
 
-
+@SuppressWarnings("unchecked")
 public Launcher()
 	{
 	final Class<?> clazz=Launcher.this.getClass();
-	this.usageBuilder = new UsageBuider(clazz);
-	final Program programdesc=clazz.getAnnotation(Program.class);
-	if(programdesc!=null)
+	this.usageBuilder = new CmdUsageBuilder(clazz);
+	if(this.usageBuilder.hasProgram())
 		{
-		this.programName = programdesc.name();
+		this.programName = this.usageBuilder.getProgram().name();
 		}
 	else
 		{
@@ -834,12 +427,13 @@ public Launcher()
 	catch(final java.security.AccessControlException err) {
 	}
 	
-	 @SuppressWarnings({"rawtypes","unchecked","serial"})
+	@SuppressWarnings({"rawtypes","unchecked","serial"})
 	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(Dimension.class,DimensionConverter.class);
 		    put(SamRecordFilter.class,SamFilterParser.StringConverter.class);
 		    put(Random.class,RandomConverter.class);
 		}};	
+
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
 			@SuppressWarnings("unchecked")
 			@Override
@@ -860,20 +454,17 @@ public String getProgramName()
 public String getCompileDate()
 	{
 	return this.usageBuilder.getCompileDate();
-}
+	}
 
 public String getGitHash()
-{
+	{
 	return this.usageBuilder.getGitHash();
-}
+	}
 
 public String getVersion()
-{
+	{
 	return this.usageBuilder.getVersion();
-}
-
-
-
+	}
 
 
 protected JCommander getJCommander()
@@ -919,8 +510,8 @@ protected Status parseArgs(final String args[])
 	 return Status.OK;
 	}
 
-protected VcfIterator openVcfIterator(final String inputNameOrNull) throws IOException {
-	return VCFUtils.createVcfIterator(inputNameOrNull);
+protected VCFIterator openVCFIterator(final String inputNameOrNull) throws IOException {
+	return VCFUtils.createVCFIterator(inputNameOrNull);
 }
 
 /**
@@ -958,16 +549,16 @@ protected VCFHeader addMetaData(final VCFHeader header)
 	return header;
 	}
 
-protected int doVcfToVcf(final String inputName,final VcfIterator iterin,final VariantContextWriter out){
+protected int doVcfToVcf(final String inputName,final VCFIterator iterin,final VariantContextWriter out){
 	LOG.debug("using default doVcfToVcf ??");
 	VCFUtils.copyHeaderAndVariantsTo(iterin, out);
 	return 0;
 	}
 protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
-	VcfIterator iterin=null;
+	VCFIterator iterin=null;
 	VariantContextWriter w=null;
 	try {
-		iterin = openVcfIterator(inputNameOrNull);
+		iterin = openVCFIterator(inputNameOrNull);
 		w = openVariantContextWriter(outorNull);
 		int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
 		w.close();
@@ -1199,12 +790,12 @@ protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(File out) throws jav
 	}
 
 
-/** open output (file or stdout) as PrintStream */
-protected java.io.PrintStream openFileOrStdoutAsPrintStream(File out) throws java.io.IOException
+/** open output (file or stdout if out is null ) as PrintStream */
+protected java.io.PrintStream openFileOrStdoutAsPrintStream(final File out) throws java.io.IOException
 	{
 	if(out!=null)
 		{
-		if(out.getName().endsWith(".gz"))
+		if(out.getName().endsWith(".gz") || out.getName().endsWith(".bz2"))
 			{
 			final java.io.OutputStream os = this.openFileOrStdoutAsStream(out);
 			if(os instanceof java.io.PrintStream) {
@@ -1368,7 +959,7 @@ protected int doVcfToVcfMultipleStream(
 		final String filename = String.format("%04d.vcf",(++n_vcf));
 			
 		/* create VCF iterator */
-		final com.github.lindenb.jvarkit.util.vcf.VcfIterator in = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVcfIteratorFromLineIterator(lineIter, true);
+		final htsjdk.variant.vcf.VCFIterator in = com.github.lindenb.jvarkit.util.vcf.VCFUtils.createVCFIteratorFromLineIterator(lineIter, true);
 		
 			
 		/* if zip: add new entry */

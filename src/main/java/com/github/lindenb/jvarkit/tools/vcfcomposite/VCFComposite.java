@@ -67,7 +67,8 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -446,7 +447,7 @@ public class VCFComposite extends Launcher {
 	
 	@Override
 	protected int doVcfToVcf(final String inputName,
-		final VcfIterator iterin,
+		final VCFIterator iterin,
 		final VariantContextWriter out) {
 		final DiseaseModel model = this.createModel();
 
@@ -472,12 +473,12 @@ public class VCFComposite extends Launcher {
 			}
 		
 		if(this.pedigree.getAffected().isEmpty()) {
-			LOG.error("No Affected sample in "+this.pedigreeFile);
+			LOG.error("No Affected sample in pedigre. " + this.pedigree);
 			return -1;
 			}
 		
 		if(this.pedigree.getUnaffected().isEmpty()) {
-			LOG.error("No Unaffected sample in "+this.pedigreeFile);
+			LOG.error("No Unaffected sample in " + this.pedigree);
 			return -1;
 			}
 		header.addMetaDataLine(new VCFInfoHeaderLine(INFO_TAG, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Variant of VCFComposite"));
@@ -509,7 +510,7 @@ public class VCFComposite extends Launcher {
 
 
 		long ID_GENERATOR = 0L;
-		this.vcfDecoder = iterin.getCodec();
+		this.vcfDecoder = VCFUtils.createDefaultVCFCodec();//iterin.getCodec();
 		this.vcfEncoder = new VCFEncoder(header, false, true);
 		final AnnPredictionParser annParser=new AnnPredictionParserFactory(header).get();
 		final VepPredictionParser vepParser=new VepPredictionParserFactory(header).get();

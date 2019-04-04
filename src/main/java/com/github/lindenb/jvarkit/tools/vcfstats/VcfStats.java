@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -1759,7 +1759,7 @@ public class VcfStats extends Launcher
 		}
 		
 		VariantContextWriter teeOut=null;
-		VcfIterator iter = null;
+		VCFIterator iter = null;
 		final Map<String,VariantStats> category2stats = new HashMap<>();
 		
 		PrintWriter makefileWriter =null;
@@ -1769,7 +1769,7 @@ public class VcfStats extends Launcher
 			this.archiveFactory = ArchiveFactory.open(this.outputFile);
 			if(this.tee) teeOut = super.openVariantContextWriter(null);
 			
-			iter= super.openVcfIterator(oneFileOrNull(args));
+			iter= super.openVCFIterator(oneFileOrNull(args));
 			
 			
 			

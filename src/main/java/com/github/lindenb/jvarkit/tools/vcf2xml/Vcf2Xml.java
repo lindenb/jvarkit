@@ -13,7 +13,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.XMLVcfWriterFactory;
 /**
 BEGIN_DOC
@@ -1516,7 +1516,7 @@ public class Vcf2Xml extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator iterin, 
+			final VCFIterator iterin, 
 			final VariantContextWriter out
 			) {
 		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(iterin.getHeader());

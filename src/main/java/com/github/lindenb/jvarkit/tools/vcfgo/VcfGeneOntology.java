@@ -49,7 +49,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
@@ -297,11 +297,11 @@ public class VcfGeneOntology
 
 	public int executeThings(List<String> args)
 		{
-		VcfIterator vcfIn=null;
+		VCFIterator vcfIn=null;
 		try
 			{
-			vcfIn = super.openVcfIterator(oneFileOrNull(args));
-			this.filterVcfIterator(vcfIn);
+			vcfIn = super.openVCFIterator(oneFileOrNull(args));
+			this.filterVCFIterator(vcfIn);
 			return 0;
 			}
 		catch(Exception err)
@@ -316,7 +316,7 @@ public class VcfGeneOntology
 		}
 
     
-	private void filterVcfIterator(final VcfIterator in) throws IOException
+	private void filterVCFIterator(final VCFIterator in) throws IOException
 		{
 		VariantContextWriter w = null;
 		try {

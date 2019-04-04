@@ -45,7 +45,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 @Program(
 		name="vcfmulti2oneinfo",
@@ -69,7 +69,7 @@ public class VcfMultiToOneInfo
 		}
 	 
 	 @Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator in,final VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName,final VCFIterator in,final VariantContextWriter out) {
 		final VCFHeader srcHeader=in.getHeader();
 		final VCFInfoHeaderLine srcInfo = srcHeader.getInfoHeaderLine(this.infoTag);
 		if( srcInfo == null )

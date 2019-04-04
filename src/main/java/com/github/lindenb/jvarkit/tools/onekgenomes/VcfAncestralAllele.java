@@ -43,7 +43,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequence;
@@ -203,7 +203,7 @@ extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator iterin,
+			final VCFIterator iterin,
 			final VariantContextWriter out) {
 		final Set<String> unmapped_contigs= new HashSet<>();
 		IndexedFastaSequenceFile indexedFastaSequenceFile = null;

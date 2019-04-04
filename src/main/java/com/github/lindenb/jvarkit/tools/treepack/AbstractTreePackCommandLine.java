@@ -62,7 +62,7 @@ public abstract class AbstractTreePackCommandLine
 
 	
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
-	private File outputFile = null;
+	protected File outputFile = null;
 
 	
 	protected Rectangle viewRect=new Rectangle(1000,1000);
@@ -455,7 +455,7 @@ public abstract class AbstractTreePackCommandLine
 	protected String intervalToString(int value,int step)
 		{
 		value=((int)(value/(double)step));
-		return String.valueOf((int)(value)*step+"-"+((value+1)*step));
+		return String.valueOf((value)*step+"-"+((value+1)*step));
 		}
 
 	protected void layout()

@@ -46,6 +46,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
  * used to store a VCF in memory. If there are
@@ -118,7 +119,7 @@ public Stream<VariantContext> stream()
 		}
 	}
 
-public VcfIterator iterator() {
+public VCFIterator iterator() {
 close();
 if(this.disposed) throw new IllegalStateException("buffer was disposed");	
 if(this.header==null) {
@@ -131,7 +132,7 @@ if(this.tmpFile==null)
 else
 	{
 	try {
-		return VCFUtils.createVcfIteratorFromFile(this.tmpFile);
+		return VCFUtils.createVCFIteratorFromFile(this.tmpFile);
 	} catch (final IOException e) {
 		throw new RuntimeIOException(e);
 	}
@@ -196,7 +197,7 @@ public void add(final VariantContext vc) {
 		}
 	}
 
-private class ArrayIterator implements VcfIterator {
+private class ArrayIterator implements VCFIterator {
 	int index=-1;
 	
 	@Override
@@ -204,10 +205,8 @@ private class ArrayIterator implements VcfIterator {
 		return VCFBuffer.this.header;
 		}
 	
-	@Override
-	public AbstractVCFCodec getCodec() {
-		return VCFUtils.createDefaultVCFCodec();
-		}
+	//@Override
+	//public AbstractVCFCodec getCodec() { return VCFUtils.createDefaultVCFCodec(); }
 	@Override
 	public boolean hasNext() {
 		return index+1< VCFBuffer.this.buffer.size();
@@ -222,7 +221,7 @@ private class ArrayIterator implements VcfIterator {
 		return  VCFBuffer.this.buffer.get(index+1);
 		}
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		
 	}
 }

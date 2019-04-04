@@ -26,53 +26,33 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.jfx.JFXChartExporter;
+import com.github.lindenb.jvarkit.chart.NumberAxis;
+import com.github.lindenb.jvarkit.chart.RExporter;
+import com.github.lindenb.jvarkit.chart.ScatterChart;
+import com.github.lindenb.jvarkit.chart.XYChart;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.jcommander.JfxLauncher;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Rectangle2D;
-import javafx.geometry.Side;
-import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.ScatterChart;
-import javafx.scene.chart.XYChart;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Tooltip;
-import javafx.scene.image.WritableImage;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
+
 
 /**
 BEGIN_DOC
@@ -90,15 +70,18 @@ java -jar dist/casectrljfx.jar --pedigree  mutations.ped mutations.vcf
 
 ![screenshot](https://pbs.twimg.com/media/C_EYa54W0AAopkl.jpg)
 
+## History
+
+  * removed JFX because openjdk doesn't support JFX
 
 END_DOC
  */
 @Program(
 	name="casectrljfx",
-	description="display jfx chart of case/control maf from a VCF and a pedigree",
+	description="chart of case/control maf from a VCF and a pedigree",
 	keywords={"vcf","pedigree","case","control","visualization","jfx","chart","maf"}
 	)
-public class CaseControlJfx extends JfxLauncher {
+public class CaseControlJfx extends Launcher {
 	
 	private static final Logger LOG = Logger.build(CaseControlJfx.class).make();
 
@@ -292,10 +275,10 @@ public class CaseControlJfx extends JfxLauncher {
 		boolean ignore_ctx_filtered=false;
 		@Parameter(names={"-gtfilter","--genotypefilter"},description="Ignore FILTERed Genotypes")
 		boolean ignore_gt_filtered=false;
-		@Parameter(names={"--legendside"},description="Legend side")
-		Side legendSide = Side.RIGHT;
-		@Parameter(names={"--tooltip"},description="add mouse Tooltip the point (requires more memory)")
-		boolean add_tooltip = false;
+		//@Parameter(names={"--legendside"},description="Legend side")
+		//Side legendSide = Side.RIGHT;
+		//@Parameter(names={"--tooltip"},description="add mouse Tooltip the point (requires more memory)")
+		//boolean add_tooltip = false;
 		@Parameter(names={"--limit"},description="Limit to 'N' variants. negative==no limit; All point are loaded in memory. The more variants you have, the more your need memory")
 		int limit_to_N_variants = -1;
 		@Parameter(names={"--sex"},description="Select/Filter samples on their gender.")
@@ -317,10 +300,10 @@ public class CaseControlJfx extends JfxLauncher {
 			}
 		
 		@Override
-		public int doWork(final Stage primaryStage,final List<String> args) {
+		public int doWork(final List<String> args) {
 			final VariantPartition partition;
 			Pedigree pedigree = null;
-			VcfIterator in = null;
+			VCFIterator in = null;
 			try {
 				
 				switch(this.partitionType)
@@ -335,22 +318,8 @@ public class CaseControlJfx extends JfxLauncher {
 					case n_alts : partition = new NAltsPartition(); break;
 					default: throw new IllegalStateException(this.partitionType.name());
 					}
+				in = openVCFIterator(oneFileOrNull(args));
 				
-				if(args.isEmpty())
-					{
-					in = VCFUtils.createVcfIteratorStdin();
-					primaryStage.setTitle(CaseControlJfx.class.getSimpleName());
-					}
-				else if(args.size()==1)
-					{
-					in = VCFUtils.createVcfIterator(args.get(0));
-					primaryStage.setTitle(args.get(0));
-					}
-				else
-					{
-					LOG.error("Illegal Number of arguments: " + args);
-					return -1;
-					}
 				if(this.pedigreeFile!=null)
 					{
 					pedigree = Pedigree.newParser().parse(this.pedigreeFile);
@@ -379,10 +348,10 @@ public class CaseControlJfx extends JfxLauncher {
 					}
 				
 				int count = 0;
-				final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader());
+				final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 				while(in.hasNext() && (this.limit_to_N_variants<0 || count<this.limit_to_N_variants)) 
 					{
-					final VariantContext ctx=progress.watch(in.next());
+					final VariantContext ctx=progress.apply(in.next());
 					
 					if(this.ignore_ctx_filtered && ctx.isFiltered()) continue;
 					
@@ -425,15 +394,45 @@ public class CaseControlJfx extends JfxLauncher {
 							}
 						if(mafs[0]==null || mafs[1]==null) continue;
 						final XYChart.Data<Number,Number> data = new  XYChart.Data<Number,Number>(mafs[0],mafs[1]);
-						if(this.add_tooltip && this.outputFile==null)
-							{
-							data.setExtraValue(ctx.getContig()+":"+ctx.getStart());
-							}
 						partition.add(ctx,pedigree,data);
 						}
 					}
-				progress.finish();
+				progress.close();
 				in.close();in=null;
+				
+				
+		        final NumberAxis xAxis = new NumberAxis(0.0,1.0,0.1);
+		        xAxis.setLabel("Cases");
+		        
+		        final NumberAxis yAxis = new NumberAxis(0.0,1.0,0.1);
+		        yAxis.setLabel("Controls"+(StringUtil.isBlank(this.controlFields)?"":"["+this.controlFields+"]"));
+		        final ScatterChart<Number, Number>   chart =  new ScatterChart<>(xAxis,yAxis);
+		        for(final XYChart.Series<Number,Number> series:partition.getSeries())
+			        {
+					chart.getData().add(series);
+			        }
+				String title="Case/Control";
+				if(!args.isEmpty())
+					{
+					title= args.get(0);
+					int slash=title.lastIndexOf("/");
+					if(slash!=-1) title=title.substring(slash+1);
+					if(title.endsWith(".vcf.gz")) title=title.substring(0, title.length()-7);
+					if(title.endsWith(".vcf")) title=title.substring(0, title.length()-4);
+					}
+				if(userTitle!=null) title=userTitle;
+				chart.setTitle(title);
+				chart.setAnimated(false);
+				//chart.setLegendSide(this.legendSide);
+				
+				
+				final RExporter rExporter = new RExporter();
+				final PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+				rExporter.exportToR(pw, chart);
+				pw.flush();
+				pw.close();
+
+				
 				}
 			catch(final Exception err)
 				{	
@@ -444,146 +443,15 @@ public class CaseControlJfx extends JfxLauncher {
 				CloserUtil.close(in);
 				}
 			
-	        final NumberAxis xAxis = new NumberAxis(0.0,1.0,0.1);
-	        xAxis.setLabel("Cases");
-	        
-	        final NumberAxis yAxis = new NumberAxis(0.0,1.0,0.1);
-	        yAxis.setLabel("Controls"+(StringUtil.isBlank(this.controlFields)?"":"["+this.controlFields+"]"));
-	        final ScatterChart<Number, Number>   chart =  new ScatterChart<>(xAxis,yAxis);
-	        for(final XYChart.Series<Number,Number> series:partition.getSeries())
-		        {
-				chart.getData().add(series);
-		        }
-			String title="Case/Control";
-			if(!args.isEmpty())
-				{
-				title= args.get(0);
-				int slash=title.lastIndexOf("/");
-				if(slash!=-1) title=title.substring(slash+1);
-				if(title.endsWith(".vcf.gz")) title=title.substring(0, title.length()-7);
-				if(title.endsWith(".vcf")) title=title.substring(0, title.length()-4);
-				}
-			if(userTitle!=null) title=userTitle;
-			chart.setTitle(title);
-			chart.setAnimated(false);
-			chart.setLegendSide(this.legendSide);
 			
-			
-		    final VBox root = new VBox();    
-		    
-		    MenuBar menuBar = new MenuBar();
-		    Menu menu = new Menu("File");
-		    MenuItem item=new MenuItem("Save image as (.png,.jpg,.R)...");
-		    item.setOnAction(AE->{doMenuSave(chart);});
-		    menu.getItems().add(item);
-		    menu.getItems().add(new SeparatorMenuItem());
-		    item=new MenuItem("Quit");
-		    item.setOnAction(AE->{Platform.exit();});
-		    menu.getItems().add(item);
-		    menuBar.getMenus().add(menu);
-		    root.getChildren().add(menuBar);
-		    
-			final BorderPane contentPane=new BorderPane();
-			
-			contentPane.setCenter(chart);
-			
-			root.getChildren().add(contentPane);
-			Rectangle2D screen=Screen.getPrimary().getVisualBounds();
-			double minw = Math.max(Math.min(screen.getWidth(),screen.getHeight())-50,50);
-	        chart.setPrefSize(minw, minw);
-	        final  Scene scene= new Scene(root,minw,minw);
-			primaryStage.setScene(scene);
-			
-			if(this.outputFile!=null)
-	        	{
-	        	 primaryStage.setOnShown(WE->{
-	        		 LOG.info("saving as "+this.outputFile);
-	        		 try
-	        		 	{
-	        			saveImageAs(chart,this.outputFile);
-	        		 	}
-	        		 catch(IOException err)
-	        		 	{
-	        			LOG.error(err);
-	        			System.exit(-1);
-	        		 	}
-	        		 Platform.exit();
-	        	 });
-	        	}
-			
-	        primaryStage.show();	
 	        
 	       
-	        
-	        if(this.outputFile==null)
-		        {
-	        	//http://stackoverflow.com/questions/14117867
-		        for(final XYChart.Series<Number,Number> series:partition.getSeries())
-			        {
-		        	for (XYChart.Data<Number, Number> d : series.getData()) {
-		        		if(dataOpacity>=0 && dataOpacity<1.0)
-		        			{
-		        			d.getNode().setStyle(d.getNode().getStyle()+"-fx-opacity:0.3;");
-		        			}
-		        		if(this.add_tooltip) {
-	        			 	final Tooltip tooltip = new Tooltip();
-	        	            tooltip.setText(
-			                        String.format("%s (%f / %f)",
-			                        		String.valueOf(d.getExtraValue()),
-			                                d.getXValue().doubleValue(), 
-			                                d.getYValue().doubleValue()));
-	        	            Tooltip.install(d.getNode(), tooltip);
-		        		}
-		            }
-			        }
-		        }
 	        return 0;
 	        }
-		private void doMenuSave(final ScatterChart<Number, Number>   chart)
-			{
-			final FileChooser fc = new FileChooser();
-			final File file = fc.showSaveDialog(null);
-	    	if(file==null) return;
-	    	try {
-	    		saveImageAs(chart,file);
-	        } catch (final IOException e) {
-	            super.displayAlert(e);
-	        	}
-			}
-		
-		 private void saveImageAs(final ScatterChart<Number, Number>   chart,final File file)
-		 	throws IOException
-		 	{
-			 PrintWriter pw = null;
-			 try {
-				if(file.getName().endsWith(".R"))
-					{
-					pw = new PrintWriter(file);
-					final JFXChartExporter exporter=new JFXChartExporter(pw);
-					exporter.exportToR(chart);
-					pw.flush();
-					pw.close();
-					}
-				else
-					{
-		    		final WritableImage image = chart.snapshot(new SnapshotParameters(), null);
-		    		String format="png";
-		    		if(file.getName().toLowerCase().endsWith(".jpg") ||file.getName().toLowerCase().endsWith(".jpeg") )
-		    			{
-		    			format="jpg";
-		    			}
-		            ImageIO.write(SwingFXUtils.fromFXImage(image, null), format, file);
-				 	}
-			 	}
-			 finally
-			 	{
-				CloserUtil.close(pw); 
-			 	}
-		 	}
 		
 	
-	public static void main(String[] args) {
-		Application.launch(args);
+	public static void main(final String[] args) {
+		new CaseControlJfx().instanceMainWithExit(args);
 	}
 	
 	

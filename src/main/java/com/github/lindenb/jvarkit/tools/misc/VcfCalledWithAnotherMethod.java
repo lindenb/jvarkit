@@ -61,7 +61,7 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -271,7 +271,7 @@ public class VcfCalledWithAnotherMethod extends Launcher
 	
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator in,
+			final VCFIterator in,
 			final VariantContextWriter out
 			) {
 		final List<ExternalVcf> externalVcfs = new ArrayList<>();

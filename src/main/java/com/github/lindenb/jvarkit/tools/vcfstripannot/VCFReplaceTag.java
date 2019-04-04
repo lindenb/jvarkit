@@ -56,7 +56,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -95,7 +95,7 @@ public class VCFReplaceTag extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator r,
+			final VCFIterator r,
 			final VariantContextWriter w)
 			 {
 

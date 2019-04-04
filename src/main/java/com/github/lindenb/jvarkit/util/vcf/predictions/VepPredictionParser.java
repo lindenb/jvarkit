@@ -387,7 +387,7 @@ public class VepPredictionParser implements PredictionParser
 			if(s==null) return null;
 			try
 				{
-				return new Double(s);
+				return Double.valueOf(s);
 				}
 			catch(Exception err)
 				{
@@ -400,7 +400,7 @@ public class VepPredictionParser implements PredictionParser
 			if(s==null) return null;
 			try
 				{
-				return new Double(s);
+				return Double.valueOf(s);
 				}
 			catch(Exception err)
 				{

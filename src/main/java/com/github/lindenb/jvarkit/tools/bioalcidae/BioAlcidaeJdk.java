@@ -44,7 +44,7 @@ import java.util.stream.StreamSupport;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.InMemoryCompiler;
+import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -79,11 +79,15 @@ BEGIN_DOC
 Bioinformatics file java-based reformatter. Something like awk for VCF, BAM, SAM...
 
 This program takes as input a VCF or a BAM on stdin or as a file.
-The user provides a piece of java code that will be compiled at runtime in memory an executed.
+The user provides a piece of java code that will be compiled at runtime an executed.
 
 ## Why  this name, 'BioAlcidae' ?
 
 As 'bioalcidae' looks like an 'awk' for bioinformatics, we used '[Alcidae](https://en.wikipedia.org/wiki/Alcidae)', the taxonomic Family of the '[auk](https://en.wikipedia.org/wiki/Auk)' species.
+
+## History
+
+  * 2019-01 migrating to openjdk11: switched to in-memory compiling to external compiling.
 
 ## Base classes 
 
@@ -113,7 +117,7 @@ At the time of writing, we have:
 		{
     	protected VcfTools tools = null;
     	protected VCFHeader header = null;
-    	protected VcfIterator iter = null;
+    	protected VCFIterator iter = null;
 		public Stream<VariantContext> stream()
 			{
 			return StreamSupport.stream(
@@ -168,7 +172,7 @@ when reading a VCF, a new class extending `VcfHandler` will be compiled. The use
      4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
-     7  import javax.annotation.Generated;
+     7  import javax.annotation.processing.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:00:49+0200")
      9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.VcfHandler {
     10    public Custom1694491176() {
@@ -194,7 +198,7 @@ when reading a SAM/BAM, a new class extending `SAMHandler` will be compiled. The
      4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
-     7  import javax.annotation.Generated;
+     7  import javax.annotation.processing.Generated;
      8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:09:20+0200")
      9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.SAMHandler {
     10    public Custom1694491176() {
@@ -222,7 +226,7 @@ when reading a Fastq, a new class extending `FastqHandler` will be compiled. The
  5  import htsjdk.samtools.util.*;
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
- 8  import javax.annotation.Generated;
+ 8  import javax.annotation.processing.Generated;
  9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:46:47+0200")
 10  public class BioAlcidaeJdkCustom220769712 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastqHandler {
 11    public BioAlcidaeJdkCustom220769712() {
@@ -250,7 +254,7 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
  8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
- 9  import javax.annotation.Generated;
+ 9  import javax.annotation.processing.Generated;
 10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
 11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
 12    public BioAlcidaeJdkCustom298960668() {
@@ -681,7 +685,7 @@ public class BioAlcidaeJdk
 					code = this.scriptExpr;
 					}
 				
-				
+				final String generatedClass = OpenJdkCompiler.getGeneratedAnnotationClassName();
 				final StringWriter codeWriter=new StringWriter();
 				final PrintWriter pw = new PrintWriter(codeWriter);
 				pw.println("import java.util.*;");
@@ -693,7 +697,6 @@ public class BioAlcidaeJdk
 				pw.println("import htsjdk.variant.variantcontext.*;");
 				pw.println("import htsjdk.variant.vcf.*;");
 				pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
-				pw.println("import javax.annotation.Generated;");
 				pw.println("import htsjdk.variant.vcf.*;");
 				
 				pw.println("/** begin user's packages */");
@@ -709,8 +712,9 @@ public class BioAlcidaeJdk
 				pw.println("/** end user's packages */");
 				
 				
-
-				pw.println("@Generated(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+				if(!StringUtil.isBlank(generatedClass)) {
+					pw.println("@"+generatedClass+"(value=\""+BioAlcidaeJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
+					}
 				pw.println("public class "+javaClassName+" extends "+ baseClass +" {");
 				
 				pw.println("  public "+javaClassName+"() {");
@@ -738,10 +742,10 @@ public class BioAlcidaeJdk
 				
 				if(!this.hideGeneratedCode)
 					{
-					LOG.debug(" Compiling :\n" + InMemoryCompiler.beautifyCode(codeWriter.toString()));
+					LOG.debug(" Compiling :\n" + OpenJdkCompiler.beautifyCode(codeWriter.toString()));
 					}
 
-				final InMemoryCompiler inMemoryCompiler = new InMemoryCompiler();
+				final OpenJdkCompiler inMemoryCompiler = OpenJdkCompiler.getInstance();
 				final Class<?> compiledClass = inMemoryCompiler.compileClass(
 						javaClassName,
 						codeWriter.toString()
@@ -760,7 +764,7 @@ public class BioAlcidaeJdk
 		{
     	protected VcfTools tools = null;
     	protected VCFHeader header = null;
-    	protected VcfIterator iter = null;
+    	protected VCFIterator iter = null;
 		public Stream<VariantContext> stream()
 			{
 			return StreamSupport.stream(
@@ -785,7 +789,7 @@ public class BioAlcidaeJdk
 	    		vcfHandler.out = out;
 	    		vcfHandler.inputFile = inputFile;
 				//
-				vcfHandler.iter = VCFUtils.createVcfIterator(inputFile);
+				vcfHandler.iter = VCFUtils.createVCFIterator(inputFile);
 				vcfHandler.header = vcfHandler.iter.getHeader();
 				vcfHandler.tools = new VcfTools(vcfHandler.header);
 				vcfHandler.initialize();

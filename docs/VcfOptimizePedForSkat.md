@@ -1,5 +1,7 @@
 # VcfOptimizePedForSkat
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
 Optimize ped file for SKAT
 
 
@@ -14,8 +16,7 @@ Usage: vcfoptimizeped4skat [options] Files
     -h, --help
       print help and exit
     --helpFormat
-      What kind of help
-      Possible Values: [usage, markdown, xml]
+      What kind of help. One of [usage,markdown,xml].
     --max-iter
       max number of iterations. -1 == infinite
       Default: -1
@@ -69,11 +70,7 @@ Usage: vcfoptimizeped4skat [options] Files
 
 ### Requirements / Dependencies
 
-* java compiler SDK 1.8 http://www.oracle.com/technetwork/java/index.html (**NOT the old java 1.7 or 1.6**) and avoid OpenJdk, use the java from Oracle. Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-* GNU Make >= 3.81
-* curl/wget
-* git
-* xsltproc http://xmlsoft.org/XSLT/xsltproc2.html (tested with "libxml 20706, libxslt 10126 and libexslt 815")
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 
 
 ### Download and Compile
@@ -81,38 +78,15 @@ Usage: vcfoptimizeped4skat [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ make vcfoptimizeped4skat
+$ ./gradlew vcfoptimizeped4skat
 ```
 
-The *.jar libraries are not included in the main jar file, so you shouldn't move them (https://github.com/lindenb/jvarkit/issues/15#issuecomment-140099011 ).
-The required libraries will be downloaded and installed in the `dist` directory.
+The java jar file will be installed in the `dist` directory.
 
-### edit 'local.mk' (optional)
-
-The a file **local.mk** can be created edited to override/add some definitions.
-
-For example it can be used to set the HTTP proxy:
-
-```
-http.proxy.host=your.host.com
-http.proxy.port=124567
-```
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfOptimizePedForSkat.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/skat/VcfOptimizePedForSkat.java)
 
-
-<details>
-<summary>Git History</summary>
-
-```
-Mon Oct 23 16:48:52 2017 +0200 ; vcf2table html output ; https://github.com/lindenb/jvarkit/commit/a30f3c2551dd1809ed7c311e8e276bfab4fb166a
-Fri Oct 20 16:36:05 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/54e62cdc08a38d1685b3842d300ec30740f2788a
-Thu Oct 19 15:53:48 2017 +0200 ; skat continue ; https://github.com/lindenb/jvarkit/commit/5c71e1cbcacfd5b034a49580655db7066d83c50e
-Wed Oct 18 19:20:26 2017 +0200 ; skat optimize vcf ; https://github.com/lindenb/jvarkit/commit/75da9b6ddd1f2daaf04365ecec4f712ee79851a6
-```
-
-</details>
 
 ## Contribute
 
@@ -133,6 +107,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
 
 

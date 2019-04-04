@@ -56,7 +56,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
@@ -500,12 +500,12 @@ public class VcfToRdf extends Launcher
 	
 	private void scanVCF(final File filein) throws IOException
 		{
-		VcfIterator in=null;
+		VCFIterator in=null;
 		URI source=null;
 		
 		try {
 			if(filein!=null) source= filein.toURI();
-			in=(filein==null?VCFUtils.createVcfIteratorStdin():VCFUtils.createVcfIteratorFromFile(filein));
+			in=(filein==null?VCFUtils.createVCFIteratorStdin():VCFUtils.createVCFIteratorFromFile(filein));
 			final VCFHeader header = in.getHeader();
 			
 			

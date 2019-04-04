@@ -45,7 +45,7 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -112,7 +112,7 @@ public class VCFBedSetFilter extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final VcfIterator r,
+			final VCFIterator r,
 			final VariantContextWriter w) {
 		try {
 			final Set<String> contigs_not_found = new HashSet<>();

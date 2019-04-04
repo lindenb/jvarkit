@@ -39,7 +39,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
@@ -159,7 +159,7 @@ public class VCFTrios
 		}
 	
 	@Override
-	public int doVcfToVcf(final String inputName, VcfIterator r, final VariantContextWriter w) {
+	public int doVcfToVcf(final String inputName, VCFIterator r, final VariantContextWriter w) {
 		long count_incompats=0L;
 		final Set<String> sampleNotFoundInVcf = new HashSet<>();
 		Pedigree pedigree=null;

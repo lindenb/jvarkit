@@ -21,6 +21,11 @@ public class VCFCompositeTest extends TestUtils{
 			//no affected in pedigree ?
 			return;
 			}
+		if(Files.lines(ped.toPath()).noneMatch(L->L.endsWith("0")))
+			{
+			//no unaffected in pedigree ?
+			return;
+			}
 		final File output = super.createTmpFile(".vcf");
         Assert.assertEquals(new VCFComposite().instanceMain(
         		newCmd().add(

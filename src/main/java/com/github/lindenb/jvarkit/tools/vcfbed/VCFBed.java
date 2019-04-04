@@ -67,7 +67,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 
 /**
@@ -284,7 +284,7 @@ public class VCFBed extends Launcher
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
-			final  VcfIterator vcfin,
+			final  VCFIterator vcfin,
 			final  VariantContextWriter out)
 		{	
 		final VCFHeader header = vcfin.getHeader();

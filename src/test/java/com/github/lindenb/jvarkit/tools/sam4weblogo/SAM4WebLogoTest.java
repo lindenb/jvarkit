@@ -9,8 +9,10 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import java.nio.file.Paths;
 
 import htsjdk.samtools.util.Interval;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 
 public class SAM4WebLogoTest extends TestUtils
@@ -22,6 +24,11 @@ public class SAM4WebLogoTest extends TestUtils
 			build();
 		}
 	private File basetest(final String inBam,String params,boolean fastq) throws IOException {
+		if(SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(inBam)).
+				getSequences().stream().
+				mapToInt(L->L.getSequenceLength()).
+				max().orElse(0) > 1_000_000) return null;
+
 		final File out = createTmpFile(fastq?".fastq":".txt");
 		for(final Interval interval: super.randomIntervalsFromDict(new File(inBam), 20)) {
 			if(interval.getContig().contains(":")) continue;
@@ -31,11 +38,12 @@ public class SAM4WebLogoTest extends TestUtils
 					split(params).
 					add(inBam).
 					make();
-			
+
 			final int ret=new SAM4WebLogo().instanceMain(args);
 			if(ret!=0) {
 				Assert.fail(Arrays.asList(args).toString());
 				}
+			
 			}
 		return out;
 		}
@@ -51,6 +59,6 @@ public class SAM4WebLogoTest extends TestUtils
 	@Test(dataProvider="src1")
 	public void testFastq(final String inBam) throws IOException {
 		final File out=basetest(inBam,"-c --fastq -fqu _ -fqp _",true);
-		assertIsFastq(out);
+		if(out!=null) assertIsFastq(out);
 		}
 	}

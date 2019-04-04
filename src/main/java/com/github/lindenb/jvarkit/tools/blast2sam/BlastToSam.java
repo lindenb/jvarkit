@@ -864,7 +864,7 @@ public class BlastToSam extends Launcher
 		try
 			{
 			LOG.info("opening "+faidx);
-			this.dictionary=SAMSequenceDictionaryExtractor.extractDictionary(faidx);
+			this.dictionary=SAMSequenceDictionaryExtractor.extractDictionary(faidx.toPath());
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(this.dictionary);
 			

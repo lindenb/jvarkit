@@ -42,7 +42,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -124,7 +124,7 @@ public class VcfToBed  extends Launcher {
 	private ReferenceFileSupplier referenceFileSupplier=null;
 	@Parameter(names={"-c","--no-ci"},description="For structural variant, ignore the extention of the boundaries using INFO/CIPOS and INFO/CIEND")
 	private boolean ignoreCi = false;
-	@Parameter(names={"-x","--slop"},description="Extends interval by 'x' bases on both sides. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-x","--slop"},description="Extends interval by 'x' bases on both sides. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int slopSize = 0;
 	@Parameter(names={"-F","--format"},description="output format")
 	private OutputFormat outputFormat = OutputFormat.bed;
@@ -143,9 +143,9 @@ public class VcfToBed  extends Launcher {
 	
 	private void scan(String uriOrNull,final PrintWriter pw)
 		{
-		VcfIterator iter = null;
+		VCFIterator iter = null;
 		try {
-			iter =  super.openVcfIterator(uriOrNull);
+			iter =  super.openVCFIterator(uriOrNull);
 			final SAMSequenceDictionary dictIn = iter.getHeader().getSequenceDictionary();
 			
 			final ContigNameConverter ctgNameConverter ;

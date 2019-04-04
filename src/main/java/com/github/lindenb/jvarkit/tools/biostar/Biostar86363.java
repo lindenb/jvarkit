@@ -54,7 +54,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 
 /**
@@ -126,7 +126,7 @@ public class Biostar86363 extends Launcher
 	
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) 
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) 
 		{
 		final List<Allele> empty_g=new ArrayList<Allele>(2);
 		empty_g.add(Allele.NO_CALL);

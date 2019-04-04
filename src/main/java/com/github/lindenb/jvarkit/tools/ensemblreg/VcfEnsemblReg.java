@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
 
@@ -276,7 +276,7 @@ public class VcfEnsemblReg extends Launcher
 		{
 		boolean contained=false;
 		LOG.info("Processing "+track.id+" ("+track.shortLabel+") "+track.url);
-		VcfIterator in=VCFUtils.createVcfIteratorFromFile(inf);
+		VCFIterator in=VCFUtils.createVCFIteratorFromFile(inf);
 		VCFHeader header=in.getHeader();
 		VCFInfoHeaderLine info=null;
 		
@@ -397,7 +397,7 @@ public class VcfEnsemblReg extends Launcher
 		w1.close();
 		}
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 		try {
 		File tmpDir= new File(System.getProperty("java.io.tmpdir"));
 		File tmp1=File.createTempFile("tmp_",".vcf", tmpDir);
@@ -427,7 +427,7 @@ public class VcfEnsemblReg extends Launcher
 
 			tmp2.renameTo(tmp1);
 			}
-		in=VCFUtils.createVcfIteratorFromFile(tmp1);
+		in=VCFUtils.createVCFIteratorFromFile(tmp1);
 		out.writeHeader(in.getHeader());
 		while(in.hasNext())
 			{

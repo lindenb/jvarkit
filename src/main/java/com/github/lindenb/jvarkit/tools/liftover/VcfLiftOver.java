@@ -61,7 +61,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 /**
 
 
@@ -156,7 +156,7 @@ public class VcfLiftOver extends Launcher
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VcfIterator in, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 		VariantContextWriter failed=null;
 		GenomicSequence genomicSequence = null;
 		try {

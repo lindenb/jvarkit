@@ -52,7 +52,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 /** 
  BEGIN_DOC
  
@@ -231,7 +231,7 @@ public class FindAVariation extends Launcher
 			if(!f.isFile()) continue;
 			if(!f.canRead()) continue;
 			if(!VCFUtils.isVcfFile(f)) continue;
-			VcfIterator iter=null;
+			VCFIterator iter=null;
 			
 			
 			if(VCFUtils.isTribbleVcfFile(f) )
@@ -309,7 +309,7 @@ public class FindAVariation extends Launcher
 				{
 				try
 					{
-					iter=VCFUtils.createVcfIteratorFromFile(f);
+					iter=VCFUtils.createVCFIteratorFromFile(f);
 					final VCFHeader header = iter.getHeader();
 					final Set<Mutation> mutlist=convertFromVcfHeader(f,iter.getHeader());
 					while(iter.hasNext())

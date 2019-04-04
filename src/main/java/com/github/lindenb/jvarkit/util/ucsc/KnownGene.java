@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -64,7 +65,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 	/** returns the UCSC URL for knownGene for the given UCSC build e.g: 'hg19' */
 	public static String getUri(final String ucscBuild)
 		{
-		return "http://hgdownload.cse.ucsc.edu/goldenPath/"+ ucscBuild +"/database/knownGene.txt.gz";
+		return "http://hgdownload.cse.ucsc.edu/goldenPath/"+ ucscBuild +"/database/wgEncodeGencodeBasicV19.txt.gz";
 		}
 	
 	/** returns the default UCSC URL for knownGene */
@@ -104,11 +105,13 @@ public class KnownGene implements Iterable<Integer>,Feature
 		return getChromosome();
 		}
 	
+	/** +1 based position. This is txStart+1 */
 	@Override
 	public final int getStart() {
 		return getTxStart() + 1;
 		}
 	
+	/** +1 based position. This is getTxEnd */
 	@Override
 	public final  int getEnd() {
 		return getTxEnd();
@@ -187,17 +190,11 @@ public class KnownGene implements Iterable<Integer>,Feature
 		}
 
 	
-	public abstract class Segment implements Iterable<Integer>
+	public abstract class AbstractSegment
 		{
-		private final int index;
-		protected Segment(int index)
-			{
-			this.index=index;
-			}
-		
-		public int getIndex()
-			{
-			return index;
+		/** shortcut to getGene().getContig() */
+		public String getContig() {
+			return this.getGene().getContig();
 			}
 		
 		public KnownGene getGene()
@@ -214,6 +211,35 @@ public class KnownGene implements Iterable<Integer>,Feature
 	    	{
 	    	return getGene().isNegativeStrand();
 	    	}
+		public abstract String getName();
+		/** the zero based position */
+		public abstract int getStart();
+		/** the zero based position */
+		public abstract int getEnd();
+		
+		/** return true if the segment contans the genomic position 0-based */
+		public boolean contains(int position0)
+			{
+			return getStart()<=position0 && position0< getEnd();
+			}
+		}
+	
+	public abstract class Segment 
+		extends AbstractSegment 
+		implements Iterable<Integer>
+		{
+		private final int index;
+		protected Segment(int index)
+			{
+			this.index=index;
+			}
+		
+		/** return 0 based index */
+		public final int getIndex()
+			{
+			return index;
+			}
+		
 		
 		@Override
 		public Iterator<Integer> iterator()
@@ -226,7 +252,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 		 * */
 		public Iterator<Integer> iterator(boolean useTranscriptDirection)
 			{
-			IntIter iter=new IntIter();
+			final IntIter iter=new IntIter();
 			if(useTranscriptDirection && this.isNegativeStrand())
 				{
 				iter.beg=this.getEnd()-1;
@@ -242,11 +268,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return iter;
 			}
 		
-		/** return true if the exon contans the genomic position 0-based */
-		public boolean contains(int position)
-			{
-			return getStart()<=position && position< getEnd();
-			}
+		
 		public abstract boolean isSplicingAcceptor(int position);
 		public abstract boolean isSplicingDonor(int position);
 		public boolean isSplicing(int position)
@@ -254,13 +276,8 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return isSplicingAcceptor(position) || isSplicingDonor(position);
 			}
 		
-		public abstract String getName();
-		/** the zero based position */
-		public abstract int getStart();
-		/** the zero based position */
-		public abstract int getEnd();
 		}
-	
+		
 	public class Exon extends Segment
 		{
 		private Exon(final int index)
@@ -369,26 +386,28 @@ public class KnownGene implements Iterable<Integer>,Feature
 			}
 		}
 		
+	/** an intron in a knownGene */
 	public class Intron extends Segment
 			{
 			Intron(int index)
 				{
 				super(index);
 				}
-			
+			/** the zero based position */
 			@Override
 			public int getStart()
 				{
-				return getGene().getExonEnd(getIndex());
+				return getGene().getIntronStart(getIndex());
 				}
-			
+			/** the zero based position */
 			@Override
 			public int getEnd()
 				{
-				return getGene().getExonStart(getIndex()+1);
+				return getGene().getIntronEnd(getIndex());
 				}
 			
 			@Override
+			/** get intron name using one-based human order (according to strand */
 			public String getName() {
 				if(getGene().isPositiveStrand())
 					{
@@ -625,18 +644,38 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return this.exonEnds[index];
 			}
 		
+		/** get 0-based start for the index-th intron */
+		public int getIntronStart(int index)
+			{
+			return this.getExonEnd(index);
+			}
+		
+		/** get 0-based end for the index-th intron */
+		public int getIntronEnd(int index)
+			{
+			return this.getExonStart(index+1);
+			}
 
+		
+		/** exon[0] is first from 5' to 3' on genomic */
 		public Exon getExon(int index)
 			{
 			return new Exon(index);
 			}
+		/** intron[0] is intron after exon[0] from 5' to 3' on genomic */
 		public Intron getIntron(int i)
 			{
 			return new Intron(i);
 			}
+		/** get number of exons */
 		public int getExonCount()
 			{
 			return this.exonStarts.length;
+			}
+		/** get number of introns */
+		public int getIntronCount()
+			{
+			return Math.max(getExonCount()-1,0);
 			}
 		
 		public Map<String,String> getAttributes()
@@ -648,10 +687,20 @@ public class KnownGene implements Iterable<Integer>,Feature
 		
 		public List<Exon> getExons()
 			{
-			List<Exon> L=new ArrayList<Exon>(getExonCount());
+			final List<Exon> L=new ArrayList<>(getExonCount());
 			for(int i=0;i< getExonCount();++i)
 				{	
 				L.add(getExon(i));
+				}
+			return L;
+			}
+		/** return a list of intron for this gene */
+		public List<Intron> getIntrons()
+			{
+			final List<Intron> L=new ArrayList<>(getIntronCount());
+			for(int i=0;i< getIntronCount();++i)
+				{	
+				L.add(getIntron(i));
 				}
 			return L;
 			}
@@ -699,23 +748,21 @@ public class KnownGene implements Iterable<Integer>,Feature
 				beg+=shift;
 				return n;
 				}
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
-				}
 			}
 		
 		
 		
 		
-		
+		/** an abstract RNA : start() and end() on genomic sequence need to be defined*/
 		abstract class RNA extends DelegateCharSequence
 			{
+			/** cache length */
 			private Integer _length=null;
 			RNA(final CharSequence sequence)
 				{
 				super(sequence);
 				}
+			/** get Gene associated to this RNA */
 			public final KnownGene getKnownGene()
 				{
 				return KnownGene.this;
@@ -724,6 +771,19 @@ public class KnownGene implements Iterable<Integer>,Feature
 			protected abstract int start();
 			/** end of mRNA (could be transcription or traduction */
 			protected abstract int end();
+			
+			public String getContig() {
+				return getKnownGene().getContig();
+				}
+			
+			/** return 0-based position in genomic coordinate !!! */
+			public int getGenomicStart0() {
+				return start();
+			}
+			/** return 0-based position in genomic coordinate !!! */
+			public int getGenomicEnd0() {
+				return end();
+			}
 			
 		
 			/** convert the genomic position to the position in the RNA, return -1 if RNA not in genomic pos */
@@ -822,26 +882,26 @@ public class KnownGene implements Iterable<Integer>,Feature
 			@Override
 			public int length()
 				{
-				if(_length==null)
+				if(this._length==null)
 					{
-					_length=0;
-					for(Exon ex:getKnownGene().getExons())
+					this._length=0;
+					for(final Exon ex:getKnownGene().getExons())
 						{
 						if(this.start()>=ex.getEnd()) continue;
 						if(this.end()<=ex.getStart()) break;
 						int beg=Math.max(this.start(), ex.getStart());
 						int end=Math.min(this.end(), ex.getEnd());
-						_length+=(end-beg);
+						this._length+=(end-beg);
 						}
 					}
-				return _length;
+				return this._length;
 				}
 			@Override
 			public char charAt(int index0)
 				{
 				if(index0<0) throw new IllegalArgumentException("negative index:"+index0);
 				if(index0>=this.length()) throw new IndexOutOfBoundsException("index:"+index0 +" < "+this.length());
-				int n=convertToGenomicCoordinate(index0);
+				int n= convertToGenomicCoordinate(index0);
 				if(n==-1) 	throw new IndexOutOfBoundsException("0<=index:="+index0+"<"+length());
 				if(getKnownGene().isPositiveStrand())
 					{
@@ -856,7 +916,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			}
 		
 		
-		
+		/** same as RNA but without the UTR, starts is cdsStart, end is cdsEnd */
 		public class CodingRNA  extends RNA
 			{
 			CodingRNA(final CharSequence sequence)
@@ -1006,6 +1066,12 @@ public class KnownGene implements Iterable<Integer>,Feature
 				return this.geneticCode;
 				}
 			}
+		
+		@Override
+		public String toString() {
+			return getName()+"["+getContig()+":"+getTxStart()+"-"+getTxEnd()+"]";
+			}
+		
 		
 		/** load knownGene file/uri as an IntervalTreeMap. Intervals in the IntervalTreeMap are *1-based* (interval.start= kg.txStart+1)*/
 		public static IntervalTreeMap<List<KnownGene>> loadUriAsIntervalTreeMap(

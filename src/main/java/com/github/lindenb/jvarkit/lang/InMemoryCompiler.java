@@ -65,6 +65,7 @@ import htsjdk.samtools.util.StringUtil;
  * seen https://blog.nobel-joergensen.com/2008/07/16/using-eclipse-compiler-to-create-dynamic-java-objects-2/ 
  *
  */
+@Deprecated //openjdk doesn't support javax.tools.JavaCompiler
 public class InMemoryCompiler {
 	private static final Logger LOG = Logger.build(InMemoryCompiler.class).make();
 	/** custom class loader */

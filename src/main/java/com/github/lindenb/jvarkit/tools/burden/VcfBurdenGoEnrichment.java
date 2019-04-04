@@ -48,7 +48,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -317,7 +317,7 @@ public class VcfBurdenGoEnrichment
 			unknownAcn.clear();//clean up
 			r.close();
 			
-			final VcfIterator iter = openVcfIterator(oneFileOrNull(args));
+			final VCFIterator iter = openVCFIterator(oneFileOrNull(args));
 			final VCFHeader header = iter.getHeader();
 			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
 			final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();

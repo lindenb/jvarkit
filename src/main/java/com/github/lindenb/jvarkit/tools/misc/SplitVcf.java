@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 
 /**
@@ -245,10 +245,10 @@ public class SplitVcf
 			throw new JvarkitException.UserError("output file must end with '.vcf' or '.vcf.gz'");
 		}
 		BufferedReader r=null;
-		VcfIterator in =null;
+		VCFIterator in =null;
 		try 
 			{
-			in = openVcfIterator(inputName);
+			in = openVCFIterator(inputName);
 			final SAMSequenceDictionary samSequenceDictionary = in.getHeader().getSequenceDictionary();
 			if(samSequenceDictionary==null) {
 				throw new JvarkitException.VcfDictionaryMissing(inputName==null?"<input>":inputName);

@@ -31,7 +31,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SAMTagUtil;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
@@ -60,7 +60,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -115,7 +115,10 @@ gzip --best > out.vcf.gz
 
 ```
 
+## Cited in 
 
+ * "Exome sequencing in genomic regions related to racing performance of Quarter Horses" Pereira, G.L., Malheiros, J.M., Ospina, A.M.T. et al. J Appl Genetics (2019). https://doi.org/10.1007/s13353-019-00483-1
+ 
 
 ### History
 
@@ -159,7 +162,7 @@ public class FixVcfMissingGenotypes extends Launcher
 
 	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VcfIterator in,final VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName,final VCFIterator in,final VariantContextWriter out) {
 		final List<File> bamFiles=  IOUtils.unrollFiles2018(this.bamList);
 		final Map<String,List<SamReader>> sample2bam = new HashMap<>(bamFiles.size());
 		final SamReaderFactory srf = super.createSamReaderFactory();
@@ -216,7 +219,7 @@ public class FixVcfMissingGenotypes extends Launcher
 			h2.addMetaDataLine(new VCFFormatHeaderLine(NSUP_TAG,1,VCFHeaderLineType.Integer,"Number of reads with supplementary alignments (SA tag)"));
 			h2.addMetaDataLine(new VCFFormatHeaderLine(NCLIPPED,1,VCFHeaderLineType.Integer,"Number of clipped reads"));
 			
-			final short SA_TAG = SAMTagUtil.getSingleton().SA;
+			final short SA_TAG = SAMTag.SA.getBinaryTag();
 			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header).build();
 			this.recalculator.setHeader(h2);
 			out.writeHeader(h2);

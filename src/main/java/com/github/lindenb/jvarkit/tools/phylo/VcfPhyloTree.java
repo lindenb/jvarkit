@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
@@ -202,10 +202,10 @@ public class VcfPhyloTree extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 
-		VcfIterator iter=null;
+		VCFIterator iter=null;
 		try
 			{
-			iter = super.openVcfIterator(oneFileOrNull(args));
+			iter = super.openVCFIterator(oneFileOrNull(args));
 			
 			final List<SampleNode> samplesNodes = new ArrayList<>(iter.getHeader().getSampleNamesInOrder().
 					stream().map(S->new OneSampleNode(S)).

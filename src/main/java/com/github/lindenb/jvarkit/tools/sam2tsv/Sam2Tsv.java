@@ -34,11 +34,15 @@ import java.io.PrintWriter;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
@@ -48,6 +52,7 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 /**
 
@@ -134,6 +139,7 @@ samtools view -h input.bam | java -jar dist/sam2tsv.jar
  *  Moved to a standard argc/argv command line
  *  2014-04: added qual and samflag. Fixed a bug in soft-clip
  *  2014-11: manage hard+soft clip
+ *  2019-02 : manage reads without qualities, contig name converter
 
 ### Citations
 
@@ -144,34 +150,31 @@ Sam2tsv was cited in :
   * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).
   * "Linkage of A-to-I RNA editing in metazoans and the impact on genome evolution "  Molecular Biology and Evolution, msx274, https://doi.org/10.1093/molbev/msx274
   * "Vex-seq: high-throughput identification of the impact of genetic variation on pre-mRNA splicing efficiency" Genome Biology201819:71 https://doi.org/10.1186/s13059-018-1437-x
-
+  * "Accurate detection of m6A RNA modifications in native RNA sequences" Huanle Liu, Oguzhan Begik, Morghan C Lucas, Christopher E Mason, Schraga Schwartz, John S Mattick, Martin A Smith, Eva Maria Novoa bioRxiv 525741; doi: https://doi.org/10.1101/525741 
 
 END_DOC
 */
 @Program(name="sam2tsv",
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","tsv"},
-	biostars={157232,59647,253828,264875,277493})
+	biostars={157232,59647,253828,264875,277493},
+	modificationDate="20190222")
 public class Sam2Tsv
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Sam2Tsv.class).make();
 
-
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-A","--printAlignments"},description="Print Alignments")
 	private boolean printAlignment = false;
-
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private File refFile = null;
-	
-	
 
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
+	private SAMSequenceDictionary refDict = null;
+	private ContigNameConverter contigNameConverter = null;
 	/** lines for alignments */
 	private StringBuilder L1=null;
 	private StringBuilder L2=null;
@@ -211,7 +214,6 @@ public class Sam2Tsv
 			byte c= readPos==-1 || this.readQuals==null || this.readPos>=this.readQuals.length?(byte)0:this.readQuals[this.readPos];
 			return SAMUtils.phredToFastq(c);
 			}
-		
 		}
 	
 	private void writeAln(final Row row)
@@ -276,11 +278,14 @@ public class Sam2Tsv
 		{
 		final SAMRecord rec = row.rec;
 		if(rec==null) return;
-		Cigar cigar=rec.getCigar();
+		final Cigar cigar=rec.getCigar();
 		if(cigar==null) return;
 		
 		row.readbases = rec.getReadBases();
-		row.readQuals = rec.getBaseQualities();
+		row.readQuals = rec.getBaseQualities()==SAMRecord.NULL_QUALS?
+				StringUtils.repeat(row.readbases.length,'#').getBytes():
+				rec.getBaseQualities()
+				;
 		if(row.readbases==null )
 			{
 			row.op=null;
@@ -302,44 +307,45 @@ public class Sam2Tsv
 			}
 		
 		//fix hard clipped reads
-		StringBuilder fixReadBases=new StringBuilder(row.readbases.length);
-		StringBuilder fixReadQuals=new StringBuilder(row.readbases.length);
+		final StringBuilder fixReadBases=new StringBuilder(row.readbases.length);
+		final  StringBuilder fixReadQuals=new StringBuilder(row.readbases.length);
 		int readIndex = 0;
 		for (final CigarElement ce : cigar.getCigarElements())
-		 {
-		 final CigarOperator op= ce.getOperator();
-		 
-		 for(int i=0;i< ce.getLength();++i)
-			{
-			if(op.equals(CigarOperator.H))
+			 {
+			 final CigarOperator op= ce.getOperator();
+			 
+			 for(int i=0;i< ce.getLength();++i)
 				{
-				
-				fixReadBases.append('*');
-				fixReadQuals.append('*');
+				if(op.equals(CigarOperator.H))
+					{
+					fixReadBases.append('*');
+					fixReadQuals.append('*');
+					}
+				else if(!op.consumesReadBases())
+					{
+					break;
+					}
+				else
+					{
+					fixReadBases.append((char)row.readbases[readIndex]);
+					fixReadQuals.append(
+							row.readQuals==null ||
+							row.readQuals.length<=readIndex ?
+							'*':(char)row.readQuals[readIndex]);
+					readIndex++;
+					}
 				}
-			else if(!op.consumesReadBases())
-				{
-				break;
-				}
-			else
-				{
-				fixReadBases.append((char)row.readbases[readIndex]);
-				fixReadQuals.append(
-						row.readQuals==null ||
-						row.readQuals.length<=readIndex ?
-						'*':(char)row.readQuals[readIndex]);
-				readIndex++;
-				}
-			}
-		 }
+			 }
 		row.readbases = fixReadBases.toString().getBytes();
 		row.readQuals = fixReadQuals.toString().getBytes();
 
 		if(this.indexedFastaSequenceFile!=null)
 			{
-			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(rec.getReferenceName()))
+			final String ctg = this.contigNameConverter.apply(rec.getContig());
+			if(StringUtils.isBlank(ctg)) throw new JvarkitException.ContigNotFoundInDictionary(rec.getContig(),this.refDict);
+			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(ctg))
 				{
-				this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, rec.getReferenceName());
+				this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile,ctg);
 				}
 			}
 		
@@ -460,15 +466,19 @@ public class Sam2Tsv
 		final Row row=new Row();
 		SAMRecordIterator iter=null;
 		try{
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(r.getFileHeader());
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(r.getFileHeader()).logger(LOG).build();
 			iter=r.iterator();	
 			while(iter.hasNext())
 				{
-				row.rec =progress.watch(iter.next());
+				row.rec =progress.apply(iter.next());
+				if(row.rec.getReadBases()==SAMRecord.NULL_SEQUENCE) {
+					LOG.warn("Ignoring read without sequence: "+row.rec.getReadName());
+					continue;
+					}
 				printAln(row);
 				if(this.out.checkError()) break;
 				}
-			progress.finish();
+			progress.close();
 			}
 		catch(final Exception err)
 			{
@@ -493,9 +503,11 @@ public class Sam2Tsv
 		SamReader samFileReader=null;
 		try
 			{
-			if(refFile!=null)
+			if(this.refFile!=null)
 				{
 				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+				this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+				this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 				}
 			this.out  =  openFileOrStdoutAsPrintWriter(outputFile);
 			this.out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
@@ -507,7 +519,7 @@ public class Sam2Tsv
 			this.out.flush();this.out.close();this.out=null;
 			return RETURN_OK;
 			}
-		catch (final Exception e)
+		catch (final Throwable e)
 			{
 			LOG.error(e);
 			return -1;

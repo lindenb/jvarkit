@@ -27,12 +27,17 @@ package com.github.lindenb.jvarkit.lang;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.DecimalFormat;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import htsjdk.samtools.util.StringUtil;
 
 public class StringUtils extends StringUtil {
+	private static final DecimalFormat NICE_INT_FORMAT = new DecimalFormat("###,###");
+
 
 private static <T> boolean _is(final String s,Function<String,T> fun,final Predicate<T> validator) {
 	if(isBlank(s)) return false;
@@ -117,4 +122,79 @@ public static String toTitle(final String s) {
 	if(s.length()==1) return s.toUpperCase();
 	return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
 	}
+/** escape C string , returns null is str is null */
+public static String escapeC(final String str) {
+	if(str==null) return null;
+	
+	int i=0;
+	while(i< str.length())
+		{
+		char c = str.charAt(i);
+		switch(c)
+			{
+			case '\'': 
+			case '\"':
+			case '\n':
+			case '\t':
+			case '\\':
+				{
+				final StringBuilder sb = new StringBuilder(str.length()+1);
+				sb.append(str.substring(0, i));
+				while(i< str.length())
+					{
+					c = str.charAt(i);
+					switch(c)
+						{
+						case '\'': sb.append("\\\'");break;
+						case '\"': sb.append("\\\"");break;
+						case '\n': sb.append("\\n");break;
+						case '\t': sb.append("\\t");break;
+						case '\\': sb.append("\\\\");break;
+						default: sb.append(c);break;
+						}
+					i++;
+					}
+				return sb.toString();
+				}
+			default: break;
+			}
+		i++;
+		}
+	return str;
+	}
+
+/** return long number with comma as thousand separator */
+public static final String niceInt(long n) {
+	return StringUtils.NICE_INT_FORMAT.format(n);
+	}
+
+/** return left part of a string */
+public static final String left(final CharSequence s,int len) {
+	if(s.length()<=len) return s.toString();
+	return s.subSequence(0, len).toString();
+	}
+/** return right part of a string */
+public static final String right(final CharSequence s,int len) {
+	if(s.length()<=len) return s.toString();
+	return s.subSequence(s.length()-len,s.length()).toString();
+	}
+/** return md5 of a string */
+public static final String md5(final String in) {
+	final MessageDigest _md5;
+	try {
+		_md5 = java.security.MessageDigest.getInstance("MD5");
+	} catch (final NoSuchAlgorithmException e) {
+		throw new RuntimeException("MD5 algorithm not found", e);
+		}
+	
+	_md5.reset();
+	_md5.update(in.getBytes());
+	String s = new java.math.BigInteger(1, _md5.digest()).toString(16);
+	if (s.length() != 32) {
+		final String zeros = "00000000000000000000000000000000";
+		s = zeros.substring(0, 32 - s.length()) + s;
+		}
+	return s;
+	}
+
 }

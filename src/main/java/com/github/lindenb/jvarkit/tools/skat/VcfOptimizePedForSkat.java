@@ -44,7 +44,7 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.VcfIterator;
+import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -95,6 +95,12 @@ public class VcfOptimizePedForSkat extends Launcher
 		@SuppressWarnings("unused")
 		VCFHeader header;
 		final List<VariantContext> variants = new ArrayList<>();
+
+		@Override
+		public void setHeader(final VCFHeader header) {
+			this.header = header;
+			}
+
 		@Override
 		public void writeHeader(final VCFHeader header) {
 			this.header = header;
@@ -315,7 +321,7 @@ public class VcfOptimizePedForSkat extends Launcher
 	@Override
 	public int doWork(final List<String> args)
 		{
-		VcfIterator r=null;
+		VCFIterator r=null;
 		try {
 			this.random = new Random(this.seed==-1?System.currentTimeMillis():seed);
 			if(this.nSamplesRemove<1) {
@@ -325,7 +331,7 @@ public class VcfOptimizePedForSkat extends Launcher
 			
 			final SkatFactory.SkatExecutor executor = this.skatInstance.build();
 			
-			r= super.openVcfIterator(oneFileOrNull(args));
+			r= super.openVCFIterator(oneFileOrNull(args));
 			final List<VariantContext> variants = new ArrayList<>();
 			while(r.hasNext())
 				{
