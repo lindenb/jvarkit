@@ -182,7 +182,7 @@ public class IOUtils {
 		copyTo(in,f.toPath());
 		}
 	
-	/** copy input stream to path */
+	/** copy input stream to path, no gzip detection is performed */
 	public static void copyTo(final InputStream in,final Path path) throws IOException
 		{
 		final OutputStream fous= Files.newOutputStream(path);
@@ -190,7 +190,14 @@ public class IOUtils {
 		fous.flush();
 		fous.close();
 		}
-
+	/** copy reader  to path, no gzip detection is performed */
+	public static void copyTo(final Reader in,final Path path) throws IOException
+		{
+		final Writer fous= Files.newBufferedWriter(path);
+		copyTo(in,fous);
+		fous.flush();
+		fous.close();
+		}
 	
 	public static void copyTo(final InputStream in,final OutputStream out) throws IOException
 		{

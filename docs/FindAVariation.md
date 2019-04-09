@@ -99,7 +99,7 @@ The current reference is:
 
 ```
 $ find ./ -name "*.vcf" -o -name "*.vcf.gz" |\
-   java -jar dist/findamutation.jar -p "chr1:1234" 
+   java -jar dist/findavariation.jar -p "chr1:1234" 
 
 
 htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12878	HET	A G

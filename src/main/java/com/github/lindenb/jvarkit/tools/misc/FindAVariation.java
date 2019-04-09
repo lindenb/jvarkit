@@ -27,12 +27,13 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,11 +43,15 @@ import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -60,7 +65,7 @@ import htsjdk.variant.vcf.VCFIterator;
 
 ```
 $ find ./ -name "*.vcf" -o -name "*.vcf.gz" |\
-   java -jar dist/findamutation.jar -p "chr1:1234" 
+   java -jar dist/findavariation.jar -p "chr1:1234" 
 
 
 htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12878	HET	A G
@@ -79,7 +84,9 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
  */
 @Program(name="findavariation",
 	description="Finds a specific mutation in a list of VCF files",
-	keywords={"vcf","variation","search"})
+	keywords={"vcf","variation","search"},
+	modificationDate="20190409"
+	)
 public class FindAVariation extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindAVariation.class).make();
@@ -142,7 +149,7 @@ public class FindAVariation extends Launcher
     	}		
    
     
-    private void reportPos(final File f,final VCFHeader header,final VariantContext ctx)
+    private void reportPos(final String f,final VCFHeader header,final VariantContext ctx)
 		{
 		out.print(f);
 		out.print('\t');
@@ -159,7 +166,7 @@ public class FindAVariation extends Launcher
 
     
     private void report(
-    		final File f,
+    		final String f,
     		final VCFHeader header,
     		final VariantContext ctx,
     		final Mutation mpos
@@ -205,15 +212,22 @@ public class FindAVariation extends Launcher
     		}
     	}	
     
-    private Set<Mutation> convertFromVcfHeader(final File f,final VCFHeader h)
+    private Set<Mutation> convertFromVcfHeader(final String f,final VCFHeader h)
     	{
+    	final SAMSequenceDictionary dict= h.getSequenceDictionary();
+    	if(dict==null || dict.isEmpty()) {
+    		return this.mutations;
+    		}
+    	
     	final Set<Mutation> copy=new HashSet<Mutation>(this.mutations.size());
+    	final ContigNameConverter ctgCvt = ContigNameConverter.fromOneDictionary(dict);
+    	
     	for(final Mutation m:this.mutations)
     		{
-    		final String s=VCFUtils.findChromNameEquivalent(m.chrom,h);
-    		if(s==null)
+    		final String s=ctgCvt.apply(m.chrom);
+    		if(StringUtils.isBlank(s))
     			{
-    			LOG.warn("Cannot convert chrom "+s+" in "+f);
+    			LOG.warn("Cannot convert chrom "+m.chrom+" in "+f);
     			continue;
     			}
     		copy.add(new Mutation(s, m.pos));
@@ -221,30 +235,72 @@ public class FindAVariation extends Launcher
     	return copy;
     	}
 
-    private void scan(final BufferedReader in) throws IOException
-    	{
-    	String line;
-    	while((line=in.readLine())!=null)
+    
+    
+    private void scanLine(final String line)  {
+    	if(StringUtils.isBlank(line) || line.startsWith("#")) return;
+    	if(IOUtil.isUrl(line)) {
+    		scanRemote(line);
+    		}
+    	else
+    		{
+    		scanPath(line);
+    		}
+    	}
+    private void scanRemote(final String url)  {
+    	TabixVcfFileReader tabix = null;
+    	try {
+    		tabix=new TabixVcfFileReader(url);
+    		final VCFHeader header = tabix.getHeader();
+    		final Set<String> chromosomes = tabix.getChromosomes();
+    		for(final Mutation m:convertFromVcfHeader(url,header))
+    			{
+    			if(!chromosomes.contains(m.chrom)) continue;
+    			final java.util.Iterator<VariantContext> iter2 = tabix.iterator(m.chrom, m.pos, m.pos);
+    		    while(iter2.hasNext())
+                      {
+                      final VariantContext ctx=iter2.next();
+                      if(this.onlySnp )
+                            {       
+                            if(ctx.getStart()!=m.pos || ctx.getEnd()!=m.pos) continue;
+                            }
+                      report(url,header,ctx,m);
+                      }
+                  CloserUtil.close(iter2);
+                  }
+    		tabix.close();
+    		tabix=null;
+    		}
+    	catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
 			{
-			if(line.isEmpty() || line.startsWith("#")) continue;
-			final File f=new File(line);
-			if(!f.isFile()) continue;
-			if(!f.canRead()) continue;
-			if(!VCFUtils.isVcfFile(f)) continue;
-			VCFIterator iter=null;
-			
-			
-			if(VCFUtils.isTribbleVcfFile(f) )
+			LOG.warn(url+"\t"+err.getMessage());
+			}
+		catch(final Throwable err)
+			{
+			LOG.severe("cannot read "+url,err);
+			}
+    	finally
+    		{
+    		CloserUtil.close(tabix);
+    		}
+    	}
+
+    
+    
+    private void scanPath(final String vcfPathString)  {
+    	final Path vcfPath=Paths.get(vcfPathString);
+    	if(Files.isDirectory(vcfPath)) return;
+    	if(!Files.isReadable(vcfPath)) return;
+		VCFIterator iter=null;
+		VCFFileReader r=null;
+		try {
+			if(VCFUtils.isTribbleVcfPath(vcfPath) || VCFUtils.isTribbleVcfPath(vcfPath))
 				{
-				VCFFileReader r=null;
-    			try
+				r=new VCFFileReader(vcfPath,true);
+				final VCFHeader header =r.getFileHeader();
+				for(final Mutation m:convertFromVcfHeader(vcfPath.toString(),header))
 					{
-					r=new VCFFileReader(f,true);
-					final VCFHeader header =r.getFileHeader();
-					for(final Mutation m:convertFromVcfHeader(f,header))
-						{
-						final CloseableIterator<VariantContext> iter2 = r.query(
-								m.chrom, m.pos, m.pos);
+					try( CloseableIterator<VariantContext> iter2 = r.query(m.chrom, m.pos, m.pos)) {
 						while(iter2.hasNext())
 							{
 							final VariantContext ctx=iter2.next();
@@ -252,100 +308,53 @@ public class FindAVariation extends Launcher
 								{	
 								if(ctx.getStart()!=m.pos || ctx.getEnd()!=m.pos) continue;
 								}
-							report(f,header,ctx,m);
+							report(vcfPathString,header,ctx,m);
 							}
-						CloserUtil.close(iter2);
 						}
 					}
-    			catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
-    				{
-    				LOG.warn(f+"\t"+err.getMessage());
-    				}
-				catch(final Exception err)
-					{
-					LOG.severe("cannot read "+f,err);
-					}
-				finally
-					{
-					CloserUtil.close(r);
-					}    				
-				}
-			else if(VCFUtils.isTabixVcfFile(f)) {
-				TabixVcfFileReader r=null;
-    			try
-					{
-					r=new TabixVcfFileReader(f.getPath());
-					final VCFHeader header =r.getHeader();
-					for(final Mutation m:convertFromVcfHeader(f,header))
-						{
-						final Iterator<VariantContext> iter2 = r.iterator(
-								m.chrom, m.pos, m.pos);
-						while(iter2.hasNext())
-							{
-							final VariantContext ctx=iter2.next();
-							if(this.onlySnp )
-								{	
-								if(ctx.getStart()!=m.pos || ctx.getEnd()!=m.pos) continue;
-								}
-							report(f,header,ctx,m);
-							}
-						CloserUtil.close(iter2);
-						}
-					}
-    			catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
-    				{
-    				LOG.warn(f+"\t"+err.getMessage());
-    				}
-				catch(final Exception err)
-					{
-					LOG.severe("cannot read "+f,err);
-					}
-				finally
-					{
-					CloserUtil.close(r);
-					}    				
-				}
+				r.close();
+				r=null;
+				}   				
 			else if(!this.indexedOnly)
 				{
-				try
+				iter=VCFUtils.createVCFIteratorFromPath(vcfPath);
+				final VCFHeader header = iter.getHeader();
+				final Set<Mutation> mutlist=convertFromVcfHeader(vcfPath.toString(),iter.getHeader());
+				while(iter.hasNext())
 					{
-					iter=VCFUtils.createVCFIteratorFromFile(f);
-					final VCFHeader header = iter.getHeader();
-					final Set<Mutation> mutlist=convertFromVcfHeader(f,iter.getHeader());
-					while(iter.hasNext())
+					final VariantContext ctx=iter.next();
+					final Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
+					
+					for(final Mutation m2: mutlist)
 						{
-						final VariantContext ctx=iter.next();
-						final Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
-						
-						for(final Mutation m2: mutlist)
-							{
-							if(m.equals(m2)) {
-						    	if(this.onlySnp )
-									{	
-									if(ctx.getStart()!=m2.pos || ctx.getEnd()!=m2.pos) continue;
-									}	
-								report(f,header,ctx,m2);
-								break;
-								}
+						if(m.equals(m2)) {
+					    	if(this.onlySnp )
+								{	
+								if(ctx.getStart()!=m2.pos || ctx.getEnd()!=m2.pos) continue;
+								}	
+							report(vcfPathString,header,ctx,m2);
+							break;
 							}
 						}
 					}
-				catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
-    				{
-    				LOG.warn(f+"\t"+err.getMessage());
-    				}
-				catch(final Exception err)
-					{
-					LOG.severe("Error in "+f,err);
-					}
-				finally
-					{
-					CloserUtil.close(iter);
-					}
+				iter.close();
+				iter=null;
 				}
-    			
 			}
-    	}
+		catch(final htsjdk.tribble.TribbleException.InvalidHeader err)
+			{
+			LOG.warn(vcfPathString+"\t"+err.getMessage());
+			}
+		catch(final Throwable err)
+			{
+			LOG.severe("cannot read "+vcfPathString,err);
+			}
+		finally
+			{
+			CloserUtil.close(r);
+			CloserUtil.close(iter);
+			}
+	}
     
 
 	private Mutation parseMutation(final String s)
@@ -357,7 +366,7 @@ public class FindAVariation extends Launcher
 			}
 		
 		final String chrom=s.substring(0,colon).trim();
-		if(chrom.isEmpty())
+		if(StringUtils.isBlank(chrom))
 			{
 			throw new IllegalArgumentException("Bad chrom:pos "+s);
 			}
@@ -370,7 +379,6 @@ public class FindAVariation extends Launcher
 		BufferedReader r=null;
 		try
 			{
-			
 			for(final String f:this.positionFilesList)
 				{
 				r = IOUtils.openURIForBufferedReading(f);
@@ -394,20 +402,24 @@ public class FindAVariation extends Launcher
 			
 			this.out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
 			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tAD\tDP\tGQ");
+			
+			
+			
 			if(args.isEmpty())
 				{
-				LOG.info("Reading from stdin");
-				scan(new BufferedReader(new InputStreamReader(stdin())));
+				BufferedReader br= new BufferedReader(new InputStreamReader(stdin()));
+				br.lines().forEach(L->scanLine(L));
+				br.close();
 				}
-			else
+			else if(args.size()==1 && args.get(0).endsWith(".list"))
 				{
-				for(final String filename: args)
-					{
-					LOG.info("Reading from "+filename);
-					r=IOUtils.openURIForBufferedReading(filename);
-					scan(r);
-					r.close();
-					}
+				BufferedReader br= IOUtils.openPathForBufferedReading(Paths.get(args.get(0)));
+				br.lines().forEach(L->scanLine(L));
+				br.close();
+				}
+			else 
+				{
+				args.forEach(L->scanLine(L));
 				}
 			this.out.flush();
 			this.out.close();
@@ -429,7 +441,7 @@ public class FindAVariation extends Launcher
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new FindAVariation().instanceMainWithExit(args);
 
 	}

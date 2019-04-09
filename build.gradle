@@ -2146,6 +2146,12 @@ all2.add( task("vcfsparql", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","arq")
 	endMsg = "Just a proof of concept, it's very slow."
 	});
+all2.add( task("convertliftoverchain", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.liftover.ConvertLiftOverChain"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
+
 
 /** bottom task */
 

@@ -34,7 +34,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -277,9 +279,16 @@ public class VCFUtils
 	 * */
 	public static  VCFIterator createVCFIteratorFromFile(final File vcfOrBcfFile) throws IOException
 		{
+		return createVCFIteratorFromPath(vcfOrBcfFile==null?null:vcfOrBcfFile.toPath());
+		}
+	
+	
+	public static  VCFIterator createVCFIteratorFromPath(final Path vcfOrBcfFile) throws IOException
+		{
 		IOUtil.assertFileIsReadable(vcfOrBcfFile);
 		return new VCFIteratorBuilder().open(vcfOrBcfFile);
 		}
+
 	
 	/** create a VCF iterator
 	 * 
@@ -467,41 +476,63 @@ public class VCFUtils
 		}
 	public static boolean isVcfFile(final File f)
 		{
-		if(f==null || !f.isFile()) return false;
-		final String s=f.getName();
+		return isVcfPath(f==null?null:f.toPath());
+		}
+	
+	/** return true if p ends with vcf/vcf.gz/vcf.bgz */
+	public static boolean isVcfPath(final Path f)
+		{
+		if(f==null || Files.isDirectory(f)) return false;
+		final String s=f.getFileName().toString();
 		return s.endsWith(".vcf") || s.endsWith(".vcf.gz")|| s.endsWith(".vcf.bgz");
 		}
 	
 	/** returns true if file ends with .vcf.gz and a .tbi file is associated */
 	public static boolean isTabixVcfFile(final File f)
 		{
-		if(!isVcfFile(f)) return false;
-		final String filename=f.getName();
-		if(!(filename.endsWith(".vcf.gz")|| filename.endsWith(".vcf.bgz"))) return false;
-		final File index=new File(f.getParentFile(),
-				filename+ TabixUtils.STANDARD_INDEX_EXTENSION
-				);
-		return index.exists() &&  index.isFile();
+		return isTabixVcfPath(f==null?null:f.toPath());
 		}
 	
 	/** returns true if file ends with .vcf and a .idx file is associated */
-	public static boolean isTribbleVcfFile(File f)
+	public static boolean isTribbleVcfFile(final File f)
 		{
-		if(!isVcfFile(f)) return false;
-		String filename=f.getName();
+		return isTribbleVcfPath(f==null?null:f.toPath());
+		}
+	
+	/** returns true if file ends with .vcf.gz and a .tbi file is associated */
+	public static boolean isTabixVcfPath(final Path f)
+		{
+		if(!isVcfPath(f)) return false;
+		final String filename=f.getFileName().toString();
+		if(!(filename.endsWith(".vcf.gz")|| filename.endsWith(".vcf.bgz"))) return false;
+		final Path index = Paths.get(
+				f.getParent().toString(),
+				filename+ TabixUtils.STANDARD_INDEX_EXTENSION
+				);
+		return Files.exists(index) && !Files.isDirectory(index);
+		}
+	
+	/** returns true if file ends with .vcf and a .idx file is associated */
+	public static boolean isTribbleVcfPath(final Path f)
+		{
+		if(!isVcfPath(f)) return false;
+		final String filename=f.getFileName().toString();
 		if(!filename.endsWith(".vcf")) return false;
-		File index=new File(f.getParentFile(),
+		final Path index=Paths.get(
+				f.getParent().toString(),
 				filename+ Tribble.STANDARD_INDEX_EXTENSION
 				);
-		return index.exists() &&  index.isFile();
+		return Files.exists(index) && !Files.isDirectory(index);
 		}
 
 	
-	
+	@Deprecated//use contigNameConverter
 	public static String findChromNameEquivalent(String chromName,VCFHeader h)
 		{
-		SAMSequenceDictionary dict=h.getSequenceDictionary();
+		final SAMSequenceDictionary dict=h.getSequenceDictionary();
 		if(dict==null || dict.getSequence(chromName)!=null) return chromName;
+		
+		
 		if(chromName.startsWith("chr"))
 			{
 			SAMSequenceRecord ssr=dict.getSequence(chromName.substring(3));

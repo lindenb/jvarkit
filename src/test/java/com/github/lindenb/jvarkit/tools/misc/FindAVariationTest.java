@@ -19,11 +19,12 @@ public class FindAVariationTest {
 @Test
 public void test01() throws IOException {
 	try {
-		final Path input = support.createTmpPath(".tsv");
+		final Path input = support.createTmpPath(".list");
 		PrintWriter pw=new PrintWriter(Files.newBufferedWriter(input));
-		support.allVcfOrBcf().
-			filter(F->F.startsWith("S") && F.endsWith(".vcf.gz")).
-			forEach(F->pw.println(F));
+		pw.println(support.resource("S1.vcf.gz"));
+		pw.println(support.resource("S3.vcf.gz"));
+		pw.println(support.resource("S4.vcf.gz"));
+		pw.println(support.resource("toy.vcf.gz"));
 		pw.flush();
 		pw.close();
 		Assert.assertTrue(support.wc(input)>0L);
