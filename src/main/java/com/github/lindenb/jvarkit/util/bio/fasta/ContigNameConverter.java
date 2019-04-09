@@ -31,6 +31,7 @@ package com.github.lindenb.jvarkit.util.bio.fasta;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,6 +44,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -128,25 +131,34 @@ private static class MapBasedContigNameConverter extends ContigNameConverter
 	
 	}
 
+public static final String OPT_MAPPING_FILE_DESC="Chromosome mapping file. See https://github.com/dpryan79/ChromosomeMappings";
+
 public static ContigNameConverter fromFile(final File mappingFile)
+	{
+	return fromPath(mappingFile==null?null:mappingFile.toPath());
+	}
+
+
+public static ContigNameConverter fromPath(final Path mappingFile)
 	{
 	IOUtil.assertFileIsReadable(mappingFile);
 	final MapBasedContigNameConverter mapper=new MapBasedContigNameConverter();
-	mapper.name=mappingFile.getName();
+	mapper.name=mappingFile.getFileName().toString();
 	BufferedReader in=null;
 	try {
-		in=IOUtils.openFileForBufferedReading(mappingFile);
+		final CharSplitter tab= CharSplitter.TAB;
+		in=IOUtils.openPathForBufferedReading(mappingFile);
 		String line;
 		while((line=in.readLine())!=null)
 			{
-			if(line.isEmpty() || line.startsWith("#")) continue;
-			final String tokens[]=line.split("[\t]");
+			if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
+			final String tokens[]=tab.split(line);
 			if(tokens.length!=2
-					|| tokens[0].trim().isEmpty()
-					|| tokens[1].trim().isEmpty()
+					|| StringUtils.isBlank(tokens[0])
+					|| StringUtils.isBlank(tokens[1])
 					) {
 				in.close();in=null;
-				throw new IOException("Bad mapping line: \""+line+"\"");
+				throw new IOException("Bad mapping line: \""+line+"\" in "+mappingFile);
 				}
 			tokens[0]=tokens[0].trim();
 			tokens[1]=tokens[1].trim();

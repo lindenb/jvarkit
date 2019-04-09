@@ -14,15 +14,22 @@ Usage: convertliftoverchain [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -M1, --mapping1
+      Source chain mapping file.Chromosome mapping file. See 
+      https://github.com/dpryan79/ChromosomeMappings 
+    -M2, --mapping2
+      Destination chain mapping. If undefined, source is used. Chromosome 
+      mapping file. See https://github.com/dpryan79/ChromosomeMappings
     -o, --output
       Output file. Optional . Default: stdout
-  * -R1, --ref1
-      Source chain REFference. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+    -R1, --ref1
+      Source chain REFference (OR USE -M1 ). Indexed fasta Reference file. 
+      This file must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     -R2, --ref2
-      Source chain REFference. If undefined, R1 is used. Indexed fasta 
-      Reference file. This file must be indexed with samtools faidx and with 
-      picard CreateSequenceDictionary
+      Destination chain REFference. If undefined, source is used. Indexed 
+      fasta Reference file. This file must be indexed with samtools faidx and 
+      with picard CreateSequenceDictionary
     --version
       print version and exit
 
