@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.lang;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
@@ -196,5 +197,14 @@ public static final String md5(final String in) {
 		}
 	return s;
 	}
+
+/** return true if s ends with any of the suffixes */
+public static final boolean endsWith(final String s,String...suffixes) {
+	if(s==null) throw new IllegalArgumentException("s is null");
+	for(final String suff:suffixes) if(s.endsWith(suff)) return true;
+	return false;
+	}
+
+
 
 }

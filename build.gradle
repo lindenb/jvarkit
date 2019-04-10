@@ -15,7 +15,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "2.18.2"
+	htsjdkVersion = "2.19.0"
 	}
 
 class JarFile
@@ -2151,6 +2151,10 @@ all2.add( task("convertliftoverchain", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
+all2.add( task("mkminibam", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 
 /** bottom task */

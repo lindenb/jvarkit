@@ -85,6 +85,7 @@ import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
@@ -484,7 +485,11 @@ public class VCFUtils
 		{
 		if(f==null || Files.isDirectory(f)) return false;
 		final String s=f.getFileName().toString();
-		return s.endsWith(".vcf") || s.endsWith(".vcf.gz")|| s.endsWith(".vcf.bgz");
+		return StringUtils.endsWith(s,
+				IOUtil.VCF_FILE_EXTENSION,
+				IOUtil.COMPRESSED_VCF_FILE_EXTENSION,
+				IOUtil.BCF_FILE_EXTENSION
+				);
 		}
 	
 	/** returns true if file ends with .vcf.gz and a .tbi file is associated */

@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.List;
@@ -37,13 +36,11 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 /** 
  
@@ -85,33 +82,10 @@ public class ConvertLiftOverChain extends Launcher {
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-R1","--ref1"},description="Source chain REFference (OR USE -M1 ). "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R1","--ref1"},description="Source chain REFference mapping. "+ContigNameConverter.OPT_DICT_OR_MAPPING_FILE_DESC,required=true)
 	private Path refFile1 = null;
-	@Parameter(names={"-R2","--ref2"},description="Destination chain REFference. If undefined, source is used. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R2","--ref2"},description="Destination chain REFference mapping. If undefined, source is used. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refFile2 = null;
-
-	@Parameter(names={"-M1","--mapping1"},description="Source chain mapping file." + ContigNameConverter.OPT_MAPPING_FILE_DESC)
-	private Path mappingFile1 = null;
-	@Parameter(names={"-M2","--mapping2"},description="Destination chain mapping. If undefined, source is used. "+ ContigNameConverter.OPT_MAPPING_FILE_DESC)
-	private Path mappingFile2 = null;
-
-	private ContigNameConverter loadContigNameConverter(int side,final Path ref,final Path map,final ContigNameConverter def) throws IOException
-		{
-		if(ref!=null & map!=null) throw new IllegalArgumentException("-R"+side+" and -M"+side+" both defined.");
-		if(ref!=null)
-			{
-			final SAMSequenceDictionary dict1 =SequenceDictionaryUtils.extractRequired(ref);
-			return ContigNameConverter.fromOneDictionary(dict1);
-			}
-		else if(map!=null)
-			{
-			return ContigNameConverter.fromPath(map);
-			}
-		else
-			{
-			return def;
-			}
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -119,13 +93,8 @@ public class ConvertLiftOverChain extends Launcher {
 		BufferedReader in = null;
 		final Pattern splitter = Pattern.compile("\\s");
 		try {			
-			final ContigNameConverter convert1 = loadContigNameConverter(1,this.refFile1,this.mappingFile1,null);
-			if(convert1==null)  {
-				LOG.error("Cannot get mapping for source. check parameters -M1 / -R1");
-				return -1;
-			}
-			
-			final ContigNameConverter convert2 = loadContigNameConverter(2,this.refFile2,this.mappingFile2,convert1);
+			final ContigNameConverter convert1 = ContigNameConverter.fromPathOrOneDictionary(this.refFile1);
+			final ContigNameConverter convert2 = (this.refFile2==null?convert1:ContigNameConverter.fromPathOrOneDictionary(this.refFile2));
 			
 			final Set<String> notFound1 = new TreeSet<>();
 			final Set<String> notFound2 = new TreeSet<>();

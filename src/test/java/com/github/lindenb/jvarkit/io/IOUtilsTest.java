@@ -13,6 +13,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
@@ -33,7 +34,7 @@ public class IOUtilsTest {
 	
 	
 @Test
-public void testSuffix() {
+public void testCompressed() {
 	Assert.assertTrue(IOUtils.isCompressed(Paths.get("x.gz")));
 	Assert.assertTrue(IOUtils.isCompressed(Paths.get("x.bgz")));
 	Assert.assertTrue(IOUtils.isCompressed(Paths.get("x.bz2")));
@@ -123,5 +124,9 @@ public void testRemoteReader() throws IOException {
 		}
 	Assert.assertTrue(got_byte);
 	}
-
+@Test
+public void testFileSuffix() {
+	Assert.assertEquals(IOUtils.getFileSuffix(Paths.get("x.vcf")),".vcf");
+	Assert.assertNotEquals(IOUtils.getFileSuffix(Paths.get("x.vcf")),"vcf");
+	}
 }

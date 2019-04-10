@@ -1,5 +1,7 @@
 package com.github.lindenb.jvarkit.lang;
 
+import java.nio.file.Paths;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -25,5 +27,12 @@ public void test() {
 	Assert.assertEquals(StringUtils.right("ABCD", 3),"BCD");
 	Assert.assertEquals(StringUtils.right("AB", 3),"AB");
 
+	
+	Assert.assertTrue(StringUtils.endsWith("x.vcf",".vcf",".a"));
+	Assert.assertFalse(StringUtils.endsWith("x.bam",".vcf",".a"));
+	Assert.assertFalse(StringUtils.endsWith("x.bam"));
+
+	
+	
 	}
 }

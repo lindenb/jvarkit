@@ -372,11 +372,7 @@ public class IOUtils {
     
 	/** return true if the file has a compressed suffix '.bfz' or '.gz' or '.bz2' */
 	public static final boolean isCompressedExtention(final String s) {
-		return s!=null && (
-			s.endsWith(".gz") ||
-			s.endsWith(".bgz") ||
-			s.endsWith(".bz2")
-			);
+		return s!=null && StringUtils.endsWith(s, ".gz",".bgz",".bz2");
 		}
 
     
@@ -820,4 +816,14 @@ public class IOUtils {
 	            throw new RuntimeIOException("Exception creating temporary directory in "+parentDir, e);
 	        }
 	    }
+	 
+	 /** return the string after the last dot, INCLUDING THE DOT */
+	public static final String getFileSuffix(final Path path) {
+		if(path==null) throw new IllegalArgumentException("path is null");
+		final String s = path.getFileName().toString();
+		int dot = s.lastIndexOf('.');
+		if(dot==-1) throw new IllegalArgumentException("cannot find dot file of "+path);
+		return s.substring(dot);
+		}
+ 
 	}

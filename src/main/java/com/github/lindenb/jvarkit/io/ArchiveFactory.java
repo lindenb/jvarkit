@@ -39,8 +39,18 @@ import java.util.zip.ZipOutputStream;
 
 public interface ArchiveFactory extends Closeable{
 
+	public static final String OPT_DESC="An existing directory or a filename ending with the '.zip' suffix.";
 	
 	public abstract OutputStream openOuputStream(final String filename) throws IOException;
+	
+	/** copy whole file into the archive */
+	public default void copyTo(final Path externalFile,final String filename) throws IOException {
+		try ( OutputStream os = openOuputStream(filename))
+			{
+			IOUtils.copyTo(externalFile, os);
+			os.flush();
+			}
+		}
 	
 	public default PrintWriter openWriter(final String filename) throws IOException
 		{
