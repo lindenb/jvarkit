@@ -2155,6 +2155,10 @@ all2.add( task("mkminibam", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("vcfdistancevariants", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfDistanceBetweenVariants"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 
 /** bottom task */
