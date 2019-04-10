@@ -10,6 +10,8 @@ Creates an archive of small bams with only a few region
 ```
 Usage: mkminibam [options] Files
   Options:
+    -B, --bed
+      Use the intervals from this BED file.
     -x, --extend
       Extend the positions by 'x' bases. A distance specified as a positive 
       integer.Comma are removed. The following suffixes are interpreted : 
@@ -30,6 +32,8 @@ Usage: mkminibam [options] Files
     -T, --tmp
       Tmp working directory
       Default: /tmp
+    -V, --variant
+      Use the intervals from this VCF file.
     --version
       print version and exit
 
@@ -94,17 +98,24 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
  
+# Motivation
+
+Bams are too bigs and my users often ask to visualize a small region of a set of bam
  
- ```
-$  find src/test/resources/ -name "S*.bam" > jeter.list
-$   java -jar dist/mkminibam.jar -p "RF01:100" -o jeter.zip jeter.list 
+# Example
+ 
+```
+$  find src/test/resources/ -name "S*.bam" > bams.list
+$   java -jar dist/mkminibam.jar -p "RF01:100" -o out.zip bams.list 
 [INFO][MakeMiniBam]src/test/resources/S5.bam
 [INFO][MakeMiniBam]src/test/resources/S2.bam
 [INFO][MakeMiniBam]src/test/resources/S4.bam
 [INFO][MakeMiniBam]src/test/resources/S3.bam
 [INFO][MakeMiniBam]src/test/resources/S1.bam
-lindenb@mcclintock:~/src/jvarkit-git$ unzip -t jeter.zip 
-Archive:  jeter.zip
+
+$ unzip -t out.zip 
+
+Archive:  out.zip
     testing: miniBam.S5.bam           OK
     testing: miniBam.S5.bai           OK
     testing: miniBam.S2.bam           OK
@@ -115,7 +126,7 @@ Archive:  jeter.zip
     testing: miniBam.S3.bai           OK
     testing: miniBam.S1.bam           OK
     testing: miniBam.S1.bai           OK
-No errors detected in compressed data of jeter.zip.
+No errors detected in compressed data of out.zip.
 ```
  
  
