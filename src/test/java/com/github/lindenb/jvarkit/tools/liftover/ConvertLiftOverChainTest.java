@@ -32,6 +32,7 @@ public class ConvertLiftOverChainTest {
 			Assert.assertEquals(new ConvertLiftOverChain().instanceMain(new String[] {
 					"-o",out.toString(),
 					"-R1",support.resource("human_b37.dict"),
+					"-R2",support.resource("human_b37.dict"),
 					chain.toString()
 					}),0);
 			Assert.assertTrue(Files.lines(out).noneMatch(L->L.contains("chr")));

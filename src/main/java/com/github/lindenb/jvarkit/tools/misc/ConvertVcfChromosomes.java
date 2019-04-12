@@ -25,19 +25,30 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import htsjdk.variant.vcf.VCFIterator;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -172,72 +183,149 @@ END_DOC
 @Program(name="vcfrenamechr",
 	description="Convert the names of the chromosomes in a VCF file",
 	keywords={"vcf","contig","chromosome","convert"},
-	deprecatedMsg="use `bcftools annotate` with `--rename-chrs file`"
+	deprecatedMsg="use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ?)",
+	modificationDate="20190411"
 	)
 public class ConvertVcfChromosomes extends Launcher {
 	private static final Logger LOG = Logger.build(ConvertVcfChromosomes.class).make();
 	
-	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 
-	@Parameter(names={"-c","-convert"},description="What should I do when  a converstion is not found")
-	private OnNotFound onNotFound= OnNotFound.RAISE_EXCEPTION;
-	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
-	private File mappingFile=null;
+	@Parameter(names={"-f","--mapping","-m"},description=ContigNameConverter.OPT_DICT_OR_MAPPING_FILE_DESC,required=true)
+	private Path mappingFile=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File output= null;
+	private Path output= null;
+	@Parameter(names={"--fatal"},description="exit with failure if a conversion fails. Default: skip the variant")
+	private boolean exitOnFailure=false;
 
 	
 	
 	public ConvertVcfChromosomes()
 		{
 		}
-	@Override
-	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {
-		final ContigNameConverter customMapping = ContigNameConverter.fromFile(mappingFile);
-		final Set<String> unseen=new HashSet<>();
-		final VCFHeader header1=iterin.getHeader();
-		final VCFHeader header2=new VCFHeader(
-				header1.getMetaDataInInputOrder().stream().
-					filter(L->!L.getKey().equals(VCFHeader.CONTIG_KEY)).collect(Collectors.toSet()),
-					header1.getSampleNamesInOrder()
-					);
-
-		if(header1.getSequenceDictionary()!=null)
-			{
-			header2.setSequenceDictionary(customMapping.convertDictionary(header1.getSequenceDictionary()));
-			}
-		out.writeHeader(header2);
-		while(iterin.hasNext()) {
-			final VariantContext ctx=iterin.next();
-			final String newName= customMapping.apply(ctx.getContig());
-			if(newName==null)
-				{
-				if(unseen.size()<1000 && !unseen.contains(ctx.getContig()))
-					{
-					LOG.warn("Cannot find contig for "+ctx.getContig());
-					unseen.add(ctx.getContig());
-					}
-				//skip unknown chromosomes
-				continue;
-				}
-			final VariantContextBuilder vcb= new VariantContextBuilder(ctx);
-			vcb.chr(newName);
-			out.add(vcb.make());
-			}
-		return 0;
-		}
 	
-	@Override
 	public int doWork(final List<String> args) {
 		if( this.mappingFile==null)
 			{
 			throw new JvarkitException.CommandLineError("undefined mapping file");
 			}
-		
-		return doVcfToVcf(args, this.output);
+		VCFIterator iterin=null;
+		VariantContextWriter out = null;
+		try
+			{
+			final ContigNameConverter customMapping = ContigNameConverter.fromPathOrOneDictionary(mappingFile);
+			final Set<String> unseen=new HashSet<>();
+
+			iterin = super.openVCFIterator(oneFileOrNull(args));
+			out = this.output==null?
+					VCFUtils.createVariantContextWriterToOutputStream(stdout()):
+					VCFUtils.createVariantContextWriterToPath(this.output)
+					;
+				
+			final VCFHeader header1=iterin.getHeader();
+			final VCFHeader header2=new VCFHeader(
+					header1.getMetaDataInInputOrder()
+							.stream()
+							.filter(L->!L.getKey().equals(VCFHeader.CONTIG_KEY))
+							.collect(Collectors.toSet()),
+						header1.getSampleNamesInOrder()
+						);
+			
+			JVarkitVersion.getInstance().addMetaData(this, header2);
+			
+			if(header1.getSequenceDictionary()!=null)
+				{
+				header2.setSequenceDictionary(customMapping.convertDictionary(header1.getSequenceDictionary()));
+				}
+			out.writeHeader(header2);
+			
+			final Function<String, String> converter= (S)->{
+				final String newName= customMapping.apply(S);
+				if(StringUtils.isBlank(newName))
+					{
+					if(exitOnFailure) throw new IllegalArgumentException("Cannot convert contig "+S);
+					if(unseen.size()<1000 && !unseen.contains(S))
+						{
+						LOG.warn("Cannot find contig for "+S);
+						unseen.add(S);
+						}
+					return null;
+					}
+				return newName;
+				};
+			
+			while(iterin.hasNext()) {
+				final VariantContext ctx=iterin.next();
+				final String contig = converter.apply(ctx.getContig());
+				if(StringUtils.isBlank(contig)) continue;
+					
+				final VariantContextBuilder vcb= new VariantContextBuilder(ctx);
+
+				// if it's a breaking end, loop over the ALT alleles and try to change it
+				if(StructuralVariantType.BND.equals(ctx.getStructuralVariantType())) {
+					boolean ok_convert = true;
+					final List<Genotype> genotypes = new ArrayList<>(ctx.getGenotypes());
+					final List<Allele> alleles = new ArrayList<>(ctx.getAlleles());
+					for(int i=1;i< ctx.getAlleles().size();i++)
+						{
+						Allele alt = ctx.getAlleles().get(i);
+						if(!alt.isSymbolic()) continue;
+						if(!alt.isBreakpoint()) continue;
+						String display = alt.getDisplayString();
+						int colon = display.indexOf(':');
+						if(colon==-1) continue;
+						final char delim = display.contains("[")?'[':']';
+						final int i1 = display.indexOf(delim);
+						if(i1>colon) continue;
+						final int i2 = colon+1==display.length()?-1:display.indexOf(delim,colon+1);
+						if(!(i1+1 <colon && colon+1 <i2) ) {
+							continue;
+							}
+						final String bndCtg= converter.apply(display.substring(i1+1,colon));
+						if(StringUtils.isBlank(bndCtg)) {
+							ok_convert=false;
+							break;
+							}
+						Allele newAlt= Allele.create(
+							display.substring(0,i1+1)+
+							bndCtg + 
+							display.substring(colon)
+							,false);
+						alleles.set(i, newAlt);
+						for(int x=0;x< genotypes.size();++x) {
+							final Genotype gt = genotypes.get(x);
+							final List<Allele> getAlleles= new ArrayList<>(gt.getAlleles());
+							getAlleles.replaceAll(A->A.equals(alt)?newAlt:A);
+							genotypes.set(x, new GenotypeBuilder(gt).alleles(getAlleles).make());
+							}
+						}
+					
+					if(!ok_convert) continue;
+					
+					vcb.alleles(alleles);
+					vcb.genotypes(genotypes);
+					
+				}
+				
+				
+				vcb.chr(contig);
+				out.add(vcb.make());
+				}
+			iterin.close();iterin=null;
+			out.close();out=null;
+			return 0;
+			}
+		catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(iterin);
+			CloserUtil.close(out);
+			}
 		}
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new ConvertVcfChromosomes().instanceMainWithExit(args);
 		}

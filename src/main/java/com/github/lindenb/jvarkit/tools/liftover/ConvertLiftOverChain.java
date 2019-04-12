@@ -82,9 +82,9 @@ public class ConvertLiftOverChain extends Launcher {
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-R1","--ref1"},description="Source chain REFference mapping. "+ContigNameConverter.OPT_DICT_OR_MAPPING_FILE_DESC,required=true)
+	@Parameter(names={"-R1","--ref1"},description="Source chain REFference mapping. Default : no conversion. "+ContigNameConverter.OPT_DICT_OR_MAPPING_FILE_DESC)
 	private Path refFile1 = null;
-	@Parameter(names={"-R2","--ref2"},description="Destination chain REFference mapping. If undefined, source is used. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R2","--ref2"},description="Destination chain REFference mapping. Default : no conversion. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refFile2 = null;
 	
 	@Override
@@ -93,8 +93,8 @@ public class ConvertLiftOverChain extends Launcher {
 		BufferedReader in = null;
 		final Pattern splitter = Pattern.compile("\\s");
 		try {			
-			final ContigNameConverter convert1 = ContigNameConverter.fromPathOrOneDictionary(this.refFile1);
-			final ContigNameConverter convert2 = (this.refFile2==null?convert1:ContigNameConverter.fromPathOrOneDictionary(this.refFile2));
+			final ContigNameConverter convert1 = this.refFile1==null ? ContigNameConverter.getIdentity() : ContigNameConverter.fromPathOrOneDictionary(this.refFile1);
+			final ContigNameConverter convert2 = this.refFile2==null ? ContigNameConverter.getIdentity() : ContigNameConverter.fromPathOrOneDictionary(this.refFile2);
 			
 			final Set<String> notFound1 = new TreeSet<>();
 			final Set<String> notFound2 = new TreeSet<>();
@@ -153,6 +153,7 @@ public class ConvertLiftOverChain extends Launcher {
 			return 0;
 			}
 		catch(final Throwable err) {
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -12,12 +12,12 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
-@AlsoTest(VCFUtils.class)
+@AlsoTest(LauncherTest.class)
 public class ConvertVcfChromosomesTest
 	{
 	private final TestSupport support = new TestSupport();
