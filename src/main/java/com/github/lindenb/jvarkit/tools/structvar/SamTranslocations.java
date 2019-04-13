@@ -370,7 +370,7 @@ public class SamTranslocations extends Launcher {
 
 			final VCFHeader vcfHeader= new VCFHeader(metaData, sampleNames);
 			vcfHeader.setSequenceDictionary(refDict);
-			JVarkitVersion.getInstance().addMetaData(this, header);
+			JVarkitVersion.getInstance().addMetaData(this, vcfHeader);
 			
 			out = VCFUtils.createVariantContextWriterToPath(this.outputFile);
 			out.writeHeader(vcfHeader);

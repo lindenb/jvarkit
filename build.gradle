@@ -1301,6 +1301,10 @@ all.add( task("samtranslocations", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamTranslocations"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all.add( task("svneg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamStructVarNeg"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("sigframe", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sigframe.SigFrame"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
