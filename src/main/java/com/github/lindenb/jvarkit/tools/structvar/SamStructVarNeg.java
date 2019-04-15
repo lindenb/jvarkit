@@ -38,7 +38,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
@@ -69,6 +68,7 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -90,13 +90,40 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 BEGIN_DOC
 
 
+```
+$ java -jar dist/svneg.jar --bams jeter.list src/test/resources/HG02260.transloc.chr9.14.bam
+
+##fileformat=VCFv4.2
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=SR,Number=4,Type=Integer,Description="Supporting reads: contig1-forward,contig1-reverse,contig2-forward,contig2-reverse">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes, for each ALT allele, in the same order as listed">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency, for each ALT allele, in the same order as listed">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##INFO=<ID=CHROM2,Number=1,Type=String,Description="other chromosome">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth; some reads may have been filtered">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=POS2,Number=1,Type=Integer,Description="other position">
+##INFO=<ID=STDDEV_POS1,Number=1,Type=Integer,Description="std deviation to position 1">
+##INFO=<ID=STDDEV_POS2,Number=1,Type=Integer,Description="std deviation to position 2">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Variation type">
+##svneg.meta=compilation:20190415102101 githash:4c6799f7 htsjdk:2.19.0 date:20190415102110 cmd:--bams jeter.list src/test/resources/HG02260.transloc.chr9.14.bam
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG02260
+9	137230996	9:137230996:14:79839048	N	<TRANSLOC>	18	.	AC=1;AF=0.500;AN=2;CHROM2=14;DP=18;POS2=79839048;STDDEV_POS1=120;STDDEV_POS2=187;SVTYPE=BND	GT:DP:SR	0/1:18:5,13,13,5
+14	79839119	14:79839119:9:137230968	N	<TRANSLOC>	18	.	AC=1;AF=0.500;AN=2;CHROM2=9;DP=18;POS2=137230968;STDDEV_POS1=154;STDDEV_POS2=145;SVTYPE=BND	GT:DP:SR	0/1:18:13,5,5,13
+
+
+```
+
 END_DOC
 */
 @Program(name="svneg",
 	description="Find Structural Variation by Negative Comparaison",
 	keywords={"sam","bam","sv","translocation"},
 	creationDate="20190413",
-	modificationDate="20190413"
+	modificationDate="20190415"
 	)
 public class SamStructVarNeg extends Launcher {
 	private static final Logger LOG = Logger.build(SamStructVarNeg.class).make();
@@ -114,8 +141,8 @@ public class SamStructVarNeg extends Launcher {
 	private int fuzzy_distance = 1_000;
 	@Parameter(names={"-m","--min"},description="Min number of events to validate the translocation")
 	private int min_number_of_events=3;
-	@Parameter(names={"--min-controls"},description="Min number controls bam matching the event")
-	private int min_number_of_controls = 1;
+	@Parameter(names={"--max-controls"},description="Maximum number controls bam matching the event")
+	private int max_number_of_controls = 1;
 	@Parameter(names={"-b","--controls","--bams"},description="Control Bams. One path per lines",required=true)
 	private Path controlBamPaths = null;
 	@Parameter(names={"--chrom-regex"},description="Only consider the chromosomes matching the following regular expression.")
@@ -136,33 +163,45 @@ public class SamStructVarNeg extends Launcher {
 		private final Path bamPath;
 		private SamReader samReader = null;
 		private ContigNameConverter ctgNameConverter;
+		private final Set<String> unseenContig = new HashSet<>();
+		
 		ControlBam(final int index,final Path bamPath) {
 			this.index  = index;
 			this.bamPath = bamPath;
 			
-		}
+			}
 		
-		OptionalInt overlap(final Locatable loc) throws IOException {
-			if( this.samReader == null ) {
-				LOG.info("opening ["+(index+1)+"] "+bamPath);
-				final SamReaderFactory srf = SamReaderFactory.
-						makeDefault().
-						validationStringency(ValidationStringency.SILENT);
-				this.samReader = srf.open(this.bamPath);
-				if(!samReader.hasIndex()) {
-					this.samReader.close();
-					throw new IOException("BAM is not indexed " + this.bamPath);
-					}
-				final SAMFileHeader header = samReader.getFileHeader();
-				this.ctgNameConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(header));
-				if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
-					this.samReader.close();
-					throw new JvarkitException.BamBadSortOrder(SAMFileHeader.SortOrder.coordinate, header.getSortOrder());
-					}
-				
-				} /* end open sam reader */
+		private void open() throws IOException {
+			if( this.samReader != null ) return;
+			LOG.info("opening ["+(index+1)+"] "+bamPath);
+			final SamReaderFactory srf = SamReaderFactory.
+					makeDefault().
+					validationStringency(ValidationStringency.SILENT);
+			this.samReader = srf.open(this.bamPath);
+			if(!samReader.hasIndex()) {
+				this.samReader.close();
+				throw new IOException("BAM is not indexed " + this.bamPath);
+				}
+			final SAMFileHeader header = samReader.getFileHeader();
+			this.ctgNameConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(header));
+			if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
+				this.samReader.close();
+				throw new JvarkitException.BamBadSortOrder(SAMFileHeader.SortOrder.coordinate, header.getSortOrder());
+				}		
+			}
+		
+		OptionalInt overlap(
+			final Locatable loc,
+			final Locatable mateLoc
+			) throws IOException {
+			open();
 			final String contig = this.ctgNameConverter.apply(loc.getContig());
-			if (StringUtils.isBlank(contig)) return OptionalInt.empty();
+			if (StringUtils.isBlank(contig)) {
+				if(this.unseenContig.add(loc.getContig())) {
+					LOG.warn("Contig "+loc.getContig()+" not found in "+this.bamPath);
+					}
+				return OptionalInt.empty();
+				}
 			int count =0;
 			int max_end=0;
 			try(final CloseableIterator<SAMRecord> iter = this.samReader.query(
@@ -171,9 +210,27 @@ public class SamStructVarNeg extends Launcher {
 				while(iter.hasNext() && count==0) {
 					final SAMRecord rec = iter.next();
 					if(!rec.getReadPairedFlag()) continue;
+					
+					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+					if(rec.getDuplicateReadFlag()) continue;
+					if(rec.isSecondaryOrSupplementary()) continue;
+					if(rec.getMappingQuality()<=min_mapq) continue;
+					
 					if(rec.getReadUnmappedFlag()) continue;
 					if(rec.getMateUnmappedFlag()) continue;
-					if(rec.getReferenceIndex().equals(rec.getMateReferenceIndex())) continue;
+					if(!mateLoc.equals(rec.getMateReferenceName())) continue;
+					
+					final int mate_start = rec.getMateAlignmentStart();
+					final int mate_end = getMateAlignmenEnd(rec);
+
+					
+					if(!CoordMath.overlaps(
+							mate_start-fuzzy_distance,
+							mate_end+fuzzy_distance,
+							mateLoc.getStart(),
+							mateLoc.getEnd()
+							)) continue;
+					
 					count++;
 					max_end = Math.max(max_end,rec.getUnclippedEnd());
 					}
@@ -206,6 +263,13 @@ public class SamStructVarNeg extends Launcher {
 	private final List<ControlBam> controlBams = new ArrayList<>(); 	
 		
 	
+	private static int getMateAlignmenEnd(final SAMRecord rec)  {
+		return SAMUtils.getMateCigar(rec)!=null?
+			SAMUtils.getMateAlignmentEnd(rec):
+			rec.getMateAlignmentStart()
+			;
+		}
+	
 	private void putbackInBuffer(final List<SAMRecord> candidates,final List<SAMRecord> buffer) {
 		buffer.addAll(candidates.subList(1, candidates.size()));//remove first element
 		Collections.sort(buffer,this.coordinateComparator);
@@ -221,8 +285,8 @@ public class SamStructVarNeg extends Launcher {
 			LOG.error("Control BAM is undefined");
 			return -1;
 			}
-		if(this.min_number_of_controls <1 ) {
-			LOG.error("Bad number for min_number_of_controls");
+		if(this.max_number_of_controls <1 ) {
+			LOG.error("Bad number for max_number_of_controls");
 			return -1;
 			}
 		SamReader samReader = null;
@@ -248,7 +312,7 @@ public class SamStructVarNeg extends Launcher {
 				LOG.error("No bam was defined");
 				return -1;
 				}
-			if(this.controlBams.size()< this.min_number_of_controls) {
+			if(this.controlBams.size() < this.max_number_of_controls) {
 				LOG.error("Number of bam  is lower than ");
 				return -1;
 				}
@@ -389,11 +453,6 @@ public class SamStructVarNeg extends Launcher {
 			out.writeHeader(vcfHeader);
 			
 			
-			final Function<SAMRecord, Integer> mateEnd = REC->SAMUtils.getMateCigar(REC)!=null?
-					SAMUtils.getMateAlignmentEnd(REC):
-					REC.getMateAlignmentStart()
-					;
-					
 			final Allele REF=Allele.create("N", true);
 			final Allele ALT=Allele.create("<TRANSLOC>", false);
 			/** buffer or reads */
@@ -476,11 +535,11 @@ public class SamStructVarNeg extends Launcher {
 					
 					final int mate1 = rec.getMateNegativeStrandFlag()?
 								rec.getMateAlignmentStart():
-								mateEnd.apply(rec)
+								getMateAlignmenEnd(rec)
 								;
 					final int mate2 = rec2.getMateNegativeStrandFlag()?
 							rec2.getMateAlignmentStart():
-							mateEnd.apply(rec2)
+							getMateAlignmenEnd(rec2)
 							;
 
 					if(Math.abs(mate1-mate2) > this.fuzzy_distance) {
@@ -512,7 +571,9 @@ public class SamStructVarNeg extends Launcher {
 						SR->SR.getReadNegativeStrandFlag()?
 								SR.getAlignmentStart():
 								SR.getAlignmentEnd()).
-						average().orElse(-1);
+						average().
+						orElse(-1);
+				
 				if(pos_ctg1<1) {
 					putbackInBuffer(candidates, buffer);
 					continue;
@@ -523,28 +584,50 @@ public class SamStructVarNeg extends Launcher {
 						average().
 						orElse(0.0);
 				
-				int next_end=0;
+				final int pos_ctg2=(int)candidates.stream().
+					mapToInt(SR->SR.getMateNegativeStrandFlag()?SR.getMateAlignmentStart():getMateAlignmenEnd(SR)).
+					average().orElse(-1);
+				
+				if(pos_ctg2<1) {
+					putbackInBuffer(candidates, buffer);
+					continue;
+					}
+				
+				final int stddev_ctg2 = (int)candidates.stream().
+					mapToInt(SR->SR.getMateNegativeStrandFlag()?SR.getMateAlignmentStart():getMateAlignmenEnd(SR)).
+					map(X->Math.abs(X-pos_ctg2)).
+					average().
+					orElse(0.0);
+				
+				
+				int next_end = 0;
 				int control_count = 0;
-				for(int x = 0; x< this.controlBams.size() && control_count < this.min_number_of_controls ;++x) {
+				for(int x = 0; x< this.controlBams.size() && control_count < this.max_number_of_controls ;++x) {
 					final ControlBam controlBam = this.controlBams.get(x);
 					final OptionalInt optEnd = controlBam.overlap(
 						new Interval(
 							rec.getContig(),
 							pos_ctg1 - stddev_ctg1 - this.fuzzy_distance ,
 							pos_ctg1 + stddev_ctg1 + this.fuzzy_distance
-							));
+							),
+						new Interval(
+								rec.getMateReferenceName(),
+								pos_ctg2 - stddev_ctg2 - this.fuzzy_distance ,
+								pos_ctg2 + stddev_ctg2 + this.fuzzy_distance
+								)
+						);
 					if(optEnd.isPresent()) {
 						next_end = Math.max(next_end, optEnd.getAsInt());
 						control_count ++;
 						}
 					}
-				
-				if(control_count < this.min_number_of_controls) {
+
+				if(control_count >= this.max_number_of_controls) {
 					ignore_to_position = next_end;
 					putbackInBuffer(candidates, buffer);
 					continue;
 					}
-
+				
 				//check in both sides
 				final int count_plus =  (int)candidates.stream().filter(SR->!SR.getReadNegativeStrandFlag()).count();
 				final int count_minus = (int)candidates.stream().filter(SR-> SR.getReadNegativeStrandFlag()).count();
@@ -552,22 +635,8 @@ public class SamStructVarNeg extends Launcher {
 					putbackInBuffer(candidates, buffer);
 					continue;
 					}
+								
 				
-				
-				
-				
-				final int pos_ctg2=(int)candidates.stream().
-						mapToInt(SR->SR.getMateNegativeStrandFlag()?SR.getMateAlignmentStart():mateEnd.apply(SR)).
-						average().orElse(-1);
-				if(pos_ctg2<1) {
-					putbackInBuffer(candidates, buffer);
-					continue;
-					}
-				final int stddev_ctg2 = (int)candidates.stream().
-						mapToInt(SR->SR.getMateNegativeStrandFlag()?SR.getMateAlignmentStart():mateEnd.apply(SR)).
-						map(X->Math.abs(X-pos_ctg2)).
-						average().
-						orElse(0.0);
 				
 				final VariantContextBuilder vcb=new VariantContextBuilder(null,
 						rec.getContig(), 
@@ -613,6 +682,8 @@ public class SamStructVarNeg extends Launcher {
 				vcb.alleles(Arrays.asList(REF,ALT));
 				
 				out.add(vcb.make());
+				
+				buffer.removeIf(REC->REC.getAlignmentEnd() <= rec.getEnd());
 				}
 			progress.close();
 			iter.close();
@@ -628,6 +699,7 @@ public class SamStructVarNeg extends Launcher {
 			}
 		finally
 			{
+			for(final ControlBam b:this.controlBams) CloserUtil.close(b);
 			CloserUtil.close(iter);
 			CloserUtil.close(samReader);
 			CloserUtil.close(out);
