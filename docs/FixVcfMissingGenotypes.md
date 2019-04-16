@@ -156,7 +156,7 @@ rotavirus	1064	.	G	A	21.56	.	AC1=2;AF1=0.25;BQB=0.683886;DP=72;DP4=0,219,0,31;FQ
 ```
 $ yourtool-mergingvcf 1.vcf 2.vcf 3.vcf > merged.vcf
 $ find ./ -name "*.bam" > bams.list
-$  java -jar dist/fixvcfmissinggenotypes.jar -f bams.list < merged.vcf > out.vcf
+$  java -jar dist/fixvcfmissinggenotypes.jar -B bams.list < merged.vcf > out.vcf
 ```
 
 ```

@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -156,7 +157,10 @@ public class SamStructVarNeg extends Launcher {
 	private int min_mapq = 0;
 	@Parameter(names={"-B","--bed"},description="Optional BED file. SV should overlap this bed.")
 	private Path bedFile = null;
-
+	@Parameter(names={"--max-contigs-in-buffer"},description="clear buffer if it contains more than 'x' different mate contig to prevent area matching everywhere")
+	private int max_number_of_contigs_in_buffer = 3;
+	@Parameter(names={"-D"},description="Presence of a discordant read in the control, whatever is the contig or the distance to theoritical mate is enought to invalidate the candiate. Make things quicker but less sensitive.")
+	private boolean presence_of_discordant_in_ctrl_is_enough = false;
 	
 	private class ControlBam implements Closeable{
 		private final int index;
@@ -173,7 +177,7 @@ public class SamStructVarNeg extends Launcher {
 		
 		private void open() throws IOException {
 			if( this.samReader != null ) return;
-			LOG.info("opening ["+(index+1)+"] "+bamPath);
+			LOG.info("opening ["+(index+1)+"/"+ controlBams.size()+"] "+bamPath);
 			final SamReaderFactory srf = SamReaderFactory.
 					makeDefault().
 					validationStringency(ValidationStringency.SILENT);
@@ -202,6 +206,15 @@ public class SamStructVarNeg extends Launcher {
 					}
 				return OptionalInt.empty();
 				}
+			
+			final String mateContig = this.ctgNameConverter.apply(mateLoc.getContig());
+			if (StringUtils.isBlank(mateContig)) {
+				if(this.unseenContig.add(mateLoc.getContig())) {
+					LOG.warn("Contig "+mateLoc.getContig()+" not found in "+this.bamPath);
+					}
+				return OptionalInt.empty();
+				}
+			final Set<String> mateSeen = new HashSet<>();
 			int count =0;
 			int max_end=0;
 			try(final CloseableIterator<SAMRecord> iter = this.samReader.query(
@@ -209,33 +222,39 @@ public class SamStructVarNeg extends Launcher {
 					Math.max(0,loc.getStart()), loc.getEnd(), false)) {
 				while(iter.hasNext() && count==0) {
 					final SAMRecord rec = iter.next();
+					if(rec.getReadUnmappedFlag()) continue;
 					if(!rec.getReadPairedFlag()) continue;
+					if(rec.getMateUnmappedFlag()) continue;
 					
+					if(rec.getReferenceIndex().equals(rec.getMateReferenceIndex())) continue;
 					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
 					if(rec.isSecondaryOrSupplementary()) continue;
 					if(rec.getMappingQuality()<=min_mapq) continue;
-					
-					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.getMateUnmappedFlag()) continue;
-					if(!mateLoc.equals(rec.getMateReferenceName())) continue;
-					
-					final int mate_start = rec.getMateAlignmentStart();
-					final int mate_end = getMateAlignmenEnd(rec);
 
 					
-					if(!CoordMath.overlaps(
-							mate_start-fuzzy_distance,
-							mate_end+fuzzy_distance,
-							mateLoc.getStart(),
-							mateLoc.getEnd()
-							)) continue;
+					final String recMateName = rec.getMateReferenceName();
+					mateSeen.add(recMateName);
 					
+					
+					if(!presence_of_discordant_in_ctrl_is_enough)
+						{
+						if(!mateContig.equals(recMateName)) continue;
+						final int mate_start = rec.getMateAlignmentStart();
+						final int mate_end = getMateAlignmenEnd(rec);
+	
+						if(!CoordMath.overlaps(
+								mate_start-fuzzy_distance,
+								mate_end+fuzzy_distance,
+								mateLoc.getStart(),
+								mateLoc.getEnd()
+								)) continue;
+						}
 					count++;
 					max_end = Math.max(max_end,rec.getUnclippedEnd());
 					}
 				}
-			if(count==0) return OptionalInt.empty();
+			if(count==0 && mateSeen.size()< max_number_of_contigs_in_buffer ) return OptionalInt.empty();
 			return OptionalInt.of(max_end);
 			}
 		
@@ -289,6 +308,10 @@ public class SamStructVarNeg extends Launcher {
 			LOG.error("Bad number for max_number_of_controls");
 			return -1;
 			}
+		if(this.max_number_of_contigs_in_buffer<1)  {
+                        LOG.error("Bad number for max_number_of_contigs_in_buffer.");
+                        return -1;
+                        }
 		SamReader samReader = null;
 		CloseableIterator<SAMRecord> iter0 = null;
 		FilterIterator<SAMRecord> iter =null;
@@ -509,8 +532,37 @@ public class SamStructVarNeg extends Launcher {
 					if(rec2.getAlignmentStart() > end) {//not unclipped to avoid side effect
 						break;
 						}
-					
-					buffer.add(iter.next());/* previous call was just 'peek' */
+					if((long)buffer.size()+1 >= this.max_complexity_buffer)
+						{
+						//consumme but ignore
+						iter.next();
+						}
+					else
+						{
+						buffer.add(iter.next());/* previous call was just 'peek' */
+						}
+					}
+				
+				if((long)buffer.size()> this.max_complexity_buffer)
+					{
+					//final long end = rec.getUnclippedEnd();
+					//buffer.remove(0);
+					//buffer.removeIf(R->R.getReferenceIndex().equals(rec.getReferenceIndex()) && R.getStart()<=end);
+					buffer.clear();
+					//LOG.warn("zone of low complexity: clearing buffer near "+ rec.getContig()+":"+rec.getStart());
+					continue;
+					}
+				
+				/* area with many different mate chromosomes */
+				if(buffer.stream().
+					filter(R->R.getStart() < end ).
+					map(R->R.getMateReferenceName()).
+					collect(Collectors.toSet()).
+					size() > this.max_number_of_contigs_in_buffer)
+					{
+					buffer.clear();
+					//LOG.warn("zone of low complexity mapping too many contigs. clearing buffer near "+ rec.getContig()+":"+rec.getStart());
+					continue;
 					}
 				
 				
@@ -552,15 +604,7 @@ public class SamStructVarNeg extends Launcher {
 				
 					
 				
-				if((long)buffer.size()> this.max_complexity_buffer)
-					{
-					//final long end = rec.getUnclippedEnd();
-					//buffer.remove(0);
-					//buffer.removeIf(R->R.getReferenceIndex().equals(rec.getReferenceIndex()) && R.getStart()<=end);
-					buffer.clear();
-					LOG.warn("zone of low complexity: clearing buffer near "+ rec.getContig()+":"+rec.getStart());
-					continue;
-					}
+				
 				
 				if(candidates.isEmpty() || candidates.size()<this.min_number_of_events) {
 					continue;
@@ -575,7 +619,7 @@ public class SamStructVarNeg extends Launcher {
 						orElse(-1);
 				
 				if(pos_ctg1<1) {
-					putbackInBuffer(candidates, buffer);
+					//putbackInBuffer(candidates, buffer);
 					continue;
 					}
 				final int stddev_ctg1 = (int)candidates.stream().mapToInt(
@@ -585,11 +629,13 @@ public class SamStructVarNeg extends Launcher {
 						orElse(0.0);
 				
 				final int pos_ctg2=(int)candidates.stream().
-					mapToInt(SR->SR.getMateNegativeStrandFlag()?SR.getMateAlignmentStart():getMateAlignmenEnd(SR)).
+					mapToInt(SR->SR.getMateNegativeStrandFlag()?
+							SR.getMateAlignmentStart():
+							getMateAlignmenEnd(SR)).
 					average().orElse(-1);
 				
 				if(pos_ctg2<1) {
-					putbackInBuffer(candidates, buffer);
+					//putbackInBuffer(candidates, buffer);
 					continue;
 					}
 				
@@ -602,8 +648,7 @@ public class SamStructVarNeg extends Launcher {
 				
 				int next_end = 0;
 				int control_count = 0;
-				for(int x = 0; x< this.controlBams.size() && control_count < this.max_number_of_controls ;++x) {
-					final ControlBam controlBam = this.controlBams.get(x);
+				for(final ControlBam controlBam : this.controlBams) {
 					final OptionalInt optEnd = controlBam.overlap(
 						new Interval(
 							rec.getContig(),
@@ -612,16 +657,21 @@ public class SamStructVarNeg extends Launcher {
 							),
 						new Interval(
 								rec.getMateReferenceName(),
-								pos_ctg2 - stddev_ctg2 - this.fuzzy_distance ,
+								Math.max(0, pos_ctg2 - stddev_ctg2 - this.fuzzy_distance) ,
 								pos_ctg2 + stddev_ctg2 + this.fuzzy_distance
 								)
 						);
+					/* control contains SV */
 					if(optEnd.isPresent()) {
 						next_end = Math.max(next_end, optEnd.getAsInt());
 						control_count ++;
+						if(control_count >= this.max_number_of_controls) break;
 						}
 					}
-
+				if(control_count == 0 ) {
+					LOG.info("all bams for "+rec.getContig()+":"+rec.getStart()+"-"+rec.getEnd());
+					}
+				
 				if(control_count >= this.max_number_of_controls) {
 					ignore_to_position = next_end;
 					putbackInBuffer(candidates, buffer);
@@ -683,7 +733,7 @@ public class SamStructVarNeg extends Launcher {
 				
 				out.add(vcb.make());
 				
-				buffer.removeIf(REC->REC.getAlignmentEnd() <= rec.getEnd());
+				buffer.removeIf(REC->REC.getReferenceIndex().equals(rec.getReferenceIndex()) && REC.getAlignmentEnd() <= rec.getEnd());
 				}
 			progress.close();
 			iter.close();

@@ -34,6 +34,10 @@ Usage: svneg [options] Files
     --mapq
       min mapping quality.
       Default: 0
+    --max-contigs-in-buffer
+      clear buffer if it contains more than 'x' different mate contig to 
+      prevent area matching everywhere
+      Default: 3
     --max-controls
       Maximum number controls bam matching the event
       Default: 1
@@ -47,6 +51,10 @@ Usage: svneg [options] Files
       Output file. Optional . Default: stdout
     --version
       print version and exit
+    -D
+      Presence of a discordant read in the control, whatever is the contig or 
+      the distance to theoritical mate is enought to invalidate the candiate
+      Default: false
 
 ```
 
