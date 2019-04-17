@@ -1,27 +1,34 @@
 package com.github.lindenb.jvarkit.tools.pubmed;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import htsjdk.samtools.util.IOUtil;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
+
+@AlsoTest(LauncherTest.class)
 public class PubmedMapTest extends PubmedDumpTest {
 	@Test
 	public void test01() throws IOException {
-		final File inXml = dumpAsXml("Nantes lindenbaum");
-		final File out = super.createTmpFile(".xml");
-		assertIsXml(inXml);
+		try {
+		final Path inXml = dumpAsXml("Nantes lindenbaum");
+		final Path out = support.createTmpPath(".xml");
+		support.assertIsXml(inXml);
 		Assert.assertEquals(
-				new PubmedMap().instanceMain(newCmd().
-				add("-o").add(out).
-				add(inXml).
-				make()
-				),0);
-		assertIsXml(out);
-		Assert.assertTrue(IOUtil.slurpLines(out).stream().anyMatch(
+				new PubmedMap().instanceMain(new String[] {
+				"-o",out.toString(),
+				inXml.toString()
+				}),0);
+		support.assertIsXml(out);
+		Assert.assertTrue(Files.lines(out).anyMatch(
 				S->S.contains("domain=\"fr\"")));
+		} finally {
+			support.removeTmpFiles();
 		}
+	}
 }

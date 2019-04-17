@@ -2,7 +2,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2019 Pierre Lindenbaum
+Copyright (c) 2017 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+
+/**
+
+Note to self:
+
+java -cp ~/package/javacc/javacc.jar javacc -OUTPUT_DIRECTORY=src/main/java/com/github/lindenb/jvarkit/util/bio/samfilter -JDK_VERSION=1.8 src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+
+*/
+
 package com.github.lindenb.jvarkit.util.bio.samfilter;
 
 

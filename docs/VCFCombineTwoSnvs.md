@@ -13,11 +13,13 @@ Usage: vcfcombinetwosnvs [options] Files
     -B, --bam
       Optional indexed BAM file used to get phasing information. This can be a 
       list of bam if the filename ends with '.list'
+    -P, --bedpe
+      save optional report as bedpe
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-  * -k, --knownGene
+    -k, --knownGene
       UCSC knownGene File/URL. The knowGene format is a compact alternative to 
       GFF/GTF because one transcript is described using only one line.	Beware 
       chromosome names are formatted the same as your REFERENCE. A typical 
@@ -35,21 +37,8 @@ Usage: vcfcombinetwosnvs [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
-      The parameter is the path to an Indexed fasta Reference file. This fasta 
-      file must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary. The parameter can also be a 'key' (matching 
-      the regular expression `[A-Za-z][A-Za-z0-9_\\-]*`) in a catalog file. A 
-      'catalog' file is a java property file ( 
-      https://docs.oracle.com/javase/tutorial/essential/environment/properties.html 
-      ) where the values are the path to the fasta file.  Catalogs are 
-      searched in that order : `${PWD}/fasta-ref.properties`, 
-      `${HOME}/.fasta-ref.properties`, `/etc/jvarkit/fasta-ref.properties`.  
-      If the key or the path are not defined by the user, they will be 
-      searched in that order 1) the java property 
-      -Djvarkit.fasta.reference=pathTofastaOrCatalogKey . 2) the linux 
-      environement variable $FASTA_REFERENCE=pathTofastaOrCatalogKey 3) The 
-      catalogs. 
-      Default: <<Default Fasta Reference Supplier>>
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -65,6 +54,7 @@ Usage: vcfcombinetwosnvs [options] Files
  * annotation
  * prediction
  * protein
+ * mnv
 
 
 ## Compilation
@@ -87,6 +77,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFCombineTwoSnvs.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFCombineTwoSnvs.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFCombineTwoSnvsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFCombineTwoSnvsTest.java)
 
 
 ## Contribute
@@ -169,5 +163,6 @@ N_READS_ONLY_20Number of reads carrying onlt variant 2
 
 ### See also
 
-* http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615
+ * http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615
+ * https://www.biorxiv.org/content/10.1101/573378v2
 

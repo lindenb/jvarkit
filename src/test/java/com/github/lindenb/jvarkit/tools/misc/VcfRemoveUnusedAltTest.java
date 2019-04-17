@@ -1,26 +1,45 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
+@AlsoTest(VCFUtilsTest.class)
+public class VcfRemoveUnusedAltTest {
+	
+	private final TestSupport support = new TestSupport();
 
-public class VcfRemoveUnusedAltTest extends TestUtils {
-	@Test(dataProvider="all-vcf-files")
+	@DataProvider(name="src01")
+	public Object[][] testData01() {
+			return support.toArrayArray(
+					support.allVcfOrBcf().
+					map(S->new Object[] {S})
+					);
+
+			}
+	
+	@Test(dataProvider="src01")
 	public void test01(final String inputFile) 
 		throws IOException
-		{		
-		
-		final File output = super.createTmpFile(".vcf");
-        Assert.assertEquals(0,new VcfRemoveUnusedAlt().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"--onespan",
-        		inputFile
-        	}));
-        assertIsVcf(output);
-		}
+			{		
+			try {
+				final Path output = support.createTmpPath(".vcf");
+		        Assert.assertEquals(0,new VcfRemoveUnusedAlt().instanceMain(new String[]{
+		        		"-o",output.toString(),
+		        		"--onespan",
+		        		inputFile
+		        	}));
+		        support.assertIsVcf(output);
+				} 
+			finally {
+				support.removeTmpFiles();
+				}
+			}
 	}

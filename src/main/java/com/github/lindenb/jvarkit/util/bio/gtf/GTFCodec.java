@@ -28,8 +28,8 @@ package com.github.lindenb.jvarkit.util.bio.gtf;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -290,9 +290,9 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 		
 		@Override
 		public String getAttribute(final String key) {
-			for(final Iterator<Map.Entry<String,String>> iter=this.iterator();iter.hasNext();)
-				{
-				final Map.Entry<String,String> kv = iter.next();
+			final Iterator<Map.Entry<String, String>> iter = getAttributeIterator();
+			while(iter.hasNext()) {
+				final Map.Entry<String, String> kv = iter.next();
 				if(kv.getKey().equals(key)) return kv.getValue();
 				}
 			return null;
@@ -300,11 +300,11 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 		
 		@Override
 		public Map<String, String> getAttributes() {
-			final Map<String,String> hash = new LinkedHashMap<>();
-			for(final Iterator<Map.Entry<String,String>> iter=this.iterator();iter.hasNext();)
-				{
-				final Map.Entry<String,String> kv = iter.next();
-				hash.put(kv.getKey(), kv.getValue());
+			final Map<String, String> hash = new HashMap<String, String>();
+			final Iterator<Map.Entry<String, String>> iter = getAttributeIterator();
+			while(iter.hasNext()) {
+				final Map.Entry<String, String> kv = iter.next();
+				hash.put(kv.getKey(),kv.getValue());
 				}
 			return hash;
 			}
@@ -322,7 +322,7 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			super(tokens);
 			}
 		@Override
-		public Iterator<Entry<String, String>> iterator() {
+		public Iterator<Entry<String, String>> getAttributeIterator() {
 			return new GTFAttIter(get(8));
 			}
 		}
@@ -334,12 +334,13 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			super(tokens);
 			}
 		@Override
-		public Iterator<Entry<String, String>> iterator() {
+		public Iterator<Entry<String, String>> getAttributeIterator() {
 			return new GFF3AttIter(get(8));
 			}
 		}
 	
-	private static abstract class AbstractAttIter extends AbstractIterator<Map.Entry<String, String>> 
+	private static abstract class AbstractAttIter 
+		extends AbstractIterator<Map.Entry<String, String>> 
 		{
 		protected final String mapStr;
 		protected int k=0;

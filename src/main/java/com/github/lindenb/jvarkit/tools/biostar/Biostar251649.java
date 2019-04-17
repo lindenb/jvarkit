@@ -28,9 +28,13 @@ import java.io.File;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -81,12 +85,11 @@ public class Biostar251649 extends Launcher
 	private static final Logger LOG= Logger.build(Biostar251649.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 	@Parameter(names="-5",description="Left tag")
 	private String leftTag="SEQ5_";
 	@Parameter(names="-3",description="Right tag")
 	private String rightTag="SEQ3_";
-	@Parameter(names="-n",description="number of bases")
+	@Parameter(names="-n",description="number of bases",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend=1;
 	@Parameter(names={"-r","-R","--reference"},
 			description=INDEXED_FASTA_REFERENCE_DESCRIPTION,
@@ -96,14 +99,16 @@ public class Biostar251649 extends Launcher
 	private IndexedFastaSequenceFile faidx = null;
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VCFIterator in,
-			VariantContextWriter w)
+	protected int doVcfToVcf(
+			final  String inputName,
+			final VCFIterator in,
+			final  VariantContextWriter w)
 		{
 		try {
 			final VCFHeader header = new VCFHeader(in.getHeader());
-			VCFInfoHeaderLine info5 = new VCFInfoHeaderLine(leftTag+extend,
+			final VCFInfoHeaderLine info5 = new VCFInfoHeaderLine(leftTag+extend,
 					1, VCFHeaderLineType.String,"Sequence on the 5' of mutation");
-			VCFInfoHeaderLine info3 = new VCFInfoHeaderLine(rightTag+extend,
+			final VCFInfoHeaderLine info3 = new VCFInfoHeaderLine(rightTag+extend,
 					1, VCFHeaderLineType.String,"Sequence on the 3' of mutation");
 		
 			if(header.getInfoHeaderLine(info5.getID())!=null)
@@ -120,9 +125,11 @@ public class Biostar251649 extends Launcher
 			header.addMetaDataLine(info5);
 			header.addMetaDataLine(info3);
 			GenomicSequence chrom= null;
+			JVarkitVersion.getInstance().addMetaData(this, header);
+			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			w.writeHeader(header);
 			while(in.hasNext()) {
-				final VariantContext ctx = in.next();
+				final VariantContext ctx = progress.apply(in.next());
 				if(chrom==null || !chrom.getChrom().equals(ctx.getContig())) {
 					chrom = new GenomicSequence(this.faidx,ctx.getContig());
 					}
@@ -151,10 +158,10 @@ public class Biostar251649 extends Launcher
 					}
 				w.add(vcb.make());
 				}
-			
+			progress.close();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
@@ -165,12 +172,12 @@ public class Biostar251649 extends Launcher
 			}	
 		}
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
 		return doVcfToVcf(args, outputFile);
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new Biostar251649().instanceMainWithExit(args);
 		}

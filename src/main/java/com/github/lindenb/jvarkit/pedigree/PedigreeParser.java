@@ -26,31 +26,28 @@ package com.github.lindenb.jvarkit.pedigree;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-
 
 /**
  * A class parsing pedigrees
  */
 public class PedigreeParser {
+public static final String OPT_DESC="A pedigree file.";
 private static final List<String> PEDFILE_EXTENSIONS=Arrays.asList(".ped",".pedigree",".fam");
 	
 /** return valid extensions for a pedigree file */
@@ -119,7 +116,7 @@ private static class PedigreeImpl implements Pedigree {
 		}
 	
 	@Override
-	public Sample getSampleById(String id) {
+	public Sample getSampleById(final String id) {
 		if(id==null) return null;
 		Sample ret = null;
 		for(final Family fam: this.id2families.values())
@@ -165,8 +162,13 @@ public boolean isStatusRequired() {
 	}
 
 /** parse pedigree file */
-public Pedigree parse(final File pedFile) throws IOException {
-	try(final BufferedReader br=IOUtils.openFileForBufferedReading(pedFile)) {
+public final Pedigree parse(final File pedFile) throws IOException {
+	return parse(pedFile.toPath());
+	}
+
+/** parse pedigree file */
+public Pedigree parse(final Path pedFile) throws IOException {
+	try(final BufferedReader br=IOUtils.openPathForBufferedReading(pedFile)) {
 		return parse(br);
 		}
 	}

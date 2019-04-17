@@ -1,61 +1,71 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 
-public class NcbiGeneDumpTest extends TestUtils{
+public class NcbiGeneDumpTest {
+	
+private  final TestSupport support = new TestSupport();
+
+	
 @Test
 public void test01() throws IOException {
-	final File out =super.createTmpFile(".xml");
+	try {
+	final Path out =support.createTmpPath(".xml");
 	Assert.assertEquals(new NcbiGeneDump().instanceMain(new String[] {
-			"-o",out.getPath(),
+			"-o",out.toString(),
 			"SCN5A","NOTCH2"
 			}),0);
-	super.assertIsXml(out);
+	support.assertIsXml(out);
+	} finally {
+		support.removeTmpFiles();
+	}
 	}
 
 @Test
 public void testXmlAnnot() throws IOException {
-	final File annot =super.createTmpFile(".xml");
-	final PrintWriter pw = new PrintWriter(annot);
-	pw.println("<x><y ncbi-gene-id=\"6331\">Hello</y></x>");
-	pw.flush();
-	pw.close();
-	super.assertIsXml(annot);
-	final File out =super.createTmpFile(".xml");
+	try {
+	final Path annot =support.createTmpPath(".xml");
+	IOUtils.cat("<x><y ncbi-gene-id=\"6331\">Hello</y></x>", annot, false);
+	support.assertIsXml(annot);
+	final Path out = support.createTmpPath(".xml");
 	Assert.assertEquals(new NcbiGeneDump().instanceMain(new String[] {
-			"-o",out.getPath(),
-			"-C",annot.getPath(),
+			"-o",out.toString(),
+			"-C",annot.toString(),
 			"SCN5A","NOTCH2"
 			}),0);
-	Assert.assertTrue(Files.lines(out.toPath()).anyMatch(L->L.contains("Hello")));
-	super.assertIsXml(out);
+	Assert.assertTrue(Files.lines(out).anyMatch(L->L.contains("Hello")));
+	support.assertIsXml(out);
+	} finally {
+		support.removeTmpFiles();
+	}
 	}
 
 @Test
 public void testTxtAnnot() throws IOException {
-	final File annot =super.createTmpFile(".txt");
-	final PrintWriter pw = new PrintWriter(annot);
-	pw.println("## NCBI Gene ID. 6331 SCN5A\nHello.See also SCN10A");
-	pw.flush();
-	pw.close();
-	super.assertIsNotEmpty(annot);
-	final File out =super.createTmpFile(".xml");
+	try {
+	final Path annot =support.createTmpPath(".txt");
+	IOUtils.cat("## NCBI Gene ID. 6331 SCN5A\nHello.See also SCN10A",annot,false);
+	support.assertIsNotEmpty(annot);
+	final Path out = support.createTmpPath(".xml");
 	Assert.assertEquals(new NcbiGeneDump().instanceMain(new String[] {
-			"-o",out.getPath(),
-			"-C",annot.getPath(),
+			"-o",out.toString(),
+			"-C",annot.toString(),
 			"SCN5A","NOTCH2"
 			}),0);
-	Assert.assertTrue(Files.lines(out.toPath()).anyMatch(L->L.contains("Hello")));
-	super.assertIsXml(out);
+	Assert.assertTrue(Files.lines(out).anyMatch(L->L.contains("Hello")));
+	support.assertIsXml(out);
+	} finally {
+		support.removeTmpFiles();
+	}
 	}
 
 }

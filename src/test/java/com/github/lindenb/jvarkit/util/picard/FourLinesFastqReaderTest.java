@@ -10,17 +10,20 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 
 public class FourLinesFastqReaderTest
-	extends TestUtils
 	{
+	private final TestSupport support = new TestSupport();
+
+	
 	@DataProvider(name = "src1")
 		public Object[][] createData1() {
-		 return new ParamCombiner().
-			 initList(collectAllFastq()).
-			 build();
+		 return new Object[][] {
+			 {support.resource("SAMPLE1_GATGAATC_L002_R1_001.fastq.gz")},
+			 {support.resource("S1.R1.fq.gz")},
+		 };
 		}
 
 	
@@ -28,6 +31,7 @@ public class FourLinesFastqReaderTest
 	@Test(dataProvider="src1")
 	public void test1(final String input) throws IOException
 		{
+		try {
 		final FourLinesFastqReader r=new FourLinesFastqReader(new File(input));
 		while(r.hasNext())
 			{
@@ -35,11 +39,15 @@ public class FourLinesFastqReaderTest
 			Assert.assertNotNull(rec);
 			}
 		r.close();
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 
-	
+	@Test
 	public void test2() throws Exception
 		{
+		try {
 		final String fastqs=
 				"@IL31_4368:1:1:996:8507/2\n" + 
 				"\n" + 
@@ -65,5 +73,8 @@ public class FourLinesFastqReaderTest
 		Assert.assertFalse(rec.getReadString().isEmpty());
 		Assert.assertFalse(r.hasNext());
 		r.close();
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 	}

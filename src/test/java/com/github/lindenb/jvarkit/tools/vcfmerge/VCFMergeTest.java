@@ -1,31 +1,43 @@
 package com.github.lindenb.jvarkit.tools.vcfmerge;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 import htsjdk.samtools.util.Interval;
 
-public class VCFMergeTest extends TestUtils{
+@AlsoTest(LauncherTest.class)
+public class VCFMergeTest {
 
+	private final TestSupport support =new TestSupport();
 
-private File basetest(final String args) throws IOException {
-	final File outvcf = super.createTmpFile(".vcf");
-	final Object vcfpaths[]=new Object[5];
-	for(int i=1;i<=vcfpaths.length;i++)
+private Path basetest(final String args) throws IOException {
+	final Path outvcf = support.createTmpPath(".vcf");
+	
+	List<String> al = new ArrayList<>();
+	al.add("-o");
+	al.add(outvcf.toString());
+	
+	Arrays.stream(args.split("[ \t]")).filter(S->!S.isEmpty()).forEach(S->al.add(S));
+	
+	for(int i=1;i<=5;i++)
 		{
-		vcfpaths[i-1]=SRC_TEST_RESOURCE+"/S"+i+".vcf.gz";
+		al.add(support.resource("S"+i+".vcf.gz"));
 		}
-	Assert.assertEquals(new VCFMerge().instanceMain(newCmd().add(
-			"-o",outvcf.getPath()).
-			split(args).
-			add(vcfpaths).
-			make()),0);
-	assertIsVcf(outvcf);
+	
+	
+	Assert.assertEquals(new VCFMerge().instanceMain(al),0);
+	support.assertIsVcf(outvcf);
 	return outvcf;
 	}
 
@@ -44,7 +56,7 @@ public void testSorted() throws IOException
 @Test
 public void testRegion() throws IOException
 	{
-	final Interval interval = super.randomIntervalsFromDict(new File(SRC_TEST_RESOURCE+"/rotavirus_rf.fa"),1).get(0);
+	final Interval interval = support.randomIntervalsFromDict(Paths.get(support.resource("rotavirus_rf.fa")),1,1000).get(0);
 	basetest("--region "+interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd());
 	}
 }

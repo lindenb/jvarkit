@@ -89,15 +89,15 @@ private static boolean isRunningAtTgcc() {
 	return false;
 	}
 
-/** default is true, unless ` -Djvarkit.progress.background=false` is defined */
+/** default is false, unless ` -Djvarkit.progress.background=true` is defined */
 public static boolean isDefaultRunningInBackground() {
 	try {
-		if("false".equals(System.getProperty("jvarkit.progress.background", ""))) return false;
+		if("true".equals(System.getProperty("jvarkit.progress.background", ""))) return true;
 		if(isRunningAtTgcc()) return false;
 		}
-	catch (Throwable e) {
+	catch (final Throwable e) {
 		}
-	return true;
+	return false;
 	}
 
 /** default is 10, unless ` -Djvarkit.progress.everysecs=1234` is defined */

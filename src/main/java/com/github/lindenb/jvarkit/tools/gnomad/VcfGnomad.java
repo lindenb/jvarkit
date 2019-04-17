@@ -126,7 +126,9 @@ END_DOC
  */
 @Program(name="vcfgnomad",
 	description="Peek annotations from gnomad",
-	keywords={"vcf","annotation","gnomad"})
+	keywords={"vcf","annotation","gnomad"},
+	modificationDate="20190308"
+)
 public class VcfGnomad extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
@@ -163,7 +165,8 @@ public class VcfGnomad extends Launcher{
 	private boolean useGenomeOnly = false;
 	@Parameter(names={"--exclude"},description="[20180327] exclude gnomad INFO field matching this regular expression. Empty: accept all")
 	private String excludePatternStr = "controls|non_cancer|non_neuro|non_topmed";
-
+	@Parameter(names={"--ani"},description="[20190311] for allele numbers 'AN' to be variant-count-type=Integer (not 'A' as declared in gnomad)")
+	private boolean alleleNumber_is_integer = false;
 	
 	/** entries mapping chromosome/type->vcf.gz */
 	private List<ManifestEntry> manifestEntries=new ArrayList<>();
@@ -276,7 +279,8 @@ public class VcfGnomad extends Launcher{
 		public VCFInfoHeaderLine geOutputHeaderLine() {
 			if(this._outputheader==null) {
 					final String desc = "["+ome.name()+"]"+this.original.getDescription();
-					if(this.original.isFixedCount() && this.original.getCount()==1 && gnomadVersion.equals(GnomadVersion.v2_0))
+					if((this.original.isFixedCount() && this.original.getCount()==1 && gnomadVersion.equals(GnomadVersion.v2_0)) ||
+						this.getOutputLineCount()==VCFHeaderLineCount.INTEGER && gnomadVersion.equals(GnomadVersion.v2_1))
 						{
 						this._outputheader = new VCFInfoHeaderLine(
 								this.getOutputTag(),
@@ -295,12 +299,28 @@ public class VcfGnomad extends Launcher{
 				}
 			return this._outputheader;
 			}
-		
+		/*
+		 bcftools view /commun/data/pubdb/broadinstitute.org/gnomad/release-181127/2.1/vcf/genomes/gnomad.genomes.r2.1.sites.vcf.gz |  grep -i AN_nfe,
+		##INFO=<ID=AN_nfe,Number=A,Type=Integer,Description="Total number of alleles in samples of non-Finnish European ancestry">
+		##INFO=<ID=AC_nfe,Number=A,Type=Integer,Description="Alternate allele count for samples of non-Finnish European ancestry">
+
+		 
+		 
+		 */
 		public VCFHeaderLineCount getOutputLineCount() {
-			if(this.original.isFixedCount() && this.original.getCount()==1 && gnomadVersion.equals(GnomadVersion.v2_0))
+			if(this.original.isFixedCount() && 
+				this.original.getCount()==1 && 
+				gnomadVersion.equals(GnomadVersion.v2_0))
 				{
 				return VCFHeaderLineCount.INTEGER;
 				}
+			if(	VcfGnomad.this.alleleNumber_is_integer &&
+					this.original.getCountType().equals(VCFHeaderLineCount.A) &&
+					(this.original.getID().startsWith("AN_") || this.original.getID().contains("_AN_"))&&
+					gnomadVersion.equals(GnomadVersion.v2_1))
+					{
+					return VCFHeaderLineCount.INTEGER;
+					}
 			return VCFHeaderLineCount.A;
 			}
 		

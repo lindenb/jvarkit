@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.lang;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
@@ -196,5 +197,45 @@ public static final String md5(final String in) {
 		}
 	return s;
 	}
+
+/** return true if s ends with any of the suffixes */
+public static final boolean endsWith(final String s,String...suffixes) {
+	if(s==null) throw new IllegalArgumentException("s is null");
+	for(final String suff:suffixes) if(s.endsWith(suff)) return true;
+	return false;
+	}
+
+/** unescape quoted C string. Starting and trailing quote have already been removed */
+public static String unescapeC(final String s)
+	{
+	if(s==null) throw new IllegalArgumentException("s is null");
+	final StringBuilder b=new StringBuilder(s.length());
+	int i=0;
+	while(i<s.length())
+		{
+		if(s.charAt(i)=='\\')
+			{
+			if( i+1== s.length())  break;
+			++i;
+			switch(s.charAt(i))
+				{
+				case 'n': b.append("\n");break;
+				case 'r': b.append("\r");break;
+				case 't': b.append("\t");break;
+				case '\\': b.append("\\");break;
+				case '\'': b.append("\'");break;
+				case '\"': b.append("\"");break;
+				default: break;//ignore
+				}
+			}
+		else
+			{
+			b.append(s.charAt(i));
+			}
+		++i;
+		}
+	return b.toString();
+}
+
 
 }

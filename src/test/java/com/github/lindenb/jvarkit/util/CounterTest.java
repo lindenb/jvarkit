@@ -7,7 +7,7 @@ public class CounterTest {
 
 @Test
 public void testWithInt() {
-	Counter<Integer> counter=new Counter<>();
+	final Counter<Integer> counter=new Counter<>();
 	for(int x : new int[]{1,1,1,2,2,10,10})
 		{
 		counter.incr(x);
@@ -17,6 +17,6 @@ public void testWithInt() {
 	Assert.assertEquals(counter.count(10), 2);
 	Assert.assertEquals(counter.count(3), 0);
 	Assert.assertEquals(counter.getTotal(), 7);
-	Assert.assertEquals(counter.getMostFrequent(),new Integer(1));
+	Assert.assertEquals(counter.getMostFrequent(),Integer.valueOf(1));
 	}
 }

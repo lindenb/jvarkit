@@ -63,7 +63,7 @@
 <tr id="bedliftover"><th><a href="BedLiftOver.html" title="BedLiftOver">bedliftover</a></th><td>Lift-over a VCF file</td><td>bed liftover</td><td/><td/></tr>
 <tr id="bedrenamechr"><th><a href="ConvertBedChromosomes.html" title="ConvertBedChromosomes">bedrenamechr</a></th><td>Convert the names of the chromosomes in a Bed file</td><td>bed chromosome contig convert</td><td/><td/></tr>
 <tr id="biostar103303"><th><a href="Biostar103303.html" title="Biostar103303">biostar103303</a></th><td>Calculate Percent Spliced In (PSI).</td><td>sam bam psi</td><td/><td/></tr>
-<tr id="biostar130456"><th><a href="Biostar130456.html" title="Biostar130456">biostar130456</a></th><td>Individual VCF files from main VCF file</td><td>vcf</td><td/><td/></tr>
+<tr id="biostar130456"><th><a href="Biostar130456.html" title="Biostar130456">biostar130456</a></th><td>Split individual VCF files from multisamples VCF file</td><td>vcf samples sample</td><td/><td/></tr>
 <tr id="biostar59647"><th><a href="Biostar59647.html" title="Biostar59647">biostar59647</a></th><td>SAM/BAM to XML</td><td>sam bam xml</td><td/><td/></tr>
 <tr id="biostar76892"><th><a href="Biostar76892.html" title="Biostar76892">biostar76892</a></th><td>fix strand of two paired reads close but on the same strand. </td><td>sam bam</td><td/><td/></tr>
 <tr id="biostar77288"><th><a href="Biostar77288.html" title="Biostar77288">biostar77288</a></th><td>Low resolution sequence alignment visualization</td><td>bam sam visualization svg alignment</td><td/><td/></tr>
@@ -166,7 +166,7 @@
 <tr id="vcfshuffle"><th><a href="VCFShuffle.html" title="VCFShuffle">vcfshuffle</a></th><td>Shuffle a VCF</td><td>vcf</td><td/><td/></tr>
 <tr id="vcfSimulator"><th><a href="VcfSimulator.html" title="VcfSimulator">vcfSimulator</a></th><td>Generate a VCF</td><td>vcf</td><td/><td/></tr>
 <tr id="vcfstats"><th><a href="VcfStats.html" title="VcfStats">vcfstats</a></th><td>Produce VCF statitics</td><td>vcf stats burden gnuplot</td><td/><td/></tr>
-<tr id="vcfcombinetwosnvs"><th><a href="VCFCombineTwoSnvs.html" title="VCFCombineTwoSnvs">vcfcombinetwosnvs</a></th><td>Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert</td><td>vcf annotation prediction protein</td><td/><td/></tr>
+<tr id="vcfcombinetwosnvs"><th><a href="VCFCombineTwoSnvs.html" title="VCFCombineTwoSnvs">vcfcombinetwosnvs</a></th><td>Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert</td><td>vcf annotation prediction protein mnv</td><td/><td/></tr>
 <tr id="vcfstripannot"><th><a href="VCFStripAnnotations.html" title="VCFStripAnnotations">vcfstripannot</a></th><td>Removes one or more field from the INFO/FORMAT column of a VCF.</td><td>vcf</td><td/><td><span style="color:orange;" title="deprecated">Use bcftools annotate -x </span>. </td></tr>
 <tr id="vcftabixml"><th><a href="VCFTabixml.html" title="VCFTabixml">vcftabixml</a></th><td> annotate a value from a vcf+xml file</td><td>vcf xml</td><td/><td/></tr>
 <tr id="vcfvcf"><th><a href="VcfVcf.html" title="VcfVcf">vcfvcf</a></th><td>Get the INFO from a VCF and use it for another VCF</td><td/><td/><td><span style="color:orange;" title="deprecated">obsolete. use GATK</span>. </td></tr>
@@ -179,7 +179,7 @@
 <tr id="xcontaminations"><th><a href="XContaminations.html" title="XContaminations">xcontaminations</a></th><td>For @AdrienLeger2 : cross contamination between samples by looking at the homozygous genotypes.</td><td>sam bam vcf contamination</td><td/><td/></tr>
 <tr id="biostar3654"><th><a href="Biostar3654.html" title="Biostar3654">biostar3654</a></th><td>show blast alignment with annotations</td><td>blast xml annotation</td><td/><td/></tr>
 <tr id="vcfburden"><th><a href="VcfBurden.html" title="VcfBurden">vcfburden</a></th><td>Solena: vcf to (chrom/pos/ref/alt/individus(G:0/1/2/-9)</td><td/><td/><td><span style="color:orange;" title="deprecated">deprecated</span>. </td></tr>
-<tr id="vcfreplacetag"><th><a href="VCFReplaceTag.html" title="VCFReplaceTag">vcfreplacetag</a></th><td>Replace the key for INFO/FORMAT/FILTER</td><td>vcf</td><td/><td/></tr>
+<tr id="vcfreplacetag"><th><a href="VCFReplaceTag.html" title="VCFReplaceTag">vcfreplacetag</a></th><td>Replace the key for INFO/FORMAT/FILTER</td><td>vcf</td><td/><td><span style="color:orange;" title="deprecated">use `bcftools annotate` with option `-c`</span>. </td></tr>
 <tr id="vcfpeekvcf"><th><a href="VcfPeekVcf.html" title="VcfPeekVcf">vcfpeekvcf</a></th><td>Get the INFO from a VCF and use it for another VCF</td><td>vcf annotation</td><td/><td/></tr>
 <tr id="vcfgetvariantbyIndex"><th><a href="VcfGetVariantByIndex.html" title="VcfGetVariantByIndex">vcfgetvariantbyIndex</a></th><td>Access a Plain or BGZF-compressed VCF file by index</td><td>vcf</td><td/><td/></tr>
 <tr id="vcfmulti2oneinfo"><th><a href="VcfMultiToOneInfo.html" title="VcfMultiToOneInfo">vcfmulti2oneinfo</a></th><td>'one INFO with N values' to 'N variants with one INFO'</td><td>vcf</td><td/><td/></tr>
@@ -346,6 +346,12 @@
 <tr id="kg2fa"><th><a href="KnownGeneToFasta.html" title="KnownGeneToFasta">kg2fa</a></th><td>convert knownGenes to fasta</td><td>kg knownGene fasta</td><td/><td/></tr>
 <tr id="vcfscanupstreamorf"><th><a href="VcfScanUpstreamOrf.html" title="VcfScanUpstreamOrf">vcfscanupstreamorf</a></th><td>Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs </td><td>vcf uorf</td><td/><td/></tr>
 <tr id="vcfgnomadpext"><th><a href="VcfGnomadPext.html" title="VcfGnomadPext">vcfgnomadpext</a></th><td>Peek annotations from gnomadpext</td><td>vcf annotation gnomad</td><td/><td/></tr>
+<tr id="vcfsparql"><th><a href="VcfSparql.html" title="VcfSparql">vcfsparql</a></th><td>Query RDF with Sparql. Very slow. Just a proof of concept</td><td>vcf sparql rdf arq semanticweb</td><td/><td/></tr>
+<tr id="samtranslocations"><th><a href="SamTranslocations.html" title="SamTranslocations">samtranslocations</a></th><td>Explore balanced translocations between two chromosomes using discordant paired-end reads.</td><td>sam bam sv translocation</td><td/><td/></tr>
+<tr id="convertliftoverchain"><th><a href="ConvertLiftOverChain.html" title="ConvertLiftOverChain">convertliftoverchain</a></th><td>Convert the contigs in a liftover chain to match another REFerence. (eg. to remove chr prefix, unknown chromosomes etc...)</td><td>chain liftover</td><td/><td/></tr>
+<tr id="mkminibam"><th><a href="MakeMiniBam.html" title="MakeMiniBam">mkminibam</a></th><td>Creates an archive of small bams with only a few regions.</td><td>bam sam</td><td/><td/></tr>
+<tr id="vcfdistancevariants"><th><a href="VcfDistanceBetweenVariants.html" title="VcfDistanceBetweenVariants">vcfdistancevariants</a></th><td>Annotate variants with the distance between previous and next variant.</td><td>vcf annotation</td><td/><td/></tr>
+<tr id="svneg"><th><a href="SamStructVarNeg.html" title="SamStructVarNeg">svneg</a></th><td>Find Structural Variation by Negative Comparaison</td><td>sam bam sv translocation</td><td/><td/></tr>
 </tbody>
 
 </table>

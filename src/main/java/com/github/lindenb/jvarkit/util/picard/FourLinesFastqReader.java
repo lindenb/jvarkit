@@ -27,7 +27,7 @@ package com.github.lindenb.jvarkit.util.picard;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-
+import java.nio.file.Path;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;

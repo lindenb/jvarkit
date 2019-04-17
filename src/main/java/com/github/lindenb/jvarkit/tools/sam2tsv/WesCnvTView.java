@@ -54,8 +54,9 @@ import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.variant.vcf.VCFIterator;
@@ -213,7 +214,8 @@ END_DOC
  */
 @Program(name="wescnvtview",
 description="SVG visualization of bam DEPTH for multiple regions in a terminal",
-keywords={"bam","alignment","graphics","visualization","svg","cnv"}
+keywords={"bam","alignment","graphics","visualization","svg","cnv"},
+modificationDate="20190417"
 )
 public class WesCnvTView  extends Launcher {
 	private static final Logger LOG = Logger.build(WesCnvTView.class).make();
@@ -230,8 +232,8 @@ public class WesCnvTView  extends Launcher {
 	private int sampleHeight = 10 ;
 	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
 	private int capMaxDepth = -1 ;
-	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
+	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
 	@Parameter(names={"-p","-percentile","--percentile"},description="How to compute the percentil of a region")
 	private Percentile.Type percentile = Percentile.Type.MEDIAN;
 	@Parameter(names={"-x","--extend"},description="Extend intervals by factor 'x'")

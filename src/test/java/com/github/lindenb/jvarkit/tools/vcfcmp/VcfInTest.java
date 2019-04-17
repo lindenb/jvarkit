@@ -1,14 +1,21 @@
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -19,40 +26,52 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFileReader;
 
-public class VcfInTest extends TestUtils {
+@AlsoTest(LauncherTest.class)
+public class VcfInTest  {
+private final TestSupport support =new TestSupport();
 	
 final Allele ZORG_ALLELE = Allele.create("<ZORG>", false); 	
-	
+
+@DataProvider(name = "all-indexed-vcf-files")
+public Object[][] createData1() {
+	return support.toArrayArray(support.
+			allVcfOrBcf().
+			filter(S->support.vcfHasIndex).
+			map(F->new Object[] {F})
+			)
+			;
+	}
+
 @Test(dataProvider="all-indexed-vcf-files")
 public void testVcfIn(final String vcfpath) throws Exception
 	{
-	File vcf = makeVcfIn(vcfpath,"");
-	Assert.assertTrue(super.variantStream(vcf).noneMatch(V->V.getAlleles().contains(ZORG_ALLELE)));
+	Path vcf = makeVcfIn(vcfpath,"");
+	Assert.assertTrue(support.variantStream(vcf).noneMatch(V->V.getAlleles().contains(ZORG_ALLELE)));
 	}
 
 @Test(dataProvider="all-indexed-vcf-files")
 public void testVcfInAllAlt(final String vcfpath) throws Exception
 	{
-	File vcf = makeVcfIn(vcfpath,"--allalt");
-	Assert.assertTrue(super.variantStream(vcf).noneMatch(V->V.getAlleles().contains(ZORG_ALLELE)));
+	Path vcf = makeVcfIn(vcfpath,"--allalt");
+	Assert.assertTrue(support.variantStream(vcf).noneMatch(V->V.getAlleles().contains(ZORG_ALLELE)));
 	}
 
 @Test(dataProvider="all-indexed-vcf-files")
 public void testVcfInIndexed(final String vcfpath) throws Exception
 	{
-	File vcf = makeVcfIn(vcfpath,"--tabix --allalt");
+	Path vcf = makeVcfIn(vcfpath,"--tabix --allalt");
 	
-	Assert.assertTrue(super.variantStream(vcf).noneMatch(V->V.getAlleles().contains(ZORG_ALLELE)));
+	Assert.assertTrue(support.variantStream(vcf).noneMatch(V->V.getAlleles().contains(ZORG_ALLELE)));
 	}
 
 @Test(dataProvider="all-indexed-vcf-files")
 public void testVcfInFilterIn(final String vcfpath) throws Exception
 	{
-	File vcf = makeVcfIn(vcfpath,"--filterin MYFILTER");
-	Assert.assertTrue(super.variantStream(vcf).noneMatch(V->
+	Path vcf = makeVcfIn(vcfpath,"--filterin MYFILTER");
+	Assert.assertTrue(support.variantStream(vcf).noneMatch(V->
 		V.getFilters().contains("MYFILTER") && V.getAlleles().contains(ZORG_ALLELE)
 		));
-	Assert.assertTrue(super.variantStream(vcf).noneMatch(V->
+	Assert.assertTrue(support.variantStream(vcf).noneMatch(V->
 		!V.getFilters().contains("MYFILTER") && !V.getAlleles().contains(ZORG_ALLELE)
 		));
 	}
@@ -60,25 +79,25 @@ public void testVcfInFilterIn(final String vcfpath) throws Exception
 @Test(dataProvider="all-indexed-vcf-files")
 public void testVcfInFilterOut(final String vcfpath) throws Exception
 	{
-	File vcf = makeVcfIn(vcfpath,"--filterout MYFILTER");
-	Assert.assertTrue(super.variantStream(vcf).
+	Path vcf = makeVcfIn(vcfpath,"--filterout MYFILTER");
+	Assert.assertTrue(support.variantStream(vcf).
 			filter(V->V.getFilters().contains("MYFILTER")).
 			allMatch(V->V.getAlleles().contains(ZORG_ALLELE))
 		);
-	Assert.assertTrue(super.variantStream(vcf).
+	Assert.assertTrue(support.variantStream(vcf).
 			filter(V->!V.getFilters().contains("MYFILTER")).
 			noneMatch(V->V.getAlleles().contains(ZORG_ALLELE))
 		);
 	}
 
 
-private File makeVcfIn(final String vcfpath,String other_args) throws Exception
+private Path makeVcfIn(final String vcfpath,String other_args) throws Exception
 	{
-	File vcfDbIn = new File(vcfpath);
-	File tmpIn = createTmpFile(".vcf");
-	File outVcf = createTmpFile(".vcf");
+	Path vcfDbIn = Paths.get(vcfpath);
+	Path tmpIn = support.createTmpPath(".vcf");
+	Path outVcf = support.createTmpPath(".vcf");
 	
-	final VariantContextWriter w = VCFUtils.createVariantContextWriter(tmpIn);
+	final VariantContextWriter w = VCFUtils.createVariantContextWriterToPath(tmpIn);
 	final VCFFileReader r = new VCFFileReader(vcfDbIn,true);
 	
 	w.writeHeader(r.getFileHeader());
@@ -104,41 +123,42 @@ private File makeVcfIn(final String vcfpath,String other_args) throws Exception
 	w.close();
 	iter.close();
 	r.close();
-	Assert.assertEquals(new VcfIn().instanceMain(newCmd().add(
-			"-o",outVcf.getPath(),
-			"--database",vcfDbIn).
-			split(other_args).
-			add(
-			vcfpath
-			).make()
-		),0);
-	assertIsVcf(outVcf);
+	
+	final List<String> args= new ArrayList<>();
+	args.add("-o");
+	args.add(outVcf.toString());
+	args.add("--database");
+	args.add(vcfDbIn.toString());
+	
+	Arrays.stream(other_args.split("[ ]")).filter(S->!S.isEmpty()).forEach(S->args.add(S));
+	args.add(vcfpath.toString());
+	
+	Assert.assertEquals(new VcfIn().instanceMain(args),0);
+	support.assertIsVcf(outVcf);
 	return outVcf;
 	}
 
 @Test
 public void testMultiple() throws Exception
 	{
-	final File vcfList = super.createTmpFile(".list");
-	PrintWriter pw = new PrintWriter(vcfList);
+	final Path vcfList = support.createTmpPath(".list");
+	PrintWriter pw = new PrintWriter(Files.newBufferedWriter(vcfList));
 	for(int i=1;i<6;i++)
 		{
-		pw.println(SRC_TEST_RESOURCE+"/S"+i+".vcf.gz");
+		pw.println(support.resource("S"+i+".vcf.gz"));
 		}
 	pw.flush();
 	pw.close();
 	
 	
-	final File outVcf = createTmpFile(".vcf");
-	Assert.assertEquals(new VcfIn().instanceMain(newCmd().add(
-			"-o",outVcf.getPath(),
-			"--database",vcfList.getPath(),
+	final Path outVcf = support.createTmpPath(".vcf");
+	Assert.assertEquals(new VcfIn().instanceMain(new String[] {
+			"-o",outVcf.toString(),
+			"--database",vcfList.toString(),
 			"--tabix",
-			SRC_TEST_RESOURCE+"/S1.vcf.gz"
-			).make()
-		),0);
-	
-	assertIsVcf(outVcf);
+			support.resource("S1.vcf.gz")
+			}),0);
+	support.assertIsVcf(outVcf);
 	}
 
 

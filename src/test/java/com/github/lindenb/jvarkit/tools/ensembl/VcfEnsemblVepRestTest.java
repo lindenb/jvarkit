@@ -1,8 +1,9 @@
 package com.github.lindenb.jvarkit.tools.ensembl;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -10,9 +11,13 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class VcfEnsemblVepRestTest extends TestUtils {
+public class VcfEnsemblVepRestTest {
+	
+	private final TestSupport support = new TestSupport();
+
+	
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][] {
@@ -40,8 +45,9 @@ public class VcfEnsemblVepRestTest extends TestUtils {
 	public void test01(final String vcfline) 
 		throws IOException
 		{
-		File inVcfFile = super.createTmpFile(".vcf");
-		PrintWriter pw = new PrintWriter(inVcfFile);
+		try {
+		Path inVcfFile = support.createTmpPath(".vcf");
+		PrintWriter pw = new PrintWriter(Files.newBufferedWriter(inVcfFile));
 		pw.println("##fileformat=VCFv4.2");
 		pw.println("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
 		pw.println(toVcfLine(vcfline));
@@ -49,13 +55,15 @@ public class VcfEnsemblVepRestTest extends TestUtils {
 		pw.close();
 		
 		
-		final File out = super.createTmpFile(".vcf");
+		final Path out = support.createTmpPath(".vcf");
 		final VcfEnsemblVepRest cmd =new VcfEnsemblVepRest();
 		Assert.assertEquals(0,cmd.instanceMain(new String[] {
-			"-o",out.getPath(),
-			inVcfFile.getPath()
+			"-o",out.toString(),
+			inVcfFile.toString()
 			}));
-		
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 	
 		
@@ -63,8 +71,9 @@ public class VcfEnsemblVepRestTest extends TestUtils {
 	public void test02(final String contig,int chromStart,String dna) 
 		throws IOException
 		{
-		File inVcfFile = super.createTmpFile(".vcf");
-		PrintWriter pw = new PrintWriter(inVcfFile);
+		try {
+		Path inVcfFile = support.createTmpPath(".vcf");
+		PrintWriter pw = new PrintWriter(Files.newBufferedWriter(inVcfFile));
 		pw.println("##fileformat=VCFv4.2");
 		pw.println("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO");
 		for(int i=0;i< dna.length();i++)
@@ -85,13 +94,16 @@ public class VcfEnsemblVepRestTest extends TestUtils {
 		pw.close();
 		
 		
-		final File out = super.createTmpFile(".vcf");
+		final Path out = support.createTmpPath(".vcf");
 		final VcfEnsemblVepRest cmd =new VcfEnsemblVepRest();
 		Assert.assertEquals(0,cmd.instanceMain(new String[] {
-			"-o",out.getPath(),
-			inVcfFile.getPath()
+			"-o",out.toString(),
+			inVcfFile.toString()
 			}));
-		Assert.assertEquals(variantStream(inVcfFile).count(),variantStream(out).count());
+		Assert.assertEquals(support.variantStream(inVcfFile).count(),support.variantStream(out).count());
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 
 	

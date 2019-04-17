@@ -36,12 +36,7 @@ Usage: bamstats04 [options] Files
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --ref
-      [20180126]If set, a column with the GC% will be added.Indexed Genome 
-      Reference. It can be a the path to fasta file that must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary. It can also be 
-      a BioDAS dsn url like `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . 
-      BioDAS references are slower, but allow to work without a local 
-      reference file.
+      [20180126]If set, a column with the GC% will be added.
     --version
       print version and exit
 

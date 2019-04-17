@@ -21,11 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 adapted for knime
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.vcfmerge;
 
@@ -109,7 +104,6 @@ END_DOC
 public class VCFMerge
 	extends Launcher
 	{
-
 	private static final Logger LOG = Logger.build(VCFMerge.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

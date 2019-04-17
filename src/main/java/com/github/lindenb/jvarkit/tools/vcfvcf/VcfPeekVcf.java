@@ -37,11 +37,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
@@ -52,7 +53,6 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 
-import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -139,12 +139,8 @@ public class VcfPeekVcf extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-b","--buffer-size"},description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variant in a defined window.")
+	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variants in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
 	private int buffer_size = 100_000;
-
-	
-	@ParametersDelegate
-	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
 	private final Set<String> peek_info_tags=new HashSet<String>();
 	private VCFFileReader indexedVcfFileReader=null;
@@ -156,10 +152,7 @@ public class VcfPeekVcf extends Launcher
 		{
 		}
 	
-	@Override
-	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-		return new PostponedVariantContextWriter(writingVcfArgs,stdout(),outorNull);
-		}
+	
 	
 	private boolean isIgnorableSpanDel(final Allele A)
 		{
@@ -428,7 +421,7 @@ public class VcfPeekVcf extends Launcher
 			
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -459,7 +452,7 @@ public class VcfPeekVcf extends Launcher
 
 			return doVcfToVcf(args, this.outputFile);
 			} 
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

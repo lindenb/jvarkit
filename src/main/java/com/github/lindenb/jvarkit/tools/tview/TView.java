@@ -48,8 +48,9 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
@@ -103,8 +104,8 @@ public class TView implements Closeable
 	private boolean hideBases=false;
 	@Parameter(names={"-V","--variant","--variants","--vcf"},description="Variant file. "+IOUtils.UNROLL_FILE_MESSAGE)
 	private File variantFiles = null;
-	@Parameter(names=SamFilterParser.DEFAULT_OPT,description=SamFilterParser.FILTER_DESCRIPTION)
-	private SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
+	@Parameter(names="--filter",description=SamRecordFilterFactory.FILTER_DESCRIPTION,splitter=NoSplitter.class)
+	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
 	@Parameter(names={"-left","--leftmargin"},description="left margin width")
 	private int leftMarginWidth=15;
 	@Parameter(names={"-maxrows","--maxrowss"},description="maximum number of rows per read group. -1 == all")
@@ -385,7 +386,7 @@ public class TView implements Closeable
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFile);
 			}
 		if(this.samRecordFilter==null) {
-			this.samRecordFilter = SamFilterParser.ACCEPT_ALL;
+			this.samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
 		}
 		final SamReaderFactory srf=SamReaderFactory.makeDefault().
 				referenceSequence(this.referenceFile).

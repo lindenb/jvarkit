@@ -98,8 +98,9 @@ import com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -116,7 +117,8 @@ END_DOC
 @SuppressWarnings("unused")
 @Program(name="copynumber01",
 	description="experimental CNV detection. Doesn't work for now.",
-	keywords= {"cnv","bam","sam"}
+	keywords= {"cnv","bam","sam"},
+	modificationDate="20190417"
 	)
 public class CopyNumber01 extends Launcher
 	{
@@ -135,8 +137,8 @@ public class CopyNumber01 extends Launcher
 	private int windowSize=1000;
 	@Parameter(names={"-s"},description="window shift")
 	private int windowShift=500;
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-filter","--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter filter  = SamRecordFilterFactory.getDefault();
 	@Parameter(names={"--univariateDepth"},description="How to calculate depth in a sliding window")
 	private UnivariateStatistic univariateDepth = UnivariateStatistic.mean;
 	@Parameter(names={"--univariateGC"},description="Loess needs only one GC value: we need to merge Depth with same GC%. How do we merge ?")

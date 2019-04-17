@@ -1,15 +1,22 @@
 package com.github.lindenb.jvarkit.tools.vcfucsc;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-public class VcfUcscTest extends TestUtils {
+@AlsoTest(LauncherTest.class)
+public class VcfUcscTest {
+	
+	private final TestSupport support =new TestSupport();
+
+	
 	@DataProvider(name="src01")
 	public Object[][] getData() {
 		return new Object[][] {
@@ -22,17 +29,20 @@ public class VcfUcscTest extends TestUtils {
 	public void test01(final String table,final String query) 
 		throws IOException
 		{
-		final File output = super.createTmpFile(".vcf");
-		
-		Assert.assertEquals(0,new VcfUcsc().instanceMain(
-        		newCmd().add(
-        		"-o",output,
-        		"--table",table,
-        		"-e",query,
-        		SRC_TEST_RESOURCE+"/ExAC.r1.sites.vep.vcf.gz"
-        		).make()
-        	));
-        assertIsVcf(output);
+		try {
+		final Path output = support.createTmpPath(".vcf");
+			
+			Assert.assertEquals(new VcfUcsc().instanceMain(new String[] {
+	        		"-o",output.toString(),
+	        		"--table",table,
+	        		"-e",query,
+	        		support.resource("ExAC.r1.sites.vep.vcf.gz")
+					}),0);
+			support.assertIsVcf(output);
+			}
+		finally {
+			support.removeTmpFiles();
+			}
 		}
 
 }

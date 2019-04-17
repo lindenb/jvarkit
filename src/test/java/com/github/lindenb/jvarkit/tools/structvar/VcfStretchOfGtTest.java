@@ -1,33 +1,51 @@
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.Reporter;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-public class VcfStretchOfGtTest  extends TestUtils{
-	@Test(dataProvider="all-vcf-files")
+@AlsoTest(LauncherTest.class)
+public class VcfStretchOfGtTest{
+	private final TestSupport support = new TestSupport();
+	
+	@DataProvider(name = "src1")
+	public Object[][] createData1() {
+		return support.toArrayArray(support.
+				allVcfOrBcf().
+				map(F->new Object[] {F})
+				)
+				;
+		}
+	
+	@Test(dataProvider="src1")
 	public void test01(String inputFile) throws IOException
 		{
-		final File ped = super.createRandomPedigreeFromFile(inputFile);
+		try {
+		final Path ped = support.createRandomPedigreeFromFile(inputFile);
 		if(ped==null) {
 			 Reporter.getCurrentTestResult().setAttribute("warn", "No Pedigree for "+inputFile);
 			return;
 			}
 
-		final File out = super.createTmpFile(".tsv");
+		final Path out = support.createTmpPath(".tsv");
 		Assert.assertEquals(new VcfStretchOfGt().instanceMain(new String[] {
-				"-o",out.getPath(),
+				"-o",out.toString(),
 				"--pedigree",
-				ped.getPath(),
+				ped.toString(),
 				inputFile
 				}),0
 			);
-		assertTsvTableIsConsitent(out, null);
+		support.assertTsvTableIsConsitent(out, null);
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 	}

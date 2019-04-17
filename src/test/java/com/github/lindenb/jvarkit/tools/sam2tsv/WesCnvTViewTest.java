@@ -1,32 +1,44 @@
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-public class WesCnvTViewTest  extends TestUtils {
+@AlsoTest(LauncherTest.class)
+public class WesCnvTViewTest {
+	private final TestSupport support = new TestSupport();
+
+	
 	@Test
 	public void test01() throws IOException {
-		final  File bamList = super.createTmpFile(".list");
-		final PrintWriter pw = new PrintWriter(bamList);
+		try {
+		final  Path bamList = support.createTmpPath(".list");
+		final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(bamList));
 		for(int i=1;i<=5;i++)
 			{
-			pw.println(SRC_TEST_RESOURCE+"/S"+i+".bam");
+			pw.println(support.resource("S"+i+".bam"));
 			}
 		pw.flush();
 		pw.close();
-		final File out = super.createTmpFile(".txt");
+		final Path out = support.createTmpPath(".txt");
 		Assert.assertEquals(new WesCnvTView().instanceMain(new String[] {
-				"-l",bamList.getPath(),
-				"-o",out.getPath(),
+				"-l",bamList.toString(),
+				"-o",out.toString(),
 				"RF01:200-1000",
 				"RF02:300-500"
 				}),0);
-		assertIsNotEmpty(out);
+		support.assertIsNotEmpty(out);
+		}
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 }

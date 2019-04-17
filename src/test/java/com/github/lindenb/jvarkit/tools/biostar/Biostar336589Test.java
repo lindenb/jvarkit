@@ -1,19 +1,29 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Random;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
-public class Biostar336589Test extends TestUtils {
+
+@AlsoTest({VCFUtilsTest.class,BedLineCodec.class})
+public class Biostar336589Test  {
+
+private final TestSupport support = new TestSupport();
+private final Random random = new Random();
 	
-private File createBed() throws IOException {
-	final File bed = super.createTmpFile(".bed");
-	final PrintWriter pw = new PrintWriter(bed);
+private Path createBed() throws IOException {
+	final Path bed = support.createTmpPath(".bed");
+	final PrintWriter pw = new PrintWriter(Files.newOutputStream(bed));
 	for(int i=0;i< 10;i++)
 		{
 		int start= random.nextInt(600);
@@ -31,54 +41,66 @@ private File createBed() throws IOException {
 		}
 	
 	pw.close();
-	assertIsBed(bed);
+	support.assertIsBed(bed);
 	return bed;
 }
 	
 @Test
 public void test01() throws IOException {
-	final File bed = createBed();
-	
-	
-	final File out = super.createTmpFile(".svg");
-	Assert.assertEquals(new Biostar336589().instanceMain(new String[] {
-			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.dict",
-			"-o",out.getPath(),
-			bed.getPath(),
-			}),0);
-	assertIsXml(out);
+	try {
+		final Path bed = createBed();
+		final Path out = support.createTmpPath(".svg");
+		Assert.assertEquals(new Biostar336589().instanceMain(new String[] {
+				"-R",support.resource("rotavirus_rf.dict"),
+				"-o",out.toString(),
+				bed.toString(),
+				}),0);
+		support.assertIsXml(out);
+		}
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 
 @Test
 public void testMultiple() throws IOException {
-	
-	final File bed1 =  createBed();
-	final File bed2 =  createBed();
-	final File bed3 =  createBed();
-	
-	
-	final File out = super.createTmpFile(".svg");
-	Assert.assertEquals(new Biostar336589().instanceMain(new String[] {
-			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.dict",
-			"-o",out.getPath(),
-			bed1.getPath(),
-			bed2.getPath(),
-			bed3.getPath(),
-			}),0);
-	assertIsXml(out);
+	try {
+		Path  bed1 =  createBed();
+		Path  bed2 =  createBed();
+		Path  bed3 =  createBed();
+		
+		
+		final Path out = support.createTmpPath(".svg");
+		Assert.assertEquals(new Biostar336589().instanceMain(new String[] {
+				"-R",support.resource("rotavirus_rf.dict"),
+				"-o",out.toString(),
+				bed1.toString(),
+				bed2.toString(),
+				bed3.toString(),
+				}),0);
+		support.assertIsXml(out);
+		}
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 
 @Test
 public void testLinear() throws IOException {
-	final File bed = createBed();
-	final File out = super.createTmpFile(".svg");
-	Assert.assertEquals(new Biostar336589().instanceMain(new String[] {
-			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.dict",
-			"--width","1000",
-			"-o",out.getPath(),
-			bed.getPath(),
-			}),0);
-	assertIsXml(out);
+	try {
+		final Path bed = createBed();
+		final Path out = support.createTmpPath(".svg");
+		Assert.assertEquals(new Biostar336589().instanceMain(new String[] {
+				"-R",support.resource("rotavirus_rf.dict"),
+				"--width","1000",
+				"-o",out.toString(),
+				bed.toString()
+				}),0);
+		support.assertIsXml(out);
+		}
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 
 }

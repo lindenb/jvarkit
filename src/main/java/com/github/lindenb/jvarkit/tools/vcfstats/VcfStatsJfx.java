@@ -1196,7 +1196,6 @@ public class VcfStatsJfx extends Launcher {
 			exporter.exportToR(pw, chart);
 			}
 		pw.flush();
-		pw.close();
 		}
 	}
 
@@ -1328,8 +1327,8 @@ public class VcfStatsJfx extends Launcher {
 			
 			return 0;
 			}
-		catch(final Exception err) {
-			err.printStackTrace();
+		catch(final Throwable err) {
+			LOG.error(err);
 			return -1;
 			}
 		finally

@@ -1,32 +1,44 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class Biostar78285Test extends TestUtils{
+public class Biostar78285Test {
+	private final TestSupport support = new TestSupport();
 	
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][] {
-			{"./src/test/resources/toy.bam"},
-			{"--bed /src/test/resources/toy.bed.gz -m 5 -m 10 -m 15 ./src/test/resources/toy.bam"},
-			{"--bed /src/test/resources/toy.bed.gz --gcp 10 -R ./src/test/resources/toy.fa -m 5 -m 10 -m 15 ./src/test/resources/toy.bam"}
+			{support.resource("toy.bam")},
+			{"--bed "+support.resource("toy.bed.gz")+" -m 5 -m 10 -m 15 "+support.resource("toy.bam")},
+			{"--bed "+support.resource("toy.bed.gz")+" --gcp 10 -R "+ support.resource("toy.bam") +" -m 5 -m 10 -m 15 "+support.resource("toy.bam")}
 			};
 		}
 	
 	public void test1(final String cmdsrc) throws IOException {
-		final File out = createTmpFile(".vcf");
-		Assert.assertEquals(
-			new Biostar78285().instanceMain(newCmd().
-			add("-o").add(out).
-			split(cmdsrc).
-			make()
-			),0);
-		assertIsVcf(out);
+		try {
+			final Path out = support.createTmpPath(".vcf");
+			
+			List<String> args=new ArrayList<>();
+			args.add("-o");
+			args.add(out.toString());
+			args.addAll(Arrays.asList(cmdsrc.split("[ \t]+")));
+			
+			Assert.assertEquals(
+				new Biostar78285().instanceMain(args),0);
+			support.assertIsVcf(out);
+			}
+		finally
+			{
+			support.removeTmpFiles();
+			}
 		}
 }

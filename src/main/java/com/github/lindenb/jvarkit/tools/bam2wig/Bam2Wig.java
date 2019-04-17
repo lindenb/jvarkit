@@ -67,8 +67,9 @@ import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -143,7 +144,8 @@ END_DOC
  */
 @Program(name="bam2wig",
 description="Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)",
-keywords={"bam","wig","wiggle","bed"}
+keywords={"bam","wig","wiggle","bed"},
+modificationDate="20190417"
 )
 public class Bam2Wig extends Launcher
 	{
@@ -161,8 +163,8 @@ public class Bam2Wig extends Launcher
 	private int window_span = 100 ;
 	@Parameter(names={"-f","--format"},description="`Printf` Format for the values. see https://docs.oracle.com/javase/tutorial/java/data/numberformat.html . Use \"%.01f\" to print an integer. \"%e\" for scientific notation.")
 	private String printfFormat = "%.3f";
-	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
+	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
 	@Parameter(names={"--percentile"},description="How to group data in the sliding window ?")
 	private Percentile.Type percentilType = Percentile.Type.AVERAGE;
 	@Parameter(names={"-bg","--bedgraph"},description="Produce a BED GRAPH instead of a WIGGLE file.")

@@ -1,26 +1,33 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
-public class VcfClusteredReadEdgeTest extends TestUtils
-	{
+@AlsoTest(VCFUtilsTest.class)
+public class VcfClusteredReadEdgeTest {
 	@Test
 	public void test01() throws Exception{
-		final File output = super.createTmpFile(".vcf");
-		Assert.assertEquals(new VcfClusteredReadEdge().instanceMain(newCmd().add(
-			"-B",SRC_TEST_RESOURCE+"/S1.bam", 
-			"-B",SRC_TEST_RESOURCE+"/S2.bam", 
-			"-B",SRC_TEST_RESOURCE+"/S3.bam", 
-			"-B",SRC_TEST_RESOURCE+"/S4.bam", 
-			"-B",SRC_TEST_RESOURCE+"/S5.bam", 
-			"-o",output.getPath(),
-			SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz"
-			).make()),0);
-		assertIsVcf(output);
+		final TestSupport support = new TestSupport();
+		try {
+			final Path output = support.createTmpPath(".vcf");
+			Assert.assertEquals(new VcfClusteredReadEdge().instanceMain(new String[] {
+				"-B",support.resource("S1.bam"), 
+				"-B",support.resource("S2.bam"), 
+				"-B",support.resource("S3.bam"), 
+				"-B",support.resource("S4.bam"), 
+				"-B",support.resource("S5.bam"), 
+				"-o",output.toString(),
+				support.resource("rotavirus_rf.vcf.gz")
+				}),0);
+			support.assertIsVcf(output);
+			} finally {
+				support.removeTmpFiles();
+			}
 		}
 	}

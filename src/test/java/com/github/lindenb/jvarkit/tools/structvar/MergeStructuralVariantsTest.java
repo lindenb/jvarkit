@@ -1,7 +1,9 @@
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-public class MergeStructuralVariantsTest   extends TestUtils {
+@AlsoTest(LauncherTest.class)
+public class MergeStructuralVariantsTest   {
 //TODO
 }

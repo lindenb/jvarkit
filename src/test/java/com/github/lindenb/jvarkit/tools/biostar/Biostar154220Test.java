@@ -1,44 +1,64 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.misc.SortSamRefName;
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
-public class Biostar154220Test extends TestUtils {
-	@Test(dataProvider="all-sam-or-bam-files")
+public class Biostar154220Test {
+	
+	private final TestSupport support = new TestSupport();
+
+	
+	@DataProvider(name = "src1")
+	public Object[][] createData1() {
+		return (Object[][])support.
+				allSamOrBams().
+				map(F->new Object[] {F}).
+				toArray()
+				;
+		}
+	
+	@Test(dataProvider="src1")
 	public void test1(final String samFile) throws IOException {
+		try {
 		// limit to small ref
 		if(SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(samFile)).
 				getSequences().stream().
 				mapToInt(L->L.getSequenceLength()).
 				max().orElse(0) > 1_000_000) return;
 		
-		final File out1 = createTmpFile(".bam");
+		final Path out1 = support.createTmpPath(".bam");
 		Assert.assertEquals(
-				new  SortSamRefName().instanceMain(newCmd().add(
-						"-o",out1,
-						samFile
-				).make()),0);
+				new  SortSamRefName().instanceMain(new String[] {
+				"-o",out1.toString(),
+				samFile
+				}),0);
 		
 		
-		super.assertIsValidBam(out1);
+		support.assertIsValidBam(out1);
 		
-		final File out2 = createTmpFile(".bam");
+		final Path out2 = support.createTmpPath(".bam");
 		Assert.assertEquals(
-				new  Biostar154220().instanceMain(newCmd().add(
-						"-o",out2,
-						"-n",5,
-						out1.getPath()
-				).make()),0);
+			new  Biostar154220().instanceMain(new String[] {
+				"-o",out2.toString(),
+				"-n","5",
+				out1.toString()
+			}),0);
 		
-		super.assertIsValidBam(out2);
+		support.assertIsValidBam(out2);
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
 	}
 }

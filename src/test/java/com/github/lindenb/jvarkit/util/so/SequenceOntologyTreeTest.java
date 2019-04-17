@@ -32,15 +32,12 @@ import java.net.URL;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 public class SequenceOntologyTreeTest
-	extends TestUtils
 	{
 	private SequenceOntologyTree owlTree;
 	@BeforeClass

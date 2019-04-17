@@ -1,12 +1,12 @@
 package com.github.lindenb.jvarkit.pedigree;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 /*
 FAM01	S1	0	0	1	1
 FAM01	S2	0	0	2	1
@@ -16,11 +16,15 @@ FAM02	S5	0	0	2	0
 FAM02	S6	S4	S5	2	0
 
  */
-public class PedigreeParserTest extends TestUtils {
+public class PedigreeParserTest {
+	
+private final TestSupport support = new TestSupport();
+	
+	
 @Test
 public void test01() throws IOException{
 	final PedigreeParser parser = new PedigreeParser();
-	final Pedigree ped=parser.parse(new File(SRC_TEST_RESOURCE+"/test_vcf01.ped"));
+	final Pedigree ped=parser.parse(Paths.get(support.resource("test_vcf01.ped")));
 	Assert.assertNotNull(ped);
 	Assert.assertFalse(ped.isEmpty());
 	Assert.assertEquals(ped.getSamples().size(),6);

@@ -1,29 +1,41 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.stream.Collectors;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
-public class VcfSetSequenceDictionaryTest extends TestUtils {
+public class VcfSetSequenceDictionaryTest {
 	
-	private File prepare(final String inputFile)  throws IOException
+	private final TestSupport support = new TestSupport();
+
+	@DataProvider(name="src01")
+	public Object[][] testData01() {
+			return support.toArrayArray(
+					support.allVcfOrBcf().
+					map(S->new Object[] {S})
+					);
+			}
+	
+	private Path prepare(final String inputFile)  throws IOException
 		{
-		final SAMSequenceDictionary dict=SAMSequenceDictionaryExtractor.extractDictionary(new File(inputFile));
+		final SAMSequenceDictionary dict=SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(inputFile));
 		if(dict==null || dict.isEmpty()) return null;
-		final File dictF = super.createTmpFile(".dict");
-		final BufferedWriter bw = Files.newBufferedWriter(dictF.toPath());
+		final Path dictF = support.createTmpPath(".dict");
+		final BufferedWriter bw = Files.newBufferedWriter(dictF);
 		final SAMSequenceDictionaryCodec codec= new SAMSequenceDictionaryCodec(bw);
 		codec.encode(new SAMSequenceDictionary(
 				dict.getSequences().stream().
@@ -40,29 +52,37 @@ public class VcfSetSequenceDictionaryTest extends TestUtils {
 	public void test01(final String inputFile) 
 		throws IOException
 		{
-		final File dictF = prepare(inputFile);
-		final File output = super.createTmpFile(".vcf");
+		try {
+		final Path dictF = prepare(inputFile);
+		final Path output = support.createTmpPath(".vcf");
         Assert.assertEquals(new VcfSetSequenceDictionary().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-R",dictF.getPath(),
+        		"-o",output.toString(),
+        		"-R",dictF.toString(),
         		inputFile
         	}),0);
-        assertIsVcf(output);
+        support.assertIsVcf(output);
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 	
 	@Test(dataProvider="all-vcf-files")
 	public void testHeaderOnly(final String inputFile) 
 		throws IOException
 		{
-		final File dictF = prepare(inputFile);
-		final File output = super.createTmpFile(".vcf");
+		try {
+		final Path dictF = prepare(inputFile);
+		final Path output = support.createTmpPath(".vcf");
         Assert.assertEquals(new VcfSetSequenceDictionary().instanceMain(new String[]{
-        		"-o",output.getPath(),
-        		"-R",dictF.getPath(),
+        		"-o",output.toString(),
+        		"-R",dictF.toString(),
         		"-ho",
         		inputFile
         	}),0);
-        assertIsVcf(output);
+        support.assertIsVcf(output);
+		} finally {
+			support.removeTmpFiles();
+		}
 		}
 
 }

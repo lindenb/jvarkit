@@ -236,7 +236,7 @@ public default String pattern() {
 /** create a new CharSplitter from a string. Escaped character are interpreted */
 public static CharSplitter of(final String s) {
 	if(s.equals("\\t")) return TAB;
-	if(s.equals("\\n")) return of('\n');
+	if(s.equals("\\n")) return NEWLINE;
 	if(s.equals("\\r")) return of('\r');
 	if(s.isEmpty()) throw new IllegalArgumentException("cannot create a delimiter from an empty string.");
 	if(s.length()!=1) throw new IllegalArgumentException("cannot create a delimiter from an empty string.");
@@ -254,5 +254,5 @@ public static final CharSplitter SPACE = of(' ');
 public static final CharSplitter SEMICOLON = of(';');
 public static final CharSplitter PIPE = of('|');
 public static final CharSplitter DOT = of('.');
-
+public static final CharSplitter NEWLINE = of('\n');
 }

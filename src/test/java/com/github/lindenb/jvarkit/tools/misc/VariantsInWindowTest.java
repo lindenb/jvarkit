@@ -1,23 +1,41 @@
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
-public class VariantsInWindowTest  extends TestUtils {
+@AlsoTest(VCFUtilsTest.class)
+public class VariantsInWindowTest  {
+	private final TestSupport support = new TestSupport();
+	
+	@DataProvider(name = "src1")
+	public Object[][] createData1() {
+		return support.toArrayArray(support.
+				allVcfOrBcf().
+				map(F->new Object[] {F})
+				)
+				;
+		}
 
-
- @Test(dataProvider="all-vcf-files")
+ @Test(dataProvider="src1")
  public void test01(final String input) throws IOException {
-		final File out = super.createTmpFile(".vcf");
+	 try {
+		final Path out = support.createTmpPath(".vcf");
 		Assert.assertEquals(0,new VariantsInWindow().instanceMain(new String[] {
-			"-o",out.getPath(),
+			"-o",out.toString(),
 			input
 			}));
-		assertIsVcf(out);
+		support.assertIsVcf(out);
 		}
+	finally {
+		 support.removeTmpFiles();
+		 }
+ 	}
 }

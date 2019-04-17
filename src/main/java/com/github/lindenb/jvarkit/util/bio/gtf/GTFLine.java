@@ -31,7 +31,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 public interface GTFLine 
-	extends Locatable,Iterable<Map.Entry<String, String>>,Feature
+	extends Locatable,Feature
 
 	{
 	public static final int NO_PHASE=-1;
@@ -43,7 +43,7 @@ public interface GTFLine
 	public String getType();
 	public Double getScore();
 	public char getStrand();
-	public Iterator<Map.Entry<String, String>> iterator();
+	public Iterator<Map.Entry<String, String>> getAttributeIterator();
 	public Map<String, String> getAttributes();
 	public String getAttribute(final String key);
 	public int getPhase();

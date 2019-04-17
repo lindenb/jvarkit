@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -247,6 +248,7 @@ END_DOC
 
 ## History
 
+* 20190416 : colors for AD
 * 20170517 : fixed a bug in removeEmptyColumns
 
  */
@@ -254,7 +256,8 @@ END_DOC
 		description="convert a vcf to a table, to ease display in the terminal",
 		keywords={"vcf","table","visualization"},
 		references="Vcf2table : a VCF prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853801](https://doi.org/10.6084/m9.figshare.5853801)",
-		biostars=293855
+		biostars=293855,
+		modificationDate="20190416"
 		)
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
@@ -1351,6 +1354,51 @@ public class VcfToTable extends Launcher {
 							if( indexInFORMAT==-1 || indexInFORMAT>=gstr.size()) {
 								r.add(null);
 								}
+							else if(useANSIColors && g.isCalled() && formats.get(indexInFORMAT).equals("GQ") && g.hasGQ())  {
+								final int gq = g.getGQ();
+								if(gq==0)
+									{
+									r.add(new ColoredDecorator(String.valueOf(gq),AnsiColor.RED));
+									}
+								else
+									{
+									r.add(String.valueOf(gq));
+									}
+								}
+							else if(useANSIColors && g.isCalled() && formats.get(indexInFORMAT).equals("DP") && g.hasDP())  {
+								final int dp = g.getDP();
+								r.add(new ColoredDecorator(String.valueOf(dp),dp >= 10?AnsiColor.GREEN: AnsiColor.RED));
+								}
+							else if(useANSIColors && g.isCalled() && formats.get(indexInFORMAT).equals("AD") && g.hasAD())  {
+								final int ad_array[] = g.getAD();
+								final AnsiColor ad_color;
+								
+								if(ad_array.length==2 && g.isHet()) {
+									double ratio =  ad_array[0]/(float)(ad_array[0]+ad_array[1]);
+									ad_color = ratio>=0.3 && ratio <=0.7 ? AnsiColor.GREEN: AnsiColor.RED;
+									}
+								else if(ad_array.length==2 && g.isHomRef())
+									{
+									ad_color = ad_array[1]==0 && ad_array[0]>0 ? AnsiColor.GREEN: AnsiColor.RED;
+									}
+								else if(ad_array.length==2 && g.isHomVar())
+									{
+									ad_color = ad_array[1]>0 && ad_array[0]==0 ? AnsiColor.GREEN: AnsiColor.RED;
+									}
+								else
+									{
+									ad_color = null;
+									}
+									
+								
+								if(ad_color!=null) {
+									r.add(new ColoredDecorator(gstr.get(indexInFORMAT),ad_color));
+									}
+								else
+									{
+									r.add(gstr.get(indexInFORMAT));
+									}
+								}
 							else
 								{
 								r.add(gstr.get(indexInFORMAT));
@@ -1426,7 +1474,9 @@ public class VcfToTable extends Launcher {
 			
 			protected String variantToString(final VariantContext vc)
 				{
-				return vc.getContig()+":"+vc.getStart()+(vc.getStart()!=vc.getEnd()?"-"+vc.getEnd():"")+"/"+vc.getReference().getDisplayString();
+				final Optional<String> buildLabel = SequenceDictionaryUtils.getBuildName( header.getSequenceDictionary());
+				
+				return (buildLabel.isPresent()?buildLabel.get()+" ":"")+ vc.getContig()+":"+vc.getStart()+(vc.getStart()!=vc.getEnd()?"-"+vc.getEnd():"")+"/"+vc.getReference().getDisplayString();
 				}
 			
 			protected void printGenotypesTypes(final String margin,final VariantContext vc) {
@@ -1439,7 +1489,7 @@ public class VcfToTable extends Launcher {
 						entrySet().
 						stream().
 						sorted((A,B)->B.getValue().compareTo(A.getValue())).
-						map(E->new Object[] {(Object)E.getKey().name(),(Object)E.getValue(),(Object)new Integer((int)(100.0*(E.getValue()/(double)vc.getNSamples())))}).
+						map(E->new Object[] {(Object)E.getKey().name(),(Object)E.getValue(),(Object)Integer.valueOf((int)(100.0*(E.getValue()/(double)vc.getNSamples())))}).
 						forEach(R->t.addRow(R))
 						;
 				

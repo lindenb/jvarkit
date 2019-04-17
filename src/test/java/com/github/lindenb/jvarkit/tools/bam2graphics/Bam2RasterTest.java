@@ -1,55 +1,65 @@
 package com.github.lindenb.jvarkit.tools.bam2graphics;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class Bam2RasterTest extends TestUtils {
+public class Bam2RasterTest {
+	private final TestSupport support = new TestSupport();
 
-@DataProvider(name="rf_regions")
-public Object[][] getDataRegions() throws IOException  {
-	return randomIntervalsFromDict(new File(SRC_TEST_RESOURCE+"/rotavirus_rf.dict"),10).
-			stream().
-			map(I->I.getContig()+":"+I.getStart()+"-"+I.getEnd()).
-			map(S->new Object[]{S}).
-			toArray(x->new Object[x][])
+	@DataProvider(name="rf_regions")
+	public Object[][] getDataRegions() throws IOException  {
+		return new Object[][] {
+			{"RF01:1-100"},
+			{"RF02:1-100"},
+			{"RF03:1-100"}
+			}
 			;
-}
+		}
+
+private void run(final String rgn,Path out) throws IOException{
+	final List<String> args= new ArrayList<>();
+	args.add("-R");
+	args.add(support.resource("rotavirus_rf.fa"));
+	args.add("-r");
+	args.add(rgn);
+	args.add("-o");
+	args.add(out.toString());
+	for(int i=1;i<=5;i++) args.add(support.resource("S"+i+".bam"));
+	Assert.assertEquals(new Bam2Raster().instanceMain(args),0);
+	}
 	
 @Test(dataProvider="rf_regions")
 public void test01(final String rgn) throws IOException {
-	File imgOut = super.createTmpFile(".png");
-	Assert.assertEquals(new Bam2Raster().instanceMain(newCmd().add(
-			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.fa",
-			"-r",rgn,
-			"-o",imgOut).
-			add(Arrays.asList("1","2","3","4","5").stream().
-				map(S->SRC_TEST_RESOURCE+"/S"+S+".bam").
-				toArray()).
-			make()
-			),0);
-	assertIsNotEmpty(imgOut);
+	try {
+		final Path imgOut = support.createTmpPath(".png");
+		run(rgn,imgOut);
+		support.assertIsNotEmpty(imgOut);
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
 	}
 
 @Test(dataProvider="rf_regions")
 public void testZip(final String rgn) throws IOException {
-	File imgOut = super.createTmpFile(".zip");
-	Assert.assertEquals(new Bam2Raster().instanceMain(newCmd().add(
-			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.fa",
-			"-r",rgn,
-			"-o",imgOut).
-			add(Arrays.asList("1","2","3","4","5").stream().
-				map(S->SRC_TEST_RESOURCE+"/S"+S+".bam").
-				toArray()).
-			make()
-			),0);
-	assertZip(imgOut);
+	try {
+		final Path imgOut = support.createTmpPath(".zip");
+		run(rgn,imgOut);
+		support.assertZip(imgOut);
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
 	}
 
 }

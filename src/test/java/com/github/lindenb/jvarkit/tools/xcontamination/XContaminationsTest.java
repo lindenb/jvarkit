@@ -1,28 +1,39 @@
 package com.github.lindenb.jvarkit.tools.xcontamination;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-public class XContaminationsTest extends TestUtils {
-public void test01() throws IOException {
+@AlsoTest(LauncherTest.class)
+public class XContaminationsTest {
 	
-	File output = super.createTmpFile(".vcf");
-	Assert.assertEquals(new XContaminations().instanceMain(
-    		newCmd().add(
-    		"-ov","-sample",
-    		"-o",output,
-    		SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz",
-    		SRC_TEST_RESOURCE+"/S1.bam",
-    		SRC_TEST_RESOURCE+"/S2.bam",
-    		SRC_TEST_RESOURCE+"/S3.bam",
-    		SRC_TEST_RESOURCE+"/S4.bam",
-    		SRC_TEST_RESOURCE+"/S5.bam"
-    			).make()
-    	),0);
-	super.assertIsVcf(output);
+	private final TestSupport support =new TestSupport();
+
+@Test	
+public void test01() throws IOException {
+	try {
+		Path output = support.createTmpPath(".vcf");
+		Assert.assertEquals(new XContaminations().instanceMain(new String[] {
+	    		"-ov","-sample",
+	    		"-o",output.toString(),
+	    		support.resource("rotavirus_rf.vcf.gz"),
+	    		support.resource("S1.bam"),
+	    		support.resource("S2.bam"),
+	    		support.resource("S3.bam"),
+	    		support.resource("S4.bam"),
+	    		support.resource("S5.bam")
+				}),0);
+		support.assertIsVcf(output);
+		} 
+	finally 
+		{
+		support.removeTmpFiles();
+		}
 	}
 }

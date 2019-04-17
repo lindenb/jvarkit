@@ -30,6 +30,9 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,24 +44,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Algorithms;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -92,29 +85,32 @@ END_DOC
  */
 @Program(name="vcftrap",
 description="annotate vcf with trap database http://trap-score.org/",
-keywords={"vcf","trap","annotation"}
+keywords={"vcf","trap","annotation"},
+modificationDate="20190308"
 )
 public class VcfTrap extends Launcher {
 	private static final Logger LOG = Logger.build(VcfTrap.class).make();
 	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-	@ParametersDelegate
-	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
-	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
 	
+	@Parameter(names={"-m","--manifest"},description="Manifest file. A tab delimited file with two columns : chromosome(tab)path-to-file-indexed-with-trapindex.",required=true)
+	private Path manifestFile=null;
+	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERed variants (faster)")
+	private boolean ignore_filtered=false;
+	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute Format:(ALT|GENE|SCORE)")
+	private String ATT="TRAP";
 	
 	private static class IndexFile extends AbstractList<TrapRecord>
 		implements Closeable
 		{
 		final String contig;
-		final File file;
+		final Path file;
 		private RandomAccessFile io;
 		final int _size;
-		IndexFile(final String contig,final File file) throws IOException {
+		IndexFile(final String contig,final Path file) throws IOException {
 			this.contig = contig;
 			this.file=file;
-			long length = file.length();
+			long length = Files.size(file);
 			
 			if(length< TrapIndexer.MAGIC.length)
 				{
@@ -124,7 +120,7 @@ public class VcfTrap extends Launcher {
 			
 			if(length % TrapIndexer.RECORD_SIZOF!=0) throw new  IOException("not a multiple of "+TrapIndexer.RECORD_SIZOF+":"+length);
 			this._size = (int)(length/TrapIndexer.RECORD_SIZOF);
-			this.io = new RandomAccessFile(this.file, "r");
+			this.io = new RandomAccessFile(this.file.toFile(), "r");
 			final byte magic[]=new byte[TrapIndexer.MAGIC.length];
 			this.io.readFully(magic);
 			if(!Arrays.equals(magic,  TrapIndexer.MAGIC))
@@ -160,214 +156,6 @@ public class VcfTrap extends Launcher {
 			}
 		}
 	
-	@XmlType(name="vcftrap")
-	@XmlRootElement(name="vcftrap")
-	@XmlAccessorType(XmlAccessType.FIELD)
-	public static class CtxWriterFactory 
-		implements VariantContextWriterFactory
-			{
-
-			@XmlElement(name="manifest")
-			@Parameter(names={"-m","--manifest"},description="Manifest file. A tab delimited file with two columns : chromosome(tab)path-to-file-indexed-with-trapindex.",required=true)
-			private File manifestFile=null;
-			@Parameter(names={"--ignore-filtered"},description="Ignore FILTERed variants (faster)")
-			private boolean ignore_filtered=false;
-			@XmlElement(name="attribute")
-			@Parameter(names={"-A","--attribute"},description="VCF INFO attribute Format:(ALT|GENE|SCORE)")
-			private String ATT="TRAP";
-
-			
-			@XmlTransient
-			final Map<String, File> chromToFile= new HashMap<>();
-			
-			private class CtxWriter extends DelegateVariantContextWriter
-				{					
-				private IndexFile current=null;
-				private final boolean ignore_filtered = CtxWriterFactory.this.ignore_filtered;
-				private final String ATT = CtxWriterFactory.this.ATT;
-				private final String ATT_MIN = CtxWriterFactory.this.ATT+"_MIN";
-				private final String ATT_MAX = CtxWriterFactory.this.ATT+"_MAX";
-				private final Set<String> contigs_not_found=new HashSet<>();
-				private final Comparator<TrapRecord> comparator = (A,B) ->{
-					if(! A.getContig().equals(B.getContig())) throw new IllegalStateException("not the same contigs ???");
-					return Integer.compare(A.getStart(), B.getStart());
-					};
-				
-				CtxWriter(final VariantContextWriter delegate) {
-					super(delegate);
-					}
-				@Override
-				public void writeHeader(final VCFHeader header) {
-					final VCFHeader header2=new VCFHeader(header);
-					header2.addMetaDataLine(
-							new VCFInfoHeaderLine(this.ATT,
-									VCFHeaderLineCount.UNBOUNDED,
-									VCFHeaderLineType.String,
-									"TRAP Score:((ALT|GENE|SCORE) in Trap Database  http://trap-score.org/"
-								));
-					header2.addMetaDataLine(
-							new VCFInfoHeaderLine(this.ATT_MIN,
-									1,
-									VCFHeaderLineType.Float,
-									"Min Score in Trap Database  http://trap-score.org/"
-								));
-					header2.addMetaDataLine(
-							new VCFInfoHeaderLine(this.ATT_MAX,
-									1,
-									VCFHeaderLineType.Float,
-									"Max Score in Trap Database  http://trap-score.org/"
-								));
-					super.writeHeader(header2);
-					}
-				@Override
-				public void add(final VariantContext var) {
-					if(this.ignore_filtered && var.isFiltered())
-						{
-						super.add(var);
-						return;
-						}
-					if(this.current==null || !this.current.contig.equals(var.getContig()))
-						{
-						if(this.current!=null) 
-							{
-							CloserUtil.close(this.current);
-							this.current=null;
-							}
-						if(this.contigs_not_found.contains(var.getContig()))
-							{
-							super.add(var);
-							return;
-							}
-						this.current = CtxWriterFactory.this.getIndexFile(var.getContig());
-						}
-					if(this.current==null)
-						{
-						LOG.warn("Not indexed in trap "+var.getContig());
-						this.contigs_not_found.add(var.getContig());
-						super.add(var);
-						return;
-						}
-					final Set<String> annotations=new HashSet<>();
-					final Float min_score[]=new Float[] {null};
-					final Float max_score[]=new Float[] {null};
-					
-					Algorithms.equal_range_stream(
-							this.current,
-							0,
-							this.current.size(),
-							new TrapRecord() {
-								@Override
-								public int getStart() { return var.getStart(); }
-								@Override
-								public int getEnd() { return var.getEnd(); }
-								@Override
-								public String getContig() { return var.getContig();}
-								@Override
-								public String getChr() { return getContig(); }
-								@Override
-								public float getScore() { return 0f; }
-								@Override
-								public char getRef() {return '\0';}
-								@Override
-								public String getGene() {return "";}
-								@Override
-								public char getAlt() { return '\0'; }
-								},
-							this.comparator,
-							Function.identity()
-							).
-							filter(R->var.getReference().equals(Allele.create((byte)R.getRef(),true))).
-							filter(R->var.getAlternateAlleles().stream().anyMatch(A->A.equals(Allele.create((byte)R.getAlt(),false)))).
-							forEach(R->{
-								
-								annotations.add(String.join("|",
-										String.valueOf(R.getAlt()),
-										R.getGene(),
-										String.format("%."+TrapIndexer.SCORE_STRLEN+"f", R.getScore())
-										));
-								if(min_score[0]==null || min_score[0].compareTo(R.getScore())>0)
-									{
-									min_score[0]=R.getScore();
-									}
-								if(max_score[0]==null || max_score[0].compareTo(R.getScore())<0)
-									{
-									max_score[0]=R.getScore();
-									}
-								});
-					if(annotations.isEmpty())
-						{
-						super.add(var);
-						return;
-						}
-					final VariantContextBuilder vcb = new VariantContextBuilder(var);
-					vcb.attribute(this.ATT, new ArrayList<>(annotations));
-					vcb.attribute(this.ATT_MIN,min_score[0]);
-					vcb.attribute(this.ATT_MAX,max_score[0]);
-					super.add(vcb.make());
-					}
-				@Override
-				public void close() {
-					try { this.current.close();}
-					catch(IOException err) {LOG.error(err);} //CloserUtil doenst' work ??
-					this.current=null;
-					super.close();
-					}
-				}
-			
-			private IndexFile getIndexFile(final String s)
-				{
-				File file = this.chromToFile.get(s);
-				if(file==null && s.startsWith("chr")) file =  this.chromToFile.get(s.substring(3));
-				if(file==null && !s.startsWith("chr")) file =  this.chromToFile.get("chr"+s);
-				if(file==null) return null;
-				try {
-					return new IndexFile(s,file);
-				} catch (final IOException err) {
-					throw new RuntimeIOException(err);
-					}
-				}
-			
-			@Override
-			public int initialize() {
-				IOUtil.assertFileIsReadable(this.manifestFile);
-				BufferedReader r=null;
-				try {
-					r=IOUtils.openFileForBufferedReading(this.manifestFile);
-					r.lines().filter(L->!L.trim().isEmpty()).
-						filter(L->!L.startsWith("#")).
-						forEach(L->{
-						final int tab  = L.indexOf('\t');
-						if(tab==-1) throw new RuntimeIOException("tab missing in "+L);
-						final String contig = L.substring(0,tab);
-						if(this.chromToFile.containsKey(contig)) {
-							throw new RuntimeIOException("duplicate contig "+L);
-							}
-						final File indexFile= new File(L.substring(tab+1));
-						IOUtil.assertFileIsReadable(indexFile);
-						this.chromToFile.put(contig,indexFile);
-						});
-					}
-				catch(IOException err) {
-					LOG.error(err);
-					return -1;
-					}
-				finally
-					{
-					CloserUtil.close(r);
-					}
-				return 0;
-				}
-			
-			@Override
-			public VariantContextWriter open(final VariantContextWriter delegate) {
-				return new CtxWriter(delegate);
-				}
-			@Override
-			public void close() throws IOException {
-				this.chromToFile.clear();
-				}
-			}
-
 	
 	public VcfTrap() {
 		}
@@ -376,17 +164,178 @@ public class VcfTrap extends Launcher {
 	protected int doVcfToVcf(
 			final String inputName,
 			final VCFIterator iter,
-			final VariantContextWriter delegate
-			) {	
-		final VariantContextWriter out = this.component.open(delegate);
-		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
-		out.writeHeader(iter.getHeader());
+			final VariantContextWriter out
+			) {
+		final Map<String, Path> chromToFile= new HashMap<>();
+
+		IOUtil.assertFileIsReadable(this.manifestFile);
+		BufferedReader r=null;
+		try {
+			r=IOUtils.openPathForBufferedReading(this.manifestFile);
+			r.lines().filter(L->!L.trim().isEmpty()).
+				filter(L->!L.startsWith("#")).
+				forEach(L->{
+				final int tab  = L.indexOf('\t');
+				if(tab==-1) throw new RuntimeIOException("tab missing in "+L);
+				final String contig = L.substring(0,tab);
+				if(chromToFile.containsKey(contig)) {
+					throw new RuntimeIOException("duplicate contig "+L);
+					}
+				final Path indexFile= Paths.get(L.substring(tab+1));
+				IOUtil.assertFileIsReadable(indexFile);
+				chromToFile.put(contig,indexFile);
+				});
+			}
+		catch(final IOException err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(r);
+			}
+		
+		final Function<String,IndexFile> getIndexFile = s->
+			{
+			Path file = chromToFile.get(s);
+			if(file==null && s.startsWith("chr")) file =  chromToFile.get(s.substring(3));
+			if(file==null && !s.startsWith("chr")) file = chromToFile.get("chr"+s);
+			if(file==null) return null;
+			try {
+				return new IndexFile(s,file);
+			} catch (final IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			};
+		
+		IndexFile current=null;
+		final String ATT_MIN = this.ATT+"_MIN";
+		final String ATT_MAX = this.ATT+"_MAX";
+		final Set<String> contigs_not_found=new HashSet<>();
+		final Comparator<TrapRecord> comparator = (A,B) ->{
+			if(! A.getContig().equals(B.getContig())) throw new IllegalStateException("not the same contigs ???");
+			return Integer.compare(A.getStart(), B.getStart());
+			};
+		
+		final VCFHeader header=new VCFHeader(iter.getHeader());
+	
+		final VCFHeader header2=new VCFHeader(header);
+		header2.addMetaDataLine(
+				new VCFInfoHeaderLine(this.ATT,
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.String,
+						"TRAP Score:((ALT|GENE|SCORE) in Trap Database  http://trap-score.org/"
+					));
+		header2.addMetaDataLine(
+				new VCFInfoHeaderLine(ATT_MIN,
+						1,
+						VCFHeaderLineType.Float,
+						"Min Score in Trap Database  http://trap-score.org/"
+					));
+		header2.addMetaDataLine(
+				new VCFInfoHeaderLine(ATT_MAX,
+						1,
+						VCFHeaderLineType.Float,
+						"Max Score in Trap Database  http://trap-score.org/"
+					));
+		JVarkitVersion.getInstance().addMetaData(this, header2);
+		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
+							dictionary(iter.getHeader()).
+							logger(LOG).
+							build();
+		out.writeHeader(header2);
 		while(iter.hasNext())
 			{
-			out.add(progress.watch(iter.next()));
+			final VariantContext var = progress.apply(iter.next());
+			
+			
+			if(this.ignore_filtered && var.isFiltered())
+			{
+			out.add(var);
+			continue;
+			}
+		if(current==null || !current.contig.equals(var.getContig()))
+			{
+			if(current!=null) 
+				{
+				CloserUtil.close(current);
+				current=null;
+				}
+			if(contigs_not_found.contains(var.getContig()))
+				{
+				out.add(var);
+				continue;
+				}
+			current = getIndexFile.apply(var.getContig());
+			}
+		if(current==null)
+			{
+			LOG.warn("Not indexed in trap "+var.getContig());
+			contigs_not_found.add(var.getContig());
+			out.add(var);
+			continue;
+			}
+		final Set<String> annotations=new HashSet<>();
+		final Float min_score[]=new Float[] {null};
+		final Float max_score[]=new Float[] {null};
+		
+		Algorithms.equal_range_stream(
+				current,
+				0,
+				current.size(),
+				new TrapRecord() {
+					@Override
+					public int getStart() { return var.getStart(); }
+					@Override
+					public int getEnd() { return var.getEnd(); }
+					@Override
+					public String getContig() { return var.getContig();}
+					@Override
+					public String getChr() { return getContig(); }
+					@Override
+					public float getScore() { return 0f; }
+					@Override
+					public char getRef() {return '\0';}
+					@Override
+					public String getGene() {return "";}
+					@Override
+					public char getAlt() { return '\0'; }
+					},
+				comparator,
+				Function.identity()
+				).
+				filter(R->var.getReference().equals(Allele.create((byte)R.getRef(),true))).
+				filter(R->var.getAlternateAlleles().stream().anyMatch(A->A.equals(Allele.create((byte)R.getAlt(),false)))).
+				forEach(R->{
+					
+					annotations.add(String.join("|",
+							String.valueOf(R.getAlt()),
+							R.getGene(),
+							String.format("%."+TrapIndexer.SCORE_STRLEN+"f", R.getScore())
+							));
+					if(min_score[0]==null || min_score[0].compareTo(R.getScore())>0)
+						{
+						min_score[0]=R.getScore();
+						}
+					if(max_score[0]==null || max_score[0].compareTo(R.getScore())<0)
+						{
+						max_score[0]=R.getScore();
+						}
+					});
+			if(annotations.isEmpty())
+				{
+				out.add(var);
+				continue;
+				}
+			final VariantContextBuilder vcb = new VariantContextBuilder(var);
+			vcb.attribute(this.ATT, new ArrayList<>(annotations));
+			vcb.attribute(ATT_MIN,min_score[0]);
+			vcb.attribute(ATT_MAX,max_score[0]);
+			out.add(var);
 			}
 		out.close();
-		progress.finish();
+		progress.close();
+		CloserUtil.close(current);
 		return 0;
 		}
 	
@@ -394,7 +343,6 @@ public class VcfTrap extends Launcher {
 	public int doWork(final List<String> args) {
 		try
 			{
-			if(this.component.initialize()!=0) return -1;
 			return doVcfToVcf(args, this.outputFile);
 			}
 		catch(final Exception err)
@@ -402,10 +350,7 @@ public class VcfTrap extends Launcher {
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.component);
-			}
+		
 		}
 		
 	public static void main(final String[] args) {

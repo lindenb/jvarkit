@@ -26,13 +26,18 @@ package com.github.lindenb.jvarkit.util.bio;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Optional;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 
+import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.cram.build.CramIO;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -46,7 +51,14 @@ public static boolean isGRCh38(final VCFHeader h) {
 return h!=null && isGRCh38(h.getSequenceDictionary());
 }
 
-	
+/** return a label for is dictionary or an empty optional */
+public static Optional<String> getBuildName(final SAMSequenceDictionary dict) {
+	if(dict==null || dict.isEmpty()) return Optional.empty();
+	if(isGRCh37(dict)) return Optional.of("GRCh37");
+	if(isGRCh38(dict)) return Optional.of("GRCh38");
+	return Optional.empty();
+}
+
 /** test if dict looks like GRCh37  */
 public static boolean isGRCh37(final SAMSequenceDictionary dict) {
 	if(dict==null || dict.isEmpty()) return false;
@@ -54,7 +66,7 @@ public static boolean isGRCh37(final SAMSequenceDictionary dict) {
 	if(rec==null)  rec = dict.getSequence("1");
 	if(rec!=null) {
 		
-		if(rec.getSequenceLength()==249250621) return true;
+		if(rec.getSequenceLength()==249_250_621) return true;
 		
 		}
 	return false;
@@ -65,7 +77,7 @@ public static boolean isGRCh38(final SAMSequenceDictionary dict) {
 	SAMSequenceRecord rec = dict.getSequence("chr1");
 	if(rec==null)  rec = dict.getSequence("1");
 	if(rec!=null) {
-		if(rec.getSequenceLength()==248956422) return true;	
+		if(rec.getSequenceLength()==248_956_422) return true;	
 		}
 	return false;
 	}
@@ -121,11 +133,19 @@ public static SAMSequenceDictionary extractRequired(final Path f) {
 	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(f);
 	if(dict==null || dict.isEmpty()) 
 		{
-		if(f.getFileName().endsWith(".sam") || f.getFileName().endsWith(".bam") || f.getFileName().endsWith(".cram"))
+		if(StringUtils.endsWith(f.getFileName().toString(),
+			BamFileIoUtils.BAM_FILE_EXTENSION,
+			IOUtil.SAM_FILE_EXTENSION,
+			CramIO.CRAM_FILE_EXTENSION
+			))
 			{
 			throw new JvarkitException.BamDictionaryMissing(f);
 			}
-		if(f.getFileName().endsWith(".vcf") || f.getFileName().endsWith(".bcf") || f.getFileName().endsWith(".vcf.gz"))
+		if(StringUtils.endsWith(f.getFileName().toString(),
+				IOUtil.VCF_FILE_EXTENSION,
+				IOUtil.COMPRESSED_VCF_FILE_EXTENSION,
+				IOUtil.BCF_FILE_EXTENSION)
+				)
 			{
 			throw new JvarkitException.VcfDictionaryMissing(f.toString());
 			}

@@ -31,17 +31,22 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.util.CloserUtil;
 /**
 BEGIN_DOC
@@ -85,11 +90,18 @@ public class Biostar234081 extends Launcher
 	SAMRecordIterator iter=null;  
 	try {
 		in = super.openSamReader(oneFileOrNull(args));
-		w = this.writingBamArgs.openSAMFileWriter(this.outputFile,in.getFileHeader(),true);
+		final SAMFileHeader header= in.getFileHeader();
+		JVarkitVersion.getInstance().addMetaData(this, header);
+		final SAMProgramRecord prg = header.createProgramRecord();
+		prg.setProgramName(this.getProgramName());
+		prg.setProgramVersion(this.getGitHash());
+		prg.setCommandLine(this.getProgramCommandLine());
+		w = this.writingBamArgs.openSAMFileWriter(this.outputFile,header,true);
+		final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		iter=in.iterator();
 		while(iter.hasNext())
 			{
-			final SAMRecord rec = iter.next();
+			final SAMRecord rec = progress.apply(iter.next());
 			if(!rec.getReadUnmappedFlag() &&
 					rec.getCigar()!=null &&
 					rec.getCigar().getCigarElements().
@@ -124,9 +136,13 @@ public class Biostar234081 extends Launcher
 						}
 					}
 				rec.setCigar(new Cigar(elements));
+				rec.setAttribute(SAMTag.PG.name(), prg.getId());
 				}
 			w.addAlignment(rec);
 			}
+		progress.close();
+		iter.close();iter=null;
+		w.close();w=null;
 		return RETURN_OK;
 	} catch (final Exception err) {
 		LOG.error(err);

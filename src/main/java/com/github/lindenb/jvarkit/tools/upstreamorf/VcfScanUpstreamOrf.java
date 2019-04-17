@@ -150,7 +150,7 @@ END_DOC
 description="Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
 keywords={"vcf","uorf"},
 creationDate="2019-02-18",
-modificationDate="2019-02-21"
+modificationDate="2019-02-25"
 )
 public class VcfScanUpstreamOrf extends Launcher
 	{

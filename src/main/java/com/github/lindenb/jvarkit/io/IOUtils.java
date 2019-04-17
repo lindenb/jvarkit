@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.io;
 
@@ -34,8 +30,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,6 +46,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -64,13 +59,14 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.SAMException;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.BlockCompressedStreamConstants;
@@ -186,7 +182,7 @@ public class IOUtils {
 		copyTo(in,f.toPath());
 		}
 	
-	/** copy input stream to path */
+	/** copy input stream to path, no gzip detection is performed */
 	public static void copyTo(final InputStream in,final Path path) throws IOException
 		{
 		final OutputStream fous= Files.newOutputStream(path);
@@ -194,7 +190,14 @@ public class IOUtils {
 		fous.flush();
 		fous.close();
 		}
-
+	/** copy reader  to path, no gzip detection is performed */
+	public static void copyTo(final Reader in,final Path path) throws IOException
+		{
+		final Writer fous= Files.newBufferedWriter(path);
+		copyTo(in,fous);
+		fous.flush();
+		fous.close();
+		}
 	
 	public static void copyTo(final InputStream in,final OutputStream out) throws IOException
 		{
@@ -307,7 +310,7 @@ public class IOUtils {
 			{
 			uri=uri.substring(7);
 			}
-		return openFileForReading(new File(uri));
+		return openPathForReading(Paths.get(uri));
 		}
 	
 	public static BufferedReader openURIForBufferedReading(String uri) throws IOException
@@ -317,19 +320,20 @@ public class IOUtils {
 
 	public static Reader openFileForReader(final File file) throws IOException
 		{
+		return openFileForReader(file.toPath());
+		}
+	
+	/** open file with reader, detect with extension if file is compressed */
+	public static Reader openFileForReader(final Path file) throws IOException
+		{
 		IOUtil.assertFileIsReadable(file);
-		if(isCompressedExtention(file.getName()))
+		if(isCompressedExtention(file.getFileName().toString()))
 			{
-			return new InputStreamReader(openFileForReading(file));
+			return new InputStreamReader(openPathForReading(file));
 			}
-		return new FileReader(file);
+		return Files.newBufferedReader(file);
 		}
 
-
-	/** return true if the file has a compressed suffix '.gz' or '.bz2' */
-	public static final boolean isCompressedExtention(final String s) {
-		return s!=null && (s.endsWith(".gz") || s.endsWith(".bz2"));
-	}
 	
 	public static InputStream openFileForReading(final File file) throws IOException
 		{
@@ -355,7 +359,7 @@ public class IOUtils {
 		return  new BufferedReader(new InputStreamReader(openPathForReading(path), Charset.forName("UTF-8")));
 		}
 	
-	public static BufferedReader openFileForBufferedReading(File file) throws IOException
+	public static BufferedReader openFileForBufferedReading(final File file) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(openFileForReading(file), Charset.forName("UTF-8")));
 		}
@@ -365,48 +369,97 @@ public class IOUtils {
         return new BufferedWriter(new OutputStreamWriter(openFileForWriting(file)), Defaults.BUFFER_SIZE);
     	}
    
+    
+	/** return true if the file has a compressed suffix '.bfz' or '.gz' or '.bz2' */
+	public static final boolean isCompressedExtention(final String s) {
+		return s!=null && StringUtils.endsWith(s, ".gz",".bgz",".bz2");
+		}
+
+    
+    /** return true if path has an interpretable compressed suffix */
+    public static boolean isCompressed(final Path out) {
+    		final String suff= Objects.requireNonNull(out).getFileName().toString();
+    		return	isCompressedExtention(suff);
+    		}
+    
+    /** output path for writing. The following extensions
+     * are interpretted : vcf.gz, .bgz , .gz, .bz2 
+     * @param file
+     * @return
+     * @throws IOException
+     */
+    public static OutputStream openPathForWriting(final Path file) throws IOException
+		{
+    	if(file==null) throw new IllegalArgumentException("path is null");
+    	if(isCompressed(file)) {
+	    	final String base = file.getFileName().toString();
+		    if (base.endsWith(".vcf.gz") || base.endsWith(".bgz"))
+		    	{
+		        return new BlockCompressedOutputStream(
+		        		file,
+		        		BlockCompressedOutputStream.getDefaultCompressionLevel(),
+		        		BlockCompressedOutputStream.getDefaultDeflaterFactory()
+		        		);
+		    	}
+		    else if (base.endsWith(".bz2"))
+		    	{
+		        return new BZip2CompressorOutputStream(Files.newOutputStream(file));
+		    	}
+		    else if (base.endsWith(".gz"))
+		    	{
+		        return new GZIPOutputStream(Files.newOutputStream(file),true);
+		    	}
+		    else
+		    	{
+		    	throw new IllegalStateException("bad suffix ?? "+file);
+		    	}
+	    	}
+	    else
+	    	{
+	        return Files.newOutputStream(file);
+	    	}         
+		}
+    
     public static OutputStream openFileForWriting(final File file) throws IOException
     	{
-        if (file.getName().endsWith(".vcf.gz"))
-        	{
-            return new BlockCompressedOutputStream(file);
-        	}
-        else if (file.getName().endsWith(".bz2"))
-	    	{
-	        return new BZip2CompressorOutputStream(Files.newOutputStream(file.toPath()));
-	    	}
-        else if (file.getName().endsWith(".gz"))
-	    	{
-	        return new GZIPOutputStream(Files.newOutputStream(file.toPath()),true);
-	    	}
-        else
-        	{
-            return Files.newOutputStream(file.toPath());
-        	}         
+    	return openPathForWriting(file.toPath());
     	}
     
     /** open a printwriter, compress if it ends with *.gz  */
     public static PrintWriter openFileForPrintWriter(final File file) throws IOException
 		{
-	    if (isCompressedExtention(file.getName()))
+	    return openPathForPrintWriter(file.toPath());
+		}
+    
+    /** open a printwriter, compress if it ends with *.gz  */
+    public static PrintWriter openPathForPrintWriter(final Path file) throws IOException
+		{
+	    if (isCompressed(file))
 	    	{
-	        return new PrintWriter(openFileForWriting(file));
+	        return new PrintWriter(openPathForWriting(file));
 	    	}
 	    else
 	    	{
-	        return new PrintWriter(file);
+	        return new PrintWriter(Files.newBufferedWriter(file));
 	    	}         
 		}
-
     
     public static LineReader openFileForLineReader(File file) throws IOException
 		{
     	return new SynchronousLineReader(openFileForReading(file));
 		}
+    
     /** @return a LineIterator that should be closed with CloserUtils */
-    public static LineIterator openFileForLineIterator(File file) throws IOException
+    public static LineIterator openPathForLineIterator(final Path file) throws IOException
   		{
-  		return  new LineIteratorImpl(openFileForLineReader(file));
+  		return  new com.github.lindenb.jvarkit.util.iterator.LineIterator(openPathForBufferedReading(file));
+  		}
+
+    
+    /** @return a LineIterator that should be closed with CloserUtils */
+    public static LineIterator openFileForLineIterator(final File file) throws IOException
+  		{
+  		return openPathForLineIterator(file.toPath());
   		}
     
     public static LineReader openStdinForLineReader() throws IOException
@@ -454,7 +507,7 @@ public class IOUtils {
     /** read String from DataInputStream
      * motivation: readUTF can't print lines larger than USHORTMAX
      *  */
-    public static String readString(DataInputStream in) throws IOException
+    public static String readString(final DataInputStream in) throws IOException
     	{
     	int llength=in.readInt();
     	if(llength==-1) return null;
@@ -480,19 +533,29 @@ public class IOUtils {
 			}
 		}
     public static final String UNROLL_FILE_MESSAGE="if filename ends with '.list' it is interpreted as a list of file (one file per line)";
-	/** unrol one file if needed, If file is null, returns empty list*/
+	
+    /** unroll one file if it ends with '.list' , else its a singleton of file. If file is null, returns empty list*/
     public static List<File> unrollFile(final File file)
+		{
+		return unrollPath(file==null?null:file.toPath()).
+				stream().
+				map(F->F.toFile()).
+				collect(Collectors.toList())
+				;
+		}
+    /** unroll one file if it ends with '.list' , else its a singleton of file. If file is null, returns empty list*/
+    public static List<Path> unrollPath(final Path file)
 		{
 		if(file==null) return Collections.emptyList();
 		IOUtil.assertFileIsReadable(file);
-		if(!file.getName().endsWith(".list")) return Collections.singletonList(file);
+		if(!file.getFileName().toString().endsWith(".list")) return Collections.singletonList(file);
 		try {
-			return Files.readAllLines(file.toPath()).stream().
-				filter(L->!(L.isEmpty() || L.startsWith("#"))).
-				map(L->new File(L)).
+			return Files.readAllLines(file).stream().
+				filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
+				map(L->Paths.get(L)).
 				collect(Collectors.toList());
 			} 
-		catch (IOException e) {
+		catch (final IOException e) {
 			throw new RuntimeIOException(e);
 			}
 		}
@@ -592,6 +655,36 @@ public class IOUtils {
 			}
 		return new ArrayList<>(fileset);
 		}
+	
+	 /** 
+     * new version of unrollFiles
+     * only one list
+     * duplicate file are removed
+     * return List of Files
+     */
+	public static List<Path> unrollPaths(final java.util.List<String> args)
+		{
+		if(args.isEmpty()) return Collections.emptyList();
+		final LinkedHashSet<Path> fileset = new LinkedHashSet<>();
+		if(args.size()==1 && args.get(0).endsWith(".list"))
+			{
+			final File listFile = new File(args.get(0));
+			IOUtil.assertFileIsReadable(listFile);
+			IOUtil.readLines(listFile).forEach(s->{
+				if (s.endsWith("#")) return;
+				if (StringUtil.isBlank(s)) return;
+				fileset.add(Paths.get(s));
+				});
+			}
+		else
+			{
+			fileset.addAll(args.stream().
+					map(S->Paths.get(S)).
+					collect(Collectors.toList()/* to list to keep oreder */));
+			}
+		return new ArrayList<>(fileset);
+		}
+	
 	 /** 
      * new version of unrollFiles in 2018, for common usage...
      * only one list
@@ -647,30 +740,7 @@ public class IOUtils {
 	/** converts a BufferedReader to a line Iterator */
 	public static  LineIterator toLineIterator(final BufferedReader r)
 		{
-		return new BuffReadIter(r);
-		}
-	private static class BuffReadIter 
-		extends AbstractIterator<String>
-		implements LineIterator
-		{
-		private BufferedReader in;
-		BuffReadIter(final BufferedReader in)
-			{
-			this.in=in;
-			}
-		@Override
-		protected String advance()
-			{
-			if(in==null) return null;
-			final String s;
-			try {
-				s = in.readLine();
-				if(s==null) {CloserUtil.close(this.in);this.in=null;}
-				return s;
-			} catch (final IOException e) {
-				throw new RuntimeIOException(e);
-				}
-			}
+		return new com.github.lindenb.jvarkit.util.iterator.LineIterator(r);
 		}
 	
 	/** Prevent an output stream to be closed. 
@@ -696,13 +766,18 @@ public class IOUtils {
 		if(w==null) return;
 		try { w.flush();} catch(Throwable err) {}
 	}
+	
 	/** write something in a file */
-	public static void cat(final Object o,final File out, boolean append)
+	public static void cat(final Object o,final Path out, boolean append)
 		{
 		PrintWriter w=null;
 		try
 			{
-			w= new PrintWriter( new FileWriter(out, append));
+			w= new PrintWriter(
+					append?
+					Files.newBufferedWriter(out, StandardOpenOption.APPEND):
+					Files.newBufferedWriter(out)
+					);
 			w.print(o);
 			w.flush();
 			w.close();
@@ -717,6 +792,14 @@ public class IOUtils {
 			if(w!=null) w.close();
 			}
 		}
+
+	
+	/** write something in a file */
+	public static void cat(final Object o,final File out, boolean append)
+		{
+		cat(o,out.toPath(),append);
+		}
+	
 	/** create tmp directory into existing another directory */
 	 public static File createTempDir(final String prefix, final String suffix,final File parentDir) {
 	     IOUtil.assertDirectoryIsWritable(parentDir);   
@@ -733,4 +816,14 @@ public class IOUtils {
 	            throw new RuntimeIOException("Exception creating temporary directory in "+parentDir, e);
 	        }
 	    }
+	 
+	 /** return the string after the last dot, INCLUDING THE DOT */
+	public static final String getFileSuffix(final Path path) {
+		if(path==null) throw new IllegalArgumentException("path is null");
+		final String s = path.getFileName().toString();
+		int dot = s.lastIndexOf('.');
+		if(dot==-1) throw new IllegalArgumentException("cannot find dot file of "+path);
+		return s.substring(dot);
+		}
+ 
 	}

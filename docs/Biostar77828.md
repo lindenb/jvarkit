@@ -42,6 +42,7 @@ Usage: biostar77828 [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/77828](https://www.biostars.org/p/77828)
+ * [https://www.biostars.org/p/369434](https://www.biostars.org/p/369434)
 
 
 ## Compilation
@@ -65,6 +66,10 @@ The java jar file will be installed in the `dist` directory.
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar77828.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar77828.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar77828Test.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar77828Test.java)
+
 
 ## Contribute
 
@@ -87,5 +92,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## input
 
+input is a bed file
+
+## see also
+
+  * https://gist.github.com/lindenb/6130880/
 

@@ -48,8 +48,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
@@ -96,7 +97,8 @@ END_DOC
 @Program(name="biostar154220",
 	description="Cap BAM to a given coverage",
 	biostars=154220,
-	keywords={"bam","sam","coverage"}
+	keywords={"bam","sam","coverage"},
+	modificationDate="20190417"
 	)
 public class Biostar154220 extends Launcher
 	{
@@ -108,8 +110,8 @@ public class Biostar154220 extends Launcher
 	@Parameter(names={"-n","--depth"},description="number of reads")
 	private int capDepth=20;
 	
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-filter","--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter filter  = SamRecordFilterFactory.getDefault();
 
 	@ParametersDelegate
 	private WritingBamArgs writingBams=new WritingBamArgs();

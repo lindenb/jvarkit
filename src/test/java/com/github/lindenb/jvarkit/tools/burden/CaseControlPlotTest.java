@@ -1,50 +1,56 @@
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class CaseControlPlotTest extends TestUtils {
+public class CaseControlPlotTest  {
+	private final TestSupport support = new TestSupport();
 
-@Test(enabled=false)
+@Test
 public void test01() throws IOException {
-	final String inputFile = SRC_TEST_RESOURCE+"/rotavirus_rf.vcf.gz";
-	final File xmlFile = super.createTmpFile(".xml");
-	final PrintWriter pw = new PrintWriter(xmlFile);
-	pw.println(
-		"<?xml version=\"1.0\"?><config>" +
-		"<filter id=\"f\">variant.getStart()%2==0</filter>"+
-		"<maf id=\"m\"/>"+
-		"<handler name=\"H\">"+
-		"<filter ref=\"f\"/>"+
-		"<case ref=\"m\"/>"+
-		"<ctrl/>"+
-		"</handler>"+
-		"</config>"
-		);
-	pw.flush();
-	pw.close();
-	assertIsXml(xmlFile);
+	try {
+		final String inputFile = support.resource("rotavirus_rf.vcf.gz");
+		final Path xmlFile = support.createTmpPath(".xml");
+		final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(xmlFile));
+		pw.println(
+			"<?xml version=\"1.0\"?><config>" +
+			"<filter id=\"f\">variant.getStart()%2==0</filter>"+
+			"<maf id=\"m\"/>"+
+			"<handler name=\"H\">"+
+			"<filter ref=\"f\"/>"+
+			"<case ref=\"m\"/>"+
+			"<ctrl/>"+
+			"</handler>"+
+			"</config>"
+			);
+		pw.flush();
+		pw.close();
+		support.assertIsXml(xmlFile);
+		
+		final Path ped = support.createRandomPedigreeFromFile(inputFile);
 	
-	final File ped = super.createRandomPedigreeFromFile(inputFile);
-
-	
-	final File output = super.createTmpFile(".zip");
-	Assert.assertEquals(new CaseControlPlot().instanceMain(
-    		newCmd().add(
-    		"-o",output,
-    		"--pedigree",ped,
-    		"--config",xmlFile,
-    		inputFile
-    		).make()
-    	),0);
-	
-	assertZip(output);
+		
+		final Path output = support.createTmpPath(".zip");
+		Assert.assertEquals(new CaseControlPlot().instanceMain(
+	    		new String[] {
+	    		"-o",output.toString(),
+	    		"--pedigree",ped.toString(),
+	    		"--config",xmlFile.toString(),
+	    		inputFile
+	    		}),0);
+		
+		support.assertZip(output);
+		} 
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 	
 }

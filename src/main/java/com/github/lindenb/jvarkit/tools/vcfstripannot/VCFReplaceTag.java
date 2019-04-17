@@ -61,17 +61,25 @@ import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
 
+## Deprecated 
+
+use `bcftools annotate` with option `-c`
+
 ## Example
 
 ```bash
 $   java -jar dist/vcfreplacetag.jar -t INFO -k VDB/NEWNAME ~/jeter.vcf 
 ```
 
-
-
 END_DOC
  */
-@Program(name="vcfreplacetag",description="Replace the key for INFO/FORMAT/FILTER",keywords={"vcf"})
+@Program(
+		name="vcfreplacetag",
+		description="Replace the key for INFO/FORMAT/FILTER",
+		keywords={"vcf"},
+		deprecatedMsg="use `bcftools annotate` with option `-c`",
+		modificationDate="20190321"
+		)
 public class VCFReplaceTag extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFReplaceTag.class).make();	

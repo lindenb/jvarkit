@@ -50,18 +50,21 @@ import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 
 
@@ -118,7 +121,8 @@ END_DOC
 @Program(
 		name="vcfliftover",
 		description="Lift-over a VCF file",
-		keywords={"vcf","liftover"}
+		keywords={"vcf","liftover"},
+		modificationDate="20190408"
 		)
 public class VcfLiftOver extends Launcher
 	{
@@ -184,14 +188,14 @@ public class VcfLiftOver extends Launcher
 			
 			final VCFHeader header3=new VCFHeader(headerLines,inputHeader.getSampleNamesInOrder());
 			header3.setSequenceDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
-			header3.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			header3.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			JVarkitVersion.getInstance().addMetaData(this, header3);
+			header3.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY, true));
 			header3.addMetaDataLine(new VCFInfoHeaderLine(this.infoTag,1,VCFHeaderLineType.String,"Chromosome|Position before liftOver."));
 			out.writeHeader(header3);
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(in.getHeader());
+			final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 			while(in.hasNext())
 				{
-				VariantContext ctx=progress.watch(in.next());
+				VariantContext ctx=progress.apply(in.next());
 				if(!this.removeInfo.isEmpty())
 					{
 					VariantContextBuilder vcb= new VariantContextBuilder(ctx);
@@ -298,6 +302,9 @@ public class VcfLiftOver extends Launcher
 					vcb.attribute(this.infoTag,ctx.getContig()+"|"+ctx.getStart()+"|"+ctx.getReference().getDisplayString());
 					vcb.filters(ctx.getFilters());
 					vcb.log10PError(ctx.getLog10PError());
+					if(lifted.getStart()!=lifted.getEnd()) {
+						vcb.attribute(VCFConstants.END_KEY,lifted.getEnd());
+					}
 					  
 					final GenotypesContext genotypeContext = ctx.getGenotypes();
 					final GenotypesContext fixedGenotypes = GenotypesContext.create(genotypeContext.size());
@@ -316,6 +323,7 @@ public class VcfLiftOver extends Launcher
 				    out.add(vcb.make());
 					}
 				}
+			progress.close();
 			if(failed!=null)
 				{
 				failed.close();

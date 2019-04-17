@@ -31,9 +31,12 @@ package com.github.lindenb.jvarkit.util.bio.fasta;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -41,10 +44,15 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
+import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.cram.build.CramIO;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -126,25 +134,61 @@ private static class MapBasedContigNameConverter extends ContigNameConverter
 	
 	}
 
+public static final String OPT_DICT_OR_MAPPING_FILE_DESC="Chromosome mapping file. If the file looks like a NGS file (vcf, bam) the mapping is extracted from a dictionary; Otherwise, it is interpreted as a mapping file ( See https://github.com/dpryan79/ChromosomeMappings )";
+/** if file looks like a dictionary (fasta, vcf, dict...) use it , otherwise it's a mapping file */
+public static ContigNameConverter fromPathOrOneDictionary(final Path file) {
+	IOUtil.assertFileIsReadable(file);	
+	final String filename=file.getFileName().toString();
+	if(ReferenceSequenceFileFactory.FASTA_EXTENSIONS.stream().anyMatch(E->filename.endsWith(E)) || 
+		StringUtils.endsWith(filename, 
+				IOUtil.SAM_FILE_EXTENSION,
+				BamFileIoUtils.BAM_FILE_EXTENSION,
+				CramIO.CRAM_FILE_EXTENSION,
+				IOUtil.DICT_FILE_EXTENSION,
+				IOUtil.INTERVAL_LIST_FILE_EXTENSION,
+				IOUtil.VCF_FILE_EXTENSION,
+				IOUtil.COMPRESSED_VCF_FILE_EXTENSION,
+				IOUtil.BCF_FILE_EXTENSION
+				))
+		{
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(file);
+		return fromOneDictionary(dict);
+		}
+	else
+		{
+		return fromPath(file);
+		}
+	}
+
+
+public static final String OPT_MAPPING_FILE_DESC="Chromosome mapping file. See https://github.com/dpryan79/ChromosomeMappings";
+
 public static ContigNameConverter fromFile(final File mappingFile)
+	{
+	return fromPath(mappingFile==null?null:mappingFile.toPath());
+	}
+
+
+public static ContigNameConverter fromPath(final Path mappingFile)
 	{
 	IOUtil.assertFileIsReadable(mappingFile);
 	final MapBasedContigNameConverter mapper=new MapBasedContigNameConverter();
-	mapper.name=mappingFile.getName();
+	mapper.name=mappingFile.getFileName().toString();
 	BufferedReader in=null;
 	try {
-		in=IOUtils.openFileForBufferedReading(mappingFile);
+		final CharSplitter tab= CharSplitter.TAB;
+		in=IOUtils.openPathForBufferedReading(mappingFile);
 		String line;
 		while((line=in.readLine())!=null)
 			{
-			if(line.isEmpty() || line.startsWith("#")) continue;
-			final String tokens[]=line.split("[\t]");
+			if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
+			final String tokens[]=tab.split(line);
 			if(tokens.length!=2
-					|| tokens[0].trim().isEmpty()
-					|| tokens[1].trim().isEmpty()
+					|| StringUtils.isBlank(tokens[0])
+					|| StringUtils.isBlank(tokens[1])
 					) {
 				in.close();in=null;
-				throw new IOException("Bad mapping line: \""+line+"\"");
+				throw new IOException("Bad mapping line: \""+line+"\" in "+mappingFile);
 				}
 			tokens[0]=tokens[0].trim();
 			tokens[1]=tokens[1].trim();
@@ -337,6 +381,13 @@ public static ContigNameConverter fromOneContig(final String contig)
 private static class OneDictionary extends ContigNameConverter
 	{
 	private final SAMSequenceDictionary dict;
+	@SuppressWarnings("serial")
+	private final Set<String> mitochrondrials = new HashSet<String>() {{{
+		add("M");
+		add("MT");
+		add("chrM");
+		add("chrMT");
+	}}};
 	OneDictionary( final SAMSequenceDictionary dict)
 		{
 		this.dict = dict;
@@ -355,19 +406,18 @@ private static class OneDictionary extends ContigNameConverter
 	protected String find(final String contig) {
 		if(this.dict.getSequenceIndex(contig)!=-1) return contig;
 		
-	
-		if(contig.equals("chrM"))
+		if(this.mitochrondrials.contains(contig))
 			{
-			SAMSequenceRecord ssr = this.dict.getSequence("M");
-			if(ssr==null) ssr = this.dict.getSequence("MT");
-			if(ssr!=null) return ssr.getSequenceName();
+			final Optional<String> mitName = this.mitochrondrials.
+				stream().
+				filter(S->!S.equals(contig)).
+				map(S->this.dict.getSequence(S)).
+				filter(SSR->SSR!=null).
+				map(SSR->SSR.getSequenceName()).
+				findFirst();
+			if(mitName.isPresent()) return mitName.get();
 			}
-		else if(contig.equals("M") || contig.equals("MT"))
-			{
-			SAMSequenceRecord ssr = this.dict.getSequence("chrM");
-			if(ssr==null) ssr = this.dict.getSequence("chrMT");
-			if(ssr!=null) return ssr.getSequenceName();
-			}
+		
 		
 		final String c2;
 		if(contig.startsWith("chr"))

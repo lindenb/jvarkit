@@ -4,11 +4,10 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
 import htsjdk.variant.variantcontext.Allele;
 
-public class ContigPosRefTest extends TestUtils{
+public class ContigPosRefTest {
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {

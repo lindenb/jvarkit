@@ -1,56 +1,69 @@
 package com.github.lindenb.jvarkit.tools.bam2svg;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Arrays;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-import htsjdk.samtools.util.Interval;
+public class WesCnvSvgTest{
+	private final TestSupport support = new TestSupport();
 
-public class WesCnvSvgTest extends TestUtils{
 @Test
 public void testWithBed() throws IOException{
-	final File svg = super.createTmpFile(".svg");
-	final File bed = super.createTmpFile(".bed");
-	final List<Interval> interval =super.randomIntervalsFromDict(new File(SRC_TEST_RESOURCE+"/rotavirus_rf.dict"), 10);
-	final PrintWriter pw=new PrintWriter(bed);
-	for(Interval i:interval) {
-		pw.println(i.getContig()+"\t"+(i.getStart()-1)+"\t"+i.getEnd());
-	}
+	try {
+	
+	
+	final Path svg = support.createTmpPath(".svg");
+	final Path bed = support.createTmpPath(".bed");
+	final PrintWriter pw=new PrintWriter(Files.newOutputStream(bed));
+	pw.println("RF01\t1\t100");
+	pw.println("RF02\t1\t100");
+	pw.println("RF03\t1\t100");
 	pw.flush();
 	pw.close();
-	assertIsBed(bed);
+	support.assertIsBed(bed);
 	
-	Assert.assertEquals(new WesCnvSvg().instanceMain(newCmd().add(
-			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.fa",
-			"-B",bed,
-			"-o",svg).
-			add(Arrays.asList("1","2","3","4","5").stream().
-				map(S->SRC_TEST_RESOURCE+"/S"+S+".bam").
-				toArray()).
-			make()
-			),0);
-	assertIsXml(svg);
+	final List<String> args= new ArrayList<>();
+	args.add("-R");
+	args.add(support.resource("rotavirus_rf.fa"));
+	args.add("-B");
+	args.add(bed.toString());
+	args.add("-o");
+	args.add(svg.toString());
+	for(int i=1;i<=5;i++) args.add(support.resource("S"+i+".bam"));
+	
+	Assert.assertEquals(new WesCnvSvg().instanceMain(args),0);
+	support.assertIsXml(svg);
+	} finally {
+		support.removeTmpFiles();
+	}
 	}
 @Test
 public void testWithRegion() throws IOException{
-	final File svg = super.createTmpFile(".svg");	
-	Assert.assertEquals(new WesCnvSvg().instanceMain(newCmd().add(
-			"-R",SRC_TEST_RESOURCE+"/rotavirus_rf.fa",
-			"--region","RF01:1-100;RF02:200-300",
-			"-o",svg).
-			add(Arrays.asList("1","2","3","4","5").stream().
-				map(S->SRC_TEST_RESOURCE+"/S"+S+".bam").
-				toArray()).
-			make()
-			),0);
-	assertIsXml(svg);
+	try {
+	final Path svg = support.createTmpPath(".svg");
+	
+	final List<String> args= new ArrayList<>();
+	args.add("-R");
+	args.add(support.resource("rotavirus_rf.fa"));
+	args.add("--region");
+	args.add("RF01:1-100;RF02:200-300");
+	args.add("-o");
+	args.add(svg.toString());
+	for(int i=1;i<=5;i++) args.add(support.resource("S"+i+".bam"));
+	
+	Assert.assertEquals(new WesCnvSvg().instanceMain(args),0);
+	support.assertIsXml(svg);
+	} finally {
+		support.removeTmpFiles();
 	}
+}
 
 }

@@ -1,22 +1,40 @@
 package com.github.lindenb.jvarkit.tools.vcfbed;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
 
-public class VCFBedTest extends TestUtils{
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+
+@AlsoTest(LauncherTest.class)
+public class VCFBedTest{
+	private final TestSupport support =new TestSupport();
+
+	@DataProvider(name = "src1")
+	public Object[][] createData1() {
+		return support.toArrayArray(support.
+				allVcfOrBcf().
+				map(F->new Object[] {F})
+				)
+				;
+		}
 	
-	@Test(dataProvider = "all-vcf-files")
+	@Test(dataProvider = "src1")
 	public void testMemory(final String invcf) throws IOException {
-		final File out = createTmpFile(".vcf");
-		final File bedout = createTmpFile(".bed");
+		try {
+		final Path out = support.createTmpPath(".vcf");
+		final Path bedout = support.createTmpPath(".bed");
 		
-		final PrintWriter pw = new PrintWriter(bedout);
-		super.randomIntervalsFromDict(new File(invcf), 100).stream().forEach(
+		final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(bedout));
+		support.randomIntervalsFromDict(Paths.get(invcf), 100,1000).stream().forEach(
 				R->pw.println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd())
 				);
 		pw.flush();
@@ -24,10 +42,14 @@ public class VCFBedTest extends TestUtils{
 		
 		
 		Assert.assertEquals(new VCFBed().instanceMain(new String[] {
-			"-o",out.getPath(),
-			"-m",bedout.getPath(),
+			"-o",out.toString(),
+			"-m",bedout.toString(),
 			invcf
 			}),0);
-		assertIsVcf(out);
+		support.assertIsVcf(out);
+		} finally
+			{
+			support.removeTmpFiles();
+			}
 		}
 	}

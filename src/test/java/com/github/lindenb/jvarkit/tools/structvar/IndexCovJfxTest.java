@@ -1,19 +1,19 @@
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.TestUtils;
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-public class IndexCovJfxTest extends TestUtils{
+@AlsoTest(LauncherTest.class)
+public class IndexCovJfxTest {
 	
 @Test(enabled=false)
 public void test01() throws IOException
 	{
-
+	/*
 	final File dataFile = super.createTmpFile(".tsv");
 	int nsamples=3;
 	PrintWriter pw=new PrintWriter(dataFile);
@@ -36,5 +36,6 @@ public void test01() throws IOException
     		dataFile
     		).make()
 			);
+	*/
 	}
 }

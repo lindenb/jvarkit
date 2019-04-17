@@ -60,7 +60,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.jcommander.CmdUsageBuilder;
@@ -131,7 +131,7 @@ private List<String> files = new ArrayList<>();
 
 private String programName="";
 
-public class CompressionArgs
+public static class CompressionArgs
 	{
 	@Parameter(names={"--compression"},description="Compression Level.",converter=CompressionConverter.class)
 	public IntSupplier compressionLevel=CompressionConverter.getDefault();
@@ -430,12 +430,11 @@ public Launcher()
 	@SuppressWarnings({"rawtypes","unchecked","serial"})
 	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(Dimension.class,DimensionConverter.class);
-		    put(SamRecordFilter.class,SamFilterParser.StringConverter.class);
+		    put(SamRecordFilter.class,SamRecordFilterFactory.class);
 		    put(Random.class,RandomConverter.class);
 		}};	
 
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {
-			@SuppressWarnings("unchecked")
 			@Override
 			public Class<? extends IStringConverter<?>> getConverter(@SuppressWarnings("rawtypes") Class forType) {		
 				return MAP.get(forType);
@@ -707,6 +706,12 @@ public int doWork(final List<String> args)
 	{
 	return -1;
 	}
+
+/** instanceMain with Collection to make test-unit easier to write , just call `args.toArray` */
+public final int instanceMain(final List<String> args) {
+	return instanceMain(args.toArray(new String[args.size()]));
+	}
+	
 public int instanceMain(final String args[]) {
 	int ret=RETURN_OK;
 	try 
@@ -773,15 +778,17 @@ public InputStream stdin(final InputStream in) {InputStream old=_stdin; this._st
 
 
 /** open output (file or stdout) as PrintWriter */
-protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(File out) throws java.io.IOException
+protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(final File out) throws java.io.IOException
+	{
+	return this.openPathOrStdoutAsPrintWriter(out==null?null:out.toPath());
+	}
+
+/** open output (path or stdout) as PrintWriter */
+protected java.io.PrintWriter openPathOrStdoutAsPrintWriter(final Path out) throws java.io.IOException
 	{
 	if(out!=null)
 		{
-		if(out.getName().endsWith(".gz"))
-			{
-			return new java.io.PrintWriter(this.openFileOrStdoutAsStream(out));
-			}
-		return new java.io.PrintWriter(out);
+		return IOUtils.openPathForPrintWriter(out);
 		}
 	else
 		{
@@ -793,20 +800,15 @@ protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(File out) throws jav
 /** open output (file or stdout if out is null ) as PrintStream */
 protected java.io.PrintStream openFileOrStdoutAsPrintStream(final File out) throws java.io.IOException
 	{
+	return this.openPathOrStdoutAsPrintStream(out==null?null:out.toPath());
+	}
+
+/** open output (file or stdout if out is null ) as PrintStream */
+protected java.io.PrintStream openPathOrStdoutAsPrintStream(final Path out) throws java.io.IOException
+	{
 	if(out!=null)
 		{
-		if(out.getName().endsWith(".gz") || out.getName().endsWith(".bz2"))
-			{
-			final java.io.OutputStream os = this.openFileOrStdoutAsStream(out);
-			if(os instanceof java.io.PrintStream) {
-				return java.io.PrintStream.class.cast(os);
-				}
-			else
-				{
-				return new java.io.PrintStream(os);
-				}
-			}
-		return new java.io.PrintStream(out);
+		return new PrintStream(IOUtils.openPathForWriting(out));
 		}
 	else
 		{
@@ -814,18 +816,26 @@ protected java.io.PrintStream openFileOrStdoutAsPrintStream(final File out) thro
 		}
 	}
 
+
 /** open output (file or stdout) as OutputStream */
 protected java.io.OutputStream openFileOrStdoutAsStream(final File out) throws java.io.IOException
 	{
+	return openPathOrStdoutAsStream(out==null?null:out.toPath());
+	}
+
+/** open output (file or stdout) as OutputStream */
+protected java.io.OutputStream openPathOrStdoutAsStream(final Path out) throws java.io.IOException
+	{
 	if(out!=null)
 		{
-		return  IOUtils.openFileForWriting(out);
+		return  IOUtils.openPathForWriting(out);
 		}
 	else
 		{
 		return stdout();
 		}
 	}
+
 
 /** create a new SamReaderFactory */
 protected htsjdk.samtools.SamReaderFactory createSamReaderFactory()

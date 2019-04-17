@@ -150,7 +150,7 @@ END_DOC
  */
 @Program(name="gtf2xml",
 	description="Convert GTF/GFF to XML",
-	keywords={"xml","gtf","gff"})
+	keywords={"xml","gtf","gff","gff3"})
 public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.build(FixVCF.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -205,7 +205,7 @@ public class Gtf2Xml extends Launcher{
 			}
 		
 		w.writeStartElement("attributes");
-		for(final Iterator<Map.Entry<String, String>> kvr=line.iterator();
+		for(final Iterator<Map.Entry<String, String>> kvr=line.getAttributeIterator();
 				kvr.hasNext();
 				)
 			{

@@ -27,6 +27,7 @@ import com.beust.jcommander.converters.IParameterSplitter;
 import java.util.Collections;
 import java.util.List;
 
+/** a splitter that doesn't split anything ... */
 public class NoSplitter implements IParameterSplitter {
 @Override
 public List<String> split(final String value) {

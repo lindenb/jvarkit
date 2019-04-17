@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+
 public class RangeOfIntegers {
 public static final String OPT_DESC="A 'range of integers' is a list of integers in ascending order separated with semicolons. ";
 /** generate RangeOfIntegers from a String with values separated with semicolons */
@@ -98,7 +100,7 @@ private final List<Range> ranges;
 
 /** generate RangeOfIntegers from a String with values separated with semicolons */
 public RangeOfIntegers(final String s) {
-	this(Arrays.asList(s.split(";")).stream().
+	this(Arrays.asList(CharSplitter.SEMICOLON.split(s)).stream().
 			filter(S->!S.trim().isEmpty()).
 			mapToInt(S->Integer.valueOf(S)).
 			toArray());
@@ -125,7 +127,7 @@ public List<Range> getRanges() {
 	return this.ranges;
 	}
 
-public Range getRange(int value) {
+public Range getRange(final int value) {
 	for(final Range r:getRanges())
 		{
 		if(r.contains(value)) return r;

@@ -37,7 +37,7 @@ Usage: vcfrefbase [options] Files
     --version
       print version and exit
     -w, -weight, --weight
-      min enzyme weight
+      min enzyme weight 6 = 6 cutter like GAATTC, 2 = 2 cutter like ATNNNNNNAT
       Default: 5.0
 
 ```
@@ -71,6 +71,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfrebase/VcfRebase.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfrebase/VcfRebase.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfrebase/VcfRebaseTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfrebase/VcfRebaseTest.java)
 
 
 ## Contribute

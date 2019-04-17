@@ -31,26 +31,39 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 
 public interface ArchiveFactory extends Closeable{
 
+	public static final String OPT_DESC="An existing directory or a filename ending with the '.zip' suffix.";
 	
 	public abstract OutputStream openOuputStream(final String filename) throws IOException;
+	
+	/** copy whole file into the archive */
+	public default void copyTo(final Path externalFile,final String filename) throws IOException {
+		try ( OutputStream os = openOuputStream(filename))
+			{
+			IOUtils.copyTo(externalFile, os);
+			os.flush();
+			}
+		}
 	
 	public default PrintWriter openWriter(final String filename) throws IOException
 		{
 		return new PrintWriter(openOuputStream(filename), true);
 		}
 
+	
 	/** open a new ArchiveFactory, if filename ends with '.zip' it will be a zip instance
 	 * otherwise it will be a FileInstance */
-	public static ArchiveFactory open(final File f)  throws IOException
+	public static ArchiveFactory open(final Path f)  throws IOException
 		{
 		if( f == null ) throw new IllegalArgumentException("Cannot open(null)");
-		if(f.getName().toLowerCase().endsWith(".zip"))
+		if(f.getFileName().toString().toLowerCase().endsWith(".zip"))
 			{
 			return new ZipInstance(f);
 			}
@@ -59,17 +72,25 @@ public interface ArchiveFactory extends Closeable{
 			return new FileInstance(f);
 			}
 		}
+
+	
+	/** open a new ArchiveFactory, if filename ends with '.zip' it will be a zip instance
+	 * otherwise it will be a FileInstance */
+	public static ArchiveFactory open(final File f)  throws IOException
+		{
+		return open(f==null?null:f.toPath());
+		}
 	
 	
 	static class ZipInstance
 		implements ArchiveFactory
 		{
-		FileOutputStream fout;
+		OutputStream fout;
 		ZipOutputStream zout;
 		
-		ZipInstance(final File f) throws IOException
+		ZipInstance(final Path f) throws IOException
 			{
-			fout=new FileOutputStream(f);
+			fout= Files.newOutputStream(f);
 			zout=new ZipOutputStream(fout);
 			}
 		
@@ -159,12 +180,12 @@ public interface ArchiveFactory extends Closeable{
 	
 	static class FileInstance implements ArchiveFactory
 		{
-		private final File baseDir;
+		private final Path baseDir;
 		
-		FileInstance(final File baseDir) throws IOException
+		FileInstance(final Path baseDir) throws IOException
 			{
 			this.baseDir=baseDir;
-			if(baseDir.exists() && !baseDir.isDirectory())
+			if(Files.exists(baseDir) && !Files.isDirectory(baseDir))
 				{
 				throw new IOException("Not a directory:"+baseDir);
 				}				
@@ -173,13 +194,13 @@ public interface ArchiveFactory extends Closeable{
 		@Override
 		public OutputStream openOuputStream(String filename) throws IOException
 			{
-			while(filename.startsWith("/")) filename=filename.substring(1);
-			final File f=new File(baseDir, filename);
-			if(f.getParentFile()!=null)
+			while(filename.startsWith(File.separator)) filename=filename.substring(1);
+			final Path f= this.baseDir.resolve(filename);
+			if(f.getParent()!=null)
 				{
-				f.getParentFile().mkdirs();
+				Files.createDirectories(f.getParent());
 				}
-			return new FileOutputStream(f);
+			return Files.newOutputStream(f);
 			}
 		@Override
 		public void close() throws IOException
