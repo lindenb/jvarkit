@@ -56,8 +56,9 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
@@ -142,7 +143,8 @@ END_DOC
  */
 @Program(name="wescnvsvg",
 description="SVG visualization of bam DEPTH for multiple regions",
-keywords={"bam","alignment","graphics","visualization","svg","wes","bed","capture","exome"}
+keywords={"bam","alignment","graphics","visualization","svg","wes","bed","capture","exome"},
+modificationDate="20190417"
 )
 public class WesCnvSvg  extends Launcher {
 	private static final Logger LOG = Logger.build(WesCnvSvg.class).make();
@@ -164,8 +166,8 @@ public class WesCnvSvg  extends Launcher {
 	private int pixSmoothSize = 100 ;
 	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
 	private int capMaxDepth = -1 ;
-	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
+	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
 	@Parameter(names={"--title"},description="document title")
 	private String domSvgTitle=WesCnvSvg.class.getSimpleName();
 	@Parameter(names={"-u","--url","--hyperlink"},description=

@@ -34,8 +34,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -82,8 +84,10 @@ END_DOC
 
 @Program(name="biostar234230",
 	description="Sliding Window : discriminate partial and fully contained fragments (from a bam file)",
-	biostars=234230
-)
+	biostars=234230,
+	keywords= {"sam","bam"},
+	modificationDate="20190417"
+	)
 public class Biostar234230 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar234230.class).make();
@@ -91,14 +95,14 @@ public class Biostar234230 extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-w","--winsize"},description="Window size")
+	@Parameter(names={"-w","--winsize"},description="Window size. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int windowSize = 100 ;
 
-	@Parameter(names={"-s","--winshift"},description="Shift each window by 's' bases")
+	@Parameter(names={"-s","--winshift"},description="Shift each window by 's' bases." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int windowShift = 50 ;
 
-	@Parameter(names={"-filter","--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter filter  = SamFilterParser.buildDefault();
+	@Parameter(names={"-filter","--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter filter  = SamRecordFilterFactory.getDefault();
 
 	
 	private static class SlidingWindow
@@ -245,7 +249,7 @@ public class Biostar234230 extends Launcher
 			out.flush();
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -258,7 +262,7 @@ public class Biostar234230 extends Launcher
 			}	
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new Biostar234230().instanceMainWithExit(args);
 		}
 	}

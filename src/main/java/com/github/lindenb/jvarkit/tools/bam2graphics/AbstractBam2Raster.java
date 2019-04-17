@@ -49,9 +49,10 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
@@ -89,8 +90,8 @@ public abstract class AbstractBam2Raster extends Launcher{
 	protected int maxRows=-1;
 	@Parameter(names={"-depth","--depth"},description="Depth track height.")
 	protected int depthSize=100;
-	@Parameter(names={"-srf","--samRecordFilter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	protected SamRecordFilter samRecordFilter = SamFilterParser.buildDefault();
+	@Parameter(names={"-srf","--samRecordFilter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	protected SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
 	@Parameter(names={"-minh","--minh"},description="Min. distance between two reads.")
 	protected int minDistanceBetweenPairs=2;
 	@Parameter(names={"--spaceyfeature"},description="number of pixels between features")

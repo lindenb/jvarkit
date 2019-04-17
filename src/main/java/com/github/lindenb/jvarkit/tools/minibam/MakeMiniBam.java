@@ -27,9 +27,12 @@ package com.github.lindenb.jvarkit.tools.minibam;
 import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -43,6 +46,7 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -62,6 +66,7 @@ import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamFiles;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -108,14 +113,15 @@ No errors detected in compressed data of out.zip.
  */
 @Program(
 		name="mkminibam",
-		description="Creates an archive of small bams with only a few region",
+		description="Creates an archive of small bams with only a few regions.",
 		keywords={"bam","sam"},
 		creationDate="20190410",
-		modificationDate="20190410"
+		modificationDate="20190417"
 		)
 public class MakeMiniBam extends Launcher {
 	private static final Logger LOG = Logger.build(MakeMiniBam.class).make();
 
+	
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile = null;
 	@Parameter(names={"-x","--extend"},description="Extend the positions by 'x' bases. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
@@ -124,13 +130,15 @@ public class MakeMiniBam extends Launcher {
 	private Set<String> posStrSet = new HashSet<>();
 	@Parameter(names={"-T","--tmp"},description="Tmp working directory")
 	private Path tmpDir = IOUtils.getDefaultTempDir();
-	@Parameter(names={"--prefix"},description="File prefix in the archive")
+	@Parameter(names={"--prefix"},description="File prefix in the archive. Special value 'now' will be replace by the current date")
 	private String filePrefix="miniBam.";
 	@Parameter(names={"-V","--variant"},description="Use the intervals from this VCF file.")
 	private Path vcfInput=null;
 	@Parameter(names={"-B","--bed"},description="Use the intervals from this BED file.")
 	private Path bedInput=null;
-
+	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
+	
 	
 	
 	@Override
@@ -139,6 +147,13 @@ public class MakeMiniBam extends Launcher {
 		int id_generator=0;
 		final Set<String> outputFileNames = new HashSet<>();
 		try {
+			
+			
+			if (this.filePrefix.equals("now")) {
+				final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMdd");
+				this.filePrefix = simpleDateFormat.format(new Date()) + ".";
+			}
+			
 			IOUtil.assertDirectoryIsWritable(tmpDir);
 			final List<Path> bamFiles = IOUtils.unrollPaths(args);
 			if(bamFiles.isEmpty()) {
@@ -171,7 +186,13 @@ public class MakeMiniBam extends Launcher {
 					return -1;
 					}
 				
-				final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(header);
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+				final Optional<String> dictLabel = SequenceDictionaryUtils.getBuildName(dict);
+				final String labelSuffix = 
+						(dictLabel.isPresent()? "." + dictLabel.get():"") + 
+						(posStrSet.size()==1?"."+posStrSet.iterator().next().replace(':', '_').replace(',', '_'):"")
+						;
+						
 				final ContigNameConverter ctgConvert = ContigNameConverter.fromOneDictionary(dict);
 				
 				final List<QueryInterval> queryIntervals = new ArrayList<>(this.posStrSet.size());
@@ -243,6 +264,7 @@ public class MakeMiniBam extends Launcher {
 						while(ssr.hasNext())
 							{
 							final SAMRecord rec = ssr.next();
+							if(this.samRecordFilter.filterOut(rec)) continue;
 							rec.setAttribute(SAMTag.PG.name(), prg.getId());
 							sfw.addAlignment(rec);
 							}
@@ -264,9 +286,9 @@ public class MakeMiniBam extends Launcher {
 						filter(S->!StringUtils.isBlank(S)).
 						findFirst().
 						orElseThrow(()->new IllegalArgumentException("No Sample found in "+bamFile));
-				String filename=this.filePrefix+sampleName;
+				String filename=this.filePrefix + sampleName + labelSuffix;
 				while(outputFileNames.contains(filename)) 	{
-					filename=this.filePrefix+sampleName+"."+ (id_generator++);
+					filename=this.filePrefix+sampleName+"."+ (id_generator++) + labelSuffix;
 					}
 				outputFileNames.add(filename);
 				archive.copyTo(tmpBam, filename + BamFileIoUtils.BAM_FILE_EXTENSION);

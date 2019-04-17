@@ -1,6 +1,5 @@
 package com.github.lindenb.jvarkit.lang;
 
-import java.nio.file.Paths;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -33,6 +32,6 @@ public void test() {
 	Assert.assertFalse(StringUtils.endsWith("x.bam"));
 
 	
-	
+	Assert.assertEquals(StringUtils.unescapeC("a\\n\\tb"),"a\n\tb");
 	}
 }

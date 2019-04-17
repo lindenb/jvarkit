@@ -30,338 +30,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.util.bio.samfilter;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMReadGroupRecord;
-import htsjdk.samtools.filter.SamRecordFilter;
-import java.util.function.Predicate;
-
-import com.beust.jcommander.IStringConverter;
-import com.beust.jcommander.ParameterException;
-
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.log.Logger;
-
-
-import java.util.List;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.function.Predicate;
-import javax.annotation.processing.Generated;
 
 /**
 
-  <#DIGIT:["0"-"9"]>
-| <#LETTER: (["a"-"z"]|"_"|["A"-"Z"])>
-| <INT:<DIGIT>  (<DIGIT>)*  >
-| <#CMP: ("ge"|"gt"|"le"|"lt"|"eq"|"ne")>
-| <CPAR: ")">
-| <NOT: "(NOT">
-| <AND: "(AND">
+Note to self:
 
-| <ANY: ~[]>
-| <MAPQ: "(MAPQ-" <CMP> >
-| <FLAG: "(flag" >
-| <LE: "(<=" >
-| <GE: "(>=" >
-| <EQ: "(==" >
-| <NE: "(!=" >
-| <LT: "(<" >
-| <GT: "(>" >
+java -cp ~/package/javacc/javacc.jar javacc -OUTPUT_DIRECTORY=src/main/java/com/github/lindenb/jvarkit/util/bio/samfilter -JDK_VERSION=1.8 src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
 
-  <OR>   list = nodelist() <CPAR> { return orNode(list);}
-	| <AND>  list =  nodelist() <CPAR> { return andNode(list);}
-	| <NOT> pf = node() <CPAR> { return pf.negate(); }
-	| <READMAPPED> <CPAR> { return readUnmapped().negate();}
-	| <READUNMAPPED> <CPAR> { return readUnmapped();}
-	| <FLAG>  t=<INT> <CPAR> { return testFlag(Integer.parseInt(t.image));}
-	| <OVERLAP> text=characters() <CPAR> { return overlapBed(text);}
-	
-
-private  ToIntFunction<SAMRecord> integer() : {Token t;}
-	{
-	(
-	  t=<INT> { return  toInt(Integer.parseInt(t.image)); }
-	 | <MAPQ> <CPAR> { return mapq(); 	}
-	 )}
-
-
-private java.util.Comparator<Integer> intcmp():{}
-	{
-	(
-	 <LT> { return null ;}
-	)
-	}	
-	
-	private List<Predicate<SAMRecord>> nodelist(): {
-			final List<Predicate<SAMRecord>> L = new ArrayList<Predicate<SAMRecord>>();
-			Predicate<SAMRecord> f=null;
-			}
-	{
-	f=node() { L.add(f);} (f=node() { L.add(f);} )* 
-		{
-		return L;
-		}
-	}
 */
 
+package com.github.lindenb.jvarkit.util.bio.samfilter;
 
-@Generated("javacc")
+
+import htsjdk.samtools.SAMRecord;
+import java.util.function.Predicate;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
+
 public class SamFilterParser {
-		private static final Logger LOG = Logger.build(SamFilterParser.class).make();
-
-		public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out. Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj for a complete syntax. ";
-		public static final String DEFAULT_FILTER = "mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
-		public static final String DEFAULT_OPT = "--samFilter";
-
-		public static final SamRecordFilter  ACCEPT_ALL = new SamRecordFilter() {
-					@Override
-					public boolean filterOut(final SAMRecord first, SAMRecord second) {
-						return false;
-					}
-					
-					@Override
-					public boolean filterOut(SAMRecord record) {
-						return false;
-					}
-					@Override
-					public String toString() {
-						return "Accept All/ Filter out nothing";
-					}
-				};
-
-
-        public static class StringConverter implements IStringConverter<SamRecordFilter>
-        	{
-        	@Override
-        	public SamRecordFilter convert(final String s) 
-        		{
-        		if(s==null || s.trim().isEmpty()) return ACCEPT_ALL;
-				try {
-					return SamFilterParser.build(s);
-				} catch (final ParseException e) {
-					throw new ParameterException(e);
-					}
-        		}
-        	}
-
-		public static SamRecordFilter buildDefault() {
-			try {
-				return build(DEFAULT_FILTER);
-				}
-			catch(final ParseException err)
-				{
-				throw new IllegalArgumentException(err);
-				}
-			}
-
-		public static SamRecordFilter buildAcceptAll() {
-			return ACCEPT_ALL;
-			}
-
-
-		public static SamRecordFilter build(final String expr) throws ParseException {
-			
-			Reader r= null;
-			try {
-			r= new StringReader(expr);
-			SamFilterParser sfp =new SamFilterParser(r);
-			final Predicate<SAMRecord> pred= sfp.anyNode();
-			r.close();
-			return new SamRecordFilter() {
-				@Override
-				public boolean filterOut(SAMRecord first, SAMRecord second) {
-					throw new IllegalStateException("SamRecordFilter.filterOut(a,b); <- shouldn't happen");
-				}
-				
-				@Override
-				public boolean filterOut(final SAMRecord record) {
-					return pred.test(record);
-				}
-				@Override
-				public String toString() {
-					return expr;
-					}
-			};
-			} catch(final ParseException err) {
-				LOG.error(err);
-				throw new RuntimeIOException(err);
-			} catch(final IOException err) {
-				LOG.error(err);
-				throw new RuntimeIOException(err);
-			} finally
-			{
-				CloserUtil.close(r);
-			}
-		}
 
 	
-        private static Predicate<SAMRecord> overlapBed(final String fname) {
-            final File bedFile = new File(fname);
-            final BedLineCodec codec = new BedLineCodec();
-            final IntervalTreeMap<Boolean> intervals = new IntervalTreeMap<Boolean>();
-            BufferedReader r = null;
-            try {
-            	r = IOUtils.openFileForBufferedReading(bedFile);
-            	String line;
-            	while((line=r.readLine())!=null) {
-            		final BedLine bedline = codec.decode(line);
-            		if(bedline==null)  continue;
-            		intervals.put(new Interval(
-            			bedline.getContig(),
-            			bedline.getStart()+1,
-            			bedline.getEnd()),
-            			Boolean.TRUE
-            			);
-            	}
-            	CloserUtil.close(r);
-	            return new Predicate<SAMRecord>() {
-					@Override
-					public boolean test(final SAMRecord t) {
-						return !t.getReadUnmappedFlag() && 
-								intervals.containsContained(new Interval(t.getContig(), t.getStart(), t.getEnd()))
-								;
-					}
-				};
-            } catch(final IOException err) {
-            	LOG.error(err);
-            	throw new RuntimeIOException(err);
-            }
-            finally {
-            	CloserUtil.close(r);
-            }
-        }
+		private final SamRecordFilterFactory factory = new SamRecordFilterFactory();
 
-	
-	private static String unescape(final String s) throws ParseException
-		{
-		final StringBuilder b=new StringBuilder(s.length());
-        int i=0;
-        while(i<s.length())
-        	{
-        	if(s.charAt(i)=='\\')
-        		{
-        		if( i+1== s.length())  throw new ParseException("Badly escaped string "+s);
-        		++i;
-        		switch(s.charAt(i))
-        			{
-        			case 'n': b.append("\n");break;
-        			case 'r': b.append("\r");break;
-        			case 't': b.append("\t");break;
-        			case '\\': b.append("\\");break;
-        			case '\'': b.append("\'");break;
-        			case '\"': b.append("\"");break;
-        			default: throw new ParseException("Badly escaped string "+s);
-        			}
-        		}
-        	else
-        		{
-        		b.append(s.charAt(i));
-        		}
-        	++i;
-        	}
-        return b.toString();
-		}
-		
-		private static Predicate<SAMRecord> duplicateFilter() {
-			return new Predicate<SAMRecord>() {
-			 	@Override public boolean test(final SAMRecord rec) { return rec.getDuplicateReadFlag();}
-			}; }
-		private static Predicate<SAMRecord> unmappedFilter() {
-			return new Predicate<SAMRecord>() {
-			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadUnmappedFlag();}
-			}; }
-		
-		private static Predicate<SAMRecord> mappedFilter() {
-			return new Predicate<SAMRecord>() {
-			 	@Override public boolean test(final SAMRecord rec) { return !rec.getReadUnmappedFlag();}
-			}; }
-		
-		private static Predicate<SAMRecord> failsVendorQuality() {
-			return new Predicate<SAMRecord>() {
-			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadFailsVendorQualityCheckFlag();}
-			}; }
-		private static Predicate<SAMRecord> readPaired() {
-			return new Predicate<SAMRecord>() {
-			 	@Override public boolean test(final SAMRecord rec) { return rec.getReadPairedFlag();}
-			}; }
-		private static Predicate<SAMRecord> mateUnmapped() {
-			return new Predicate<SAMRecord>() {
-			 	@Override public boolean test(final SAMRecord rec) { return rec.getMateUnmappedFlag();}
-			}; }
-		private static Predicate<SAMRecord> samFlag(final int flg) {
-			return new Predicate<SAMRecord>() {
-			 	@Override public boolean test(final SAMRecord rec) { return (rec.getFlags() & flg) != 0;}
-			}; }
-        private static Predicate<SAMRecord> sample(final String s) {
-            return new Predicate<SAMRecord>() {
-                    @Override public boolean test(final SAMRecord rec) { SAMReadGroupRecord rg=rec.getReadGroup(); return rg!=null && s.equals(rg.getSample());}
-            }; }
-		private static Predicate<SAMRecord> group(final String s) {
-            return new Predicate<SAMRecord>() {
-                    @Override public boolean test(final SAMRecord rec) { SAMReadGroupRecord rg=rec.getReadGroup(); return rg!=null && s.equals(rg.getId());}
-            }; }
-		private static Predicate<SAMRecord> notPrimaryAlignmentFlag() {
-		return new Predicate<SAMRecord>() {
-		 	@Override public boolean test(final SAMRecord rec) { return rec.isSecondaryAlignment();}
-		}; }		
-		private static Predicate<SAMRecord> supplementaryAlignmentFlag() {
-		return new Predicate<SAMRecord>() {
-		 	@Override public boolean test(final SAMRecord rec) { return rec.getSupplementaryAlignmentFlag();}
-		}; }		
-		
-        private static Predicate<SAMRecord> readClipped() {
-        return new Predicate<SAMRecord>() {
-                @Override public boolean test(final SAMRecord rec) {
-                if(rec.getReadUnmappedFlag()) return false;
-                final Cigar c= rec.getCigar();
-                if(c==null || c.isEmpty()) return false;
-                return c.isClipped();
-                	
-                }
-        }; }
-        
-        private static Predicate<SAMRecord>  mapqUnavailable() {
-		return new Predicate<SAMRecord>() {
-	 	@Override public boolean test(final SAMRecord rec) { return  (rec.getMappingQuality() == SAMRecord.NO_MAPPING_QUALITY);}
-		}; }		
-		
-		
-		
-		 private static Predicate<SAMRecord>  hasFlag(final int flg) {
-		return new Predicate<SAMRecord>() {
-	 	@Override public boolean test(final SAMRecord rec) { return   (rec.getFlags() & flg) != 0;}
-		}; }	
-		
-		
-        private static Predicate<SAMRecord>  discordant() {
-            return new Predicate<SAMRecord>() {
-            @Override public boolean test(final SAMRecord rec) {
-            	return  rec.getReadPairedFlag() &&
-            			!rec.getReadUnmappedFlag() &&
-            			!rec.getMateUnmappedFlag() &&
-            			rec.getReferenceIndex()!=rec.getMateReferenceIndex();
-            		}
-            }; }
-		
-		
-		 private static Predicate<SAMRecord>  mapqLowerThan(final int mapq) {
-            return new Predicate<SAMRecord>() {
-            @Override public boolean test(final SAMRecord rec) {
-            		return  rec.getMappingQuality() < mapq;
-            		}
-            }; }
+
 		
 	}
 	
@@ -411,7 +102,7 @@ TOKEN:
 }
 
 	
-private Predicate<SAMRecord> anyNode(): { Predicate<SAMRecord> other;}
+Predicate<SAMRecord> anyNode(): { Predicate<SAMRecord> other;}
 	{
 	(
 	  other = NegateExpr() { return other;}
@@ -440,23 +131,23 @@ private Predicate<SAMRecord> AndExpr(): { Predicate<SAMRecord> root,other;}
 private Predicate<SAMRecord> UnaryExpr(): {String str; Token t; int flg; }
 	{
 	(
-	  <DUPLICATE> <OPAR> <CPAR> { return duplicateFilter(); }
-	| <UNMAPPED> <OPAR> <CPAR> { return unmappedFilter();}
-	| <MAPPED> <OPAR> <CPAR> { return mappedFilter();}
-	| <FAILSVENDORQUALITY> <OPAR> <CPAR> { return failsVendorQuality();}
-	| <PAIRED> <OPAR> <CPAR> {  return readPaired();}
-	| <CLIPPED> <OPAR> <CPAR> {  return readClipped();}
-	| <MAPQUNAVAILABLE> <OPAR> <CPAR> {  return mapqUnavailable();}
-	| <MATEUNMAPPED> <OPAR> <CPAR> {  return mateUnmapped();}
-	| <NOTPRIMARYALIGNMENT> <OPAR> <CPAR> {  return notPrimaryAlignmentFlag();}
-	| <SUPPLEMENTARYALIGNMENT> <OPAR> <CPAR> {  return supplementaryAlignmentFlag();}
-	| <OVERLAP> <OPAR>  str=characters() <CPAR> { return overlapBed(str);}
-	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return samFlag(Integer.parseInt(t.image));}
-	| <SAMPLE> <OPAR> str=characters() <CPAR>  { return sample(str);}
-	| <GROUP> <OPAR> str=characters() <CPAR>  { return group(str);}
-	| <HASFLAG> <OPAR> flg=integer() <CPAR> { return hasFlag(flg);}
-	| <DISCORDANT> <OPAR> <CPAR> {  return discordant();}
-	| <MAPQLT> <OPAR> flg=integer() <CPAR> { return mapqLowerThan(flg);}
+	  <DUPLICATE> <OPAR> <CPAR> { return factory.duplicateFilter(); }
+	| <UNMAPPED> <OPAR> <CPAR> { return factory.unmappedFilter();}
+	| <MAPPED> <OPAR> <CPAR> { return factory.mappedFilter();}
+	| <FAILSVENDORQUALITY> <OPAR> <CPAR> { return factory.failsVendorQuality();}
+	| <PAIRED> <OPAR> <CPAR> {  return factory.readPaired();}
+	| <CLIPPED> <OPAR> <CPAR> {  return factory.readClipped();}
+	| <MAPQUNAVAILABLE> <OPAR> <CPAR> {  return factory.mapqUnavailable();}
+	| <MATEUNMAPPED> <OPAR> <CPAR> {  return factory.mateUnmapped();}
+	| <NOTPRIMARYALIGNMENT> <OPAR> <CPAR> {  return factory.notPrimaryAlignmentFlag();}
+	| <SUPPLEMENTARYALIGNMENT> <OPAR> <CPAR> {  return factory.supplementaryAlignmentFlag();}
+	| <OVERLAP> <OPAR>  str=characters() <CPAR> { return factory.overlapBed(str);}
+	| <SAMFLAG> <OPAR> t=<INT> <CPAR> { return factory.samFlag(Integer.parseInt(t.image));}
+	| <SAMPLE> <OPAR> str=characters() <CPAR>  { return factory.sample(str);}
+	| <GROUP> <OPAR> str=characters() <CPAR>  { return factory.group(str);}
+	| <HASFLAG> <OPAR> flg=integer() <CPAR> { return factory.hasFlag(flg);}
+	| <DISCORDANT> <OPAR> <CPAR> {  return factory.discordant();}
+	| <MAPQLT> <OPAR> flg=integer() <CPAR> { return factory.mapqLowerThan(flg);}
 	)
 	
 	}
@@ -470,11 +161,11 @@ private String characters():
 	(
 	t=<SIMPLE_QUOTE_LITERAL>
 		{
-		return  unescape(t.image.substring(1,t.image.length()-1));
+		return  StringUtils.unescapeC(t.image.substring(1,t.image.length()-1));
 		}
 	| t=<DOUBLE_QUOTE_LITERAL>
 		{
-		return unescape(t.image.substring(1,t.image.length()-1));
+		return StringUtils.unescapeC(t.image.substring(1,t.image.length()-1));
 		}
 	)
 	}

@@ -62,9 +62,10 @@ import htsjdk.variant.variantcontext.VariantContext;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamFilterParser;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
@@ -103,7 +104,8 @@ END_DOC
  */
 @Program(name="bam2svg",
 description="BAM to Scalar Vector Graphics (SVG)",
-keywords={"bam","alignment","graphics","visualization","svg"}
+keywords={"bam","alignment","graphics","visualization","svg"},
+modificationDate="20190417"
 )
 public class BamToSVG extends Launcher
 	{
@@ -136,8 +138,8 @@ public class BamToSVG extends Launcher
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 
-	@Parameter(names={"--filter"},description=SamFilterParser.FILTER_DESCRIPTION,converter=SamFilterParser.StringConverter.class)
-	private SamRecordFilter samRecordFilter = SamFilterParser.ACCEPT_ALL;
+	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
 	
 	
 		private int HEIGHT_RULER=200;

@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Creates an archive of small bams with only a few region
+Creates an archive of small bams with only a few regions.
 
 
 ## Usage
@@ -17,6 +17,11 @@ Usage: mkminibam [options] Files
       integer.Comma are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb 
       Default: 5000
+    --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: Accept All/ Filter out nothing
     -h, --help
       print help and exit
     --helpFormat
@@ -27,7 +32,8 @@ Usage: mkminibam [options] Files
       Add this position 'chrom:pos'
       Default: []
     --prefix
-      File prefix in the archive
+      File prefix in the archive. Special value 'now' will be replace by the 
+      current date
       Default: miniBam.
     -T, --tmp
       Tmp working directory

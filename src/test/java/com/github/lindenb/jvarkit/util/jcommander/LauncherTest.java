@@ -7,6 +7,7 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.util.CounterTest;
 import com.github.lindenb.jvarkit.util.bio.IntervalParserTest;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactoryTest;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIteratorTest;
 import com.github.lindenb.jvarkit.util.iterator.FilterIteratorTest;
 import com.github.lindenb.jvarkit.util.iterator.LineIteratorTest;
@@ -20,7 +21,8 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 	EqualRangeIteratorTest.class,
 	FilterIteratorTest.class,
 	LineIteratorTest.class,
-	MergingIteratorTest.class
+	MergingIteratorTest.class,
+	SamRecordFilterFactoryTest.class
 	})
 public class LauncherTest {
 

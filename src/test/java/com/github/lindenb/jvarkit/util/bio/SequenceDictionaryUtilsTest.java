@@ -23,6 +23,15 @@ public void testIsGRCh37() {
 	Assert.assertFalse(SequenceDictionaryUtils.isGRCh37(
 			SequenceDictionaryUtils.extractRequired(
 					Paths.get(support.resource("rotavirus_rf.fa")))));
+	
+	Assert.assertFalse(SequenceDictionaryUtils.getBuildName(
+			SequenceDictionaryUtils.extractRequired(
+					Paths.get(support.resource("rotavirus_rf.fa")))).isPresent());
+	
+	Assert.assertTrue(SequenceDictionaryUtils.getBuildName(
+			SequenceDictionaryUtils.extractRequired(
+					Paths.get(support.resource("human_b37.dict")))).isPresent());
+
 	}
 @Test
 public void testIsHuman() {

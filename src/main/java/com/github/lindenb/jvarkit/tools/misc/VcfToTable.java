@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -1353,6 +1354,17 @@ public class VcfToTable extends Launcher {
 							if( indexInFORMAT==-1 || indexInFORMAT>=gstr.size()) {
 								r.add(null);
 								}
+							else if(useANSIColors && g.isCalled() && formats.get(indexInFORMAT).equals("GQ") && g.hasGQ())  {
+								final int gq = g.getGQ();
+								if(gq==0)
+									{
+									r.add(new ColoredDecorator(String.valueOf(gq),AnsiColor.RED));
+									}
+								else
+									{
+									r.add(String.valueOf(gq));
+									}
+								}
 							else if(useANSIColors && g.isCalled() && formats.get(indexInFORMAT).equals("DP") && g.hasDP())  {
 								final int dp = g.getDP();
 								r.add(new ColoredDecorator(String.valueOf(dp),dp >= 10?AnsiColor.GREEN: AnsiColor.RED));
@@ -1462,7 +1474,9 @@ public class VcfToTable extends Launcher {
 			
 			protected String variantToString(final VariantContext vc)
 				{
-				return vc.getContig()+":"+vc.getStart()+(vc.getStart()!=vc.getEnd()?"-"+vc.getEnd():"")+"/"+vc.getReference().getDisplayString();
+				final Optional<String> buildLabel = SequenceDictionaryUtils.getBuildName( header.getSequenceDictionary());
+				
+				return (buildLabel.isPresent()?buildLabel.get()+" ":"")+ vc.getContig()+":"+vc.getStart()+(vc.getStart()!=vc.getEnd()?"-"+vc.getEnd():"")+"/"+vc.getReference().getDisplayString();
 				}
 			
 			protected void printGenotypesTypes(final String margin,final VariantContext vc) {
