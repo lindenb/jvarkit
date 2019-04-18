@@ -9,7 +9,9 @@ import org.testng.Reporter;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -18,6 +20,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
+@AlsoTest(LauncherTest.class)
 public class VcfBurdenFisherHTest  {
 	
 	
@@ -25,14 +28,15 @@ public class VcfBurdenFisherHTest  {
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
-		return (Object[][])support.
+		return support.toArrayArray(
+				support.
 				allVcfOrBcf().
-				map(F->new Object[] {F}).
-				toArray()
+				map(F->new Object[] {F})
+				)
 				;
 		}
 	
-	@Test(dataProvider="src1")
+	@Test(dataProvider="src1",enabled=false)
 	public void test01(final String inputFile) 
 		throws IOException
 		{
