@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.io.File;
 import java.util.List;
+import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -62,7 +63,7 @@ END_DOC
 */
 @Program(
 		name="vcffilterbyliftover",
-		description="Add FILTER to a variant when it is known to map elsewhere after liftover.",
+		description="Add FILTER(s) to a variant when it is known to map elsewhere after liftover.",
 		keywords={"vcf","liftover"},
 		modificationDate="20190408",
 		generate_doc=false
@@ -79,11 +80,14 @@ public class VcfFilterByLiftOver extends Launcher
 	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
 	private File liftOverFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
-	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
-	@Parameter(names={"-d"},description="lift over min-match.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private double userMinMatch = 1.0 ;
+	@Parameter(names={"-d"},description="initial distance. See option -D.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_distance = 1_000;
-	@Parameter(names={"-D"},description="lift over min-match.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"-D"},description="final distance. We look for weird distance between the current and the previous variant on the same contig."
+			+ "Two variants initially distance < d should have a distance <D after lift over. ",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_distance = 1_500;
+	@Parameter(names={"--no-validation"},description="Disable dictionary validation")
+	private boolean disableValidation = false;
 
 	private int distance(final Locatable L1,final Locatable L2) {
 		if( CoordMath.overlaps(
@@ -105,11 +109,19 @@ public class VcfFilterByLiftOver extends Launcher
 		final VCFHeader header = in.getHeader();
 		final SAMSequenceDictionary dict = header.getSequenceDictionary();
 		
+		if(!this.disableValidation) liftOver.validateToSequences(dict);
+		
 		if(dict!=null && !dict.isEmpty())  {
 			liftOver.validateToSequences(dict);
 			}
 		
 		final VCFHeader header2 = new VCFHeader(header);
+		
+		
+		final VCFFilterHeaderLine filterLiftOverFailed = new VCFFilterHeaderLine(
+				"LIFTOVER_FAILED", "liftover failed "+this.liftOverFile);
+		header2.addMetaDataLine(filterLiftOverFailed);
+
 		
 		final VCFFilterHeaderLine filterNoSameContig = new VCFFilterHeaderLine(
 				"LIFTOVER_OTHER_CTG", "Variant is mapped to another contig after liftover with "+this.liftOverFile);
@@ -135,6 +147,8 @@ public class VcfFilterByLiftOver extends Launcher
 		Locatable prevLifted=null;
 		
 		
+		final Function<Locatable, String> interval2str = R->R.getContig()+"|"+R.getStart()+"|"+R.getEnd();
+		
 		while(in.hasNext())
 			{
 			final VariantContext ctx=progress.apply(in.next());
@@ -142,26 +156,32 @@ public class VcfFilterByLiftOver extends Launcher
 			if(prevCtx!=null && !prevCtx.getContig().equals(ctx.getContig())) {
 				prevCtx = null;
 				prevLifted = null;
-			}
+				}
 			
 			final Interval lifted=liftOver.liftOver(
 					new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd(),
 					false,//negative strand
-					String.join("|",ctx.getContig(),String.valueOf(ctx.getStart()),ctx.getReference().toString()))
-					);
+					interval2str.apply(ctx)
+					));
+			// lifover failed
+			if(lifted==null) {
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				vcb.filter(filterLiftOverFailed.getID());
+				out.add(vcb.make());
+				}
 			// another contig
-			if(lifted!=null && !lifted.getContig().equals(ctx.getContig()))
+			else if(lifted!=null && !lifted.getContig().equals(ctx.getContig()))
 				{
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
 				vcb.filter(filterNoSameContig.getID());
-				vcb.attribute(infoLiftOverPos.getID(),lifted.getContig()+"|"+lifted.getStart()+"|"+lifted.getEnd());
+				vcb.attribute(infoLiftOverPos.getID(),interval2str.apply(lifted));
 
 				
 				out.add(vcb.make());
 				}
 			// strange distance
-			else if(prevCtx!=null && prevLifted!=null &&
+			else if(prevCtx!=null && lifted!=null && prevLifted!=null &&
 					prevCtx.getContig().equals(ctx.getContig()) &&
 					prevLifted.getContig().equals(lifted.getContig()) &&
 					distance(prevCtx, ctx) < this.min_distance &&
@@ -170,7 +190,7 @@ public class VcfFilterByLiftOver extends Launcher
 				{
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				vcb.filter(filterDistantFromPrev.getID());
-				vcb.attribute(infoLiftOverPos.getID(),lifted.getContig()+"|"+lifted.getStart()+"|"+lifted.getEnd());
+				vcb.attribute(infoLiftOverPos.getID(),interval2str.apply(lifted));
 				out.add(vcb.make());
 				}
 			else
