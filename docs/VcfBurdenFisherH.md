@@ -10,6 +10,9 @@ Fisher Case /Controls per Variant
 ```
 Usage: vcfburdenfisherh [options] Files
   Options:
+    --attribute
+      [20190418] Name of the attribue used as FILTER and INFO
+      Default: BurdenHFisher
     -gtf, --gtf, --gtFiltered
       [20180115] Ignore FILTERed **Genotype**
       Default: false
@@ -37,6 +40,8 @@ Usage: vcfburdenfisherh [options] Files
       are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or 
       '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
       affected,-9 unknown
+    --report
+      [20190418] save report as bed file
     --version
       print version and exit
 

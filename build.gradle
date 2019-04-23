@@ -1519,23 +1519,24 @@ all2.add( task("vcfjaspar", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.jaspar.VcfJaspar"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfjmx", type: CompileJVarkit) {
+all2.add( task("vcfjmx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.jmx.VcfJmx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfliftover", type: CompileJVarkit) {
+all2.add( task("vcfliftover", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.liftover.VcfLiftOver"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	deprecatedMsg="use picard LiftOverVcf"
 	});
 all.add( task("vcfloopovergenes", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfmakedict", type: CompileJVarkit) {
+all2.add( task("vcfmakedict", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfCreateDictionary"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfmerge", type: CompileJVarkit) {
+all2.add( task("vcfmerge", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
@@ -1991,7 +1992,7 @@ all2.add( task("validatecnv", type: CompileJVarkit) {
 	});
 all.add( task("vcfburdenfisherh", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfburdenfisherv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherV"
