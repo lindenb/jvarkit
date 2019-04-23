@@ -1672,6 +1672,10 @@ all.add( task("vcfucsc", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcsc"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","mysql")
 	});
+all2.add( task("vcfucscgdb", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcscGdb"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig","httpclient")
+	});
 all.add( task("bamstatsjfx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bamstats01.BamStatsJfx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

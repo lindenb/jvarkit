@@ -47,7 +47,8 @@ import htsjdk.samtools.util.StringUtil;
 
 /**
  * 
- * Custom ISeekableStreamFactory, handle user/password for URLs
+ * Custom ISeekableStreamFactory, handle user/password for URLs.
+ * Used for BBFile constructor for remote data
  *
  */
 public class CustomSeekableStreamFactory 
