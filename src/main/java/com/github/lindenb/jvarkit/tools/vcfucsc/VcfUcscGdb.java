@@ -74,6 +74,8 @@ import org.broad.tribble.util.SeekableFileStream;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -91,20 +93,49 @@ BEGIN_DOC
 
 chromosomes in the vcf must been in the same notation than the remote ucsc files (with a 'chr' prefix )
 
+## Config files
+
+a config file is a text file containing one or more resource description separated by a blank file.
+
+One resource is a set of `key : value` or `key = value`
+
+The following keys are defined:
+
+  * **url** the URL of the resource.
+  * **name** the name of the resource, will be used in as a INFO VCF header. If not defined, the url will be used.
+  * **accept** a JEXL expression (see below) that should return a boolean. True=accept the current item. Default : accept all
+  * **convert** a JEXL expression (see below) that should return a String that will be used as the INFO value(s). Default : use the default conversion
+  * **aggregate** (wig only): values:"min" or "max". Just keep one Wig value after filtration
+  * **limit** : don't print more than 'limit' values.
+
+
+eg: https://gist.github.com/lindenb/e90235dca2ff2d151ef796ad0be98915
+
 ## Jexl expression
+
+Filtering and conversion to string are performed using a JEXL expression. See https://commons.apache.org/proper/commons-jexl/reference/syntax.html
 
 the following names are defined for the BED jexl context
 
  * **bed** : a **BedFeature** https://github.com/lindenb/bigwig/blob/master/src/org/broad/igv/bbfile/BedFeature.java
  * **length** : the length of the bigBed item
- * **contig** : the contig of the bigBed file
- * **chrom** : the contig of the bigBed file
- * **start** : the getStartBase of the bigBed file
- * **end** : the getEndBase of the bigBed file
+ * **contig** : the contig of the bigBed item
+ * **chrom** : the contig of the bigBed item
+ * **start** : the getStartBase of the bigBed item
+ * **end** : the getEndBase of the bigBed item
  * **tokens** : a `List<String>` containing the columns of the bed line
  * **rest** : a `List<String>` containing the bed columns but the chrom/start/end
  * **line** : a `String` the whole bed line, separated with tab
 
+the following names are defined for the WIG jexl context
+
+ * **wig** : a **WigItem** https://github.com/lindenb/bigwig/blob/master/src/org/broad/igv/bbfile/WigItem.java
+ * **length** : the length of the wig item
+ * **contig** : the contig of the wig item
+ * **chrom** : the contig of the wig item
+ * **start** : the getStartBase of the wig item
+ * **end** : the getEndBase of the wig item
+ * **value** : the value of the wig item
 
 
 END_DOC
@@ -122,7 +153,7 @@ public class VcfUcscGdb extends Launcher {
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-r","--resource"},description=OPT_OUPUT_FILE_OR_STDOUT,required=true)
+	@Parameter(names={"-r","--resource"},description="Resource File. See manual",required=true)
 	private Path resourceFile = null;
 	@Parameter(names={"-C"},description="try to convert chromosome name to match the UCSC nomenclature 1->'chr1'")
 	private boolean forceUcscNames = false;
@@ -266,13 +297,17 @@ public class VcfUcscGdb extends Launcher {
 			}
 		}
 	
+	/** minimum class to eval a JEXL expression */
 	private abstract class AbstractJexlExprHandler {
+		/** compiled expression */
 		protected final Expression jexlExpr;
+		/** declared expression */
 		private String exprStr;
 		AbstractJexlExprHandler(final String exprStr) {
 			this.exprStr = exprStr;
 			this.jexlExpr = VariantContextUtils.engine.get().createExpression(exprStr);
 			}
+		/** eval the context or throw on error */
 		protected Object eval(final LocatableJEXLContext t) {
 			try {
 				return this.jexlExpr.evaluate(t);
@@ -281,11 +316,16 @@ public class VcfUcscGdb extends Launcher {
 				throw new RuntimeException("Cannot evaluate JEXL expression \""+this.exprStr+"\" with BedRecord :"+t);
 				}	
 			}
+		@Override
+		public String toString() {
+			return getClass().getName()+" "+this.exprStr;
+			}
 	}
 		
-	
-	private class JexlPredicate extends AbstractJexlExprHandler implements Predicate<LocatableJEXLContext> {
-		JexlPredicate(String expr) {
+	/** implementation of AbstractJexlExprHandler as a Predicate */
+	private class JexlPredicate extends AbstractJexlExprHandler 
+		implements Predicate<LocatableJEXLContext> {
+		JexlPredicate(final String expr) {
 			super(expr);
 			}
 		@Override
@@ -296,9 +336,9 @@ public class VcfUcscGdb extends Launcher {
 			return Boolean.class.cast(o);
 			}
 		}
-	
+	/** implementation of AbstractJexlExprHandler as a Function to convert to String */
 	private class JexlToString extends AbstractJexlExprHandler implements Function<LocatableJEXLContext,String> {
-		JexlToString(String expr) {
+		JexlToString(final String expr) {
 			super(expr);
 			}
 		@Override
@@ -308,9 +348,7 @@ public class VcfUcscGdb extends Launcher {
 			return o.toString();
 			}
 		}
-	
-	
-	
+	/** describe a remove big wig or remote big bed file */
 	private class RemoteBigFile
 		implements Closeable
 		{
@@ -318,25 +356,34 @@ public class VcfUcscGdb extends Launcher {
 		String url;
 		String description;
 		int limit  = -1;
+		String wigAggregate="";//min / max
+		
 		private BBFileReader bbr =null;
 		private SeekableStream seekableStream;
 		private Predicate<LocatableJEXLContext> accept = L->true;
 		private Function<LocatableJEXLContext,String> converter = L->L.toString();
 		
-		Set<String> query(String contig,int start,int end) throws IOException {
-			final double variant_len = end-start+1;
+		/** query the item, return a set of string that should be inserted in the INFO */
+		Set<String> query(final Locatable locatable) throws IOException {
+			final double variant_len = locatable.getLengthOnReference();
 			open();
 			if(bbr.isBigBedFile()) {
 				final Set<String>  annots = new LinkedHashSet<>();
-				final BigBedIterator iter = bbr.getBigBedIterator(contig, start, contig, end, false /* contained */);
+				final BigBedIterator iter = bbr.getBigBedIterator(
+						locatable.getContig(), 
+						locatable.getStart()-1, 
+						locatable.getContig(),
+						locatable.getEnd(),
+						false /* contained */
+						);
 				while(iter.hasNext() && (this.limit==-1 || annots.size()< this.limit))
 					{
 					final BedFeature bed = iter.next();
-					if(!bed.getChromosome().equals(contig)) continue;
-					if(bed.getEndBase() < start) continue;
-					if(bed.getStartBase() > end) continue;
+					final Locatable bed_as_locatable = new Interval(bed.getChromosome(),bed.getStartBase()+1,bed.getEndBase());
 					
-					double overlap = CoordMath.getOverlap(bed.getStartBase(), bed.getEndBase(), start, end);
+					if(!bed_as_locatable.overlaps(locatable)) continue;
+					
+					final double overlap = CoordMath.getOverlap(bed_as_locatable.getStart(), bed_as_locatable.getEnd(), locatable.getStart(),locatable.getEnd());
 					
 					if(overlap / variant_len <fractionOverlap) continue;
 					
@@ -350,16 +397,21 @@ public class VcfUcscGdb extends Launcher {
 				return annots;
 				}
 			else if(bbr.isBigWigFile()) {
+				WigItem last = null;//for min/max
 				final Set<String>  annots = new LinkedHashSet<>();
-				final BigWigIterator iter = bbr.getBigWigIterator(contig, start, contig, end, false /* contained */);
+				final BigWigIterator iter = bbr.getBigWigIterator(
+						locatable.getContig(), 
+						locatable.getStart()-1,
+						locatable.getContig(), 
+						locatable.getEnd(), false /* contained */);
 				while(iter.hasNext() && (this.limit==-1 || annots.size()< this.limit))
 					{
 					final WigItem wiggle = iter.next();
-					if(!wiggle.getChromosome().equals(contig)) continue;
-					if(wiggle.getEndBase() < start) continue;
-					if(wiggle.getStartBase() > end) continue;
+					final Locatable wig_as_locatable = new Interval(wiggle.getChromosome(),wiggle.getStartBase()+1,wiggle.getEndBase());
 					
-					double overlap = CoordMath.getOverlap(wiggle.getStartBase(), wiggle.getEndBase(), start, end);
+					if(!wig_as_locatable.overlaps(locatable)) continue;
+					
+					final double overlap = CoordMath.getOverlap(wig_as_locatable.getStart(), wig_as_locatable.getEnd(), locatable.getStart(),locatable.getEnd());
 					
 					if(overlap / variant_len <fractionOverlap) continue;
 					
@@ -367,8 +419,20 @@ public class VcfUcscGdb extends Launcher {
 					
 					if(!accept.test(jexlCtx)) continue;
 					final String annotation = this.converter.apply(jexlCtx);
-					if(!StringUtils.isBlank(annotation)) annots.add(annotation);
-					
+					if(StringUtils.isBlank(annotation)) continue;
+					if(
+						(this.wigAggregate.equals("min") && (last==null || last.getWigValue() > wiggle.getWigValue())) ||
+						(this.wigAggregate.equals("max") && (last==null || last.getWigValue() < wiggle.getWigValue())) 
+						)
+						{
+						annots.clear();
+						annots.add(annotation);
+						last=wiggle;
+						}
+					else
+						{
+						annots.add(annotation);
+						}
 					}
 				return annots;
 				}
@@ -580,8 +644,21 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 					if(StringUtils.isBlank(line)) {
 						if(!hash.isEmpty()) {
 							final RemoteBigFile bf= new RemoteBigFile();
-							bf.name = required.apply("name");
 							bf.url = required.apply("url");
+							if(hash.containsKey("name")) {
+								bf.name = hash.get("name");
+								}
+							else
+								{
+								bf.name= bf.url;
+								int slah= bf.name.lastIndexOf('/');
+								bf.name= bf.name.substring(slah+1);
+								int dot = bf.name.lastIndexOf('.');
+								bf.name= bf.name.substring(0,dot).
+									replace('.', '_').
+									replace('-', '_').
+									replace(',', '_');
+								}
 							if(remoteBigFiles.stream()
 								.anyMatch(R->R.name.equals(bf.name)))
 								{
@@ -597,12 +674,21 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 							if(hash.containsKey("desc")) {
 								bf.description = hash.get("desc");
 								}
+							else if(hash.containsKey("description")) {
+								bf.description = hash.get("description");
+								}
 							else
 								{
 								bf.description = "Data from "+bf.url; 
 								}
 							if(hash.containsKey("limit")) {
 								bf.limit  = Integer.parseInt(hash.get("limit"));
+								}
+							if(hash.containsKey("aggregate")) {
+								bf.wigAggregate  = hash.get("aggregate");
+								if(!(bf.wigAggregate.equals("min") || bf.wigAggregate.equals("max"))) {
+									throw new RuntimeIOException("Bad value for aggregate accepted:(min/max))");
+									}
 								}
 							remoteBigFiles.add(bf);
 							}
@@ -658,12 +744,12 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 					out.add(ctx);
 					continue;
 					}
-				
+				final Locatable as_interval = new Interval(ctg,ctx.getStart(),ctx.getEnd());
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
 				for(final RemoteBigFile rsrc: remoteBigFiles) {
 					vcb.rmAttribute(rsrc.name);
-					final Set<String> annots = rsrc.query(ctg,ctx.getStart(),ctx.getEnd());
+					final Set<String> annots = rsrc.query(as_interval);
 					if(!annots.isEmpty()) {
 						vcb.attribute(rsrc.name, new ArrayList<>(annots));
 						}
