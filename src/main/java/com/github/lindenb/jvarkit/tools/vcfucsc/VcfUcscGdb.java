@@ -42,9 +42,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 
-import org.apache.commons.jexl2.Expression;
 import org.apache.commons.jexl2.JexlContext;
-import org.apache.commons.jexl2.JexlException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;
@@ -62,6 +60,8 @@ import org.broad.igv.bbfile.WigItem;
 import org.broad.tribble.util.SeekableStream;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jexl.JexlPredicate;
+import com.github.lindenb.jvarkit.jexl.JexlToString;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.LineIterator;
@@ -79,7 +79,6 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -107,6 +106,9 @@ The following keys are defined:
   * **convert** a JEXL expression (see below) that should return a String that will be used as the INFO value(s). Default : use the default conversion
   * **aggregate** (wig only): values:"min" or "max". Just keep one Wig value after filtration
   * **limit** : don't print more than 'limit' values.
+  * **enabled** : if it is 'false' then ignore this resource
+  * **fractV** : Minimum overlap required as a fraction of the variant.
+  * **fractF** : Minimum overlap required as a fraction of the bed/wig feature.
 
 
 eg: https://gist.github.com/lindenb/e90235dca2ff2d151ef796ad0be98915
@@ -130,6 +132,7 @@ the following names are defined for the BED jexl context
 the following names are defined for the WIG jexl context
 
  * **wig** : a **WigItem** https://github.com/lindenb/bigwig/blob/master/src/org/broad/igv/bbfile/WigItem.java
+ * **wiggle** : a **WigItem** https://github.com/lindenb/bigwig/blob/master/src/org/broad/igv/bbfile/WigItem.java
  * **length** : the length of the wig item
  * **contig** : the contig of the wig item
  * **chrom** : the contig of the wig item
@@ -157,13 +160,12 @@ public class VcfUcscGdb extends Launcher {
 	private Path resourceFile = null;
 	@Parameter(names={"-C"},description="try to convert chromosome name to match the UCSC nomenclature 1->'chr1'")
 	private boolean forceUcscNames = false;
-	@Parameter(names={"-f","--fraction"},description="fraction of the variant that should be covered by the bed feature [0-1] 1.0 : all variant bases must be covered.")
-	private float fractionOverlap = 1.0f;
 
 	
 	
 	private final HttpClientBuilder hb = HttpClients.custom();
 	
+	/** List that doesn't throw out of bound exception but return empty string */
 	private static class NotIndexOutOfBoundList extends AbstractList<String> {
 		final List<String> delegate;
 		NotIndexOutOfBoundList(final List<String> delegate) {
@@ -183,6 +185,7 @@ public class VcfUcscGdb extends Launcher {
 			}
 		}
 	
+	/** Abstract locatable object for a JexlContext */
 	private abstract class LocatableJEXLContext implements JexlContext
 		{
 		@Override
@@ -191,6 +194,7 @@ public class VcfUcscGdb extends Launcher {
 			}
 		}
 	
+	/** concrete LocatableJEXLContext for wigItem */
 	private class WigItemJEXLContext extends LocatableJEXLContext
 		{
 		private final WigItem wigItem;
@@ -202,6 +206,7 @@ public class VcfUcscGdb extends Launcher {
 		@Override
 		public Object get(final String name) {
 			if(name.equals("wig")) return this.wigItem;
+			if(name.equals("wiggle")) return this.wigItem;
 			if(name.equals("length")) return CoordMath.getLength(this.wigItem.getStartBase(), this.wigItem.getEndBase());
 			if(name.equals("contig")) return this.wigItem.getChromosome();
 			if(name.equals("chrom")) return this.wigItem.getChromosome();
@@ -214,6 +219,7 @@ public class VcfUcscGdb extends Launcher {
 		@Override
 		public boolean has(final String key) {
 			if(key.equals("wig")) return true;
+			if(key.equals("wiggle")) return true;
 			if(key.equals("length")) return true;
 			if(key.equals("contig")) return true;
 			if(key.equals("chrom")) return true;
@@ -297,57 +303,7 @@ public class VcfUcscGdb extends Launcher {
 			}
 		}
 	
-	/** minimum class to eval a JEXL expression */
-	private abstract class AbstractJexlExprHandler {
-		/** compiled expression */
-		protected final Expression jexlExpr;
-		/** declared expression */
-		private String exprStr;
-		AbstractJexlExprHandler(final String exprStr) {
-			this.exprStr = exprStr;
-			this.jexlExpr = VariantContextUtils.engine.get().createExpression(exprStr);
-			}
-		/** eval the context or throw on error */
-		protected Object eval(final LocatableJEXLContext t) {
-			try {
-				return this.jexlExpr.evaluate(t);
-				}
-			catch(final JexlException err) {
-				throw new RuntimeException("Cannot evaluate JEXL expression \""+this.exprStr+"\" with BedRecord :"+t);
-				}	
-			}
-		@Override
-		public String toString() {
-			return getClass().getName()+" "+this.exprStr;
-			}
-	}
 		
-	/** implementation of AbstractJexlExprHandler as a Predicate */
-	private class JexlPredicate extends AbstractJexlExprHandler 
-		implements Predicate<LocatableJEXLContext> {
-		JexlPredicate(final String expr) {
-			super(expr);
-			}
-		@Override
-		public boolean test(final LocatableJEXLContext t) {
-			final Object o = eval(t);
-			if(o==null) throw new RuntimeException("JEXL expression \""+this.jexlExpr+"\" returned false");
-			if(!(o instanceof Boolean)) throw new RuntimeException("JEXL expression \""+this.jexlExpr+"\" returned something that is not a boolean.");
-			return Boolean.class.cast(o);
-			}
-		}
-	/** implementation of AbstractJexlExprHandler as a Function to convert to String */
-	private class JexlToString extends AbstractJexlExprHandler implements Function<LocatableJEXLContext,String> {
-		JexlToString(final String expr) {
-			super(expr);
-			}
-		@Override
-		public String apply(final LocatableJEXLContext t) {
-			final Object o = eval(t);
-			if(o==null) return "";
-			return o.toString();
-			}
-		}
 	/** describe a remove big wig or remote big bed file */
 	private class RemoteBigFile
 		implements Closeable
@@ -357,15 +313,41 @@ public class VcfUcscGdb extends Launcher {
 		String description;
 		int limit  = -1;
 		String wigAggregate="";//min / max
+		/* Minimum overlap required as a fraction of A. */
+		double fractionOfVariant = -1.0;
+		/* Minimum overlap required as a fraction of B. */
+		double fractionOfFeature = -1.0;
 		
 		private BBFileReader bbr =null;
 		private SeekableStream seekableStream;
-		private Predicate<LocatableJEXLContext> accept = L->true;
-		private Function<LocatableJEXLContext,String> converter = L->L.toString();
+		private Predicate<JexlContext> accept = L->true;
+		private Function<JexlContext,String> converter = L->L.toString();
+		
+		boolean testAny(final Locatable target,final Locatable other,double fraction) {
+			if(!target.overlaps(other)) return false;
+			if(fraction<0) return true;
+			
+			double len_target = target.getLengthOnReference();
+			if(len_target==0) return true;
+			double len_overlap = CoordMath.getOverlap(target.getStart(), target.getEnd(), other.getStart(), other.getEnd());
+			
+			
+			return len_overlap/len_target >= fraction;
+			}
+		
+		boolean testFractionOfVariant(final Locatable variant,final Locatable feature) {
+			return testAny(variant,feature,this.fractionOfVariant);
+			}
+		boolean testFractionOfFeature(final Locatable variant,final Locatable feature) {
+			return testAny(feature,variant,this.fractionOfFeature);
+			}
+		boolean testFractionOfBoth(final Locatable variant,final Locatable feature) {
+			return testFractionOfVariant(variant,feature) && 
+				   testFractionOfFeature(variant,feature);
+			}
 		
 		/** query the item, return a set of string that should be inserted in the INFO */
 		Set<String> query(final Locatable locatable) throws IOException {
-			final double variant_len = locatable.getLengthOnReference();
 			open();
 			if(bbr.isBigBedFile()) {
 				final Set<String>  annots = new LinkedHashSet<>();
@@ -380,16 +362,12 @@ public class VcfUcscGdb extends Launcher {
 					{
 					final BedFeature bed = iter.next();
 					final Locatable bed_as_locatable = new Interval(bed.getChromosome(),bed.getStartBase()+1,bed.getEndBase());
-					
-					if(!bed_as_locatable.overlaps(locatable)) continue;
-					
-					final double overlap = CoordMath.getOverlap(bed_as_locatable.getStart(), bed_as_locatable.getEnd(), locatable.getStart(),locatable.getEnd());
-					
-					if(overlap / variant_len <fractionOverlap) continue;
+
+					if(!testFractionOfBoth(locatable,bed_as_locatable)) continue;
 					
 					final BedJEXLContext jexlCtx = new BedJEXLContext(bed);
 					
-					if(!accept.test(jexlCtx)) continue;
+					if(!this.accept.test(jexlCtx)) continue;
 					final String annotation = this.converter.apply(jexlCtx);
 					if(!StringUtils.isBlank(annotation)) annots.add(annotation);
 					
@@ -409,15 +387,11 @@ public class VcfUcscGdb extends Launcher {
 					final WigItem wiggle = iter.next();
 					final Locatable wig_as_locatable = new Interval(wiggle.getChromosome(),wiggle.getStartBase()+1,wiggle.getEndBase());
 					
-					if(!wig_as_locatable.overlaps(locatable)) continue;
-					
-					final double overlap = CoordMath.getOverlap(wig_as_locatable.getStart(), wig_as_locatable.getEnd(), locatable.getStart(),locatable.getEnd());
-					
-					if(overlap / variant_len <fractionOverlap) continue;
+					if(!testFractionOfBoth(locatable,wig_as_locatable)) continue;
 					
 					final WigItemJEXLContext jexlCtx = new WigItemJEXLContext(wiggle);
 					
-					if(!accept.test(jexlCtx)) continue;
+					if(!this.accept.test(jexlCtx)) continue;
 					final String annotation = this.converter.apply(jexlCtx);
 					if(StringUtils.isBlank(annotation)) continue;
 					if(
@@ -642,6 +616,11 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 					
 					
 					if(StringUtils.isBlank(line)) {
+						if(hash.getOrDefault("enabled","true").equals("false"))
+							{
+							hash.clear();
+							}
+						
 						if(!hash.isEmpty()) {
 							final RemoteBigFile bf= new RemoteBigFile();
 							bf.url = required.apply("url");
@@ -684,9 +663,17 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 							if(hash.containsKey("limit")) {
 								bf.limit  = Integer.parseInt(hash.get("limit"));
 								}
+							if(hash.containsKey("fractV")) {
+								bf.fractionOfVariant  = Double.parseDouble(hash.get("fractV"));
+								}
+							if(hash.containsKey("fractF")) {
+								bf.fractionOfVariant  = Double.parseDouble(hash.get("fractF"));
+								}
+							
 							if(hash.containsKey("aggregate")) {
 								bf.wigAggregate  = hash.get("aggregate");
 								if(!(bf.wigAggregate.equals("min") || bf.wigAggregate.equals("max"))) {
+									bf.close();
 									throw new RuntimeIOException("Bad value for aggregate accepted:(min/max))");
 									}
 								}
@@ -744,7 +731,18 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 					out.add(ctx);
 					continue;
 					}
-				final Locatable as_interval = new Interval(ctg,ctx.getStart(),ctx.getEnd());
+				final Locatable as_interval;
+				
+				if(ctx.isIndel()) //mutation starts *after* the base
+					{
+					as_interval = new Interval(ctg,ctx.getStart()+1,ctx.getEnd());
+					}
+				else
+					{
+					as_interval = new Interval(ctg,ctx.getStart(),ctx.getEnd());
+					}
+				
+				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
 				for(final RemoteBigFile rsrc: remoteBigFiles) {
@@ -771,10 +769,7 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(fractionOverlap<=0 || fractionOverlap>1) {
-			LOG.error("bad fraction overlap");
-			return -1;
-			}
+		
 		return doVcfToVcf(args, this.outputFile);
 		}
 	public static void main(final String[] args) {

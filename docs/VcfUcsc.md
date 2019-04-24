@@ -10,11 +10,16 @@ annotate an VCF with mysql UCSC data
 ```
 Usage: vcfucsc [options] Files
   Options:
+    -a, --accept
+      JEXL expression used to convert a row to String. Empty=defaul/accept 
+      all. See the manual.
+      Default: <empty string>
     -D, --database
-      database name
+      mysql database name.
       Default: hg19
-  * -e, --expression
-      expression string.
+    -e, --expression
+      JEXL expression used to convert a row to String. Empty=default. See the 
+      manual. 
       Default: <empty string>
     -x, --extend
       Extend variant coordinates by 'x' bases.
@@ -96,8 +101,23 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## JEXL expressions:
+
+## Jexl expression
+
+Filtering and conversion to string are performed using a JEXL expression. See https://commons.apache.org/proper/commons-jexl/reference/syntax.html
+
+the following names are defined for the jexl context
+
+ * **row** : a **ResultSet** https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSet.html
+ * **meta** : a **ResultSetMetaData** https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSetMetaData.html
+ * other fields are the names of the column in the table.
+
+
+
 ## History
 
+20190424: switch to jexl expression
 20180206: faster creating a prepared statement for each bin.size. fix chromContig
 
 ## Example

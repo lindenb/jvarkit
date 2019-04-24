@@ -20,8 +20,8 @@ public class VcfUcscTest {
 	@DataProvider(name="src01")
 	public Object[][] getData() {
 		return new Object[][] {
-			{"vistaEnhancers","${chromStart}|${chromEnd}|${name}|${score}"},
-			{"wgEncodeRegDnaseClusteredV3","${score}"},
+			{"vistaEnhancers","chromStart + \"|\" + chromEnd + \"|\" + name + \"|\"+ score"},
+			{"wgEncodeRegDnaseClusteredV3","score"},
 			};
 	}
 	
