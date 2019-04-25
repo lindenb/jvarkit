@@ -2059,7 +2059,7 @@ all.add( task("vcffilterjdk", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("optimizer", type: CompileJVarkit) {
+all2.add( task("optimizer", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.optimizer.Optimizer"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
 	});
