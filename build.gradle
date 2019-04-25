@@ -2076,7 +2076,7 @@ all2.add( task("vcftrap", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	endMsg = "never used"
 	});
-all.add( task("vcfoptimizeped4skat", type: CompileJVarkit) {
+all2.add( task("vcfoptimizeped4skat", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.skat.VcfOptimizePedForSkat"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	});
