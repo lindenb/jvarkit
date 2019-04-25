@@ -1734,12 +1734,12 @@ all.add( task("commbams", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.CommBams"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("evs2vcf", type: CompileJVarkit) {
+all2.add( task("evs2vcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.evs2bed.EvsToVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["evs"]
 	});
-all.add( task("evs2xml", type: CompileJVarkit) {
+all2.add( task("evs2xml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.evs2bed.EvsDumpXml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["evs"]
