@@ -140,6 +140,9 @@ the following names are defined for the WIG jexl context
  * **end** : the getEndBase of the wig item
  * **value** : the value of the wig item
 
+the `List<String>` the `get(int index)` function returns an empty string if the index is out of bound.
+There is also a function `get(int index,String default)`.
+
 
 END_DOC
 */
@@ -166,14 +169,17 @@ public class VcfUcscGdb extends Launcher {
 	private final HttpClientBuilder hb = HttpClients.custom();
 	
 	/** List that doesn't throw out of bound exception but return empty string */
-	private static class NotIndexOutOfBoundList extends AbstractList<String> {
+	static class NotIndexOutOfBoundList extends AbstractList<String> {
 		final List<String> delegate;
 		NotIndexOutOfBoundList(final List<String> delegate) {
 			this.delegate= delegate;
 			}
+		public String get(int index,String defaultV) {
+			return index<0 || index >= this.delegate.size()?defaultV:this.delegate.get(index);
+			}
 		@Override
 		public String get(int index) {
-			return index<0 || index >= this.delegate.size()?"":this.delegate.get(index);
+			return get(index,"");
 			}
 		@Override
 		public int size() {
