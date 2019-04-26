@@ -197,26 +197,37 @@ public abstract class OpenJdkCompiler {
 				cw= null;
 				//compile
 				String classpath = getProperties().getProperty("classpath","");
-				String selfjar = getProperties().getProperty("self","");
-				if(!selfjar.isEmpty()) {
-					classpath += File.pathSeparator+ selfjar;
-					}
-				else
+                                boolean got_my_jar=false;
+				//first try using this method before finding 'self', because jvarkit might be a symbolic link,
+				// https://stackoverflow.com/questions/9399393/
+				try
 					{
-					// https://stackoverflow.com/questions/9399393/
-					try
-						{
-						final java.security.CodeSource codeSource = getClass().getProtectionDomain().getCodeSource();
-						final java.net.URL codeUrl = codeSource==null?null:codeSource.getLocation();
-						final String myjar=codeUrl.toURI().getPath();
-						if(myjar!=null && !myjar.isEmpty()) classpath += File.pathSeparator+ myjar;
-						}
-					catch(final Throwable err)
-						{
-						LOG.debug("cannot get self jar:"+err.getMessage());
+					final java.security.CodeSource codeSource = getClass().getProtectionDomain().getCodeSource();
+					final java.net.URL codeUrl = codeSource==null?null:codeSource.getLocation();
+					final String myjar=codeUrl.toURI().getPath();
+					if(myjar!=null && !myjar.isEmpty()) {
+						classpath += File.pathSeparator+ myjar;
+						got_my_jar=true;
 						}
 					}
-				
+				catch(final Throwable err)
+					{
+					LOG.debug("cannot get self jar using getProtectionDomain:"+err.getMessage());
+					}
+
+				if(!got_my_jar) {
+					final String selfjar = getProperties().getProperty("self","");
+					if(!selfjar.isEmpty()) {
+						classpath += File.pathSeparator+ selfjar; 
+						got_my_jar=true;
+						}
+					}
+
+				if(!got_my_jar) {
+					LOG.warn("cannot get self jar. Program might crash");
+					}
+
+
 				final List<String> cmd = new ArrayList<>();
 				cmd.add(getJavacExe());
 				cmd.add("-g");
