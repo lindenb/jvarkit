@@ -5,33 +5,30 @@
 Set FILTER for VCF if it doesn't intersects with BED.
 
 
-## DEPRECATED
-
-use GATK FilterVariants
-
 ## Usage
 
 ```
 Usage: vcfbedsetfilter [options] Files
   Options:
-    -B, --bed
-      Tribble or Tabix bed file
-    -d, --discard
-      Discard filtered variants
-      Default: false
+  * -B, --bed, -m, --map
+      Tribble or Tabix bed file. Must be indexed with tribble or tabix or use 
+      '--fast'. 
     -f, --filter
-      FILTER name
+      FILTER name. Filter is **set** if the variant overlaps any BED region, 
+      unless `--inverse` is set. If `--filter` is empty, FILTERED variant will 
+      be discarded.
       Default: VCFBED
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -i, --inverse
-      inverse selection
+      Inverse selection: FILTER will be **set** for a Variant overlaping no 
+      bed record. Variant overlapping any bed record remains unfiltered.
       Default: false
-    -m, --map
-      unindexed bed file, will be loaded in memory (faster than tribble/tabix 
-      but memory consumming)
+    --fast, --memory
+      Load the bed in memory: faster than tribble/tabix but memory consumming)
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -98,6 +95,5 @@ The current reference is:
 
 ```
 $java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf 
-
 ```
 

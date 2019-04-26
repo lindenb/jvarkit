@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -299,9 +300,7 @@ public class WesCnvSvg  extends Launcher {
 			{
 			
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFileSupplier.getRequired());
-			this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
-			if(this.refDict==null || this.refDict.isEmpty()) throw new JvarkitException.FastaDictionaryMissing(this.referenceFileSupplier.toString());
-			
+			this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
 			final List<Interval> userIntervals = new ArrayList<>();
 			if(!StringUtil.isBlank(this.bedRegions))
 				{

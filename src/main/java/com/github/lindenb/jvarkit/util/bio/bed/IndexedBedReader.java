@@ -72,6 +72,7 @@ public class IndexedBedReader
 		init(bedFile);
 		}
 	
+	
 	private void init(final File bedFile) throws IOException
 		{
 		this.source=bedFile;
