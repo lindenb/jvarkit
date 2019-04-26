@@ -1672,6 +1672,10 @@ all.add( task("vcfucsc", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcsc"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","mysql")
 	});
+all2.add( task("vcfucscgdb", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcscGdb"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig","httpclient")
+	});
 all.add( task("bamstatsjfx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bamstats01.BamStatsJfx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
@@ -1730,12 +1734,12 @@ all.add( task("commbams", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.CommBams"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("evs2vcf", type: CompileJVarkit) {
+all2.add( task("evs2vcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.evs2bed.EvsToVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["evs"]
 	});
-all.add( task("evs2xml", type: CompileJVarkit) {
+all2.add( task("evs2xml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.evs2bed.EvsDumpXml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["evs"]
@@ -2055,7 +2059,7 @@ all.add( task("vcffilterjdk", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("optimizer", type: CompileJVarkit) {
+all2.add( task("optimizer", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.optimizer.Optimizer"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
 	});
@@ -2072,7 +2076,7 @@ all2.add( task("vcftrap", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	endMsg = "never used"
 	});
-all.add( task("vcfoptimizeped4skat", type: CompileJVarkit) {
+all2.add( task("vcfoptimizeped4skat", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.skat.VcfOptimizePedForSkat"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	});

@@ -29,17 +29,22 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
+import org.apache.commons.jexl2.JexlContext;
+
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -47,46 +52,50 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jexl.BaseJexlHandler;
+import com.github.lindenb.jvarkit.jexl.JexlPredicate;
+import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 /**
 BEGIN_DOC
 
+## JEXL expressions:
+
+## Jexl expression
+
+Filtering and conversion to string are performed using a JEXL expression. See https://commons.apache.org/proper/commons-jexl/reference/syntax.html
+
+the following names are defined for the jexl context:
+
+ * **variant** : the observed **VariantContext** https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
+ * **row** : a **ResultSet** https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSet.html
+ * **meta** : a **ResultSetMetaData** https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSetMetaData.html
+ * other fields are the names of the column in the table.
+
+
+
 ## History
 
+20190424: switch to jexl expressions
 20180206: faster creating a prepared statement for each bin.size. fix chromContig
 
 ## Example
 
 
 ```
-java -jar dist/vcfucsc.jar --table snp142 -e '${name}' input.vcf
-(...)
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-chr3	124290753	.	G	C	579.77	.	UCSC_HG19_SNP142=rs145115089
-chr3	124290943	.	A	G	491.77	.	UCSC_HG19_SNP142=rs7372055
-chr3	124291069	.	G	A	266.77	.	UCSC_HG19_SNP142=rs7373767
-chr3	124291171	.	C	CA	240.73	.	.
-chr3	124291245	.	A	G	563.77	.	UCSC_HG19_SNP142=rs12695439
-chr3	124291351	.	A	G	194.77	.	UCSC_HG19_SNP142=rs7613600
-chr3	124291416	.	G	T	308.77	.	UCSC_HG19_SNP142=rs73189597
-chr3	124291579	.	T	C	375.77	.	UCSC_HG19_SNP142=rs7649882
-```
-## Example
-
-```
- java -jar dist/vcfucsc.jar --table vistaEnhancers  --tag VISTAENHANCERS -x 1000 -e '${chromStart}|${chromEnd}|${name}|${score}' input.vcf
-
+java -jar dist/vcfucsc.jar -a 'score > 200 ' -e ' chromStart + "|" + chromEnd + "|" + name + "|"+ score' --table vistaEnhancers input.vcf 
 ```
 
 END_DOC
@@ -95,71 +104,69 @@ END_DOC
 @Program(
 		name="vcfucsc",
 		description="annotate an VCF with mysql UCSC data",
-		keywords={"ucsc","mysql","vcf"}
+		keywords={"ucsc","mysql","vcf"},
+		modificationDate="20190424"
 		)
 public class VcfUcsc extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfUcsc.class).make();
 
-	private static abstract class Printf
-		{
-		Printf next=null;
-		abstract void eval(final ResultSet row,final StringBuilder sb) throws SQLException;
-		void append(final Printf n) {if( this.next==null) {this.next=n;} else this.next.append(n);}
-		boolean hasColumnIndex(){ return (this.next==null?false:this.next.hasColumnIndex());}
-		}
-	private static class PrintfText extends Printf
-		{
-		final String content;
-		PrintfText(final String text) {this.content=text;}
-		@Override void eval(final ResultSet row,final StringBuilder sb) throws SQLException
-			{
-			sb.append(content);
-			if(next!=null) next.eval(row, sb);
+	
+	private static class ResultSetJexlContext implements JexlContext {
+		final VariantContext variant;
+		final ResultSet row;
+		final ResultSetMetaData metadata;
+		ResultSetJexlContext(final VariantContext variant,final ResultSet row,final ResultSetMetaData metadata) {
+			this.variant  = variant;
+			this.row  = row;
+			this.metadata = metadata;
 			}
-		}
-
-	private static class PrintfColumnIndex extends Printf
-		{
-		final int column1;
-		PrintfColumnIndex(int c) {this.column1=c;}
-		@Override  void eval(final ResultSet row,final StringBuilder sb) throws SQLException
-			{
-			if(column1>0 || column1<=row.getMetaData().getColumnCount())
-				{
-				sb.append(row.getString(column1));
+		
+		@Override
+		public Object get(final String arg) {
+			if(arg.equals("variant")) return this.variant;
+			if(arg.equals("row")) return this.row;
+			if(arg.equals("meta")) return this.metadata;
+			try {
+				return this.row.getObject(arg);
+			} catch (final SQLException e) {
+				throw new RuntimeException(e);
 				}
-			
-			if(next!=null) next.eval(row, sb);
 			}
-		boolean hasColumnIndex() {
-			return true;
+		@Override
+		public void set(String arg0, Object arg1) {
+			throw new UnsupportedOperationException("Cannot set "+arg0);
 			}
-		}
-
-	private static class PrintfColumnLabel extends Printf
-		{
-		final String label;
-		PrintfColumnLabel(String text) {this.label=text;}
-		@Override  void eval(ResultSet row,final StringBuilder sb) throws SQLException
-			{
-			if(!label.isEmpty())
-				{
-				sb.append(row.getString(label));
+		@Override
+		public boolean has(String arg) {
+			if(arg.equals("variant")) return true;
+			if(arg.equals("row")) return true;
+			if(arg.equals("meta")) return true;
+			try {
+				for(int i=1;i<=this.metadata.getColumnCount();i++) {
+					if(this.metadata.getColumnName(i).equals(arg)) return true;
+					}
+			} catch (final SQLException e) {
+				throw new RuntimeException(e);
 				}
-			
-			if(next!=null) next.eval(row, sb);
+			return false;
 			}
 		}
+		
+	private Function<JexlContext,String> toStringFunc = ROW->"DEFAULT_OUTPUT";
+	private Predicate<JexlContext> acceptRowFunc = ROW->true;
 
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-e","--expression"},description="expression string.",required=true)
-	private String expressionStr="";
-	private Printf expression=new PrintfText("");
-	
-	@Parameter(names={"-D","--database"},description="database name")
+	@Parameter(names={"-e","--expression"},description="JEXL expression used to convert a row to String. Empty=default. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
+	private String convertToStrExpr ="";
+	@Parameter(names={"-a","--accept"},description="JEXL expression used to accept a result set. Must return a boolean. Empty=defaul/accept all. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
+	private String acceptExpr="";
+	@Parameter(names={"-L","--limit"},description="Limit number of items after filtration. Negative = no-limit")
+	private int limit_item_numbers = -1;
+
+	@Parameter(names={"-D","--database"},description="mysql database name.")
 	private String database="hg19";
 	@Parameter(names={"-T","-t","--table"},description="table name",required=true)
 	private String table=null;
@@ -180,20 +187,20 @@ public class VcfUcsc extends Launcher
 	private String startColumn=null;
 	private String endColumn=null;
 	private final ContigNameConverter contigNameConverter = ContigNameConverter.createConvertToUcsc();
-	private final Set<String> userColumnNames = new LinkedHashSet<>();
 	 
-	private void select(final Set<String> atts,final PreparedStatement pstmt) throws SQLException
+	private void select(final VariantContext ctx,final Set<String> atts,final PreparedStatement pstmt) throws SQLException
 		{
-		final ResultSet row=pstmt.executeQuery();
-		while(row.next())
-			{
-			final StringBuilder sb=new StringBuilder();
-			this.expression.eval(row,sb);
-			final  String s=sb.toString();
-			if(StringUtil.isBlank(s)) continue;
-			atts.add(s);
+		try( ResultSet row=pstmt.executeQuery()){
+			final ResultSetMetaData meta = pstmt.getMetaData();
+			while(row.next() && (this.limit_item_numbers <0 || atts.size()< this.limit_item_numbers))
+				{
+				final ResultSetJexlContext rowCtx = new ResultSetJexlContext(ctx,row,meta);
+				if(!this.acceptRowFunc.test(rowCtx)) continue;
+				final  String s = this.toStringFunc.apply(rowCtx);
+				if(StringUtil.isBlank(s)) continue;
+				atts.add(s);
+				}
 			}
-		row.close();
 		}
 	
 	 private static List<Integer> reg2bins(final int beg, final int _end) {
@@ -223,15 +230,7 @@ public class VcfUcsc extends Launcher
 	 private PreparedStatement createPreparedStatement(int nBins) throws SQLException
 	 	{
 		final StringBuilder b=new StringBuilder("select ");
-		if(this.expression.hasColumnIndex())
-			{
-			b.append(" * ");
-			}
-		else
-			{
-			b.append(String.join(",",this.userColumnNames));
-			}
-		
+		b.append(" * ");
 		b.append(" from "+database+"."+table+" where ");
 		b.append(chromColumn).append("=? and NOT(");//contig
 		b.append(endColumn).append("<=? or ");//start0
@@ -268,7 +267,20 @@ public class VcfUcsc extends Launcher
 			{
 			TAG= this.infoTag;
 			}
-		VCFHeader header=in.getHeader();
+		final VCFHeader header=in.getHeader();
+		
+		final SAMSequenceDictionary dict = header.getSequenceDictionary();
+		if(dict!=null ) {
+			if(this.database.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(dict))
+				{
+				LOG.warn("using hg19 but sequence dictionary doesn't look like hg19 ?");
+				}
+			else if(this.database.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(dict))
+				{
+				LOG.warn("using hg38 but sequence dictionary doesn't look like hg38 ?");
+				}
+			}
+		
 		
 		final VCFHeader h2=new VCFHeader(header);
 		h2.addMetaDataLine(new VCFInfoHeaderLine(
@@ -293,8 +305,7 @@ public class VcfUcsc extends Launcher
 					));
 			}
 		
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		h2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+		JVarkitVersion.getInstance().addMetaData(this, h2);
 		out.writeHeader(h2);
 		
 		final Map<Integer, PreparedStatement> bin2pstmt = new HashMap<>();
@@ -303,10 +314,10 @@ public class VcfUcsc extends Launcher
 				{
 				bin2pstmt.put(0, createPreparedStatement(0));
 				}
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
+			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			while(in.hasNext())
 				{
-				final VariantContext ctx= progress.watch(in.next());
+				final VariantContext ctx= progress.apply(in.next());
 				int start0 ,end0;
 				
 				if(ctx.isIndel()) //mutation starts *after* the base
@@ -327,8 +338,11 @@ public class VcfUcsc extends Launcher
 				if(this.has_bin_column)
 					{
 					final List<Integer> binList = reg2bins(start0, end0);
-					PreparedStatement pstmt = bin2pstmt.get(binList.size());
-					if(pstmt==null) {
+					final PreparedStatement pstmt;
+					if(bin2pstmt.containsKey(binList.size())) {
+						pstmt =  bin2pstmt.get(binList.size());
+						}
+					else {
 						LOG.debug("create prepared statemement for bin.size="+binList.size()+"["+start0+":"+end0+"]");
 						pstmt = createPreparedStatement(binList.size());
 						bin2pstmt.put(binList.size(), pstmt);
@@ -339,13 +353,13 @@ public class VcfUcsc extends Launcher
 						pstmt.setInt(4+x, binList.get(x));
 						}
 					
-					select(atts,pstmt);
+					select(ctx,atts,pstmt);
 					}
 				else
 					{
 					final PreparedStatement pstmt = bin2pstmt.get(0);//already defined
 					initPstmt(pstmt,ctx.getContig(),start0,end0);
-					select(atts,pstmt);
+					select(ctx,atts,pstmt);
 					}
 				if(atts.isEmpty() && StringUtil.isBlank(this.filterIn) && StringUtil.isBlank(this.filterOut))
 					{
@@ -363,11 +377,11 @@ public class VcfUcsc extends Launcher
 					vcb.filter(this.filterOut);
 					}
 				if(!atts.isEmpty()) {
-					vcb.attribute(TAG,atts.toArray());
+					vcb.attribute(TAG,new ArrayList<String>(atts));
 					}
 				out.add(vcb.make());
 				}
-			progress.finish();
+			progress.close();
 			return 0;
 			}
 		catch(final SQLException err)
@@ -391,11 +405,7 @@ public class VcfUcsc extends Launcher
 		try
 			{
 			
-			if(StringUtil.isBlank(this.expressionStr))
-				{
-				LOG.error("expression missing");
-				return -1;
-				}
+			
 			if(StringUtil.isBlank(this.table))
 				{
 				LOG.error("Table undefined.");
@@ -408,56 +418,20 @@ public class VcfUcsc extends Launcher
 				return -1;
 				}
 			
-			
-			String s = this.expressionStr;
-			while(!s.isEmpty())
-				{
-				int b=s.indexOf("${");
-				if(b==-1)
-					{
-					this.expression.append(new PrintfText(s));
-					break;
-					}
-				int e=s.indexOf("}",b);
-				if(e==-1) 
-					{
-					LOG.error("Cannot find end of expression in "+this.expressionStr);
-					return -1;
-					}
-				if(b>0) this.expression.append(new PrintfText(s.substring(0,b)));
-				final String between = s.substring(b+2,e).trim();
-				if(between.isEmpty()) 
-					{
-					LOG.error("bad expression in "+this.expressionStr);
-					return -1;
-					}
-				if(between.matches("[0-9]+"))
-					{
-					int colIndex = Integer.parseInt(between);
-					max_column_index = Math.max(max_column_index, colIndex);
-					this.expression.append(new PrintfColumnIndex(colIndex));
-					}
-				else
-					{
-					this.userColumnNames.add(between);
-					this.expression.append(new PrintfColumnLabel(between));
-					}
-				s=s.substring(e+1);
-				}
+			if(!StringUtil.isBlank(this.acceptExpr)) {
+				this.acceptRowFunc = new JexlPredicate(this.acceptExpr);
+			}
+			if(!StringUtil.isBlank(this.convertToStrExpr)) {
+				this.toStringFunc = new JexlToString(this.convertToStrExpr);
+			}
+
 			}
 		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-					
-			
 		
-		if(this.expression==null)
-			{
-			LOG.error("Expression undefined.");
-			return -1;
-			}
 		try
 			{
 			LOG.info("Getting jdbc-driver");
@@ -486,14 +460,6 @@ public class VcfUcsc extends Launcher
 				{
 				LOG.error("No column index["+max_column_index+"] for "+cols+" N="+cols.size());
 				return -1;
-				}
-			
-			for(final String userColumnName: this.userColumnNames)
-				{
-				if(!cols.contains(userColumnName)) {
-					LOG.error("No column '"+userColumnName+"' in "+cols);
-					return -1;
-					}
 				}
 			
 			for(final String col:new String[]{"chrom"})
@@ -546,7 +512,7 @@ public class VcfUcsc extends Launcher
 			}
 		}
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfUcsc().instanceMainWithExit(args);
 		}

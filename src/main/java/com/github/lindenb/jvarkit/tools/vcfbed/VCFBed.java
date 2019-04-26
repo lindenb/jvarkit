@@ -204,7 +204,7 @@ public class VCFBed extends Launcher
 			}
 		@Override
 		public String toString() {
-			return "JexlContext for SAMRecord "+this.bedLine;
+			return "JexlContext for BedLine "+this.bedLine;
 			}
 		}
 	
