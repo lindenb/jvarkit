@@ -323,12 +323,13 @@ public class KnownGene implements Iterable<Integer>,Feature
 			return getName();
 			}
 		
-		
+		/** return null if there is no next intron */
 		public Intron getNextIntron()
 			{
 			if(getIndex()+1>=getGene().getExonCount()) return null;
 			return getGene().getIntron(getIndex());
 			}
+		/** return null if there is no prev intron */
 		public Intron getPrevIntron()
 			{
 			if(getIndex()<=0) return null;

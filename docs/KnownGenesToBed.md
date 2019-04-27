@@ -10,27 +10,22 @@ converts UCSC knownGenes file to BED.
 ```
 Usage: kg2bed [options] Files
   Options:
-    -c, --cds
-      Hide CDSs
-      Default: false
-    -x, --exon
-      Hide Exons
-      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -i, --intron
-      Hide Introns
-      Default: false
+    -hide, --hide
+      don't show the following items (comma separated, one of 
+      'INTRON,UTR,CDS,EXON,TRANSCRIPT,NON_CODING,CODING'). Empty don't hide 
+      anything 
+      Default: <empty string>
     -o, --output
       Output file. Optional . Default: stdout
-    -t, --transcript
-      Hide Transcript
-      Default: false
-    -u, --utr
-      Hide UTRs
-      Default: false
+    -s, --select
+      JEXL select expression. Object 'kg' is an instance of KnownGene (https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/ucsc/KnownGene.java).JEXL 
+      stands for Java EXpression Language.  See 
+      https://commons.apache.org/proper/commons-jexl/reference/syntax.html 
+      Default: <empty string>
     --version
       print version and exit
 
@@ -76,11 +71,6 @@ The java jar file will be installed in the `dist` directory.
 [https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBedTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBedTest.java)
 
 
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBedTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBedTest.java)
-
-
 ## Contribute
 
 - Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
@@ -102,12 +92,7 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-
-
-
 ### Example
-
-
 
 ```
 $ curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" |\
@@ -128,7 +113,5 @@ chr1	12227	12645	+	uc010nxr.1	INTRON	Intron 1
 chr1	11873	12227	+	uc010nxr.1	UTR	UTR3
 chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
 chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
-
 ```
-
 
