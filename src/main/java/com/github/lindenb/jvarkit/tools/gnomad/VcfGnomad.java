@@ -574,7 +574,7 @@ public class VcfGnomad extends Launcher{
 							}
 						else
 							{
-							LOG.error("Found more than one value ("+set+") for "+infoField);
+							LOG.error("Found more than one value ("+set+") for "+infoField+" "+ ctx.getContig()+":"+ctx.getStart());
 							progress.close();
 							return -1;
 							}
