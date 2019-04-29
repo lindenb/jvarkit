@@ -47,6 +47,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -185,6 +186,9 @@ public class VcfGnomad extends Launcher{
 		
 		private Interval lastInterval = null;
 		final List<VariantContext> buffer = new ArrayList<>();
+		/** convert to gnomad notation. Since I lift overred the VCF to hg38 */
+		private ContigNameConverter ctgNameConverter = ContigNameConverter.getIdentity();
+		
 		@Override
 		public void close() {
 			CloserUtil.close(this.gnomad_tabix);
@@ -197,6 +201,7 @@ public class VcfGnomad extends Launcher{
 			{
 			try {
 				this.gnomad_tabix=new TabixVcfFileReader(this.uri);
+				this.ctgNameConverter = ContigNameConverter.fromContigSet(this.gnomad_tabix.getChromosomes());
 				}
 			catch(final IOException err)
 				{
@@ -208,12 +213,8 @@ public class VcfGnomad extends Launcher{
 			return Objects.requireNonNull(this.gnomad_tabix).getHeader();
 			}	
 		
-		private String normalizeContig(String s) {
-			if(s.startsWith("chr")) s=s.substring(3);
-			if(s.equals("X") || s.equals("Y")) return s;
-			if(s.length()==1 && Character.isDigit(s.charAt(0))) return s;
-			if(s.length()==2 && Character.isDigit(s.charAt(0))&& Character.isDigit(s.charAt(1))) return s;
-			return null;
+		private String normalizeContig(final String s) {
+			return this.ctgNameConverter.apply(s);
 			}
 		
 		boolean acceptContig(final String userCtg) {
@@ -362,8 +363,8 @@ public class VcfGnomad extends Launcher{
 		{
 		final VCFHeader h0 = iter.getHeader();
 		if(!SequenceDictionaryUtils.isGRCh37(h0)) {
-			LOG.error("Input is NOT GRCh37 ");
-			return -1;
+			LOG.warn("Input is NOT GRCh37 ?");
+			// can be lift over
 			}
 		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(h0).logger(LOG).build();
 		

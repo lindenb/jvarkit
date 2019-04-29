@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -49,6 +50,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
@@ -70,7 +72,7 @@ END_DOC
 
 
 @Program(name="vcfbedsetfilter",
-	description="Set FILTER for VCF if it doesn't intersects with BED.",
+	description="Set FILTER for VCF if intersects with BED.",
 	keywords={"vcf","bed","filter"},
 	modificationDate="20190426"
 	)
@@ -95,6 +97,9 @@ public class VCFBedSetFilter extends Launcher
 
 	@Parameter(names={"--fast","--memory"},description="Load the bed in memory: faster than tribble/tabix but memory consumming)")
 	private boolean useInMemory = false;
+
+	@Parameter(names={"-x","--extend"},description="Extend the variant coordinates per 'x' bases. " + DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int extend_bases = 0;
 
 
 	private IntervalTreeMap<Boolean> intervalTreeMap=null;
@@ -153,6 +158,8 @@ public class VCFBedSetFilter extends Launcher
 				final VariantContext ctx= progress.apply(r.next());
 				boolean set_filter = true;
 				final String convert_contig = ctgNameConverter.apply(ctx.getContig());
+				final int ctx_start = Math.max(1, ctx.getStart() - this.extend_bases);
+				final int ctx_end =  ctx.getEnd() + this.extend_bases ;
 				
 				if(StringUtil.isBlank(convert_contig))
 					{
@@ -165,7 +172,7 @@ public class VCFBedSetFilter extends Launcher
 					set_filter = false;
 					}
 				else if(this.intervalTreeMap!=null) {
-					if( this.intervalTreeMap.containsOverlapping(new Interval(convert_contig,ctx.getStart(),ctx.getEnd())))
+					if( this.intervalTreeMap.containsOverlapping(new Interval(convert_contig,ctx_start,ctx_end)))
 						{
 						set_filter = false;	
 						}
@@ -181,7 +188,7 @@ public class VCFBedSetFilter extends Launcher
 						while(iter.hasNext())
 							{
 							final BedLine bed = iter.next();
-							if(bed==null || !CoordMath.overlaps(bed.getStart(), bed.getEnd(), ctx.getStart(), ctx.getEnd())) continue;
+							if(bed==null || !CoordMath.overlaps(bed.getStart(), bed.getEnd(),ctx_start,ctx_end)) continue;
 							set_filter=false;
 							break;
 							}
