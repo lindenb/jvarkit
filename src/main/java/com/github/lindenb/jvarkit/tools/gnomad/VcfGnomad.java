@@ -168,6 +168,8 @@ public class VcfGnomad extends Launcher{
 	private String excludePatternStr = "controls|non_cancer|non_neuro|non_topmed";
 	@Parameter(names={"--ani"},description="[20190311] for allele numbers 'AN' to be variant-count-type=Integer (not 'A' as declared in gnomad)")
 	private boolean alleleNumber_is_integer = false;
+	@Parameter(names={"--ignore-error0"},description="[20190429] ignore error when gnomad/INFO is found twice for the same position. I found the error after a liftover to hg38. see https://twitter.com/yokofakun/status/1122814203381858305")
+	private boolean ignore_info_found_twice = false;
 	
 	/** entries mapping chromosome/type->vcf.gz */
 	private List<ManifestEntry> manifestEntries=new ArrayList<>();
@@ -572,9 +574,14 @@ public class VcfGnomad extends Launcher{
 						if(set.size()==1) {
 							vcb.attribute(infoField.getOutputTag(),set.iterator().next());
 							}
+						else if(this.ignore_info_found_twice)
+							{
+							LOG.warn("Found more than one value ("+set+") for "+infoField+" "+ ctx.getContig()+":"+ctx.getStart());
+							vcb.attribute(infoField.getOutputTag(),set.iterator().next());
+							}
 						else
 							{
-							LOG.error("Found more than one value ("+set+") for "+infoField+" "+ ctx.getContig()+":"+ctx.getStart());
+							LOG.error("Found more than one value ("+set+") for "+infoField+" "+ ctx.getContig()+":"+ctx.getStart()+". Are you using a lift-overed gnomad ? Use option --ignore-error0 to skip this error");
 							progress.close();
 							return -1;
 							}

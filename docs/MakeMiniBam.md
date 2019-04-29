@@ -12,6 +12,20 @@ Usage: mkminibam [options] Files
   Options:
     -B, --bed
       Use the intervals from this BED file.
+    --bnd
+      [20190427]When reading VCF file, don't get the mate position for the 
+      structural BND variants.
+      Default: false
+    -b, --bounds, --edge
+      [20190427] If `b` is greater than 0 and the genomic object has a length 
+      greater than `b` then consider the edges of the object as two positions. 
+      the idea is to just save the boundaries of a large deletion. A distance 
+      specified as a positive integer.Comma are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: -1
+    -C, --comment
+      [20190427]Add a file '*.md' with this comment.
+      Default: <empty string>
     -x, --extend
       Extend the positions by 'x' bases. A distance specified as a positive 
       integer.Comma are removed. The following suffixes are interpreted : 
@@ -35,10 +49,14 @@ Usage: mkminibam [options] Files
       File prefix in the archive. Special value 'now' will be replace by the 
       current date
       Default: miniBam.
+    -R, --reference
+      Optional Reference file for CRAM files. Indexed fasta Reference file. 
+      This file must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     -T, --tmp
       Tmp working directory
       Default: /tmp
-    -V, --variant
+    -V, --variant, --vcf
       Use the intervals from this VCF file.
     --version
       print version and exit
@@ -104,9 +122,14 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
  
+
 # Motivation
 
 Bams are too bigs and my users often ask to visualize a small region of a set of bam
+
+# Input
+
+ input is a set of bam files or a file with the suffix '.list' containing one path to a bam per line.
  
 # Example
  

@@ -43,6 +43,11 @@ Usage: vcfgnomad [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore-error0
+      [20190429] ignore error when gnomad/INFO is found twice for the same 
+      position. I found the error after a liftover to hg38. see 
+      https://twitter.com/yokofakun/status/1122814203381858305 
+      Default: false
     -m, --manifest
       manifest file descibing how to map a contig to an URI . 3 columns: 1) 
       exome|genome 2) contig 3) path or URL.

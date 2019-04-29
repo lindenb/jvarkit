@@ -25,10 +25,13 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.minibam;
 
 import java.io.BufferedReader;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -72,13 +75,20 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.variant.variantcontext.StructuralVariantType;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 /**
  BEGIN_DOC
  
+
 # Motivation
 
 Bams are too bigs and my users often ask to visualize a small region of a set of bam
+
+# Input
+
+ input is a set of bam files or a file with the suffix '.list' containing one path to a bam per line.
  
 # Example
  
@@ -116,7 +126,7 @@ No errors detected in compressed data of out.zip.
 		description="Creates an archive of small bams with only a few regions.",
 		keywords={"bam","sam"},
 		creationDate="20190410",
-		modificationDate="20190417"
+		modificationDate="20190427"
 		)
 public class MakeMiniBam extends Launcher {
 	private static final Logger LOG = Logger.build(MakeMiniBam.class).make();
@@ -132,14 +142,32 @@ public class MakeMiniBam extends Launcher {
 	private Path tmpDir = IOUtils.getDefaultTempDir();
 	@Parameter(names={"--prefix"},description="File prefix in the archive. Special value 'now' will be replace by the current date")
 	private String filePrefix="miniBam.";
-	@Parameter(names={"-V","--variant"},description="Use the intervals from this VCF file.")
+	@Parameter(names={"-V","--variant","--vcf"},description="Use the intervals from this VCF file.")
 	private Path vcfInput=null;
 	@Parameter(names={"-B","--bed"},description="Use the intervals from this BED file.")
 	private Path bedInput=null;
+	@Parameter(names={"-R","--reference"},description="Optional Reference file for CRAM files. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path referencePath = null;
 	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
 	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
-	
-	
+	@Parameter(names={"-b","--bounds","--edge"},description="[20190427] If `b` is greater than 0 and the genomic object has a length greater than `b` then consider the edges of the object as two positions. the idea is to just save the boundaries of a large deletion. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int bound_edge = -1;
+	@Parameter(names={"-C","--comment"},description="[20190427]Add a file '*.md' with this comment.")
+	private String userComment="";
+	@Parameter(names={"--bnd"},description="[20190427]When reading VCF file, don't get the mate position for the structural BND variants.")
+	private boolean disable_sv_bnd = false;
+
+
+
+	private List<Locatable> getEdge(final Locatable loc) {
+		if(this.bound_edge<1 || loc.getLengthOnReference() <= this.bound_edge) {
+			return Collections.singletonList(loc);
+			}
+		return Arrays.asList(
+				new Interval(loc.getContig(),loc.getStart(),loc.getStart()),
+				new Interval(loc.getContig(),loc.getEnd(),loc.getEnd())
+				);
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -169,6 +197,7 @@ public class MakeMiniBam extends Launcher {
 			swf.setCreateIndex(true);
 			
 			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.referencePath!=null) srf.referenceSequence(this.referencePath);
 			
 			archive = ArchiveFactory.open(this.outputFile);
 			for(final Path bamFile:bamFiles) {
@@ -218,25 +247,48 @@ public class MakeMiniBam extends Launcher {
 					};
 				
 				for(final String posStr:this.posStrSet) {
-					int colon = posStr.indexOf(":");
+					final int colon = posStr.indexOf(":");
 					if(colon <=0 ) throw new IllegalArgumentException("cannot find colon in "+posStr);
 					final String contig1 = posStr.substring(0,colon);
-					int pos = Integer.parseInt(posStr.substring(colon+1));
+					final int pos = Integer.parseInt(posStr.substring(colon+1));
 					locatableConsummer.accept(new Interval(contig1,pos,pos));
 					}
+				// read vcf data
 				if(this.vcfInput!=null) {
-					try(VCFFileReader vr = new VCFFileReader(this.vcfInput,false)) {
-						vr.forEach(locatableConsummer);
+					try(final VCFFileReader vr = new VCFFileReader(this.vcfInput,false)) {
+						try(final CloseableIterator<VariantContext> iter = vr.iterator()) {
+							while(iter.hasNext()) {
+								final VariantContext ctx = iter.next();
+								getEdge(ctx).stream().forEach(locatableConsummer);
+								//is it a BND ? with an allele for the mate position
+								// eg: "N]chr7:23042387]"
+								if(!this.disable_sv_bnd &&
+									StructuralVariantType.BND.equals(ctx.getStructuralVariantType()) &&
+									ctx.getAlleles().size()==2 &&
+									ctx.getAlleles().get(1).isSymbolic()) {
+									final String tokens[] =  ctx.getAlleles().get(1).getDisplayString().split("[\\[\\]]");
+									if(tokens.length>2 && tokens[1].indexOf(":")>0) {
+										final int colon = tokens[1].indexOf(':');
+										final String mateCtg = tokens[1].substring(0,colon);
+										final int matePos = Integer.parseInt(tokens[1].substring(colon+1));
+										locatableConsummer.accept(new Interval(mateCtg,matePos,matePos));
+										}
+									}
+								}
+							}
 						}
 					}
+				
+				// read BED data
 				if(this.bedInput!=null) {
 					final BedLineCodec codec= new BedLineCodec();
-					try(BufferedReader br = IOUtils.openPathForBufferedReading(this.bedInput)) {
+					try(final BufferedReader br = IOUtils.openPathForBufferedReading(this.bedInput)) {
 						br.lines().
 							filter(L->!BedLine.isBedHeader(L)).
 							map(L->codec.decode(L)).
 							filter(B->B!=null).
 							map(B->B.toInterval()).
+							flatMap(L->getEdge(L).stream()).
 							forEach(locatableConsummer);
 						}
 					}
@@ -297,6 +349,21 @@ public class MakeMiniBam extends Launcher {
 				
 				Files.deleteIfExists(tmpBam);
 				Files.deleteIfExists(tmpBai);
+				}
+			
+			if(!StringUtils.isBlank(this.userComment)) {
+				try(final PrintWriter pw = archive.openWriter(this.filePrefix+(this.filePrefix.endsWith(".")?"":".")+"README.md")) {
+					pw.append(this.userComment);
+					pw.println();
+					pw.println("## BAMS");
+					pw.println();
+					for(final Path bamFile:bamFiles) pw.println("  * "+bamFile);
+					pw.println();
+					pw.println("## Date");
+					pw.println();
+					pw.println( new SimpleDateFormat("yyyyMMdd").format(new Date()));
+					pw.flush();
+					}
 				}
 			
 			archive.close();
