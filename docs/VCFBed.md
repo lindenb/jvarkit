@@ -10,18 +10,23 @@ Transfer information from a BED to a VCF
 ```
 Usage: vcfbed [options] Files
   Options:
-    -B, --bed
-      Tribble or Tabix bed file
+  * -B, --bed, -m, --map
+      Tribble or Tabix bed file. Files must be indexed unless option --fast is 
+      selected. 
     -e, --expr, --jexl
-      [20180124]A JEXL Expression returning a string (see 
-      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      [20180124]A JEXL Expression returning a string JEXL stands for Java 
+      EXpression Language.  See 
+      https://commons.apache.org/proper/commons-jexl/reference/syntax.html . 
       The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java 
-      ) 
+      ).  The variable 'ctx' or 'variant' is the current observed variant. The 
+      variable 'line' is the original bed line
       Default: bed.get(0)+":"+bed.get(1)+"-"+bed.get(2)
     -x, --extend
       [20180123]if nothing was found in the BED file, extends the interval by 
-      'x' bases and try again. Ignore if <1. Require that the VCF file has a 
-      Dictionary (##contig lines)
+      'x' bases and try again. Do not extend  if 'x' <1. Require that the VCF 
+      file has a Dictionary (##contig lines). A distance specified as a 
+      positive integer.Comma are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb
       Default: 0
     -fn, --filternooverlap
       if defined, set this as a FILTER column if not any BED line overlap a 
@@ -36,12 +41,14 @@ Usage: vcfbed [options] Files
     -ignoreFiltered, --ignoreFiltered
       [20171031] Ignore FILTERed Variants (should be faster)
       Default: false
-    -m, --map
-      unindexed bed file, will be loaded in memory (faster than tribble/tabix 
-      but memory consumming)
     -mx, --max-extend
-      [20180123] used with option 'x': don't extend to more than 'max' bases.
+      [20180123] used with option 'x': don't extend to more than 'max' bases.A 
+      distance specified as a positive integer.Comma are removed. The 
+      following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 1000
+    --fast, --memory
+      Load files in memory (faster than tribble/tabix but memory consumming)
+      Default: false
     -mofb, --min-overlap-bed-fraction
       [20180822]	Minimum overlap required as a fraction of BED record.
     -mofr, --min-overlap-fraction
@@ -52,7 +59,7 @@ Usage: vcfbed [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -T, --tag
-      use the following INFO tag name
+      Name of the INFO tag name
       Default: VCFBED
     --version
       print version and exit

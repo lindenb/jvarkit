@@ -27,30 +27,31 @@ package com.github.lindenb.jvarkit.tools.vcfbed;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-import org.apache.commons.jexl2.Expression;
 import org.apache.commons.jexl2.JexlContext;
-import org.apache.commons.jexl2.JexlException;
 
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -58,7 +59,6 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -130,7 +130,8 @@ END_DOC
 @Program(name="vcfbed",
 	description="Transfer information from a BED to a VCF",
 	keywords={"bed","vcf","annotation"},
-	biostars=247224
+	biostars=247224,
+	modificationDate="20190430"
 	)
 public class VCFBed extends Launcher
 	{
@@ -139,17 +140,21 @@ public class VCFBed extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;	
-	@Parameter(names={"-e","--expr","--jexl"},description="[20180124]A JEXL Expression returning a string (see https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java )")
+	@Parameter(names={"-e","--expr","--jexl"},description="[20180124]A JEXL Expression returning a string " + JexlToString.OPT_WHAT_IS_JEXL +". "
+			+ "The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java ). "
+			+ " The variable 'ctx' or 'variant' is the current observed variant."
+			+ " The variable 'line' is the original bed line"
+			)
 	private String formatPattern = "bed.get(0)+\":\"+bed.get(1)+\"-\"+bed.get(2)";
 
-	@Parameter(names={"-T","--tag"},description="use the following INFO tag name")
+	@Parameter(names={"-T","--tag"},description="Name of the INFO tag name")
 	private String infoName = "VCFBED";
 
-	@Parameter(names={"-B","--bed"},description="Tribble or Tabix bed file ")
-	private File tabixFile = null;
+	@Parameter(names={"-B","--bed","-m","--map"},description="Tribble or Tabix bed file. Files must be indexed unless option --fast is selected.", required=true)
+	private File inputBedFile = null;
 
-	@Parameter(names={"-m","--map"},description="unindexed bed file, will be loaded in memory (faster than tribble/tabix but memory consumming)")
-	private File treeMapFile = null;
+	@Parameter(names={"--fast","--memory"},description="Load files in memory (faster than tribble/tabix but memory consumming)")
+	private boolean in_memory=false;
 
 	@Parameter(names={"-fo","--filteroverlap"},description="if defined, set this as a FILTER column if one or more BED line overlap a variant")
 	private String filterOverlapStr = null;
@@ -159,9 +164,11 @@ public class VCFBed extends Launcher
 	
 	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Ignore FILTERed Variants (should be faster)")
 	private boolean ignoreFILTERed=false;
-	@Parameter(names={"-x","--extend"},description="[20180123]if nothing was found in the BED file, extends the interval by 'x' bases and try again. Ignore if <1. Require that the VCF file has a Dictionary (##contig lines)")
+	@Parameter(names={"-x","--extend"},description="[20180123]if nothing was found in the BED file, extends the interval by 'x' bases and try again. "
+							+ "Do not extend  if 'x' <1. "
+							+ "Require that the VCF file has a Dictionary (##contig lines). " + DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend_by=0;
-	@Parameter(names={"-mx","--max-extend"},description="[20180123] used with option 'x': don't extend to more than 'max' bases.")
+	@Parameter(names={"-mx","--max-extend"},description="[20180123] used with option 'x': don't extend to more than 'max' bases." + DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_extend_by=1000;	
 	@Parameter(names={"-mofv","--min-overlap-vcf-fraction"},description="[20180822]	Minimum overlap required as a fraction of VCF record.")
 	private Double min_overlap_vcf_fraction=  null;	
@@ -170,33 +177,38 @@ public class VCFBed extends Launcher
 	@Parameter(names={"-mofr","--min-overlap-fraction"},description="[20180822] Require that the minimum fraction be satisfied for VCF OR BED.")
 	private Double min_overlap_both_fraction=  null;
 	
-	private static final Map<String,Function<BedLine,Object>> MAPPER=new HashMap<>();
 	private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
 	private IndexedBedReader bedReader =null;
 	private ContigNameConverter contigNameConverter = null;
-	private Expression jexlExpr = null;
+	private Function<JexlContext, String> bedJexlToString;
 
 	
-	static {
-		MAPPER.put("bed",R->R);
-		MAPPER.put("line",R->R.join());
-		};
+	
 	
 	private static class BedJEXLContext
 		implements JexlContext
 		{
 		final BedLine bedLine;
-		BedJEXLContext(final BedLine bedLine) {
+		final VariantContext ctx;
+		BedJEXLContext(final BedLine bedLine,final VariantContext ctx) {
 			this.bedLine = bedLine;
+			this.ctx = ctx;
 			}
 		@Override
 		public Object get(final String name) {
-			final Function<BedLine,Object> fun = MAPPER.get(name);
-			return (fun!=null?fun.apply(this.bedLine):null);
+			if(name.equals("ctx")) return this.ctx;
+			if(name.equals("variant")) return this.ctx;
+			if(name.equals("bed")) return this.bedLine;
+			if(name.equals("line")) return this.bedLine.join("\t");
+			return false;
 			}
 		@Override
 		public boolean has(final String key) {
-			return MAPPER.containsKey(key);
+			if(key.equals("ctx")) return true;
+			if(key.equals("variant")) return true;
+			if(key.equals("bed")) return true;
+			if(key.equals("line")) return true;
+			return false;
 			}
 		@Override
 		public void set(final String key, Object arg1) {
@@ -213,39 +225,22 @@ public class VCFBed extends Launcher
 			final Locatable bed
 			) 
 		{
+		final int overlap_len =  CoordMath.getOverlap(variant.getStart(), variant.getEnd(), bed.getStart(), bed.getEnd());
 		if(this.min_overlap_bed_fraction!=null)
 			{
-			double bedL = 1+(bed.getEnd()-bed.getStart());
-			if(bedL<=0.0) return false;
-			final int x1 = Math.max(variant.getStart(), bed.getStart());
-			final int x2 = Math.min(variant.getEnd(), bed.getEnd());
-			double bedCov = 1+(x2-x1);
-			if(bedCov/bedL < this.min_overlap_bed_fraction) return false;
+			final double bedL = bed.getLengthOnReference();
+			if(bedL==0.0) return false; 
+			if(overlap_len/bedL < this.min_overlap_bed_fraction) return false;
 			}
 		if(this.min_overlap_vcf_fraction!=null)
 			{
-			double variantL = 1+(variant.getEnd()-variant.getStart());
-			if(variantL<=0.0) return false;
-			final int x1 = Math.max(variant.getStart(), bed.getStart());
-			final int x2 = Math.min(variant.getEnd(), bed.getEnd());
-			double variantCov = 1+(x2-x1);
-			if(variantCov/variantL < this.min_overlap_vcf_fraction) return false;
+			final double variantL = variant.getLengthOnReference();
+			if(variantL==0.0) return false; 
+			if(overlap_len/variantL < this.min_overlap_vcf_fraction) return false;
 			}
 		return true;
 		}
 	
-	
-	private String bedLineToString(final BedLine bedLine) {
-		final Object o;
-		try {
-			o = this.jexlExpr.evaluate(new BedJEXLContext(bedLine));
-			}
-		catch(final JexlException err) {
-			throw new RuntimeException("Cannot evaluate JEXL expression \""+this.formatPattern+"\" with BedRecord :"+bedLine);
-			}
-		if(o==null) return null;
-		return String.valueOf(o);
-		}			
 	
 	/** reads a Bed file and convert it to a IntervalTreeMap<Bedline> */
 	private htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.util.bio.bed.BedLine>> 
@@ -289,27 +284,27 @@ public class VCFBed extends Launcher
 		{	
 		final VCFHeader header = vcfin.getHeader();
 		final SAMSequenceDictionary vcfDict = header.getSequenceDictionary();		
-		final File srcbedfile = this.tabixFile==null?this.treeMapFile:this.tabixFile;
 		final VCFHeader h2=new VCFHeader(header);
 		final VCFInfoHeaderLine infoHeader= 
 				new VCFInfoHeaderLine(
 						this.infoName,
 						VCFHeaderLineCount.UNBOUNDED,
 						VCFHeaderLineType.String,
-						"metadata added from "+ srcbedfile+
+						"metadata added from "+ this.inputBedFile+
 						" . Format was " +
 						this.formatPattern.replaceAll("[\"\'\\\\]"," ")
 						);
 		
 		final VCFFilterHeaderLine filterOverlap = 
-				(this.filterOverlapStr==null || this.filterOverlapStr.trim().isEmpty()?null:
-				new VCFFilterHeaderLine(this.filterOverlapStr, "Variant overlap with "+srcbedfile)	
-				);
+				StringUtil.isBlank(this.filterOverlapStr)?
+				null:
+				new VCFFilterHeaderLine(this.filterOverlapStr, "Variant overlap with "+this.inputBedFile)	
+				;
 		
 		final VCFFilterHeaderLine filterNoOverlap = 
-				(this.filterNoOverlapStr==null || this.filterNoOverlapStr.trim().isEmpty()?null:
-				new VCFFilterHeaderLine(this.filterNoOverlapStr, "Variant having NO overlap with "+srcbedfile)	
-				);
+				StringUtil.isBlank(this.filterNoOverlapStr) ?null:
+				new VCFFilterHeaderLine(this.filterNoOverlapStr, "Variant having NO overlap with "+inputBedFile)	
+				;
 		
 		if(filterOverlap!=null) h2.addMetaDataLine(filterOverlap);
 		if(filterNoOverlap!=null) h2.addMetaDataLine(filterNoOverlap);
@@ -353,14 +348,15 @@ public class VCFBed extends Launcher
 					);
 			
 			boolean found_overlap=false;
-			final Set<String> annotations=new HashSet<String>();
+			final Set<String> annotations = new LinkedHashSet<>();
+			
 			while(!found_overlap) {
 				if(this.intervalTreeMap!=null) {
 					for(final Set<BedLine> bedLines :this.intervalTreeMap.getOverlapping(theInterval)) {
 						for(final BedLine bedLine:bedLines) {
 							if(!testFinerIntersection(ctx,bedLine)) continue;
 							found_overlap=true;
-							final String newannot= this.bedLineToString(bedLine);
+							final String newannot= this.bedJexlToString.apply(new BedJEXLContext(bedLine,ctx));
 							if(!StringUtil.isBlank(newannot))
 								{
 								annotations.add(VCFUtils.escapeInfoField(newannot));
@@ -370,24 +366,22 @@ public class VCFBed extends Launcher
 					}
 				else
 					{
-					CloseableIterator<BedLine> iter = null;
-					try {
-						iter = this.bedReader.iterator(
+					try(CloseableIterator<BedLine> iter = this.bedReader.iterator(
 								theInterval.getContig(),
 								theInterval.getStart()-1,
 								theInterval.getEnd()+1
-								);
+								)) {
 						while(iter.hasNext())
 							{
 							final BedLine bedLine = iter.next();
 							
 							if(!theInterval.getContig().equals(bedLine.getContig())) continue;
-							if(theInterval.getStart() > bedLine.getEnd() ) continue;
-							if(theInterval.getEnd() < bedLine.getStart() ) continue;
+							if(!CoordMath.overlaps(theInterval.getStart(), theInterval.getEnd(), bedLine.getStart(), bedLine.getEnd())) continue;
+ 							
 							if(!testFinerIntersection(ctx,bedLine)) continue;
 							found_overlap=true;
 		
-							final String newannot= this.bedLineToString(bedLine);
+							final String newannot= this.bedJexlToString.apply(new BedJEXLContext(bedLine, ctx));
 							if(!StringUtil.isBlank(newannot))
 								annotations.add(VCFUtils.escapeInfoField(newannot));
 							}
@@ -398,10 +392,7 @@ public class VCFBed extends Launcher
 						LOG.error(ioe);
 						throw new RuntimeIOException(ioe);
 						}
-					finally
-						{
-						CloserUtil.close(iter);
-						}
+						
 					}
 				// can we extend the current interval
 				if(found_overlap) break;
@@ -460,6 +451,15 @@ public class VCFBed extends Launcher
 	public int doWork(final List<String> args) {
 		try
 			{
+			if(this.inputBedFile==null)
+				{
+				LOG.error("Undefined bed file file");
+				return -1;
+				}
+			if(StringUtil.isBlank(this.infoName)) {
+				LOG.error("Undefined INFO name.");
+				return -1;
+				}
 			
 			if(min_overlap_both_fraction!=null) {
 				if(this.min_overlap_both_fraction <=0.0)
@@ -481,22 +481,15 @@ public class VCFBed extends Launcher
 				return -1;
 				}
 			
-			if(this.tabixFile==null && this.treeMapFile==null)
-				{
-				LOG.error("Undefined tabix or memory file");
-				return -1;
-				}
-			else if(this.tabixFile!=null && this.treeMapFile!=null)
-				{
-				LOG.error("You cannot use both options: tabix/in memory bed");
-				return -1;
-				}
-			else if( this.tabixFile!=null) {
-				LOG.info("opening Bed "+this.tabixFile);
+			this.bedJexlToString = new JexlToString(this.formatPattern);
+
+			
+			if(!this.in_memory) {
 				try 
 					{
-					this.bedReader= new IndexedBedReader(this.tabixFile);
+					this.bedReader = new IndexedBedReader(this.inputBedFile);
 					this.contigNameConverter = ContigNameConverter.fromContigSet(this.bedReader.getContigs());
+					this.intervalTreeMap = null;
 					}
 				catch(final IOException err)
 					{
@@ -507,8 +500,8 @@ public class VCFBed extends Launcher
 			else 
 				{
 				try {
-					this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(this.treeMapFile);
-					LOG.info("Number of items in "+this.treeMapFile+" "+this.intervalTreeMap.size());
+					this.bedReader = null;
+					this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(this.inputBedFile);
 					this.contigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.intervalTreeMap);
 					}
 				catch(final Exception err) {
@@ -517,23 +510,10 @@ public class VCFBed extends Launcher
 					}
 				}
 			
-			if(StringUtil.isBlank(this.infoName))
-				{
-				LOG.error("Undefined INFO name.");
-				return -1;
-				}
 			
-			LOG.info("parsing JEXL expression: "+this.formatPattern);
-			try {
-				this.jexlExpr =VariantContextUtils.engine.get().createExpression(this.formatPattern);
-				} 
-			catch(final JexlException err) {
-				LOG.error("Cannot compile JEXL expression", err);
-				return -1;
-				}
 			return doVcfToVcf(args, outputFile);
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -543,13 +523,12 @@ public class VCFBed extends Launcher
 			CloserUtil.close(this.bedReader);
 			this.bedReader = null;
 			this.intervalTreeMap=null;
-			this.jexlExpr=null;
 			}
 		}
 
 	
 	
-	public static void main(final String[] args) throws Exception
+	public static void main(final String[] args)
 		{
 		new VCFBed().instanceMainWithExit(args);
 		}

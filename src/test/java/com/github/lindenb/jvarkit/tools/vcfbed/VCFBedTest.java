@@ -40,9 +40,11 @@ public class VCFBedTest{
 		pw.flush();
 		pw.close();
 		
+		support.assertIsBed(bedout);
 		
 		Assert.assertEquals(new VCFBed().instanceMain(new String[] {
 			"-o",out.toString(),
+			"--fast",
 			"-m",bedout.toString(),
 			invcf
 			}),0);
