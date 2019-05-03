@@ -1153,6 +1153,10 @@ all.add( task("indexcovjfx", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	requireJfx = true
 	});
+all2.add( task("knowndel", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.KnownDeletion"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("knime2txt", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.KnimeToText"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
