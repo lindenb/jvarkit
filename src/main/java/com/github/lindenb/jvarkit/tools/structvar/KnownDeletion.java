@@ -28,11 +28,18 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -40,6 +47,9 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -48,9 +58,12 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
 
@@ -87,8 +100,10 @@ public class KnownDeletion extends Launcher
 	private String regionStr="";
 	@Parameter(names={"-x","--extend"},description="search in the boundaries of the CNV around +/- 'x' bases. "+ DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extendDistance = 100;	
-
-	
+	@Parameter(names={"-filter","--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class)
+	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
+	@Parameter(names={"-B","--bam"},description="Optional Bam to sasve the matching reads")
+	private Path bamOut=null;
 	
 	@Override
 	public int doWork(final List<String> args) {		
@@ -97,11 +112,55 @@ public class KnownDeletion extends Launcher
 			LOG.error("bad extend factor "+this.extendDistance);
 			return -1;
 			}
+		
+		final Function<SAMRecord, Integer> mateEnd = REC->SAMUtils.getMateCigar(REC)!=null?
+				SAMUtils.getMateAlignmentEnd(REC):
+				REC.getMateAlignmentStart()
+				;
+		
 		PrintWriter pw = null;
+		SAMFileWriter sfw = null;
 		try
 			{
 			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			
+			final List<String> filenames=IOUtils.unrollStrings2018(args);
+			if(this.bamOut!=null && !filenames.isEmpty()) {
+				SAMSequenceDictionary theDict = null;
+				final Set<String> samples = new TreeSet<>();
+				
+				for(final String filename: filenames) {
+					final SamInputResource sri = SamInputResource.of(filename);
+					try(final SamReader samReader = srf.open(sri) ) {
+					final SAMFileHeader header  = samReader.getFileHeader();
+					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+					if(theDict==null) {
+						theDict=dict;
+						}
+					else if(!SequenceUtil.areSequenceDictionariesEqual(theDict, dict)) {
+						throw new JvarkitException.DictionariesAreNotTheSame(theDict, dict);
+						}
+					final String sampleName = header.getReadGroups().stream().
+								map(R->R.getSample()).
+								filter(S->!StringUtil.isBlank(S)).
+								findFirst().
+								orElse(filename);
+					samples.add(sampleName);
+					}
+				}
+				final SAMFileHeader header=new SAMFileHeader(theDict);
+				header.setSortOrder(SAMFileHeader.SortOrder.unsorted);
+				JVarkitVersion.getInstance().addMetaData(this, header);
+				for(final String sn:samples) {
+					final SAMReadGroupRecord srg = new SAMReadGroupRecord(sn);
+					srg.setSample(sn);
+					header.addReadGroup(srg);
+					}
+				final SAMFileWriterFactory swf = 	new SAMFileWriterFactory();
+				sfw = swf.makeSAMOrBAMWriter(header, true, this.bamOut);
+				}
+			
 			for(final String filename: IOUtils.unrollStrings2018(args)) {
 				final SamInputResource sri = SamInputResource.of(filename);
 				try(final SamReader samReader = srf.open(sri) ) {
@@ -143,12 +202,14 @@ public class KnownDeletion extends Launcher
 					while(iter.hasNext()) {
 						final SAMRecord rec  = iter.next();
 						if(rec.getReadUnmappedFlag()) continue;
-						if(rec.getDuplicateReadFlag()) continue;
-						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-						if(rec.isSecondaryOrSupplementary()) continue;
+						if(this.samRecordFilter.filterOut(rec)) continue;
 						
 						if(rec.getStart() <= qi1.end && rec.getEnd()>=qi2.start) {
 							count_del++;
+							if(sfw!=null) {
+								rec.setAttribute("RG",sampleName);
+								sfw.addAlignment(rec);
+								}
 							continue;
 							}
 						
@@ -157,11 +218,18 @@ public class KnownDeletion extends Launcher
 							!rec.getMateUnmappedFlag() &&
 							rec.getMateReferenceIndex().equals(tid) &&
 							(
-								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi1.start,qi1.end) &&  rec.getMateAlignmentStart()>= qi2.start) ||
-								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi2.start,qi2.end) && rec.getMateAlignmentStart() <= qi1.end)
+								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi1.start,qi1.end) &&
+								  CoordMath.overlaps(rec.getMateAlignmentStart(),mateEnd.apply(rec),qi2.start,qi2.end)) ||
+								
+								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi2.start,qi2.end) &&
+								  CoordMath.overlaps(rec.getMateAlignmentStart(),mateEnd.apply(rec),qi1.start,qi1.end)) 
 							))
 							{
 							count_disc++;
+							if(sfw!=null) {
+								rec.setAttribute("RG",sampleName);
+								sfw.addAlignment(rec);
+								}
 							continue;
 							}
 						
@@ -169,11 +237,19 @@ public class KnownDeletion extends Launcher
 							{
 							if(	rec2.getReferenceIndex().equals(tid) &&
 								(
-								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi1.start,qi1.end) && CoordMath.overlaps(rec2.getStart(),rec2.getEnd(), qi2.start,qi2.end)) ||
-								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi2.start,qi2.end) && CoordMath.overlaps(rec2.getStart(),rec2.getEnd(), qi1.start,qi1.end))
+								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi1.start,qi1.end) && 
+								  CoordMath.overlaps(rec2.getStart(),rec2.getEnd(), qi2.start,qi2.end)) ||
+								
+								( CoordMath.overlaps(rec.getStart(),rec.getEnd(), qi2.start,qi2.end) &&
+								  CoordMath.overlaps(rec2.getStart(),rec2.getEnd(), qi1.start,qi1.end))
 								))
 								{
 								count_split++;
+								if(sfw!=null) {
+									rec.setAttribute("RG",sampleName);
+									sfw.addAlignment(rec);
+									}
+								break;
 								}
 							}
 						}
@@ -182,7 +258,7 @@ public class KnownDeletion extends Launcher
 				}
 			}
 			pw.flush();
-
+			if(sfw!=null) sfw.close(); sfw=null;
 			return 0;
 			}
 		catch(final Throwable err)
@@ -192,7 +268,7 @@ public class KnownDeletion extends Launcher
 			}
 		finally
 			{
-
+			CloserUtil.close(sfw);
 			}
 		}
 	
