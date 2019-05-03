@@ -11,18 +11,27 @@ Convert the names of the chromosomes in a Bed file
 Usage: bedrenamechr [options] Files
   Options:
     -c, --column
-      1-based chromosome column
+      1-based chromosome column(s), multiple separated by commas
       Default: 1
     -convert, --convert
       What should I do when  a converstion is not found
       Default: RAISE_EXCEPTION
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
+    -d, --delim
+      field delimiter.
+      Default: 	
+    -s, --header
+      Ignore lines starting with this java regular expression
+      Default: (#|browser|track)
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-  * -f, --mapping, -m
-      load a custom name mapping. Format (chrom-source\tchrom-dest\n)+
+  * -f, --mapping, -m, -R
+      load a custom name mapping.Chromosome mapping file. If the file looks 
+      like a NGS file (fasta, vcf, bam...) the mapping is extracted from a 
+      dictionary; Otherwise, it is interpreted as a mapping file ( See 
+      https://github.com/dpryan79/ChromosomeMappings )
     -o, --out
       Output file. Optional . Default: stdout
     --version

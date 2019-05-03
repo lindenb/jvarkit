@@ -134,7 +134,7 @@ private static class MapBasedContigNameConverter extends ContigNameConverter
 	
 	}
 
-public static final String OPT_DICT_OR_MAPPING_FILE_DESC="Chromosome mapping file. If the file looks like a NGS file (vcf, bam) the mapping is extracted from a dictionary; Otherwise, it is interpreted as a mapping file ( See https://github.com/dpryan79/ChromosomeMappings )";
+public static final String OPT_DICT_OR_MAPPING_FILE_DESC="Chromosome mapping file. If the file looks like a NGS file (fasta, vcf, bam...) the mapping is extracted from a dictionary; Otherwise, it is interpreted as a mapping file ( See https://github.com/dpryan79/ChromosomeMappings )";
 /** if file looks like a dictionary (fasta, vcf, dict...) use it , otherwise it's a mapping file */
 public static ContigNameConverter fromPathOrOneDictionary(final Path file) {
 	IOUtil.assertFileIsReadable(file);	

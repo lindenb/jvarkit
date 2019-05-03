@@ -28,25 +28,28 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintStream;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import htsjdk.tribble.readers.AsciiLineReader;
-import htsjdk.tribble.readers.LineIterator;
-import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -82,7 +85,9 @@ END_DOC
 @Program(
 		name="bedrenamechr",
 		description="Convert the names of the chromosomes in a Bed file",
-		keywords={"bed","chromosome","contig","convert"})
+		keywords={"bed","chromosome","contig","convert"},
+		modificationDate="20190503"
+		)
 public class ConvertBedChromosomes
 	extends Launcher
 	{
@@ -93,99 +98,102 @@ public class ConvertBedChromosomes
 	
 	@Parameter(names={"-convert","--convert"},description="What should I do when  a converstion is not found")
 	private OnNotFound onNotFound=OnNotFound.RAISE_EXCEPTION;
-	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=true)
-	private File mappingFile=null;
-	@Parameter(names={"-c","--column"},description="1-based chromosome column")
-	private int chromColumn1=1;
+	@Parameter(names={"-f","--mapping","-m","-R"},description="load a custom name mapping."+ ContigNameConverter.OPT_DICT_OR_MAPPING_FILE_DESC,required=true)
+	private Path mappingFile=null;
+	@Parameter(names={"-c","--column"},description="1-based chromosome column(s), multiple separated by commas",splitter=NoSplitter.class)
+	private String chromColumnsStr="1";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile= null;
+	private Path outputFile= null;
+	@Parameter(names={"-s","--header"},description="Ignore lines starting with this java regular expression")
+	private String ignoreLinesPattern="(#|browser|track)";
+	@Parameter(names={"-d","--delim"},description="field delimiter.")
+	private String delimStr="\t";
 
 	
 	private ContigNameConverter customMapping=ContigNameConverter.getIdentity();
 	private Set<String> unmappedChromosomes=new HashSet<String>();
+	private int chromColumns0[];
 	
-	private ConvertBedChromosomes()
-		{
-		
-		}
-	
-	private String convertName(final String chrom)throws IOException
-		{
-		if(chrom==null) throw new NullPointerException();
-		String newname=customMapping.apply(chrom);
-		if(newname==null)
-			{
-			if(!unmappedChromosomes.contains(chrom))
-				{
-				LOG.warning("unmapped chromosome "+chrom);
-				unmappedChromosomes.add(chrom);
-				}
-			return null;
-			}
-		return newname;
-		}
 	
 	@SuppressWarnings("resource")
-	protected int doWork(InputStream in,PrintStream out)
+	protected int doWork(final BufferedReader in,PrintStream out)
 			throws IOException
 		{
-		final int chromColumn0=chromColumn1-1;
-	
-		final  CharSplitter tab = CharSplitter.TAB;
-		LineIterator lr=new LineIteratorImpl(new AsciiLineReader(in));
+		String line;
+		final  CharSplitter tab = CharSplitter.of(this.delimStr);
+		final Pattern headerRegex = Pattern.compile(this.ignoreLinesPattern);
 		
-		
-		while(lr.hasNext())
-			{	
-			String line=lr.next();
-			if(BedLine.isBedHeader(line))
+		while((line=in.readLine())!=null)
+			{
+			final Matcher match =  headerRegex.matcher(line);
+			if(match.find() && match.start()==0)
 				{
 				out.println(line);
 				continue;
 				}
-			final String tokens[]=tab.split(line, (chromColumn0+2));
-			if(chromColumn0 >=tokens.length) throw new IOException("Bad BED line : "+line+" extected at least "+(chromColumn0+2)+" columns");
-			final String chrom=convertName(tokens[chromColumn0]);
-			if(chrom==null) continue;
-			for(int i=0;i< tokens.length;++i)
+			boolean ok=true;
+			final String tokens[]=tab.split(line);
+			for(final int chromColumn0: this.chromColumns0) 
 				{
-				if(i>0) out.print("\t");
-				out.print(i==chromColumn0?chrom:tokens[i]);
+				if(chromColumn0<0 || chromColumn0 >=tokens.length) {
+					ok=false;
+					continue;
+					}
+				final String chrom= this.customMapping.apply(tokens[chromColumn0]);
+				if(StringUtils.isBlank(chrom)) {
+					if(this.unmappedChromosomes.add(tokens[chromColumn0])) {
+						LOG.warn("cannot convert "+ tokens[chromColumn0]);
+						}
+					ok=false;
+					continue;
+					}
+				tokens[chromColumn0]=chrom;
 				}
-			out.println();
+			if(!ok) {
+				switch(this.onNotFound) {
+					case RAISE_EXCEPTION:  throw new IOException("Cannot convert chrom in : "+line);
+					case SKIP: continue;
+					case RETURN_ORIGINAL: break;
+					}
+				}
+			out.println(String.join(String.valueOf(tab.getDelimiter()), tokens));
 			}
 		out.flush();
 		return 0;
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
-		if(this.chromColumn1<1)
-			{
-			LOG.error("bad chromosome index (<1): "+this.chromColumn1);
-			return -1;
-			}
-		if(this.mappingFile!=null) {
-			LOG.info("reading custom mapping "+mappingFile);
-			this.customMapping=ContigNameConverter.fromFile(mappingFile);
-			}
+	public int doWork(final List<String> args) {
 		
 		PrintStream out=null;
 		try
 			{
-			out = super.openFileOrStdoutAsPrintStream(this.outputFile);
+			this.customMapping=ContigNameConverter.fromPathOrOneDictionary(this.mappingFile);
+			
+			this.chromColumns0 = Arrays.stream(CharSplitter.COMMA.split(this.chromColumnsStr)).
+				filter(S->!StringUtils.isBlank(S)).
+				map(S->Integer.parseInt(S)-1)./* convert to 0-based */
+				collect(Collectors.toCollection(TreeSet::new)).
+				stream().
+				mapToInt(I->I.intValue()).
+				toArray();
+			
+			if(this.chromColumns0.length==0) {
+				LOG.error("No column defined");
+				return -1;
+				}
+			
+			out = super.openPathOrStdoutAsPrintStream(this.outputFile);
 			if(args.isEmpty())
 				{
-				LOG.info("reading stdin");
-				doWork(stdin(), out);
+				doWork(IOUtils.openStreamForBufferedReader(stdin()), out);
 				}
 			else
 				{
-				for(final String filename:args)
-					{
-					InputStream in=IOUtils.openURIForReading(filename);
-					doWork(in, out);
-					CloserUtil.close(in);
+				for(final String filename:args) {
+					try(final BufferedReader br=IOUtils.openURIForBufferedReading(filename)) {
+						doWork(br, out);
+						}
 					}
 				}
 			if(!unmappedChromosomes.isEmpty())
@@ -195,7 +203,7 @@ public class ConvertBedChromosomes
 			out.flush();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -207,7 +215,7 @@ public class ConvertBedChromosomes
 		}
 	
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new ConvertBedChromosomes().instanceMainWithExit(args);
 		}
