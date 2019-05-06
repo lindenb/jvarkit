@@ -90,6 +90,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/345679](https://www.biostars.org/p/345679)
  * [https://www.biostars.org/p/362298](https://www.biostars.org/p/362298)
  * [https://www.biostars.org/p/368754](https://www.biostars.org/p/368754)
+ * [https://www.biostars.org/p/378205](https://www.biostars.org/p/378205)
 
 
 ## Compilation

@@ -30,9 +30,10 @@ History:
 package com.github.lindenb.jvarkit.tools.bamstats01;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ import java.util.Map;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -66,19 +68,13 @@ import htsjdk.samtools.util.SequenceUtil;
 BEGIN_DOC
 
 
-
-
 ### History
-
-
 
 * Dec 2013 Added PROPER_PAIR_HMQ for @SolenaLS
 * Dec 2013 Added X and Y for @SolenaLS
 
 
-
 ### Output
-
 
 See also: http://picard.sourceforge.net/explain-flags.html
 
@@ -131,7 +127,11 @@ END_DOC
 */
 
 
-@Program(name="samstats01",description="Statistics about the reads in a BAM.")
+@Program(name="samstats01",
+	description="Statistics about the reads in a BAM.",
+	keywords= {"sam","bam"},
+	modificationDate="20190506"
+	)
 public class BamStats01
 	extends Launcher
 	{
@@ -140,11 +140,10 @@ public class BamStats01
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
+	private Path outputFile = null;
 
 	@Parameter(names={"-B","--bed"},description="capture bed file. Optional")
-	private File bedFile = null;
+	private Path bedFile = null;
 
 	@Parameter(names={"-q","--qual"},description="min mapping quality")
 	private double minMappingQuality = 30.0 ;
@@ -361,7 +360,7 @@ public class BamStats01
 					intervalTreeMap=new IntervalTreeMap<>();
 					LOG.info("opening "+this.bedFile);
 					String line;
-					final BufferedReader bedIn=IOUtils.openFileForBufferedReading(bedFile);
+					final BufferedReader bedIn=IOUtils.openPathForBufferedReading(bedFile);
 					while((line=bedIn.readLine())!=null)
 						{
 						final BedLine bedLine = bedCodec.decode(line);
@@ -369,7 +368,7 @@ public class BamStats01
 						int seqIndex=currDict.getSequenceIndex(bedLine.getContig());
 						if(seqIndex==-1)
 							{
-							throw new IOException("unknown chromosome from dict in  in "+line+" "+this.bedFile);
+							throw new JvarkitException.ContigNotFoundInDictionary(bedLine.getContig(),currDict);
 							}
 						intervalTreeMap.put(bedLine.toInterval(),Boolean.TRUE);
 						}
@@ -461,7 +460,7 @@ public class BamStats01
 	public int doWork(final List<String> inputs) {
 		final List<String> args= new ArrayList<>(IOUtils.unrollFiles(inputs)); 
 		try {
-			this.out = super.openFileOrStdoutAsPrintStream(this.outputFile);
+			this.out = super.openPathOrStdoutAsPrintStream(this.outputFile);
 			
 			out.print("#Filename\tSample");
 			for(Category2 cat2: Category2.values())
@@ -486,10 +485,10 @@ public class BamStats01
 				{
 				for(final String filename:args)
 					{
-					LOG.info("Reading from "+filename);
-					final SamReader sfr=srf.open(new File(filename));
-					run(filename,sfr);
-					sfr.close();
+					try(final SamReader sfr=srf.open(Paths.get(filename)))
+						{
+						run(filename,sfr);
+						}
 					}
 				}
 			out.flush();			
