@@ -184,7 +184,6 @@ public  void saveTableTo(final Table table,final PrintWriter p) throws IOExcepti
 	try(final PrintWriter pw=new PrintWriter(p)) {
 		this.print(table,pw);
 		pw.flush();
-		pw.close();
 		}
 	}
 }

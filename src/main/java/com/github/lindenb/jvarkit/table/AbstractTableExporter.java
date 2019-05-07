@@ -49,7 +49,6 @@ public void saveTableTo(final Table table,final File file) throws IOException {
 	try(final PrintWriter pw=new PrintWriter(file)) {
 		this.saveTableTo(table,pw);
 		pw.flush();
-		pw.close();
 		}
 	}
 }

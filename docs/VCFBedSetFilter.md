@@ -11,8 +11,8 @@ Set FILTER for VCF if it doesn't intersects with BED.
 Usage: vcfbedsetfilter [options] Files
   Options:
   * -B, --bed, -m, --map
-      Tribble or Tabix bed file. Must be indexed with tribble or tabix or use 
-      '--fast'. 
+      Tribble or Tabix bed file. Must be indexed with tribble or tabix, or use 
+      '--fast' to load in memory.
     -f, --filter
       FILTER name. Filter is **set** if the variant overlaps any BED region, 
       unless `--inverse` is set. If `--filter` is empty, FILTERED variant will 

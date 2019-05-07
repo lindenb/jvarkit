@@ -109,15 +109,17 @@ public class PrettyTable extends Launcher{
 	private boolean withUnicode = false;
 	@Parameter(names={"-F","--format"},description="format. one of : html,text")
 	private String format = "text";
-
+	@Parameter(names={"-k","--keep-empty"},description="keep empty columns")
+	private boolean keepEmptyComlumns=false;
 	
 @Override
 public int doWork(final List<String> args) {
 	final List<List<String>> rows=new ArrayList<>();
 	PrintWriter out=null;
 	BufferedReader br=null;
-	final CharSplitter delim = CharSplitter.of(this.delimiter);
+	
 	try {
+		final CharSplitter delim = CharSplitter.of(this.delimiter);
 		int n_columns=-1;
 		br= super.openBufferedReader(oneFileOrNull(args));
 		String line;
@@ -128,6 +130,7 @@ public int doWork(final List<String> args) {
 			if(rows.isEmpty())
 				{
 				n_columns = row.size();
+				LOG.info("n="+n_columns);
 				if(this.noHeader)
 					{
 					final List<String> header = new ArrayList<>(n_columns);
@@ -154,6 +157,7 @@ public int doWork(final List<String> args) {
 				{
 				//ok
 				}
+System.err.println(">>>"+row.get(0));
 			rows.add(row);
 			}
 		br.close();
@@ -190,12 +194,14 @@ public int doWork(final List<String> args) {
 		out= super.openFileOrStdoutAsPrintWriter(this.outputFile);
 		if(this.format.equalsIgnoreCase("html")) {
 			final HtmlExporter exporter=new HtmlExporter();
+			exporter.setRemoveEmptyColumns(!this.keepEmptyComlumns);
 			exporter.saveTableTo(table, out);
 			}
 		else
 			{
 			final TextExporter exporter=new TextExporter();
 			exporter.setAllowUnicode(this.withUnicode);
+			exporter.setRemoveEmptyColumns(!this.keepEmptyComlumns);
 			exporter.saveTableTo(table, out);
 			}
 		
@@ -204,7 +210,7 @@ public int doWork(final List<String> args) {
 		out = null;
 		return 0;
 		}
-	catch(final Exception err) {
+	catch(final Throwable err) {
 		LOG.error(err);
 		return -1;
 		}
