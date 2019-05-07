@@ -211,6 +211,9 @@ public class VcfEvaiAnnot extends Launcher {
 
 	private final Map<String,EvaiTabix> sample2tabix = new HashMap<>();
 	
+	private boolean isBooleanField(final String T) {
+		return T.startsWith("BP") || T.startsWith("BS") || T.startsWith("PM") || T.startsWith("PP") || T.startsWith("PS")|| T.startsWith("PV");
+		}
 	
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {
@@ -221,9 +224,13 @@ public class VcfEvaiAnnot extends Launcher {
 		this.sample2tabix.values().
 			stream().
 			flatMap(T->T.column2index.keySet().stream()).
-			map(T->new VCFFormatHeaderLine(this.prefix+T,1,VCFHeaderLineType.Float,T)).
+			filter(T->isBooleanField(T)).
+			map(T->new VCFFormatHeaderLine(this.prefix+T,1,VCFHeaderLineType.Integer,T)).
 			forEach(H->meta.add(H));
 		
+		meta.add(new VCFFormatHeaderLine(this.prefix+"FINAL_CLASSIFICATION",1,VCFHeaderLineType.String,"FINAL_CLASSIFICATION"));
+		
+		meta.stream().forEach(M->header2.addMetaDataLine(M));
 		
 		JVarkitVersion.getInstance().addMetaData(this, header2);
 		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header0).logger(LOG).build();
@@ -238,6 +245,11 @@ public class VcfEvaiAnnot extends Launcher {
 			
 			final List<Genotype> genotypes = new ArrayList<>(ctx.getNSamples());
 			for(final Genotype g: ctx.getGenotypes()) {
+				if(g.isHomRef() || g.isNoCall()) {
+					genotypes.add(g);
+					continue;
+					}
+
 				final EvaiTabix tbx = this.sample2tabix.get(g.getSampleName());
 				if(tbx==null) {
 					genotypes.add(g);
@@ -251,14 +263,19 @@ public class VcfEvaiAnnot extends Launcher {
 				final EvaiLine line = candidate.get();
 				final GenotypeBuilder gb= new GenotypeBuilder(g);
 				for(final String column : tbx.column2index.keySet()) {
+					if(!isBooleanField(column)) continue;
 					final int col_idx = tbx.column2index.get(column);
 					if(col_idx>= line.tokens.length) continue;
 					final String valuestr=line.tokens[col_idx];
 					if(valuestr.equals("n.a.")) continue;
-					final Object value = Double.parseDouble(valuestr);
+					final Object value ;
+					if(valuestr.equals("true")) value=1;
+					else if(valuestr.equals("TRUE(STRONG)")) value=10;
+					else if(valuestr.equals("false")) value=0;
+					else throw new IllegalArgumentException(column+" "+valuestr);
 					gb.attribute(this.prefix+column, value);
 					}
-				genotypes.add(g);
+				genotypes.add(gb.make());
 				}
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			vcb.genotypes(genotypes);
