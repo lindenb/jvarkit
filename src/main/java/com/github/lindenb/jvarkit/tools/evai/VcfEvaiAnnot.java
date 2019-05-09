@@ -61,7 +61,9 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -92,6 +94,8 @@ public class VcfEvaiAnnot extends Launcher {
 	private int buffer_size = 1_000;
 	@Parameter(names={"--prefix"},description="Attribute prefix")
 	private String prefix = "EVAI_";
+	@Parameter(names={"--info"},description="Set attributes in INFO rather than FORMAT")
+	private boolean set_INFO_attributes = false;
 	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERed variants (should go faster)")
 	private boolean ignore_filtered = false;
 
@@ -147,10 +151,6 @@ public class VcfEvaiAnnot extends Launcher {
 			for(;;) {
 				String line = this.tabix.readLine();
 				if(line==null || !line.startsWith("#")) break;
-				if(line.startsWith(version_tag)) {
-					final String version = line.substring(version_tag.length()).trim();
-					if(!version.equals("0.4.2")) throw new IOException("unknown vai version "+ line+" "+filename);
-					}
 				if(line.startsWith(version_tag)) {
 					final String version = line.substring(version_tag.length()).trim();
 					if(!version.equals("0.4.2")) throw new IOException("unknown vai version "+ line+" "+filename);
@@ -216,19 +216,25 @@ public class VcfEvaiAnnot extends Launcher {
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {
+	protected int doVcfToVcf(final String inputName,final  VCFIterator iterin, final VariantContextWriter out) {
 		final VCFHeader header0 = iterin.getHeader();
 		final VCFHeader header2 = new VCFHeader(header0);
 		
-		final Set<VCFFormatHeaderLine> meta = new HashSet<>();
+		final Set<VCFHeaderLine> meta = new HashSet<>();
 		this.sample2tabix.values().
 			stream().
 			flatMap(T->T.column2index.keySet().stream()).
 			filter(T->isBooleanField(T)).
-			map(T->new VCFFormatHeaderLine(this.prefix+T,1,VCFHeaderLineType.Integer,T)).
+			map(T->this.set_INFO_attributes?
+				(VCFHeaderLine)new VCFInfoHeaderLine(this.prefix+T,1,VCFHeaderLineType.Integer,T):
+				(VCFHeaderLine)new VCFFormatHeaderLine(this.prefix+T,1,VCFHeaderLineType.Integer,T)
+				).
 			forEach(H->meta.add(H));
 		
-		meta.add(new VCFFormatHeaderLine(this.prefix+"FINAL_CLASSIFICATION",1,VCFHeaderLineType.String,"FINAL_CLASSIFICATION"));
+		meta.add(this.set_INFO_attributes?
+			(VCFHeaderLine)new VCFInfoHeaderLine(this.prefix+"FINAL_CLASSIFICATION",1,VCFHeaderLineType.String,"FINAL_CLASSIFICATION"):
+			(VCFHeaderLine)new VCFFormatHeaderLine(this.prefix+"FINAL_CLASSIFICATION",1,VCFHeaderLineType.String,"FINAL_CLASSIFICATION")
+			);
 		
 		meta.stream().forEach(M->header2.addMetaDataLine(M));
 		
@@ -242,8 +248,9 @@ public class VcfEvaiAnnot extends Launcher {
 				out.add(ctx);
 				continue;
 				}
-			
+			final Map<String, Object> attributes = new HashMap<>();
 			final List<Genotype> genotypes = new ArrayList<>(ctx.getNSamples());
+			
 			for(final Genotype g: ctx.getGenotypes()) {
 				if(g.isHomRef() || g.isNoCall()) {
 					genotypes.add(g);
@@ -273,12 +280,43 @@ public class VcfEvaiAnnot extends Launcher {
 					else if(valuestr.equals("TRUE(STRONG)")) value=10;
 					else if(valuestr.equals("false")) value=0;
 					else throw new IllegalArgumentException(column+" "+valuestr);
-					gb.attribute(this.prefix+column, value);
+					if(this.set_INFO_attributes) {
+						attributes.put(this.prefix+column, value);
+						}
+					else {
+						gb.attribute(this.prefix+column, value);
+						}
 					}
-				genotypes.add(gb.make());
+				final int col_idx = tbx.column2index.get("FINAL_CLASSIFICATION");
+				if(col_idx>=0 && col_idx< line.tokens.length) {
+					final String value = line.tokens[col_idx];
+					if(value.equals("n.a.") ||StringUtils.isBlank(value)) {
+						//ignore
+						}
+					else if(this.set_INFO_attributes) {
+						attributes.put(this.prefix+"FINAL_CLASSIFICATION", value);
+						}
+					else
+						{
+						gb.attribute(this.prefix+"FINAL_CLASSIFICATION", value);
+						}
+					}
+				
+				if(this.set_INFO_attributes) {
+					genotypes.add(g);
+					}
+				else
+					{
+					genotypes.add(gb.make());
+					}
 				}
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-			vcb.genotypes(genotypes);
+			if(this.set_INFO_attributes) {
+				vcb.putAttributes(attributes);
+				}
+			else {
+				vcb.genotypes(genotypes);
+				}
 			out.add(vcb.make());
 			}
 		
