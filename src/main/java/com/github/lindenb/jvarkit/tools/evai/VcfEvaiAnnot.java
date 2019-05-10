@@ -112,7 +112,7 @@ public class VcfEvaiAnnot extends Launcher {
 		
 		@Override
 		public int getStart() {
-			return Integer.parseInt(tokens[1]);
+			return Integer.parseInt(tokens[1]) - (isDeletion()?1:0);
 			}
 		@Override
 		public int getEnd() {
@@ -123,14 +123,14 @@ public class VcfEvaiAnnot extends Launcher {
 		public String toString() {
 			return String.join("\t", tokens);
 			}
-		
+		public boolean isDeletion() { return tokens[4].equals("-");}
 		boolean match(final VariantContext ctx) {
 			if(!this.getContig().equals(ctx.getContig())) return false;
 			if(this.getStart()!=ctx.getStart()) return false;
 			if(this.getEnd()!=ctx.getEnd()) return false;
-			if(!ctx.getReference().getDisplayString().equals(tokens[3])) return false;
+			if(!ctx.getReference().getDisplayString().equals(tokens[3]) && !isDeletion()) return false;
 			if(ctx.getNAlleles()==1) return false;
-			if(!ctx.getAlleles().get(1).getDisplayString().equals(tokens[4])) return false;
+			if(!ctx.getAlleles().get(1).getDisplayString().equals(tokens[4]) && !isDeletion()) return false;
 			return true;
 			}
 		}
@@ -212,7 +212,12 @@ public class VcfEvaiAnnot extends Launcher {
 	private final Map<String,EvaiTabix> sample2tabix = new HashMap<>();
 	
 	private boolean isBooleanField(final String T) {
-		return T.startsWith("BP") || T.startsWith("BS") || T.startsWith("PM") || T.startsWith("PP") || T.startsWith("PS")|| T.startsWith("PV");
+		return T.startsWith("BP") || T.startsWith("BS") || 
+                       T.startsWith("BA") || 
+                       T.startsWith("PM") || 
+		       T.startsWith("PP") ||  
+                       T.startsWith("PS")|| 
+                       T.startsWith("PV") ;
 		}
 	
 	@Override
@@ -289,7 +294,7 @@ public class VcfEvaiAnnot extends Launcher {
 					}
 				final int col_idx = tbx.column2index.get("FINAL_CLASSIFICATION");
 				if(col_idx>=0 && col_idx< line.tokens.length) {
-					final String value = line.tokens[col_idx];
+					final String value = line.tokens[col_idx].replace(" ","_");
 					if(value.equals("n.a.") ||StringUtils.isBlank(value)) {
 						//ignore
 						}
@@ -312,7 +317,7 @@ public class VcfEvaiAnnot extends Launcher {
 				}
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			if(this.set_INFO_attributes) {
-				vcb.putAttributes(attributes);
+				for(final String k: attributes.keySet()) vcb.attribute(k,attributes.get(k));
 				}
 			else {
 				vcb.genotypes(genotypes);
