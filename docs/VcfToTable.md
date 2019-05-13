@@ -296,3 +296,7 @@ $ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
 
 ![https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg](https://pbs.twimg.com/media/DM1KdWFX0AUfbxR.jpg)
 
+[https://twitter.com/yokofakun/status/1127832269606072320](https://twitter.com/yokofakun/status/1127832269606072320)
+
+![https://pbs.twimg.com/media/D6bdQlFWwAAJptl.jpg](https://pbs.twimg.com/media/D6bdQlFWwAAJptl.jpg)
+
