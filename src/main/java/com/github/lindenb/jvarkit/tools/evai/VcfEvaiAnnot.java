@@ -193,7 +193,7 @@ public class VcfEvaiAnnot extends Launcher {
 					this.type = line.startsWith("#CHROM")?AnnoType.evai:AnnoType.intervar;
 					final String tokens[] = CharSplitter.TAB.split(line);
 					for(int i=0;i< tokens.length;++i) {
-						this.column2index.put(tokens[i],i);
+						this.column2index.put(tokens[i].trim(),i);
 						}
 					}
 				}
@@ -225,6 +225,7 @@ public class VcfEvaiAnnot extends Launcher {
 					this.lastInterval.getStart(),this.lastInterval.getEnd(),
 					ctx.getStart(),ctx.getEnd()
 					)) {
+				
 				this.buffer.clear();
 				this.lastInterval = new Interval(ctx.getContig(),
 						Math.max(1,ctx.getStart()-10),
@@ -242,8 +243,8 @@ public class VcfEvaiAnnot extends Launcher {
 							}
 						else
 							{
-							final IntervarLine evai = new IntervarLine(this,tab.split(line));
-							this.buffer.add(evai);
+							final IntervarLine intervar = new IntervarLine(this,tab.split(line));
+							this.buffer.add(intervar);
 							}
 						}
 					}
@@ -275,20 +276,23 @@ public class VcfEvaiAnnot extends Launcher {
 	
 	private void challengeEvai(final Map<String, Object> attributes,final VariantContext ctx) {
 		/* evai */
+		
 		final Optional<AbstractAnnoLine> candidateEvai = this.all_evai.
 				stream().
 				map(T->T.query(ctx)).
 				filter(T->T.isPresent()).
 				map(T->T.get()).
 				findFirst();
-		if(!candidateEvai.isPresent()) return;
+		if(!candidateEvai.isPresent()) return; 
 		
 		final AbstractAnnoLine line = candidateEvai.get();
 		for(final String column : line.owner.column2index.keySet()) {
 			if(!isEvaiBooleanField(column)) continue;
+			
 			final int col_idx = line.owner.column2index.get(column);
 			if(col_idx>= line.tokens.length) continue;
 			final String valuestr=line.tokens[col_idx];
+			
 			if(valuestr.equals("n.a.")) continue;
 			final Object value ;
 			if(valuestr.equals("true")) value=1;
@@ -306,12 +310,16 @@ public class VcfEvaiAnnot extends Launcher {
 				}
 			attributes.put(EVAI_PFX+"FINAL_CLASSIFICATION", value);
 			}
+		
 		}
 	
 	@SuppressWarnings("serial")
-	private final Map<String,String> intervar_signifiances = new HashMap<>() {{{
-		put("InterVar: Uncertain significance ", "uncertain_significance");
-		put("InterVar: Benign ", "benign");
+	private final Map<String,String> intervar_signifiances = new HashMap<String,String>() {{{
+		put(" InterVar: Uncertain significance ", "uncertain_significance");
+		put(" InterVar: Benign ", "benign");
+		put(" InterVar: Likely benign","likely_benign");
+		put(" InterVar: Likely pathogenic","likely_pathogenic");
+		put(" InterVar: Pathogenic","pathogenic");
 		}}};
 	
 	private void challengeIntervar(final Map<String, Object> attributes,final VariantContext ctx) {
@@ -339,7 +347,7 @@ public class VcfEvaiAnnot extends Launcher {
 			
 		if(!attributes.containsKey(INTERVAR_PFX+"_CLASSIFICATION"))
 			{
-			throw new IllegalArgumentException("cannot get classification of "+valuestr);
+			throw new IllegalArgumentException("cannot get classification of '"+valuestr+"'");
 			}
 		
 		valuestr=valuestr.replace(", ", ",");
@@ -442,7 +450,7 @@ public class VcfEvaiAnnot extends Launcher {
 					throw new RuntimeIOException(err);
 					}
 				});
-			
+			LOG.info("EVAI "+ this.all_evai.size()+" INTERVAR:"+this.all_intervar.size());
 			return doVcfToVcf(args, this.outputFile);
 			}
 		catch(final Throwable err) {
