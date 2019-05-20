@@ -75,7 +75,7 @@ END_DOC
 	description="Annotate vcf with evai/intervar data.",
 	keywords= {"vcf","annotation","evai","intervar"},
 	creationDate = "20190507",
-	modificationDate="20190507",
+	modificationDate="20190516",
 	generate_doc = false
 	)
 public class VcfEvaiAnnot extends Launcher {
@@ -98,6 +98,7 @@ public class VcfEvaiAnnot extends Launcher {
 	
 	private enum AnnoType {evai,intervar};
 	
+	/** Base class for a line in Evai or Intervar */
 	private abstract class AbstractAnnoLine implements Locatable
 		{
 		final EvaiTabix owner;
@@ -125,6 +126,7 @@ public class VcfEvaiAnnot extends Launcher {
 		abstract boolean match(final VariantContext ctx);
 		}
 	
+	/** Line in a EVAI file */
 	private class EvaiLine extends AbstractAnnoLine {
 		EvaiLine(EvaiTabix owner,final String tokens[]) {
 			super(owner,tokens);
@@ -137,7 +139,7 @@ public class VcfEvaiAnnot extends Launcher {
 		
 		public boolean isDeletion() { return tokens[4].equals("-");}
 		boolean match(final VariantContext ctx) {
-			if(!this.getContig().equals(ctx.getContig())) return false;
+			if(!this.contigsMatch(ctx)) return false;
 			if(this.getStart()!=ctx.getStart()) return false;
 			if(this.getEnd()!=ctx.getEnd()) return false;
 			if(!ctx.getReference().getDisplayString().equals(tokens[3]) && !isDeletion()) return false;
@@ -146,12 +148,14 @@ public class VcfEvaiAnnot extends Launcher {
 			return true;
 			}
 		}
+	
+	/** Line in a intervar file */
 	private class IntervarLine extends AbstractAnnoLine {
-		IntervarLine(EvaiTabix owner,final String tokens[]) {
+		IntervarLine(final EvaiTabix owner,final String tokens[]) {
 			super(owner,tokens);
 			}
 		boolean match(final VariantContext ctx) {
-			if(!this.getContig().equals(ctx.getContig())) return false;
+			if(!this.contigsMatch(ctx)) return false;
 			if(this.getStart()!=ctx.getStart()) return false;
 			if(this.getEnd()!=ctx.getEnd()) return false;
 			if(!ctx.getReference().getDisplayString().equals(tokens[3]) ) return false;
@@ -192,8 +196,8 @@ public class VcfEvaiAnnot extends Launcher {
 						this.column2index.put(tokens[i],i);
 						}
 					}
-				
 				}
+			
 			if(this.type==null) {
 				throw new IOException("unknown file type  "+filename);
 				}
@@ -217,10 +221,11 @@ public class VcfEvaiAnnot extends Launcher {
 		Optional<AbstractAnnoLine> query(final VariantContext ctx) {
 			if(this.lastInterval==null ||
 				!this.lastInterval.getContig().equals(ctx.getContig()) ||
-				!CoordMath.encloses(lastInterval.getStart(), lastInterval.getEnd(),
-						ctx.getStart(),ctx.getEnd())) {
-				
-				buffer.clear();
+				!CoordMath.encloses(
+					this.lastInterval.getStart(),this.lastInterval.getEnd(),
+					ctx.getStart(),ctx.getEnd()
+					)) {
+				this.buffer.clear();
 				this.lastInterval = new Interval(ctx.getContig(),
 						Math.max(1,ctx.getStart()-10),
 						ctx.getEnd() + Math.max(1, buffer_size)
@@ -259,12 +264,105 @@ public class VcfEvaiAnnot extends Launcher {
 	private final List<EvaiTabix> all_intervar = new ArrayList<>();
 	
 	private boolean isEvaiBooleanField(final String T) {
-		return T.startsWith("BP") || T.startsWith("BS") || 
-                       T.startsWith("BA") || 
-                       T.startsWith("PM") || 
-		       T.startsWith("PP") ||  
-                       T.startsWith("PS")|| 
-                       T.startsWith("PV") ;
+		return T.startsWith("BP") ||
+			T.startsWith("BS") || 
+			T.startsWith("BA") || 
+			T.startsWith("PM") || 
+			T.startsWith("PP") ||  
+			T.startsWith("PS")|| 
+			T.startsWith("PV") ;
+		}
+	
+	private void challengeEvai(final Map<String, Object> attributes,final VariantContext ctx) {
+		/* evai */
+		final Optional<AbstractAnnoLine> candidateEvai = this.all_evai.
+				stream().
+				map(T->T.query(ctx)).
+				filter(T->T.isPresent()).
+				map(T->T.get()).
+				findFirst();
+		if(!candidateEvai.isPresent()) return;
+		
+		final AbstractAnnoLine line = candidateEvai.get();
+		for(final String column : line.owner.column2index.keySet()) {
+			if(!isEvaiBooleanField(column)) continue;
+			final int col_idx = line.owner.column2index.get(column);
+			if(col_idx>= line.tokens.length) continue;
+			final String valuestr=line.tokens[col_idx];
+			if(valuestr.equals("n.a.")) continue;
+			final Object value ;
+			if(valuestr.equals("true")) value=1;
+			else if(valuestr.equals("TRUE(STRONG)")) value=10;
+			else if(valuestr.equals("false")) value=0;
+			else throw new IllegalArgumentException(column+" "+valuestr);
+			attributes.put(EVAI_PFX+column, value);
+			}
+			
+		final int col_idx = line.owner.column2index.get("FINAL_CLASSIFICATION");
+		if(col_idx>=0 && col_idx< line.tokens.length) {
+			final String value = line.tokens[col_idx].replace(" ","_");
+			if(value.equals("n.a.") ||StringUtils.isBlank(value)) {
+				//ignore
+				}
+			attributes.put(EVAI_PFX+"FINAL_CLASSIFICATION", value);
+			}
+		}
+	
+	@SuppressWarnings("serial")
+	private final Map<String,String> intervar_signifiances = new HashMap<>() {{{
+		put("InterVar: Uncertain significance ", "uncertain_significance");
+		put("InterVar: Benign ", "benign");
+		}}};
+	
+	private void challengeIntervar(final Map<String, Object> attributes,final VariantContext ctx) {
+		final Optional<AbstractAnnoLine> candidateIntervar = this.all_intervar.
+				stream().
+				map(T->T.query(ctx)).
+				filter(T->T.isPresent()).
+				map(T->T.get()).
+				findFirst();
+		if(!candidateIntervar.isPresent()) return;
+		
+		
+		final AbstractAnnoLine line = candidateIntervar.get();
+		final int col_idx = line.owner.column2index.get(INTERVAR_COLUMN);
+		if(col_idx==-1) throw new IllegalArgumentException("Cannot find "+INTERVAR_COLUMN);
+		String valuestr=line.tokens[col_idx];
+		
+		for(final String prefix: this.intervar_signifiances.keySet()) {
+			if(valuestr.startsWith(prefix)) {
+				valuestr = valuestr.substring(prefix.length()).trim();
+				attributes.put(INTERVAR_PFX+"_CLASSIFICATION", this.intervar_signifiances.get(prefix));
+				break;
+				}
+			}
+			
+		if(!attributes.containsKey(INTERVAR_PFX+"_CLASSIFICATION"))
+			{
+			throw new IllegalArgumentException("cannot get classification of "+valuestr);
+			}
+		
+		valuestr=valuestr.replace(", ", ",");
+		final String tokens[] = valuestr.split("[ ]+");
+		for(String token:tokens) {
+			if(StringUtils.isBlank(token)) continue;
+			int eq=token.indexOf("=");
+			if(eq==-1) throw new RuntimeException("= missing in "+candidateIntervar);
+			final String key = token.substring(0,eq);
+			if(token.charAt(eq+1)=='[')
+				{
+				token = token.substring(eq+2,token.length()-1);
+				final String nums[]=CharSplitter.COMMA.split(token);
+				for(int x=0;x< nums.length;++x) {
+					attributes.put(INTERVAR_PFX+key+(x),Integer.parseInt(nums[x]));
+					}
+				}
+			else
+				{
+				attributes.put(INTERVAR_PFX+key,Integer.parseInt(token.substring(eq+1)));
+				}
+			}	
+		
 		}
 	
 	@Override
@@ -305,97 +403,19 @@ public class VcfEvaiAnnot extends Launcher {
 				continue;
 				}
 			final Map<String, Object> attributes = new HashMap<>();
+			challengeEvai(attributes,ctx);
+			challengeIntervar(attributes,ctx);
 			
-			/* evai */
-
-				
-			final Optional<AbstractAnnoLine> candidateEvai = this.all_evai.
-					stream().
-					map(T->T.query(ctx)).
-					filter(T->T.isPresent()).
-					map(T->T.get()).
-					findFirst();
-			if(candidateEvai.isPresent()) {
-				final AbstractAnnoLine line = candidateEvai.get();
-				for(final String column : line.owner.column2index.keySet()) {
-					if(!isEvaiBooleanField(column)) continue;
-					final int col_idx = line.owner.column2index.get(column);
-					if(col_idx>= line.tokens.length) continue;
-					final String valuestr=line.tokens[col_idx];
-					if(valuestr.equals("n.a.")) continue;
-					final Object value ;
-					if(valuestr.equals("true")) value=1;
-					else if(valuestr.equals("TRUE(STRONG)")) value=10;
-					else if(valuestr.equals("false")) value=0;
-					else throw new IllegalArgumentException(column+" "+valuestr);
-					attributes.put(EVAI_PFX+column, value);
-					}
-					
-				final int col_idx = line.owner.column2index.get("FINAL_CLASSIFICATION");
-				if(col_idx>=0 && col_idx< line.tokens.length) {
-					final String value = line.tokens[col_idx].replace(" ","_");
-					if(value.equals("n.a.") ||StringUtils.isBlank(value)) {
-						//ignore
-						}
-					attributes.put(EVAI_PFX+"FINAL_CLASSIFICATION", value);
-					}
+			if(attributes.isEmpty())
+				{
+				out.add(ctx);
 				}
-			
-			/* intervar */
-
-			
-			final Optional<AbstractAnnoLine> candidateIntervar = this.all_intervar.
-					stream().
-					map(T->T.query(ctx)).
-					filter(T->T.isPresent()).
-					map(T->T.get()).
-					findFirst();
-			if(candidateIntervar.isPresent()) {
-				final AbstractAnnoLine line = candidateIntervar.get();
-				final int col_idx = line.owner.column2index.get(INTERVAR_COLUMN);
-				if(col_idx==-1) throw new IllegalArgumentException("Cannot find "+INTERVAR_COLUMN);
-				String valuestr=line.tokens[col_idx];
-				final String intervarKey1 = "InterVar: Uncertain significance ";
-				final String intervarKey2 = "InterVar: Benign ";
-				if(valuestr.startsWith(intervarKey1)) {
-					valuestr = valuestr.substring(intervarKey1.length()).trim();
-					attributes.put(INTERVAR_PFX+"_CLASSIFICATION", "uncertain_significance");
-					}
-				else if(valuestr.startsWith(intervarKey2)) {
-					valuestr = valuestr.substring(intervarKey2.length()).trim();
-					attributes.put(INTERVAR_PFX+"_CLASSIFICATION", "benign");
-					}
-				else
-					{
-					throw new IllegalArgumentException(valuestr);
-					}
-				valuestr=valuestr.replace(", ", ",");
-				final String tokens[] = valuestr.split("[ ]+");
-				for(String token:tokens) {
-					if(StringUtils.isBlank(token)) continue;
-					int eq=token.indexOf("=");
-					if(eq==-1) throw new RuntimeException("= missing in "+candidateIntervar);
-					final String key = token.substring(0,eq);
-					if(token.charAt(eq+1)=='[')
-						{
-						token = token.substring(eq+2,token.length()-1);
-						String nums[]=CharSplitter.COMMA.split(token);
-						for(int x=0;x< nums.length;++x) {
-							attributes.put(INTERVAR_PFX+key+(x),Integer.parseInt(nums[x]));
-							}
-						}
-					else
-						{
-						attributes.put(INTERVAR_PFX+key,Integer.parseInt(token.substring(eq+1)));
-						}
-				
-					}
-				
+			else
+				{
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				for(final String k: attributes.keySet()) vcb.attribute(k,attributes.get(k));
+				out.add(vcb.make());
 				}
-				
-			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-			for(final String k: attributes.keySet()) vcb.attribute(k,attributes.get(k));
-			out.add(vcb.make());
 			}
 		
 		progress.close();

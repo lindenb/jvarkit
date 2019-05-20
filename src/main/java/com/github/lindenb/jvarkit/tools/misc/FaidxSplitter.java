@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -46,11 +45,13 @@ import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -100,7 +101,7 @@ public class FaidxSplitter  extends Launcher
 	{
 	private final Logger LOG=Logger.build(FaidxSplitter.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	protected File outputFile = null;
+	protected Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	protected Path faidx = null;
 	@Parameter(names={"-gap","--gaps","--gap"},description="gap file. A bed file containing the known gaps in the genome. "
@@ -108,11 +109,11 @@ public class FaidxSplitter  extends Launcher
 	protected String gapSource = null;
 	@Parameter(names={"-gene","--gene","--genes"},description="gene file. You shouldn't break a record in this file.")
 	protected String geneSource = null;
-	@Parameter(names={"-w","--size"},description="BED Size. The genome should be split into BED of 'w' size.")
+	@Parameter(names={"-w","--size"},description="BED Size. The genome should be split into BED of 'w' size. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	protected int window_size = 1_000_000;
-	@Parameter(names={"-x","--overlap"},description="Overlap  Size. The resulting BED region should overlap with 'x' bases.")
+	@Parameter(names={"-x","--overlap"},description="Overlap  Size. The resulting BED region should overlap with 'x' bases. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	protected int overlap_size = 1_000;
-	@Parameter(names={"-s","--small"},description="If it remains 's' bases in the BED split to the end of the chromosome, extends the current BED.")
+	@Parameter(names={"-s","--small"},description="If it remains 's' bases in the BED split to the end of the chromosome, extends the current BED. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	protected int small_size = 1_000;
 	@Parameter(names={"--exclude"},description="A regular expression to exclude some chromosomes from the dictionary.")
 	protected String excludeChromStr = "(chr)?(M|MT)$";
@@ -253,15 +254,15 @@ public class FaidxSplitter  extends Launcher
 			}
 			
 			final Comparator<String> contigCmp = new ContigDictComparator(dict);
-			final List<Interval> intervals2 = new ArrayList<>(intervals1.values());
-			intervals2.sort((A,B)->{
+			final List<Interval> intervalsList = new ArrayList<>(intervals1.values());
+			intervalsList.sort((A,B)->{
 				final int i= contigCmp.compare(A.getContig(),B.getContig());
 				if(i!=0) return i;
 				return A.getStart()-B.getStart();
 				});
 			/* start writing output */
-			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			for(final Interval interval : intervals2) {
+			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
+			for(final Interval interval : intervalsList) {
 				if(interval.length()<= this.window_size)
 					{
 					echo(pw,interval);
