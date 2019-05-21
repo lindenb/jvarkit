@@ -36,13 +36,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
@@ -137,7 +130,8 @@ END_DOC
 */
 @Program(name="vcfburdenmaf",
 	description="Burden : MAF for Cases / Controls ",
-	keywords={"vcf","burden","maf","case","control"}
+	keywords={"vcf","burden","maf","case","control"},
+	modificationDate="20190520"
 	)
 public class VcfBurdenMAF
 	extends Launcher
@@ -153,35 +147,26 @@ public class VcfBurdenMAF
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
-	@XmlType(name="vcfburdenmaf")
-	@XmlRootElement(name="vcfburdenmaf")
-	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 		{
-		@XmlElement(name="max-maf")
 		@Parameter(names={"-maxMAF","--maxMAF"},description="if MAF of cases OR MAF of control is greater than maxMAF, the the FILTER Column is Filled")
 		private double maxMAF = 0.05 ;
 		
-		@XmlElement(name="nocall-is-homref")
 		@Parameter(names={"-c","--homref"},description="Treat No Call './.' genotypes as HomRef")
 		private boolean noCallAreHomRef = false;
 		
-		@XmlElement(name="ignore-filtered")
 		@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
 		private boolean ignoreFiltered=false;
-		@XmlElement(name="pedigree")
 		@Parameter(names={"-p","--pedigree"},description="[20180117] Pedigree file. Default: use the pedigree data in the VCF header." + Pedigree.OPT_DESCRIPTION)
 		private File pedigreeFile=null;
 		@Parameter(names={"-gtf","--gtf","--gtFiltered"},description="[20180117] Ignore FILTERed **Genotype**")
 		private boolean ignore_filtered_genotype=false;
-		@XmlElement(name="lumpy-su-min")
 		@Parameter(names={"-lumpy-su-min","--lumpy-su-min"},description="[20180117] if variant identified as LUMPy-SV variant. This is the minimal number of 'SU' to consider the genotype as a variant.")
 		private int lumpy_SU_threshold=1;
 
 		
 		
-		@XmlTransient
 		private Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = 
 			(header)->  new Pedigree.CaseControlExtractor().extract(header);
 		

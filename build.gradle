@@ -2012,7 +2012,7 @@ all.add( task("vcffilternotinpedigree", type: CompileJVarkit) {
 	});
 all.add( task("vcfburdenmaf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfburdenexac", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac"

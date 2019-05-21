@@ -29,10 +29,11 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -41,13 +42,14 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -88,7 +90,8 @@ END_DOC
 @Program(
 		name="vcfburdenfisherv",
 		description="Fisher Case / Controls per Variant (Vertical)",
-		keywords={"vcf","burden","fisher"}
+		keywords={"vcf","burden","fisher"},
+		modificationDate="20190521"
 		)
 public class VcfBurdenFisherV
 	extends Launcher
@@ -111,11 +114,15 @@ public class VcfBurdenFisherV
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+	@Parameter(names={"-p","--pedigree"},description="[20190121] Pedigree file. Default: use the pedigree data in the VCF header." + Pedigree.OPT_DESCRIPTION)
+	private File pedigreeFile=null;
 
+	
+	
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 
-	public static class CtxWriterFactory 
+	public class CtxWriterFactory 
 		implements VariantContextWriterFactory
 		{
 		@Parameter(names={"-if","--ignorefilter"},
@@ -140,9 +147,28 @@ public class VcfBurdenFisherV
 			@Override
 			public void writeHeader(final VCFHeader header) {
 				this.indi2supervariant.clear();
-				for(final Pedigree.Person  person: new Pedigree.CaseControlExtractor().extract(header)) {
+				final Set<Pedigree.Person> persons;
+				if(VcfBurdenFisherV.this.pedigreeFile != null) {
+					try {
+						persons = new Pedigree.CaseControlExtractor().extract(
+								header,
+								new Pedigree.Parser().parse(VcfBurdenFisherV.this.pedigreeFile)
+								);
+						}
+					catch(final IOException err)
+						{
+						throw new RuntimeIOException(err);
+						}
+					} 
+				else
+					{
+					persons =  new Pedigree.CaseControlExtractor().extract(header);
+					}
+				
+				for(final Pedigree.Person  person: persons) {
 					this.indi2supervariant.put(person, SuperVariant.SV0);
 					}
+				
 				this.tmpw = new VCFBuffer(1000,tmpDir);
 				this.tmpw.writeHeader(header);
 				this.count = new Count();
@@ -263,13 +289,13 @@ public class VcfBurdenFisherV
 		final VariantContextWriter delegate)
 		{
 		final VariantContextWriter  out = this.component.open(delegate);
-		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+		final ProgressFactory.Watcher<VariantContext> progess= ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 		out.writeHeader(in.getHeader());
 		while(in.hasNext())
 			{
-			out.add(progess.watch(in.next()));
+			out.add(progess.apply(in.next()));
 			}
-		progess.finish();
+		progess.close();
 		out.close();
 		return 0;
 		}
