@@ -24,10 +24,9 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.samfixcigar;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
@@ -45,6 +44,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 /**
 
@@ -104,7 +104,10 @@ x6      0       ref2    14      30      1X22=   *       0       0       TAATTAAG
 
 ### Usage in the literature
 
-This tool was cited in Extensive sequencing of seven human genomes to characterize benchmark reference materials Sci Data. 2016; 3: 160025..
+This tool was cited in
+
+  * Extensive sequencing of seven human genomes to characterize benchmark reference materials Sci Data. 2016; 3: 160025..
+  * Robust mapping of polyadenylated and non-polyadenylated RNA 3’-ends at nucleotide resolution by 3́end sequencing 23 May 2019. Roy & al. Methods.  https://doi.org/10.1016/j.ymeth.2019.05.016
 
 END_DOC
 
@@ -113,6 +116,7 @@ END_DOC
 @Program(name="samfixcigar",
 	description="Fix Cigar String in SAM replacing 'M' by 'X' or '='",
 	keywords={"sam","bam","cigar"},
+	modificationDate="20190528",
 	biostars= {312430,340479}
 	)
 public class SamFixCigar extends Launcher
@@ -120,11 +124,10 @@ public class SamFixCigar extends Launcher
 	private static final Logger LOG = Logger.build(SamFixCigar.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
+	private Path outputFile = null;
 
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx = null;
+	private Path faidx = null;
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
@@ -150,14 +153,14 @@ public class SamFixCigar extends Launcher
 			final SAMFileHeader header = sfr.getFileHeader();
 			header.addComment("Processed with "+getProgramName()+" "+JVarkitVersion.getInstance().getLabel());
 			sfw = this.writingBamArgs.
-					setReferenceFile(this.faidx).
-					openSAMFileWriter(outputFile,header, true);
-			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+					setReferencePath(this.faidx).
+					openSamWriter(this.outputFile,header, true);
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			final List<CigarElement> newCigar=new ArrayList<CigarElement>();
 			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				final SAMRecord rec=progress.watch(iter.next());
+				final SAMRecord rec=progress.apply(iter.next());
 				Cigar cigar=rec.getCigar();
 				byte bases[]=rec.getReadBases();
 				if( rec.getReadUnmappedFlag() ||
@@ -235,7 +238,7 @@ public class SamFixCigar extends Launcher
 				
 				sfw.addAlignment(rec);
 				}
-			progress.finish();
+			progress.close();
 			return RETURN_OK;
 			}
 		catch(final  Exception err)

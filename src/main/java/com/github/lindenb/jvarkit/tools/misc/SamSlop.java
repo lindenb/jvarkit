@@ -28,7 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
@@ -95,14 +95,17 @@ rotavirus_2_478_5:0:0_5:0:0_35c 163     rotavirus       1       60      4M      
 
 END_DOC
 */
-@Program(name="SamSlop",description="extends sam by 'x' bases")
+@Program(name="SamSlop",description="extends sam by 'x' bases",
+keywords= {"sam","bam"},
+modificationDate="20190528"
+)
 public class SamSlop extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamSlop.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
-	private File outputFile = null;
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private Path outputFile = null;
 
 
 	@Parameter(names={"-m","--extend5"},description="num bases to extends on 5'")
@@ -117,9 +120,8 @@ public class SamSlop extends Launcher
 	@Parameter(names={"-c","--rmClip"},description="remove clipped bases")
 	private boolean removeClip = false;
 
-	@Parameter(names={"-r","--reference"},description="Indexed fasta Reference")
-	private File faidx = null;
-	
+	@Parameter(names={"-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidx = null;
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
@@ -144,12 +146,12 @@ public class SamSlop extends Launcher
 		try
 			{
 			final String inputName= oneFileOrNull(args);
-			LOG.info("Loading reference");
 			indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
 			sfr = openSamReader(inputName);
 			final SAMFileHeader header=sfr.getFileHeader();
 			header.setSortOrder(SortOrder.unsorted);
-			sfw = writingBamArgs.openSAMFileWriter(outputFile,header, true);
+			writingBamArgs.setReferencePath(faidx);
+			sfw = writingBamArgs.openSamWriter(outputFile,header, true);
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
 			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
@@ -303,7 +305,7 @@ public class SamSlop extends Launcher
 			progress.finish();
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -315,10 +317,8 @@ public class SamSlop extends Launcher
 			CloserUtil.close(sfw);
 			}
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+
+	public static void main(final String[] args) {
 		new SamSlop().instanceMainWithExit(args);
 
 	}

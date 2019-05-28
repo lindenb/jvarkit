@@ -99,7 +99,7 @@ public class VcfEvaiAnnot extends Launcher {
 	private enum AnnoType {evai,intervar};
 	
 	/** Base class for a line in Evai or Intervar */
-	private abstract class AbstractAnnoLine implements Locatable
+	private abstract class AbstractAnnoLine implements Locatable,Comparable<AbstractAnnoLine>
 		{
 		final EvaiTabix owner;
 		final String tokens[];
@@ -122,6 +122,10 @@ public class VcfEvaiAnnot extends Launcher {
 		@Override
 		public String toString() {
 			return String.join("\t", tokens);
+			}
+		@Override
+		public int compareTo(final AbstractAnnoLine o) {
+			return String.join(",",tokens).compareTo(String.join(",",o.tokens));
 			}
 		abstract boolean match(final VariantContext ctx);
 		}
@@ -146,6 +150,25 @@ public class VcfEvaiAnnot extends Launcher {
 			if(ctx.getNAlleles()==1) return false;
 			if(!ctx.getAlleles().get(1).getDisplayString().equals(tokens[4]) && !isDeletion()) return false;
 			return true;
+			}
+
+		private int score() {
+			int col = owner.column2index.getOrDefault("FINAL_CLASSIFICATION",-1);
+			if(col< 0 || col>= tokens.length) return -1;
+			final String s= tokens[col];	
+			if(s.equals("Benign")) return 4;
+			if(s.equals("Likely benign")) return 3;
+			if(s.equals("Uncertain significance")) return 2;
+			if(s.equals("Likely pathogenic")) return 1;
+			if(s.equals("Pathogenic")) return 0;
+
+			throw new IllegalStateException(s);
+			}
+		@Override
+		public int compareTo(final AbstractAnnoLine o) {
+			int i= Integer.compare(this.score(),EvaiLine.class.cast(o).score());
+			if(i!=0) return i;
+			return super.compareTo(o);
 			}
 		}
 	
@@ -252,7 +275,7 @@ public class VcfEvaiAnnot extends Launcher {
 					throw new RuntimeIOException(err);
 					}
 				}
-			return this.buffer.stream().filter(L->L.match(ctx)).findFirst();
+			return this.buffer.stream().filter(L->L.match(ctx)).sorted().findFirst();
 			}
 		
 		@Override

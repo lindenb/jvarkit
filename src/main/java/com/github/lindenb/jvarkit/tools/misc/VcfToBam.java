@@ -44,6 +44,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -105,7 +106,7 @@ public class VcfToBam extends Launcher
 	private File outputFile=null;
 	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx=null;
+	private Path faidx=null;
 
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
@@ -148,7 +149,7 @@ public class VcfToBam extends Launcher
 		samHeader.addComment("Generated with "+getProgramCommandLine());
 		samHeader.setSortOrder(SortOrder.unsorted);
 		samFileWriter= this.writingBamArgs.
-				setReferenceFile(this.faidx).
+				setReferencePath(this.faidx).
 				openSAMFileWriter(this.outputFile, samHeader, true);
 		
 		/* looping over sequences */

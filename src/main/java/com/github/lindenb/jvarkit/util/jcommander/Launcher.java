@@ -203,9 +203,7 @@ public static enum WritingSamReaderType
 
 public class WritingBamArgs
 	{
-	private File referenceFile = null;
-	
-	
+	private Path referenceFile = null;
 	
 	@Parameter(names={"--bamcompression"},description="Compression Level.")
 	public int compressionLevel=5;
@@ -219,11 +217,16 @@ public class WritingBamArgs
 		if(n<0) n= Deflater.NO_COMPRESSION;
 		if(n>9) n= Deflater.BEST_COMPRESSION;
 		sfw.setCompressionLevel(n);
-		
 		return sfw;
 		}
 	
+	@Deprecated
 	public WritingBamArgs setReferenceFile(final File referenceFile) {
+		this.referenceFile = (referenceFile==null?null:referenceFile.toPath());
+		return this;
+		}
+	
+	public WritingBamArgs setReferencePath(final Path referenceFile) {
 		this.referenceFile = referenceFile;
 		return this;
 		}
@@ -235,30 +238,36 @@ public class WritingBamArgs
 	public WritingBamArgs setBestCompression() {
 		return setCompressionLevel(Deflater.BEST_COMPRESSION);
 		}
-	/** return reference file. default implementation returns null */
+	/** return reference file as java.io.File. default implementation returns null */
+	@Deprecated
 	public File getReferenceFile() {
+		final Path p=getReferencePath();
+		return p==null?null:p.toFile();
+		}
+	/** return reference file as java.nio.Path. default implementation returns null */
+	public Path getReferencePath() {
 		return this.referenceFile;
 		}
 	
 	
-	
-	public SAMFileWriter openSAMFileWriter(File outputFileOrNull,SAMFileHeader header,boolean presorted)
-	{
+	public SAMFileWriter openSamWriter(final Path outputFileOrNull,SAMFileHeader header,boolean presorted) {
 		final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
+		final SAMFileWriter w;
 		if(outputFileOrNull==null)
 			{
 			if( this.samoutputformat!=null &&
 				this.samoutputformat.equals(WritingSamReaderType.BAM))
 				{
-				return sfw.makeBAMWriter(header, presorted, stdout());
+				w = sfw.makeBAMWriter(header, presorted, stdout());
+				}
+			else if(this.samoutputformat!=null &&
+					this.samoutputformat.equals(WritingSamReaderType.CRAM))
+				{
+				w = sfw.makeCRAMWriter(header,stdout(),getReferencePath());
 				}
 			else if(this.samoutputformat==null || this.samoutputformat.equals(WritingSamReaderType.SAM))
 				{
-				return sfw.makeSAMWriter(header, presorted, stdout());
-				}
-			else if(this.samoutputformat==null || this.samoutputformat.equals(WritingSamReaderType.CRAM))
-				{
-				return sfw.makeCRAMWriter(header,stdout(),getReferenceFile());
+				w = sfw.makeSAMWriter(header, presorted, stdout());
 				}
 			else
 				{
@@ -267,8 +276,14 @@ public class WritingBamArgs
 			}
 		else
 			{
-			return sfw.makeWriter(header, presorted, outputFileOrNull, getReferenceFile());
+			w =  sfw.makeWriter(header, presorted, outputFileOrNull, getReferencePath());
 			}
+		
+		return w;
+		}
+	
+	public SAMFileWriter openSAMFileWriter(File outputFileOrNull,SAMFileHeader header,boolean presorted) {
+		return this.openSamWriter(outputFileOrNull==null?null:outputFileOrNull.toPath(),header,presorted);
 		}
 	}
 
@@ -427,7 +442,7 @@ public Launcher()
 	catch(final java.security.AccessControlException err) {
 	}
 	
-	@SuppressWarnings({"rawtypes","unchecked","serial"})
+	@SuppressWarnings({"rawtypes","serial"})
 	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(Dimension.class,DimensionConverter.class);
 		    put(SamRecordFilter.class,SamRecordFilterFactory.class);

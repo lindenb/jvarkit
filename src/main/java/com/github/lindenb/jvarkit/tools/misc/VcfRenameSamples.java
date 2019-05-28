@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +36,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -84,8 +84,10 @@ chr1	69270	.	A	G	./.	./.	1/1:0,3:3:9:106,9,0	1/1:0,6:6:18:203,18,0
 END_DOC
 */
 
-@Program(name="vcfrenamesamples",description="Rename the Samples in a VCF",
-	keywords={"vcf","sample"}
+@Program(name="vcfrenamesamples",
+	description="Rename the Samples in a VCF",
+	keywords={"vcf","sample"},
+	deprecatedMsg="use bcftools reheader"
 	)
 public class VcfRenameSamples extends Launcher
 	{
@@ -94,7 +96,7 @@ public class VcfRenameSamples extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names="-f",description="Tab delimited file containing old-name\\tnew-name",required=true)
-	private File mappingFile=null;
+	private Path mappingFile=null;
 	@Parameter(names="-E",description= "error like src sample missing in VCF")
 	private boolean missing_user_name_is_error=false;
 	@ParametersDelegate
@@ -177,10 +179,10 @@ public class VcfRenameSamples extends Launcher
 		return 0;
 		}
 	
-	private void parseNames(final File f) throws IOException
+	private void parseNames(final Path f) throws IOException
 		{
 		final CharSplitter tab= CharSplitter.TAB;
-		final BufferedReader in=IOUtils.openFileForBufferedReading(f);
+		final BufferedReader in=IOUtils.openPathForBufferedReading(f);
 		String line;
 		while((line=in.readLine())!=null)
 			{

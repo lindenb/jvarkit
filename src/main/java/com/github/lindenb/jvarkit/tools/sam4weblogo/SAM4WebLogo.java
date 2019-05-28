@@ -24,8 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.sam4weblogo;
 
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -154,6 +154,7 @@ END_DOC
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
 	biostars= {73021,368200},
+	modificationDate="20190528",
 	keywords={"sam","bam","visualization","logo"}
 	)
 public class SAM4WebLogo extends Launcher
@@ -167,7 +168,7 @@ public class SAM4WebLogo extends Launcher
 	private String regionStr = null;
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-readFilter","--readFilter"},description="[20171201](moved to jexl)"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
 	private SamRecordFilter SamRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
@@ -364,7 +365,7 @@ public class SAM4WebLogo extends Launcher
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
 		try {
-			out = super.openFileOrStdoutAsPrintWriter(outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(outputFile);
 			for(final String inputName: IOUtils.unrollFiles(args)) {
 				samReader = openSamReader(inputName);
 				

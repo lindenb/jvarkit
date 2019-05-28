@@ -27,7 +27,7 @@ package com.github.lindenb.jvarkit.tools.samgrep;
 
 
 import java.io.BufferedReader;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -155,14 +155,14 @@ public class SamGrep extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamGrep.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	
 	@Parameter(names={"-R","--readname"},description="add the read name")
 	private Set<String> nameStrings = new HashSet<>();
 	
 	
 	@Parameter(names={"-f","--readfile"},description="file containing a list of read names")
-	private File namefile = null;
+	private Path namefile = null;
 	
 	@Parameter(names={"-x","--tee"},description="if output fileame specified, continue to output original input to stdout.")
 	private boolean divertToStdout = false;
@@ -189,7 +189,7 @@ public class SamGrep extends Launcher
 	    	BufferedReader in=null;
 			try
 				{
-				in=IOUtils.openFileForBufferedReading(this.namefile);
+				in=IOUtils.openPathForBufferedReading(this.namefile);
 				in.lines().
 						filter(L->!StringUtil.isBlank(L)).
 						forEach(L->readNames.put(L.trim(),0));
@@ -235,7 +235,7 @@ public class SamGrep extends Launcher
 				{
 				samStdout= this.writingBamArgs.openSAMFileWriter(null, header, true);
 				
-				sfw= this.writingBamArgs.openSAMFileWriter(outputFile, header, true);
+				sfw= this.writingBamArgs.openSamWriter(this.outputFile, header, true);
 				}
 		
 			SAMRecordIterator iter=sfr.iterator();

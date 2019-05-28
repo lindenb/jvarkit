@@ -54,6 +54,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
@@ -232,7 +233,7 @@ public class VcfCutSamples
 				String line;
 				while((line=r.readLine())!=null)
 					{
-					if(line.startsWith("#") || line.trim().isEmpty()) continue;
+					if(line.startsWith("#") || StringUtils.isBlank(line)) continue;
 					this.user_samples.add(line);
 					}
 				}

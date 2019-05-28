@@ -389,13 +389,10 @@ public class VcfGeneSplitter
 					prevCtg = ctx.getContig();
 					}
 				
-				
-				
 				for(final GeneExtractor ex:this.extractors)
 					{
 					final Set<String> keys = ex.apply(ctx);
 					for(final String key:keys) {
-						
 						if(sortingcollection==null) {
 							sortingcollection = SortingCollection.newInstance(
 									KeyAndLine.class,
@@ -405,19 +402,12 @@ public class VcfGeneSplitter
 									this.writingSortingCollection.getTmpPaths()
 									);
 							sortingcollection.setDestructiveIteration(true);
-							}
-						
-						
+							}						
 						sortingcollection.add(new KeyAndLine(key,ex.getExtractorName(), line));
 						}
 					}
 				}
 			progess.close();
-			
-			
-			
-			progess.close();
-			
 			manifest.flush();
 			manifest.close();
 			archiveFactory.close();
@@ -442,7 +432,7 @@ public class VcfGeneSplitter
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(list_extractors) {
+		if(this.list_extractors) {
 			for(final GeneExtractor ge: this.extractors) {
 				System.out.println(ge.getExtractorName());
 				}
@@ -453,7 +443,7 @@ public class VcfGeneSplitter
 			if(StringUtils.isBlank(en))continue;
 			final Optional<GeneExtractor> ge = this.extractors.stream().filter(G->G.getExtractorName().equals(en)).findFirst();
 			if(!ge.isPresent()) {
-				LOG.error("Cannot find extractor named "+en);
+				LOG.error("Cannot find any gene extractor named \""+en+"\"s");
 				return -1;
 				}
 			ge.get().used = true;

@@ -24,8 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.Writer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +34,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -64,14 +64,15 @@ END_DOC
 */
 @Program(name="vcfmakedict",
 	description="Create a SAM Sequence Dictionary from a set of VCF files.",
-	keywords={"vcf","dict","fai"}
+	keywords={"vcf","dict","fai"},
+	modificationDate="2090528"
 	)
 public class VcfCreateDictionary extends Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfCreateDictionary.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 	
 	public VcfCreateDictionary()
 		{
@@ -83,7 +84,7 @@ public class VcfCreateDictionary extends Launcher
 		VCFIterator in = null;
 		Writer out= null;
 		
-		if (this.outputFile != null && !outputFile.getName().endsWith(".dict")) {
+		if (this.outputFile != null && !outputFile.getFileName().endsWith(".dict")) {
 				LOG.error("output file should end with .dict :" + this.outputFile);
 				return -1;
 			}
@@ -95,34 +96,18 @@ public class VcfCreateDictionary extends Launcher
 			do
 				{
 				in = super.openVCFIterator(args.isEmpty()?null:args.get(optind));
-				final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+				final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 	
 				while(in.hasNext())
 					{
-					final VariantContext ctx = progress.watch(in.next());
-					Integer length= buildNewDictionary.get(ctx.getContig());
-					if(length==null) length=0;
+					final VariantContext ctx = progress.apply(in.next());
+					Integer length= buildNewDictionary.getOrDefault(ctx.getContig(),0);
 					if(ctx.getEnd()>length)
 						{
-						length = ctx.getEnd();
-						buildNewDictionary.put(ctx.getContig(),length);
-						}
-					final Object END =ctx.getAttribute("END");
-					if(END!=null) {
-						try {
-							final int end = Integer.parseInt(END.toString());
-							if( end >length)
-								{
-								length = end ;
-								buildNewDictionary.put(ctx.getContig(),length);
-								}
-							}
-						catch(Throwable err) {
-							// not an integer
-							}
+						buildNewDictionary.put(ctx.getContig(),ctx.getEnd());
 						}
 					}
-				progress.finish();
+				progress.close();
 				in.close();
 				in=null;
 				++optind;
@@ -137,7 +122,7 @@ public class VcfCreateDictionary extends Launcher
 			sfh.setSequenceDictionary(new SAMSequenceDictionary(list));
 			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
 			codec.setValidationStringency(htsjdk.samtools.ValidationStringency.SILENT);
-			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			codec.encode(out, sfh);
 			out.flush();
 			out.close();
