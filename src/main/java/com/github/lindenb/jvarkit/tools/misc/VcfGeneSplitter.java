@@ -309,7 +309,7 @@ public class VcfGeneSplitter
 			archiveFactory = ArchiveFactory.open(this.outputFile);
 			
 			manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile));
-			manifest.println("#chrom\tstart\tend\tkey\tpath\tCount_Variants");
+			manifest.println("#chrom\tstart\tend\tsplitter\tkey\tpath\tCount_Variants");
 
 			in = super.openBufferedReader(oneFileOrNull(args));
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
@@ -356,8 +356,9 @@ public class VcfGeneSplitter
 							out.close();
 							
 							final String md5 = StringUtils.md5(prevCtg+":"+first.splitter+":"+first.key);
-							final String filename = md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+buffer.get(0).key.replaceAll("[/]", "_") + ".vcf.gz";
-
+							final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+buffer.get(0).key.replaceAll("[/]", "_") + ".vcf.gz";
+							
+							
 							final OutputStream os = archiveFactory.openOuputStream(filename);
 							IOUtils.copyTo(tmpVcf, os);
 							os.flush();
@@ -373,7 +374,7 @@ public class VcfGeneSplitter
 							manifest.print('\t');
 							manifest.print(first.key);
 							manifest.print('\t');
-							manifest.print(filename);
+							manifest.print((archiveFactory.isZip()?"":this.outputFile.toString()+File.separator)+filename);
 							manifest.print('\t');
 							manifest.println(buffer.size());
 							}

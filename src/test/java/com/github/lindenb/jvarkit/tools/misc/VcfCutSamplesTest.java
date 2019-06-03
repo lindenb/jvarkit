@@ -14,11 +14,12 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
 import htsjdk.variant.vcf.VCFFileReader;
 
-@AlsoTest(VCFUtilsTest.class)
+@AlsoTest(VCFUtilsTest.class,LauncherTest.class)
 public class VcfCutSamplesTest  {
 
 	private final TestSupport support = new TestSupport();

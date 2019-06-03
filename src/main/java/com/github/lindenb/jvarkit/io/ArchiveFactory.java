@@ -41,6 +41,9 @@ public interface ArchiveFactory extends Closeable{
 
 	public static final String OPT_DESC="An existing directory or a filename ending with the '.zip' suffix.";
 	
+	/** return true is archive is instance of ZipInstance */
+	public boolean isZip();
+	
 	public abstract OutputStream openOuputStream(final String filename) throws IOException;
 	
 	/** copy whole file into the archive */
@@ -93,6 +96,10 @@ public interface ArchiveFactory extends Closeable{
 			fout= Files.newOutputStream(f);
 			zout=new ZipOutputStream(fout);
 			}
+		
+		@Override
+		public final boolean isZip() { return true;}
+
 		
 		@Override
 		public OutputStream openOuputStream(final String filename) throws IOException
@@ -190,6 +197,9 @@ public interface ArchiveFactory extends Closeable{
 				throw new IOException("Not a directory:"+baseDir);
 				}				
 			}
+		
+		@Override
+		public final boolean isZip() { return false;}
 		
 		@Override
 		public OutputStream openOuputStream(String filename) throws IOException
