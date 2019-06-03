@@ -42,7 +42,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -53,7 +56,9 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
@@ -131,7 +136,7 @@ END_DOC
 @Program(
 		name="vcfgenesplitter",
 		description="Split VCF+VEP by gene/transcript.",
-		modificationDate="20190517",
+		modificationDate="20190603",
 		keywords= {"genes","vcf"}
 		)
 public class VcfGeneSplitter
@@ -139,7 +144,8 @@ public class VcfGeneSplitter
 	{
 	private static final Logger LOG = Logger.build(VcfGeneSplitter.class).make();
 	
-	private abstract class GeneExtractor implements Function<VariantContext, Set<String>>
+	/** return a map<gene,map<info.att,set<info.value>> */
+	private abstract class GeneExtractor
 		{
 		boolean used=false;
 		abstract void  initialize(VCFHeader header);
@@ -151,6 +157,8 @@ public class VcfGeneSplitter
 			return this.name;
 			}
 		
+		abstract String getInfoTag();
+		abstract void apply(final VariantContext ctx,final Map<String,Set<String>> gene2values );
 		}
 	
 	private class VepExtractor extends GeneExtractor {
@@ -163,17 +171,25 @@ public class VcfGeneSplitter
 			}
 		
 		@Override
+		String getInfoTag() {
+			return this.parser.getTag();
+			}
+		@Override
 		public void initialize(final VCFHeader header) {
 			this.parser = new VepPredictionParserFactory().header(header).get();
 			}
-		
 		@Override
-		public Set<String> apply(final VariantContext ctx) {
-			return this.parser.getPredictions(ctx).
-				  stream().
-				  map(pred2gene).
-				  filter(S->!StringUtils.isBlank(S)).
-				  collect(Collectors.toSet());
+		void apply(final VariantContext ctx,final Map<String,Set<String>> gene2values ) {
+			for(final VepPrediction pred:this.parser.getPredictions(ctx)){
+				final String geneName=this.pred2gene.apply(pred);
+				if(StringUtils.isBlank(geneName)) continue;
+				Set<String> values = gene2values.get(geneName);
+				if(values==null)  {
+					values = new LinkedHashSet<>();
+					gene2values.put(geneName,values);
+					}
+				values.add(pred.getOriginalAttributeAsString());
+				}
 			}
 		}
 	
@@ -190,15 +206,23 @@ public class VcfGeneSplitter
 		public void initialize(final VCFHeader header) {
 			this.parser = new AnnPredictionParserFactory().header(header).get();
 			}
-		
 		@Override
-		public Set<String> apply(final VariantContext ctx) {
-			return this.parser.getPredictions(ctx).
-				  stream().
-				  filter(P->!P.isIntergenicRegion()).
-				  map(pred2gene).
-				  filter(S->!StringUtils.isBlank(S)).
-				  collect(Collectors.toSet());
+		String getInfoTag() {
+			return this.parser.getTag();
+			}
+		@Override
+		void apply(final VariantContext ctx,final Map<String,Set<String>> gene2values ) {
+			for(final AnnPrediction pred:this.parser.getPredictions(ctx)){
+				if(pred.isIntergenicRegion()) continue;
+				final String geneName=this.pred2gene.apply(pred);
+				if(StringUtils.isBlank(geneName)) continue;
+				Set<String> values = gene2values.get(geneName);
+				if(values==null)  {
+					values = new LinkedHashSet<>();
+					gene2values.put(geneName,values);
+					}
+				values.add(pred.getOriginalAttributeAsString());
+				}
 			}
 		}
 	
@@ -313,6 +337,7 @@ public class VcfGeneSplitter
 
 			in = super.openBufferedReader(oneFileOrNull(args));
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
+			final VCFEncoder vcfEncoder = new VCFEncoder(cah.header, false, false);
 			
 			for(GeneExtractor ex:this.extractors) {
 				ex.initialize(cah.header);
@@ -389,11 +414,25 @@ public class VcfGeneSplitter
 					
 					prevCtg = ctx.getContig();
 					}
-				
 				for(final GeneExtractor ex:this.extractors)
 					{
-					final Set<String> keys = ex.apply(ctx);
-					for(final String key:keys) {
+					final Map<String,Set<String>> gene2values = new HashMap<>();
+					ex.apply(ctx, gene2values);
+					if(gene2values.isEmpty()) continue;
+					
+					for(final String key:gene2values.keySet()) {
+						final Set<String> values = gene2values.get(key);
+						if(values.isEmpty()) continue;
+						
+						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+						vcb.rmAttribute(VepPredictionParser.getDefaultTag());
+						vcb.rmAttribute(AnnPredictionParser.getDefaultTag());
+						
+							
+						vcb.attribute(ex.getInfoTag(), new ArrayList<>(values));
+						
+						
+						
 						if(sortingcollection==null) {
 							sortingcollection = SortingCollection.newInstance(
 									KeyAndLine.class,
@@ -403,8 +442,14 @@ public class VcfGeneSplitter
 									this.writingSortingCollection.getTmpPaths()
 									);
 							sortingcollection.setDestructiveIteration(true);
-							}						
-						sortingcollection.add(new KeyAndLine(key,ex.getExtractorName(), line));
+							}
+						
+						sortingcollection.add(
+							new KeyAndLine(
+									key,
+									ex.getExtractorName(), 
+									vcfEncoder.encode(vcb.make())
+							));
 						}
 					}
 				}
