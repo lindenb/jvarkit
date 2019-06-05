@@ -2008,7 +2008,7 @@ all.add( task("vcfburdenfisherv", type: CompileJVarkit) {
 	});
 all.add( task("vcffilternotinpedigree", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfFilterNotInPedigree"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfburdenmaf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF"
@@ -2177,6 +2177,10 @@ all2.add( task("vcfevaiannot", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
+task("jeter", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.hic.HicReaderImpl"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        }
 
 /** bottom task */
 
