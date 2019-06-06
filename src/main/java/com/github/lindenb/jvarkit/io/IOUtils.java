@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.io;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -55,6 +56,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.InflaterInputStream;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
@@ -199,6 +201,7 @@ public class IOUtils {
 		fous.close();
 		}
 	
+	/** copy content of stream `in` to `out` */
 	public static void copyTo(final InputStream in,final OutputStream out) throws IOException
 		{
 		final byte buffer[]=new byte[2048];
@@ -825,5 +828,19 @@ public class IOUtils {
 		if(dot==-1) throw new IllegalArgumentException("cannot find dot file of "+path);
 		return s.substring(dot);
 		}
- 
+	
+    /** inflate==gonfler uncompress byte array that was compressed using the Deflater algorithm */
+	public static byte[] inflate(byte compressedBytes[]) {
+		try {
+			final InflaterInputStream zipIn = new InflaterInputStream(new ByteArrayInputStream(compressedBytes));
+			final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			copyTo(zipIn, baos); 
+			baos.close();  
+			/* uncompressedBytes */ 
+			return baos.toByteArray();
+			}
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
 	}

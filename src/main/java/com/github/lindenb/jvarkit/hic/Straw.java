@@ -33,31 +33,35 @@ package com.github.lindenb.jvarkit.hic;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.zip.Deflater;
-import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
+import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+
+import htsjdk.samtools.QueryInterval;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
+import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.util.LittleEndianInputStream;
 
 // https://github.com/aidenlab/straw/blob/24a50c4777e8992270402fa4465cd5f7d1dad8ca/C%2B%2B/straw.cpp
 	
 public class Straw {
-	enum  Normalization {NONE,VC,VC_SQRT,KR};
-	enum Unit {BP,FRAG};
 	
 	static class XYValue
 		{
@@ -78,66 +82,93 @@ public class Straw {
 	  float counts;
 	  }
 	
+	/** an iterator dealing with IO exception */
+	static private abstract class AbstractIOIterator<T>
+		extends AbstractIterator<T>
+		{
+		@Override
+		protected final T advance() {
+			try {
+				return take();
+				}
+			catch(final IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		/** the next element or null if the iterator is at the end */
+		protected abstract T take() throws IOException;
+		}
+	
 	// map of block numbers to pointers
-	final Map<Integer, IndexEntry> blockMap = new TreeMap<>();
+	//final Map<Integer, IndexEntry> blockMap = new TreeMap<>();
 	long total_bytes;
 	// version number
 	int version;
+	/** genome version */
+	private String buildVersion = "undefined";
+	/** attributes */
+	private final Map<String,String> attributes = new HashMap<>();
+	/** dictionary */
+	private SAMSequenceDictionary dictionary = null;
 	
-	boolean readMagicString(LittleEndianInputStream fin) throws IOException {
-		  String str = fin.readString();
-		  return str.equals("HIC");
-		}
+	private void debug(Object o) {
+		System.err.println(o);
+	}
 	
 	// reads the header, storing the positions of the normalization vectors and returning the master pointer
-	long readHeader(LittleEndianInputStream fin, String chr1, String chr2, 
-			int c1pos1[], int c1pos2[],
-			int c2pos1[], int c2pos2[],
-			int chr1ind[], int chr2ind[]) throws IOException {
-	  if (!readMagicString(fin)) {
-		  throw new IOException("Hi-C magic string is missing, does not appear to be a hic file");
+	long readHeader(LittleEndianInputStream fin) throws IOException {
+	  final String magic = fin.readString();	
+	  if (!magic.equals("HIC")) {
+		  throw new IOException("Hi-C magic string is missing, does not appear to be a hic file "+ magic);
 	  	}
 
 	  this.version = fin.readInt();
 	  if (this.version < 6) {
 		  throw new IOException("Version " + version + " no longer supported");
-	  }
-	  long master = fin.readLong();
-	  final String genome = fin.readString();
-	  int nattributes = fin.readInt();
-
+	  	  }
+	  final long master = fin.readLong();
+	  this.buildVersion = fin.readString();
+	  
 	  // reading and ignoring attribute-value dictionary
+	  final int nattributes = fin.readInt();
 	  for (int i=0; i<nattributes; i++) {
 		  final String key = fin.readString();//key
 		  final String value = fin.readString();//value
+		  this.attributes.put(key, value);
 	  	  }
-	  int nChrs = fin.readInt();
+	  final int nChrs = fin.readInt();
+	  final List<SAMSequenceRecord> ssrList = new ArrayList<SAMSequenceRecord>(nChrs);
 	  // chromosome map for finding matrix
-	  boolean found1 = false;
-	  boolean found2 = false;
 	  for (int i=0; i<nChrs; i++) {
-	    String name = fin.readString();
-	    int length = fin.readInt();
-	    if (name.equals(chr1)) {
-	      found1=true;
-	      chr1ind[0] = i;
-	      if (c1pos1[0] == -100) {
-			c1pos1[0] = 0;
-			c1pos2[0] = length;
-	      }
-	    }
-	    if (name.equals(chr2)) {
-	      found2=true;
-	      chr2ind[0] = i;
-	      if (c2pos1[0] == -100) {
-		c2pos1[0] = 0;
-		c2pos2[0] = length;
-	      }
-	    }
-	  }
-	  if (!found1 || !found2) {
-	   throw new IOException("One of the chromosomes wasn't found in the file. Check that the chromosome name matches the genome.");
-	  }
+		  final String name = fin.readString();
+		  final int length = fin.readInt();
+		  final SAMSequenceRecord ssr = new SAMSequenceRecord(name,length);
+		  ssr.setAssembly(this.buildVersion);
+		  ssrList.add(ssr);
+	  	  }
+	  this.dictionary = new SAMSequenceDictionary(ssrList);
+	  return master;
+	 }
+	
+	// reads the header, storing the positions of the normalization vectors and returning the master pointer
+	private long readHeader(
+			final LittleEndianInputStream fin,
+			final String intervalStr1,
+			final String intervalStr2,
+			final QueryInterval queryIntervals[]
+			) throws IOException {
+		
+	  final long master = readHeader(fin);	
+	  IntervalParser intervalParser = new IntervalParser(this.dictionary);
+	  
+	  final Interval interval1 = intervalParser.parse(intervalStr1);
+	  if(interval1==null)  throw new IOException("Cannot parser interval "+intervalStr1);
+	  final Interval interval2 = intervalParser.parse(intervalStr2);
+	  if(interval2==null)  throw new IOException("Cannot parser interval "+intervalStr2);
+
+	  
+	  queryIntervals[0] = new QueryInterval(this.dictionary.getSequenceIndex(interval1.getContig()),interval1.getStart(),interval1.getEnd());
+	  queryIntervals[1] = new QueryInterval(this.dictionary.getSequenceIndex(interval2.getContig()),interval2.getStart(),interval2.getEnd());
 	  return master;
 	}
 	
@@ -256,8 +287,16 @@ public class Straw {
 		}
 
 	
+	private class ReadMatrixZoomDataResult
+		{
+		int blockBinCount;
+		int blockColumnCount;
+		final Map<Integer, IndexEntry> blockMap = new TreeMap<>();
+		}
+	
 	// reads the raw binned contact matrix at specified resolution, setting the block bin count and block column count 
-	boolean readMatrixZoomData(LittleEndianInputStream fin, Unit myunitx, int mybinsize, int myBlockBinCount[], int myBlockColumnCount[]) throws IOException {
+	private ReadMatrixZoomDataResult readMatrixZoomData(LittleEndianInputStream fin, Unit myunitx, int mybinsize) throws IOException 
+	  {
 	  final Unit unit = Unit.valueOf(fin.readString());
 	  fin.readInt(); // Old "zoom" index -- not used
 	  fin.readFloat(); // sumCounts
@@ -267,13 +306,18 @@ public class Straw {
 	  final int binSize = fin.readInt();
 	  final int blockBinCount = fin.readInt();
 	  final int blockColumnCount = fin.readInt();
-	  System.err.println("readMatrixZoomData "+unit +" "+binSize+" "+blockBinCount+" "+blockColumnCount);
-	  boolean storeBlockData = false;
+	  debug("readMatrixZoomData "+unit +" "+binSize+" "+blockBinCount+" "+blockColumnCount);
+	  final ReadMatrixZoomDataResult storeBlockData;
+	  
 	  if (myunitx.equals(unit) && mybinsize==binSize) {
-	    myBlockBinCount[0] = blockBinCount;
-	    myBlockColumnCount[0] = blockColumnCount;
-	    storeBlockData = true;
-	  }
+		storeBlockData = new ReadMatrixZoomDataResult();
+		storeBlockData.blockBinCount = blockBinCount;
+		storeBlockData.blockColumnCount = blockColumnCount;
+	    }
+	  else
+	  	{
+		storeBlockData = null;
+	  	}
 	  
 	  final int nBlocks  = fin.readInt();
 
@@ -284,30 +328,31 @@ public class Straw {
 	    final IndexEntry entry = new IndexEntry();
 	    entry.size = blockSizeInBytes;
 	    entry.position = filePosition;
-	    if (storeBlockData) {
-	    	System.err.println(" storeBlockData "+blockNumber);
-	    	this.blockMap.put(blockNumber, entry);
+	    if (storeBlockData!=null) {
+	    	debug(" storeBlockData "+blockNumber);
+	    	storeBlockData.blockMap.put(blockNumber, entry);
 	    	}
 	  	}
 	  return storeBlockData;
 	}	
 	
 	
-	private Set<Integer> getBlockNumbersForRegionFromBinPosition(
+	private static Set<Integer> getBlockNumbersForRegionFromBinPosition(
 			int regionIndices[], 
 			int blockBinCount, 
 			int blockColumnCount,
-			boolean intra) {
-		   int col1 = regionIndices[0] / blockBinCount;
-		   int col2 = (regionIndices[1] + 1) / blockBinCount;
-		   int row1 = regionIndices[2] / blockBinCount;
-		   int row2 = (regionIndices[3] + 1) / blockBinCount;
+			boolean intra
+			) {
+		   final int col1 = regionIndices[0] / blockBinCount;
+		   final int col2 = (regionIndices[1] + 1) / blockBinCount;
+		   final int row1 = regionIndices[2] / blockBinCount;
+		   final int row2 = (regionIndices[3] + 1) / blockBinCount;
 		   
-		   Set<Integer> blocksSet = new TreeSet<>();
+		   final Set<Integer> blocksSet = new TreeSet<>();
 		   // first check the upper triangular matrix
 		   for (int r = row1; r <= row2; r++) {
 		     for (int c = col1; c <= col2; c++) {
-		       int blockNumber = r * blockColumnCount + c;
+		       final int blockNumber = r * blockColumnCount + c;
 		       blocksSet.add(blockNumber);
 		     }
 		   }
@@ -322,197 +367,215 @@ public class Straw {
 		     }
 		   }
 
-		   return blocksSet;
+		return blocksSet;
 		}
 
-	private void readMatrix(final SeekableStream fin, long myFilePosition, Unit unitx, int resolution, int myBlockBinCount[], int myBlockColumnCount[]) throws IOException {
-		System.err.println("readMatrix at "+ myFilePosition);  
+	private ReadMatrixZoomDataResult readMatrix(
+		final SeekableStream fin,
+		long myFilePosition,
+		final Unit unitx,
+		int resolution
+		) throws IOException {
+		debug("readMatrix at "+ myFilePosition);  
 
 		fin.seek(myFilePosition);  
 		  LittleEndianInputStream in = new LittleEndianInputStream(fin);
 		  in.skip(Integer.BYTES * 2);//ignore c1 + c2
-		  int nRes = in.readInt();
+		  final int nRes = in.readInt();
 		  int i=0;
-		  boolean found=false;
-		  while (i<nRes && !found) {
-			 System.err.println("" + i + "/" + nRes);
-		    found = readMatrixZoomData(in, unitx, resolution, myBlockBinCount, myBlockColumnCount);
+		  while (i<nRes) {
+			debug("" + i + "/" + nRes);
+		    final ReadMatrixZoomDataResult found = this.readMatrixZoomData(in, unitx, resolution);
+		    if(found!=null) return found;
 		    i++;
 		    }
-		if (!found) throw new IOException("Error finding block data");
+		throw new IOException("Error finding block data");
 		}
 	
+	private class ReadBlockIteratorV6 extends AbstractIOIterator<ContactRecord>{
+		private final LittleEndianInputStream in;
+		private final int nRecords;
+		private int index=0;
+		ReadBlockIteratorV6(LittleEndianInputStream in,int nRecords) {
+			this.in = in;
+			this.nRecords = nRecords;
+			}
+		@Override
+		protected ContactRecord take() throws IOException {
+			if(this.index >= this.nRecords) return null;
+			this.index++;
+			final ContactRecord record=new ContactRecord();
+			record.binX = in.readInt();
+	        record.binY = in.readInt();
+	        record.counts = in.readFloat();
+			return record;
+			}
+		}
 	
-	private List<ContactRecord> readBlock(SeekableStream fin, Object curl, boolean isHttp, int blockNumber) throws IOException {
-		System.err.println("readblock at "+fin.position()+" blck "+blockNumber);  
+	private class ReadBlockIteratorV7 extends AbstractIOIterator<ContactRecord>{
+		private final LittleEndianInputStream in;
+		private final int binXOffset;
+		private final int binYOffset;
+		private final char useShort;
+		private final char type;
+		private final short rowCount;
+		private short colCount = 0;
+		private int i = 0;
+		private int j = 0;
+		private short y = 0;
+		ReadBlockIteratorV7(final LittleEndianInputStream in) throws IOException{
+			this.in = in;
+			this.binXOffset = in.readInt();
+			this.binYOffset = in.readInt();
+			this.useShort = (char)in.readByte();
+			this.type = (char)in.readByte();
+			if(this.type==1) {
+				this.rowCount = in.readShort();
+				}
+			else
+				{
+				this.rowCount = 0;
+				}
+			}
+		@Override
+		protected ContactRecord take() throws IOException {
+			if(this.type!=1) return null;
+		    
+		    for(;;) {
+		    	 if( this.i >= this.rowCount) return null;
+		    	
+		    	 if(this.j==0)
+		    	 	{
+		    		this.y = in.readShort() ;
+		    		this.colCount = in.readShort();
+		    	 	}
+
+		    	 if(this.j >= this.colCount) {
+		    		this.j = 0;
+		    		this.i++;
+		    		if( this.i >= this.rowCount) return null;
+		    		continue;
+		    	 	}
+		    	 
+		    	
+		    	 final short x = in.readShort();
+		    	 final ContactRecord record = new ContactRecord();
+
+				  if (this.useShort == 0) { // yes this is opposite of usual
+					record.counts = (float)this.in.readShort();
+				    } 
+				  else {
+					record.counts = this.in.readFloat();
+				  	}
+		    	
+				 record.binX = this.binXOffset + x;;
+				 record.binY = this.y + this.binYOffset;
+				 
+				 this.j++;
+				 
+				 return record;
+		    	}
+		    }	
+		}
+
+	
+	private Iterator<ContactRecord> readBlock(
+			final SeekableStream fin,
+			final int blockNumber,
+			final Map<Integer, IndexEntry> blockMap) throws IOException {
+		debug("readblock at "+fin.position()+" blck "+blockNumber);  
 		IndexEntry idx = blockMap.get(blockNumber);
 		if (idx==null) {
-			 System.err.println("No block for " +blockNumber );
-		    return Collections.emptyList();
+			debug("No block for " +blockNumber );
+		    return Collections.emptyIterator();
 		  }
 		
-		if (idx.size == 0) {
-		    return Collections.emptyList();
-		  }
-		  System.err.println("reading "+idx.size);
+			if (idx.size == 0) {
+			    return Collections.emptyIterator();
+			  }
+		  debug("reading "+idx.size);
 		  final byte compressedBytes[] = new byte[idx.size];
      
-		
 		  fin.seek(idx.position);
 		  fin.read(compressedBytes);
+		  final InflaterInputStream zipIn = new InflaterInputStream(new ByteArrayInputStream(compressedBytes));
 		  
-		 final InflaterInputStream zipIn = new InflaterInputStream(new ByteArrayInputStream(compressedBytes));
-		 final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		 byte[] buffer = new byte[1024];   
-		 int count;
-		 while ((count=zipIn.read(buffer))!=-1) {  
-		    baos.write(buffer, 0, count);   
-		    }  
-		 
-		 baos.close();  
 		  
-		  final byte uncompressedBytes[] = baos.toByteArray();
-		  baos.close();
-		  
-		  System.err.println("Uncompressed size:"+uncompressedBytes.length);
-		  
-
 		  // create stream from buffer for ease of use
 
 		  @SuppressWarnings("resource")
-		LittleEndianInputStream bufferin=new LittleEndianInputStream(new ByteArrayInputStream(uncompressedBytes));
-		  int nRecords = bufferin.readInt();
-		  System.err.println("NRecord "+nRecords);
-		  List<ContactRecord> v=new ArrayList<>(nRecords);
+		  final LittleEndianInputStream bufferin=new LittleEndianInputStream(zipIn);
+		  final int nRecords = bufferin.readInt();
+		  debug("NRecord "+nRecords);
+		  
 		  // different versions have different specific formats
-		  if (version < 7) {
-		    for (int i = 0; i < nRecords; i++) {
-		      int binX= bufferin.readInt();
-		      int binY= bufferin.readInt();
-		      float counts= bufferin.readFloat();
-		      ContactRecord record=new ContactRecord();
-		      record.binX = binX;
-		      record.binY = binY;
-		      record.counts = counts;
-		      v.add(record);
+		  if (this.version < 7) {
+			return new ReadBlockIteratorV6(bufferin,nRecords);
 		    }
-		  } 
 		  else {
-		    int binXOffset = bufferin.readInt();
-		    int binYOffset = bufferin.readInt();
-		    char useShort = (char)bufferin.readByte();
-		    char type = (char)bufferin.readByte();
-		    int index=0;
-		    if (type == 1) {
-		      // List-of-rows representation
-		      short rowCount = bufferin.readShort();
-		      for (int i = 0; i < rowCount; i++) {
-			short y =bufferin.readShort() ;
-			int binY = y + binYOffset;
-			short colCount = bufferin.readShort();
-			for (int j = 0; j < colCount; j++) {
-			  short x = bufferin.readShort();
-			  int binX = binXOffset + x;
-			  float counts;
-			  if (useShort == 0) { // yes this is opposite of usual
-			    short c2 = bufferin.readShort();
-			    counts = c2;
-			  } 
-			  else {
-				  counts = bufferin.readFloat();
-			  }
-			  ContactRecord record = new ContactRecord();
-			  record.binX = binX;
-			  record.binY = binY;
-			  record.counts = counts;
-			  v.add(record);
-			  index++;
-			}
-		      }
+			return new ReadBlockIteratorV7(bufferin);
 		    }
 		  }
-		  return v;
-		}
+	
 	
 	// reads the normalization vector from the file at the specified location
-	double[] readNormalizationVector(final ByteArrayInputStream is) throws IOException {
-	  LittleEndianInputStream in = new LittleEndianInputStream(is);
+	private static double[] readNormalizationVector(final ByteArrayInputStream is) throws IOException {
+	  @SuppressWarnings("resource")
+	  final LittleEndianInputStream in = new LittleEndianInputStream(is);
 	  final int nValues = in.readInt();
 	  double values[] = new double[nValues];
 	  for (int i = 0; i < nValues; i++) {
-	    values[i]=in.readDouble();
+	     values[i]=in.readDouble();
 	  	 }
 	  return values;
-	}
+	  }
 	
 	static class Query {
 		Locatable interval1;
 		Locatable interval2;
 		}
 	
-	List<XYValue> straw(final Normalization norm, String fname, int binsize, String chr1loc, String chr2loc, Unit unit) throws IOException
+	Iterator<XYValue> straw(final Normalization norm, String fname, int binsize, String chr1loc, String chr2loc, Unit unit) throws IOException
 	 {
-	  // parse chromosome positions
-	  String ss[]= chr1loc.split("[\\:\\-]");
-	  String chr1, chr2;
-	  int c1pos1[]=new int[] {-100};
-	  int c1pos2[]=new int[] {-100};
-	  int c2pos1[]=new int[] {-100};
-	  int c2pos2[]=new int[] {-100};
-	  chr1=ss[0];
-	    c1pos1[0] = Integer.parseInt(ss[1]);
-	    c1pos2[0] = Integer.parseInt(ss[2]);
-	  
-	  ss= chr2loc.split("[\\:\\-]");
-	  chr2=ss[0];
-	  c2pos1[0] = Integer.parseInt(ss[1]);
-	  c2pos2[0] = Integer.parseInt(ss[2]);
-	    
-	 
-	  int[] chr1ind=new int[] {0};
-	  int[] chr2ind=new int[] {0};
-
-	  boolean isHttp = false;
+	 final QueryInterval queryIntervals[]=new QueryInterval[] {null,null};
+		
 
 	  // read header into buffer; 100K should be sufficient
-	  long master;
+	 
 	  SeekableStream seekIn = SeekableStreamFactory.getInstance().getStreamFor(fname);
 	  LittleEndianInputStream fin = new LittleEndianInputStream(new BufferedInputStream(seekIn));
-	  master = this.readHeader(fin, chr1, chr2, c1pos1, c1pos2, c2pos1, c2pos2, chr1ind, chr2ind);
-	  System.err.println("master="+master);
+	  long master = this.readHeader(fin,chr1loc,chr2loc,queryIntervals);
+	  debug("master="+master);
 
 	  // from header have size of chromosomes, set region to read
-	  int c1=Math.min(chr1ind[0],chr2ind[0]);
-	  int c2=Math.max(chr1ind[0],chr2ind[0]);
+	  int c1=Math.min(queryIntervals[0].referenceIndex,queryIntervals[1].referenceIndex);
+	  int c2=Math.max(queryIntervals[0].referenceIndex,queryIntervals[1].referenceIndex);
 	  int origRegionIndices[]=new int[4]; // as given by user
 	  int regionIndices[]=new int[4]; // used to find the blocks we need to access
 	  // reverse order if necessary
-	  if (chr1ind[0] > chr2ind[0]) {
-	    origRegionIndices[0] = c2pos1[0];
-	    origRegionIndices[1] = c2pos2[0];
-	    origRegionIndices[2] = c1pos1[0];
-	    origRegionIndices[3] = c1pos2[0];
-	    regionIndices[0] = c2pos1[0] / binsize;
-	    regionIndices[1] = c2pos2[0] / binsize;
-	    regionIndices[2] = c1pos1[0] / binsize;
-	    regionIndices[3] = c1pos2[0] / binsize;
-	  }
+	  if (queryIntervals[0].referenceIndex > queryIntervals[1].referenceIndex) {
+	    origRegionIndices[0] = queryIntervals[1].start;
+	    origRegionIndices[1] = queryIntervals[1].end;
+	    origRegionIndices[2] = queryIntervals[0].start;
+	    origRegionIndices[3] = queryIntervals[0].end;
+	  	}
 	  else {
-	    origRegionIndices[0] = c1pos1[0];
-	    origRegionIndices[1] = c1pos2[0];
-	    origRegionIndices[2] = c2pos1[0];
-	    origRegionIndices[3] = c2pos2[0];
-	    regionIndices[0] = c1pos1[0] / binsize;
-	    regionIndices[1] = c1pos2[0] / binsize;
-	    regionIndices[2] = c2pos1[0] / binsize;
-	    regionIndices[3] = c2pos2[0] / binsize;
-	  }
+	    origRegionIndices[0] = queryIntervals[0].start;
+	    origRegionIndices[1] = queryIntervals[0].end;
+	    origRegionIndices[2] = queryIntervals[1].start;
+	    origRegionIndices[3] = queryIntervals[1].end;
+	    }
+	  regionIndices[0] = origRegionIndices[0] / binsize;
+	  regionIndices[1] = origRegionIndices[1] / binsize;
+	  regionIndices[2] = origRegionIndices[2] / binsize;
+	  regionIndices[3] = origRegionIndices[3] / binsize;
+	  
 
 	  IndexEntry c1NormEntry=new IndexEntry(), c2NormEntry=new IndexEntry();
 	  long myFilePos[]=new long[] {0};
 
 	  //long bytes_to_read = total_bytes - master;
-	  System.err.println("master:"+master);
+	 debug("master:"+master);
 	
 	  seekIn.seek(master);
 	  fin = new LittleEndianInputStream(seekIn);
@@ -529,7 +592,7 @@ public class Straw {
 	  if (!norm.equals(Normalization.NONE)) {
 		
 	    byte buffer3[] = new byte[c1NormEntry.size];
-	    System.err.println("seek1 "+c1NormEntry.position);
+	    debug("seek1 "+c1NormEntry.position);
 	    seekIn.seek(c1NormEntry.position);
 	    seekIn.read(buffer3);
 	    
@@ -537,7 +600,7 @@ public class Straw {
 	    c1Norm = readNormalizationVector(bufferin);
 
 	    byte buffer4[] = new byte[c2NormEntry.size];
-	    System.err.println("seek2 "+c2NormEntry.position);
+	    debug("seek2 "+c2NormEntry.position);
 	    seekIn.seek(c2NormEntry.position);
 	    seekIn.read(buffer4);
 	    
@@ -547,20 +610,19 @@ public class Straw {
 	    c2Norm = readNormalizationVector(bufferin);
 	  }
 
-	  int blockBinCount[]=new int[] {0};
-	  int blockColumnCount[]=new int[] {0};
 	  
 	  // readMatrix will assign blockBinCount and blockColumnCount
-	  readMatrix(seekIn, myFilePos[0], unit, binsize, blockBinCount, blockColumnCount); 
+	  final ReadMatrixZoomDataResult readMatrixResult = readMatrix(seekIn, myFilePos[0], unit, binsize); 
 	  
-	  Set<Integer> blockNumbers = getBlockNumbersForRegionFromBinPosition(regionIndices, blockBinCount[0], blockColumnCount[0], c1==c2); 
+	  final Set<Integer> blockNumbers = getBlockNumbersForRegionFromBinPosition(regionIndices, readMatrixResult.blockBinCount, readMatrixResult.blockColumnCount, c1==c2); 
 
 	  // getBlockIndices
-	  List<XYValue> xyvalues = new ArrayList<>();
+	  final List<XYValue> xyvalues = new ArrayList<>();
 	  for (Integer it:blockNumbers) {
 	    // get contacts in this block
-		final  List<ContactRecord> records = readBlock(seekIn, null, isHttp, it);
-	    for (ContactRecord rec:records) {	      
+		final  Iterator<ContactRecord> recordsIterator = readBlock(seekIn,it,readMatrixResult.blockMap);
+	    while(recordsIterator.hasNext()) {     
+	      final ContactRecord rec = recordsIterator.next();
 	      int x = rec.binX * binsize;
 	      int y = rec.binY * binsize;
 	      float c = rec.counts;
@@ -578,15 +640,10 @@ public class Straw {
 	    	  xyv.y=y;
 	    	  xyv.value=c;
 	    	  xyvalues.add(xyv);
-		//printf("%d\t%d\t%.14g\n", x, y, c);
 	      }
 	    }
 	  }
-	      //      free(chunk.memory);      
-	      /* always cleanup */
-	      // curl_easy_cleanup(curl);
-	      //    curl_global_cleanup();
-    return xyvalues;
+    return xyvalues.iterator();
 	}
 	
 	
@@ -606,10 +663,11 @@ public static void main(String[] argv) {
 		  String size=argv[5];
 		  int binsize=Integer.parseInt(size);
 		  Straw app=new Straw();
-		  List<XYValue> xyvalues = app.straw(norm, fname, binsize, chr1loc, chr2loc, unit);
-		  for (XYValue xyv:xyvalues) {
-		    System.out.printf("%d\t%d\t%.14g\n", xyv.x, xyv.y, xyv.value);   
-		}
+		  Iterator<XYValue> iter = app.straw(norm, fname, binsize, chr1loc, chr2loc, unit);
+		  while(iter.hasNext()) {
+		    XYValue xyv = iter.next();
+			System.out.printf("%d\t%d\t%.14g\n", xyv.x, xyv.y, xyv.value);   
+		  	}
 	}	catch(Throwable err) {
 		err.printStackTrace();
 	}
