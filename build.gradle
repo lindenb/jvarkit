@@ -2178,7 +2178,7 @@ all2.add( task("vcfevaiannot", type: CompileJVarkit) {
 	});
 
 task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.hic.HicReaderImpl"
+        mainClass = "com.github.lindenb.jvarkit.hic.Straw"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         }
 
