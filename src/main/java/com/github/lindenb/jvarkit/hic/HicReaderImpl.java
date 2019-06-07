@@ -71,7 +71,6 @@ import com.github.lindenb.jvarkit.lang.Paranoid;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.sun.xml.internal.bind.annotation.OverrideAnnotationOf;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -79,7 +78,6 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.util.LittleEndianInputStream;
@@ -327,9 +325,9 @@ public class HicReaderImpl implements HicReader {
 		return this.version;
 		}
 	
-	private Locatable parseInterval(String s) {
+	private Locatable parseInterval(final String s) {
 		if(StringUtils.isBlank(s)) return null;
-		IntervalParser intervalParser =new IntervalParser(this.getDictionary());
+		final IntervalParser intervalParser =new IntervalParser(this.getDictionary());
 		intervalParser.setContigNameIsWholeContig(true);
 		return intervalParser.parse(s);
 		}
@@ -702,6 +700,58 @@ public class HicReaderImpl implements HicReader {
 		 }
 	 return contactRecords;
 	 }
+	
+	/* data to ignore in the header */
+	private void skipExpectedValuesMaps(final LittleEndianInputStream fin) throws IOException  {
+	 // read in and ignore expected value maps; don't store; reading these to 
+	  // get to norm vector index
+	  int nExpectedValues = fin.readInt();
+	  paranoid.assertGe(nExpectedValues, 0);
+	  
+	  for (int i=0; i< nExpectedValues; i++) {
+	    Unit.valueOf(fin.readString());
+	    fin.readInt();//binSize
+	    
+	    final int nValues = fin.readInt();
+	    
+	    paranoid.assertGe(nValues, 0);
+	    
+	    for(int j=0;j< nValues;j++)
+	    	{
+	    	fin.readDouble();
+	    	}
+
+	    final int nNormalizationFactors = fin.readInt();
+
+	    for(int j=0;j< nNormalizationFactors;j++)
+	    	{
+	    	fin.readInt();
+	    	fin.readDouble();
+	    	}		    
+	    }
+	  
+	  nExpectedValues = fin.readInt();
+	  for (int i=0; i<nExpectedValues; i++) {
+	    fin.readString(); //typeString
+	    Unit.valueOf(fin.readString()); //unit
+	    fin.readInt();//binSize
+	    
+
+	    final int nValues = fin.readInt();
+	    paranoid.assertGe(nValues, 0);
+	    for(int j=0;j< nValues;j++)
+	    	{
+	    	fin.readDouble();
+	    	}
+
+	    final int nNormalizationFactors = fin.readInt();
+	    for(int j=0;j< nNormalizationFactors;j++)
+	    	{
+	    	fin.readInt();//tid
+	    	fin.readDouble();//value
+	    	}
+	    }
+	}
 
 	
 	private abstract class AbstractQuery
@@ -722,56 +772,6 @@ public class HicReaderImpl implements HicReader {
 
 		
 		
-		protected void skipExpectedValuesMaps(final LittleEndianInputStream fin) throws IOException  {
-			 // read in and ignore expected value maps; don't store; reading these to 
-			  // get to norm vector index
-			  int nExpectedValues = fin.readInt();
-			  paranoid.assertGe(nExpectedValues, 0);
-			  
-			  for (int i=0; i< nExpectedValues; i++) {
-			    final Unit unit = Unit.valueOf(fin.readString());
-			    final int binSize = fin.readInt();
-			    
-			    final int nValues = fin.readInt();
-			    
-			    paranoid.assertGe(nValues, 0);
-			    
-			    for(int j=0;j< nValues;j++)
-			    	{
-			    	fin.readDouble();
-			    	}
-
-			    final int nNormalizationFactors = fin.readInt();
-
-			    for(int j=0;j< nNormalizationFactors;j++)
-			    	{
-			    	fin.readInt();
-			    	fin.readDouble();
-			    	}		    
-			    }
-			  
-			  nExpectedValues = fin.readInt();
-			  for (int i=0; i<nExpectedValues; i++) {
-			    fin.readString(); //typeString
-			    Unit.valueOf(fin.readString()); //unit
-			    fin.readInt();//binSize
-			    
-
-			    final int nValues = fin.readInt();
-			    paranoid.assertGe(nValues, 0);
-			    for(int j=0;j< nValues;j++)
-			    	{
-			    	fin.readDouble();
-			    	}
-
-			    final int nNormalizationFactors = fin.readInt();
-			    for(int j=0;j< nNormalizationFactors;j++)
-			    	{
-			    	fin.readInt();//tid
-			    	fin.readDouble();//value
-			    	}
-			    }
-			}
 
 	}
 	

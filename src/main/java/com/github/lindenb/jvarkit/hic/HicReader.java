@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.hic;
 
 import java.io.Closeable;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -34,6 +33,49 @@ import java.util.Set;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Locatable;
 
+
+/*
+<pre>
+## Header
+
+magic	String	'HIC'
+version	int
+master-position long --> file-offset to FOOTER
+genomeId  String
+number-of-attributes  int
+   attribute-key String
+   attribute-value String
+number-of-contigs  int
+   contig-name String
+   contig-length int
+nBP int number of base pair resolutions
+   resolution int
+NF int number of fragment resolutions 
+   resolution int
+
+
+## Footer
+
+
+## BLOCK at (position,size) version '8'
+
+   read the array at 'position' and inflate (it is compressed)
+
+n-items in number of items in this block
+binXOffset int
+binYOffset int
+useShort byte  
+type byte
+
+
+
+
+
+</pre>
+
+*/
+
+/** interface for a Hi-C reader */
 public interface HicReader extends Closeable {
 	
 /** get source of this reader (path, url...) or null */
@@ -75,3 +117,6 @@ public Optional<HicMatrix> query(
 		final Unit unit
 		);
 }
+
+
+
