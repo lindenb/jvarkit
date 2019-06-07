@@ -25,53 +25,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.hic;
 
-import java.io.Closeable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.Locatable;
-
-public interface HicReader extends Closeable {
-	
-/** get source of this reader (path, url...) or null */
-public Object getSource();	
-
-/** get dictionary */
-public SAMSequenceDictionary getDictionary();
-
-/** get genome build */
-public String getBuild();
-
-/** get attributes */
-public Map<String,String> getAttributes();
-
-/** get version of hic format */
-public int getVersion();
-
-/** get the base pair resolutions */
-public Set<Integer> getBasePairResolutions();
-
-/** get the fragment resolutions */
-public Set<Integer> getFragmentResolutions();
-
-
-public Optional<HicMatrix> query(
-		final String interval1,
-		final String interval2,
-		final Normalization norm,
-		final int binsize, 
-		final Unit unit
-		);
-
-
-public Optional<HicMatrix> query(
-		final Locatable interval1,
-		final Locatable interval2,
-		final Normalization norm,
-		final int binsize, 
-		final Unit unit
-		);
+public interface HicContact {
+	/** position in bp on the chromosome, use x+binSize to get the end position */
+	public int getX();
+	/** position in bp on the chromosome, use y+binSize to get the end position */
+	public int getY();
+	public float getValue();
 }

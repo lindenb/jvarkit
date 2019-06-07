@@ -2176,9 +2176,13 @@ all2.add( task("vcfevaiannot", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.evai.VcfEvaiAnnot"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("hicfileinfo", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.hic.HicFileInfo"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.hic.Straw"
+        mainClass = "com.github.lindenb.jvarkit.hic.HicReaderFactory"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         }
 

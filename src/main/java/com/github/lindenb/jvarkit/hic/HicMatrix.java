@@ -21,57 +21,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
 */
 package com.github.lindenb.jvarkit.hic;
 
-import java.io.Closeable;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Locatable;
 
-public interface HicReader extends Closeable {
-	
-/** get source of this reader (path, url...) or null */
-public Object getSource();	
-
-/** get dictionary */
-public SAMSequenceDictionary getDictionary();
-
-/** get genome build */
-public String getBuild();
-
-/** get attributes */
-public Map<String,String> getAttributes();
-
-/** get version of hic format */
-public int getVersion();
-
-/** get the base pair resolutions */
-public Set<Integer> getBasePairResolutions();
-
-/** get the fragment resolutions */
-public Set<Integer> getFragmentResolutions();
-
-
-public Optional<HicMatrix> query(
-		final String interval1,
-		final String interval2,
-		final Normalization norm,
-		final int binsize, 
-		final Unit unit
-		);
-
-
-public Optional<HicMatrix> query(
-		final Locatable interval1,
-		final Locatable interval2,
-		final Normalization norm,
-		final int binsize, 
-		final Unit unit
-		);
+public interface HicMatrix extends Iterable<HicContact> {
+	public Locatable getInterval1();
+	public Locatable getInterval2();
+	public int getBinSize();
+	public Unit getUnit();
+	public Normalization getNormalization();
 }

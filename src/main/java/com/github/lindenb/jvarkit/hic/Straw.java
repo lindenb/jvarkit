@@ -204,9 +204,7 @@ public class Straw {
 		  //System.err.println("nExpectedValues="+nExpectedValues);
 		  
 		  for (int i=0; i<nExpectedValues; i++) {
-			  //System.err.println("[i]="+i);
 		    String str = fin.readString();
-		    //System.err.println("str="+str);
 
 		    int binSize = fin.readInt();
 		    //System.err.println("binSize="+binSize);
