@@ -35,12 +35,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
-
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
@@ -53,7 +47,6 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import htsjdk.variant.vcf.VCFIterator;
@@ -62,6 +55,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 /**
 BEGIN_DOC
@@ -74,7 +68,8 @@ END_DOC
  */
 @Program(name="vcffilternotinpedigree",
 	description="Adds a FILTER 'NotInPedigree' if the only not(homref) genotypes are not in a pedigree",
-	keywords={"burden","vcf","pedigree"}
+	keywords={"burden","vcf","pedigree"},
+	modificationDate="20190604"
 	)
 public class VcfFilterNotInPedigree
 	extends Launcher
@@ -87,32 +82,24 @@ public class VcfFilterNotInPedigree
 	@ParametersDelegate
 	private CtxWriterFactory component = new CtxWriterFactory();
 	
-	@XmlType(name="vcffilternotinpedigree")
-	@XmlRootElement(name="vcffilternotinpedigree")
-	@XmlAccessorType(XmlAccessType.FIELD)
 	public static class CtxWriterFactory 
 		implements VariantContextWriterFactory
 			{
-			@XmlElement(name="filter")
 			@Parameter(names={"-f","--filter"},description="FILTER name. Will be set for variant where the only genotypes non-homref are NOT in the pedigree")
 			private String filterName = "NoGenotypeInPedigree";
 		
-			@XmlElement(name="discard")
 			@Parameter(names={"-r","--remove"},description="remove the variant instead of setting the FILTER (hard filtering)")
 			private boolean dicardVariant = false;
 		
-			@XmlElement(name="singleton")
 			@Parameter(names={"-s","--singleton"},description="Variant is flagged/FILTERed as SingletonAlt if the ALT if found in less or equal times 'singleton-times' in the genotypes. -1:ignore")
 			private int singleton = 1 ;
 			
-			@XmlElement(name="singleton-filter")
 			@Parameter(names={"-sf","--sfilter"},description="FILTER name for option --singleton")
 			private String singletonfilterName = "SingletonAlt";
 			
-			@XmlElement(name="pedigree")
 			@Parameter(names={"-p","--pedigree"},description="[20180406]" + Pedigree.OPT_DESCRIPTION+" Default is to try to read the pedigree in the VCF header")
 			private File pedigreeFile = null;
-			@XmlElement(name="pedigree")
+
 			@Parameter(names={"-gtf","--ignore-filtered-gt"},description="[20180406] Do not consider a *genotype* if it is FILTERED.")
 			private boolean ignoreFilteredGT = false;
 
@@ -256,13 +243,13 @@ public class VcfFilterNotInPedigree
 			final VariantContextWriter delegate
 			) {
 		final VariantContextWriter out = this.component.open(delegate);
-		final SAMSequenceDictionaryProgress progess = new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
+		final ProgressFactory.Watcher<VariantContext> progess = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 		out.writeHeader(in.getHeader());
 		while(in.hasNext())
 			{
-			out.add(progess.watch(in.next()));
+			out.add(progess.apply(in.next()));
 			}
-		progess.finish();
+		progess.close();
 		out.close();
 		return 0;
 		}

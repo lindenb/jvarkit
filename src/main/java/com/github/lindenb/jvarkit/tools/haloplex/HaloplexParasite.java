@@ -83,24 +83,20 @@ BEGIN_DOC
 ### Examples
 
 ```
-
 echo "input.bam" > all.list
 gunzip -c input.vcf.gz |
   java -jar dist/haloplexparasite.jar -B all.list
 rm all.list
 
-
-
 ```
-
-
-
 
 END_DOC
  */
 @Program(name="haloplexparasite",
-	description="for @SolenaLS : remove artctifacts from haloplex that gives indels in GATK hapcaller ",
-	keywords={"vcf","haloplex"}
+	description="for @SolenaLS : remove artctifacts from haloplex that gives indels in GATK hapcaller.",
+	keywords={"vcf","haloplex"},
+	modificationDate="20190606",
+	deprecatedMsg="local to my lab and unused"
 	)
 public class HaloplexParasite extends Launcher {
 	private static final Logger LOG = Logger.build(HaloplexParasite.class).make();

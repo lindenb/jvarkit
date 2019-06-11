@@ -49,7 +49,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -144,6 +143,36 @@ public class VcfGeneSplitter
 	{
 	private static final Logger LOG = Logger.build(VcfGeneSplitter.class).make();
 	
+	private static class KeyAndGene
+		implements Comparable<KeyAndGene>
+		{
+		final String key;
+		final String gene;
+		KeyAndGene(final String key,final String gene) {
+			this.key = key;
+			this.gene = StringUtils.isBlank(gene)?".":gene;
+			}
+		@Override
+		public int hashCode() {
+			return key.hashCode();
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if(obj==this) return true;
+			if(obj==null || !(obj instanceof KeyAndGene)) return false;
+			return this.compareTo(KeyAndGene.class.cast(obj))==0;
+			}
+		@Override
+		public int compareTo(KeyAndGene o) {
+			return this.key.compareTo(o.key);
+			}
+		@Override
+		public String toString() {
+			return this.key;
+			}
+		}
+	
+	
 	/** return a map<gene,map<info.att,set<info.value>> */
 	private abstract class GeneExtractor
 		{
@@ -158,7 +187,7 @@ public class VcfGeneSplitter
 			}
 		
 		abstract String getInfoTag();
-		abstract void apply(final VariantContext ctx,final Map<String,Set<String>> gene2values );
+		abstract void apply(final VariantContext ctx,final Map<KeyAndGene,Set<String>> gene2values );
 		}
 	
 	private class VepExtractor extends GeneExtractor {
@@ -179,14 +208,15 @@ public class VcfGeneSplitter
 			this.parser = new VepPredictionParserFactory().header(header).get();
 			}
 		@Override
-		void apply(final VariantContext ctx,final Map<String,Set<String>> gene2values ) {
+		void apply(final VariantContext ctx,final Map<KeyAndGene,Set<String>> gene2values ) {
 			for(final VepPrediction pred:this.parser.getPredictions(ctx)){
 				final String geneName=this.pred2gene.apply(pred);
 				if(StringUtils.isBlank(geneName)) continue;
-				Set<String> values = gene2values.get(geneName);
+				final KeyAndGene keyAndGene=new KeyAndGene(geneName,pred.getGeneName());
+				Set<String> values = gene2values.get(keyAndGene);
 				if(values==null)  {
 					values = new LinkedHashSet<>();
-					gene2values.put(geneName,values);
+					gene2values.put(keyAndGene,values);
 					}
 				values.add(pred.getOriginalAttributeAsString());
 				}
@@ -211,15 +241,16 @@ public class VcfGeneSplitter
 			return this.parser.getTag();
 			}
 		@Override
-		void apply(final VariantContext ctx,final Map<String,Set<String>> gene2values ) {
+		void apply(final VariantContext ctx,final Map<KeyAndGene,Set<String>> gene2values ) {
 			for(final AnnPrediction pred:this.parser.getPredictions(ctx)){
 				if(pred.isIntergenicRegion()) continue;
 				final String geneName=this.pred2gene.apply(pred);
 				if(StringUtils.isBlank(geneName)) continue;
-				Set<String> values = gene2values.get(geneName);
+				final KeyAndGene keyAndGene = new KeyAndGene(geneName, pred.getGeneName());
+				Set<String> values = gene2values.get(keyAndGene);
 				if(values==null)  {
 					values = new LinkedHashSet<>();
-					gene2values.put(geneName,values);
+					gene2values.put(keyAndGene,values);
 					}
 				values.add(pred.getOriginalAttributeAsString());
 				}
@@ -242,11 +273,11 @@ public class VcfGeneSplitter
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
 	private static class KeyAndLine {
-		final String key;
+		final KeyAndGene keyAndGene;
 		final String splitter;
 		final String ctx;
-		KeyAndLine(String key,String splitter,String ctx) {
-			this.key = key;
+		KeyAndLine(KeyAndGene keyAndGene,String splitter,String ctx) {
+			this.keyAndGene = keyAndGene;
 			this.splitter = splitter;
 			this.ctx = ctx;
 		}
@@ -257,7 +288,7 @@ public class VcfGeneSplitter
 		{
 		@Override
 		public int compare(final KeyAndLine o1, final KeyAndLine o2) {
-			int i = o1.key.compareTo(o2.key);
+			int i = o1.keyAndGene.compareTo(o2.keyAndGene);
 			if(i!=0) return i;
 			i = o1.splitter.compareTo(o2.splitter);
 			return i;
@@ -286,18 +317,20 @@ public class VcfGeneSplitter
 	private static class KeyAndLineCodec extends AbstractDataCodec<KeyAndLine>
 		{
 		@Override
-		public KeyAndLine decode(DataInputStream dis) throws IOException {
+		public KeyAndLine decode(final DataInputStream dis) throws IOException {
 			String k;
 			try {
 				k=dis.readUTF();
 			} catch(EOFException err) { return null;}
+			final String g = dis.readUTF();
 			final String splt = dis.readUTF();
 			final String v = AbstractDataCodec.readString(dis);
-			return new KeyAndLine(k,splt, v);
+			return new KeyAndLine(new KeyAndGene(k, g),splt, v);
 		}
 		@Override
-		public void encode(DataOutputStream dos, KeyAndLine object) throws IOException {
-			dos.writeUTF(object.key);
+		public void encode(final DataOutputStream dos,final  KeyAndLine object) throws IOException {
+			dos.writeUTF(object.keyAndGene.key);
+			dos.writeUTF(object.keyAndGene.gene);
 			dos.writeUTF(object.splitter);
 			AbstractDataCodec.writeString(dos, object.ctx);
 			}
@@ -333,13 +366,13 @@ public class VcfGeneSplitter
 			archiveFactory = ArchiveFactory.open(this.outputFile);
 			
 			manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile));
-			manifest.println("#chrom\tstart\tend\tsplitter\tkey\tpath\tCount_Variants");
+			manifest.println("#chrom\tstart\tend\tsplitter\tgene\tkey\tpath\tCount_Variants");
 
 			in = super.openBufferedReader(oneFileOrNull(args));
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
 			final VCFEncoder vcfEncoder = new VCFEncoder(cah.header, false, false);
 			
-			for(GeneExtractor ex:this.extractors) {
+			for(final GeneExtractor ex:this.extractors) {
 				ex.initialize(cah.header);
 			}			
 			
@@ -359,7 +392,7 @@ public class VcfGeneSplitter
 						sortingcollection.doneAdding();
 						iter = sortingcollection.iterator();
 						final EqualRangeIterator<KeyAndLine> eqiter = new EqualRangeIterator<>(iter,
-							(o1,o2)->o1.key.compareTo(o2.key)
+							(o1,o2)->o1.keyAndGene.compareTo(o2.keyAndGene)
 							);
 						
 						while(eqiter.hasNext()) {
@@ -368,7 +401,8 @@ public class VcfGeneSplitter
 							
 							final VariantContextWriter out = VCFUtils.createVariantContextWriterToPath(tmpVcf);
 							final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
-							header2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.Name",String.valueOf(first.key)));
+							header2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.Name",String.valueOf(first.keyAndGene.key)));
+							header2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.Gene",String.valueOf(first.keyAndGene.gene)));
 							out.writeHeader(header2);
 							int minPos=Integer.MAX_VALUE;
 							int maxPos=0;
@@ -380,8 +414,8 @@ public class VcfGeneSplitter
 								}
 							out.close();
 							
-							final String md5 = StringUtils.md5(prevCtg+":"+first.splitter+":"+first.key);
-							final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+buffer.get(0).key.replaceAll("[/]", "_") + ".vcf.gz";
+							final String md5 = StringUtils.md5(prevCtg+":"+first.splitter+":"+first.keyAndGene.key);
+							final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+buffer.get(0).keyAndGene.key.replaceAll("[/\\:]", "_") + ".vcf.gz";
 							
 							
 							final OutputStream os = archiveFactory.openOuputStream(filename);
@@ -397,7 +431,9 @@ public class VcfGeneSplitter
 							manifest.print('\t');
 							manifest.print(first.splitter);
 							manifest.print('\t');
-							manifest.print(first.key);
+							manifest.print(first.keyAndGene.gene);
+							manifest.print('\t');
+							manifest.print(first.keyAndGene.key);
 							manifest.print('\t');
 							manifest.print((archiveFactory.isZip()?"":this.outputFile.toString()+File.separator)+filename);
 							manifest.print('\t');
@@ -416,12 +452,12 @@ public class VcfGeneSplitter
 					}
 				for(final GeneExtractor ex:this.extractors)
 					{
-					final Map<String,Set<String>> gene2values = new HashMap<>();
+					final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
 					ex.apply(ctx, gene2values);
 					if(gene2values.isEmpty()) continue;
 					
-					for(final String key:gene2values.keySet()) {
-						final Set<String> values = gene2values.get(key);
+					for(final KeyAndGene keyAndGene :gene2values.keySet()) {
+						final Set<String> values = gene2values.get(keyAndGene);
 						if(values.isEmpty()) continue;
 						
 						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
@@ -446,7 +482,7 @@ public class VcfGeneSplitter
 						
 						sortingcollection.add(
 							new KeyAndLine(
-									key,
+									keyAndGene,
 									ex.getExtractorName(), 
 									vcfEncoder.encode(vcb.make())
 							));

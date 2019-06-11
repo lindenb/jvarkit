@@ -30,6 +30,15 @@ import java.util.stream.Collectors;
 /** on-time assertion checker */
 public interface Paranoid {
 
+public default Paranoid assertNotNull(Object b) {
+	if(b==null) raise("object is null");
+	return this;
+	}
+public default Paranoid assertNull(Object b) {
+	if(b!=null) raise("object is not null");
+	return this;
+	}	
+	
 public default Paranoid assertTrue(boolean b) {
 	return assertTrue(b,"True Assertion failed");
 	}
@@ -49,6 +58,12 @@ public default Paranoid assertLt(final int a,final int b) {
 	if(!(a<b)) raise("assertion "+ a+" < "+ b +" failed");
 	return this;
 	}
+
+public default Paranoid assertLt(final long a,final long b) {
+	if(!(a<b)) raise("assertion "+ a+" < "+ b +" failed");
+	return this;
+	}
+
 public default Paranoid assertLe(final int a,final int b) {
 	if(!(a<=b)) raise("assertion "+ a+" <= "+ b +" failed");
 	return this;
@@ -57,7 +72,17 @@ public default Paranoid assertGt(final int a,final int b) {
 	if(!(a>b)) raise("assertion "+ a+" > "+ b +" failed");
 	return this;
 	}
+public default Paranoid assertGt(final long a,final long b) {
+	if(!(a>b)) raise("assertion "+ a+" > "+ b +" failed");
+	return this;
+	}
+
+
 public default Paranoid assertGe(final int a,final int b) {
+	if(!(a>=b)) raise("assertion "+ a+" >= "+ b +" failed");
+	return this;
+	}
+public default Paranoid assertGe(final long a,final long b) {
 	if(!(a>=b)) raise("assertion "+ a+" >= "+ b +" failed");
 	return this;
 	}

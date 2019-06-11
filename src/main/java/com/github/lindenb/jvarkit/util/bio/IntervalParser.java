@@ -84,12 +84,12 @@ public class IntervalParser {
 		return trimToContigLength;
 	}
 	
-	/** specifying 'chr1' would return this whole contig */
+	/** specifying 'chr1' would return this whole contig. default is FALSE */
 	public IntervalParser setContigNameIsWholeContig(final boolean contigAloneIsWholeContig) {
 		this.contigAloneIsWholeContig = contigAloneIsWholeContig;
 		return this;
 		}
-
+	/** specifying 'chr1' would return this whole contig. default is FALSE */
 	public boolean isContigAloneIsWholeContig() {
 		return contigAloneIsWholeContig;
 		}
