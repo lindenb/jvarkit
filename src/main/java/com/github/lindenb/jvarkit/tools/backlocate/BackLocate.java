@@ -132,7 +132,7 @@ $ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /pa
 backlocate was cited in:
 
  * CRISPR-STOP: gene silencing through base-editing-induced nonsense mutations. 2017 Nat Meth. [http://dx.doi.org/10.1038/nmeth.4327](http://dx.doi.org/10.1038/nmeth.4327).
- * "Differential 3′ Processing of Specific Transcripts Expands Regulatory and Protein Diversity Across Neuronal Cell Types" Sasa Jereb, Hun-Way Hwang, Eric Van Otterloo, Eve-Ellen Govek, John J Fak, Yuan Yuan, Mary E Hatten, Robert B Darnell BioRxiv [https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf](https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf)
+ * "Differential 3' Processing of Specific Transcripts Expands Regulatory and Protein Diversity Across Neuronal Cell Types" Sasa Jereb, Hun-Way Hwang, Eric Van Otterloo, Eve-Ellen Govek, John J Fak, Yuan Yuan, Mary E Hatten, Robert B Darnell BioRxiv [https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf](https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf)
  
  END_DOC
  */
@@ -149,7 +149,7 @@ public class BackLocate
 	private boolean printSequences = false;
 
 	@Parameter(names={"-k","--kg"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String knownGeneURI = KnownGene.getDefaultUri();
+	private String knownGeneURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz"; // DOn't use the default kgURI because that one must be in sync with kgXref
 
 	@Parameter(names={"-x","-X","--kgxref"},description="UCSC kgXRef URI. Must have at least 5 columns. $1 is knowGene-Id $5  is protein identifier.")
 	private String kgXRef = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
@@ -565,9 +565,7 @@ public class BackLocate
 		PrintStream out=null;
 		BufferedReader in=null;
 		try {
-			LOG.warn("ici");
 			final File faidx = this.refSupplier.getRequired();
-			LOG.warn("ici");
 			this.referenceGenome = new IndexedFastaSequenceFile(faidx);
 			
 			
