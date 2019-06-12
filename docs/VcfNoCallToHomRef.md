@@ -14,8 +14,8 @@ Usage: vcfnocall2homref [options] Files
       Default DEPTH. negative = don't set depth.
       Default: 10
     -f, --filter
-      Set this Genotype FILTER for converted genotype
-    -gq, --gq, --GT
+      Set this **Genotype** FILTER for converted genotype
+    -gq, --gq, --GQ
       Default Genotype quality: negative : don't set GQ.
       Default: 1
     -h, --help
@@ -28,28 +28,13 @@ Usage: vcfnocall2homref [options] Files
     -sf, --includeSamplesFile
       only converts those samples. Default: all samples are converted. One 
       sample per line.
-    --noRecount
-      do not recount DP/AC/AN/AF atttributes
-      Default: false
     -o, --out
       Output file. Optional . Default: stdout
-    --outputbcf
-      Output bcf (for streams)
-      Default: false
     -p, --ploidy
       ploidy
       Default: 2
-    --vcfcreateindex
-      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
-      Default: false
-    --vcfmd5
-      VCF, create MD5 checksum when writing a VCF/BCF to a file.
-      Default: false
     --version
       print version and exit
-    -x
-      do not recount DP/AC/AN/AF atttributes
-      Default: false
 
 ```
 

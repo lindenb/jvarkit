@@ -65,7 +65,8 @@ n-items in number of items in this block
 binXOffset int
 binYOffset int
 useShort byte  
-type byte
+type byte (1 or 2)
+
 
 
 

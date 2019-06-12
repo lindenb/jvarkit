@@ -38,7 +38,7 @@ Usage: pubmedorcidgraph [options] Files
       Input is a set of orcids identifiers
       Default: false
     -o, --output
-      Output file. Optional . Default: stdout
+      GexF ouuput.Output file. Optional . Default: stdout
     --version
       print version and exit
 

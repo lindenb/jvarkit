@@ -33,6 +33,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.file.Path;
 import java.text.Collator;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -120,7 +121,8 @@ END_DOC
 */
 @Program(name="pubmedorcidgraph",
 	description="Creates a graph from Pubmed and Authors' Orcid identifiers",
-	keywords={"pubmed","ncbi","orcid"}
+	keywords={"pubmed","ncbi","orcid"},
+	modificationDate="20190611"
 	)
 public class PubmedOrcidGraph
 	extends Launcher
@@ -128,12 +130,12 @@ public class PubmedOrcidGraph
 	private static final Logger LOG = Logger.build(PubmedOrcidGraph.class).make();
 	private static final String NAME_NOT_FOUND="<NOT FOUND IN PUBMED>";
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	@Parameter(names={"-o","--output"},description="GexF ouuput." + OPT_OUPUT_FILE_OR_STDOUT)
+	private Path outputFile = null;
 	@Parameter(names={"-D","--berkeydb"},description="BerkeleyDB tmpDir",required=true)
 	private File bdbDir = null;
 	@Parameter(names={"-E","--errors"},description="Dump strange orcids (e.g: same orcird but different forename) . Default: stderr")
-	private File dumpStrangeOrcidFile = null;
+	private Path dumpStrangeOrcidFile = null;
 	private PrintStream errPrintWriter=System.err;
 
 	
@@ -762,7 +764,7 @@ public class PubmedOrcidGraph
 		DatabaseEntry data=new DatabaseEntry();
 		Cursor c=null;
 		try {
-			pw = openFileOrStdoutAsPrintWriter(this.outputFile);
+			pw = openPathOrStdoutAsPrintWriter(this.outputFile);
 			w = xof.createXMLStreamWriter(pw);
 			
 			w.writeStartDocument("UTF-8","1.0");
@@ -936,7 +938,7 @@ public class PubmedOrcidGraph
 			
 			if(this.dumpStrangeOrcidFile!=null) 
 				{
-				this.errPrintWriter = super.openFileOrStdoutAsPrintStream(this.dumpStrangeOrcidFile);
+				this.errPrintWriter = super.openPathOrStdoutAsPrintStream(this.dumpStrangeOrcidFile);
 				}
 			
 			if(this.input_is_orcid_id)
@@ -951,7 +953,7 @@ public class PubmedOrcidGraph
 				}
 			else{
 				/* input is a efetch stream */
-				String inputName=oneFileOrNull(args);
+				final String inputName=oneFileOrNull(args);
 				in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
 				scanArticles(in,0);
 				in.close();in=null;
