@@ -31,6 +31,11 @@ import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 
+/**
+ * A Factory creating a HicReader
+ * @author lindenb
+ *
+ */
 public class HicReaderFactory {
 	private ISeekableStreamFactory seekableStreamFactory= SeekableStreamFactory.getInstance();
 	
@@ -46,23 +51,6 @@ public class HicReaderFactory {
 	public HicReader open(final String pathOrUrl) throws IOException {
 		final SeekableStream sr = getSeekableStreamFactory().getStreamFor(pathOrUrl);
 		return new HicReaderImpl(pathOrUrl, sr);
-		}
-	public static void main(final String[] args) {
-		try {
-			final HicReaderFactory hrf = new HicReaderFactory();
-			try(final HicReader r=hrf.open(args[0])) {
-				System.err.println(r.getSource());
-				r.query("4:112555060-122570371","4:112555060-122570371",
-						Normalization.VC,
-						25_000,
-						Unit.BP
-						);
-				}
-			
-			}
-		catch(Throwable err) {
-			err.printStackTrace();
-			}
 		}
 	
 	}

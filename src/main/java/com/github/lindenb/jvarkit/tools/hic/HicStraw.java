@@ -81,41 +81,44 @@ public class HicStraw  extends Launcher {
 	@Parameter(names={"-b","--bin"},description="bin size")
 	private int binSize = 1;
 
+	private final HicReader.QueryCallBack defaultCallBack = new HicReader.QueryCallBack() {
+		};
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try
 			{
-			
-			final String input = oneAndOnlyOneFile(args);
-			
 			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory();
 			
-			try(final HicReader hicReader = new HicReaderFactory().
-						setSeekableStreamFactory(seekableStreamFactory).
-						open(input)) { 
+			for(final String input :args) {
 			
-				final Function<String,Locatable > parseInterval = (S)->{
-					final Optional<Locatable> loc = hicReader.parseInterval(S);
-					if(!loc.isPresent()) {
-						LOG.error("bad interval : \""+S+"\" available are "+ hicReader.
-								getDictionary().getSequences().stream().
-								map(SR->SR.getSequenceName()).collect(Collectors.joining(" ; ")));
-						return null;
-						}
-					return loc.get();
-					};
 				
-				if(!hicReader.getBasePairResolutions().contains(this.binSize)) {
-					LOG.error("bad binSize : \""+this.binSize+"\" available are "+ hicReader.getBasePairResolutions().stream().map(S->String.valueOf(S)).collect(Collectors.joining(" ; ")));
-					return -1;
-					}
+				try(final HicReader hicReader = new HicReaderFactory().
+							setSeekableStreamFactory(seekableStreamFactory).
+							open(input)) { 
+				
+					final Function<String,Locatable > parseInterval = (S)->{
+						final Optional<Locatable> loc = hicReader.parseInterval(S);
+						if(!loc.isPresent()) {
+							LOG.error("bad interval : \""+S+"\" available are "+ hicReader.
+									getDictionary().getSequences().stream().
+									map(SR->SR.getSequenceName()).collect(Collectors.joining(" ; ")));
+							return null;
+							}
+						return loc.get();
+						};
 					
-				final Locatable loc1 = parseInterval.apply(this.interval1Str);
-				if(loc1==null) return -1;
-				final Locatable loc2 = parseInterval.apply(this.interval2Str);
-				if(loc2==null) return -1 ;
-				hicReader.query(loc1, loc2,norm, this.binSize, this.unit, null);
+					if(!hicReader.getBasePairResolutions().contains(this.binSize)) {
+						LOG.error("bad binSize : \""+this.binSize+"\" available are "+ hicReader.getBasePairResolutions().stream().map(S->String.valueOf(S)).collect(Collectors.joining(" ; ")));
+						return -1;
+						}
+						
+					final Locatable loc1 = parseInterval.apply(this.interval1Str);
+					if(loc1==null) return -1;
+					final Locatable loc2 = parseInterval.apply(this.interval2Str);
+					if(loc2==null) return -1 ;
+					hicReader.query(loc1, loc2,norm, this.binSize, this.unit, this.defaultCallBack);
+					}
 				}
 			return 0;
 			}

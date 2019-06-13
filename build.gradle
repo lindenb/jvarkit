@@ -2182,7 +2182,7 @@ all2.add( task("hicfileinfo", type: CompileJVarkit) {
 	});
 all2.add( task("hicstraw", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.hic.HicStraw"
-	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient")
 	});
 
 task("jeter", type: CompileJVarkit) {

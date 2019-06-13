@@ -103,7 +103,15 @@ public Set<Integer> getFragmentResolutions();
 /** try to parse an interval as string */
 public Optional<Locatable> parseInterval(final String s);
 
-interface QueryCallBack {}
+public interface QueryCallBack {
+	
+	default void warning(Object o) {
+		System.err.println("[WARN]"+o);
+		}
+	default void error(Object o) {
+		System.err.println("[ERROR]"+o);
+		}
+}
 
 /** query the hic file */
 public boolean query(

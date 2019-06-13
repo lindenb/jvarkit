@@ -251,7 +251,6 @@ public class HicReaderImpl implements HicReader {
 			ssrList.add(ssr);
 			}
 		this.dictionary = new SAMSequenceDictionary(ssrList);
-		System.err.println(this.dictionary);
 
 		
 		/* number of base pair resolutions */
@@ -350,6 +349,7 @@ public class HicReaderImpl implements HicReader {
 			)
 		{
 		try {
+			if(callback==null) throw new IllegalArgumentException("callback is null");
 			final Query q = new Query();
 			q.interval1 = interval1;
 			q.interval2 = interval2;
@@ -360,26 +360,27 @@ public class HicReaderImpl implements HicReader {
 			
 			q.qInterval1 = convertLocatableToQueryInterval(interval1);
 			if(q.qInterval1==null) {
-				q.errorMessage = "unknown contig in "+interval1;
+				q.callback.error("unknown contig in "+interval1);
 				return false;
 				}
 			
 			q.qInterval2 = convertLocatableToQueryInterval(interval1);
 			if(q.qInterval2==null) {
-				q.errorMessage = "unknown contig in "+interval2;
+				q.callback.error("unknown contig in "+interval2);
 				return false;
 				}
 			
 			/* swap if needed */
-			if(q.qInterval1.referenceIndex < q.qInterval2.referenceIndex) {
-				Locatable tmp1 = q.interval2;
+			if(q.qInterval1.referenceIndex < q.qInterval2.referenceIndex ||
+				(q.qInterval1.referenceIndex == q.qInterval2.referenceIndex && q.qInterval1.start > q.qInterval2.start)
+				) {
+				final Locatable tmp1 = q.interval2;
 				q.interval2 = q.interval1;
 				q.interval1 = tmp1;
 				
-				QueryInterval tmp2 = q.qInterval2;
+				final QueryInterval tmp2 = q.qInterval2;
 				q.qInterval2 = q.qInterval1;
 				q.qInterval1 = tmp2;
-
 				}
 			
 			
@@ -438,7 +439,6 @@ public class HicReaderImpl implements HicReader {
 		      matrixImpl.contacts.add(xyv);
 		    }
 		  }
-		 LOG.debug(q.errorMessage);
 		 matrixImpl.contacts.forEach(V->System.out.println(V));
 			return false;
 			}
@@ -781,7 +781,6 @@ public class HicReaderImpl implements HicReader {
 			}
 		
 		void scanFooter() throws IOException {
-			final String key = String.valueOf(this.qInterval1.referenceIndex);
 			// list of chromosome to explore
 			final Set<Integer> matchings_tids = new HashSet<>();
 			HicReaderImpl.this.seekableStream.seek(HicReaderImpl.this.masterIndexPosition);
@@ -983,10 +982,7 @@ public class HicReaderImpl implements HicReader {
 
 		/** normalized intervals from query */
 		QueryInterval qInterval2;
-		
-		/** error message */
-		String errorMessage = null;
-		
+				
 		HicReader.QueryCallBack callback;
 		
 		/** chr-chr filepos found in scanHeader */
@@ -1083,7 +1079,7 @@ public class HicReaderImpl implements HicReader {
 		
 		 // not found 
 		 if ( this.chr_chri_fpos < 0L ) {
-			this.errorMessage = "File "+getSource()+" doesn't have the given "+key+" map" ;
+			this.callback.warning( "File "+getSource()+" doesn't have the given "+key+" map");
 		    return;
 		  	}
 		  
@@ -1112,7 +1108,7 @@ public class HicReaderImpl implements HicReader {
 		    }
 		  }
 		  if (this.normEntry1==null || this.normEntry2==null) {
-		   this.errorMessage =  "Normalization vectors not found for one or both chromosomes at " + this.binsize + " " + this.unit+" available ";
+		   this.callback.warning( "Normalization vectors not found for one or both chromosomes at " + this.binsize + " " + this.unit+" available ");
 		  	}
 		}
 		
