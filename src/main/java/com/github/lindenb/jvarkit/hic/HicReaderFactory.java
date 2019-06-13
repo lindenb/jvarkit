@@ -34,8 +34,9 @@ import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 public class HicReaderFactory {
 	private ISeekableStreamFactory seekableStreamFactory= SeekableStreamFactory.getInstance();
 	
-	public void setSeekableStreamFactory(final ISeekableStreamFactory seekableStreamFactory) {
+	public HicReaderFactory setSeekableStreamFactory(final ISeekableStreamFactory seekableStreamFactory) {
 		this.seekableStreamFactory = seekableStreamFactory;
+		return this;
 		}
 	
 	public ISeekableStreamFactory getSeekableStreamFactory() {

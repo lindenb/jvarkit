@@ -100,22 +100,19 @@ public Set<Integer> getBasePairResolutions();
 /** get the fragment resolutions */
 public Set<Integer> getFragmentResolutions();
 
+/** try to parse an interval as string */
+public Optional<Locatable> parseInterval(final String s);
 
-public Optional<HicMatrix> query(
-		final String interval1,
-		final String interval2,
-		final Normalization norm,
-		final int binsize, 
-		final Unit unit
-		);
+interface QueryCallBack {}
 
-
-public Optional<HicMatrix> query(
+/** query the hic file */
+public boolean query(
 		final Locatable interval1,
 		final Locatable interval2,
 		final Normalization norm,
 		final int binsize, 
-		final Unit unit
+		final Unit unit,
+		final QueryCallBack callback
 		);
 }
 

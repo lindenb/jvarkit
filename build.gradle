@@ -2180,6 +2180,10 @@ all2.add( task("hicfileinfo", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.hic.HicFileInfo"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("hicstraw", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.hic.HicStraw"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.hic.HicReaderFactory"

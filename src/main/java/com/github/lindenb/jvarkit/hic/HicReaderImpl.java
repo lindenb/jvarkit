@@ -325,11 +325,12 @@ public class HicReaderImpl implements HicReader {
 		return this.version;
 		}
 	
-	private Locatable parseInterval(final String s) {
-		if(StringUtils.isBlank(s)) return null;
+	@Override
+	public Optional<Locatable> parseInterval(final String s) {
+		if(StringUtils.isBlank(s)) return Optional.empty();
 		final IntervalParser intervalParser =new IntervalParser(this.getDictionary());
 		intervalParser.setContigNameIsWholeContig(true);
-		return intervalParser.parse(s);
+		return Optional.ofNullable(intervalParser.parse(s));
 		}
 
 	private QueryInterval convertLocatableToQueryInterval(final Locatable loc) {
@@ -337,29 +338,15 @@ public class HicReaderImpl implements HicReader {
 		return ssr==null?null: new QueryInterval(ssr.getSequenceIndex(),loc.getStart(),loc.getEnd());
 		}
 	
-	@Override
-	public Optional<HicMatrix> query(
-			final String interval1,
-			final String interval2,
-			final Normalization norm,
-			final int binsize, 
-			final Unit unit
-			)
-		{
-		final Locatable loc1 = parseInterval(interval1);
-		if(loc1==null) return Optional.empty();
-		final Locatable loc2 = parseInterval(interval2);
-		if(loc2==null) return Optional.empty();
-		return query(loc1,loc2,norm,binsize,unit);
-		}
 	
 	@Override
-	public Optional<HicMatrix> query(
+	public boolean query(
 			final Locatable interval1,
 			final Locatable interval2,
 			final Normalization norm,
 			final int binsize, 
-			final Unit unit
+			final Unit unit,
+			final HicReader.QueryCallBack callback
 			)
 		{
 		try {
@@ -369,17 +356,18 @@ public class HicReaderImpl implements HicReader {
 			q.normalization = norm;
 			q.unit = unit;
 			q.binsize = binsize;
+			q.callback = callback;
 			
 			q.qInterval1 = convertLocatableToQueryInterval(interval1);
 			if(q.qInterval1==null) {
 				q.errorMessage = "unknown contig in "+interval1;
-				return Optional.empty();
+				return false;
 				}
 			
 			q.qInterval2 = convertLocatableToQueryInterval(interval1);
 			if(q.qInterval2==null) {
 				q.errorMessage = "unknown contig in "+interval2;
-				return Optional.empty();
+				return false;
 				}
 			
 			/* swap if needed */
@@ -397,8 +385,8 @@ public class HicReaderImpl implements HicReader {
 			
 			q.scanFooter();
 			if(q.chr_chri_fpos<0L) {
-				System.err.println("not found");
-				return Optional.empty();
+				LOG.warn("not found");
+				return false;
 				}
 			final double c1Norm[];
 			final double c2Norm[];
@@ -452,7 +440,7 @@ public class HicReaderImpl implements HicReader {
 		  }
 		 LOG.debug(q.errorMessage);
 		 matrixImpl.contacts.forEach(V->System.out.println(V));
-			return Optional.of(matrixImpl);
+			return false;
 			}
 		catch(final IOException err) {
 			throw new RuntimeIOException(err);
@@ -998,6 +986,8 @@ public class HicReaderImpl implements HicReader {
 		
 		/** error message */
 		String errorMessage = null;
+		
+		HicReader.QueryCallBack callback;
 		
 		/** chr-chr filepos found in scanHeader */
 		long chr_chri_fpos = -1L;
