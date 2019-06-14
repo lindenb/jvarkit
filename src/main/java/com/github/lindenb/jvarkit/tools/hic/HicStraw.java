@@ -28,7 +28,6 @@ package com.github.lindenb.jvarkit.tools.hic;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -44,7 +43,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
@@ -81,9 +80,19 @@ public class HicStraw  extends Launcher {
 	private Normalization norm = Normalization.NONE;
 	@Parameter(names={"-b","--bin"},description="bin size")
 	private int binSize = 1;
+	@Parameter(names={"-min-distance"},description="min distance between two intervals on the same chromosome. Don' print the value if they're closer than this value")
+	private Integer minCisDistance = null;
+	@Parameter(names={"-min-value"},description="Don' print the value if it's lower than 'v'")
+	private Float minValue = null;
+	@Parameter(names={"-max-value"},description="Don' print the value if it's greater than 'v'")
+	private Float maxValue = null;
 
+	
+	
 	private class MyQueryCallBack implements HicReader.QueryCallBack {
 		PrintWriter pw;
+		boolean first = true;
+		String source;
 		@Override
 		public void reportContact(
 				String contig1,int start1,int end1,
@@ -94,9 +103,49 @@ public class HicStraw  extends Launcher {
 				final float value
 				)
 			{
+			if(this.first) {
+				pw.println("##source="+this.source);
+				pw.println("##unit="+unit);
+				pw.println("##normalisation="+norm);
+				pw.println("##bin-size="+binsize);
+				pw.println("#CHROM1\tSTART1\tEND1\tCHROM2\tSTART2\tEND2\tVALUE");
+				first = false;
+				}
+			if(minValue!=null && value < minValue) return;
+			if(maxValue!=null && value > maxValue) return;
 			
+			if(minCisDistance!=null && contig1.equals(contig2)) {
+				final int distance;
+				if(CoordMath.overlaps(start1, end1, start2, end2)) {
+					distance = 0;
+					}
+				else if(end1 < start2) {
+					distance = start2 - end1;
+					}
+				else
+					{
+					distance = start1 - end2;
+					}
+				if(distance < minCisDistance) return;
+				}
+			pw.print(contig1);
+			pw.print("\t");
+			pw.print(start1);
+			pw.print("\t");
+			pw.print(end1);
+			pw.print("\t");
+			pw.print(contig2);
+			pw.print("\t");
+			pw.print(start2);
+			pw.print("\t");
+			pw.print(end2);
+			pw.print(contig1);
+			pw.print("\t");
+			pw.print(start1);
+			pw.print("\t");
+			pw.print(value);
+			pw.println();
 			}
-	 	
 		};
 	
 		
@@ -111,7 +160,7 @@ public class HicStraw  extends Launcher {
 			callback.pw= super.openPathOrStdoutAsPrintWriter(outputFile);
 			
 			for(final String input :args) {
-			
+				callback.source = input;
 				
 				try(final HicReader hicReader = new HicReaderFactory().
 							setSeekableStreamFactory(seekableStreamFactory).
@@ -151,6 +200,7 @@ public class HicStraw  extends Launcher {
 						}
 					
 					for(final Locatable loc2:loc2list) {
+						callback.first = true;
 						hicReader.query(loc1, loc2,norm, this.binSize, this.unit,callback);
 						}
 					}
