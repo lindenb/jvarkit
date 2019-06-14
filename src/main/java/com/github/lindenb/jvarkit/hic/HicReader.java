@@ -105,6 +105,15 @@ public Optional<Locatable> parseInterval(final String s);
 
 public interface QueryCallBack {
 	
+	public void reportContact(
+			String contig1,int start1,int end1,
+			String contig2,int start2,int end2,
+			final Normalization norm,
+			final Unit unit,
+			final int binsize, 
+			final float value
+			);
+ 	
 	default void warning(Object o) {
 		System.err.println("[WARN]"+o);
 		}

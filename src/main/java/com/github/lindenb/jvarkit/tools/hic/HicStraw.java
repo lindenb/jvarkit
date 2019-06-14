@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
 /**
@@ -72,7 +73,7 @@ public class HicStraw  extends Launcher {
 	private Path outputFile = null;
 	@Parameter(names={"-i","--interval1"},description="Interval 1",required=true)
 	private String interval1Str = null;
-	@Parameter(names={"-j","--interval2"},description="Interval 2",required=true)
+	@Parameter(names={"-j","--interval2"},description="Interval 2. Use '*' to map all the chromosomes.",required=true)
 	private String interval2Str = null;
 	@Parameter(names={"-u","--unit"},description="Unit")
 	private Unit unit = Unit.BP;
@@ -81,14 +82,33 @@ public class HicStraw  extends Launcher {
 	@Parameter(names={"-b","--bin"},description="bin size")
 	private int binSize = 1;
 
-	private final HicReader.QueryCallBack defaultCallBack = new HicReader.QueryCallBack() {
+	private class MyQueryCallBack implements HicReader.QueryCallBack {
+		PrintWriter pw;
+		@Override
+		public void reportContact(
+				String contig1,int start1,int end1,
+				String contig2,int start2,int end2,
+				final Normalization norm,
+				final Unit unit,
+				final int binsize, 
+				final float value
+				)
+			{
+			
+			}
+	 	
 		};
 	
+		
+		
 	@Override
 	public int doWork(final List<String> args) {
 		try
 			{
 			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory();
+			final MyQueryCallBack callback = new MyQueryCallBack();
+			
+			callback.pw= super.openPathOrStdoutAsPrintWriter(outputFile);
 			
 			for(final String input :args) {
 			
@@ -115,11 +135,28 @@ public class HicStraw  extends Launcher {
 						
 					final Locatable loc1 = parseInterval.apply(this.interval1Str);
 					if(loc1==null) return -1;
-					final Locatable loc2 = parseInterval.apply(this.interval2Str);
-					if(loc2==null) return -1 ;
-					hicReader.query(loc1, loc2,norm, this.binSize, this.unit, this.defaultCallBack);
+					
+					final List<Locatable> loc2list;
+					if("*".equals(this.interval2Str)) {
+						final Locatable loc2 = parseInterval.apply(this.interval2Str);
+						if(loc2==null) return -1 ;
+						loc2list = java.util.Collections.singletonList(loc2);
+						}
+					else
+						{
+						loc2list = hicReader.getDictionary().
+								getSequences().stream().
+								map(SR->new Interval(SR.getSequenceName(),1,SR.getSequenceLength())).
+								collect(Collectors.toList());
+						}
+					
+					for(final Locatable loc2:loc2list) {
+						hicReader.query(loc1, loc2,norm, this.binSize, this.unit,callback);
+						}
 					}
 				}
+			callback.pw.flush();
+			callback.pw.close();
 			return 0;
 			}
 		catch(final Throwable err) {

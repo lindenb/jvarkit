@@ -55,9 +55,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,65 +109,7 @@ public class HicReaderImpl implements HicReader {
 	/** fragment resolutions */
 	private final Set<Integer> fragmentResolutions;
 	
-	private static class HicMatrixImpl implements HicMatrix
-		{
-		List<HicContact> contacts = new ArrayList<>(100_000);
-		Locatable interval1;
-		Locatable interval2;
-		Unit unit;
-		int binSize;
-		Normalization normalization;
-		@Override
-		public Locatable getInterval1() {
-			return interval1;
-			}
-		
-		@Override
-		public Locatable getInterval2() {
-			return interval2;
-			}
-		@Override
-		public Normalization getNormalization() {
-			return this.normalization;
-			}
-		
-		@Override
-		public Unit getUnit() {
-			return this.unit;
-			}
-		
-		@Override
-		public int getBinSize() {
-			return this.binSize;
-			}
-		@Override
-		public Iterator<HicContact> iterator() {
-			return this.contacts.iterator();
-			}
-		}
-	
-	
-	private class HicContactImpl implements HicContact
-		{
-		final int x;
-		final int y;
-		final float value;
-		HicContactImpl(int x,int y,float value) {
-			this.x = x;
-			this.y = y;
-			this.value = value;
-			}
-		@Override public int getX() { return this.x; }
-		@Override public int getY() { return this.y; }
-		@Override
-		public float getValue() { return this.value; }
-		@Override
-		public String toString() {
-			return getX() +" "+ getY() + " " + getValue();
-			}
-		}
-	
-	 static class ContactRecord
+	private static class ContactRecord
 		{
 		final int binX;
 		final int binY;
@@ -257,7 +196,7 @@ public class HicReaderImpl implements HicReader {
 		final int nBpResolution = lis.readInt();
 		paranoid.assertGe(nBpResolution, 0);
 		
-		final Set<Integer> resBPSet = new HashSet<>(nBpResolution);
+		final Set<Integer> resBPSet = new TreeSet<>();
 		for(int i=0;i< nBpResolution;i++) {
 			final int resBP = lis.readInt();
 			resBPSet.add(resBP);
@@ -268,7 +207,7 @@ public class HicReaderImpl implements HicReader {
 		final int nFragResolution = lis.readInt();
 		paranoid.assertGe(nBpResolution, 0);
 		
-		final Set<Integer> resFragSet = new HashSet<>(nFragResolution);
+		final Set<Integer> resFragSet = new TreeSet<>();
 		for(int i=0;i< nFragResolution;i++) {
 			final int resF = lis.readInt();
 			resFragSet.add(resF);
@@ -279,8 +218,6 @@ public class HicReaderImpl implements HicReader {
 		
 		
 		}
-	
-	
 	
 	
 	@Override
@@ -408,13 +345,7 @@ public class HicReaderImpl implements HicReader {
 			
 			
 			
-		  // getBlockIndices
-		  final HicMatrixImpl matrixImpl = new HicMatrixImpl();
-		  matrixImpl.interval1 = q.interval1;
-		  matrixImpl.interval2 = q.interval2;
-		  matrixImpl.binSize = q.binsize;
-		  matrixImpl.normalization = q.normalization;
-		  matrixImpl.unit = q.unit;
+		 
 		  
 		  for (final Integer it:blockNumbers) {
 		    // get contacts in this block
@@ -435,43 +366,12 @@ public class HicReaderImpl implements HicReader {
 				  c = (float)(c / (c1Norm[rec.binX] * c2Norm[rec.binY]));
 			      }
 		     
-		      final HicContact xyv = new HicContactImpl(x,y,c); 
-		      matrixImpl.contacts.add(xyv);
+		     q.callback.reportContact(
+		    		 q.interval1.getContig(), x, x+binsize,
+		    		 q.interval2.getContig(), y, y+binsize, norm, unit, binsize, c);
 		    }
 		  }
-		 matrixImpl.contacts.forEach(V->System.out.println(V));
 			return false;
-			}
-		catch(final IOException err) {
-			throw new RuntimeIOException(err);
-			}
-		}
-	public void scan(
-			final Locatable interval,
-			final Normalization norm,
-			final int binsize, 
-			final Unit unit
-			)
-		{
-		try {
-			final ScanRegion scanner = new ScanRegion();
-			scanner.interval1 = interval;
-			scanner.normalization = norm;
-			scanner.unit = unit;
-			scanner.binsize = binsize;
-			scanner.qInterval1 = convertLocatableToQueryInterval(interval);
-			if(scanner.qInterval1==null) return;
-			scanner.scanFooter();
-			if(scanner.chri_chrj_fpos.isEmpty()) return;
-			
-			final Map<Integer,double[]> tid2norm;
-			
-			
-			for(final Long offset : scanner.chri_chrj_fpos) {
-				scanner.scanMatrixes(offset);
-				}
-			
-			
 			}
 		catch(final IOException err) {
 			throw new RuntimeIOException(err);
@@ -762,219 +662,6 @@ public class HicReaderImpl implements HicReader {
 		
 
 	}
-	
-	private class ScanRegion extends AbstractQuery
-		{
-		
-		final List<Long> chri_chrj_fpos = new ArrayList<>();
-		final Map<Integer,IndexEntry> tid2indexentry = new HashMap<>();
-		
-		private class ScannerIndexEntry extends IndexEntry {
-			 int tid1;
-			 int tid2;
-			 int blockBinCount;
-			 int blockColumnCount;
-
-			ScannerIndexEntry(final int size,final long position)  {
-				  super(size,position);
-			  }
-			}
-		
-		void scanFooter() throws IOException {
-			// list of chromosome to explore
-			final Set<Integer> matchings_tids = new HashSet<>();
-			HicReaderImpl.this.seekableStream.seek(HicReaderImpl.this.masterIndexPosition);
-			final LittleEndianInputStream fin = HicReaderImpl.this.streamToEndian();
-			fin.skip(Integer.BYTES);//nBytes Total size, master index + expected values
-			
-			// loop over the entries to find the chr-chr data
-			int nEntries = fin.readInt();
-			paranoid.assertGe(nEntries, 0);
-			
-			// loop over master index
-			for (int i=0; i<nEntries; i++) {
-			    final String str = fin.readString();
-			    final int colon = str.indexOf('_');
-			    paranoid.assertFalse(colon==-1);
-			    final int left_tid = Integer.parseInt(str.substring(0, colon));
-			    final int right_tid = Integer.parseInt(str.substring(colon+1));
-			    
-			    final long fpos = fin.readLong();
-			    paranoid.assertGe(fpos, 0L);
-			    fin.skip(Integer.BYTES);//sizeinbytes 
-			    if (this.qInterval1.referenceIndex==left_tid || 
-			    	this.qInterval1.referenceIndex==right_tid) {
-			    	this.chri_chrj_fpos.add(fpos);
-			    	
-			    	matchings_tids.add(left_tid);
-			    	matchings_tids.add(right_tid);
-			    	
-			    	// no 'continue', must read whole header
-			    	}
-			    //no 'break', must read whole header
-			    }
-			
-			 // not found 
-			 if ( this.chri_chrj_fpos.isEmpty() ) {
-			    return;
-			  	}
-			  
-			 if (Normalization.NONE.equals(this.normalization)) return; // no need to read norm vector index
-			  
-			  skipExpectedValuesMaps(fin);
-			 
-			  
-			  // Index of normalization vectors
-			  nEntries = fin.readInt();
-			  paranoid.assertGe(nEntries, 0);
-			  
-			  for (int i = 0; i < nEntries ; i++) {
-			    final Normalization normtype = Normalization.valueOf(fin.readString());
-			    final int chrIdx = fin.readInt();
-			    final Unit unit1 = Unit.valueOf(fin.readString());
-			    final int resolution1 = fin.readInt();
-			    
-			    
-			    final long filePosition = fin.readLong();
-			    final int sizeInBytes= fin.readInt();
-			    if (matchings_tids.contains(chrIdx) && 
-			    	normtype.equals(this.normalization) && 
-			    	unit1.equals(this.unit) && 
-			    	resolution1 == this.binsize) {
-			      this.tid2indexentry.put(chrIdx, new IndexEntry(sizeInBytes, filePosition));
-			    }
-			  }
-			}
-		
-		/** https://github.com/igvteam/hic-straw/blob/d428ee7e6df5488dd1295b33a81eeb06adbf7a51/src/hicFile.js#L226 */
-		protected void scanMatrixes(final long offset) throws IOException {
-			seekableStream.seek(offset);  
-			final LittleEndianInputStream in = streamToEndian();
-			final int tid1 = in.readInt();
-			final int tid2 = in.readInt();
-			//
-			if(tid1!=this.qInterval1.referenceIndex && tid2!=this.qInterval1.referenceIndex) {
-				System.err.println("matrix doesn't contain chromosome ?");
-				return;
-			}
-			//  # of resolution levels (bp and frags)
-			final int nResolutions = in.readInt();
-			paranoid.assertGe(nResolutions, 0);
-			
-			 final List<ScannerIndexEntry> L = new ArrayList<>();
-			
-			for(int i=0; i<nResolutions;i++) {
-				final ScannerIndexEntry E= this.scanMatrixesZoomData(tid1,tid2,in);
-				if(E!=null) L.add(E);
-				}
-			for(final ScannerIndexEntry entry: L) {
-				scanBlockNumbersForRegionFromBinPosition(entry);
-				}
-			}
-		
-		private void scanBlockNumbersForRegionFromBinPosition(final ScannerIndexEntry entry ) throws IOException {
-				final int regionIndices[]=new int[4];
-				for(int side=0;side<2;++side) {
-					int tid = side==0?entry.tid1:entry.tid2;
-					
-					final SAMSequenceRecord ssr = getDictionary().getSequence(tid);
-					paranoid.assertNotNull(ssr);
-					regionIndices[side*2 + 0 ] = 0;
-					regionIndices[side*2 + 1 ] = ssr.getSequenceLength()/this.binsize;
-					}
-				
-				for(int side=0;side<2;++side) {
-					int tid = side==0?entry.tid1:entry.tid2;
-					if(tid!= this.qInterval1.referenceIndex) continue;
-					regionIndices[side*2 + 0 ] = this.qInterval1.start/this.binsize;
-					regionIndices[side*2 + 1 ] = this.qInterval1.end/this.binsize;
-					break;//only once
-					}
-				
-			
-		       
-			   final int col1 = regionIndices[0] / entry.blockBinCount;
-			   final int col2 = (regionIndices[1] + 1) / entry.blockBinCount;
-			   final int row1 = regionIndices[2] / entry.blockBinCount;
-			   final int row2 = (regionIndices[3] + 1) / entry.blockBinCount;
-			   
-			   final Set<Integer> blocksSet = new TreeSet<>();
-			   // first check the upper triangular matrix
-			   for (int r = row1; r <= row2; r++) {
-			     for (int c = col1; c <= col2; c++) {
-			       final int blockNumber = r * entry.blockColumnCount + c;
-			       blocksSet.add(blockNumber);
-			     }
-			   }
-			   // check region part that overlaps with lower left triangle
-			   // but only if intrachromosomal
-			   if (entry.tid1==entry.tid2) {
-			     for (int r = col1; r <= col2; r++) {
-			       for (int c = row1; c <= row2; c++) {
-				     final int blockNumber = r * entry.blockColumnCount + c;
-				     blocksSet.add(blockNumber);
-			       }
-			     }
-			   }
-		   for(final Integer it: blocksSet) {
-		   for(final ContactRecord rec:readBlock(entry)) {   
-			     
-			      final int x = rec.binX * binsize;
-			      final int y = rec.binY * binsize;
-			      
-			      if(entry.tid1!=entry.tid2) {
-				      if(entry.tid1 == this.qInterval1.referenceIndex && !CoordMath.encloses(this.qInterval1.start,this.qInterval1.end, x, x)) continue;
-				      if(entry.tid2 == this.qInterval1.referenceIndex && !CoordMath.encloses(this.qInterval1.start,this.qInterval1.end, y, y)) continue;
-				      }
-			      
-			      float c = rec.counts;
-			      if (!this.normalization .equals(Normalization.NONE)) {
-					  //TODO c = (float)(c / (c1Norm[rec.binX] * c2Norm[rec.binY]));
-				      }
-			     
-			      final HicContact xyv = new HicContactImpl(x,y,c); 
-			      System.err.println(xyv);
-			    
-			   }
-		    }
-		   }
-		
-		
-		private ScannerIndexEntry scanMatrixesZoomData(final int tid1,final int tid2,final LittleEndianInputStream fin) throws IOException 
-		  {
-		  final Unit unit = Unit.valueOf(fin.readString());
-		  fin.readInt(); // Old "zoom" index -- not used
-		  fin.readFloat(); // sumCounts
-		  fin.readFloat(); // occupiedCellCount
-		  fin.readFloat(); // stdDev
-		  fin.readFloat(); // percent95
-		  final int binSize = fin.readInt();
-		  final int blockBinCount = fin.readInt();
-		  final int blockColumnCount = fin.readInt();
-		  //debug("readMatrixZoomData "+unit +" "+binSize+" "+blockBinCount+" "+blockColumnCount);
-		  
-		  
-		  final int nBlocks  = fin.readInt();
-		  paranoid.assertGe(nBlocks, 0);
-		  
-		 ScannerIndexEntry entry = null;
-		  
-		  for (int i = 0; i < nBlocks; i++) {
-		    final int blockNumber = fin.readInt();
-		    final long filePosition = fin.readLong();
-		    final int blockSizeInBytes = fin.readInt();
-		    
-		    if (this.unit.equals(unit) && this.binsize == binSize) {
-		    	entry = new ScannerIndexEntry(blockSizeInBytes,filePosition);
-		    	entry.tid1 = tid1;
-		    	entry.tid2 = tid2;
-		    	entry.blockBinCount = blockBinCount;
-		    	entry.blockColumnCount = blockColumnCount;
-		    	}
-		  	}
-		  return entry;
-		  }	
-		}
 	
 	private class Query extends AbstractQuery {
 		/** user interval1 */
