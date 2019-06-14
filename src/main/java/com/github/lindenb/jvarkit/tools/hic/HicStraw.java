@@ -109,10 +109,10 @@ public class HicStraw  extends Launcher {
 				pw.println("##normalisation="+norm);
 				pw.println("##bin-size="+binsize);
 				pw.println("#CHROM1\tSTART1\tEND1\tCHROM2\tSTART2\tEND2\tVALUE");
-				first = false;
+				this.first = false;
 				}
-			if(minValue!=null && value < minValue) return;
-			if(maxValue!=null && value > maxValue) return;
+			if(minValue!=null && value < minValue.floatValue()) return;
+			if(maxValue!=null && value > maxValue.floatValue()) return;
 			
 			if(minCisDistance!=null && contig1.equals(contig2)) {
 				final int distance;
