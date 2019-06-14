@@ -28,6 +28,8 @@ package com.github.lindenb.jvarkit.io;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -40,10 +42,11 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
 import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.StringUtil;
 
 /**
  * 
@@ -127,10 +130,7 @@ public class CustomSeekableStreamFactory
     			p_user = this.getUser();
     			p_password = this.getPassword();
     		 	}
-    		if(StringUtil.isBlank(p_user) || StringUtil.isBlank(p_password)) 
-    			{
-    			return  getDelegate().getStreamFor(path);
-    			}
+    		
     		 return openHttp(url,p_user,p_password);
 	    	 }
     	return getDelegate().getStreamFor(path);
@@ -149,20 +149,34 @@ public class CustomSeekableStreamFactory
     private SeekableStream openHttp(final URL url,final String p_user,final String p_password) 
     	throws IOException {
 		final HttpClientBuilder hb = HttpClients.custom();
-		final BasicCredentialsProvider provider = new BasicCredentialsProvider();
-		provider.setCredentials( AuthScope.ANY, new UsernamePasswordCredentials(p_user,p_password));
-		hb.setDefaultCredentialsProvider(provider);
+			
+		// set login/password
+		if(!StringUtils.isBlank(p_user) && !StringUtils.isBlank(p_password)) {
+			final BasicCredentialsProvider provider = new BasicCredentialsProvider();
+			provider.setCredentials( AuthScope.ANY, new UsernamePasswordCredentials(p_user,p_password));
+			hb.setDefaultCredentialsProvider(provider);
+			}
 			
 		
 		final CloseableHttpClient httpClient = hb.build();
 		
 		final HttpHead httpHead = new HttpHead(url.toExternalForm());
+		
 		try
 			{
 			final CloseableHttpResponse response = httpClient.execute(httpHead);
 			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK ) {
+				if(response.getAllHeaders()!=null)
+					{
+					/*
+					System.err.println( Arrays.stream(response.getAllHeaders()).
+							map(X->X.getName()+":"+X.getValue()).
+							collect(Collectors.joining(" ; ")));
+					*/
+					}
+				
 				final String msg = "Unexpected Http status code "
-     		            + response.getStatusLine()+" for "+ url
+     		            + response.getStatusLine()+" for \""+ url+"\""
      		            ;
 				response.close();
 				httpClient.close();
@@ -177,6 +191,16 @@ public class CustomSeekableStreamFactory
 				httpClient.close();
  		        throw new IOException(msg);
 				}
+			
+			final Header acceptRanges[]  = response.getHeaders("Accept-Ranges");
+			if(acceptRanges==null || Arrays.stream(acceptRanges).noneMatch(S->S.getValue().equals("bytes"))) {
+				throw new IOException("Cannot get Accept-Ranges: bytes "+
+						acceptRanges==null?"": Arrays.stream(acceptRanges).
+								map(X->X.getName()+":"+X.getValue()).
+								collect(Collectors.joining(" ; "))
+						);
+			}
+			
 			
 			long contentLength;
 			try {
@@ -202,7 +226,7 @@ public class CustomSeekableStreamFactory
 			{
 			CloserUtil.close(httpClient);
 			throw err;
-			}		
+			}	
     	}
     
 }

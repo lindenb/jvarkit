@@ -27,10 +27,15 @@ package com.github.lindenb.jvarkit.tools.hic;
 
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.hic.HicReader;
@@ -41,11 +46,13 @@ import com.github.lindenb.jvarkit.io.CustomSeekableStreamFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 
 /**
 BEGIN_DOC
@@ -62,11 +69,11 @@ END_DOC
 	description="Query a Hi-C file",
 	keywords={"hic"},
 	creationDate="20190613",
-	modificationDate="20190613",
+	modificationDate="20190614",
 	generate_doc=false
 	)
 public class HicStraw  extends Launcher {
-	private static final Logger LOG = Logger.build(HicFileInfo.class).make();
+	private static final Logger LOG = Logger.build(HicStraw.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -77,9 +84,9 @@ public class HicStraw  extends Launcher {
 	@Parameter(names={"-u","--unit"},description="Unit")
 	private Unit unit = Unit.BP;
 	@Parameter(names={"-n","--normalization"},description="normalization")
-	private Normalization norm = Normalization.NONE;
+	private Normalization norm = Normalization.VC;
 	@Parameter(names={"-b","--bin"},description="bin size")
-	private int binSize = 1;
+	private int binSize = 2_500_000;
 	@Parameter(names={"-min-distance"},description="min distance between two intervals on the same chromosome. Don' print the value if they're closer than this value")
 	private Integer minCisDistance = null;
 	@Parameter(names={"-min-value"},description="Don' print the value if it's lower than 'v'")
@@ -87,12 +94,137 @@ public class HicStraw  extends Launcher {
 	@Parameter(names={"-max-value"},description="Don' print the value if it's greater than 'v'")
 	private Float maxValue = null;
 
-	
-	
-	private class MyQueryCallBack implements HicReader.QueryCallBack {
-		PrintWriter pw;
+	private abstract class AbstractCallBack implements HicReader.QueryCallBack {
+		PrintWriter pw = null;
 		boolean first = true;
 		String source;
+		void finish() {
+			if(this.pw!=null) {
+			this.pw.flush();
+			this.pw.close();
+			}
+		}
+	}
+	
+	private static class XYV {
+		final int x;
+		final int y;
+		final float v;
+		XYV(int x,int y,float v) {
+		this.x=x;
+		this.y=y;
+		this.v=v;
+		}
+	}
+	
+	private class SVGCallBack extends AbstractCallBack {
+		private int binsize = 1;
+		private  final List<XYV> contacts = new ArrayList<>(100_000);
+		@Override
+		public void reportContact(
+				String contig1,int start1,int end1,
+				String contig2,int start2,int end2,
+				final Normalization norm,
+				final Unit unit,
+				final int binsize, 
+				final float value
+				)
+			{
+			if(this.first) {
+				first=false;
+				this.binsize = binsize;
+				}
+			this.contacts.add(new XYV(start1,start2,value));
+			}
+		
+		private String format(double v) {
+			return String.valueOf(v);
+		}
+		@Override
+		void finish() {
+			final int minX = this.contacts.stream().mapToInt(P->P.x).min().orElse(0);
+			final int maxX = this.contacts.stream().mapToInt(P->P.x).max().orElse(0);
+			final int distanceX = maxX-minX;
+			final int count_items_x = distanceX/this.binsize;
+			
+			final int minY = this.contacts.stream().mapToInt(P->P.y).min().orElse(0);
+			final int maxY = this.contacts.stream().mapToInt(P->P.y).max().orElse(0);
+			final int distanceY = maxY-minY;
+			final int count_items_y = distanceY/this.binsize;
+			
+			final int pageSize=800;
+			final int distance = Math.max(distanceX, distanceY);
+			final int dPix=pageSize/Math.max(count_items_x, count_items_y);
+
+
+			final float maxV =(float)this.contacts.stream().mapToDouble(P->P.v).max().orElse(1.0);
+			
+			final Function<Integer, Double> convertXToPixel = (X)->{
+				return ((X-minX)/(double)(maxX-minX))*pageSize;
+			};
+			
+			final Function<Integer, Double> convertYToPixel = (Y)->{
+				return ((Y-minY)/(double)(maxY-minY))*pageSize;
+			};
+	
+
+			
+			try 
+			{
+				final XMLOutputFactory xof = XMLOutputFactory.newFactory();
+				final XMLStreamWriter w  = xof.createXMLStreamWriter(this.pw);
+				w.writeStartDocument("1.0");
+				w.writeStartElement("svg");
+				w.writeDefaultNamespace(SVG.NS);
+				w.writeAttribute("width", String.valueOf(pageSize));
+				w.writeAttribute("height",  String.valueOf(pageSize));
+				w.writeAttribute("style", "");
+				
+				w.writeStartElement("title");
+				w.writeCharacters(this.source);
+				w.writeEndElement();//defs
+				
+				w.writeStartElement("defs");
+				
+				w.writeEmptyElement("rect");
+				w.writeAttribute("id","Q");
+				w.writeAttribute("width", format(dPix));
+				w.writeAttribute("height", format(dPix));
+				w.writeAttribute("style","stroke:lightgray");
+				
+				w.writeEndElement();//defs
+
+				
+				w.writeStartElement("g");
+				w.writeAttribute("style", "stroke:lightgray;");
+
+				for(final XYV contact:this.contacts) {
+					final int g = (int)(255*(contact.v/(double)maxV));
+					String gray="rgb("+g+","+g+","+g+")";
+					w.writeEmptyElement("use");
+					w.writeAttribute("x", format(convertXToPixel.apply(contact.x)));
+					w.writeAttribute("y", format(convertYToPixel.apply(contact.y)));
+					w.writeAttribute("href","#Q");
+					w.writeAttribute("style","fill:"+gray);
+				}
+				
+				w.writeEndElement();//g
+				w.writeEndElement();//svg
+				w.writeEndDocument();
+				w.flush();
+				w.close();
+			}
+			catch(final XMLStreamException err)
+			{
+				throw new RuntimeIOException(err);
+			}
+			
+		
+			super.finish();
+			}
+	}
+	
+	private class MyQueryCallBack extends AbstractCallBack {
 		@Override
 		public void reportContact(
 				String contig1,int start1,int end1,
@@ -155,7 +287,7 @@ public class HicStraw  extends Launcher {
 		try
 			{
 			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory();
-			final MyQueryCallBack callback = new MyQueryCallBack();
+			final AbstractCallBack callback = new SVGCallBack();
 			
 			callback.pw= super.openPathOrStdoutAsPrintWriter(outputFile);
 			
@@ -186,7 +318,7 @@ public class HicStraw  extends Launcher {
 					if(loc1==null) return -1;
 					
 					final List<Locatable> loc2list;
-					if("*".equals(this.interval2Str)) {
+					if(!("*".equals(this.interval2Str))) {
 						final Locatable loc2 = parseInterval.apply(this.interval2Str);
 						if(loc2==null) return -1 ;
 						loc2list = java.util.Collections.singletonList(loc2);
@@ -205,8 +337,7 @@ public class HicStraw  extends Launcher {
 						}
 					}
 				}
-			callback.pw.flush();
-			callback.pw.close();
+			callback.finish();
 			return 0;
 			}
 		catch(final Throwable err) {

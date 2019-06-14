@@ -221,9 +221,9 @@ libraries.put("gson",new Library().
 	);
 libraries.put("httpclient",new Library().
 	add("commons-logging:commons-logging:jar:1.2").
-	add("org.apache.httpcomponents:httpcore:jar:4.4.1").
-	add("org.apache.httpcomponents:httpclient:jar:4.5").
-	add("commons-codec:commons-codec:jar:1.10")
+	add("org.apache.httpcomponents:httpcore:jar:4.4.11").
+	add("org.apache.httpcomponents:httpclient:jar:4.5.9").
+	add("commons-codec:commons-codec:jar:1.11")
 	);
 libraries.put("jetty",new Library().
 	add("javax.servlet:javax.servlet-api:jar:4.0.0-b01").

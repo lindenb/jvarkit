@@ -62,6 +62,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.zip.InflaterInputStream;
 
 import com.github.lindenb.jvarkit.lang.Paranoid;
@@ -92,6 +94,11 @@ public class HicReaderImpl implements HicReader {
 	private static final Logger LOG = Logger.build(HicReaderImpl.class).make();
 	private static final String MAGIC="HIC";
 	private static final int DEFAULT_VERSION = 8;
+	
+	private static final boolean DEBUG = true || System.getProperty("jvarkit.hic.debug","").equals("true");
+	private static final boolean SKIP = false;
+	
+	
 	final Object source;
 	private final SeekableStream seekableStream;
 	/** Version number */
@@ -125,6 +132,15 @@ public class HicReaderImpl implements HicReader {
 		return new LittleEndianInputStream(new BufferedInputStream(this.seekableStream));
 		}
 	
+	private void debug(Object o) {
+		if(!DEBUG) return;
+		LOG.debug(o);
+		}
+	
+	private void fullySkip(LittleEndianInputStream in,long n) throws IOException {
+		long n2 = in.skip(n);
+		if(n2!=n) throw new IOException("Cannot skip "+n+" bytes (got "+n2+")");
+		}
 	
 	/** called by HicReaderFactory */
 	HicReaderImpl(final Object source,final SeekableStream seekableStream) throws IOException {
@@ -183,7 +199,6 @@ public class HicReaderImpl implements HicReader {
 			
 			final int chromLen = lis.readInt();
 			paranoid.assertGt(chromLen, 0);
-			
 			
 			final SAMSequenceRecord ssr = new SAMSequenceRecord(chromName, chromLen);
 			ssr.setAssembly(this.genomeId);
@@ -295,22 +310,26 @@ public class HicReaderImpl implements HicReader {
 			q.binsize = binsize;
 			q.callback = callback;
 			
-			q.qInterval1 = convertLocatableToQueryInterval(interval1);
-			if(q.qInterval1==null) {
-				q.callback.error("unknown contig in "+interval1);
-				return false;
-				}
+			final Function<Locatable, QueryInterval> interval2query = (R)->{
+				final QueryInterval q1= convertLocatableToQueryInterval(R);
+				if(q1==null) {
+					q.callback.error("unknown contig in \""+R+"\". Available are: "+
+						getDictionary().getSequences().stream().map(SSR->SSR.getSequenceName()).collect(Collectors.joining(";")));
+					}
+				return q1;
+				};
 			
-			q.qInterval2 = convertLocatableToQueryInterval(interval1);
-			if(q.qInterval2==null) {
-				q.callback.error("unknown contig in "+interval2);
-				return false;
-				}
+			q.qInterval1 = interval2query.apply(interval1);
+			if(q.qInterval1==null) return false;
+			
+			q.qInterval2 = interval2query.apply(interval2);
+			if(q.qInterval2==null) return false;
 			
 			/* swap if needed */
 			if(q.qInterval1.referenceIndex < q.qInterval2.referenceIndex ||
 				(q.qInterval1.referenceIndex == q.qInterval2.referenceIndex && q.qInterval1.start > q.qInterval2.start)
 				) {
+				debug("swap "+q.qInterval1 +" "+q.qInterval2);
 				final Locatable tmp1 = q.interval2;
 				q.interval2 = q.interval1;
 				q.interval1 = tmp1;
@@ -323,7 +342,7 @@ public class HicReaderImpl implements HicReader {
 			
 			q.scanFooter();
 			if(q.chr_chri_fpos<0L) {
-				LOG.warn("not found");
+				q.callback.warning("cannot find chri_chrj_fpos");
 				return false;
 				}
 			final double c1Norm[];
@@ -467,20 +486,26 @@ public class HicReaderImpl implements HicReader {
 			  this.size = size;
 			  this.position = position;
 		  }
+		  @Override
+		public String toString() {
+			return "IndexEntry( size:"+size+" position:"+position+")";
+		  }
 		}
 	
 	// reads the normalization vector from the file at the specified location
 	private double[] readNormalizationVector(final IndexEntry entry) throws IOException {
-	      final byte buf[] = new byte[entry.size];
+		  debug("read normalisation " + entry); 
+		  final byte buf[] = new byte[entry.size];
 		  seekableStream.seek(entry.position);
 		  seekableStream.readFully(buf);
 
 	 	  @SuppressWarnings("resource")
 		  final LittleEndianInputStream in = new LittleEndianInputStream(new ByteArrayInputStream(buf));
 		  final int nValues = in.readInt();
+		  paranoid.assertGe(nValues,0);
 		  double values[] = new double[nValues];
 		  for (int i = 0; i < nValues; i++) {
-		     values[i]=in.readDouble();
+		     values[i] = in.readDouble();
 		  	 }
 		  return values;
 		  }
@@ -491,10 +516,11 @@ public class HicReaderImpl implements HicReader {
 	https://github.com/igvteam/juicebox.js/blob/55bd6c7815f9abee74368c14a9d9403d2998313f/js/hicDataset.js#L95 	 
 	https://github.com/igvteam/hic-straw/blob/d428ee7e6df5488dd1295b33a81eeb06adbf7a51/src/hicFile.js#L307 */
 	private List<ContactRecord> readBlock(final IndexEntry indexEntry) throws IOException {
-		 if (indexEntry==null) {
+		debug("read block " + indexEntry); 
+		if (indexEntry==null) {
 			 return Collections.emptyList();
 		 	}
-
+		 debug(indexEntry);
 		 if (indexEntry.size == 0) {
 			 return Collections.emptyList();
 		 }
@@ -591,12 +617,13 @@ public class HicReaderImpl implements HicReader {
 	
 	/* data to ignore in the header */
 	private void skipExpectedValuesMaps(final LittleEndianInputStream fin) throws IOException  {
-	 // read in and ignore expected value maps; don't store; reading these to 
+	  debug("skipExpectedVaues");
+	  // read in and ignore expected value maps; don't store; reading these to 
 	  // get to norm vector index
-	  int nExpectedValues = fin.readInt();
-	  paranoid.assertGe(nExpectedValues, 0);
+	  final int nExpectedValues1 = fin.readInt();
+	  paranoid.assertGe(nExpectedValues1, 0);
 	  
-	  for (int i=0; i< nExpectedValues; i++) {
+	  for (int i=0; i< nExpectedValues1; i++) {
 	    Unit.valueOf(fin.readString());
 	    fin.readInt();//binSize
 	    
@@ -604,22 +631,36 @@ public class HicReaderImpl implements HicReader {
 	    
 	    paranoid.assertGe(nValues, 0);
 	    
-	    for(int j=0;j< nValues;j++)
-	    	{
-	    	fin.readDouble();
-	    	}
+		if(SKIP) {
+			fullySkip(fin,nValues*Double.BYTES);
+		    }
+	    else
+		    {
+		    for(int j=0;j< nValues;j++)
+		    	{
+		    	fin.readDouble();
+		    	}
+		    }
 
 	    final int nNormalizationFactors = fin.readInt();
-
-	    for(int j=0;j< nNormalizationFactors;j++)
-	    	{
-	    	fin.readInt();
-	    	fin.readDouble();
-	    	}		    
+	    paranoid.assertGe(nNormalizationFactors, 0);
+	    
+	    if(SKIP) {
+			fullySkip(fin,nNormalizationFactors*(Double.BYTES+Integer.BYTES));
+		    }
+	    else
+		    {
+		    for(int j=0;j< nNormalizationFactors;j++)
+		    	{
+		    	fin.readInt();
+		    	fin.readDouble();
+		    	}		    
+		    }
 	    }
 	  
-	  nExpectedValues = fin.readInt();
-	  for (int i=0; i<nExpectedValues; i++) {
+	  final int nExpectedValues2 = fin.readInt();
+	  paranoid.assertGe(nExpectedValues2, 0);
+	  for (int i=0; i<nExpectedValues2; i++) {
 	    fin.readString(); //typeString
 	    Unit.valueOf(fin.readString()); //unit
 	    fin.readInt();//binSize
@@ -627,18 +668,32 @@ public class HicReaderImpl implements HicReader {
 
 	    final int nValues = fin.readInt();
 	    paranoid.assertGe(nValues, 0);
-	    for(int j=0;j< nValues;j++)
-	    	{
-	    	fin.readDouble();
+	    if(SKIP) {
+	    	fullySkip(fin,nValues*(Double.BYTES));
 	    	}
-
+	    else
+		    {
+		    for(int j=0;j< nValues;j++)
+		    	{
+		    	fin.readDouble();
+		    	}
+		    }
+	    
 	    final int nNormalizationFactors = fin.readInt();
-	    for(int j=0;j< nNormalizationFactors;j++)
-	    	{
-	    	fin.readInt();//tid
-	    	fin.readDouble();//value
-	    	}
+	    paranoid.assertGe(nNormalizationFactors, 0);
+	    if(SKIP) {
+			fullySkip(fin,nNormalizationFactors*(Double.BYTES+Integer.BYTES));
+	    	} 
+	    else
+		    {
+		    for(int j=0;j< nNormalizationFactors;j++)
+		    	{
+		    	fin.readInt();//tid
+		    	fin.readDouble();//value
+		    	}
+		    }
 	    }
+	  debug("skipExpectedVaues: done");
 	}
 
 	
@@ -737,26 +792,38 @@ public class HicReaderImpl implements HicReader {
 		
 		void scanFooter() throws IOException {
 		
-		final String key = String.join("_",
-			   getDictionary().getSequence(this.qInterval1.referenceIndex).getSequenceName(),
-			   getDictionary().getSequence(this.qInterval2.referenceIndex).getSequenceName()
-			   );
-		LOG.debug("seek to "+ masterIndexPosition);
+		
+		debug("seek to "+ masterIndexPosition);
 		HicReaderImpl.this.seekableStream.seek(HicReaderImpl.this.masterIndexPosition);
 		final LittleEndianInputStream fin = HicReaderImpl.this.streamToEndian();
-		fin.skip(Integer.BYTES);//nBytes Total size, master index + expected values
-
+		final int nBytes = fin.readInt();//nBytes Total size, master index + expected values
+		paranoid.assertGe(nBytes,0);
+		
 		// loop over the entries to find the chr-chr data
-		int nEntries = fin.readInt();
-		paranoid.assertGe(nEntries, 0);
+		final int nEntries1 = fin.readInt();
+		paranoid.assertGe(nEntries1, 0);
 		
 		// loop over master index
-		for (int i=0; i<nEntries; i++) {
+		for (int i=0; i<nEntries1; i++) {
 		    final String str = fin.readString();
 		    final long fpos = fin.readLong();
 		    paranoid.assertGe(fpos, 0L);
-		    fin.skip(Integer.BYTES);//sizeinbytes 
-		    if (str.equals(key)) {
+		    if(SKIP) {
+		    	fullySkip(fin,Integer.BYTES);//sizeinbytes
+		    	}
+		    else
+		    	{
+		    	fin.readInt();
+		    	}
+		    
+		    final int u  = str.indexOf('_');
+		    if(u==-1) throw new IllegalStateException("Cannot find underscore in "+u);
+		    final int tid1 = Integer.parseInt(str.substring(0,u));
+		    final int tid2 = Integer.parseInt(str.substring(u+1));
+		    paranoid.assertLe(tid1, tid2);
+		    
+		    if (tid1==this.qInterval1.referenceIndex && tid2==this.qInterval2.referenceIndex )
+		    	{
 		    	paranoid.assertLt(this.chr_chri_fpos,0);
 		    	this.chr_chri_fpos = fpos;
 		    	// no 'continue', must read whole header
@@ -766,7 +833,11 @@ public class HicReaderImpl implements HicReader {
 		
 		 // not found 
 		 if ( this.chr_chri_fpos < 0L ) {
-			this.callback.warning( "File "+getSource()+" doesn't have the given "+key+" map");
+			this.callback.warning( "File "+getSource()+
+					" doesn't have the given key "+
+					this.qInterval1.referenceIndex + "_" +
+					this.qInterval2.referenceIndex + " map"
+					);
 		    return;
 		  	}
 		  
@@ -775,10 +846,10 @@ public class HicReaderImpl implements HicReader {
 		  skipExpectedValuesMaps(fin);
 		  
 		  // Index of normalization vectors
-		  nEntries = fin.readInt();
-		  paranoid.assertGe(nEntries, 0);
+		  final int nEntries2 = fin.readInt();
+		  paranoid.assertGe(nEntries2, 0);
 		  
-		  for (int i = 0; i < nEntries && (this.normEntry1==null || this.normEntry2==null); i++) {
+		  for (int i = 0; i < nEntries2 && (this.normEntry1==null || this.normEntry2==null); i++) {
 		    final Normalization normtype = Normalization.valueOf(fin.readString());
 		    final int chrIdx = fin.readInt();
 		    final Unit unit1 = Unit.valueOf(fin.readString());
@@ -802,9 +873,19 @@ public class HicReaderImpl implements HicReader {
 
 		/** https://github.com/igvteam/hic-straw/blob/d428ee7e6df5488dd1295b33a81eeb06adbf7a51/src/hicFile.js#L226 */
 		protected void readMatrix(final long offset) throws IOException {
+			debug("seek matrix at "+offset);
 			seekableStream.seek(offset);  
 			final LittleEndianInputStream in = streamToEndian();
-			in.skip(Integer.BYTES * 2);//ignore c1 + c2
+			if(SKIP)
+				{
+				fullySkip(in,Integer.BYTES * 2);//ignore c1 + c2
+				}
+			else
+				{
+				in.readInt();//c1
+				in.readInt();//c2
+				}
+			
 			//  # of resolution levels (bp and frags)
 			final int nResolutions = in.readInt();
 			paranoid.assertGe(nResolutions, 0);
@@ -817,6 +898,7 @@ public class HicReaderImpl implements HicReader {
 		
 		private boolean readMatrixZoomData(final LittleEndianInputStream fin) throws IOException 
 		  {
+		  debug("read zoom data");
 		  final Unit unit = Unit.valueOf(fin.readString());
 		  fin.readInt(); // Old "zoom" index -- not used
 		  fin.readFloat(); // sumCounts
