@@ -35,12 +35,14 @@ import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.client.protocol.HttpClientContext;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
@@ -59,7 +61,11 @@ public class CustomSeekableStreamFactory
 	private final ISeekableStreamFactory defaultInstance;
 	private String user = null;
 	private String password = null;
-
+	// https://stackoverflow.com/questions/56598349
+	private boolean normalizeURI = true;
+	// user agent
+	private String userAgent = null;
+	
 	
 	/** construct with htsjdk.samtools.seekablestream.SeekableStreamFactory.getInstance()</code> */
 	public CustomSeekableStreamFactory()
@@ -97,6 +103,25 @@ public class CustomSeekableStreamFactory
 	/** reset user/password */
 	public CustomSeekableStreamFactory reset() {
 		return setUser(null).setPassword(null);
+		}
+	
+	/** https://stackoverflow.com/questions/56598349 default is TRUE */
+	public CustomSeekableStreamFactory setNormalizeURI(boolean normalizeURI) {
+		this.normalizeURI = normalizeURI;
+		return this;
+		}
+	
+	public boolean isNormalizeURI() {
+		return normalizeURI;
+		}
+	
+	public CustomSeekableStreamFactory setUserAgent(String userAgent) {
+		this.userAgent = userAgent;
+		return this;
+		}
+	
+	public String getUserAgent() {
+		return userAgent;
 		}
 	
 	private ISeekableStreamFactory getDelegate() {
@@ -149,7 +174,21 @@ public class CustomSeekableStreamFactory
     private SeekableStream openHttp(final URL url,final String p_user,final String p_password) 
     	throws IOException {
 		final HttpClientBuilder hb = HttpClients.custom();
-			
+		
+		hb.useSystemProperties();
+		
+		if(!StringUtils.isBlank(getUserAgent())) {
+			hb.setUserAgent(getUserAgent());
+		}
+		
+		// https://stackoverflow.com/questions/56598349
+		final RequestConfig requestConfig = RequestConfig.
+				custom().
+				setNormalizeUri(this.isNormalizeURI()).
+				build();
+		final HttpClientContext clientContext = HttpClientContext.create();
+		clientContext.setRequestConfig(requestConfig);
+		
 		// set login/password
 		if(!StringUtils.isBlank(p_user) && !StringUtils.isBlank(p_password)) {
 			final BasicCredentialsProvider provider = new BasicCredentialsProvider();
@@ -164,7 +203,7 @@ public class CustomSeekableStreamFactory
 		
 		try
 			{
-			final CloseableHttpResponse response = httpClient.execute(httpHead);
+			final CloseableHttpResponse response = httpClient.execute(httpHead,clientContext);
 			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK ) {
 				if(response.getAllHeaders()!=null)
 					{
@@ -218,7 +257,8 @@ public class CustomSeekableStreamFactory
 			final ApacheSeekableHTTPStream stream = new ApacheSeekableHTTPStream(
 				url,
 				contentLength,
-				httpClient
+				httpClient,
+				clientContext
 				);
 			return stream;
 			}

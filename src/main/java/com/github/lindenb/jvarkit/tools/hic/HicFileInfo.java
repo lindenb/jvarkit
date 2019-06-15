@@ -34,11 +34,13 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.hic.HicReader;
 import com.github.lindenb.jvarkit.hic.HicReaderFactory;
+import com.github.lindenb.jvarkit.io.CustomSeekableStreamFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
 import htsjdk.samtools.util.CloserUtil;
 /**
 BEGIN_DOC
@@ -79,7 +81,14 @@ public class HicFileInfo extends Launcher {
 	public int doWork(final List<String> args) {
 		PrintWriter out=null;
 		try {
+			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory().
+					setNormalizeURI(false).
+					setUserAgent("Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:66.0) Gecko/20100101 Firefox/66.0");
+			
+			
 			final HicReaderFactory hrf = new HicReaderFactory();
+			hrf.setSeekableStreamFactory(seekableStreamFactory);
+			
 			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			for(final String path: args) {
 				try(final HicReader r = hrf.open(path)) {

@@ -34,9 +34,11 @@ import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.client.protocol.HttpClientContext;
 
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.util.CloserUtil;
+
 
 public class ApacheSeekableHTTPStream extends SeekableStream {
 
@@ -44,16 +46,20 @@ public class ApacheSeekableHTTPStream extends SeekableStream {
     private final long contentLength ;
     private final URL url;
     private final CloseableHttpClient httpClient;
+    // https://stackoverflow.com/questions/56598349/
+    private final HttpClientContext clientContext;
 
     /* use CustomSeekableStreamFactory */ ApacheSeekableHTTPStream(
     	final URL url,
     	final long contentLength,
-    	final CloseableHttpClient httpClient
+    	final CloseableHttpClient httpClient,
+    	final HttpClientContext clientContextOrNull
     	) {
         this.url = url;
         this.contentLength = contentLength;
         this.httpClient = httpClient;
-    }
+        this.clientContext = (clientContextOrNull == null? HttpClientContext.create() : clientContextOrNull);
+    	}
 
     @Override
     public long position() {
@@ -112,7 +118,7 @@ public class ApacheSeekableHTTPStream extends SeekableStream {
             
             httpGet.addHeader("Range", byteRange);
           
-            httpResponse = this.httpClient.execute(httpGet);
+            httpResponse = this.httpClient.execute(httpGet,this.clientContext);
             if (httpResponse.getStatusLine().getStatusCode() != HttpStatus.SC_PARTIAL_CONTENT ) {
 				final String msg = "Unexpected Http status code "
      		            + httpResponse.getStatusLine()+" for "+ url +" in range "+byteRange;

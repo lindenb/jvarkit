@@ -224,7 +224,7 @@ public class HicStraw  extends Launcher {
 			}
 	}
 	
-	private class MyQueryCallBack extends AbstractCallBack {
+	private class DefaultCallBack extends AbstractCallBack {
 		@Override
 		public void reportContact(
 				String contig1,int start1,int end1,
@@ -286,8 +286,8 @@ public class HicStraw  extends Launcher {
 	public int doWork(final List<String> args) {
 		try
 			{
-			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory();
-			final AbstractCallBack callback = new SVGCallBack();
+			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory().setNormalizeURI(false);
+			final AbstractCallBack callback = new DefaultCallBack();
 			
 			callback.pw= super.openPathOrStdoutAsPrintWriter(outputFile);
 			

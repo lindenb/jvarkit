@@ -42,9 +42,9 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
-import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
@@ -72,7 +72,9 @@ END_DOC
 @Program(name="biostar145820",
 	description="subsample/shuffle BAM to fixed number of alignments.",
 	biostars=145820,
-	keywords= {"sam","bam","shuffle"}
+	keywords= {"sam","bam","shuffle"},
+	modificationDate="20190615",
+	references={"MED25 connects enhancer–promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616–625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 "}
 	)
 public class Biostar145820 extends Launcher
 	{
@@ -82,7 +84,7 @@ public class Biostar145820 extends Launcher
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildAcceptAll();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-n"},description=" number of reads. negative: all reads, shuffle output.")
 	private long count=-1L;
@@ -106,8 +108,8 @@ public class Biostar145820 extends Launcher
 		@Override
 		public int compare(final RandSamRecord o1,final RandSamRecord o2)
 			{
-			long i = (long)o1.rand_index - (long)o2.rand_index;
-			if(i!=0L) return (i<0?-1:1);
+			int i = Long.compare(o1.rand_index , o2.rand_index);
+			if(i!=0L) return i;
 			return secondCompare.compare(o1.samRecord, o2.samRecord);
 			}
 		}
@@ -180,7 +182,6 @@ public class Biostar145820 extends Launcher
 			header.addComment("Processed with "+getProgramName()+" : "+getProgramCommandLine());
 			
 			
-			
 			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(samReader.getFileHeader()).logger(LOG).build();
 			iter=samReader.iterator();
 
@@ -209,7 +210,7 @@ public class Biostar145820 extends Launcher
 			sorter.doneAdding();
 			iter2=sorter.iterator();
 			
-			samWriter = writingBamArgs.openSAMFileWriter(outputFile, header, true);
+			samWriter = writingBamArgs.openSamWriter(this.outputFile, header, true);
 
 			final SAMFileWriter finalw = samWriter;
 			

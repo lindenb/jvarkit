@@ -102,10 +102,7 @@ Should you cite **biostar145820** ? [https://github.com/mr-c/shouldacite/blob/ma
 
 The current reference is:
 
-[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
-> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+ * MED25 connects enhancer–promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616–625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 
 
 
 ## Example
