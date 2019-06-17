@@ -82,9 +82,9 @@ public class HicFileInfo extends Launcher {
 		PrintWriter out=null;
 		try {
 			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory().
-					setNormalizeURI(false).
-					setUserAgent("Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:66.0) Gecko/20100101 Firefox/66.0");
-			
+					setUsingHttpHead(false).
+					setNormalizeURI(false)
+					;
 			
 			final HicReaderFactory hrf = new HicReaderFactory();
 			hrf.setSeekableStreamFactory(seekableStreamFactory);

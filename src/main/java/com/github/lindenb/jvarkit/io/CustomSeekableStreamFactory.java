@@ -37,7 +37,9 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -65,6 +67,9 @@ public class CustomSeekableStreamFactory
 	private boolean normalizeURI = true;
 	// user agent
 	private String userAgent = null;
+	// use httpGet instead of httpHead to get the content-length
+	private boolean usingHttpHead = true;
+	
 	
 	
 	/** construct with htsjdk.samtools.seekablestream.SeekableStreamFactory.getInstance()</code> */
@@ -115,7 +120,17 @@ public class CustomSeekableStreamFactory
 		return normalizeURI;
 		}
 	
-	public CustomSeekableStreamFactory setUserAgent(String userAgent) {
+	/** amazon doesn't like httpHead https://stackoverflow.com/questions/56598349/wget-returns-200-ok-while-org-apache-http-impl-client-closeablehttpclient-return#comment99824950_56605768 */
+	public CustomSeekableStreamFactory setUsingHttpHead(boolean usingHttpHead) {
+		this.usingHttpHead = usingHttpHead;
+		return this;
+	}
+	
+	public boolean isUsingHttpHead() {
+		return usingHttpHead;
+	}
+	
+	public CustomSeekableStreamFactory setUserAgent(final String userAgent) {
 		this.userAgent = userAgent;
 		return this;
 		}
@@ -199,8 +214,10 @@ public class CustomSeekableStreamFactory
 		
 		final CloseableHttpClient httpClient = hb.build();
 		
-		final HttpHead httpHead = new HttpHead(url.toExternalForm());
-		
+		final HttpRequestBase httpHead = this.isUsingHttpHead()?
+				  new HttpHead(url.toExternalForm())
+				: new HttpGet(url.toExternalForm())
+				;
 		try
 			{
 			final CloseableHttpResponse response = httpClient.execute(httpHead,clientContext);
@@ -239,7 +256,6 @@ public class CustomSeekableStreamFactory
 								collect(Collectors.joining(" ; "))
 						);
 			}
-			
 			
 			long contentLength;
 			try {

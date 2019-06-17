@@ -40,16 +40,25 @@ import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.util.CloserUtil;
 
 
-public class ApacheSeekableHTTPStream extends SeekableStream {
-
-    private long position = 0L;
+/**
+ * an implentation of SeekableStream using apache http-components
+ *
+ */
+class ApacheSeekableHTTPStream extends SeekableStream {
+	private static final int BUFFER_SIZE= 2_000_000;
+	private final byte buffer[]=new byte [BUFFER_SIZE];
+	private long buffer_offset = 0;
+	private int buffer_size = 0;
+	private int buffer_index = BUFFER_SIZE;
+	
+    // private long position = 0L;
     private final long contentLength ;
     private final URL url;
     private final CloseableHttpClient httpClient;
     // https://stackoverflow.com/questions/56598349/
     private final HttpClientContext clientContext;
 
-    /* use CustomSeekableStreamFactory */ ApacheSeekableHTTPStream(
+    ApacheSeekableHTTPStream(
     	final URL url,
     	final long contentLength,
     	final CloseableHttpClient httpClient,
@@ -63,58 +72,81 @@ public class ApacheSeekableHTTPStream extends SeekableStream {
 
     @Override
     public long position() {
-        return position;
+        return this.buffer_offset + this.buffer_index;
     }
 
     @Override
     public long length() {
-        return contentLength;
+        return this.contentLength;
     }
 
     @Override
     public long skip(final long n) throws IOException {
-    	final long bytesToSkip = Math.min(n, contentLength - position);
-        this.position += bytesToSkip;
+    	final long bytesToSkip = Math.min(n, this.contentLength - position());
+        final long new_offset = this.buffer_offset + bytesToSkip;
+       
+        
+        if(new_offset >= this.buffer_offset && new_offset < this.buffer_offset + this.buffer_size) {
+    		this.buffer_index = (int)(new_offset-this.buffer_offset);
+    		}
+    	else {
+	        this.buffer_offset = new_offset;
+	        this.buffer_index = 0;
+	        this.buffer_size = 0;
+	    	}
+        
         return bytesToSkip;
     }
 
     @Override
     public boolean eof() throws IOException {
-        return this.contentLength > 0 && this.position >= this.contentLength;
+        return this.contentLength > 0 && this.position() >= this.contentLength;
     }
 
     @Override
     public void seek(final long position) {
-        this.position = position;
-    }
-
-    @Override
-    public int read(byte[] buffer, int offset, int len) throws IOException {
-
-        if (offset < 0 || len < 0 || (offset + len) > buffer.length) {
-            throw new IndexOutOfBoundsException("Offset="+offset+",len="+len+",buflen="+buffer.length);
-        }
-        if (len == 0 ) {
-            return 0;
-        }
-        if (this.position == this.contentLength) {
-            return -1;
-        }
+    	if(position >= this.buffer_offset && position < this.buffer_offset + this.buffer_size) {
+    		this.buffer_index = (int)(position-this.buffer_offset);
+    		}
+    	else {
+	        this.buffer_offset = position;
+	        this.buffer_index = 0;
+	        this.buffer_size = 0;
+	    	}
+    	}
+    
+    
+    
+    private int readNextByte() throws IOException {
+    	if(this.buffer_index < this.buffer_size) {
+    		final int c = this.buffer[this.buffer_index];
+    		this.buffer_index++;
+    		return c  & 0xFF;
+    		}
+    	//System.err.println("refill from "+this.buffer_offset);
+    	this.buffer_offset += this.buffer_size;
+    	this.buffer_index = 0;
+    	this.buffer_size = 0;
+    	
+    	final int max_n_bytes_to_reads = (int)Math.min((long)this.buffer.length,this.contentLength - this.buffer_offset);
+    	
+        if (max_n_bytes_to_reads == 0 ) return -1;
+        if (this.buffer_offset == this.contentLength) return -1;
 
         CloseableHttpResponse httpResponse = null;
         InputStream is = null;
-        int n = 0;
+        
         try {
         	final HttpGet httpGet = new HttpGet(this.url.toExternalForm());
         	
         	
 
-            long endRange = position + len - 1;
+            long endRange = this.buffer_offset + max_n_bytes_to_reads - 1;
             // IF we know the total content length, limit the end range to that.
             if (contentLength > 0) {
                 endRange = Math.min(endRange, contentLength);
             }
-            final String byteRange = "bytes=" + position + "-" + endRange;
+            final String byteRange = "bytes=" + this.buffer_offset + "-" + endRange;
             
             httpGet.addHeader("Range", byteRange);
           
@@ -130,27 +162,53 @@ public class ApacheSeekableHTTPStream extends SeekableStream {
             
             is = entity.getContent();
 
-            while (n < len) {
-                int count = is.read(buffer, offset + n, len - n);
+            while (this.buffer_size < max_n_bytes_to_reads) {
+                int count = is.read(this.buffer, this.buffer_size, max_n_bytes_to_reads - this.buffer_size);
                 if (count < 0) {
-                    if (n == 0) {
+                    if (this.buffer_size == 0) {
                         return -1;
                     } else {
                         break;
                     }
                 }
-                n += count;
+                this.buffer_size += count;
             	}
-            this.position += n;
 
-            return n;
+            int c= this.buffer[this.buffer_index];
+            this.buffer_index++;
+            
+        	//System.err.println("refilled from "+this.buffer_offset+" size="+this.buffer_size);
+
+            return c  & 0xFF;
         	}
         finally {
             CloserUtil.close(is);
             CloserUtil.close(httpResponse);
         }
+    
+    	
     }
+    
 
+    @Override
+    public int read(byte[] array, int offset, int len) throws IOException {
+    	int n = 0;
+        while (n < len) {
+        	int c = this.readNextByte();
+        	if(c==-1) {
+    		  if (n == 0) {
+                  return -1;
+              } else {
+                  break;
+              }
+        	}
+        	
+        	array[ offset+n ] = (byte)c;
+            n++;
+        	}
+        return n;
+    	}
+   
 
     @Override
     public void close() throws IOException {
@@ -160,9 +218,7 @@ public class ApacheSeekableHTTPStream extends SeekableStream {
 
     @Override
     public int read() throws IOException {
-    	byte []tmp=new byte[1];
-    	read(tmp,0,1);
-    	return (int) tmp[0] & 0xFF; 
+    	return readNextByte();
     }
 
     @Override

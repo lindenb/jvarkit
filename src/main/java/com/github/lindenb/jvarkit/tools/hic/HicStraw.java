@@ -25,7 +25,13 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.hic;
 
-import java.io.PrintWriter;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +39,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -43,6 +50,7 @@ import com.github.lindenb.jvarkit.hic.HicReaderFactory;
 import com.github.lindenb.jvarkit.hic.Normalization;
 import com.github.lindenb.jvarkit.hic.Unit;
 import com.github.lindenb.jvarkit.io.CustomSeekableStreamFactory;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -75,7 +83,7 @@ END_DOC
 public class HicStraw  extends Launcher {
 	private static final Logger LOG = Logger.build(HicStraw.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT+" If filename ends with '.png' , '.jpg' or '.svg' the output will be an image")
 	private Path outputFile = null;
 	@Parameter(names={"-i","--interval1"},description="Interval 1",required=true)
 	private String interval1Str = null;
@@ -89,13 +97,13 @@ public class HicStraw  extends Launcher {
 	private int binSize = 2_500_000;
 	@Parameter(names={"-min-distance"},description="min distance between two intervals on the same chromosome. Don' print the value if they're closer than this value")
 	private Integer minCisDistance = null;
-	@Parameter(names={"-min-value"},description="Don' print the value if it's lower than 'v'")
+	@Parameter(names={"-min-value"},description="Don't print the value if it's lower than 'v'")
 	private Float minValue = null;
-	@Parameter(names={"-max-value"},description="Don' print the value if it's greater than 'v'")
+	@Parameter(names={"-max-value"},description="Don't print the value if it's greater than 'v'")
 	private Float maxValue = null;
 
 	private abstract class AbstractCallBack implements HicReader.QueryCallBack {
-		PrintWriter pw = null;
+		PrintStream pw = null;
 		boolean first = true;
 		String source;
 		void finish() {
@@ -117,9 +125,11 @@ public class HicStraw  extends Launcher {
 		}
 	}
 	
-	private class SVGCallBack extends AbstractCallBack {
-		private int binsize = 1;
-		private  final List<XYV> contacts = new ArrayList<>(100_000);
+	private abstract class ImageCallBack extends AbstractCallBack {
+		protected int binsize = 1;
+		protected String contig1;
+		protected String contig2;
+		protected  final List<XYV> contacts = new ArrayList<>(100_000);
 		@Override
 		public void reportContact(
 				String contig1,int start1,int end1,
@@ -132,43 +142,116 @@ public class HicStraw  extends Launcher {
 			{
 			if(this.first) {
 				first=false;
+				this.contig1 = contig1;
+				this.contig2 = contig2;
 				this.binsize = binsize;
 				}
 			this.contacts.add(new XYV(start1,start2,value));
 			}
 		
+	}
+	
+	private class RasterCallBack extends ImageCallBack {
+	
+		@Override
+		void finish() {
+			
+			final int margin = 20;
+			final int imageSize=1000;
+			final int drawingSize = imageSize + margin;
+			
+			final int minX = this.contacts.stream().mapToInt(P->P.x).min().orElse(0);
+			final int maxX = this.contacts.stream().mapToInt(P->P.x).max().orElse(0);
+			final int distanceX = maxX-minX;
+			
+			
+			final int minY = this.contacts.stream().mapToInt(P->P.y).min().orElse(0);
+			final int maxY = this.contacts.stream().mapToInt(P->P.y).max().orElse(0);
+			final int distanceY = maxY-minY;
+			
+			final int distance = Math.max(distanceX, distanceY);
+
+			final float maxV =(float)this.contacts.stream().mapToDouble(P->P.v).max().orElse(10.0);
+			final double logMaxV =Math.log(maxV); 
+			
+	
+			final BufferedImage img = new BufferedImage(drawingSize, drawingSize, BufferedImage.TYPE_INT_RGB);
+			final Graphics2D g = img.createGraphics();
+			g.setColor(Color.WHITE);
+			g.fillRect(0, 0, drawingSize, drawingSize);
+			g.setColor(Color.GRAY);
+			g.drawPolygon(
+					new int[] {margin,margin+imageSize,margin},
+					new int[] {0,imageSize,imageSize},
+					3);
+			
+			for(final XYV contact:this.contacts) {
+				if(contact.v< 1 ) continue;
+				final int gray = 255-(int)(255*((Math.log(contact.v))/logMaxV));
+				double x  =  margin + ((contact.x-minX)/(double)(distance))*imageSize;
+				double y  = ((contact.y-minY)/(double)(distance))*imageSize;
+				double w  = (this.binsize/(double)distance)*imageSize;
+				double h  = w;
+				final Rectangle2D rect = new Rectangle2D.Double(x, y, w, h);
+				g.setColor(new Color(gray,gray,gray));
+				g.fill(rect);
+				if(w > 5) {
+					g.setColor(Color.DARK_GRAY);
+					g.draw(rect);
+					}
+				}
+			g.setColor(Color.DARK_GRAY);
+			g.drawString(this.contig2+":"+StringUtils.niceInt(minY)+"-"+StringUtils.niceInt(maxY),
+					margin,
+					drawingSize -2
+					);
+			final AffineTransform oldtr = g.getTransform();
+			g.setTransform(AffineTransform.getRotateInstance(Math.PI/2.001));
+			g.drawString(this.contig1+":"+StringUtils.niceInt(minX)+"-"+StringUtils.niceInt(maxX),
+					2,
+					-5
+					);
+			g.setTransform(oldtr);
+			g.dispose();
+			try {
+			ImageIO.write(img,outputFile==null || outputFile.getFileName().toString().endsWith(".png")?"PNG":"JPG", this.pw);
+			} catch(final IOException err)
+			{
+				throw new RuntimeIOException(err);
+			}
+		
+			super.finish();
+			}
+	}
+	
+	private class SVGCallBack extends ImageCallBack {
+	
 		private String format(double v) {
 			return String.valueOf(v);
 		}
 		@Override
 		void finish() {
+			final int margin = 50;
+			final int imageSize=1000;
+			final int drawingSize = imageSize + margin;
+			
 			final int minX = this.contacts.stream().mapToInt(P->P.x).min().orElse(0);
 			final int maxX = this.contacts.stream().mapToInt(P->P.x).max().orElse(0);
 			final int distanceX = maxX-minX;
-			final int count_items_x = distanceX/this.binsize;
+			
 			
 			final int minY = this.contacts.stream().mapToInt(P->P.y).min().orElse(0);
 			final int maxY = this.contacts.stream().mapToInt(P->P.y).max().orElse(0);
 			final int distanceY = maxY-minY;
-			final int count_items_y = distanceY/this.binsize;
 			
-			final int pageSize=800;
 			final int distance = Math.max(distanceX, distanceY);
-			final int dPix=pageSize/Math.max(count_items_x, count_items_y);
 
-
-			final float maxV =(float)this.contacts.stream().mapToDouble(P->P.v).max().orElse(1.0);
-			
-			final Function<Integer, Double> convertXToPixel = (X)->{
-				return ((X-minX)/(double)(maxX-minX))*pageSize;
-			};
-			
-			final Function<Integer, Double> convertYToPixel = (Y)->{
-				return ((Y-minY)/(double)(maxY-minY))*pageSize;
-			};
+			final float maxV =(float)this.contacts.stream().mapToDouble(P->P.v).max().orElse(10.0);
+			final double logMaxV =Math.log(maxV); 
 	
 
-			
+			final double dw  = (this.binsize/(double)distance)*imageSize;
+			final double dh  = dw;
 			try 
 			{
 				final XMLOutputFactory xof = XMLOutputFactory.newFactory();
@@ -176,8 +259,8 @@ public class HicStraw  extends Launcher {
 				w.writeStartDocument("1.0");
 				w.writeStartElement("svg");
 				w.writeDefaultNamespace(SVG.NS);
-				w.writeAttribute("width", String.valueOf(pageSize));
-				w.writeAttribute("height",  String.valueOf(pageSize));
+				w.writeAttribute("width", String.valueOf(drawingSize+1));
+				w.writeAttribute("height",  String.valueOf(drawingSize+1));
 				w.writeAttribute("style", "");
 				
 				w.writeStartElement("title");
@@ -188,8 +271,8 @@ public class HicStraw  extends Launcher {
 				
 				w.writeEmptyElement("rect");
 				w.writeAttribute("id","Q");
-				w.writeAttribute("width", format(dPix));
-				w.writeAttribute("height", format(dPix));
+				w.writeAttribute("width", format(dw));
+				w.writeAttribute("height", format(dh));
 				w.writeAttribute("style","stroke:lightgray");
 				
 				w.writeEndElement();//defs
@@ -199,14 +282,36 @@ public class HicStraw  extends Launcher {
 				w.writeAttribute("style", "stroke:lightgray;");
 
 				for(final XYV contact:this.contacts) {
-					final int g = (int)(255*(contact.v/(double)maxV));
-					String gray="rgb("+g+","+g+","+g+")";
+					if(contact.v< 1 ) continue;
+					final int gray = 255-(int)(255*((Math.log(contact.v))/logMaxV));
+					double x  =  margin + ((contact.x-minX)/(double)(distance))*imageSize;
+					double y  = ((contact.y-minY)/(double)(distance))*imageSize;
+					String grayC="rgb("+gray+","+gray+","+gray+")";
 					w.writeEmptyElement("use");
-					w.writeAttribute("x", format(convertXToPixel.apply(contact.x)));
-					w.writeAttribute("y", format(convertYToPixel.apply(contact.y)));
+					w.writeAttribute("x", format(x));
+					w.writeAttribute("y", format(y));
 					w.writeAttribute("href","#Q");
-					w.writeAttribute("style","fill:"+gray);
+					w.writeAttribute("style","fill:"+grayC);
 				}
+				
+				w.writeStartElement("g");
+				w.writeAttribute("style", "stroke:darkgray;");
+				
+				w.writeStartElement("text");
+				w.writeAttribute("x", format(margin));
+				w.writeAttribute("y", format(drawingSize));
+				w.writeCharacters(this.contig2+":"+StringUtils.niceInt(minY)+"-"+StringUtils.niceInt(maxY));
+				w.writeEndElement();//text
+				
+				w.writeStartElement("text");
+				w.writeAttribute("x", format(2));
+				w.writeAttribute("y", format(-5));
+				w.writeAttribute("transform","rotate(90)");
+				w.writeCharacters(this.contig1+":"+StringUtils.niceInt(minX)+"-"+StringUtils.niceInt(maxX));
+				w.writeEndElement();//text
+
+				
+				w.writeEndElement();//g
 				
 				w.writeEndElement();//g
 				w.writeEndElement();//svg
@@ -286,10 +391,28 @@ public class HicStraw  extends Launcher {
 	public int doWork(final List<String> args) {
 		try
 			{
-			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory().setNormalizeURI(false);
-			final AbstractCallBack callback = new DefaultCallBack();
+			final ISeekableStreamFactory seekableStreamFactory = new CustomSeekableStreamFactory().
+					setUsingHttpHead(false).
+					setNormalizeURI(false);
+			final AbstractCallBack callback;
 			
-			callback.pw= super.openPathOrStdoutAsPrintWriter(outputFile);
+			
+			if(this.outputFile==null) {
+				callback = new DefaultCallBack();
+			} else if(this.outputFile.getFileName().toString().endsWith(".svg") ||
+					this.outputFile.getFileName().toString().endsWith(".svg.gz")) {
+				callback = new SVGCallBack();
+			}
+			else if(this.outputFile.getFileName().toString().endsWith(".png") ||
+					this.outputFile.getFileName().toString().endsWith(".jpeg") ||
+					this.outputFile.getFileName().toString().endsWith(".jpg")) {
+				callback = new RasterCallBack();
+				}
+			else  {
+				callback = new DefaultCallBack();
+				}
+
+			callback.pw= super.openPathOrStdoutAsPrintStream(outputFile);
 			
 			for(final String input :args) {
 				callback.source = input;

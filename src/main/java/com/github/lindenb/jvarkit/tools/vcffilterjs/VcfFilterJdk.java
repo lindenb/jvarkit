@@ -411,7 +411,7 @@ END_DOC
 		keywords={"vcf","filter","java","jdk"},
 		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,
 				304979,310155,317388,319148,327035,337645,343569,
-				347173,351205,351404,354126,302217
+				347173,351205,351404,354126,302217,384864
 				},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 		modificationDate="20190222"
@@ -429,10 +429,10 @@ public class VcfFilterJdk
 	@Parameter(names={"-F","--filter"},description="If not empty, variants won't be discarded and this name will be used in the FILTER column")
 	private String filteredTag = "";
 	
-	@Parameter(names={"-e","--expression"},description=" (js expression). Optional.")
+	@Parameter(names={"-e","--expression"},description=" (java expression). Optional.")
 	private String scriptExpr=null;
 	
-	@Parameter(names={"-f","--script"},description=" (js file). Optional.")
+	@Parameter(names={"-f","--script"},description=" (java file). Optional.")
 	private File scriptFile=null;
 	
 	@Parameter(names={"--nocode"},description=" Don't show the generated code")
