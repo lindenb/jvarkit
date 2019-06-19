@@ -128,7 +128,7 @@ END_DOC
 @Program(name="vcfgnomad",
 	description="Peek annotations from gnomad",
 	keywords={"vcf","annotation","gnomad"},
-	modificationDate="20190308"
+	modificationDate="20190619"
 )
 public class VcfGnomad extends Launcher{
 	
@@ -166,8 +166,8 @@ public class VcfGnomad extends Launcher{
 	private boolean useGenomeOnly = false;
 	@Parameter(names={"--exclude"},description="[20180327] exclude gnomad INFO field matching this regular expression. Empty: accept all")
 	private String excludePatternStr = "controls|non_cancer|non_neuro|non_topmed";
-	@Parameter(names={"--ani"},description="[20190311] for allele numbers 'AN' to be variant-count-type=Integer (not 'A' as declared in gnomad)")
-	private boolean alleleNumber_is_integer = false;
+	@Parameter(names={"--ani"},description="[20190311] for allele numbers 'AN' to be variant-count-type=Integer (not 'A' as declared in gnomad). Deprecated : always true",hidden=true)
+	private boolean alleleNumber_is_integer = true;
 	@Parameter(names={"--ignore-error0"},description="[20190429] ignore error when gnomad/INFO is found twice for the same position. I found the error after a liftover to hg38. see https://twitter.com/yokofakun/status/1122814203381858305")
 	private boolean ignore_info_found_twice = false;
 	
@@ -459,7 +459,7 @@ public class VcfGnomad extends Launcher{
 			}
 		
 		if(!StringUtil.isBlank(this.overlapGnomadFilterName)) {
-			h2.addMetaDataLine(new VCFFilterHeaderLine(this.overlapGnomadFilterName,"Gnomad Variant was found overlapping the variant"));
+			h2.addMetaDataLine(new VCFFilterHeaderLine(this.overlapGnomadFilterName,"Gnomad Variant was found overlapping the variant, not necessarily at the same CHROM/POS"));
 			}
 		
 		JVarkitVersion.getInstance().addMetaData(this, h2);

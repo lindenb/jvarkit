@@ -10,10 +10,6 @@ Peek annotations from gnomad
 ```
 Usage: vcfgnomad [options] Files
   Options:
-    --ani
-      [20190311] for allele numbers 'AN' to be variant-count-type=Integer (not 
-      'A' as declared in gnomad)
-      Default: false
     --bufferSize
       When we're looking for variant in Gnomad, load the variants for 'N' 
       bases instead of doing a random access for each variant. A distance 
