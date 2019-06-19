@@ -18,6 +18,10 @@ Usage: vcfwindowsplitter [options] Files
       list all available extractors
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
+    -M, --max-variant
+      Maximum number of variants to write a vcf. don't write if num(variant) > 
+      'x' . '-1' is ignore
+      Default: -1
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 

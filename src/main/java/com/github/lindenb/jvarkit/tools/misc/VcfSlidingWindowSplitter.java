@@ -42,6 +42,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
@@ -63,6 +64,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
@@ -151,6 +153,8 @@ public class VcfSlidingWindowSplitter
 	private int window_shift = 500_000;
 	@Parameter(names={"-n","--min-variant"},description="Minimum number of variants to write a vcf. don't write if num(variant) < 'x' ")
 	private int min_number_of_ctx = 1;
+	@Parameter(names={"-M","--max-variant"},description="Maximum number of variants to write a vcf. don't write if num(variant) > 'x' . '-1' is ignore")
+	private int max_number_of_ctx = -1;
 
 
 	@ParametersDelegate
@@ -233,16 +237,21 @@ public class VcfSlidingWindowSplitter
 		ArchiveFactory archiveFactory = null;
 		PrintWriter manifest = null;
 		
-		final Function<VariantContext,Integer> leftMostWindowStart = (ctx)-> {
-		    	int varstart = ctx.getStart();
-		    	varstart = varstart - varstart%this.window_size;
-		    	while(varstart>0)
+		final Function<VariantContext,List<Interval>> makeWindows = (ctx)-> {
+			final int ctx_start = ctx.getStart();
+			final int ctx_end = ctx.getEnd();
+			final List<Interval> list = new ArrayList<>();
+		    	int right = 1;
+			while(right <= ctx_end)
 		    		{
-		    		int left = varstart - this.window_shift;
-		    		if( left + this.window_size < ctx.getStart()) break;
-		    		varstart = left;
+		    		final int left = right + this.window_size;
+
+		    		if(  CoordMath.overlaps(right,left,ctx_start,ctx_end) )  {
+					list.add(new Interval(ctx.getContig(),right,left));
+					}
+		    		right += this.window_shift;
 		    		}
-		    	return varstart;
+		    	return list;
 		    };
 		
 		try {
@@ -277,8 +286,8 @@ public class VcfSlidingWindowSplitter
 						
 						while(eqiter.hasNext()) {
 							final List<WinAndLine> buffer = eqiter.next();
-							if(buffer.size() < this.min_number_of_ctx) continue;
-							
+							if ( buffer.size() < this.min_number_of_ctx ) continue;
+							if ( this.max_number_of_ctx > 0 && buffer.size() > this.max_number_of_ctx ) continue;
 							final WinAndLine first = buffer.get(0);
 							
 							final VariantContextWriter out = VCFUtils.createVariantContextWriterToPath(tmpVcf);
@@ -334,15 +343,9 @@ public class VcfSlidingWindowSplitter
 					}
 				
 			 
-				int chromStart = leftMostWindowStart.apply(ctx);
 				
-		    	while(!(chromStart+this.window_size < ctx.getStart() ||
-		    			chromStart > ctx.getEnd()
-		    			))
-		    		{
-		    		final Interval win = new Interval(ctx.getContig(), chromStart, chromStart + this.window_size);
-		    		
-		    		
+		    	for(final Interval win: makeWindows.apply(ctx))
+		    		{		    		
 		    		if(sortingcollection==null) {
 						sortingcollection = SortingCollection.newInstance(
 								WinAndLine.class,
@@ -354,8 +357,7 @@ public class VcfSlidingWindowSplitter
 						sortingcollection.setDestructiveIteration(true);
 						}
 					
-					sortingcollection.add( new WinAndLine( win, line ) );
-		    		chromStart+=this.window_shift;
+				sortingcollection.add( new WinAndLine( win, line ) );
 		    		}
 
 				}
