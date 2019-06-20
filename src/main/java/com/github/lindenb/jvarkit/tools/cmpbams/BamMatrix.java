@@ -28,13 +28,16 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -43,6 +46,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -128,6 +132,29 @@ public class BamMatrix  extends Launcher
 			}
 		}
 		
+		private int[] getDepth(final Interval r) throws IOException {
+			final int cov[] =  new int[r.getLengthOnReference()];
+			
+			try(final SAMRecordIterator iter=this.sr.query(
+					r.getContig(),r.getStart(),r.getEnd(),false))
+				{
+				while(iter.hasNext()) {
+					final SAMRecord rec = iter.next();
+					if(!accept(rec)) continue;
+					for(final AlignmentBlock ab:rec.getAlignmentBlocks()) {
+						for(int len=0;len< ab.getLength();len++)
+							{
+							final int pos= ab.getReferenceStart()+len;
+							if(pos < r.getStart() || pos>r.getEnd()) continue;
+							final int array_index1 = (pos-r.getStart());
+							cov[array_index1]++;
+							}
+						}
+					}
+				}
+			return cov;
+			}
+		
 		boolean accept(final SAMRecord rec) {
 			if(rec.getReadUnmappedFlag()) return false;
 			if(rec.getReadFailsVendorQualityCheckFlag())  return false;
@@ -136,20 +163,8 @@ public class BamMatrix  extends Launcher
 			return true;
 		}
 		
-		protected abstract HashSet<String> getNamesMatching(final Interval r) throws IOException;
+		protected abstract Set<String> getNamesMatching(final Interval r) throws IOException;
 		
-		/** count number of read overlapping both intervals */
-		public short count(final Interval q1,final Interval q2) throws IOException
-			{
-			final HashSet<String> set1 = getNamesMatching(q1);
-			if(q1.compareTo(q2)!=0) {
-				final HashSet<String> set2 = getNamesMatching(q2);
-				set1.retainAll(set2);
-				}
-			final int n= set1.size();
-			//LOG.debug("count"+q1+" "+q2+" ="+set1.size()+" "+set2.size()+" "+ n);
-			return n>Short.MAX_VALUE?Short.MAX_VALUE:(short)n;
-			}	
 		}
 	
 	private class MemoryReadCounter extends ReadCounter
@@ -221,17 +236,18 @@ public class BamMatrix  extends Launcher
 			LOG.debug("treeMap.size="+treeMap.size());
 			}
 
-		protected HashSet<String> getNamesMatching(final Interval r) throws IOException
+		protected Set<String> getNamesMatching(final Interval r) throws IOException
 			{
 			return this.treeMap.getOverlapping(r).
 					stream().
 					flatMap(L->L.stream()).
 					map(R->R.getName()).
-					collect(Collectors.toCollection(HashSet::new));
+					collect(Collectors.toSet());
 			}
 
 		}
 	
+	@SuppressWarnings("unused")
 	private class DiskBackedReadCounter extends ReadCounter {
 		DiskBackedReadCounter(final SamReader sr,QueryInterval qInterval1,final QueryInterval qInterval2)  throws IOException{
 			super(sr,qInterval1,qInterval2);
@@ -302,6 +318,9 @@ public class BamMatrix  extends Launcher
 				final int end1 = start1 + (int)pixel2base;
 				final Interval q1 = new Interval(r1.getContig(), start1, end1);
 				if(!q1.overlaps(r1)) continue;
+				final Set<String> set1 = counter.getNamesMatching(r1);
+				if(set1.isEmpty()) continue;
+				
 				/* loop over each pixel 2nd axis */
 				for(int pix2=0;pix2< this.matrix_size;pix2++)
 					{
@@ -310,9 +329,19 @@ public class BamMatrix  extends Launcher
 					final Interval q2 = new Interval(r2.getContig(), start2, end2);
 					if(!q2.overlaps(r2)) continue;
 					
-					short count = counter.count(q1, q2);
+					final int count_common;
+					if(q1.compareTo(q2)==0) {
+						count_common = set1.size();
+						}
+					else
+						{
+						final HashSet<String> common = new HashSet<>(set1);
+						common.retainAll(counter.getNamesMatching(r2));
+						count_common = common.size();
+						}
+					short count =  count_common>Short.MAX_VALUE?Short.MAX_VALUE:(short)count_common;
 					max_count = (short)Math.max(count, max_count);
-					counts[pix1*this.matrix_size+pix2] = count;
+					counts[(this.matrix_size - pix1)*this.matrix_size+pix2] = count;
 					}
 				}
 			final Insets margins = new Insets(10, 100, 100, 10);
@@ -357,6 +386,15 @@ public class BamMatrix  extends Launcher
 			g.setColor(Color.GRAY);
 			g.drawRect(0, 0, this.matrix_size, this.matrix_size);
 
+			/*
+			final Hershey herschey = new Hershey();
+			herschey.paint(
+					g,
+					r1.getContig()+":"+StringUtils.niceInt(r1.getStart())+"-"+StringUtils.niceInt(r1.getEnd()),
+					new Rectangle2D.Double(0, this.matrix_size, 10, 10)
+					);
+			*/
+			
 			g.translate(-margins.left,-margins.top);
 			
 			
