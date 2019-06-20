@@ -307,7 +307,7 @@ public class WindowVariants extends AbstractVariantProcessor
     
     private int leftMostWindowStart(final VariantContext ctx) {
     	int varstart = ctx.getStart();
-    	varstart = varstart - varstart%this.window_size;
+    	varstart = varstart - varstart%this.window_shift;
     	while(varstart>0)
     	{
     		int left = varstart - this.window_shift;

@@ -133,7 +133,7 @@ END_DOC
 		name="vcfwindowsplitter",
 		description="Split VCF by sliding window",
 		creationDate="20190619",
-		modificationDate="20190619",
+		modificationDate="20190620",
 		keywords= {"vcf","sliding","window"}
 		)
 public class VcfSlidingWindowSplitter
@@ -151,9 +151,9 @@ public class VcfSlidingWindowSplitter
 	private int window_size = 1_000_000;
 	@Parameter(names={"-s","-S","--window-shift"},description="Sliding window shift. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int window_shift = 500_000;
-	@Parameter(names={"-n","--min-variant"},description="Minimum number of variants to write a vcf. don't write if num(variant) < 'x' ")
+	@Parameter(names={"-n","--min-variant"},description="Minimum number of variants required to write a vcf. don't write if num(variant) < 'x' ")
 	private int min_number_of_ctx = 1;
-	@Parameter(names={"-M","--max-variant"},description="Maximum number of variants to write a vcf. don't write if num(variant) > 'x' . '-1' is ignore")
+	@Parameter(names={"-M","--max-variant"},description="Maximum number of variants required to write a vcf. don't write if num(variant) > 'x' . '<=0' is ignore")
 	private int max_number_of_ctx = -1;
 
 
@@ -241,14 +241,19 @@ public class VcfSlidingWindowSplitter
 			final int ctx_start = ctx.getStart();
 			final int ctx_end = ctx.getEnd();
 			final List<Interval> list = new ArrayList<>();
-		    	int right = 1;
+		    int right = ctx_start -  ctx_start%this.window_shift;
+		    while (right + this.window_size >= ctx_start )
+		    	{
+		    	right -= this.window_shift;
+		    	}
+		    
 			while(right <= ctx_end)
 		    		{
 		    		final int left = right + this.window_size;
 
-		    		if(  CoordMath.overlaps(right,left,ctx_start,ctx_end) )  {
-					list.add(new Interval(ctx.getContig(),right,left));
-					}
+		    		if(  right>0 && CoordMath.overlaps(right,left,ctx_start,ctx_end) )  {
+						list.add(new Interval(ctx.getContig(),right,left));
+						}
 		    		right += this.window_shift;
 		    		}
 		    	return list;
@@ -313,10 +318,10 @@ public class VcfSlidingWindowSplitter
 										".vcf.gz";
 							
 							
-							final OutputStream os = archiveFactory.openOuputStream(filename);
-							IOUtils.copyTo(tmpVcf, os);
-							os.flush();
-							os.close();
+							try( final OutputStream os = archiveFactory.openOuputStream(filename)) {
+								IOUtils.copyTo(tmpVcf, os);
+								os.flush();
+								}
 							
 							manifest.print(prevCtg);
 							manifest.print('\t');

@@ -2188,6 +2188,11 @@ all2.add( task("hicstraw", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.hic.HicStraw"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient")
 	});
+all2.add( task("bammatrix", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 
 task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.hic.HicReaderFactory"

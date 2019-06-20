@@ -257,7 +257,7 @@ public class VcfGeneSplitter
 			}
 		}
 	
-	private List<GeneExtractor> extractors = new ArrayList<>();
+	private final List<GeneExtractor> extractors = new ArrayList<>();
 	
 	@Parameter(names={"-o","--output"},description= ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile = null;
@@ -269,6 +269,10 @@ public class VcfGeneSplitter
 	private String extractorsNames="ANN/GeneId VEP/GeneId";
 	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERED variant")
 	private boolean ignoreFiltered = false;
+	@Parameter(names={"-n","--min-variant"},description="Minimum number of variants required to write a vcf. don't write if num(variant) < 'x' ")
+	private int min_number_of_ctx = 1;
+	@Parameter(names={"-M","--max-variant"},description="Maximum number of variants required to write a vcf. don't write if num(variant) > 'x' . '<=0' is ignore")
+	private int max_number_of_ctx = -1;
 
 
 	@ParametersDelegate
@@ -400,6 +404,11 @@ public class VcfGeneSplitter
 						
 						while(eqiter.hasNext()) {
 							final List<KeyAndLine> buffer = eqiter.next();
+							
+							if ( buffer.size() < this.min_number_of_ctx ) continue;
+							if ( this.max_number_of_ctx > 0 && buffer.size() > this.max_number_of_ctx ) continue;
+
+							
 							final KeyAndLine first = buffer.get(0);
 							
 							final VariantContextWriter out = VCFUtils.createVariantContextWriterToPath(tmpVcf);
