@@ -1,7 +1,33 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.cmpbams;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -32,12 +58,27 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 
-@Program(name="bammatrix",description="Bam matrix ",
-keywords={"sam","bam","compare","matix"},
+/**
+BEGIN_DOC
+
+## Example
+
+```
+java -jar dist/bammatrix.jar -o out.png -r "chr1:2345-6789"  -bx NOVASEQ/Sample/outs/phased_possorted_bam.bam
+```
+
+![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
+
+END_DOC
+*/
+
+@Program(name="bammatrix",description="Bam matrix, inspired from 10x/loupe ",
+keywords={"sam","bam","compare","matrix"},
 creationDate="20190620",
 modificationDate="20190620",
 generate_doc=false
@@ -51,12 +92,16 @@ public class BamMatrix  extends Launcher
 	private Path faidx = null;
 	@Parameter(names={"-s","--size"},description="matrix size")
 	private int matrix_size = 1000;
-	@Parameter(names={"-r","-r1","--region"},description="first region",required=true)
+	@Parameter(names={"-r","-r1","--region"},description="first region." + IntervalParser.OPT_DESC,required=true)
 	private String region1Str=null;
-	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region.")
+	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParser.OPT_DESC)
 	private String region2Str=null;
-	@Parameter(names={"-bx"},description="use 'BX:Z:' attribute for read name.")
+	@Parameter(names={"-bx"},description="use 'BX:Z:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
 	private boolean use_bx=false;
+	@Parameter(names={"-sa","--sa"},description="Use other canonical alignemts from the 'SA:Z:*' attribute")
+	private boolean use_sa_align = false;
+	@Parameter(names={"--linear"},description="Use linear colors (default is log)")
+	private boolean linear_colors = false;
 
 
 	private abstract class ReadCounter
@@ -91,8 +136,20 @@ public class BamMatrix  extends Launcher
 			return true;
 		}
 		
-		/** count number of read overlapping both interval */
-		public abstract short count(Interval q1,final Interval q2) throws IOException;
+		protected abstract HashSet<String> getNamesMatching(final Interval r) throws IOException;
+		
+		/** count number of read overlapping both intervals */
+		public short count(final Interval q1,final Interval q2) throws IOException
+			{
+			final HashSet<String> set1 = getNamesMatching(q1);
+			if(q1.compareTo(q2)!=0) {
+				final HashSet<String> set2 = getNamesMatching(q2);
+				set1.retainAll(set2);
+				}
+			final int n= set1.size();
+			//LOG.debug("count"+q1+" "+q2+" ="+set1.size()+" "+set2.size()+" "+ n);
+			return n>Short.MAX_VALUE?Short.MAX_VALUE:(short)n;
+			}	
 		}
 	
 	private class MemoryReadCounter extends ReadCounter
@@ -100,7 +157,6 @@ public class BamMatrix  extends Launcher
 		private final IntervalTreeMap<List<Interval>> treeMap  = new IntervalTreeMap<>();
 		MemoryReadCounter(final SamReader sr,QueryInterval qInterval1,final QueryInterval qInterval2)  throws IOException{
 			super(sr,qInterval1,qInterval2);
-			
 			final QueryInterval[] qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qInterval1,qInterval2});
 			try(final SAMRecordIterator iter=this.sr.query(qArray, false))
 				{
@@ -126,22 +182,38 @@ public class BamMatrix  extends Launcher
 							}
 						list.add(r);
 						}
-					for(final SAMRecord rec2:SAMUtils.getOtherCanonicalAlignments(rec))
-						{
-						//TODO check in qInterval1 & 2
-						final Interval r = new Interval(
-								rec2.getReferenceName(),
-								rec2.getStart(),
-								rec2.getStart(),
-								rec2.getReadNegativeStrandFlag(),
-								name
-								);
-						List<Interval> list = this.treeMap.get(r);
-						if(list==null) {
-							list=new ArrayList<>();
-							this.treeMap.put(r,list);
+					if( use_sa_align) {
+						for(final SAMRecord rec2:SAMUtils.getOtherCanonicalAlignments(rec))
+							{
+							final int tid2 = rec2.getReferenceIndex();
+							if(tid2== this.qInterval1.referenceIndex && CoordMath.overlaps(this.qInterval1.start, this.qInterval1.end, rec2.getStart(),rec2.getEnd()))
+								{
+								//ok
+								}
+							else if(tid2== this.qInterval2.referenceIndex && CoordMath.overlaps(this.qInterval2.start, this.qInterval2.end, rec2.getStart(),rec2.getEnd()))
+								{
+								//ok
+								}
+							else
+								{
+								continue;
+								}
+
+							
+							final Interval r = new Interval(
+									rec2.getReferenceName(),
+									rec2.getStart(),
+									rec2.getStart(),
+									rec2.getReadNegativeStrandFlag(),
+									name
+									);
+							List<Interval> list = this.treeMap.get(r);
+							if(list==null) {
+								list=new ArrayList<>();
+								this.treeMap.put(r,list);
+								}
+							list.add(r);
 							}
-						list.add(r);
 						}
 					
 					}
@@ -149,7 +221,7 @@ public class BamMatrix  extends Launcher
 			LOG.debug("treeMap.size="+treeMap.size());
 			}
 
-		private HashSet<String> getNamesMatching(final Interval r)
+		protected HashSet<String> getNamesMatching(final Interval r) throws IOException
 			{
 			return this.treeMap.getOverlapping(r).
 					stream().
@@ -158,16 +230,29 @@ public class BamMatrix  extends Launcher
 					collect(Collectors.toCollection(HashSet::new));
 			}
 
-		public short count(final Interval q1,final Interval q2)
-			{
-			final HashSet<String> set1 = getNamesMatching(q1);
-			final HashSet<String> set2 = getNamesMatching(q2);
-			set1.retainAll(set2);
-			int n= set1.size();
-			//LOG.debug("count"+q1+" "+q2+" ="+set1.size()+" "+set2.size()+" "+ n);
-			return n>Short.MAX_VALUE?Short.MAX_VALUE:(short)n;
-			}	
 		}
+	
+	private class DiskBackedReadCounter extends ReadCounter {
+		DiskBackedReadCounter(final SamReader sr,QueryInterval qInterval1,final QueryInterval qInterval2)  throws IOException{
+			super(sr,qInterval1,qInterval2);
+			}
+		@Override
+		protected HashSet<String> getNamesMatching(Interval r) throws IOException {
+			final HashSet<String> set = new HashSet<>(10_000);
+			
+			try(final SAMRecordIterator iter=this.sr.query(r.getContig(),r.getStart(),r.getEnd(),false))
+				{
+				while(iter.hasNext()) {
+					final SAMRecord rec = iter.next();
+					if(!accept(rec)) continue;
+					final String name = getReadName(rec);
+					if(StringUtils.isBlank(name)) continue;
+					set.add(name);
+					}
+				}
+			return set;
+			}
+	}
 	
 	@Override
 	public int doWork(List<String> args) {
@@ -210,12 +295,14 @@ public class BamMatrix  extends Launcher
 			short max_count=1;
 			short counts[]=new short[this.matrix_size*this.matrix_size];
 
+			/* loop over each pixel 1st axis */
 			for(int pix1=0;pix1< this.matrix_size;pix1++)
 				{
 				final int start1 = (int)(r1.getStart() + pix1 * pixel2base);
 				final int end1 = start1 + (int)pixel2base;
 				final Interval q1 = new Interval(r1.getContig(), start1, end1);
 				if(!q1.overlaps(r1)) continue;
+				/* loop over each pixel 2nd axis */
 				for(int pix2=0;pix2< this.matrix_size;pix2++)
 					{
 					final int start2 = (int)(r2.getStart() + pix2 * pixel2base);
@@ -228,12 +315,26 @@ public class BamMatrix  extends Launcher
 					counts[pix1*this.matrix_size+pix2] = count;
 					}
 				}
-			final BufferedImage img = new BufferedImage(this.matrix_size, this.matrix_size, BufferedImage.TYPE_INT_RGB);
+			final Insets margins = new Insets(10, 100, 100, 10);
+			
+			final Dimension drawingAreaDim = new Dimension(
+					this.matrix_size+margins.left+margins.right,
+					this.matrix_size+margins.top+margins.bottom
+					);
+			
+			final BufferedImage img = new BufferedImage(
+					drawingAreaDim.width,
+					drawingAreaDim.height,
+					BufferedImage.TYPE_INT_RGB
+					);
 			final Graphics2D g = img.createGraphics();
 			g.setColor(Color.WHITE);
-			g.fillRect(0, 0, this.matrix_size, this.matrix_size);
-			g.setColor(Color.GRAY);
+			g.fillRect(0, 0, drawingAreaDim.width,drawingAreaDim.height);
+			
+			g.translate(margins.left, margins.top);
 
+			
+			
 			final double logMaxV =Math.log(max_count); 
 
 			for(int pix1=0;pix1< this.matrix_size;pix1++)
@@ -242,11 +343,23 @@ public class BamMatrix  extends Launcher
 					{
 					short count = counts[pix1*this.matrix_size+pix2];
 					if(count==0) continue;
-					final int gray = 255-(int)(255*((Math.log(count))/logMaxV));
+					final int gray;
+					if( linear_colors) {
+						gray = 255-(int)(255*(count/(double)max_count));
+					} else {
+						gray = 255-(int)(255*((Math.log(count))/logMaxV));
+						}
 					g.setColor(new Color(gray,gray,gray));
 					g.fillRect(pix1, pix2, 1, 1);
 					}
 				}
+			// draw frame
+			g.setColor(Color.GRAY);
+			g.drawRect(0, 0, this.matrix_size, this.matrix_size);
+
+			g.translate(-margins.left,-margins.top);
+			
+			
 			g.dispose();
 			try {
 				if(this.outputFile==null)
