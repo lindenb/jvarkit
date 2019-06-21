@@ -25,21 +25,30 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.ucsc;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Iterator;
-import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 
 
+/**
+ * 
+ * AbstractTabixObjectReader specialized for KnownGene
+ *
+ */
 public class TabixKnownGeneFileReader extends AbstractTabixObjectReader<KnownGene>
 	{
     public TabixKnownGeneFileReader(final String uri) throws IOException
     	{
     	super(uri);
     	}
+    public TabixKnownGeneFileReader(final Path p) throws IOException
+		{
+		this(p.toString());
+		}
     @Override
-    protected  Iterator<KnownGene> iterator(Iterator<String> delegate)
+    protected  Iterator<KnownGene> iterator(final Iterator<String> delegate)
 		{
 		return new MyIterator(delegate);
 		}

@@ -24,14 +24,18 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.cmpbams;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -44,14 +48,19 @@ import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.QueryInterval;
@@ -64,6 +73,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -77,8 +87,18 @@ BEGIN_DOC
 ## Example
 
 ```
-java -jar dist/bammatrix.jar -o out.png -r "chr1:2345-6789"  -bx NOVASEQ/Sample/outs/phased_possorted_bam.bam
+java -jar dist/bammatrix.jar -o out.png \
+	--kg "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" \
+	-r "chr1:2345-6789" -B cnv.bed --name BX \
+	NOVASEQ/Sample/outs/phased_possorted_bam.bam
 ```
+
+https://twitter.com/yokofakun/status/1142088565326843904
+
+![https://twitter.com/yokofakun/status/1142088565326843904](https://pbs.twimg.com/media/D9mDYo4WsAAOaSK.jpg)
+
+
+https://twitter.com/yokofakun/status/1038060108373286912
 
 ![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
 
@@ -88,8 +108,7 @@ END_DOC
 @Program(name="bammatrix",description="Bam matrix, inspired from 10x/loupe ",
 keywords={"sam","bam","compare","matrix"},
 creationDate="20190620",
-modificationDate="20190621",
-generate_doc=false
+modificationDate="20190621"
 )
 public class BamMatrix  extends Launcher
 	{
@@ -104,14 +123,22 @@ public class BamMatrix  extends Launcher
 	private String region1Str=null;
 	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParser.OPT_DESC)
 	private String region2Str=null;
-	@Parameter(names={"--name"},description="use 'BX:Z:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
+	@Parameter(names={"--name","-name"},description="use 'BX:Z:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
 	private NameExtractor nameExtractor = NameExtractor.READ_NAME;
 	@Parameter(names={"-sa","--sa"},description="Use other canonical alignemts from the 'SA:Z:*' attribute")
 	private boolean use_sa_align = false;
 	@Parameter(names={"--color_-scale"},description="Color scale")
 	private ColorScale color_scale = ColorScale.LOG;
-	@Parameter(names={"--mapq"},description="min mapping quality")
+	@Parameter(names={"--mapq"},description="minimal mapping quality")
 	private int min_mapq = 30;
+	@Parameter(names={"--kg","-k"},description="Optional 'known gene' file to draw the exons. "+KnownGene.OPT_KNOWNGENE_DESC)
+	private String kgPath = null;
+	@Parameter(names={"--higligth","-B"},description="Optional Bed file to hightlight regions of interest")
+	private String highlightPath = null;
+	@Parameter(names={"--disk"},description="[hidden option] use disk instead of memory: makes all things slowwwwww",hidden=true)
+	private boolean use_disk = false;
+
+	
 	
 	/* actual SamReader */
 	private SamReader samReader = null;
@@ -123,11 +150,12 @@ public class BamMatrix  extends Launcher
 	private Interval userIntervalY = null;
 	
 	private enum NameExtractor {
-		READ_NAME,BX;
+		READ_NAME,BX,MI;
 		String getName(final SAMRecord rec) {
 			switch(this) {
 				case READ_NAME :  return rec.getReadName();
 				case BX: return rec.hasAttribute("BX")?String.class.cast(rec.getAttribute("BX")):null;
+				case MI: return rec.hasAttribute("MI")?String.valueOf(rec.getAttribute("MI")):null;
 				default: throw new IllegalStateException(this.name());
 				}
 			}
@@ -228,7 +256,6 @@ public class BamMatrix  extends Launcher
 
 		}
 	
-	@SuppressWarnings("unused")
 	private class DiskBackedReadCounter extends ReadCounter {
 		@Override
 		protected HashSet<String> getNamesMatching(Interval r) throws IOException {
@@ -242,6 +269,7 @@ public class BamMatrix  extends Launcher
 					final String name = nameExtractor.getName(rec);
 					if(StringUtils.isBlank(name)) continue;
 					set.add(name);
+					
 					}
 				}
 			return set;
@@ -249,23 +277,28 @@ public class BamMatrix  extends Launcher
 	}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(StringUtils.isBlank(region2Str)) {
 			this.region2Str = region1Str;
 		}
-		
 		try {
+			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					validationStringency(ValidationStringency.LENIENT)
 					;
 			if(this.faidx!=null) srf.referenceSequence(this.faidx);
 			
-			this.samReader = srf.open(SamInputResource.of(oneAndOnlyOneFile(args)));
+			
+			
+			final String input = oneAndOnlyOneFile(args);
+			this.samReader = srf.open(SamInputResource.of(input));
 			if(!this.samReader.hasIndex()) {
-				LOG.error("Input is not indexed");
+				LOG.error("Input "+input+" is not indexed");
 				return -1;
 				}
 			this.dict = SequenceDictionaryUtils.extractRequired(this.samReader.getFileHeader());
+			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
+			
 			final IntervalParser intervalParser = new IntervalParser(dict);
 			this.userIntervalX = intervalParser.parse(this.region1Str);
 			if(this.userIntervalX==null) {
@@ -277,7 +310,30 @@ public class BamMatrix  extends Launcher
 				LOG.error("Cannot parse interval "+this.region2Str);
 				return -1;
 				}
-			final ReadCounter counter = new MemoryReadCounter();
+			
+			// adjust intervals so they have the same length
+			if(this.userIntervalX.getLengthOnReference() > this.userIntervalY.getLengthOnReference()) {
+				int mid =  this.userIntervalY.getStart()+ this.userIntervalY.getLengthOnReference()/2;
+				this.userIntervalY = new Interval(
+						this.userIntervalY.getContig(),
+						mid- this.userIntervalX.getLengthOnReference()/2,
+						mid+ this.userIntervalX.getLengthOnReference()/2
+						);
+				LOG.warn("Adjusting interval Y to "+this.userIntervalY+" so both intervals have the same length");
+				}
+			else if(this.userIntervalY.getLengthOnReference() > this.userIntervalX.getLengthOnReference()) {
+				int mid =  this.userIntervalX.getStart()+ this.userIntervalX.getLengthOnReference()/2;
+				this.userIntervalX = new Interval(
+						this.userIntervalX.getContig(),
+						mid- this.userIntervalY.getLengthOnReference()/2,
+						mid+ this.userIntervalY.getLengthOnReference()/2
+						);
+				LOG.warn("Adjusting interval X to "+this.userIntervalX+" so both intervals have the same length");
+				}
+			final ReadCounter counter = this.use_disk?
+					new DiskBackedReadCounter():
+					new  MemoryReadCounter()
+					;
 			
 			final int distance= Math.max(
 					this.userIntervalX.getLengthOnReference(),
@@ -323,9 +379,11 @@ public class BamMatrix  extends Launcher
 					}
 				}
 			progress.close();
-			
+			final int font_size=10;
 			final int cov_height = 50;
-			final Insets margins = new Insets(10, 100+cov_height, 100+cov_height, 10);
+			final int gene_height = 25;
+			final int margin = font_size+cov_height+ (this.kgPath==null?0:gene_height);
+			final Insets margins = new Insets(margin,margin, 10, 10);
 			
 			final Dimension drawingAreaDim = new Dimension(
 					this.matrix_size+margins.left+margins.right,
@@ -341,10 +399,54 @@ public class BamMatrix  extends Launcher
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, drawingAreaDim.width,drawingAreaDim.height);
 			
+			// draw sample
+			final Hershey herschey = new Hershey();
+
+			final String sample = samReader.getFileHeader().getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(input);
+			g.setColor(Color.DARK_GRAY);
+			herschey.paint(g, sample, new Rectangle2D.Double(0,1,margins.left-1,font_size));
+			
+			
+			// draw highlight regions
+			
+			for(int side=0;side< 2 && !StringUtils.isBlank(this.highlightPath);++side) {
+				final int curr_side=side;
+				final Interval r = (side==0?this.userIntervalX:this.userIntervalY);
+				final BedLineCodec bedCodec = new BedLineCodec();
+				final Composite oldComposite = g.getComposite();
+				g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
+					try(BufferedReader br = IOUtils.openURIForBufferedReading(this.highlightPath)) {
+						br.lines().
+							filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
+							map(L->bedCodec.decode(L)).
+							filter(B->B!=null).
+							filter(K->converter.apply(K.getContig())!=null && r.getContig().equals(converter.apply(K.getContig()))).
+							filter(K->CoordMath.overlaps(K.getStart(), K.getEnd(), r.getStart(), r.getEnd())).
+							map(E->new Interval(converter.apply(E.getContig()),E.getStart()+1,E.getEnd())).
+							filter(E->CoordMath.overlaps(E.getStart(), E.getEnd(), r.getStart(), r.getEnd())).
+							map(E->new Interval(E.getContig(),Math.max(r.getStart(),E.getStart()),Math.min(r.getEnd(),E.getEnd()))).
+							forEach(E->{
+								double d = ((E.getStart()-r.getStart())/(double)r.getLengthOnReference())*matrix_size;
+								double dL  = ((E.getLengthOnReference())/(double)r.getLengthOnReference())*matrix_size;
+								g.setColor(Color.YELLOW);
+								if(curr_side==0)
+									{
+									g.fill(new Rectangle2D.Double(d, 0, dL, margins.left));
+									}
+								else
+									{
+									g.fill(new Rectangle2D.Double(0, d, margins.top,dL));
+									}
+								
+							});
+					}
+				g.setComposite(oldComposite);
+			}
+			
+			
 			g.translate(margins.left, margins.top);
 			
 			final double logMaxV =Math.log(max_count); 
-
 			for(int pix1=0;pix1< this.matrix_size;pix1++)
 				{
 				for(int pix2=0;pix2< this.matrix_size;pix2++)
@@ -361,7 +463,7 @@ public class BamMatrix  extends Launcher
 							break;
 						default: throw new IllegalStateException(color_scale.name());
 						}
-					g.setColor(new Color(gray,gray,gray));
+					g.setColor(new Color(gray,0,0));
 					g.fillRect(pix1, pix2, 1, 1);
 					}
 				}
@@ -373,20 +475,22 @@ public class BamMatrix  extends Launcher
 			
 			
 			for(int side=0;side< 2;++side) {
-				System.err.println(side);
 				final Interval r = (side==0?this.userIntervalX:this.userIntervalY);
 				final AffineTransform oldtr = g.getTransform();
 				AffineTransform tr;
-				if(side==1) {
-					tr = AffineTransform.getTranslateInstance(0, margins.top);
-					tr.concatenate(AffineTransform.getRotateInstance(Math.PI/2.0));
+				if(side==0) {
+					//horizonal axis
+					tr = AffineTransform.getTranslateInstance(margins.left,1);
 				} else {
-					tr = AffineTransform.getTranslateInstance(margins.left, margins.top + matrix_size);
+					// vertical
+					tr=  AffineTransform.getTranslateInstance(margins.left,margins.top);
+					tr.concatenate(AffineTransform.getRotateInstance(Math.PI/2.0));
 				}
 				g.setTransform(tr);
 				// draw depth
-				final int cov[]=new int[matrix_size];
-				int max_cov=1;
+				final double cov[]=new double[matrix_size];
+				final int count[]=new int[matrix_size];
+				
 				final IntervalList intervalList = new IntervalList(dict);
 				intervalList.add(r);
 				final SamLocusIterator sli = new SamLocusIterator(this.samReader,intervalList,true);
@@ -398,47 +502,91 @@ public class BamMatrix  extends Launcher
 					final int depth = locusInfo.getRecordAndOffsets().size();
 					final int array_index = (int)(((pos-r.getStart())/(double)r.getLengthOnReference())*matrix_size);
 										
-					cov[array_index] = Math.max(cov[array_index],depth);
-					max_cov = Math.max(max_cov, depth);
+					cov[array_index] += depth;
+					count[array_index]++;
+					
 					}
 				sli.close();
 				
+				double max_cov=1;
+				for(int i=0;i< cov.length;++i) {
+					if(count[i]==0) continue;
+					cov[i]/=count[i];
+					max_cov = Math.max(cov[i], max_cov);
+				}
 				// draw ruler
+				int y = 0;
 				
 				final GeneralPath gp =new GeneralPath();
 				gp.moveTo(0, cov_height);
 				for(int x=0;x < cov.length;++x) {
-				gp.lineTo(x, cov_height-(cov[x]/(double)max_cov)*cov_height);	
-				}
+					gp.lineTo(x,y + cov_height-(cov[x]/max_cov)*cov_height);	
+					}
 				gp.lineTo(cov.length, cov_height);
 				gp.closePath();
-				g.setColor(Color.GREEN);
+				g.setColor(Color.GRAY);
 				g.fill(gp);
+				
+				y+= cov_height;
 				
 				
 				//draw label
-				final Hershey herschey = new Hershey();
 				g.setColor(Color.DARK_GRAY);
-				final int font_size=10;
+				
+				// label is 'start position'
 				String label = StringUtils.niceInt(r.getStart());
 				herschey.paint(
 						g,
 						label,
-						new Rectangle2D.Double(0, 0, label.length()*font_size, font_size)
+						new Rectangle2D.Double(0, y, label.length()*font_size, font_size)
 						);
+				
+				// label is 'end position'
 				label = StringUtils.niceInt(r.getEnd());
 				herschey.paint(
 						g,
 						label,
-						new Rectangle2D.Double(matrix_size-(label.length()*font_size),0, label.length()*font_size, font_size)
+						new Rectangle2D.Double(matrix_size-(label.length()*font_size),y, label.length()*font_size, font_size)
 						);
 				
-				label = r.getContig();
+				// label is 'chromosome and length'
+				label = r.getContig()+" ( "+ StringUtils.niceInt(r.getLengthOnReference())+" bp )";
 				herschey.paint(
 						g,
 						label,
-						new Rectangle2D.Double(matrix_size/2.0-(label.length()*font_size)/2.0,0, label.length()*font_size, font_size)
+						new Rectangle2D.Double(matrix_size/2.0-(label.length()*font_size)/2.0,y, label.length()*font_size, font_size)
 						);
+				
+				y+= font_size;
+				
+				// draw genes
+				if(!StringUtils.isBlank(this.kgPath)) {
+					final double curr_y = y;
+					double midy = y+ gene_height/2.0;
+					g.setColor(Color.CYAN);
+					g.draw(new Line2D.Double(0,midy,matrix_size,midy));
+					try(BufferedReader br = IOUtils.openURIForBufferedReading(this.kgPath)) {
+						br.lines().
+							filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
+							map(L->CharSplitter.TAB.split(L)).
+							map(L->new KnownGene(L)).
+							filter(K->r.getContig().equals(converter.apply(K.getContig()))).
+							filter(K->CoordMath.overlaps(K.getStart(), K.getEnd(), r.getStart(), r.getEnd())).
+							flatMap(K->K.getExons().stream()).
+							map(E->new Interval(converter.apply(E.getContig()),E.getStart()+1,E.getEnd())).
+							filter(E->CoordMath.overlaps(E.getStart(), E.getEnd(), r.getStart(), r.getEnd())).
+							map(E->new Interval(E.getContig(),Math.max(r.getStart(),E.getStart()),Math.min(r.getEnd(),E.getEnd()))).
+							forEach(E->{
+								double x = ((E.getStart()-r.getStart())/(double)r.getLengthOnReference())*matrix_size;
+								double width  = ((E.getLengthOnReference())/(double)r.getLengthOnReference())*matrix_size;
+								g.setColor(Color.BLUE);
+								g.fill(new Rectangle2D.Double(x, curr_y, width, gene_height));
+								
+							});
+					}
+					
+				}
+				
 				
 				g.setTransform(oldtr);
 				}
