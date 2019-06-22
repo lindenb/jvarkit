@@ -35,15 +35,23 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -133,7 +141,7 @@ public class BamMatrix  extends Launcher
 	private boolean use_sa_align = false;
 	@Parameter(names={"-su","--supplementary"},description="Use other supplementary alignements")
 	private boolean use_suppl_align = false;
-	@Parameter(names={"--color_-scale"},description="Color scale")
+	@Parameter(names={"--color-scale"},description="Color scale")
 	private ColorScale color_scale = ColorScale.LOG;
 	@Parameter(names={"--mapq"},description="minimal mapping quality")
 	private int min_mapq = 30;
@@ -141,8 +149,8 @@ public class BamMatrix  extends Launcher
 	private String kgPath = null;
 	@Parameter(names={"--higligth","-B"},description="Optional Bed file to hightlight regions of interest")
 	private String highlightPath = null;
-	@Parameter(names={"--disk"},description="use disk random access for each point instead of storing data in memory: Reduce memory but makes all things slowwwwww.")
-	private boolean use_disk = false;
+	@Parameter(names={"--counter-type"},description="How to count reads. In memory, use disk random access for each point instead of storing data in memory, on disk+sort each row/column on disk: Other than in memory: makes all things slowwwwww.")
+	private CounterType counterType = CounterType.memory;
 	@Parameter(names={"-d","--distance"},description="Don't evaluate a point if the distance between the regions is lower than 'd'. Negative: don't consider distance.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_distance = -1;
 	@Parameter(names={"-C","--min-common"},description="Don't print a point if there are less than 'c' common names at the intersection")
@@ -160,6 +168,12 @@ public class BamMatrix  extends Launcher
 	private Interval userIntervalX = null;
 	/* user interval Y axis */
 	private Interval userIntervalY = null;
+	
+	private enum CounterType {
+		memory,
+		disk,
+		stored
+	}
 	
 	private enum NameExtractor {
 		READ_NAME,BX,MI;
@@ -180,12 +194,12 @@ public class BamMatrix  extends Launcher
 	
 	private abstract class ReadCounter
 		{
-		protected ReadCounter() {}
+		protected ReadCounter() throws IOException {}
 		
 		
 		/** return the names of the Read names in the interval */
 		protected abstract Set<String> getNamesMatching(final Interval r) throws IOException;
-		
+		void dispose() throws IOException {}
 		}
 	
 	private class MemoryReadCounter extends ReadCounter
@@ -228,6 +242,8 @@ public class BamMatrix  extends Launcher
 		}
 	
 	private class DiskBackedReadCounter extends ReadCounter {
+		DiskBackedReadCounter() throws IOException {
+			}
 		@Override
 		protected HashSet<String> getNamesMatching(Interval r) throws IOException {
 			final HashSet<String> set = new HashSet<>(10_000);
@@ -244,7 +260,77 @@ public class BamMatrix  extends Launcher
 				}
 			return set;
 			}
+		}
+	
+	private class StoredCounter extends ReadCounter {
+	private class Stored {
+		File file;
+		int count=0;
+		}
+	private final Map<Interval,Stored> hash = new HashMap<>(matrix_size*2);
+	StoredCounter(final double pixel2base) throws IOException {
+		for(int side=0;side < 2;side++) {
+			final Interval r=(side==0?userIntervalY:userIntervalX);
+			for(int pix=0;pix< matrix_size;pix++)
+				{				
+				final int start1 = (int)(r.getStart() + pix * pixel2base);
+				final int end1 = start1 + (int)pixel2base;
+				final Interval q = new Interval(r.getContig(), start1, end1);
+				if(this.hash.containsKey(q)) continue;
+				final Stored stored = new Stored();
+				final Set<String> names = new HashSet<>(10_000);
+				try(final SAMRecordIterator iter=samReader.query(q.getContig(),q.getStart(),q.getEnd(),false))
+					{
+					while(iter.hasNext()) {
+						final SAMRecord rec = iter.next();
+						BamMatrix.this.samRecordToIntervals(rec).
+							stream().
+							map(R->R.getName()).
+							forEach(S->names.add(S));
+						}
+					}
+				stored.count = names.size();
+				if(stored.count>0) {
+					stored.file = File.createTempFile("matrix.", ".data"); 
+					stored.file.deleteOnExit();
+
+					try(DataOutputStream daos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(stored.file)))) {
+						for(final String sn:names ) {
+							daos.writeUTF(sn);
+							}
+						daos.flush();
+						}
+					}
+				this.hash.put(q, stored);
+				}
+			}
+		}
+	
+	@Override
+	protected Set<String> getNamesMatching(final Interval r) throws IOException
+		{
+		if(!this.hash.containsKey(r)) throw new IOException("no interval "+r);
+		final Stored stored = this.hash.get(r);
+		if(stored.count==0) return Collections.emptySet();
+		final Set<String> set = new HashSet<>(stored.count);
+		try(DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(stored.file)))) {
+			for(int i=0;i< stored.count;++i) {
+				set.add(in.readUTF());
+				}
+			}
+		return set;
+		}
+	@Override
+	void dispose() throws IOException
+		{
+		for(final Stored st: this.hash.values()) {
+			if(st.file!=null) st.file.delete();
+			}
+		}
 	}
+	
+	
+	
 	
 	private boolean accept(final SAMRecord rec) {
 		if(rec.getReadUnmappedFlag()) return false;
@@ -358,10 +444,7 @@ public class BamMatrix  extends Launcher
 				}
 			LOG.info("One pixel is "+(this.userIntervalX.getLengthOnReference()/(double)matrix_size)+" bases");
 			
-			final ReadCounter counter = this.use_disk?
-					new DiskBackedReadCounter():
-					new  MemoryReadCounter()
-					;
+			
 			
 			final int distance= Math.max(
 					this.userIntervalX.getLengthOnReference(),
@@ -371,6 +454,15 @@ public class BamMatrix  extends Launcher
 			short max_count=1;
 			short counts[]=new short[this.matrix_size*this.matrix_size];
 
+			
+			final ReadCounter counter ;
+			switch(this.counterType) {
+				case memory: counter = new MemoryReadCounter();break;
+				case disk: counter = new DiskBackedReadCounter();break;
+				case stored: counter = new StoredCounter(pixel2base);break;
+				default: throw new IllegalStateException(""+this.counterType);
+				}
+			
 			final ProgressFactory.Watcher<Interval> progress  = ProgressFactory.newInstance().logger(LOG).dictionary(this.userIntervalY).build();
 			/* loop over each pixel 1st axis */
 			for(int pixY=0;pixY< this.matrix_size;pixY++)
@@ -409,6 +501,7 @@ public class BamMatrix  extends Launcher
 					}
 				}
 			progress.close();
+			counter.dispose();
 			final int font_size=10;
 			final int cov_height = (this.hide_coverage?0:50);
 			final int gene_height = 25;
