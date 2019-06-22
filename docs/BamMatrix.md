@@ -14,6 +14,14 @@ Usage: bammatrix [options] Files
       Color scale
       Default: LOG
       Possible Values: [LINEAR, LOG]
+    --disk
+      use disk random access for each point instead of storing data in memory: 
+      Reduce memory but makes all things slowwwwww.
+      Default: false
+    -d, --distance
+      Don't evaluate a point if the distance between the regions is lower than 
+      'd'. Negative: don't consider distance.
+      Default: -1
     -h, --help
       print help and exit
     --helpFormat
@@ -31,12 +39,19 @@ Usage: bammatrix [options] Files
     --mapq
       minimal mapping quality
       Default: 30
+    -C, --min-common
+      Don't print a point if there are less than 'c' common names at the 
+      intersection 
+      Default: 0
     --name, -name
       use 'BX:Z:' attribute from 10x genomics  as the read name. "Chromium 
       barcode sequence that is error-corrected and confirmed against a list of 
       known-good barcode sequences.". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam
       Default: READ_NAME
       Possible Values: [READ_NAME, BX, MI]
+    --no-coverage
+      Don't print coverage
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
@@ -53,11 +68,14 @@ Usage: bammatrix [options] Files
       "chrom:start-end+extend" or "chrom:start-end+extend-percent%".A program 
       might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)
     -sa, --sa
-      Use other canonical alignemts from the 'SA:Z:*' attribute
+      Use other canonical alignements from the 'SA:Z:*' attribute
       Default: false
     -s, --size
-      matrix size
+      matrix size in pixel
       Default: 1000
+    -su, --supplementary
+      Use other supplementary alignements
+      Default: false
     --version
       print version and exit
 
@@ -97,6 +115,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrix.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrix.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrixTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrixTest.java)
 
 
 ## Contribute

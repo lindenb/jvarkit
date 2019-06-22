@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.log;
 
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -184,6 +185,16 @@ public ProgressFactory dictionary(final SamReader r) {
 public ProgressFactory dictionary(final VCFFileReader r) {
 	return dictionary(r==null?null:r.getFileHeader());
 	}
+
+/** when we know that we're only reading a defined region of the genome, create a one-record dictionary from this locatable */
+public ProgressFactory dictionary(final Locatable loc) {
+	if(loc!=null) {
+		final SAMSequenceRecord ssr = new SAMSequenceRecord(loc.getContig(), loc.getEnd());
+		this._dictionary = new SAMSequenceDictionary(Arrays.asList(ssr));
+		}
+	return this;
+	}
+
 
 public ProgressFactory dictionary(final SAMSequenceDictionary dictionary) {
 	this._dictionary = dictionary;
