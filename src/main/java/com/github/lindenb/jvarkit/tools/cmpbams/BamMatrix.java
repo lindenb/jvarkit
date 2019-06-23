@@ -313,7 +313,11 @@ public class BamMatrix  extends Launcher
 		final Stored stored = this.hash.get(r);
 		if(stored.count==0) return Collections.emptySet();
 		final Set<String> set = new HashSet<>(stored.count);
-		try(DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(stored.file)))) {
+
+		final byte content[] = java.nio.file.Files.readAllBytes(stored.file.toPath());
+		
+
+		try(DataInputStream in = new DataInputStream(new BufferedInputStream(new java.io.ByteArrayInputStream(content)))) {
 			for(int i=0;i< stored.count;++i) {
 				set.add(in.readUTF());
 				}
