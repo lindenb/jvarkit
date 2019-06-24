@@ -53,7 +53,7 @@ import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
 
-## Motivation
+## Motivation
 
 when using gatk SelectVariants with sample names (-sn) some alleles specific of the samples than have been removed, remain in the vcf.
 

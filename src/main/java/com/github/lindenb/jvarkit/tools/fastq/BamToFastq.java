@@ -60,12 +60,11 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 BEGIN_DOC
 
 
-# Deprecated: 
+# Deprecated:
 
 use picard please
 
-
-# Warnings
+# Warnings
 
 Previous version was an Implementation of https://twitter.com/DNAntonie/status/402909852277932032
 
@@ -73,7 +72,8 @@ Previous version was an Implementation of https://twitter.com/DNAntonie/status/4
 	illumina control number is always 0
 	Illumina index sequence is lost.
 
-## Example
+## Example
+
 piping bwa mem
 
 ```

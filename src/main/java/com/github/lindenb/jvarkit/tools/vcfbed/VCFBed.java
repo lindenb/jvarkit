@@ -161,9 +161,10 @@ public class VCFBed extends Launcher
 
 	@Parameter(names={"-fn","--filternooverlap"},description="if defined, set this as a FILTER column if not any BED line overlap a variant")
 	private String filterNoOverlapStr = null;
-	
-	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Ignore FILTERed Variants (should be faster)")
+
+	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Ignore FILTERed Variants (should be faster)")
 	private boolean ignoreFILTERed=false;
+
 	@Parameter(names={"-x","--extend"},description="[20180123]if nothing was found in the BED file, extends the interval by 'x' bases and try again. "
 							+ "Do not extend  if 'x' <1. "
 							+ "Require that the VCF file has a Dictionary (##contig lines). " + DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)

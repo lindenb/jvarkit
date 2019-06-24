@@ -271,11 +271,14 @@ public class BamMatrix  extends Launcher
 	StoredCounter(final double pixel2base) throws IOException {
 		for(int side=0;side < 2;side++) {
 			final Interval r=(side==0?userIntervalY:userIntervalX);
+			LOG.info("preparing interval "+r);
+			final ProgressFactory.Watcher<Interval> progress = ProgressFactory.newInstance().logger(LOG).dictionary(r).build();
 			for(int pix=0;pix< matrix_size;pix++)
-				{				
+				{
 				final int start1 = (int)(r.getStart() + pix * pixel2base);
 				final int end1 = start1 + (int)pixel2base;
 				final Interval q = new Interval(r.getContig(), start1, end1);
+				progress.apply(q);
 				if(this.hash.containsKey(q)) continue;
 				final Stored stored = new Stored();
 				final Set<String> names = new HashSet<>(10_000);
@@ -303,6 +306,7 @@ public class BamMatrix  extends Launcher
 					}
 				this.hash.put(q, stored);
 				}
+			progress.close();
 			}
 		}
 	

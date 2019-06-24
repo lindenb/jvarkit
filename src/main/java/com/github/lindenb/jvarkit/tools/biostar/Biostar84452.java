@@ -54,7 +54,7 @@ BEGIN_DOC
 ## Cited In
 
   * Suppl. material of: "The Mobile Element Locator Tool (MELT): population-scale mobile element discovery and biology". [http://genome.cshlp.org/content/27/11/1916.short](http://genome.cshlp.org/content/27/11/1916.short) Gardner et al. Genome Res. 2017. 27: 1916-1929 
-  * Molly M McDonough, Lillian D Parker, Nancy Rotzel McInerney, Michael G Campana, Jesús E Maldonado; Performance of commonly requested destructive museum samples for mammalian genomic studies, Journal of Mammalogy, , gyy080, https://doi.org/10.1093/jmammal/gyy080
+  * Molly M McDonough, Lillian D Parker, Nancy Rotzel McInerney, Michael G Campana, Jesus E Maldonado; Performance of commonly requested destructive museum samples for mammalian genomic studies, Journal of Mammalogy, , gyy080, https://doi.org/10.1093/jmammal/gyy080
 
 ## Example
 

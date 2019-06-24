@@ -117,14 +117,13 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			}
 		@Override
 		public GTFLine decode(final String line) {
-			/* non, on s'en fout à vrai dire...
+			/* non, on s'en fout a vrai dire...
 			if(this.header==null) {
 				throw new RuntimeIOException("header was not parsed");
 			}*/
 			if(line.startsWith("#") || line.isEmpty()) return null;
 			return new GTFLineImpl(GTFCodec.tab.split(line));
 			}
-		
 		}
 	protected static class Gff3Codec extends GTFCodec
 		{
@@ -133,7 +132,7 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			}
 		@Override
 		public GTFLine decode(final String line) {
-			/* non, on s'en fout à vrai dire...
+			/* non, on s'en fout a vrai dire...
 			if(this.header==null) {
 				throw new RuntimeIOException("header was not parsed");
 			}*/
@@ -141,8 +140,8 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			return new GFF3LineImpl(GTFCodec.tab.split(line));
 			}
 		}
-	
-	
+
+
 	/** implementation of header */
 	public static class GTFHeaderImpl implements GTFHeader
 		{

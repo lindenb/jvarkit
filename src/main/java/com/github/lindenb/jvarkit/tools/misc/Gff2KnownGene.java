@@ -111,7 +111,7 @@ public class Gff2KnownGene extends Launcher {
 	private boolean writeBin = false;
 	@Parameter(names={"-verbose","--verbose"},description="Be verbose, log messages")
 	private boolean verbose = false;
-	@Parameter(names={"-trid","--trid"},description="Transcript identifiers in the GTF/GFF (column N°3) used to identify a transcript."
+	@Parameter(names={"-trid","--trid"},description="Transcript identifiers in the GTF/GFF (column 3) used to identify a transcript."
 			+ "Multiple separated by a semicolon ")
 	private String transcriptIdentifiersStr = "transcript;mRNA;snRNA;tRNA;snoRNA";
 	@ParametersDelegate
