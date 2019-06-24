@@ -16,8 +16,9 @@ Usage: bammatrix [options] Files
       Possible Values: [LINEAR, LOG]
     --counter-type
       How to count reads. In memory, use disk random access for each point 
-      instead of storing data in memory, on disk+sort each row/column on disk: 
-      Other than in memory: makes all things slowwwwww.
+      instead of storing data in memory, on disk+sort each row/column on disk. 
+      disk: do random access for each point (worst choice). Other than in 
+      memory: makes all things slowwwwww.
       Default: memory
       Possible Values: [memory, disk, stored]
     -d, --distance

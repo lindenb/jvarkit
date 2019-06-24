@@ -30,6 +30,7 @@ import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
@@ -78,7 +79,6 @@ import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
@@ -149,7 +149,7 @@ public class BamMatrix  extends Launcher
 	private String kgPath = null;
 	@Parameter(names={"--higligth","-B"},description="Optional Bed file to hightlight regions of interest")
 	private String highlightPath = null;
-	@Parameter(names={"--counter-type"},description="How to count reads. In memory, use disk random access for each point instead of storing data in memory, on disk+sort each row/column on disk: Other than in memory: makes all things slowwwwww.")
+	@Parameter(names={"--counter-type"},description="How to count reads. In memory, use disk random access for each point instead of storing data in memory, on disk+sort each row/column on disk. disk: do random access for each point (worst choice). Other than in memory: makes all things slowwwwww.")
 	private CounterType counterType = CounterType.memory;
 	@Parameter(names={"-d","--distance"},description="Don't evaluate a point if the distance between the regions is lower than 'd'. Negative: don't consider distance.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_distance = -1;
@@ -433,22 +433,24 @@ public class BamMatrix  extends Launcher
 			
 			// adjust intervals so they have the same length
 			if(this.userIntervalX.getLengthOnReference() > this.userIntervalY.getLengthOnReference()) {
-				final SAMSequenceRecord ssr = dict.getSequence(this.userIntervalX.getContig()); // yes X
 				final int mid =  this.userIntervalY.getStart()+ this.userIntervalY.getLengthOnReference()/2;
+				final int start = Math.max(1,mid- this.userIntervalX.getLengthOnReference()/2);
+				
 				this.userIntervalY = new Interval(
 						this.userIntervalY.getContig(),
-						Math.max(1,mid- this.userIntervalX.getLengthOnReference()/2),
-						Math.min(mid+ this.userIntervalX.getLengthOnReference()/2,ssr.getSequenceLength())
+						start,
+						start + this.userIntervalX.getLengthOnReference()
 						);
 				LOG.warn("Adjusting interval Y to "+this.userIntervalY+" so both intervals have the same length");
 				}
 			else if(this.userIntervalY.getLengthOnReference() > this.userIntervalX.getLengthOnReference()) {
-				final SAMSequenceRecord ssr = dict.getSequence(this.userIntervalY.getContig());//yes Y
 				final int mid =  this.userIntervalX.getStart()+ this.userIntervalX.getLengthOnReference()/2;
+				final int start = Math.max(1,mid- this.userIntervalY.getLengthOnReference()/2);
+
 				this.userIntervalX = new Interval(
 						this.userIntervalX.getContig(),
-						Math.max(1,mid- this.userIntervalY.getLengthOnReference()/2),
-						Math.min(mid+ this.userIntervalY.getLengthOnReference()/2,ssr.getSequenceLength())
+						start,
+						start + this.userIntervalY.getLengthOnReference()
 						);
 				LOG.warn("Adjusting interval X to "+this.userIntervalX+" so both intervals have the same length");
 				}
@@ -529,6 +531,7 @@ public class BamMatrix  extends Launcher
 					BufferedImage.TYPE_INT_RGB
 					);
 			final Graphics2D g = img.createGraphics();
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, drawingAreaDim.width,drawingAreaDim.height);
 			
