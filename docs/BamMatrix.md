@@ -46,9 +46,9 @@ Usage: bammatrix [options] Files
       intersection 
       Default: 0
     --name, -name
-      use 'BX:Z:' attribute from 10x genomics  as the read name. "Chromium 
-      barcode sequence that is error-corrected and confirmed against a list of 
-      known-good barcode sequences.". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam
+      user read name or use 'BX:Z:'/'MI:i:' attribute from 10x genomics  as 
+      the read name. "Chromium barcode sequence that is error-corrected and 
+      confirmed against a list of known-good barcode sequences.". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam
       Default: READ_NAME
       Possible Values: [READ_NAME, BX, MI]
     --no-coverage

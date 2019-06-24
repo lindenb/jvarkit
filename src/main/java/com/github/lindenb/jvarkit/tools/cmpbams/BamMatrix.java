@@ -41,7 +41,6 @@ import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -79,6 +78,7 @@ import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
@@ -135,7 +135,7 @@ public class BamMatrix  extends Launcher
 	private String region1Str=null;
 	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParser.OPT_DESC)
 	private String region2Str=null;
-	@Parameter(names={"--name","-name"},description="use 'BX:Z:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
+	@Parameter(names={"--name","-name"},description="user read name or use 'BX:Z:'/'MI:i:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
 	private NameExtractor nameExtractor = NameExtractor.READ_NAME;
 	@Parameter(names={"-sa","--sa"},description="Use other canonical alignements from the 'SA:Z:*' attribute")
 	private boolean use_sa_align = false;
@@ -429,20 +429,22 @@ public class BamMatrix  extends Launcher
 			
 			// adjust intervals so they have the same length
 			if(this.userIntervalX.getLengthOnReference() > this.userIntervalY.getLengthOnReference()) {
-				int mid =  this.userIntervalY.getStart()+ this.userIntervalY.getLengthOnReference()/2;
+				final SAMSequenceRecord ssr = dict.getSequence(this.userIntervalX.getContig()); // yes X
+				final int mid =  this.userIntervalY.getStart()+ this.userIntervalY.getLengthOnReference()/2;
 				this.userIntervalY = new Interval(
 						this.userIntervalY.getContig(),
-						mid- this.userIntervalX.getLengthOnReference()/2,
-						mid+ this.userIntervalX.getLengthOnReference()/2
+						Math.max(1,mid- this.userIntervalX.getLengthOnReference()/2),
+						Math.min(mid+ this.userIntervalX.getLengthOnReference()/2,ssr.getSequenceLength())
 						);
 				LOG.warn("Adjusting interval Y to "+this.userIntervalY+" so both intervals have the same length");
 				}
 			else if(this.userIntervalY.getLengthOnReference() > this.userIntervalX.getLengthOnReference()) {
-				int mid =  this.userIntervalX.getStart()+ this.userIntervalX.getLengthOnReference()/2;
+				final SAMSequenceRecord ssr = dict.getSequence(this.userIntervalY.getContig());//yes Y
+				final int mid =  this.userIntervalX.getStart()+ this.userIntervalX.getLengthOnReference()/2;
 				this.userIntervalX = new Interval(
 						this.userIntervalX.getContig(),
-						mid- this.userIntervalY.getLengthOnReference()/2,
-						mid+ this.userIntervalY.getLengthOnReference()/2
+						Math.max(1,mid- this.userIntervalY.getLengthOnReference()/2),
+						Math.min(mid+ this.userIntervalY.getLengthOnReference()/2,ssr.getSequenceLength())
 						);
 				LOG.warn("Adjusting interval X to "+this.userIntervalX+" so both intervals have the same length");
 				}
@@ -764,3 +766,4 @@ public class BamMatrix  extends Launcher
 		new BamMatrix().instanceMainWithExit(args);
 		}
 }
+
