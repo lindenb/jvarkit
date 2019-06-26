@@ -42,13 +42,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -68,12 +64,9 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
-import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
@@ -143,12 +136,12 @@ public class VcfGeneSplitter
 	{
 	private static final Logger LOG = Logger.build(VcfGeneSplitter.class).make();
 	
-	private static class KeyAndGene
-		implements Comparable<KeyAndGene>
+	private static class KeyGene
+		implements Comparable<KeyGene>
 		{
 		final String key;
 		final String gene;
-		KeyAndGene(final String key,final String gene) {
+		KeyGene(final String key,final String gene) {
 			this.key = key;
 			this.gene = StringUtils.isBlank(gene)?".":gene;
 			}
@@ -159,11 +152,11 @@ public class VcfGeneSplitter
 		@Override
 		public boolean equals(Object obj) {
 			if(obj==this) return true;
-			if(obj==null || !(obj instanceof KeyAndGene)) return false;
-			return this.compareTo(KeyAndGene.class.cast(obj))==0;
+			if(obj==null || !(obj instanceof KeyGene)) return false;
+			return this.compareTo(KeyGene.class.cast(obj))==0;
 			}
 		@Override
-		public int compareTo(KeyAndGene o) {
+		public int compareTo(final KeyGene o) {
 			return this.key.compareTo(o.key);
 			}
 		@Override
@@ -173,91 +166,8 @@ public class VcfGeneSplitter
 		}
 	
 	
-	/** return a map<gene,map<info.att,set<info.value>> */
-	private abstract class GeneExtractor
-		{
-		boolean used=false;
-		abstract void  initialize(VCFHeader header);
-		private final String name;
-		GeneExtractor(final String name) {
-			this.name= name;
-			}
-		String getExtractorName() {
-			return this.name;
-			}
-		
-		abstract String getInfoTag();
-		abstract void apply(final VariantContext ctx,final Map<KeyAndGene,Set<String>> gene2values );
-		}
 	
-	private class VepExtractor extends GeneExtractor {
-		private VepPredictionParser parser = null;
-		private final Function<VepPrediction, String> pred2gene;
-		
-		VepExtractor(final String name,final Function<VepPrediction, String> pred2gene) {
-			super(name);
-			this.pred2gene = pred2gene;
-			}
-		
-		@Override
-		String getInfoTag() {
-			return this.parser.getTag();
-			}
-		@Override
-		public void initialize(final VCFHeader header) {
-			this.parser = new VepPredictionParserFactory().header(header).get();
-			}
-		@Override
-		void apply(final VariantContext ctx,final Map<KeyAndGene,Set<String>> gene2values ) {
-			for(final VepPrediction pred:this.parser.getPredictions(ctx)){
-				final String geneName=this.pred2gene.apply(pred);
-				if(StringUtils.isBlank(geneName)) continue;
-				final KeyAndGene keyAndGene=new KeyAndGene(geneName,pred.getGeneName());
-				Set<String> values = gene2values.get(keyAndGene);
-				if(values==null)  {
-					values = new LinkedHashSet<>();
-					gene2values.put(keyAndGene,values);
-					}
-				values.add(pred.getOriginalAttributeAsString());
-				}
-			}
-		}
 	
-	private class SnpEffAnnExtractor extends GeneExtractor {
-		private AnnPredictionParser parser = null;
-		private final Function<AnnPrediction, String> pred2gene;
-		
-		SnpEffAnnExtractor(final String name,final Function<AnnPrediction, String> pred2gene) {
-			super(name);
-			this.pred2gene = pred2gene;
-			}
-		
-		@Override
-		public void initialize(final VCFHeader header) {
-			this.parser = new AnnPredictionParserFactory().header(header).get();
-			}
-		@Override
-		String getInfoTag() {
-			return this.parser.getTag();
-			}
-		@Override
-		void apply(final VariantContext ctx,final Map<KeyAndGene,Set<String>> gene2values ) {
-			for(final AnnPrediction pred:this.parser.getPredictions(ctx)){
-				if(pred.isIntergenicRegion()) continue;
-				final String geneName=this.pred2gene.apply(pred);
-				if(StringUtils.isBlank(geneName)) continue;
-				final KeyAndGene keyAndGene = new KeyAndGene(geneName, pred.getGeneName());
-				Set<String> values = gene2values.get(keyAndGene);
-				if(values==null)  {
-					values = new LinkedHashSet<>();
-					gene2values.put(keyAndGene,values);
-					}
-				values.add(pred.getOriginalAttributeAsString());
-				}
-			}
-		}
-	
-	private final List<GeneExtractor> extractors = new ArrayList<>();
 	
 	@Parameter(names={"-o","--output"},description= ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile = null;
@@ -265,7 +175,7 @@ public class VcfGeneSplitter
 	private Path manifestFile = null;
 	@Parameter(names={"-l","--list"},description= "list all available extractors", help=true)
 	private boolean list_extractors = false;
-	@Parameter(names={"-e","-E","--extractors"},description="extractors Names. Space/semicolon/Comma separated")
+	@Parameter(names={"-e","-E","--extractors"},description=GeneExtractorFactory.OPT_DESC)
 	private String extractorsNames="ANN/GeneId VEP/GeneId";
 	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERED variant")
 	private boolean ignoreFiltered = false;
@@ -279,10 +189,10 @@ public class VcfGeneSplitter
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
 	private static class KeyAndLine {
-		final KeyAndGene keyAndGene;
+		final KeyGene keyAndGene;
 		final String splitter;
 		final String ctx;
-		KeyAndLine(KeyAndGene keyAndGene,String splitter,String ctx) {
+		KeyAndLine(final KeyGene keyAndGene,final String splitter,final String ctx) {
 			this.keyAndGene = keyAndGene;
 			this.splitter = splitter;
 			this.ctx = ctx;
@@ -331,7 +241,7 @@ public class VcfGeneSplitter
 			final String g = dis.readUTF();
 			final String splt = dis.readUTF();
 			final String v = AbstractDataCodec.readString(dis);
-			return new KeyAndLine(new KeyAndGene(k, g),splt, v);
+			return new KeyAndLine(new KeyGene(k, g),splt, v);
 		}
 		@Override
 		public void encode(final DataOutputStream dos,final  KeyAndLine object) throws IOException {
@@ -349,13 +259,7 @@ public class VcfGeneSplitter
 		
 	public VcfGeneSplitter()
 		{
-		extractors.add( new SnpEffAnnExtractor("ANN/GeneId", P->P.getGeneId()));
-		extractors.add( new SnpEffAnnExtractor("ANN/FeatureId", P->P.getFeatureId()));
-		extractors.add( new SnpEffAnnExtractor("ANN/GeneName", P->P.getGeneName()));
-
-		extractors.add( new VepExtractor("VEP/GeneId", P->P.getEnsemblGene()));
-		extractors.add( new VepExtractor("VEP/Ensp", P->P.getENSP()));
-		extractors.add( new VepExtractor("VEP/Feature", P->P.getFeature()));
+		
 		}
 	
 	
@@ -376,11 +280,20 @@ public class VcfGeneSplitter
 
 			in = super.openBufferedReader(oneFileOrNull(args));
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
+			
+			
+			
+			final GeneExtractorFactory geneExtractorFactory = new GeneExtractorFactory(cah.header);
+			
+			final List<GeneExtractorFactory.GeneExtractor> extractors = geneExtractorFactory.parse(this.extractorsNames);
+			if(extractors.isEmpty()) {
+				LOG.warn("No extractor defined!");
+				return -1;
+				}
+			
+			
 			final VCFEncoder vcfEncoder = new VCFEncoder(cah.header, false, false);
 			
-			for(final GeneExtractor ex:this.extractors) {
-				ex.initialize(cah.header);
-			}			
 			
 			// read variants
 			final ProgressFactory.Watcher<VariantContext> progess= ProgressFactory.newInstance().dictionary(cah.header).logger(LOG).build();
@@ -462,13 +375,13 @@ public class VcfGeneSplitter
 					
 					prevCtg = ctx.getContig();
 					}
-				for(final GeneExtractor ex:this.extractors)
+				for(final GeneExtractorFactory.GeneExtractor ex: extractors)
 					{
-					final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
-					ex.apply(ctx, gene2values);
+					final Map<GeneExtractorFactory.KeyAndGene,Set<String>> gene2values = ex.apply(ctx);
+					
 					if(gene2values.isEmpty()) continue;
 					
-					for(final KeyAndGene keyAndGene :gene2values.keySet()) {
+					for(final GeneExtractorFactory.KeyAndGene keyAndGene :gene2values.keySet()) {
 						final Set<String> values = gene2values.get(keyAndGene);
 						if(values.isEmpty()) continue;
 						
@@ -494,8 +407,8 @@ public class VcfGeneSplitter
 						
 						sortingcollection.add(
 							new KeyAndLine(
-									keyAndGene,
-									ex.getExtractorName(), 
+									new KeyGene(keyAndGene.getKey(),keyAndGene.getMethod()),
+									ex.getName(), 
 									vcfEncoder.encode(vcb.make())
 							));
 						}
@@ -527,27 +440,13 @@ public class VcfGeneSplitter
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.list_extractors) {
-			for(final GeneExtractor ge: this.extractors) {
-				System.out.println(ge.getExtractorName());
+			for(final String en: GeneExtractorFactory.getExtractorNames()) {
+				System.out.println(en);
 				}
 			return 0;
 			}
 		
-		for(final String en: this.extractorsNames.split("[ ;,\t]+")) {
-			if(StringUtils.isBlank(en))continue;
-			final Optional<GeneExtractor> ge = this.extractors.stream().filter(G->G.getExtractorName().equals(en)).findFirst();
-			if(!ge.isPresent()) {
-				LOG.error("Cannot find any gene extractor named \""+en+"\"s");
-				return -1;
-				}
-			ge.get().used = true;
-			}
 		
-		this.extractors.removeIf(E->!E.used);
-		if(this.extractors.isEmpty()) {
-			LOG.warn("No extractor defined!");
-			return -1;
-			}
 		try
 			{
 			return run(args);

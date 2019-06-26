@@ -32,6 +32,17 @@ import java.util.stream.Collectors;
 public interface SampleSet {
 	/** return the samples in this SampleSet */
 	public Set<Sample> getSamples();
+	
+	/** return the affected samples in this SampleSet */
+	public default Set<Sample> getAffectedSamples() {
+		return getSamples().stream().filter(S->S.isAffected()).collect(Collectors.toCollection(TreeSet::new));
+		}
+	/** return the unaffected samples in this SampleSet */
+	public default Set<Sample> getUnaffectedSamples() {
+		return getSamples().stream().filter(S->S.isUnaffected()).collect(Collectors.toCollection(TreeSet::new));
+		}
+
+	
 	/** find a sample in this SampleSet . returns the sample with this id or null if not found */
 	public default Sample getSampleById(final String id) {
 		if(id==null) return null;
