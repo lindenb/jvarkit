@@ -37,6 +37,7 @@ import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.tribble.readers.LineReader;
 
 /** implementation of htsjdk.tribble.readers.LineIterator */
 public class LineIterator 
@@ -92,6 +93,74 @@ public class LineIterator
 	public LineIterator(final Reader br) {
 		this(new BuffReadIter(br));
 		}
+	
+	public LineIterator(final LineReader lt) {
+		this(new TribbleLineReaderIter(lt));
+		}
+	
+	public LineIterator(final htsjdk.samtools.util.LineReader lt) {
+		this(new SamtoolsReaderIter(lt));
+		}
+
+	
+	private static class SamtoolsReaderIter 
+	extends AbstractIterator<String>
+	implements Closeable
+		{
+		private  htsjdk.samtools.util.LineReader in;
+		SamtoolsReaderIter(final htsjdk.samtools.util.LineReader in)
+			{
+			this.in=in;
+			}
+		@Override
+		protected String advance()
+			{
+			if(in==null) return null;
+			final String s;
+			try {
+				s = in.readLine();
+				if(s==null) this.close();
+				return s;
+			} catch (final IOException e) {
+				throw new RuntimeIOException(e);
+				}
+			}
+		@Override
+		public void close() throws IOException {
+			CloserUtil.close(this.in);
+			this.in=null;
+			}
+		}	
+
+	
+	private static class TribbleLineReaderIter 
+	extends AbstractIterator<String>
+	implements Closeable
+		{
+		private LineReader in;
+		TribbleLineReaderIter(final LineReader in)
+			{
+			this.in=in;
+			}
+		@Override
+		protected String advance()
+			{
+			if(in==null) return null;
+			final String s;
+			try {
+				s = in.readLine();
+				if(s==null) this.close();
+				return s;
+			} catch (final IOException e) {
+				throw new RuntimeIOException(e);
+				}
+			}
+		@Override
+		public void close() throws IOException {
+			CloserUtil.close(this.in);
+			this.in=null;
+			}
+		}	
 	
 	@Override
 	protected String advance()

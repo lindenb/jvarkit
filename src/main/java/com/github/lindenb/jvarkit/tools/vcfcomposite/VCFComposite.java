@@ -55,6 +55,7 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
@@ -250,7 +251,7 @@ public class VCFComposite extends Launcher {
 		public VariantLine decode(final DataInputStream dis) throws IOException {
 			try {
 				long n = dis.readLong();
-				final VariantContext ctx = vcfDecoder.decode(IOUtils.readString(dis));
+				final VariantContext ctx = VCFComposite.this.vcfDecoder.decode(IOUtils.readString(dis));
 				return new VariantLine(n,ctx);
 				} 
 			catch(final EOFException err)
@@ -262,7 +263,7 @@ public class VCFComposite extends Launcher {
 		@Override
 		public void encode(DataOutputStream dos, VariantLine object) throws IOException {
 			dos.writeLong(object.id);
-			IOUtils.writeString(dos,vcfEncoder.encode(object.ctx));
+			IOUtils.writeString(dos,VCFComposite.this.vcfEncoder.encode(object.ctx));
 			}
 
 		@Override
@@ -314,22 +315,27 @@ public class VCFComposite extends Launcher {
 		extends AbstractDataCodec<GeneIdentifier>
 		{
 		@Override
-		public GeneIdentifier decode(DataInputStream in) throws IOException {
-			final GeneIdentifier gi = new GeneIdentifier();
+		public GeneIdentifier decode(final DataInputStream in) throws IOException {
+			String gn;
 			try {
-				gi.geneName = in.readUTF();
-				gi.contig = in.readUTF();
-				gi.source = in.readUTF();
-				return gi;
-			} catch(EOFException err) 
+				gn = in.readUTF();
+				} 
+			catch(final EOFException err) 
 				{
 				return null;
 				}
+			final GeneIdentifier gi = new GeneIdentifier();
+			gi.geneName = gn;
+			gi.label = in.readUTF();
+			gi.contig = in.readUTF();
+			gi.source = in.readUTF();
+			return gi;
 			}
 		
 		@Override
 		public void encode( final DataOutputStream dos, final GeneIdentifier object) throws IOException {
 			dos.writeUTF(object.geneName);
+			dos.writeUTF(object.label);
 			dos.writeUTF(object.contig);
 			dos.writeUTF(object.source);
 			}
@@ -347,7 +353,9 @@ public class VCFComposite extends Launcher {
 				
 		public GeneAndVariant(final GeneIdentifier geneIdentifier, final VariantLine variant) {
 			this.gene = geneIdentifier;
+			if(this.gene==null) throw new IllegalArgumentException("gene is null");
 			this.variant = variant;
+			if(this.variant==null) throw new IllegalArgumentException("variant is null");
 			}
 		
 		int compareGene(final GeneAndVariant other) {
@@ -367,16 +375,20 @@ public class VCFComposite extends Launcher {
 		final GeneIdentifierCodec geneCodec = new GeneIdentifierCodec();
 		final VariantLineCodec vcCodec = new VariantLineCodec();
 		@Override
-		public GeneAndVariant decode(DataInputStream dis) throws IOException {
+		public GeneAndVariant decode(final DataInputStream dis) throws IOException {
+			final GeneIdentifier gi;
+
 			try {
-				final GeneIdentifier gi  = geneCodec.decode(dis);
-				final VariantLine vl = vcCodec.decode(dis);
-				return new GeneAndVariant(gi, vl);
+				gi  = geneCodec.decode(dis);
+				if(gi==null) return null;
 				}
 			catch(final EOFException err)
 				{
 				return null;
 				}
+			final VariantLine vl = vcCodec.decode(dis);
+			return new GeneAndVariant(gi, vl);
+
 			}
 		@Override
 		public void encode(DataOutputStream dos, GeneAndVariant object) throws IOException {
@@ -561,7 +573,6 @@ public class VCFComposite extends Launcher {
 		return new HashSet<>(vc.getAttributeAsStringList(INFO_TAG, ""));
 		}
 	
-	@Override
 	protected int doVcfToVcf(final String inputName,
 		final VCFIterator iterin,
 		final VariantContextWriter out) {
@@ -644,7 +655,8 @@ public class VCFComposite extends Launcher {
 
 
 		long ID_GENERATOR = 0L;
-		this.vcfDecoder = VCFUtils.createDefaultVCFCodec();//iterin.getCodec();
+		this.vcfDecoder = VCFUtils.createDefaultVCFCodec();
+		this.vcfDecoder.setVCFHeader(header, VCFHeaderVersion.VCF4_2);
 		this.vcfEncoder = new VCFEncoder(header, false, true);
 		SortingCollection<GeneAndVariant> sorting=null;
 		SortingCollection<VariantLine> outputSorter = null;
