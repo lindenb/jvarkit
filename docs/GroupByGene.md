@@ -10,9 +10,9 @@ Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff
 ```
 Usage: groupbygene [options] Files
   Options:
-    --annIntergenic
-      [20170726] Accept snpEff 'ANN' intergenic regions.
-      Default: false
+    -e, -E, --extractors
+      [20190626]Gene Extractors Name. Space/semicolon/Comma separated
+      Default: ANN/GeneId VEP/GeneId
     --filtered
       ignore FILTERED variants
       Default: false
@@ -27,6 +27,8 @@ Usage: groupbygene [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -l, --list
+      [20190626]list all available gene extractors
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
@@ -36,27 +38,10 @@ Usage: groupbygene [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -p, --ped, --pedigree
-      [20170725] A pedigree is a text file delimited with tabs. No header. 
-      Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
-      Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
-      unaffected, 1 affected,-9 unknown
-    --slidingWindowShift
-      [20170726] if greater than 0, add shift the sliding window by this 
-      distance 
-      Default: 0
-    --slidingWindowSize
-      [20170726] if greater than 0, add a sliding window of this size as the 
-      name of a virtual region
-      Default: 0
-    -T, --tag
-      search Tag in INFO field containing the name of the genes (optional)
-      Default: []
+      [20170725] A pedigree file.
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
-    --typeRegexExclude
-      [20170726] ignore prediction type matching this regex. e.g: 
-      '(ann_gene_id|ann_feature_id)' 
     --version
       print version and exit
 

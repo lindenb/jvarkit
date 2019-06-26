@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
 import htsjdk.variant.variantcontext.VariantContext;
@@ -204,11 +205,48 @@ private class AnnGeneExtractor   extends AbstractGeneExtractorImpl {
 		}
 	}
 
+private class SnpEffGeneExtractor   extends AbstractGeneExtractorImpl {
+	private final SnpEffPredictionParser parser;
+	private final Function<SnpEffPrediction, String> pred2gene;
+
+	SnpEffGeneExtractor(final SnpEffPredictionParser parser,final String name,final Function<SnpEffPrediction, String> pred2gene)
+		{
+		super(name);
+		this.parser= parser;
+		this.pred2gene = pred2gene;
+		}
+	@Override
+	public String getInfoTag() {
+		return parser.getTag();
+		}
+	
+	@Override
+	public Map<KeyAndGene,Set<String>> apply(final VariantContext ctx) {
+		final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
+		for(final SnpEffPrediction pred:this.parser.getPredictions(ctx)){
+			//if(pred.isIntergenicRegion()) continue;
+			final String geneName=this.pred2gene.apply(pred);
+			if(StringUtils.isBlank(geneName)) continue;
+			final KeyAndGene keyAndGene = new KeyAndGeneImpl(geneName, pred.getGeneName(),this.getName());
+			Set<String> values = gene2values.get(keyAndGene);
+			if(values==null)  {
+				values = new LinkedHashSet<>();
+				gene2values.put(keyAndGene,values);
+				}
+			values.add(pred.getOriginalAttributeAsString());
+			}
+		return gene2values;
+		}
+	}
+
+
 private final List<GeneExtractor> extractors =  new ArrayList<>();
 /* WARNING keep that order: see constuctor */
 private static List<String> AVAILABLE_EXTRACTORS_NAMES = Collections.unmodifiableList(Arrays.asList(
 		"ANN/GeneId","ANN/FeatureId","ANN/GeneName",
-		"VEP/GeneId","VEP/Ensp","VEP/Feature"))
+		"VEP/GeneId","VEP/Ensp","VEP/Feature",
+		"EFF/Gene","EFF/Transcript"
+		))
 		;
 
 public static final String OPT_DESC = "Gene Extractors Name. Space/semicolon/Comma separated";
@@ -228,6 +266,12 @@ public GeneExtractorFactory(final VCFHeader header) {
 	extractors.add( new VepGeneExtractor(vepparser,AVAILABLE_EXTRACTORS_NAMES.get(3), P->P.getEnsemblGene()));
 	extractors.add( new VepGeneExtractor(vepparser,AVAILABLE_EXTRACTORS_NAMES.get(4), P->P.getENSP()));
 	extractors.add( new VepGeneExtractor(vepparser,AVAILABLE_EXTRACTORS_NAMES.get(5), P->P.getFeature()));
+	
+
+	final SnpEffPredictionParser effparser = new SnpEffPredictionParser(header);
+	extractors.add( new SnpEffGeneExtractor(effparser,AVAILABLE_EXTRACTORS_NAMES.get(6), P->P.getGeneName()));
+	extractors.add( new SnpEffGeneExtractor(effparser,AVAILABLE_EXTRACTORS_NAMES.get(7), P->P.getEnsemblTranscript()));
+
 	}
 
 /** return a list of all the available extractors' names */

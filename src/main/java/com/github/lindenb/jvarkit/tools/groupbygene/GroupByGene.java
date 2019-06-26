@@ -30,9 +30,9 @@ package com.github.lindenb.jvarkit.tools.groupbygene;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
@@ -54,7 +53,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.LineIterator;
 
 import com.beust.jcommander.Parameter;
@@ -62,9 +60,11 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -72,10 +72,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.util.vcf.VcfTools;
-import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
-import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
 
 /**
 BEGIN_DOC
@@ -118,7 +115,8 @@ END_DOC
 		name="groupbygene",
 		keywords={"vcf","gene"},
 		biostars={342790},
-		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff"
+		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff",
+		modificationDate="20190626"
 		)
 public class GroupByGene
 	extends Launcher
@@ -129,25 +127,20 @@ public class GroupByGene
 	private boolean ignore_filtered = false;
 	@Parameter(names={"--gtFiltered"},description="[20170725] ignore FILTERED genotypes")
 	private boolean ignore_filtered_genotype = false;
-	@Parameter(names={"-T","--tag"},description="search Tag in INFO field containing the name of the genes (optional)")
-	private Set<String> user_gene_tags = new HashSet<>();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outFile=null;
-	@Parameter(names={"-p","--ped","--pedigree"},description="[20170725] "+ Pedigree.OPT_DESCRIPTION)
-	private File pedigreeFile=null;
-	@Parameter(names={"--annIntergenic"},description="[20170726] Accept snpEff 'ANN' intergenic regions.")
-	private boolean accept_snpeff_intergenic=false;
-	@Parameter(names={"--typeRegexExclude"},description="[20170726] ignore prediction type matching this regex. e.g: '(ann_gene_id|ann_feature_id)' ")
-	private String typeRegexExclude=null;
-	@Parameter(names={"--slidingWindowSize"},description="[20170726] if greater than 0, add a sliding window of this size as the name of a virtual region ")
-	private int slidingWindowSize=0;
-	@Parameter(names={"--slidingWindowShift"},description="[20170726] if greater than 0, add shift the sliding window by this distance ")
-	private int slidingWindowShift=0;
+	private Path outFile=null;
+	@Parameter(names={"-p","--ped","--pedigree"},description="[20170725] "+ PedigreeParser.OPT_DESC)
+	private Path pedigreePath=null;
+
 	@Parameter(names={"--fisher"},description="[20170726] Print fisher for case/control (experimental, need to work on this)")
 	private boolean print_fisher=false;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
-	
+	@Parameter(names={"-l","--list"},description= "[20190626]list all available gene extractors", help=true)
+	private boolean list_extractors = false;
+	@Parameter(names={"-e","-E","--extractors"},description="[20190626]"+GeneExtractorFactory.OPT_DESC)
+	private String extractorsNames="ANN/GeneId VEP/GeneId";
+
 	
 	/** the SAMSequenceDictionary used to sort reference */
 	private SAMSequenceDictionary the_dictionary = null;
@@ -176,10 +169,12 @@ public class GroupByGene
 	private static class GeneName
 		{
 		final String name;
+		final String label;
 		final String type;
-		GeneName(final String name,final String type)
+		GeneName(final String name,final String label,final String type)
 			{
 			this.name=name;
+			this.label=StringUtils.isBlank(label)?".":label;
 			this.type=type;
 			}
 		@Override
@@ -239,6 +234,7 @@ public class GroupByGene
 				throws IOException
 			{
 			dos.writeUTF(c.gene.name);
+			dos.writeUTF(c.gene.label);
 			dos.writeUTF(c.gene.type);
 			writeString(dos, c.line);
 			}
@@ -252,9 +248,10 @@ public class GroupByGene
 			} catch (final Exception e) {
 				return null;
 				}
+			final String gLbl=dis.readUTF();
 			final String gType=dis.readUTF();
 			final Call c= new Call();
-			c.gene=new GeneName(gName, gType);
+			c.gene=new GeneName(gName,gLbl, gType);
 			c.line = readString(dis);
 			return c;
 			}
@@ -272,82 +269,6 @@ public class GroupByGene
 		{
 		}
 	
-	private Set<GeneName> getGenes(final VcfTools vcfTools,final VariantContext ctx)
-		{
-		final Set<GeneName> set=new HashSet<GeneName>();
-		for(final VepPredictionParser.VepPrediction pred: vcfTools.getVepPredictions(ctx))
-			{
-			String s=pred.getGeneName();
-			if(s!=null)  set.add(new GeneName(s,"vep_gene_name"));
-			s=pred.getEnsemblGene();
-			if(s!=null)  set.add(new GeneName(s,"vep_ensembl_gene_name"));
-			s=pred.getSymbol();
-			if(s!=null)  set.add(new GeneName(s,"vep_symbol"));
-			s=pred.getHGNC();
-			if(s!=null)  set.add(new GeneName(s,"vep_hgnc"));
-			s=pred.getHgncId();
-			if(s!=null)  set.add(new GeneName(s,"vep_hgnc_id"));
-			s=pred.getGene();
-			if(s!=null)  set.add(new GeneName(s,"vep_gene"));
-			s=pred.getRefSeq();
-			if(s!=null)  set.add(new GeneName(s,"vep_refseq"));
-			}
-		for(final SnpEffPredictionParser.SnpEffPrediction pred: vcfTools.getSnpEffPredictions(ctx))
-			{
-			String s=pred.getGeneName();
-			if(s!=null)  set.add(new GeneName(s,"snpeff_gene_name"));
-			s=pred.getEnsemblTranscript();
-			if(s!=null)  set.add(new GeneName(s,"snpeff_ensembl_transcript_name"));
-			}
-		for(final AnnPredictionParser.AnnPrediction pred: vcfTools.getAnnPredictions(ctx)) {
-			if(pred.isIntergenicRegion() && !this.accept_snpeff_intergenic) continue;
-			String s=pred.getGeneId();
-			if(s!=null)  set.add(new GeneName(s,"ann_gene_id"));
-			s=pred.getGeneName();
-			if(s!=null)  set.add(new GeneName(s,"ann_gene_name"));
-			s=pred.getFeatureId();
-			if(s!=null)  set.add(new GeneName(s,"ann_feature_id"));
-			}
-		
-		for(final String user_gene_tag:user_gene_tags)
-			{
-			if(user_gene_tag.isEmpty()) continue;
-			if(user_gene_tag.equals(".")) continue;
-			for(final String t:ctx.getAttributeAsList(user_gene_tag).stream().
-					filter(O->O!=null).
-					map(O->O.toString()).
-					filter(S->!S.isEmpty()).
-					collect(Collectors.toSet())
-					)
-				{
-				set.add(new GeneName(t,"user:"+user_gene_tag));
-				}
-			}
-		
-		if(this.slidingWindowSize>0 && this.slidingWindowShift>0)
-			{
-			int p = ctx.getStart() - ctx.getStart()%this.slidingWindowSize;
-			while(p-this.slidingWindowShift+this.slidingWindowSize >= ctx.getStart()  )
-				{
-				p-=this.slidingWindowShift;
-				}
-			p = Math.max(0 /* yes 0 */, p);
-			while(p<=ctx.getStart() && p+this.slidingWindowSize >=ctx.getStart())
-				{
-				final String winName= ctx.getContig()+"_"+
-						String.format("%06d",(p+1))+"_"+
-						String.format("%06d",(p+this.slidingWindowSize));
-				set.add(new GeneName(winName,"sliding_"+this.slidingWindowSize+"_"+this.slidingWindowShift));
-				p+=this.slidingWindowShift;
-				}
-			
-			}
-		
-		set.removeIf(G->G.name.isEmpty());
-		return set;
-		}
-	
-
 	private void read(final String input) throws IOException
 		{
 		LineIterator lineiter=null;
@@ -356,7 +277,6 @@ public class GroupByGene
 		
 		
 		try {
-			final Pattern regexType=(StringUtil.isBlank(this.typeRegexExclude)?null:Pattern.compile(this.typeRegexExclude));
 			
 			lineiter = (input==null?
 						IOUtils.openStreamForLineIterator(stdin()):
@@ -379,6 +299,11 @@ public class GroupByGene
 			
 			final VCFUtils.CodecAndHeader cah =VCFUtils.parseHeader(lineiter);
 			final VCFHeader header = cah.header;
+			
+			final GeneExtractorFactory geneExtractorFactory = new GeneExtractorFactory(header);
+			final List<GeneExtractorFactory.GeneExtractor> geneExtractors = geneExtractorFactory.parse(this.extractorsNames);
+
+			
 			this.the_dictionary = header.getSequenceDictionary();
 			if(this.the_dictionary==null || this.the_dictionary.isEmpty())
 				{
@@ -396,41 +321,42 @@ public class GroupByGene
 				sampleNames = Collections.emptyList();
 				}
 			
-			final VcfTools vcfTools = new VcfTools(header);
 			final Pedigree pedigree;
-			if(this.pedigreeFile!=null) {
-				pedigree = Pedigree.newParser().parse(this.pedigreeFile);
+			if(this.pedigreePath!=null) {
+				final PedigreeParser pedParser = new PedigreeParser();
+				pedigree = pedParser.parse(this.pedigreePath);
 				}
 			else
 				{
-				pedigree = Pedigree.newParser().parse(header);
+				pedigree = PedigreeParser.empty();
 				}
 			
 			final CharSplitter tab = CharSplitter.TAB;
 			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(the_dictionary).logger(LOG).build();
 			while(lineiter.hasNext())
 				{
-				String line = lineiter.next();
-				final VariantContext ctx = progress.apply(this.the_codec.decode(line));
+				final String line1 = lineiter.next();
+				final VariantContext ctx = progress.apply(this.the_codec.decode(line1));
 				if(!ctx.isVariant()) continue;
 				if(ignore_filtered && ctx.isFiltered()) continue;
 				
 				//simplify line
-				final String tokens[]=tab.split(line);
+				final String tokens[]=tab.split(line1);
 				tokens[2]=VCFConstants.EMPTY_ID_FIELD;//ID
 				tokens[5]=VCFConstants.MISSING_VALUE_v4;//QUAL
 				tokens[6]=VCFConstants.UNFILTERED;//FILTER
 				tokens[7]=VCFConstants.EMPTY_INFO_FIELD;//INFO
-				line = String.join(VCFConstants.FIELD_SEPARATOR, Arrays.asList(tokens));
+				final String line2 = String.join(VCFConstants.FIELD_SEPARATOR, Arrays.asList(tokens));
+				final SortingCollection<Call> finalSorter = sortingCollection; 
+				geneExtractors.stream().
+					flatMap(EX->EX.apply(ctx).keySet().stream()).
+					forEach(KG->{
+						final Call c=new Call();
+						c.line=line2;
+						c.gene=new GeneName(KG.getKey(),KG.getGene(),KG.getMethod());
+						finalSorter.add(c);
+					});
 				
-				for(final GeneName g:getGenes(vcfTools,ctx))
-					{
-					if(regexType!=null && regexType.matcher(g.type).matches()) continue;
-					final Call c=new Call();
-					c.line=line;
-					c.gene=g;
-					sortingCollection.add(c);
-					}
 				}
 			CloserUtil.close(lineiter);lineiter=null;
 			sortingCollection.doneAdding();
@@ -439,26 +365,25 @@ public class GroupByGene
 			
 			/** dump */			
 	
-			final Set<String> casesSamples = pedigree.getPersons().stream().
+			final Set<String> casesSamples = pedigree.getAffectedSamples().stream().
 						filter(P->P.isAffected()).
 						map(P->P.getId()).
 						filter(ID->sampleNames.contains(ID)).
 						collect(Collectors.toSet())
 						;
-			final Set<String> controlsSamples = pedigree.getPersons().stream().
-					filter(P->P.isUnaffected()).
+			final Set<String> controlsSamples = pedigree.getUnaffectedSamples().stream().
 					map(P->P.getId()).
 					filter(ID->sampleNames.contains(ID)).
 					collect(Collectors.toSet())
 					;
 			
-			final Set<String> maleSamples = pedigree.getPersons().stream().
+			final Set<String> maleSamples = pedigree.getSamples().stream().
 					filter(P->P.isMale()).
 					map(P->P.getId()).
 					filter(ID->sampleNames.contains(ID)).
 					collect(Collectors.toSet())
 					;
-			final Set<String> femaleSamples = pedigree.getPersons().stream().
+			final Set<String> femaleSamples = pedigree.getSamples().stream().
 					filter(P->P.isFemale()).
 					map(P->P.getId()).
 					filter(ID->sampleNames.contains(ID)).
@@ -475,7 +400,7 @@ public class GroupByGene
 			
 			
 			
-			PrintStream pw = openFileOrStdoutAsPrintStream(this.outFile);
+			PrintStream pw = openPathOrStdoutAsPrintStream(this.outFile);
 			
 			
 			pw.print("#chrom");
@@ -485,6 +410,8 @@ public class GroupByGene
 			pw.print("max.POS");
 			pw.print('\t');
 			pw.print("gene.name");
+			pw.print('\t');
+			pw.print("gene.label");
 			pw.print('\t');
 			pw.print("gene.type");
 			pw.print('\t');			
@@ -583,6 +510,8 @@ public class GroupByGene
 					pw.print('\t');
 					pw.print(first.gene.name);
 					pw.print('\t');
+					pw.print(first.gene.label);
+					pw.print('\t');
 					pw.print(first.gene.type);
 					pw.print('\t');
 					pw.print(sampleCarryingMut.size());
@@ -679,13 +608,11 @@ public class GroupByGene
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.slidingWindowSize>0)
-			{
-			if(this.slidingWindowShift>this.slidingWindowSize)
-				{
-				LOG.error("bad slidingw window parameters: shift >size ");
-				return -1;
+		if(this.list_extractors) {
+			for(final String en: GeneExtractorFactory.getExtractorNames()) {
+				System.out.println(en);
 				}
+			return 0;
 			}
 		
 		try
