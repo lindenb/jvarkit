@@ -103,12 +103,11 @@ grep NCBI135_
 
 END_DOC
 
-
-
  */
 @Program(name="vcfpeekvcf",
 		description="Get the INFO from a VCF and use it for another VCF",
-		keywords={"vcf","annotation"}
+		keywords={"vcf","annotation"},
+		modificationDate="20190627"
 		)
 public class VcfPeekVcf extends Launcher
 	{
@@ -125,7 +124,8 @@ public class VcfPeekVcf extends Launcher
 	private String peekTagPrefix = "";
 	
 	private enum AlleleMatch {none,all,at_least_one};
-	@Parameter(names={"-a","-alt","--alt"},description="How alt allele must be found in the variants of the indexed file.")
+	@Parameter(names={"-a","-alt","--alt"},description="How alt allele must be found in the variants of the indexed file."
+			+ "All: All ALT alleles must be found in the database ALTs. at_least_one: At least one of the user ALT must be found in database ALTs. None: just use CHROM/POS/REF")
 	private AlleleMatch altAlleleMatcher = AlleleMatch.none;
 	
 	@Parameter(names={"-i","--replaceid"},description="Replace the ID field if it exists")
@@ -141,6 +141,14 @@ public class VcfPeekVcf extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variants in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
 	private int buffer_size = 100_000;
+	@Parameter(names={"--default-int"},description="default value for Type=Integer")
+	private Integer defaultInteger = null;
+	@Parameter(names={"--default-float"},description="default value for Type=Float")
+	private Double defaultFloat = null;
+	@Parameter(names={"--default-string"},description="default value for Type=String")
+	private String defaultString = null;
+
+	
 
 	private final Set<String> peek_info_tags=new HashSet<String>();
 	private VCFFileReader indexedVcfFileReader=null;
@@ -179,28 +187,43 @@ public class VcfPeekVcf extends Launcher
 					(end+1+this.buffer_size)
 					);
 			
-			final CloseableIterator<VariantContext> t = this.indexedVcfFileReader.query(
+			try( CloseableIterator<VariantContext> t = this.indexedVcfFileReader.query(
 					contig,
 					Math.max(0,start-1),
 					(end+1+this.buffer_size)
-					);
-			
-			while(t.hasNext())
-				{
-				VariantContext ctx = t.next();
-				if(ctx.hasGenotypes()) //reduce memory
+					)) {
+				while(t.hasNext())
 					{
-					ctx = new VariantContextBuilder(ctx).noGenotypes().make();
+					VariantContext ctx = t.next();
+					if(ctx.hasGenotypes()) //reduce memory
+						{
+						ctx = new VariantContextBuilder(ctx).noGenotypes().make();
+						}
+					this.buffer.add(ctx);
 					}
-				this.buffer.add(ctx);
 				}
-			t.close();
 			}
 		return this.buffer.stream().
 				filter(V->V.getContig().equals(contig) && CoordMath.overlaps(V.getStart(), V.getEnd(), start, end)).
 				collect(Collectors.toList());
 		}
 	
+	/** get default value for a given tag . Automatic for AC or AF */
+	private Object getDefaultValue(final VCFInfoHeaderLine info) {
+		if(info.getID().equals(VCFConstants.ALLELE_FREQUENCY_KEY)) {
+			return 0.0f;
+			}
+		else if(info.getID().equals(VCFConstants.ALLELE_COUNT_KEY)) {
+			return  0;
+			}
+
+		switch(info.getType()) {
+			case Float : return this.defaultFloat;
+			case Integer : return this.defaultInteger;
+			case String : return this.defaultString;
+			default: return null;
+			}
+		}
 	
 	/** public for knime */
 	@Override
@@ -353,20 +376,25 @@ public class VcfPeekVcf extends Launcher
 								{
 								final List<Object> newatt = new ArrayList<>();
 								final List<Object> ctx2att = ctx2.getAttributeAsList(key);
+								boolean got_value = false;
 								for(int i=0;i< ctx.getAlternateAlleles().size();++i)
 									{
 									final Allele ctxalt = ctx.getAlternateAllele(i);
 									int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
 									if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
 										{
-										newatt.add(null);
+										Object value2 = getDefaultValue(dbHeader);
+										
+										newatt.add(value2);
 										}
 									else
 										{
-										newatt.add(ctx2att.get(index2));
+										final Object value2 = ctx2att.get(index2);
+										if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
+										newatt.add(value2);
 										}
 									}
-								if(newatt.stream().anyMatch(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))))
+								if(got_value)
 									{
 									vcb.attribute(this.peekTagPrefix+key, newatt);
 									somethingWasChanged=true;
@@ -375,6 +403,7 @@ public class VcfPeekVcf extends Launcher
 								}
 							case R:
 								{
+								boolean got_value = false;
 								final List<Object> newatt = new ArrayList<>();
 								final List<Object> ctx2att = ctx2.getAttributeAsList(key);
 								for(int i=0;i< ctx.getAlleles().size();++i)
@@ -383,14 +412,16 @@ public class VcfPeekVcf extends Launcher
 									int index2 = ctx2.getAlleleIndex(ctxalt);
 									if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
 										{
-										newatt.add(null);
+										newatt.add(getDefaultValue(dbHeader));
 										}
 									else
 										{
-										newatt.add(ctx2att.get(index2));
+										final Object value2 = ctx2att.get(index2);
+										if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
+										newatt.add(value2);
 										}
 									}
-								if(newatt.stream().anyMatch(Obj->!(Obj==null || VCFConstants.EMPTY_INFO_FIELD.equals(Obj))))
+								if(got_value)
 									{
 									vcb.attribute(this.peekTagPrefix+key, newatt);
 									somethingWasChanged=true;

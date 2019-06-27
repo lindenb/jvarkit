@@ -11,7 +11,10 @@ Get the INFO from a VCF and use it for another VCF
 Usage: vcfpeekvcf [options] Files
   Options:
     -a, -alt, --alt
-      How alt allele must be found in the variants of the indexed file.
+      How alt allele must be found in the variants of the indexed file.All: 
+      All ALT alleles must be found in the database ALTs. at_least_one: At 
+      least one of the user ALT must be found in database ALTs. None: just use 
+      CHROM/POS/REF 
       Default: none
       Possible Values: [none, all, at_least_one]
     -b, --buffer-size
@@ -20,6 +23,12 @@ Usage: vcfpeekvcf [options] Files
       specified as a positive integer.Comma are removed. The following 
       suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 100000
+    --default-float
+      default value for Type=Float
+    --default-int
+      default value for Type=Integer
+    --default-string
+      default value for Type=String
     -h, --help
       print help and exit
     --helpFormat

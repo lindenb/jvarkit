@@ -426,6 +426,7 @@ public class VCFComposite extends Launcher {
 				final GeneIdentifier geneKey,
 				final List<VariantLine> variants)
 			{
+			int pair_index = 0;
 			if(variants.size()<2) {
 				return;
 				}
@@ -487,11 +488,11 @@ public class VCFComposite extends Launcher {
 							if(this.reportPath!=null) {
 								this.reportWriter.print(geneKey.contig);
 								this.reportWriter.print('\t');
-								this.reportWriter.print(variants.stream().mapToInt(V->V.ctx.getStart()-1).min().orElse(-1));
+								this.reportWriter.print(Math.min(vcx.getStart(),vcy.getStart())-1);
 								this.reportWriter.print('\t');
-								this.reportWriter.print(variants.stream().mapToInt(V->V.ctx.getEnd()).max().orElse(-1));
+								this.reportWriter.print(Math.max(vcx.getEnd(),vcy.getEnd()));
 								this.reportWriter.print('\t');
-								this.reportWriter.print(variants.size());
+								this.reportWriter.print(++pair_index);
 								this.reportWriter.print('\t');
 								this.reportWriter.print(geneKey.geneName);
 								this.reportWriter.print('\t');
@@ -732,7 +733,7 @@ public class VCFComposite extends Launcher {
 			this.reportWriter.print('\t');
 			this.reportWriter.print("bed.end");
 			this.reportWriter.print('\t');
-			this.reportWriter.print("count.variants.in.gene");
+			this.reportWriter.print("gene.index");
 			this.reportWriter.print('\t');
 			this.reportWriter.print("gene.key");
 			this.reportWriter.print('\t');
