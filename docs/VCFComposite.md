@@ -46,6 +46,11 @@ Usage: vcfcomposite [options] Files
       A pedigree file.
     -r, --report
       Optional tabular text report
+    -s, --select
+      How to select affected sample: any=at least one affected sample must 
+      carry the variant all: all affected must carry the variant.
+      Default: any
+      Possible Values: [any, all]
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []

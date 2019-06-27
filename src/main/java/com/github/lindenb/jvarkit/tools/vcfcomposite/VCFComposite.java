@@ -201,6 +201,9 @@ END_DOC
 public class VCFComposite extends Launcher {
 	private static final String INFO_TAG="COMPOSITE";
 	private static final Logger LOG= Logger.build(VCFComposite.class).make();
+	
+	private enum AffectedSelection {any,all};
+	
 	@Parameter(names={"-p","-ped","--pedigree"},description=PedigreeParser.OPT_DESC,required=true)
 	private Path pedigreeFile=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -219,7 +222,9 @@ public class VCFComposite extends Launcher {
 	private String extractorsNames="ANN/GeneId VEP/GeneId";
 	@Parameter(names={"-r","--report"},description="Optional tabular text report")
 	private Path reportPath = null;
-	
+	@Parameter(names={"-s","--select"},description="How to select affected sample: any=at least one affected sample must carry the variant all: all affected must carry the variant.")
+	private AffectedSelection affected_selection = AffectedSelection.any;
+
 	
 	//@Parameter(names={"-m","--model"},description="Model type",required=true)
 	//private Type modelType=null;
@@ -413,9 +418,21 @@ public class VCFComposite extends Launcher {
 			anyMatch(G->G.isHomVar())) return false;
 		
 		/* case must be het */
-		if( this.affectedSamples.stream().
-			map(S->ctx.getGenotype(S.getId())).
-			anyMatch(G->isGenotypeForAffected(G))) return true;
+		switch(this.affected_selection)
+			{
+			case any:
+				if( this.affectedSamples.stream().
+						map(S->ctx.getGenotype(S.getId())).
+						anyMatch(G->isGenotypeForAffected(G))) return true;
+				break;
+			case all:
+				if( this.affectedSamples.stream().
+						map(S->ctx.getGenotype(S.getId())).
+						allMatch(G->isGenotypeForAffected(G))) return true;
+				break;
+			}
+		
+		
 		return false;
 		}
 	
