@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-(in developpement) Finds Variants involved in a Het Composite Disease
+(in developpement) Finds Variants involved in a Het Compound Disease
 
 
 ## Usage
@@ -17,6 +17,8 @@ Usage: vcfcomposite [options] Files
       [20180718] set FILTER for the variants that are not part of a composite 
       mutation. Blank = filter out non-composites
       Default: NOT_COMPOSITE
+    -g, --genes
+      Optional tabular text report for genes
     -gf, --genotype-filter
       A Java EXpression Language (JEXL) expressions to filter a genotye in a 
       VCF. Empty string will accept all genotypes. Expression returning a TRUE 
@@ -40,15 +42,27 @@ Usage: vcfcomposite [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
+    -u, --one-unaffected-het
+      There must be at least one **Unaffected** sample with a HET Genotype for 
+      a given variant.
+      Default: false
     -o, --out
       Output file. Optional . Default: stdout
   * -p, -ped, --pedigree
       A pedigree file.
     -r, --report
-      Optional tabular text report
-    -s, --select
-      How to select affected sample: any=at least one affected sample must 
-      carry the variant all: all affected must carry the variant.
+      Optional tabular text report for pairs of variants
+    -a, --select-pair
+      How to select a pair of variants : any: at least one affected sample 
+      must be carried by variant1 and variant2 all: all affected samples be 
+      carried by variant1 and variant2
+      Default: any
+      Possible Values: [any, all]
+    -s, --select-variant
+      How to select affected samples for *one* variant. This variant will be 
+      later challenged with another variant of the same gene. any: at least 
+      one affected sample must be HET for the variant all: all affected 
+      samples must be HET for the variant.
       Default: any
       Possible Values: [any, all]
     --tmpDir
@@ -72,6 +86,7 @@ Usage: vcfcomposite [options] Files
  * disease
  * annotation
  * pedigree
+ * haplotype
 
 
 ## Compilation
@@ -134,7 +149,7 @@ X	S1	S2	S3	0	1
 X	S2	0	0	0	0
 X	S3	0	0	0	0
 
-$ java -jar dist/vcfcomposite.jar -r report.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
+$ java -jar dist/vcfcomposite.jar -r report.txt -g gene.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
 [WARN][VepPredictionParser]NO INFO[CSQ] found in header. This VCF was probably NOT annotated with VEP. But it's not a problem if this tool doesn't need to access VEP Annotations.
 [INFO][VCFComposite]reading variants and genes
 [INFO][VCFComposite]compile per gene
@@ -144,6 +159,13 @@ RF02	877	.	T	A	3.45	PASS	AC=1;AN=10;ANN=A|missense_variant|MODERATE|UniProtKB/Sw
 RF02	1962	.	TACA	TA	33.43	PASS	AC=1;AN=10;ANN=TA|frameshift_variant|HIGH|UniProtKB/Swiss-Prot:P12472|UniProtKB/Swiss-Prot:P12472|transcript|CAA32213.1|protein_coding|1/1|c.1948_1949delCA|p.His650fs|1948/2643|1948/2643|650/880||,TA|upstream_gene_variant|MODIFIER|UniProtKB/Swiss-Prot:P12472|UniProtKB/Swiss-Prot:P12472|transcript|CAA32215.1|protein_coding||c.-45_-44delCA|||||45|WARNING_TRANSCRIPT_NO_START_CODON,TA|downstream_gene_variant|MODIFIER|Gene_1621_1636|Gene_1621_1636|transcript|CAA32214.1|protein_coding||c.*327_*328delCA|||||327|WARNING_TRANSCRIPT_INCOMPLETE;COMPOSITE=gene|Gene_1621_1636|source|ANN_GeneId|pos|877|ref|T|sample|S1,gene|UniProtKB/Swiss-Prot:P12472|source|ANN_GeneId|pos|877|ref|T|sample|S1;DP=43;DP4=22,11,2,0;HOB=0.02;ICB=0.0439024;IDV=3;IMF=0.3;INDEL;LOF=(UniProtKB/Swiss-Prot:P12472|UniProtKB/Swiss-Prot:P12472|2|0.50);MQ=60;MQ0F=0;MQSB=1;SGB=0.810227;VDB=0.373246	GT:PL	0/1:70,0,159	0/0:0,15,225	0/0:0,15,225	0/0:0,27,231	0/0:0,27,168
 RF04	887	.	A	G	5.31	PASS	AC=1;AN=10;ANN=G|missense_variant|MODERATE|Gene_9_2339|Gene_9_2339|transcript|AAB07453.1|protein_coding|1/1|c.878A>G|p.Glu293Gly|878/2331|878/2331|293/776||;BQB=1;COMPOSITE=gene|Gene_9_2339|source|ANN_GeneId|pos|1857|ref|CAGA|sample|S1;DP=48;DP4=16,28,3,1;HOB=0.02;ICB=0.0439024;MQ=60;MQ0F=0;MQB=1;MQSB=1;RPB=0.90467;SGB=3.91248;VDB=0.811811	GT:PL	0/1:40,0,28	0/0:0,24,98	0/0:0,24,98	0/0:0,33,120	0/0:0,42,134
 RF04	1857	.	CAGA	CA	39.47	PASS	AC=1;AN=10;ANN=CA|frameshift_variant|HIGH|Gene_9_2339|Gene_9_2339|transcript|AAB07453.1|protein_coding|1/1|c.1850_1851delGA|p.Arg617fs|1850/2331|1850/2331|617/776||;COMPOSITE=gene|Gene_9_2339|source|ANN_GeneId|pos|887|ref|A|sample|S1;DP=45;DP4=12,21,1,1;HOB=0.02;ICB=0.0439024;IDV=2;IMF=0.166667;INDEL;LOF=(Gene_9_2339|Gene_9_2339|1|1.00);MQ=60;MQ0F=0;MQSB=1;SGB=0.810227;VDB=0.969947	GT:PL	0/1:76,0,152	0/0:0,18,194	0/0:0,18,194	0/0:0,15,166	0/0:0,33,255
+
+
+$ column -t gene.txt
+#CHROM  bed.start  bed.end  gene.key                     gene.label                   gene.source  affected.counts  affected.total  affected.samples
+RF02    876        1965     Gene_1621_1636               Gene_1621_1636               ANN_GeneId   1                1               S1
+RF04    886        1860     Gene_9_2339                  Gene_9_2339                  ANN_GeneId   1                1               S1
+RF02    876        1965     UniProtKB/Swiss-Prot:P12472  UniProtKB/Swiss-Prot:P12472  ANN_GeneId   1                1               S1
 
 
 $ verticalize report.txt 

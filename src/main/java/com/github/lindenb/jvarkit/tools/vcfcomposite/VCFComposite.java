@@ -95,7 +95,7 @@ X	S1	S2	S3	0	1
 X	S2	0	0	0	0
 X	S3	0	0	0	0
 
-$ java -jar dist/vcfcomposite.jar -r report.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
+$ java -jar dist/vcfcomposite.jar -r report.txt -g gene.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
 [WARN][VepPredictionParser]NO INFO[CSQ] found in header. This VCF was probably NOT annotated with VEP. But it's not a problem if this tool doesn't need to access VEP Annotations.
 [INFO][VCFComposite]reading variants and genes
 [INFO][VCFComposite]compile per gene
@@ -105,6 +105,13 @@ RF02	877	.	T	A	3.45	PASS	AC=1;AN=10;ANN=A|missense_variant|MODERATE|UniProtKB/Sw
 RF02	1962	.	TACA	TA	33.43	PASS	AC=1;AN=10;ANN=TA|frameshift_variant|HIGH|UniProtKB/Swiss-Prot:P12472|UniProtKB/Swiss-Prot:P12472|transcript|CAA32213.1|protein_coding|1/1|c.1948_1949delCA|p.His650fs|1948/2643|1948/2643|650/880||,TA|upstream_gene_variant|MODIFIER|UniProtKB/Swiss-Prot:P12472|UniProtKB/Swiss-Prot:P12472|transcript|CAA32215.1|protein_coding||c.-45_-44delCA|||||45|WARNING_TRANSCRIPT_NO_START_CODON,TA|downstream_gene_variant|MODIFIER|Gene_1621_1636|Gene_1621_1636|transcript|CAA32214.1|protein_coding||c.*327_*328delCA|||||327|WARNING_TRANSCRIPT_INCOMPLETE;COMPOSITE=gene|Gene_1621_1636|source|ANN_GeneId|pos|877|ref|T|sample|S1,gene|UniProtKB/Swiss-Prot:P12472|source|ANN_GeneId|pos|877|ref|T|sample|S1;DP=43;DP4=22,11,2,0;HOB=0.02;ICB=0.0439024;IDV=3;IMF=0.3;INDEL;LOF=(UniProtKB/Swiss-Prot:P12472|UniProtKB/Swiss-Prot:P12472|2|0.50);MQ=60;MQ0F=0;MQSB=1;SGB=0.810227;VDB=0.373246	GT:PL	0/1:70,0,159	0/0:0,15,225	0/0:0,15,225	0/0:0,27,231	0/0:0,27,168
 RF04	887	.	A	G	5.31	PASS	AC=1;AN=10;ANN=G|missense_variant|MODERATE|Gene_9_2339|Gene_9_2339|transcript|AAB07453.1|protein_coding|1/1|c.878A>G|p.Glu293Gly|878/2331|878/2331|293/776||;BQB=1;COMPOSITE=gene|Gene_9_2339|source|ANN_GeneId|pos|1857|ref|CAGA|sample|S1;DP=48;DP4=16,28,3,1;HOB=0.02;ICB=0.0439024;MQ=60;MQ0F=0;MQB=1;MQSB=1;RPB=0.90467;SGB=3.91248;VDB=0.811811	GT:PL	0/1:40,0,28	0/0:0,24,98	0/0:0,24,98	0/0:0,33,120	0/0:0,42,134
 RF04	1857	.	CAGA	CA	39.47	PASS	AC=1;AN=10;ANN=CA|frameshift_variant|HIGH|Gene_9_2339|Gene_9_2339|transcript|AAB07453.1|protein_coding|1/1|c.1850_1851delGA|p.Arg617fs|1850/2331|1850/2331|617/776||;COMPOSITE=gene|Gene_9_2339|source|ANN_GeneId|pos|887|ref|A|sample|S1;DP=45;DP4=12,21,1,1;HOB=0.02;ICB=0.0439024;IDV=2;IMF=0.166667;INDEL;LOF=(Gene_9_2339|Gene_9_2339|1|1.00);MQ=60;MQ0F=0;MQSB=1;SGB=0.810227;VDB=0.969947	GT:PL	0/1:76,0,152	0/0:0,18,194	0/0:0,18,194	0/0:0,15,166	0/0:0,33,255
+
+
+$ column -t gene.txt
+#CHROM  bed.start  bed.end  gene.key                     gene.label                   gene.source  affected.counts  affected.total  affected.samples
+RF02    876        1965     Gene_1621_1636               Gene_1621_1636               ANN_GeneId   1                1               S1
+RF04    886        1860     Gene_9_2339                  Gene_9_2339                  ANN_GeneId   1                1               S1
+RF02    876        1965     UniProtKB/Swiss-Prot:P12472  UniProtKB/Swiss-Prot:P12472  ANN_GeneId   1                1               S1
 
 
 $ verticalize report.txt 
@@ -194,15 +201,15 @@ $23  variant2.gt[S3].unaffected : HOM_REF
 END_DOC
 */
 @Program(name="vcfcomposite",
-	description="(in developpement) Finds Variants involved in a Het Composite Disease",
-	keywords={"vcf","disease","annotation","pedigree"},
-	modificationDate = "20190626"
+	description="(in developpement) Finds Variants involved in a Het Compound Disease",
+	keywords={"vcf","disease","annotation","pedigree","haplotype"},
+	modificationDate = "20190628"
 )
 public class VCFComposite extends Launcher {
 	private static final String INFO_TAG="COMPOSITE";
 	private static final Logger LOG= Logger.build(VCFComposite.class).make();
 	
-	private enum AffectedSelection {any,all};
+	private enum Selection {any,all};
 	
 	@Parameter(names={"-p","-ped","--pedigree"},description=PedigreeParser.OPT_DESC,required=true)
 	private Path pedigreeFile=null;
@@ -220,10 +227,20 @@ public class VCFComposite extends Launcher {
 	private boolean list_extractors = false;
 	@Parameter(names={"-e","-E","--extractors"},description=GeneExtractorFactory.OPT_DESC)
 	private String extractorsNames="ANN/GeneId VEP/GeneId";
-	@Parameter(names={"-r","--report"},description="Optional tabular text report")
+	@Parameter(names={"-r","--report"},description="Optional tabular text report for pairs of variants")
 	private Path reportPath = null;
-	@Parameter(names={"-s","--select"},description="How to select affected sample: any=at least one affected sample must carry the variant all: all affected must carry the variant.")
-	private AffectedSelection affected_selection = AffectedSelection.any;
+	@Parameter(names={"-g","--genes"},description="Optional tabular text report for genes")
+	private Path geneReportPath = null;
+	@Parameter(names={"-s","--select-variant"},description="How to select affected samples for *one* variant. This variant will be later challenged with another variant of the same gene. "
+			+ "any: at least one affected sample must be HET for the variant "
+			+ "all: all affected samples must be HET for the variant.")
+	private Selection affected_selection = Selection.any;
+	@Parameter(names={"-u","--one-unaffected-het"},description="There must be at least one **Unaffected** sample with a HET Genotype for a given variant. ")
+	private boolean one_unaffected_het = false;
+	@Parameter(names={"-a","--select-pair"},description="How to select a pair of variants : "
+			+ "any: at least one affected sample must be carried by variant1 and variant2 "
+			+ "all: all affected samples be carried by variant1 and variant2")
+	private Selection pair_selection = Selection.any;
 
 	
 	//@Parameter(names={"-m","--model"},description="Model type",required=true)
@@ -239,6 +256,7 @@ public class VCFComposite extends Launcher {
 	private List<Sample> affectedSamples = new ArrayList<>();
 	private List<Sample> unaffectedSamples = new ArrayList<>();
 	private PrintWriter reportWriter =  null;
+	private PrintWriter reportGeneWriter =  null;
 	
 	private class VariantLine
 		{
@@ -417,6 +435,14 @@ public class VCFComposite extends Launcher {
 			filter(G->G!=null).
 			anyMatch(G->G.isHomVar())) return false;
 		
+		/* at least one het in the unaffected */
+		if(this.one_unaffected_het) {
+			if( this.unaffectedSamples.stream().
+					map(S->ctx.getGenotype(S.getId())).
+					filter(G->G!=null).
+					noneMatch(G->G.isHet())) return false;
+			}
+		
 		/* case must be het */
 		switch(this.affected_selection)
 			{
@@ -442,148 +468,193 @@ public class VCFComposite extends Launcher {
 	private void scan(
 				final GeneIdentifier geneKey,
 				final List<VariantLine> variants)
-			{
-			int pair_index = 0;
-			if(variants.size()<2) {
-				return;
-				}
-			// test if this gene is a big pool of variant, false positive. e.g: highly variables genes.
-			if(max_number_of_variant_per_gene>=0) {
-				if(variants.size()< max_number_of_variant_per_gene) {
-					LOG.warn("Too many variants "+variants.size()+" for "+geneKey);
-					return;
-				}
+		{
+		int pair_index = 0;
+		if(variants.size()<2) {
+			return;
 			}
-			
-			/* loop over affected */
-			for(final Sample child: this.affectedSamples) {
-				for(int x=0;x+1< variants.size();++x)
-					{
-					final VariantContext vcx = variants.get(x).ctx;
-					final Genotype gcx = vcx.getGenotype(child.getId());
+		// test if this gene is a big pool of variant, false positive. e.g: highly variables genes.
+		if(max_number_of_variant_per_gene>=0) {
+			if(variants.size()< max_number_of_variant_per_gene) {
+				LOG.warn("Too many variants "+variants.size()+" for "+geneKey);
+				return;
+			}
+		}
+		
+		final Set<Sample> samples_in_gene = new HashSet<>(this.affectedSamples.size());
+		
+		// search for the one snp
+		for(int x=0;x+1< variants.size();++x)
+			{
+			final VariantContext vcx = variants.get(x).ctx;
+			for(int y=x+1;y< variants.size();++y)
+				{
+				final VariantContext vcy = variants.get(y).ctx;
+				
+				final Set<Sample> matching_affected_samples = new HashSet<>(this.affectedSamples.size());
+				// loop over affected samples
+				for(final Sample affected: this.affectedSamples) {
+					final Genotype gcx = vcx.getGenotype(affected.getId());
 					// child variant  n. y  must be HOM_VAR or HET
 					if(gcx==null || !isGenotypeForAffected(gcx)) continue;
 					// filtered ?
 					if(!this.genotypeFilter.test(vcx,gcx)) continue;
-					// search for the second snp
-					for(int y=x+1;y< variants.size();++y)
-						{
-						final VariantContext vcy = variants.get(y).ctx;
-						final Genotype gcy = vcy.getGenotype(child.getId());
-						// child variant n. y must be HOM_VAR or HET
-						if(gcy==null || !isGenotypeForAffected(gcy)) continue;
-						// filtered ?
-						if(!this.genotypeFilter.test(vcy,gcy)) continue;
+
+					final Genotype gcy = vcy.getGenotype(affected.getId());
+					// child variant n. y must be HOM_VAR or HET
+					if(gcy==null || !isGenotypeForAffected(gcy)) continue;
+					// filtered ?
+					if(!this.genotypeFilter.test(vcy,gcy)) continue;
+
+					
+					boolean unaffected_are_ok=true;
+					//check unaffected indididual don't have same haplotype
+					for(final Sample unaffected: this.unaffectedSamples) {
+						final Genotype gux = vcx.getGenotype(unaffected.getId());
+						if(gux!=null && gux.isHomVar()) {
+							unaffected_are_ok=false;
+							break;
+							}
 						
-						boolean unaffected_are_ok=true;
-						//check unaffected indididual don't have same haplotype
-						for(final Sample unaffected: this.unaffectedSamples) {
-							final Genotype gux = variants.get(x).ctx.getGenotype(unaffected.getId());
-							if(gux!=null && gux.isHomVar()) {
-								unaffected_are_ok=false;
-								break;
+						final Genotype guy = vcy.getGenotype(unaffected.getId());
+						
+						if(guy!=null && guy.isHomVar()) {
+							unaffected_are_ok=false;
+							break;
+							}
+						
+						if(gux!=null && guy!=null &&
+							gux.sameGenotype(gcx, true) &&
+							guy.sameGenotype(gcy, true)
+							)
+							{
+							unaffected_are_ok=false;
+							break;
+							}
+						}
+					if(!unaffected_are_ok) continue;
+					
+					matching_affected_samples.add(affected);
+					}
+				
+				boolean affected_are_ok;
+				
+				switch(this.pair_selection)
+					{
+					case all: affected_are_ok = matching_affected_samples.size()==this.affectedSamples.size() ; break;
+					case any: affected_are_ok = !matching_affected_samples.isEmpty();break;
+					default: throw new IllegalStateException();
+					}
+					
+				if(affected_are_ok)
+					{
+					samples_in_gene.addAll(matching_affected_samples);
+					
+					if(this.reportPath!=null) {
+						this.reportWriter.print(geneKey.contig);
+						this.reportWriter.print('\t');
+						this.reportWriter.print(Math.min(vcx.getStart(),vcy.getStart())-1);
+						this.reportWriter.print('\t');
+						this.reportWriter.print(Math.max(vcx.getEnd(),vcy.getEnd()));
+						this.reportWriter.print('\t');
+						this.reportWriter.print(++pair_index);
+						this.reportWriter.print('\t');
+						this.reportWriter.print(geneKey.geneName);
+						this.reportWriter.print('\t');
+						this.reportWriter.print(geneKey.label);
+						this.reportWriter.print('\t');
+						this.reportWriter.print(geneKey.source);
+						
+						for(int side=0;side<2;++side) 
+							{
+							final VariantContext vc=(side==0?vcx:vcy);
+							this.reportWriter.print('\t');
+							this.reportWriter.print(vc.getStart());
+							this.reportWriter.print('\t');
+							this.reportWriter.print(vc.getEnd());
+							this.reportWriter.print('\t');
+							this.reportWriter.print(vc.getReference().getDisplayString());
+							this.reportWriter.print('\t');
+							this.reportWriter.print(vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
+							this.reportWriter.print('\t');
+							this.reportWriter.print(vc.getAttributes().keySet().
+									stream().
+									filter(K->K.equals(AnnPredictionParser.getDefaultTag()) || K.equals(VepPredictionParser.getDefaultTag())).
+									map(K->K+"="+String.join(",",vc.getAttributeAsStringList(K, ""))).
+									collect(Collectors.joining(";"))
+									);
+							for(final Sample sn:this.affectedSamples) {
+								this.reportWriter.print('\t');
+								this.reportWriter.print(vc.getGenotype(sn.getId()).getType().name());
 								}
-							
-							final Genotype guy = variants.get(y).ctx.getGenotype(unaffected.getId());
-							
-							if(guy!=null && guy.isHomVar()) {
-								unaffected_are_ok=false;
-								break;
-								}
-							
-							if(gux!=null && guy!=null &&
-								gux.sameGenotype(gcx, true) &&
-								guy.sameGenotype(gcy, true)
-								)
-								{
-								unaffected_are_ok=false;
-								break;
+							for(final Sample sn:this.unaffectedSamples) {
+								this.reportWriter.print('\t');
+								this.reportWriter.print(vc.getGenotype(sn.getId()).getType().name());
 								}
 							}
-						if(unaffected_are_ok)
+						this.reportWriter.println();
+						}
+					
+					for(int side=0;side<2;++side) 
+						{
+						final VariantContext vc=(side==0?vcx:vcy);
+						final Set<String> set = getAnnotationsForVariant(vc);
+						final VariantContextBuilder vcb = new VariantContextBuilder(vc);
+						
+						
+						final StringBuilder sb=new StringBuilder();
+						sb.append("gene|").append(geneKey.geneName);
+						sb.append("name|").append(geneKey.label);
+						sb.append("|source|").append(geneKey.source);
+						if(side==1) {
+							sb.append("|pos|").append(vcx.getStart());
+							sb.append("|ref|").append(vcx.getReference().getDisplayString());
+							}
+						else {
+							sb.append("|pos|").append(vcy.getStart());
+							sb.append("|ref|").append(vcy.getReference().getDisplayString());
+							}
+						sb.append("|samples|").append(matching_affected_samples.stream().map(S->S.getId()).collect(Collectors.joining("&")));
+						set.add(sb.toString());
+						set.remove("");
+						vcb.attribute(INFO_TAG, new ArrayList<>(set));
+						
+						if(side==0)
 							{
-							if(this.reportPath!=null) {
-								this.reportWriter.print(geneKey.contig);
-								this.reportWriter.print('\t');
-								this.reportWriter.print(Math.min(vcx.getStart(),vcy.getStart())-1);
-								this.reportWriter.print('\t');
-								this.reportWriter.print(Math.max(vcx.getEnd(),vcy.getEnd()));
-								this.reportWriter.print('\t');
-								this.reportWriter.print(++pair_index);
-								this.reportWriter.print('\t');
-								this.reportWriter.print(geneKey.geneName);
-								this.reportWriter.print('\t');
-								this.reportWriter.print(geneKey.label);
-								this.reportWriter.print('\t');
-								this.reportWriter.print(geneKey.source);
-								
-								for(int side=0;side<2;++side) 
-									{
-									final VariantContext vc=(side==0?vcx:vcy);
-									this.reportWriter.print('\t');
-									this.reportWriter.print(vc.getStart());
-									this.reportWriter.print('\t');
-									this.reportWriter.print(vc.getEnd());
-									this.reportWriter.print('\t');
-									this.reportWriter.print(vc.getReference().getDisplayString());
-									this.reportWriter.print('\t');
-									this.reportWriter.print(vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
-									this.reportWriter.print('\t');
-									this.reportWriter.print(vc.getAttributes().keySet().
-											stream().
-											filter(K->K.equals(AnnPredictionParser.getDefaultTag()) || K.equals(VepPredictionParser.getDefaultTag())).
-											map(K->K+"="+String.join(",",vc.getAttributeAsStringList(K, ""))).
-											collect(Collectors.joining(";"))
-											);
-									for(final Sample sn:this.affectedSamples) {
-										this.reportWriter.print('\t');
-										this.reportWriter.print(vc.getGenotype(sn.getId()).getType().name());
-										}
-									for(final Sample sn:this.unaffectedSamples) {
-										this.reportWriter.print('\t');
-										this.reportWriter.print(vc.getGenotype(sn.getId()).getType().name());
-										}
-									}
-								this.reportWriter.println();
-								}
-							
-							for(int side=0;side<2;++side) 
-								{
-								final VariantContext vc=(side==0?vcx:vcy);
-								final Set<String> set = getAnnotationsForVariant(vc);
-								final VariantContextBuilder vcb = new VariantContextBuilder(vc);
-								
-								
-								final StringBuilder sb=new StringBuilder();
-								sb.append("gene|").append(geneKey.geneName);
-								sb.append("|source|").append(geneKey.source);
-								if(side==1) {
-									sb.append("|pos|").append(vcx.getStart());
-									sb.append("|ref|").append(vcx.getReference().getDisplayString());
-									}
-								else {
-									sb.append("|pos|").append(vcy.getStart());
-									sb.append("|ref|").append(vcy.getReference().getDisplayString());
-									}
-								sb.append("|sample|").append(child.getId());
-								set.add(sb.toString());
-								set.remove("");
-								vcb.attribute(INFO_TAG, new ArrayList<>(set));
-								
-								if(side==0)
-									{
-									variants.get(x).ctx = vcb.make();
-									}
-								else
-									{
-									variants.get(y).ctx = vcb.make();
-									}
-								}
+							variants.get(x).ctx = vcb.make();
+							}
+						else
+							{
+							variants.get(y).ctx = vcb.make();
 							}
 						}
 					}
 				}
 			}
+		if(!samples_in_gene.isEmpty() && this.geneReportPath!=null)
+			{
+			this.reportGeneWriter.print(geneKey.contig);
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(variants.stream().mapToInt(V->V.ctx.getStart()-1).min().orElse(-1));
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(variants.stream().mapToInt(V->V.ctx.getEnd()).max().orElse(-1));
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(geneKey.geneName);
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(geneKey.label);
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(geneKey.source);
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(variants.size());
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(samples_in_gene.size());
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(this.affectedSamples.size());
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print(samples_in_gene.stream().map(S->S.getId()).collect(Collectors.joining(",")));
+			this.reportGeneWriter.println();
+			}
+		}
 		
 
 	
@@ -742,6 +813,29 @@ public class VCFComposite extends Launcher {
 			
 			LOG.info("compile per gene");
 			
+			
+			this.reportGeneWriter = (this.geneReportPath==null?new PrintWriter(new NullOuputStream()):IOUtils.openPathForPrintWriter(this.geneReportPath));
+			this.reportGeneWriter.print("#CHROM");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("bed.start");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("bed.end");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("gene.key");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("gene.label");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("gene.source");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("count.variants");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("affected.counts");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("affected.total");
+			this.reportGeneWriter.print('\t');
+			this.reportGeneWriter.print("affected.samples");
+			this.reportGeneWriter.println();
+			
 			this.reportWriter = (this.reportPath==null?new PrintWriter(new NullOuputStream()):IOUtils.openPathForPrintWriter(this.reportPath));
 
 			this.reportWriter.print("#CHROM");
@@ -802,6 +896,8 @@ public class VCFComposite extends Launcher {
 			//
 			this.reportWriter.flush();
 			this.reportWriter.close();
+			this.reportGeneWriter.flush();
+			this.reportGeneWriter.close();
 			
 			LOG.info("write variants");
 			CloseableIterator<VariantLine> iter1 = outputSorter.iterator();
