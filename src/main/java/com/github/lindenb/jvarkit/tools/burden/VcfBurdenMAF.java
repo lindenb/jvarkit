@@ -152,7 +152,7 @@ public class VcfBurdenMAF
 	@Parameter(names={"-lumpy-su-min","--lumpy-su-min"},description="[20180117] if variant identified as LUMPy-SV variant. This is the minimal number of 'SU' to consider the genotype as a variant.")
 	private int lumpy_SU_threshold=1;
 
-	@Parameter(names={"-p","--prefix"},description="Prefix for FILTER/INFO")
+	@Parameter(names={"-pfx","--prefix"},description="Prefix for FILTER/INFO")
 	private String prefix="Burden";
 
 	
