@@ -96,7 +96,7 @@ public class MafCalculator {
 		);
 	}
 	
-	/** For Matile 2016/11/29 */
+	/** For Matilde 2016/11/29 */
 	public void setNoCallIsHomRef(boolean no_call_is_homref) {
 		this.no_call_is_homref = no_call_is_homref;
 	}
@@ -118,8 +118,10 @@ public class MafCalculator {
 	}
 	
 	public double getMaf() {
-		if(getCountTotal()==0) return NODATA;
-		return (double)getCountAlt()/(double)getCountTotal();
+		final double v2= getCountTotal();
+		if(v2==0) return NODATA;
+		final double v1= getCountAlt();
+		return v1/v2;
 	}
 	
 	@Override
