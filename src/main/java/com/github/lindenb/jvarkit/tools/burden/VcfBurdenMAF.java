@@ -181,7 +181,7 @@ public class VcfBurdenMAF
 				);
 		
 		final VCFInfoHeaderLine acCasInfoHeader = new VCFInfoHeaderLine(
-				this.prefix + "AC_Cass",VCFHeaderLineCount.A,VCFHeaderLineType.Integer,"AC Cases"
+				this.prefix + "AC_Cases",VCFHeaderLineCount.A,VCFHeaderLineType.Integer,"AC Cases"
 				);
 		final VCFInfoHeaderLine acControlsInfoHeader = new VCFInfoHeaderLine(
 				this.prefix + "AC_Controls",VCFHeaderLineCount.A,VCFHeaderLineType.Integer,"AC Controls"

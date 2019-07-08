@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Set FILTER for VCF if it doesn't intersects with BED.
+Set FILTER for VCF if intersects with BED.
 
 
 ## Usage
@@ -13,6 +13,11 @@ Usage: vcfbedsetfilter [options] Files
   * -B, --bed, -m, --map
       Tribble or Tabix bed file. Must be indexed with tribble or tabix, or use 
       '--fast' to load in memory.
+    -x, --extend
+      Extend the variant coordinates per 'x' bases. A distance specified as a 
+      positive integer.Comma are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb
+      Default: 0
     -f, --filter
       FILTER name. Filter is **set** if the variant overlaps any BED region, 
       unless `--inverse` is set. If `--filter` is empty, FILTERED variant will 

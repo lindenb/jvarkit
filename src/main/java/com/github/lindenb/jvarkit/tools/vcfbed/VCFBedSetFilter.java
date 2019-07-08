@@ -101,6 +101,9 @@ public class VCFBedSetFilter extends Launcher
 	@Parameter(names={"-x","--extend"},description="Extend the variant coordinates per 'x' bases. " + DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend_bases = 0;
 
+	@Parameter(names={"--debug"},description="debug what's happening",hidden=true)
+	private boolean debug = false;
+
 
 	private IntervalTreeMap<Boolean> intervalTreeMap=null;
 	private IndexedBedReader bedReader =null;
@@ -163,6 +166,7 @@ public class VCFBedSetFilter extends Launcher
 				
 				if(StringUtil.isBlank(convert_contig))
 					{
+					if(debug) LOG.warn("Cannot convert contig "+ ctx.getContig() );
 					if(contigs_not_found.size()<100) {
 						if(contigs_not_found.add(ctx.getContig()))
 							{
@@ -174,6 +178,7 @@ public class VCFBedSetFilter extends Launcher
 				else if(this.intervalTreeMap!=null) {
 					if( this.intervalTreeMap.containsOverlapping(new Interval(convert_contig,ctx_start,ctx_end)))
 						{
+						if(debug) LOG.warn("treemap.overlap=true set Filter=false for "+ctx.getContig()+":"+ctx.getStart() );
 						set_filter = false;	
 						}
 					}
@@ -189,6 +194,7 @@ public class VCFBedSetFilter extends Launcher
 							{
 							final BedLine bed = iter.next();
 							if(bed==null || !CoordMath.overlaps(bed.getStart(), bed.getEnd(),ctx_start,ctx_end)) continue;
+							if(debug) LOG.warn("tabix=true set Filter=false for "+ctx.getContig()+":"+ctx.getStart() );
 							set_filter=false;
 							break;
 							}
@@ -198,20 +204,28 @@ public class VCFBedSetFilter extends Launcher
 				
 				if(this.inverse) {
 					set_filter=!set_filter;
+					if(debug) LOG.warn("inverse. Now Filter="+set_filter+" for "+ctx.getContig()+":"+ctx.getStart() );
+
 				}
 				
 				
 				if(!set_filter)
 					{
+					if(debug) LOG.warn("no filter. Writing "+ctx.getContig()+":"+ctx.getStart() );
 					w.add(ctx);
 					continue;
 					}
 				
 				if(filter != null )
 					{
+					if(debug) LOG.warn("adding filter. Writing "+ctx.getContig()+":"+ctx.getStart() );
 					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 					vcb.filter(filter.getID());
 					w.add(vcb.make());
+					}
+				else
+					{
+					if(debug) LOG.warn("Ignoring "+ctx.getContig()+":"+ctx.getStart() );
 					}
 				}
 			progress.close();

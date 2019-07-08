@@ -11,7 +11,7 @@ Split VCF+VEP by gene/transcript.
 Usage: vcfgenesplitter [options] Files
   Options:
     -e, -E, --extractors
-      extractors Names. Space/semicolon/Comma separated
+      Gene Extractors Name. Space/semicolon/Comma separated
       Default: ANN/GeneId VEP/GeneId
     -h, --help
       print help and exit
@@ -24,12 +24,20 @@ Usage: vcfgenesplitter [options] Files
       list all available extractors
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
+    -M, --max-variant
+      Maximum number of variants required to write a vcf. don't write if 
+      num(variant) > 'x' . '<=0' is ignore
+      Default: -1
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
+    -n, --min-variant
+      Minimum number of variants required to write a vcf. don't write if 
+      num(variant) < 'x'
+      Default: 1
   * -o, --output
       An existing directory or a filename ending with the '.zip' suffix.
     --tmpDir
