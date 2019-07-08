@@ -21,11 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-* 2015 moving to knime
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -407,7 +402,7 @@ public class VcfGeneSplitter
 						
 						sortingcollection.add(
 							new KeyAndLine(
-									new KeyGene(keyAndGene.getKey(),keyAndGene.getMethod()),
+									new KeyGene(keyAndGene.getKey(),keyAndGene.getGene()),
 									ex.getName(), 
 									vcfEncoder.encode(vcb.make())
 							));
