@@ -34,6 +34,9 @@ Usage: scanretrocopy [options] Files
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
       Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
+    --mapq, -mapq
+      Min mapping quality
+      Default: 1
     -n, --min-cigar-size
       Minimal cigar element length.
       Default: 6
