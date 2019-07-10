@@ -112,3 +112,9 @@ find . -type f -name "*.vcf.gz" > in.list
 java -jar dist/vcfphased01.jar -r "chr1:1000-2000" -xp '1001,1010' in.list 
 ```
 
+# Screenshots
+
+https://twitter.com/yokofakun/status/1148964221482414080
+
+![https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg](https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg)
+

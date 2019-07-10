@@ -92,6 +92,12 @@ find . -type f -name "*.vcf.gz" > in.list
 java -jar dist/vcfphased01.jar -r "chr1:1000-2000" -xp '1001,1010' in.list 
 ```
 
+# Screenshots
+
+https://twitter.com/yokofakun/status/1148964221482414080
+
+![https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg](https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg)
+
 END_DOC
 */
 
@@ -193,11 +199,9 @@ public class VcfPhased01 extends Launcher {
 			int block_start =  theInterval.getStart();
 			for(;;)
 				{
-				
 				double block_x1 = positionToPixel(block_start);
 				double block_x2 = positionToPixel(i>=switch_haploblocks.size()?theInterval.getEnd():switch_haploblocks.get(i));
 				double block_width = 1+(block_x2-block_x1);
-				
 				side_flip=!side_flip;
 				
 				// phase left
@@ -215,7 +219,7 @@ public class VcfPhased01 extends Launcher {
 				rect.setAttribute("y",String.valueOf(sample_height/3));
 				rect.setAttribute("width",fmt(block_width));
 				rect.setAttribute("height",String.valueOf(sample_height/3));
-				rect.setAttribute("class","phaseM");
+				rect.setAttribute("class",(side_flip?"phaseM":"phaseN"));
 				g.appendChild(rect);
 				
 				// phase right
@@ -230,6 +234,7 @@ public class VcfPhased01 extends Launcher {
 				
 				
 				if(i>=switch_haploblocks.size()) break;
+				block_start = switch_haploblocks.get(i);
 				i++;
 				}
 			
@@ -420,6 +425,7 @@ public class VcfPhased01 extends Launcher {
 					  ".frame {fill:none;stroke:darkgray;} "
 					+ ".phaseL {fill:#d5f4e6;stroke:lightray;} "
 					+ ".phaseM {fill:gainsboro;stroke:lightray;} "
+					+ ".phaseN {fill:#c6c6c6;stroke:lightray;} "
 					+ ".phaseR {fill:#f1e3dd;stroke:lightray;} "
 					+ ".gtM {fill:gray ;stroke:none;} "
 					+ ".gtR {fill:green;stroke:lightseagreen ;} "
