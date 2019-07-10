@@ -2194,8 +2194,8 @@ all2.add( task("bammatrix", type: CompileJVarkit) {
 	});
 
 
-task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.hic.HicReaderFactory"
+task("vcfphased01", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.phased.VcfPhased01"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         }
 
