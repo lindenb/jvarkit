@@ -274,8 +274,7 @@ public class StarRetroCopy extends Launcher
 			loadGTF();
 			
 			// open the sam file
-			final SamReaderFactory samReaderFactory = super.createSamReaderFactory();
-			sr = samReaderFactory.open(SamInputResource.of(oneFileOrNull(args)));
+			sr = super.openSamReader(oneFileOrNull(args));
 			final SAMFileHeader samFileHeader = sr.getFileHeader();
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(samFileHeader);
 
@@ -306,7 +305,12 @@ public class StarRetroCopy extends Launcher
 				Object tagValue = rec.getAttribute(SAM_ATT_JI);
 				paranoid.assertTrue((tagValue instanceof int[]));
 				final int bounds[]= (int[])tagValue;
-				paranoid.assertTrue(bounds.length%2==0);
+				// jI:B:i,-1
+				if(bounds.length==1 && bounds[0]<0) continue;
+				if(bounds.length%2!=0) {
+					LOG.warn("bound.length%2!=0 with "+ rec.getSAMString());
+					continue;
+					}
 				boolean save_read_to_bam = false;
 
 				for(int i=0;i< bounds.length;i+=2) {
@@ -350,7 +354,7 @@ public class StarRetroCopy extends Launcher
 			
 			for(final String att:ENSEMBL_TRANSCRIPT_ATTS)
 				{
-				metaData.add(new VCFInfoHeaderLine(att, 1, VCFHeaderLineType.String,"Value for the attribute \""+att+"\" in the gtf"));
+				metaData.add(new VCFInfoHeaderLine(att, 1, VCFHeaderLineType.String,"Value for the attribute '"+att+"' in the gtf"));
 				}
 			
 			

@@ -71,6 +71,7 @@ private static class RangeImpl implements Range
 	
 	@Override
 	public int compareTo(final Range o) {
+		if(o==this) return 0;
 		if(this.getMinInclusive()==null) return -1;
 		if(o.getMinInclusive()==null) return 1;
 		return getMinInclusive().compareTo(o.getMinInclusive());
@@ -81,6 +82,17 @@ private static class RangeImpl implements Range
 		if(this.maxExcl!=null && value >= this.maxExcl) return false;
 		return true;
 		}
+	@Override
+	public int hashCode() {
+		return (minIncl==null?0:minIncl.hashCode())*31  + (maxExcl==null?0:maxExcl.hashCode());
+		}
+
+	public boolean equals(final Object o) {
+		if(o==this) return true;
+		if(o==null || !(o instanceof RangeImpl)) return false;
+		return compareTo(Range.class.cast(o))==0;
+		}
+
 	@Override
 	public String toString() {
 		if(minIncl!=null && maxExcl!=null && this.minIncl+1 == this.maxExcl)

@@ -590,7 +590,8 @@ END_DOC
 			297983,299255,304780,305174,305743,308310,308554,309013,311363,
 			298361,324900,326294,326765,329423,330752,334253,335056,335692,336206,
 			338031,356474},
-	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
+	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
+	modificationDate="2019-07-11"
 	)
 public class BioAlcidaeJdk
 	extends Launcher
@@ -604,10 +605,10 @@ public class BioAlcidaeJdk
 	@Parameter(names={"-F","--format"},description="force format: one of VCF BAM SAM FASTQ")
 	private String formatString = null;
 
-    @Parameter(names={"-f","--scriptfile"},description="java body file")
-    private File scriptFile=null;
-    @Parameter(names={"-e","--expression"},description="inline java expression")
-    private String scriptExpr=null;
+	@Parameter(names={"-f","--scriptfile"},description="java body file")
+	private File scriptFile=null;
+	@Parameter(names={"-e","--expression"},description="inline java expression")
+	private String scriptExpr=null;
 	@Parameter(names={"--nocode"},description=" Don't show the generated code")
 	private boolean hideGeneratedCode=false;
 	@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
@@ -620,6 +621,10 @@ public class BioAlcidaeJdk
 	
 	@SuppressWarnings("unused")
 	private static final Counter<?> _fool_javac = null;
+	@SuppressWarnings("unused")
+	private static final com.github.lindenb.jvarkit.math.RangeOfIntegers _fool_javac2 = null;
+	@SuppressWarnings("unused")
+	private static final com.github.lindenb.jvarkit.math.RangeOfDoubles _fool_javac3 = null;
 	
     public static abstract class AbstractHandler
     	{
@@ -697,7 +702,9 @@ public class BioAlcidaeJdk
 				pw.println("import htsjdk.variant.variantcontext.*;");
 				pw.println("import htsjdk.variant.vcf.*;");
 				pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
-				pw.println("import htsjdk.variant.vcf.*;");
+				pw.println("import com.github.lindenb.jvarkit.math.RangeOfIntegers;");
+				pw.println("import com.github.lindenb.jvarkit.math.RangeOfDoubles;");
+				pw.println("import com.github.lindenb.jvarkit.util.Counter;");
 				
 				pw.println("/** begin user's packages */");
 				for(final String p:this.extraImportSet)
