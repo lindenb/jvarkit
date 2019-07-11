@@ -33,9 +33,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
 import htsjdk.samtools.util.AbstractIterator;
@@ -79,11 +79,19 @@ JH568905.1	ensembl	stop_codon	3667491	3667493	.	-	0	gene_id "ENSDNOG00000013511"
 
  */
 public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
-	private static final Pattern tab=Pattern.compile("[\t]");
+	private static final CharSplitter tab=CharSplitter.TAB;
 	private static final String GFF_VERSION="##gff-version";
 	private GTFHeaderImpl header=null;
 	private final Format format;
 	public enum Format {gtf,gff3};
+	
+	public static GTFCodec createGtfCodec() {
+		return new GtfCodec();
+	}
+	
+	public static GTFCodec createGff3Codec() {
+		return new Gff3Codec();
+	}
 	
 	public static class FormatChooser
 		{
@@ -97,9 +105,9 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 		/** creates a new GTFCodec according to the specified format */
 		public GTFCodec makeCodec() {
 			switch(this.format) {
-				case gff3: return new Gff3Codec();
+				case gff3: return createGff3Codec();
 				case gtf:
-				default: return new GtfCodec();
+				default: return createGtfCodec();
 				}
 			}
 		}

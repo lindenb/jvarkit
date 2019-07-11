@@ -2126,8 +2126,14 @@ all.add( task("biostar140111", type: CompileJVarkit) {
 	});
 // $(eval $(call compile-htsjdk-cmd,gephicmd,${jvarkit.package}.tools.gephi.GephiCmd,${jcommander.jar} $(lib.dir)/org/gephi/gephi.jar ))
 
-all.add( task("scanretrocopy", type: CompileJVarkit) {
+all2.add( task("scanretrocopy", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.retrocopy.ScanRetroCopy"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jdkTarget="8"
+	jdkSource="8"
+	});
+all2.add( task("starretrocopy", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.retrocopy.StarRetroCopy"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	jdkTarget="8"
 	jdkSource="8"

@@ -61,22 +61,26 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.StructuralVariantType;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
@@ -124,52 +128,82 @@ END_DOC
 	description="Find Structural Variation by Negative Comparaison",
 	keywords={"sam","bam","sv","translocation"},
 	creationDate="20190413",
-	modificationDate="20190415"
+	modificationDate="20190701"
 	)
 public class SamStructVarNeg extends Launcher {
 	private static final Logger LOG = Logger.build(SamStructVarNeg.class).make();
 	
+	
+	
+	private class StructuralVariant
+		implements Locatable
+		{
+		final String contig;
+		final int start;
+		String contig2;
+		StructuralVariantType svType;
+		int start2;
+		int count = 0;
+		StructuralVariant(final SAMRecord vc) {
+			this.contig = vc.getContig();
+			this.start = vc.getStart() - vc.getStart()%bin_size;
+			//
+			this.contig2 = this.contig;
+			this.start2 = this.start;
+			}
+		@Override
+		public String getContig() {
+			return this.contig;
+			}
+		@Override
+		public int getStart() {
+			return this.start;
+			}
+		@Override
+		public int getEnd() {
+			return this.start + bin_size;
+			}
+		}
+	private final List<StructuralVariant> buffer = new ArrayList<>();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	
 	
-	@Parameter(names={"-d","--distance"},
-			description="Max distance between two read to test if they both end at the same ~ position. " +DistanceParser.OPT_DESCRIPTION,
+	@Parameter(names={"-bin","--bin"},
+			description="bin size. Break the genome in parts of 'bin' size." +DistanceParser.OPT_DESCRIPTION,
 			converter=DistanceParser.StringConverter.class,
 			splitter=NoSplitter.class
 			)
-	private int fuzzy_distance = 1_000;
+	private int bin_size = 1_000;
 	@Parameter(names={"-m","--min"},description="Min number of events to validate the translocation")
 	private int min_number_of_events=3;
 	@Parameter(names={"--max-controls"},description="Maximum number controls bam matching the event")
 	private int max_number_of_controls = 1;
-	@Parameter(names={"-b","--controls","--bams"},description="Control Bams. One path per lines",required=true)
+	@Parameter(names={"-b","--controls"},description="Control Bams. One path per lines",required=true)
 	private Path controlBamPaths = null;
-	@Parameter(names={"--chrom-regex"},description="Only consider the chromosomes matching the following regular expression.")
-	private String chromRegex="(chr)?([1-9][0-9]*|X|Y)";
-	@Parameter(names={"--low-complexity"},description="zone of low complexity (=many discordant reads). In those region the software will 'freeze'. "
-			+ "If the number of buffered reads * this number per sample then clear the buffer")
-	private long max_complexity_buffer = 2_000L;
-	@Parameter(names={"--max-sa"},description="ignore reads having more that SA:Z supplementary alignments.")
-	private long max_sa_attribute = 4;
+	@Parameter(names={"-c","--cases"},description="Control Bams. One path per lines",required=true)
+	private Path casesBamPaths = null;
+	
 	@Parameter(names={"--mapq"},description="min mapping quality.")
 	private int min_mapq = 0;
-	@Parameter(names={"-B","--bed"},description="Optional BED file. SV should overlap this bed.")
-	private Path bedFile = null;
-	@Parameter(names={"--max-contigs-in-buffer"},description="clear buffer if it contains more than 'x' different mate contig to prevent area matching everywhere")
-	private int max_number_of_contigs_in_buffer = 3;
+	@Parameter(names={"-x","--exclude"},description="Optional BED file Excluding. SV shouldn't overlap this bed.")
+	private Path excludeBedFile = null;
+	
 	@Parameter(names={"-D"},description="Presence of a discordant read in the control, whatever is the contig or the distance to theoritical mate is enought to invalidate the candiate. Make things quicker but less sensitive.")
 	private boolean presence_of_discordant_in_ctrl_is_enough = false;
 	
-	private class ControlBam implements Closeable{
+	
+	private final IntervalTreeMap<Interval> excludeBedMap = new IntervalTreeMap<Interval>();
+	
+	private class BamResource implements Closeable{
 		private final int index;
 		private final Path bamPath;
 		private SamReader samReader = null;
 		private ContigNameConverter ctgNameConverter;
 		private final Set<String> unseenContig = new HashSet<>();
 		
-		ControlBam(final int index,final Path bamPath) {
+		BamResource(final int index,final Path bamPath) {
 			this.index  = index;
 			this.bamPath = bamPath;
 			
@@ -194,70 +228,6 @@ public class SamStructVarNeg extends Launcher {
 				}		
 			}
 		
-		OptionalInt overlap(
-			final Locatable loc,
-			final Locatable mateLoc
-			) throws IOException {
-			open();
-			final String contig = this.ctgNameConverter.apply(loc.getContig());
-			if (StringUtils.isBlank(contig)) {
-				if(this.unseenContig.add(loc.getContig())) {
-					LOG.warn("Contig "+loc.getContig()+" not found in "+this.bamPath);
-					}
-				return OptionalInt.empty();
-				}
-			
-			final String mateContig = this.ctgNameConverter.apply(mateLoc.getContig());
-			if (StringUtils.isBlank(mateContig)) {
-				if(this.unseenContig.add(mateLoc.getContig())) {
-					LOG.warn("Contig "+mateLoc.getContig()+" not found in "+this.bamPath);
-					}
-				return OptionalInt.empty();
-				}
-			final Set<String> mateSeen = new HashSet<>();
-			int count =0;
-			int max_end=0;
-			try(final CloseableIterator<SAMRecord> iter = this.samReader.query(
-					contig,
-					Math.max(0,loc.getStart()), loc.getEnd(), false)) {
-				while(iter.hasNext() && count==0) {
-					final SAMRecord rec = iter.next();
-					if(rec.getReadUnmappedFlag()) continue;
-					if(!rec.getReadPairedFlag()) continue;
-					if(rec.getMateUnmappedFlag()) continue;
-					
-					if(rec.getReferenceIndex().equals(rec.getMateReferenceIndex())) continue;
-					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					if(rec.getDuplicateReadFlag()) continue;
-					if(rec.isSecondaryOrSupplementary()) continue;
-					if(rec.getMappingQuality()<=min_mapq) continue;
-
-					
-					final String recMateName = rec.getMateReferenceName();
-					mateSeen.add(recMateName);
-					
-					
-					if(!presence_of_discordant_in_ctrl_is_enough)
-						{
-						if(!mateContig.equals(recMateName)) continue;
-						final int mate_start = rec.getMateAlignmentStart();
-						final int mate_end = getMateAlignmenEnd(rec);
-	
-						if(!CoordMath.overlaps(
-								mate_start-fuzzy_distance,
-								mate_end+fuzzy_distance,
-								mateLoc.getStart(),
-								mateLoc.getEnd()
-								)) continue;
-						}
-					count++;
-					max_end = Math.max(max_end,rec.getUnclippedEnd());
-					}
-				}
-			if(count==0 && mateSeen.size()< max_number_of_contigs_in_buffer ) return OptionalInt.empty();
-			return OptionalInt.of(max_end);
-			}
-		
 		@Override
 		public void close() throws IOException {
 			if(this.samReader!=null) CloserUtil.close(this.samReader);
@@ -270,34 +240,97 @@ public class SamStructVarNeg extends Launcher {
 	 but we just need fileOrderCompare */
 	
 	
-	@SuppressWarnings("serial")
-	private final Comparator<SAMRecord> coordinateComparator = new htsjdk.samtools.SAMRecordCoordinateComparator() {
-		@Override
-		public int compare(final SAMRecord samRecord1,final SAMRecord samRecord2)
-			{
-			return super.fileOrderCompare(samRecord1, samRecord2);
-			}
-		};
 	
-	private final List<ControlBam> controlBams = new ArrayList<>(); 	
+	private final List<BamResource> controlBams = new ArrayList<>(); 	
+	private final List<BamResource> casesBams = new ArrayList<>(); 	
 		
 	
-	private static int getMateAlignmenEnd(final SAMRecord rec)  {
-		return SAMUtils.getMateCigar(rec)!=null?
-			SAMUtils.getMateAlignmentEnd(rec):
-			rec.getMateAlignmentStart()
-			;
+	private class StructVarIterator 
+		extends AbstractIterator<List<StructuralVariant>>
+		implements CloseableIterator<List<StructuralVariant>>
+		{
+		double sum_insert_size = 0.0;
+		long count_insert_size = 0L;
+		
+		final CloseableIterator<SAMRecord> iter;
+		final List<StructuralVariant> buffer = new ArrayList<>();
+		StructVarIterator(final CloseableIterator<SAMRecord> iter) {
+			this.iter = iter;
+			}
+		
+		private int convertBin(int pos) {
+			return pos - pos%bin_size;
 		}
-	
-	private void putbackInBuffer(final List<SAMRecord> candidates,final List<SAMRecord> buffer) {
-		buffer.addAll(candidates.subList(1, candidates.size()));//remove first element
-		Collections.sort(buffer,this.coordinateComparator);
+		
+		@Override
+		protected List<StructuralVariant> advance() {
+			final short SA = SAMTag.SA.getBinaryTag();
+			for(;;) {
+				
+				final SAMRecord rec;
+				rec= this.iter.hasNext()?this.iter.next():null;
+				if(rec!=null && (rec.getReadUnmappedFlag() || rec.getMappingQuality() < min_mapq || excludeBedMap.containsOverlapping(rec))) continue;
+				if(rec==null ||
+					(!buffer.isEmpty() && !buffer.get(0).getContig().equals(rec.getContig())) ||
+					(!buffer.isEmpty() && buffer.get(0).start!=convertBin(rec.getStart())))
+					{
+					if(!this.buffer.isEmpty())
+						{
+						final List<StructuralVariant> copy = new ArrayList<>(this.buffer);
+						this.buffer.clear();
+						return copy;
+						}
+					if(rec==null) {
+						close();
+						return null;
+						}
+					
+					}
+				if(rec.getReadPairedFlag())
+					{
+					// mate mapped
+					if(!rec.getMateUnmappedFlag()) {
+						if(rec.getReferenceIndex().equals(rec.getMateReferenceIndex())) {
+							
+							if(rec.getProperPairFlag() && 
+								rec.getFirstOfPairFlag())
+								{
+								this.sum_insert_size += Math.abs(rec.getInferredInsertSize());
+								this.count_insert_size++;
+								}
+							if(this.count_insert_size > 1000L && 
+									!rec.getProperPairFlag() && 
+									!rec.getReadNegativeStrandFlag() &&
+									rec.getMateNegativeStrandFlag() &&
+									rec.getInferredInsertSize() > 2.0*(this.sum_insert_size/this.count_insert_size))
+								{
+								
+								}
+							if(!rec.getReadNegativeStrandFlag() &&
+									rec.getCigar()!=null &&
+									rec.getCigar().isRightClipped())
+								{
+								
+								}
+							}
+						else /* discordant reads not same chromosomes */
+							{
+							
+							}
+						}
+					}
+				}
+			}
+		@Override
+		public void close() {
+			this.iter.close();
+			}
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.fuzzy_distance<=0) {
-			LOG.error("fuzzy_distance <=0 ("+fuzzy_distance+")");
+		if(this.bin_size <= 0) {
+			LOG.error("fuzzy_distance <=0 (" + this.bin_size + ")");
 			return -1;
 		}
 		if(this.controlBamPaths==null ) {
@@ -308,17 +341,18 @@ public class SamStructVarNeg extends Launcher {
 			LOG.error("Bad number for max_number_of_controls");
 			return -1;
 			}
-		if(this.max_number_of_contigs_in_buffer<1)  {
-                        LOG.error("Bad number for max_number_of_contigs_in_buffer.");
-                        return -1;
-                        }
-		SamReader samReader = null;
+		
 		CloseableIterator<SAMRecord> iter0 = null;
-		FilterIterator<SAMRecord> iter =null;
+		StructVarIterator iter =null;
 		VariantContextWriter out = null;
 		
+		if(!args.isEmpty()) {
+			LOG.error("illegal number of arguments");
+			return -1;
+			}
+		
 		try {
-			samReader = super.openSamReader(oneFileOrNull(args));
+			
 			
 			
 			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.controlBamPaths)) {
@@ -327,61 +361,52 @@ public class SamStructVarNeg extends Launcher {
 					filter(L->!StringUtils.isBlank(L)).
 					map(L->Paths.get(L)).
 					forEach(P->{
-						this.controlBams.add(new ControlBam(this.controlBams.size(),P));
+						this.controlBams.add(new BamResource(this.controlBams.size(),P));
 					});
 				}
 			
+			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.casesBamPaths)) {
+				br.lines().
+					filter(L->!L.startsWith("#")).
+					filter(L->!StringUtils.isBlank(L)).
+					map(L->Paths.get(L)).
+					forEach(P->{
+						this.casesBams.add(new BamResource(this.casesBams.size(),P));
+					});
+				}
+			
+			
 			if(this.controlBams.isEmpty()) {
-				LOG.error("No bam was defined");
+				LOG.error("No control bam was defined");
 				return -1;
 				}
+			if(this.casesBams.isEmpty()) {
+				LOG.error("No case bam was defined");
+				return -1;
+				}
+			
 			if(this.controlBams.size() < this.max_number_of_controls) {
 				LOG.error("Number of bam  is lower than ");
 				return -1;
 				}
 			
-			final SAMFileHeader samHeader = samReader.getFileHeader();
-				
-				
-			final String sampleName = samHeader.getReadGroups().
-				stream().
-				map(RG->RG.getSample()).
-				filter(S->!StringUtil.isBlank(S)).
-				findFirst().
-				orElse(args.size()==1?args.get(0):"SAMPLE");	
+			final SamReader caseSamReader = this.casesBams.get(0).samReader;
 			
-			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(samHeader);
+			iter = new StructVarIterator(caseSamReader.iterator());
 			
-			final boolean allowedContigs[] = new boolean[refDict.size()];
-			Arrays.fill(allowedContigs, true);
-			if(!StringUtils.isBlank(this.chromRegex)) {
-				final Pattern pat = Pattern.compile(this.chromRegex);
-				refDict.getSequences().stream().
-					filter(SR->!pat.matcher(SR.getSequenceName()).matches()).
-					forEach(SR->allowedContigs[SR.getSequenceIndex()]=false);
-				}
+				
+			
+			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(caseSamReader.getFileHeader());
+			
 			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
 					newInstance().
 					dictionary(refDict).
 					logger(LOG).
 					build();
 			
-			if(this.bedFile==null) {
-				iter0 = samReader.iterator();
-				}
-			else if(args.isEmpty()) {
-				LOG.error("Cannot query per region from stdin");
-				}
-			else
-				{
-				if(!samReader.hasIndex()) {
-					throw new RuntimeIOException("SamReader "+samReader.getResourceDescription()+" is not indexed");
-					}
-				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samHeader);
-				final BedLineCodec bedCodec=new BedLineCodec();
-				final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-				final List<QueryInterval> queryIntervals = new ArrayList<>();
-				try(BufferedReader br=com.github.lindenb.jvarkit.io.IOUtils.openPathForBufferedReading(this.bedFile)) {
+			if(this.excludeBedFile!=null) {
+				final BedLineCodec bedCodec = new BedLineCodec();
+				try(BufferedReader br=com.github.lindenb.jvarkit.io.IOUtils.openPathForBufferedReading(this.excludeBedFile)) {
 					br.lines().
 					filter(line->!(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty())).
 					map(line->bedCodec.decode(line)).
@@ -389,39 +414,11 @@ public class SamStructVarNeg extends Launcher {
 					map(B->B.toInterval()).
 					filter(L->L.getStart()<L.getEnd()).
 					forEach(B->{
-						final String c = contigNameConverter.apply(B.getContig());
-						if(StringUtils.isBlank(c)) return;
-						final int tid = dict.getSequenceIndex(c);
-						if(tid<0) return;
-						if(!allowedContigs[tid]) return;
-						final QueryInterval qi = new QueryInterval(tid,B.getStart(),B.getEnd());
-						queryIntervals.add(qi);							
+						this.excludeBedMap.put(B,B);							
 						});	
 					}
-				final QueryInterval array[] = QueryInterval.optimizeIntervals(queryIntervals.toArray(new QueryInterval[queryIntervals.size()]));
-				iter0 = samReader.queryOverlapping(array);
 				}
-			final short SA = SAMTag.SA.getBinaryTag();
-
-			iter = new FilterIterator<>(iter0, SR->{
-				if(SR.getReadUnmappedFlag()) return false;
-				if(!SR.getReadPairedFlag()) return false;
-				if(SR.getMateUnmappedFlag()) return false;
-				if(SR.getReferenceIndex().equals(SR.getMateReferenceIndex())) return false;
-				if(SR.getReadFailsVendorQualityCheckFlag()) return false;
-				if(SR.getDuplicateReadFlag()) return false;
-				if(SR.isSecondaryOrSupplementary()) return false;
-				if(SR.getMappingQuality()<=min_mapq) return false;
-				if(max_sa_attribute>0 &&
-						SR.getAttribute(SA)!=null &&
-						SAMUtils.getOtherCanonicalAlignments(SR).
-						stream().
-						filter(R->allowedContigs[R.getReferenceIndex()]).
-						count() > max_sa_attribute) {
-						return false;
-						}
-				return true;
-				});
+		
 			
 			
 			final Set<VCFHeaderLine> metaData=new HashSet<>();
@@ -478,95 +475,28 @@ public class SamStructVarNeg extends Launcher {
 			
 			final Allele REF=Allele.create("N", true);
 			final Allele ALT=Allele.create("<TRANSLOC>", false);
-			/** buffer or reads */
-			final LinkedList<SAMRecord> buffer= new LinkedList<>();
-			
-			int ignore_to_position = 0;
-			int prev_tid=-1;
-			for(;;)
-				{
-				final SAMRecord rec;
-				if(!buffer.isEmpty()) {
-					rec= buffer.pollFirst();
-					}
-				else if(iter.hasNext()) {
-					rec= progress.apply(iter.next());
-					}
-				else
-					{
-					rec=null;
-					}
-				
-				/* EOF or new chromosome */
-				if(rec==null || (rec.getReferenceIndex()!=prev_tid))
-					{
-					final int final_prev_tid = prev_tid;
-					/* remove all from previous chromosome */
-					buffer.removeIf(SR->SR.getReferenceIndex()<=final_prev_tid);
-					/* EOF */
-					if(rec==null) break;
-					prev_tid= rec.getReferenceIndex();
-					ignore_to_position = 0;
-					}
-				
-				if(rec.getAlignmentStart() <= ignore_to_position ) continue;
-				
-				final List<SAMRecord> candidates = new ArrayList<>();
-			
-				candidates.add(rec);
-				
-				/* scan the current buffer while we find the potential end of transloc */
-					
-				final long end = rec.getUnclippedEnd() + this.fuzzy_distance;
-				
-				/* try to fill the candidate from the iterator */
-				while(iter.hasNext())
-					{
-					final SAMRecord rec2 = iter.peek();
 
-					/* not same contig */
-					if(!rec2.getReferenceIndex().equals(rec.getReferenceIndex())) {
-						break;
-						}
-					/* beyond 'end' */
-					if(rec2.getAlignmentStart() > end) {//not unclipped to avoid side effect
-						break;
-						}
-					if((long)buffer.size()+1 >= this.max_complexity_buffer)
-						{
-						//consumme but ignore
-						iter.next();
-						}
-					else
-						{
-						buffer.add(iter.next());/* previous call was just 'peek' */
-						}
-					}
+			
+			int prev_tid=-1;
+			while(iter.hasNext())
+				{
+				final List<StructuralVariant> candidates = iter.next();
+			
+				int count_cases = 0;
 				
-				if((long)buffer.size()> this.max_complexity_buffer)
+				for(int i=1 /* start from 1 , 0 is the current case */;i< this.casesBams.size();++i)
 					{
-					//final long end = rec.getUnclippedEnd();
-					//buffer.remove(0);
-					//buffer.removeIf(R->R.getReferenceIndex().equals(rec.getReferenceIndex()) && R.getStart()<=end);
-					buffer.clear();
-					//LOG.warn("zone of low complexity: clearing buffer near "+ rec.getContig()+":"+rec.getStart());
-					continue;
-					}
-				
-				/* area with many different mate chromosomes */
-				if(buffer.stream().
-					filter(R->R.getStart() < end ).
-					map(R->R.getMateReferenceName()).
-					collect(Collectors.toSet()).
-					size() > this.max_number_of_contigs_in_buffer)
-					{
-					buffer.clear();
-					//LOG.warn("zone of low complexity mapping too many contigs. clearing buffer near "+ rec.getContig()+":"+rec.getStart());
-					continue;
+					for(final StructuralVariant sv:candidates) {
+						final SAMRecordIterator sri2 = this.casesBams.get(i).samReader.query(sv.getContig(), sv.getStart(), sv.getEnd(), false);
+						StructVarIterator iter2= new StructVarIterator(sri2);
+						
+						iter2.close();
+						sri2.close();
+						}
 					}
 				
 				
-				
+			
 				/* fill with current buffer until end */
 				int buffer_index = 0;
 				while(buffer_index < buffer.size())
@@ -758,7 +688,6 @@ public class SamStructVarNeg extends Launcher {
 	
 	public static void main(final String[] args) {
 		new SamStructVarNeg().instanceMainWithExit(args);
-
-	}
+		}
 
 }

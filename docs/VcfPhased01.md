@@ -11,14 +11,15 @@ X10 Phased SVG to Scalar Vector Graphics (SVG)
 Usage: vcfphased01 [options] Files
   Options:
     -xp, --xpos, --extra-highligth
-      Extra Highligth positions that are not in the vcfs. (comma separated)
+      Extra Highligth positions that are not always in the vcfs. (comma 
+      separated) 
       Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -p, --pos, --highligth
-      Highligth positions. (comma separated)
+      Highligth positions in the VCFs. (comma separated)
       Default: <empty string>
   * -r, --interval, --region
       interval CHROM:START-END

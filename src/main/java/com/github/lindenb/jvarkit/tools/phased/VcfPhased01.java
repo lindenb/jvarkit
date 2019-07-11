@@ -105,7 +105,7 @@ END_DOC
 description="X10 Phased SVG to Scalar Vector Graphics (SVG)",
 keywords={"x10","phased","genotypes","svg"},
 creationDate="20190710",
-modificationDate="20190710"
+modificationDate="20190711"
 )
 public class VcfPhased01 extends Launcher {
 	private static final Logger LOG=Logger.build(VcfPhased01.class).make();
@@ -116,9 +116,9 @@ public class VcfPhased01 extends Launcher {
 
 	@Parameter(names={"-r","--interval","--region"},description="interval CHROM:START-END",required=true)
 	private String intervalStr = null;
-	@Parameter(names={"-p","--pos","--highligth"},description="Highligth positions. (comma separated)")
+	@Parameter(names={"-p","--pos","--highligth"},description="Highligth positions in the VCFs. (comma separated)")
 	private String hihlight = "";
-	@Parameter(names={"-xp","--xpos","--extra-highligth"},description="Extra Highligth positions that are not in the vcfs. (comma separated)")
+	@Parameter(names={"-xp","--xpos","--extra-highligth"},description="Extra Highligth positions that are not always in the vcfs. (comma separated)")
 	private String extrahihlight = "";
 	@Parameter(names={"-k","--knownGenes"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String knownGeneUri=KnownGene.getDefaultUri();
@@ -134,6 +134,7 @@ public class VcfPhased01 extends Launcher {
 	
 	private class PhasedVcf
 		{
+		@SuppressWarnings("unused")
 		final Path path;
 		String sample;
 		final List<VariantContext> variants = new ArrayList<>(10_000);
@@ -282,24 +283,21 @@ public class VcfPhased01 extends Launcher {
 					if(a.isReference()) {
 						circle.setAttribute("class", "gtR");
 						}
+					else if(a.isSymbolic()) {
+						circle.setAttribute("class", "gtS");
+						}
+					else if(ctx.isIndel()) {
+						circle.setAttribute("class", "gtD");
+						}
 					else
 						{
 						circle.setAttribute("class", "gtA");
 						}
 					
-					
-					if(!gt.isPhased()) {
-						circle.setAttribute("class", "gtM");
-						title+=" UNPHASED";
-						}
-					if(gt.isFiltered()) {
-						circle.setAttribute("class", "gtM");
-						title+=" FILTERED";
-						}
 					double y;
 					if(!gt.isPhased() || ctx.isFiltered())
 						{
-						y = sample_height/2 +  gt_radius*(x==0?-1:1);
+						y = sample_height/2 +  gt_radius*(idx==0?-1:1);
 						}
 					else if(idx==0) {
 						y = sample_height/6;
@@ -313,8 +311,9 @@ public class VcfPhased01 extends Launcher {
 					
 					circle.setAttribute("cy",fmt(y));
 					circle.appendChild(title(title+"  ("+a.getDisplayString()+")"));
-					
-					g.appendChild(circle);
+					if(!a.equals(Allele.SPAN_DEL)) {
+						g.appendChild(circle);
+						}
 					}
 				
 				
@@ -371,7 +370,9 @@ public class VcfPhased01 extends Launcher {
 				if(this.theInterval==null)  throw new IOException("Cannot parse interval "+this.intervalStr);
 				}
 			phased.sample = samples.get(0);
-			phased.variants.addAll(vcfFileReader.query(this.theInterval).stream().collect(Collectors.toList()));
+			phased.variants.addAll(vcfFileReader.query(this.theInterval).
+					stream().
+					collect(Collectors.toList()));
 			}
 		for(int i=0;i< phased.variants.size();i++) {
 			
@@ -430,6 +431,8 @@ public class VcfPhased01 extends Launcher {
 					+ ".gtM {fill:gray ;stroke:none;} "
 					+ ".gtR {fill:green;stroke:lightseagreen ;} "
 					+ ".gtA {fill:red;stroke:maroon ;} "
+					+ ".gtS {fill:yellow;stroke:orange ;} "
+					+ ".gtD {fill:blue;stroke:orange ;} "
 					+ ".sn {text-anchor:end;} "
     				+ ".kgexon {fill:lightray;stroke:black;}"
     				+ ".kgcds {fill:yellow;stroke:black;opacity:0.7;}"
@@ -495,7 +498,7 @@ public class VcfPhased01 extends Launcher {
 				
 				Element label = element("text");
 				label.setAttribute("x", fmt(-10));
-				label.setAttribute("y", fmt(featureHeight));
+				label.setAttribute("y", fmt(featureHeight-featureHeight/2.0));
 				label.setAttribute("class", "kgname");
 				label.appendChild(text(kg.getName()));
 				g.appendChild(label);
@@ -539,7 +542,7 @@ public class VcfPhased01 extends Launcher {
 
 			
 			
-			svgRoot.setAttribute("width", fmt(sample_width+margin_left));
+			svgRoot.setAttribute("width", fmt(sample_width+margin_left+1));
 			svgRoot.setAttribute("height",fmt(y+10));
 			
 			// dump XML

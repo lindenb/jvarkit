@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.tools.retrocopy;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,54 +36,36 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
-import org.eclipse.jetty.io.RuntimeIOException;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.Paranoid;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -101,6 +82,11 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /*
+
+STAR --genomeDir referenceDir --readFilesIn S4_L002_R1_001.fastq.gz S4_L002_R2_001.fastq.gz \
+	--readFilesCommand gunzip -c  --outStd SAM --outReadsUnmapped None --outSAMattributes All |\
+	
+	
 
 A00797:7:HJTYVDMXX:2:1101:14181:2378	99	9	123795763	255	17S68M26N66M	=	123795764	178	GTCCAAAAGGCAGCATTAAGTAGAGGGGATGACATGTGCAAAGGCACGGAGGTAGGAAAGCACTGGACATGCCAGACCATGGCTAGCACAAGATGAAGTTGGAGAAATGATAGCAGTAATAAAATAATAGGTTTAATTCTGCACTATGGAA	FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFF,FFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFFFFF:FFFFF:FFFFFFFFFFFFFFFFFF:	NH:i:1	HI:i:1	AS:i:267	nM:i:0	NM:i:0	MD:Z:134	jM:B:c,0	jI:B:i,123795831,123795856	MC:Z:67M26N84M
 A00797:7:HJTYVDMXX:2:1101:14181:2378	147	9	123795764	255	67M26N84M	=	123795763	-178	AGTAGAGGGGATGACATGTGCAAAGGCACGGAGGTAGGAAAGCACTGGACATGCCAGACCATGGCTAGCACAAGATGAAGTTGGAGAAATGATAGCAGTAATAAAATAATAGGTTTAATTCTGCACTATGGAACATGTAGTATTTTCAAGA	:FFFFFFFFFFFFFFFFFFFFF:FF:FFFFFFFFFFFFFFFFF,FFFF:FFFFFFFFFFFFFFF:FFFFFFFFFFFF:FFFFFFFFFFFFFFFF:FFFFFFFFFFFFFFFFFFFFFF:FFF:FFFFFFFFFFFFFFFFF,FF:F:FFFFFF	NH:i:1	HI:i:1	AS:i:267	nM:i:0	NM:i:0	MD:Z:151	jM:B:c,0	jI:B:i,123795831,123795856	MC:Z:17S68M26N66M
@@ -119,7 +105,7 @@ END_DOC
 
 */
 @Program(name="starretrocopy",
-description="Scan retrocopies from star output",
+description="Scan retrocopies from the star-aligner output",
 keywords={"sam","bam","cigar","clip","sv","retrocopy","star"},
 creationDate="2019-07-10",
 modificationDate="2019-07-10"
@@ -129,28 +115,38 @@ public class StarRetroCopy extends Launcher
 	private static final Logger LOG = Logger.build(StarRetroCopy.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	
-	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private Path faidx = null;
 	@Parameter(names={"-gtf","--gtf"},description="GTF file that was used by STAR",required=true)
 	private Path gtfPath = null;
 	@Parameter(names={"--mapq","-mapq"},description="Min mapping quality")
 	private int min_read_mapq = 1;
 	@Parameter(names={"--bam"},description="Optional: save matching read in this bam file")
 	private Path saveBamTo = null;
+	@Parameter(names={"--min-depth","-D"},description="In a transcript one must found at least 'D' reads with a clip-length> 'min-cigar-size'.")
+	private int min_depth=1;
+	@Parameter(names={"--low-depth","-d"},description="Min number of reads to set FILTER=PASS.",hidden=true)
+	private int low_depth_threshold=10;
 
-	
 	
 	private abstract class AbstractLoc implements Locatable{
 		int start;
 		int end;
 		@Override public int getStart() { return this.start;}
 		@Override public int getEnd() { return this.end;}
+		
+		@Override
+		public String toString() {
+			return getContig()+":"+getStart()+"-"+getEnd();
+		}
 	}
 	
 	private class Transcript extends AbstractLoc {
 		String contig;
 		String transcript_id;
+		
+		final Map<String,String> attributes = new HashMap<>();
+		
+
+		
 		final List<Segment> segments = new ArrayList<>();
 		public String getContig() {
 			return contig;
@@ -165,27 +161,26 @@ public class StarRetroCopy extends Launcher
 		public String getContig() {
 			return this.transcript.getContig();
 			}
+		
 		}
 	
-	private final IntervalTreeMap<List<Segment>> intronMap = new IntervalTreeMap<>();
-	
+	private final Map<Interval,List<Segment>> intronMap = new HashMap<>(100_000);
+	private final List<Transcript> all_transcripts = new ArrayList<>();	
+	private final Paranoid paranoid = Paranoid.createThrowingInstance();
 
-	private static final String ATT_BEST_MATCHING_LENGTH="MAXLEN";
-	private static final String ATT_FILTER_NONDOCODING="NON_CODING";
-	private static final String ATT_SAMPLES="SAMPLES";
 	private static final String ATT_LOW_DEPTH_FILTER="LowQual";
-	private static final String ATT_INSERTION="INS";
-	private final static String ATT_KG_STRAND= "STRAND";
-	private final static String ATT_INTRONS_INFO="SPLICED";
-	private final static String ATT_INTRONS_COUNT="ITC";
-	private final static String ATT_INTRONS_CANDIDATE_COUNT="ICC";
-	private final static String ATT_INTRONS_CANDIDATE_FRACTION="ICF";
+	private final static String ATT_INTRONS_COUNT="COUNT_INTRONS";
+	private final static String ATT_INTRONS_CANDIDATE_COUNT="MATCHING_INTRONS_COUNT";
+	private final static String ATT_INTRONS_CANDIDATE_FRACTION="MATCHING_INTRONS_FRACTION";
 	private final static String ATT_NOT_ALL_INTRONS="NOT_ALL_INTRONS";
-	private final static String ATT_GT_INTRON="INTRONS";
-	
+	private static final String ENSEMBL_TRANSCRIPT_ATTS[]=new String[] {"gene_version","transcript_id","transcript_version","gene_name","gene_source","gene_biotype","transcript_name","transcript_source","transcript_biotype","tag","ccds_id","havana_transcript","havana_transcript_version","tag"};
+	private final static String INTRON_START="BEG";
+	private final static String INTRON_END="END";
 
+	
 	
 	private void loadGTF() throws IOException {
+		final GTFCodec gtfCodec = GTFCodec.createGtfCodec();
 		final Map<String,Transcript> id2transcript = new HashMap<>(50_000);
 		//Emmanuelle je t'aime contre le mur
 		try(BufferedReader br=IOUtils.openPathForBufferedReading(this.gtfPath))
@@ -193,43 +188,34 @@ public class StarRetroCopy extends Launcher
 			br.lines().
 			filter(S->!S.startsWith("#")).
 			filter(S->!StringUtils.isBlank(S)).
-			map(S->CharSplitter.TAB.split(S,8)).
-			filter(T->T[0].equals("transcript")|| T[0].equals("exon")).
+			map(S->gtfCodec.decode(S)).
+			filter(T->T.getType().equals("transcript")|| T.getType().equals("exon")).
 			forEach(T->{
-				final int start = Integer.parseInt(T[3]);
-				final int end = Integer.parseInt(T[4]);
-				
-				Map<String,String> hashMeta= new HashMap<>();
-				for(final String kv:CharSplitter.SEMICOLON.split(T[8]))
-					{
-					String words[]= kv.split("[ ]+");
-					final String key = words[0];
-					String value= words[1];
-					if(value.startsWith("\"")) {
-						value = value.substring(1,value.length()-1);
-						}
-					hashMeta.put(key,value);
-					}
-				final String transcript_id = hashMeta.get("transcript_id");
-				if(StringUtils.isBlank(transcript_id)) throw new RuntimeIOException("no transcript_id in "+ String.join(";",T));
+				final String transcript_id = T.getAttribute("transcript_id");
+				if(StringUtils.isBlank(transcript_id)) throw new RuntimeIOException("no transcript_id in "+ T);
 				Transcript transcript = id2transcript.get(transcript_id);
 				if(transcript==null) {
 					transcript = new Transcript();
-					transcript.contig = T[0];
+					transcript.contig = T.getContig();
 					transcript.transcript_id = transcript_id;
 					id2transcript.put(transcript_id,transcript);
 					}
 				
-				if(T[0].equals("transcript")) {
-					transcript.start = start;
-					transcript.end = end;
+				if(T.getType().equals("transcript")) {
+					transcript.start = T.getStart();
+					transcript.end = T.getEnd();
+					for(final String att:ENSEMBL_TRANSCRIPT_ATTS) {
+						final String v=T.getAttribute(att);
+						if(StringUtils.isBlank(v)) continue;
+						transcript.attributes.put(att, v);
+						}
 					}
 				else
 					{
 					final Segment exon = new Segment();
 					exon.transcript = transcript;
-					exon.start = start;
-					exon.end = end;
+					exon.start = T.getStart();
+					exon.end = T.getEnd();
 					transcript.segments.add(exon);
 					}
 				});
@@ -245,8 +231,9 @@ public class StarRetroCopy extends Launcher
 				intron.transcript = T;
 				intron.start = ex1.getEnd()+1;
 				intron.end= ex2.getStart()-1;
+				paranoid.assertFalse(intron.start>intron.end);
 				introns.add(intron);
-				Interval r=new Interval(intron);
+				final Interval r=new Interval(intron);
 				List<Segment> L=this.intronMap.get(r);
 				if(L==null) {
 					L=new ArrayList<>();
@@ -258,6 +245,12 @@ public class StarRetroCopy extends Launcher
 			T.segments.addAll(introns);
 			});
 		
+		this.all_transcripts.addAll(
+				id2transcript.values().
+					stream().
+					filter(T->!T.segments.isEmpty()).
+					collect(Collectors.toList())
+				);
 		
 		
 		}
@@ -265,7 +258,10 @@ public class StarRetroCopy extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		
-		
+		if(this.min_depth <1) {
+			LOG.error("Bad min depth");
+			return -1;
+			}
 		SamReader sr = null;
 		VariantContextWriter vcw0=null;
 		CloseableIterator<SAMRecord> iter = null;
@@ -279,7 +275,6 @@ public class StarRetroCopy extends Launcher
 			
 			// open the sam file
 			final SamReaderFactory samReaderFactory = super.createSamReaderFactory();
-			if(this.faidx!=null) samReaderFactory.referenceSequence(this.faidx);
 			sr = samReaderFactory.open(SamInputResource.of(oneFileOrNull(args)));
 			final SAMFileHeader samFileHeader = sr.getFileHeader();
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(samFileHeader);
@@ -309,27 +304,35 @@ public class StarRetroCopy extends Launcher
 				if(!rec.hasAttribute(SAM_ATT_JI)) continue;
 
 				Object tagValue = rec.getAttribute(SAM_ATT_JI);
-				if(!(tagValue instanceof int[])) throw new RuntimeIOException(""+tagValue);
-				int bounds[]= (int[])tagValue;
-				if(bounds.length%2!=0) throw new RuntimeIOException(""+tagValue);
+				paranoid.assertTrue((tagValue instanceof int[]));
+				final int bounds[]= (int[])tagValue;
+				paranoid.assertTrue(bounds.length%2==0);
 				boolean save_read_to_bam = false;
 
 				for(int i=0;i< bounds.length;i+=2) {
 					int intron_start = bounds[i];
-					int intron_end = bounds[i];
+					int intron_end = bounds[i+1];
+					
 					Interval r = new Interval(rec.getContig(),intron_start,intron_end);
 					final List<Segment> introns= this.intronMap.get(r);
 					if(introns==null) continue;
 					save_read_to_bam = true;
-					for(Segment intron:introns) {
+					for(final Segment intron:introns) {
 						intron.match++;
 						}
 					}
 				
 				if(save_read_to_bam && sfw!=null) sfw.addAlignment(rec);
 				}
-
+			final ContigDictComparator contigCmp = new ContigDictComparator(refDict);
 			
+			this.all_transcripts.removeIf(T->T.segments.stream().noneMatch(S->S.match>=min_depth));
+
+			final int max_introns = this.all_transcripts.stream().mapToInt(K->K.segments.size()).max().orElse(1);
+			final List<String> intron_names = IntStream.range(0, max_introns).
+					mapToObj(IDX->String.format("%s_INTRON_%04d", sample,1+IDX)).
+					collect(Collectors.toList())
+					;
 			/** build vcf header */
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
@@ -344,36 +347,33 @@ public class StarRetroCopy extends Launcher
 			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY,true));
 			metaData.add(new VCFInfoHeaderLine(VCFConstants.SVTYPE, 1, VCFHeaderLineType.String,"Variation type"));
 			metaData.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"Variation Length"));
-			metaData.add(new VCFInfoHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
-			metaData.add(new VCFFormatHeaderLine(ATT_BEST_MATCHING_LENGTH, 1,VCFHeaderLineType.Integer,"Best Matching length"));
-			metaData.add(new VCFFormatHeaderLine(ATT_GT_INTRON, 1,VCFHeaderLineType.String,
-						"Introns info: (intron-0-idx,valid,dp-5,dp-3,max-len-5,max-len-3,avg-5,avg-3)*"));
+			
+			for(final String att:ENSEMBL_TRANSCRIPT_ATTS)
+				{
+				metaData.add(new VCFInfoHeaderLine(att, 1, VCFHeaderLineType.String,"Value for the attribute \""+att+"\" in the gtf"));
+				}
 			
 			
 			//metaData.add(new VCFFormatHeaderLine(ATT_COUNT_SUPPORTING_READS, 2,VCFHeaderLineType.Integer,"Count supporting reads [intron-left/intron-right]"));
 			//metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
 			//		"Retrocopy attributes: transcript-id|strand|exon-left|exon-left-bases|exon-right-bases|exon-right"));
-			metaData.add(new VCFInfoHeaderLine(ATT_INSERTION, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Possible place of insertion:"+ "chr:start-end|count-evidence|mate-genes|non-coding|distance"));
-			metaData.add(new VCFInfoHeaderLine(ATT_KG_STRAND, 1, VCFHeaderLineType.String,"KnownGene strand."));
 			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_COUNT, 1, VCFHeaderLineType.Integer,"Number of introns for the Transcript"));
 			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_COUNT, 1, VCFHeaderLineType.Integer,"Number of introns found retrocopied for the transcript"));
 			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_FRACTION, 1, VCFHeaderLineType.Float,"Fraction of introns found retrocopied for the transcript"));
-			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_INFO, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-					"Introns found: chr|start|end|seq-left|seq-right"));
+			metaData.add(new VCFFormatHeaderLine(INTRON_START,1,VCFHeaderLineType.Integer, "Introns start"));
+			metaData.add(new VCFFormatHeaderLine(INTRON_END,1,VCFHeaderLineType.Integer, "Introns end"));
 
 			
 			
-			
-			metaData.add(new VCFFilterHeaderLine(ATT_FILTER_NONDOCODING,"Only non-coding transcripts"));
-			//metaData.add(new VCFInfoHeaderLine(ATT_SAMPLES,VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Samples found. partition:"+this.partiton.name()));
+			metaData.add(new VCFFilterHeaderLine(ATT_LOW_DEPTH_FILTER+this.low_depth_threshold,"Number of read is lower than :"+this.min_depth));
 			metaData.add(new VCFFilterHeaderLine(ATT_NOT_ALL_INTRONS,"Not all introns were found retrocopied"));
 
 			
 			
 			
 			
-			final VCFHeader header=new VCFHeader(metaData, Collections.singletonList(sample));
+			final VCFHeader header=new VCFHeader(metaData, intron_names); 
+				
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			header.setSequenceDictionary(refDict);
 			
@@ -383,8 +383,84 @@ public class StarRetroCopy extends Launcher
 			vcw.writeHeader(header);
 			
 			
+			Collections.sort(this.all_transcripts,(A,B)->{
+				int i= contigCmp.compare(A.getContig(), B.getContig());
+				if(i!=0) return i;
+				i = Integer.compare(A.getStart(), B.getStart());
+				if(i!=0) return i;
+				return  Integer.compare(A.getEnd(), B.getEnd());
+			});
 			
+			final Allele ref= Allele.create((byte)'N', true);
+			final Allele alt= Allele.create("<RETROCOPY>", false);
 			
+			for(final Transcript kg: this.all_transcripts)
+				{
+			
+				
+				// ok good candidate
+				final VariantContextBuilder vcb = new VariantContextBuilder();
+				vcb.chr(kg.getContig());
+				vcb.start(kg.getStart());
+				vcb.stop(kg.getEnd());
+				vcb.id(kg.transcript_id);
+				final List<Allele> alleles = Arrays.asList(ref,alt);
+
+				final int max_depth = kg.segments.stream().mapToInt(X->X.match).max().orElse(0);
+				vcb.attribute(VCFConstants.DEPTH_KEY,max_depth);
+				vcb.log10PError(max_depth/-10.0);
+
+				boolean filter_set=false;
+				if(max_depth < this.low_depth_threshold)
+					{
+					vcb.filter(ATT_LOW_DEPTH_FILTER+this.low_depth_threshold);
+					filter_set = true;
+					}
+				
+				vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,2);
+				vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,1);
+				vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,0.5);
+				vcb.attribute(VCFConstants.SVTYPE,"DEL");
+				vcb.attribute(VCFConstants.END_KEY,kg.getEnd());
+				vcb.attribute("SVLEN",kg.getLengthOnReference());
+				for(final String att: kg.attributes.keySet()) {
+					vcb.attribute(att,VCFUtils.escapeInfoField(kg.attributes.get(att)));
+
+				}
+				
+				vcb.alleles(alleles);
+				
+				// introns sequences
+				vcb.attribute(ATT_INTRONS_CANDIDATE_COUNT,kg.segments.stream().filter(I->I.match>0).count());
+				vcb.attribute(ATT_INTRONS_COUNT,kg.segments.size());
+				vcb.attribute(ATT_INTRONS_CANDIDATE_FRACTION,kg.segments.stream().filter(I->I.match>0).count()/(float)kg.segments.size());
+				if(kg.segments.stream().filter(I->I.match>0).count()!=kg.segments.size()) {
+					vcb.filter(ATT_NOT_ALL_INTRONS);
+					filter_set=true;
+					}
+				
+				final List<Genotype> genotypes = new ArrayList<>(kg.segments.size());
+				/* build genotypes */
+				for(int i=0;i< kg.segments.size();i++)
+					{
+					final Segment intron = kg.segments.get(i);
+					final GenotypeBuilder gb= new GenotypeBuilder(intron_names.get(i), Arrays.asList(ref,alt));
+					gb.DP(intron.match);
+					gb.attribute(INTRON_START, intron.start);
+					gb.attribute(INTRON_END, intron.end);
+					genotypes.add(gb.make());
+					}
+				
+				
+				vcb.genotypes(genotypes);
+				
+				
+				if(!filter_set) {
+					vcb.passFilters();
+					}
+				
+				vcw.add(vcb.make());
+				}
 			progress.close();
 			vcw.close();
 			iter.close();
