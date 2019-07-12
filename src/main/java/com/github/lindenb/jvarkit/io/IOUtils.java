@@ -288,6 +288,7 @@ public class IOUtils {
 		return new GZIPInputStream(push_back);
 		}
 	
+	/** open URL for reading, decompressed if url ends with gz of bz2 */
 	public static InputStream openURIForReading(String uri) throws IOException
 		{
 		if(isRemoteURI(uri))
@@ -316,7 +317,8 @@ public class IOUtils {
 		return openPathForReading(Paths.get(uri));
 		}
 	
-	public static BufferedReader openURIForBufferedReading(String uri) throws IOException
+	/** open uri for buffered reader , expect UTF-8 */
+	public static BufferedReader openURIForBufferedReading(final String uri) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(openURIForReading(uri), Charset.forName("UTF-8")));
 		}
