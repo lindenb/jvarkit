@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,9 +14,11 @@ import java.util.List;
 import java.util.Map;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -25,6 +28,8 @@ import htsjdk.samtools.util.RuntimeIOException;
 
 public class GftReader implements Closeable {
 	private final GtfResource resource;
+	private enum InputFormat {undefined,knowngene,gtf};
+	private InputFormat format = InputFormat.undefined;
 	GftReader(final String uri) {
 		if(IOUtil.isUrl(uri)) {
 			this.resource = new RemoteGtfResource(uri);
@@ -41,6 +46,8 @@ public class GftReader implements Closeable {
 		final Map<String,GeneImpl> id2gene = new HashMap<>();
 		final Map<String,TranscriptImpl> id2transcript = new HashMap<>();
 		final IntervalTreeMap<Locatable> treemap;
+		final GTFCodec codec = GTFCodec.createGtfCodec();
+
 		
 		State(Collection<Locatable> intervals)
 			{
@@ -73,7 +80,46 @@ public class GftReader implements Closeable {
 				}
 			return g;
 			}
-		void visit(final GTFLine T) {
+		void visitKg(final String line) {
+			final String tokens[] = CharSplitter.TAB.split(line);
+			final int binIdx=tokens[2].equals("+") || tokens[2].equals("-")?0:1;
+			
+			final GeneImpl gene = new GeneImpl();
+			gene.gene_id = tokens[binIdx + 0];
+			gene.contig = tokens[binIdx + 1];
+			final TranscriptImpl transcript =new TranscriptImpl();
+			transcript.gene = gene;
+			gene.transcripts.add(transcript);
+			transcript.txStart =  1+ Integer.parseInt(tokens[binIdx + 3]);
+			transcript.txEnd =  Integer.parseInt(tokens[binIdx + 4]);
+			transcript.transcript_id = tokens[binIdx + 0];
+			transcript.strand = tokens[binIdx + 2].charAt(0);
+	        transcript.cdsStart= 1+Integer.parseInt(tokens[binIdx + 5]);
+	        transcript.cdsEnd= Integer.parseInt(tokens[binIdx + 6]);
+
+			gene.start = transcript.txStart;
+			gene.end = transcript.txEnd;
+	        gene.strand = transcript.strand;
+	        
+	        final int exonCount=Integer.parseInt(tokens[binIdx + 7]);
+	        int exonStarts[] =  Arrays.stream(CharSplitter.COMMA.split(tokens[binIdx + 8])).mapToInt(S->Integer.parseInt(S)).toArray();
+	        int exonEnds[] =  Arrays.stream(CharSplitter.COMMA.split(tokens[binIdx + 9])).mapToInt(S->Integer.parseInt(S)).toArray();
+	        for(int i=0;i<exonCount;i++ )
+	        	{
+	        	ExonImpl ex= new ExonImpl();
+	        	ex.transcript = transcript;
+	        	transcript.exons.add(ex);
+	        	ex.start = 1 + exonStarts[i];
+	        	ex.end =  exonEnds[i];
+	        	}
+	        this.id2gene.put(gene.gene_id, gene);
+			}		
+		
+		void visitGtf(final String line) {
+			
+			final GTFLine T = this.codec.decode(line);
+			if(T==null) return;
+			
 			if(this.treemap!=null && this.treemap.debugGetTree(T.getContig())==null) return;
 			
 			if(T.getType().equals("gene"))
@@ -159,15 +205,28 @@ public class GftReader implements Closeable {
 	private List<Gene> fetchGenes(final Collection<Locatable> intervals) {
 		final State state = new State(intervals);
 		
-		final GTFCodec codec = GTFCodec.createGtfCodec();
 		try(final BufferedReader br=this.resource.openReader())
 			{
 			br.lines().
 				filter(S->!S.startsWith("#")).
 				filter(S->!StringUtils.isBlank(S)).
-				map(T->codec.decode(T)).
-				filter(T->T!=null).
-				forEach(T->state.visit(T));
+				forEach(L->{
+					if(this.format.equals(InputFormat.undefined)) {
+						final String tokens[] = CharSplitter.TAB.split(L);
+						if(tokens.length>6 && (tokens[6].equals(".") || tokens[6].equals("+") || tokens[6].equals("-"))) {
+							this.format = InputFormat.gtf;
+							}
+						else
+							{
+							this.format = InputFormat.knowngene;
+							}
+						}
+					switch(this.format) {
+						case gtf: state.visitGtf(L);break;
+						case knowngene: state.visitKg(L);break;
+						default: throw new IllegalStateException();
+					}
+				});
 			
 			}
 		catch (final IOException e) {

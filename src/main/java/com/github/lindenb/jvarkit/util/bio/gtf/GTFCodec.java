@@ -219,8 +219,7 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 		
 	@Override
 	public abstract GTFLine decode(final String line);
-	
-	
+
 	
 	private static abstract class AbstractGTFLineImpl implements GTFLine
 		{
