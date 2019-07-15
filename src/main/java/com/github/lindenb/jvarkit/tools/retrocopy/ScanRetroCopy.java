@@ -222,7 +222,7 @@ public class ScanRetroCopy extends Launcher
 	@Parameter(names={"-m"},description="Ignore reads having a clip lower than this value",hidden=true)
 	private int _priv_ignoreCigarSize = 1;
 	@Parameter(names={"--bai","-bai","--with-bai"},description="Use random access BAM using the bai and using the knownGene data. May be slow at startup")
-	private boolean use_bai;
+	private boolean use_bai  = false;
 	@Parameter(names={"--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partiton=SAMRecordPartition.sample;
 	@Parameter(names={"--coding"},description="ignore non-coding transcripts.")

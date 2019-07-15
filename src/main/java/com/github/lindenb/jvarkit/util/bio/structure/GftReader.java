@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.util.bio.structure;
 
 import java.io.BufferedReader;
@@ -12,13 +36,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -26,11 +51,16 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 
+/**
+ * A GTF/KnownGene Reader
+ */
 public class GftReader implements Closeable {
 	private final GtfResource resource;
+	/** type of  input detected: ucsc knownGene or gtf */
 	private enum InputFormat {undefined,knowngene,gtf};
 	private InputFormat format = InputFormat.undefined;
-	GftReader(final String uri) {
+	
+	public GftReader(final String uri) {
 		if(IOUtil.isUrl(uri)) {
 			this.resource = new RemoteGtfResource(uri);
 			}
@@ -42,14 +72,21 @@ public class GftReader implements Closeable {
 			}
 		}
 	
+	/** exon coordinate */
+	private static class Coords {
+		int start;
+		int end;
+		}
+	
 	private static class State {
 		final Map<String,GeneImpl> id2gene = new HashMap<>();
 		final Map<String,TranscriptImpl> id2transcript = new HashMap<>();
+		final Map<String,List<Coords>> transcript2exons = new HashMap<>();
 		final IntervalTreeMap<Locatable> treemap;
 		final GTFCodec codec = GTFCodec.createGtfCodec();
 
 		
-		State(Collection<Locatable> intervals)
+		State(final Collection<Locatable> intervals)
 			{
 			if(intervals==null)
 				{
@@ -62,7 +99,7 @@ public class GftReader implements Closeable {
 				}
 			}
 		
-		GeneImpl getGene(final String gene_id) {
+		private GeneImpl getGene(final String gene_id) {
 			GeneImpl g  = this.id2gene.get(gene_id);
 			if(g==null) {
 				g = new GeneImpl();
@@ -71,7 +108,7 @@ public class GftReader implements Closeable {
 				}
 			return g;
 			}
-		TranscriptImpl getTranscript(final String transcript_id) {
+		private TranscriptImpl getTranscript(final String transcript_id) {
 			TranscriptImpl g  = this.id2transcript.get(transcript_id);
 			if(g==null) {
 				g = new TranscriptImpl();
@@ -80,7 +117,7 @@ public class GftReader implements Closeable {
 				}
 			return g;
 			}
-		void visitKg(final String line) {
+		private void visitKg(final String line) {
 			final String tokens[] = CharSplitter.TAB.split(line);
 			final int binIdx=tokens[2].equals("+") || tokens[2].equals("-")?0:1;
 			
@@ -102,20 +139,13 @@ public class GftReader implements Closeable {
 	        gene.strand = transcript.strand;
 	        
 	        final int exonCount=Integer.parseInt(tokens[binIdx + 7]);
-	        int exonStarts[] =  Arrays.stream(CharSplitter.COMMA.split(tokens[binIdx + 8])).mapToInt(S->Integer.parseInt(S)).toArray();
-	        int exonEnds[] =  Arrays.stream(CharSplitter.COMMA.split(tokens[binIdx + 9])).mapToInt(S->Integer.parseInt(S)).toArray();
-	        for(int i=0;i<exonCount;i++ )
-	        	{
-	        	ExonImpl ex= new ExonImpl();
-	        	ex.transcript = transcript;
-	        	transcript.exons.add(ex);
-	        	ex.start = 1 + exonStarts[i];
-	        	ex.end =  exonEnds[i];
-	        	}
+	        transcript.exonStarts =  Arrays.stream(CharSplitter.COMMA.split(tokens[binIdx + 8])).limit(exonCount).mapToInt(S->Integer.parseInt(S)).toArray();
+	        transcript.exonEnds =  Arrays.stream(CharSplitter.COMMA.split(tokens[binIdx + 9])).limit(exonCount).mapToInt(S->Integer.parseInt(S)).toArray();
+	        
 	        this.id2gene.put(gene.gene_id, gene);
 			}		
 		
-		void visitGtf(final String line) {
+		private  void visitGtf(final String line) {
 			
 			final GTFLine T = this.codec.decode(line);
 			if(T==null) return;
@@ -125,6 +155,7 @@ public class GftReader implements Closeable {
 			if(T.getType().equals("gene"))
 				{
 				final GeneImpl g = this.getGene(getRequiredProperty(T, "gene_id"));
+				g.properties.putAll(T.getAttributes());
 				g.start = T.getStart();
 				g.end = T.getEnd();
 				g.strand = T.getStrand();
@@ -133,6 +164,7 @@ public class GftReader implements Closeable {
 				{
 				final GeneImpl g = this.getGene(getRequiredProperty(T, "gene_id"));
 				final TranscriptImpl t = this.getTranscript(getRequiredProperty(T, "transcript_id"));
+				t.properties.putAll(T.getAttributes());
 				t.gene = g;
 				t.txStart = T.getStart();
 				t.txEnd = T.getEnd();
@@ -151,14 +183,47 @@ public class GftReader implements Closeable {
 			else if(T.getType().equals("exon"))
 				{
 				final TranscriptImpl t = this.getTranscript(getRequiredProperty(T, "transcript_id"));
-				final ExonImpl ex = new ExonImpl();
-				ex.transcript = t;
-				ex.start = T.getStart();
-				ex.end = T.getEnd();
-				t.exons.add(ex);
+				
+				List<Coords> coords = this.transcript2exons.get(t.transcript_id);
+				if(coords==null) {
+					coords = new ArrayList<>();
+					this.transcript2exons.put(t.transcript_id,coords);
+					}
+				final Coords coord = new Coords();
+				coord.start = T.getStart();
+				coord.end = T.getEnd();
+				coords.add(coord);
 				}
 			}
+		
 		List<Gene> finish() {
+			for(final TranscriptImpl tr: this.id2transcript.values())
+				{
+				if(tr.cdsStart==-1 && tr.cdsEnd==-1)
+					{
+					tr.cdsStart=tr.cdsStart;
+					tr.cdsEnd=tr.cdsStart;//YES start, so we have cdsStart==cdsEnd
+					}
+				else if(tr.cdsStart>0 && tr.cdsEnd>0)
+					{
+					if(tr.cdsStart>tr.cdsEnd) throw new IllegalStateException("cds start>end in "+tr);
+					}
+				else
+					{
+					throw new IllegalStateException("only codon_start XOR codon_end defined for "+tr);
+					}
+				}
+			
+			for(final String transcript_id:this.transcript2exons.keySet())
+				{
+				final TranscriptImpl tr = this.id2transcript.get(transcript_id);
+				if(tr==null) throw new IllegalStateException();
+				final List<Coords> coords = this.transcript2exons.get(transcript_id);
+				Collections.sort(coords,(A,B)->Integer.compare(A.start, B.start));
+				tr.exonStarts = coords.stream().mapToInt(E->E.start).toArray();
+				tr.exonEnds = coords.stream().mapToInt(E->E.end).toArray();
+				}
+			
 			this.id2gene.values().stream().filter(T->T.start==-1 || T.end==-1 || StringUtils.isBlank(T.contig)).findAny().ifPresent(T->new RuntimeIOException("gene without data : "+T.gene_id));
 			this.id2transcript.values().stream().filter(T->T.txStart==-1 || T.txEnd==-1 || !(T.strand=='+' || T.strand=='-')).findAny().ifPresent(T->new RuntimeIOException("transcript without data : "+T.transcript_id));
 			
@@ -166,25 +231,6 @@ public class GftReader implements Closeable {
 				{
 				this.id2gene.values().removeIf(G->!this.treemap.containsOverlapping(G));
 				}
-			
-			// sort exons for each transcript
-			this.id2gene.values().
-				stream().
-				flatMap(G->G.transcripts.stream()).
-				forEach(T->{
-					TranscriptImpl tr= TranscriptImpl.class.cast(T);
-					Collections.sort(
-						tr.exons,
-						(A,B)->Integer.compare(A.getStart(), B.getStart()));
-					for(int i=0;i< tr.exons.size();i++)
-						{
-						ExonImpl.class.cast(tr.exons.get(i)).exon_index = i;
-						}
-					
-				});
-			
-			
-			
 			return new ArrayList<>(this.id2gene.values());
 			}
 		}
@@ -227,7 +273,6 @@ public class GftReader implements Closeable {
 						default: throw new IllegalStateException();
 					}
 				});
-			
 			}
 		catch (final IOException e) {
 			throw new RuntimeIOException(e);
@@ -270,53 +315,155 @@ public class GftReader implements Closeable {
 			}
 		}
 	
-	private static class TranscriptIntervalImpl implements TranscriptInterval
-		{
-		TranscriptImpl transcript;
-		int start;
-		int end;
-
-		@Override
-		public Transcript getTranscript() {
-			return null;
-			}
-		@Override
-		public String getContig() {
-			return getTranscript().getContig();
-			}
-		@Override
-		public int getStart() {
-			return start;
-			}
-		@Override
-		public int getEnd() {
-			return end;
-			}
-		}
-	
-	private static class ExonImpl extends TranscriptIntervalImpl implements Exon
-		{
-		int exon_index = 0;
-		}
 
 	
 	private static class TranscriptImpl implements Transcript
 		{
 		GeneImpl gene;
 		String transcript_id;
-		List<Exon> exons= new ArrayList<>();
 		int txStart;
 		int txEnd;
-		int cdsStart;
-		int cdsEnd;
-		char strand;
+		int cdsStart = -1;
+		int cdsEnd = -1;
+		char strand = '?';
+		int exonStarts[]=null;
+		int exonEnds[]=null;
+		final Map<String,String> properties = new HashMap<String, String>();
+
+		
+		private class ExonImpl implements Exon
+			{
+			private final int index0;
+			ExonImpl(final int index0) {
+				this.index0 = index0;
+				}
+			@Override
+			public int getStart() {
+				return TranscriptImpl.this.exonStarts[this.index0];
+				}
+			@Override
+			public int getEnd() {
+				return TranscriptImpl.this.exonEnds[this.index0];
+				}
+			@Override
+			public Transcript getTranscript() {
+				return TranscriptImpl.this;
+				}
+			@Override
+			public int hashCode() {
+				return TranscriptImpl.this.transcript_id.hashCode() * 31 +this.index0;
+				}
+
+			
+			@Override
+			public boolean equals(final Object obj) {
+				if(obj==this) return true;
+				if(obj==null || !(obj instanceof ExonImpl)) return false;
+				final ExonImpl ex = ExonImpl.class.cast(obj);
+				return ex.getTranscript().equals(this.getTranscript()) &&
+						ex.getStart() == this.getStart() &&
+						ex.getEnd() == this.getEnd()
+						;
+				}
+			
+			@Override
+			public String getName() {
+				return TranscriptImpl.this.transcript_id+ ".Exon"+
+							(isNegativeStrand()?
+							getExonCount()-this.index0
+							:1+this.index0
+							);
+				}
+
+			
+			@Override
+			public String toString() {
+				return "Exon "+getContig()+":"+getStart()+"-"+getEnd();
+				}
+			}
+		
+		private class IntronImpl implements Intron
+			{
+			private final int index0;
+			IntronImpl(final int index0) {
+				this.index0 = index0;
+				}
+			@Override
+			public Transcript getTranscript() {
+				return TranscriptImpl.this;
+				}
+			@Override
+			public int getStart() {
+				return TranscriptImpl.this.exonEnds[this.index0] + 1;
+				}
+			@Override
+			public int getEnd() {
+				return TranscriptImpl.this.exonStarts[this.index0+1] -1;
+				}
+			
+			@Override
+			public int hashCode() {
+				return TranscriptImpl.this.transcript_id.hashCode() * 31 +this.index0;
+				}
+			
+			@Override
+			public boolean equals(final Object obj) {
+				if(obj==this) return true;
+				if(obj==null || !(obj instanceof IntronImpl)) return false;
+				final IntronImpl ex = IntronImpl.class.cast(obj);
+				return ex.getTranscript().equals(this.getTranscript()) &&
+						ex.getStart() == this.getStart() &&
+						ex.getEnd() == this.getEnd()
+						;
+				}
+			@Override
+			public String toString() {
+				return "Intron "+getContig()+":"+getStart()+"-"+getEnd();
+				}
+
+			@Override
+			public String getName() {
+				return TranscriptImpl.this.transcript_id+ ".Intron"+
+							(isNegativeStrand()?
+							getIntronCount()-this.index0
+							:1+this.index0
+							);
+				}
+	
+			}
+
+		@Override
+		public String getId() {
+			return this.transcript_id;
+			}
+		
+		@Override
+		public Map<String, String> getProperties() {
+			return this.properties;
+			}
+		
+		@Override
+		public int hashCode() {
+			return this.transcript_id.hashCode();
+			}
+		
+		@Override
+		public boolean equals(final Object obj) {
+			if(this==obj) return true;
+			if(obj==null || !(obj instanceof TranscriptImpl)) return false;
+			final TranscriptImpl tr = TranscriptImpl.class.cast(obj);
+			return tr.transcript_id.equals(this.transcript_id);
+			}
+		
 		@Override
 		public String getContig() {
 			return getGene().getContig();
 			}
+		@Override
 		public int getTxStart() {
 			return txStart;
 			}
+		@Override
 		public int getTxEnd() {
 			return txEnd;
 			}
@@ -332,15 +479,70 @@ public class GftReader implements Closeable {
 		public Gene getGene() {
 			return this.gene;
 		}
+		
+		@Override
+		public int getCdsStart() {
+			return this.cdsStart;
+			}
+		@Override
+		public int getCdsEnd() {
+			return this.cdsEnd;
+			}
+		
+		@Override
+		public int getExonStart(int index0) {
+			return this.exonStarts[index0];
+			}
+		@Override
+		public int getExonEnd(int index0) {
+			return this.exonEnds[index0];
+			}
+		
+		@Override
+		public int getExonCount() {
+			return this.exonStarts.length;
+			}
+		
+		@Override
+		public Exon getExon(final int index0) {
+			return new ExonImpl(index0);
+			}
+		
 		@Override
 		public List<Exon> getExons() {
-			return exons;
+			return IntStream.range(0, this.getExonCount()).
+					mapToObj(T->getExon(T)).
+					collect(Collectors.toList());
 			}
+		
+		@Override
+	    public int getIntronCount() {
+	    	return this.getExonCount()-1;
+	    	}
+		@Override
+		public List<Intron> getIntrons() {
+			return IntStream.range(0, this.getIntronCount()).
+					mapToObj(T->getIntron(T)).
+					collect(Collectors.toList());
+			}
+		
+		@Override
+		public Intron getIntron(int index0) {
+			return new IntronImpl(index0);
+			}
+
+
+		
 		@Override
 		public char getStrand() {
 			return this.strand;
 			}
+		@Override
+		public String toString() {
+			return this.transcript_id+" "+getContig()+":"+getStart()+"-"+getEnd();
+			}
 		}
+	
 	private static class GeneImpl implements Gene
 		{
 		String gene_id;
@@ -348,8 +550,15 @@ public class GftReader implements Closeable {
 		int start;
 		int end;
 		char strand;
-		List<Transcript> transcripts= new ArrayList<>();
-		Map<String,String> properties = new HashMap<String, String>();
+		final List<Transcript> transcripts= new ArrayList<>();
+		final Map<String,String> properties = new HashMap<String, String>();
+		
+		
+		@Override
+		public String getId() {
+			return this.gene_id;
+			}
+		
 		@Override
 		public List<Transcript> getTranscripts() {
 			return transcripts;
@@ -369,6 +578,27 @@ public class GftReader implements Closeable {
 		@Override
 		public Map<String, String> getProperties() {
 			return properties;
+			}
+		@Override
+		public char getStrand() {
+			return this.strand;
+			}
+		@Override
+		public int hashCode() {
+			return this.gene_id.hashCode();
+			}
+		
+		@Override
+		public boolean equals(final Object obj) {
+			if(this==obj) return true;
+			if(obj==null || !(obj instanceof GeneImpl)) return false;
+			final GeneImpl tr = GeneImpl.class.cast(obj);
+			return tr.gene_id.equals(this.gene_id);
+			}
+
+		@Override
+		public String toString() {
+			return this.gene_id+" "+getContig()+":"+getStart()+"-"+getEnd();
 			}
 		
 		}

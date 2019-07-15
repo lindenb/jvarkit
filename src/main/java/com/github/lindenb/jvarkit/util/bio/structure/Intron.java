@@ -24,14 +24,10 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
-import htsjdk.samtools.util.Locatable;
 
-public interface TranscriptInterval extends Locatable {
-public Transcript getTranscript();
-@Override
-default String getContig() {
-	return getTranscript().getContig();
-}
-public default char getStrand() { return getTranscript().getStrand();}
-public String getName();
+public interface Intron extends TranscriptInterval {
+	@Override
+	default String getContig() {
+		return getTranscript().getContig();
+	}
 }
