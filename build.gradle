@@ -2198,6 +2198,10 @@ all2.add( task("bammatrix", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("ijgv2vcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.ijgvd.IjgvdToVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 
 task("vcfphased01", type: CompileJVarkit) {

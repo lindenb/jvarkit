@@ -98,6 +98,36 @@ shi N, Douglas Engel J, Kinoshita K, Kure S, Yaegashi N, ToMMo Japanese Referenc
 
 
 ```
-java -jar dist/ijgv2vcf.jar -R ~/src/jvarkit-git/src/test/resources/human_b37.dict ~/Downloads/*.zip > out.vcf
+$ ls ~/Downloads/chr* ~/Downloads/multiallelic_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip 
+~/Downloads/chr10_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr11_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr1_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr12_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr13_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr14_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr15_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr16_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr17_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr18_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr19_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr20_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr21_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr2_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr22_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr3_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr4_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr5_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr6_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr7_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr8_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/chr9_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+~/Downloads/multiallelic_20190717170045-bd410447a29ca7b9eb95ed92bf11b473.zip
+
+
+$ java -jar dist/ijgv2vcf.jar -R ~/src/jvarkit-git/src/test/resources/human_b37.dict ~/Downloads/*.zip > out.vcf
+
+$ java -jar dist/ijgv2vcf.jar -F -M -R ~/src/jvarkit-git/src/test/resources/human_b37.dict ~/Downloads/*.zip | bcftools view -O z -o ~/Downloads/3.5KJPN_tommo_2019071.vcf.gz
+$ ls -lah ~/Downloads/3.5KJPN_tommo_2019071.vcf.gz
+-rw-r--r-- 1 lindenb lindenb 514M juil. 17 15:04 ~/Downloads/3.5KJPN_tommo_2019071.vcf.gz
 ```
 
