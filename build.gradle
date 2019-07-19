@@ -2154,11 +2154,15 @@ all.add( task("kg2fa", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
-all.add( task("vcfscanupstreamorf", type: CompileJVarkit) {
+all2.add( task("vcfscanupstreamorf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.VcfScanUpstreamOrf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfgnomadpext", type: CompileJVarkit) {
+all2.add( task("gtfupstreamorf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.GtfUpstreamOrf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("vcfgnomadpext", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gnomadpext.VcfGnomadPext"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
 	endMsg = "not tested/used for now"

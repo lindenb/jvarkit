@@ -26,10 +26,10 @@ package com.github.lindenb.jvarkit.util.bio.structure;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import htsjdk.samtools.util.Locatable;
 
-public interface Transcript extends Locatable {
+public interface Transcript extends StrandedLocatable {
 	/** get property map */
 	public Map<String, String> getProperties();
 	/** get associated gene */
@@ -53,17 +53,60 @@ public interface Transcript extends Locatable {
 	/** return i-th intron scanning from 5' to 3', whatever strand */
 	public Intron getIntron(int index0);
 
-	
-    public default boolean isNegativeStrand() { return getStrand()=='-';}
-    public int getCdsStart();
-    public int getCdsEnd();
+	/** test if stop codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop */
+	public boolean hasStopDefined();
+	/** get transcription start position in the genome */
     public int getTxStart();
+	/** get transcription end position in the genome */
     public int getTxEnd();
-    /** returns true if cdsStart==cdsEnd */
-	public default boolean isNonCoding()
-		{
-		return getCdsStart()==getCdsEnd();
+    /** return position of start codon or -1 if non-coding */
+    public int getCodonStart();
+    /** return position of end codon or -1 if unknown : doesn't mean it's non-coding */
+    public int getCodonEnd();
+	public boolean isNonCoding();
+	public boolean isCoding();
+	
+	/** get translation start position in the genome
+	 *  return txStart if it's not coding
+	 *  return getCodonStart if strand '+'
+	 *  return getCodonStart() if strand '-' && stop codon define
+	 *  otherwise return getTxStart
+	 *  
+	 *  */
+	public default int getCdsStart() {
+		if(isNonCoding()) {
+			return getTxStart();
+			}
+		else if(isPositiveStrand()) {
+			return getCodonStart();
+			}
+		else if(isNegativeStrand() && hasStopDefined())
+			{
+			return getCodonEnd();
+			}
+		else
+			{
+			return getTxStart();
+			}
 		}
+	/** get translation end position in the genome */
+	public default int getCdsEnd() {
+		if(isNonCoding()) {
+			return getTxStart();//YES txStart !
+			}
+		else if(isPositiveStrand() && hasStopDefined()) {
+			return getCodonEnd();
+			}
+		else if(isPositiveStrand())
+			{
+			return getTxEnd();
+			}
+		else
+			{
+			return getCodonStart();
+			}
+		}
+
 	
 	/** get transcript length (cumulative exons sizes )*/
 	public default int getTranscriptLength() {
@@ -72,6 +115,29 @@ public interface Transcript extends Locatable {
 				sum();
 		}
 	
+	/** return UTR on 5' side of genomic reference */
+	public Optional<UTR> getUTR5();
+	/** return UTR on 3' side of genomic reference */
+	public Optional<UTR> getUTR3();
 
+	/** return UTR on 5' side of transcript. strand matters */
+	public default Optional<UTR> getTranscriptUTR5() {
+		if(isPositiveStrand()) return getUTR5();
+		if(isNegativeStrand()) return getUTR3();
+		return Optional.empty();
+	}
+	
+	/** return UTR on 5' side of transcript. strand matters */
+	public default Optional<UTR> getTranscriptUTR3() {
+		if(isPositiveStrand()) return getUTR3();
+		if(isNegativeStrand()) return getUTR5();
+		return Optional.empty();
+	}
+
+	
+	
+	public default boolean hasUTR() {
+		return getUTR5().isPresent()|| getUTR3().isPresent();
+	}
 	
 }

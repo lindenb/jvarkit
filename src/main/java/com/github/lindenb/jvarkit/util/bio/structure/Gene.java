@@ -27,12 +27,9 @@ package com.github.lindenb.jvarkit.util.bio.structure;
 import java.util.List;
 import java.util.Map;
 
-import htsjdk.samtools.util.Locatable;
-
-public interface Gene extends Locatable {
+public interface Gene extends StrandedLocatable {
 /** get gene id */
 public String getId();
 public List<Transcript> getTranscripts();
 public Map<String, String> getProperties();
-public char getStrand();
 }

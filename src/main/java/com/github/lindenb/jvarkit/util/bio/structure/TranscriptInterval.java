@@ -24,14 +24,23 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
-import htsjdk.samtools.util.Locatable;
+import java.util.stream.IntStream;
 
-public interface TranscriptInterval extends Locatable {
+
+public interface TranscriptInterval extends StrandedLocatable {
 public Transcript getTranscript();
 @Override
 default String getContig() {
 	return getTranscript().getContig();
 }
+
+@Override
 public default char getStrand() { return getTranscript().getStrand();}
 public String getName();
+
+/** return 1-based genomic coordinates from 5' to 3' of the genomic reference */
+public default IntStream getGenomicIndexesStream() {
+	return IntStream.range(this.getStart(), this.getEnd()+1);
+	}
+
 }

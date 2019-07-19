@@ -24,6 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
+import htsjdk.samtools.util.Locatable;
 
-public interface Exon extends TranscriptInterval {
+/** a Locatable with a strand */
+public interface StrandedLocatable extends Locatable {
+public char getStrand();
+public default boolean isNegativeStrand() { return getStrand()=='-';}
+public default boolean isPositiveStrand() { return getStrand()=='+';}
 }

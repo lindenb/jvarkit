@@ -528,4 +528,13 @@ public class TestSupport {
 			}
 		return rgns;
 		}
-}
+	public Optional<Path> getGRCh37Path() {
+		Path paths[] = new Path[] {
+				Paths.get("/home/lindenb/data/human_g1k_v37.fasta")
+				};
+		for(final Path p:paths) {
+			if(Files.exists(p)) return Optional.of(p);
+			}
+		return Optional.empty();
+		}
+	}
