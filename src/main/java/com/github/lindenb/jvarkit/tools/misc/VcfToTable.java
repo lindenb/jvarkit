@@ -1139,7 +1139,7 @@ public class VcfToTable extends Launcher {
 						t.addRow("Marrvel",new HyperlinkDecorator("http://marrvel.org/search/variant/"+
 							ensemblContig.apply(vc) +
 							"-"+vc.getStart()+
-							" "+
+							"+"+
 							vc.getReference().getDisplayString()+
 							">"+
 							alt.getDisplayString()

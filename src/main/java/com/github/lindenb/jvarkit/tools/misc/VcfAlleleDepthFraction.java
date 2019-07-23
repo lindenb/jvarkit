@@ -126,6 +126,8 @@ public class VcfAlleleDepthFraction extends Launcher {
 	private int maxFilteredGenotypes=-1;
 	@Parameter(names={"-maxFractionFilteredGenotypes","--maxFractionFilteredGenotypes"},description="Set Variant FILTER if percent of BAD genotype is greater than 'x'. Negative is ignore.")
 	private int maxFractionFilteredGenotypes=-1;
+	@Parameter(names={"-dp","--dp"},description="Only consider Genotypes having DP> 'x'")
+	private int min_depth = -1;
 
 		
 	@Override
@@ -170,6 +172,12 @@ public class VcfAlleleDepthFraction extends Launcher {
 					newgt.add(gt);
 					continue;
 					}
+				
+				if(this.min_depth>=0 && (!gt.hasDP() || gt.getDP() < this.min_depth)) {
+					newgt.add(gt);
+					continue;
+					}
+				
 				final int ad[]=gt.getAD();
 				if(ad==null  || ad.length==1 || ad.length!=ctx.getNAlleles()) {
 					newgt.add(gt);

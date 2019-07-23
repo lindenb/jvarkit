@@ -210,13 +210,21 @@ public class GftReader implements Closeable {
 				}
 			else if(T.getType().equals("start_codon"))
 				{
+				// codon start can be spliced of ENST00000429923 : multiple start_codon
 				final TranscriptImpl t = this.getTranscript(getRequiredProperty(T, "transcript_id"));
-				t.codon_start = T.getStart();
+				if(t.codon_start==-1 ||  T.getStart() < t.codon_start) {
+					t.codon_start = T.getStart();
+					}
+				t.coding = true;
 				}
 			else if(T.getType().equals("stop_codon"))
 				{
+				// codon start can be spliced of ENST00000429923 : multiple start_codon
 				final TranscriptImpl t = this.getTranscript(getRequiredProperty(T, "transcript_id"));
-				t.codon_end = T.getStart();
+				if(t.codon_end==-1 ||  T.getStart() < t.codon_end) {
+					t.codon_end = T.getStart();
+					}
+				t.coding = true;
 				}
 			else if(T.getType().equals("exon"))
 				{
@@ -243,6 +251,11 @@ public class GftReader implements Closeable {
 			}
 		
 		List<Gene> finish() {
+		     // it happens! ENST00000541351
+			// gunzip -c ~/jeter.gtf.gz | grep ENST00000541351 | grep codon
+			// 12	havana	stop_codon	10854686	10854688	.	-	0	gene_id "ENSG00000060138"; gene_version "8"; transcript_id "ENST00000541351"; transcript_version "1"; exon_number "5"; gene_name "YBX3"; gene_source "ensembl_havana"; gene_biotype "protein_coding"; transcript_name "YBX3-014"; transcript_source "havana"; transcript_biotype "nonsense_mediated_decay"; havana_transcript "OTTHUMT00000399636"; havana_transcript_version "1"; tag "cds_start_NF"; tag "mRNA_start_NF";
+			
+			
 			for(final TranscriptImpl tr: this.id2transcript.values())
 				{
 				if(tr.codon_start==-1 && tr.codon_end==-1)
@@ -259,10 +272,10 @@ public class GftReader implements Closeable {
 					if(tr.isPositiveStrand() && tr.codon_start>tr.codon_end) throw new IllegalStateException("cds bad start/end in "+tr);
 					if(tr.isNegativeStrand() && tr.codon_end>tr.codon_start) throw new IllegalStateException("cds bad start/end in "+tr);
 					}
-				else
+				else //codon_end > 0 && codon_start==-1
 					{
-					throw new IllegalStateException("only codon_start XOR codon_end defined for "+
-					tr+" codon_start="+tr.codon_start+" codon_end="+tr.codon_end);
+					//throw new IllegalStateException("only codon_start XOR codon_end defined for "+
+					//tr+" codon_start="+tr.codon_start+" codon_end="+tr.codon_end);
 					}
 				}
 			
@@ -398,7 +411,7 @@ public class GftReader implements Closeable {
 		int exonStarts[]=null;
 		int exonEnds[]=null;
 		final Map<String,String> properties = new HashMap<String, String>();
-
+		boolean coding=false;
 		
 		private abstract class AbstractUTR implements UTR {
 			@Override
@@ -573,10 +586,12 @@ public class GftReader implements Closeable {
 		public int hashCode() {
 			return this.transcript_id.hashCode();
 			}
-		
+		public boolean hasStartDefined() {
+			return this.codon_start>0;
+			}
 		@Override
 		public boolean hasStopDefined() {
-			return this.codon_start>0 && this.codon_end>0;
+			return this.codon_end>0;
 			}
 		
 		@Override
@@ -677,11 +692,11 @@ public class GftReader implements Closeable {
 
 		@Override
 		public boolean isCoding() {
-			return this.codon_start>0;
+			return this.coding;
 			}
 		@Override
 		public boolean isNonCoding() {
-			return this.codon_start==-1;
+			return !this.coding;
 			}
 		
 		@Override

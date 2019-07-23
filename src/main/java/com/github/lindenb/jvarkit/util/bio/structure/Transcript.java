@@ -53,13 +53,15 @@ public interface Transcript extends StrandedLocatable {
 	/** return i-th intron scanning from 5' to 3', whatever strand */
 	public Intron getIntron(int index0);
 
+	/** test if start_codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENSG00000060138 */
+	public boolean hasStartDefined();
 	/** test if stop codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop */
 	public boolean hasStopDefined();
 	/** get transcription start position in the genome */
     public int getTxStart();
 	/** get transcription end position in the genome */
     public int getTxEnd();
-    /** return position of start codon or -1 if non-coding */
+    /** return position of start codon or -1 if non-coding or !hasStartDefined() */
     public int getCodonStart();
     /** return position of end codon or -1 if unknown : doesn't mean it's non-coding */
     public int getCodonEnd();
@@ -122,6 +124,7 @@ public interface Transcript extends StrandedLocatable {
 
 	/** return UTR on 5' side of transcript. strand matters */
 	public default Optional<UTR> getTranscriptUTR5() {
+		if(!hasStartDefined()) return Optional.empty();
 		if(isPositiveStrand()) return getUTR5();
 		if(isNegativeStrand()) return getUTR3();
 		return Optional.empty();
@@ -129,6 +132,7 @@ public interface Transcript extends StrandedLocatable {
 	
 	/** return UTR on 5' side of transcript. strand matters */
 	public default Optional<UTR> getTranscriptUTR3() {
+		if(!hasStopDefined()) return Optional.empty();
 		if(isPositiveStrand()) return getUTR3();
 		if(isNegativeStrand()) return getUTR5();
 		return Optional.empty();

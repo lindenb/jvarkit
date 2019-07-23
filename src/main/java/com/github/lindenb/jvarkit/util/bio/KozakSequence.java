@@ -55,11 +55,12 @@ public class KozakSequence
 	
 	@Override
 	public char charAt(int idx) {
+		idx += this.offset_beg;
 		return idx >=0 && idx <delegate.length()?Character.toUpperCase(delegate.charAt(idx)):'N';
 		}
 	
 	/** check there is really a ATG at KOZAK_ATG */
-	private boolean hasATG() {
+	public boolean hasATG() {
 		if(charAt(KOZAK_ATG  )!='A') return false;
 		if(charAt(KOZAK_ATG+1)!='T') return false;
 		if(charAt(KOZAK_ATG+2)!='G') return false;
