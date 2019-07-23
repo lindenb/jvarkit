@@ -10,6 +10,9 @@ filter VCF for strange FORMAT:AD fraction
 ```
 Usage: vcfadfraction [options] Files
   Options:
+    -dp, --dp
+      Only consider Genotypes having DP> 'x'
+      Default: -1
     -filter, --filter
       Variant FILTER
       Default: AD_RATIO
@@ -104,5 +107,46 @@ The current reference is:
 
 
 ## Example
+
+```
+$ wget -O - -q "https://github.com/KennethJHan/Bioinformatics_Programming_101/raw/f40a5daa01cb9b37232d7d7a576100a10f867e80/GATK_BtPractice/SRR000982.filtered.variants.vcf" |  java -jar dist/vcfadfraction.jar | java -jar dist/vcf2table.jar | grep AD_RATIO -C 10
+
+ Genotype Types
+ +---------+-------+-----+
+ | Type    | Count | %   |
+ +---------+-------+-----+
+ | HOM_VAR | 1     | 100 |
+ +---------+-------+-----+
+ Genotypes
+ +-----------+---------+-----+----+----------+----+-----+-----+---------------+---------+
+ | Sample    | Type    | AD  | DP | FT       | GQ | GT  | PGT | PID           | PL      |
+ +-----------+---------+-----+----+----------+----+-----+-----+---------------+---------+
+ | SRR000982 | HOM_VAR | 1,4 | 5  | AD_RATIO | 5  | 1/1 | 1|1 | 196625750_A_T | 163,5,0 |
+ +-----------+---------+-----+----+----------+----+-----+-----+---------------+---------+
+<<GRCh37 chr3:196625765/A (n. 90)
+>>GRCh37 chr3:197119835/G (n. 91)
+ Variant
+ +-------+-----------+
+ | Key   | Value     |
+ +-------+-----------+
+ | CHROM | chr3      |
+ | POS   | 197119835 |
+ | end   | 197119835 |
+--
+ Genotype Types
+ +------+-------+-----+
+ | Type | Count | %   |
+ +------+-------+-----+
+ | HET  | 1     | 100 |
+ +------+-------+-----+
+ Genotypes
+ +-----------+------+------+----+----------+----+-----+----------+
+ | Sample    | Type | AD   | DP | FT       | GQ | GT  | PL       |
+ +-----------+------+------+----+----------+----+-----+----------+
+ | SRR000982 | HET  | 3,16 | 19 | AD_RATIO | 56 | 0/1 | 472,0,56 |
+ +-----------+------+------+----+----------+----+-----+----------+
+<<GRCh37 chr10:42385236/A (n. 167)
+>>GRCh37 chr10:42385255/G (n. 168)
+```
 
 
