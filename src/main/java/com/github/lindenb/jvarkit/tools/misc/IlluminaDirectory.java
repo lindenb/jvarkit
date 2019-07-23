@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -331,15 +332,16 @@ public class IlluminaDirectory
 	{
 	
 	private static final Logger LOG = Logger.build(IlluminaDirectory.class).make();
-
+	private enum OutFormat {XML,JSON,TSV}
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-J","-j","-json","--json"},description="Generate JSON output.")
+	@Parameter(names={"-J","-j","-json","--json"},description="Generate JSON output.",hidden=true)
 	private boolean JSON = false;
 	@Parameter(names={"-i","--invalid"},description="[20180717]save invalid line/fastq names in this file.")
 	private File invalidFile = null;
-
+	@Parameter(names={"-F","--format"},description="output format")
+	private OutFormat outFormat = OutFormat.XML;
 	
 	private final Function<String, String> str2md5 = new StringToMd5();
 	
@@ -398,7 +400,10 @@ public class IlluminaDirectory
 				
     			
     		}
-    	
+    	void tsv(final PrintWriter w) {
+		this.sampleMap.values().stream().forEach(S->S.tsv(w));
+		}
+
     	void json(final JsonWriter out)  throws IOException
     		{
     		out.beginObject();
@@ -559,7 +564,6 @@ public class IlluminaDirectory
     			out.endObject();
     			}
 			}
-    	
     	void write(XMLStreamWriter w,final String tagName,final FastQName fastqFile) throws XMLStreamException
     		{
 			w.writeStartElement(tagName);
@@ -568,6 +572,7 @@ public class IlluminaDirectory
 			w.writeCharacters(fastqFile.getFile().getPath());
 			w.writeEndElement();
     		}
+
     	
     	void write(final XMLStreamWriter w) throws XMLStreamException
     		{
@@ -635,7 +640,14 @@ public class IlluminaDirectory
     			}
     		pairs.add(new Pair(fq));
     		}
-    	
+    	void tsv(final PrintWriter p) {
+		p.print(this.name);
+		p.print("\t");
+		p.print(this.pairs.stream().filter(P->P.forward!=null).map(P->P.forward.getFile().getPath()).collect(Collectors.joining(",")));
+		p.print("\t");
+		p.print(this.pairs.stream().filter(P->P.reverse!=null).map(P->P.reverse.getFile().getPath()).collect(Collectors.joining(",")));
+		p.println();
+		}
     	void write(final XMLStreamWriter w) throws XMLStreamException
 			{
 			w.writeStartElement("sample");
@@ -672,6 +684,7 @@ public class IlluminaDirectory
     
     @Override
     public int doWork(final List<String> args) {
+		if(this.JSON) outFormat= OutFormat.JSON;
     	   	BufferedReader in=null;
 			try
 				{
@@ -715,15 +728,16 @@ public class IlluminaDirectory
 					}
 				in.close();
 		    	
-				final PrintWriter pw = this.openFileOrStdoutAsPrintWriter(outputFile);
-
-		    	if(this.JSON)
+			final PrintWriter pw = this.openFileOrStdoutAsPrintWriter(outputFile);
+			switch(this.outFormat) {
+		    	case JSON:
 		    		{
 		    		final JsonWriter js=new JsonWriter(pw);
 		    		folder.json(js);
 		    		CloserUtil.close(js);
+				break;
 		    		}
-		    	else
+		    	case XML:
 		    		{
 		    		final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 		    		final XMLStreamWriter w= xmlfactory.createXMLStreamWriter(pw);
@@ -732,7 +746,15 @@ public class IlluminaDirectory
 	    			w.writeEndDocument();
 	    			w.flush();
 	    			CloserUtil.close(w);
+				break;
 		    		}
+			case TSV:
+				{
+				folder.tsv(pw);
+				break;
+				}
+			default: throw new IllegalStateException();
+			}
 		    	pw.flush();
 		    	this.invalidWriter.flush();
 		    	CloserUtil.close(pw);

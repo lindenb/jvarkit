@@ -10,15 +10,16 @@ Create a structured (**JSON** or **XML**) representation of a directory containi
 ```
 Usage: illuminadir [options] Files
   Options:
+    -F, --format
+      output format
+      Default: XML
+      Possible Values: [XML, JSON, TSV]
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -i, --invalid
       [20180717]save invalid line/fastq names in this file.
-    -J, -j, -json, --json
-      Generate JSON output.
-      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version

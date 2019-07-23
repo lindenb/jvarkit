@@ -89,8 +89,8 @@ public class VcfAfInfoFilter extends Launcher{
 	@Parameter(names={"--filter","-f"},description="set this filter if all ALT fails the treshold. If empty :remove the variant")
 	private String filterAllAltInGnomad="";
 	@Parameter(names={"--gtfilter","-gtf"},description="set this *GENOTYPE* filter if all ALT for a Genotype fail the treshold. If empty :set genotype to NO_CALL")
-	private String genotypeFilter="";
-	@Parameter(names={"--treshold","-t"},description="Treshold for allele Frequency. ALT alleles above this AF value will be subject to filtration.")
+	private String genotypeFilter="HIGH_AF";
+	@Parameter(names={"--treshold","-t"},description="Treshold for allele Frequency. ALT alleles above this AF value will be subject to filtration. [Default modified 20180905]")
 	private double user_af_treshold = 1E-3;
 	@Parameter(names={"-af","--af"},description="A list of AF fields, separated with comma,semicolon or whitespace that will be used to extract a AF field.",hidden=true)
 	private String deprecated_user_af_fields = "";
@@ -104,6 +104,8 @@ public class VcfAfInfoFilter extends Launcher{
 	private boolean ignore_INFO_field_validation=false;
 	@Parameter(names={"-nfe","--nfe"},description="Add INFO fields for the 'NFE' population created by vcfgnomad: gnomad_exome_AC_NFE,gnomad_exome_AF_NFE,gnomad_exome_AN_NFE,gnomad_genome_AC_NFE,gnomad_genome_AF_NFE,gnomad_genome_AN_NF")
 	private boolean vcf_gnomad_nfe =false;
+	@Parameter(names={"-A","--any"},description="[20190723] Set the FILTER if **ANY** alt allele is over the threshold")
+	private boolean filter_for_any_allele = false;
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
@@ -239,8 +241,13 @@ public class VcfAfInfoFilter extends Launcher{
 						if(af==null) continue;
 						if(af.doubleValue()> this.user_af_treshold)
 							{
-							
-							ok_alleles.remove(alt_alleles.get(x));
+							if(this.filter_for_any_allele) {
+								ok_alleles.clear();
+								}
+							else
+								{
+								ok_alleles.remove(alt_alleles.get(x));
+								}
 							}
 						}
 					}

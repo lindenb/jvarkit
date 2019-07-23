@@ -10,6 +10,9 @@ Filter VCF annotated with external (AF or AC/AN) frequency information like vcfg
 ```
 Usage: vcfafinfofilter [options] Files
   Options:
+    -A, --any
+      [20190723] Set the FILTER if **ANY** alt allele is over the threshold
+      Default: false
     --disable-vc-attribute-recalc
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
@@ -30,7 +33,7 @@ Usage: vcfafinfofilter [options] Files
     --gtfilter, -gtf
       set this *GENOTYPE* filter if all ALT for a Genotype fail the treshold. 
       If empty :set genotype to NO_CALL
-      Default: <empty string>
+      Default: HIGH_AF
     -h, --help
       print help and exit
     --helpFormat
@@ -46,7 +49,7 @@ Usage: vcfafinfofilter [options] Files
       Output file. Optional . Default: stdout
     --treshold, -t
       Treshold for allele Frequency. ALT alleles above this AF value will be 
-      subject to filtration.
+      subject to filtration. [Default modified 20180905]
       Default: 0.001
     --vc-attribute-recalc-ignore-filtered
       When recalculating variant attributes like DP AF, AC, AN, ignore 
