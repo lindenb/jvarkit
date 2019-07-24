@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -164,6 +165,7 @@ public class GftReader implements Closeable {
 		        transcript.codon_end = 1+Integer.parseInt(tokens[binIdx + 5]);
 		        transcript.codon_start = Integer.parseInt(tokens[binIdx + 6]);
 				}
+			transcript.coding = !tokens[binIdx + 5].equals(tokens[binIdx + 6]);
 			gene.start = transcript.txStart;
 			gene.end = transcript.txEnd;
 	        gene.strand = transcript.strand;
@@ -586,13 +588,6 @@ public class GftReader implements Closeable {
 		public int hashCode() {
 			return this.transcript_id.hashCode();
 			}
-		public boolean hasStartDefined() {
-			return this.codon_start>0;
-			}
-		@Override
-		public boolean hasStopDefined() {
-			return this.codon_end>0;
-			}
 		
 		@Override
 		public boolean equals(final Object obj) {
@@ -629,12 +624,12 @@ public class GftReader implements Closeable {
 			return this.gene;
 		}
 		@Override
-		public int getCodonStart() {
-			return this.codon_start;
+		public OptionalInt getCodonStart() {
+			return this.codon_start==-1?OptionalInt.empty():OptionalInt.of(this.codon_start);
 		}
 		@Override
-		public int getCodonEnd() {
-			return this.codon_end;
+		public OptionalInt getCodonEnd() {
+			return this.codon_end==-1?OptionalInt.empty():OptionalInt.of(this.codon_end);
 		}
 		
 		@Override

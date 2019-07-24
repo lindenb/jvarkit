@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -242,66 +243,7 @@ public class VcfScanUpstreamOrf extends Launcher
 		
 	}
 	
-	/* kozak consensus length */
-	private static final int KOZAK_LENGTH=7;
-	/* position of ATG in the kozak sequence */
-	private static final int KOZAK_ATG=3;
 	
-	/* a Kozak consensus */
-	private class KozakSequence
-		extends AbstractCharSequence
-		{
-		final CharSequence delegate;
-		final int offset_beg;
-		KozakSequence(final  CharSequence delegate,final int offset_atg) {
-			this.delegate = delegate;
-			this.offset_beg = offset_atg-KOZAK_ATG;
-			}
-		
-		@Override
-		public char charAt(int index) {
-			final int idx= this.offset_beg + index;
-			return idx >=0 && idx <delegate.length()?delegate.charAt(idx):'N';
-			}
-		
-		private boolean hasATG() {
-			if(charAt(KOZAK_ATG  )!='A') return false;
-			if(charAt(KOZAK_ATG+1)!='T') return false;
-			if(charAt(KOZAK_ATG+2)!='G') return false;
-			return true;
-			}
-
-		
-		KozakStrength getStrength() {
-			char c0 = charAt(0);
-			if(c0=='N') return KozakStrength.nil;
-			char c6 = charAt(6);
-			if(c6=='N') return KozakStrength.nil;
-			if(!hasATG()) return KozakStrength.nil;
-			
-			
-			boolean ok_chart_at_0 = c0 == 'A' || c0 == 'G' ;
-			
-  			if ( ok_chart_at_0 && c6 == 'G'){
-  				return  KozakStrength.Strong;
-  				}
-  			else if (ok_chart_at_0 || c6 == 'G'){
-  				return  KozakStrength.Moderate;
-  				}
-  			return KozakStrength.Weak;
-			}
-		
-		@Override
-		public int length() {
-			return KOZAK_LENGTH;
-			}
-		
-		void annotate(final Map<String,String> sb) {
-			sb.put("kozak-seq",this.toString());
-			sb.put("kozak-strength",this.getStrength().name());
-			}
-		
-		}
 	private final static char NO_BASE='\0';
 	
 	private interface Locatable0
@@ -723,7 +665,7 @@ public class VcfScanUpstreamOrf extends Launcher
 		KozakSequence getKozakSequence() {
 			return this.getKozakContext(this.atg0);
 			}
-		KozakStrength getKozakStrength() {
+		KozakSequence.Strength getKozakStrength() {
 			return getKozakSequence().getStrength();
 			}
 		public boolean isBetterThan(final OpenReadingFrame o) {
@@ -804,7 +746,7 @@ public class VcfScanUpstreamOrf extends Launcher
 			pw.print(thickEnd);//thickStart
 		
 			pw.print('\t');
-			pw.print(this.getKozakStrength().getColor()); pw.print('\t');//itemRgb
+			pw.print(getColor(this.getKozakStrength())); pw.print('\t');//itemRgb
 			pw.print('\t');// score 
 			pw.print(getGene().getExonCount());pw.print("\t");// blockCount
 			for(int x=0;x< getGene().getExonCount();++x) {
@@ -978,7 +920,7 @@ public class VcfScanUpstreamOrf extends Launcher
 					continue;
 					}
 				final Map<String,String> sb =getAnnotPrefix(pos_ATG);
-				kozakSequence.annotate(sb);
+				annotate(kozakSequence,sb);
 				this.delegate.annotStop(sb, pos_ATG, pos_stop);
 				
 				this.remove_stop_set.add(toString(sb));
@@ -1003,7 +945,7 @@ public class VcfScanUpstreamOrf extends Launcher
 				
 				final Map<String,String> sb =getAnnotPrefix(pos_ATG);
 				
-				kozakSequence.annotate(sb);
+				annotate(kozakSequence,sb);
 				
 				this.annotStop(sb, pos_ATG, pos_stop);
 				
@@ -1028,7 +970,7 @@ public class VcfScanUpstreamOrf extends Launcher
 				PARANOID.assertLt(pos_ATG,pos_stop);
 				
 				final Map<String,String> sb = getAnnotPrefix(pos_ATG);
-				kozakSequence.annotate(sb);
+				annotate(kozakSequence,sb);
 				annotStop(sb, pos_ATG, pos_stop);
 				
 				this.remove_atg_set.add(toString(sb));
@@ -1052,24 +994,24 @@ public class VcfScanUpstreamOrf extends Launcher
 				PARANOID.assertLt(pos_A,stop);
 				
 				final Map<String,String> sb =getAnnotPrefix(pos_A);
-				kozakSequence.annotate(sb);
+				annotate(kozakSequence,sb);
 				this.annotStop(sb,pos_A,stop);
 				this.denovo_atg_set.add(toString(sb));
 				}
 			}
 		
 		void kozakAlteration() {
-			for(int i=0;i< KOZAK_LENGTH;i++) {
+			for(int i=0;i< KozakSequence.KOZAK_LENGTH;i++) {
 				final int kozak_start = this.alt_position0 - i;
-				if(kozak_start<0 || kozak_start+KOZAK_LENGTH>=this.length()) continue;
-				final int pos_A = kozak_start+ KOZAK_ATG;
+				if(kozak_start<0 || kozak_start+KozakSequence.KOZAK_LENGTH>=this.length()) continue;
+				final int pos_A = kozak_start+ KozakSequence.KOZAK_ATG;
 				if(!isATG(pos_A)) continue;
 				if(!this.delegate.isATG(pos_A)) continue;
 				final KozakSequence kozak1 = this.delegate.getKozakContext(pos_A);
-				if(kozak1.getStrength()==KozakStrength.nil) continue;
+				if(kozak1.getStrength()==KozakSequence.Strength.nil) continue;
 				
 				final KozakSequence kozak2 = this.getKozakContext(pos_A);
-				if(kozak2.getStrength()==KozakStrength.nil) continue;
+				if(kozak2.getStrength()==KozakSequence.Strength.nil) continue;
 				
 				if(!acceptKozak(kozak1) && !acceptKozak(kozak2)) {
 					continue;
@@ -1092,6 +1034,14 @@ public class VcfScanUpstreamOrf extends Launcher
 				}
 			}
 		}
+	
+	private String getColor(KozakSequence.Strength k) {
+		return "0,0,0";
+	}
+	
+	private void annotate(KozakSequence k,Map<String,String> sb) {
+		
+	}
 	
 	private boolean acceptKozak(final KozakSequence k) {
 		if(this.only_strong_kozak && !KozakStrength.Strong.equals(k.getStrength())) return false;

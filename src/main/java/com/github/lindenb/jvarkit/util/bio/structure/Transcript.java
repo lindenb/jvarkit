@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.util.bio.structure;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 
 public interface Transcript extends StrandedLocatable {
@@ -54,17 +55,21 @@ public interface Transcript extends StrandedLocatable {
 	public Intron getIntron(int index0);
 
 	/** test if start_codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENSG00000060138 */
-	public boolean hasStartDefined();
+	public default boolean hasStartDefined() {
+		return getCodonStart().isPresent();
+		}
 	/** test if stop codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop */
-	public boolean hasStopDefined();
+	public default boolean hasStopDefined() {
+		return getCodonEnd().isPresent();
+		}
 	/** get transcription start position in the genome */
     public int getTxStart();
 	/** get transcription end position in the genome */
     public int getTxEnd();
-    /** return position of start codon or -1 if non-coding or !hasStartDefined() */
-    public int getCodonStart();
-    /** return position of end codon or -1 if unknown : doesn't mean it's non-coding */
-    public int getCodonEnd();
+    /** return position of start codon can be unknown non-coding or !hasStartDefined() */
+    public OptionalInt getCodonStart();
+    /** return position of end codon can be unknown : doesn't mean it's non-coding */
+    public OptionalInt getCodonEnd();
 	public boolean isNonCoding();
 	public boolean isCoding();
 	
@@ -80,11 +85,11 @@ public interface Transcript extends StrandedLocatable {
 			return getTxStart();
 			}
 		else if(isPositiveStrand()) {
-			return getCodonStart();
+			return getCodonStart().orElse(getTxStart());
 			}
-		else if(isNegativeStrand() && hasStopDefined())
+		else if(isNegativeStrand())
 			{
-			return getCodonEnd();
+			return getCodonEnd().orElse(getTxStart());
 			}
 		else
 			{
@@ -96,16 +101,12 @@ public interface Transcript extends StrandedLocatable {
 		if(isNonCoding()) {
 			return getTxStart();//YES txStart !
 			}
-		else if(isPositiveStrand() && hasStopDefined()) {
-			return getCodonEnd();
-			}
-		else if(isPositiveStrand())
-			{
-			return getTxEnd();
+		else if(isPositiveStrand()) {
+			return getCodonEnd().orElse(getTxEnd());
 			}
 		else
 			{
-			return getCodonStart();
+			return getCodonStart().orElse(getTxEnd());
 			}
 		}
 
