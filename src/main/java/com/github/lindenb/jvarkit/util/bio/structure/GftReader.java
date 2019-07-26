@@ -48,6 +48,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -60,6 +61,8 @@ import htsjdk.samtools.util.RuntimeIOException;
  * A GTF/KnownGene Reader
  */
 public class GftReader implements Closeable {
+	private static final Logger LOG = Logger.build(GftReader.class).make();
+
 	private final GtfResource resource;
 	/** type of  input detected: ucsc knownGene or gtf */
 	private enum InputFormat {undefined,knowngene,gtf};
@@ -156,14 +159,21 @@ public class GftReader implements Closeable {
 			transcript.txEnd =  Integer.parseInt(tokens[binIdx + 4]);
 			transcript.transcript_id = tokens[binIdx + 0];
 			transcript.strand = tokens[binIdx + 2].charAt(0);
+			transcript.codon_start = transcript.new StartCodonImpl();
+			transcript.codon_end = transcript.new StopCodonImpl();
+
 			if(transcript.strand=='+') {
-		        transcript.codon_start = 1+Integer.parseInt(tokens[binIdx + 5]);
-		        transcript.codon_end = Integer.parseInt(tokens[binIdx + 6]);
+				int p = 1+Integer.parseInt(tokens[binIdx + 5]);
+				for(int i=0;i< 3;i++)   transcript.codon_start.pos[i]=p+i;
+				p = 1+Integer.parseInt(tokens[binIdx + 6]);
+				for(int i=0;i< 3;i++)   transcript.codon_end.pos[i]=p+i;
 				}
 			else
 				{
-		        transcript.codon_end = 1+Integer.parseInt(tokens[binIdx + 5]);
-		        transcript.codon_start = Integer.parseInt(tokens[binIdx + 6]);
+				int p = 1+Integer.parseInt(tokens[binIdx + 5]);
+				for(int i=0;i< 3;i++)   transcript.codon_end.pos[i]=p+i;
+				p = 1+Integer.parseInt(tokens[binIdx + 6]);
+				for(int i=0;i< 3;i++)   transcript.codon_start.pos[i]=p+i;
 				}
 			transcript.coding = !tokens[binIdx + 5].equals(tokens[binIdx + 6]);
 			gene.start = transcript.txStart;
@@ -214,18 +224,16 @@ public class GftReader implements Closeable {
 				{
 				// codon start can be spliced of ENST00000429923 : multiple start_codon
 				final TranscriptImpl t = this.getTranscript(getRequiredProperty(T, "transcript_id"));
-				if(t.codon_start==-1 ||  T.getStart() < t.codon_start) {
-					t.codon_start = T.getStart();
-					}
+				if(t.codon_start == null) t.codon_start = t.new StartCodonImpl();
+				t.codon_start.visit(T);
 				t.coding = true;
 				}
 			else if(T.getType().equals("stop_codon"))
 				{
 				// codon start can be spliced of ENST00000429923 : multiple start_codon
 				final TranscriptImpl t = this.getTranscript(getRequiredProperty(T, "transcript_id"));
-				if(t.codon_end==-1 ||  T.getStart() < t.codon_end) {
-					t.codon_end = T.getStart();
-					}
+				if(t.codon_end == null) t.codon_end = t.new StopCodonImpl();
+				t.codon_end.visit(T);
 				t.coding = true;
 				}
 			else if(T.getType().equals("exon"))
@@ -245,7 +253,8 @@ public class GftReader implements Closeable {
 			else if(T.getType().equals("five_prime_utr") || 
 					T.getType().equals("CDS") || 
 					T.getType().equals("three_prime_utr")) {
-				
+				final TranscriptImpl t = this.getTranscript(getRequiredProperty(T, "transcript_id"));
+				t.saw_cds_flag = true;
 				}
 			else
 				{
@@ -260,9 +269,13 @@ public class GftReader implements Closeable {
 			
 			for(final TranscriptImpl tr: this.id2transcript.values())
 				{
+				/*
 				if(tr.codon_start==-1 && tr.codon_end==-1)
 					{
-					// non coding
+					if(tr.saw_cds_flag) {
+						// e.g. ENST00000580917.
+						//LOG.error("Saw CDS/UTR for "+tr.getId()+". But not codon defined.");
+						}
 					}
 				// happens wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop
 				else if(tr.codon_start>0 && tr.codon_end==-1)
@@ -278,7 +291,7 @@ public class GftReader implements Closeable {
 					{
 					//throw new IllegalStateException("only codon_start XOR codon_end defined for "+
 					//tr+" codon_start="+tr.codon_start+" codon_end="+tr.codon_end);
-					}
+					}*/
 				}
 			
 			for(final String transcript_id:this.transcript2exons.keySet())
@@ -286,6 +299,10 @@ public class GftReader implements Closeable {
 				final TranscriptImpl tr = this.id2transcript.get(transcript_id);
 				if(tr==null) throw new IllegalStateException();
 				final List<Coords> coords = this.transcript2exons.get(transcript_id);
+				if(coords.isEmpty()) {
+					throw new IllegalStateException("No exon defined for "+transcript_id);
+					}
+				
 				Collections.sort(coords,(A,B)->Integer.compare(A.start, B.start));
 				tr.exonStarts = coords.stream().mapToInt(E->E.start).toArray();
 				tr.exonEnds = coords.stream().mapToInt(E->E.end).toArray();
@@ -293,6 +310,7 @@ public class GftReader implements Closeable {
 			
 			this.id2gene.values().stream().filter(T->T.start==-1 || T.end==-1 || StringUtils.isBlank(T.contig)).findAny().ifPresent(T->new RuntimeIOException("gene without data : "+T.gene_id));
 			this.id2transcript.values().stream().filter(T->T.txStart==-1 || T.txEnd==-1 || !(T.strand=='+' || T.strand=='-')).findAny().ifPresent(T->new RuntimeIOException("transcript without data : "+T.transcript_id));
+			
 			
 			if(this.treemap!=null)
 				{
@@ -407,13 +425,72 @@ public class GftReader implements Closeable {
 		String transcript_id;
 		int txStart;
 		int txEnd;
-		int codon_end = -1;
-		int codon_start = -1;
+		StartCodonImpl codon_start= null;
+		StopCodonImpl codon_end = null;
 		char strand = '?';
 		int exonStarts[]=null;
 		int exonEnds[]=null;
 		final Map<String,String> properties = new HashMap<String, String>();
-		boolean coding=false;
+		boolean coding = false;
+		boolean saw_cds_flag = false;
+		
+		private abstract class AbstractCodonImpl implements Codon {
+			final int pos[]=new int[] {-1,-1,-1};
+			
+			private void _visit(int loc) {
+				int i=0;
+				while( i< pos.length) {
+					if(pos[i]==-1) break;
+					i++;
+					}
+				if(i>= pos.length) throw new IllegalArgumentException();
+				pos[i]=loc;
+				}
+			
+			void visit(Locatable loc) {
+				int L=loc.getLengthOnReference();
+				if(L>3) throw new IllegalStateException("large codon for "+getName()+" from "+loc);
+				for(int i=0;i< L ;i++)
+					{
+					_visit(loc.getStart()+i);
+					}
+				Arrays.sort(pos);
+				}
+			
+			private int at(int idx) {
+				final int p = pos[idx];
+				if(p<1) throw new IllegalStateException("incomplete codon for "+getName()+" "+getTranscript()+ " "+Arrays.toString(this.pos));
+				return p;
+				}
+			
+			@Override
+			public int getStart() {
+				return at(0);
+				}
+			@Override
+			public int getEnd() {
+				return at(2);
+				}
+			
+			@Override
+			public Transcript getTranscript() {
+				return TranscriptImpl.this;
+				}
+			}
+		
+		private class StartCodonImpl extends AbstractCodonImpl {
+			@Override
+			public String getName() {
+				return "Start Codon";
+				}
+			}
+		
+		private class StopCodonImpl extends AbstractCodonImpl {
+			@Override
+			public String getName() {
+				return "Stop Codon";
+				}
+			}
 		
 		private abstract class AbstractUTR implements UTR {
 			@Override
@@ -439,12 +516,25 @@ public class GftReader implements Closeable {
 			}
 		
 		private class UTR5Impl extends AbstractUTR {
+			
+			
 			@Override
 			public int getStart() {
 				return getTranscript().getTxStart();
 				}
 			public int getEnd() {
-				return getTranscript().getCdsEnd()-1;
+				final Optional<Codon> codon;
+				if( isPositiveStrand())
+					{
+					codon= getTranscript().getCodonStart();
+					}
+				else 
+					{
+					codon = getTranscript().getCodonStop();
+					}
+				
+				if(!codon.isPresent()) throw new IllegalStateException("no codon for UTR5' for "+getTranscript().getId());
+				return codon.get().getStart() - 1 /* one base before the codon */;
 				}
 			@Override
 			public String getName() {
@@ -460,8 +550,19 @@ public class GftReader implements Closeable {
 
 			@Override
 			public int getStart() {
-				return getTranscript().getCdsEnd()+1;
+				final Optional<Codon> codon;
+				if( isPositiveStrand())
+					{
+					codon= getTranscript().getCodonStop();
+					}
+				else 
+					{
+					codon = getTranscript().getCodonStart();
+					}
+				if(!codon.isPresent()) throw new IllegalStateException("no codon for UTR3' for "+getTranscript().getId());
+				return codon.get().getEnd() + 1 /* one base after the codon */;
 				}
+			
 			public int getEnd() {
 				return getTranscript().getTxEnd();
 				}
@@ -469,9 +570,65 @@ public class GftReader implements Closeable {
 			public String getName() {
 				return (getTranscript().isNegativeStrand()? "5":"3")+"' UTR of "+getTranscript().getId();
 				}
-
+			@Override
+			public String toString() {
+				return getName();
+				}
 			}
-
+		private class CdsImpl implements Cds
+			{
+			private final int exon_index;
+			CdsImpl(int exon_index) {
+				this.exon_index = exon_index;
+				}
+			@Override
+			public Exon getExon() {
+				return getTranscript().getExon(this.exon_index);
+				}
+			@Override
+			public int getStart() {
+				return Math.max(
+						getTranscript().getExonStart(this.exon_index),
+						getTranscript().getCdsStart()
+						);
+				}
+			@Override
+			public int getEnd() {
+				return Math.min(
+						getTranscript().getExonEnd(this.exon_index),
+						getTranscript().getCdsEnd()
+						);
+				}
+			@Override
+			public Transcript getTranscript() {
+				return TranscriptImpl.this;
+				}
+			
+			@Override
+			public int hashCode() {
+				return TranscriptImpl.this.transcript_id.hashCode() * 31 +this.exon_index;
+				}
+			
+			@Override
+			public boolean equals(final Object obj) {
+				if(obj==this) return true;
+				if(obj==null || !(obj instanceof CdsImpl)) return false;
+				final CdsImpl c = CdsImpl.class.cast(obj);
+				return c.getTranscript().equals(this.getTranscript()) &&
+						c.exon_index == this.exon_index
+						;
+				}
+			
+			
+			@Override
+			public String getName() {
+				return "CDS."+getExon().getName();
+				}
+			@Override
+			public String toString() {
+				return getName();
+				}
+			}
 		
 		private class ExonImpl implements Exon
 			{
@@ -481,11 +638,11 @@ public class GftReader implements Closeable {
 				}
 			@Override
 			public int getStart() {
-				return TranscriptImpl.this.exonStarts[this.index0];
+				return getTranscript().getExonStart(this.index0);
 				}
 			@Override
 			public int getEnd() {
-				return TranscriptImpl.this.exonEnds[this.index0];
+				return getTranscript().getExonEnd(this.index0);
 				}
 			@Override
 			public Transcript getTranscript() {
@@ -624,12 +781,12 @@ public class GftReader implements Closeable {
 			return this.gene;
 		}
 		@Override
-		public OptionalInt getCodonStart() {
-			return this.codon_start==-1?OptionalInt.empty():OptionalInt.of(this.codon_start);
+		public Optional<Codon> getCodonStart() {
+			return Optional.ofNullable(this.codon_start);
 		}
 		@Override
-		public OptionalInt getCodonEnd() {
-			return this.codon_end==-1?OptionalInt.empty():OptionalInt.of(this.codon_end);
+		public Optional<Codon> getCodonStop() {
+			return Optional.ofNullable(this.codon_end);
 		}
 		
 		@Override
@@ -675,14 +832,23 @@ public class GftReader implements Closeable {
 			}
 		@Override
 		public Optional<UTR> getUTR5() {
-			if(isNonCoding() || getCdsStart()<=getTxStart()) return Optional.empty();
-			return Optional.of(new UTR5Impl());
+			if(isNonCoding()) return Optional.empty();
+			if(
+				(isPositiveStrand() && hasCodonStartDefined()) || 
+				(isNegativeStrand() && hasCodonStopDefined())
+				) return Optional.of(new UTR5Impl());
+			return Optional.empty();
 			}
 		
 		@Override
 		public Optional<UTR> getUTR3() {
-			if(isNonCoding() || getCdsEnd()>=getTxEnd()) return Optional.empty();
-			return Optional.of(new UTR3Impl());
+			if(isNonCoding()) return Optional.empty();
+			if(
+					(isPositiveStrand() && hasCodonStopDefined()) || 
+					(isNegativeStrand() && hasCodonStartDefined())
+					) return Optional.of(new UTR3Impl());
+			
+			return Optional.empty();
 			}
 
 		@Override
@@ -698,6 +864,21 @@ public class GftReader implements Closeable {
 		public char getStrand() {
 			return this.strand;
 			}
+		@Override
+		public List<Cds> getAllCds() {
+			if(!isCoding()) return Collections.emptyList();
+			if(!hasCodonStartDefined()) throw new IllegalStateException("transcript has not start codon  defined");
+			if(!hasCodonStopDefined()) throw new IllegalStateException("transcript has not end codon defined");
+			final List<Cds> L = new ArrayList<>(this.getExonCount());
+			for(int i=0;i< this.getExonCount();i++)
+				{
+				if(this.getExonStart(i) > this.getCdsEnd()) break;
+				if(this.getExonEnd(i) < this.getCdsStart()) continue;
+				L.add(new CdsImpl(i));
+				}
+			return L;
+			}
+		
 		@Override
 		public String toString() {
 			return this.transcript_id+" "+getContig()+":"+getStart()+"-"+getEnd();

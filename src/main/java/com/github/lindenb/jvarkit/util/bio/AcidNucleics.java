@@ -192,6 +192,47 @@ public static char[] degenerateToBases(final char base) {
 		}
 	}
 
+/** looks like a nucleotide in the IUPAC classification */
+public static boolean isIUPAC(final char base) {
+	switch(base) {
+	    case 'A':
+	    case 'C':
+	    case 'G':
+	    case 'T':
+	    case 'U':
+	    case 'R':
+	    case 'Y':
+	    case 'S':
+	    case 'W':
+	    case 'K':
+	    case 'M':
+	    case 'B':
+	    case 'D':
+	    case 'H':
+	    case 'V':
+	    case 'N':
+	    //
+	    case 'a':
+	    case 'c':
+	    case 'g':
+	    case 't':
+	    case 'u':
+	    case 'r':
+	    case 'y':
+	    case 's':
+	    case 'w':
+	    case 'k':
+	    case 'm':
+	    case 'b':
+	    case 'd':
+	    case 'h':
+	    case 'v':
+	    case 'n': return true;
+	    default: return false;
+		}
+	}
+
+
 /** TODO: not tested */
 public static char basesToDegenerate(final Set<Character> bases) {
 	switch(bases.size())

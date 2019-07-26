@@ -99,10 +99,10 @@ $ wget -O - -q "https://github.com/KennethJHan/Bioinformatics_Programming_101/ra
 END_DOC
  */
 @Program(name="vcfadfraction",
-	description="filter VCF for strange FORMAT:AD fraction",
-	keywords= {"vcf","allele-balance","depth"},
+	description="filter VCF for strange FORMAT/AD fraction",
+	keywords= {"vcf","allele-depth","AD","depth"},
 	creationDate="20190723",
-	modificationDate="20190723"
+	modificationDate="20190726"
 	)
 public class VcfAlleleDepthFraction extends Launcher {
 	private static final Logger LOG = Logger.build(VcfAlleleDepthFraction.class).make();
@@ -125,7 +125,7 @@ public class VcfAlleleDepthFraction extends Launcher {
 	@Parameter(names={"-maxFilteredGenotypes","--maxFilteredGenotypes"},description="Set Variant FILTER if number of BAD genotype is greater than 'x'. Negative is ignore.")
 	private int maxFilteredGenotypes=-1;
 	@Parameter(names={"-maxFractionFilteredGenotypes","--maxFractionFilteredGenotypes"},description="Set Variant FILTER if percent of BAD genotype is greater than 'x'. Negative is ignore.")
-	private int maxFractionFilteredGenotypes=-1;
+	private double maxFractionFilteredGenotypes=-1;
 	@Parameter(names={"-dp","--dp"},description="Only consider Genotypes having DP> 'x'")
 	private int min_depth = -1;
 

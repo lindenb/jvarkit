@@ -14,19 +14,19 @@ public void test01() {
 	Assert.assertEquals(k.charAt(0), 'N');
 	Assert.assertEquals(k.charAt(1), 'N');
 	
-	k = new KozakSequence("AGGATGG", 0);
+	k = new KozakSequence("AGGATGG",3);
 	Assert.assertEquals(k.charAt(0), 'A');
 	Assert.assertEquals(k.charAt(6), 'G');
 	Assert.assertEquals(k.getStrength(), KozakSequence.Strength.Strong);
-	k = new KozakSequence("aggatgg", 0);
+	k = new KozakSequence("aggatgg",3);
 	Assert.assertEquals(k.getStrength(), KozakSequence.Strength.Strong);
 
 	
-	k = new KozakSequence("AGGATGC", 0);
+	k = new KozakSequence("AGGATGC",3);
 	Assert.assertEquals(k.getStrength(), KozakSequence.Strength.Moderate);
 
 	// no atg
-	k = new KozakSequence("AGGTTGG", 0);
+	k = new KozakSequence("AGGTTGG",3);
 	Assert.assertEquals(k.getStrength(), KozakSequence.Strength.nil);
 	}
 }

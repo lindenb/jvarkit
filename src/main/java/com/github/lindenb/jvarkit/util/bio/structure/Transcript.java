@@ -47,30 +47,25 @@ public interface Transcript extends StrandedLocatable {
 	public List<Exon> getExons();
     public char getStrand();
     public int getExonCount();
-    
+    /** weird transcripts when no exons was defined */
+    public default boolean hasExon() {
+    	return getExonCount()>0;
+    }
+    /** get all CDS in this exon */
+	public List<Cds> getAllCds();
+
     
     public int getIntronCount();
 	public List<Intron> getIntrons();
 	/** return i-th intron scanning from 5' to 3', whatever strand */
 	public Intron getIntron(int index0);
 
-	/** test if start_codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENSG00000060138 */
-	public default boolean hasStartDefined() {
-		return getCodonStart().isPresent();
-		}
-	/** test if stop codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop */
-	public default boolean hasStopDefined() {
-		return getCodonEnd().isPresent();
-		}
-	/** get transcription start position in the genome */
+	/** get genomic transcription start position in the genome */
     public int getTxStart();
-	/** get transcription end position in the genome */
+	/** get genomic transcription end position in the genome */
     public int getTxEnd();
-    /** return position of start codon can be unknown non-coding or !hasStartDefined() */
-    public OptionalInt getCodonStart();
-    /** return position of end codon can be unknown : doesn't mean it's non-coding */
-    public OptionalInt getCodonEnd();
-	public boolean isNonCoding();
+
+    public boolean isNonCoding();
 	public boolean isCoding();
 	
 	/** get translation start position in the genome
@@ -80,16 +75,19 @@ public interface Transcript extends StrandedLocatable {
 	 *  otherwise return getTxStart
 	 *  
 	 *  */
+	@Deprecated
 	public default int getCdsStart() {
 		if(isNonCoding()) {
 			return getTxStart();
 			}
 		else if(isPositiveStrand()) {
-			return getCodonStart().orElse(getTxStart());
+			if(hasCodonStartDefined()) return getCodonStart().get().getStart();
+			return getTxStart();
 			}
 		else if(isNegativeStrand())
 			{
-			return getCodonEnd().orElse(getTxStart());
+			if(hasCodonStopDefined()) return getCodonStop().get().getStart();
+			return getTxStart();
 			}
 		else
 			{
@@ -102,11 +100,13 @@ public interface Transcript extends StrandedLocatable {
 			return getTxStart();//YES txStart !
 			}
 		else if(isPositiveStrand()) {
-			return getCodonEnd().orElse(getTxEnd());
+			if(hasCodonStopDefined()) return getCodonStop().get().getEnd();
+			return getTxEnd();
 			}
 		else
 			{
-			return getCodonStart().orElse(getTxEnd());
+			if(hasCodonStartDefined()) return getCodonStart().get().getEnd();
+			return getTxEnd();
 			}
 		}
 
@@ -125,7 +125,7 @@ public interface Transcript extends StrandedLocatable {
 
 	/** return UTR on 5' side of transcript. strand matters */
 	public default Optional<UTR> getTranscriptUTR5() {
-		if(!hasStartDefined()) return Optional.empty();
+		if(!hasCodonStartDefined()) return Optional.empty();
 		if(isPositiveStrand()) return getUTR5();
 		if(isNegativeStrand()) return getUTR3();
 		return Optional.empty();
@@ -133,7 +133,7 @@ public interface Transcript extends StrandedLocatable {
 	
 	/** return UTR on 5' side of transcript. strand matters */
 	public default Optional<UTR> getTranscriptUTR3() {
-		if(!hasStopDefined()) return Optional.empty();
+		if(!hasCodonStopDefined()) return Optional.empty();
 		if(isPositiveStrand()) return getUTR3();
 		if(isNegativeStrand()) return getUTR5();
 		return Optional.empty();
@@ -145,4 +145,18 @@ public interface Transcript extends StrandedLocatable {
 		return getUTR5().isPresent()|| getUTR3().isPresent();
 	}
 	
+	/** get Codon start */
+	public Optional<Codon> getCodonStart();
+	/** get Codon end */
+	public Optional<Codon> getCodonStop();
+	
+	/** test if start_codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENSG00000060138 */
+	public default boolean hasCodonStartDefined() {
+		return getCodonStart().isPresent();
+		}
+	/** test if stop codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop */
+	public default boolean hasCodonStopDefined() {
+		return getCodonStop().isPresent();
+		}
+
 }
