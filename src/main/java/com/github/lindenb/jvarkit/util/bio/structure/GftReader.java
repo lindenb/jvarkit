@@ -467,6 +467,12 @@ public class GftReader implements Closeable {
 			public int getStart() {
 				return at(0);
 				}
+			
+			@Override
+			public int getMiddle() {
+				return at(1);
+				}
+			
 			@Override
 			public int getEnd() {
 				return at(2);
@@ -784,6 +790,17 @@ public class GftReader implements Closeable {
 		public Optional<Codon> getCodonStart() {
 			return Optional.ofNullable(this.codon_start);
 		}
+		
+		@Override
+		public boolean hasCodonStartDefined() {
+			return this.codon_start!=null;
+			}
+		
+		@Override
+		public boolean hasCodonStopDefined() {
+			return this.codon_end!=null;
+			}
+		
 		@Override
 		public Optional<Codon> getCodonStop() {
 			return Optional.ofNullable(this.codon_end);

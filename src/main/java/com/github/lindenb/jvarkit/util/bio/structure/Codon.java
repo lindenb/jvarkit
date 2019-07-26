@@ -24,6 +24,44 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 
 public interface Codon extends TranscriptInterval {
+	/** get Position of middle base of codon */
+	public int getMiddle();
+	/** return wether this codon is spliced */
+	public default boolean isSpliced() {
+		return !(getStart()+1==getMiddle() && getMiddle()+1==getEnd());
+	}
+	/** get Blocks (codon can be spliced */
+	public default List<Locatable> getBlocks() {
+		if(!isSpliced()) return Collections.singletonList(this);
+		if(getStart()+1==getMiddle() && getMiddle()+1!=getEnd() ) {
+			return Arrays.asList(
+					new Interval(getContig(),getStart(),getMiddle()),
+					new Interval(getContig(),getEnd(),getEnd())
+					);
+			}
+		else if(getStart()+1!=getMiddle() && getMiddle()+1==getEnd() ) {
+			return Arrays.asList(
+					new Interval(getContig(),getStart(),getStart()),
+					new Interval(getContig(),getMiddle(),getEnd())
+					);
+			}
+		else
+			{
+			return Arrays.asList(
+					new Interval(getContig(),getStart(),getStart()),
+					new Interval(getContig(),getMiddle(),getMiddle()),
+					new Interval(getContig(),getEnd(),getEnd())
+					);
+			}
+		}
+	
+	
 }

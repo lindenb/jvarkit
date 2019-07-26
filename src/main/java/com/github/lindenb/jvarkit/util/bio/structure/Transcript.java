@@ -68,52 +68,17 @@ public interface Transcript extends StrandedLocatable {
     public boolean isNonCoding();
 	public boolean isCoding();
 	
-	/** get translation start position in the genome
-	 *  return txStart if it's not coding
-	 *  return getCodonStart if strand '+'
-	 *  return getCodonStart() if strand '-' && stop codon define
-	 *  otherwise return getTxStart
-	 *  
-	 *  */
-	@Deprecated
-	public default int getCdsStart() {
-		if(isNonCoding()) {
-			return getTxStart();
-			}
-		else if(isPositiveStrand()) {
-			if(hasCodonStartDefined()) return getCodonStart().get().getStart();
-			return getTxStart();
-			}
-		else if(isNegativeStrand())
-			{
-			if(hasCodonStopDefined()) return getCodonStop().get().getStart();
-			return getTxStart();
-			}
-		else
-			{
-			return getTxStart();
-			}
-		}
-	/** get translation end position in the genome */
-	public default int getCdsEnd() {
-		if(isNonCoding()) {
-			return getTxStart();//YES txStart !
-			}
-		else if(isPositiveStrand()) {
-			if(hasCodonStopDefined()) return getCodonStop().get().getEnd();
-			return getTxEnd();
-			}
-		else
-			{
-			if(hasCodonStartDefined()) return getCodonStart().get().getEnd();
-			return getTxEnd();
-			}
-		}
-
 	
 	/** get transcript length (cumulative exons sizes )*/
 	public default int getTranscriptLength() {
 		return getExons().stream().
+				mapToInt(T->getLengthOnReference()).
+				sum();
+		}
+	
+	/** get transcript length (cumulative CDS sizes )*/
+	public default int getCodingDNALength() {
+		return getAllCds().stream().
 				mapToInt(T->getLengthOnReference()).
 				sum();
 		}
@@ -145,18 +110,28 @@ public interface Transcript extends StrandedLocatable {
 		return getUTR5().isPresent()|| getUTR3().isPresent();
 	}
 	
+	/** return start-codon if (+) strand . return stop-codon if (-) strand */
+	public default Optional<Codon> getLeftmostCodon() {
+		if(isPositiveStrand()) return getCodonStart();
+		if(isNegativeStrand()) return getCodonStop();
+		return Optional.empty();
+	}
+	
+	/** return stop-codon if (+) strand . return start-codon if (-) strand */
+	public default Optional<Codon> getRightmostCodon() {
+		if(isPositiveStrand()) return getCodonStop();
+		if(isNegativeStrand()) return getCodonStart();
+		return Optional.empty();
+	}
+	
 	/** get Codon start */
 	public Optional<Codon> getCodonStart();
 	/** get Codon end */
 	public Optional<Codon> getCodonStop();
 	
 	/** test if start_codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENSG00000060138 */
-	public default boolean hasCodonStartDefined() {
-		return getCodonStart().isPresent();
-		}
+	public boolean hasCodonStartDefined();	
 	/** test if stop codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop */
-	public default boolean hasCodonStopDefined() {
-		return getCodonStop().isPresent();
-		}
+	public boolean hasCodonStopDefined();
 
 }
