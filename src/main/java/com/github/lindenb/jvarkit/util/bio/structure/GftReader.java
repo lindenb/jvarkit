@@ -595,14 +595,14 @@ public class GftReader implements Closeable {
 			public int getStart() {
 				return Math.max(
 						getTranscript().getExonStart(this.exon_index),
-						getTranscript().getCdsStart()
+						getTranscript().getLeftmostCodon().get().getStart()
 						);
 				}
 			@Override
 			public int getEnd() {
 				return Math.min(
 						getTranscript().getExonEnd(this.exon_index),
-						getTranscript().getCdsEnd()
+						getTranscript().getRightmostCodon().get().getEnd()
 						);
 				}
 			@Override
@@ -889,8 +889,8 @@ public class GftReader implements Closeable {
 			final List<Cds> L = new ArrayList<>(this.getExonCount());
 			for(int i=0;i< this.getExonCount();i++)
 				{
-				if(this.getExonStart(i) > this.getCdsEnd()) break;
-				if(this.getExonEnd(i) < this.getCdsStart()) continue;
+				if(this.getExonStart(i) > this.getRightmostCodon().get().getEnd()) break;
+				if(this.getExonEnd(i) < this.getLeftmostCodon().get().getStart()) continue;
 				L.add(new CdsImpl(i));
 				}
 			return L;

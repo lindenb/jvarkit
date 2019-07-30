@@ -31,4 +31,6 @@ public interface StrandedLocatable extends Locatable {
 public char getStrand();
 public default boolean isNegativeStrand() { return getStrand()=='-';}
 public default boolean isPositiveStrand() { return getStrand()=='+';}
+/** return true if strand is defined ('+' or '-' ) */
+public default boolean hasStrand() { return isNegativeStrand() || isPositiveStrand();}
 }

@@ -63,14 +63,13 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMTag;
-import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
@@ -179,6 +178,7 @@ public class StarRetroCopy extends Launcher
 		}
 	
 	private final Map<Interval,List<Segment>> intronMap = new HashMap<>(100_000);
+	private final IntervalTreeMap<List<Segment>> intronTreeMap = new IntervalTreeMap<>();
 	private final List<Transcript> all_transcripts = new ArrayList<>();	
 	private final Paranoid paranoid = Paranoid.createThrowingInstance();
 
@@ -250,10 +250,22 @@ public class StarRetroCopy extends Launcher
 				paranoid.assertFalse(intron.start>intron.end);
 				introns.add(intron);
 				final Interval r=new Interval(intron);
-				List<Segment> L=this.intronMap.get(r);
-				if(L==null) {
-					L=new ArrayList<>();
-					this.intronMap.put(r,L);
+				List<Segment> L;
+				if(this.use_cigar_string)
+					{
+					L=this.intronTreeMap.get(r);
+					if(L==null) {
+						L=new ArrayList<>();
+						this.intronTreeMap.put(r,L);
+						}
+					}
+				else
+					{
+					L=this.intronMap.get(r);
+					if(L==null) {
+						L=new ArrayList<>();
+						this.intronMap.put(r,L);
+						}
 					}
 				L.add(intron);
 				}
@@ -269,6 +281,20 @@ public class StarRetroCopy extends Launcher
 				);
 		
 		
+		}
+	
+	private boolean isWithinIntronBound(final Segment seg,final Interval interval,int side) {
+		final int distance;
+		if(side==0 ) //match cigar right of record
+			{
+			distance =  Math.abs(seg.getStart() - interval.getStart());
+			}
+		else // left of cigar match 3' of intron
+			{
+			distance =  Math.abs(interval.getEnd() - seg.getEnd());
+			}
+		//System.err.println(seg+" "+interval+" "+side+":"+distance);
+		return distance <=10;
 		}
 	
 	@Override
@@ -311,8 +337,9 @@ public class StarRetroCopy extends Launcher
 							flatMap(intron->{
 								// we need the reads overlapping the exon bounds
 								final int tid=dict.getSequenceIndex(intron.getContig());
-								final QueryInterval q1=new QueryInterval(tid,intron.getStart()+1,intron.getStart()+1);
-								final QueryInterval q2=new QueryInterval(tid,intron.getEnd(),intron.getEnd());
+								final int extend = 1 +Math.max(0,this.minCigarSize);
+								final QueryInterval q1=new QueryInterval(tid,Math.max(1, intron.getStart()-extend),intron.getStart()+extend);
+								final QueryInterval q2=new QueryInterval(tid,Math.max(1, intron.getEnd()-extend),intron.getEnd()+extend);
 								return Arrays.stream(new QueryInterval[]{q1,q2});
 							}).
 							sorted().
@@ -364,7 +391,7 @@ public class StarRetroCopy extends Launcher
 				
 				boolean save_read_to_bam = false;
 
-				
+				/* WE use STAR DATA */
 				if(!this.use_cigar_string)
 					{
 					if(!rec.hasAttribute(SAM_ATT_JI)) continue;
@@ -392,19 +419,20 @@ public class StarRetroCopy extends Launcher
 							}
 						}
 					}
-				else
+				else /* WE use other bam like bwa-mem */
 					{
 					final Cigar cigar = rec.getCigar();
 					if(cigar==null || cigar.numCigarElements()<2) continue;
+					
 					int ref1=rec.getAlignmentStart();
 					for(final CigarElement ce: cigar.getCigarElements())
 						{
 						final CigarOperator op = ce.getOperator();
-						final  int ref_end = ref1 + (op.consumesReferenceBases()?0:ce.getLength());
+						final  int ref_end = ref1 + (op.consumesReferenceBases()?ce.getLength():0);
 						if(op.equals(CigarOperator.N) || op.equals(CigarOperator.D))
 							{
 							final  Interval r = new Interval(rec.getContig(),ref1,ref_end-1);
-							final List<Segment> introns= this.intronMap.get(r);
+							final List<Segment> introns= this.intronTreeMap.get(r);
 							if(introns==null) continue;
 							save_read_to_bam = true;
 							for(final Segment intron:introns) {
@@ -413,32 +441,51 @@ public class StarRetroCopy extends Launcher
 							}
 						ref1 = ref_end;
 						}
-					if(cigar.isClipped() && rec.hasAttribute(SAMTag.SA.name())) {
-						for(final SAMRecord rec2:SAMUtils.getOtherCanonicalAlignments(rec)) {
-							if(!rec2.contigsMatch(rec)) continue;
-							if(rec.getReadNegativeStrandFlag()!=rec2.getReadNegativeStrandFlag()) continue;
-							for(int side=0;side < 2;side++) {
-								final  Interval r;
-								if(side==0 && cigar.isRightClipped() && cigar.getLastCigarElement().getLength() >= this.minCigarSize && rec.getEnd() < rec2.getStart())
-									{
-									r = new Interval(rec.getContig(),rec.getEnd()+1,rec2.getStart()-1);
-									}
-								else if(side==1 && cigar.isLeftClipped() && cigar.getFirstCigarElement().getLength() >= this.minCigarSize && rec2.getEnd() < rec.getStart())
-									{
-									r = new Interval(rec.getContig(),rec2.getEnd()+1,rec.getStart()-1);
-									}
-								else
-									{
-									continue;
-									}
-								final List<Segment> introns= this.intronMap.get(r);
-								if(introns==null) continue;
-								save_read_to_bam = true;
-								for(final Segment intron:introns) {
-									intron.match++;
-									}
+					/** 2019-07-29. I tried using SA:Z:tag doesn't work well , so let's look a the clipping only */
+					if(cigar.isClipped()) {
+						for(int side=0;side < 2;side++) {
+							final  Interval r;
+							if(side==0 && 
+								cigar.isRightClipped() &&
+								cigar.getLastCigarElement().getLength() >= this.minCigarSize
+								)
+								{
+								r = new Interval(
+										rec.getContig(),
+										rec.getEnd()+1,
+										rec.getEnd()+1+this.minCigarSize
+										);
+								}
+							else if(side==1 && 
+									cigar.isLeftClipped() && 
+									cigar.getFirstCigarElement().getLength() >= this.minCigarSize
+									)
+								{
+								r = new Interval(rec.getContig(),
+										Math.max(1,rec.getStart()-(1+this.minCigarSize)),
+										Math.max(1,rec.getStart()-(1)))
+										;
+								}
+							else
+								{
+								continue;
+								}
+							final int final_side = side;
+							final List<Segment> introns= this.intronTreeMap.getOverlapping(r).
+									stream().
+									flatMap(L->L.stream()).
+									filter(SEG->isWithinIntronBound(SEG,r,final_side)).
+									collect(Collectors.toList());
+
+							if(introns.isEmpty()) continue;
+							System.err.println("SA for "+r+" "+rec.getReadName()+" "+introns.size());
+
+							save_read_to_bam = true;
+							for(final Segment intron:introns) {
+								intron.match++;
 								}
 							}
+							
 						}
 					}
 				

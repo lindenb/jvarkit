@@ -72,14 +72,14 @@ public interface Transcript extends StrandedLocatable {
 	/** get transcript length (cumulative exons sizes )*/
 	public default int getTranscriptLength() {
 		return getExons().stream().
-				mapToInt(T->getLengthOnReference()).
+				mapToInt(T->T.getLengthOnReference()).
 				sum();
 		}
 	
 	/** get transcript length (cumulative CDS sizes )*/
 	public default int getCodingDNALength() {
 		return getAllCds().stream().
-				mapToInt(T->getLengthOnReference()).
+				mapToInt(T->T.getLengthOnReference()).
 				sum();
 		}
 	
