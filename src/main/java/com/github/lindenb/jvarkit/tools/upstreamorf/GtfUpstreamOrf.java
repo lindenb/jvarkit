@@ -596,6 +596,30 @@ public class GtfUpstreamOrf extends Launcher
 					
 					pw.println();
 					
+					//Exon
+					for(final Exon exon:uORF.getTranscript().getExons()) {
+						pw.print(exon.getContig());
+						pw.print("\t");
+						pw.print(gtfSource);
+						pw.print("\t");
+						pw.print("exon");
+						pw.print("\t");
+						pw.print(exon.getStart());
+						pw.print("\t");
+						pw.print(exon.getEnd());
+						pw.print("\t");
+						pw.print(kozakStrengthToScore(uORF.kozak.getStrength()));//score
+						pw.print("\t");
+						pw.print(exon.getStrand());//strand
+						pw.print("\t");
+						pw.print(0);//phase
+						pw.print("\t");
+						pw.print(keyvalue("gene_id",gene.getId()));
+						pw.print(keyvalue("transcript_id",transcript_id));
+						pw.println();
+					}
+					
+					
 					final List<Interval> startBlocks = uORF.mRNA.getCodonBlocks(
 							uORF.in_rna_atg0  ,
 							uORF.in_rna_atg0+1,

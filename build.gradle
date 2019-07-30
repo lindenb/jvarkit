@@ -1667,7 +1667,7 @@ all.add( task("blast2sam", type: CompileJVarkit) {
 	xsdFiles = ["blast"]
 	});
 
-all.add( task("mapuniprot", type: CompileJVarkit) {
+all2.add( task("mapuniprot", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.MapUniProtFeatures"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["uniprot"]
@@ -1710,7 +1710,7 @@ all.add( task("gb2gff", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["gb"]
 	});
-all.add( task("blastmapannots", type: CompileJVarkit) {
+all2.add( task("blastmapannots", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.blastmapannots.BlastMapAnnotations"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["gb","blast","uniprot"]
@@ -1971,7 +1971,7 @@ all.add( task("vcffamilies", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	});
-all.add( task("uniprotfilterjs", type: CompileJVarkit) {
+all2.add( task("uniprotfilterjs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.UniprotFilterJS"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["uniprot"]
