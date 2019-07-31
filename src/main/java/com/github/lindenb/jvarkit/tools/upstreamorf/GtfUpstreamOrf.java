@@ -131,43 +131,10 @@ public class GtfUpstreamOrf extends Launcher
 			}
 		}
 	
-	/** wrapper about the information about a RNA sequence, it can be
-	 * the RNA itself or the uORF
-	 */
-	private  abstract class AbstractRNASequence 
-		extends AbstractCharSequence
-		{
-
-		protected abstract Transcript getTranscript();
-
-		protected void throwIfNotInRange(final int idx0) {
-			if(idx0 >=0 && idx0 < this.length()) return;
-			throw new IndexOutOfBoundsException("Bad index" +idx0+" in RNA length="+this.length());
-		}
-
-		
-		/** return true if the is an AT at this position */
-		boolean isATG(final int index) {
-			return index>=0 && 
-					index+2 < this.length() &&
-					charAt(index+0)=='A' &&
-					charAt(index+1)=='T' && 
-					charAt(index+2)=='G'
-					;
-			}
-		
-		
-		/** get the strand of the gene */
-		protected final boolean isPositiveStrand() {
-			return this.getTranscript().isPositiveStrand();
-			}
-
-	
-		}
 	
 	
 	/** Sequence for a Transcript */
-	private class RNASequence extends AbstractRNASequence {
+	private class RNASequence extends AbstractCharSequence {
 		private final int mrnaIndex0ToGenomic0[];
 		private final char mrnaIndex0ToBase[];
 		private final Map<Integer, Integer> genomic0ToRNAindex0;
@@ -227,7 +194,7 @@ public class GtfUpstreamOrf extends Launcher
 		
 		@Override
 		public char charAt(final int index_in_rna0) {
-			throwIfNotInRange(index_in_rna0);
+			if(index_in_rna0< 0 || index_in_rna0>=this.length()) throw new IndexOutOfBoundsException(""+index_in_rna0+" "+this.length());
 			if(this.mrnaIndex0ToBase[index_in_rna0]!=NO_BASE) {
 				return this.mrnaIndex0ToBase[index_in_rna0];
 				}
@@ -361,12 +328,28 @@ public class GtfUpstreamOrf extends Launcher
 				throw new IllegalStateException();
 				}
 			}
+		
+		/** return true if the is an AT at this position */
+		boolean isATG(final int index) {
+			return index>=0 && 
+					index+2 < this.length() &&
+					charAt(index+0)=='A' &&
+					charAt(index+1)=='T' && 
+					charAt(index+2)=='G'
+					;
+			}
+		
+		
+		/** get the strand of the gene */
+		protected final boolean isPositiveStrand() {
+			return this.getTranscript().isPositiveStrand();
+			}
 		}
 	
 	
 	
 	/** an ORF in an UpstreamORF, a subsectiobn of an mRNA */
-	private class OpenReadingFrame extends AbstractRNASequence 
+	private class OpenReadingFrame extends AbstractCharSequence 
 		{
 		private final RNASequence mRNA;
 		private KozakSequence kozak = null;
@@ -382,13 +365,11 @@ public class GtfUpstreamOrf extends Launcher
 		public RNASequence getTranscriptSequence() {
 			return this.mRNA;
 			}
-		@Override
+		
 		public final Transcript getTranscript() {
 			return this.getTranscriptSequence().getTranscript();
 			}
 		
-		
-
 		@Override
 		public int length() {
 			return this.in_rna_stop0 - this.in_rna_atg0;
@@ -416,7 +397,10 @@ public class GtfUpstreamOrf extends Launcher
 		public int hashCode() {
 			return peptide.hashCode();
 			}
-		
+		public int getFrameAt(final int geomic1) {
+			final int rna0 = this.mRNA.genomic0ToRNAindex0.get(geomic1-1);
+			return (rna0-this.in_rna_atg0)%3;
+			}
 		}
 	
 	/** mutated version of UpstreamORF */
@@ -620,14 +604,51 @@ public class GtfUpstreamOrf extends Launcher
 					}
 					
 					
+					
 					final List<Interval> startBlocks = uORF.mRNA.getCodonBlocks(
 							uORF.in_rna_atg0  ,
 							uORF.in_rna_atg0+1,
 							uORF.in_rna_atg0+2
 							);
 					
+					final List<Interval> stopBlocks = uORF.in_rna_stop0!=NPOS?
+								uORF.mRNA.getCodonBlocks(
+								uORF.in_rna_stop0  ,
+								uORF.in_rna_stop0+1,
+								uORF.in_rna_stop0+2
+								):Collections.emptyList();
+					
+					//CDS
+					if(!stopBlocks.isEmpty()) {
+						final int cdsStart = startBlocks.stream().mapToInt(B->B.getStart()).min().orElseThrow(IllegalStateException::new);
+						final int cdsEnd = stopBlocks.stream().mapToInt(B->B.getEnd()).max().orElseThrow(IllegalStateException::new);
+						for(final Exon exon:uORF.getTranscript().getExons()) {
+							if(exon.getEnd() < cdsStart) continue;
+							if(exon.getStart() > cdsEnd) break;
+							pw.print(exon.getContig());
+							pw.print("\t");
+							pw.print(gtfSource);
+							pw.print("\t");
+							pw.print("CDS");
+							pw.print("\t");
+							pw.print(Math.max(cdsStart,exon.getStart()));
+							pw.print("\t");
+							pw.print(Math.min(cdsEnd,exon.getEnd()));
+							pw.print("\t");
+							pw.print(kozakStrengthToScore(uORF.kozak.getStrength()));//score
+							pw.print("\t");
+							pw.print(exon.getStrand());//strand
+							pw.print("\t");
+							pw.print(uORF.getFrameAt(Math.max(cdsStart,exon.getStart())));//phase
+							pw.print("\t");
+							pw.print(keyvalue("gene_id",gene.getId()));
+							pw.print(keyvalue("transcript_id",transcript_id));
+							pw.println();
+						}
+					}
+								
+					
 					//CODON START
-					int phase=0;
 					for(final Interval startc: startBlocks) {
 						PARANOID.assertLe(startc.getStart(), startc.getEnd());
 						pw.print(startc.getContig());
@@ -644,7 +665,7 @@ public class GtfUpstreamOrf extends Launcher
 						pw.print("\t");
 						pw.print(gene.getStrand());//strand
 						pw.print("\t");
-						pw.print(phase%3);//phase
+						pw.print(uORF.getFrameAt(startc.getStart()));//phase
 						pw.print("\t");
 						pw.print(keyvalue("gene_id",gene.getId()));
 						pw.print(keyvalue("transcript_id",transcript_id));
@@ -652,45 +673,32 @@ public class GtfUpstreamOrf extends Launcher
 						pw.print(keyvalue("pos0-in-mrna",uORF.in_rna_atg0));
 						pw.print(keyvalue("spliced",startBlocks.size()>1));
 						pw.println();
-						phase+=startc.getLengthOnReference();
 						}
 					
 					
 					//CODON END
-					if(uORF.in_rna_stop0!=NPOS) {
-						final List<Interval> stopBlocks = uORF.mRNA.getCodonBlocks(
-								uORF.in_rna_stop0  ,
-								uORF.in_rna_stop0+1,
-								uORF.in_rna_stop0+2
-								);
-						phase = 0;
-
-						for(final Interval stopc: stopBlocks) {
-							PARANOID.assertLe(stopc.getStart(), stopc.getEnd());
-							pw.print(stopc.getContig());
-							pw.print("\t");
-							pw.print(gtfSource);
-							pw.print("\t");
-							pw.print("stop_codon");
-							pw.print("\t");
-							pw.print(stopc.getStart());
-							pw.print("\t");
-							pw.print(stopc.getEnd());		
-							pw.print("\t");
-							pw.print(kozakStrengthToScore(uORF.kozak.getStrength()));//score
-							pw.print("\t");
-							pw.print(gene.getStrand());//strand
-							pw.print("\t");
-							pw.print(phase%3);//phase
-							pw.print("\t");
-							pw.print(keyvalue("gene_id",gene.getId()));
-							pw.print(keyvalue("transcript_id",transcript_id));
-							pw.print(keyvalue("spliced",stopBlocks.size()>1));
-
-							pw.println();
-							
-							phase+=stopc.getLengthOnReference();
-							}
+					for(final Interval stopc: stopBlocks) /* might be empty */ {
+						PARANOID.assertLe(stopc.getStart(), stopc.getEnd());
+						pw.print(stopc.getContig());
+						pw.print("\t");
+						pw.print(gtfSource);
+						pw.print("\t");
+						pw.print("stop_codon");
+						pw.print("\t");
+						pw.print(stopc.getStart());
+						pw.print("\t");
+						pw.print(stopc.getEnd());		
+						pw.print("\t");
+						pw.print(kozakStrengthToScore(uORF.kozak.getStrength()));//score
+						pw.print("\t");
+						pw.print(gene.getStrand());//strand
+						pw.print("\t");
+						pw.print(uORF.getFrameAt(stopc.getStart()));//phase
+						pw.print("\t");
+						pw.print(keyvalue("gene_id",gene.getId()));
+						pw.print(keyvalue("transcript_id",transcript_id));
+						pw.print(keyvalue("spliced",stopBlocks.size()>1));
+						pw.println();
 						}
 					}
 				
