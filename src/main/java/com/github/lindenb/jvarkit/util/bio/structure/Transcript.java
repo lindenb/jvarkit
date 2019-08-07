@@ -24,6 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -104,6 +106,16 @@ public interface Transcript extends StrandedLocatable {
 		return Optional.empty();
 	}
 
+	/** return a list of UTRs, may be empty */
+	public default List<UTR> getUTRs() {
+		final Optional<UTR> utr5 =  getUTR5();
+		final Optional<UTR> utr3 =  getUTR3();
+		if(!utr5.isPresent() && !utr3.isPresent()) return Collections.emptyList();
+		if(utr5.isPresent() && !utr3.isPresent()) return Collections.singletonList(utr5.get());
+		if(!utr5.isPresent() && utr3.isPresent()) return Collections.singletonList(utr3.get());
+		return Arrays.asList(utr5.get(),utr3.get());
+	}
+	
 	
 	
 	public default boolean hasUTR() {

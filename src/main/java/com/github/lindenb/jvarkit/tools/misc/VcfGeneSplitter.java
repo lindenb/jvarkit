@@ -321,8 +321,8 @@ public class VcfGeneSplitter
 							
 							final VariantContextWriter out = VCFUtils.createVariantContextWriterToPath(tmpVcf);
 							final VCFHeader header2=addMetaData(new VCFHeader(cah.header));
-							header2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.Name",String.valueOf(first.keyAndGene.key)));
-							header2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.Gene",String.valueOf(first.keyAndGene.gene)));
+							header2.addMetaDataLine(new VCFHeaderLine("GtfFileSplitter.Name",String.valueOf(first.keyAndGene.key)));
+							header2.addMetaDataLine(new VCFHeaderLine("GtfFileSplitter.Gene",String.valueOf(first.keyAndGene.gene)));
 							out.writeHeader(header2);
 							int minPos=Integer.MAX_VALUE;
 							int maxPos=0;

@@ -26,6 +26,8 @@ package com.github.lindenb.jvarkit.util.bio.structure;
 
 import java.util.stream.IntStream;
 
+import htsjdk.samtools.util.Interval;
+
 
 public interface TranscriptInterval extends StrandedLocatable {
 public Transcript getTranscript();
@@ -36,11 +38,23 @@ default String getContig() {
 
 @Override
 public default char getStrand() { return getTranscript().getStrand();}
+/** return a name for this interval */
 public String getName();
 
 /** return 1-based genomic coordinates from 5' to 3' of the genomic reference */
 public default IntStream getGenomicIndexesStream() {
 	return IntStream.range(this.getStart(), this.getEnd()+1);
+	}
+
+/** convert to an interval */
+public default Interval toInterval() {
+	return new Interval(
+			this.getContig(),
+			this.getStart(),
+			this.getEnd(),
+			this.isNegativeStrand(),
+			this.getName()
+			);
 	}
 
 }

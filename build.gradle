@@ -1007,8 +1007,12 @@ all.add( task("casectrlcanvas", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("casectrljfx", type: CompileJVarkit) {
+all2.add( task("casectrljfx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.CaseControlJfx"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("vcfburdengtf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenGtf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("cmpbamsandbuild", type: CompileJVarkit) {
@@ -2207,6 +2211,10 @@ all2.add( task("bammatrix", type: CompileJVarkit) {
 	});
 all2.add( task("ijgv2vcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ijgvd.IjgvdToVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("gtfsplitter", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gtf.GtfFileSplitter"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 

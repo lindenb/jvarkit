@@ -24,7 +24,33 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 
 public interface UTR extends TranscriptInterval {
+	
+/** return the intervals for this utr: the list may have more than one interval if the UTR is spliced */
+public default List<Locatable> getIntervals() {
+	return getTranscript().
+		getExons().
+		stream().
+		filter(E->E.overlaps(this)).
+		map(E->new Interval(
+				getContig(),
+				Math.max(E.getStart(), this.getStart()),
+				Math.min(E.getEnd(), this.getEnd()),
+				isNegativeStrand(),
+				"UTR in "+E.getName()
+				)
+				).
+		collect(Collectors.toList());
+		}
 
+/** return true wether this urt is spliced between two exons */
+public default boolean isSpliced() {
+	return getIntervals().size()>1;
+	}
 }
