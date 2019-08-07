@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.PrintWriter;
@@ -9,6 +33,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -38,6 +64,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -70,6 +97,10 @@ extends Launcher
 	private Set<Sample> cases = null;
 	private Set<Sample> controls = null;
 	
+	private enum SuperVariant
+		{
+		SV0,AT_LEAST_ONE_VARIANT
+		}
 	
 	
 	private class SubPartOfTranscript implements Locatable {
@@ -211,8 +242,8 @@ extends Launcher
 						int start_pos=intron.getStart();
 						while(start_pos + intron_window_size  <= intron.getEnd())
 							{
-							int xend = Math.min(intron.getEnd(), start_pos+intron_window_size);
-							int xstart = xend-intron_window_size;
+							int xend = Math.min(intron.getEnd(), start_pos+intron_window_size-1);
+							int xstart = xend-intron_window_size-1;
 							parts.add(new SubPartOfTranscript(transcript,
 									intron.getName()+".Sliding",
 									Collections.singletonList(new Interval(intron.getContig(),xstart,xend)))
@@ -284,17 +315,43 @@ extends Launcher
 							while(iter.hasNext()) variants.add(iter.next().getValue());
 							}
 						if(variants.isEmpty()) continue;
+
+						final Map<Sample,SuperVariant> indi2supervariant = new HashMap<>(this.cases.size() + this.controls.size());
+						this.cases.stream().forEach(S->indi2supervariant.put(S,SuperVariant.SV0));
+						this.controls.stream().forEach(S->indi2supervariant.put(S,SuperVariant.SV0));
+						
+						for(final VariantContext ctx:variants) {
+							final Allele observed_alt = ctx.getAltAlleleWithHighestAlleleCount();
+							for(final Sample sample : indi2supervariant.keySet() ) {
+								if(indi2supervariant.get(sample)==SuperVariant.AT_LEAST_ONE_VARIANT) continue;
+								final Genotype g = ctx.getGenotype(sample.getId());	
+								if(g==null || g.isHomRef() || g.isNoCall()) continue;
+								if( g.getAlleles().stream().anyMatch(A->A.equals(observed_alt))) {
+									indi2supervariant.put(sample,SuperVariant.AT_LEAST_ONE_VARIANT);
+									break;
+									}
+							}// end for sample
+						}//end of forVariant
+
 						int affected_alt = 0;
 						int affected_hom = 0;
 						int unaffected_alt = 0;
 						int unaffected_hom = 0;
-						for(final VariantContext ctx:variants) {
-							affected_alt += (int)this.cases.stream().map(S->ctx.getGenotype(S.getId())).filter(G->hasAlt(G)).count();
-							affected_hom += (int)this.cases.stream().map(S->ctx.getGenotype(S.getId())).filter(G->!hasAlt(G)).count();
-							unaffected_alt += (int)this.controls.stream().map(S->ctx.getGenotype(S.getId())).filter(G->hasAlt(G)).count();
-							unaffected_hom += (int)this.controls.stream().map(S->ctx.getGenotype(S.getId())).filter(G->!hasAlt(G)).count();
-							}
-						FisherExactTest fisher = FisherExactTest.compute(
+						for(final Sample sample : indi2supervariant.keySet() ) {
+							final SuperVariant superVariant = indi2supervariant.get(sample);
+							if(superVariant==SuperVariant.SV0 ) {
+								if(sample.isAffected()) affected_hom++;
+								else unaffected_hom++;
+								}
+							else // AT_LEAST_ONE_VARIANT 
+								{
+								if(sample.isAffected()) affected_alt++;
+								else unaffected_alt++;
+								}
+						}//end of sample
+
+						
+						final FisherExactTest fisher = FisherExactTest.compute(
 								affected_alt, affected_hom, 
 								unaffected_alt, unaffected_hom
 								);

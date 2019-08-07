@@ -16,6 +16,11 @@ Usage: tview [options] Files
     --coverage, --depth
       Number of rows for coverage (hide:<=0)
       Default: 10
+    --filter
+      A filter expression. Reads matching the expression will be filtered-out. 
+      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
+      for a complete syntax.
+      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
@@ -69,11 +74,6 @@ Usage: tview [options] Files
     -r, --region
       Interval list
       Default: []
-    --samFilter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -V, --variant, --variants, --vcf
       Variant file. if filename ends with '.list' it is interpreted as a list 
       of file (one file per line)
