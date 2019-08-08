@@ -44,6 +44,7 @@ import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Exon;
@@ -58,6 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -67,21 +69,25 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 @Program(name="vcfburdengtf",
 description="Run Burden On different part of transcripts",
 keywords={"vcf","burden","gtf","case","control"},
 creationDate="20190806",
-modificationDate="20190806",
+modificationDate="20190808",
 generate_doc=false
 )
 public class VcfBurdenGtf
 extends Launcher
 {
 	private static final Logger LOG = Logger.build(VcfBurdenGtf.class).make();
-
+	private static final String BURDEN_KEY = "BURDEN_KEY";
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-g","-gtf","--gtf"},description="GTF file",required=true)
@@ -92,6 +98,8 @@ extends Launcher
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("vc.isSNP() && vc.getNAlleles()==2 && !vc.getFilters().contains(\"ZZ\")");
 	@Parameter(names={"-t","--treshold"},description="fisher-test treshold. Discard results greater than this value.")
 	private double fisherTreshold = 1e-5;
+	@Parameter(names={"-save-vcf","--save-vcf"},description="Save Matching variants into that VCF.")
+	private Path outputVcfPath = null;
 
 	private Pedigree pedigree = null;
 	private Set<Sample> cases = null;
@@ -137,9 +145,6 @@ extends Launcher
 
 	}
 
-	private boolean hasAlt(final Genotype g) {
-		return !(g.isNoCall() || g.isHomRef());
-	}
 	
 
 	private boolean accept(final VariantContext ctx) {
@@ -153,6 +158,7 @@ extends Launcher
 	public int doWork(final List<String> args) {
 		PrintWriter pw = null;
 		VCFFileReader vcfReader = null;
+		VariantContextWriter vcw = null;
 		try {
 			this.pedigree = new PedigreeParser().parse(this.pedFile);
 			
@@ -164,6 +170,14 @@ extends Launcher
 			vcfReader = new VCFFileReader(Paths.get(vcfIn),true);
 			final VCFHeader header = vcfReader.getFileHeader();
 			final Set<String> samplesInVcf = new HashSet<>(header.getSampleNamesInOrder());
+			
+			if(this.outputVcfPath!=null) {
+				vcw = VCFUtils.createVariantContextWriterToPath(this.outputVcfPath);
+				header.addMetaDataLine(new VCFInfoHeaderLine(BURDEN_KEY, 1, VCFHeaderLineType.String,"Burden key"));
+				JVarkitVersion.getInstance().addMetaData(this, header);
+				vcw.writeHeader(header);
+			}
+			
 			
 			this.cases.removeIf(S->!samplesInVcf.contains(S.getId()));
 			this.controls.removeIf(S->!samplesInVcf.contains(S.getId()));
@@ -358,6 +372,14 @@ extends Launcher
 						final double p_value=fisher.getAsDouble();
 						if(p_value> this.fisherTreshold) continue;
 						
+						if(vcw!=null) {
+							for(final VariantContext ctx:variants) {
+								vcw.add(new VariantContextBuilder(ctx).
+										attribute(BURDEN_KEY, VCFUtils.escapeInfoField(part.label)).
+										make());
+							}
+						}
+						
 						pw.print(part.getContig());
 						pw.print("\t");
 						pw.print(part.getStart()-1);
@@ -398,7 +420,10 @@ extends Launcher
 				}
 			progress.close();
 			
-			
+			if(vcw!=null) {
+				vcw.close();
+				vcw=null;
+			}
 			
 			gtfReader.close();
 			pw.flush();
@@ -415,6 +440,7 @@ extends Launcher
 		finally {
 			CloserUtil.close(vcfReader);
 			CloserUtil.close(pw);
+			CloserUtil.close(vcw);
 			}
 	
 		}
