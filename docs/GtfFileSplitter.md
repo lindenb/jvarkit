@@ -10,6 +10,9 @@ Split GTF file per gene, transcript, chromosome...
 ```
 Usage: gtfsplitter [options] Files
   Options:
+    -compress, --compress, --gzip
+      Gzip output gtf
+      Default: false
     -H, --header
       include gtf header
       Default: false
@@ -17,6 +20,8 @@ Usage: gtfsplitter [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -manifest, --manifest
+      Manifest file containing the path to each gtf
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
@@ -183,9 +188,28 @@ per group
 $ gunzip -c src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | grep -v "#" | cut -f 3 | grep gene | wc
 3
 
+$ java -jar dist/gtfsplitter.jar -m group -p 2 -o TMP src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz
 $ find TMP/ -name "*.gtf" -exec grep -w -c -H gene '{}' ';'
 TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf:1
 TMP/47/ee0407c2da530f87841e134fa6717a/Group000001.gtf:2
+
+# with a larger gtf file
+
+$ java -jar dist/gtfsplitter.jar -m group -p 10 -o TMP ~/jeter.gtf.gz  
+INFO	2019-08-07 11:14:00	SortingCollection	Creating merging iterator from 58 files
+
+$ find TMP/ -name "*.gtf"    -exec grep -w -c gene -H '{}' ';'
+TMP/ad/7732b2eb185c413c329c1f124bb809/Group000006.gtf:6229
+TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf:6229
+TMP/38/b153383e90aaa85a260d3560d36725/Group000005.gtf:6229
+TMP/4b/6c5b9a6d1830f91089bdebe8321e90/Group000002.gtf:6230
+TMP/2d/e7f75cf324bb4968ef397601e67fa7/Group000003.gtf:6229
+TMP/93/2ea97d325f88f3c572d8af057b1c06/Group000008.gtf:6229
+TMP/96/27eea1b15190b6a726b98af9f27b3a/Group000004.gtf:6229
+TMP/96/ab60170db743f9704390147fadd705/Group000007.gtf:6229
+TMP/47/ee0407c2da530f87841e134fa6717a/Group000001.gtf:6230
+TMP/45/a4780078f03085345ac98b5b2a766e/Group000009.gtf:6229
+
 ```
 
 per stack
@@ -202,6 +226,23 @@ $ find TMP/ -name "*.gtf"
 TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf
 TMP/4b/6c5b9a6d1830f91089bdebe8321e90/Group000002.gtf
 TMP/47/ee0407c2da530f87841e134fa6717a/Group000001.gtf
+
+# with a larger gtf file
+
+$ java -jar dist/gtfsplitter.jar -m stack -p 1000 -o TMP ~/jeter.gtf.gz 
+INFO	2019-08-07 11:11:09	SortingCollection	Creating merging iterator from 58 files
+
+$ find TMP/ -name "*.gtf"    -exec grep -w -c gene -H '{}' ';'
+TMP/af/958f0b968e6c49f3474431cd3aa2df/Group000060.gtf:1000
+TMP/ad/7732b2eb185c413c329c1f124bb809/Group000006.gtf:1000
+TMP/e0/6a9eb20414e7406ac7a2309ebbe00f/Group000041.gtf:1000
+TMP/e0/d2c4d002a926bea4295dbf6db3e831/Group000045.gtf:1000
+TMP/f1/d98b194f295a688f1087400ef4cf6b/Group000020.gtf:1000
+TMP/f1/07c7ca91843874df6a2c875ea674fd/Group000053.gtf:1000
+TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf:1000
+TMP/71/64a6dd2fa9469c1d475d9d6cb78cdc/Group000012.gtf:1000
+TMP/a0/3524b44e90561115f6dd0ca3f5a00c/Group000016.gtf:1000
+(...)
 
 ```
 

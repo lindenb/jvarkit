@@ -31,13 +31,11 @@ import java.util.Optional;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
-import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.cram.build.CramIO;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
-import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -134,18 +132,14 @@ public static SAMSequenceDictionary extractRequired(final Path f) {
 	if(dict==null || dict.isEmpty()) 
 		{
 		if(StringUtils.endsWith(f.getFileName().toString(),
-			BamFileIoUtils.BAM_FILE_EXTENSION,
-			IOUtil.SAM_FILE_EXTENSION,
-			CramIO.CRAM_FILE_EXTENSION
+			FileExtensions.BAM,
+			FileExtensions.SAM,
+			FileExtensions.CRAM
 			))
 			{
 			throw new JvarkitException.BamDictionaryMissing(f);
 			}
-		if(StringUtils.endsWith(f.getFileName().toString(),
-				IOUtil.VCF_FILE_EXTENSION,
-				IOUtil.COMPRESSED_VCF_FILE_EXTENSION,
-				IOUtil.BCF_FILE_EXTENSION)
-				)
+		if(FileExtensions.VCF_LIST.stream().anyMatch(SUFF->f.getFileName().toString().endsWith(SUFF)))
 			{
 			throw new JvarkitException.VcfDictionaryMissing(f.toString());
 			}

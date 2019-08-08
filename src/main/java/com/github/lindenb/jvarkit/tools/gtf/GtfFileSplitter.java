@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -41,6 +42,8 @@ import java.util.Map;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
@@ -49,7 +52,9 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
+import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
@@ -140,9 +145,28 @@ per group
 $ gunzip -c src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | grep -v "#" | cut -f 3 | grep gene | wc
 3
 
+$ java -jar dist/gtfsplitter.jar -m group -p 2 -o TMP src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz
 $ find TMP/ -name "*.gtf" -exec grep -w -c -H gene '{}' ';'
 TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf:1
 TMP/47/ee0407c2da530f87841e134fa6717a/Group000001.gtf:2
+
+# with a larger gtf file
+
+$ java -jar dist/gtfsplitter.jar -m group -p 10 -o TMP ~/jeter.gtf.gz  
+INFO	2019-08-07 11:14:00	SortingCollection	Creating merging iterator from 58 files
+
+$ find TMP/ -name "*.gtf"    -exec grep -w -c gene -H '{}' ';'
+TMP/ad/7732b2eb185c413c329c1f124bb809/Group000006.gtf:6229
+TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf:6229
+TMP/38/b153383e90aaa85a260d3560d36725/Group000005.gtf:6229
+TMP/4b/6c5b9a6d1830f91089bdebe8321e90/Group000002.gtf:6230
+TMP/2d/e7f75cf324bb4968ef397601e67fa7/Group000003.gtf:6229
+TMP/93/2ea97d325f88f3c572d8af057b1c06/Group000008.gtf:6229
+TMP/96/27eea1b15190b6a726b98af9f27b3a/Group000004.gtf:6229
+TMP/96/ab60170db743f9704390147fadd705/Group000007.gtf:6229
+TMP/47/ee0407c2da530f87841e134fa6717a/Group000001.gtf:6230
+TMP/45/a4780078f03085345ac98b5b2a766e/Group000009.gtf:6229
+
 ```
 
 per stack
@@ -159,6 +183,23 @@ $ find TMP/ -name "*.gtf"
 TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf
 TMP/4b/6c5b9a6d1830f91089bdebe8321e90/Group000002.gtf
 TMP/47/ee0407c2da530f87841e134fa6717a/Group000001.gtf
+
+# with a larger gtf file
+
+$ java -jar dist/gtfsplitter.jar -m stack -p 1000 -o TMP ~/jeter.gtf.gz 
+INFO	2019-08-07 11:11:09	SortingCollection	Creating merging iterator from 58 files
+
+$ find TMP/ -name "*.gtf"    -exec grep -w -c gene -H '{}' ';'
+TMP/af/958f0b968e6c49f3474431cd3aa2df/Group000060.gtf:1000
+TMP/ad/7732b2eb185c413c329c1f124bb809/Group000006.gtf:1000
+TMP/e0/6a9eb20414e7406ac7a2309ebbe00f/Group000041.gtf:1000
+TMP/e0/d2c4d002a926bea4295dbf6db3e831/Group000045.gtf:1000
+TMP/f1/d98b194f295a688f1087400ef4cf6b/Group000020.gtf:1000
+TMP/f1/07c7ca91843874df6a2c875ea674fd/Group000053.gtf:1000
+TMP/6f/ab500a2f6fee4cce61739dd97b11cb/Group000000.gtf:1000
+TMP/71/64a6dd2fa9469c1d475d9d6cb78cdc/Group000012.gtf:1000
+TMP/a0/3524b44e90561115f6dd0ca3f5a00c/Group000016.gtf:1000
+(...)
 
 ```
 
@@ -191,6 +232,10 @@ public class GtfFileSplitter
 	private Method method = Method.gene;
 	@Parameter(names={"-p","--pool-size"},description= "size for method=group or method=stack")
 	private int pool_size=100;
+	@Parameter(names={"-manifest","--manifest"},description="Manifest file containing the path to each gtf")
+	private Path manifestFile = null;
+	@Parameter(names={"-compress","--compress","--gzip"},description="Gzip output gtf")
+	private boolean gzip_gtf =false;
 
 	
 	@ParametersDelegate
@@ -252,7 +297,7 @@ public class GtfFileSplitter
 		ArchiveFactory archiveFactory = null;
 		boolean got_gtf_record = false;
 		final List<String> headerLines = new ArrayList<>();
-		
+		PrintWriter manifest = null;
 		try {
 			
 			
@@ -291,6 +336,8 @@ public class GtfFileSplitter
 				}
 			this.sortingcollection.doneAdding();
 			
+			manifest = new PrintWriter(GtfFileSplitter.this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile));
+
 			Comparator<T> cmp2 = createSecondaryComparator();
 			iter = this.sortingcollection.iterator();
 			PeekableIterator<T> peekIter = new PeekableIterator<>(iter);
@@ -302,9 +349,23 @@ public class GtfFileSplitter
 				
 				
 				final String md5 = StringUtils.md5(basename);
-				final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+basename.replaceAll("[/\\:]", "_") + ".gtf";
+				final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+basename.replaceAll("[/\\:]", "_") + 
+						".gtf" + (gzip_gtf?".gz":"");
 				
-				final PrintWriter os = archiveFactory.openWriter(filename);
+				final PrintWriter os;
+				final BlockCompressedOutputStream bcos;
+				if(!gzip_gtf) {
+					os = archiveFactory.openWriter(filename);
+					bcos= null;
+					}
+				else
+					{
+					bcos = new BlockCompressedOutputStream
+						(archiveFactory.openOuputStream(filename),
+						Paths.get(filename)	
+						);
+					os = new PrintWriter(bcos);
+					}
 				if(include_header) {
 					for(final String h:headerLines) os.println(h);
 					}
@@ -317,15 +378,20 @@ public class GtfFileSplitter
 					}
 				os.flush();
 				os.close();
+				
+				manifest.println((archiveFactory.isZip()?"":GtfFileSplitter.this.outputFile.toString()+File.separator)+filename);
 				}
 			peekIter.close();		
 			iter.close();
-				
+			manifest.flush();
+			manifest.close();
+			manifest=null;
 			archiveFactory.close();
 			return RETURN_OK;
 			}
 		finally
 			{
+			CloserUtil.close(manifest);
 			if(sortingcollection!=null) sortingcollection.cleanup();
 			}
 		}
