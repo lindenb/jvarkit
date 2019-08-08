@@ -44,12 +44,10 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
-import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.cram.build.CramIO;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -135,16 +133,14 @@ public static final String OPT_DICT_OR_MAPPING_FILE_DESC="Chromosome mapping fil
 public static ContigNameConverter fromPathOrOneDictionary(final Path file) {
 	IOUtil.assertFileIsReadable(file);	
 	final String filename=file.getFileName().toString();
-	if(ReferenceSequenceFileFactory.FASTA_EXTENSIONS.stream().anyMatch(E->filename.endsWith(E)) || 
+	if(FileExtensions.FASTA.stream().anyMatch(E->filename.endsWith(E)) || 
+		FileExtensions.VCF_LIST.stream().anyMatch(E->filename.endsWith(E)) || 
 		StringUtils.endsWith(filename, 
-				IOUtil.SAM_FILE_EXTENSION,
-				BamFileIoUtils.BAM_FILE_EXTENSION,
-				CramIO.CRAM_FILE_EXTENSION,
-				IOUtil.DICT_FILE_EXTENSION,
-				IOUtil.INTERVAL_LIST_FILE_EXTENSION,
-				IOUtil.VCF_FILE_EXTENSION,
-				IOUtil.COMPRESSED_VCF_FILE_EXTENSION,
-				IOUtil.BCF_FILE_EXTENSION
+				FileExtensions.SAM,
+				FileExtensions.BAM,
+				FileExtensions.CRAM,
+				FileExtensions.DICT,
+				FileExtensions.INTERVAL_LIST
 				))
 		{
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(file);

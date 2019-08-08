@@ -17,7 +17,8 @@ Usage: bioalcidaejdk [options] Files
     -e, --expression
       inline java expression
     -F, --format
-      force format: one of VCF BAM SAM FASTQ
+      define format if input is stdin or cannot be inferred from filename. 
+      Must be one of: VCF,SAM,BAM,CRAM,FASTA,FASTQ,TEXT,GTF
     -h, --help
       print help and exit
     --helpFormat
@@ -33,6 +34,11 @@ Usage: bioalcidaejdk [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      [20190808]Indexed fasta Reference file. This file must be indexed with 
+      samtools faidx and with picard CreateSequenceDictionary For reading BAM 
+      files or to try to convert the chromosome in a GTF file to match the 
+      dictionary ('1' -> 'chr1').
     -f, --scriptfile
       java body file
     --version
@@ -241,7 +247,7 @@ when reading a VCF, a new class extending `VcfHandler` will be compiled. The use
 
 ## SAM
 
-when reading a SAM/BAM, a new class extending `SAMHandler` will be compiled. The user's code will be inserted as:
+when reading a SAM/BAM/CRAM, a new class extending `SAMHandler` will be compiled. The user's code will be inserted as:
 
 
 ```java
@@ -322,6 +328,34 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
 
 ```
 
+## GTF
+
+when reading a Gtf, a new class extending `GtfHandler` will be compiled.
+The user's code will be inserted as:
+
+```
+ 1  import java.util.*;
+ 2  import java.util.stream.*;
+ 3  import java.util.function.*;
+ 4  import htsjdk.samtools.*;
+ 5  import htsjdk.samtools.util.*;
+ 6  import htsjdk.variant.variantcontext.*;
+ 7  import htsjdk.variant.vcf.*;
+ 8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
+ 9  import javax.annotation.processing.Generated;
+10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
+11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
+12    public BioAlcidaeJdkCustom298960668() {
+13    }
+14    @Override
+15    public void execute() throws Exception {
+16     // user's code starts here 
+17     
+18      //user's code ends here 
+19     }
+20  }
+
+```
 
 
 ## Examples

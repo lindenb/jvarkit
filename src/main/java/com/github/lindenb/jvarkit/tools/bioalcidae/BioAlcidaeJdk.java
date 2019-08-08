@@ -33,6 +33,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -47,8 +48,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
+import com.github.lindenb.jvarkit.util.bio.structure.Gene;
+import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -59,12 +64,14 @@ import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Iso8601Date;
 import htsjdk.samtools.util.IterableAdapter;
@@ -188,7 +195,7 @@ when reading a VCF, a new class extending `VcfHandler` will be compiled. The use
 
 ## SAM
 
-when reading a SAM/BAM, a new class extending `SAMHandler` will be compiled. The user's code will be inserted as:
+when reading a SAM/BAM/CRAM, a new class extending `SAMHandler` will be compiled. The user's code will be inserted as:
 
 
 ```java
@@ -269,6 +276,34 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
 
 ```
 
+## GTF
+
+when reading a Gtf, a new class extending `GtfHandler` will be compiled.
+The user's code will be inserted as:
+
+```
+ 1  import java.util.*;
+ 2  import java.util.stream.*;
+ 3  import java.util.function.*;
+ 4  import htsjdk.samtools.*;
+ 5  import htsjdk.samtools.util.*;
+ 6  import htsjdk.variant.variantcontext.*;
+ 7  import htsjdk.variant.vcf.*;
+ 8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
+ 9  import javax.annotation.processing.Generated;
+10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
+11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
+12    public BioAlcidaeJdkCustom298960668() {
+13    }
+14    @Override
+15    public void execute() throws Exception {
+16     // user's code starts here 
+17     
+18      //user's code ends here 
+19     }
+20  }
+
+```
 
 
 ## Examples
@@ -591,20 +626,25 @@ END_DOC
 			298361,324900,326294,326765,329423,330752,334253,335056,335692,336206,
 			338031,356474},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
-	modificationDate="2019-07-11"
+	modificationDate="2019-08-08"
 	)
 public class BioAlcidaeJdk
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BioAlcidaeJdk.class).make();
 
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-F","--format"},description="force format: one of VCF BAM SAM FASTQ")
+	@Parameter(names={"-F","--format"},description="define format if input is stdin or cannot be inferred from filename. "
+			+ "Must be one of: VCF,SAM,BAM,CRAM,FASTA,FASTQ,TEXT,GTF")
 	private String formatString = null;
 
+	@Parameter(names={"-R","--reference"},description="[20190808]"+INDEXED_FASTA_REFERENCE_DESCRIPTION+
+			" For reading BAM files or to try to convert the chromosome in a GTF file to match the dictionary ('1' -> 'chr1').")
+	private Path faidxPath = null;
+
+	
 	@Parameter(names={"-f","--scriptfile"},description="java body file")
 	private File scriptFile=null;
 	@Parameter(names={"-e","--expression"},description="inline java expression")
@@ -640,6 +680,7 @@ public class BioAlcidaeJdk
     
     public static abstract class AbstractHandlerFactory<H extends AbstractHandler>
     	{
+    	protected Path faidxPath = null;
     	private File scriptFile  = null;
     	private String scriptExpr = null ;
     	private boolean user_code_is_body=false;
@@ -792,7 +833,7 @@ public class BioAlcidaeJdk
     		VcfHandler vcfHandler = null;
     		try 
 	    		{
-	    		vcfHandler= (VcfHandler)getConstructor().newInstance();
+	    		vcfHandler= getConstructor().newInstance();
 	    		vcfHandler.out = out;
 	    		vcfHandler.inputFile = inputFile;
 				//
@@ -844,11 +885,14 @@ public class BioAlcidaeJdk
 			SAMHandler samHandler= null;
 			try
 				{
-				samHandler = 	(SAMHandler)this.getConstructor().newInstance();
+				samHandler = this.getConstructor().newInstance();
 				samHandler.out = out;
 				samHandler.inputFile = inputFile;
 				//
 				final htsjdk.samtools.SamReaderFactory srf= htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
+				if(this.faidxPath!=null) {
+					srf.referenceSequence(this.faidxPath);
+					}
 				if(inputFile==null)
 					{
 					samHandler.in =  srf.open(htsjdk.samtools.SamInputResource.of(System.in));
@@ -906,7 +950,7 @@ public class BioAlcidaeJdk
 		public int execute(final String inputFile,final PrintStream out) throws Exception {
 			FastqHandler fqHandler= null;
 			try {
-				fqHandler = (FastqHandler)this.getConstructor().newInstance();
+				fqHandler = this.getConstructor().newInstance();
 				fqHandler.out = out;
 				fqHandler.inputFile = inputFile;
 				fqHandler.iter = new FastqReader(super.openBufferedReader(inputFile));
@@ -954,7 +998,7 @@ public class BioAlcidaeJdk
     	public int execute(final String inputFile, final PrintStream out) throws Exception {
     		FastaHandler faHandler= null;
 			try {
-				faHandler = (FastaHandler)this.getConstructor().newInstance();
+				faHandler = this.getConstructor().newInstance();
 				faHandler.out = out;
 				faHandler.inputFile = inputFile;
 				//
@@ -1023,7 +1067,7 @@ public class BioAlcidaeJdk
     	public int execute(final String inputFile, final PrintStream out) throws Exception {
     		SimpleLineHandler lineHandler = null;
 			try {
-				lineHandler = (SimpleLineHandler)this.getConstructor().newInstance();
+				lineHandler = this.getConstructor().newInstance();
 				lineHandler.out = out;
 				lineHandler.inputFile = inputFile;
 				//
@@ -1052,24 +1096,77 @@ public class BioAlcidaeJdk
 		
 		}
 
+    public static abstract class GtfHandler extends AbstractHandler
+		{
+		protected List<Gene> genes=null;
+		public Stream<Gene> stream()
+			{
+			return this.genes.stream();
+			}
+		}
+    
+    public static class GtfHandlerFactory extends AbstractHandlerFactory<GtfHandler>
+		{
+    	
+    	@Override
+    	protected Class<GtfHandler> getHandlerClass() {
+    		return GtfHandler.class;
+    		}
+    	@Override
+    	public int execute(final String inputFile, final PrintStream out) throws Exception {
+    		GtfHandler gtfHandler = null;
+    		GftReader gtfReader= null;
+    		try {
+    			gtfReader = new GftReader(inputFile);
+    			if(this.faidxPath!=null) {
+    				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidxPath);
+    				gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+    			}
+    			
+    			gtfHandler = this.getConstructor().newInstance();
+    			gtfHandler.out = out;
+    			gtfHandler.genes = gtfReader.getAllGenes();
+    			gtfReader.close();
+    			gtfReader = null;
+				gtfHandler.initialize();
+				gtfHandler.execute();
+				return 0;
+				}
+			catch (final Throwable err) {
+				LOG.error(err);
+				return -1;
+				}
+			finally
+				{
+				CloserUtil.close(gtfReader);
+				}
+			}
+		
+		}
+    
     
 	private enum FORMAT {
 		VCF{
 			@Override
 			boolean canAs(final String src) {
-				return src!=null && (Arrays.asList(IOUtil.VCF_EXTENSIONS).stream().anyMatch(EXT->src.endsWith(EXT)) );
+				return src!=null && FileExtensions.VCF_LIST.stream().anyMatch(EXT->src.endsWith(EXT) );
 			}
 			},
 		SAM{
 			@Override
 			boolean canAs(final String src) {
-				return src!=null && (src.endsWith(".sam") || src.endsWith(".bam") );
+				return src!=null &&  (src.endsWith(FileExtensions.CRAM) || src.endsWith(FileExtensions.BAM) || src.endsWith(FileExtensions.SAM) );
 			}
 			},
 		BAM{
 			@Override
 			boolean canAs(final String src) {
-				return src!=null && (src.endsWith(".sam") || src.endsWith(".bam") );
+				return src!=null && (src.endsWith(FileExtensions.CRAM) || src.endsWith(FileExtensions.BAM) || src.endsWith(FileExtensions.SAM) );
+			}},
+		CRAM{
+			@Override
+			boolean canAs(final String src) {
+				return src!=null && (src.endsWith(FileExtensions.CRAM) || src.endsWith(FileExtensions.BAM) || src.endsWith(FileExtensions.SAM) );
 			}},
 		FASTQ{
 			@Override
@@ -1085,6 +1182,11 @@ public class BioAlcidaeJdk
 			@Override
 			boolean canAs(final String src) {
 				return src!=null && (src.endsWith(".txt") || src.endsWith(".csv") || src.endsWith(".tsv") );
+			}},
+		GTF {
+			@Override
+			boolean canAs(final String src) {
+				return src!=null && GftReader.SUFFIXES.stream().anyMatch(S->src.endsWith(S));
 			}}
 			;
 
@@ -1097,12 +1199,12 @@ public class BioAlcidaeJdk
 	@Override
 	public int doWork(final List<String> args) {
 		AbstractHandlerFactory<?> abstractFactory = null;
-		if(this.formatString!=null)
+		if(!StringUtil.isBlank(this.formatString))
 			{
 			try {
 				this.format=FORMAT.valueOf(this.formatString.toUpperCase());
-				} catch (Exception err) {
-				LOG.error(err);
+				} catch (final Exception err) {
+				LOG.error("Bad input format",err);
 				return -1;
 				}
 			}
@@ -1131,17 +1233,22 @@ public class BioAlcidaeJdk
 					}
 				}
 			
-			 
+			if(FORMAT.CRAM.equals(this.format) && this.faidxPath==null) {
+				LOG.error("Reference sequence must be specified when reading CRAM");
+				return -1;
+			 }
 			
 			switch(this.format)
 				{
-				case BAM: case SAM: abstractFactory = new SAMHandlerFactory(); break;
+				case BAM: case SAM: case CRAM: abstractFactory = new SAMHandlerFactory(); break;
 				case VCF: abstractFactory = new VcfHandlerFactory(); break;
 				case FASTQ: abstractFactory = new FastqHandlerFactory(); break;
 				case FASTA: abstractFactory = new FastaHandlerFactory(); break;
 				case TEXT: abstractFactory = new SimpleLineHandlerHandlerFactory();break;
+				case GTF: abstractFactory = new GtfHandlerFactory();break;
 				default: throw new IllegalStateException("Not implemented: "+this.format);
 				}
+			abstractFactory.faidxPath = this.faidxPath;
 			abstractFactory.scriptExpr = this.scriptExpr;
 			abstractFactory.scriptFile = this.scriptFile;
 			abstractFactory.user_code_is_body = this.user_code_is_body ;

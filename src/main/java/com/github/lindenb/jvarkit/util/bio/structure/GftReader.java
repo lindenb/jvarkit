@@ -63,6 +63,9 @@ import htsjdk.samtools.util.RuntimeIOException;
 public class GftReader implements Closeable {
 	private static final Logger LOG = Logger.build(GftReader.class).make();
 
+	/** available files extensions for GTF files */
+	public static List<String> SUFFIXES = Arrays.asList(".gtf",".gtf.gz");
+	
 	private final GtfResource resource;
 	/** type of  input detected: ucsc knownGene or gtf */
 	private enum InputFormat {undefined,knowngene,gtf};

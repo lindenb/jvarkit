@@ -15,7 +15,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "2.19.0"
+	htsjdkVersion = "2.20.1"
 	}
 
 class JarFile

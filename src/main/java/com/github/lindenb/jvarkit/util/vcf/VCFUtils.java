@@ -53,14 +53,13 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.FeatureCodec;
-import htsjdk.tribble.Tribble;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineReader;
-import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -70,7 +69,6 @@ import htsjdk.variant.vcf.VCF3Codec;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFContigHeaderLine;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -84,7 +82,6 @@ import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
@@ -224,7 +221,8 @@ public class VCFUtils
 				case VCF3_3: return new VCF3Codec();
 				case VCF4_0:
 				case VCF4_1:
-				case VCF4_2: return new VCFCodec();
+				case VCF4_2:
+				case VCF4_3:return new VCFCodec();
 				}
 			}
 		return createDefaultVCFCodec();
@@ -322,7 +320,7 @@ public class VCFUtils
 			{
 			return createVCFIteratorStdin();
 			}
-		else if(Arrays.asList(IOUtil.VCF_EXTENSIONS).stream().anyMatch(S->IN.endsWith(S))
+		else if(FileExtensions.VCF_LIST.stream().anyMatch(S->IN.endsWith(S))
 				&& !IOUtils.isRemoteURI(IN))
 			{
 			final File bcfFile = new File(
@@ -484,11 +482,7 @@ public class VCFUtils
 		{
 		if(f==null || Files.isDirectory(f)) return false;
 		final String s=f.getFileName().toString();
-		return StringUtils.endsWith(s,
-				IOUtil.VCF_FILE_EXTENSION,
-				IOUtil.COMPRESSED_VCF_FILE_EXTENSION,
-				IOUtil.BCF_FILE_EXTENSION
-				);
+		return FileExtensions.VCF_LIST.stream().anyMatch(S->s.endsWith(S));
 		}
 	
 	/** returns true if file ends with .vcf.gz and a .tbi file is associated */
@@ -511,7 +505,7 @@ public class VCFUtils
 		if(!(filename.endsWith(".vcf.gz")|| filename.endsWith(".vcf.bgz"))) return false;
 		final Path index = Paths.get(
 				f.getParent().toString(),
-				filename+ TabixUtils.STANDARD_INDEX_EXTENSION
+				filename+ FileExtensions.TABIX_INDEX
 				);
 		return Files.exists(index) && !Files.isDirectory(index);
 		}
@@ -524,7 +518,7 @@ public class VCFUtils
 		if(!filename.endsWith(".vcf")) return false;
 		final Path index=Paths.get(
 				f.getParent().toString(),
-				filename+ Tribble.STANDARD_INDEX_EXTENSION
+				filename+ FileExtensions.TRIBBLE_INDEX
 				);
 		return Files.exists(index) && !Files.isDirectory(index);
 		}
@@ -694,14 +688,14 @@ public class VCFUtils
 	
 	
 	/** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
-    public static final boolean isValidTabixFile(File f)
+    public static final boolean isValidTabixFile(final File f)
 		 	{
 			if (!f.isFile())
 				return false;
-			String filename = f.getName();
+			final String filename = f.getName();
 			if (!filename.endsWith(".gz"))
 				return false;
-			File index = new File(f.getParentFile(), filename +TabixUtils.STANDARD_INDEX_EXTENSION);
+			final File index = new File(f.getParentFile(), filename +FileExtensions.TABIX_INDEX);
 			return index.exists() && index.isFile();
 			}
     
