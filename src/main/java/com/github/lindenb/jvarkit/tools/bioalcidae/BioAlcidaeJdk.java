@@ -279,30 +279,33 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
 ## GTF
 
 when reading a Gtf, a new class extending `GtfHandler` will be compiled.
+The handler contains a stream of `Gene` ( https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/bio/structure/Gene.java ): 
 The user's code will be inserted as:
 
 ```
- 1  import java.util.*;
- 2  import java.util.stream.*;
- 3  import java.util.function.*;
- 4  import htsjdk.samtools.*;
- 5  import htsjdk.samtools.util.*;
- 6  import htsjdk.variant.variantcontext.*;
- 7  import htsjdk.variant.vcf.*;
- 8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
- 9  import javax.annotation.processing.Generated;
-10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
-11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
-12    public BioAlcidaeJdkCustom298960668() {
-13    }
-14    @Override
-15    public void execute() throws Exception {
-16     // user's code starts here 
-17     
-18      //user's code ends here 
-19     }
-20  }
-
+     1  import java.util.*;
+     2  import java.util.stream.*;
+     3  import java.util.regex.*;
+     4  import java.util.function.*;
+     5  import htsjdk.samtools.*;
+     6  import htsjdk.samtools.util.*;
+     7  import htsjdk.variant.variantcontext.*;
+     8  import htsjdk.variant.vcf.*;
+     9  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
+    10  import com.github.lindenb.jvarkit.math.RangeOfIntegers;
+    11  import com.github.lindenb.jvarkit.math.RangeOfDoubles;
+    12  import com.github.lindenb.jvarkit.util.Counter;
+    15  @javax.annotation.Generated(value="BioAlcidaeJdk",date="2019-08-08T10:30:18+0200")
+    16  public class BioAlcidaeJdkCustom412261069 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.GtfHandler {
+    17    public BioAlcidaeJdkCustom412261069() {
+    18    }
+    19    @Override
+    20    public void execute() throws Exception {
+    21     // user's code starts here 
+    
+    23      //user's code ends here 
+    24     }
+    25  }
 ```
 
 
@@ -612,7 +615,36 @@ println("SUM-MAPPED-READS-LENGTH:"+counts[2]);
 println("SUM-CLIPPING:"+counts[3]);
 ```
 
+## print the first exon as BED of each transcript in a gtf file
 
+```
+$ java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(G->G.getTranscripts().stream().filter(T->T.hasStrand() && T.hasExon())).map(T->T.isPositiveStrand()?T.getExon(0):T.getExon(T.getExonCount()-1)).forEach(E->println(E.getContig()+"\t"+(E.getStart()-1)+"\t"+E.getEnd()+"\t"+E.getName()));' src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz
+
+
+1	120611947	120612240	ENST00000256646.Exon1
+1	120466259	120466528	ENST00000493703.Exon1
+1	120479904	120480086	ENST00000478864.Exon1
+1	120611947	120612240	ENST00000479412.Exon1
+1	120596733	120596839	ENST00000602566.Exon1
+1	120572528	120572586	ENST00000489731.Exon1
+22	41697525	41697776	ENST00000352645.Exon1
+22	41697718	41697776	ENST00000486331.Exon1
+22	41716664	41716717	ENST00000351589.Exon1
+3	38674525	38674840	ENST00000414099.Exon1
+3	38691021	38691163	ENST00000425664.Exon1
+3	38691021	38691163	ENST00000443581.Exon1
+3	38691021	38691164	ENST00000451551.Exon1
+3	38691021	38691163	ENST00000413689.Exon1
+3	38674525	38674853	ENST00000423572.Exon1
+3	38691021	38691119	ENST00000333535.Exon1
+3	38674525	38674823	ENST00000455624.Exon1
+3	38674525	38674840	ENST00000450102.Exon1
+3	38674525	38674807	ENST00000449557.Exon1
+3	38595769	38596040	ENST00000464652.Exon1
+3	38691021	38691164	ENST00000491944.Exon1
+3	38674525	38674711	ENST00000476683.Exon1
+3	38687181	38687267	ENST00000327956.Exon1
+```
 
 END_DOC
 */
@@ -641,7 +673,7 @@ public class BioAlcidaeJdk
 	private String formatString = null;
 
 	@Parameter(names={"-R","--reference"},description="[20190808]"+INDEXED_FASTA_REFERENCE_DESCRIPTION+
-			" For reading BAM files or to try to convert the chromosome in a GTF file to match the dictionary ('1' -> 'chr1').")
+			" For reading BAM files or to try to convert the chromosomes in a GTF file in order to match the dictionary ('1' -> 'chr1').")
 	private Path faidxPath = null;
 
 	
