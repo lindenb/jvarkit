@@ -22,6 +22,9 @@ Usage: gtfretrocopy [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -k, --known
+      Gene-ID of known retrogenes. One per line. A source could be : 
+      http://retrogenedb.amu.edu.pl/static/download/ 
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -62,6 +65,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/retrocopy/GtfRetroCopy.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/retrocopy/GtfRetroCopy.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/retrocopy/GtfRetroCopyTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/retrocopy/GtfRetroCopyTest.java)
 
 
 ## Contribute

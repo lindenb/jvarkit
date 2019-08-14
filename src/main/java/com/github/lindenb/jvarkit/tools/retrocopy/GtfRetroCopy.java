@@ -24,11 +24,13 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.retrocopy;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +38,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -97,15 +100,17 @@ public class GtfRetroCopy extends Launcher
 	private int min_intron_count = 0;
 	@Parameter(names={"--all"},description="all introns must be found")
 	private boolean only_all_introns = false;
-
+	@Parameter(names={"-k","--known"},description="Gene-ID of known retrogenes. One per line. A source could be : http://retrogenedb.amu.edu.pl/static/download/")
+	private Path knownPath = null;
 	
-	private static final String ENSEMBL_TRANSCRIPT_ATTS[]=new String[] {"gene_version","transcript_id","transcript_version","gene_name","gene_source","gene_biotype","transcript_name","transcript_source","transcript_biotype","tag","ccds_id","havana_transcript","havana_transcript_version","tag"};
+	private static final String ENSEMBL_TRANSCRIPT_ATTS[]=new String[] {"gene_id","gene_version","transcript_id","transcript_version","gene_name","gene_source","gene_biotype","transcript_name","transcript_source","transcript_biotype","tag","ccds_id","havana_transcript","havana_transcript_version","tag"};
 	private final static String ATT_INTRONS_COUNT="COUNT_INTRONS";
 	private final static String ATT_INTRONS_CANDIDATE_COUNT="MATCHING_INTRONS_COUNT";
 	private final static String ATT_INTRONS_CANDIDATE_FRACTION="MATCHING_INTRONS_FRACTION";
 	private final static String ATT_NOT_ALL_INTRONS="NOT_ALL_INTRONS";
 	private final static String ATT_INTRONS_BOUNDS="INTRONS_BOUNDS";
 	private final static String ATT_INTRONS_SIZES="INTRONS_SIZES";
+	private final static String ATT_KNOWN="KNOWN_RETROGENE";
 
 	
 	private boolean isWithinDistance(int a, int b) {
@@ -120,7 +125,20 @@ public class GtfRetroCopy extends Launcher
 			/* load the reference genome */
 			/* create a contig name converter from the REF */
 	
-			
+			final Set<String> knownGeneIds;
+			if(this.knownPath!=null) {
+				try(BufferedReader br = IOUtils.openPathForBufferedReading(this.knownPath)) {
+					knownGeneIds = br.lines().
+						filter(L->!StringUtils.isBlank(L)).
+						map(S->S.trim()).
+						filter(S->!(S.equals("-") || S.equals(".") || S.startsWith("#"))).
+						collect(Collectors.toSet());
+					}
+				}
+			else
+				{
+				knownGeneIds = Collections.emptySet();
+				}
 			// open the sam file
 			final String input = oneAndOnlyOneFile(args);
 			vcfFileReader = new VCFFileReader(Paths.get(input), true);
@@ -182,6 +200,7 @@ public class GtfRetroCopy extends Launcher
 			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_COUNT, 1, VCFHeaderLineType.Integer,"Number of introns found retrocopied for the transcript"));
 			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_FRACTION, 1, VCFHeaderLineType.Float,"Fraction of introns found retrocopied for the transcript"));
 			metaData.add(new VCFFilterHeaderLine(ATT_NOT_ALL_INTRONS,"Not all introns were found retrocopied"));
+			metaData.add(new VCFFilterHeaderLine(ATT_KNOWN,"Known RetroGenes. "+(this.knownPath==null?"":" Source: "+this.knownPath)));
 			
 			
 			
@@ -249,9 +268,9 @@ public class GtfRetroCopy extends Launcher
 					vcb.id(transcript.getId());
 					final List<Allele> alleles = Arrays.asList(ref,alt);
 
-					vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,2);
-					vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,1);
-					vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,0.5);
+					//vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,2);
+					//vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,1);
+					//vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,0.5);
 					vcb.attribute(VCFConstants.SVTYPE,"DEL");
 					vcb.attribute(VCFConstants.END_KEY,transcript.getEnd());
 					vcb.attribute("SVLEN",transcript.getLengthOnReference());
@@ -266,18 +285,20 @@ public class GtfRetroCopy extends Launcher
 						}
 					
 					vcb.alleles(alleles);
-					
+					boolean pass_filter=true;
 					// introns sequences
 					vcb.attribute(ATT_INTRONS_CANDIDATE_COUNT,max_count);
 					vcb.attribute(ATT_INTRONS_COUNT,transcript.getIntronCount());
 					vcb.attribute(ATT_INTRONS_CANDIDATE_FRACTION,max_count/(float)transcript.getIntronCount());
 					if(transcript.getIntronCount()!=max_count) {
 						vcb.filter(ATT_NOT_ALL_INTRONS);
+						pass_filter=false;
 						}
-					else
-						{
-						vcb.passFilters();
+					if(knownGeneIds.contains(transcript.getGene().getId())) {
+						vcb.filter(ATT_KNOWN);
+						pass_filter=false;
 						}
+					
 					if(header.hasGenotypingData()) {
 						final List<Genotype> genotypes = new ArrayList<>();
 						for(final String sn: header.getSampleNamesInOrder()) {
@@ -295,6 +316,7 @@ public class GtfRetroCopy extends Launcher
 							}
 						vcb.genotypes(genotypes);
 						}					
+					if(pass_filter) vcb.passFilters();
 					vcw0.add(vcb.make());
 				}
 			}

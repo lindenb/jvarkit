@@ -2060,6 +2060,10 @@ all.add( task("vcfgnomad", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("vcfgnomadsv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadSV"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("vcfannotwithbeacon", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ga4gh.VcfAnnotWithBeacon"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson","berkeleydb","httpclient")
