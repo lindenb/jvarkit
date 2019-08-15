@@ -2155,6 +2155,12 @@ all2.add( task("gtfretrocopy", type: CompileJVarkit) {
 	jdkTarget="8"
 	jdkSource="8"
 	});
+all2.add( task("knownretrocopy", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.retrocopy.KnownRetroCopy"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jdkTarget="8"
+	jdkSource="8"
+	});
 all2.add( task("onethousandbams", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.onekgenomes.OneThousandBam"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
