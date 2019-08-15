@@ -15,7 +15,7 @@ Usage: vcffilterjdk [options] Files
       method. 
       Default: false
     -e, --expression
-       (js expression). Optional.
+       (java expression). Optional.
     -xf, --extra-filters
       [20180716] extra FILTERs names that will be added in the VCF header and 
       that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- 
@@ -42,7 +42,7 @@ Usage: vcffilterjdk [options] Files
     --saveCodeInDir
       Save the generated java code in the following directory
     -f, --script
-       (js file). Optional.
+       (java file). Optional.
     -vn, --variable
       [20180716] how to name the VariantContext in the code. htsjdk/gatk often 
       use 'vc'.
@@ -86,6 +86,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/351404](https://www.biostars.org/p/351404)
  * [https://www.biostars.org/p/354126](https://www.biostars.org/p/354126)
  * [https://www.biostars.org/p/302217](https://www.biostars.org/p/302217)
+ * [https://www.biostars.org/p/384864](https://www.biostars.org/p/384864)
 
 
 ## Compilation

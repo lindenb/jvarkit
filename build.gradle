@@ -1185,8 +1185,12 @@ all.add( task("mergecnvnator", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.MergeCnvNator"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("mergesv", type: CompileJVarkit) {
+all2.add( task("mergesv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.MergeStructuralVariants"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("scansv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.ScanStructuralVariants"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("metrics2xml", type: CompileJVarkit) {
