@@ -50,7 +50,6 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -62,78 +61,22 @@ import htsjdk.variant.vcf.VCFIterator;
 
 
 /**
-
 BEGIN_DOC
-
-First described in http://plindenbaum.blogspot.fr/2011/01/my-tool-to-annotate-vcf-files.html.
-
-### Examples
-
-
-#### Example 1
-
-```
-$java -jar  dist/vcfpredictions.jar  \
-	-R human_g1k_v37.fasta \
-	-k <(curl  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '   ' '{if($2 ~ ".*_.*") next; OFS="        "; gsub(/chr/,"",$2);print;}'  ) \
-	I=~/WORK/variations.gatk.annotations.vcf.gz | bgzip > result.vcf.gz
-
-```
-
-#### Annotate 1000 genomes
-
-```
-$  curl "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr1.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf.gz" |\
-gunzip -c |\
-java -jar dist/vcfpredictions.jar \
-  -R  human_g1k_v37.fasta \
-  -k <(curl  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '      ' '{if($2 ~ ".*_.*") next; OFS=" "; gsub(/chr/,"",$2);print;}'  )  |\
-cut -d '    ' -f 1-8 | grep -A 10 CHROM
-
-
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-1	10583	rs58108140	G	A	100	PASS	AA=.;AC=314;AF=0.14;AFR_AF=0.04;AMR_AF=0.17;AN=2184;ASN_AF=0.13;AVGPOST=0.7707;ERATE=0.0161;EUR_AF=0.21;LDAF=0.2327;PRED=|||||intergenic_variant;RSQ=0.4319;SNPSOURCE=LOWCOV;THETA=0.0046;VT=SNP
-1	10611	rs189107123	C	G	100	PASS	AA=.;AC=41;AF=0.02;AFR_AF=0.01;AMR_AF=0.03;AN=2184;ASN_AF=0.01;AVGPOST=0.9330;ERATE=0.0048;EUR_AF=0.02;LDAF=0.0479;PRED=|||||intergenic_variant;RSQ=0.3475;SNPSOURCE=LOWCOV;THETA=0.0077;VT=SNP
-1	13302	rs180734498	C	T	100	PASS	AA=.;AC=249;AF=0.11;AFR_AF=0.21;AMR_AF=0.08;AN=2184;ASN_AF=0.02;AVGPOST=0.8895;ERATE=0.0058;EUR_AF=0.14;LDAF=0.1573;PRED=uc010nxq.1|||||intron_variant;RSQ=0.6281;SNPSOURCE=LOWCOV;THETA=0.0048;VT=SNP
-1	13327	rs144762171	G	C	100	PASS	AA=.;AC=59;AF=0.03;AFR_AF=0.02;AMR_AF=0.03;AN=2184;ASN_AF=0.02;AVGPOST=0.9698;ERATE=0.0012;EUR_AF=0.04;LDAF=0.0359;PRED=uc010nxq.1|||||intron_variant;RSQ=0.6482;SNPSOURCE=LOWCOV;THETA=0.0204;VT=SNP
-1	13957	rs201747181	TC	T	28	PASS	AA=TC;AC=35;AF=0.02;AFR_AF=0.02;AMR_AF=0.02;AN=2184;ASN_AF=0.01;AVGPOST=0.8711;ERATE=0.0065;EUR_AF=0.02;LDAF=0.0788;PRED=uc010nxq.1|||||;RSQ=0.2501;THETA=0.0100;VT=INDEL
-1	13980	rs151276478	T	C	100	PASS	AA=.;AC=45;AF=0.02;AFR_AF=0.01;AMR_AF=0.02;AN=2184;ASN_AF=0.02;AVGPOST=0.9221;ERATE=0.0034;EUR_AF=0.02;LDAF=0.0525;PRED=uc010nxq.1|||||3_prime_UTR_variant;RSQ=0.3603;SNPSOURCE=LOWCOV;THETA=0.0139;VT=SNP
-1	30923	rs140337953	G	T	100	PASS	AA=T;AC=1584;AF=0.73;AFR_AF=0.48;AMR_AF=0.80;AN=2184;ASN_AF=0.89;AVGPOST=0.7335;ERATE=0.0183;EUR_AF=0.73;LDAF=0.6576;PRED=|||||intergenic_variant;RSQ=0.5481;SNPSOURCE=LOWCOV;THETA=0.0162;VT=SNP
-1	46402	rs199681827	C	CTGT	31	PASS	AA=.;AC=8;AF=0.0037;AFR_AF=0.01;AN=2184;ASN_AF=0.0017;AVGPOST=0.8325;ERATE=0.0072;LDAF=0.0903;PRED=|||||intergenic_variant;RSQ=0.0960;THETA=0.0121;VT=INDEL
-1	47190	rs200430748	G	GA	192	PASS	AA=G;AC=29;AF=0.01;AFR_AF=0.06;AMR_AF=0.0028;AN=2184;AVGPOST=0.9041;ERATE=0.0041;LDAF=0.0628;PRED=|||||intergenic_variant;RSQ=0.2883;THETA=0.0153;VT=INDEL
-1	51476	rs187298206	T	C	100	PASS	AA=C;AC=18;AF=0.01;AFR_AF=0.01;AMR_AF=0.01;AN=2184;ASN_AF=0.01;AVGPOST=0.9819;ERATE=0.0021;EUR_AF=0.01;LDAF=0.0157;PRED=|||||intergenic_variant;RSQ=0.5258;SNPSOURCE=LOWCOV;THETA=0.0103;VT=SNP
-```
-
-
-
-### See also
-
- *  http://plindenbaum.blogspot.fr/2013/10/yes-choice-of-transcripts-and-software.html
- *  VcfFilterSequenceOntology
- *  GroupByGene
-
-## History
-
- *  2013-Dec : moved to a standard arg/argv command line
-
-
-
-
-
 
 
 END_DOC
 */
 
-@Program(name="vcfpredictions",
+@Program(name="svpredictions",
 	description="Basic Variant Effect prediction using gtf",
-	keywords={"vcf","annotation","prediction"},
+	keywords={"vcf","annotation","prediction","sv"},
+	creationDate="20190815",
 	modificationDate="20190815"
 	)
 public class SVPredictions extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SVPredictions.class).make();
-	private IntervalTreeMap<Gene> all_gene=null;
+	private final IntervalTreeMap<Gene> all_gene = new IntervalTreeMap<>();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -141,57 +84,70 @@ public class SVPredictions extends Launcher
 	private Path gtfPath = null;
 	@Parameter(names={"-u","--upstream"},description="Upstream size. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int upstream_size =  5_000;
-	
-	private class Annotation
-		{
-		Transcript transcript;
-		Allele alt2;
-		final Set<String> seqont=new HashSet<>();
-		String intergenicName="";
-		String intergenicID="";
+	@Parameter(names={"--max-genes"},description="don't print the genes names if their count exceed 'x'")
+	private int max_genes_count =  20;
+	@Parameter(names={"-nti","--no-transcript-id"},description="don't print transcript id (reduce length of annotation)")
+	private boolean ignore_transcript_id = false;
 
+	@Parameter(names={"--tag"},description="VCF info attribute")
+	private String info_tag = "SVCSQ";
 		
-		public String toString()
-			{
-			final StringBuilder b=new StringBuilder();
-			
-			b.append(alt2==null?"":alt2.getBaseString());
-			b.append('|');
-			b.append(this.seqont.stream().
-					map(T->T.replaceAll("[ ]", "_")).
-					collect(Collectors.joining("&")));
-			b.append('|');
-			b.append("MODIFIER");//impact 
-			b.append(transcript==null?this.intergenicID:transcript.getGene().getId());// gene name
-			b.append('|');
-			b.append(transcript==null?this.intergenicName:transcript.getProperties().getOrDefault("gene_name","")); //gene id
-			b.append('|');//
-			b.append("transcript");//Feature_Type
-			b.append(transcript==null?"":transcript.getId());//Feature_ID
-			b.append('|');
-			b.append(transcript==null?"":transcript.getProperties().getOrDefault("transcript_biotype",""));
-			b.append('|');
-			b.append("");//RAnk
-			b.append('|');
-			b.append("");//HGVS.c 
-			b.append('|');
-			b.append("");//HGVS.p 
-			b.append('|');
-			b.append("");//cDNA.pos / cDNA.length 
-			b.append('|');
-			b.append("");//CDS.pos / CDS.length 
-			b.append('|');
-			b.append("");//AA.pos / AA.length 
-			b.append('|');
-			b.append("");//Distance 
-			b.append('|');
-			b.append("");//ERRORS / WARNINGS / INFO
-						
-			return b.toString();
+	private String annotTranscript(final Transcript transcript, final VariantContext ctx) {
+		final String suffix="|"+transcript.getGene().getId()+"|"+(ignore_transcript_id?"":transcript.getId()+"|")+transcript.getGene().getGeneName()+"|"+transcript.getGene().getGeneBiotype();
+		
+		if(!transcript.overlaps(ctx)) {
+			return "upstream_transcript_variant"+suffix;
 			}
 		
-		}	
+		if(ctx.contains(transcript)) {
+			return "transcript_ablation"+suffix;
+			}
+		
+		if(transcript.getUTRs().stream().anyMatch(U->U.contains(ctx))) {
+			return "utr"+suffix;
+			}
+		
+		if(transcript.hasCDS() && transcript.getAllCds().stream().anyMatch(U->U.contains(ctx))) {
+			return "cds"+suffix;
+			}
+
+		if(transcript.getExons().stream().anyMatch(U->ctx.contains(U))) {
+			return "exon"+suffix;
+			}
+		
+		if(transcript.getIntrons().stream().anyMatch(U->ctx.contains(U))) {
+			return "intron"+suffix;
+			}
+		
+		final Set<String> set=new HashSet<>();
+		
+		if(transcript.getUTRs().stream().anyMatch(U->U.overlaps(ctx))) {
+			set.add("utr");
+			}
+		
+		
+		if(transcript.hasCDS() && transcript.getAllCds().stream().anyMatch(U->U.overlaps(ctx))) {
+			set.add("cds");
+			}
+		
+
+		if(transcript.getExons().stream().anyMatch(U->ctx.overlaps(U))) {
+			set.add("exon");
+			}
+		
+		if(transcript.getIntrons().stream().anyMatch(U->ctx.overlaps(U))) {
+			set.add("intron");
+			}
+		return String.join("&", set) + suffix;
+		}
 	
+	private Set<String> annotGene(final Gene gene, final VariantContext ctx) {
+		final Set<String> annot = new HashSet<>();
+		for(final Transcript transcript: gene.getTranscripts()) {
+			annot.add(annotTranscript(transcript, ctx));
+			}
+		return annot;
+		}
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final VCFIterator r, VariantContextWriter w)
@@ -205,11 +161,12 @@ public class SVPredictions extends Launcher
 			}
 		
 		final VCFHeader h2=new VCFHeader(header);
-		h2.addMetaDataLine(new VCFInfoHeaderLine("ANN",
-						VCFHeaderLineCount.UNBOUNDED,
-						VCFHeaderLineType.String,
-						"Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO'"
-						));
+		h2.addMetaDataLine(new VCFInfoHeaderLine(
+				this.info_tag,
+				VCFHeaderLineCount.UNBOUNDED,
+				VCFHeaderLineType.String,
+				"Structural variant consequence."
+				));
 		JVarkitVersion.getInstance().addMetaData(this, h2);
 		w.writeHeader(h2);
 
@@ -224,12 +181,9 @@ public class SVPredictions extends Launcher
 					ctx.getEnd()+this.upstream_size
 					));
 			
-			
-			final List<Annotation> ctx_annotations=new ArrayList<Annotation>();
 			if(genes.isEmpty())
 				{
 				Gene leftGene = null;
-				
 				for(final Gene g:this.all_gene.getOverlapping(new Interval(
 					ctx.getContig(),
 					1,
@@ -238,6 +192,10 @@ public class SVPredictions extends Launcher
 					{
 					if(leftGene==null || leftGene.getEnd() < g.getEnd()) leftGene=g;
 					}
+
+				final String leftId = (leftGene==null?"":leftGene.getId());
+				final String leftName =  (leftGene==null?"":leftGene.getGeneName());
+				
 				
 				Gene rightGene = null;
 				
@@ -249,70 +207,41 @@ public class SVPredictions extends Launcher
 						{
 						if(rightGene==null || rightGene.getStart() > g.getStart()) rightGene=g;
 						}
+				final String rightId = (rightGene==null?"":rightGene.getId());
+				final String rightName =  (rightGene==null?"":rightGene.getGeneName());
 				
 				//intergenic
-				final Annotation a=new Annotation();
 				if(leftGene==null && rightGene==null) {
-					
-				} else if(leftGene!=null && rightGene!=null) {
-					a.intergenicID = leftGene.getId()+"-"+rightGene.getId();
-				} else if(leftGene!=null && rightGene==null) {
-					a.intergenicID = leftGene.getId()+"-";
+					w.add(ctx);
+					} 
+				else {
+					w.add(new VariantContextBuilder(ctx).
+						attribute(this.info_tag, "intergenic|"+leftId+"-"+rightId+"|"+leftName+"-"+rightName).
+						make());
 					}
-				else if(leftGene==null && rightGene!=null) {
-					a.intergenicID = "-"+rightGene.getId();
-					}
-				
-				a.seqont.add("intergenic_variant");
-				ctx_annotations.add(a);
 				}
 			else
 				{
-				for(final Gene g: genes) {				
-					for(final Transcript transcript: g.getTranscripts()) {
-						final Annotation a=new Annotation();
-						
-						if(!transcript.overlaps(ctx)) {
-							a.seqont.add("upstream_transcript_variant");
-							continue;
-							}
-						
-						if(ctx.contains(transcript)) {
-							a.seqont.add("transcript_ablation");
-							ctx_annotations.add(a);
-							continue;
-							}
-						
-						if(transcript.getUTRs().stream().anyMatch(U->U.overlaps(ctx))) {
-							a.seqont.add("UTR");
-							}
-						if(transcript.getExons().stream().anyMatch(U->ctx.contains(U))) {
-							a.seqont.add("exon_loss_variant");
-							}
-						if(transcript.getExons().stream().anyMatch(U->U.overlaps(ctx))) {
-							a.seqont.add("UTR");
-							}
-						if(transcript.getIntrons().stream().anyMatch(U->U.overlaps(ctx))) {
-							a.seqont.add("intron");
-							}
-						if(transcript.getAllCds().stream().anyMatch(U->U.overlaps(ctx))) {
-							a.seqont.add("CDS_region");
-							}
-						}
+				if(genes.size()>this.max_genes_count) {
+					w.add(new VariantContextBuilder(ctx).
+							attribute(this.info_tag, "gene_abalation|multiple_genes|"+genes.size()).
+							make());
 					}
-				
-				
-				
-				}
-				
-			final Set<String> info= ctx_annotations.stream().map(S->S.toString()).collect(Collectors.toSet());
-			final VariantContextBuilder vb=new VariantContextBuilder(ctx);
-			vb.attribute("ANN", info.toArray());
-			w.add(vb.make());
+				else
+					{
+					final Set<String> annots = genes.stream().
+							flatMap(G->annotGene(G, ctx).stream()).
+							collect(Collectors.toSet());
+					w.add(new VariantContextBuilder(ctx).
+							attribute(this.info_tag,new ArrayList<>(annots)).
+							make()
+							);					
+					}
+				}				
 			}
 		progress.close();
-		return RETURN_OK;
-		} catch(Exception err ) {
+		return 0;
+		} catch(final Throwable err ) {
 			LOG.error(err);
 			return -1;
 		} finally {

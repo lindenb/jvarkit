@@ -30,6 +30,15 @@ import java.util.Map;
 public interface Gene extends StrandedLocatable {
 /** get gene id */
 public String getId();
+/** return attribue("gene_name") or empty string */
+public default String getGeneName() {
+	return this.getProperties().getOrDefault("gene_name","");
+}
+
+/** return attribue("gene_biotype") or empty string */
+public default String getGeneBiotype() {
+	return this.getProperties().getOrDefault("gene_biotype","");
+}
 public List<Transcript> getTranscripts();
 public Map<String, String> getProperties();
 }

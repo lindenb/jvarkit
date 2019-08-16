@@ -1463,6 +1463,10 @@ all.add( task("vcfcombinetwosnvs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("svpredictions", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfannot.SVPredictions"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("vcfcomm", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfcmp.VCFComm"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

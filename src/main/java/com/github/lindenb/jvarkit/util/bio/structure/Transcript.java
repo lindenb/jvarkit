@@ -55,6 +55,11 @@ public interface Transcript extends StrandedLocatable {
     /** get all CDS in this exon */
 	public List<Cds> getAllCds();
 
+	/** returns true hasCodonStrop && hasCodonStart */
+    public default boolean hasCDS() {
+    	return hasCodonStartDefined() && hasCodonStopDefined();
+    }
+	
 	/** returns true if getIntronCount()>0 */
     public default boolean hasIntron() {
     	return getIntronCount()>0;
