@@ -62,7 +62,7 @@ import htsjdk.samtools.util.RuntimeIOException;
  */
 public class GftReader implements Closeable {
 	private static final Logger LOG = Logger.build(GftReader.class).make();
-
+	public static final String OPT_DESC="A GTF file.";
 	/** available files extensions for GTF files */
 	public static List<String> SUFFIXES = Arrays.asList(".gtf",".gtf.gz");
 	

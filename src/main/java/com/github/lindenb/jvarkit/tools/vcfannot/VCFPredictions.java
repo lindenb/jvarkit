@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.vcfannot;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +37,25 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.PeptideSequence;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -48,24 +68,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import htsjdk.variant.vcf.VCFIterator;
 
 
@@ -162,7 +164,8 @@ public class VCFPredictions extends Launcher
 	private static final Logger LOG = Logger.build(VCFPredictions.class).make();
 	private enum OutputSyntax {Native,Vep,SnpEff };
 	private IntervalTreeMap<List<KnownGene>> knownGenes=null;
-	private ReferenceGenome referenceGenome = null;
+	private IndexedFastaSequenceFile referenceGenome = null;
+	
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -176,8 +179,8 @@ public class VCFPredictions extends Launcher
 	@Parameter(names={"-os","--output-syntax","--syntax"},description="[20180122]output formatting syntax. SnpEff is still not complete.")
 	private OutputSyntax outputSyntax = OutputSyntax.Native;
 
-	@Parameter(names={"-R","--reference"},description="[20180122](moved to faidx/DAS). "+ReferenceGenomeFactory.OPT_DESCRIPTION,required=true)
-	private String referenceGenomeSource = null;
+	@Parameter(names={"-R","--reference"},description= INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path referenceGenomeSource = null;
 
 	/** a sequence with one or more altered base/amino-acid */
 	private static class MutedSequence extends DelegateCharSequence
@@ -200,32 +203,6 @@ public class VCFPredictions extends Launcher
 			}		
 		}
 	
-	
-	/** a protein, cdna translated with a given genetic code. */
-	private static class ProteinCharSequence extends DelegateCharSequence
-		{
-		private final GeneticCode geneticCode;
-		ProteinCharSequence(final GeneticCode geneticCode,final CharSequence cDNA)
-			{
-			super(cDNA);
-			this.geneticCode=geneticCode;
-			}
-		
-		@Override
-		public char charAt(int i)
-			{
-			return geneticCode.translate(
-				getDelegate().charAt(i*3+0),
-				getDelegate().charAt(i*3+1),
-				getDelegate().charAt(i*3+2));
-			}	
-		
-		@Override
-		public int length()
-			{
-			return getDelegate().length()/3;
-			}
-		}
 		
 	
 	class Annotation
@@ -343,15 +320,13 @@ public class VCFPredictions extends Launcher
 		{
 		BufferedReader in=null;
 		try {
-			if (this.referenceGenome.getDictionary() == null) {
-				throw new JvarkitException.FastaDictionaryMissing(this.referenceGenomeSource);
-			}
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
 			int n_ignored=0;
 			int n_genes = 0;
 			this.knownGenes = new IntervalTreeMap<>();
 			LOG.info("loading genes");
 
-			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
+			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			
 			in = IOUtils.openURIForBufferedReading(this.kgURI);
 			String line;
@@ -367,10 +342,10 @@ public class VCFPredictions extends Launcher
 					continue;
 				}
 				
-				if (this.referenceGenome.getDictionary().getSequence(normalizedContig) == null) {
+				if (dict.getSequence(normalizedContig) == null) {
 					++n_ignored;
 					continue;
-				}
+					}
 				final int extend_gene_search = 5000; // because we want to set
 														// SO:5KB_upstream_variant
 
@@ -421,15 +396,14 @@ public class VCFPredictions extends Launcher
 	@Override
 	protected int doVcfToVcf(final String inputName, final VCFIterator r, VariantContextWriter w)
 		{
-		ReferenceContig genomicSequence=null;
+		GenomicSequence genomicSequence=null;
 		try {
 		LOG.info("opening REF:"+this.referenceGenomeSource);
-		this.referenceGenome=new ReferenceGenomeFactory().
-				open(this.referenceGenomeSource);
+		this.referenceGenome= new IndexedFastaSequenceFile(this.referenceGenomeSource);
 		loadKnownGenesFromUri();
 		final VCFHeader header= r.getHeader();
-		
-		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
+		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 		
 		final VCFHeader h2=new VCFHeader(header);
 		addMetaData(h2);
@@ -524,11 +498,10 @@ public class VCFPredictions extends Launcher
 				}
 			else
 				{
-				if(genomicSequence==null || !genomicSequence.hasName(normalizedContig))
+				if(genomicSequence==null || !genomicSequence.getChrom().equals(normalizedContig))
 					{
 					LOG.info("getting genomic Sequence for "+normalizedContig);
-					genomicSequence= this.referenceGenome.getContig(normalizedContig);
-					if(genomicSequence==null) throw new JvarkitException.ContigNotFoundInDictionary(normalizedContig, this.referenceGenome.getDictionary());
+					genomicSequence= new GenomicSequence(this.referenceGenome, normalizedContig);
 					}
 				
 				for(final KnownGene gene:genes)
@@ -559,8 +532,8 @@ public class VCFPredictions extends Launcher
 						ctx_annotations.add(annotations);
 
 		        		StringBuilder wildRNA=null;
-		        		ProteinCharSequence wildProt=null;
-		        		ProteinCharSequence mutProt=null;
+		        		PeptideSequence<CharSequence> wildProt=null;
+		        		PeptideSequence<CharSequence> mutProt=null;
 		        		MutedSequence mutRNA=null;
 		        		int position_in_cds=-1;
 		        		
@@ -666,8 +639,8 @@ public class VCFPredictions extends Launcher
 			            				
 			            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
 				            				{
-				            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-				            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+				            				wildProt= PeptideSequence.of(wildRNA,geneticCode);
+				            				mutProt= PeptideSequence.of(mutRNA,geneticCode);
 				            				}
 			            				}
 			            			final KnownGene.Intron intron= exon.getNextIntron();
@@ -790,8 +763,8 @@ public class VCFPredictions extends Launcher
 			            					wildRNA.length()>0 &&
 			            					wildProt==null)
 				            				{
-				            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-				            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
+				            				wildProt= PeptideSequence.of(wildRNA,geneticCode);
+				            				mutProt= PeptideSequence.of(mutRNA,geneticCode);
 				            				}
 			            				}
 			            			final KnownGene.Intron intron= exon.getPrevIntron();
@@ -903,16 +876,6 @@ public class VCFPredictions extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtil.isBlank(this.referenceGenomeSource))
-			{
-			LOG.error("Reference undefined.");
-			return -1;
-			}
-		if(this.kgURI==null || this.kgURI.trim().isEmpty()) 
-			{
-			LOG.error("knownGene undefined.");
-			return -1;
-			}
 		return doVcfToVcf(args,outputFile);
 		}
 	

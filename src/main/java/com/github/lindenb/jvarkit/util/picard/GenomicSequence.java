@@ -28,7 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.util.picard;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -50,7 +50,7 @@ public class GenomicSequence
 	extends AbstractCharSequence
 	implements ChromosomeSequence
 	{
-	private final IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private final ReferenceSequenceFile indexedFastaSequenceFile;
 	private final SAMSequenceRecord samSequenceRecord;
 	private byte buffer[]=null;
 	private int buffer_pos=-1;
@@ -115,7 +115,7 @@ public class GenomicSequence
 			return result;
 		}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj) {
 				return true;
 			}
@@ -145,7 +145,7 @@ public class GenomicSequence
 		}
 		}
 	
-	public GenomicSequence(final IndexedFastaSequenceFile indexedFastaSequenceFile ,final String chrom)
+	public GenomicSequence(final ReferenceSequenceFile indexedFastaSequenceFile ,final String chrom)
 		{	
 		this.indexedFastaSequenceFile=indexedFastaSequenceFile;
 		if(this.indexedFastaSequenceFile==null) throw new NullPointerException("IndexedFastaSequenceFile is null");

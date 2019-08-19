@@ -15,19 +15,12 @@ Usage: vcfcombinetwosnvs [options] Files
       list of bam if the filename ends with '.list'
     -P, --bedpe
       save optional report as bedpe
+  * -g, --gtf
+      A GTF file.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -k, --knownGene
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
     --maxRecordsInRam
       When writing  files that need to be sorted, this will specify the number 
       of records stored in RAM before spilling to disk. Increasing this number 
