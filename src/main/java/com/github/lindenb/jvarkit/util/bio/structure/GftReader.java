@@ -646,6 +646,10 @@ public class GftReader implements Closeable {
 				this.index0 = index0;
 				}
 			@Override
+			public int getIndex() {
+				return this.index0;
+				}
+			@Override
 			public int getStart() {
 				return getTranscript().getExonStart(this.index0);
 				}
@@ -662,7 +666,6 @@ public class GftReader implements Closeable {
 				return TranscriptImpl.this.transcript_id.hashCode() * 31 +this.index0;
 				}
 
-			
 			@Override
 			public boolean equals(final Object obj) {
 				if(obj==this) return true;

@@ -30,4 +30,41 @@ public interface Intron extends TranscriptInterval {
 	default String getContig() {
 		return getTranscript().getContig();
 	}
+	/** return true is isSplicingAcceptor or isSplicingDonor */
+	public default boolean isSplicing(int position1) {
+		return isSplicingAcceptor(position1) || isSplicingDonor(position1);
+	}
+
+	public default boolean isSplicingAcceptor(int position1)
+		{
+		if(!contains(position1)) return false;
+		if(isPositiveStrand())
+			{
+			return  (position1==getEnd()-0) ||
+					(position1==getEnd()-1);
+			}
+		else
+			{
+			return	position1==getStart() ||
+					position1==getStart()+1;
+			}
+		}
+	
+	public default boolean isSplicingDonor(int position1)
+		{
+		if(!contains(position1)) return false;
+		if(isPositiveStrand())
+			{
+			return	position1==getStart() ||
+					position1==getStart()+1;
+					
+			}
+		else
+			{
+			return  (position1==getEnd()-0) ||
+					(position1==getEnd()-1);
+			}
+		}
+
+	
 }
