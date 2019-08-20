@@ -60,8 +60,8 @@ import htsjdk.samtools.util.RuntimeIOException;
 /**
  * A GTF/KnownGene Reader
  */
-public class GftReader implements Closeable {
-	private static final Logger LOG = Logger.build(GftReader.class).make();
+public class GtfReader implements Closeable {
+	private static final Logger LOG = Logger.build(GtfReader.class).make();
 	public static final String OPT_DESC="A GTF file.";
 	/** available files extensions for GTF files */
 	public static List<String> SUFFIXES = Arrays.asList(".gtf",".gtf.gz");
@@ -73,16 +73,16 @@ public class GftReader implements Closeable {
 	private Function<String,String> contigNameConverter  = S->S;
 	
 	
-	public GftReader(final InputStream in) {
+	public GtfReader(final InputStream in) {
 		this.resource = new InputStreamGtfResource(in);
 	}
 	
-	public GftReader(final Path path) {
+	public GtfReader(final Path path) {
 		IOUtil.assertFileIsReadable(path);
 		this.resource = new PathGtfResource(path);
 		}
 	
-	public GftReader(final String uri) {
+	public GtfReader(final String uri) {
 		if(uri==null) {
 			this.resource = new InputStreamGtfResource(System.in);
 			}

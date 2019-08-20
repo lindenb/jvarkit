@@ -10,14 +10,14 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.KozakSequenceTest;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReaderTest;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReaderTest;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
 
-@AlsoTest(value= {LauncherTest.class,KozakSequenceTest.class,GftReaderTest.class,KnownGeneTest.class,VCFUtilsTest.class})
+@AlsoTest(value= {LauncherTest.class,KozakSequenceTest.class,GtfReaderTest.class,KnownGeneTest.class,VCFUtilsTest.class})
 public class GtfUpstreamOrfTest {
 	private final TestSupport support =new TestSupport();
 	@Test
@@ -34,7 +34,7 @@ public class GtfUpstreamOrfTest {
 				support.resource("Homo_sapiens.GRCh37.87.gtf.gz")
 				}),0);
 			
-			GftReader gf = new GftReader(out);
+			GtfReader gf = new GtfReader(out);
 			gf.getAllGenes();
 			gf.close();
 			

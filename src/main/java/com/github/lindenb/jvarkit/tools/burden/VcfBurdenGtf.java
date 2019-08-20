@@ -49,7 +49,7 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Exon;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Intron;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.bio.structure.TranscriptInterval;
@@ -192,7 +192,7 @@ extends Launcher
 				}
 			
 			final SAMSequenceDictionary vcfDict = SequenceDictionaryUtils.extractRequired(vcfReader.getFileHeader());
-			final GftReader gtfReader = new GftReader(this.gtfFile);
+			final GtfReader gtfReader = new GtfReader(this.gtfFile);
 			gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(vcfDict));
 
 			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);

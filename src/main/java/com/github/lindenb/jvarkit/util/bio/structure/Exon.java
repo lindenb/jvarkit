@@ -27,7 +27,7 @@ package com.github.lindenb.jvarkit.util.bio.structure;
 import java.util.Optional;
 
 
-public interface Exon extends TranscriptInterval {
+public interface Exon extends ExonOrIntron {
 	
 	/** get index in getExons() */
 	public int getIndex();
@@ -45,12 +45,7 @@ public interface Exon extends TranscriptInterval {
 		return Optional.of(getTranscript().getIntron(idx-1));
 		}
 	
-	/** return true is isSplicingAcceptor or isSplicingDonor */
-	public default boolean isSplicing(int position1) {
-		return isSplicingAcceptor(position1) || isSplicingDonor(position1);
-	}
-
-	
+	@Override
 	public default boolean isSplicingAcceptor(final int position1)
 		{
 		if(!contains(position1)) return false;
@@ -66,6 +61,7 @@ public interface Exon extends TranscriptInterval {
 			}
 		}
 
+	@Override
 	public default boolean isSplicingDonor(int position1)
 		{
 		if(!contains(position1) || this.getLengthOnReference()<3) return false;
@@ -84,4 +80,4 @@ public interface Exon extends TranscriptInterval {
 					(position1==getStart()+2) ;
 			}
 		}
-}
+	}

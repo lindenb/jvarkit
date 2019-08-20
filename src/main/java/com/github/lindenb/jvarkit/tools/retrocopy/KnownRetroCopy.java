@@ -39,7 +39,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Intron;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -134,7 +134,7 @@ public class KnownRetroCopy extends Launcher
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			final IntervalTreeMap<List<Intron>> intronMap = new IntervalTreeMap<>();
 			
-			final GftReader gtfReader = new GftReader(this.gtfPath);
+			final GtfReader gtfReader = new GtfReader(this.gtfPath);
 			if(dict!=null && !dict.isEmpty()) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 			gtfReader.getAllGenes().
 					stream().

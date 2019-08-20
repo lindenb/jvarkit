@@ -44,7 +44,7 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Intron;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -158,7 +158,7 @@ public class GtfRetroCopy extends Launcher
 				return Integer.compare(A.getEnd(),B.getEnd());
 			};
 			
-			final GftReader gtfReader = new GftReader(this.gtfPath);
+			final GtfReader gtfReader = new GtfReader(this.gtfPath);
 			if(dict!=null && !dict.isEmpty()) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 			final List<Gene> genes = gtfReader.getAllGenes().
 					stream().

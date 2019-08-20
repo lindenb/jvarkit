@@ -25,17 +25,10 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.backlocate;
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.StringUtil;
-import htsjdk.tribble.annotation.Strand;
-
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,23 +38,30 @@ import java.util.Map;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.AminoAcids;
 import com.github.lindenb.jvarkit.util.bio.AminoAcids.AminoAcid;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
+import com.github.lindenb.jvarkit.util.bio.structure.Exon;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.PeptideSequence;
+import com.github.lindenb.jvarkit.util.bio.structure.RNASequence;
+import com.github.lindenb.jvarkit.util.bio.structure.RNASequenceFactory;
+import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloserUtil;
 /**
  BEGIN_DOC
 
@@ -70,21 +70,8 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 mutation P->M at 1090 in NOTCH2
 
 ```
-$  echo -e "NOTCH2\tP1090M" | java -jar dist/backlocate.jar -R hg19.fa
+$  echo -e "NOTCH2\tP1090M" | java -jar dist/backlocate.jar -R hg19.fa --gtf ucsc.gtf
 (...)
-[WARNING/BackLocate] 2014-11-05 12:03:08 "The reference doesn't contain chromosome chr17_ctg5_hap1"
-[WARNING/BackLocate] 2014-11-05 12:03:15 "The reference doesn't contain chromosome chr4_ctg9_hap1"
-[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_apd_hap1"
-[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_cox_hap2"
-[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_dbb_hap3"
-(...)
-[INFO/BackLocate] 2014-11-05 12:03:18 "genes:78963"
-[INFO/BackLocate] 2014-11-05 12:03:18 "loading http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz"
-[INFO/BackLocate] 2014-11-05 12:03:24 "kgxref:28493"
-(...)
-```
-
-```
 #User.Gene	AA1	petide.pos.1	AA2	knownGene.name	knownGene.strandknownGene.AA	index0.in.rna	codon	base.in.rna	chromosome	index0.in.genomic	exon
 ##uc001eik.3
 NOTCH2	P	1090	M	uc001eik.3	NEGATIVE	P	3267	CCA	C	chr1	120480548	Exon 20
@@ -97,7 +84,7 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
 ```
 
 ```
-$ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /path/to/human_g1k_v37.fasta | grep -v "##" | java -jar dist/prettytable.jar 
+$ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar --gtf ucsc.gtf -R /path/to/human_g1k_v37.fasta | grep -v "##" | java -jar dist/prettytable.jar 
 
 +------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
 | #User.Gene | AA1 | petide.pos.1 | AA2 | knownGene.name | knownGene.strand | knownGene.AA | index0.in.rna | wild.codon | potential.var.codons | base.in.rna | chromosome | index0.in.genomic | exon    | extra.user.data |
@@ -121,6 +108,7 @@ $ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /pa
 
 ## History
 
+ * 2019: move to GTF
  * 2019: add extra user data
  * 2017: Moved to jcommander
  * 2014: Moved to jvarkit
@@ -139,7 +127,8 @@ backlocate was cited in:
 @Program(name="backlocate",
 	description="Mapping a mutation on a protein back to the genome.",
 	keywords={"vcf","annotation","prediction","protein"},
-	biostars={15992,116366}
+	biostars={15992,116366},
+	modificationDate="20190820"
 	)
 public class BackLocate
 	extends Launcher
@@ -148,88 +137,31 @@ public class BackLocate
 	@Parameter(names={"-p","--printSeq"},description="print mRNA & protein sequences")
 	private boolean printSequences = false;
 
-	@Parameter(names={"-k","--kg"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String knownGeneURI = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz"; // DOn't use the default kgURI because that one must be in sync with kgXref
+	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
+	private Path gtfPath = null;
 
-	@Parameter(names={"-x","-X","--kgxref"},description="UCSC kgXRef URI. Must have at least 5 columns. $1 is knowGene-Id $5  is protein identifier.")
-	private String kgXRef = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz";
-
-	@Parameter(names={"-R","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION,required=true,converter=ReferenceFileSupplier.StringConverter.class)
-	private ReferenceFileSupplier refSupplier=ReferenceFileSupplier.getDefaultReferenceFileSupplier();
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidx = null;
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 
 	
 
-	private IndexedFastaSequenceFile referenceGenome = null;
+	private ReferenceSequenceFile referenceGenome = null;
 	private GenomicSequence genomicContig = null;
-	private final Map<String,Set<String>> geneSymbol2kg = new HashMap<>(50_000);
-	private final Map<String,KnownGene> kgIdToKnownGene = new HashMap<>(100_000);
+	private final Map<String,List<Transcript>>  name2transcripts = new HashMap<>(100_000);
 	/** get a genetic code from a chromosome name (either std or mitochondrial */
 	private static GeneticCode getGeneticCodeByChromosome(final String chr)
 		{
 		if(chr.equalsIgnoreCase("chrM") || chr.equalsIgnoreCase("MT")) return GeneticCode.getMitochondrial();
 		return GeneticCode.getStandard();
-		}
-		
-	
-	static private class RNASequence extends AbstractCharSequence
-		{
-		final List<Integer> genomicPositions=new ArrayList<Integer>();
-		final GenomicSequence genomic;
-		final char strand;
-		RNASequence(final GenomicSequence genomic,final char strand)
-			{
-			this.genomic=genomic;
-			this.strand=strand;
-			}
-		@Override
-		public char charAt(int i)
-			{
-			final char c= Character.toUpperCase(genomic.charAt(this.genomicPositions.get(i)));
-			return (strand=='+'?c:AcidNucleics.complement(c));
-			}
-		@Override
-		public int length()
-			{
-			return genomicPositions.size();
-			}
-		}
-	
-	static private class ProteinCharSequence extends AbstractCharSequence
-		{
-		private final RNASequence cDNA;
-		private final GeneticCode geneticCode;
-		ProteinCharSequence(final GeneticCode geneticCode,final RNASequence cDNA)
-			{
-			this.geneticCode=geneticCode;
-			this.cDNA=cDNA;
-			}
-		
-		@Override
-		public char charAt(int i)
-			{
-			return geneticCode.translate(
-				cDNA.charAt(i*3+0),
-				cDNA.charAt(i*3+1),
-				cDNA.charAt(i*3+2));
-			}	
-		
-		@Override
-		public int length()
-			{
-			return this.cDNA.length()/3;
-			}
-	}
-
-
-	
+		}	
 
 
 	private void backLocate(
 		final PrintStream out,
-		final KnownGene gene,
+		final Transcript transcript,
 		final String geneName,
 		final AminoAcid aa1,
 		final AminoAcid aa2,
@@ -238,99 +170,33 @@ public class BackLocate
 		) throws IOException
 		{
 		final Set<String> messages = new LinkedHashSet<>();
-		final GeneticCode geneticCode = getGeneticCodeByChromosome(gene.getChromosome());
-		RNASequence wildRNA=null;
-		ProteinCharSequence wildProt=null;
+		final GeneticCode geneticCode = getGeneticCodeByChromosome(transcript.getContig());
+		final RNASequenceFactory rnaSequenceFactory=new RNASequenceFactory();
 		
 	        		
 	        		
 		if(this.genomicContig==null ||
-		   !this.genomicContig.getChrom().equals(gene.getContig())
+		   !this.genomicContig.getChrom().equals(transcript.getContig())
 	       )
 	        	{
 	        	final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
-	        	final SAMSequenceRecord ssr =dict.getSequence(gene.getContig());
+	        	final SAMSequenceRecord ssr =dict.getSequence(transcript.getContig());
 	        	if(ssr==null) {
-	        		LOG.warn(JvarkitException.ContigNotFoundInDictionary.getMessage(gene.getContig(), dict));
+	        		LOG.warn(JvarkitException.ContigNotFoundInDictionary.getMessage(transcript.getContig(), dict));
 	        		return;
 	        		}
-	        	this.genomicContig= new GenomicSequence(this.referenceGenome,gene.getContig());
+	        	this.genomicContig= new GenomicSequence(this.referenceGenome,transcript.getContig());
 	        	}
-        	
-	     if(gene.isPositiveStrand())
-    		{    		
-    		int exon_index=0;
-    		while(exon_index< gene.getExonCount())
-    			{
-    			for(int i= gene.getExonStart(exon_index);
-    					i< gene.getExonEnd(exon_index);
-    					++i)
-    				{
-    				if(i< gene.getCdsStart()) continue;
-    				if(i>=gene.getCdsEnd()) break;
-					
-					if(wildRNA==null)
-						{
-						wildRNA=new RNASequence(this.genomicContig,'+');
-						}
-
-    				wildRNA.genomicPositions.add(i);
-    				
-    				
-    				
-    				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
-        				{
-        				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-        				}
-    				}
-    			++exon_index;
-    			}
-    		
-    		
-    		
-    		}
-	   else // reverse orientation
-    		{
-    		int exon_index = gene.getExonCount()-1;
-    		while(exon_index >=0)
-    			{
-    			for(int i= gene.getExonEnd(exon_index)-1;
-    				    i>= gene.getExonStart(exon_index);
-    				--i)
-    				{
-    				if(i>= gene.getCdsEnd()) continue;
-    				if(i<  gene.getCdsStart()) break;
-    				
-    				if(wildRNA==null)
-						{
-						wildRNA=new RNASequence(this.genomicContig,'-');
-						}
-    				
-    				
-    				
-    				wildRNA.genomicPositions.add(i);
-    				if( wildRNA.length()%3==0 &&
-    					wildRNA.length()>0 &&
-    					wildProt==null)
-        				{
-        				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-        				}
-    				
-    				}
-    			--exon_index;
-    			}
-
-    		}//end of if reverse
-	        		
-	     if(wildProt==null)
-	    	 {
-	    	 stderr().println("##no protein found for transcript:"+gene.getName());
-	    	 return;
-	    	 }
-	    int peptideIndex0= peptidePos1-1;
-        if(peptideIndex0 >=wildProt.length())
+    	rnaSequenceFactory.setContigToGenomicSequence(C->this.genomicContig);
+        
+		 final RNASequence wildRNA = rnaSequenceFactory.getCodingRNA(transcript);
+		 final PeptideSequence<RNASequence> wildProt = PeptideSequence.of(wildRNA,geneticCode);
+		 
+	       		
+	     final int peptideIndex0= peptidePos1-1;
+         if(peptideIndex0 >=wildProt.length())
         	{
-        	out.println("##index out of range for :"+gene.getName()+" petide length="+wildProt.length());
+        	out.println("##index out of range for :"+transcript.getId()+" petide length="+wildProt.length());
         	return;
         	}
     
@@ -339,7 +205,7 @@ public class BackLocate
         	messages.add("REF aminod acid ["+peptidePos1+"] is not the same ("+wildProt.charAt(peptideIndex0)+"/"+aa1+")");
         	}
        
-        int indexesInRNA[]=new int[]{
+        final int indexesInRNA[]=new int[]{
         	0+ peptideIndex0*3,
         	1+ peptideIndex0*3,
         	2+ peptideIndex0*3
@@ -375,9 +241,11 @@ public class BackLocate
         	out.print('\t');
         	out.print(aa2.getThreeLettersCode());
         	out.print('\t');
-        	out.print(gene.getName());
+        	out.print(transcript.getGene().getGeneName());
         	out.print('\t');
-        	out.print(gene.getStrand()==Strand.NEGATIVE?"-":"+");
+        	out.print(transcript.getId());
+        	out.print('\t');
+        	out.print(transcript.getStrand());
         	out.print('\t');
         	out.print(wildProt.charAt(peptideIndex0));
         	out.print('\t');
@@ -396,15 +264,15 @@ public class BackLocate
         	out.print('\t');
         	out.print(wildRNA.charAt(indexInRna));
         	out.print('\t');
-        	out.print(gene.getChromosome());
+        	out.print(transcript.getContig());
         	out.print('\t');
-        	out.print(wildRNA.genomicPositions.get(indexInRna));
+        	out.print(wildRNA.convertRnaIndex0ToGenomic0(indexInRna));
         	out.print('\t');
         	String exonName=null;
-        	for(final KnownGene.Exon exon : gene.getExons())
+        	for(final Exon exon : transcript.getExons())
 				{
-				int genome=wildRNA.genomicPositions.get(indexInRna);
-				if(exon.getStart()<=genome && genome< exon.getEnd())
+				int genome=wildRNA.convertRnaIndex0ToGenomic0(indexInRna);
+				if(exon.contains(genome))
 					{
 					exonName=exon.getName();
 					break;
@@ -469,121 +337,55 @@ public class BackLocate
 					;
 			if(aa2==null) throw new JvarkitException.UserError("Bad mutation "+mut+" (cannot parse right AA)");
 			
-			final Set<String> kgIds= this.geneSymbol2kg.get(geneName.toUpperCase());
-			if(kgIds==null || kgIds.isEmpty())
+			final List<Transcript> transcripts= this.name2transcripts.get(geneName.toUpperCase());
+			if(transcripts==null || transcripts.isEmpty())
 				{
-				LOG.warn("No kgXref found for "+geneName);
+				LOG.warn("no transcript found for "+geneName);
 				continue;
 				}
 			
 			
-			for(final String kgId:kgIds)
+			for(final Transcript transcript:transcripts)
 				{
-				final KnownGene kg=this.kgIdToKnownGene.get(kgId);
-				if(kg==null) continue;
-				backLocate(out,kg, geneName, aa1, aa2, position1,tokens.length>2?tokens[2]:".");
+				backLocate(out,transcript, geneName, aa1, aa2, position1,tokens.length>2?tokens[2]:".");
 				}
 			}
 		}
 	
-	
-	private void loadKnownGenesFromUri(final String kgURI) throws IOException
-		{
-		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
-		final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
-		
-		LOG.info("loading genes");
-		final Set<String> unknown=new HashSet<String>();
-		BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
-		String line;
-		final CharSplitter tab=CharSplitter.TAB;
-		while((line=in.readLine())!=null)
-			{
-			if(line.isEmpty()) continue;
-			final String tokens[]=tab.split(line);
-			final KnownGene g =new KnownGene(tokens);
-			final String contig = converter.apply(g.getContig());
-			if(StringUtils.isBlank(contig))
-				{
-				if(!unknown.contains(g.getContig()))
-					{
-					LOG.warn(JvarkitException.ContigNotFoundInDictionary.getMessage(g.getContig(), dict));
-					unknown.add(g.getContig());
-					}
-				continue;
-				}
-			g.setChrom(contig);
-			
-			this.kgIdToKnownGene.put(g.getName(),g);
-			}
-		in.close();
-		LOG.info("genes:"+this.kgIdToKnownGene.size());
-		}
-	
-	private void loadkgXRefFromUri(String kgURI) throws IOException
-		{
-		int ignored_kgname = 0;
-		LOG.info("loading "+kgURI);
-		final BufferedReader in=IOUtils.openURIForBufferedReading(kgURI);
-		String line;
-		final CharSplitter tab=CharSplitter.TAB;
-		while((line=in.readLine())!=null)
-			{
-			if(StringUtils.isBlank(line)) continue;
-			final String tokens[]=tab.split(line);
-			final String kgId=tokens[0];
-			if(StringUtils.isBlank(kgId)) continue;
-			
-			if(!this.kgIdToKnownGene.containsKey(kgId)) {
-				++ignored_kgname;
-				continue;
-				}
-			if(tokens.length< 4) {
-				LOG.warning(JvarkitException.TokenErrors.getMessage(5, tokens));
-				continue;
-				}
-			
-			final String geneSymbol=tokens[4].toUpperCase();
-			
-			if(StringUtils.isBlank(geneSymbol)) continue;
-			
-			Set<String> kglist= this.geneSymbol2kg.get(geneSymbol);
-			if(kglist==null)
-				{
-				kglist = new HashSet<String>();
-				this.geneSymbol2kg.put(geneSymbol,kglist);
-				}
-			kglist.add(kgId);//kgID
-			}
-		in.close();
-		LOG.info("kgxref:"+this.geneSymbol2kg.size()+" . Count ignored because not found in kg file: "+ignored_kgname);
-		}
-
 	
 	@Override
 	public int doWork(final List<String> args) {
 		PrintStream out=null;
 		BufferedReader in=null;
 		try {
-			final File faidx = this.refSupplier.getRequired();
-			this.referenceGenome = new IndexedFastaSequenceFile(faidx);
+			this.referenceGenome = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			
-			
-			if(StringUtil.isBlank(this.knownGeneURI))
-				{
-				throw new JvarkitException.CommandLineError("Undefined knwonGeneURI");
+			try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
+				final ContigNameConverter contigNameConverter= ContigNameConverter.fromOneDictionary(dict);
+				gtfReader.setContigNameConverter(contigNameConverter);
+				gtfReader.getAllGenes().stream().
+					filter(G->!StringUtils.isBlank(G.getGeneName())).
+					flatMap(G->G.getTranscripts().stream()).
+					filter(T->T.isCoding() && T.hasCDS()).
+					forEach(
+					T->{
+						final String gn = T.getGene().getGeneName().toUpperCase();
+						
+						List<Transcript> L = this.name2transcripts.get(gn);
+						if(L==null) {
+							L=new ArrayList<>();
+							this.name2transcripts.put(gn,L);
+							}
+						L.add(T);
+						});
+				
 				}
 			
-			if(StringUtil.isBlank(this.kgXRef))
-				{
-				throw new JvarkitException.CommandLineError("Undefined kgXref");
-				}
-			this.loadKnownGenesFromUri(knownGeneURI);
-			this.loadkgXRefFromUri(kgXRef);
 
 			
 			
-			out = this.openFileOrStdoutAsPrintStream(this.outputFile);
+			out = this.openPathOrStdoutAsPrintStream(this.outputFile);
 			
 			out.print("#User.Gene");
         	out.print('\t');
@@ -593,11 +395,13 @@ public class BackLocate
         	out.print('\t');
         	out.print("AA2");
         	out.print('\t');
-        	out.print("knownGene.name");
+        	out.print("transcript.name");
         	out.print('\t');
-        	out.print("knownGene.strand");
+        	out.print("transcript.id");
         	out.print('\t');
-        	out.print("knownGene.AA");
+        	out.print("transcript.strand");
+        	out.print('\t');
+        	out.print("transcript.AA");
         	out.print('\t');
         	out.print("index0.in.rna");
         	out.print('\t');

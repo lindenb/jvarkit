@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -1147,9 +1147,9 @@ public class BioAlcidaeJdk
     	@Override
     	public int execute(final String inputFile, final PrintStream out) throws Exception {
     		GtfHandler gtfHandler = null;
-    		GftReader gtfReader= null;
+    		GtfReader gtfReader= null;
     		try {
-    			gtfReader = new GftReader(inputFile);
+    			gtfReader = new GtfReader(inputFile);
     			if(this.faidxPath!=null) {
     				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidxPath);
     				gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
@@ -1218,7 +1218,7 @@ public class BioAlcidaeJdk
 		GTF {
 			@Override
 			boolean canAs(final String src) {
-				return src!=null && GftReader.SUFFIXES.stream().anyMatch(S->src.endsWith(S));
+				return src!=null && GtfReader.SUFFIXES.stream().anyMatch(S->src.endsWith(S));
 			}}
 			;
 

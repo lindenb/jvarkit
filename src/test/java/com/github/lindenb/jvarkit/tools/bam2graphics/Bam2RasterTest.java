@@ -9,8 +9,11 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 
+@AlsoTest(Launcher.class)
 public class Bam2RasterTest {
 	private final TestSupport support = new TestSupport();
 

@@ -39,7 +39,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -155,7 +155,7 @@ public class SVPredictions extends Launcher
 		try {
 		final VCFHeader header= r.getHeader();
 		final SAMSequenceDictionary dict=  header.getSequenceDictionary();
-		try(final GftReader gtfReader=new GftReader(this.gtfPath)) {
+		try(final GtfReader gtfReader=new GtfReader(this.gtfPath)) {
 			if(dict!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 			gtfReader.getAllGenes().stream().forEach(G->this.all_gene.put(new Interval(G), G));
 			}

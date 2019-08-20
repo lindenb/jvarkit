@@ -6,17 +6,18 @@ import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class GftReaderTest {
-private final TestSupport support =new TestSupport();
-	
+@AlsoTest(PeptideSequenceTest.class)
+public class GtfReaderTest {
+private final TestSupport support =new TestSupport();	
 	
 @Test
 void test01() throws IOException {
 	try {
 		String path = support.resource("Homo_sapiens.GRCh37.87.gtf.gz");
-		GftReader gf = new GftReader(path);
+		GtfReader gf = new GtfReader(path);
 		final List<Gene> genes = gf.getAllGenes();
 		gf.close();
 		Assert.assertEquals(genes.size(), 3);

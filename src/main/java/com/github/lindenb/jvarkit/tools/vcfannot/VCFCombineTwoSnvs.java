@@ -57,7 +57,7 @@ import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GranthamScore;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.PeptideSequence;
 import com.github.lindenb.jvarkit.util.bio.structure.RNASequence;
 import com.github.lindenb.jvarkit.util.bio.structure.RNASequenceFactory;
@@ -186,7 +186,7 @@ public class VCFCombineTwoSnvs extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-g","--gtf"},description=GftReader.OPT_DESC,required=true)
+	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
 	private Path gtfPath  = null;
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
 	private Path bamIn = null;
@@ -237,12 +237,12 @@ public class VCFCombineTwoSnvs extends Launcher
 	/** load KnownGenes */
 	private void loadTranscripts() throws IOException
 		{
-		GftReader gtfReader = null;
+		GtfReader gtfReader = null;
 		try {
 			final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 			final ContigNameConverter  ctgNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			LOG.info("loading genes from "+this.gtfPath);
-			gtfReader = new GftReader(this.gtfPath);
+			gtfReader = new GtfReader(this.gtfPath);
 			gtfReader.setContigNameConverter(ctgNameConverter);
 			gtfReader.getAllGenes().stream().
 				flatMap(G->G.getTranscripts().stream()).filter(T->T.hasStrand() && T.hasCDS()).

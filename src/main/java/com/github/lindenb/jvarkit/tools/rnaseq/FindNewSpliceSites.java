@@ -24,39 +24,33 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
-import java.io.File;
-import java.util.ArrayList;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import htsjdk.tribble.readers.LineIterator;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene.Exon;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 
 /**
 BEGIN_DOC
@@ -66,7 +60,7 @@ BEGIN_DOC
 
 ```bash
 $  java -jar dist/findnewsplicesites.jar \
-     -k http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz \
+     --gtf http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.gtf.gz \
       hg19.bam > out.sam
 ```
 
@@ -74,17 +68,18 @@ END_DOC
 */
 @Program(name="findnewsplicesites",
 	description="use the 'N' operator in the cigar string to find unknown splice sites",
-	keywords={"rnaseq","splice"}
+	keywords={"rnaseq","splice"},
+	modificationDate="20190820"
 	)
 public class FindNewSpliceSites extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindNewSpliceSites.class).make();
 
-	private IntervalTreeMap<List<KnownGene>> knownGenesMap=new IntervalTreeMap<>();
+	
 	@Parameter(names={"-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names="-k",description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String knownGeneUri = KnownGene.getDefaultUri();
+	private Path outputFile = null;
+	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
+	private Path gtfPath = null;
 	@Parameter(names="-d",description="max distance between known splice site and cigar end")
 	private int max_distance=10;
 	@ParametersDelegate
@@ -92,7 +87,8 @@ public class FindNewSpliceSites extends Launcher
 	
 	private SAMFileWriter sfw=null;
 	private SAMFileWriter weird=null;
-
+	private final IntervalTreeMap<Interval> intronMap =new IntervalTreeMap<>();
+	
 	private FindNewSpliceSites()
 		{
 		}
@@ -105,23 +101,19 @@ public class FindNewSpliceSites extends Launcher
 
 
 	private boolean findJunction(
-			Collection<KnownGene> genes,
+			Collection<Interval> introns,
 			int start1,
 			int end1
 			)
 		{
-		for(final KnownGene g:genes)
-			{
-			for(int k=0;k+1< g.getExonCount();++k)
+		for(final Interval intron:introns)
+			{			
+			if( is_close_to(intron.getStart(),start1) &&
+				is_close_to(intron.getEnd(),end1))
 				{
-				final Exon ex0=g.getExon(k);
-				final Exon ex1=g.getExon(k+1);
-				if( is_close_to(ex0.getEnd()+1,start1) &&
-					is_close_to(ex1.getStart()+1,end1))
-					{
-					return true;
-					}
+				return true;
 				}
+				
 			}
 		return false;
 		}
@@ -144,12 +136,9 @@ public class FindNewSpliceSites extends Launcher
 		
 			
 			final Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
-			final List<KnownGene> genes=new ArrayList<>();
-			for(final List<KnownGene> list:this.knownGenesMap.getOverlapping(interval))
-				{
-				genes.addAll(list);
-				}
-			if(genes.isEmpty())
+			final List<Interval> introns =this.intronMap.getOverlapping(interval).stream().collect(Collectors.toList());
+			
+			if(introns.isEmpty())
 				{
 				return;
 				}
@@ -169,7 +158,7 @@ public class FindNewSpliceSites extends Launcher
 						{
 						if(cIdx+1<cigar.numCigarElements() &&
 							isMatch(cigar.getCigarElement(cIdx+1)) &&	
-							!findJunction(genes,refPos1-1,refPos1+ce.getLength()))
+							!findJunction(introns,refPos1,refPos1+ce.getLength()-1))
 							{
 							this.sfw.addAlignment(rec);//unknown junction
 							return;
@@ -252,33 +241,22 @@ public class FindNewSpliceSites extends Launcher
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.knownGeneUri==null || this.knownGeneUri.trim().isEmpty())
-			{
-			LOG.error("known Gene file undefined");
-			return -1;
-			}
+		
 		
 		SamReader sfr=null;
 		try
 			{
-
-			final Pattern tab=Pattern.compile("[\t]");
+			try(GtfReader gftReader=new GtfReader(this.gtfPath))
 				{
-				LOG.info("Opening "+this.knownGeneUri);
-				LineIterator r=IOUtils.openURIForLineIterator(this.knownGeneUri);
-				while(r.hasNext())
+				gftReader.getAllGenes().stream().
+					flatMap(G->G.getTranscripts().stream()).
+					filter(T->T.getExonCount()>1).
+					flatMap(T->T.getIntrons().stream()).
+					map(T->T.toInterval()).
+					forEach(T->
 					{
-					final KnownGene g=new KnownGene(tab.split(r.next()));
-					if(g.getExonCount()==1) continue;//need spliced one
-					final Interval interval = new Interval(g.getContig(), g.getTxStart()+1, g.getTxEnd());
-					List<KnownGene> L = this.knownGenesMap.get(interval);
-					if(L==null) {
-						L= new ArrayList<>();
-						this.knownGenesMap.put(interval,L);
-					}
-					L.add(g);
-					}
-				LOG.info("Done reading: "+this.knownGeneUri);
+					this.intronMap.put(T,T);
+					});
 				}
 			sfr = super.openSamReader(oneFileOrNull(args));
 			
@@ -287,7 +265,7 @@ public class FindNewSpliceSites extends Launcher
 			p.setCommandLine(getProgramCommandLine());
 			p.setProgramVersion(getVersion());
 			p.setProgramName(getProgramName());
-			this.sfw=this.writingBamArgs.openSAMFileWriter(outputFile, header, true);
+			this.sfw=this.writingBamArgs.openSamWriter(outputFile, header, true);
 			
 			header=sfr.getFileHeader().clone();
 			p=header.createProgramRecord();
