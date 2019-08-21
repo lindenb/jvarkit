@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
@@ -399,9 +400,9 @@ public class BamStats05 extends Launcher
 				while((line=r.readLine())!=null)
 					{
 					if(line.startsWith("#") || StringUtil.isBlank(line)) continue;
-					if(!line.endsWith(".bam"))
+					if(!line.endsWith(FileExtensions.BAM))
 						{
-						LOG.error("line should end with .bam :"+line);
+						LOG.error("line should end with "+FileExtensions.BAM+" :"+line);
 						return -1;
 						}
 					files.add(new File(line));

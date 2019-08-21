@@ -14,6 +14,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 
 /**
 ##Motivation
@@ -330,7 +331,7 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 				bamFileStr=bamFileStr.trim();
 				if(samtools==null || bamFileStr.isEmpty()) continue;
 				File bamFile=null;
-				if(bamFileStr!=null && bamFileStr.endsWith(".bam"))
+				if(bamFileStr!=null && bamFileStr.endsWith(FileExtensions.BAM))
 					{
 					bamFile=new File(bamFileStr.trim());
 					if(!(bamFile.exists() && bamFile.isFile() && bamFile.canRead()))
@@ -341,7 +342,7 @@ public class SamtoolsTviewCGI extends AbstractCGICallApp
 						}
 					else
 						{	
-						File bai=new File(bamFileStr+".bai");
+						File bai=new File(bamFileStr+FileExtensions.BAI_INDEX);
 						if(!bai.exists())
 							{
 							bai=new File(bamFileStr.substring(0,bamFileStr.length()-3)+"bai");
