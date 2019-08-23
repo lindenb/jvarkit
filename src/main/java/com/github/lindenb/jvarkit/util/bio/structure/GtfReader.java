@@ -112,7 +112,7 @@ public class GtfReader implements Closeable {
 		final Map<String,TranscriptImpl> id2transcript = new HashMap<>();
 		final Map<String,List<Coords>> transcript2exons = new HashMap<>();
 		final IntervalTreeMap<Locatable> treemap;
-		final GTFCodec codec = GTFCodec.createGtfCodec();
+		final GTFCodec codec = new GTFCodec();
 
 		
 		State(final Collection<Locatable> intervals)

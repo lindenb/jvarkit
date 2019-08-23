@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -85,7 +84,7 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
 @Program(name="findavariation",
 	description="Finds a specific mutation in a list of VCF files",
 	keywords={"vcf","variation","search"},
-	modificationDate="20190409"
+	modificationDate="20190821"
 	)
 public class FindAVariation extends Launcher
 	{
@@ -93,7 +92,7 @@ public class FindAVariation extends Launcher
 	@Parameter(names={"-p","--position"},description="A list of 'chrom/position'")
 	private Set<String> positionsList = new HashSet<>();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-f","--posfile"},description="Add this file containing chrom:position")
 	private Set<String> positionFilesList = new HashSet<>();
 	@Parameter(names={"-homref","--homref"},description="Hide HOM_REF genotypes")
@@ -400,22 +399,22 @@ public class FindAVariation extends Launcher
 				this.mutations.add(m);
 				}			
 			
-			this.out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			this.out=super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			this.out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tAD\tDP\tGQ");
 			
 			
 			
 			if(args.isEmpty())
 				{
-				BufferedReader br= new BufferedReader(new InputStreamReader(stdin()));
-				br.lines().forEach(L->scanLine(L));
-				br.close();
+				try(BufferedReader br= new BufferedReader(new InputStreamReader(stdin()))) {
+					br.lines().forEach(L->scanLine(L));
+					}
 				}
 			else if(args.size()==1 && args.get(0).endsWith(".list"))
 				{
-				BufferedReader br= IOUtils.openPathForBufferedReading(Paths.get(args.get(0)));
-				br.lines().forEach(L->scanLine(L));
-				br.close();
+				try(BufferedReader br= IOUtils.openPathForBufferedReading(Paths.get(args.get(0)))) {
+					br.lines().forEach(L->scanLine(L));
+					}
 				}
 			else 
 				{

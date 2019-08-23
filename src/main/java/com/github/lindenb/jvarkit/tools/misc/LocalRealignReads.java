@@ -28,7 +28,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-@Program(name="localrealignreads",description="Local Realignment of Reads")
+@Program(name="localrealignreads",description="Local Realignment of Reads",generate_doc=false)
 public class LocalRealignReads extends Launcher
 	{
 	private static final Logger LOG = Logger.build(LocalRealignReads.class).make();

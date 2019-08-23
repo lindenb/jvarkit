@@ -163,11 +163,6 @@ public class Gtf2Xml extends Launcher{
 	private boolean disable_dict=false;
 	@Parameter(names={"-a","--attributes"},description="Don't record attribute types.")
 	private boolean disable_att_keys=false;
-	@ParametersDelegate
-	private GTFCodec.FormatChooser formatChooser = new  GTFCodec.FormatChooser();
-	
-
-	
 	
 	private final Map<String,Long> seqdict=new LinkedHashMap<>();
 	private final Set<String> att_keys=new HashSet<>();
@@ -243,7 +238,7 @@ public class Gtf2Xml extends Launcher{
 				{
 				w = xof.createXMLStreamWriter((fw=new FileWriter(this.outputFile)));
 				}
-			final GTFCodec codec = this.formatChooser.makeCodec();
+			final GTFCodec codec = new GTFCodec();
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("gtf");
 			

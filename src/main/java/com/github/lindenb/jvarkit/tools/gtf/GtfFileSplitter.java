@@ -276,7 +276,7 @@ public class GtfFileSplitter
 		}
 
 	private abstract class AbstractSplitter<T extends KeyLine> {
-		final GTFCodec codec = GTFCodec.createGtfCodec();
+		final GTFCodec codec = new GTFCodec();
 		SortingCollection<T> sortingcollection=null;
 					
 	

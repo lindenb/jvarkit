@@ -27,11 +27,11 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.regex.Pattern;
+
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 
 public class IlluminaReadName
 	{
-	private static final Pattern COLON  = Pattern.compile("[\\:]");
 	public enum Version {V1_4};
 	private String instrument=null;
 	private int runId=-1;
@@ -68,7 +68,7 @@ public class IlluminaReadName
 			String right=blank>=s.length()?"":s.substring(blank).trim();
 			
 			
-			String tokens[] = COLON.split(left);
+			String tokens[] = CharSplitter.COLON.split(left);
 			if(tokens[0].startsWith("@")) {
 				tokens[0]=tokens[0].substring(1);
 			}
@@ -121,7 +121,7 @@ public class IlluminaReadName
 				}
 			
 			if(right.isEmpty()) return Optional.of(irn);
-			tokens = COLON.split(right);
+			tokens = CharSplitter.COLON.split(right);
 			
 			if(tokens.length>0 && tokens[0].length()==1) {
 				switch(tokens[0].charAt(0))

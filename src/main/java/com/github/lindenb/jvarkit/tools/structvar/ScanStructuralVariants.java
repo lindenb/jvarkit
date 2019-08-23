@@ -60,6 +60,7 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -87,6 +88,7 @@ public class ScanStructuralVariants extends Launcher{
 	private static final Logger LOG = Logger.build(ScanStructuralVariants.class).make();
 	private  static final String ATT_FILENAME="SOURCE";
 	private static final String ATT_CLUSTER="CLUSTER";
+	private static final String ATT_CONTROL="FOUND_IN_CONTROL";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	@Parameter(names={"-d","--distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
@@ -97,6 +99,8 @@ public class ScanStructuralVariants extends Launcher{
 	private List<Path> controlsPath =new ArrayList<>();
 	@Parameter(names={"--all"},description="Print all original variants from each file instead of printing just one.")
 	private boolean print_all_ctx=false;
+	@Parameter(names={"--maf"},description="Max frequency of variants found in controls.")
+	private double max_maf = 0.0;
 
 	private int ID_GENERATOR=0;
 
@@ -138,6 +142,8 @@ public class ScanStructuralVariants extends Launcher{
 			final List<Path> controlsPaths,
 			final VariantContextWriter out) {
 		if(candidates.size()==vcfFilesInput.size()) {
+			final int max_controls = (int)(controlsPaths.size() * max_maf);
+			int count_matching_controls = 0;
 			for(final Path ctrl: controlsPaths) {
 				final VCFFileReader vcfReader = new VCFFileReader(ctrl, true);
 				final CloseableIterator<VariantContext> iter = vcfReader.query(
@@ -145,17 +151,22 @@ public class ScanStructuralVariants extends Launcher{
 						Math.max(1,ctx.getStart()-this.max_distance),
 						ctx.getEnd()+this.max_distance
 						);
-				boolean found_in_controls= false;
 				while(iter.hasNext()) {
-					VariantContext ctx3 = iter.next();
+					final VariantContext ctx3 = iter.next();
 					if(testOverlapping(ctx3, ctx)) {
-						found_in_controls = true;
+						count_matching_controls++;
+						candidates.add(new VariantContextBuilder(ctx3).
+							noGenotypes().
+							filter(ATT_CONTROL).
+							attribute(ATT_FILENAME, ctrl.toString()).
+							make()
+							);
 						break;
 						}
 					}
 				iter.close();
 				vcfReader.close();
-				if(found_in_controls) return -1;
+				if(count_matching_controls > max_controls) return -1;
 				}
 			if(this.print_all_ctx) {
 				final String cluster = "CTX"+(++ID_GENERATOR);
@@ -168,7 +179,7 @@ public class ScanStructuralVariants extends Launcher{
 				return 0;
 				}
 			
-			VariantContextBuilder vcb = new VariantContextBuilder();
+			final VariantContextBuilder vcb = new VariantContextBuilder();
 			vcb.chr(ctx.getContig());
 			vcb.start(ctx.getStart());
 			vcb.stop(ctx.getEnd());
@@ -355,6 +366,8 @@ public class ScanStructuralVariants extends Launcher{
 					VCFHeaderLineType.String,
 					"SV type"
 					));
+			metadata.add(new VCFFilterHeaderLine(ATT_CONTROL,
+					"Variant is found in controls (max MAF="+this.max_maf+")"));
 			
 			final VCFHeader header = new VCFHeader(metadata);
 			

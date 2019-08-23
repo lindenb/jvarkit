@@ -59,26 +59,17 @@ import htsjdk.variant.vcf.VCFIterator;
 BEGIN_DOC
 
 
-
-
 ### Output
 
 Output filename (option -o) MUST contain the word __GROUPID__.
 
-
-
 ### Example
-
 
 
 ```
 $ 
 
 ```
-
-
-
-
 
 
 ```
@@ -113,7 +104,10 @@ END_DOC
 */
 
 
-@Program(name="forkvcf",description="Fork a VCF.")
+@Program(name="forkvcf",description="Fork a VCF.",
+	keywords={"vcf"},
+	modificationDate="20190821"
+	)
 public class ForkVcf
 	extends Launcher
 	{

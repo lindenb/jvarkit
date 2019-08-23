@@ -39,6 +39,7 @@ Usage: gtf2xml [options] Files
  * xml
  * gtf
  * gff
+ * gff3
 
 
 ## Compilation
