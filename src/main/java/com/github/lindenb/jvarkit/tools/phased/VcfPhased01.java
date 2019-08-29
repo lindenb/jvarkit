@@ -53,7 +53,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -64,7 +65,6 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -124,7 +124,7 @@ public class VcfPhased01 extends Launcher {
 	private String knownGeneUri=KnownGene.getDefaultUri();
 
 	private SAMSequenceDictionary theDict= null;
-	private Interval theInterval = null;
+	private SimpleInterval theInterval = null;
 	private final List<PhasedVcf> phasedVcfs = new ArrayList<>();
 	private Document dom = null;
 	private int sample_height=99;
@@ -365,9 +365,12 @@ public class VcfPhased01 extends Launcher {
 				}
 			if(this.theInterval==null) 
 				{
-				final IntervalParser parser = new IntervalParser(dict);
-				this.theInterval = parser.parse(this.intervalStr);
-				if(this.theInterval==null)  throw new IOException("Cannot parse interval "+this.intervalStr);
+				this.theInterval = IntervalParserFactory.
+						newInstance().
+						dictionary(dict).
+						make().
+						apply(this.intervalStr).
+						orElseThrow(IntervalParserFactory.exception(this.intervalStr));
 				}
 			phased.sample = samples.get(0);
 			phased.variants.addAll(vcfFileReader.query(this.theInterval).

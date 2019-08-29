@@ -51,9 +51,10 @@ import org.eclipse.jetty.server.handler.HandlerList;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -62,7 +63,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
@@ -615,15 +615,15 @@ private class ViewVcfHandler extends AbstractHandler
 					return;
 					}
 				
-				final Interval interval;
+				final SimpleInterval interval;
 				
 				if(!StringUtil.isBlank(rgn_str)) 
 					{
-					final IntervalParser parser= new IntervalParser(dict);
-					parser.setFixContigName(true);
-					parser.setContigNameIsWholeContig(true);
-					parser.setRaiseExceptionOnError(false);
-					interval = parser.parse(rgn_str);	
+					interval = IntervalParserFactory.newInstance().
+							enableWholeContig().
+							make().
+							apply(rgn_str).
+							orElse(null);	
 					}
 				else
 					{

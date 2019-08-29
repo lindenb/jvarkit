@@ -41,12 +41,15 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.zip.InflaterInputStream;
 
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -159,12 +162,12 @@ public class Straw {
 			) throws IOException {
 		
 	  final long master = readHeader(fin);	
-	  IntervalParser intervalParser = new IntervalParser(this.dictionary);
+	  Function<String, Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().
+			  dictionary(this.dictionary).
+			  make();
 	  
-	  final Interval interval1 = intervalParser.parse(intervalStr1);
-	  if(interval1==null)  throw new IOException("Cannot parser interval "+intervalStr1);
-	  final Interval interval2 = intervalParser.parse(intervalStr2);
-	  if(interval2==null)  throw new IOException("Cannot parser interval "+intervalStr2);
+	  final SimpleInterval interval1 = intervalParser.apply(intervalStr1).orElseThrow(IntervalParserFactory.exception(intervalStr1));
+	  final SimpleInterval interval2 = intervalParser.apply(intervalStr2).orElseThrow(IntervalParserFactory.exception(intervalStr2));
 
 	  
 	  queryIntervals[0] = new QueryInterval(this.dictionary.getSequenceIndex(interval1.getContig()),interval1.getStart(),interval1.getEnd());

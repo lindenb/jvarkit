@@ -30,6 +30,7 @@ import java.io.FileOutputStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.BiPredicate;
@@ -55,7 +56,8 @@ import org.w3c.dom.Text;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -78,7 +80,6 @@ import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
@@ -269,11 +270,11 @@ public class SvToSVG extends Launcher
 				
 				}
 			
-			final Interval interval;
+			final SimpleInterval interval;
 			final List<ShortRead> beforePileup=new ArrayList<>();
 			final List<List<ShortRead>> lines=new ArrayList<>();			
 			
-			Region(final Interval interval) {
+			Region(final SimpleInterval interval) {
 				this.interval = interval;
 				}
 			
@@ -407,7 +408,7 @@ public class SvToSVG extends Launcher
 			sampleRoot.appendChild(regionRoot);
 			
 			final Element rgnLabel= element("text",
-					region.interval.getContig()+":"+ this.niceIntFormat.format(region.interval.getStart())+"-"+ this.niceIntFormat.format(region.interval.getEnd())+" Length:"+this.niceIntFormat.format((region.interval.length())));
+					region.interval.getContig()+":"+ this.niceIntFormat.format(region.interval.getStart())+"-"+ this.niceIntFormat.format(region.interval.getEnd())+" Length:"+this.niceIntFormat.format((region.interval.getLengthOnReference())));
 			rgnLabel.setAttribute("x", "5");
 			rgnLabel.setAttribute("y", format(y+12));
 			rgnLabel.setAttribute("class", "samplename");
@@ -436,8 +437,8 @@ public class SvToSVG extends Launcher
 				sb.append( "M 0 "+format(y+this.coverageHeight));
 				for(int k=0;k< this.drawinAreaWidth;k++)
 					{
-					final int pos1 = region.interval.getStart()+ (int)(((k+0)/(double)this.drawinAreaWidth)*(double)region.interval.length());
-					final int pos2 = region.interval.getStart()+ (int)(((k+1)/(double)this.drawinAreaWidth)*(double)region.interval.length());
+					final int pos1 = region.interval.getStart()+ (int)(((k+0)/(double)this.drawinAreaWidth)*(double)region.interval.getLengthOnReference());
+					final int pos2 = region.interval.getStart()+ (int)(((k+1)/(double)this.drawinAreaWidth)*(double)region.interval.getLengthOnReference());
 					final double dp = IntStream.range(pos1, pos2).
 						filter(P->pos2cov.containsKey(P)).
 						mapToLong(P->pos2cov.get(P)).
@@ -679,7 +680,7 @@ public class SvToSVG extends Launcher
 					line.setAttribute("y1", format(y_top_region));
 					line.setAttribute("x2", format(xx));
 					line.setAttribute("y2", format(y));
-					line.appendChild(element("title",niceIntFormat.format(region.interval.getStart()+(int)(region.interval.length()/10.0)*x)));
+					line.appendChild(element("title",niceIntFormat.format(region.interval.getStart()+(int)(region.interval.getLengthOnReference()/10.0)*x)));
 					regionRoot.insertBefore(line, regionRoot.getFirstChild());
 					}
 				
@@ -933,7 +934,7 @@ public class SvToSVG extends Launcher
 					final SamReader sr = srf.open(bamFile);
 					final SAMFileHeader header = sr.getFileHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-					final IntervalParser parser=new IntervalParser(dict);
+					final Function<String,Optional<SimpleInterval>> parser=IntervalParserFactory.newInstance().dictionary(dict).make();
 					final Set<String> samples = header.getReadGroups().stream().
 							map(G->G.getSample()).
 							filter(S->!StringUtil.isBlank(S)).
@@ -948,7 +949,7 @@ public class SvToSVG extends Launcher
 					/* loop over each region for that sample */
 					for(final String intervalStr:this.intervalStrList) {
 						LOG.info("scanning "+intervalStr+" for "+bamFile);
-						final Interval interval = parser.parse(intervalStr);
+						final SimpleInterval interval = parser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
 						if(interval==null) {
 							LOG.error("Cannot parse "+intervalStr+" for "+bamFile);
 							return  -1;

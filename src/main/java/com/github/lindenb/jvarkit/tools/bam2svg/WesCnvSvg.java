@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
@@ -51,7 +52,8 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -301,18 +303,14 @@ public class WesCnvSvg  extends Launcher {
 			
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFileSupplier.getRequired());
 			this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
-			final List<Interval> userIntervals = new ArrayList<>();
+			final List<SimpleInterval> userIntervals = new ArrayList<>();
 			if(!StringUtil.isBlank(this.bedRegions))
 				{
-				final IntervalParser intervalParser = new IntervalParser(this.refDict);
+				final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(this.refDict).make();
 				for(final String s: this.bedRegions.split("[ \t;]+"))
 					{
 					if(StringUtil.isBlank(s)) continue;
-					final Interval i = intervalParser.parse(s);
-					if(i==null) {
-						LOG.error("Cannot parse interval "+s);
-						return -1;
-						}
+					final SimpleInterval i = intervalParser.apply(s).orElseThrow(IntervalParserFactory.exception(s));
 					userIntervals.add(i);
 					}
 				}

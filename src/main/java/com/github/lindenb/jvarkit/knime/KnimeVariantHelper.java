@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.function.Function;
@@ -48,9 +49,10 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
@@ -67,7 +69,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
@@ -700,13 +701,12 @@ public Stream<VariantData> forEachVariantData(final String vcfFile) throws IOExc
 
 public Predicate<VariantContext> parseVariantIntervalFilters(final String...array)
 	{
-	final IntervalParser parser=new IntervalParser();
-	parser.setRaiseExceptionOnError(true);
+	final Function<String, Optional<SimpleInterval>> parser= IntervalParserFactory.newInstance().make();
 	Predicate<VariantContext> filter = V -> false;
 	for(final String str:array)	
 		{
-		final Interval interval = parser.parse(str);
-		filter = filter.or(V -> (V.getContig().equals(interval.getContig()) && !(interval.getEnd()<V.getStart() || V.getEnd()<interval.getStart())));
+		final SimpleInterval interval = parser.apply(str).orElseThrow(IntervalParserFactory.exception(str));
+		filter = filter.or(V ->V.overlaps(interval));
 		}
 	return filter;
 	}

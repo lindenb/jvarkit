@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.bam2graphics;
-import java.awt.AlphaComposite;
+
 /**
 BEGIN_DOC
 
@@ -59,6 +59,7 @@ I use the UCSC/IGV color tag 'YC' when available (see also samcolortag)
 
 END_DOC
 */
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
@@ -80,6 +81,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -91,8 +93,9 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -868,10 +871,10 @@ public class Bam2Raster extends AbstractBam2Raster
 						}
 					//this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 					}
-				final IntervalParser intervalParser = new IntervalParser(this.refDict).
-						setFixContigName(true);
+				final Function<String, Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(this.refDict).make();
+						
 
-				this.interval = intervalParser.parse(this.regionStr);
+				this.interval = intervalParser.apply(this.regionStr).orElseThrow(IntervalParserFactory.exception(this.regionStr));
 				if(this.interval==null)
 					{
 					LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary.");

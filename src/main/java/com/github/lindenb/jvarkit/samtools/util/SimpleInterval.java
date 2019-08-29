@@ -87,6 +87,11 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 		return end;
 		}
 	
+	/** alias for getLengthOnReference */
+	public final int length() {
+		return this.getLengthOnReference();
+	}
+	
 	@Override
 	public boolean equals(final Object obj) {
 		if(this==obj) return true;

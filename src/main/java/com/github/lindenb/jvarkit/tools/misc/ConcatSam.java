@@ -52,14 +52,14 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -92,7 +92,7 @@ public class ConcatSam extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-r","--region","--interval"},description="Limit analysis to this interval. "+IntervalParser.OPT_DESC)
+	@Parameter(names={"-r","--region","--interval"},description="Limit analysis to this interval. "+IntervalParserFactory.OPT_DESC)
 	private String region_str=null;
 	@Parameter(names={"-merge","--merge"},description="Don't really concatenate one sam after the other, use a htsjdk.samtools.MergingSamRecordIterator. Similar to Picard MergeSamFiles" )
 	private boolean merging=false;
@@ -214,10 +214,12 @@ public class ConcatSam extends Launcher
 				}
 				final SAMSequenceDictionary dict =r.getFileHeader().getSequenceDictionary();
 				if(dict==null) throw new JvarkitException.BamDictionaryMissing(r.getResourceDescription());
-				final Interval i= new IntervalParser(dict).
-					setContigNameIsWholeContig(true).
-					parse(intervalStr);
-				if(i==null) throw new IllegalArgumentException("Cannot parse interval "+intervalStr);
+				final SimpleInterval i= IntervalParserFactory.newInstance().
+						dictionary(dict).
+						enableWholeContig().
+						make().
+						apply(intervalStr).
+						orElseThrow(IntervalParserFactory.exception(intervalStr));
 				final int referenceIndex = dict.getSequenceIndex(i.getContig());
 				if(referenceIndex<0) throw new IllegalArgumentException("tid<0 ??! for "+i);
 				queryIntervals.add(new QueryInterval(referenceIndex, i.getStart(), i.getEnd()));

@@ -52,7 +52,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -61,8 +63,9 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -131,9 +134,9 @@ public class BamMatrix  extends Launcher
 	private Path faidx = null;
 	@Parameter(names={"-s","--size"},description="matrix size in pixel")
 	private int matrix_size = 1_000;
-	@Parameter(names={"-r","-r1","--region"},description="first region." + IntervalParser.OPT_DESC,required=true)
+	@Parameter(names={"-r","-r1","--region"},description="first region." + IntervalParserFactory.OPT_DESC,required=true)
 	private String region1Str=null;
-	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParser.OPT_DESC)
+	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParserFactory.OPT_DESC)
 	private String region2Str=null;
 	@Parameter(names={"--name","-name"},description="user read name or use 'BX:Z:'/'MI:i:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
 	private NameExtractor nameExtractor = NameExtractor.READ_NAME;
@@ -165,9 +168,9 @@ public class BamMatrix  extends Launcher
 	/* actual sam dict */
 	private SAMSequenceDictionary dict;
 	/* user interval X axis */
-	private Interval userIntervalX = null;
+	private SimpleInterval userIntervalX = null;
 	/* user interval Y axis */
-	private Interval userIntervalY = null;
+	private SimpleInterval userIntervalY = null;
 	
 	private enum CounterType {
 		memory,
@@ -270,7 +273,7 @@ public class BamMatrix  extends Launcher
 	private final Map<Interval,Stored> hash = new HashMap<>(matrix_size*2);
 	StoredCounter(final double pixel2base) throws IOException {
 		for(int side=0;side < 2;side++) {
-			final Interval r=(side==0?userIntervalY:userIntervalX);
+			final SimpleInterval r=(side==0?userIntervalY:userIntervalX);
 			LOG.info("preparing interval "+r);
 			final ProgressFactory.Watcher<Interval> progress = ProgressFactory.newInstance().logger(LOG).dictionary(r).build();
 			for(int pix=0;pix< matrix_size;pix++)
@@ -418,25 +421,22 @@ public class BamMatrix  extends Launcher
 			this.dict = SequenceDictionaryUtils.extractRequired(this.samReader.getFileHeader());
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
 			
-			final IntervalParser intervalParser = new IntervalParser(dict);
-			intervalParser.setContigNameIsWholeContig(true);
-			this.userIntervalX = intervalParser.parse(this.region1Str);
-			if(this.userIntervalX==null) {
-				LOG.error("Cannot parse interval "+this.region1Str);
-				return -1;
-				}
-			this.userIntervalY = intervalParser.parse(this.region2Str);
-			if(this.userIntervalY==null) {
-				LOG.error("Cannot parse interval "+this.region2Str);
-				return -1;
-				}
+			final Function<String,Optional<SimpleInterval>> intervalParser = 
+					IntervalParserFactory.newInstance().
+					dictionary(dict).
+					enableWholeContig().
+					make();
+			this.userIntervalX = intervalParser.apply(this.region1Str).orElseThrow(IntervalParserFactory.exception(this.region1Str));
+			
+			this.userIntervalY = intervalParser.apply(this.region2Str).orElseThrow(IntervalParserFactory.exception(this.region2Str));
+			
 			
 			// adjust intervals so they have the same length
 			if(this.userIntervalX.getLengthOnReference() > this.userIntervalY.getLengthOnReference()) {
 				final int mid =  this.userIntervalY.getStart()+ this.userIntervalY.getLengthOnReference()/2;
 				final int start = Math.max(1,mid- this.userIntervalX.getLengthOnReference()/2);
 				
-				this.userIntervalY = new Interval(
+				this.userIntervalY = new SimpleInterval(
 						this.userIntervalY.getContig(),
 						start,
 						start + this.userIntervalX.getLengthOnReference()
@@ -447,7 +447,7 @@ public class BamMatrix  extends Launcher
 				final int mid =  this.userIntervalX.getStart()+ this.userIntervalX.getLengthOnReference()/2;
 				final int start = Math.max(1,mid- this.userIntervalY.getLengthOnReference()/2);
 
-				this.userIntervalX = new Interval(
+				this.userIntervalX = new SimpleInterval(
 						this.userIntervalX.getContig(),
 						start,
 						start + this.userIntervalY.getLengthOnReference()
@@ -547,7 +547,7 @@ public class BamMatrix  extends Launcher
 			
 			for(int side=0;side< 2 && !StringUtils.isBlank(this.highlightPath);++side) {
 				final int curr_side=side;
-				final Interval r = (side==0?this.userIntervalX:this.userIntervalY);
+				final SimpleInterval r = (side==0?this.userIntervalX:this.userIntervalY);
 				final BedLineCodec bedCodec = new BedLineCodec();
 				final Composite oldComposite = g.getComposite();
 				g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
@@ -614,7 +614,7 @@ public class BamMatrix  extends Launcher
 			final double coverage[]=new double[matrix_size];
 			
 			for(int side=0;side< 2;++side) {
-				final Interval r = (side==0?this.userIntervalX:this.userIntervalY);
+				final SimpleInterval r = (side==0?this.userIntervalX:this.userIntervalY);
 				final AffineTransform oldtr = g.getTransform();
 				AffineTransform tr;
 				if(side==0) {
@@ -633,7 +633,7 @@ public class BamMatrix  extends Launcher
 					final int count[]=new int[this.matrix_size];
 					
 					final IntervalList intervalList = new IntervalList(this.dict);
-					intervalList.add(r);
+					intervalList.add(new Interval(r));
 					final SamLocusIterator sli = new SamLocusIterator(this.samReader,intervalList,true);
 					while(sli.hasNext()) {
 						final LocusInfo locusInfo = sli.next();

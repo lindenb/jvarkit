@@ -68,7 +68,8 @@ import java.util.zip.InflaterInputStream;
 
 import com.github.lindenb.jvarkit.lang.Paranoid;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.QueryInterval;
@@ -279,9 +280,16 @@ public class HicReaderImpl implements HicReader {
 	@Override
 	public Optional<Locatable> parseInterval(final String s) {
 		if(StringUtils.isBlank(s)) return Optional.empty();
-		final IntervalParser intervalParser =new IntervalParser(this.getDictionary());
-		intervalParser.setContigNameIsWholeContig(true);
-		return Optional.ofNullable(intervalParser.parse(s));
+		final Function<String, Optional<SimpleInterval>> intervalParser =
+				IntervalParserFactory.newInstance().
+				dictionary(this.getDictionary()).
+				enableWholeContig().
+				make();
+		final Optional<SimpleInterval> r= intervalParser.apply(s);
+		return r.isPresent()?
+				Optional.of(r.get()):
+				Optional.empty()
+				;
 		}
 
 	private QueryInterval convertLocatableToQueryInterval(final Locatable loc) {

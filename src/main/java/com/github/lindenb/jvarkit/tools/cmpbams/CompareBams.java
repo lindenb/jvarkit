@@ -42,14 +42,15 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -290,7 +291,7 @@ public class CompareBams  extends Launcher
 	@Parameter(names={"-c","--cigar"},description="use cigar String for comparaison")
 	private boolean useCigar = false;
 	
-	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
+	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
 	private String REGION = "";
 
 	@ParametersDelegate
@@ -551,11 +552,10 @@ public class CompareBams  extends Launcher
 				this.sequenceDictionaries.add(dict);
 				
 				
-				final Optional<Interval> interval;
-				if(REGION!=null && !REGION.trim().isEmpty())
+				final Optional<SimpleInterval> interval;
+				if(!StringUtils.isBlank(this.REGION))
 					{
-					final IntervalParser dix = new IntervalParser(dict);
-					interval = Optional.ofNullable(dix.parse(REGION));
+					interval =  IntervalParserFactory.newInstance().dictionary(dict).make().apply(this.REGION);
 					
 					if(!interval.isPresent())
 						{

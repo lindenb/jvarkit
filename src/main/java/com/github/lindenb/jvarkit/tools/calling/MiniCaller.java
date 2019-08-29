@@ -41,9 +41,9 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
@@ -134,7 +134,7 @@ public class MiniCaller extends Launcher
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 	@Parameter(names={"-f","--filter"},description="[20171130](replaced with jexl expression). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter readFilter  = SamRecordJEXLFilter.buildDefault();
-	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
+	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
 	private String rgnStr  = null;
 
 	

@@ -29,6 +29,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -93,7 +94,7 @@ public class TView implements Closeable
 	private boolean showClip=false;
 	private Interval interval=null;
 	@Parameter(names={"-R","--reference"},description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File referenceFile=null;
+	private Path referenceFile=null;
 	@Parameter(names={"--insert"},description="Show insertions")
 	private boolean showInsertions=false;
 	@Parameter(names={"--readName"},description="Show read name")
@@ -313,12 +314,12 @@ public class TView implements Closeable
 		
 	}
 	
-	public File getReferenceFile()
+	public Path getReferenceFile()
 		{
 		return referenceFile;
 		}
 	
-	public void setReferenceFile(final File referenceFile) {
+	public void setReferenceFile(final Path referenceFile) {
 		this.referenceFile = referenceFile;
 		}
 	

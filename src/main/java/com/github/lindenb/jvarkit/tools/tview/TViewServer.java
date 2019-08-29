@@ -26,15 +26,16 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.tview;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
+import java.util.function.Function;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -49,8 +50,9 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.tview.TView.Formatout;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -63,6 +65,7 @@ import htsjdk.samtools.filter.JavascriptSamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
@@ -116,7 +119,7 @@ private static final String SHOWNAME="name";
 private static final String SHOWALLBAMS="showall";
 
 @Parameter(names={"-R","--reference"},description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
-private File optionalReferenceFile=null;
+private Path optionalReferenceFile=null;
 @Parameter(names={"-P","--port","-port"},description="Server listening port")
 private int port=8080;	
 @Parameter(names={"-nojs","--no-javascript"},description="Disable Javascript (which is not filesystem-safe).")
@@ -131,10 +134,10 @@ private long shutdownAferSeconds=-1L;
 
 private class SamViewHandler extends AbstractHandler
 	{
-	private final List<File> samFiles;
+	private final List<Path> samFiles;
 	
 	
-	SamViewHandler(final List<File> samFiles)
+	SamViewHandler(final List<Path> samFiles)
 		{
 		this.samFiles = samFiles;
 		}
@@ -273,7 +276,7 @@ private class SamViewHandler extends AbstractHandler
 				}
 			else
 				{
-				final File selVcf = getOwner().getSamFile(this.request);
+				final Path selVcf = getOwner().getSamFile(this.request);
 				this.writer.writeStartElement("span");
 				this.writer.writeStartElement("label");
 				this.writer.writeAttribute("for",SAMIDX_PARAM);
@@ -292,7 +295,7 @@ private class SamViewHandler extends AbstractHandler
 						}
 					this.writer.writeAttribute("name",SAMIDX_PARAM);
 					this.writer.writeAttribute("value",String.valueOf(i));
-					this.writer.writeCharacters(getOwner().samFiles.get(i).getPath());
+					this.writer.writeCharacters(getOwner().samFiles.get(i).toString());
 					this.writer.writeEndElement();
 					}
 				this.writer.writeEndElement();
@@ -459,7 +462,7 @@ private class SamViewHandler extends AbstractHandler
 			flush();
 			do {
 				
-				final File samFile;
+				final Path samFile;
 				
 				if(this.showAllBamsInOneWindow())
 					{
@@ -483,7 +486,7 @@ private class SamViewHandler extends AbstractHandler
 					}
 				
 				this.writer.writeStartElement("p");
-				this.writer.writeCharacters(samFile.getName());
+				this.writer.writeCharacters(samFile.getFileName().toString());
 				this.writer.writeEndElement();
 				
 				
@@ -500,11 +503,15 @@ private class SamViewHandler extends AbstractHandler
 					
 					if(!StringUtil.isBlank(rgn_str)) 
 						{
-						final IntervalParser parser= new IntervalParser(dict);
-						parser.setFixContigName(true);
-						parser.setContigNameIsWholeContig(true);
-						parser.setRaiseExceptionOnError(false);
-						interval = TViewServer.this.trimInterval(parser.parse(rgn_str));	
+						Function<String, Optional<SimpleInterval>> parser= 
+								IntervalParserFactory.newInstance().
+								dictionary(dict).
+								enableWholeContig().
+								make();
+						
+						
+						
+						interval = TViewServer.this.trimInterval(parser.apply(rgn_str).orElse(null));	
 						}
 					else
 						{
@@ -607,7 +614,7 @@ private class SamViewHandler extends AbstractHandler
 
 	
 	
-	private File getSamFile(final HttpServletRequest req) {
+	private Path getSamFile(final HttpServletRequest req) {
 		
 		if(this.samFiles.size()==1) return this.samFiles.get(0);
 		if(TViewServer.showAllBamsInOneWindow(req)) return null;
@@ -628,7 +635,7 @@ private class SamViewHandler extends AbstractHandler
 			) throws java.io.IOException ,javax.servlet.ServletException
 		{
 		DelegateHandler delegate=null;
-		final File samFile = this.getSamFile(req);
+		final Path samFile = this.getSamFile(req);
 		
 		if(!TViewServer.showAllBamsInOneWindow(req) && samFile==null)
 			{
@@ -656,8 +663,9 @@ private class SamViewHandler extends AbstractHandler
 		}
 	}
 
-private Interval trimInterval(final Interval interval) {
-	if(interval.length()<=this.max_interval_length) return interval;
+private Interval trimInterval(final Locatable interval) {
+	if(interval==null) return null;
+	if(interval.getLengthOnReference()<=this.max_interval_length) return new Interval(interval);
 	final Interval interval2 = new Interval(
 			interval.getContig(),
 			interval.getStart(),
@@ -677,11 +685,8 @@ public int doWork(final List<String> args) {
 	Server server = null;
 	try
 		{
-		final List<File> samFiles = IOUtil.unrollFiles(args.stream().
-			map(S->new File(S)).
-			collect(Collectors.toList()),
-			".bam"
-			);
+		final List<Path> samFiles = IOUtils.unrollPaths(args);
+		
 		if(samFiles.isEmpty())
 			{
 			LOG.error("No BAM file defined");
