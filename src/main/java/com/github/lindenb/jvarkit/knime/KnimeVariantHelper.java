@@ -65,16 +65,15 @@ import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.tribble.Tribble;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
 import htsjdk.tribble.index.IndexFactory.IndexType;
 import htsjdk.tribble.index.tabix.TabixIndex;
 import htsjdk.tribble.util.ParsingUtils;
-import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -605,7 +604,7 @@ public void indexVcfFile(final File file) throws IOException{
 	if(file.getName().endsWith(".vcf.gz"))
 		{
 		LOG.info("writing tabix index for "+file);
-		final File output=new File(file.getAbsolutePath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+		final File output=new File(file.getAbsolutePath()+FileExtensions.TABIX_INDEX);
 		try
 			{
 			if(output.exists())
@@ -625,7 +624,7 @@ public void indexVcfFile(final File file) throws IOException{
 	else if(file.getName().endsWith(".vcf"))
 		{
 		LOG.info("writing tribble index for "+file);
-		final File output=new File(file.getAbsolutePath()+Tribble.STANDARD_INDEX_EXTENSION);
+		final File output=new File(file.getAbsolutePath()+FileExtensions.TRIBBLE_INDEX);
 		try
 			{
 			if(output.exists())
@@ -977,11 +976,11 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			final String indexFilename;
 			if(extension.endsWith(".gz"))
 				{
-				indexFilename = filename + Tribble.STANDARD_INDEX_EXTENSION;
+				indexFilename = filename + FileExtensions.TRIBBLE_INDEX;
 				}
 			else
 				{
-				indexFilename = filename + TabixUtils.STANDARD_INDEX_EXTENSION;
+				indexFilename = filename + FileExtensions.TABIX_INDEX;
 				}
 			
 			outVcfFile = new File(filename);

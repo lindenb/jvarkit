@@ -607,6 +607,22 @@ public class CompileJVarkit extends DefaultTask {
 				compilerarg(value:'-Xlint')
 			}
 		
+		/** C binding, JNI run javah */
+		final File htslibBindingClass = new File("${this.tmpDir}/com/github/lindenb/jvarkit/htslib/Htslib.class");
+		if(htslibBindingClass.exists()) {
+			project.logger.lifecycle("Starting JNI section" + new File(java.lang.System.getProperty("java.home","")));
+			ant.mkdir(dir:"${this.tmpDir}/cpp")
+			
+			/*
+			project.exec {
+				commandLine 'javah', '-o',"${this.tmpDir}/cpp/htslibjni.h", '-jni', '-classpath'
+				standardOutput = stderr
+		    	}*/
+			
+			
+			}
+		/** end C Bindings */
+		
 		ant.copy(
 			file: this.getMainJavaSource(),
 			todir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/')

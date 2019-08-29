@@ -8,13 +8,13 @@ extends CPtr
 	Comparable<CharSequence>
 {
 public KString() {
-	super(_create());
+	super(Htslib.bind_kstring_create());
 	}
 	
 @Override
-public char charAt(int index) { return (char)_at(this.get(),index);}
+public char charAt(int index) { return (char)Htslib.bind_kstring_at(this.get(),index);}
 @Override
-public int length() { return _len(this.get());}
+public int length() { return Htslib.bind_kstring_len(this.get());}
 @Override
 public CharSequence subSequence(int start, int end) {
 	int L=end-start;
@@ -29,7 +29,7 @@ public String toString() {
 
 @Override
 public void dispose() {
-	if(!isNull()) _release(this.get());
+	if(!isNull()) Htslib.bind_kstring_release(this.get());
 	super.dispose();
 	}
 
@@ -62,8 +62,4 @@ public int hashCode() {
     return h;
 }
 
-private static native long _create();
-private static native int _len(long n);
-private static native byte _at(long n,int p);
-private static native void _release(long n);
 }

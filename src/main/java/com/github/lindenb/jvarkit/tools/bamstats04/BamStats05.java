@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,6 +43,7 @@ import java.util.TreeMap;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -54,7 +56,6 @@ import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -114,34 +115,35 @@ END_DOC
 @Program(name="bamstats05",
 description="Coverage statistics for a BED file, group by gene",
 keywords={"bam","coverage","statistics","bed"},
-biostars={324639,194393,35083}
+biostars={324639,194393,35083},
+modificationDate="20190826"
 )
 public class BamStats05 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BamStats05.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-m","--mincoverage"},description="Coverage treshold. Any depth under this value will be considered as 'not-covered'.  Default: 0")
 	private List<Integer> min_coverages = new ArrayList<>() ;
 	@Parameter(names={"-merge","--merge"},description="[20181122] Merge overlapping intervals for the same gene.")
 	private boolean mergeOverlapping =  false;
 	@Parameter(names={"-B","--bed"},description="bed file (columns: chrom(tab)start(tab)end(tab)GENE)",required=true)
-	private File BEDILE = null;
+	private Path BEDILE = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
 	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	
-	private Map<String, List<Interval>> readBedFile(final File bedFile) throws IOException
+	private Map<String, List<SimpleInterval>> readBedFile(final Path bedFile) throws IOException
     	{
-    	final Map<String, List<Interval>> gene2interval=new TreeMap<String, List<Interval>>();
+    	final Map<String, List<SimpleInterval>> gene2interval=new TreeMap<String, List<SimpleInterval>>();
     	
     	BufferedReader bedIn=null;
     	try
     		{
-    		bedIn=IOUtils.openFileForBufferedReading(bedFile);
+    		bedIn=IOUtils.openPathForBufferedReading(bedFile);
     		final BedLineCodec codec = new BedLineCodec();
     		String line=null;
 			while((line=bedIn.readLine())!=null)
@@ -158,7 +160,7 @@ public class BamStats05 extends Launcher
 				final int chromEnd1= bedLine.getEnd();
 				final String gene = bedLine.get(3);
 				if(gene.isEmpty())  throw new IOException("bad bed gene in "+line+" "+bedFile);
-				 List<Interval> intervals = gene2interval.get(gene);
+				 List<SimpleInterval> intervals = gene2interval.get(gene);
 				 if(intervals==null)
 				 	{
 					 intervals=new ArrayList<>();
@@ -180,23 +182,19 @@ public class BamStats05 extends Launcher
 								});
 						}
 				 	}
-				intervals.add(new Interval(chrom, chromStart1, chromEnd1));
+				intervals.add(new SimpleInterval(chrom, chromStart1, chromEnd1));
 				if(this.mergeOverlapping)
 					{
 					intervals.sort((A,B)->Integer.compare(A.getStart(),B.getStart()));
 					int x = 0;
 					while(x+1<intervals.size())
 						{
-						final Interval i1 = intervals.get(x+0);
-						final Interval i2 = intervals.get(x+1);
+						final SimpleInterval i1 = intervals.get(x+0);
+						final SimpleInterval i2 = intervals.get(x+1);
 						if(i1.overlaps(i2))
 							{
 							intervals.remove(x+1);
-							intervals.set(x+0,
-								new Interval(i1.getContig(),
-									Math.min(i1.getStart(), i2.getStart()),
-									Math.max(i1.getEnd(), i2.getEnd())
-									));
+							intervals.set(x+0,i1.merge(i2));
 							}
 						else
 							{
@@ -216,7 +214,7 @@ public class BamStats05 extends Launcher
 	
 	protected  int doWork(
 			final PrintWriter pw,
-			final Map<String, List<Interval>> gene2interval,
+			final Map<String, List<SimpleInterval>> gene2interval,
 			final String filename,
 			final SamReader IN) throws Exception
 		{
@@ -241,13 +239,13 @@ public class BamStats05 extends Launcher
 					int geneStart = Integer.MAX_VALUE;
 					int geneEnd = 0;
 					final List<Integer> counts = new ArrayList<>();
-					final List<Interval> intervals = gene2interval.get(gene);
+					final List<SimpleInterval> intervals = gene2interval.get(gene);
 					final String newContig = contigNameConverter.apply(intervals.get(0).getContig());
 					if(StringUtil.isBlank(newContig)) {
 						throw new JvarkitException.ContigNotFoundInDictionary(intervals.get(0).getContig(), dict);
 						}
 					
-					for(final Interval interval:intervals)
+					for(final SimpleInterval interval:intervals)
 						{
 						geneStart = Math.min(geneStart, interval.getStart()-1);
 						geneEnd = Math.max(geneEnd, interval.getEnd());
@@ -356,7 +354,7 @@ public class BamStats05 extends Launcher
 	}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(BEDILE==null)
 			{
 			LOG.error( "missing bed file");
@@ -369,8 +367,8 @@ public class BamStats05 extends Launcher
 		PrintWriter pw=null;
 		try
 			{
-			final Map<String, List<Interval>> gene2interval = readBedFile(BEDILE);
-			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			final Map<String, List<SimpleInterval>> gene2interval = readBedFile(BEDILE);
+			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			//print header
 			pw.print(
 					"#chrom\t"+

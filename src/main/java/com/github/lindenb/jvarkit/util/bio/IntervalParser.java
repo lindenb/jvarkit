@@ -34,6 +34,8 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -47,6 +49,7 @@ public class IntervalParser {
 			"An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\"  or \"chrom:start-end+extend\" or \"chrom:start-end+extend-percent%\"."
 			+ "A program might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)" ;
 	private SAMSequenceDictionary dict=null;
+	private ContigNameConverter ctgNameConverter = null;
 	private boolean raiseExceptionOnError=true;
 	private boolean tryToFixContigName=true;
 	private boolean trimToContigLength=false;
@@ -56,9 +59,10 @@ public class IntervalParser {
 		{
 		this(null);
 		}
+	/** creates a new interval parser from this dict that will be used to translate chromosomes . Can be null */
 	public IntervalParser(final SAMSequenceDictionary dict)
 		{
-		this.dict = dict;
+		this.setDictionary(dict);
 		}
 
 	/** there is a dictionary and we cannot find the SAMSequenceRecord
@@ -97,6 +101,13 @@ public class IntervalParser {
 	
 	public IntervalParser setDictionary(final SAMSequenceDictionary dict) {
 		this.dict = dict;
+		if(dict==null) {
+			this.ctgNameConverter = null;
+			}
+		else
+			{
+			this.ctgNameConverter = ContigNameConverter.fromOneDictionary(dict);
+			}
 		return this;
 		}
 	public boolean hasDictionary() {
@@ -142,6 +153,17 @@ public class IntervalParser {
 		if(!hasDictionary()) return null;
 		SAMSequenceRecord rec= getDictionary().getSequence(contig);
 		if(rec!=null) return rec;
+		
+		//use ctgName converter
+		if(this.ctgNameConverter!=null) {
+			final String ctg = this.ctgNameConverter.apply(contig);
+			if(!StringUtils.isBlank(ctg))
+				{
+				rec= getDictionary().getSequence(contig);
+				if(rec!=null) return rec;
+				}
+			}
+		
 		//case problem ?
 		if(this.isFixContigName() )
 			{
@@ -158,41 +180,8 @@ public class IntervalParser {
 		}
 	private BigInteger parseBigInteger( String s)
 		{
-		BigInteger factor = BigInteger.ONE;
-		s=s.replace(",", "");
-		
-		
-		 if(s.endsWith("bp"))
-			{
-			s=s.substring(0, s.length()-2).trim();
-			}
-		else if(s.toLowerCase().endsWith("kb"))
-			{
-			s=s.substring(0, s.length()-2).trim();
-			factor = new BigInteger("1000");
-			}
-		else if(s.toLowerCase().endsWith("mb"))
-			{
-			s=s.substring(0, s.length()-2).trim();
-			factor = new BigInteger("1000000");
-			}
-		else if(s.endsWith("b"))
-			{
-			s=s.substring(0, s.length()-1).trim();
-			}
-		else if(s.endsWith("k"))
-			{
-			s=s.substring(0, s.length()-1).trim();
-			factor = new BigInteger("1000");
-			}
-		else if(s.endsWith("m"))
-			{
-			s=s.substring(0, s.length()-1).trim();
-			factor = new BigInteger("1000000");
-			}
-		final BigInteger vbi = new BigInteger(String.valueOf(s)).multiply(factor);
-		
-		return vbi;
+		final DistanceParser distanceParser=new DistanceParser();
+		return distanceParser.parseAsBigInteger(s);
 		}
 	
 	private int BigIntegerToInt(final BigInteger vbi)

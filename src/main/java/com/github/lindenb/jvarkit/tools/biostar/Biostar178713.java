@@ -28,9 +28,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -78,7 +79,7 @@ public class Biostar178713 extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description="Output file.zip .",required=true)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-d","--distance"},description="Distance between bed features." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int distancebed = 100 ;
@@ -98,14 +99,14 @@ public class Biostar178713 extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.outputFile==null || !outputFile.getName().endsWith(".zip")) {
+		if(this.outputFile==null || !outputFile.getFileName().toString().endsWith(".zip")) {
 			LOG.error("output file option  must be declared and must en with .zip");
 			return -1;
 		}
 		
 		final Set<String> inputs = IOUtils.unrollFiles(args);
 		List<BedLine> bedLines=new ArrayList<>();
-		FileOutputStream fos = null;
+		OutputStream fos = null;
 		ZipOutputStream zout=null;
 
 		try {
@@ -143,7 +144,7 @@ public class Biostar178713 extends Launcher
 				}
 			
 			LOG.info("creating zip "+this.outputFile);
-			fos = new FileOutputStream(this.outputFile);
+			fos = Files.newOutputStream(this.outputFile);
 			zout = new ZipOutputStream(fos);
 			int chunk=0;
 			while(!bedLines.isEmpty())

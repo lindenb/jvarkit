@@ -38,8 +38,8 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,6 +47,7 @@ import java.util.List;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -105,7 +106,7 @@ public class Biostar154220 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar154220.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-n","--depth"},description="number of reads")
 	private int capDepth=20;
@@ -131,12 +132,12 @@ public class Biostar154220 extends Launcher
 		int depth_array[]=null;
 		try
 			{
-			SAMFileHeader header2=header.clone();
-			header2.addComment("Biostar154220"+" "+getVersion()+" "+getProgramCommandLine());
-			out = this.writingBams.openSAMFileWriter(outputFile,header2, true);
+			final SAMFileHeader header2=header.clone();
+			JVarkitVersion.getInstance().addMetaData(this, header2);
+			out = this.writingBams.openSamWriter(this.outputFile,header2, true);
 			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			iter = in.iterator();
-			List<SAMRecord> buffer=new ArrayList<>();
+			final List<SAMRecord> buffer=new ArrayList<>();
 			for(;;)
 				{
 				SAMRecord rec =null;
@@ -250,7 +251,6 @@ public class Biostar154220 extends Launcher
 			}
 		}
 	
-	
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.capDepth<0) // -1 == infinite
@@ -275,11 +275,8 @@ public class Biostar154220 extends Launcher
 			}
 		}
 
-	
 	public static void main(final String[] args) throws IOException
 		{
 		new Biostar154220().instanceMainWithExit(args);
 		}
-		
-
 	}

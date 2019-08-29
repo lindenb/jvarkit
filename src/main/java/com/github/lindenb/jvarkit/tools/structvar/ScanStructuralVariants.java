@@ -40,6 +40,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -378,8 +379,10 @@ public class ScanStructuralVariants extends Launcher{
 			out.writeHeader(header);
 			final CloseableIterator<VariantContext> iter = casesFiles.get(0).iterator();
 			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
+			final Decoy decoy = Decoy.getDefaultInstance();
 			while(iter.hasNext()) {
 				final VariantContext ctx= progress.apply(iter.next());
+				if(decoy.isDecoy(ctx.getContig())) continue;
 				final List<VariantContext> candidate = new ArrayList<>(casesFiles.size());
 				candidate.add(ctx);
 				recursive(ctx,candidate,casesFiles,controlsPath,out);

@@ -22,37 +22,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.htslib;
+package com.github.lindenb.jvarkit.samtools;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.nio.file.Path;
+/** hold common names of chromosomes that should be ignored */
+public interface Decoy {
 
-import com.github.lindenb.jvarkit.jni.CPtr;
-
-public class HtsFile extends CPtr implements Closeable {
+public boolean isDecoy(final String contig);	
 	
-	public HtsFile(final Path s,final String m) throws IOException {
-		this(s.toString(),m);
-		}
-	
-	public HtsFile(final String s,final String m) throws IOException {
-		super(Htslib.bind_hstfile_open(s,m));
-		if(isNull()) throw new IOException("Cannot open "+s);
-		}
+static final Decoy INSTANCE = new  Decoy() {
 	@Override
-	public void close() {
-		if(!isNull()) Htslib.bind_hstfile_close(this.get());
-		setNull();
-		}
+	public boolean isDecoy(final String contig) {
+		if("NC_007605".equals(contig)) return true;
+		if("hs37d5".equals(contig)) return true;
+		return false;
+		};
+	};
 	
-	public boolean readLine(char delim,final KString ks)  throws IOException {
-		return Htslib.bind_hstfile_getline(get(),delim,ks.get())!=-1;
-		}
-	
-	@Override
-	public void dispose() {
-		close();
-		super.dispose();
-		}
+static Decoy getDefaultInstance() {
+	return INSTANCE;
 	}
+
+}
