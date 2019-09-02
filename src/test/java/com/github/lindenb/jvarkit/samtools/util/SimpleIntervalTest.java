@@ -7,7 +7,7 @@ public class SimpleIntervalTest {
 @Test
 public void test01() {
 	SimpleInterval r= new SimpleInterval("chr1:1-100");
-	Assert.assertEquals(r.getContig(), "1");
+	Assert.assertEquals(r.getContig(), "chr1");
 	Assert.assertEquals(r.getStart(), 1);
 	Assert.assertEquals(r.getEnd(), 100);
 	Assert.assertEquals(r.length(), r.getLengthOnReference());

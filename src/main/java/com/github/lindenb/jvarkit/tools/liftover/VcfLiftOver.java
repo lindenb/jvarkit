@@ -66,7 +66,7 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
-
+BEGIN_DOC
 
 
 ## Example
@@ -122,7 +122,7 @@ END_DOC
 		name="vcfliftover",
 		description="Lift-over a VCF file",
 		keywords={"vcf","liftover"},
-		modificationDate="20190408",
+		modificationDate="20190902",
 		deprecatedMsg="Use picard LiftOverVcf"
 		)
 public class VcfLiftOver extends Launcher

@@ -1564,6 +1564,10 @@ all2.add( task("vcfliftover", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg="use picard LiftOverVcf"
 	});
+all2.add( task("vcfmultiways", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.liftover.VcfMultiWays"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("vcfloopovergenes", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

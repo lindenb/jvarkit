@@ -29,6 +29,7 @@ import java.util.Comparator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.Locatable;
 
 /**
  * String comparator using a SAMSequenceDictionary
@@ -47,6 +48,18 @@ protected int convertToTid(final String name) {
 	}
 @Override
 public int compare(final String o1,final String o2) {
-	return convertToTid(o1) - convertToTid(o2);
+	return Integer.compare( convertToTid(o1) , convertToTid(o2));
 	}
+
+/** creates a generic comparator for Locatable using this ContigDictComparator to compare the contigs */
+public <T extends Locatable> Comparator<T> createLocatableComparator() {
+	return (A,B) ->{
+		int i = ContigDictComparator.this.compare(A.getContig(),B.getContig());
+		if(i!=0) return i;
+		i =Integer.compare(A.getStart(), B.getStart());
+		if(i!=0) return i;
+		return Integer.compare(A.getEnd(), B.getEnd());
+		};
+	}
+
 }

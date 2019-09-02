@@ -201,6 +201,13 @@ public class IOUtils {
 		fous.close();
 		}
 	
+	/** copy reader  to file, no gzip detection is performed */
+	public static void copyTo(final Reader in,final File out) throws IOException
+		{
+		copyTo(in,out.toPath());
+		}
+
+	
 	/** copy content of stream `in` to `out` */
 	public static void copyTo(final InputStream in,final OutputStream out) throws IOException
 		{
