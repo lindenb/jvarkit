@@ -60,9 +60,9 @@ import htsjdk.samtools.util.RuntimeIOException;
 /**
  * A GTF/KnownGene Reader
  */
-public class GftReader implements Closeable {
-	private static final Logger LOG = Logger.build(GftReader.class).make();
-
+public class GtfReader implements Closeable {
+	private static final Logger LOG = Logger.build(GtfReader.class).make();
+	public static final String OPT_DESC="A GTF file.";
 	/** available files extensions for GTF files */
 	public static List<String> SUFFIXES = Arrays.asList(".gtf",".gtf.gz");
 	
@@ -73,16 +73,16 @@ public class GftReader implements Closeable {
 	private Function<String,String> contigNameConverter  = S->S;
 	
 	
-	public GftReader(final InputStream in) {
+	public GtfReader(final InputStream in) {
 		this.resource = new InputStreamGtfResource(in);
 	}
 	
-	public GftReader(final Path path) {
+	public GtfReader(final Path path) {
 		IOUtil.assertFileIsReadable(path);
 		this.resource = new PathGtfResource(path);
 		}
 	
-	public GftReader(final String uri) {
+	public GtfReader(final String uri) {
 		if(uri==null) {
 			this.resource = new InputStreamGtfResource(System.in);
 			}
@@ -112,7 +112,7 @@ public class GftReader implements Closeable {
 		final Map<String,TranscriptImpl> id2transcript = new HashMap<>();
 		final Map<String,List<Coords>> transcript2exons = new HashMap<>();
 		final IntervalTreeMap<Locatable> treemap;
-		final GTFCodec codec = GTFCodec.createGtfCodec();
+		final GTFCodec codec = new GTFCodec();
 
 		
 		State(final Collection<Locatable> intervals)
@@ -646,6 +646,10 @@ public class GftReader implements Closeable {
 				this.index0 = index0;
 				}
 			@Override
+			public int getIndex() {
+				return this.index0;
+				}
+			@Override
 			public int getStart() {
 				return getTranscript().getExonStart(this.index0);
 				}
@@ -662,7 +666,6 @@ public class GftReader implements Closeable {
 				return TranscriptImpl.this.transcript_id.hashCode() * 31 +this.index0;
 				}
 
-			
 			@Override
 			public boolean equals(final Object obj) {
 				if(obj==this) return true;

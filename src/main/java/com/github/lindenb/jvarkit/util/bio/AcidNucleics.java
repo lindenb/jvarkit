@@ -28,6 +28,13 @@ import java.util.Set;
 
 public class AcidNucleics {
 
+/** return true if s is not null, not empty and all bases match 'isATGC */
+public static boolean isATGC(final CharSequence c) {
+	if(c==null || c.length()==0) return false;
+	for(int i=0;i< c.length();i++) if(!isATGC(c.charAt(i))) return false;
+	return true;
+	}
+	
 /** return true is base is [A,T,G,C] regardless of the case */
 public static boolean isATGC(char c) {
 	switch(c) {

@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -39,8 +39,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -112,7 +113,7 @@ public class SamViewWithMate
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-r","--region"},description="One or more region." + IntervalParser.OPT_DESC,splitter=NoSplitter.class)
+	@Parameter(names={"-r","--region"},description="One or more region." + IntervalParserFactory.OPT_DESC,splitter=NoSplitter.class)
 	private List<String> regionList = new ArrayList<>();
 	@Parameter(names={"-b","--bed"},description="Bed file containing the region.")
 	private File bedFile = null;
@@ -146,14 +147,15 @@ public class SamViewWithMate
 				};
 			final List<QueryInterval> queryList= new ArrayList<>();
 			
-			final IntervalParser intervalParser=new IntervalParser(dict);
+			final Function<String, Optional<SimpleInterval>> intervalParser=
+					IntervalParserFactory.
+					newInstance().
+					dictionary(dict).
+					make();
 			for(final String str:regionList) {
 				if(StringUtils.isBlank(str)) continue;
-				final Interval interval= intervalParser.parse(str);
-				if(interval==null) {
-					LOG.error("Cannot parse region "+str);
-					return -1;
-					}
+				final SimpleInterval interval= intervalParser.apply(str).orElseThrow(IntervalParserFactory.exception(str));
+				
 				queryList.add(interval2query.apply(interval));
 				}
 			if(this.bedFile!=null) {

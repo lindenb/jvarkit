@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -50,7 +51,8 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -77,6 +79,7 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
@@ -323,25 +326,25 @@ public class WesCnvTView  extends Launcher {
 		abstract void printBarSymbol(char c, boolean overlap_user_interval);
 		abstract char genearrow(boolean negativestrand);
 		
-		protected String labelOf(final Interval i)
+		protected String labelOf(final Locatable i)
 			{
 			return i.getContig()+":"+
 					niceIntFormat.format(i.getStart()) + "-" + 
 					niceIntFormat.format(i.getEnd())+
 					"\t Length:"+
-					niceIntFormat.format(i.length()) +
+					niceIntFormat.format(i.getLengthOnReference()) +
 					"\t("+count_intervals+")";
 			}
 			
-		void beginInterval(final Interval i) {
+		void beginInterval(final Locatable i) {
 			++count_intervals;
 			if(count_intervals>1) this.pw.println();
 			this.sampleInfos.clear();
 			this.pw.println(">>> " +labelOf(i));
 			}
 		
-		void printGenes(final Interval interval0) {
-			final Interval interval = extendInterval(interval0);
+		void printGenes(final Locatable interval0) {
+			final Locatable interval = extendInterval(interval0);
 			for(final Interval gene : getROIGenes(interval)) {
 				String s = gene.getName();
 				while(s.length() < (LEFT_MARGIN-3))
@@ -361,8 +364,8 @@ public class WesCnvTView  extends Launcher {
 
 				while(x<terminalWidth)
 					{
-					final int beg = interval.getStart()+ (int)((((x+0)-LEFT_MARGIN)/(double)(areaWidth))*interval.length());
-					final int end = interval.getStart()+ (int)((((x+1)-LEFT_MARGIN)/(double)(areaWidth))*interval.length());
+					final int beg = interval.getStart()+ (int)((((x+0)-LEFT_MARGIN)/(double)(areaWidth))*interval.getLengthOnReference());
+					final int end = interval.getStart()+ (int)((((x+1)-LEFT_MARGIN)/(double)(areaWidth))*interval.getLengthOnReference());
 					
 					if(CoordMath.overlaps(beg, end, gene.getStart(), gene.getEnd()))
 						{
@@ -379,7 +382,7 @@ public class WesCnvTView  extends Launcher {
 				}
 		}
 		
-		void endInterval(final Interval i) {
+		void endInterval(final Locatable i) {
 			this.pw.println("<<< " +labelOf(i));
 			this.sampleInfos.clear();
 			}
@@ -388,7 +391,7 @@ public class WesCnvTView  extends Launcher {
 			this.pw.flush();
 			this.pw.close();
 			}
-		void dump(final Interval interval0) {
+		void dump(final Locatable interval0) {
 			double maxDepth = this.sampleInfos.stream().
 					flatMapToDouble(SI->Arrays.stream(SI.pixel_coverage)).
 					max().orElse(0.0);
@@ -421,9 +424,9 @@ public class WesCnvTView  extends Launcher {
 		
 		
 		
-		void dump(final SampleInfo si,double maxDepth,final Interval interval0)
+		void dump(final SampleInfo si,double maxDepth,final Locatable interval0)
 			{
-			final Interval interval = extendInterval(interval0);
+			final Locatable interval = extendInterval(interval0);
 			final int areaWidth = terminalWidth-LEFT_MARGIN;
 			String s = "> "+si.sample+" ";
 			beginColor(AnsiColor.CYAN);
@@ -443,7 +446,7 @@ public class WesCnvTView  extends Launcher {
 				int x=s.length();
 				while(x<terminalWidth)
 					{
-					int pos = interval.getStart()+ (int)(((x-LEFT_MARGIN)/(double)(areaWidth))*interval.length());
+					int pos = interval.getStart()+ (int)(((x-LEFT_MARGIN)/(double)(areaWidth))*interval.getLengthOnReference());
 					s = String.valueOf(pos);
 					if(x+s.length()+1<terminalWidth)
 						{
@@ -481,7 +484,7 @@ public class WesCnvTView  extends Launcher {
 				if(dpy<20) endColor();
 				
 				
-				final Function<Integer,Integer> pixel2base = (x)->interval.getStart()+(int)(((x)/(double)si.pixel_coverage.length)*interval.length());
+				final Function<Integer,Integer> pixel2base = (x)->interval.getStart()+(int)(((x)/(double)si.pixel_coverage.length)*interval.getLengthOnReference());
 				 
 				
 				for(int x=0;x< si.pixel_coverage.length;x++)
@@ -581,7 +584,7 @@ public class WesCnvTView  extends Launcher {
 		}
 
 	
-	private void runInterval(final AbstractViewWriter w,final Interval interval) {
+	private void runInterval(final AbstractViewWriter w,final Locatable interval) {
 			w.beginInterval(interval);
 			w.printGenes(interval);
 			for(final BamInput baminput: this.bamInputs)
@@ -593,10 +596,10 @@ public class WesCnvTView  extends Launcher {
 			w.sampleInfos.clear();
 			}
 	
-	protected final Interval extendInterval(final Interval rgn) {
-		final int x = (int)(rgn.length()*WesCnvTView.this.extend_interval_factor);
+	protected final Locatable extendInterval(final Locatable rgn) {
+		final int x = (int)(rgn.getLengthOnReference()*WesCnvTView.this.extend_interval_factor);
 		if(x<=0) return rgn;
-		return new Interval(
+		return new SimpleInterval(
 				rgn.getContig(),
 				Math.max(rgn.getStart()-x,1),
 				rgn.getEnd()+x
@@ -606,7 +609,7 @@ public class WesCnvTView  extends Launcher {
 	private void runInterval(
 			final AbstractViewWriter w,
 			final BamInput baminput,
-			final Interval interval0
+			final Locatable interval0
 			) {
 			
 			final SampleInfo si = new SampleInfo(baminput.sample);
@@ -628,9 +631,9 @@ public class WesCnvTView  extends Launcher {
 			
 			final Interval interval1 = new Interval(newCtg,interval0.getStart(),interval0.getEnd());
 					
-			final Interval interval = extendInterval(interval1);
+			final Locatable interval = extendInterval(interval1);
 			
-			final int base_coverage[] = new int[interval.length()];
+			final int base_coverage[] = new int[interval.getLengthOnReference()];
 			Arrays.fill(base_coverage, 0);
 			
 			final SAMRecordIterator iter=baminput.samReader.queryOverlapping(
@@ -704,7 +707,7 @@ public class WesCnvTView  extends Launcher {
 		return ncols;
 		}
 	
-	private Collection<Interval> getROIGenes(final Interval interval0) {
+	private Collection<Interval> getROIGenes(final Locatable interval0) {
 		if(this.geneMap.isEmpty()) return Collections.emptyList();
 		final String contig = this.geneMapContigNameConverter.apply(interval0.getContig());
 		if(StringUtil.isBlank(contig)) return Collections.emptyList();
@@ -892,10 +895,12 @@ public class WesCnvTView  extends Launcher {
 					}
 				case INTERVALS:
 					{
-					final IntervalParser parser=new IntervalParser();
+					final Function<String, Optional<SimpleInterval>> parser=  IntervalParserFactory.newInstance().make();
 					final Consumer<Stream<String>> consummer = SL->SL.filter(L->!StringUtil.isBlank(L)).
-						map(L->parser.parse(L)).
-						filter(I->I!=null && I.length()>1).
+						map(L->parser.apply(L)).
+						filter(R->R.isPresent()).
+						map(R->R.get()).
+						filter(I->I.length()>1).
 						forEach(I->{runInterval(w,I);})
 						;
 					if(inputs.isEmpty())

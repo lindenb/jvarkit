@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -456,7 +456,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 				y+=featureHeight*2+spaceYbetweenFeatures;
 				//interval
 				g.setColor(ALMOST_BLACK);
-				hersheyFont.paint(g, interval.getName(), new Rectangle2D.Double(1,y, interval.getName().length()*featureHeight*2,featureHeight*2));
+				hersheyFont.paint(g, interval.toString(), new Rectangle2D.Double(1,y, interval.toString().length()*featureHeight*2,featureHeight*2));
 				y+=featureHeight*2+spaceYbetweenFeatures;
 				//gigh
 				
@@ -1045,17 +1045,12 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 
 					
 					final SamReaderFactory srf = super.createSamReaderFactory();
-					this.interval = new IntervalParser(this.refDict).
-							parse(this.regionStr);
+					this.interval = IntervalParserFactory.newInstance().
+							dictionary(this.refDict).
+							make().
+							apply(this.regionStr).
+							orElseThrow(IntervalParserFactory.exception(this.regionStr));
 					
-					
-					if(this.interval==null)
-						{
-						LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary."
-								+ JvarkitException.ContigNotFoundInDictionary.getMessage(this.interval.getContig(), this.refDict));
-						return -1;
-						}
-					LOG.info("Interval is "+this.interval );
 					
 					loadVCFs();
 					

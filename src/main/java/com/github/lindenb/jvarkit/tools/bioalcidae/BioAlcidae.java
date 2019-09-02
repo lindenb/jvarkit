@@ -36,6 +36,7 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
@@ -505,19 +506,19 @@ public class BioAlcidae
 		VCF{
 			@Override
 			boolean canAs(final String src) {
-				return src!=null && (Arrays.asList(IOUtil.VCF_EXTENSIONS).stream().anyMatch(EXT->src.endsWith(EXT)) );
+				return src!=null && (FileExtensions.VCF_LIST.stream().anyMatch(EXT->src.endsWith(EXT)) );
 			}
 			},
 		SAM{
 			@Override
 			boolean canAs(String src) {
-				return src!=null && (src.endsWith(".sam") || src.endsWith(".bam") );
+				return src!=null && (src.endsWith(FileExtensions.BAM) || src.endsWith(FileExtensions.SAM) );
 			}
 			},
 		BAM{
 			@Override
 			boolean canAs(String src) {
-				return src!=null && (src.endsWith(".sam") || src.endsWith(".bam") );
+				return src!=null && (src.endsWith(FileExtensions.BAM) || src.endsWith(FileExtensions.SAM) );
 			}
 			},
 		FASTA{

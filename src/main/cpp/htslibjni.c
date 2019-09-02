@@ -23,8 +23,9 @@ static void* safeMalloc(size_t size) {
 #define STR_J2C(S) const char* C_VAR(S) = ( const char *) (*env)->GetStringUTFChars(env, S, NULL)
 #define FREE_STR(S) (*env)->ReleaseStringUTFChars(env,S,C_VAR(S))
 
-#define CLASS(NAME)  Java_com_github_lindenb_jvarkit_htslib_HtsFile_ ##  NAME 
+#define BASEPACKAGE Java_com_github_lindenb_jvarkit_htslib_Htslib
 
+#define CLASS(NAME) BASEPACKAGE ##  NAME 
 
 jlong CLASS(_1open) (JNIEnv *env, jclass clazz, jstring filename, jstring mode) {
 	STR_J2C(filename);
@@ -43,7 +44,7 @@ void CLASS(_1close) (JNIEnv* env, jclass c, jlong ptr) {
 
 #undef CLASS
 
-#define CLASS(NAME)  Java_com_github_lindenb_jvarkit_htslib_KString_ ##  NAME 
+#define CLASS(NAME) SECTION(ktring_) ##  NAME 
 
 jlong CLASS(_1create) (JNIEnv* env, jclass clazz) {
 	return (jlong)safeMalloc(sizeof(kstring_t));

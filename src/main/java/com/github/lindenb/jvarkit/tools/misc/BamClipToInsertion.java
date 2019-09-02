@@ -61,7 +61,7 @@ END_DOC
 
  */
 @Program(name="bamclip2insertion",
-	description="Convert SOFT clip to Insertion of other read confirm it",
+	description="Convert SOFT clip to Insertion if other read confirm it",
 	keywords={"sam","bam","clip"}
 	)
 public class BamClipToInsertion

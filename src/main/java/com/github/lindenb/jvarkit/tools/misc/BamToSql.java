@@ -29,10 +29,12 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
@@ -46,12 +48,12 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -277,9 +279,9 @@ public class BamToSql
 	private static final Logger LOG = Logger.build(BamToSql.class).make();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	
-	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
+	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
 	private String regionStr = "";
 
 	@Parameter(names={"-c","--cigar"},description="print cigar data")
@@ -289,7 +291,7 @@ public class BamToSql
 	private boolean printflag = false;
 
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidxFile=null;
+	private Path faidxFile=null;
 	
 	public BamToSql()
 			{
@@ -318,7 +320,7 @@ public class BamToSql
 		try
 			{		
 			
-			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.faidxFile);
 
 			
@@ -413,9 +415,9 @@ public class BamToSql
 				if(dict==null)  {
 					throw new JvarkitException.DictionaryMissing("No Dictionary in input");
 					}
-				final IntervalParser intervalParser = new IntervalParser(dict);
+				final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
 				
-				final Interval userInterval;
+				final SimpleInterval userInterval;
 				iter= null;
 				if(this.regionStr==null || this.regionStr.isEmpty()) {
 					LOG.warn("You're currently scanning the whole BAM ???!!!");
@@ -424,10 +426,8 @@ public class BamToSql
 					}
 				else
 					{
-					userInterval = intervalParser.parse(this.regionStr);
-					if(userInterval==null) {
-						throw new JvarkitException.UserError("cannot parse interval "+this.regionStr);
-					}
+					userInterval = intervalParser.apply(this.regionStr).orElseThrow(IntervalParserFactory.exception(this.regionStr));
+					
 					iter = sfr.query(
 							userInterval.getContig(),
 							userInterval.getStart(),

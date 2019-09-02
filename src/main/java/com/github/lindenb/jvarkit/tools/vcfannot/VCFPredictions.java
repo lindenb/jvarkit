@@ -25,22 +25,47 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.ExonOrIntron;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.PeptideSequence;
+import com.github.lindenb.jvarkit.util.bio.structure.RNASequence;
+import com.github.lindenb.jvarkit.util.bio.structure.RNASequenceFactory;
+import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
+import com.github.lindenb.jvarkit.util.bio.structure.UTR;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -48,24 +73,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import htsjdk.variant.vcf.VCFIterator;
 
 
@@ -161,77 +168,60 @@ public class VCFPredictions extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFPredictions.class).make();
 	private enum OutputSyntax {Native,Vep,SnpEff };
-	private IntervalTreeMap<List<KnownGene>> knownGenes=null;
-	private ReferenceGenome referenceGenome = null;
+	private IntervalTreeMap<List<Transcript>> knownGenes=null;
+	private IndexedFastaSequenceFile referenceGenome = null;
+	private final WeakHashMap<String, RNASequence> transcriptId2cdna = new WeakHashMap<>();
+	private GenomicSequence genomicSequence = null;
+
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String kgURI =KnownGene.getDefaultUri();
-
-	@Parameter(names={"-soacn","--printsoacn"},description="Print SO:term accession rather than label")
-	private boolean print_SO_ACN = false;
+	@Parameter(names={"-k","-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
+	private Path gtfPath = null;
 
 	@Parameter(names={"-os","--output-syntax","--syntax"},description="[20180122]output formatting syntax. SnpEff is still not complete.")
 	private OutputSyntax outputSyntax = OutputSyntax.Native;
 
-	@Parameter(names={"-R","--reference"},description="[20180122](moved to faidx/DAS). "+ReferenceGenomeFactory.OPT_DESCRIPTION,required=true)
-	private String referenceGenomeSource = null;
+	@Parameter(names={"-R","--reference"},description= INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path referenceGenomeSource = null;
 
 	/** a sequence with one or more altered base/amino-acid */
 	private static class MutedSequence extends DelegateCharSequence
 		{
-		private final Map<Integer, Character> pos2char=new TreeMap<Integer, Character>();
-		MutedSequence(final CharSequence wild)
+		private final int pos;
+		private final int refLen;
+		private final String mut;
+		MutedSequence(final CharSequence wild,final int pos,int refLen,final String mut)
 			{
 			super(wild);
+			this.pos = pos;
+			this.refLen = refLen;
+			this.mut= mut;
 			}
-		
-		void put(final int pos,final char c)
-			{
-			this.pos2char.put(pos, c);
-			}
-		
 		@Override
-		public char charAt(final int i)
-			{
-			return this.pos2char.getOrDefault(i, getDelegate().charAt(i));
-			}		
-		}
-	
-	
-	/** a protein, cdna translated with a given genetic code. */
-	private static class ProteinCharSequence extends DelegateCharSequence
-		{
-		private final GeneticCode geneticCode;
-		ProteinCharSequence(final GeneticCode geneticCode,final CharSequence cDNA)
-			{
-			super(cDNA);
-			this.geneticCode=geneticCode;
+		public int length() {
+			return super.length() -  refLen + mut.length();
 			}
 		
 		@Override
 		public char charAt(int i)
 			{
-			return geneticCode.translate(
-				getDelegate().charAt(i*3+0),
-				getDelegate().charAt(i*3+1),
-				getDelegate().charAt(i*3+2));
-			}	
-		
-		@Override
-		public int length()
-			{
-			return getDelegate().length()/3;
-			}
+			if(i < pos) return getDelegate().charAt(i);
+			i-=pos;
+			if(i< mut.length()) return mut.charAt(i);
+			i-=mut.length();
+			i+=refLen;//TODO check
+			return getDelegate().charAt(this.pos+i);
+			}		
 		}
+	
 		
 	
 	class Annotation
 		{
-		KnownGene kg;
-		Allele alt2;
+		Transcript kg;
+		final Allele alt;
 		String exon_name="";
 		String intron_name="";
 		Integer position_cds=null;
@@ -240,8 +230,23 @@ public class VCFPredictions extends Launcher
 		String wildCodon="";
 		String mutCodon="";
 		Integer position_protein=null;
-		final Set<SequenceOntologyTree.Term> seqont=new HashSet<>();
+		final Set<String> seqont=new HashSet<>();
+		String transcriptId="";
+		String geneId="";
+		String geneName="";
+		String bioType="";
 		
+		Annotation(final Allele alt) {
+			this.alt = alt;
+		}
+		Annotation(final Allele alt,final Transcript transcript) {
+			this(alt);
+			this.kg = transcript;
+			this.transcriptId = transcript.getId();
+			this.geneId = transcript.getGene().getId();
+			this.geneName = transcript.getGene().getGeneName();
+			this.bioType = transcript.getGene().getGeneBiotype();
+		}
 		
 		public String toString()
 			{
@@ -251,15 +256,13 @@ public class VCFPredictions extends Launcher
 				case Vep:
 					{
 					//Allele|Feature|Feature_type|Consequence|CDS_position|Protein_position|Amino_acids|Codons
-					b.append(alt2==null?"":alt2.getBaseString());
+					b.append(alt==null?"":alt.getBaseString());
 					b.append('|');
-					b.append(kg==null?"":kg.getName());
+					b.append(kg==null?"":kg.getId());
 					b.append('|');
 					b.append("Transcript");
 					b.append('|');
-					b.append(this.seqont.stream().map(T->T.getLabel().
-							replaceAll("[ ]", "_")).
-							collect(Collectors.joining("&")));
+					b.append(this.seqont.stream().map(T->T.replaceAll("[ ]", "_")).collect(Collectors.joining("&")));
 					b.append('|');
 					b.append(position_cds==null?"":String.valueOf(position_cds+1));
 					b.append('|');
@@ -272,21 +275,19 @@ public class VCFPredictions extends Launcher
 					}
 				case SnpEff:
 					{
-					b.append(alt2==null?"":alt2.getBaseString());
+					b.append(alt==null?"":alt.getBaseString());
 					b.append('|');
-					b.append(this.seqont.stream().map(T->T.getLabel().
-							replaceAll("[ ]", "_")).
-							collect(Collectors.joining("&")));
+					b.append(this.seqont.stream().map(T->T.replaceAll("[ ]", "_")).collect(Collectors.joining("&")));
 					b.append('|');
 					b.append("MODIFIER");//impact 
-					b.append(kg==null?"":kg.getName());// gene name
+					b.append(kg==null?"":kg.getGene().getGeneName());// gene name
 					b.append('|');
-					b.append(kg==null?"":kg.getName()); //gene id
+					b.append(kg==null?"":kg.getGene().getId()); //gene id
 					b.append('|');//
 					b.append("transcript");//Feature_Type
-					b.append(kg==null?"":kg.getName());//Feature_ID
+					b.append(kg==null?"":kg.getId());//Feature_ID
 					b.append('|');
-					b.append("protein_coding");//Transcript_BioType
+					b.append(kg==null?"":kg.getGene().getGeneBiotype());//Transcript_BioType
 					b.append('|');
 					b.append("");//RAnk
 					b.append('|');
@@ -307,7 +308,7 @@ public class VCFPredictions extends Launcher
 					}
 				default:
 					{
-					b.append(kg==null?"":kg.getName());
+					b.append(kg==null?"":kg.getId());
 					b.append('|');
 					b.append(position_cds==null?"":String.valueOf(position_cds));
 					b.append('|');
@@ -317,20 +318,7 @@ public class VCFPredictions extends Launcher
 					b.append('|');
 					b.append(wildAA.isEmpty() && mutAA.isEmpty()?"":wildAA+"/"+mutAA);
 					b.append("|");
-					boolean first=true;
-					for(final SequenceOntologyTree.Term t:seqont)
-						{
-						if(!first) b.append('&');
-						first=false;
-						if(print_SO_ACN)
-							{
-							b.append(t.getAcn());
-							}
-						else
-							{
-							b.append(t.getLabel().replaceAll("[ ]","_"));
-							}
-						}
+					b.append(String.join("&",seqont));
 					break;
 					}
 				}
@@ -339,57 +327,37 @@ public class VCFPredictions extends Launcher
 		
 		}	
 	
-	private void loadKnownGenesFromUri() throws IOException
+	private void loadGtf() throws IOException
 		{
-		BufferedReader in=null;
+		GtfReader in=null;
 		try {
-			if (this.referenceGenome.getDictionary() == null) {
-				throw new JvarkitException.FastaDictionaryMissing(this.referenceGenomeSource);
-			}
-			int n_ignored=0;
-			int n_genes = 0;
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
 			this.knownGenes = new IntervalTreeMap<>();
 			LOG.info("loading genes");
 
-			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
+			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			
-			in = IOUtils.openURIForBufferedReading(this.kgURI);
-			String line;
-			final CharSplitter tab = CharSplitter.TAB;
-			while ((line = in.readLine()) != null) {
-				if (StringUtil.isBlank(line))
-					continue;
-				final String tokens[] = tab.split(line);
-				final KnownGene g = new KnownGene(tokens);
-				final String normalizedContig = contigNameConverter.apply(g.getContig());
-				if(StringUtil.isBlank(normalizedContig)) {
-					++n_ignored;
-					continue;
-				}
-				
-				if (this.referenceGenome.getDictionary().getSequence(normalizedContig) == null) {
-					++n_ignored;
-					continue;
-				}
+			in = new GtfReader(this.gtfPath);
+			in.setContigNameConverter(contigNameConverter);
+			in.getAllGenes().
+				stream().
+				flatMap(G->G.getTranscripts().stream()).
+				filter(G->G.hasCDS() && G.hasStrand()).
+				forEach(g->{
 				final int extend_gene_search = 5000; // because we want to set
 														// SO:5KB_upstream_variant
-
 				final Interval interval = new Interval(
-						normalizedContig,
+						g.getContig(),
 						Math.max(1, g.getTxStart() + 1 - extend_gene_search),
 						g.getTxEnd() + extend_gene_search
 						);
-				List<KnownGene> L= this.knownGenes.get(interval);
+				List<Transcript> L= this.knownGenes.get(interval);
 				if(L==null) {
 					L=new ArrayList<>(2);
 					this.knownGenes.put(interval, L);
 				}
-				++n_genes;
 				L.add(g);
-			}
-			in.close();
-			in = null;
-			LOG.info("genes:" + n_genes+" (ignored: "+n_ignored+")");
+				});
 			}
 		finally {
 			CloserUtil.close(in);
@@ -400,36 +368,29 @@ public class VCFPredictions extends Launcher
 		return !Character.isLetter(c);
 		}
 	
-	private  boolean isSimpleBase(final Allele a)
-		{
-		if(a.isSymbolic() || a.isNoCall()) return false;
-		final String s=a.getBaseString();
-		if(s.length()!=1) return false;
-		switch(s.charAt(0))
-			{
-			case 'A':case 'a':case 'T':case 't':
-			case 'G':case 'g':case 'C':case 'c':
-				return true;
-			}
-		return false;
-		}
 	
 	public static final String TAG="PRED";
 	public static enum FORMAT1{TRANSCRIPT,CDSPOS,PROTPOS,CODON,AA,SEQONTOLOGY};
 	
+	private GenomicSequence getGenomicSequence(final String normalizedContig) {
+		if(genomicSequence==null || !genomicSequence.getChrom().equals(normalizedContig))
+			{
+			transcriptId2cdna.clear();
+			genomicSequence= new GenomicSequence(this.referenceGenome, normalizedContig);
+			}
+		return this.genomicSequence;
+		}
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final VCFIterator r, VariantContextWriter w)
 		{
-		ReferenceContig genomicSequence=null;
 		try {
 		LOG.info("opening REF:"+this.referenceGenomeSource);
-		this.referenceGenome=new ReferenceGenomeFactory().
-				open(this.referenceGenomeSource);
-		loadKnownGenesFromUri();
+		this.referenceGenome= new IndexedFastaSequenceFile(this.referenceGenomeSource);
+		loadGtf();
 		final VCFHeader header= r.getHeader();
-		
-		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(this.referenceGenome.getDictionary());
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
+		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 		
 		final VCFHeader h2=new VCFHeader(header);
 		addMetaData(h2);
@@ -474,408 +435,258 @@ public class VCFPredictions extends Launcher
 		
         w.writeHeader(h2);
 
-		
-		final SequenceOntologyTree soTree=SequenceOntologyTree.getInstance();
-		final SequenceOntologyTree.Term so_intron=soTree.getTermByAcn("SO:0001627");
-		final SequenceOntologyTree.Term so_exon=soTree.getTermByAcn("SO:0001791");
-		final SequenceOntologyTree.Term so_splice_donor=soTree.getTermByAcn("SO:0001575");
-		final SequenceOntologyTree.Term so_splice_acceptor=soTree.getTermByAcn("SO:0001574");
-		final SequenceOntologyTree.Term so_5_prime_UTR_variant=soTree.getTermByAcn("SO:0001623");
-		final SequenceOntologyTree.Term so_3_prime_UTR_variant=soTree.getTermByAcn("SO:0001624");
-		final SequenceOntologyTree.Term so_splicing_variant=soTree.getTermByAcn("SO:0001568");
-		final SequenceOntologyTree.Term so_stop_lost=soTree.getTermByAcn("SO:0001578");
-		final SequenceOntologyTree.Term so_stop_gained=soTree.getTermByAcn("SO:0001587");
-		final SequenceOntologyTree.Term so_coding_synonymous=soTree.getTermByAcn("SO:0001819");
-		final SequenceOntologyTree.Term so_coding_non_synonymous=soTree.getTermByAcn("SO:0001583");
-		final SequenceOntologyTree.Term so_intergenic=soTree.getTermByAcn("SO:0001628");
-		final SequenceOntologyTree.Term so_nc_transcript_variant=soTree.getTermByAcn("SO:0001619");
-		final SequenceOntologyTree.Term so_non_coding_exon_variant=soTree.getTermByAcn("SO:0001792");
-		final SequenceOntologyTree.Term _2KB_upstream_variant=soTree.getTermByAcn("SO:0001636");
-		final SequenceOntologyTree.Term _5KB_upstream_variant=soTree.getTermByAcn("SO:0001635");
-		final SequenceOntologyTree.Term _5KB_downstream_variant=soTree.getTermByAcn("SO:0001633");
-		final SequenceOntologyTree.Term _500bp_downstream_variant=soTree.getTermByAcn("SO:0001634");
-		
+
+		final RNASequenceFactory rnaSeqFactory = new RNASequenceFactory();
+		rnaSeqFactory.setContigToGenomicSequence(S->getGenomicSequence(S));
 		
 		final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		while(r.hasNext())
 			{
 			final VariantContext ctx=progress.apply(r.next());
 			final String normalizedContig=contigNameConverter.apply(ctx.getContig());
-			final List<KnownGene> genes=new ArrayList<>();
+			
+			if(StringUtil.isBlank(normalizedContig) || !ctx.isVariant()) {
+				w.add(ctx);
+				continue;
+				}
 			
 			
-			if(!StringUtil.isBlank(normalizedContig)) {
-				for(final List<KnownGene> l2: this.knownGenes.getOverlapping(new Interval(
-						normalizedContig,
-						ctx.getStart(),
-						ctx.getEnd() //1-based
-						)))
-					{
-					genes.addAll(l2);
-					}
-				}
-			final List<Annotation> ctx_annotations=new ArrayList<Annotation>();
-			if(genes==null || genes.isEmpty())
-				{
-				//intergenic
-				Annotation a=new Annotation();
-				a.seqont.add(so_intergenic);
-				ctx_annotations.add(a);
-				}
-			else
-				{
-				if(genomicSequence==null || !genomicSequence.hasName(normalizedContig))
-					{
-					LOG.info("getting genomic Sequence for "+normalizedContig);
-					genomicSequence= this.referenceGenome.getContig(normalizedContig);
-					if(genomicSequence==null) throw new JvarkitException.ContigNotFoundInDictionary(normalizedContig, this.referenceGenome.getDictionary());
-					}
+			final List<Transcript> genes=  this.knownGenes.getOverlapping(new Interval(
+					normalizedContig,
+					ctx.getStart(),
+					ctx.getEnd() //1-based
+					)).
+					stream().
+					flatMap(X->X.stream()).
+					collect(Collectors.toList());
 				
-				for(final KnownGene gene:genes)
+			final List<Annotation> all_annotations = new ArrayList<>();
+			
+			for(final Allele altAllele: ctx.getAlternateAlleles()) {
+				if(altAllele.isReference() || altAllele.isNoCall() || altAllele.equals(Allele.SPAN_DEL) || altAllele.equals(Allele.NON_REF_ALLELE) ) continue;
+				
+				if(genes==null || genes.isEmpty())
 					{
-					final GeneticCode geneticCode=GeneticCode.getStandard();
-            		
-            		
-					for(final Allele alt2:ctx.getAlternateAlleles())
+					Transcript leftGene = null;
+					String leftId="";
+					String leftName="";
+					
+					for(Iterator<Transcript> iter=this.knownGenes.getOverlapping(new Interval(normalizedContig,1,ctx.getStart())).stream().flatMap(L->L.stream()).iterator();
+							iter.hasNext();
+							)
 						{
-						if(alt2.isNoCall()) continue;
-						if(alt2.isSymbolic())
-							{
-							LOG.warn("symbolic allele are not handled... "+alt2.getDisplayString());
+						final Transcript t= iter.next();
+						if(leftGene==null || leftGene.getEnd() < t.getEnd()) {
+							leftGene = t;
+							leftId= t.getGene().getId();
+							leftName= t.getGene().getGeneName();
+							}
+						}
+					
+					Transcript rightGene = null;
+					String rightId="";
+					String rightName="";
+
+					for(Iterator<Transcript> iter=this.knownGenes.getOverlapping(new Interval(normalizedContig,ctx.getEnd(),dict.getSequence(normalizedContig).getSequenceLength())).
+							stream().flatMap(L->L.stream()).iterator();
+							iter.hasNext();
+							)
+						{
+						final Transcript t= iter.next();
+						if(rightGene==null || t.getStart() < rightGene.getStart()) {
+							rightGene = t;
+							rightId= t.getGene().getId();
+							rightName= t.getGene().getGeneName();
+							}
+						}
+					
+					//intergenic
+					final Annotation annot = new Annotation(altAllele);
+					annot.seqont.add("intergenic");
+					annot.geneId=leftId+"-"+rightId;
+					annot.geneName=leftName+"-"+rightName;
+					all_annotations.add(annot);
+					}
+				else
+					{
+					
+					final int position1 =  ctx.getStart();
+	
+									
+					for(final Transcript transcript:genes)
+						{
+						final Annotation annotation = new Annotation(altAllele,transcript);
+						all_annotations.add(annotation);
+						
+						if(!transcript.overlaps(ctx)) {
+							if( ((position1 < transcript.getStart() && transcript.isNegativeStrand()) ||
+								  (position1 > transcript.getEnd() && transcript.isPositiveStrand())) &&
+								ctx.withinDistanceOf(transcript, 500)) {
+								annotation.seqont.add("500B_downstream_variant");
+								}
+							else if( ((position1 < transcript.getStart() && transcript.isNegativeStrand()) ||
+									  (position1 > transcript.getEnd() && transcript.isPositiveStrand())) &&
+									ctx.withinDistanceOf(transcript, 2_000)) {
+								annotation.seqont.add("2KB_downstream_variant");
+								}
+							else if( ((position1 < transcript.getStart() && transcript.isNegativeStrand()) ||
+									  (position1 > transcript.getEnd() && transcript.isPositiveStrand())) &&
+									ctx.withinDistanceOf(transcript, 5_000)) {
+								annotation.seqont.add("5KB_downstream_variant");
+								}
+							else if( ((position1 < transcript.getStart() && transcript.isPositiveStrand()) ||
+									  (position1 > transcript.getEnd() && transcript.isNegativeStrand())) &&
+									ctx.withinDistanceOf(transcript, 2_000)) {
+								annotation.seqont.add("2KB_upstream_variant");
+								}
+							else if( ((position1 < transcript.getStart() && transcript.isPositiveStrand()) ||
+									  (position1 > transcript.getEnd() && transcript.isNegativeStrand())) &&
+									ctx.withinDistanceOf(transcript, 5_000)) {
+								annotation.seqont.add("5KB_upstream_variant");
+								}
+							else
+								{
+								
+								}
+							
 							continue;
 							}
-						if(alt2.isReference()) continue;
-						final Annotation annotations=new Annotation();
-						annotations.kg=gene;
-						annotations.alt2=alt2;
 						
-						if(gene.isNonCoding())
-							{
-							annotations.seqont.add(so_nc_transcript_variant);
+						if(CoordMath.encloses(ctx.getStart(), ctx.getEnd(), transcript.getStart(), transcript.getEnd())) {
+							annotation.seqont.add("transcript_ablation");//TODO can be inversion ,etc...
 							continue;
+						}
+						
+						for(int side=0;side<2;++side) {
+							final Optional<UTR> opt_utr= (side==0?transcript.getTranscriptUTR5():transcript.getTranscriptUTR3());
+							if(!opt_utr.isPresent()) continue;
+							final UTR utr = opt_utr.get();
+							if(CoordMath.overlaps(utr.getStart(), utr.getEnd(), ctx.getStart(), ctx.getEnd()))
+								{
+								annotation.seqont.add(side==0?"5_prime_UTR_variant":"3_prime_UTR_variant");
+								}
+ 							}
+						
+						
+						for(int side=0;side<2;++side) {
+							final Optional<? extends ExonOrIntron> opt_ex ;
+							if( side==0 ) {
+								opt_ex = transcript.getExons().stream().filter(E->E.contains(position1)).findFirst();
+								}
+							else
+								{
+								opt_ex = transcript.getIntrons().stream().filter(E->E.contains(position1)).findFirst();
+								}
+							if(!opt_ex.isPresent()) continue;
+							final ExonOrIntron ei = opt_ex.get();
+							if(side==0) {
+								if(transcript.isNonCoding()) annotation.seqont.add("non_coding_transcript_exon_variant");
+								}
+							else
+								{
+								if(transcript.isNonCoding()) annotation.seqont.add("non_coding_transcript_intron_variant");
+								annotation.seqont.add("intron");
+								}
+							
+							if(ei.isSplicing(position1))
+								{
+								if(ei.isSplicingAcceptor(position1))
+									{
+									annotation.seqont.add("splice_acceptor"); //SPLICING_ACCEPTOR
+									}
+								else  if(ei.isSplicingDonor(position1))
+									{
+									annotation.seqont.add("splice_donor"); // SPLICING_DONOR
+									}
+								else //??
+									{
+									annotation.seqont.add("splicing_variant");
+									}
+								}
 							}
+	
 						
+						final StructuralVariantType svType = ctx.getStructuralVariantType();
+						if(svType!=null) {
+							
+							
+							
+							continue;
+						}
 						
-						ctx_annotations.add(annotations);
-
-		        		StringBuilder wildRNA=null;
-		        		ProteinCharSequence wildProt=null;
-		        		ProteinCharSequence mutProt=null;
-		        		MutedSequence mutRNA=null;
-		        		int position_in_cds=-1;
-		        		
-		        		final int position=ctx.getStart()-1;
-		        		if(!String.valueOf(genomicSequence.charAt(position)).equalsIgnoreCase(ctx.getReference().getBaseString()))
-		        			{
-		        			if(isSimpleBase(ctx.getReference()))
-			        			{
-			        			LOG.warn("Warning REF!=GENOMIC SEQ!!! at "+position+"/"+ctx.getReference());
-			        			}
-		        			continue;
-		        			}
-		        		
-		        		if(gene.isPositiveStrand())
-		            		{
-		        			if(position < gene.getTxStart() - 2000) {
-		        				annotations.seqont.add(_5KB_upstream_variant);
-		        				}
-		        			else if(position < gene.getTxStart()) {
-		        				annotations.seqont.add(_2KB_upstream_variant);
-		        				}
-		        			else if( position >= gene.getTxEnd() + 500) {
-		        				annotations.seqont.add(_5KB_downstream_variant);
-		        				}
-		        			else if( position >= gene.getTxEnd() ) {
-		        				annotations.seqont.add(_500bp_downstream_variant);
-		        				}
-		        			else if(position < gene.getCdsStart())
-		            			{
-		            			annotations.seqont.add(so_5_prime_UTR_variant);//UTR5
-		            			}
-		            		else if( gene.getCdsEnd()<= position )
-		            			{
-		            			annotations.seqont.add(so_3_prime_UTR_variant);
-		            			}
-		            		else
-			            		{
-			            		int exon_index=0;
-			            		while(exon_index< gene.getExonCount())
-			            			{
-			            			final KnownGene.Exon exon= gene.getExon(exon_index);
-			            			
-			            			for(int i= exon.getStart();
-			            					i< exon.getEnd();
-			            					++i)
-			            				{
-			            				
-			            				if(i==position)
-			        						{
-			        						annotations.exon_name= exon.getName();
-			        						if(exon.isNonCoding())
-			            						{
-			            						annotations.seqont.add(so_non_coding_exon_variant);
-			            						}
-			        						}
-			            				if(i< gene.getTxStart()) continue;
-			            				if(i< gene.getCdsStart()) continue;
-			            				if(i>=gene.getCdsEnd()) break;
-			        					
-			        					if(wildRNA==null)
-			        						{
-			        						wildRNA=new StringBuilder();
-			        						mutRNA=new MutedSequence(wildRNA);
-			        						}
-			        					
-			        					if(i==position)
-			        						{
-			        						annotations.seqont.add(so_exon);
-			        						annotations.exon_name=exon.getName();
-			        						position_in_cds=wildRNA.length();
-			        						annotations.position_cds= position_in_cds;
-			        						//in splicing ?
-			        						if(exon.isSplicing(position))
-			        							{
-			        							
-			        							if(exon.isSplicingAcceptor(position))
-			        								{
-			        								annotations.seqont.add(so_splice_acceptor); //SPLICING_ACCEPTOR
-			        								}
-			        							else  if(exon.isSplicingDonor(position))
-			        								{
-			        								annotations.seqont.add(so_splice_donor); // SPLICING_DONOR
-			        								}
-			        							else //??
-			        								{
-				        							annotations.seqont.add(so_splicing_variant);
-			        								}
-			        							}
-			        						}
-			        					
-			            				wildRNA.append(genomicSequence.charAt(i));
-			            				
-			            				if(i==position && 
-			            						isSimpleBase(alt2) && 
-			            						isSimpleBase(ctx.getReference()))
-			            					{
-			            					mutRNA.put(
-			            							position_in_cds,
-			            							alt2.getBaseString().charAt(0)
-			            							);
-			            					
-			            					}
-			            				
-			            				if(wildRNA.length()%3==0 && wildRNA.length()>0 && wildProt==null)
-				            				{
-				            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-				            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
-				            				}
-			            				}
-			            			final KnownGene.Intron intron= exon.getNextIntron();
-			            			if(intron!=null && intron.contains(position))
-			            				{
-			            				annotations.intron_name=intron.getName();
-			            				annotations.seqont.add(so_intron);
-			            				
-			            				if(intron.isSplicing(position))
-			        						{
-			        						if(intron.isSplicingAcceptor(position))
-			        							{
-			        							annotations.seqont.add(so_splice_acceptor);
-			        							}
-			        						else if(intron.isSplicingDonor(position))
-			        							{
-			        							annotations.seqont.add(so_splice_donor);
-			        							}
-			        						else //???
-			        							{
-			        							annotations.seqont.add(so_splicing_variant);
-			        							}
-			        						}
-			            				}
-			            			++exon_index;
-			            			}
-			            		}
-		            		
-		            		
-		            		}
-		            	else // reverse orientation
-		            		{
-		            		if(position >= gene.getTxEnd() + 2000) {
-		        				annotations.seqont.add(_5KB_upstream_variant);
-		        				}
-		        			else if(position >= gene.getTxEnd()) {
-		        				annotations.seqont.add(_2KB_upstream_variant);
-		        				}
-		        			else if( position < gene.getTxStart() - 500) {
-		        				annotations.seqont.add(_5KB_downstream_variant);
-		        				}
-		        			else if( position < gene.getTxStart() ) {
-		        				annotations.seqont.add(_500bp_downstream_variant);
-		        				}
-		        			else if(position < gene.getCdsStart())
-		            			{
-		            			annotations.seqont.add(so_3_prime_UTR_variant);
-		            			}
-		            		else if( gene.getCdsEnd()<=position )
-		            			{
-		            			annotations.seqont.add(so_5_prime_UTR_variant);
-		            			}
-		            		else
-			            		{
-			            		int exon_index = gene.getExonCount()-1;
-			            		while(exon_index >=0)
-			            			{
-
-			            			final KnownGene.Exon exon= gene.getExon(exon_index);
-			            			
-			            			
-			            			for(int i= exon.getEnd()-1;
-			            				    i>= exon.getStart();
-			            				--i)
-			            				{
-			            				
-			            				
-			            				if(i==position)
-			        						{
-			            					annotations.exon_name=exon.getName();
-			            					if(exon.isNonCoding())
-			            						{
-			            						annotations.seqont.add(so_non_coding_exon_variant);
-			            						}
-			        						}
-			            				if(i>= gene.getCdsEnd()) continue;
-			            				if(i<  gene.getCdsStart()) break;
-			            				
-			            				
-			            				if(wildRNA==null)
-			        						{
-			        						wildRNA=new StringBuilder();
-			        						mutRNA=new MutedSequence(wildRNA);
-			        						}
-			            				
-			            				if(i==position)
-			        						{
-			            					annotations.seqont.add(so_exon);
-			            					position_in_cds=wildRNA.length();
-			        						annotations.position_cds=position_in_cds;
-			        						//in splicing ?
-			        						if(exon.isSplicing(position))
-			        							{		        							
-			        							if(exon.isSplicingAcceptor(position))
-			        								{
-			        								annotations.seqont.add(so_splice_acceptor);
-			        								}
-			        							else  if(exon.isSplicingDonor(position))
-			        								{
-			        								annotations.seqont.add(so_splice_donor);
-			        								}
-			        							else //?
-			        								{
-			        								annotations.seqont.add(so_splicing_variant);
-			        								}
-			        							}
-			        						
-			        						if(isSimpleBase(alt2) &&
-			        							isSimpleBase(ctx.getReference()))
-				        						{
-				        						mutRNA.put(
-				        								position_in_cds,
-				        								AcidNucleics.complement(alt2.getBaseString().charAt(0))
-				        								);
-				        						}
-			        						}
-			            				
-			            				wildRNA.append(AcidNucleics.complement(genomicSequence.charAt(i)));
-			            				if( wildRNA.length()%3==0 &&
-			            					wildRNA.length()>0 &&
-			            					wildProt==null)
-				            				{
-				            				wildProt=new ProteinCharSequence(geneticCode,wildRNA);
-				            				mutProt=new ProteinCharSequence(geneticCode,mutRNA);
-				            				}
-			            				}
-			            			final KnownGene.Intron intron= exon.getPrevIntron();
-			            			if(intron!=null &&
-			            				intron.contains(position))
-			            				{
-			            				annotations.intron_name=intron.getName();
-			            				annotations.seqont.add(so_intron);
-			            				
-			            				if(intron.isSplicing(position))
-			        						{
-			        						if(intron.isSplicingAcceptor(position))
-			        							{
-			        							annotations.seqont.add(so_splice_acceptor);
-			        							}
-			        						else if(intron.isSplicingDonor(position))
-			        							{
-			        							annotations.seqont.add(so_splice_donor);
-			        							}
-			        						else //?	
-			        							{
-			        							annotations.seqont.add(so_splicing_variant);
-			        							}
-			        						}
-			            				}
-			            			--exon_index;
-			            			}
-			            		}
-
-		            		}//end of if reverse
-		        		
-		        		
-		        		if( isSimpleBase(alt2) &&
-		        			isSimpleBase(ctx.getReference()) &&
-		        			wildProt!=null &&
-		        			mutProt!=null && 
-		        			position_in_cds>=0)
-			    			{
-		            		final int pos_aa=position_in_cds/3;
-		            		final int mod= position_in_cds%3;
-		            		annotations.wildCodon=(""+
-		            			wildRNA.charAt(position_in_cds-mod+0)+
-		            			wildRNA.charAt(position_in_cds-mod+1)+
-		            			wildRNA.charAt(position_in_cds-mod+2)
+						if(transcript.isNonCoding()) {
+							//TODO
+							annotation.seqont.add("non_coding_transcript_variant");
+							continue;
+						}
+						
+						RNASequence cDNA = this.transcriptId2cdna.get(transcript.getId());
+						if(cDNA==null) {
+							cDNA = rnaSeqFactory.getCodingRNA(transcript);
+							 this.transcriptId2cdna.put(transcript.getId(), cDNA);
+							}
+						final OptionalInt opt_pos_cdna0 = cDNA.convertGenomic0ToRnaIndex0(ctx.getStart()-1);
+						if(!opt_pos_cdna0.isPresent()) continue;
+						final int pos_cdna0 = opt_pos_cdna0.getAsInt();
+	            		final int pos_aa = pos_cdna0/3;
+	
+						
+						final GeneticCode geneticCode=GeneticCode.getStandard();
+	            							
+						if(AcidNucleics.isATGC(altAllele.getBaseString()))
+							{
+							
+	 						String bases = altAllele.getBaseString().toUpperCase();
+							if(transcript.isNegativeStrand()) {
+								bases = AcidNucleics.reverseComplement(bases);
+								}
+							final MutedSequence mutRNA = new MutedSequence(cDNA,pos_cdna0,ctx.getReference().length(),bases);
+							final PeptideSequence<CharSequence> wildProt = PeptideSequence.of(cDNA,geneticCode);
+							final PeptideSequence<CharSequence> mutProt = PeptideSequence.of(mutRNA,geneticCode);
+							
+		            		final int mod= pos_cdna0%3;
+		            		annotation.wildCodon=(""+
+		            			cDNA.charAt(pos_cdna0-mod+0)+
+		            			cDNA.charAt(pos_cdna0-mod+1)+
+		            			cDNA.charAt(pos_cdna0-mod+2)
 		            			);
-		            		annotations.mutCodon=(""+
-		            			mutRNA.charAt(position_in_cds-mod+0)+
-		            			mutRNA.charAt(position_in_cds-mod+1)+
-		            			mutRNA.charAt(position_in_cds-mod+2)
+		            		annotation.mutCodon=(""+
+		            			mutRNA.charAt(pos_cdna0-mod+0)+
+		            			mutRNA.charAt(pos_cdna0-mod+1)+
+		            			mutRNA.charAt(pos_cdna0-mod+2)
 		            			);
-		            		annotations.position_protein=(pos_aa+1);
-		            		annotations.wildAA=String.valueOf(wildProt.charAt(pos_aa));
-		            		annotations.mutAA=(String.valueOf(mutProt.charAt(pos_aa)));
+		            		annotation.position_protein=(pos_aa+1);
+		            		annotation.wildAA=String.valueOf(wildProt.charAt(pos_aa));
+		            		annotation.mutAA=(String.valueOf(mutProt.charAt(pos_aa)));
 		            		
-		            		annotations.seqont.remove(so_exon);
 		            		
 			    			if(isStop(wildProt.charAt(pos_aa)) &&
 			    			   !isStop(mutProt.charAt(pos_aa)))
 			    				{
-			    				annotations.seqont.add(so_stop_lost);
+			    				annotation.seqont.add("stop_lost");
 			    				}
 			    			else if( !isStop(wildProt.charAt(pos_aa)) &&
 			    				 isStop(mutProt.charAt(pos_aa)))
 			    				{
-			    				annotations.seqont.add(so_stop_gained);
+			    				annotation.seqont.add("stop_gained");
 			    				}
 			    			else if(wildProt.charAt(pos_aa)==mutProt.charAt(pos_aa))
 			    				{
-			    				annotations.seqont.add(so_coding_synonymous);
+			    				annotation.seqont.add("synonymous");
 			    				}
 			    			else
 			    				{
-			    				annotations.seqont.add(so_coding_non_synonymous);
-			    				}
-			    			}
-		        		
+			    				annotation.seqont.add("non_synonymous");
+			    				}								
+							}
 						}
 					}
 				}
 			
 		
 			
-			final Set<String> info=new HashSet<String>(ctx_annotations.size());
-			for(final Annotation a:ctx_annotations)
+			final Set<String> info=new HashSet<String>(all_annotations.size());
+			for(final Annotation a:all_annotations)
 				{
 				info.add(a.toString());
 				}
@@ -892,7 +703,7 @@ public class VCFPredictions extends Launcher
 			w.add(vb.make());
 			}
 		progress.close();
-		return RETURN_OK;
+		return 0;
 		} catch(Exception err ) {
 			LOG.error(err);
 			return -1;
@@ -903,16 +714,6 @@ public class VCFPredictions extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtil.isBlank(this.referenceGenomeSource))
-			{
-			LOG.error("Reference undefined.");
-			return -1;
-			}
-		if(this.kgURI==null || this.kgURI.trim().isEmpty()) 
-			{
-			LOG.error("knownGene undefined.");
-			return -1;
-			}
 		return doVcfToVcf(args,outputFile);
 		}
 	

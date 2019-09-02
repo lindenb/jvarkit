@@ -50,7 +50,8 @@ import org.apache.jena.vocabulary.RDFS;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -135,7 +136,7 @@ public class VcfSparql extends Launcher {
 	private String outputFormat = "text";
 	@Parameter(names={"--code"},description="show code")
 	private boolean showCode = false;
-	@Parameter(names={"-r","--region"},description="limit query to this genomic interval. "+IntervalParser.OPT_DESC)
+	@Parameter(names={"-r","--region"},description="limit query to this genomic interval. "+IntervalParserFactory.OPT_DESC)
 	private String regionStr = null;
 
 	@Override
@@ -200,12 +201,12 @@ public class VcfSparql extends Launcher {
 				final VariantGraph graph = new VariantGraph(vcfInput);
 				
 				if(!StringUtils.isBlank(this.regionStr)) {
-					final IntervalParser parser= new IntervalParser(SAMSequenceDictionaryExtractor.extractDictionary(vcfInput));
-					final Interval rgn = parser.parse(this.regionStr);
-					if(rgn==null) {
-						LOG.error("cannot parse interval "+this.regionStr);
-						return -1;
-						}
+					final SimpleInterval rgn = IntervalParserFactory.newInstance().
+							dictionary(SAMSequenceDictionaryExtractor.extractDictionary(vcfInput)).
+							make().
+							apply(this.regionStr).
+							orElseThrow(IntervalParserFactory.exception(this.regionStr));
+					
 					graph.setInterval(rgn);
 					}
 				
@@ -260,7 +261,7 @@ public class VcfSparql extends Launcher {
 		
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new VcfSparql().instanceMainWithExit(args);
 	}
 }

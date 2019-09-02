@@ -64,7 +64,6 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
@@ -74,7 +73,8 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -118,7 +118,7 @@ public class VCFMerge
 	@Parameter(names={"-homref","--homref"},description="Use HomRef 0/0 for unknown variant")
 	private boolean useHomRefForUnknown = false;
 	
-	@Parameter(names={"-region","--region"},description="Merge in that region: " + IntervalParser.OPT_DESC )
+	@Parameter(names={"-region","--region"},description="Merge in that region: " + IntervalParserFactory.OPT_DESC )
 	private String regionStr = "";
 
 	
@@ -448,9 +448,13 @@ public class VCFMerge
 				{
 				this.reader = new VCFFileReader(new File(uri),true);
 				this.header = this.reader.getFileHeader();
-				final IntervalParser intervalParser=new IntervalParser(this.header.getSequenceDictionary());
-				intervalParser.setContigNameIsWholeContig(true);
-				final Interval rgn = intervalParser.parse(VCFMerge.this.regionStr);
+				final SimpleInterval rgn = IntervalParserFactory.
+						newInstance().
+						enableWholeContig().
+						dictionary(this.header.getSequenceDictionary()).
+						make().
+						apply(VCFMerge.this.regionStr).
+						orElseThrow(IntervalParserFactory.exception(VCFMerge.this.regionStr));
 				this.iter0  = this.reader.query(rgn.getContig(), rgn.getStart(), rgn.getEnd());
 				}
 			this.iter = new PeekableIterator<>(this.iter0); 
@@ -704,12 +708,15 @@ public class VCFMerge
 					}
 				final Predicate<VariantOfFile> accept;
 				if(!StringUtil.isBlank(VCFMerge.this.regionStr)) {
-					final IntervalParser intervalParser=new IntervalParser(dict1);
-					intervalParser.setContigNameIsWholeContig(true);
-					final Interval rgn = intervalParser.parse(VCFMerge.this.regionStr);
+					final SimpleInterval rgn = IntervalParserFactory.newInstance().
+							dictionary(dict1).
+							enableWholeContig().
+							make().
+							apply(VCFMerge.this.regionStr).
+							orElseThrow(IntervalParserFactory.exception(VCFMerge.this.regionStr));
 					accept = (VOL)->{
 						final VariantContext ctx = VOL.parse();
-						return rgn.intersects(new Interval(ctx.getContig(), ctx.getStart(),ctx.getEnd()));
+						return rgn.overlaps(ctx);
 						};
 					}
 				else

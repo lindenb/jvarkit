@@ -31,19 +31,22 @@ BEGIN_DOC
 END_DOC
  */
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
@@ -56,7 +59,7 @@ public class SplitByTile  extends Launcher
 	private static final String TILEWORD="__TILE__";
     private static final Logger LOG = Logger.build(SplitByTile.class).make();
     @Parameter(names={"-o","--output"},description="Output file. Must contain "+TILEWORD,required=true)
-    private String OUTPUT = null;
+    private Path OUTPUT = null;
     @ParametersDelegate
     private WritingBamArgs writingBamArgs =new WritingBamArgs();
     
@@ -68,7 +71,7 @@ public class SplitByTile  extends Launcher
     
     @Override
     public int doWork(final List<String> args) {
-    	if(OUTPUT==null || !OUTPUT.contains(TILEWORD) || !OUTPUT.endsWith(".bam"))
+    	if(OUTPUT==null || !OUTPUT.toString().contains(TILEWORD) || !OUTPUT.toString().endsWith(FileExtensions.BAM))
     		{
     		LOG.error("Bad OUPUT name "+OUTPUT+". must contain "+TILEWORD+" and ends with .bam");
     		return -1;
@@ -76,7 +79,7 @@ public class SplitByTile  extends Launcher
     	
         SamReader samReader = null;
         final  Map<Integer, SAMFileWriter> tile2writer=new HashMap<Integer, SAMFileWriter>();
-        final  Pattern colon=Pattern.compile("[\\:]");
+        final CharSplitter  colon= CharSplitter.COLON;
         SAMRecordIterator iter=null;
      
         
@@ -113,13 +116,13 @@ public class SplitByTile  extends Launcher
 				SAMFileWriter sfw=tile2writer.get(tile);
 				if(sfw==null)
 					{
-					final File outFile=new File(OUTPUT.replaceAll(TILEWORD, String.valueOf(tile)));
+					final Path outFile= Paths.get(OUTPUT.toString().replaceAll(TILEWORD, String.valueOf(tile)));
 					LOG.info("create output for "+outFile );
-					if(outFile.getParentFile()!=null)
+					if(outFile.getParent()!=null && !Files.exists(outFile.getParent()))
 						{
-						outFile.getParentFile().mkdirs();
+						Files.createDirectories(outFile.getParent());
 						}
-					sfw= this.writingBamArgs.openSAMFileWriter(outFile,header,true);
+					sfw= this.writingBamArgs.openSamWriter(outFile,header,true);
 					tile2writer.put(tile, sfw);
 					}
 				sfw.addAlignment(rec);

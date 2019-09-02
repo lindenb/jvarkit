@@ -54,6 +54,7 @@ Usage: bioalcidaejdk [options] Files
  * vcf
  * java
  * jdk
+ * gtf
 
 
 
@@ -89,6 +90,8 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/336206](https://www.biostars.org/p/336206)
  * [https://www.biostars.org/p/338031](https://www.biostars.org/p/338031)
  * [https://www.biostars.org/p/356474](https://www.biostars.org/p/356474)
+ * [https://www.biostars.org/p/394289](https://www.biostars.org/p/394289)
+ * [https://www.biostars.org/p/395454](https://www.biostars.org/p/395454)
 
 
 ## Compilation
@@ -696,5 +699,28 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(G->G.getTranscripts().st
 3	38691021	38691164	ENST00000491944.Exon1
 3	38674525	38674711	ENST00000476683.Exon1
 3	38687181	38687267	ENST00000327956.Exon1
+```
+
+## convert GTF to BED of introns
+
+
+
+```
+$ wget -q  -O - "ftp://ftp.ensemblgenomes.org/pub/release-44/plants/gtf/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.44.gtf.gz" |\
+gunzip -c |\
+java -jar dist/bioalcidaejdk.jar -F GTF -e 'stream().flatMap(G->G.getTranscripts().stream()).flatMap(T->T.getIntrons().stream()).forEach(I->println(I.getContig()+"\t"+(I.getStart()-1)+"\t"+I.getEnd()+"\t"+I.getTranscript().getGene().getGeneName()));' |\
+sort -t $'\t' -k1,1 -k2,2n | uniq > introns.bed
+
+$ head introns.bed
+1   3913    3995    NAC001
+1   4276    4485    NAC001
+1   4605    4705    NAC001
+1   5095    5173    NAC001
+1   5326    5438    NAC001
+1   7069    7156    ARV1
+1   7232    7383    ARV1
+1   7450    7563    ARV1
+1   7649    7761    ARV1
+1   7649    8235    ARV1
 ```
 

@@ -21,7 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
 */
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
@@ -41,6 +40,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
@@ -50,18 +50,18 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.lang.Paranoid;
-import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.GranthamScore;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.PeptideSequence;
+import com.github.lindenb.jvarkit.util.bio.structure.RNASequence;
+import com.github.lindenb.jvarkit.util.bio.structure.RNASequenceFactory;
+import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -70,7 +70,6 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -187,8 +186,8 @@ public class VCFCombineTwoSnvs extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String kgURI  = KnownGene.getDefaultUri();
+	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
+	private Path gtfPath  = null;
 	@Parameter(names={"-B","--bam"},description="Optional indexed BAM file used to get phasing information. This can be a list of bam if the filename ends with '.list'")
 	private Path bamIn = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true )
@@ -201,79 +200,16 @@ public class VCFCombineTwoSnvs extends Launcher
 	
 	
 	/** known Gene collection */
-	private final IntervalTreeMap<List<KnownGene>> knownGenes=new IntervalTreeMap<>();
+	private final IntervalTreeMap<List<Transcript>> knownGenes=new IntervalTreeMap<>();
 	/** reference genome */
 	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
 	/** current genomic sequence */
 	private GenomicSequence genomicSequence=null;
 	/** all variants */
 	private SortingCollection<Variant> variants= null;
-	/** genetic Code used */
-	private static final GeneticCode GENETIC_CODE = GeneticCode.getStandard();
 	/**  map transcript to their sequence */
-	private final WeakHashMap<String, CDNASequence> kgId2transcriptCache = new WeakHashMap<>();
-	/** because 'I'm paranoid */
-	private final Paranoid paranoiac = Paranoid.createThrowingInstance();
-	
-	private class CDNASequence extends AbstractCharSequence
-		{
-		final KnownGene knownGene;
-		final StringBuilder sequence = new StringBuilder(1_000);
-		final Map<Integer, Integer> genomic2cnda;
-		CDNASequence(final KnownGene knownGene) {
-			this.knownGene=knownGene;
-			final List<Integer> genomicPositions = new ArrayList<>();
-			
-	    	for(int exon_index=0;exon_index< this.knownGene.getExonCount();++exon_index)
-	    		{
-	    		int pos0 = Math.max(this.knownGene.getCdsStart(),this.knownGene.getExonStart(exon_index));
-	    		final int end0 =  Math.min(this.knownGene.getExonEnd(exon_index),this.knownGene.getCdsEnd());
-	    		while(pos0<end0) {
-	    			genomicPositions.add(pos0);
-	    			char base = Character.toUpperCase(genomicSequence.charAt(pos0));
-	    			this.sequence.append(base);
-	    			pos0++;
-	    			}
-	    		}
-	    	
-	    	if(this.knownGene.isPositiveStrand()) {
-	    		// nothing
-	    		}
-	    	else
-	    		{
-	    			
-	    		Collections.reverse(genomicPositions);
-	    		this.sequence.reverse();
-	    		
-	    		for(int i=0;i< this.sequence.length();i++) {
-	    			this.sequence.setCharAt(i, AcidNucleics.complement(this.sequence.charAt(i)));
-    				}
-	    		}
-	    	
-	    	paranoiac.assertGt(this.sequence.length(), 3);
-	    	
-	    	this.genomic2cnda=new HashMap<>(genomicPositions.size());
-	    	for(int i=0;i< genomicPositions.size();i++) {
-	    		this.genomic2cnda.put(genomicPositions.get(i),i);
-	    		}
-	    	/*
-	    	paranoiac.assertTrue(GENETIC_CODE.isStopCodon(
-	    			this.sequence.charAt(this.sequence.length()-3),
-	    			this.sequence.charAt(this.sequence.length()-2),
-	    			this.sequence.charAt(this.sequence.length()-1)
-	    			),knownGene.getName()+" "+knownGene.getStrand()+" "+knownGene.getContig()+" "+knownGene.getCdsStart()+" "+knownGene.getCdsEnd());
-	    	*/
-			}
-		@Override
-		public char charAt(int index) {
-			return this.sequence.charAt(index);
-			}
-		
-		@Override
-		public int length() {
-			return  this.sequence.length();
-			}
-		}
+	private final WeakHashMap<String, RNASequence> kgId2transcriptCache = new WeakHashMap<>();
+	private final RNASequenceFactory rnaSequenceFactory = new RNASequenceFactory();
 	
 	/** mutated cdna */
 	private static class MutedSequence extends DelegateCharSequence
@@ -298,78 +234,32 @@ public class VCFCombineTwoSnvs extends Launcher
 		}
 	
 	
-	private static class ProteinCharSequence extends DelegateCharSequence
-		{
-		ProteinCharSequence(final CharSequence cDNA)
-			{
-			super(cDNA);
-			}
-		
-		@Override
-		public char charAt(int i)
-			{
-			return GENETIC_CODE.translate(
-				getDelegate().charAt(i*3+0),
-				getDelegate().charAt(i*3+1),
-				getDelegate().charAt(i*3+2));
-			}	
-		
-		@Override
-		public int length()
-			{
-			return getDelegate().length()/3;
-			}
-		
-		}
-	
 	/** load KnownGenes */
-	private void loadKnownGenesFromUri() throws IOException
+	private void loadTranscripts() throws IOException
 		{
-		BufferedReader in = null;
+		GtfReader gtfReader = null;
 		try {
 			final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 			final ContigNameConverter  ctgNameConverter = ContigNameConverter.fromOneDictionary(dict);
-			LOG.info("loading genes from "+this.kgURI);
-			in =IOUtils.openURIForBufferedReading(this.kgURI);
-			final CharSplitter tab=CharSplitter.TAB;
-			String line = null;
-			int count_non_coding = 0;
-			final Set<String> ignored=new HashSet<>();
-			while((line=in.readLine())!=null)
-				{
-				line= line.trim();
-				if(line.isEmpty()) continue;
-				String tokens[]=tab.split(line);
-				final KnownGene g=new KnownGene(tokens);
-				if(g.isNonCoding()) {
-					++count_non_coding;
-					continue;
-				}
-				final String ctg = ctgNameConverter.apply(g.getContig());
-				
-				if(StringUtils.isBlank(ctg)) {
-					if(ignored.add(g.getContig()))
-						{
-						LOG.warn("Unknown chromosome "+g.getContig()+" in dictionary");
-						}
-					continue;
-					}
-				g.setChrom(ctg);
+			LOG.info("loading genes from "+this.gtfPath);
+			gtfReader = new GtfReader(this.gtfPath);
+			gtfReader.setContigNameConverter(ctgNameConverter);
+			gtfReader.getAllGenes().stream().
+				flatMap(G->G.getTranscripts().stream()).filter(T->T.hasStrand() && T.hasCDS()).
+				forEach(T->{
 				//use 1 based interval
-				final Interval interval=new Interval( ctg, g.getTxStart()+1, g.getTxEnd() );
-				List<KnownGene> lkg= this.knownGenes.get(interval);
+				final Interval interval=new Interval(T);
+				List<Transcript> lkg= this.knownGenes.get(interval);
 				if(lkg==null) {
 					lkg=new ArrayList<>(2);
 					this.knownGenes.put(interval, lkg);
 					}
-				lkg.add(g);
-				}
-			CloserUtil.close(in);in=null;
-			LOG.info("transcripts:"+knownGenes.size()+" discarded:" +count_non_coding +" non-coding transcript(s).");
+				lkg.add(T);
+				});
 			}
 		finally
 			{
-			CloserUtil.close(in);
+			CloserUtil.close(gtfReader);
 			}
 		}
 	
@@ -415,7 +305,7 @@ public class VCFCombineTwoSnvs extends Launcher
 	/** A mutation in a Transcript */
 	static private class Variant extends AbstractContext
 		{
-		String transcriptName;
+		String transcriptId;
 		byte strand;
 		int position_in_cdna=-1;
 		String wildCodon=null;
@@ -427,12 +317,12 @@ public class VCFCombineTwoSnvs extends Launcher
 			
 			}
 		
-		Variant(final VariantContext ctx,final Allele allele,final KnownGene gene) {
+		Variant(final VariantContext ctx,final Allele allele,final Transcript transcript) {
 			this.contig = ctx.getContig();
 			this.genomicPosition1=ctx.getStart();
 			this.id = (ctx.hasID()?ctx.getID():VCFConstants.EMPTY_ID_FIELD);
-			this.transcriptName = gene.getName();
-			this.strand = (byte)(gene.isNegativeStrand()?'-':'+');
+			this.transcriptId = transcript.getId();
+			this.strand = (byte)transcript.getStrand();
 			this.refAllele = ctx.getReference();
 			this.altAllele = allele;
 			
@@ -468,20 +358,20 @@ public class VCFCombineTwoSnvs extends Launcher
 			info.put("PosInCodon"+suffix,String.valueOf(this.positionInCodon()+1));
 			info.put("Alt"+suffix,this.altAllele.getBaseString());
 			info.put("Codon"+suffix,this.mutCodon);
-			info.put("AA"+suffix,new ProteinCharSequence(this.mutCodon).getString());
+			info.put("AA"+suffix,PeptideSequence.of(this.mutCodon).toString());
 			}
 		
 		public Map<String,Object> getInfo(final Variant other) {
 			final Map<String,Object> info = new LinkedHashMap<>();
 			info.put("CHROM",this.contig);
 			info.put("REF",this.refAllele.getBaseString());
-			info.put("TRANSCRIPT",this.transcriptName);
+			info.put("TRANSCRIPT",this.transcriptId);
 			info.put("STRAND",this.strand==(byte)'+'?"plus":"minus");
 			info.put("cDdnaPos",String.valueOf(this.position_in_cdna+1));
 			info.put("CodonPos",String.valueOf(this.codonStart()+1));
 			info.put("CodonWild",this.wildCodon);
 			info.put("AAPos",String.valueOf(1+(this.codonStart()/3)));
-			info.put("AAWild",new ProteinCharSequence(this.wildCodon).getString() );
+			info.put("AAWild",PeptideSequence.of(this.wildCodon).toString() );
 			_getInfo(info, 1);
 			other._getInfo(info, 2);
 			return info;
@@ -491,7 +381,7 @@ public class VCFCombineTwoSnvs extends Launcher
 		public String toString() {
 			return contig+"\t"+genomicPosition1+"\t"+refAllele.getBaseString()+"\t"+
 					altAllele.getBaseString()+"\t"+
-					transcriptName+"\t"+
+					transcriptId+"\t"+
 					position_in_cdna+"\t"+
 					codonStart()+"\t"+
 					positionInCodon()+"\t"+
@@ -518,7 +408,7 @@ public class VCFCombineTwoSnvs extends Launcher
 			variant.contig = contig;
 			variant.genomicPosition1 = dis.readInt();
 			variant.id = dis.readUTF();
-			variant.transcriptName = dis.readUTF();
+			variant.transcriptId = dis.readUTF();
 			variant.strand = dis.readByte();
 			variant.refAllele = Allele.create(dis.readUTF(), true);
 			variant.altAllele = Allele.create(dis.readUTF(), false);
@@ -542,7 +432,7 @@ public class VCFCombineTwoSnvs extends Launcher
 			dos.writeUTF(v.contig);
 			dos.writeInt(v.genomicPosition1);
 			dos.writeUTF(v.id);
-			dos.writeUTF(v.transcriptName);
+			dos.writeUTF(v.transcriptId);
 			dos.writeByte(v.strand);
 			dos.writeUTF(v.refAllele.getBaseString());
 			dos.writeUTF(v.altAllele.getBaseString());
@@ -574,7 +464,7 @@ public class VCFCombineTwoSnvs extends Launcher
 		public int compare(final Variant o1,final  Variant o2) {
 			int i= this.contigDictComparator.compare(o1.getContig(),o2.getContig());
 			if(i!=0) return i;
-			i= o1.transcriptName.compareTo(o2.transcriptName);
+			i= o1.transcriptId.compareTo(o2.transcriptId);
 			return i;
 			}
 		}
@@ -731,8 +621,9 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 			final VCFHeader header= cah.header;
 			final List<String> sampleList = header.getSampleNamesInOrder();
 
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referencePath);
+			this.indexedFastaSequenceFile=  new IndexedFastaSequenceFile(this.referencePath);
 	        final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+	        this.rnaSequenceFactory.setContigToGenomicSequence(C->getGenomicSequenceForContig(C));
 	        
 	        if(this.bamIn!=null)
 	        	{
@@ -782,7 +673,7 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 		        	}
 	        	}
 	        
-			loadKnownGenesFromUri();
+	        loadTranscripts();
 
 			this.variants = SortingCollection.newInstance(Variant.class,
 					new VariantCodec(),
@@ -807,18 +698,19 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 					}
 				
 				/* find the overlapping genes : extend the interval of the variant to include the stop codon */
-				final Collection<KnownGene> genes=  this.knownGenes.getOverlapping(
+				final Collection<Transcript> genes=  this.knownGenes.getOverlapping(
 					new Interval(ctx.getContig(),
 					Math.max(1,ctx.getStart()-3),
 					ctx.getEnd()+3
-					)).stream().flatMap(L->L.stream()).
+					)).stream().
+					flatMap(L->L.stream()).
 					collect(Collectors.toList());
 					
 				
 				final List<Allele> alternateAlleles =  ctx.getAlternateAlleles();
 				
 				/* loop over overlapping genes */
-				for(final KnownGene kg:genes) {
+				for(final Transcript kg:genes) {
 					/* loop over available alleles */
 					for(int allele_idx=0;allele_idx< alternateAlleles.size();++allele_idx) {
 						final Allele alt = alternateAlleles.get(allele_idx);
@@ -880,10 +772,10 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 						combinedCodon.setCharAt(v1.positionInCodon(), v1.mutCodon.charAt(v1.positionInCodon()));
 						combinedCodon.setCharAt(v2.positionInCodon(), v2.mutCodon.charAt(v2.positionInCodon()));
 						
-						final String pwild = new ProteinCharSequence(v1.wildCodon).getString();
-						final String p1 = new ProteinCharSequence(v1.mutCodon).getString();
-						final String p2 = new ProteinCharSequence(v2.mutCodon).getString();
-						final String pCombined = new ProteinCharSequence(combinedCodon).getString();
+						final String pwild = PeptideSequence.of(v1.wildCodon).toString();
+						final String p1 = PeptideSequence.of(v1.mutCodon).toString();
+						final String p2 = PeptideSequence.of(v2.mutCodon).toString();
+						final String pCombined = PeptideSequence.of(combinedCodon).toString();
 						final String combinedSO;
 						final String combinedType;
 						
@@ -1130,14 +1022,14 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 							bedPeReport.print('\t');
 							bedPeReport.print(m2.genomicPosition1);
 							bedPeReport.print('\t');
-							bedPeReport.print(v1.transcriptName);//name
+							bedPeReport.print(v1.transcriptId);//name
 							bedPeReport.print('\t');
 							bedPeReport.print(grantham_score==GranthamScore.getDefaultScore()?0:(int)((grantham_score/255.0)*1000.0));//score
 							bedPeReport.print('\t');
-							final KnownGene kg= this.knownGenes.getOverlapping(new Interval(v1.getContig(),v1.genomicPosition1-1,v1.genomicPosition1+1)).
+							final Transcript kg= this.knownGenes.getOverlapping(new Interval(v1.getContig(),v1.genomicPosition1-1,v1.genomicPosition1+1)).
 									stream().
 									flatMap(L->L.stream()).
-									filter(P->P.getContig().equals(v1.contig) && P.getName().equals(v1.transcriptName)).
+									filter(P->P.getContig().equals(v1.contig) && P.getId().equals(v1.transcriptId)).
 									findFirst().orElseThrow(IllegalStateException::new);
 							
 							bedPeReport.print(kg.isNegativeStrand()?"-":"+");//strand1
@@ -1299,27 +1191,31 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 		}
 	
 	
-	
-	private CDNASequence getTranscript(final KnownGene kg) {
-		CDNASequence mrna= this.kgId2transcriptCache.get(kg.getName());
-		if(mrna!=null && mrna.knownGene.getContig().equals(kg.getContig())) return mrna;
-		
-		if(genomicSequence==null || !genomicSequence.getChrom().equals(kg.getContig()))
+	private GenomicSequence getGenomicSequenceForContig(final String ctg) {
+		if(genomicSequence==null || !genomicSequence.getChrom().equals(ctg))
 			{
-			LOG.info("getting genomic Sequence for "+kg.getContig());
-			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, kg.getContig());
+			LOG.info("getting genomic Sequence for "+ctg);
+			genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile,ctg);
 			}
+		return genomicSequence;
+		}
+	
+	private RNASequence getTranscript(final Transcript kg) {
+		RNASequence mrna= this.kgId2transcriptCache.get(kg.getId());
+		if(mrna!=null && mrna.getTranscript().getContig().equals(kg.getContig())) return mrna;
+		
+		
 
 		
-		mrna = new CDNASequence(kg);
-		this.kgId2transcriptCache.put(kg.getName(), mrna);
+		mrna = this.rnaSequenceFactory.getCodingRNA(kg);
+		this.kgId2transcriptCache.put(kg.getId(), mrna);
 		return mrna;
-	}
+		}
 	
 	private void challenge(
 			final VariantContext ctx,
 			final Allele allele,
-			final KnownGene gene,
+			final Transcript gene,
 			final String vcfLine
 			) throws IOException
 		{
@@ -1330,14 +1226,14 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 		if(ctx.getReference().length()!=1) return;
 		if(allele.equals(Allele.SPAN_DEL)) return;
 		
-		final CDNASequence wildRNA = this.getTranscript(gene);
+		final RNASequence wildRNA = this.getTranscript(gene);
 		final int positionContext0 = ctx.getStart() -1;
-		final Integer position_in_cnda = wildRNA.genomic2cnda.get(positionContext0);
-		if(position_in_cnda==null) return;
+		final OptionalInt position_in_cnda0 = wildRNA.convertGenomic0ToRnaIndex0(positionContext0);
+		if(!position_in_cnda0.isPresent()) return;
 				
 		final Variant variant = new Variant(ctx,allele,gene);
 		variant.sorting_id = ID_GENERATOR++;
-		variant.position_in_cdna= position_in_cnda.intValue();
+		variant.position_in_cdna= position_in_cnda0.getAsInt();
 		char mutBase= Character.toUpperCase(allele.getDisplayString().charAt(0));
 		if(gene.isNegativeStrand()) mutBase= AcidNucleics.complement(mutBase);
 		
@@ -1364,7 +1260,7 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 		
 		
 		if(variant.wildCodon.equals(variant.mutCodon)) {
-			LOG.info("Uh??????? "+allele+" "+ctx.getContig()+":"+ctx.getStart()+" "+position_in_cnda+" "+wildRNA.length()+" "+variant.wildCodon+" "+variant.mutCodon);
+			LOG.info("Uh??????? "+allele+" "+ctx.getContig()+":"+ctx.getStart()+" "+position_in_cnda0+" "+wildRNA.length()+" "+variant.wildCodon+" "+variant.mutCodon);
 			return;
 			}
 		
@@ -1373,11 +1269,6 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtils.isBlank(this.kgURI))
-			{
-			LOG.error("Undefined kgURI.");
-			return -1;
-			}
 		return doVcfToVcf(args,this.outputFile);
 		}
 	

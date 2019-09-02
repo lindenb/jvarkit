@@ -195,7 +195,7 @@ public class StarRetroCopy extends Launcher
 	
 	private void loadGTF(final SAMSequenceDictionary dict) throws IOException {
 		final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
-		final GTFCodec gtfCodec = GTFCodec.createGtfCodec();
+		final GTFCodec gtfCodec = new GTFCodec();
 		final Map<String,Transcript> id2transcript = new HashMap<>(50_000);
 		//Emmanuelle je t'aime contre le mur
 		try(BufferedReader br=IOUtils.openPathForBufferedReading(this.gtfPath))

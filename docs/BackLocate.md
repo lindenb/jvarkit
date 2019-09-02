@@ -10,44 +10,20 @@ Mapping a mutation on a protein back to the genome.
 ```
 Usage: backlocate [options] Files
   Options:
+  * -g, --gtf
+      A GTF file.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -k, --kg
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
-    -x, -X, --kgxref
-      UCSC kgXRef URI. Must have at least 5 columns. $1 is knowGene-Id $5  is 
-      protein identifier.
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz
     -o, --out
       Output file. Optional . Default: stdout
     -p, --printSeq
       print mRNA & protein sequences
       Default: false
   * -R, --reference
-      The parameter is the path to an Indexed fasta Reference file. This fasta 
-      file must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary. The parameter can also be a 'key' (matching 
-      the regular expression `[A-Za-z][A-Za-z0-9_\\-]*`) in a catalog file. A 
-      'catalog' file is a java property file ( 
-      https://docs.oracle.com/javase/tutorial/essential/environment/properties.html 
-      ) where the values are the path to the fasta file.  Catalogs are 
-      searched in that order : `${PWD}/fasta-ref.properties`, 
-      `${HOME}/.fasta-ref.properties`, `/etc/jvarkit/fasta-ref.properties`.  
-      If the key or the path are not defined by the user, they will be 
-      searched in that order 1) the java property 
-      -Djvarkit.fasta.reference=pathTofastaOrCatalogKey . 2) the linux 
-      environement variable $FASTA_REFERENCE=pathTofastaOrCatalogKey 3) The 
-      catalogs. 
-      Default: <<Default Fasta Reference Supplier>>
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
@@ -90,6 +66,10 @@ The java jar file will be installed in the `dist` directory.
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocate.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocateTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/backlocate/BackLocateTest.java)
+
 
 ## Contribute
 
@@ -117,21 +97,8 @@ The current reference is:
 mutation P->M at 1090 in NOTCH2
 
 ```
-$  echo -e "NOTCH2\tP1090M" | java -jar dist/backlocate.jar -R hg19.fa
+$  echo -e "NOTCH2\tP1090M" | java -jar dist/backlocate.jar -R hg19.fa --gtf ucsc.gtf
 (...)
-[WARNING/BackLocate] 2014-11-05 12:03:08 "The reference doesn't contain chromosome chr17_ctg5_hap1"
-[WARNING/BackLocate] 2014-11-05 12:03:15 "The reference doesn't contain chromosome chr4_ctg9_hap1"
-[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_apd_hap1"
-[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_cox_hap2"
-[WARNING/BackLocate] 2014-11-05 12:03:16 "The reference doesn't contain chromosome chr6_dbb_hap3"
-(...)
-[INFO/BackLocate] 2014-11-05 12:03:18 "genes:78963"
-[INFO/BackLocate] 2014-11-05 12:03:18 "loading http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/kgXref.txt.gz"
-[INFO/BackLocate] 2014-11-05 12:03:24 "kgxref:28493"
-(...)
-```
-
-```
 #User.Gene	AA1	petide.pos.1	AA2	knownGene.name	knownGene.strandknownGene.AA	index0.in.rna	codon	base.in.rna	chromosome	index0.in.genomic	exon
 ##uc001eik.3
 NOTCH2	P	1090	M	uc001eik.3	NEGATIVE	P	3267	CCA	C	chr1	120480548	Exon 20
@@ -144,7 +111,7 @@ NOTCH2	P	1090	M	uc001eil.3	NEGATIVE	P	3269	CCA	A	chr1	120480546	Exon 20
 ```
 
 ```
-$ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /path/to/human_g1k_v37.fasta | grep -v "##" | java -jar dist/prettytable.jar 
+$ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar --gtf ucsc.gtf -R /path/to/human_g1k_v37.fasta | grep -v "##" | java -jar dist/prettytable.jar 
 
 +------------+-----+--------------+-----+----------------+------------------+--------------+---------------+------------+----------------------+-------------+------------+-------------------+---------+-----------------+
 | #User.Gene | AA1 | petide.pos.1 | AA2 | knownGene.name | knownGene.strand | knownGene.AA | index0.in.rna | wild.codon | potential.var.codons | base.in.rna | chromosome | index0.in.genomic | exon    | extra.user.data |
@@ -168,6 +135,7 @@ $ echo -e "NOTCH2\tPro1090M\tInteresting" | java -jar dist/backlocate.jar -R /pa
 
 ## History
 
+ * 2019: move to GTF
  * 2019: add extra user data
  * 2017: Moved to jcommander
  * 2014: Moved to jvarkit

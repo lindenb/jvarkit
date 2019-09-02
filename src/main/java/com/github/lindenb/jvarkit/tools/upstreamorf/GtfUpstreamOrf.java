@@ -48,7 +48,7 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Exon;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.bio.structure.UTR;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -415,7 +415,7 @@ public class GtfUpstreamOrf extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		GftReader gtfReader = null;
+		GtfReader gtfReader = null;
 		PrintWriter pw = null;
 		try {
 			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
@@ -424,7 +424,7 @@ public class GtfUpstreamOrf extends Launcher
 			final ContigDictComparator ctgDictComparator = new ContigDictComparator(refDict);
 			
 			final String input = oneFileOrNull(args);
-			gtfReader = input==null?new GftReader(stdin()):new GftReader(input);
+			gtfReader = input==null?new GtfReader(stdin()):new GtfReader(input);
 			gtfReader.setContigNameConverter(this.refCtgNameConverter);
 			
 			final List<Gene> genes = gtfReader.getAllGenes().

@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
-import com.github.lindenb.jvarkit.util.bio.structure.GftReader;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -646,19 +646,42 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(G->G.getTranscripts().st
 3	38687181	38687267	ENST00000327956.Exon1
 ```
 
+## convert GTF to BED of introns
+
+
+
+```
+$ wget -q  -O - "ftp://ftp.ensemblgenomes.org/pub/release-44/plants/gtf/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.44.gtf.gz" |\
+gunzip -c |\
+java -jar dist/bioalcidaejdk.jar -F GTF -e 'stream().flatMap(G->G.getTranscripts().stream()).flatMap(T->T.getIntrons().stream()).forEach(I->println(I.getContig()+"\t"+(I.getStart()-1)+"\t"+I.getEnd()+"\t"+I.getTranscript().getGene().getGeneName()));' |\
+sort -t $'\t' -k1,1 -k2,2n | uniq > introns.bed
+
+$ head introns.bed
+1   3913    3995    NAC001
+1   4276    4485    NAC001
+1   4605    4705    NAC001
+1   5095    5173    NAC001
+1   5326    5438    NAC001
+1   7069    7156    ARV1
+1   7232    7383    ARV1
+1   7450    7563    ARV1
+1   7649    7761    ARV1
+1   7649    8235    ARV1
+```
+
 END_DOC
 */
 
 
 @Program(name="bioalcidaejdk",
 	description="java-based version of awk for bioinformatics",
-	keywords={"sam","bam","vcf","java","jdk"},
+	keywords={"sam","bam","vcf","java","jdk","gtf"},
 	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,
 			297983,299255,304780,305174,305743,308310,308554,309013,311363,
 			298361,324900,326294,326765,329423,330752,334253,335056,335692,336206,
-			338031,356474},
+			338031,356474,394289,395454},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
-	modificationDate="2019-08-08"
+	modificationDate="2019-08-22"
 	)
 public class BioAlcidaeJdk
 	extends Launcher
@@ -1147,9 +1170,9 @@ public class BioAlcidaeJdk
     	@Override
     	public int execute(final String inputFile, final PrintStream out) throws Exception {
     		GtfHandler gtfHandler = null;
-    		GftReader gtfReader= null;
+    		GtfReader gtfReader= null;
     		try {
-    			gtfReader = new GftReader(inputFile);
+    			gtfReader = new GtfReader(inputFile);
     			if(this.faidxPath!=null) {
     				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidxPath);
     				gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
@@ -1218,7 +1241,7 @@ public class BioAlcidaeJdk
 		GTF {
 			@Override
 			boolean canAs(final String src) {
-				return src!=null && GftReader.SUFFIXES.stream().anyMatch(S->src.endsWith(S));
+				return src!=null && GtfReader.SUFFIXES.stream().anyMatch(S->src.endsWith(S));
 			}}
 			;
 

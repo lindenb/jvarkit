@@ -29,17 +29,21 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.LineIterator;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -47,7 +51,6 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
@@ -61,100 +64,120 @@ BEGIN_DOC
 ## Example
 
 ```bash
-$ curl  "ftp://ftp.ensembl.org/pub/release-81/gff3/homo_sapiens/Homo_sapiens.GRCh38.81.gff3.gz" | gunzip -c |\
- head -n 10 | java -jar dist/gtf2xml.jar | xmllint --format -
-
-```
-output: 
-
-```xml
+$ java -jar dist/gtf2xml.jar src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
 <?xml version="1.0" encoding="UTF-8"?>
-<gtf gff-version="3" genome-build="GRCh38.p3" genome-version="GRCh38" genome-date="2013-12" genome-build-accession="NCBI:GCA_000001405.18" genebuild-last-updated="2015-06">
-  <feature chrom="1" start="11869" end="14409" strand="+" source="havana" type="gene">
+<gtf genebuild-last-updated="2013-09" genome-build="GRCh37.p13" genome-build-accession="NCBI:GCA_000001405.14" genome-date="2009-02" genome-version="GRCh37">
+  <gene id="ENSG00000100403" chrom="22" start="41697526" end="41756151" strand="+" source="ensembl_havana" type="gene">
     <attributes>
-      <ID>gene:ENSG00000223972</ID>
-      <Name>DDX11L1</Name>
-      <biotype>transcribed_unprocessed_pseudogene</biotype>
-      <description>DEAD/H (Asp-Glu-Ala-Asp/His) box helicase 11 like 1 [Source:HGNC Symbol;Acc:HGNC:37102]</description>
-      <gene_id>ENSG00000223972</gene_id>
-      <havana_gene>OTTHUMG00000000961</havana_gene>
-      <havana_version>2</havana_version>
-      <logic_name>havana</logic_name>
-      <version>5</version>
+      <attribute key="gene_id">ENSG00000100403</attribute>
+      <attribute key="gene_version">10</attribute>
+      <attribute key="gene_name">ZC3H7B</attribute>
+      <attribute key="gene_source">ensembl_havana</attribute>
+      <attribute key="gene_biotype">protein_coding</attribute>
     </attributes>
-  </feature>
-  <feature chrom="1" start="14404" end="29570" strand="-" source="havana" type="gene">
-    <attributes>
-      <ID>gene:ENSG00000227232</ID>
-      <Name>WASH7P</Name>
-      <biotype>unprocessed_pseudogene</biotype>
-      <description>WAS protein family homolog 7 pseudogene [Source:HGNC Symbol;Acc:HGNC:38034]</description>
-      <gene_id>ENSG00000227232</gene_id>
-      <havana_gene>OTTHUMG00000000958</havana_gene>
-      <havana_version>1</havana_version>
-      <logic_name>havana</logic_name>
-      <version>5</version>
-    </attributes>
-  </feature>
-  <feature chrom="1" start="17369" end="17436" strand="-" source="ensembl" type="miRNA_gene">
-    <attributes>
-      <ID>gene:ENSG00000278267</ID>
-      <Name>MIR6859-1</Name>
-      <biotype>miRNA</biotype>
-      <description>microRNA 6859-1 [Source:HGNC Symbol;Acc:HGNC:50039]</description>
-      <gene_id>ENSG00000278267</gene_id>
-      <logic_name>ncrna</logic_name>
-      <version>1</version>
-    </attributes>
-  </feature>
-  <feature chrom="1" start="29554" end="31109" strand="+" source="havana" type="lincRNA_gene">
-    <attributes>
-      <ID>gene:ENSG00000243485</ID>
-      <Name>RP11-34P13.3</Name>
-      <biotype>lincRNA</biotype>
-      <gene_id>ENSG00000243485</gene_id>
-      <havana_gene>OTTHUMG00000000959</havana_gene>
-      <havana_version>2</havana_version>
-      <logic_name>havana</logic_name>
-      <version>3</version>
-    </attributes>
-  </feature>
-  <attributes>
-    <attribute>havana_gene</attribute>
-    <attribute>Name</attribute>
-    <attribute>havana_version</attribute>
-    <attribute>logic_name</attribute>
-    <attribute>description</attribute>
-    <attribute>biotype</attribute>
-    <attribute>ID</attribute>
-    <attribute>gene_id</attribute>
-    <attribute>version</attribute>
-  </attributes>
-  <types>
-    <type>miRNA_gene</type>
-    <type>gene</type>
-    <type>lincRNA_gene</type>
-  </types>
-  <sources>
-    <source>ensembl</source>
-    <source>havana</source>
-  </sources>
-  <dict>
-    <chrom name="1" length="31109"/>
-  </dict>
-</gtf>
+    <transcripts>
+      <transcript id="ENST00000486331" chrom="22" start="41697719" end="41732847" strand="+" source="havana" type="transcript">
+        <attributes>
+          <attribute key="gene_id">ENSG00000100403</attribute>
+          <attribute key="gene_version">10</attribute>
+          <attribute key="transcript_id">ENST00000486331</attribute>
+          <attribute key="transcript_version">1</attribute>
+          <attribute key="gene_name">ZC3H7B</attribute>
+          <attribute key="gene_source">ensembl_havana</attribute>
+          <attribute key="gene_biotype">protein_coding</attribute>
+          <attribute key="transcript_name">ZC3H7B-002</attribute>
+          <attribute key="transcript_source">havana</attribute>
+          <attribute key="transcript_biotype">retained_intron</attribute>
+          <attribute key="havana_transcript">OTTHUMT00000320697</attribute>
+          <attribute key="havana_transcript_version">1</attribute>
+        </attributes>
+        <exon chrom="22" start="41697719" end="41697776" strand="+" source="havana" type="exon">
+          <attributes>
+            <attribute key="gene_id">ENSG00000100403</attribute>
+            <attribute key="gene_version">10</attribute>
+            <attribute key="transcript_id">ENST00000486331</attribute>
+            <attribute key="transcript_version">1</attribute>
+            <attribute key="exon_number">1</attribute>
+            <attribute key="gene_name">ZC3H7B</attribute>
+            <attribute key="gene_source">ensembl_havana</attribute>
+            <attribute key="gene_biotype">protein_coding</attribute>
+            <attribute key="transcript_name">ZC3H7B-002</attribute>
+            <attribute key="transcript_source">havana</attribute>
+            <attribute key="transcript_biotype">retained_intron</attribute>
+            <attribute key="havana_transcript">OTTHUMT00000320697</attribute>
+            <attribute key="havana_transcript_version">1</attribute>
+            <attribute key="exon_id">ENSE00001942555</attribute>
+            <attribute key="exon_version">1</attribute>
+          </attributes>
+        </exon>
+        <transcript chrom="22" start="41697719" end="41732847" strand="+" source="havana" type="transcript">
+          <attributes>
+            <attribute key="gene_id">ENSG00000100403</attribute>
+            <attribute key="gene_version">10</attribute>
+            <attribute key="transcript_id">ENST00000486331</attribute>
+            <attribute key="transcript_version">1</attribute>
+            <attribute key="gene_name">ZC3H7B</attribute>
+            <attribute key="gene_source">ensembl_havana</attribute>
+            <attribute key="gene_biotype">protein_coding</attribute>
+            <attribute key="transcript_name">ZC3H7B-002</attribute>
+            <attribute key="transcript_source">havana</attribute>
+            <attribute key="transcript_biotype">retained_intron</attribute>
+            <attribute key="havana_transcript">OTTHUMT00000320697</attribute>
+            <attribute key="havana_transcript_version">1</attribute>
+          </attributes>
+        </transcript>
+        <exon chrom="22" start="41716659" end="41716717" strand="+" source="havana" type="exon">
+          <attributes>
+            <attribute key="gene_id">ENSG00000100403</attribute>
+            <attribute key="gene_version">10</attribute>
+            <attribute key="transcript_id">ENST00000486331</attribute>
+            <attribute key="transcript_version">1</attribute>
+            <attribute key="exon_number">2</attribute>
+            <attribute key="gene_name">ZC3H7B</attribute>
+            <attribute key="gene_source">ensembl_havana</attribute>
+            <attribute key="gene_biotype">protein_coding</attribute>
+            <attribute key="transcript_name">ZC3H7B-002</attribute>
+            <attribute key="transcript_source">havana</attribute>
+            <attribute key="transcript_biotype">retained_intron</attribute>
+            <attribute key="havana_transcript">OTTHUMT00000320697</attribute>
+            <attribute key="havana_transcript_version">1</attribute>
+            <attribute key="exon_id">ENSE00003530265</attribute>
+            <attribute key="exon_version">1</attribute>
+          </attributes>
+        </exon>
+        <exon chrom="22" start="41721568" end="41721601" strand="+" source="havana" type="exon">
+          <attributes>
+            <attribute key="gene_id">ENSG00000100403</attribute>
+            <attribute key="gene_version">10</attribute>
+            <attribute key="transcript_id">ENST00000486331</attribute>
+            <attribute key="transcript_version">1</attribute>
+            <attribute key="exon_number">3</attribute>
+            <attribute key="gene_name">ZC3H7B</attribute>
+            <attribute key="gene_source">ensembl_havana</attribute>
+            <attribute key="gene_biotype">protein_coding</attribute>
+            <attribute key="transcript_name">ZC3H7B-002</attribute>
+            <attribute key="transcript_source">havana</attribute>
+            <attribute key="transcript_biotype">retained_intron</attribute>
+            <attribute key="havana_transcript">OTTHUMT00000320697</attribute>
+            <attribute key="havana_transcript_version">1</attribute>
+            <attribute key="exon_id">ENSE00003553644</attribute>
+            <attribute key="exon_version">1</attribute>
+          </attributes>
+        </exon>
+        (...)
 ```
-
  
 END_DOC
  */
 @Program(name="gtf2xml",
 	description="Convert GTF/GFF to XML",
-	keywords={"xml","gtf","gff","gff3"})
+	keywords={"xml","gtf","gff","gff3"},
+	modificationDate="20190823"
+	)
 public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.build(FixVCF.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-f","--features"},description="Don't record features types.")
 	private boolean disable_feature_type=false;
 	@Parameter(names={"-s","--sources"},description="Don't record sources")
@@ -163,24 +186,19 @@ public class Gtf2Xml extends Launcher{
 	private boolean disable_dict=false;
 	@Parameter(names={"-a","--attributes"},description="Don't record attribute types.")
 	private boolean disable_att_keys=false;
-	@ParametersDelegate
-	private GTFCodec.FormatChooser formatChooser = new  GTFCodec.FormatChooser();
-	
-
-	
 	
 	private final Map<String,Long> seqdict=new LinkedHashMap<>();
 	private final Set<String> att_keys=new HashSet<>();
 	private final Set<String> sources=new HashSet<>();
 	private final Set<String> types=new HashSet<>();
 	
-	private void write(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException,IOException
+	
+	private void commonFields(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException
 		{
-		w.writeStartElement("feature");
-		
 		w.writeAttribute("chrom", line.getContig());
 		w.writeAttribute("start",String.valueOf(line.getStart()));
 		w.writeAttribute("end",String.valueOf(line.getEnd()));
+
 		if(!this.disable_dict) {
 			Long contifLength  = this.seqdict.get(line.getContig());
 			if(contifLength==null) contifLength=0L;
@@ -218,6 +236,61 @@ public class Gtf2Xml extends Launcher{
 			}
 		w.writeEndElement();
 			
+		}
+	
+	private void writeTranscript(final XMLStreamWriter w,final String transcript_id,final List<GTFLine> lines) throws XMLStreamException,IOException
+	{
+	final Optional<GTFLine> optGeneLine = lines.stream().filter(G->G.getType().equals("transcript")).findFirst();
+	if(!optGeneLine.isPresent()) throw new RuntimeIOException("No 'transcript' found for transcript : "+transcript_id+" in "+lines);
+	w.writeStartElement("transcript");
+	w.writeAttribute("id", transcript_id);
+	commonFields(w,optGeneLine.get());
+	for(final GTFLine l:lines) {
+		write(w, l);
+		}
+	
+	w.writeEndElement();
+	}
+	
+	private void writeGene(final XMLStreamWriter w,final String gene_id,final List<GTFLine> lines) throws XMLStreamException,IOException
+		{
+		final Optional<GTFLine> optGeneLine = lines.stream().filter(G->G.getType().equals("gene")).findFirst();
+		if(!optGeneLine.isPresent()) throw new RuntimeIOException("No 'gene' found for gene_id : "+gene_id);
+		w.writeStartElement("gene");
+		w.writeAttribute("id", gene_id);
+		commonFields(w,optGeneLine.get());
+		
+		final Map<String,List<GTFLine>> id2transcript = new HashMap<>();
+		for(final GTFLine line:lines) {
+			final String transcript_id = line.getAttribute("transcript_id");
+			if(StringUtil.isBlank(transcript_id))  continue;
+			
+			List<GTFLine> lines2 = id2transcript.get(transcript_id);
+			if(lines2==null) {
+				lines2 = new ArrayList<>();
+				id2transcript.put(transcript_id,lines2);
+				}
+			lines2.add(line);
+			}
+		if(!id2transcript.isEmpty()) {
+			w.writeStartElement("transcripts");
+			for(final String transcript_id:id2transcript.keySet()) {
+				writeTranscript(w,transcript_id,id2transcript.get(transcript_id));
+				}
+			w.writeEndElement();
+			}
+		
+		w.writeEndElement();
+		}
+
+	
+	private void write(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException,IOException
+		{
+		w.writeStartElement(line.getType());
+		
+		commonFields(w,line);
+		
+		
 		w.writeEndElement();
 		w.writeCharacters("\n");
 		}
@@ -227,7 +300,7 @@ public class Gtf2Xml extends Launcher{
 
 		LineIterator r=null;
 		XMLStreamWriter w=null;
-		FileWriter fw=null;
+		PrintWriter fw=null;
 		try {
 			String inputName=oneFileOrNull(args);
 			r = (StringUtil.isBlank(inputName)?
@@ -241,9 +314,9 @@ public class Gtf2Xml extends Launcher{
 				}
 			else
 				{
-				w = xof.createXMLStreamWriter((fw=new FileWriter(this.outputFile)));
+				w = xof.createXMLStreamWriter((fw=super.openPathOrStdoutAsPrintWriter(outputFile)));
 				}
-			final GTFCodec codec = this.formatChooser.makeCodec();
+			final GTFCodec codec = new GTFCodec();
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("gtf");
 			
@@ -258,17 +331,35 @@ public class Gtf2Xml extends Launcher{
 				
 				}
 		
+			final Map<String,List<GTFLine>> geneid2lines = new HashMap<>(50_000);
+			
 			while(r.hasNext())
 				{
 				final String line=r.next();
-				GTFLine gtfline = codec.decode(line);
+				final GTFLine gtfline = codec.decode(line);
 				if(gtfline==null) continue;
-				write(w,gtfline);
+				final String gene_id = gtfline.getAttribute("gene_id");
+				if(StringUtil.isBlank(gene_id)) {
+					write(w,gtfline);
+					}
+				else
+					{
+					List<GTFLine> lines = geneid2lines.get(gene_id);
+					if(lines==null) {
+						lines = new ArrayList<>();
+						geneid2lines.put(gene_id,lines);
+						}
+					lines.add(gtfline);
+					}
+				}
+			
+			for(final String gene_id:geneid2lines.keySet()) {
+				writeGene(w,gene_id,geneid2lines.get(gene_id));
 				}
 			
 			if(!this.disable_att_keys) {
 				w.writeStartElement("attributes");
-				for(String k : this.att_keys)
+				for(final String k : this.att_keys)
 					{
 					w.writeStartElement("attribute");
 					w.writeCharacters(k);

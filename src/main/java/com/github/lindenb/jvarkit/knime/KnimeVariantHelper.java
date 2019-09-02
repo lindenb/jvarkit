@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.function.Function;
@@ -48,9 +49,10 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
@@ -65,16 +67,14 @@ import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.tribble.Tribble;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
 import htsjdk.tribble.index.IndexFactory.IndexType;
 import htsjdk.tribble.index.tabix.TabixIndex;
 import htsjdk.tribble.util.ParsingUtils;
-import htsjdk.tribble.util.TabixUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -605,7 +605,7 @@ public void indexVcfFile(final File file) throws IOException{
 	if(file.getName().endsWith(".vcf.gz"))
 		{
 		LOG.info("writing tabix index for "+file);
-		final File output=new File(file.getAbsolutePath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+		final File output=new File(file.getAbsolutePath()+FileExtensions.TABIX_INDEX);
 		try
 			{
 			if(output.exists())
@@ -625,7 +625,7 @@ public void indexVcfFile(final File file) throws IOException{
 	else if(file.getName().endsWith(".vcf"))
 		{
 		LOG.info("writing tribble index for "+file);
-		final File output=new File(file.getAbsolutePath()+Tribble.STANDARD_INDEX_EXTENSION);
+		final File output=new File(file.getAbsolutePath()+FileExtensions.TRIBBLE_INDEX);
 		try
 			{
 			if(output.exists())
@@ -701,13 +701,12 @@ public Stream<VariantData> forEachVariantData(final String vcfFile) throws IOExc
 
 public Predicate<VariantContext> parseVariantIntervalFilters(final String...array)
 	{
-	final IntervalParser parser=new IntervalParser();
-	parser.setRaiseExceptionOnError(true);
+	final Function<String, Optional<SimpleInterval>> parser= IntervalParserFactory.newInstance().make();
 	Predicate<VariantContext> filter = V -> false;
 	for(final String str:array)	
 		{
-		final Interval interval = parser.parse(str);
-		filter = filter.or(V -> (V.getContig().equals(interval.getContig()) && !(interval.getEnd()<V.getStart() || V.getEnd()<interval.getStart())));
+		final SimpleInterval interval = parser.apply(str).orElseThrow(IntervalParserFactory.exception(str));
+		filter = filter.or(V ->V.overlaps(interval));
 		}
 	return filter;
 	}
@@ -977,11 +976,11 @@ public IntervalTreeMap<Boolean> parseBedAsBooleanIntervalTreeMap(final String be
 			final String indexFilename;
 			if(extension.endsWith(".gz"))
 				{
-				indexFilename = filename + Tribble.STANDARD_INDEX_EXTENSION;
+				indexFilename = filename + FileExtensions.TRIBBLE_INDEX;
 				}
 			else
 				{
-				indexFilename = filename + TabixUtils.STANDARD_INDEX_EXTENSION;
+				indexFilename = filename + FileExtensions.TABIX_INDEX;
 				}
 			
 			outVcfFile = new File(filename);

@@ -21,9 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-
 */
 package com.github.lindenb.jvarkit.tools.cmpbams;
 import java.io.DataInputStream;
@@ -34,12 +31,16 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -426,17 +427,11 @@ public class CompareBamAndBuild  extends Launcher
 						}
 					
 				
-					final Interval interval;
-					if(REGION!=null)
+					final SimpleInterval interval;
+					if(!StringUtils.isBlank(this.REGION))
 						{
-						IntervalParser intervalParser = new IntervalParser(dict);
-						interval=intervalParser.parse(this.REGION);
-						if(interval==null)
-							{
-							samFileReader.close();
-							LOG.error("Cannot parse "+REGION+" (bad syntax or not in dictionary");
-							return -1;
-							}
+						final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
+						interval=intervalParser.apply(this.REGION).orElseThrow(IntervalParserFactory.exception(this.REGION));
 						}
 					else
 						{

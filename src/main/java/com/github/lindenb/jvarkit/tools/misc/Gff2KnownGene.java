@@ -115,14 +115,12 @@ public class Gff2KnownGene extends Launcher {
 			+ "Multiple separated by a semicolon ")
 	private String transcriptIdentifiersStr = "transcript;mRNA;snRNA;tRNA;snoRNA";
 	@ParametersDelegate
-	private GTFCodec.FormatChooser formatChooser = new  GTFCodec.FormatChooser();
-	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
 	
 	private static final String NO_TRANSCRIPT_NAME="\0\0NOTRANSCRIPT";
 	private final static Pattern semicolon=Pattern.compile(";");
-	private GTFCodec gtfCodec = null;
+	private final GTFCodec gtfCodec = new GTFCodec();
 
 	/** a line in the gtf associated to a transcript */
 	private class GffLine {
@@ -200,10 +198,7 @@ public class Gff2KnownGene extends Launcher {
 
 
 	@Override
-	public int doWork(final List<String> args) {
-		
-		this.gtfCodec = this.formatChooser.makeCodec();
-		
+	public int doWork(final List<String> args) {		
 		LineIterator in =null;
 		EqualRangeIterator<GffLine> eq = null;
 		CloseableIterator<GffLine> iter = null;

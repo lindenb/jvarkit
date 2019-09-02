@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.bam2wig;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,19 +55,19 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -175,7 +176,7 @@ public class Bam2Wig extends Launcher
 	private SAMRecordPartition partition= SAMRecordPartition.sample;
 	@Parameter(names={"--mindepth","--mindp"},description="When using display READ_GROUPS, What is the minimal read depth that should be considered ?")
 	private int min_depth=0;
-	@Parameter(names={"--region","--interval"},description="Limit analysis to this interval. "+IntervalParser.OPT_DESC)
+	@Parameter(names={"--region","--interval"},description="Limit analysis to this interval. "+IntervalParserFactory.OPT_DESC)
 	private String region_str=null;
 	@Parameter(names={"--pedigree","-ped"},description="Pedigree file for CASE_CTRL. " + Pedigree.OPT_DESCRIPTION )
 	private File pedigreeFile=null;
@@ -496,7 +497,7 @@ public class Bam2Wig extends Launcher
 			final PrintWriter pw,
 			final CloseableIterator<SAMRecord> iter,
 			final SAMSequenceDictionary dict,
-			final Interval interval // may be null
+			final SimpleInterval interval // may be null
 			)
 		{
 		final Aggregator aggregator;
@@ -640,7 +641,7 @@ public class Bam2Wig extends Launcher
 				LOG.error("window size<=0");
 				return -1;
 			}
-			final Interval interval;
+			final SimpleInterval interval;
 			PrintWriter pw = null;
 			CloseableIterator<SAMRecord> samRecordIterator = null;
 			final List<SamReader> samReaders = new ArrayList<>();
@@ -669,15 +670,15 @@ public class Bam2Wig extends Launcher
 						}
 					else
 						{
-						interval = new IntervalParser(samReaders.get(0).getFileHeader().getSequenceDictionary()).
-							setContigNameIsWholeContig(true).
-							parse(region_str);
-						if(interval==null) 
-							{
-							LOG.error("Cannot parse interval "+this.region_str);
-							return -1;
-							}
-						LOG.debug("interval "+interval);
+						interval = IntervalParserFactory.
+							newInstance().
+							dictionary(samReaders.get(0).getFileHeader().getSequenceDictionary()).
+							enableWholeContig().
+							make().
+							apply(region_str).
+							orElseThrow(IntervalParserFactory.exception(this.region_str))
+							;
+
 						samRecordIterator = samReaders.get(0).query(
 								interval.getContig(),
 								interval.getStart(),
@@ -688,29 +689,20 @@ public class Bam2Wig extends Launcher
 					}
 				else
 					{
-					final List<File> samFiles;
-					if(args.size()==1 && args.get(0).endsWith(".list"))
-						{
-						samFiles = IOUtils.unrollFile(new File(args.get(0)));
-						}
-					else
-						{
-						samFiles = args.stream().map(S->new File(S)).collect(Collectors.toList());
-						}
+					final List<Path> samFiles = IOUtils.unrollPaths(args);
+					
 					if(samFiles.isEmpty()) {
 						LOG.error("No Input SAM file");
 						return -1;
 						}
-					final SAMSequenceDictionary dict0 = SAMSequenceDictionaryExtractor.extractDictionary(samFiles.get(0));
-					if(dict0==null) throw new JvarkitException.DictionaryMissing(samFiles.get(0).getPath());
+					final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(samFiles.get(0));
 					samFiles.stream().forEach(F->{
-						final SAMSequenceDictionary dicti = SAMSequenceDictionaryExtractor.extractDictionary(F);
-						if(dicti==null) throw new JvarkitException.DictionaryMissing(F.getPath());
+						final SAMSequenceDictionary dicti = SequenceDictionaryUtils.extractRequired(F);
 						if(!SequenceUtil.areSequenceDictionariesEqual(dicti, dict0)) {
 							throw new JvarkitException.DictionariesAreNotTheSame(dict0,dicti);
 							}
 						});
-					for(final File bamFile: samFiles)
+					for(final Path bamFile: samFiles)
 						{
 						LOG.info("opening "+bamFile);
 						samReaders.add(srf.open(bamFile));
@@ -732,14 +724,15 @@ public class Bam2Wig extends Launcher
 						}
 					else
 						{
-						interval = new IntervalParser(dict0).
-							setContigNameIsWholeContig(true).
-							parse(region_str);
-						if(interval==null) 
-							{
-							LOG.error("Cannot parse interval "+this.region_str);
-							return -1;
-							}
+						interval = IntervalParserFactory.
+							newInstance().
+							dictionary(dict0).
+							enableWholeContig().
+							make().
+							apply(region_str).
+							orElseThrow(IntervalParserFactory.exception(region_str))
+							;
+						
 						LOG.info("interval :"+interval);
 						for(final SamReader sr:samReaders)
 							{

@@ -32,14 +32,15 @@ import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -191,7 +192,7 @@ public class SAM4WebLogo extends Launcher
 	private void printRead(
 			final PrintWriter out,
 			final SAMRecord rec,
-			final Interval interval
+			final Locatable interval
 			)
 		{
 		
@@ -223,8 +224,8 @@ public class SAM4WebLogo extends Launcher
         	}    
         	
     	final Predicate<Integer> inInterval = IDX -> IDX>=interval.getStart() && IDX<=interval.getEnd();
-        final StringBuilder seq  = new StringBuilder(interval.length());
-        final StringBuilder qual = new StringBuilder(interval.length());
+        final StringBuilder seq  = new StringBuilder(interval.getLengthOnReference());
+        final StringBuilder qual = new StringBuilder(interval.getLengthOnReference());
          
          int refPos = Math.min(
         		 interval.getStart(),
@@ -360,7 +361,6 @@ public class SAM4WebLogo extends Launcher
 			LOG.error("Undefined interval.");
 			return -1;
 			}
-    	final IntervalParser intervalParser =new IntervalParser().setFixContigName(true);
 		PrintWriter out=null;
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
@@ -369,14 +369,12 @@ public class SAM4WebLogo extends Launcher
 			for(final String inputName: IOUtils.unrollFiles(args)) {
 				samReader = openSamReader(inputName);
 				
-				final Interval interval = intervalParser.
-						setDictionary(samReader.getFileHeader().getSequenceDictionary()).
-						parse(this.regionStr);
-				if(interval==null)
-					{
-					LOG.error("Bad interval "+this.regionStr);
-					return -1;
-					}
+				final SimpleInterval interval = IntervalParserFactory.newInstance().
+							dictionary(samReader.getFileHeader().getSequenceDictionary()).
+							make().
+							apply(this.regionStr).
+							orElseThrow(IntervalParserFactory.exception(this.regionStr))
+							;
 				
 				iter=samReader.query(
 						interval.getContig(),

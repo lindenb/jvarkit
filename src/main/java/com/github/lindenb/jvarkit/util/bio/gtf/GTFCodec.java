@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
@@ -78,38 +77,24 @@ JH568905.1	ensembl	stop_codon	3667491	3667493	.	-	0	gene_id "ENSDNOG00000013511"
 
 
  */
-public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
+public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 	private static final CharSplitter tab=CharSplitter.TAB;
 	private static final String GFF_VERSION="##gff-version";
 	private GTFHeaderImpl header=null;
-	private final Format format;
-	public enum Format {gtf,gff3};
 	
-	public static GTFCodec createGtfCodec() {
-		return new GtfCodec();
-	}
+
+	public GTFCodec() {
+		super(GTFLine.class);
+		}
 	
-	public static GTFCodec createGff3Codec() {
-		return new Gff3Codec();
-	}
-	
-	public static class FormatChooser
-		{
-		
-		@Parameter(names={"--input-gtf-format","--input-gff-format"},
-				description="GTF/GFF format. Will (hopefully) determine how the gft/gff will be parsed",
-				hidden=true
-				)
-		private Format format = Format.gff3;
-		
-		/** creates a new GTFCodec according to the specified format */
-		public GTFCodec makeCodec() {
-			switch(this.format) {
-				case gff3: return createGff3Codec();
-				case gtf:
-				default: return createGtfCodec();
-				}
-			}
+	@Override
+	public GTFLine decode(final String line) {
+		/* non, on s'en fout a vrai dire...
+		if(this.header==null) {
+			throw new RuntimeIOException("header was not parsed");
+		}*/
+		if(StringUtil.isBlank(line) || line.startsWith("#")) return null;
+		return new GTFLineImpl(tab.split(line));
 		}
 	
 	public static interface GTFHeader
@@ -117,38 +102,6 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 		public boolean isGff3();
 		public List<String> getLines();
 		}
-
-	protected static class GtfCodec extends GTFCodec
-		{
-		GtfCodec() {
-			super(Format.gtf);
-			}
-		@Override
-		public GTFLine decode(final String line) {
-			/* non, on s'en fout a vrai dire...
-			if(this.header==null) {
-				throw new RuntimeIOException("header was not parsed");
-			}*/
-			if(line.startsWith("#") || line.isEmpty()) return null;
-			return new GTFLineImpl(GTFCodec.tab.split(line));
-			}
-		}
-	protected static class Gff3Codec extends GTFCodec
-		{
-		Gff3Codec() {
-			super(Format.gff3);
-			}
-		@Override
-		public GTFLine decode(final String line) {
-			/* non, on s'en fout a vrai dire...
-			if(this.header==null) {
-				throw new RuntimeIOException("header was not parsed");
-			}*/
-			if(line.startsWith("#") || line.isEmpty()) return null;
-			return new GFF3LineImpl(GTFCodec.tab.split(line));
-			}
-		}
-
 
 	/** implementation of header */
 	public static class GTFHeaderImpl implements GTFHeader
@@ -178,12 +131,6 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			}
 		}
 
-	
-	protected GTFCodec(final Format format) {
-		super(GTFLine.class);
-		this.format = format;
-		}
-	
 	@Override
 	public boolean canDecode(final String path) {
 		if(StringUtil.isBlank(path)) return false;
@@ -196,8 +143,8 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 		for(;;)
 			{
 			if(!r.hasNext()) return null;
-			final String line=r.next();
-			if(line.startsWith("#")) continue;
+			final String line = r.next();
+			if(StringUtil.isBlank(line) || line.startsWith("#")) continue;
 			final GTFLine record =  decode(line);	
 			if(record==null) continue;
 			return record;
@@ -210,24 +157,19 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 		this.header = new GTFHeaderImpl();
 		while(r.hasNext() && r.peek().startsWith("#"))
 			{
-			
 			this.header.lines.add(r.next());
 			}
 		return this.header;
-		}
-		
-		
-	@Override
-	public abstract GTFLine decode(final String line);
+		}		
 
 	
-	private static abstract class AbstractGTFLineImpl implements GTFLine
+	private static class GTFLineImpl implements GTFLine
 		{
-		final String tokens[];
-		final int start;
-		final int end;
+		private final String tokens[];
+		private final int start;
+		private final int end;
 
-		public AbstractGTFLineImpl(final String tokens[])
+		public GTFLineImpl(final String tokens[])
 			{
 			this.tokens = tokens;
 			if(tokens.length<8)
@@ -314,6 +256,11 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 				}
 			return hash;
 			}
+
+		@Override
+		public Iterator<Entry<String, String>> getAttributeIterator() {
+			return new AttributeIter(get(8));
+			}
 		
 		@Override
 		public String toString() {
@@ -321,36 +268,13 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			}
 		}
 
-	private static class GTFLineImpl extends AbstractGTFLineImpl
-		{
-		GTFLineImpl(final String tokens[])
-			{
-			super(tokens);
-			}
-		@Override
-		public Iterator<Entry<String, String>> getAttributeIterator() {
-			return new GTFAttIter(get(8));
-			}
-		}
-
-	private static class GFF3LineImpl extends AbstractGTFLineImpl
-		{
-		GFF3LineImpl(final String tokens[])
-			{
-			super(tokens);
-			}
-		@Override
-		public Iterator<Entry<String, String>> getAttributeIterator() {
-			return new GFF3AttIter(get(8));
-			}
-		}
 	
-	private static abstract class AbstractAttIter 
+	private static class AttributeIter 
 		extends AbstractIterator<Map.Entry<String, String>> 
 		{
 		protected final String mapStr;
 		protected int k=0;
-		AbstractAttIter(final String mapStr)
+		AttributeIter(final String mapStr)
 			{
 			this.mapStr = mapStr;
 			}
@@ -375,8 +299,8 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 				if(c==';') { ++k; continue;}
 				/* read KEY */
 				final StringBuilder sbk=new StringBuilder();
-				while( this.k < mapStr.length()) {
-					c= mapStr.charAt(k);
+				while( this.k < this.mapStr.length()) {
+					c= this.mapStr.charAt(k);
 					++k;
 					if(c=='=' || Character.isWhitespace(c))
 						{
@@ -431,12 +355,12 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 							}
 						}
 					}
-				else
+				else /* not a quoted string */
 					{
 					while( this.k < this.mapStr.length()) {
 						c= this.mapStr.charAt(k);
 						++k;
-						if(c==';' || Character.isWhitespace(c))
+						if(c==';'/* || Character.isWhitespace(c)*/)
 							{
 							break;
 							}
@@ -455,17 +379,5 @@ public abstract class  GTFCodec extends AsciiFeatureCodec<GTFLine>{
 			}
 		}
 
-
-	private static class GTFAttIter extends AbstractAttIter {
-		GTFAttIter(final String mapStr)
-			{
-			super(mapStr);
-			}
-		}
-	private static class GFF3AttIter extends AbstractAttIter {
-		GFF3AttIter(final String mapStr)
-			{
-			super(mapStr);
-			}
-		}
+	
 	}

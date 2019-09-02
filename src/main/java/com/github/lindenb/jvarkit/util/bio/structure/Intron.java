@@ -25,9 +25,40 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.bio.structure;
 
 
-public interface Intron extends TranscriptInterval {
+public interface Intron extends ExonOrIntron {
+	
 	@Override
-	default String getContig() {
-		return getTranscript().getContig();
-	}
+	public default boolean isSplicingAcceptor(int position1)
+		{
+		if(!contains(position1)) return false;
+		if(isPositiveStrand())
+			{
+			return  (position1==getEnd()-0) ||
+					(position1==getEnd()-1);
+			}
+		else
+			{
+			return	position1==getStart() ||
+					position1==getStart()+1;
+			}
+		}
+	
+	@Override
+	public default boolean isSplicingDonor(int position1)
+		{
+		if(!contains(position1)) return false;
+		if(isPositiveStrand())
+			{
+			return	position1==getStart() ||
+					position1==getStart()+1;
+					
+			}
+		else
+			{
+			return  (position1==getEnd()-0) ||
+					(position1==getEnd()-1);
+			}
+		}
+
+	
 }

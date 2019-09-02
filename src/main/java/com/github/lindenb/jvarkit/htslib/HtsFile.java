@@ -26,22 +26,28 @@ package com.github.lindenb.jvarkit.htslib;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import com.github.lindenb.jvarkit.jni.CPtr;
 
 public class HtsFile extends CPtr implements Closeable {
+	
+	public HtsFile(final Path s,final String m) throws IOException {
+		this(s.toString(),m);
+		}
+	
 	public HtsFile(final String s,final String m) throws IOException {
-		super(_open(s,m));
+		super(Htslib.bind_hstfile_open(s,m));
 		if(isNull()) throw new IOException("Cannot open "+s);
 		}
 	@Override
 	public void close() {
-		if(!isNull()) _close(this.get());
+		if(!isNull()) Htslib.bind_hstfile_close(this.get());
 		setNull();
 		}
 	
 	public boolean readLine(char delim,final KString ks)  throws IOException {
-		return _getline(get(),delim,ks.get())!=-1;
+		return Htslib.bind_hstfile_getline(get(),delim,ks.get())!=-1;
 		}
 	
 	@Override
@@ -49,9 +55,4 @@ public class HtsFile extends CPtr implements Closeable {
 		close();
 		super.dispose();
 		}
-		
-	private static native long _open(final String s,final String m);
-	private static native void _close(final long ptr);
-	private static native int _getline(final long ptr,int delim,long ks);
-
-}
+	}

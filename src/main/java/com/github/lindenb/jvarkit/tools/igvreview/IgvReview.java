@@ -32,6 +32,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,6 +63,7 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -101,7 +104,7 @@ public class IgvReview extends Application
 	private TableView<VariantAndGenotype> genotypeTable = null;
 	private File saveAsFile=null;
     private VCFHeader vcfHeader = null;
-    private Map<String,File> sample2bamFile=new HashMap<>();
+    private Map<String,Path> sample2bamFile=new HashMap<>();
     private final VCFFormatHeaderLine reviewFormat;
     private static class IgvConnection 
     	implements Closeable
@@ -150,7 +153,7 @@ public class IgvReview extends Application
     		this.ctx = ctx;
     		this.g = g;
     		
-    		String att=this.g.getAttributeAsString(IgvReview.this.reviewFormat.getID(),"");
+    		final String att=this.g.getAttributeAsString(IgvReview.this.reviewFormat.getID(),"");
     		this.reviewProperty = new SimpleStringProperty(att);
     		}
     	
@@ -317,8 +320,8 @@ public class IgvReview extends Application
 		
 		
 		configLines.stream().filter(ignoreComment).
-			filter(S->S.endsWith(".bam")).
-			map(S->new File(S)).
+			filter(S->S.endsWith(FileExtensions.BAM)).
+			map(S->Paths.get(S)).
 			forEach(F->{
 				final SamReader samIn = srf.open(F);
 				final SAMFileHeader header = samIn.getFileHeader();
@@ -458,7 +461,7 @@ public class IgvReview extends Application
 		}
     
     
-    private File previousBamDisplayedInIgv=null;
+    private Path previousBamDisplayedInIgv=null;
     private IgvConnection igvConnection=null;
     private void moveIgvTo(Window win,final VariantAndGenotype vg) {
     	if(vg==null) return;
@@ -474,19 +477,19 @@ public class IgvReview extends Application
     			return;
     			}
     		}
-    	final File bam = this.sample2bamFile.get(vg.g.getSampleName());
+    	final Path bam = this.sample2bamFile.get(vg.g.getSampleName());
     	
     	
     	if(previousBamDisplayedInIgv==null || !previousBamDisplayedInIgv.equals(bam))
     		{
     		if(previousBamDisplayedInIgv!=null) 
     			{
-    			this.igvConnection.send("remove "+previousBamDisplayedInIgv.getName());
+    			this.igvConnection.send("remove "+previousBamDisplayedInIgv.getFileName().toString());
         		sleep(2000);
-    			this.igvConnection.send("remove \""+previousBamDisplayedInIgv.getName()+" Coverage\"");
+    			this.igvConnection.send("remove \""+previousBamDisplayedInIgv.getFileName().toString()+" Coverage\"");
         		sleep(1000);
     			}
-    		this.igvConnection.send("load "+bam.getPath()+"");
+    		this.igvConnection.send("load "+bam.toAbsolutePath()+"");
     		sleep(3000);
     		}
     	final int extend=5;

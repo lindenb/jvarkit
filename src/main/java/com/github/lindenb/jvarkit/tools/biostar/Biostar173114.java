@@ -22,7 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
-import java.io.File;
+
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -92,7 +93,7 @@ public class Biostar173114 extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-keepSeq","--keepSequence"},description="keep read sequence")
 	private boolean keepSequence = false;
@@ -123,7 +124,7 @@ public class Biostar173114 extends Launcher
 		try
 			{
 			sfr = super.openSamReader(oneFileOrNull(args));
-			sfw = this.writingBamArgs.openSAMFileWriter(this.outputFile,sfr.getFileHeader(), true);
+			sfw = this.writingBamArgs.openSamWriter(this.outputFile,sfr.getFileHeader(), true);
 			
 			iter = sfr.iterator();
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(sfr.getFileHeader()).logger(LOG);

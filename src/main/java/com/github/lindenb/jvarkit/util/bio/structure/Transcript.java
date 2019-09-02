@@ -29,7 +29,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 
 public interface Transcript extends StrandedLocatable {
@@ -56,7 +55,16 @@ public interface Transcript extends StrandedLocatable {
     /** get all CDS in this exon */
 	public List<Cds> getAllCds();
 
-    
+	/** returns true hasCodonStrop && hasCodonStart */
+    public default boolean hasCDS() {
+    	return hasCodonStartDefined() && hasCodonStopDefined();
+    }
+	
+	/** returns true if getIntronCount()>0 */
+    public default boolean hasIntron() {
+    	return getIntronCount()>0;
+    }
+    /** return the number of introns */
     public int getIntronCount();
 	public List<Intron> getIntrons();
 	/** return i-th intron scanning from 5' to 3', whatever strand */

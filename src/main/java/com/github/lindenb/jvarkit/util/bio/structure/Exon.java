@@ -24,6 +24,60 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
+import java.util.Optional;
 
-public interface Exon extends TranscriptInterval {
-}
+
+public interface Exon extends ExonOrIntron {
+	
+	/** get index in getExons() */
+	public int getIndex();
+
+	/** get next intron in genomic location */
+	public default Optional<Intron> getNextIntron() {
+		final int idx = this.getIndex(); 
+		if(idx>=this.getTranscript().getIntronCount()) return Optional.empty();
+		return Optional.of(getTranscript().getIntron(idx));
+		}
+	/** get next intron in genomic location */
+	public default Optional<Intron> getPrevIntron() {
+		final int idx = this.getIndex(); 
+		if(idx<=0) return Optional.empty();
+		return Optional.of(getTranscript().getIntron(idx-1));
+		}
+	
+	@Override
+	public default boolean isSplicingAcceptor(final int position1)
+		{
+		if(!contains(position1)) return false;
+		if(isPositiveStrand())
+			{
+			if(getIndex()== 0) return false;
+			return position1==getStart();
+			}
+		else
+			{
+			if(getIndex()+1 >= getTranscript().getExonCount()) return false;
+			return position1==getEnd();
+			}
+		}
+
+	@Override
+	public default boolean isSplicingDonor(int position1)
+		{
+		if(!contains(position1) || this.getLengthOnReference()<3) return false;
+		if(isPositiveStrand())
+			{
+			if(getIndex()+1 >= getTranscript().getExonCount()) return false;
+			return  (position1==getEnd()-0) ||
+					(position1==getEnd()-1) ||
+					(position1==getEnd()-2) ;
+			}
+		else
+			{
+			if(getIndex()== 0) return false;
+			return  (position1==getStart()+0) ||
+					(position1==getStart()+1) ||
+					(position1==getStart()+2) ;
+			}
+		}
+	}

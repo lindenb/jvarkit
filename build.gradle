@@ -607,6 +607,22 @@ public class CompileJVarkit extends DefaultTask {
 				compilerarg(value:'-Xlint')
 			}
 		
+		/** C binding, JNI run javah */
+		final File htslibBindingClass = new File("${this.tmpDir}/com/github/lindenb/jvarkit/htslib/Htslib.class");
+		if(htslibBindingClass.exists()) {
+			project.logger.lifecycle("Starting JNI section" + new File(java.lang.System.getProperty("java.home","")));
+			ant.mkdir(dir:"${this.tmpDir}/cpp")
+			
+			/*
+			project.exec {
+				commandLine 'javah', '-o',"${this.tmpDir}/cpp/htslibjni.h", '-jni', '-classpath'
+				standardOutput = stderr
+		    	}*/
+			
+			
+			}
+		/** end C Bindings */
+		
 		ant.copy(
 			file: this.getMainJavaSource(),
 			todir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/')
@@ -1185,8 +1201,12 @@ all.add( task("mergecnvnator", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.MergeCnvNator"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("mergesv", type: CompileJVarkit) {
+all2.add( task("mergesv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.MergeStructuralVariants"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("scansv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.ScanStructuralVariants"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("metrics2xml", type: CompileJVarkit) {
@@ -1457,6 +1477,10 @@ all2.add( task("vcfcmppred", type: CompileJVarkit) {
 	});
 all.add( task("vcfcombinetwosnvs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("svpredictions", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfannot.SVPredictions"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfcomm", type: CompileJVarkit) {
@@ -2060,6 +2084,10 @@ all.add( task("vcfgnomad", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("vcfgnomadsv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadSV"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("vcfannotwithbeacon", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ga4gh.VcfAnnotWithBeacon"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson","berkeleydb","httpclient")
@@ -2145,6 +2173,18 @@ all2.add( task("starretrocopy", type: CompileJVarkit) {
 	jdkTarget="8"
 	jdkSource="8"
 	});
+all2.add( task("gtfretrocopy", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.retrocopy.GtfRetroCopy"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jdkTarget="8"
+	jdkSource="8"
+	});
+all2.add( task("knownretrocopy", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.retrocopy.KnownRetroCopy"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jdkTarget="8"
+	jdkSource="8"
+	});
 all2.add( task("onethousandbams", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.onekgenomes.OneThousandBam"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
@@ -2218,6 +2258,10 @@ all2.add( task("gtfsplitter", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
+all2.add( task("gtfliftover", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gtf.GtfLiftOver"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 task("vcfphased01", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.phased.VcfPhased01"

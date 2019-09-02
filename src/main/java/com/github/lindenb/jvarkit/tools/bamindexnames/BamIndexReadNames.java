@@ -21,19 +21,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.bamindexnames;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 
@@ -64,18 +62,15 @@ $  java -jar dist/bamindexreadnames.jar file.bam
 END_DOC
  */
 @Program(name="bamindexreadnames",
-	description="Build a dictionary of read names to be searched with BamQueryReadNames")
+	description="Build a dictionary of read names to be searched with BamQueryReadNames",
+	keywords={"sam","bam"})
 public class BamIndexReadNames
 	extends BaseBamIndexReadNames
 	{
 	private static final Logger LOG=Logger.build(BamIndexReadNames.class).make();
 	private BamIndexReadNames()
 		{
-		
 		}
-	
-	
-		
 	private static class NameAndPosCodec extends AbstractDataCodec<NameAndPos>
 		{
 		@Override
@@ -125,7 +120,7 @@ public class BamIndexReadNames
 		private int maxRecordsInRAM=50000;
 
 		
-		private void indexBamFile(File bamFile) throws IOException
+		private void indexBamFile(Path bamFile) throws IOException
 			{
 			
 			NameIndexDef indexDef=new NameIndexDef();
@@ -140,7 +135,7 @@ public class BamIndexReadNames
 					new NameAndPosCodec() ,
 					new NameAndPosComparator(),
 					maxRecordsInRAM,
-					bamFile.getParentFile().toPath()
+					bamFile.getParent()
 					);
 			sorting.setDestructiveIteration(true);
 			if(sfr.getFileHeader().getSortOrder()!=SortOrder.coordinate)
@@ -168,10 +163,10 @@ public class BamIndexReadNames
 			sorting.doneAdding();
 			LOG.info("Done Adding. N="+indexDef.countReads);
 			
-			File indexFile=new File(bamFile.getParentFile(), bamFile.getName()+NAME_IDX_EXTENSION);
+			Path indexFile= bamFile.getParent().resolve(bamFile.getFileName().toString()+NAME_IDX_EXTENSION);
 			
 			LOG.info("Writing index "+indexFile);
-			FileOutputStream raf=new FileOutputStream(indexFile);
+			OutputStream raf= Files.newOutputStream(indexFile);
 			
 			ByteBuffer byteBuff= ByteBuffer.allocate(8+4);
 			byteBuff.putLong(indexDef.countReads);
@@ -208,16 +203,10 @@ public class BamIndexReadNames
 
 		try
 			{
-			if(args.size()!=1)
-				{
-				LOG.info(getMessageBundle("illegal.number.of.arguments"));
-				return -1;
-				}
-			
-			indexBamFile(new File(args.get(0)));
+			indexBamFile( Paths.get(oneAndOnlyOneFile(args)));
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

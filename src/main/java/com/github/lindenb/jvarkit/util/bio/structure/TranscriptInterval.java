@@ -36,6 +36,11 @@ default String getContig() {
 	return getTranscript().getContig();
 }
 
+/** return true if the segment contains the genomic position 1 */
+public default boolean contains(final int genomic1) {
+	return getStart()<=genomic1 && genomic1 <= getEnd();
+}
+
 @Override
 public default char getStrand() { return getTranscript().getStrand();}
 /** return a name for this interval */

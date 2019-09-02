@@ -28,6 +28,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -35,9 +36,10 @@ import java.util.function.Function;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -62,7 +64,6 @@ import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
@@ -171,12 +172,8 @@ public class KnownDeletion extends Launcher
 							filter(S->!StringUtil.isBlank(S)).
 							findFirst().
 							orElse(filename);
-				final IntervalParser parser = new IntervalParser(dict);
-				final Interval interval =  parser.parse(this.regionStr);
-				if(interval==null) {
-					LOG.error("Cannot parser "+this.regionStr+" for "+filename);
-					return -1;
-					}
+				final Function<String,Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().dictionary(dict).make();
+				final SimpleInterval interval =  parser.apply(this.regionStr).orElseThrow(IntervalParserFactory.exception(this.regionStr));
 				final SAMSequenceRecord ssr = Objects.requireNonNull(dict.getSequence(interval.getContig()));
 				final int tid= ssr.getSequenceIndex();
 				final QueryInterval qi1 = new QueryInterval(

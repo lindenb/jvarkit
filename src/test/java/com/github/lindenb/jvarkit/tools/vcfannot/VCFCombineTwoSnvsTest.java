@@ -9,10 +9,10 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.GranthamScoreTest;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReaderTest;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 
-@AlsoTest({LauncherTest.class,KnownGeneTest.class,GranthamScoreTest.class})
+@AlsoTest({LauncherTest.class,GtfReaderTest.class,GranthamScoreTest.class})
 public class VCFCombineTwoSnvsTest {
 	private final TestSupport support =new TestSupport();
 	
@@ -24,7 +24,7 @@ public class VCFCombineTwoSnvsTest {
 			Assert.assertEquals(new VCFCombineTwoSnvs().instanceMain(new String[] {
 				"-R",support.resource("rotavirus_rf.fa"),
 				"-o",out.toString(),
-				"-k",support.resource("rotavirus_rf.knowngenes.tsv.gz"),
+				"--gtf",support.resource("Homo_sapiens.GRCh37.87.gtf.gz"),
 				"-B",support.resource("S1.bam"),
 				support.resource("S1.vcf.gz")
 				}),0);

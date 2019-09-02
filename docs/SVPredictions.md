@@ -1,34 +1,49 @@
-# LocalRealignReads
+# SVPredictions
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Local Realignment of Reads
+Basic Variant Effect prediction using gtf
 
 
 ## Usage
 
 ```
-Usage: localrealignreads [options] Files
+Usage: svpredictions [options] Files
   Options:
-    --bamcompression
-      Compression Level.
-      Default: 5
+  * -g, --gtf
+      GTF File
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --max-genes
+      don't print the genes names if their count exceed 'x'
+      Default: 20
+    -nti, --no-transcript-id
+      don't print transcript id (reduce length of annotation)
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -R, --reference
-      Indexed fasta Reference
-    --samoutputformat
-      Sam output format.
-      Default: SAM
-      Possible Values: [BAM, SAM, CRAM]
+    --tag
+      VCF info attribute
+      Default: SVCSQ
+    -u, --upstream
+      Upstream size. A distance specified as a positive integer.Comma are 
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 5000
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * vcf
+ * annotation
+ * prediction
+ * sv
+
 
 ## Compilation
 
@@ -42,14 +57,19 @@ Usage: localrealignreads [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ ./gradlew localrealignreads
+$ ./gradlew svpredictions
 ```
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20190815
+
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/LocalRealignReads.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/LocalRealignReads.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictions.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictions.java)
 
 
 ## Contribute
@@ -63,7 +83,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **localrealignreads** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **svpredictions** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -71,4 +91,6 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
 

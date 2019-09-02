@@ -16,6 +16,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +34,8 @@ import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.bio.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -44,7 +46,6 @@ import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
@@ -99,7 +100,7 @@ public class GenScan extends Launcher {
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidxFile = null;
+	private Path faidxFile = null;
 	@Parameter(names={"-r","--region"},description="One or more Specific region to observe. empty string is whole genome. Or the name of a chromosome. Or an interval.")
 	private Set<String> regions = new HashSet<>();
 	@Parameter(names={"-miny","--miny","--ymin","-ymin"},description="min Y value")
@@ -276,14 +277,15 @@ public class GenScan extends Launcher {
 	/** instance of display interval for a given Interval */
 	private class DisplayInterval extends DisplayRange
 		{
-		private final Interval interval;
+		private final SimpleInterval interval;
 		DisplayInterval(final String intervalStr)
 			{
-			final IntervalParser intervalParser = new IntervalParser(GenScan.this.dict);
-			this.interval = intervalParser.parse(intervalStr);
-			if(this.interval==null) {
-				throw new IllegalArgumentException("cannot parse interval \""+intervalStr+"\"");
-				}
+			this.interval = IntervalParserFactory.
+					newInstance().
+					dictionary(GenScan.this.dict).
+					make().
+					apply(intervalStr).
+					orElseThrow(IntervalParserFactory.exception(intervalStr));
 			}
 		@Override
 		public String getLabel() {
