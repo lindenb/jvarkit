@@ -23,8 +23,11 @@ Usage: blast2sam [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
-    -r, --reference
+    -R, --read-group
       Indexed fasta Reference
+  * -r, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM

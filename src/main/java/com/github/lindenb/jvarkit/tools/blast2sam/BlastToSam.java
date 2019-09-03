@@ -30,6 +30,7 @@ import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,6 +62,8 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMReadGroupParser;
 import com.github.lindenb.jvarkit.util.bio.blast.BlastHspAlignment;
 
 
@@ -262,21 +265,19 @@ public class BlastToSam extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BlastToSam.class).make();
 
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-p","--expect_size"},description="input is an interleaved list of sequences forward and reverse (paired-ends). 0: not interleaved")
 	private int EXPECTED_SIZE = 0 ;
-
-	@Parameter(names={"-r","--reference"},description="Indexed fasta Reference")
-	private File faidx = null;
+	@Parameter(names={"-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidx = null;
+	@Parameter(names={"-R","--read-group"},description="Indexed fasta Reference")
+	private String rgGroup = null;
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
-
+	private String readGroupId=null;
 	private SAMSequenceDictionary dictionary;
 	private Unmarshaller unmarshaller;
 	//fool javac
@@ -485,7 +486,6 @@ public class BlastToSam extends Launcher
 			final SequenceIteration sequenceIteration=new SequenceIteration(); 
 			if(stack.isEmpty()) return sequenceIteration;
 			
-			final SAMReadGroupRecord rg1=header.getReadGroup("g1");
 			//sequenceIteration.iteration=iter1;
 			
 			final SAMRecordFactory samRecordFactory=new DefaultSAMRecordFactory();
@@ -641,7 +641,7 @@ public class BlastToSam extends Launcher
 						rec.setAttribute("BE", Float.parseFloat(hsp.getHspEvalue()));
 						rec.setAttribute("BS", Float.parseFloat(hsp.getHspScore()));
 						rec.setAttribute("NM", Integer.parseInt(hsp.getHspGaps()));
-						rec.setAttribute("RG", rg1.getId());
+						rec.setAttribute("RG", this.readGroupId);
 						// setAlignmentEnd not supported in SAM API
 						//rec.setAlignmentEnd(Math.max(blastHspAlignment.getHitFrom1(),blastHspAlignment.getHitTo1())); 
 						sequenceIteration.records.add(rec);
@@ -668,17 +668,17 @@ public class BlastToSam extends Launcher
 			
 			if(sequenceIteration.records.isEmpty())
 				{
-				SAMRecord rec=samRecordFactory.createSAMRecord(header);
+				final SAMRecord rec=samRecordFactory.createSAMRecord(header);
 				rec.setReadName(stack.get(0).getIterationQueryDef());
 				rec.setReadUnmappedFlag(true);
-				rec.setAttribute("RG", rg1.getId());
+				rec.setAttribute("RG", this.readGroupId);
 				sequenceIteration.records.add(rec);
 				}
 			
 			
 				
 			
-			for(SAMRecord rec:sequenceIteration.records)
+			for(final SAMRecord rec:sequenceIteration.records)
 				{
 				rec.setReadString(new String(readBases));
 				rec.setReadBases(readBases);
@@ -847,10 +847,7 @@ public class BlastToSam extends Launcher
 	@Override
 	public int doWork(List<String> args) {
 		
-		if(this.faidx==null || !this.faidx.exists() || !this.faidx.isFile()) {
-			LOG.error("Option -R was not defined or dictionary missing");
-			return -1;
-		}
+		
 		final boolean interleaved_input=this.EXPECTED_SIZE>0;
 		final int maxRecordsInRam=5000;
 		SAMFileWriter sfw=null;
@@ -863,8 +860,7 @@ public class BlastToSam extends Launcher
 		final SAMFileHeader header=new SAMFileHeader();
 		try
 			{
-			LOG.info("opening "+faidx);
-			this.dictionary=SAMSequenceDictionaryExtractor.extractDictionary(faidx.toPath());
+			this.dictionary=SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(this.dictionary);
 			
@@ -889,12 +885,10 @@ public class BlastToSam extends Launcher
 			final String inputName=oneFileOrNull(args);
 			if(inputName==null)
 				{
-				LOG.info("Reading from stdin");
 				rx=xmlInputFactory.createXMLEventReader(stdin());
 				}
 			else if(args.size()==1)
 				{
-				LOG.info("Reading from "+inputName);
 				rx=xmlInputFactory.createXMLEventReader(IOUtils.openURIForBufferedReading(inputName));
 				}
 			else
@@ -911,11 +905,20 @@ public class BlastToSam extends Launcher
 			prg1.setProgramVersion(getVersion());
 			prg1.setProgramName(getProgramName());
 			prg1.setPreviousProgramGroupId(prg2.getId());
-			final SAMReadGroupRecord rg1=new SAMReadGroupRecord("g1");
-			rg1.setLibrary("blast");
-			rg1.setSample("blast");
-			rg1.setDescription("blast");
-			header.addReadGroup(rg1);
+			final SAMReadGroupRecord rg1;
+			
+			if(StringUtils.isBlank(this.rgGroup)) {
+				rg1=new SAMReadGroupRecord("g1");
+				rg1.setLibrary("blast");
+				rg1.setSample("blast");
+				rg1.setDescription("blast");
+				header.addReadGroup(rg1);
+				}
+			else
+				{
+				rg1 = new SAMReadGroupParser().apply(this.rgGroup);
+				}
+			this.readGroupId = rg1.getId();
 			
 			sfw = this.writingBamArgs.openSAMFileWriter(outputFile,header, true);
 			
