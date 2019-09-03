@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
+import java.io.Closeable;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +49,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -102,9 +104,46 @@ public class ScanStructuralVariants extends Launcher{
 	private boolean print_all_ctx=false;
 	@Parameter(names={"--maf"},description="Max frequency of variants found in controls.")
 	private double max_maf = 0.0;
+	@Parameter(names={"-L","--large"},description="Large number of controls: By default, all VCF readers for controls are opened and are kept opened."
+			+ " It's fast but requires a lot of resources. This option open+close the controls if needed but it makes things slower."
+			+ " It's the number of VCF that should be keept open, So '0' = ignore/all re-open+close (slow)")
+	private int max_control_large_flag=0;
+
 
 	private int ID_GENERATOR=0;
 
+
+	/** wrap a VCFFileReader to be used with option control_large_flag : will really close the vcf reader if needed */
+	private static class ShadowedVcfReader implements Closeable {
+		private VCFFileReader vcfReader  = null;
+		final Path vcfPath;
+		private final boolean closeOnclose;
+		ShadowedVcfReader(final Path vcfPath,boolean closeOnclose) {
+			this.vcfPath=vcfPath;
+			this.closeOnclose = closeOnclose;
+			}
+		CloseableIterator<VariantContext> query(String contig, int start, int end) {
+			if(this.vcfReader==null) {
+				this.vcfReader = new VCFFileReader(this.vcfPath, true);
+				}
+			return this.vcfReader.query(contig, start, end);
+			}
+		void realClose() {
+			if(this.vcfReader!=null)
+				{
+				this.vcfReader.close();
+				this.vcfReader=null;
+				}
+			}
+		@Override
+		public void close()  {
+			if(closeOnclose) realClose();
+			}
+		}
+	
+	
+	
+	
 	private String getSvtype(final VariantContext ctx) {
 		return ctx.getAttributeAsString(VCFConstants.SVTYPE, ".");
 	}
@@ -140,13 +179,12 @@ public class ScanStructuralVariants extends Launcher{
 	private int recursive(final VariantContext ctx,
 			final List<VariantContext> candidates,
 			final List<VCFFileReader> vcfFilesInput,
-			final List<Path> controlsPaths,
+			final List<ShadowedVcfReader> shadowControls,
 			final VariantContextWriter out) {
 		if(candidates.size()==vcfFilesInput.size()) {
-			final int max_controls = (int)(controlsPaths.size() * max_maf);
+			final int max_controls = (int)(shadowControls.size() * max_maf);
 			int count_matching_controls = 0;
-			for(final Path ctrl: controlsPaths) {
-				final VCFFileReader vcfReader = new VCFFileReader(ctrl, true);
+			for(final ShadowedVcfReader vcfReader: shadowControls) {
 				final CloseableIterator<VariantContext> iter = vcfReader.query(
 						ctx.getContig(),
 						Math.max(1,ctx.getStart()-this.max_distance),
@@ -159,7 +197,7 @@ public class ScanStructuralVariants extends Launcher{
 						candidates.add(new VariantContextBuilder(ctx3).
 							noGenotypes().
 							filter(ATT_CONTROL).
-							attribute(ATT_FILENAME, ctrl.toString()).
+							attribute(ATT_FILENAME, vcfReader.vcfPath.toString()).
 							make()
 							);
 						break;
@@ -227,13 +265,13 @@ public class ScanStructuralVariants extends Launcher{
 			return 0;
 			}
 		VariantContext ctx2=null;;
-		CloseableIterator<VariantContext> iter = vcfFilesInput.get(candidates.size()).query(
+		final CloseableIterator<VariantContext> iter = vcfFilesInput.get(candidates.size()).query(
 				ctx.getContig(),
 				Math.max(1,ctx.getStart()-this.max_distance),
 				ctx.getEnd()+this.max_distance
 				);
 		while(iter.hasNext()) {
-			VariantContext ctx3 = iter.next();
+			final VariantContext ctx3 = iter.next();
 			if(testOverlapping(ctx3, ctx)) {
 				ctx2=ctx3;
 				break;
@@ -242,7 +280,7 @@ public class ScanStructuralVariants extends Launcher{
 		iter.close();
 		if(ctx2==null) return -1;
 		candidates.add(ctx2);
-		return recursive(ctx,candidates,vcfFilesInput,controlsPaths,out);
+		return recursive(ctx,candidates,vcfFilesInput,shadowControls,out);
 		}
 	
 	
@@ -261,6 +299,11 @@ public class ScanStructuralVariants extends Launcher{
 				LOG.error("cases list is empty");
 				return -1;
 				}
+			
+			if(!print_all_ctx && casesPaths.size()==1) {
+				LOG.warning("One case: switching to --all");
+				print_all_ctx=true;
+			}
 			
 			if(this.controlsPath.size()==1 && this.controlsPath.get(0).toString().endsWith(".list")) {
 				this.controlsPath = Files.lines(this.controlsPath.get(0)).
@@ -375,6 +418,14 @@ public class ScanStructuralVariants extends Launcher{
 			header.setSequenceDictionary(dict);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			
+			
+			final List<ShadowedVcfReader> controlShadowReaders = new ArrayList<>(this.controlsPath.size());
+			for(int i=0;i< this.controlsPath.size();i++)
+				{
+				boolean large_flag = this.max_control_large_flag<0 || i>= this.max_control_large_flag;
+				controlShadowReaders.add(new ShadowedVcfReader(this.controlsPath.get(i), large_flag));
+				}
+			
 			out =  super.openVariantContextWriter(this.outputFile);
 			out.writeHeader(header);
 			final CloseableIterator<VariantContext> iter = casesFiles.get(0).iterator();
@@ -383,9 +434,12 @@ public class ScanStructuralVariants extends Launcher{
 			while(iter.hasNext()) {
 				final VariantContext ctx= progress.apply(iter.next());
 				if(decoy.isDecoy(ctx.getContig())) continue;
+				
+				if(Breakend.parse(ctx).stream().anyMatch(B->decoy.isDecoy(B.getContig()))) continue;
+				
 				final List<VariantContext> candidate = new ArrayList<>(casesFiles.size());
 				candidate.add(ctx);
-				recursive(ctx,candidate,casesFiles,controlsPath,out);
+				recursive(ctx,candidate,casesFiles,controlShadowReaders,out);
 				}
 			iter.close();
 			progress.close();		
@@ -393,6 +447,7 @@ public class ScanStructuralVariants extends Launcher{
 			out.close();
 			out=null;
 			casesFiles.stream().forEach(F->F.close());
+			controlShadowReaders.stream().forEach(F->F.realClose());
 			return 0;
 		} catch(final Throwable err) {
 			LOG.error(err);
