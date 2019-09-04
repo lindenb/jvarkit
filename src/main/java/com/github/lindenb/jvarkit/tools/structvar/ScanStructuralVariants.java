@@ -74,6 +74,14 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
 
+## Example
+
+```
+find CONTROLS/ -name "*.vcf.gz" > controls.list
+
+java -Xmx3g -Djava.io.tmpdir=. -jar scansv.jar --controls controls.list -d2 25 --fraction 0.6 cases1.vcf cases2.vcf > out.vcf
+
+```
 
 
 END_DOC
@@ -96,6 +104,8 @@ public class ScanStructuralVariants extends Launcher{
 	private File outputFile=null;
 	@Parameter(names={"-d","--distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int max_distance = 100;
+	@Parameter(names={"-d2"},description="Two variants are the same if they overlap and both have a length<= 'd2'. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
+	private int small_distance = 10;
 	@Parameter(names={"-f","--fraction"},description="Two CNV/DEL/.. variants are the same if they share 'x' fraction of their size.")
 	private double max_fraction = 0.75;
 	@Parameter(names={"-c","--controls"},description="Controls indexed VCF files. a file endings with the suffix '.list' is interpretted as a list of path.")
@@ -153,8 +163,10 @@ public class ScanStructuralVariants extends Launcher{
 		final String typeb = getSvtype(b);
 		if(!a.getContig().equals(b.getContig())) return false;
 		
+		
+
 		if(typea.equals("BND") &&  typeb.equals("BND")) {
-			return  a.withinDistanceOf(b, this.max_distance)
+			return  a.withinDistanceOf(b, Math.max(this.max_distance,this.small_distance) )
 					;
 			}
 		else if(typea.equals("BND") ||  typeb.equals("BND"))
@@ -166,6 +178,14 @@ public class ScanStructuralVariants extends Launcher{
 			final Interval interval1 = new Interval(a);
 			final Interval interval2 = new Interval(b);
 			if(!interval1.overlaps(interval2)) return false;
+
+			/* example
+			chrZ    137402727       MantaINS:160764:0:0:0:0:0       CTAA    CACCCGGCTAAT    .       .       CIGAR=1M11I3D;CLUSTER=CTX8375;DOWNSTREAM_PAIR_COUNT=0;END=137402730;PAIR_COUNT=0;SVLEN=11;SVTYPE=INS;UPSTREAM_PAIR_COUNT=0
+			chrZ    137402727       MantaINS:152106:0:0:0:1:0       CT      CACCCGGCG       .       .       CIGAR=1M8I1D;CLUSTER=CTX8140;DOWNSTREAM_PAIR_COUNT=0;END=137402728;PAIR_COUNT=0;SVLEN=8;SVTYPE=INS;UPSTREAM_PAIR_COUNT=1
+			*/
+
+			if( interval1.length() <= this.small_distance && interval2.length() <= this.small_distance) return true;
+
 			int p1 = Math.max(interval1.getStart(),interval2.getStart());
 			int p2 = Math.min(interval1.getEnd(),interval2.getEnd());
 			double len = CoordMath.getLength(p1,p2);
@@ -431,11 +451,21 @@ public class ScanStructuralVariants extends Launcher{
 			final CloseableIterator<VariantContext> iter = casesFiles.get(0).iterator();
 			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			final Decoy decoy = Decoy.getDefaultInstance();
+			VariantContext prevCtx = null;
 			while(iter.hasNext()) {
 				final VariantContext ctx= progress.apply(iter.next());
 				if(decoy.isDecoy(ctx.getContig())) continue;
 				
 				if(Breakend.parse(ctx).stream().anyMatch(B->decoy.isDecoy(B.getContig()))) continue;
+				
+				// in manta, I see the same variant multiple times in the same vcf
+				if(prevCtx!=null &&
+					ctx.getContig().equals(prevCtx.getContig()) &&
+					ctx.getStart() == prevCtx.getStart() &&
+					ctx.getEnd() == prevCtx.getEnd()) continue;
+					
+				prevCtx=ctx;
+				
 				
 				final List<VariantContext> candidate = new ArrayList<>(casesFiles.size());
 				candidate.add(ctx);
