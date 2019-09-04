@@ -38,24 +38,23 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -89,7 +88,6 @@ END_DOC
  */
 
 @Program(name="scansv",
-generate_doc=false,
 description="Scan structural variants for case/controls data",
 keywords= {"cnv","indel","sv","pedigree"},
 creationDate="20190815",
@@ -102,23 +100,20 @@ public class ScanStructuralVariants extends Launcher{
 	private static final String ATT_CONTROL="FOUND_IN_CONTROL";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
-	@Parameter(names={"-d","--distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
-	private int max_distance = 100;
-	@Parameter(names={"-d2"},description="Two variants are the same if they overlap and both have a length<= 'd2'. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
-	private int small_distance = 10;
-	@Parameter(names={"-f","--fraction"},description="Two CNV/DEL/.. variants are the same if they share 'x' fraction of their size.")
-	private double max_fraction = 0.75;
+
 	@Parameter(names={"-c","--controls"},description="Controls indexed VCF files. a file endings with the suffix '.list' is interpretted as a list of path.")
 	private List<Path> controlsPath =new ArrayList<>();
 	@Parameter(names={"--all"},description="Print all original variants from each file instead of printing just one.")
 	private boolean print_all_ctx=false;
-	@Parameter(names={"--maf"},description="Max frequency of variants found in controls.")
+	@Parameter(names={"--maf"},description="Max frequency of variants found in controls. 0:no control should carry the variant")
 	private double max_maf = 0.0;
 	@Parameter(names={"-L","--large"},description="Large number of controls: By default, all VCF readers for controls are opened and are kept opened."
 			+ " It's fast but requires a lot of resources. This option open+close the controls if needed but it makes things slower."
 			+ " It's the number of VCF that should be keept open, So '0' = ignore/all re-open+close (slow)")
 	private int max_control_large_flag=0;
 
+	@ParametersDelegate
+	private StructuralVariantComparator svComparator = new StructuralVariantComparator();
 
 	private int ID_GENERATOR=0;
 
@@ -150,51 +145,7 @@ public class ScanStructuralVariants extends Launcher{
 			if(closeOnclose) realClose();
 			}
 		}
-	
-	
-	
-	
-	private String getSvtype(final VariantContext ctx) {
-		return ctx.getAttributeAsString(VCFConstants.SVTYPE, ".");
-	}
-	
-	private boolean testOverlapping(final VariantContext a,final VariantContext b ) {
-		final String typea = getSvtype(a);
-		final String typeb = getSvtype(b);
-		if(!a.getContig().equals(b.getContig())) return false;
 		
-		
-
-		if(typea.equals("BND") &&  typeb.equals("BND")) {
-			return  a.withinDistanceOf(b, Math.max(this.max_distance,this.small_distance) )
-					;
-			}
-		else if(typea.equals("BND") ||  typeb.equals("BND"))
-			{
-			return false;
-			}
-		else
-			{
-			final Interval interval1 = new Interval(a);
-			final Interval interval2 = new Interval(b);
-			if(!interval1.overlaps(interval2)) return false;
-
-			/* example
-			chrZ    137402727       MantaINS:160764:0:0:0:0:0       CTAA    CACCCGGCTAAT    .       .       CIGAR=1M11I3D;CLUSTER=CTX8375;DOWNSTREAM_PAIR_COUNT=0;END=137402730;PAIR_COUNT=0;SVLEN=11;SVTYPE=INS;UPSTREAM_PAIR_COUNT=0
-			chrZ    137402727       MantaINS:152106:0:0:0:1:0       CT      CACCCGGCG       .       .       CIGAR=1M8I1D;CLUSTER=CTX8140;DOWNSTREAM_PAIR_COUNT=0;END=137402728;PAIR_COUNT=0;SVLEN=8;SVTYPE=INS;UPSTREAM_PAIR_COUNT=1
-			*/
-
-			if( interval1.length() <= this.small_distance && interval2.length() <= this.small_distance) return true;
-
-			int p1 = Math.max(interval1.getStart(),interval2.getStart());
-			int p2 = Math.min(interval1.getEnd(),interval2.getEnd());
-			double len = CoordMath.getLength(p1,p2);
-			if(len/interval1.getLengthOnReference() < this.max_fraction ) return false; 
-			if(len/interval2.getLengthOnReference() < this.max_fraction ) return false; 
-			return true;
-			}
-		}
-	
 
 	private int recursive(final VariantContext ctx,
 			final List<VariantContext> candidates,
@@ -207,12 +158,12 @@ public class ScanStructuralVariants extends Launcher{
 			for(final ShadowedVcfReader vcfReader: shadowControls) {
 				final CloseableIterator<VariantContext> iter = vcfReader.query(
 						ctx.getContig(),
-						Math.max(1,ctx.getStart()-this.max_distance),
-						ctx.getEnd()+this.max_distance
+						Math.max(1,ctx.getStart()- this.svComparator.getBndDistance()),
+						ctx.getEnd()+ this.svComparator.getBndDistance()
 						);
 				while(iter.hasNext()) {
 					final VariantContext ctx3 = iter.next();
-					if(testOverlapping(ctx3, ctx)) {
+					if(this.svComparator.test(ctx3, ctx)) {
 						count_matching_controls++;
 						candidates.add(new VariantContextBuilder(ctx3).
 							noGenotypes().
@@ -244,7 +195,7 @@ public class ScanStructuralVariants extends Launcher{
 			vcb.stop(ctx.getEnd());
 			vcb.attribute(VCFConstants.END_KEY, ctx.getEnd());
 			vcb.attribute("SVLEN", ctx.getLengthOnReference());
-			final String svType= getSvtype(ctx);
+			final String svType= ctx.getAttributeAsString(VCFConstants.SVTYPE,".");
 			vcb.attribute(VCFConstants.SVTYPE, svType);
 			vcb.attribute("IMPRECISE", true);
 
@@ -287,12 +238,12 @@ public class ScanStructuralVariants extends Launcher{
 		VariantContext ctx2=null;;
 		final CloseableIterator<VariantContext> iter = vcfFilesInput.get(candidates.size()).query(
 				ctx.getContig(),
-				Math.max(1,ctx.getStart()-this.max_distance),
-				ctx.getEnd()+this.max_distance
+				Math.max(1,ctx.getStart()-this.svComparator.getBndDistance()),
+				ctx.getEnd()+this.svComparator.getBndDistance()
 				);
 		while(iter.hasNext()) {
 			final VariantContext ctx3 = iter.next();
-			if(testOverlapping(ctx3, ctx)) {
+			if(this.svComparator.test(ctx3, ctx)) {
 				ctx2=ctx3;
 				break;
 				}
@@ -308,8 +259,8 @@ public class ScanStructuralVariants extends Launcher{
 	public int doWork(final List<String> args) {
 		final List<VCFFileReader> casesFiles = new ArrayList<>();
 
-		if(this.max_distance<0) {
-			LOG.error("bad max_distance :" +this.max_distance);
+		if(this.svComparator.getBndDistance()<0) {
+			LOG.error("bad max_distance :" +this.svComparator.getBndDistance());
 			return -1;
 			}
 		VariantContextWriter out = null;

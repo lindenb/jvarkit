@@ -132,6 +132,7 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 		return new SimpleInterval(ctg,getStart(),getEnd());
 	}
 	
+	/** get the merged interval <code>SimpleInterval(chrom,min(this.getStart(),other.getStart()),max(this.getStart(),other.getStart()))</code> */
 	public SimpleInterval merge(final Locatable other) {
 		if(!overlaps(other)) throw new IllegalArgumentException("assertion failed "+this+" doesn't overlap with "+other);
 		if(this.contains(other)) return this;

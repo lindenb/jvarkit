@@ -50,6 +50,26 @@ public static boolean isATGC(byte c) {
 	return isATGC((char)c);
 	}
 
+
+/** return true if s is not null, not empty and all bases match 'isATGCN */
+public static boolean isATGCN(final CharSequence c) {
+	if(c==null || c.length()==0) return false;
+	for(int i=0;i< c.length();i++) if(!isATGCN(c.charAt(i))) return false;
+	return true;
+	}
+	
+/** return true is base is [A,T,G,C,N] regardless of the case */
+public static boolean isATGCN(char c) {
+	switch(c) {
+		case 'n': case 'N': return true;
+		default: return isATGC(c);
+		}
+	}
+public static boolean isATGCN(byte c) {
+	return isATGCN((char)c);
+	}
+
+
 /** return the reverse complement of the sequence */	
 public static String reverseComplement(final CharSequence seq)
 	{

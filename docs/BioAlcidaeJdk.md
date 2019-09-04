@@ -92,6 +92,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/356474](https://www.biostars.org/p/356474)
  * [https://www.biostars.org/p/394289](https://www.biostars.org/p/394289)
  * [https://www.biostars.org/p/395454](https://www.biostars.org/p/395454)
+ * [https://www.biostars.org/p/397168](https://www.biostars.org/p/397168)
 
 
 ## Compilation
@@ -723,4 +724,12 @@ $ head introns.bed
 1   7649    7761    ARV1
 1   7649    8235    ARV1
 ```
+
+## mean intron length
+
+https://www.biostars.org/p/397168/
+
+`````
+$ wget -O - -q "http://ftp.ensembl.org/pub/release-97/gtf/mus_musculus/Mus_musculus.GRCm38.97.gtf.gz" | gunzip -c | java -jar dist/bioalcidaejdk.jar -F GTF -e 'stream().forEach(G->println(G.getId()+"\t"+G.getGeneName()+"\t"+G.getTranscripts().stream().flatMap(T->T.getIntrons().stream()).mapToInt(I->I.getLengthOnReference()).average().orElse(-99) ));'
+`````
 
