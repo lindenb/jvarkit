@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.picard;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +36,6 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
-import htsjdk.tribble.readers.LineReader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 
@@ -46,21 +46,26 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 public class FourLinesFastqReader
 	extends AbstractFastqReader
 	{
-    private final LineReader lineReader;
+    private final BufferedReader lineReader;
     private long nLines=0;
    
+    public FourLinesFastqReader(final Path file) throws IOException
+		{
+		super(file);
+		this.lineReader= IOUtils.openPathForBufferedReading(file);
+		}
+
     
     public FourLinesFastqReader(final File file) throws IOException
     	{
-    	super(file);
-    	this.lineReader= IOUtils.openFileForLineReader(file);
+    	this(file==null?null:file.toPath());
     	}
     
     public FourLinesFastqReader(final InputStream in)
 		{
-		super(null);
+		super(Path.class.cast(null));
 		try {
-			this.lineReader= IOUtils.openStreamForLineReader(in);
+			this.lineReader= IOUtils.openStreamForBufferedReader(in);
 		} catch (final IOException e) {
 			throw new RuntimeIOException(e);
 			}
@@ -122,7 +127,7 @@ public class FourLinesFastqReader
             this.seqHeader=null;
             return frec ;
 
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(String.format("Error reading fastq '%s'", getAbsolutePath()), e);
         }
     }

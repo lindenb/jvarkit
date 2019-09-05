@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -49,7 +51,7 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
@@ -106,7 +108,7 @@ END_DOC
 
 @Program(name="forkvcf",description="Fork a VCF.",
 	keywords={"vcf"},
-	modificationDate="20190821"
+	modificationDate="20190905"
 	)
 public class ForkVcf
 	extends Launcher
@@ -117,21 +119,20 @@ public class ForkVcf
 	@Parameter(names={"-o","--output"},description="Output file Must contains "+REPLACE_GROUPID,required=true)
 	private File outputFile = null;
 
-
 	@Parameter(names={"-n","--count"},description="number of vcf files to generate")
 	private int number_of_files = 2 ;
 
-	@Parameter(names={"-c","--splitbychunk"},description="When this option is used, the variant are first saved in a temporary file, the number of variant is dividided by 'count' and the output files are lineray produced. The default is to dispatch the variants as they are coming in the stream.")
-	private boolean split_by_chunk = false;
+	@Parameter(names={"-c","-k","--keep-order"},description="When this option is used, the variant are first saved in a temporary file, the number of variant is dividided by 'count' and the output files are lineray produced. The default is to dispatch the variants as they are coming in the stream.")
+	private boolean keep_order = false;
 
 	@Parameter(names={"-m","--manifest"},description="optional save produced vcf filenames in this file.")
 	private File manifestFile = null;
 
 
-    @Parameter(names={"-T","--tmpDir"},description="mp directory")
+    @Parameter(names={"-T","--tmpDir"},description="tmp directory for option --keep-order")
     private File tmpDir = IOUtils.getDefaultTmpDir();
 
-    @Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
+    @Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM  for option --keep-order")
     private int maxRecordsInRam =50000;
 
 	private final static String REPLACE_GROUPID="__GROUPID__";
@@ -223,19 +224,20 @@ public class ForkVcf
 		VCFIterator in =null;
 		PrintWriter manifestWriter=null;
 		final List<SplitGroup> groups = new ArrayList<>();
-		VCFBuffer vcfBuffer=null;
 		try 
 			{
-			in = openVCFIterator(oneFileOrNull(args));
+			
 			manifestWriter = (this.manifestFile==null?
 					new PrintWriter(new NullOuputStream()):
 					IOUtils.openFileForPrintWriter(this.manifestFile)
 					);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(in.getHeader());
 			
 			
-			if (!this.split_by_chunk)
+			if (!this.keep_order)
 				{
+				in = openVCFIterator(oneFileOrNull(args));
+				final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
+
 				while(groups.size()<this.number_of_files)
 					{
 					final SplitGroup sg = new SplitGroup(groups.size()+1);
@@ -245,46 +247,71 @@ public class ForkVcf
 					}
 				int idx=0;
 				while(in.hasNext()) {
-					final VariantContext ctx = progress.watch(in.next());
+					final VariantContext ctx = progress.apply(in.next());
 					groups.get(idx%this.number_of_files)._writer.add(ctx);
 					++idx;
 					}
 				in.close();
+				progress.close();
 				} 
 			else {
+				VCFBuffer buffer= null;
+				//stdin
 				long count_variants=0;
-				vcfBuffer=new VCFBuffer(this.maxRecordsInRam,this.tmpDir);
-				vcfBuffer.writeHeader(in.getHeader());
-				while(in.hasNext()) {
-					final VariantContext ctx = progress.watch(in.next());
-					vcfBuffer.add(ctx);
-					++count_variants;
+				final VCFHeader header;
+				CloseableIterator<VariantContext> ctxIter;
+				if(args.isEmpty())
+					{
+					in = openVCFIterator(null);
+					
+					final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
+					
+					buffer=new VCFBuffer(this.maxRecordsInRam,this.tmpDir);
+					header= in.getHeader();
+					buffer.writeHeader(header);
+					while(in.hasNext()) {
+						final VariantContext ctx = progress.apply(in.next());
+						buffer.add(ctx);
+						++count_variants;
+						}
+					in.close();
+					progress.close();
+					ctxIter = buffer.iterator();
 					}
-				in.close();
+				else
+					{
+					final VCFIterator r1=VCFUtils.createVCFIterator(oneAndOnlyOneFile(args));
+					header= r1.getHeader();
+					count_variants = r1.stream().count();
+					r1.close();
+					
+					ctxIter = VCFUtils.createVCFIterator(oneAndOnlyOneFile(args));
+					}
 				final long variant_per_file= Math.max(1L,(long)Math.ceil(count_variants/(double)this.number_of_files));
-
+				
 				LOG.info("done buffering. n="+count_variants+" now forking "+variant_per_file+" variants for "+this.number_of_files+" files.");
-				VCFIterator iter2=vcfBuffer.iterator();
 				long count_ctx=0L;
-				while(iter2.hasNext()) {
+				while(ctxIter.hasNext()) {
 					if(groups.isEmpty() || count_ctx>=variant_per_file)
 						{
 						if(!groups.isEmpty()) groups.get(groups.size()-1).close();
 						final SplitGroup last = new SplitGroup(groups.size()+1);
-						last.open(in.getHeader());
+						last.open(header);
 						manifestWriter.println(last.getFile().getPath());
 						groups.add(last);
 						count_ctx=0;
 						}
 					
-					final VariantContext ctx = iter2.next();
+					final VariantContext ctx = ctxIter.next();
 					groups.get(groups.size()-1)._writer.add(ctx);
 					count_ctx++;
 					}
-				iter2.close();
-				vcfBuffer.close();
-				vcfBuffer.dispose();
-				vcfBuffer=null;
+				ctxIter.close();
+				if(buffer!=null) {
+					buffer.close();
+					buffer.dispose();
+					buffer=null;
+					}
 				
 				//save remaining empty VCFs
 				while(groups.size()<this.number_of_files)
@@ -298,7 +325,6 @@ public class ForkVcf
 					}
 				}
 			
-			progress.finish();
 			
 	
 			for (final SplitGroup g : groups) {
@@ -318,7 +344,6 @@ public class ForkVcf
 			}
 			return -1;
 		} finally {
-			if(vcfBuffer!=null) vcfBuffer.dispose();
 			CloserUtil.close(r);
 			CloserUtil.close(in);
 			IOUtils.flush(manifestWriter);

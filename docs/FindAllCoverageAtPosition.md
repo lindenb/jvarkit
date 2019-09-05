@@ -11,7 +11,9 @@ Find depth at specific position in a list of BAM files. My colleague Estelle ask
 Usage: findallcoverageatposition [options] Files
   Options:
     -x, --extend
-      [20190218]extend by 'x' base to try to cahc close clipped reads
+      [20190218]extend by 'x' base to try to catch close with clipped reads. A 
+      distance specified as a positive integer.Comma are removed. The 
+      following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 500
     -filter, --filter
       [20171201](moved to jexl). A JEXL Expression that will be used to filter 
@@ -21,25 +23,25 @@ Usage: findallcoverageatposition [options] Files
       the read). An empty expression keeps everything. The variable 'record' 
       is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
       Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
-    --groupby
-      Group Reads by. Data partitioning using the SAM Read Group (see 
-      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
-      be any combination of sample, library....
-      Default: sample
-      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
+    --groupby, --partition
+      Group Reads by. Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -f, --posfile
       File containing positions. if file suffix is '.bed': all positions in 
       the range will be scanned.
     -p, --position
       -p chrom:pos . Multiple separated by space. Add this chrom/position. 
       Required 
-      Default: <empty string>
+      Default: []
     -r, -R, --reference
       [20171201]Indexed fasta Reference file. This file must be indexed with 
       samtools faidx and with picard CreateSequenceDictionary

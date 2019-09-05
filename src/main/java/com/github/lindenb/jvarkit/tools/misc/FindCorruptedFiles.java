@@ -29,34 +29,35 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import htsjdk.tribble.TribbleException;
 import htsjdk.tribble.readers.LineIterator;
-import htsjdk.tribble.util.TabixUtils;
-import htsjdk.samtools.BAMIndex;
-import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 import htsjdk.variant.vcf.VCFIterator;
-import com.github.lindenb.jvarkit.util.vcf.VcfIteratorImpl;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 /*
@@ -75,7 +76,12 @@ END_DOC
 
  */
 
-@Program(name="findcorruptedfiles",keywords={"vcf","bam","fastq","bed"},description="Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)")
+@Program(name="findcorruptedfiles",
+keywords={"vcf","bam","fastq","bed"},
+description="Reads filename from stdin and prints corrupted NGS files (VCF/BAM/FASTQ/BED/TBI/BAI)",
+modificationDate="20190905"
+)
+
 public class FindCorruptedFiles extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindCorruptedFiles.class).make();
@@ -89,7 +95,7 @@ public class FindCorruptedFiles extends Launcher
     private ValidationStringency validationStringency=ValidationStringency.LENIENT;
     
     
-    private void emptyFile(final File f)
+    private void emptyFile(final Path f)
     	{
     	if(this.emptyIsError)
     		{
@@ -101,14 +107,12 @@ public class FindCorruptedFiles extends Launcher
     		}
     	}
 	
-    private void testBam(File f)
+    private void testBam(final Path f)
     	{
-    	LOG.fine("Test BAM for "+f);
-    	
     	//Test BGZ-EOF
     	try
     		{
-    		BlockCompressedInputStream.FileTermination type=BlockCompressedInputStream.checkTermination(f);
+    		final BlockCompressedInputStream.FileTermination type=BlockCompressedInputStream.checkTermination(f);
     		if(type!=BlockCompressedInputStream.FileTermination.HAS_TERMINATOR_BLOCK)
     			{
     			LOG.warning("bgz:"+type+" for "+f);
@@ -116,7 +120,7 @@ public class FindCorruptedFiles extends Launcher
         		return;
     			}
     		}
-    	catch(IOException err)
+    	catch(final IOException err)
     		{
     		LOG.warning("Error in "+f);
     		stdout().println(f);
@@ -153,19 +157,19 @@ public class FindCorruptedFiles extends Launcher
     		}
     	}
     
-    private void testBed(File f)
+    private void testBed(final Path f)
 		{
     	LineIterator iter=null;
     	try
 	    	{
-    		java.util.regex.Pattern tab=java.util.regex.Pattern.compile("[\t]");
 			long n=0;
-		
-			iter=IOUtils.openFileForLineIterator(f);
+			iter=IOUtils.openPathForLineIterator(f);
 			while(iter.hasNext() && (NUM<0 || n<NUM))
 				{
 				String line=iter.next();
-				String tokens[]=tab.split(line);
+				if(StringUtils.isBlank(line)) continue;
+				if(BedLine.isBedHeader(line)) continue;
+				final String tokens[]=CharSplitter.TAB.split(line);
 				if(tokens.length<3)
 					{
 					LOG.warning( "BED error. Line "+(n+1)+" not enough columns in "+f);
@@ -224,7 +228,7 @@ public class FindCorruptedFiles extends Launcher
 				emptyFile(f);
 				}
 	    	}
-    	catch (Exception e)
+    	catch (final Exception e)
 			{
     		LOG.warning( "Error in "+f);
 			stdout().println(f);
@@ -237,10 +241,10 @@ public class FindCorruptedFiles extends Launcher
 
 
     
-    private void testVcf(final File f,InputStream in) throws IOException,TribbleException
+    private void testVcf(final Path f,InputStream in) throws IOException,TribbleException
     	{
     	long n=0;
-    	final VCFIterator iter= VCFUtils.createVCFIteratorFromStream(in);
+    	final VCFIterator iter= VCFUtils.createVCFIteratorFromInputStream(in);
     	iter.getHeader();
     	while(iter.hasNext() &&  (NUM<0 || n<NUM))
     		{
@@ -254,10 +258,9 @@ public class FindCorruptedFiles extends Launcher
     	iter.close();
     	}
     
-    private void testFastq(File f)
+    private void testFastq(Path f)
 		{
     	long n=0;
-    	LOG.fine("Test Fastq for "+f);
     	FastqReader r=null;
     	try
     		{
@@ -284,14 +287,13 @@ public class FindCorruptedFiles extends Launcher
     		}
 		}
     
-    private void testVcf(File f)
+    private void testVcf(final Path f)
 		{
-    	LOG.fine("Test VCF for "+f);
     	Exception error1=null;
     	BlockCompressedInputStream in1=null;
     	try
     		{
-    		in1=new BlockCompressedInputStream(f);
+    		in1=new BlockCompressedInputStream(Files.newInputStream(f));
     		testVcf(f,in1);
     		}
     	catch(Exception err)
@@ -328,7 +330,7 @@ public class FindCorruptedFiles extends Launcher
     	GZIPInputStream in2=null;
     	try
     		{
-    		in2=new GZIPInputStream(new FileInputStream(f));
+    		in2=new GZIPInputStream(Files.newInputStream(f));
     		testVcf(f,in2);
     		LOG.warning("gzip but not bgzip :"+f);
     		return;
@@ -345,56 +347,56 @@ public class FindCorruptedFiles extends Launcher
     	stdout().println(f);
 		}
 
-    private void testTbi(File f)
+    private void testTbi(Path f)
     	{
-		String filename=f.getName();
+    	String filename=f.getFileName().toString();
 		//remove .tbi suffix
 		filename=filename.substring(0,
-				filename.length()-TabixUtils.STANDARD_INDEX_EXTENSION.length());
+				filename.length()-FileExtensions.TABIX_INDEX.length());
 
-    	File baseFile=new File(f.getParentFile(),filename);
-    	if(baseFile.exists() && baseFile.isFile()) return;
+    	Path baseFile= Paths.get(f.getParent().toString(),filename);
+    	if(Files.exists(baseFile) && Files.isRegularFile(baseFile)) return;
     	LOG.fine("Missing associated file for : "+f);
     	stdout().println(f);		
 		}
     
-    private void testBai(File f)
+    private void testBai(Path f)
 		{
-		String filename=f.getName();
+		String filename=f.getFileName().toString();
 		//remove .bai suffix
 		filename=filename.substring(0,
-				filename.length()-BAMIndex.BAMIndexSuffix.length());
+				filename.length()-FileExtensions.BAI_INDEX.length());
 
 		//ends with bam.bai
-		if(filename.endsWith(BamFileIoUtils.BAM_FILE_EXTENSION))
+		if(filename.endsWith(FileExtensions.BAM))
 			{
 			//nothing
 			}
 		else // file.bai and file.bam
 			{
-			filename+=BamFileIoUtils.BAM_FILE_EXTENSION;
+			filename+=FileExtensions.BAM;
 			}
-    	File bam=new File(f.getParentFile(),filename);
-    	if(bam.exists() && bam.isFile()) return;
+    	final Path bam=Paths.get(f.getParent().toString(),filename);
+    	if(Files.exists(bam) && Files.isRegularFile(bam)) return;
     	LOG.fine("Missing associated BAM file for : "+f);
     	stdout().println(f);		
 		}
     
-	private void analyze(File f)
+	private void analyze(final Path f)
 		{
 		LOG.fine("Scanning "+f);
-		if(f.isDirectory())
+		if(Files.isDirectory(f))
 			{
 			LOG.info("skipping "+f+" (directory)");
 			}
 		else
 			{	
-			String name=f.getName();
-			if(name.endsWith(".bam"))
+			String name=f.getFileName().toString();
+			if(name.endsWith(FileExtensions.BAM))
 				{
 				testBam(f);
 				}
-			else if(name.endsWith(".vcf.gz"))
+			else if(name.endsWith(FileExtensions.COMPRESSED_VCF))
 				{
 				testVcf(f);
 				}
@@ -406,11 +408,11 @@ public class FindCorruptedFiles extends Launcher
 				{
 				testBed(f);
 				}
-			else if(name.endsWith(TabixUtils.STANDARD_INDEX_EXTENSION))
+			else if(name.endsWith(FileExtensions.TABIX_INDEX))
 				{
 				testTbi(f);
 				}
-			else if(name.endsWith(BAMIndex.BAMIndexSuffix))
+			else if(name.endsWith(FileExtensions.BAI_INDEX))
 				{
 				testBai(f);
 				}
@@ -432,8 +434,7 @@ public class FindCorruptedFiles extends Launcher
 			while((line=in.readLine())!=null)
 				{
 				if(line.isEmpty() || line.startsWith("#")) continue;
-				File f=new File(line);
-				analyze(f);
+				analyze(Paths.get(line));
 				}
 			}
 		catch(final IOException err)

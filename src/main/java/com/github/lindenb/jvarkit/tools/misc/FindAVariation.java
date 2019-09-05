@@ -46,10 +46,12 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -105,42 +107,7 @@ public class FindAVariation extends Launcher
 	private boolean indexedOnly=false;
 
 	
-	private static class Mutation
-		{
-		final String chrom;
-		final int pos;
-		Mutation(final String chrom,final int pos)
-			{
-			this.chrom=chrom;
-			this.pos=pos;
-			}
-		
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + chrom.hashCode();
-			result = prime * result + pos;
-			return result;
-			}
-		@Override
-		public boolean equals(final Object obj) {
-			if (this == obj)return true;
-			final Mutation other = (Mutation) obj;
-			if (pos != other.pos) return false;
-			 if (!chrom.equals(other.chrom))
-				return false;
-			
-			return true;
-		}
-		
-		@Override
-		public String toString() {
-			return chrom+":"+pos;
-			}
-		
-		}
-	private final Set<Mutation> mutations=new HashSet<Mutation>();
+	private final Set<SimplePosition> mutations=new HashSet<>();
 	private PrintWriter out=null;
 	
     public FindAVariation()
@@ -168,7 +135,7 @@ public class FindAVariation extends Launcher
     		final String f,
     		final VCFHeader header,
     		final VariantContext ctx,
-    		final Mutation mpos
+    		final SimplePosition mpos
     		)
     	{
     	
@@ -183,7 +150,7 @@ public class FindAVariation extends Launcher
     		final GenotypesContext genotypes=ctx.getGenotypes();
     		for(int i=0;i< genotypes.size();++i)
     			{
-    			Genotype g=genotypes.get(i);
+    			final Genotype g=genotypes.get(i);
     			if(!g.isCalled() && this.hideNoCall) continue;
     			if(g.isHomRef() && this.hideHomRef) continue;
     			reportPos(f,header,ctx);
@@ -211,25 +178,25 @@ public class FindAVariation extends Launcher
     		}
     	}	
     
-    private Set<Mutation> convertFromVcfHeader(final String f,final VCFHeader h)
+    private Set<SimplePosition> convertFromVcfHeader(final String f,final VCFHeader h)
     	{
     	final SAMSequenceDictionary dict= h.getSequenceDictionary();
     	if(dict==null || dict.isEmpty()) {
     		return this.mutations;
     		}
     	
-    	final Set<Mutation> copy=new HashSet<Mutation>(this.mutations.size());
+    	final Set<SimplePosition> copy=new HashSet<>(this.mutations.size());
     	final ContigNameConverter ctgCvt = ContigNameConverter.fromOneDictionary(dict);
     	
-    	for(final Mutation m:this.mutations)
+    	for(final SimplePosition m:this.mutations)
     		{
-    		final String s=ctgCvt.apply(m.chrom);
+    		final String s=ctgCvt.apply(m.getContig());
     		if(StringUtils.isBlank(s))
     			{
-    			LOG.warn("Cannot convert chrom "+m.chrom+" in "+f);
+    			LOG.warn("Cannot convert chrom "+m.getContig()+" in "+f);
     			continue;
     			}
-    		copy.add(new Mutation(s, m.pos));
+    		copy.add(m.renameContig(s));
     		}
     	return copy;
     	}
@@ -252,17 +219,14 @@ public class FindAVariation extends Launcher
     		tabix=new TabixVcfFileReader(url);
     		final VCFHeader header = tabix.getHeader();
     		final Set<String> chromosomes = tabix.getChromosomes();
-    		for(final Mutation m:convertFromVcfHeader(url,header))
+    		for(final SimplePosition m:convertFromVcfHeader(url,header))
     			{
-    			if(!chromosomes.contains(m.chrom)) continue;
-    			final java.util.Iterator<VariantContext> iter2 = tabix.iterator(m.chrom, m.pos, m.pos);
+    			if(!chromosomes.contains(m.getContig())) continue;
+    			final java.util.Iterator<VariantContext> iter2 = tabix.iterator(new Interval(m));
     		    while(iter2.hasNext())
                       {
                       final VariantContext ctx=iter2.next();
-                      if(this.onlySnp )
-                            {       
-                            if(ctx.getStart()!=m.pos || ctx.getEnd()!=m.pos) continue;
-                            }
+				      if(this.onlySnp  && (ctx.getStart()!=m.getPosition() || ctx.getEnd()!=m.getPosition())) continue;
                       report(url,header,ctx,m);
                       }
                   CloserUtil.close(iter2);
@@ -293,20 +257,19 @@ public class FindAVariation extends Launcher
 		VCFIterator iter=null;
 		VCFFileReader r=null;
 		try {
-			if(VCFUtils.isTribbleVcfPath(vcfPath) || VCFUtils.isTribbleVcfPath(vcfPath))
+			
+			if(VCFUtils.isTribbleVcfPath(vcfPath) || 
+				VCFUtils.isTabixVcfPath(vcfPath))
 				{
 				r=new VCFFileReader(vcfPath,true);
 				final VCFHeader header =r.getFileHeader();
-				for(final Mutation m:convertFromVcfHeader(vcfPath.toString(),header))
+				for(final SimplePosition m:convertFromVcfHeader(vcfPath.toString(),header))
 					{
-					try( CloseableIterator<VariantContext> iter2 = r.query(m.chrom, m.pos, m.pos)) {
+					try( CloseableIterator<VariantContext> iter2 = r.query(m)) {
 						while(iter2.hasNext())
 							{
 							final VariantContext ctx=iter2.next();
-							if(this.onlySnp )
-								{	
-								if(ctx.getStart()!=m.pos || ctx.getEnd()!=m.pos) continue;
-								}
+					    	if(this.onlySnp  && (ctx.getStart()!=m.getPosition() || ctx.getEnd()!=m.getPosition())) continue;
 							report(vcfPathString,header,ctx,m);
 							}
 						}
@@ -318,22 +281,16 @@ public class FindAVariation extends Launcher
 				{
 				iter=VCFUtils.createVCFIteratorFromPath(vcfPath);
 				final VCFHeader header = iter.getHeader();
-				final Set<Mutation> mutlist=convertFromVcfHeader(vcfPath.toString(),iter.getHeader());
+				final Set<SimplePosition> mutlist=convertFromVcfHeader(vcfPath.toString(),iter.getHeader());
 				while(iter.hasNext())
 					{
 					final VariantContext ctx=iter.next();
-					final Mutation m=new Mutation(ctx.getContig(), ctx.getStart());
-					
-					for(final Mutation m2: mutlist)
+					if(this.onlySnp && ctx.getLengthOnReference()!=1) continue;
+					for(final SimplePosition m2: mutlist)
 						{
-						if(m.equals(m2)) {
-					    	if(this.onlySnp )
-								{	
-								if(ctx.getStart()!=m2.pos || ctx.getEnd()!=m2.pos) continue;
-								}	
-							report(vcfPathString,header,ctx,m2);
-							break;
-							}
+						if(!m2.overlaps(ctx)) continue;
+				    	if(this.onlySnp  && (ctx.getStart()!=m2.getPosition() || ctx.getEnd()!=m2.getPosition())) continue;
+						report(vcfPathString,header,ctx,m2);
 						}
 					}
 				iter.close();
@@ -356,22 +313,6 @@ public class FindAVariation extends Launcher
 	}
     
 
-	private Mutation parseMutation(final String s)
-		{
-		final int colon=s.indexOf(':');
-		if(colon==-1 || colon+1==s.length())
-			{
-			throw new IllegalArgumentException("Bad chrom:pos "+s);
-			}
-		
-		final String chrom=s.substring(0,colon).trim();
-		if(StringUtils.isBlank(chrom))
-			{
-			throw new IllegalArgumentException("Bad chrom:pos "+s);
-			}
-		final Mutation m=new Mutation(chrom, Integer.parseInt(s.substring(colon+1)));
-		return m;
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -385,8 +326,7 @@ public class FindAVariation extends Launcher
 				while((line=r.readLine())!=null)
 					{
 					if(line.isEmpty() || line.startsWith("#")) continue;
-					final Mutation m= parseMutation(line);
-					LOG.debug("adding "+m);
+					final SimplePosition m= new SimplePosition(line);
 					this.mutations.add(m);
 					}
 				r.close();
@@ -394,8 +334,7 @@ public class FindAVariation extends Launcher
 			
 			for(final String s:this.positionsList)
 				{
-				final Mutation m= parseMutation(s);
-				LOG.debug("adding "+m);
+				final SimplePosition m= new SimplePosition(s);
 				this.mutations.add(m);
 				}			
 			

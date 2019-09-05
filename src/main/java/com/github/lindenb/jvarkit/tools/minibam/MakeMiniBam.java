@@ -43,6 +43,8 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -55,7 +57,6 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -72,8 +73,8 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -164,8 +165,8 @@ public class MakeMiniBam extends Launcher {
 			return Collections.singletonList(loc);
 			}
 		return Arrays.asList(
-				new Interval(loc.getContig(),loc.getStart(),loc.getStart()),
-				new Interval(loc.getContig(),loc.getEnd(),loc.getEnd())
+				new SimpleInterval(loc.getContig(),loc.getStart(),loc.getStart()),
+				new SimpleInterval(loc.getContig(),loc.getEnd(),loc.getEnd())
 				);
 		}
 	
@@ -247,11 +248,7 @@ public class MakeMiniBam extends Launcher {
 					};
 				
 				for(final String posStr:this.posStrSet) {
-					final int colon = posStr.indexOf(":");
-					if(colon <=0 ) throw new IllegalArgumentException("cannot find colon in "+posStr);
-					final String contig1 = posStr.substring(0,colon);
-					final int pos = Integer.parseInt(posStr.substring(colon+1));
-					locatableConsummer.accept(new Interval(contig1,pos,pos));
+					locatableConsummer.accept(new SimpleInterval(new SimplePosition(posStr)));
 					}
 				// read vcf data
 				if(this.vcfInput!=null) {
@@ -271,7 +268,7 @@ public class MakeMiniBam extends Launcher {
 										final int colon = tokens[1].indexOf(':');
 										final String mateCtg = tokens[1].substring(0,colon);
 										final int matePos = Integer.parseInt(tokens[1].substring(colon+1));
-										locatableConsummer.accept(new Interval(mateCtg,matePos,matePos));
+										locatableConsummer.accept(new SimpleInterval(mateCtg,matePos,matePos));
 										}
 									}
 								}
@@ -343,7 +340,7 @@ public class MakeMiniBam extends Launcher {
 					filename=this.filePrefix+sampleName+"."+ (id_generator++) + labelSuffix;
 					}
 				outputFileNames.add(filename);
-				archive.copyTo(tmpBam, filename + BamFileIoUtils.BAM_FILE_EXTENSION);
+				archive.copyTo(tmpBam, filename + FileExtensions.BAM);
 				archive.copyTo(tmpBai, filename + IOUtils.getFileSuffix(tmpBai));
 
 				

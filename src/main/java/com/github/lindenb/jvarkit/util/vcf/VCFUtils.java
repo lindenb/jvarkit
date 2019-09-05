@@ -262,7 +262,7 @@ public class VCFUtils
 		}
 	
 	/** create a VCF iterator
-	 * 
+	 * use createVCFIteratorFromInputStream
 	 * @param IN input stream
 	 * */
 	@Deprecated
@@ -502,7 +502,7 @@ public class VCFUtils
 		{
 		if(!isVcfPath(f)) return false;
 		final String filename=f.getFileName().toString();
-		if(!(filename.endsWith(".vcf.gz")|| filename.endsWith(".vcf.bgz"))) return false;
+		if(!(filename.endsWith(FileExtensions.COMPRESSED_VCF)|| filename.endsWith(".vcf.bgz"))) return false;
 		final Path index = Paths.get(
 				f.getParent().toString(),
 				filename+ FileExtensions.TABIX_INDEX
@@ -515,7 +515,7 @@ public class VCFUtils
 		{
 		if(!isVcfPath(f)) return false;
 		final String filename=f.getFileName().toString();
-		if(!filename.endsWith(".vcf")) return false;
+		if(!filename.endsWith(FileExtensions.VCF)) return false;
 		final Path index=Paths.get(
 				f.getParent().toString(),
 				filename+ FileExtensions.TRIBBLE_INDEX

@@ -29,16 +29,18 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -53,15 +55,17 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
@@ -111,7 +115,7 @@ END_DOC
 	keywords={"bam","coverage","search","depth"},
 	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
 	biostars= {259223,250099},
-	modificationDate="20190218"
+	modificationDate="20190905"
 	)
 public class FindAllCoverageAtPosition extends Launcher
 	{
@@ -121,83 +125,25 @@ public class FindAllCoverageAtPosition extends Launcher
 	private static final char BASES_To_PRINT[]=new char[]{'A','C','G','T','N',INSERTION_CHAR,DELETION_CHAR};
 
 	@Parameter(names={"-p","--position"},description="-p chrom:pos . Multiple separated by space. Add this chrom/position. Required")
-	private String positionStr = "";
+	private List<String> positionStrs = new ArrayList<String>();
 	@Parameter(names={"-f","--posfile"},description="File containing positions. if file suffix is '.bed': all positions in the range will be scanned.")
-	private File positionFile = null;
+	private Path positionFile = null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"--groupby","--partition"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 	@Parameter(names={"-filter","--filter"},description="[20171201](moved to jexl). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-r","-R","--reference"},description="[20171201]"+Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File referenceFileFile=null;
-	@Parameter(names={"-x","--extend"},description="[20190218]extend by 'x' base to try to catch close clipped reads. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private Path referenceFileFile=null;
+	@Parameter(names={"-x","--extend"},description="[20190218]extend by 'x' base to try to catch close with clipped reads. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend=500;
 
 	
 	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
 	
-	private static class Mutation implements Comparable<Mutation>
-		{
-		final String chrom;
-		final int pos;
-		Mutation(final String s) {
-			int colon=s.indexOf(':');
-			if(colon==-1 || colon+1==s.length())
-				{
-				throw new IllegalArgumentException("Bad chrom:pos "+s);
-				}
-			
-			this.chrom=s.substring(0,colon).trim();
-			if(chrom.isEmpty())
-				{
-				throw new IllegalArgumentException("Bad chrom:pos "+s);
-				}
-			this.pos=Integer.parseInt(s.substring(colon+1));
-			}
-		
-		Mutation(String chrom,int pos)
-			{
-			this.chrom=chrom;
-			this.pos=pos;
-			}
-		
-		@Override
-		public int compareTo(Mutation o) {
-			int i=this.chrom.compareTo(o.chrom);
-			if(i!=0) return i;
-			i=this.pos-o.pos;
-			return i;
-			}
-		
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + chrom.hashCode();
-			result = prime * result + pos;
-			return result;
-			}
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)return true;
-			Mutation other = (Mutation) obj;
-			if (pos != other.pos) return false;
-			 if (!chrom.equals(other.chrom))
-				return false;
-			
-			return true;
-		}
-		
-		@Override
-		public String toString() {
-			return chrom+":"+pos;
-			}
-		
-		}
 	
 	private static class CigarAndBases
 		{
@@ -208,22 +154,20 @@ public class FindAllCoverageAtPosition extends Launcher
 	private SamReaderFactory samReaderFactory;
     public FindAllCoverageAtPosition()
     	{
-    	samReaderFactory=  SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
     	}		
     
-    private Mutation convertFromSamHeader(final File f,SAMFileHeader h,final Mutation src)
+    private SimplePosition convertFromSamHeader(final Path f,SAMFileHeader h,final SimplePosition src)
     	{
     	final SAMSequenceDictionary dict=h.getSequenceDictionary();
     	if(dict==null)
     		{
-    		LOG.warn("No dictionary in "+h);
+    		LOG.warn("No dictionary in "+f);
     		return null;
     		}
     	final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict); 
-    	final String ctg =  converter.apply(src.chrom);
+    	final String ctg =  converter.apply(src.getContig());
     	if(ctg==null) return null;
-    	if(ctg!=null && ctg.equals(src.chrom)) return src;
-    	return new Mutation(ctg,src.pos);
+    	return src.renameContig(ctg);
     	}
     
     private char getReferenceAt(final String contig,int pos1) {
@@ -241,7 +185,7 @@ public class FindAllCoverageAtPosition extends Launcher
     	return genomicSequence.charAt(pos1-1);
     	}
 
-    private void scan(final BufferedReader in,final Set<Mutation> mutations) throws Exception
+    private void scan(final BufferedReader in,final Set<SimplePosition> mutations) throws Exception
     	{
 
     	final String DEFAULT_SAMPLE_NAME="(undefined)";
@@ -249,18 +193,15 @@ public class FindAllCoverageAtPosition extends Launcher
     	while((line=in.readLine())!=null)
 			{
     		if(out.checkError()) break;
-			if(line.isEmpty() || line.startsWith("#")) continue;
-			File f=new File(line);
-			if(!f.exists()) continue;
-			if(!f.isFile()) continue;
-			if(!f.canRead()) continue;
-			String filename=f.getName();
-			if(filename.endsWith(".cram"))
-				{
-				LOG.warn("Sorry CRAM is not supported "+filename);
-				continue;
-				}
-			if(!filename.endsWith(".bam")) continue;
+			if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
+			final Path f= Paths.get(line);
+			if(!Files.exists(f)) continue;
+			if(!Files.isRegularFile(f)) continue;
+			if(!Files.isReadable(f)) continue;
+			final String filename=f.getFileName().toString();
+			
+			if(!(filename.endsWith(FileExtensions.BAM) || 
+				filename.endsWith(FileExtensions.CRAM))) continue;
 			
     			
 			SamReader samReader=null;
@@ -274,7 +215,7 @@ public class FindAllCoverageAtPosition extends Launcher
 					continue;
 					}
 				final SAMFileHeader header=samReader.getFileHeader();
-				for(final Mutation src:mutations)
+				for(final SimplePosition src:mutations)
 					{
 					final Map<String, CigarAndBases> sample2count=new TreeMap<String,CigarAndBases>();
 					for(final SAMReadGroupRecord rg:header.getReadGroups())
@@ -296,11 +237,11 @@ public class FindAllCoverageAtPosition extends Launcher
 
 					
 					
-					final Mutation m = convertFromSamHeader(f,header,src);
+					final SimplePosition m = convertFromSamHeader(f,header,src);
 					if(m==null) continue;
-					iter = samReader.query(m.chrom,
-							Math.max(1,m.pos-this.extend),
-							m.pos+this.extend,
+					iter = samReader.query(m.getContig(),
+							Math.max(1,m.getPosition()-this.extend),
+							m.getPosition()+this.extend,
 							false
 							);
 					while(iter.hasNext())
@@ -310,8 +251,8 @@ public class FindAllCoverageAtPosition extends Launcher
 						if(this.filter.filterOut(rec)) continue;
 						final Cigar cigar=rec.getCigar();
 						if(cigar==null || cigar.isEmpty()) continue;
-						if(rec.getUnclippedEnd() < m.pos) continue;
-						if(rec.getUnclippedStart() > m.pos) continue;
+						if(rec.getUnclippedEnd() < m.getPosition()) continue;
+						if(rec.getUnclippedStart() > m.getPosition()) continue;
 						if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) continue;
 						
 						final String readString = rec.getReadString().toUpperCase();
@@ -335,7 +276,7 @@ public class FindAllCoverageAtPosition extends Launcher
 						
 						int ref= rec.getUnclippedStart();
 						int readPos = 0;
-						for(int k=0;k<cigar.numCigarElements() && ref< m.pos+1;++k)
+						for(int k=0;k<cigar.numCigarElements() && ref< m.getPosition()+1;++k)
 							{
 							final CigarElement ce=cigar.getCigarElement(k);
 							final CigarOperator op=ce.getOperator();
@@ -344,7 +285,7 @@ public class FindAllCoverageAtPosition extends Launcher
 								case P: break;
 								case I: 
 									{
-									if(ref==m.pos)
+									if(ref==m.getPosition())
 										{
 										counter.operators.incr(op);
 										counter.bases.incr(INSERTION_CHAR);
@@ -359,7 +300,7 @@ public class FindAllCoverageAtPosition extends Launcher
 									{
 									for(int i=0;i< ce.getLength();++i )
 										{
-										if(ref==m.pos)
+										if(ref==m.getPosition())
 											{
 											counter.operators.incr(op);
 											switch(op)
@@ -393,13 +334,13 @@ public class FindAllCoverageAtPosition extends Launcher
 						
 						out.print(f);
 						out.print('\t');
-						out.print(m.chrom);
+						out.print(m.getContig());
 						out.print('\t');
-						out.print(m.pos);
+						out.print(m.getPosition());
 						
 						if(this.indexedFastaSequenceFile!=null) {
 							out.print('\t');
-							out.print(getReferenceAt(m.chrom,m.pos));
+							out.print(getReferenceAt(m.getContig(),m.getPosition()));
 							}
 						
 						out.print('\t');
@@ -441,7 +382,7 @@ public class FindAllCoverageAtPosition extends Launcher
     
     @Override
     public int doWork(final List<String> args) {
-    	final Set<Mutation> mutations=new TreeSet<>();
+    	final Set<SimplePosition> mutations=new TreeSet<>();
     	if(this.extend<1) {
     		LOG.error("-x should be >=1");
     		return -1;
@@ -450,42 +391,45 @@ public class FindAllCoverageAtPosition extends Launcher
 		BufferedReader r = null;
 		try
 			{
+			this.samReaderFactory=  SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+
+			
 			if(this.referenceFileFile!=null) {
-				this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFileFile);
+				this.indexedFastaSequenceFile = htsjdk.samtools.reference.ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFileFile);
+				this.samReaderFactory.referenceSequence(this.referenceFileFile);
 				}
 			
-			mutations.addAll(
-					Arrays.asList(this.positionStr.split("[  ]")).
-						stream().filter(S->!S.trim().isEmpty())
-						.map(S->new Mutation(S)).
-						collect(Collectors.toSet())
-					);
+			this.positionStrs.
+				stream().
+				flatMap(S->Arrays.stream(S.split("[ \t;]+"))).
+				filter(S->!StringUtils.isBlank(S)).
+				map(S->new SimplePosition(S)).
+				forEach(X->mutations.add(X));
 			
-			for(final String s:positionStr.split("[  ]"))
-				{
-				if(s.trim().isEmpty()) continue;
-				mutations.add(new Mutation(s));
-				}
+			
 			if(this.positionFile!=null) {
-				String line;
-				r= IOUtils.openFileForBufferedReading(positionFile);
-				if(positionFile.getName().endsWith(".bed")) {
+				r= IOUtils.openPathForBufferedReading(this.positionFile);
+				if(	this.positionFile.toString().endsWith(".bed") || 
+					this.positionFile.toString().endsWith(".bed.gz")) {
 					final BedLineCodec codec = new BedLineCodec();
-					while((line=r.readLine())!=null) {
-						final BedLine bedLine =codec.decode(line);
-						if(bedLine==null) continue;
-						for(int x=bedLine.getStart();x<=bedLine.getEnd();++x)
-							{
-							mutations.add(new Mutation(bedLine.getContig(),x));
-							}
-						}
+					r.lines().
+						filter(L->!StringUtils.isBlank(L)).
+						map(L->codec.decode(L)).
+						filter(B->B!=null).
+						forEach(bedLine->{
+							for(int x=bedLine.getStart();x<=bedLine.getEnd();++x)
+								{
+								mutations.add(new SimplePosition(bedLine.getContig(),x));
+								}
+						});
+						
 					}
 				else
 					{
-					while((line=r.readLine())!=null) {
-						if(line.trim().isEmpty() || line.startsWith("#")) continue;
-						mutations.add(new Mutation(line));
-					}
+					r.lines().
+						filter(L->!StringUtils.isBlank(L)).
+						filter(L->!L.startsWith("#")).
+						forEach(L->mutations.add(new SimplePosition(L)));
 					}
 				
 				r.close();
@@ -502,7 +446,7 @@ public class FindAllCoverageAtPosition extends Launcher
 			LOG.info("number of mutations "+mutations.size());
 			
 			
-			this.out=this.openFileOrStdoutAsPrintWriter(this.outputFile);
+			this.out=this.openPathOrStdoutAsPrintWriter(this.outputFile);
 			
 			out.print("#File");
 			out.print('\t');
@@ -556,7 +500,7 @@ public class FindAllCoverageAtPosition extends Launcher
 			this.out.flush();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.severe(err);
 			return -1;

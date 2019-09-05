@@ -34,6 +34,7 @@ import java.util.NoSuchElementException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import java.io.*;
+import java.nio.file.Path;
 
 
 /**
@@ -43,17 +44,20 @@ public abstract class AbstractFastqReader
 	implements FastqReader
 	{
 	private static final Logger LOG=Logger.build(AbstractFastqReader.class).make();
-	private File fastqFile=null;
+	private Path fastqFile=null;
     private ValidationStringency validationStringency=ValidationStringency.STRICT;
     private FastqRecord nextRecord=null;
     protected String seqHeader=null;
     
     protected AbstractFastqReader(final File fastqFile)
     	{
-    	this.nextRecord=null;
-    	this.fastqFile=fastqFile;
+    	this(fastqFile==null?null:fastqFile.toPath());
     	}
-
+    protected AbstractFastqReader(final Path fastqFile)
+		{
+		this.nextRecord=null;
+		this.fastqFile=fastqFile;
+		}
     
     public void setValidationStringency(final ValidationStringency validationStringency) {
 		this.validationStringency = validationStringency;
@@ -111,7 +115,7 @@ public abstract class AbstractFastqReader
     /**
      * @return Name of FASTQ being read, or null if not known.
      */
-    public File getFile() { return fastqFile ; }
+    public Path getFile() { return fastqFile ; }
 
    
 
@@ -139,6 +143,6 @@ public abstract class AbstractFastqReader
 
     protected String getAbsolutePath()
     	{
-        return (fastqFile == null ?"":fastqFile.getAbsolutePath());
+        return (fastqFile == null ?"":fastqFile.toAbsolutePath().toString());
     	}
 	}

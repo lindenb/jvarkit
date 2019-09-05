@@ -57,7 +57,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.LineIterator;
 
 /**
