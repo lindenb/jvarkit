@@ -726,6 +726,7 @@ public class CompileJVarkit extends DefaultTask {
 			
 			
 			ant.mkdir(dir: this.testNgDir+"/"+getName());
+			try {
 			ant.java(
 				classname : "com.github.lindenb.jvarkit.tools.tests.MiniTestNG",
 				fork: true,
@@ -736,6 +737,10 @@ public class CompileJVarkit extends DefaultTask {
 				arg(value: this.testNgDir+"/"+getName())
 				arg(value: getTestNgClass());
 				}
+			} catch(Throwable err) {
+				project.logger.warn("test failed.");
+
+			}
 			
 			ant.delete( dir :  this.tmpDir )
 			}

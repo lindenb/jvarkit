@@ -74,7 +74,7 @@ public class MiniTestNG {
 			testng.addListener(tla);
 			if(outputdir!=null) testng.setOutputDirectory(outputdir);
 			testng.run(); 
-			return 0;
+			return testng.hasFailure()?-1:0;
 		} catch(Throwable err) {
 			err.printStackTrace();
 			return -1;

@@ -22,6 +22,12 @@ Usage: ngsfilessummary [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --partition
+      For BAM files: Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --reference
       [20190905]restrict to that reference. Also is used to read CRAM files
     --version

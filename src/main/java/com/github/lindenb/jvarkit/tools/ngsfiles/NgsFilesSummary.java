@@ -36,6 +36,8 @@ import java.nio.file.Paths;
 import java.util.Date;
 import java.util.List;
 
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -55,10 +57,8 @@ import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-
-import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 /**
 BEGIN_DOC
@@ -99,13 +99,15 @@ public class NgsFilesSummary extends Launcher
 	private Path faidxPath = null;
 	@Parameter(names={"-i","--indexed"},description="[20190905]VCF or BAM must be indexed")
 	private boolean must_be_indexed=false;
+	@Parameter(names={"-p","--partition"},description="For BAM files: "+SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition partition = SAMRecordPartition.sample;
 
+	
 	private PrintWriter printWriter=null;
 	private SAMSequenceDictionary dict = null;
 	
     public NgsFilesSummary()
     	{
-    	
     	}		
     
   
@@ -116,7 +118,7 @@ public class NgsFilesSummary extends Launcher
 		this.printWriter.print('\t');
 		this.printWriter.print(it);
 		this.printWriter.print('\t');
-		this.printWriter.print(f);
+		this.printWriter.print(f.toAbsolutePath());
 		this.printWriter.print('\t');
 		this.printWriter.print(index);
 
@@ -146,7 +148,7 @@ public class NgsFilesSummary extends Launcher
 		}
     	
     
-    protected void readBam(final Path f)
+    private void readBam(final Path f)
     	{
 		final SamReaderFactory srf = super.createSamReaderFactory();
 		if(this.faidxPath!=null) srf.referenceSequence(this.faidxPath);
@@ -192,7 +194,7 @@ public class NgsFilesSummary extends Launcher
     		}
     	}
    
-   protected void readFastq(final Path f)
+    private void readFastq(final Path f)
 		{
     	//File parent=f.getParentFile();
     	//if(parent==null || super.VERBOSITY==Log.LogLevel.) return;
@@ -208,9 +210,9 @@ public class NgsFilesSummary extends Launcher
     	print(fq.getSample(),"FASTQ", f,".");
 		}
     
-   protected void readVCF(final Path f)
+    private void readVCF(final Path f)
 		{
-    	VCFIterator r=null;
+    	VCFFileReader r=null;
     	InputStream in=null;
     	try
     		{
@@ -219,8 +221,8 @@ public class NgsFilesSummary extends Launcher
     		
     		in=IOUtils.openPathForReading(f);
     		
-    		r= new VCFIteratorBuilder().open(in);
-        	final VCFHeader header=r.getHeader();
+    		r= new VCFFileReader(f,false);
+        	final VCFHeader header=r.getFileHeader();
         	
     		if(this.dict!=null) {
     			SAMSequenceDictionary dict2 = header.getSequenceDictionary();
@@ -248,26 +250,33 @@ public class NgsFilesSummary extends Launcher
 
     private void scan(final BufferedReader in) throws IOException
     	{
-    	String line;
-    	while((line=in.readLine())!=null)
-    			{
-    			if(StringUtil.isBlank(line) || line.startsWith("#")) continue;
-    			scan(Paths.get(line));
-    			}
+    	in.lines().
+    		filter(L->!(StringUtil.isBlank(L) || L.startsWith("#"))).
+    		map(L->Paths.get(L)).
+    		filter(L->Files.isRegularFile(L)).
+    		filter(L->Files.isReadable(L)).
+    		forEach(L->scan(L));
     	}
     
-	protected void scan(final Path f)
+    private void scan(final Path f)
 		{
 		if(f==null) return;
 		if(!Files.isRegularFile(f)) return;		
 		if(!Files.isReadable(f)) return;		
 		
 		final String name=f.getFileName().toString();
-		if(name.endsWith(FileExtensions.SAM) || name.endsWith(FileExtensions.BAM))
+		if(name.endsWith(FileExtensions.SAM)  && !this.must_be_indexed)
+			{
+			readBam(f);
+			}
+		else if(name.endsWith(FileExtensions.BAM))
 			{
 			readBam(f);
 			}
 		else if(name.endsWith(FileExtensions.CRAM) && this.dict!=null) {
+			final SAMSequenceDictionary dict2=SAMSequenceDictionaryExtractor.extractDictionary(f);
+			if(dict2==null) return;
+			if(!SequenceUtil.areSequenceDictionariesEqual(this.dict, dict2)) return;
 			readBam(f);
 			}
 		else if(FileExtensions.VCF_LIST.stream().anyMatch(E->name.endsWith(E)))
@@ -279,7 +288,6 @@ public class NgsFilesSummary extends Launcher
 			{
 			readFastq(f);
 			}
-			
 		}
 
     @Override
@@ -309,7 +317,9 @@ public class NgsFilesSummary extends Launcher
 			
 			if(args.isEmpty())
 				{
-				scan(new BufferedReader(new InputStreamReader(stdin())));
+				try(BufferedReader r = new BufferedReader(new InputStreamReader(stdin()))) {
+					scan(r);
+					}
 				}
 			else
 				{
