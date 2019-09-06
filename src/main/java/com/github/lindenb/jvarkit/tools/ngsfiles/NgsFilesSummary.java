@@ -26,11 +26,13 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.ngsfiles;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Date;
 import java.util.List;
 
@@ -38,15 +40,23 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
 
@@ -75,17 +85,23 @@ END_DOC
  */
 @Program(name="ngsfilessummary",
 	description="Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples.",
-	keywords= {"sam","bam","vcf","util"}
-		)
-public class NgsFilesSummary extends AbstractScanNgsFilesProgram
+	keywords= {"sam","bam","vcf","util"},
+	modificationDate="20190906"
+	)
+public class NgsFilesSummary extends Launcher
 	{
 	private static final Logger LOG = Logger.build(NgsFilesSummary.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-header","--header"},description="[20180725]print header")
 	private boolean show_header= false;
+	@Parameter(names={"-R","--reference"},description="[20190905]restrict to that reference. Also is used to read CRAM files")
+	private Path faidxPath = null;
+	@Parameter(names={"-i","--indexed"},description="[20190905]VCF or BAM must be indexed")
+	private boolean must_be_indexed=false;
 
 	private PrintWriter printWriter=null;
+	private SAMSequenceDictionary dict = null;
 	
     public NgsFilesSummary()
     	{
@@ -94,32 +110,60 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     
   
     
-    private void print(final String sample,final InfoType it,final File f)
+    private void print(final String sample,final String it,final Path f,final String index)
     	{
 		this.printWriter.print(sample);
 		this.printWriter.print('\t');
 		this.printWriter.print(it);
 		this.printWriter.print('\t');
 		this.printWriter.print(f);
-		if(f.isFile())
+		this.printWriter.print('\t');
+		this.printWriter.print(index);
+
+		if(Files.isRegularFile(f))
 			{
+			long size;
+			Date modif;
+			try {
+				size=Files.size(f);
+				}
+			catch(IOException err) {
+				size=-1L;
+				}
+			try {
+				modif=new Date(Files.getLastModifiedTime(f).toMillis());
+				}
+			catch(IOException err) {
+				modif = null;
+				}
+			
 			this.printWriter.print('\t');
-			this.printWriter.print(f.length());
+			this.printWriter.print(size);
 			this.printWriter.print('\t');
-			this.printWriter.print(new Date(f.lastModified()));
+			this.printWriter.print(modif);
 			}
 		this.printWriter.println();
 		}
     	
     
-	@Override
-    protected void readBam(final File f)
+    protected void readBam(final Path f)
     	{
-    	if(!f.canRead()) return;
+		final SamReaderFactory srf = super.createSamReaderFactory();
+		if(this.faidxPath!=null) srf.referenceSequence(this.faidxPath);
     	SamReader r=null;
     	try {
-			r = super.openSamReader(f.getPath());
-			SAMFileHeader h=r.getFileHeader();
+			r = srf.open(f);
+			boolean indexed = r.hasIndex();
+    		if(this.must_be_indexed && !indexed) return;
+
+			
+			final SAMFileHeader h=r.getFileHeader();
+    		if(this.dict!=null) {
+    			SAMSequenceDictionary dict2 = h.getSequenceDictionary();
+    			if(!SequenceUtil.areSequenceDictionariesEqual(this.dict, dict2)) return ;
+    			}
+
+			
 			if(h!=null && 
 					h.getReadGroups()!=null && 
 					h.getReadGroups().isEmpty())
@@ -130,12 +174,12 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 					if(StringUtil.isBlank(sample)) {
 						sample = "_NO_SAMPLE_RG_";
 						}
-					print(sample,InfoType.BAM, f);
+					print(sample,"BAM", f,String.valueOf(r.hasIndex()));
 					}
 				}
 			else
 				{
-				print("_NO_READ_GROUP_",InfoType.BAM, f);
+				print("_NO_READ_GROUP_","BAM", f,String.valueOf(r.hasIndex()));
 				}
 			} 
     	catch (final Exception e)
@@ -148,12 +192,11 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     		}
     	}
    
-   @Override
-   protected void readFastq(final File f)
+   protected void readFastq(final Path f)
 		{
     	//File parent=f.getParentFile();
     	//if(parent==null || super.VERBOSITY==Log.LogLevel.) return;
-    	final FastQName fq=FastQName.parse(f);
+    	final FastQName fq=FastQName.parse(f.toFile());
     	
 		
 		if(!fq.isValid())
@@ -162,27 +205,33 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			return;
 			}
 		
-    	print(fq.getSample(),InfoType.FASTQ, f);
+    	print(fq.getSample(),"FASTQ", f,".");
 		}
     
-   @Override
-   protected void readVCF(final File f)
+   protected void readVCF(final Path f)
 		{
-    	if(!f.canRead()) return;
-    	LOG.debug("readVCF  "+f);
-    	    	
-
     	VCFIterator r=null;
     	InputStream in=null;
     	try
     		{
-    		in=IOUtils.openFileForReading(f);
+    		boolean indexed= VCFUtils.isTabixVcfPath(f) || VCFUtils.isTribbleVcfPath(f);
+    		if(this.must_be_indexed && !indexed) return;
+    		
+    		in=IOUtils.openPathForReading(f);
     		
     		r= new VCFIteratorBuilder().open(in);
         	final VCFHeader header=r.getHeader();
+        	
+    		if(this.dict!=null) {
+    			SAMSequenceDictionary dict2 = header.getSequenceDictionary();
+    			if(dict2==null) return;
+    			if(!SequenceUtil.areSequenceDictionariesEqual(this.dict, dict2)) return ;
+    			}
+
+        	
         	for(final String sample:header.getSampleNamesInOrder())
 	        	{
-	        	print(sample,InfoType.VCF, f);
+	        	print(sample,"VCF", f,String.valueOf(indexed));
 	    		}
     		}
     	catch(final Exception err)
@@ -203,16 +252,45 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
     	while((line=in.readLine())!=null)
     			{
     			if(StringUtil.isBlank(line) || line.startsWith("#")) continue;
-    			analyze(new File(line));
+    			scan(Paths.get(line));
     			}
     	}
     
-	
+	protected void scan(final Path f)
+		{
+		if(f==null) return;
+		if(!Files.isRegularFile(f)) return;		
+		if(!Files.isReadable(f)) return;		
+		
+		final String name=f.getFileName().toString();
+		if(name.endsWith(FileExtensions.SAM) || name.endsWith(FileExtensions.BAM))
+			{
+			readBam(f);
+			}
+		else if(name.endsWith(FileExtensions.CRAM) && this.dict!=null) {
+			readBam(f);
+			}
+		else if(FileExtensions.VCF_LIST.stream().anyMatch(E->name.endsWith(E)))
+			{
+			readVCF(f);
+			}
+		else if( (name.endsWith(".fastq") || name.endsWith(".fastq.gz") ||
+				name.endsWith(".fq") || name.endsWith(".fq.gz")))
+			{
+			readFastq(f);
+			}
+			
+		}
+
     @Override
 	public int doWork(final List<String> args) {
 		try
 			{
-			this.printWriter = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			if(this.faidxPath!=null) {
+				this.dict = SequenceDictionaryUtils.extractRequired(this.faidxPath);
+			}
+			
+			this.printWriter = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			if(show_header)
 				{
 				this.printWriter.print("#SAMPLE");
@@ -220,6 +298,8 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 				this.printWriter.print("TYPE");
 				this.printWriter.print('\t');
 				this.printWriter.print("FILE");
+				this.printWriter.print('\t');
+				this.printWriter.print("INDEXED");
 				this.printWriter.print('\t');
 				this.printWriter.print("FILE_SIZE");
 				this.printWriter.print('\t');
@@ -235,9 +315,9 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 				{
 				for(final String filename:args)
 					{
-					final BufferedReader r=IOUtils.openURIForBufferedReading(filename);
-					scan(r);
-					r.close();
+					try(final BufferedReader r=IOUtils.openURIForBufferedReading(filename)) {
+						scan(r);
+						}
 					}
 				}
 			this.printWriter.flush();
@@ -245,7 +325,7 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 			this.printWriter=null;
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -258,7 +338,6 @@ public class NgsFilesSummary extends AbstractScanNgsFilesProgram
 	
 	public static void main(final String[] args) {
 		new NgsFilesSummary().instanceMainWithExit(args);
-
-	}
+		}
 
 }

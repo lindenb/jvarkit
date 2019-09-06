@@ -17,8 +17,13 @@ Usage: ngsfilessummary [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -i, --indexed
+      [20190905]VCF or BAM must be indexed
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      [20190905]restrict to that reference. Also is used to read CRAM files
     --version
       print version and exit
 
