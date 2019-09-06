@@ -20,6 +20,9 @@ Usage: ngsfilessummary [options] Files
     -i, --indexed
       [20190905]VCF or BAM must be indexed
       Default: false
+    --no-read-group
+      Flag form SAM/VCF without read group/ samples
+      Default: __NO_READ_GROUP__
     -o, --output
       Output file. Optional . Default: stdout
     -p, --partition

@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -43,7 +44,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
@@ -52,6 +53,7 @@ import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -101,6 +103,8 @@ public class NgsFilesSummary extends Launcher
 	private boolean must_be_indexed=false;
 	@Parameter(names={"-p","--partition"},description="For BAM files: "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
+	@Parameter(names={"--no-read-group"},description="Flag form SAM/VCF without read group/ samples")
+	private String noReadGroupFlag = "__NO_READ_GROUP__";
 
 	
 	private PrintWriter printWriter=null;
@@ -112,11 +116,11 @@ public class NgsFilesSummary extends Launcher
     
   
     
-    private void print(final String sample,final String it,final Path f,final String index)
+    private void print(final String sample,final String type,final Path f,final String index)
     	{
-		this.printWriter.print(sample);
+		this.printWriter.print(StringUtils.isBlank(sample)?this.noReadGroupFlag:sample);
 		this.printWriter.print('\t');
-		this.printWriter.print(it);
+		this.printWriter.print(type);
 		this.printWriter.print('\t');
 		this.printWriter.print(f.toAbsolutePath());
 		this.printWriter.print('\t');
@@ -135,7 +139,7 @@ public class NgsFilesSummary extends Launcher
 			try {
 				modif=new Date(Files.getLastModifiedTime(f).toMillis());
 				}
-			catch(IOException err) {
+			catch(final IOException err) {
 				modif = null;
 				}
 			
@@ -151,6 +155,7 @@ public class NgsFilesSummary extends Launcher
     private void readBam(final Path f)
     	{
 		final SamReaderFactory srf = super.createSamReaderFactory();
+		srf.validationStringency(ValidationStringency.SILENT);
 		if(this.faidxPath!=null) srf.referenceSequence(this.faidxPath);
     	SamReader r=null;
     	try {
@@ -166,22 +171,18 @@ public class NgsFilesSummary extends Launcher
     			}
 
 			
-			if(h!=null && 
-					h.getReadGroups()!=null && 
-					h.getReadGroups().isEmpty())
+    		final Set<String> names = this.partition.getPartitions(h);
+    		
+			if(!names.isEmpty())
 				{
-				for(final SAMReadGroupRecord rg: h.getReadGroups())
+				for(final String sample:names)
 					{
-					String sample=rg.getSample();
-					if(StringUtil.isBlank(sample)) {
-						sample = "_NO_SAMPLE_RG_";
-						}
 					print(sample,"BAM", f,String.valueOf(r.hasIndex()));
 					}
 				}
 			else
 				{
-				print("_NO_READ_GROUP_","BAM", f,String.valueOf(r.hasIndex()));
+				print(null,"BAM", f,String.valueOf(r.hasIndex()));
 				}
 			} 
     	catch (final Exception e)
@@ -229,11 +230,18 @@ public class NgsFilesSummary extends Launcher
     			if(dict2==null) return;
     			if(!SequenceUtil.areSequenceDictionariesEqual(this.dict, dict2)) return ;
     			}
-
+    		final List<String> sns = header.getSampleNamesInOrder();
         	
-        	for(final String sample:header.getSampleNamesInOrder())
-	        	{
-	        	print(sample,"VCF", f,String.valueOf(indexed));
+    		if(sns.isEmpty())
+    			{
+    			print(null,"VCF", f,String.valueOf(indexed));
+    			}
+    		else
+	    		{
+	        	for(final String sample:sns)
+		        	{
+		        	print(sample,"VCF", f,String.valueOf(indexed));
+		    		}
 	    		}
     		}
     	catch(final Exception err)
@@ -301,7 +309,7 @@ public class NgsFilesSummary extends Launcher
 			this.printWriter = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			if(show_header)
 				{
-				this.printWriter.print("#SAMPLE");
+				this.printWriter.print("#"+this.partition.name());
 				this.printWriter.print('\t');
 				this.printWriter.print("TYPE");
 				this.printWriter.print('\t');
