@@ -24,19 +24,20 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -69,7 +70,7 @@ END_DOC
 @Program(name="findnewsplicesites",
 	description="use the 'N' operator in the cigar string to find unknown splice sites",
 	keywords={"rnaseq","splice"},
-	modificationDate="20190820"
+	modificationDate="20190909"
 	)
 public class FindNewSpliceSites extends Launcher
 	{
@@ -78,6 +79,8 @@ public class FindNewSpliceSites extends Launcher
 	
 	@Parameter(names={"-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
+	@Parameter(names={"-B","--bed"},description="Optional BED output")
+	private Path bedOut = null;
 	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
 	private Path gtfPath = null;
 	@Parameter(names="-d",description="max distance between known splice site and cigar end")
@@ -88,11 +91,13 @@ public class FindNewSpliceSites extends Launcher
 	private SAMFileWriter sfw=null;
 	private SAMFileWriter weird=null;
 	private final IntervalTreeMap<Interval> intronMap =new IntervalTreeMap<>();
+	private PrintWriter bedWriter = null;
 	
 	private FindNewSpliceSites()
 		{
 		}
 	
+	/** distance known splice site and cigar */
 	private boolean is_close_to(int d1,int d2)
 		{
 		return Math.abs(d1-d2)<=this.max_distance;
@@ -101,90 +106,94 @@ public class FindNewSpliceSites extends Launcher
 
 
 	private boolean findJunction(
-			Collection<Interval> introns,
-			int start1,
-			int end1
+			final Collection<Interval> introns,
+			final int start1,
+			final int end1
 			)
 		{
-		for(final Interval intron:introns)
-			{			
-			if( is_close_to(intron.getStart(),start1) &&
-				is_close_to(intron.getEnd(),end1))
-				{
-				return true;
-				}
-				
-			}
-		return false;
-		}
-	private static boolean isMatch(final CigarElement e)
-		{
-		switch(e.getOperator())
-			{
-			case X:case EQ: case M: return true;
-			default: return false;
-			}
+		return introns.
+			stream().
+			anyMatch(
+			intron-> 
+				is_close_to(intron.getStart(),start1) &&
+				is_close_to(intron.getEnd(),end1
+				));
 		}
 	private void scanRead(
 			final SAMRecord rec,
-			final SAMSequenceDictionary dict
+			final SAMSequenceDictionary dict,
+			final SAMProgramRecord okPrg
 			)
 			{
 		final Cigar cigar=rec.getCigar();
-			//if(cigar==null || !rec.getCigarString().contains("N")) return; //aleady checked
-
 		
-			
-			final Interval interval=new Interval(rec.getReferenceName(), rec.getAlignmentStart(), rec.getAlignmentEnd());
-			final List<Interval> introns =this.intronMap.getOverlapping(interval).stream().collect(Collectors.toList());
-			
-			if(introns.isEmpty())
-				{
-				return;
-				}
-
-			
-			int refPos1=rec.getAlignmentStart();
-			
-			
-			for(int cIdx=0;cIdx< cigar.numCigarElements();++cIdx)
-				{
-				CigarElement ce=cigar.getCigarElement(cIdx);
-				switch(ce.getOperator())
-					{
-					case S: break;
-					case I: break;
-					case N:
-						{
-						if(cIdx+1<cigar.numCigarElements() &&
-							isMatch(cigar.getCigarElement(cIdx+1)) &&	
-							!findJunction(introns,refPos1,refPos1+ce.getLength()-1))
-							{
-							this.sfw.addAlignment(rec);//unknown junction
-							return;
-							}
-						refPos1+=ce.getLength();	
-						break;
-						}
-					case D:
-					case X:
-					case EQ:
-					case M:
-						{
-						refPos1+=ce.getLength();
-						break;
-						}
-					case H:case P: break;//ignore
-					default:throw new RuntimeException("operator not handled. ops.");
-					}
-				}
-			
-			
+		final Collection<Interval> introns =this.intronMap.getOverlapping(rec);
+		
+		if(introns.isEmpty())
+			{
+			return;
 			}
 
+		boolean readSaved=false;
+		int refPos1=rec.getAlignmentStart();
+		
+		
+		for(int cIdx=0;cIdx< cigar.numCigarElements();++cIdx)
+			{
+			final CigarElement ce=cigar.getCigarElement(cIdx);
+			switch(ce.getOperator())
+				{
+				case S: break;
+				case I: break;
+				case N:
+					{
+					if(cIdx+1<cigar.numCigarElements() &&
+						cigar.getCigarElement(cIdx+1).getOperator().isAlignment() &&	
+						!findJunction(introns,refPos1,refPos1+ce.getLength()-1))
+						{
+						if(!readSaved) {
+							rec.setAttribute("PG", okPrg.getId());
+							this.sfw.addAlignment(rec);//unknown junction
+							readSaved=true;
+							}
+						if(this.bedOut==null)
+							{
+							return;
+							}
+						else
+							{
+							this.bedWriter.print(rec.getContig());
+							this.bedWriter.print('\t');
+							this.bedWriter.print(refPos1-1);
+							this.bedWriter.print('\t');
+							this.bedWriter.print(refPos1+ce.getLength()-1);
+							this.bedWriter.print('\t');
+							this.bedWriter.print(rec.getReadName());
+							this.bedWriter.print('\t');
+							this.bedWriter.print(rec.getReadNegativeStrandFlag()?'-':'+');
+							this.bedWriter.println();
+							}
+						}
+					refPos1+=ce.getLength();	
+					break;
+					}
+				case D:
+				case X:
+				case EQ:
+				case M:
+					{
+					refPos1+=ce.getLength();
+					break;
+					}
+				case H:case P: break;//ignore
+				default:throw new IllegalStateException("operator not handled. ops.");
+				}
+			}
+		}
+
 	
 	
-	private static boolean isWeird(SAMRecord rec,SAMSequenceDictionary dict)
+	private static boolean isWeird(final SAMRecord rec,final SAMSequenceDictionary dict)
 		{
 		if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag() && 
 				rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) &&
@@ -207,42 +216,41 @@ public class FindNewSpliceSites extends Launcher
 		return false;
 		}
 	
-	private void scan(SamReader in) 
+	private void scan(final SamReader in,
+			final SAMProgramRecord okPrg,
+			final SAMProgramRecord failPrg) 
 		{
-		SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
+		final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(in.getFileHeader());
 		if(dict==null) throw new RuntimeException("Sequence dictionary missing");
-		SAMRecordIterator iter=in.iterator();
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-		
-		while(iter.hasNext())
-			{
-			final SAMRecord rec=iter.next();
-			if(rec.getReadUnmappedFlag()) continue;
-			if(rec.isSecondaryOrSupplementary()) continue;
-			progress.watch(rec);
+		try(SAMRecordIterator iter=in.iterator() ) {
+			ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			
-			if(isWeird(rec,dict))
+			while(iter.hasNext())
 				{
-				this.weird.addAlignment(rec);
-				continue;
-				}
-			
-			for(CigarElement ce:rec.getCigar().getCigarElements())
-				{
-				if(ce.getOperator().equals(CigarOperator.N))
+				final SAMRecord rec=progress.apply(iter.next());
+				if(rec.getReadUnmappedFlag()) continue;
+				if(rec.isSecondaryOrSupplementary()) continue;
+				
+				if(isWeird(rec,dict))
 					{
-					scanRead(rec,dict);
-					break;
+					rec.setAttribute("PG", failPrg.getId());
+					this.weird.addAlignment(rec);
+					continue;
 					}
-				}	
+				
+				if(rec.getCigar().getCigarElements().
+						stream().
+						anyMatch(C->CigarOperator.N.equals(C.getOperator()))) {
+					
+					scanRead(rec,dict,okPrg);
+					}	
+				}
+			progress.close();
 			}
-		iter.close();
-		progress.finish();
+		
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		
-		
 		SamReader sfr=null;
 		try
 			{
@@ -258,25 +266,34 @@ public class FindNewSpliceSites extends Launcher
 					this.intronMap.put(T,T);
 					});
 				}
+			
+			this.bedWriter = this.bedOut==null?
+					new PrintWriter(new NullOuputStream()):
+					super.openPathOrStdoutAsPrintWriter(this.bedOut);
+			
 			sfr = super.openSamReader(oneFileOrNull(args));
 			
 			SAMFileHeader header=sfr.getFileHeader().clone();
-			SAMProgramRecord p=header.createProgramRecord();
+			final SAMProgramRecord p=header.createProgramRecord();
 			p.setCommandLine(getProgramCommandLine());
 			p.setProgramVersion(getVersion());
 			p.setProgramName(getProgramName());
 			this.sfw=this.writingBamArgs.openSamWriter(outputFile, header, true);
 			
 			header=sfr.getFileHeader().clone();
-			p=header.createProgramRecord();
-			p.setCommandLine(getProgramCommandLine());
-			p.setProgramVersion(getVersion());
-			p.setProgramName(getProgramName());
+			final SAMProgramRecord p2=header.createProgramRecord();
+			p2.setCommandLine(getProgramCommandLine());
+			p2.setProgramVersion(getVersion());
+			p2.setProgramName(getProgramName());
 			this.weird=this.writingBamArgs.createSAMFileWriterFactory().makeSAMWriter(header,true, new NullOuputStream());
 			
-			scan(sfr);
+			scan(sfr,p,p2);
 			sfr.close();
-			LOG.info("Done");
+			
+			this.bedWriter.flush();
+			this.bedWriter.close();
+			this.bedWriter=null;
+			
 			return 0;
 			}
 		catch(final Exception err)
@@ -289,6 +306,7 @@ public class FindNewSpliceSites extends Launcher
 			CloserUtil.close(sfr);
 			CloserUtil.close(this.sfw);
 			CloserUtil.close(this.weird);
+			CloserUtil.close(this.bedWriter);
 			}
 		}
 	/**

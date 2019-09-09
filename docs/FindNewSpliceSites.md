@@ -13,6 +13,10 @@ Usage: findnewsplicesites [options] Files
     --bamcompression
       Compression Level.
       Default: 5
+    -B, --bed
+      Optional BED output
+  * -g, --gtf
+      A GTF file.
     -h, --help
       print help and exit
     --helpFormat
@@ -28,15 +32,6 @@ Usage: findnewsplicesites [options] Files
     -d
       max distance between known splice site and cigar end
       Default: 10
-    -k
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
 
 ```
 
@@ -95,7 +90,7 @@ The current reference is:
 
 ```bash
 $  java -jar dist/findnewsplicesites.jar \
-     -k http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz \
+     --gtf http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.gtf.gz \
       hg19.bam > out.sam
 ```
 

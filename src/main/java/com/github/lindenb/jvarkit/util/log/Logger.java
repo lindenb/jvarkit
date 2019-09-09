@@ -31,6 +31,8 @@ package com.github.lindenb.jvarkit.util.log;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
 
+import com.github.lindenb.jvarkit.lang.Maker;
+
 /** Generic & simple Logging class */
 public abstract class Logger  {
 public enum Level {DEBUG,INFO,WARN,SEVERE,FATAL}
@@ -38,7 +40,7 @@ protected PrintStream out=System.err;
 protected String prefix=null;
 private static boolean TRY_KNIME = true;
 
-public static class Builder
+public static class Builder implements Maker<Logger>
 	{
 	private Class<?> clazz=null;
 	private PrintStream out=System.err;
@@ -55,6 +57,7 @@ public static class Builder
 		this.clazz = clazz;
 		return this;
 		}
+	@Override
 	public Logger make() {
 		if(this.clazz!=null && TRY_KNIME)
 			{

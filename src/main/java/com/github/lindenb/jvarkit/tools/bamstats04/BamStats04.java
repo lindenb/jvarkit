@@ -97,6 +97,11 @@ ref2    13     14   1       S1      6       6       6.0      6.0        0       
 ref2    16     17   1       S1      6       6       6.0      6.0        0             100
 ```
 
+## Cited in:
+
+  *  Han Ming Gan & al. , Genomic evidence of neo-sex chromosomes in the eastern yellow robin, GigaScience, Volume 8, Issue 9, September 2019, giz111, https://doi.org/10.1093/gigascience/giz111
+
+
 END_DOC
  */
 @Program(name="bamstats04",
@@ -117,7 +122,7 @@ public class BamStats04 extends Launcher
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
 	private Path bedFile = null;
-	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added.")
+	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added. Also used to read CRAM.")
 	private Path faidxUri = null;
 	@Parameter(names={"-partition","--partition"},description="[20171120]"+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;

@@ -36,7 +36,8 @@ Usage: bamstats04 [options] Files
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --ref
-      [20180126]If set, a column with the GC% will be added.
+      [20180126]If set, a column with the GC% will be added. Also used to read 
+      CRAM. 
     --version
       print version and exit
 
@@ -130,4 +131,9 @@ ref2    1      2    1       S1      2       2       2.0      2.0        0       
 ref2    13     14   1       S1      6       6       6.0      6.0        0             100
 ref2    16     17   1       S1      6       6       6.0      6.0        0             100
 ```
+
+## Cited in:
+
+  *  Han Ming Gan & al. , Genomic evidence of neo-sex chromosomes in the eastern yellow robin, GigaScience, Volume 8, Issue 9, September 2019, giz111, https://doi.org/10.1093/gigascience/giz111
+
 
