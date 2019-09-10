@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.mito;
 
 import java.nio.file.Path;
@@ -10,11 +34,15 @@ import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -24,6 +52,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequence;
@@ -33,7 +62,39 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 public class BamHeteroplasmy extends Launcher {
 	private static final Logger LOG = Logger.build(BamHeteroplasmy.class).make();
 
+	
+	@Parameter(names = { "-R", "--reference" }, description = INDEXED_FASTA_REFERENCE_DESCRIPTION, required = true)
 	private Path faidx=null;
+	@Parameter(names = { "-partition", "--partition" }, description = SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition partition = SAMRecordPartition.sample;
+	@Parameter(names = { "--organelle" }, description = "Organelle name; if empty, the program tries to find the best name in the REF")
+	private String organelleName = null;
+	@Parameter(names = { "--supplementary" }, description = "accept supplementary alignments.")
+	private boolean acceptSupplementary = false;
+	@Parameter(names = { "--secondary" }, description = "accept secondary alignments.")
+	private boolean acceptSecondary = false;
+	@Parameter(names = { "--discordant" }, description = "accept discordant alignments (mate unmapped or mapping another contig)")
+	private boolean acceptDiscordant = false;
+	@Parameter(names = { "-sa","--sa" }, description = "accept read having 'SA:' supplementary alignments mapping another contig")
+	private boolean acceptSA = false;
+	@Parameter(names = { "-Q","--mapq" }, description = "min mapping quality")
+	private int mapq = 30;
+
+	private class SampleHeteroplasmy
+		{
+		final String sn;
+		final Pileup pileups[];
+
+		SampleHeteroplasmy(final String sn,ReferenceSequence chrM) {
+			this.sn = sn;
+			this.pileups = new Pileup[chrM.length()];
+			for(int i=0;i< pileups.length;i++) {
+				pileups[i] = new Pileup(i+1,chrM.getBases()[i]);
+				}
+			}
+		}
+	
+	
 	private int totalexonbases = 70757781;
 	private int type = 1;//1=exome, 2=whole genome, 3= RNAseq, 4 = mitochondria only
 	private static final char ATGCNatgcn[]=new char[] {'A','T','G','C','N','a','t','g','c','n'};
@@ -112,57 +173,85 @@ public class BamHeteroplasmy extends Launcher {
 			}
 		
 		}
+	
+	
 	@Override
 	public int doWork(List<String> args) {
 		try {
 			ReferenceSequenceFile referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final SamReaderFactory srf = super.createSamReaderFactory();
 			if(this.faidx!=null) srf.referenceSequence(this.faidx);
-			final Path bam1File = Paths.get(args.get(0)); 
-			SamReader bam1 = srf.open(bam1File);
-			SAMFileHeader header1 = bam1.getFileHeader();
-			final SAMSequenceDictionary dict1 = SequenceDictionaryUtils.extractRequired(header1);
-			final long totalgenomebases = dict1.getReferenceLength();
-			final SAMSequenceRecord ssr1 = dict1.getSequences().stream().filter(SSR->SSR.getSequenceName().matches("(chr)?(M|MT)")).findFirst().orElseThrow(()->new JvarkitException.ContigNotFoundInDictionary("mitochondrial chromosome", dict1));
+			final List<Path> all_bams = IOUtils.unrollPaths(args);
+			
+			final SAMSequenceDictionary dict1 = SequenceDictionaryUtils.extractRequired(this.faidx);
+			final SAMSequenceRecord ssr1 ;
+			
+			if(StringUtils.isBlank(this.organelleName)) {
+				ssr1 = dict1.getSequences().stream().filter(SSR->SSR.getSequenceName().matches("(chr)?(M|MT)")).findFirst().orElseThrow(()->new JvarkitException.ContigNotFoundInDictionary("mitochondrial chromosome", dict1));
+				}
+			else
+				{
+				ssr1 = dict1.getSequence(this.organelleName);
+				if(ssr1==null) throw new JvarkitException.ContigNotFoundInDictionary(this.organelleName, dict1);
+				}
 			final ReferenceSequence chrM = referenceSequenceFile.getSequence(ssr1.getSequenceName());
+
+			final Map<String,SampleHeteroplasmy> sample2heteroplasmy= new HashMap<>();
 			
-			final Pileup pileups[]=new Pileup[ssr1.getSequenceLength()];
-			for(int i=0;i< pileups.length;i++) {
-				pileups[i] = new Pileup(i+1,chrM.getBases()[i]);
-			}
 			
-			SAMRecordIterator iter=bam1.queryOverlapping(ssr1.getSequenceName(), 1, ssr1.getSequenceLength());
-			while(iter.hasNext()) {
-				SAMRecord rec = iter.next();
-				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getMappingQuality()< 20) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				Cigar cigar = rec.getCigar();
-				if(cigar==null || cigar.isEmpty()) continue;
-				byte bases[]=rec.getReadBases();
-				if(bases==SAMRecord.NULL_SEQUENCE) continue;
-				int refpos = rec.getUnclippedStart();
-				int readpos=0;
-				for(final CigarElement ce:cigar) {
-					final CigarOperator op =ce.getOperator();
-					if(op.consumesReferenceBases()) {
-						if(op.consumesReadBases())
-							{
-							for(int i=0;i< ce.getLength();i++) {
-								int pos1 = refpos+i;
-								if(pos1<1 || pos1>pileups.length) continue;
-								pileups[pos1-1].visit(rec.getReadNegativeStrandFlag(),bases[readpos+i]);
+			for(final Path bam1File:all_bams) {
+				SamReader bam1 = srf.open(bam1File);
+				
+				
+				
+				
+				SAMRecordIterator iter=bam1.queryOverlapping(ssr1.getSequenceName(), 1, ssr1.getSequenceLength());
+				while(iter.hasNext()) {
+					final SAMRecord rec = iter.next();
+					if(rec.getReadUnmappedFlag()) continue;
+					if(rec.getMappingQuality()< 20) continue;
+					if(!this.acceptSupplementary && rec.getSupplementaryAlignmentFlag()) continue;
+					if(!this.acceptSecondary && rec.getSecondOfPairFlag()) continue;
+					if(!this.acceptDiscordant && rec.getReadPairedFlag() && (rec.getMateUnmappedFlag() || rec.getMateReferenceName().equals(ssr1.getSequenceName()))) continue;
+					if(!this.acceptSA && 
+						SAMUtils.getOtherCanonicalAlignments(rec).stream().
+							anyMatch(R->!R.getContig().equals(ssr1.getSequenceName()))
+						) continue;
+						
+					final String sampleName = this.partition.getPartion(rec,"SAMPLE");
+					SampleHeteroplasmy sampleData = sample2heteroplasmy.get(sampleName);
+					if(sampleData==null) {
+						sampleData = new SampleHeteroplasmy(sampleName,chrM);
+						sample2heteroplasmy.put(sampleName,sampleData);
+					}
+					
+					final Cigar cigar = rec.getCigar();
+					if(cigar==null || cigar.isEmpty()) continue;
+					final byte bases[]=rec.getReadBases();
+					if(bases==SAMRecord.NULL_SEQUENCE) continue;
+					int refpos = rec.getUnclippedStart();
+					int readpos=0;
+					for(final CigarElement ce:cigar) {
+						final CigarOperator op =ce.getOperator();
+						if(op.consumesReferenceBases()) {
+							if(op.consumesReadBases())
+								{
+								for(int i=0;i< ce.getLength();i++) {
+									int pos1 = refpos+i;
+									if(pos1<1 || pos1> sampleData.pileups.length) continue;
+									sampleData.pileups[pos1-1].visit(rec.getReadNegativeStrandFlag(),bases[readpos+i]);
+									}
 								}
+							refpos+=ce.getLength();
 							}
-						refpos+=ce.getLength();
-						}
-					if(op.consumesReadBases()) {
-						readpos+=ce.getLength();
+						if(op.consumesReadBases()) {
+							readpos+=ce.getLength();
+							}
 						}
 					}
+				iter.close();
+				bam1.close();
 				}
-			iter.close();
-			bam1.close();
 			return 0;
 		} catch (Exception e) {
 			LOG.error(e);
