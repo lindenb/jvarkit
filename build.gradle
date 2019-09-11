@@ -2272,6 +2272,11 @@ all2.add( task("gtfliftover", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
+all2.add( task("bamheteroplasmy", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.mito.BamHeteroplasmy"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 task("vcfphased01", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.phased.VcfPhased01"
         jarLibs = combineLibs("htsjdk","testng","jcommander")

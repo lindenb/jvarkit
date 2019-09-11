@@ -25,24 +25,29 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.mito;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalDouble;
-import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -58,11 +63,44 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
+/**
 
+BEGIN_DOC
+
+Experimental.
+
+Input is one or more indexed BAM/CRAM files or a file with the suffix '.list' containing the path to the BAMs.
+
+
+
+END_DOC
+*/
+@Program(name="bamheteroplasmy",
+description="Call a VCF for the Mitochondria",
+generate_doc=false,
+keywords={"vcf","sam","bam","mitochondria"}
+)
 public class BamHeteroplasmy extends Launcher {
 	private static final Logger LOG = Logger.build(BamHeteroplasmy.class).make();
 
-	
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private Path outputFile = null;
 	@Parameter(names = { "-R", "--reference" }, description = INDEXED_FASTA_REFERENCE_DESCRIPTION, required = true)
 	private Path faidx=null;
 	@Parameter(names = { "-partition", "--partition" }, description = SAMRecordPartition.OPT_DESC)
@@ -73,114 +111,97 @@ public class BamHeteroplasmy extends Launcher {
 	private boolean acceptSupplementary = false;
 	@Parameter(names = { "--secondary" }, description = "accept secondary alignments.")
 	private boolean acceptSecondary = false;
-	@Parameter(names = { "--discordant" }, description = "accept discordant alignments (mate unmapped or mapping another contig)")
+	@Parameter(names = { "--discordant" }, description = "accept discordant alignments (mate mapping another contig)")
 	private boolean acceptDiscordant = false;
+	@Parameter(names = { "--mate-unmapped" }, description = "accept mate unmapped")
+	private boolean acceptMateUnmapped = false;
 	@Parameter(names = { "-sa","--sa" }, description = "accept read having 'SA:' supplementary alignments mapping another contig")
 	private boolean acceptSA = false;
 	@Parameter(names = { "-Q","--mapq" }, description = "min mapping quality")
 	private int mapq = 30;
+	@Parameter(names = { "-B","--baq" }, description = "min base quality")
+	private int baseq = 0;
+	@Parameter(names = { "--all-alleles" }, description = "when calculating the depth, use all alleles, not just the major/minor")
+	private boolean use_all_alleles = false;
+	@Parameter(names = { "--min-allele-dp" }, description = "min-dp per alt allele")
+	private int min_allele_dp = 20;
+	@Parameter(names = { "--max-clipping" }, description = "max clip per read")
+	private int max_clip = 2;
+	@Parameter(names = { "--fisher-treshold" }, description = "set filter if fisher test for strand bias is lower than 'x'.")
+	private double fisher_strand_bias = 0.01;
 
+	
+	
+	private ReferenceSequence chrMSequence = null;
+	private static final char ATGCNatgcn[]=new char[] {'A','T','G','C','N','a','t','g','c','n'};
+	private static final int ACGT[]=new int[] {'A','C','G','T'};
+	
+
+	
+	private  static class Pileup {
+		final Map<Character,Integer> counter = new HashMap<>(ATGCNatgcn.length);
+		
+		
+		int count(char c) {
+			return counter.getOrDefault(c, 0);
+		}
+		
+		int countPlus(char ch) {
+			return  count(Character.toUpperCase(ch));
+			}
+		
+		int countMinus(char ch) {
+			return  count(Character.toLowerCase(ch));
+			}
+		int countPlus(Allele ch) {
+			return  countPlus(ch.getBaseString().charAt(0));
+			}
+		
+		int countMinus(Allele ch) {
+			return  countPlus(ch.getBaseString().charAt(0));
+			}
+		int countIgnoreCase(char ch) {
+			return  countPlus(ch)+ countMinus(ch);
+			}
+		
+		int count(Allele c) {
+			return count(c.getBaseString().charAt(0));
+			}
+		
+		int countIgnoreCase(Allele c) {
+			return countIgnoreCase(c.getBaseString().charAt(0));
+		}
+	}
+	
 	private class SampleHeteroplasmy
 		{
 		final String sn;
-		final Pileup pileups[];
-
-		SampleHeteroplasmy(final String sn,ReferenceSequence chrM) {
+		final Map<Integer,Pileup> pos1ToPileups;
+	
+		SampleHeteroplasmy(final String sn) {
 			this.sn = sn;
-			this.pileups = new Pileup[chrM.length()];
-			for(int i=0;i< pileups.length;i++) {
-				pileups[i] = new Pileup(i+1,chrM.getBases()[i]);
-				}
+			this.pos1ToPileups = new HashMap<>(BamHeteroplasmy.this.chrMSequence.length());
 			}
-		}
-	
-	
-	private int totalexonbases = 70757781;
-	private int type = 1;//1=exome, 2=whole genome, 3= RNAseq, 4 = mitochondria only
-	private static final char ATGCNatgcn[]=new char[] {'A','T','G','C','N','a','t','g','c','n'};
-	private static final int ATGC[]=new int[] {'A','T','G','C'};
-	private boolean is_all=false;
-	
-	
-	private  class Pileup {
-		final Map<Character,Integer> counter = new HashMap<>(ATGCNatgcn.length);
-		Pileup(int pos1,byte ref) {
-			for(char base : ATGCNatgcn) {
-				counter.put(base, 0);
+		void visit(int pos1,boolean negativeStrand,byte base) {
+			Pileup p = this.pos1ToPileups.get(pos1);
+			if(p==null) {
+				p = new Pileup();
+				this.pos1ToPileups.put(pos1,p);
 				}
-			}
-		void visit(boolean negativeStrand,byte base) {
-			char c =  negativeStrand ?
+			final char c =  negativeStrand ?
 				(char)Character.toLowerCase(base):
 				(char)Character.toUpperCase(base);
-			this.counter.put(c, counter.getOrDefault(c,0)+1);
+			p.counter.put(c, p.counter.getOrDefault(c,0)+1);
 			}
-		int countIgnoreCase(char ch) {
-			return  counter.getOrDefault(Character.toLowerCase(ch),0)+
-					counter.getOrDefault(Character.toUpperCase(ch),0);
-			}
-		List<Character> getMajorMinorAlleles() {
-			return Arrays.stream(ATGC).
-					mapToObj(C->new AbstractMap.SimpleEntry<Character,Integer>((char)C,countIgnoreCase((char)C))).
-					sorted((A,B)->B.getValue().compareTo(A.getValue())).//decreasing
-					limit(2L).
-					map(K->K.getKey()).
-					collect(Collectors.toList());
-			}
-		
-		int getTotalDepth() {
-			return Arrays.stream(ATGC).
-					map(C->countIgnoreCase((char)C)).
-					sum();
-			}
-		
-		
-		
-		// minor allele / depth
-		OptionalDouble getHeteroplasmy() {
-			int dp ;
-			List<Character> L= getMajorMinorAlleles();
-			if(is_all) {
-				dp=getTotalDepth();
-				}
-			else
-				{
-				dp = countIgnoreCase(L.get(0)) + countIgnoreCase(L.get(1));
-				}
-			if(dp==0) return OptionalDouble.empty();
-			return OptionalDouble.of(countIgnoreCase(L.get(1))/dp);
-			}
-		
-		private double[] getConfidenceInterval(double p,int n) {
-		    double  tmp = 1.96 * Math.sqrt( ( p * ( 1 - p ) ) / n );
-			return new double[] {
-					Math.max(p-tmp, 0.0),
-					Math.min(p+tmp, 1.0),
-					};
-			}
-		
-		double[] getConfidenceInterval() {
-			OptionalDouble het=getHeteroplasmy();
-			if(!het.isPresent()) return new double[] {0,0};
-			int dp;
-			if(is_all) {
-				dp=getTotalDepth();
-				}
-			else
-				{
-				List<Character> L= getMajorMinorAlleles();
-				dp = countIgnoreCase(L.get(0)) + countIgnoreCase(L.get(1));
-				}
-			return getConfidenceInterval(het.getAsDouble(),dp);
-			}
-		
 		}
-	
+
 	
 	@Override
 	public int doWork(List<String> args) {
+		VariantContextWriter vcw = null;
+		ReferenceSequenceFile referenceSequenceFile = null;
 		try {
-			ReferenceSequenceFile referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
+			referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final SamReaderFactory srf = super.createSamReaderFactory();
 			if(this.faidx!=null) srf.referenceSequence(this.faidx);
 			final List<Path> all_bams = IOUtils.unrollPaths(args);
@@ -196,41 +217,55 @@ public class BamHeteroplasmy extends Launcher {
 				ssr1 = dict1.getSequence(this.organelleName);
 				if(ssr1==null) throw new JvarkitException.ContigNotFoundInDictionary(this.organelleName, dict1);
 				}
-			final ReferenceSequence chrM = referenceSequenceFile.getSequence(ssr1.getSequenceName());
-
+			
+			this.chrMSequence = Objects.requireNonNull(referenceSequenceFile.getSequence(ssr1.getSequenceName()));
+			
+			
 			final Map<String,SampleHeteroplasmy> sample2heteroplasmy= new HashMap<>();
 			
 			
 			for(final Path bam1File:all_bams) {
-				SamReader bam1 = srf.open(bam1File);
+				final SamReader bam1 = srf.open(bam1File);
+				final SAMFileHeader header = bam1.getFileHeader();
+				if(header.getReadGroups().
+						stream().
+						map(RG->this.partition.apply(RG)).
+						filter(S->!StringUtils.isBlank(S)).count()==0)
+					{
+					LOG.warn("no Read Group in "+bam1File+" for partiton:"+this.partition);
+					}
+				SequenceUtil.assertSequenceDictionariesEqual(SequenceDictionaryUtils.extractRequired(header), dict1);
 				
-				
-				
-				
-				SAMRecordIterator iter=bam1.queryOverlapping(ssr1.getSequenceName(), 1, ssr1.getSequenceLength());
+				final SAMRecordIterator iter=bam1.queryOverlapping(ssr1.getSequenceName(), 1, ssr1.getSequenceLength());
 				while(iter.hasNext()) {
 					final SAMRecord rec = iter.next();
 					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.getMappingQuality()< 20) continue;
+					if(rec.getMappingQuality()< this.mapq) continue;
 					if(!this.acceptSupplementary && rec.getSupplementaryAlignmentFlag()) continue;
 					if(!this.acceptSecondary && rec.getSecondOfPairFlag()) continue;
-					if(!this.acceptDiscordant && rec.getReadPairedFlag() && (rec.getMateUnmappedFlag() || rec.getMateReferenceName().equals(ssr1.getSequenceName()))) continue;
+					if(!this.acceptDiscordant && rec.getReadPairedFlag() && !rec.getMateUnmappedFlag() && !rec.getMateReferenceName().equals(ssr1.getSequenceName())) continue;
+					if(!this.acceptMateUnmapped && rec.getReadPairedFlag() && rec.getMateUnmappedFlag() ) continue;
 					if(!this.acceptSA && 
 						SAMUtils.getOtherCanonicalAlignments(rec).stream().
 							anyMatch(R->!R.getContig().equals(ssr1.getSequenceName()))
 						) continue;
 						
-					final String sampleName = this.partition.getPartion(rec,"SAMPLE");
+					final String sampleName = this.partition.getPartion(rec,bam1File.getFileName().toString());
 					SampleHeteroplasmy sampleData = sample2heteroplasmy.get(sampleName);
 					if(sampleData==null) {
-						sampleData = new SampleHeteroplasmy(sampleName,chrM);
+						sampleData = new SampleHeteroplasmy(sampleName);
 						sample2heteroplasmy.put(sampleName,sampleData);
 					}
 					
 					final Cigar cigar = rec.getCigar();
 					if(cigar==null || cigar.isEmpty()) continue;
+					if(cigar.numCigarElements()>1 &&
+						cigar.getCigarElements().stream().filter(CE->CE.getOperator().isClipping()).mapToInt(CE->CE.getLength()).sum()> this.max_clip) continue;
 					final byte bases[]=rec.getReadBases();
 					if(bases==SAMRecord.NULL_SEQUENCE) continue;
+					
+					final byte qualities[]=rec.getBaseQualities();
+					
 					int refpos = rec.getUnclippedStart();
 					int readpos=0;
 					for(final CigarElement ce:cigar) {
@@ -239,9 +274,11 @@ public class BamHeteroplasmy extends Launcher {
 							if(op.consumesReadBases())
 								{
 								for(int i=0;i< ce.getLength();i++) {
-									int pos1 = refpos+i;
-									if(pos1<1 || pos1> sampleData.pileups.length) continue;
-									sampleData.pileups[pos1-1].visit(rec.getReadNegativeStrandFlag(),bases[readpos+i]);
+									final int pos1 = refpos+i;
+									if(pos1<1 || pos1> this.chrMSequence.length()) continue;
+									if(qualities!=SAMRecord.NULL_QUALS && qualities[readpos+i] < this.baseq) continue;
+									
+									sampleData.visit(pos1,rec.getReadNegativeStrandFlag(),bases[readpos+i]);
 									}
 								}
 							refpos+=ce.getLength();
@@ -254,211 +291,170 @@ public class BamHeteroplasmy extends Launcher {
 				iter.close();
 				bam1.close();
 				}
+			
+			final Set<VCFHeaderLine> metaData = new HashSet<>();
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS,true));
+			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_NUMBER_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY,true));
+			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY,true));
+			
+			final VCFFormatHeaderLine formatHeteroPlasmy = new VCFFormatHeaderLine(
+					"HP",
+					1,
+					VCFHeaderLineType.Float,
+					"Heteroplasmy (read alt/depth)"
+					);
+			metaData.add(formatHeteroPlasmy);
+			final VCFFormatHeaderLine formatFisherStrand = new VCFFormatHeaderLine(
+					"FS",
+					1,
+					VCFHeaderLineType.Float,
+					"Fisher Strand"
+					);
+			metaData.add(formatFisherStrand);
+			
+			final VCFInfoHeaderLine infoSamples = new VCFInfoHeaderLine(
+					"SAMPLES",
+					VCFHeaderLineCount.UNBOUNDED,
+					VCFHeaderLineType.String,
+					"Samples with genotype"
+					);
+			metaData.add(infoSamples);
+			
+			final VCFInfoHeaderLine infoNSamples = new VCFInfoHeaderLine(
+					"NSAMPLES",
+					1,
+					VCFHeaderLineType.Integer,
+					"Number of Samples with genotype"
+					);
+			metaData.add(infoNSamples);
+			
+			metaData.add(new VCFFilterHeaderLine(formatFisherStrand.getID(),"Fails strand fisher test : "+this.fisher_strand_bias));
+			
+			final VCFHeader header=new VCFHeader(metaData,sample2heteroplasmy.keySet()); 
+			header.setSequenceDictionary(dict1);
+			JVarkitVersion.getInstance().addMetaData(this, header);
+			
+			vcw = VCFUtils.createVariantContextWriterToPath(this.outputFile);
+			vcw.writeHeader(header);
+			
+			
+			for(int pos1=1; pos1 < this.chrMSequence.length();pos1++) {
+				final byte ref_base = this.chrMSequence.getBases()[pos1-1];
+				final Allele ref = Allele.create(ref_base, true);
+				for(int alt_base: ACGT) {
+					if(alt_base==(int)ref_base) continue;
+					final Set<String> filters = new HashSet<>();
+					final Set<String> samplesWithGt = new TreeSet<>();
+					final Allele alt= Allele.create((byte)alt_base, false);
+					int max_gq = 0;
+					final VariantContextBuilder vcb = new VariantContextBuilder(null, this.chrMSequence.getName(), pos1, pos1, 
+							Arrays.asList(ref,alt));
+					
+					final List<Genotype> genotypes = new ArrayList<>(sample2heteroplasmy.size());
+					for(SampleHeteroplasmy compound: sample2heteroplasmy.values()) {
+						final Pileup pileup = compound.pos1ToPileups.get(pos1);
+						
+						if( pileup==null ||
+							pileup.count(alt) < min_allele_dp  ) {
+							genotypes.add(GenotypeBuilder.createMissing(compound.sn, 1));
+							continue;
+							}
+						
+						
+						final int dp ;
+						if(use_all_alleles) {
+							dp= pileup.counter.values().
+									stream().
+									mapToInt(I->I).
+									sum();
+							}
+						else
+							{
+							dp = pileup.countIgnoreCase(ref) +  pileup.countIgnoreCase(alt);
+							}
+						
+						if(dp==0) {
+							genotypes.add(GenotypeBuilder.createMissing(compound.sn, 1));
+							continue;
+							}
+						
+						final GenotypeBuilder gb = new GenotypeBuilder(compound.sn,Collections.singletonList(alt));
+
+						
+						gb.DP(dp);
+						gb.AD(new int[] {
+								pileup.countIgnoreCase(ref),
+								pileup.countIgnoreCase(alt)
+							});
+						
+						final double p = pileup.countIgnoreCase(alt)/dp;
+						gb.attribute(formatHeteroPlasmy.getID(), p);
+						
+					
+						double tmp = 1.96 * Math.sqrt( ( p * ( 1.0 - p ) ) / dp );
+						double min_confidence = Math.max(p-tmp, 0.0);
+						double max_confidence = Math.min(p+tmp, 1.0);
+						double distance = max_confidence - min_confidence;	
+						int gq = (int)(1.0-distance)*99;
+						max_gq = Math.max(max_gq, gq);
+						gb.GQ(gq);
+							
+						final FisherExactTest fisher = FisherExactTest.compute(
+								pileup.countPlus(ref), 
+								pileup.countMinus(ref), 
+								pileup.countPlus(alt), 
+								pileup.countMinus(alt)
+								);
+						gb.attribute(formatFisherStrand.getID(), fisher.getAsDouble());
+						
+						if(fisher.getAsDouble()< this.fisher_strand_bias) {
+							gb.attribute(VCFConstants.GENOTYPE_FILTER_KEY, formatFisherStrand.getID());
+							filters.add(formatFisherStrand.getID());
+							}
+						
+						genotypes.add(gb.make());
+						samplesWithGt.add(compound.sn);
+						} // end of loop compound
+					
+					//no genotype found here, don't create a variant
+					if(samplesWithGt.isEmpty()) continue;
+					if(filters.isEmpty()) {
+						vcb.passFilters();
+					} else
+						{
+						vcb.filters(filters);
+						}
+					if(max_gq>0) vcb.log10PError(max_gq/-10.0);
+					vcb.attribute(infoNSamples.getID(), samplesWithGt.size());
+					vcb.attribute(infoSamples.getID(),new ArrayList<>(samplesWithGt));
+					vcb.genotypes(genotypes);
+					vcw.add(vcb.make());
+					
+					
+					} //end loop over alt base
+				}
+			vcw.close();
+			vcw=null;
+			referenceSequenceFile.close();
+			referenceSequenceFile=null;
 			return 0;
-		} catch (Exception e) {
+		} catch (final Throwable e) {
 			LOG.error(e);
 			return -1;
 		} finally {
-			
+			CloserUtil.close(vcw);
+			CloserUtil.close(referenceSequenceFile);
 			}
 		}
+	public static void main(final String[] args) {
+		new BamHeteroplasmy().instanceMainWithExit(args);
+	}
 }
-/**
-
-
-sub _main{
-    print "=" x 50, "\n";
-    print "Start analyzing:\n";
-    my $index=1;
-    _get_mitochondrial_bed( $inbam1, $regionbed );
-    
-    $ischr=_determine_chr_from_bam($inbam1,$isbam);
-    #Assign values to 
-    if($type==1 || $type==3){
-        $totalbases=$totalexonbases;
-        if($ischr){
-            $totalbed=$exonbed{'withchr'};
-        }else{
-            $totalbed=$exonbed{'withoutchr'};
-        }
-    }else{
-        $totalbases=$totalgenomebases;
-        if($ischr){
-            $totalbed=$genomebed{'withchr'};
-        }else{
-            $totalbed=$genomebed{'withoutchr'};
-        }
-    }
-    
-    if($inbam2){
-        _info($index.".1,Extracting reads in mitochondria from '$inbam1' (Output: $mitobam1)");
-        
-        if($advance){
-            _get_mitochondrial_bam_advance($inbam1,$isbam,$regionbed,$mmq,$mitobam1);
-        }else{
-            _get_mitochondrial_bam( $inbam1, $isbam, $regionbed, $mmq, $mitobam1 );
-        }   
-        _info($index++.".2,Extracting reads in mitochondria from '$inbam2' (Output: $mitobam2)");
-        if($advance){
-            _get_mitochondrial_bam_advance( $inbam2, $isbam, $regionbed, $mmq, $mitobam2 );
-        }else{
-            _get_mitochondrial_bam( $inbam2, $isbam, $regionbed, $mmq, $mitobam2 );
-        }
-               
-        _info($index.".1,Checking Reads number in '$mitobam1'",1);
-        _print_read($mitobam1);
-         _info($index++.".2,Checking Reads number in '$mitobam2'",1);
-         _print_read($mitobam2);
-        
-        _info($index++.",Moving mitochondrial genome '".$mitogenome{$inref}. "' into $folder (Output:$reference)");
-        _move_mitogenome( $mitogenome{$inref}, $regionbed, $reference );
-        
-        _info($index.".1,Pileuping '$mitobam1' (Output:$mitopileup1)");
-        _pileup( $mitobam1, $isbam, $mbq, $regionbed, $reference, $mitopileup1 );
-        _info($index++.".2,Pileuping '$mitobam2' (Output:$mitopileup2)");
-        _pileup( $mitobam2, $isbam, $mbq, $regionbed, $reference, $mitopileup2 );       
-        
-        _info($index.".1,Parsing pileup file of '$mitopileup1' (Output: $mitobasecall1)");
-        _parse_pileup( $mitopileup1, $mbq, $mitooffset1, $mitobasecall1 );
-        _info($index++.".2,Parsing pileup file of '$mitopileup2' (Output: $mitobasecall2)");
-        _parse_pileup( $mitopileup2, $mbq, $mitooffset2, $mitobasecall2 );
-        
-        if($qc){
-            _info($index.".1,Getting quality metrics on '$mitobam1' ");
-            $mitooffset1 = _mito_qc_stat(
-            $mitobam1,                  $isbam,
-            $mitopileup1,               $regionbed,
-            $perbasequality_figure1,    $mappingquality_figure1,
-            $depthdistribution_figure1, $templatelengthdistribution_figure1,
-            $perbasequality_table1,     $mappingquality_table1,
-            $depthdistribution_table1,  $templatelengthdistribution_table1,
-            $percentofbasepairscovered_table1
-            );
-            _info($index++.".2,Getting quality metrics on '$mitobam2' ");
-            $mitooffset2 = _mito_qc_stat(
-            $mitobam2,                  $isbam,
-            $mitopileup2,               $regionbed,
-            $perbasequality_figure2,    $mappingquality_figure2,
-            $depthdistribution_figure2, $templatelengthdistribution_figure2,
-            $perbasequality_table2,     $mappingquality_table2,
-            $depthdistribution_table2,  $templatelengthdistribution_table2,
-            $percentofbasepairscovered_table2
-            );
-        }
-        
-        _info($index.".1,Detecting heteroplasmy from '$mitobam1' (Output: $mitoheteroplasmy1)");
-        _determine_heteroplasmy( $mitobasecall1, $hp, $ha, $isall, $sb,$mitoheteroplasmy1 );
-        _info($index++.".2,Detecting heteroplasmy from '$mitobam2' (Output: $mitoheteroplasmy2)");
-        _determine_heteroplasmy( $mitobasecall2, $hp, $ha, $isall, $sb,$mitoheteroplasmy2 );
-        
-        #Plot heteroplasmy ciros plot
-        if($producecircosplot){
-            $circos->build($outref);
-            $circos->circosoutput($mitocircosheteroplasmyfigure1);
-            $circos->configoutput($mitocircosheteroplasmyconfig1);
-            $circos->datafile($mitoheteroplasmy1);
-            $circos->textoutput($mitoheteroplasmytextoutput1);
-            $circos->scatteroutput($mitoheteroplasmyscatteroutput1);
-            $circos->cwd(getcwd()."/circos");
-            $circos->prepare("heteroplasmy");
-            $circos->plot();
-            
-            #For mito2
-            $circos->circosoutput($mitocircosheteroplasmyfigure2);
-            $circos->configoutput($mitocircosheteroplasmyconfig2);
-            $circos->datafile($mitoheteroplasmy2);
-            $circos->textoutput($mitoheteroplasmytextoutput2);
-            $circos->scatteroutput($mitoheteroplasmyscatteroutput2);
-            $circos->prepare("heteroplasmy");
-            $circos->plot();
-            
-        }
-        
-        _info($index.".1,Detecting structure variants from '$mitobam1' (Output: $mitostructure1 | $mitostructuredeletion1)");
-        _structure_variants( $inbam1, $isbam, $mmq, $regionbed, $str,$strflagmentsize,$mitostructure1,$mitostructuredeletion1);
-        _info($index++.".2,Detecting structure variants from '$mitobam2' (Output: $mitostructure2 | $mitostructuredeletion2)");
-        _structure_variants( $inbam2, $isbam, $mmq, $regionbed, $str,$strflagmentsize,$mitostructure2,$mitostructuredeletion2);
-        
-        _info($index++.",Detecting somatic mutations (Output: $mitosomatic)");
-         _determine_somatic( $mitobasecall1, $mitobasecall2, $sp, $sa, $isall,$mitosomatic );
-         
-         if($cs){
-            $circos->build($outref);
-            $circos->changeconfig("somatic");
-            $circos->circosoutput($mitocircossomaticfigure);
-            $circos->configoutput($mitocircossomaticconfig);
-            $circos->datafile($mitosomatic);
-            $circos->textoutput($mitosomatictextoutput);
-            $circos->cwd(getcwd()."/circos");
-            $circos->prepare("somatic");
-            $circos->plot();
-         }
-         
-          if($cn && $type!=4){
-            _info($index++.",Estimating relative copy number of '$mitobam1' (Output: $mitocnv1)");
-            _wrap_mito_cnv($mitobam1,$inbam1,$mitobases,$totalbases,$isbam,$mbq,$mmq,$totalbed,$mitodepth1,$sampledepthi,$mitocnv1);
-            _info($index++.",Estimating relative copy number of '$mitobam2' (Output: $mitocnv2)");
-            _wrap_mito_cnv($mitobam2,$inbam2,$mitobases,$totalbases,$isbam,$mbq,$mmq,$totalbed,$mitodepth2,$sampledephtj,$mitocnv2);
-         }
-        
-
-    }else{
-        _info($index++.",Extracting reads in mitochondria from '$inbam1' (Output: $mitobam1)");
-        if($advance){
-            _get_mitochondrial_bam_advance( $inbam1, $isbam, $regionbed, $mmq, $mitobam1 );
-        }else{
-            _get_mitochondrial_bam( $inbam1, $isbam, $regionbed, $mmq, $mitobam1 );
-        }
-        
-        _info($index++.",Checking Reads number in '$mitobam1'",1);
-        _print_read($mitobam1);
-        
-        _info($index++.",Moving mitochondrial genome '".$mitogenome{$inref}. "' into $folder (Output:$reference)");
-        _move_mitogenome( $mitogenome{$inref}, $regionbed, $reference );
-        
-        _info($index++.",Pileuping '$mitobam1' (Output:$mitopileup1)");
-        _pileup( $mitobam1, $isbam, $mbq, $regionbed, $reference, $mitopileup1 );
-        
-        _info($index++.",Parsing pileup file of '$mitopileup1' (Output: $mitobasecall1)");
-        _parse_pileup( $mitopileup1, $mbq, $mitooffset1, $mitobasecall1 );
-        if($qc){
-            _info($index++.",Getting quality metrics on '$mitobam1' ");
-            $mitooffset1 = _mito_qc_stat(
-            $mitobam1,                  $isbam,
-            $mitopileup1,               $regionbed,
-            $perbasequality_figure1,    $mappingquality_figure1,
-            $depthdistribution_figure1, $templatelengthdistribution_figure1,
-            $perbasequality_table1,     $mappingquality_table1,
-            $depthdistribution_table1,  $templatelengthdistribution_table1,
-            $percentofbasepairscovered_table1
-            );
-        }
-        _info($index++.",Detecting heteroplasmy from '$mitobam1' (Output: $mitoheteroplasmy1)");
-        _determine_heteroplasmy( $mitobasecall1, $hp, $ha, $isall, $sb,$mitoheteroplasmy1 );
-        if($producecircosplot){
-            $circos->build($outref);
-            $circos->circosoutput($mitocircosheteroplasmyfigure1);
-            $circos->configoutput($mitocircosheteroplasmyconfig1);
-            $circos->datafile($mitoheteroplasmy1);
-            $circos->textoutput($mitoheteroplasmytextoutput1);
-            $circos->scatteroutput($mitoheteroplasmyscatteroutput1);
-            $circos->cwd(getcwd()."/circos");
-            $circos->prepare("heteroplasmy");
-            $circos->plot();
-         }
-        
-        _info($index++.",Detecting structure variants from '$mitobam1' (Output: $mitostructure1 | $mitostructuredeletion1)");
-        _structure_variants( $inbam1, $isbam, $mmq, $regionbed, $str,$strflagmentsize,$mitostructure1,$mitostructuredeletion1); 
-    
-         if($cn && $type!=4){
-            _info($index++.",Estimating relative copy number of '$mitobam1' (Output: $mitocnv1)");
-            
-            _wrap_mito_cnv($mitobam1,$inbam1,$mitobases,$totalbases,$isbam,$mbq,$mmq,$totalbed,$mitodepth1,$sampledepthi,$mitocnv1);
-         }
-    }
-    _info($index++.",Generating report (Output: $mitoreport)");
-    print "=" x 50, "\n";
-    
-}
-
-*/
