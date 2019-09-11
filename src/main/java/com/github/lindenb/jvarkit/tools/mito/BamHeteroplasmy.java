@@ -39,6 +39,8 @@ public class BamHeteroplasmy extends Launcher {
 	private static final char ATGCNatgcn[]=new char[] {'A','T','G','C','N','a','t','g','c','n'};
 	private static final int ATGC[]=new int[] {'A','T','G','C'};
 	private boolean is_all=false;
+	
+	
 	private  class Pileup {
 		final Map<Character,Integer> counter = new HashMap<>(ATGCNatgcn.length);
 		Pileup(int pos1,byte ref) {
