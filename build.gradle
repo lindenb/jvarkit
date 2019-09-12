@@ -1160,6 +1160,10 @@ all2.add( task("howmanybamdict", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.HowManyBamDict"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("findhtsfiledict", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.FindHtsFileDictionary"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("igvreview", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.igvreview.IgvReview"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

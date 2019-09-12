@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -64,21 +65,17 @@ END_DOC
  */
 
 
-@Program(name="howmanybamdict",description="finds if there's are some differences in the sequence dictionaries.",
-		keywords={"sam","bam","dict"}
-		)
+@Program(name="howmanybamdict",
+	description="finds if there's are some differences in the sequence dictionaries.",
+	keywords={"sam","bam","dict"},
+	modificationDate="20190912"
+	)
 public class HowManyBamDict extends Launcher {
 	private static final Logger LOG = Logger.build(HowManyBamDict.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
-	public HowManyBamDict()
-		{
-		 
-		}
-	
-	
 	private class Dict
 		{
 		SAMSequenceDictionary ssd;
@@ -184,7 +181,7 @@ public class HowManyBamDict extends Launcher {
 		PrintWriter out=null;
 		try
 			{
-			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");

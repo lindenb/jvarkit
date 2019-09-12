@@ -88,12 +88,12 @@ Experimental.
 Input is one or more indexed BAM/CRAM files or a file with the suffix '.list' containing the path to the BAMs.
 
 
-
 END_DOC
 */
 @Program(name="bamheteroplasmy",
-description="Call a VCF for the Mitochondria",
-generate_doc=false,
+description="Call a VCF for the Mitochondria (Experimental)",
+creationDate="20190910",
+modificationDate="20190912",
 keywords={"vcf","sam","bam","mitochondria"}
 )
 public class BamHeteroplasmy extends Launcher {
@@ -320,6 +320,14 @@ public class BamHeteroplasmy extends Launcher {
 					);
 			metaData.add(formatFisherStrand);
 			
+			final VCFFormatHeaderLine formatDP8 = new VCFFormatHeaderLine(
+					"DP8",
+					8,
+					VCFHeaderLineType.Integer,
+					"number of bases ACGT(formard) acgt(reverse) "
+					);
+			metaData.add(formatDP8);
+			
 			final VCFInfoHeaderLine infoSamples = new VCFInfoHeaderLine(
 					"SAMPLES",
 					VCFHeaderLineCount.UNBOUNDED,
@@ -327,6 +335,14 @@ public class BamHeteroplasmy extends Launcher {
 					"Samples with genotype"
 					);
 			metaData.add(infoSamples);
+			
+			final VCFInfoHeaderLine infoNoRefSamples = new VCFInfoHeaderLine(
+					"NOREFSAMPLES",
+					VCFHeaderLineCount.UNBOUNDED,
+					VCFHeaderLineType.String,
+					"Samples without REF base"
+					);
+			metaData.add(infoNoRefSamples);
 			
 			final VCFInfoHeaderLine infoNSamples = new VCFInfoHeaderLine(
 					"NSAMPLES",
@@ -336,7 +352,7 @@ public class BamHeteroplasmy extends Launcher {
 					);
 			metaData.add(infoNSamples);
 			
-			metaData.add(new VCFFilterHeaderLine(formatFisherStrand.getID(),"Fails strand fisher test : "+this.fisher_strand_bias));
+			metaData.add(new VCFFilterHeaderLine(formatFisherStrand.getID(),"Fails fisher test for Strands : "+this.fisher_strand_bias));
 			
 			final VCFHeader header=new VCFHeader(metaData,sample2heteroplasmy.keySet()); 
 			header.setSequenceDictionary(dict1);
@@ -346,24 +362,32 @@ public class BamHeteroplasmy extends Launcher {
 			vcw.writeHeader(header);
 			
 			
-			for(int pos1=1; pos1 < this.chrMSequence.length();pos1++) {
+			for(int pos1=1; pos1 <= this.chrMSequence.length();pos1++) {
 				final byte ref_base = this.chrMSequence.getBases()[pos1-1];
 				final Allele ref = Allele.create(ref_base, true);
 				for(int alt_base: ACGT) {
 					if(alt_base==(int)ref_base) continue;
 					final Set<String> filters = new HashSet<>();
 					final Set<String> samplesWithGt = new TreeSet<>();
+					final Set<String> noRefSamples = new TreeSet<>();
 					final Allele alt= Allele.create((byte)alt_base, false);
 					int max_gq = 0;
-					final VariantContextBuilder vcb = new VariantContextBuilder(null, this.chrMSequence.getName(), pos1, pos1, 
+					final VariantContextBuilder vcb = new VariantContextBuilder(null, this.chrMSequence.getName(), pos1, pos1,
 							Arrays.asList(ref,alt));
 					
 					final List<Genotype> genotypes = new ArrayList<>(sample2heteroplasmy.size());
 					for(SampleHeteroplasmy compound: sample2heteroplasmy.values()) {
 						final Pileup pileup = compound.pos1ToPileups.get(pos1);
 						
-						if( pileup==null ||
-							pileup.count(alt) < min_allele_dp  ) {
+						if( pileup==null ) {
+							continue;
+							}
+						
+						if(pileup.count(ref)==0) {
+							noRefSamples.add(compound.sn);
+							}
+						
+						if( pileup.count(alt) < min_allele_dp  ) {
 							genotypes.add(GenotypeBuilder.createMissing(compound.sn, 1));
 							continue;
 							}
@@ -402,10 +426,20 @@ public class BamHeteroplasmy extends Launcher {
 						double tmp = 1.96 * Math.sqrt( ( p * ( 1.0 - p ) ) / dp );
 						double min_confidence = Math.max(p-tmp, 0.0);
 						double max_confidence = Math.min(p+tmp, 1.0);
-						double distance = max_confidence - min_confidence;	
+						double distance = max_confidence - min_confidence;
 						int gq = (int)(1.0-distance)*99;
 						max_gq = Math.max(max_gq, gq);
 						gb.GQ(gq);
+						
+						final int dp8[]=new int[ACGT.length*2];
+						for(int y=0;y< ACGT.length;++y) {
+							char b = (char)ACGT[y];
+							dp8[y] = pileup.countPlus(b);
+							dp8[y + ACGT.length ] = pileup.countMinus(b);
+							}
+						
+						gb.attribute(formatDP8.getID(),dp8);
+						
 							
 						final FisherExactTest fisher = FisherExactTest.compute(
 								pileup.countPlus(ref), 

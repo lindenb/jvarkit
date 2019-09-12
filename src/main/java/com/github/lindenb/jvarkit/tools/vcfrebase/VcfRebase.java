@@ -30,11 +30,16 @@ package com.github.lindenb.jvarkit.tools.vcfrebase;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.avro.generic.IndexedRecord;
+
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -117,7 +122,7 @@ public class VcfRebase extends Launcher {
 	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute")
 	private String ATT="ENZ";
 	@Parameter(names={"-R","-reference","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File referenceFile;
+	private Path referenceFile;
 	@Parameter(names={"-E","-enzyme","--enzyme"},description="restrict to that enzyme name. Default: use all enzymes")
 	private Set<String> selEnzymesStr = new HashSet<>();
 	@Parameter(names={"-w","-weight","--weight"},description="min enzyme weight 6 = 6 cutter like GAATTC, 2 = 2 cutter like ATNNNNNNAT  ")
@@ -125,7 +130,7 @@ public class VcfRebase extends Launcher {
 
 	
 	private Rebase rebase = Rebase.createDefaultRebase();
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;			
 	private ContigNameConverter contigNameConverter;
 	
@@ -281,7 +286,7 @@ public class VcfRebase extends Launcher {
 			
 			IOUtil.assertFileIsReadable(this.referenceFile);
 			
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFile);
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile);
 			this.contigNameConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(this.referenceFile));
 			
 			return doVcfToVcf(args, this.outputFile);
