@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -44,6 +45,9 @@ import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -54,7 +58,9 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTree;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -86,6 +92,10 @@ public class MantaFisher extends Launcher {
 	private String limitContig = null;
 	@Parameter(names={"--no-bnd"},description="discar BND")
 	private boolean discard_bnd = false;
+	@Parameter(names={"-x","--exclude"},description="Exclude regions in this bed file")
+	private Path excludeBedPath = null;
+	@Parameter(names={"-t","--treshold"},description="don't print if fisher test greater than this value")
+	private double fisher_treshold=0.1;
 
 	
 	private class SVKey {
@@ -98,6 +108,7 @@ public class MantaFisher extends Launcher {
 			if(obj==this) return true;
 			if(obj==null || !(obj instanceof SVKey)) return false;
 			final SVKey other = SVKey.class.cast(obj);
+			if(this.hashCode()!=other.hashCode()) return false;
 			return svComparator.test(this.archetype, other.archetype);
 			}
 		@Override
@@ -188,6 +199,28 @@ public int doWork(final List<String> args) {
 			LOG.error("No non-affected vcf");
 			return -1;
 			}
+		
+		final Predicate<VariantContext> bedPredicate;
+		if(this.excludeBedPath!=null) {
+			final BedLineCodec codec = new BedLineCodec();
+			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
+			final IntervalTreeMap<Boolean> map = new IntervalTreeMap<>();
+			try(BufferedReader br=IOUtils.openPathForBufferedReading(this.excludeBedPath))
+				{
+				br.lines().
+					filter(L->!BedLine.isBedHeader(L)).
+					map(L->codec.decode(L)).
+					filter(L->L!=null).
+					filter(B->!StringUtils.isBlank(converter.apply(B.getContig()))).
+					map(B->new Interval(converter.apply(B.getContig()), B.getStart(),B.getEnd())).
+					forEach(R->map.put(R,true));
+				}
+			bedPredicate = V->!map.containsOverlapping(V);
+			} 
+		else {
+			bedPredicate = V -> true;	
+			}
+		
 		out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 		out.print("#contig");
 		out.print("\t");
@@ -226,6 +259,7 @@ public int doWork(final List<String> args) {
 					vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength()).
 						stream().
 						filter(V->discard_bnd==false || !V.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")).
+						filter(bedPredicate).
 						map(V->new VariantContextBuilder(V).
 								unfiltered().
 								noID().
@@ -266,7 +300,7 @@ public int doWork(final List<String> args) {
 						final VariantContext ctx = iter.next();
 						
 						if(this.discard_bnd && ctx.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")) continue;
-
+						if(!bedPredicate.test(ctx)) continue;
 						
 						final Iterator<IntervalTree.Node<SVKey>> nodeIter = intervalTree.overlappers(ctx.getStart(),ctx.getEnd());
 						while( nodeIter.hasNext()) {
@@ -298,6 +332,13 @@ public int doWork(final List<String> args) {
 			
 			for(final SVKey key : variants2count.keySet()) {
 				final SVValue value = variants2count.get(key);
+				final double fisher_value = FisherExactTest.compute(
+						value.count_affected_wild, value.count_affected_alt,
+						value.count_unaffected_wild, value.count_unaffected_alt).
+						getAsDouble()
+						;
+				
+				if(fisher_value > this.fisher_treshold) continue;
 				out.print(key.archetype.getContig());
 				out.print("\t");
 				out.print(key.archetype.getStart()-1);
@@ -316,10 +357,7 @@ public int doWork(final List<String> args) {
 				out.print("\t");
 				out.print(value.count_unaffected_alt);
 				out.print("\t");
-				out.print(FisherExactTest.compute(
-						value.count_affected_wild, value.count_affected_alt,
-						value.count_unaffected_wild, value.count_unaffected_alt).getAsDouble()
-						);
+				out.print(fisher_value);
 				out.println();
 				}
 			}
