@@ -102,6 +102,11 @@ private boolean testBNDDistance(final Locatable a,final Locatable b) {
 	return a.withinDistanceOf(b, this.small_length_on_ref );
 }
 
+/** return true if SV types will be tested to be the same */
+public boolean isTestingSvTypes() {
+	return this.svtype_mus_be_the_same;
+	}
+
 @Override
 public boolean test(final VariantContext a, final VariantContext b) {
 	if(a==null || b==null) return false;
@@ -114,7 +119,7 @@ public boolean test(final VariantContext a, final VariantContext b) {
 	if(typeb.equals(VCFConstants.MISSING_VALUE_v4)) return false;
 
 	
-	if(this.svtype_mus_be_the_same && !typea.equals(typeb)) return false;
+	if(isTestingSvTypes() && !typea.equals(typeb)) return false;
 	
 
 	if(typea.equals("BND") &&  typeb.equals("BND")) {

@@ -1012,6 +1012,10 @@ all2.add( task("biostar352930", type: CompileJVarkit) {
 	mainClass = biostar2java(352930)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("biostar398854", type: CompileJVarkit) {
+	mainClass = biostar2java(398854)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("buildwpontology", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BuildWikipediaOntology"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
@@ -2281,10 +2285,17 @@ all2.add( task("bamheteroplasmy", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
+all2.add( task("mantafisher", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.structvar.manta.MantaFisher"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
+
 task("vcfphased01", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.phased.VcfPhased01"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         }
+
 
 /** bottom task */
 

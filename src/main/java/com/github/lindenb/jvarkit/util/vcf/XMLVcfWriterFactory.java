@@ -212,7 +212,7 @@ public class XMLVcfWriterFactory
 				if(header.getContigLines()!=null)
 					{
 					start("contigs");
-					for(VCFContigHeaderLine h:header.getContigLines())
+					for(final VCFContigHeaderLine h:header.getContigLines())
 						{
 						start("contig");
 						attribute("tid", h.getContigIndex());
@@ -226,7 +226,7 @@ public class XMLVcfWriterFactory
 				if(header.getSampleNamesInOrder()!=null)
 					{
 					start("samples");
-					for(String name:header.getSampleNamesInOrder())
+					for(final String name:header.getSampleNamesInOrder())
 						{
 						start("sample");
 						attribute("index", header.getSampleNameToOffset().get(name));
@@ -238,7 +238,7 @@ public class XMLVcfWriterFactory
 				if(header.getMetaDataInInputOrder()!=null)
 					{
 					start("metas");
-					for(VCFHeaderLine meta:header.getMetaDataInInputOrder())
+					for(final VCFHeaderLine meta:header.getMetaDataInInputOrder())
 						{
 						if(meta.getKey().equals("INFO"))continue;
 						if(meta.getKey().equals("FORMAT"))continue;

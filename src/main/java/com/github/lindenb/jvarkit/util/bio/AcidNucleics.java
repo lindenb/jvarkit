@@ -26,8 +26,16 @@ package com.github.lindenb.jvarkit.util.bio;
 
 import java.util.Set;
 
+import htsjdk.variant.variantcontext.Allele;
+
 public class AcidNucleics {
 
+/** return true if a is not null, not symbolic, not span not empty and all bases match 'isATGC */
+public static boolean isATGC(final Allele a) {
+	if(a==null || a.isBreakpoint() || a.isNoCall() || a.isSymbolic() || a.isSingleBreakend() || a.length()==0) return false;
+	return isATGC(a.getDisplayString());
+	}
+	
 /** return true if s is not null, not empty and all bases match 'isATGC */
 public static boolean isATGC(final CharSequence c) {
 	if(c==null || c.length()==0) return false;
@@ -67,6 +75,12 @@ public static boolean isATGCN(char c) {
 	}
 public static boolean isATGCN(byte c) {
 	return isATGCN((char)c);
+	}
+
+/** return true if a is not null, not symbolic, not span not empty and all bases match 'isATGCN */
+public static boolean isATGCN(final Allele a) {
+	if(a==null || a.isBreakpoint() || a.isNoCall() || a.isSymbolic() || a.isSingleBreakend() || a.length()==0) return false;
+	return isATGCN(a.getDisplayString());
 	}
 
 

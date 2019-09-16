@@ -46,8 +46,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
@@ -201,7 +201,7 @@ public class FindHtsFileDictionary extends Launcher {
 		}
 	
 	
- 	private void scan(final PrintWriter out,final String filename,final List<DictEntry> entries) throws IOException
+ 	private void scan(final PrintWriter out,final String filename,final List<DictEntry> entries)
  		{ 		
  		final Path f=Paths.get(filename);
  		
@@ -215,7 +215,7 @@ public class FindHtsFileDictionary extends Launcher {
  				{
  				case empty: out.println(String.join("\t", f.toAbsolutePath().toString(),".","."));break;
  				case ignore: break;
- 				default: throw new IOException(e);
+ 				default: throw new RuntimeIOException(e);
  				}
  			return;
 			}
@@ -233,49 +233,41 @@ public class FindHtsFileDictionary extends Launcher {
 				{
 				case empty: out.println(String.join("\t", f.toAbsolutePath().toString(),".","."));break;
 				case ignore: break;
-				default: throw new IOException("No Reference found for "+f);
+				default: throw new RuntimeIOException("No Reference found for "+f);
 				}
  			}
  		}
 	
  	@Override
  	public int doWork(final List<String> args) {
-		PrintWriter out=null;
 		try
 			{
 			final List<DictEntry> entries = readDictionaryRepository(this.repositoryFile);
-			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			out.println("#hts-file\tdict.name\tfasta");
-			if(args.isEmpty())
-				{
-				String line;
-				try(final BufferedReader in=new BufferedReader(new InputStreamReader(stdin()))) {
-					while((line=in.readLine())!=null)
-						{
-						if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
-						scan(out,line,entries);
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)){
+				out.println("#hts-file\tdict.name\tfasta");
+				if(args.isEmpty())
+					{
+					try(final BufferedReader in=new BufferedReader(new InputStreamReader(stdin()))) {
+						in.lines().
+							filter(line->!(StringUtils.isBlank(line) || line.startsWith("#"))).
+							forEach(line->scan(out,line,entries));						
 						}
 					}
-				}
-			else
-				{
-				for(final String filename:args)
+				else
 					{
-					scan(out,filename,entries);
+					for(final String filename:args)
+						{
+						scan(out,filename,entries);
+						}
 					}
+				out.flush();
 				}
-			out.flush();
-			out.close();
-			out=null;
 			return RETURN_OK;
 			}
 		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally {
-			CloserUtil.close(out);
 			}
 		}
 

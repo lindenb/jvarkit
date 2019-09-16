@@ -26,7 +26,6 @@ package com.github.lindenb.jvarkit.util.bio.structure;
 
 import java.util.OptionalInt;
 
-import htsjdk.samtools.util.Locatable;
 
 /** base interface for the RNA of a transcript */
 public interface RNASequence extends CharSequence,StrandedLocatable {
@@ -36,10 +35,13 @@ public Transcript getTranscript();
 public default String getContig() {
 		return getTranscript().getContig();
 	}
+/** returns start of getTranscript*/
 @Override
 public default int getStart() {
 		return getTranscript().getStart();
 	}
+
+/** returns end of getTranscript*/
 @Override
 public default int getEnd() {
 		return getTranscript().getEnd();
