@@ -26,11 +26,28 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.Paranoid;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMReadGroupParser;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -38,24 +55,10 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.SAMReadGroupParser;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.iterator.LineIterator;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.samtools.GenomeSequence;
 
 /**
 
@@ -98,6 +101,7 @@ public class PslxToBam extends Launcher
 		BufferedReader br=null;
 		ReferenceSequenceFile referenceSequenceFile=null;
 		ChromosomeSequence genomicSeq=null;
+		final Paranoid paranoid = Paranoid.createThrowingInstance();
 		try
 			{
 			referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
@@ -134,76 +138,112 @@ public class PslxToBam extends Launcher
 		    				continue;
 		    				}
 					final String tokens[] = CharSplitter.TAB.split(line);
-					
+					if(tokens.length<21) throw new JvarkitException.TokenErrors(21, tokens);
 					
 					final SAMRecord rec = samRecordFactory.createSAMRecord(header);
 					
 					
-					String readName = tokens[9];
+					int col=0;
+				    //0 matches - Number of bases that match that aren't repeats
+				    final int matches = Integer.parseInt(tokens[col++]);
+					//1 misMatches - Number of bases that don't match
+				    final int misMatches = Integer.parseInt(tokens[col++]);
+				    //2 repMatches - Number of bases that match but are part of repeats
+				    final int repMatches=  Integer.parseInt(tokens[col++]);
+				    //3 nCount - Number of "N" bases
+				    final int nCount =  Integer.parseInt(tokens[col++]);
+				    //4 qNumInsert - Number of inserts in query
+				    final int qNumInsert =   Integer.parseInt(tokens[col++]);
+				    //5 qBaseInsert - Number of bases inserted in query
+				    final int qBaseInsert = Integer.parseInt(tokens[col++]);
+				    //6 tNumInsert - Number of inserts in target
+				    final int tNumInsert = Integer.parseInt(tokens[col++]);
+				    //7 tBaseInsert - Number of bases inserted in target
+				    final int tBaseInsert =  Integer.parseInt(tokens[col++]);
+				    //8 strand - "+" or "-" for query strand. For translated alignments, second "+"or "-" is for target genomic strand.
+				    final char strand= tokens[col++].charAt(0);
+				    //9 qName - Query sequence name
+				    final String readName = tokens[col++];
+				    //10 qSize - Query sequence size.
+				    final int qSize = Integer.parseInt(tokens[col++]);
+				    //11 qStart - Alignment start position in query
+				    final int qStart =  Integer.parseInt(tokens[col++]);
+				    //12 qEnd - Alignment end position in query
+				    final int qEnd =  Integer.parseInt(tokens[col++]);
+				    //13 tName - Target sequence name
+				    final String tName = tokens[col++];
+				    //14 tSize - Target sequence size
+				    final int tSize =  Integer.parseInt(tokens[col++]);
+				    //15 tStart - Alignment start position in target
+				    final int tStart = Integer.parseInt(tokens[col++]);
+				    //16 tEnd - Alignment end position in target
+				    final int tEnd = Integer.parseInt(tokens[col++]);
+				    //17 blockCount - Number of blocks in the alignment (a block contains no gaps)
+				    final int blockCount = Integer.parseInt(tokens[col++]);
+				    //18 blockSizes - Comma-separated list of sizes of each block. If the query is a protein and the target the genome, blockSizes are in amino acids. See below for more information on protein query PSLs.
+					final int blockSizes[] = Arrays.stream(CharSplitter.COMMA.split(tokens[col++])).
+							mapToInt(Integer::parseInt).
+							toArray();
+					//19
+					final int qStarts[] = Arrays.stream(CharSplitter.COMMA.split(tokens[col++])).
+							mapToInt(Integer::parseInt).
+							toArray();
+					//20
+					final int tStarts[] = Arrays.stream(CharSplitter.COMMA.split(tokens[col++])).
+							mapToInt(Integer::parseInt).
+							toArray();
+
+					final SAMSequenceRecord ssr = dict.getSequence(tName);
+					if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(tName, dict);
+					if(ssr.getSequenceLength()!=tSize) throw new IllegalArgumentException("expected contig leng="+ssr.getSequenceLength()+" for "+ssr.getSequenceName()+" but got "+tSize);
 					
-					int match= Integer.parseInt(tokens[0]);
-					int mismatch= Integer.parseInt(tokens[1]);
-					int repmatch= Integer.parseInt(tokens[2]);
-					int countN= Integer.parseInt(tokens[3]);
-					
-					int querySize = Integer.parseInt(tokens[12]);
-					int queryStart = Integer.parseInt(tokens[13]);
-					int queryEnd = Integer.parseInt(tokens[14]);
-					
-					boolean negativeStrand = tokens[8].equals("-");
-					rec.setReferenceName(tokens[13]);
+					rec.setReferenceName(tName);
 					rec.setReadName(readName);
-					if(negativeStrand) {
-						rec.setAlignmentStart(Integer.parseInt(tokens[15])+1);
-						}
-					else
-						{
-						rec.setAlignmentStart(Integer.parseInt(tokens[16])+1);
-						}
+					rec.setAlignmentStart(tStart+1);
 					rec.setMappingQuality(this.mapq);
-					rec.setReadNegativeStrandFlag(negativeStrand);
-					rec.setAttribute("NM", mismatch);
+					rec.setReadNegativeStrandFlag(strand=='-');
+					rec.setAttribute("NM", misMatches);
 					
-					final int blockCount = Integer.parseInt(tokens[17]);
 					
-					int blockSizes[] = Arrays.stream(CharSplitter.COMMA.split(tokens[18])).
-							mapToInt(Integer::parseInt).
-							toArray();
-					int qStarts[] = Arrays.stream(CharSplitter.COMMA.split(tokens[19])).
-							mapToInt(Integer::parseInt).
-							toArray();
-					int tStarts[] = Arrays.stream(CharSplitter.COMMA.split(tokens[20])).
-							mapToInt(Integer::parseInt).
-							toArray();
-					final StringBuilder cigar = new StringBuilder();
+					final List<CigarElement> cigar = new ArrayList<CigarElement>(blockCount+2);
+					if(qStart>0) cigar.add(new CigarElement(qStart, CigarOperator.H));
+					
+					int y[]=qStarts;
+					int z[]=tStarts;
 					int gap_open =0;
 					int gap_ext = 0;
-					int y0 = qStarts[0];
-					int z0 = tStarts[0];
+					int readPos0 = y[0];
+					int refPos0 = z[0];
 					for(int i=1;i< blockCount;i++)
 						{
-						int ly = qStarts[i] - qStarts[i -1] - blockSizes[i-1];
-						int lz = tStarts[i] - tStarts[i-1] -blockSizes[i-1];
-						if (ly < lz) {
-							  ++gap_open;
-							  gap_ext += lz - ly;
-							  cigar.append(qStarts[i] - y0).append("M");
-							  cigar.append(lz - ly).append("D");
-							  y0 = qStarts[i];
-							  z0 = tStarts[i];
-							} else if (lz < ly) { //
-							  ++gap_open;
-							  gap_ext +=ly - lz;
-							  cigar.append(tStarts[i] - z0).append("M");
-							  cigar.append(lz - lz).append("D");
-							  y0 = qStarts[i];
-							  z0 = tStarts[i];
-							}
+						int q_stop = qStarts[i -1] + blockSizes[i-1];
+						int t_stop = tStarts[i -1] + blockSizes[i-1];
+
+						int q_gap_len = qStarts[i] - q_stop;
+						int t_gap_len = tStarts[i] - t_stop;
 						
+						 ++gap_open;
+						
+						if (q_gap_len < t_gap_len) {
+							  gap_ext += t_gap_len - q_gap_len;
+							  cigar.add(new CigarElement(y[i] - readPos0 ,CigarOperator.M));
+							  cigar.add(new CigarElement(t_gap_len - q_gap_len,CigarOperator.D));
+							  readPos0 = qStarts[i];
+							  refPos0 = tStarts[i];
+							} else if (t_gap_len < q_gap_len) { //
+							  gap_ext += q_gap_len - t_gap_len;
+							  cigar.add(new CigarElement(z[i] - refPos0,CigarOperator.M));
+							  cigar.add(new CigarElement(q_gap_len - t_gap_len,CigarOperator.I));
+							  readPos0 = qStarts[i];
+							  refPos0 = tStarts[i];
+							} else
+							{
+								//nothing
+							}
 						}
-					
-					cigar.append(0).append("M");
-					if (tokens[10] != tokens[12]) cigar.append(0).append('H') ;
+					cigar.add(new CigarElement(qEnd - readPos0,CigarOperator.M));
+
+					if (qSize != qEnd) cigar.add(new CigarElement(qSize - qEnd ,CigarOperator.H));
 					
 					if(tokens.length>22) {
 						final String readseq = tokens[22].replace(",", "").trim().toUpperCase();
@@ -216,10 +256,29 @@ public class PslxToBam extends Launcher
 						if(genomicSeq==null || !genomicSeq.getChrom().equals(tokens[13])) {
 							genomicSeq = new GenomicSequence(referenceSequenceFile,tokens[13]);
 							}
-						//TODO
+						final StringBuilder readseq = new StringBuilder();
+						int ref0= tStart;
+						for(final CigarElement ce: cigar) {
+							switch(ce.getOperator()) {
+								case H:break;
+								case D: case N:ref0+=ce.getLength();break;
+								case I: readseq.append(StringUtils.repeat(ce.getLength(),'N'));break;
+								case M: case EQ: case X:
+									{
+									readseq.append(genomicSeq.subSequence(ref0, ref0+ce.getLength())).toString().toUpperCase();
+									ref0+=ce.getLength();	
+									break;
+									}
+								default: throw new IllegalStateException(""+ce.getOperator());
+								}
+							
+							}
+						final String qual = StringUtils.repeat(readseq.length(), this.basequality);  
+						rec.setReadString(readseq.toString());
+						rec.setBaseQualityString(qual);
 						}
 					if(readGroupId!=null) rec.setAttribute("RG",readGroupId);
-					rec.setCigarString(cigar.toString());
+					rec.setCigar(new Cigar(cigar));
 					sw.addAlignment(rec);
 					}
 				
