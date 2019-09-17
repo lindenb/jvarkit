@@ -3,16 +3,20 @@ package com.github.lindenb.jvarkit.util.ucsc;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.regex.Pattern;
 
-import htsjdk.tribble.readers.LineIterator;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
+import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Locatable;
 
 /**
  * PSL format align.
  * see http://genome.ucsc.edu/FAQ/FAQformat.html#format2
  */
-public class PslAlign
+public class PslAlign implements Locatable
 	{
 	private int matches=0;// - Number of bases that match that aren't repeats
     private int misMatches=0;// - Number of bases that don't match
@@ -37,7 +41,7 @@ public class PslAlign
     //int tStarts[];//20 - Comma-separated list of starting positions of each block in target 
     private List<Block> blocks=new ArrayList<Block>();
     
-    public class Block
+    public static class Block
     	{
     	private int qStart;
     	private int tStart;
@@ -68,15 +72,13 @@ public class PslAlign
     		return qStart+":"+tStart+":"+len;
     		}
     	}
-    
-    private static final Pattern COMMA=Pattern.compile("[,]");
-   
+       
     public PslAlign()
     	{
     	
     	}
 
-    public PslAlign(String tokens[])
+    public PslAlign(final String tokens[])
     	{
     	strand=tokens[8].charAt(0);
     	qName=tokens[9];
@@ -91,12 +93,27 @@ public class PslAlign
         	this.blocks.add(new Block());
     		}
     	
-    	String ss[]=COMMA.split(tokens[18]);
+    	String ss[]=CharSplitter.COMMA.split(tokens[18]);
     	for(int i=0;i< blockCount;++i) this.blocks.get(i).len=Integer.parseInt(ss[i]);
-    	ss=COMMA.split(tokens[19]);
+    	ss=CharSplitter.COMMA.split(tokens[19]);
     	for(int i=0;i< blockCount;++i) this.blocks.get(i).qStart=Integer.parseInt(ss[i]);
-    	ss=COMMA.split(tokens[20]);
+    	ss=CharSplitter.COMMA.split(tokens[20]);
     	for(int i=0;i< blockCount;++i) this.blocks.get(i).tStart=Integer.parseInt(ss[i]);
+    	}
+    
+    @Override
+    public String getContig() {
+    	return getTargetName();
+    	}
+    
+    @Override
+    public int getStart() {
+    	return 1 + getTargetStart();//switch to 1-based
+    	}
+    
+    @Override
+    public int getEnd() {
+    	return getTargetEnd();
     	}
     
     public void addBlock(int qStart,int tStart,int len)
@@ -111,7 +128,7 @@ public class PslAlign
     
     public String toString()
     	{
-    	StringBuilder b=new StringBuilder();
+    	final StringBuilder b=new StringBuilder();
     	b.append(getMatches()).append('\t');
     	b.append(getMisMatches()).append('\t');
     	b.append(getRepMatches()).append('\t');
@@ -159,34 +176,28 @@ public class PslAlign
     	return b.toString();
     	}
     
-    @Deprecated
     public String getQueryName()
     	{
     	return qName;
     	}
-    @Deprecated
     public String getTargetName()
     	{
 		return tName;
 		}
-    @Deprecated
     public int getTargetStart()
     	{
 		return tStart;
 		}
-    @Deprecated
     public int getTargetEnd()
     	{
 		return tEnd;
 		}
     
-    @Deprecated
     /* Alignment start position in query 0-based */
 	public int getQueryStart()
 		{
 		return qStart;
 		}
-    @Deprecated
 	/* Alignment end position in query 0-based */
 	public int getQueryEnd()
 		{
@@ -349,50 +360,37 @@ public class PslAlign
 
 	
     
-    public static Iterator<PslAlign> iterator(LineIterator iter)
+    public static Iterator<PslAlign> iterator(final Iterator<String> iter)
     	{
     	return new MyIter(iter);
     	}
     
-    private static class MyIter implements Iterator<PslAlign>
+    private static class MyIter extends AbstractIterator<PslAlign>
+    	implements CloseableIterator<PslAlign>
     	{
-    	private Pattern tab=Pattern.compile("[\t]");
-    	private LineIterator delegate=null;
-    	MyIter(LineIterator delegate)
+    	private final CharSplitter tab=CharSplitter.TAB;
+    	private final Iterator<String> delegate;
+    	MyIter(final Iterator<String> delegate)
     		{
     		this.delegate=delegate;
     		}
     	@Override
-    	public boolean hasNext()
-    		{
-    		if(delegate==null) return false;
+    	protected PslAlign advance() {
     		while(delegate.hasNext())
     			{
-    			String line=delegate.peek();
-    			if(line.isEmpty() || !Character.isDigit(line.charAt(0)))//PSL header, empty lines...
+    			final String line=delegate.next();
+    			if(StringUtils.isBlank(line) || 
+    				line.startsWith("----") ||
+    				line.startsWith("psLayout") ||
+    				!Character.isDigit(line.charAt(0)))//PSL header, empty lines...
     				{
-    				delegate.next();
     				continue;
     				}
-    			return true;
+    			return new PslAlign(this.tab.split(delegate.next()));
     			}
-    		CloserUtil.close(delegate);
-    		delegate=null;
-    		return false;
+    		return null;
     		}
     	@Override
-    	public PslAlign next()
-    		{
-    		if(!hasNext()) throw new IllegalStateException();
-    		return new PslAlign(this.tab.split(delegate.next()));
-    		}
-    	
-    	@Override
-    	public void remove() {
-    		throw new UnsupportedOperationException();
-    		}
-    	
-    	@SuppressWarnings("unused")
 		public void close()
     		{
     		CloserUtil.close(delegate);

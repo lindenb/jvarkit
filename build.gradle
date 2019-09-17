@@ -1846,10 +1846,15 @@ all.add( task("sam2json", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamToJson"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
 	});
-all.add( task("sam2psl", type: CompileJVarkit) {
+all2.add( task("sam2psl", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamToPsl"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("pslx2bam", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.PslxToBam"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 all.add( task("sam2tsv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

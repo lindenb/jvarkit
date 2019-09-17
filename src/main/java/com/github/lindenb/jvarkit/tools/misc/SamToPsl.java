@@ -25,25 +25,30 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.awt.Color;
-import java.io.File;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
 /**
@@ -100,17 +105,20 @@ END_DOC
 @Program(name="sam2psl",
 	deprecatedMsg="use bedtools/bamtobed",
 	description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12",
-	keywords={"sam","bam","psl"}
+	keywords={"sam","bam","psl"},
+	modificationDate="20190917"
 	)
 public class SamToPsl extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamToPsl.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-s","--single"},description="treat all reads as single end.")
 	private boolean handle_paired_reads=false;
 	@Parameter(names={"-B","bed12"},description="Export as BED 12.")
 	private boolean output_bed12=false;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx=null;
 	
 	private PrintWriter out = null;
 	
@@ -323,21 +331,20 @@ public class SamToPsl extends Launcher
 	
 	private void scan(final SamReader in) 
 		{
-		final SAMSequenceDictionary dict=in.getFileHeader().getSequenceDictionary();
-		if(dict==null) throw new RuntimeException("Sequence dictionary missing...");
-		final SAMRecordIterator iter=in.iterator();
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);		
-		while(iter.hasNext() && !this.out.checkError())
-			{
-			final  SAMRecord rec=progress.watch(iter.next());
-			if(rec.getReadUnmappedFlag()) continue;
-			for(final PslAlign a: makePslAlign(rec,dict))
+		final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(in.getFileHeader());
+		try(final SAMRecordIterator iter=in.iterator()) {
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();		
+			while(iter.hasNext() && !this.out.checkError())
 				{
-				out.println(toString(a,rec));
+				final  SAMRecord rec=progress.apply(iter.next());
+				if(rec.getReadUnmappedFlag()) continue;
+				for(final PslAlign a: makePslAlign(rec,dict))
+					{
+					out.println(toString(a,rec));
+					}
 				}
+			progress.close();
 			}
-		progress.finish();
-		iter.close();
 		}
 	
 	private String toString(final PslAlign a,final  SAMRecord rec)
@@ -408,9 +415,21 @@ public class SamToPsl extends Launcher
 		SamReader sfr=null;
 		try
 			{
-			sfr = super.openSamReader(oneFileOrNull(args));
-			this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+			final String input = oneFileOrNull(args);
+			final InputStream in;
+			if(input==null) {
+				in = stdin();
+				}
+			else
+				{
+				in = IOUtils.openURIForReading(input);
+				}
+			sfr = srf.open(SamInputResource.of(in));
+			this.out = super.openPathOrStdoutAsPrintWriter(outputFile);
 			scan(sfr);
+			in.close();
 			this.out.flush();
 			this.out.close();
 			this.out = null;

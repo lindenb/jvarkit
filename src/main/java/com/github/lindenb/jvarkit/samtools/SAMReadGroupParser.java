@@ -35,6 +35,8 @@ import htsjdk.samtools.SAMReadGroupRecord;
 
 /** a simple class parsing @RG provided by user, when generating SAM */
 public class SAMReadGroupParser implements Function<String, SAMReadGroupRecord> {
+public static final String OPT_DESC = "read group header line such as '@RG\\tID:foo\\tSM:bar'";
+
 /** parses a valid read group, throw IllegalArgumentException pn error */
 @Override
 public SAMReadGroupRecord apply(final String readGroupStr) {
