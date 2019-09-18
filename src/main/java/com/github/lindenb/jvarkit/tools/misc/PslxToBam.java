@@ -106,6 +106,11 @@ RF01:100-200+N+INS	0	RF01	100	255	5H31M29I70M5H	*	0	0	TATTCTTCCAATAGTGAATTAGAGAA
 RF01:100-200/rc+N+INS	16	RF01	100	255	5H67M29I34M5H	*	0	0	TATTCTTCCAATAGTGAATTAGAGAATAGATGTATTGAATTTCATTCTAAATGCTTAGAAAACTCAANNNNNNNNNNNNNNNNNNNNNNNNNNNNNAGAATGGACTATCATTGAAAAAGCTCTTTGTTGA	2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222	PG:Z:0	NM:i:29
 ```
 
+## see also
+
+ * https://github.com/samtools/samtools/blob/develop/misc/psl2sam.pl
+ * https://github.com/bsipos/uncle_psl
+
 END_DOC
 */
 @Program(name="psl2bam",
@@ -135,13 +140,14 @@ public class PslxToBam extends Launcher
 	private char insert_base='N';
 	@Parameter(names= {"--failed"},description="save problematic lines here.",hidden=true)
 	private Path failedPath = null;
+	@Parameter(names= {"--intron"},description="use 'N' operator instead of 'D' when deletion are larger than 'x'")
+	private int use_N_operator_size = 50;
 
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
 	
-	@SuppressWarnings({ "resource" })
 	@Override
 	public int doWork(final List<String> args)
 		{
@@ -310,7 +316,7 @@ public class PslxToBam extends Launcher
 								 final int cigar_size = t_gap_len - q_gap_len;
 								  gap_ext += cigar_size;
 								  cigar.add(new CigarElement(qStarts[i] - readPos0 ,CigarOperator.M));
-								  cigar.add(new CigarElement(cigar_size,CigarOperator.D));
+								  cigar.add(new CigarElement(cigar_size,cigar_size> this.use_N_operator_size ?CigarOperator.N:CigarOperator.D));
 								  readPos0 = qStarts[i];
 								  refPos0 = tStarts[i];
 								} 
