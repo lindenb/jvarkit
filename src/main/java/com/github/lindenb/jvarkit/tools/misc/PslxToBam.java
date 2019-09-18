@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +33,8 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -130,6 +133,8 @@ public class PslxToBam extends Launcher
 	private boolean disable_pslx_bases=false;
 	@Parameter(names= {"--insert-base"},description="default base for insertion")
 	private char insert_base='N';
+	@Parameter(names= {"--failed"},description="save problematic lines here.",hidden=true)
+	private Path failedPath = null;
 
 	
 	@ParametersDelegate
@@ -139,11 +144,12 @@ public class PslxToBam extends Launcher
 	@SuppressWarnings({ "resource" })
 	@Override
 	public int doWork(final List<String> args)
-		{System.err.println(args);
+		{
 		SAMFileWriter sw=null;
 		BufferedReader br=null;
 		ReferenceSequenceFile referenceSequenceFile=null;
 		ChromosomeSequence genomicSeq=null;
+		
 		try
 			{
 			referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
@@ -173,6 +179,16 @@ public class PslxToBam extends Launcher
 			final SAMRecordFactory samRecordFactory = DefaultSAMRecordFactory.getInstance();
 			
 			sw = writingBamArgs.openSamWriter(this.outputFile, header, true);
+			
+			
+			PrintWriter failed;
+			if(this.failedPath==null) {
+				failed = new PrintWriter(new NullOuputStream());
+			} else
+				{
+				failed = IOUtils.openPathForPrintWriter(failedPath);
+				}
+			
 			
 			String prevReadName=null;
 			String line;
@@ -226,9 +242,9 @@ public class PslxToBam extends Launcher
 				    //10 qSize - Query sequence size.
 				    final int qSize = Integer.parseInt(tokens[col++]);
 				    //11 qStart - Alignment start position in query
-				    final int qStart =  Integer.parseInt(tokens[col++]);
+				    int qStart =  Integer.parseInt(tokens[col++]);
 				    //12 qEnd - Alignment end position in query
-				    final int qEnd =  Integer.parseInt(tokens[col++]);
+				    int qEnd =  Integer.parseInt(tokens[col++]);
 				    //13 tName - Target sequence name
 				    final String tName = tokens[col++];
 				    //14 tSize - Target sequence size
@@ -253,6 +269,14 @@ public class PslxToBam extends Launcher
 							mapToInt(Integer::parseInt).
 							toArray();
 
+					if (strand=='-') {
+					    int tmp = qStart;
+					    qStart = qSize - qEnd;
+					    qEnd = qSize - tmp;
+					  }
+
+					
+					
 					final SAMSequenceRecord ssr = dict.getSequence(tName);
 					if(ssr==null) {
 						throw new JvarkitException.ContigNotFoundInDictionary(tName, dict);
@@ -272,42 +296,44 @@ public class PslxToBam extends Launcher
 					int gap_ext = 0;
 					
 					try {
-				
-					int readPos0 = qStarts[0];
-					int refPos0 = tStarts[0];
-					for(int i=1;i< blockCount;i++)
-						{
-						final int q_stop = qStarts[i -1] + blockSizes[i-1];
-						final int t_stop = tStarts[i -1] + blockSizes[i-1];
-
-						final int q_gap_len = qStarts[i] - q_stop;
-						final int t_gap_len = tStarts[i] - t_stop;						
-						
-						if (q_gap_len < t_gap_len) {
-							 final int cigar_size = t_gap_len - q_gap_len;
-							  gap_ext += cigar_size;
-							  cigar.add(new CigarElement(qStarts[i] - readPos0 ,CigarOperator.M));
-							  cigar.add(new CigarElement(cigar_size,CigarOperator.D));
-							  readPos0 = qStarts[i];
-							  refPos0 = tStarts[i];
-							} else if (t_gap_len < q_gap_len) {
-							  final int cigar_size = q_gap_len - t_gap_len;
-							  gap_ext += cigar_size;
-							  cigar.add(new CigarElement(tStarts[i] - refPos0,CigarOperator.M));
-							  cigar.add(new CigarElement(cigar_size,CigarOperator.I));
-							  readPos0 = qStarts[i];
-							  refPos0 = tStarts[i];
-							} else
+						int readPos0 = qStarts[0];
+						int refPos0 = tStarts[0];
+						for(int i=1;i< blockCount;i++)
 							{
-								//nothing
+							final int q_stop = qStarts[i -1] + blockSizes[i-1];
+							final int t_stop = tStarts[i -1] + blockSizes[i-1];
+	
+							final int q_gap_len = qStarts[i] - q_stop;
+							final int t_gap_len = tStarts[i] - t_stop;						
+							
+							if (q_gap_len < t_gap_len) {
+								 final int cigar_size = t_gap_len - q_gap_len;
+								  gap_ext += cigar_size;
+								  cigar.add(new CigarElement(qStarts[i] - readPos0 ,CigarOperator.M));
+								  cigar.add(new CigarElement(cigar_size,CigarOperator.D));
+								  readPos0 = qStarts[i];
+								  refPos0 = tStarts[i];
+								} 
+							else if (t_gap_len < q_gap_len) {
+								  final int cigar_size = q_gap_len - t_gap_len;
+								  gap_ext += cigar_size;
+								  cigar.add(new CigarElement(tStarts[i] - refPos0,CigarOperator.M));
+								  cigar.add(new CigarElement(cigar_size,CigarOperator.I));
+								  readPos0 = qStarts[i];
+								  refPos0 = tStarts[i];
+								} 
+							else
+								{
+									//nothing
+								}
 							}
-						}
-					cigar.add(new CigarElement(qEnd - readPos0,CigarOperator.M));
-
-					if (qSize > qEnd) cigar.add(new CigarElement(qSize - qEnd ,CigarOperator.H));
-					
+						cigar.add(new CigarElement(qEnd - readPos0,CigarOperator.M));
+	
+						if (qSize > qEnd) cigar.add(new CigarElement(qSize - qEnd ,CigarOperator.H));
+						
 					} catch(final IllegalArgumentException err) {
-						LOG.warn("Cannot build cigar string for \""+line+"\"");
+						LOG.error("Cannot build cigar string for \""+line+"\"",err);
+						failed.append(line);
 						continue;
 						}
 					
@@ -393,7 +419,7 @@ public class PslxToBam extends Launcher
 					rec.setCigar(new Cigar(cigar));
 					sw.addAlignment(rec);
 					}
-				
+			failed.close();failed=null;
 			sw.close();sw=null;
 			br.close();br=null;
 			referenceSequenceFile.close();
