@@ -68,7 +68,7 @@ BEGIN_DOC
 
 convert the psl  (or pslx) format to sam/bam.
 
-if pslx it will use the bases to set the SEQ
+When the input format is pslx. The program will use the bases to set the SEQ column. Nevertheless, there are sometimes fewers bases in the pslx format than expected (I don't understand why), so I sometimes fill the SEQ with 'N'.
 
 ## Example
 
@@ -117,6 +117,8 @@ public class PslxToBam extends Launcher
 	private boolean disable_secondary_flag=false;
 	@Parameter(names= {"--disable-pslx"},description="disable use of bases provided by the pslX format.")
 	private boolean disable_pslx_bases=false;
+	@Parameter(names= {"--insert-base"},description="default base for insertion")
+	private char insert_base='N';
 
 	
 	@ParametersDelegate
@@ -257,7 +259,7 @@ public class PslxToBam extends Launcher
 					}
 					prevReadName = readName;
 					
-					final List<CigarElement> cigar = new ArrayList<CigarElement>(blockCount+2);
+					final List<CigarElement> cigar = new ArrayList<CigarElement>(blockCount*2+2);
 					if(qStart>0) cigar.add(new CigarElement(qStart, CigarOperator.H));
 					
 					int gap_ext = 0;
@@ -294,12 +296,22 @@ public class PslxToBam extends Launcher
 
 					if (qSize != qEnd) cigar.add(new CigarElement(qSize - qEnd ,CigarOperator.H));
 					
-					rec.setAttribute("NM", misMatches + gap_ext);
+					rec.setAttribute("NM", misMatches);
+					rec.setAttribute("AS", qSize-(misMatches + gap_ext));
 
 					
 					final String readBases;
-					if(!disable_pslx_bases && tokens.length>22) {
-						readBases = tokens[22].replace(",", "").trim().toUpperCase();
+					final int readbases_column_index=21;
+					// tokens[21] is QUERY sequence in nucleic acid when using pslx format
+					if(!disable_pslx_bases && tokens.length> readbases_column_index ) {
+						final StringBuilder readBaseBuilder = new StringBuilder(tokens[readbases_column_index].length());
+						final String t2[]  = CharSplitter.COMMA.split(tokens[readbases_column_index]);
+						if(t2.length!=blockCount) throw new JvarkitException.TokenErrors(blockCount,t2);
+						for(int j=0;j< t2.length;++j) {
+							if(t2[j].length()!=blockSizes[j])  throw new IllegalAccessException("t2["+j+"]="+t2[j]+" expected length;"+blockSizes[j]);
+							readBaseBuilder.append(t2[j].toUpperCase());
+							}
+						readBases = readBaseBuilder.toString();
 						}
 					else
 						{
@@ -319,8 +331,8 @@ public class PslxToBam extends Launcher
 								case D: case N:ref0+=ce.getLength();break;
 								case I: 
 									{
-									readseq.append(StringUtils.repeat(ce.getLength(),'N'));
-									read0 += ce.getLength();
+									readseq.append(StringUtils.repeat(ce.getLength(),this.insert_base));
+									// read0 += ce.getLength(); NO NO NO insert sequence is not provided in pslX format.
 									break;
 									}
 								case M: case EQ: case X:
@@ -331,7 +343,17 @@ public class PslxToBam extends Launcher
 										}
 									else //pslx
 										{
-										readseq.append(readBases.substring(read0,read0+ce.getLength()));
+										for(int j=0;j< ce.getLength();++j) {
+											// I cannot understand why sometimes, there are fewer bases in the pslx format.
+											if(read0+j < readBases.length())
+												{
+												readseq.append(readBases.charAt(read0+j));
+												}
+											else
+												{
+												readseq.append('N');
+												}
+											}
 										}
 									ref0+=ce.getLength();
 									read0+=ce.getLength();
