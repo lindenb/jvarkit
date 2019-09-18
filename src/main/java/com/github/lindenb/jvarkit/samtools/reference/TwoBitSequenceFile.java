@@ -49,7 +49,9 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class TwoBitSequenceFile implements ReferenceSequenceFile {
-    private static final int DEFAULT_BUFFER_SIZE = 1_000_000;
+    public static final String SUFFIX = ".2bit";
+    
+	private static final int DEFAULT_BUFFER_SIZE = 1_000_000;
 
     
     private static final int MASKED_BASE_BIT = 8;

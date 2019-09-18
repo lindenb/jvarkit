@@ -1850,7 +1850,7 @@ all2.add( task("sam2psl", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamToPsl"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all2.add( task("pslx2bam", type: CompileJVarkit) {
+all2.add( task("psl2bam", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.PslxToBam"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
