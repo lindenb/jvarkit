@@ -514,11 +514,11 @@ protected Status parseArgs(final String args[])
 		getJCommander().parse(args);
 	  	}
 	 catch(final com.beust.jcommander.ParameterException err) {
-		stderr().println("There was an error in the input parameters.");
+		stderr().print("There was an error in the input parameters: ");
 		stderr().println(err.getMessage());
-		return Status.EXIT_FAILURE; 
+		return Status.EXIT_FAILURE;
 	 	}
-	 
+	
 	 if (this.usageBuilder.shouldPrintUsage()) return Status.PRINT_HELP;
 	 if (this.usageBuilder.print_version) return Status.PRINT_VERSION;
 	 return Status.OK;

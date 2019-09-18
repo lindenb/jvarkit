@@ -33,26 +33,35 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.samtools.SAMReadGroupRecord;
 
-/** a simple class parsing @RG provided by user, when generating SAM */
+/** a simple class parsing <code>@RG</code> provided by user, when generating SAM */
 public class SAMReadGroupParser implements Function<String, SAMReadGroupRecord> {
-public static final String OPT_DESC = "read group header line such as '@RG\\tID:foo\\tSM:bar'";
+public static final String OPT_DESC = "read group header line such as 'RG\\tID:foo\\tSM:bar' . '@' prefix should be ignore because of this bug/feature: '@ to refer to contents in a file': https://github.com/cucumber/cucumber-jvm/issues/266 ";
 
 /** parses a valid read group, throw IllegalArgumentException pn error */
 @Override
 public SAMReadGroupRecord apply(final String readGroupStr) {
 	if(readGroupStr==null) throw new IllegalArgumentException("null read group");
-	final String tokens[]=CharSplitter.TAB.split(readGroupStr);
-	if(!tokens[0].equals("@RG")) {
-		throw new IllegalArgumentException("Doesn't start with a @RG / bad read group "+readGroupStr);
+	final String tokens[];
+	//no tab, user provided escaped read-group
+	if(readGroupStr.indexOf('\t')==-1)
+		{
+		tokens = readGroupStr.split("\\\\t");
+		}
+	else
+		{
+		tokens = CharSplitter.TAB.split(readGroupStr);
+		}
+	if(!(tokens[0].equals("@RG") || tokens[0].equals("RG") )) {
+		throw new IllegalArgumentException("Group '"+readGroupStr+"' doesn't start with a '@RG' or 'RG' but \""+tokens[0]+"\" / bad read group "+readGroupStr);
 		}
 	final Map<String,String> props= new LinkedHashMap<>(tokens.length);
-	for(int i=0;i< tokens.length;i++)
+	for(int i=1;i< tokens.length;i++)
 		{
 		final int colon = tokens[i].indexOf(':');
 		if(colon<=0) {
 			throw new IllegalArgumentException("Colon missing in "+tokens[i]);
 			}
-		final String key = tokens[i].substring(colon+1);
+		final String key = tokens[i].substring(0,colon);
 		if(props.containsKey(key)) throw new IllegalArgumentException("duplicate key "+key+" in "+readGroupStr);
 		props.put(key, tokens[i].substring(colon+1));
 		}

@@ -72,8 +72,19 @@ When the input format is pslx. The program will use the bases to set the SEQ col
 
 ## Example
 
+### remapping reads with blat
+
+```
+samtools fasta src/test/resources/S1.bam |\
+	blat -out=pslx  src/test/resources/rotavirus_rf.fa stdin stdout |\
+	java -jar dist/psl2bam.jar -R src/test/resources/rotavirus_rf.fa 
+```
+
+### example
+ 
 ```
 java -jar dist/psl2bam.jar -R src/test/resources/rotavirus_rf.fa   input.psl
+
 @HD	VN:1.6	SO:unsorted
 @SQ	SN:RF01	LN:3302	M5:59dccb944425dd61f895a564ad7b56a7	UR:https://raw.githubusercontent.com/lindenb/jvarkit/master/src/test/resources/rotavirus_rf.fa	SP:rotavirus
 (...)
@@ -128,7 +139,7 @@ public class PslxToBam extends Launcher
 	@SuppressWarnings({ "resource" })
 	@Override
 	public int doWork(final List<String> args)
-		{
+		{System.err.println(args);
 		SAMFileWriter sw=null;
 		BufferedReader br=null;
 		ReferenceSequenceFile referenceSequenceFile=null;
@@ -382,6 +393,7 @@ public class PslxToBam extends Launcher
 		catch(final Throwable err)
 			{
 			LOG.error(err);
+			err.printStackTrace();
 			return -1;
 			}
 		finally
