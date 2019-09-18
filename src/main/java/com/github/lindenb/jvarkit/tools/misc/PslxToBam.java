@@ -265,24 +265,23 @@ public class PslxToBam extends Launcher
 					rec.setMappingQuality(this.mapq);
 					rec.setReadNegativeStrandFlag(strand=='-');
 					
-					if(!disable_secondary_flag && readName.equals(prevReadName)) {
-						rec.setSecondaryAlignment(true);
-					}
-					prevReadName = readName;
 					
 					final List<CigarElement> cigar = new ArrayList<CigarElement>(blockCount*2+2);
 					if(qStart>0) cigar.add(new CigarElement(qStart, CigarOperator.H));
 					
 					int gap_ext = 0;
+					
+					try {
+				
 					int readPos0 = qStarts[0];
 					int refPos0 = tStarts[0];
 					for(int i=1;i< blockCount;i++)
 						{
-						int q_stop = qStarts[i -1] + blockSizes[i-1];
-						int t_stop = tStarts[i -1] + blockSizes[i-1];
+						final int q_stop = qStarts[i -1] + blockSizes[i-1];
+						final int t_stop = tStarts[i -1] + blockSizes[i-1];
 
-						int q_gap_len = qStarts[i] - q_stop;
-						int t_gap_len = tStarts[i] - t_stop;						
+						final int q_gap_len = qStarts[i] - q_stop;
+						final int t_gap_len = tStarts[i] - t_stop;						
 						
 						if (q_gap_len < t_gap_len) {
 							 final int cigar_size = t_gap_len - q_gap_len;
@@ -305,8 +304,19 @@ public class PslxToBam extends Launcher
 						}
 					cigar.add(new CigarElement(qEnd - readPos0,CigarOperator.M));
 
-					if (qSize != qEnd) cigar.add(new CigarElement(qSize - qEnd ,CigarOperator.H));
+					if (qSize > qEnd) cigar.add(new CigarElement(qSize - qEnd ,CigarOperator.H));
 					
+					} catch(final IllegalArgumentException err) {
+						LOG.warn("Cannot build cigar string for \""+line+"\"");
+						continue;
+						}
+					
+					
+					if(!disable_secondary_flag && readName.equals(prevReadName)) {
+						rec.setSecondaryAlignment(true);
+					}
+					prevReadName = readName;
+
 					rec.setAttribute("NM", misMatches);
 					rec.setAttribute("AS", qSize-(misMatches + gap_ext));
 
