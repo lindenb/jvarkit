@@ -2290,8 +2290,8 @@ all2.add( task("bamheteroplasmy", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
-all2.add( task("mantafisher", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.structvar.manta.MantaFisher"
+all2.add( task("mantamerger", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.structvar.manta.MantaMerger"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
