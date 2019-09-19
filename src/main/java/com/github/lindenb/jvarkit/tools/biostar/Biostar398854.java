@@ -129,7 +129,7 @@ public class Biostar398854 extends Launcher {
 							if(variants.isEmpty()) return;
 							
 							final ReferenceSequence refSeq = this.referenceSequenceFile.getSubsequenceAt(transcript.getContig(),transcript.getStart(), transcript.getEnd());
-							refSeq.getC
+							
 							
 							
 							for(int nSample=0;nSample<=/* yes <= */ samples.size();nSample++)

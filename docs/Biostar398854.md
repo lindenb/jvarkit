@@ -56,6 +56,11 @@ $ ./gradlew biostar398854
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20190916
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar398854.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar398854.java)
@@ -81,3 +86,12 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+ ## Example
+ 
+ ```
+ java -jar ${JVARKIT_DIST}/biostar398854.jar \
+ 	--gtf input.gtf.gz \
+ 	-R ref.fasta input.vcf > out.fasta
+ 
+ ```
+ 
