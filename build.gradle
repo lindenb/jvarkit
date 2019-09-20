@@ -1040,6 +1040,10 @@ all2.add( task("vcfburdengtf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenGtf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("vcfburdenslidingwindow", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenSlidingWindow"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("cmpbamsandbuild", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.CompareBamAndBuild"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
