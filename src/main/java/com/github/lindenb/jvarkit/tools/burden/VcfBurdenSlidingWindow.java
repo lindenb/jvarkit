@@ -26,14 +26,12 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.iterator.SlidingWindowIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -100,27 +98,6 @@ extends AbstractVcfBurden
 	private String limitContig = null;
 
 
-	private static class Window implements Locatable
-		{
-		final SimpleInterval interval;
-		final List<VariantContext> variants = new ArrayList<>();
-		Window(final SimpleInterval  r) {
-			this.interval = r;
-			}
-		@Override
-		public String getContig() {
-			return interval.getContig();
-			}
-		@Override
-		public int getStart() {
-			return interval.getStart();
-			}
-		@Override
-		public int getEnd() {
-			return interval.getEnd();
-			}
-		}
-	
 	private boolean accept(final VariantContext ctx) {
 		if(!variantFilter.test(ctx))return false;
 		return true;
@@ -156,47 +133,8 @@ extends AbstractVcfBurden
 		pw.print("variants.count");
 		pw.println();
 
-		final Consumer<Window> windowConsummer=W->{
-			final FisherResult fisher = runFisher(W.variants);
-			if(fisher.p_value> this.fisherTreshold) return;
-			
-			pw.print(W.getContig());
-			pw.print("\t");
-			pw.print(W.getStart()-1);
-			pw.print("\t");
-			pw.print(W.getEnd());
-			pw.print("\t");
-			pw.print(W.interval.toString());
-			pw.print("\t");
-			pw.print(W.getLengthOnReference());
-			pw.print("\t");
-			pw.print(fisher.p_value);
-			pw.print("\t");
-			pw.print(fisher.affected_alt);
-			pw.print("\t");
-			pw.print(fisher.affected_hom);
-			pw.print("\t");
-			pw.print(fisher.unaffected_alt);
-			pw.print("\t");
-			pw.print(fisher.unaffected_hom);
-			pw.print("\t");
-			pw.print(W.variants.size());
-			pw.println();
-
-			
-			
-			if(vcw!=null) {
-				for(final VariantContext ctx:W.variants) {
-					vcw.add(new VariantContextBuilder(ctx).
-							attribute(BURDEN_KEY, VCFUtils.escapeInfoField(W.toString())).
-							make());
-				}
-			}
-		};
 		
-		
-		
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(vcfDict).build();
+		final ProgressFactory.Watcher<Locatable> progress = ProgressFactory.newInstance().logger(LOG).dictionary(vcfDict).build();
 		
 		
 		
@@ -211,63 +149,55 @@ extends AbstractVcfBurden
 			iter = vcfReader.iterator();
 			}
 	
+		
+		final SlidingWindowIterator<VariantContext> iter2 = new SlidingWindowIterator<>(
+				iter.stream().filter(CTX->accept(CTX)).iterator(),
+				this.window_size,
+				this.window_shift
+				);
+		while(iter2.hasNext()) {
+			final Map.Entry<? extends Locatable, List<VariantContext>> entry = iter2.next();
+			
+			final Locatable W =  progress.apply(entry.getKey());
+			final FisherResult fisher = runFisher(entry.getValue());
+			if(fisher.p_value> this.fisherTreshold) continue;
+			
+			pw.print(W.getContig());
+			pw.print("\t");
+			pw.print(W.getStart()-1);
+			pw.print("\t");
+			pw.print(W.getEnd());
+			pw.print("\t");
+			pw.print(new SimpleInterval(W).toString());
+			pw.print("\t");
+			pw.print(W.getLengthOnReference());
+			pw.print("\t");
+			pw.print(fisher.p_value);
+			pw.print("\t");
+			pw.print(fisher.affected_alt);
+			pw.print("\t");
+			pw.print(fisher.affected_hom);
+			pw.print("\t");
+			pw.print(fisher.unaffected_alt);
+			pw.print("\t");
+			pw.print(fisher.unaffected_hom);
+			pw.print("\t");
+			pw.print(entry.getValue().size());
+			pw.println();
+
+			
+			
+			if(vcw!=null) {
+				for(final VariantContext ctx:entry.getValue()) {
+					vcw.add(new VariantContextBuilder(ctx).
+							attribute(BURDEN_KEY, VCFUtils.escapeInfoField(W.toString())).
+							make());
+				}
+			}
+		
+		}
+		
 	
-		final List<Window> buffer= new ArrayList<>();
-		final Map<SimpleInterval,Window> interval2win=new HashMap<>();
-		String prevContig = null;
-		for(;;) {
-			final VariantContext ctx= iter.hasNext()?progress.apply(iter.next()):null;
-									
-			if(ctx!=null && !accept(ctx)) continue;
-			
-			
-			// new contig?
-			if(ctx==null || (prevContig!=null && !ctx.getContig().equals(prevContig))) {
-				buffer.stream().forEach(windowConsummer);
-				if(ctx==null) break;
-				interval2win.clear();
-				buffer.clear();
-				}
-			//remove previous windows
-			int i=0;
-			while(i< buffer.size()) {
-				final Window w = buffer.get(i);
-				if(w.getEnd() < ctx.getStart()) {
-					windowConsummer.accept(w);
-					buffer.remove(i);
-					interval2win.remove(w.interval);
-					}
-				else
-					{
-					i++;
-					}
-				}
-			
-			prevContig=ctx.getContig();
-			int x1 = ctx.getStart() -   ctx.getStart()%this.window_shift;
-			while(x1-this.window_shift+this.window_size>=ctx.getStart()) {
-				x1 -= this.window_shift;
-				}
-			for(;;) {
-				final SimpleInterval r= new SimpleInterval(
-						ctx.getContig(),
-						Math.max(1,x1),
-						Math.max(1,x1+this.window_size)
-						);
-				
-				if(r.getStart()>ctx.getEnd()) break;
-				if(r.overlaps(ctx)) {
-					Window w = interval2win.get(r);
-					if(w==null) {
-						w= new Window(r);
-						interval2win.put(r, w);
-						buffer.add(w);
-						}
-					w.variants.add(ctx);
-					}
-				x1+=this.window_shift;
-				}
-			}	
 	iter.close();
 	progress.close();	
 	}
