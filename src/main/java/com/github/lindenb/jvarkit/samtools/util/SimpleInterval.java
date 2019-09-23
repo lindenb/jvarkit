@@ -29,6 +29,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
 import htsjdk.samtools.util.Locatable;
 
 /**
@@ -87,6 +89,11 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 		return end;
 		}
 	
+	/** return true if the interval contains this 1-based position */
+	public boolean contains(int g1) {
+		return this.start <=g1 && g1 <=this.end;
+	}
+	
 	/** alias for getLengthOnReference */
 	public final int length() {
 		return this.getLengthOnReference();
@@ -122,6 +129,15 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 		return result;
 	}
 	
+	
+	/** use StringUtils.niceInt to format start and end  */
+	public String toNiceString() {
+		return this.contig+":"+ 
+				StringUtils.niceInt(this.start) + "-"+ 
+				StringUtils.niceInt(this.end)
+				;
+	}
+	
 	@Override
 	public String toString() {
 		return this.contig+":"+this.start+"-"+this.end;
@@ -134,7 +150,7 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 	
 	/** get the merged interval <code>SimpleInterval(chrom,min(this.getStart(),other.getStart()),max(this.getStart(),other.getStart()))</code> */
 	public SimpleInterval merge(final Locatable other) {
-		if(!overlaps(other)) throw new IllegalArgumentException("assertion failed "+this+" doesn't overlap with "+other);
+		if(!overlaps(other)) throw new IllegalArgumentException("assertion failed "+this.toNiceString() + " doesn't overlap with "+other);
 		if(this.contains(other)) return this;
 		return new SimpleInterval(
 				getContig(),

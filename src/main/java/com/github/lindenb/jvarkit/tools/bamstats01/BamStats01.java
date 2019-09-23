@@ -151,7 +151,9 @@ public class BamStats01
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
-	
+	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+SAMRecordPartition.OPT_DESC)
+	private Path faidx=null;
+
 
 	private PrintStream out=System.out;
 	//private File bedFile=null;
@@ -474,6 +476,9 @@ public class BamStats01
 			out.println();
 			
 			final SamReaderFactory srf= super.createSamReaderFactory();
+			if(this.faidx!=null) {
+				srf.referenceSequence(this.faidx);
+			}
 			
 			if(args.isEmpty())
 				{

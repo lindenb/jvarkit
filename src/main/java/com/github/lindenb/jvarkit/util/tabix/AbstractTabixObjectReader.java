@@ -37,7 +37,7 @@ import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
-import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 
 
 public abstract class AbstractTabixObjectReader<T> implements Closeable
@@ -77,13 +77,13 @@ public abstract class AbstractTabixObjectReader<T> implements Closeable
     	return iterator(tabix.iterator(chrom+":"+start+"-"+end));
     	}
     
-    public Iterator<T> iterator(final Interval interval)
+    public Iterator<T> iterator(final Locatable interval)
 		{
 		return iterator(tabix.iterator(interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd()));
 		}
     
     /** returns a list of items in the interval */
-    public List<T> getItemsInInterval(final Interval interval)
+    public List<T> getItemsInInterval(final Locatable interval)
 		{
     	final Iterator<T> t = this.iterator(interval);
     	if(!t.hasNext()) return Collections.emptyList();

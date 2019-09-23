@@ -31,6 +31,7 @@ import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -54,14 +56,19 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -105,7 +112,7 @@ END_DOC
 @Program(name="bam2svg",
 description="BAM to Scalar Vector Graphics (SVG)",
 keywords={"bam","alignment","graphics","visualization","svg"},
-modificationDate="20190417"
+modificationDate="20190923"
 )
 public class BamToSVG extends Launcher
 	{
@@ -120,7 +127,7 @@ public class BamToSVG extends Launcher
 	private File outputFile = null;
 
 
-	@Parameter(names={"-i","--interval","--region"},description="interval CHROM:START-END",required=true)
+	@Parameter(names={"-i","--interval","--region"},description=IntervalParserFactory.OPT_DESC,required=true)
 	private String intervalStr = null;
 
 	@Parameter(names={"-w","--width"},description="Page width")
@@ -133,7 +140,7 @@ public class BamToSVG extends Launcher
 	private Set<String> vcfFileSet = new LinkedHashSet<>() ;
 
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File referenceFile = null;
+	private Path referenceFile = null;
 
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
@@ -144,19 +151,19 @@ public class BamToSVG extends Launcher
 	
 		private int HEIGHT_RULER=200;
 		private Hershey hershey=new Hershey();
-		private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+		private ReferenceSequenceFile indexedFastaSequenceFile=null;
 		private GenomicSequence genomicSequence=null;
-		private Interval interval=null;
-		private Map<String, Sample> sampleHash=new HashMap<String, Sample>();
+		private SimpleInterval interval=null;
+		private final Map<String, Sample> sampleHash=new HashMap<String, Sample>();
 		private double featureHeight =1;
 		private double featureWidth =1;
-		private DecimalFormat decimalFormater = new DecimalFormat("##.##");
-		private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
+		private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+		//private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 		private List<VariantContext> pos2variant=new ArrayList<VariantContext>();
 		private class Sample
 			{
 			String name;
-			List<List<SAMRecord>> lines=new ArrayList<List<SAMRecord>>();
+			final List<List<SAMRecord>> lines=new ArrayList<List<SAMRecord>>();
 			
 			public double getHeight()
 				{
@@ -169,38 +176,6 @@ public class BamToSVG extends Launcher
 				}
 			}
 		
-		private static class Interval
-			{
-			String chrom;
-			int start;
-			int end;
-			public String getChrom()
-				{	
-				return chrom;
-				}
-			public int getStart()
-				{
-				return start;
-				}
-			public int getEnd()
-				{
-				return end;
-				}
-			private int distance()
-				{
-				return this.getEnd()-this.getStart();
-				}
-			@Override
-			public String toString() {
-				return chrom+":"+start+"-"+end;
-				}
-			public boolean contains(int pos)
-				{
-				return start<=pos && pos<end;
-				}
-			
-			}
-	
 		
 		
 		/** scale a rect by ratio */
@@ -229,7 +204,7 @@ public class BamToSVG extends Launcher
 		
 		private int trim(int pos0)
 			{
-			return Math.min(Math.max(pos0, interval.start),interval.end);
+			return Math.min(Math.max(pos0, interval.getStart()),interval.getEnd()+1);
 			}
 	
 		
@@ -244,17 +219,16 @@ public class BamToSVG extends Launcher
 			}
 		private double baseToPixel(int pos)
 			{
-			return  ((pos - this.interval.getStart())/(double)this.interval.distance())*(this.drawinAreaWidth)
-					;
+			return  ((pos - this.interval.getStart())/(double)(this.interval.length()))*(this.drawinAreaWidth);
 			}
 		private void readVariantFile(String vcf)  throws IOException
 			{
 			LOG.info("Reading "+vcf);
 			TabixVcfFileReader tfr=new TabixVcfFileReader(vcf);
-			Iterator<VariantContext> iter=tfr.iterator(this.interval.chrom, this.interval.start, this.interval.end);
+			Iterator<VariantContext> iter=tfr.iterator(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd());
 			while(iter.hasNext())
 				{
-				VariantContext ctx=iter.next();
+				final VariantContext ctx=iter.next();
 				this.pos2variant.add(ctx);
 				}
 			tfr.close();
@@ -267,7 +241,7 @@ public class BamToSVG extends Launcher
 				final SAMRecord rec = iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				if( this.samRecordFilter.filterOut(rec)) continue;
-				if( !rec.getReferenceName().equals(this.interval.getChrom())) continue;
+				if( !rec.getReferenceName().equals(this.interval.getContig())) continue;
 				if( right(rec)  < this.interval.getStart()) continue;
 				if( left(rec)  > this.interval.getEnd())continue;
 				
@@ -352,9 +326,9 @@ public class BamToSVG extends Launcher
 	
 			/* write REFERENCE */
 			w.writeComment("REFERENCE");
-			for(int pos=this.interval.start;
+			for(int pos=this.interval.getStart();
 					this.featureWidth>5 && //ignore if too small
-					pos<=this.interval.end;++pos)
+					pos<=this.interval.getEnd();++pos)
 				{
 				char c=(this.genomicSequence==null?'N':this.genomicSequence.charAt(pos-1));
 				double x0  = baseToPixel(pos);
@@ -377,8 +351,8 @@ public class BamToSVG extends Launcher
 					{
 					Genotype g=ctx.getGenotype(sample.name);
 					if(g==null || !g.isCalled() || g.isHomRef()) continue;
-					if(ctx.getEnd()< this.interval.start) continue;
-					if(ctx.getStart()> this.interval.end) continue;
+					if(ctx.getEnd()< this.interval.getStart()) continue;
+					if(ctx.getStart()> this.interval.getEnd()) continue;
 					double x0  = baseToPixel(ctx.getStart());
 					w.writeEmptyElement("use");
 					w.writeAttribute("x",format(x0));
@@ -414,9 +388,9 @@ public class BamToSVG extends Launcher
 			
 			/* write consensus */
 			w.writeComment("Consensus");
-			for(int pos=this.interval.start;
+			for(int pos=this.interval.getStart();
 					this.featureWidth>5 && //ignore if too small
-					pos<=this.interval.end;++pos)
+					pos<=this.interval.getEnd();++pos)
 				{
 				Counter<Character> cons = pos2consensus.get(pos);
 				if(cons==null) continue;
@@ -592,7 +566,7 @@ public class BamToSVG extends Launcher
 			w.writeAttribute("class","maintitle");
 			w.writeAttribute("title",intervalStr);
 			w.writeAttribute("d", this.hershey.svgPath(
-					this.interval.chrom+":"+niceIntFormat.format(this.interval.start)+"-"+niceIntFormat.format(this.interval.end),
+					this.interval.getContig()+":"+StringUtils.niceInt(this.interval.getStart())+"-"+StringUtils.niceInt(this.interval.getEnd()),
 					scaleRect(new Rectangle2D.Double(
 							0,
 							y,
@@ -605,12 +579,12 @@ public class BamToSVG extends Launcher
 			/* write ruler */
 			int prev_ruler_printed=-1;
 			w.writeStartElement("g");
-			for(int pos=this.interval.start; pos<=this.interval.end;++pos)
+			for(int pos=this.interval.getStart(); pos<=this.interval.getEnd();++pos)
 				{
 				double x= this.baseToPixel(pos);
 				w.writeEmptyElement("line");
 				w.writeAttribute("class","rulerline");
-				w.writeAttribute("title",niceIntFormat.format(pos));
+				w.writeAttribute("title",StringUtils.niceInt(pos));
 				w.writeAttribute("x1",format(x));
 				w.writeAttribute("x2",format(x));
 				w.writeAttribute("y1",format(y+HEIGHT_RULER-5));
@@ -620,8 +594,8 @@ public class BamToSVG extends Launcher
 					x= (this.baseToPixel(pos)+this.baseToPixel(pos+1))/2.0;
 					w.writeEmptyElement("path");
 					w.writeAttribute("class","rulerlabel");
-					w.writeAttribute("title",niceIntFormat.format(pos));
-					w.writeAttribute("d",this.hershey.svgPath(niceIntFormat.format(pos),0,0,Math.min(niceIntFormat.format(pos).length()*this.featureHeight,HEIGHT_RULER)-20,featureHeight));
+					w.writeAttribute("title",StringUtils.niceInt(pos));
+					w.writeAttribute("d",this.hershey.svgPath(StringUtils.niceInt(pos),0,0,Math.min(StringUtils.niceInt(pos).length()*this.featureHeight,HEIGHT_RULER)-20,featureHeight));
 					w.writeAttribute("transform","translate("+(x-featureHeight/2.0)+","+ (y+(HEIGHT_RULER-10)) +") rotate(-90) ");
 					prev_ruler_printed=pos;
 					}	
@@ -765,8 +739,8 @@ public class BamToSVG extends Launcher
 						//print sam background
 						StringBuilder sb=new StringBuilder();
 						if(record.getReadNegativeStrandFlag() &&
-							match_start >= this.interval.start && 
-							match_start <= this.interval.end &&
+							match_start >= this.interval.getStart() && 
+							match_start <= this.interval.getEnd() &&
 							cidx==arrow_cigar_index)
 							{
 							sb.append(" M ").append(format(baseToPixel(match_start)+arrow_w)).append(',').append(y_top5);
@@ -777,8 +751,8 @@ public class BamToSVG extends Launcher
 							sb.append(" Z");
 							}
 						else if(!record.getReadNegativeStrandFlag() &&
-								match_end >= this.interval.start && 
-								match_end <= this.interval.end &&
+								match_end >= this.interval.getStart() && 
+								match_end <= this.interval.getEnd() &&
 								cidx==arrow_cigar_index
 								)
 							{
@@ -864,18 +838,17 @@ public class BamToSVG extends Launcher
 			
 			for(Integer pos:pos2insertions.keySet())
 				{
-				if(pos < this.interval.start)  continue;
-				if(pos > this.interval.end)  continue;
-				String insertion=pos2insertions.get(pos);
+				if(pos < this.interval.getStart())  continue;
+				if(pos > this.interval.getEnd())  continue;
+				final String insertion=pos2insertions.get(pos);
 				w.writeEmptyElement("line");
-				double x= baseToPixel(pos);
+				final double x= baseToPixel(pos);
 				w.writeAttribute("title","Insertion "+insertion);
 				w.writeAttribute("class","insert");
 				w.writeAttribute("x1",format(x));
 				w.writeAttribute("x2",format(x));
 				w.writeAttribute("y1",format(y_top5));
 				w.writeAttribute("y2",format(y_bot5));
-				
 				}
 			w.writeEndElement();//g
 			
@@ -884,26 +857,12 @@ public class BamToSVG extends Launcher
 		@Override
 		public int doWork(final List<String> args) {
 			/* parse interval */
-			if(this.intervalStr==null)
+			if(StringUtils.isBlank(this.intervalStr))
 				{
-				LOG.error("bed.interval0.undefined");
-				return -1;
-				}
-			int colon= this.intervalStr.indexOf(':');
-			int hyphen=this.intervalStr.indexOf('-',colon+1);
-			if(colon<1 || hyphen<=colon || hyphen+1==intervalStr.length())
-				{
-				LOG.error("Bad interval "+this.intervalStr);
+				LOG.error("Interval undefined");
 				return -1;
 				}
 			
-			this.interval=new Interval();
-			this.interval.chrom=this.intervalStr.substring(0,colon);
-			this.interval.start=Integer.parseInt(this.intervalStr.substring(colon+1,hyphen))+1;
-			this.interval.end=Integer.parseInt(this.intervalStr.substring(hyphen+1));
-				
-			
-			this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
 			
 			SamReader in=null;
 			SAMRecordIterator iter=null;
@@ -916,18 +875,38 @@ public class BamToSVG extends Launcher
 				/* get genomic sequence */
 				if(this.referenceFile!=null)
 					{
-					LOG.info("opening "+this.referenceFile);
-					this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFile);
-					this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.chrom);
+					this.indexedFastaSequenceFile =  Objects.requireNonNull(ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile));
+					this.interval  =  IntervalParserFactory.
+						newInstance(SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile)).
+						make().
+						apply(this.intervalStr).
+						orElseThrow(IntervalParserFactory.exception(this.intervalStr))
+						;
+					
+					this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getContig());
+					sfrf.referenceSequence(this.referenceFile);
 					}
-
+				else
+					{
+					this.interval  = IntervalParserFactory.
+							newInstance().
+							make().
+							apply(this.intervalStr).
+							orElseThrow(IntervalParserFactory.exception(this.intervalStr))
+							;					
+					}
+					
+				
+						
+					
+				this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
 				
 				
-				for(String vcf:this.vcfFileSet)
+				for(final String vcf:this.vcfFileSet)
 					{
 					readVariantFile(vcf);
 					}
-				final List<File> inputFiles = IOUtils.unrollFiles2018(args);
+				final List<Path> inputFiles = IOUtils.unrollPaths(args);
 				/* read SAM data */
 				if(inputFiles.isEmpty())
 					{
@@ -940,13 +919,13 @@ public class BamToSVG extends Launcher
 					}
 				else
 					{
-					for(final File filename: inputFiles)
+					for(final Path filename: inputFiles)
 						{
 						LOG.info("Reading from "+filename);
 						in=sfrf.open(SamInputResource.of(filename));
 						if(in.hasIndex())
 							{
-							iter=in.query(this.interval.getChrom(), this.interval.getStart(), this.interval.getEnd(), false);
+							iter=in.query(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd(), false);
 							}
 						else
 							{
@@ -959,9 +938,9 @@ public class BamToSVG extends Launcher
 						}
 					}
 				
-				this.featureWidth=  this.drawinAreaWidth/(double)((this.interval.end - this.interval.start)+1); 
+				this.featureWidth=  this.drawinAreaWidth/(double)((this.interval.getEnd() - this.interval.getStart())+1); 
 				this.featureHeight= Math.min(Math.max(5.0,this.featureWidth),30); 
-				this.HEIGHT_RULER=(int)(this.niceIntFormat.format(this.interval.end).length()*this.featureHeight+5);
+				this.HEIGHT_RULER=(int)(StringUtils.niceInt(this.interval.getEnd()).length()*this.featureHeight+5);
 				LOG.info("Feature height:"+this.featureHeight);
 				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 				if(this.outputFile==null)

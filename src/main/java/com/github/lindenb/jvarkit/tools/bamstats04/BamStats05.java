@@ -26,11 +26,11 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.bamstats04;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -135,6 +135,10 @@ public class BamStats05 extends Launcher
 
 	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
+	
+	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
+
 	
 	private Map<String, List<SimpleInterval>> readBedFile(final Path bedFile) throws IOException
     	{
@@ -244,14 +248,14 @@ public class BamStats05 extends Launcher
 					if(StringUtil.isBlank(newContig)) {
 						throw new JvarkitException.ContigNotFoundInDictionary(intervals.get(0).getContig(), dict);
 						}
-					
+										
 					for(final SimpleInterval interval:intervals)
 						{
 						geneStart = Math.min(geneStart, interval.getStart()-1);
 						geneEnd = Math.max(geneEnd, interval.getEnd());
 		
 						/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
-						int interval_counts[]=new int[interval.getEnd()-interval.getStart()+1];
+						int interval_counts[]=new int[interval.getLengthOnReference()];
 						if(interval_counts.length==0) continue;
 						Arrays.fill(interval_counts, 0);
 						
@@ -275,6 +279,7 @@ public class BamStats05 extends Launcher
 							if(filter.filterOut(rec)) continue;
 							
 							if(!rec.getReferenceName().equals(interval.getContig())) continue;
+							
 							
 							final SAMReadGroupRecord rg = rec.getReadGroup();
 							if(rg==null || !partition.equals(this.groupBy.apply(rg))) continue;
@@ -389,9 +394,12 @@ public class BamStats05 extends Launcher
 			pw.println();
 			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			final List<File> files = IOUtils.unrollFiles2018(args);
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+			
+			List<Path> files = IOUtils.unrollPaths(args);
 			if(args.isEmpty())
 				{
+				files = new ArrayList<>();
 				LOG.info("reading BAM paths from stdin");
 				r = new BufferedReader(new InputStreamReader(stdin()));
 				String line;
@@ -403,16 +411,16 @@ public class BamStats05 extends Launcher
 						LOG.error("line should end with "+FileExtensions.BAM+" :"+line);
 						return -1;
 						}
-					files.add(new File(line));
+					files.add(Paths.get(line));
 					}
 				CloserUtil.close(r);
 				}
 			
 			
-			for(final File f:files)
+			for(final Path f:files)
 				{
 				in = srf.open(f);
-				int tl = doWork(pw,gene2interval,f.getPath(),in);
+				int tl = doWork(pw,gene2interval,f.toString(),in);
 				CloserUtil.close(in);
 				in=null;
 				if(tl!=0) return tl;
