@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,7 +39,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.liftover.LiftOver;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.CloserUtil;
@@ -122,7 +124,7 @@ END_DOC
 		name="vcfliftover",
 		description="Lift-over a VCF file",
 		keywords={"vcf","liftover"},
-		modificationDate="20190902",
+		modificationDate="20190924",
 		deprecatedMsg="Use picard LiftOverVcf"
 		)
 public class VcfLiftOver extends Launcher
@@ -143,7 +145,7 @@ public class VcfLiftOver extends Launcher
 	@Parameter(names={"--adaptivematch"},description="Use adapative liftover minmatch using the ratio between the min allele size and the longest allele size")
 	private boolean adaptivematch = false ;
 	@Parameter(names={"-D","-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx = null;
+	private Path faidx = null;
 	@Parameter(names={"-T","--tag"},description="INFO tag")
 	private String infoTag = "LIFTOVER";
 	@Parameter(names={"-failtag","--failtag"},description="failed INFO tag")
@@ -158,7 +160,7 @@ public class VcfLiftOver extends Launcher
 	private Set<String> removeInfo=new HashSet<>();
 
 	private LiftOver liftOver=null;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
@@ -357,7 +359,7 @@ public class VcfLiftOver extends Launcher
 			}
 		
 		try {
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.faidx);
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			this.liftOver=new LiftOver(this.liftOverFile);
 			this.liftOver.setLiftOverMinMatch(this.userMinMatch);
 			if(!this.ignoreLiftOverValidation) {

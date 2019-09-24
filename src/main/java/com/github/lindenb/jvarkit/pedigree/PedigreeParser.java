@@ -47,7 +47,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
  * A class parsing pedigrees
  */
 public class PedigreeParser {
-public static final String OPT_DESC="A pedigree file.";
+public static final String OPT_DESC="A pedigree file. sex:(0:unknown;1:male;2:female), phenotype (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected)";
 private static final List<String> PEDFILE_EXTENSIONS=Arrays.asList(".ped",".pedigree",".fam");
 	
 /** return valid extensions for a pedigree file */
@@ -81,9 +81,9 @@ public Function<String,Sex>  getSexParser() {
 
 /** default status parser for string */ 
 private static final Function<String,Status> DEFAULT_STATUS_PARSER = S->{
-	if(S.equals("-9")) return Status.missing;
-	if(S.equals("0")) return Status.unaffected;
-	if(S.equals("1")) return Status.affected;
+	if(S.equals("-9") || S.equals("?") || S.equals(".")) return Status.missing;
+	if(S.equals("0") || S.equals("unaffected") || S.equals("control")) return Status.unaffected;
+	if(S.equals("1") || S.equals("affected") || S.equals("case")) return Status.affected;
 	throw new IllegalArgumentException("bad status in \""+S+"\", should be 0/1/-9 .");
 	};
 

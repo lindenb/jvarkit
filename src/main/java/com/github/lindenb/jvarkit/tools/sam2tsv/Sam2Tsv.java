@@ -29,8 +29,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -44,7 +44,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -158,20 +159,20 @@ END_DOC
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","tsv"},
 	biostars={157232,59647,253828,264875,277493},
-	modificationDate="20190222")
+	modificationDate="20190924")
 public class Sam2Tsv
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Sam2Tsv.class).make();
 
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-A","--printAlignments"},description="Print Alignments")
 	private boolean printAlignment = false;
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File refFile = null;
+	private Path refFile = null;
 
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
 	private SAMSequenceDictionary refDict = null;
 	private ContigNameConverter contigNameConverter = null;
@@ -505,11 +506,11 @@ public class Sam2Tsv
 			{
 			if(this.refFile!=null)
 				{
-				this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+				this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(refFile);
 				this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 				this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 				}
-			this.out  =  openFileOrStdoutAsPrintWriter(outputFile);
+			this.out  =  openPathOrStdoutAsPrintWriter(outputFile);
 			this.out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
 			samFileReader= openSamReader(oneFileOrNull(args));
 			

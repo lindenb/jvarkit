@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,6 +82,8 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -159,8 +162,8 @@ public class WesCnvSvg  extends Launcher {
 	private File bedFile = null;
 	@Parameter(names={"-r","-rgn","--region","--interval"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon")
 	private String bedRegions = null;
-	@Parameter(names={"-R","--ref","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION,converter=ReferenceFileSupplier.StringConverter.class)
-	private ReferenceFileSupplier referenceFileSupplier = ReferenceFileSupplier.getDefaultReferenceFileSupplier();
+	@Parameter(names={"-R","--ref","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidx = null;
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-height","--height"},description="Sample Track height")
@@ -257,7 +260,7 @@ public class WesCnvSvg  extends Launcher {
 	
 	private final List<CaptureInterval> intervals = new ArrayList<>();
 	private final List<BamInput> bamInputs = new ArrayList<>();
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private ReferenceSequenceFile indexedFastaSequenceFile;
 	private SAMSequenceDictionary refDict; 
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
@@ -301,7 +304,7 @@ public class WesCnvSvg  extends Launcher {
 		try
 			{
 			
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFileSupplier.getRequired());
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
 			final List<SimpleInterval> userIntervals = new ArrayList<>();
 			if(!StringUtil.isBlank(this.bedRegions))
@@ -330,7 +333,7 @@ public class WesCnvSvg  extends Launcher {
 			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					validationStringency(ValidationStringency.LENIENT).
-					referenceSequence(this.referenceFileSupplier.getRequired());
+					referenceSequence(this.faidx);
 			for(final File bamFile:IOUtils.unrollFiles2018(args)) {
 				final BamInput bi = new BamInput();
 				bi.index = this.bamInputs.size();

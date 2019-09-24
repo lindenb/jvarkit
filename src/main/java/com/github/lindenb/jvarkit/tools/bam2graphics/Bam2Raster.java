@@ -101,7 +101,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -861,7 +861,7 @@ public class Bam2Raster extends AbstractBam2Raster
 				else
 					{
 					LOG.info("loading reference");
-					this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
+					this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile);
 					srf.referenceSequence(this.referenceFile);
 					this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
 					if(this.refDict==null)

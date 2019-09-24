@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.bam2svg;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +77,8 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
@@ -153,13 +155,13 @@ public class SvToSVG extends Launcher
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+". Optional: if defined will be used to display the mismatches.")
-	private File fastaFile = null ;
+	private Path fastaFile = null ;
 	@Parameter(names={"-d","--duration"},description="Animation duration, in secs")
 	private int svgDuration=10;
 	@Parameter(names= {"--repeat-count"},description="SVG animation repeat count")
 	private String svgRepeatCount="indefinite";
 	@Parameter(names= {"--variant","-V"},description="optional indexed VCF file.")
-	private File vcfFile=null;
+	private Path vcfFile=null;
 	@Parameter(names= {"--coverage","--depth"},description="Coverage height. Don't print if cov '<=0'.")
 	private int coverageHeight=70;
 
@@ -170,7 +172,7 @@ public class SvToSVG extends Launcher
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private Document document = null;
 	private final double arrow_w = 5;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile = null;
+	private ReferenceSequenceFile indexedFastaSequenceFile = null;
 	private VCFFileReader vcfFileReader = null;
 	
 	private final String DEBUG_READ="___";
@@ -907,7 +909,7 @@ public class SvToSVG extends Launcher
 			try
 				{
 				if(this.fastaFile!=null) {
-					this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.fastaFile);
+					this.indexedFastaSequenceFile =ReferenceSequenceFileFactory.getReferenceSequenceFile(this.fastaFile);
 					}
 				
 				if(this.vcfFile!=null)

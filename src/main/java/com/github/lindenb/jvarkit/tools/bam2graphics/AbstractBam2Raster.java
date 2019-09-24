@@ -61,7 +61,7 @@ import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
@@ -130,7 +130,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 	
 	
 	protected SimpleInterval interval=null;
-	protected IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	protected ReferenceSequenceFile indexedFastaSequenceFile=null;
 	protected final Hershey hersheyFont=new Hershey();
 
 	

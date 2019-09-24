@@ -21,7 +21,7 @@ public class VcfBurdenSlidingWindowTest {
 			
 			Assert.assertEquals(new VcfBurdenSlidingWindow().instanceMain(new String[] {
 	        		"-o",output.toString(),
-	        		"--pedigree",support.resource("test_vcf01.vped"),
+	        		"--pedigree",support.resource("test_vcf01.ped"),
 	        		support.resource("test_vcf01.vcf")
 					}),0);
 			support.assertTsvTableIsConsitent(output, null);

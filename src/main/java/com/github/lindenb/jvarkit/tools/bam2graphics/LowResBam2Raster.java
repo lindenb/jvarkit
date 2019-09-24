@@ -68,7 +68,7 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -1033,7 +1033,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 				    else
 				    	{
 				    	LOG.info("loading reference");
-						this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.referenceFile);
+						this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile);
 						this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
 						if(this.refDict==null)
 							{

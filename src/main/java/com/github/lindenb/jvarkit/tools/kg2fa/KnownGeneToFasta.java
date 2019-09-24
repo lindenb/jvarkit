@@ -52,7 +52,8 @@ import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 /**
  
@@ -114,12 +115,12 @@ private Path outputDict=null;
 	@Override
 	public int doWork(final List<String> args) {
 		BufferedReader br=null;
-		IndexedFastaSequenceFile indexedFastaSequenceFile = null;
+		ReferenceSequenceFile indexedFastaSequenceFile = null;
 		GenomicSequence genomicSequence = null;
 		PrintWriter pw = null;
 		BufferedWriter dictWriter =null;
 		try {
-			indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
+			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
 			final ContigNameConverter refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);
 

@@ -28,9 +28,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -38,7 +40,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.liftover.LiftOver;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -46,6 +47,7 @@ import htsjdk.samtools.util.CloserUtil;
 @Program(
 		name="bedliftover",
 		description="Lift-over a VCF file",
+		modificationDate="20190924",
 		keywords={"bed","liftover"}
 		)
 public class BedLiftOver extends Launcher
@@ -62,8 +64,8 @@ public class BedLiftOver extends Launcher
 	private File failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
-	@Parameter(names={"-D","-R","-r","--reference"},description="indexed REFerence file.",required=true)
-	private File faidx = null;
+	@Parameter(names={"-D","-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidx = null;
 	@Parameter(names={"--chainvalid"},description="Ignore LiftOver chain validation")
 	private boolean ignoreLiftOverValidation=false;
 	
@@ -118,9 +120,7 @@ public class BedLiftOver extends Launcher
 		try
 			{
 			if(!this.ignoreLiftOverValidation) {
-				IndexedFastaSequenceFile ref=new IndexedFastaSequenceFile(faidx);
-				this.liftOver.validateToSequences(ref.getSequenceDictionary());
-				ref.close();
+				this.liftOver.validateToSequences(SequenceDictionaryUtils.extractRequired(faidx));
 				}
 			
 			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
