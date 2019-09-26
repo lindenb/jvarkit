@@ -31,6 +31,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,6 +47,8 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordCoordinateComparator;
@@ -62,13 +65,12 @@ import htsjdk.samtools.util.StringUtil;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
@@ -96,15 +98,15 @@ public class GcPercentAndDepth extends Launcher
 
 	
 	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outPutFile=null;
+	private Path outPutFile=null;
 	@Parameter(names="-w",description=" (window size)")
 	private int windowSize=100;
 	@Parameter(names="-s",description=" (window shift) ")
 	private int windowStep=50;
 	@Parameter(names="-m",description=" min depth ")
 	private int min_depth=0;
-	@Parameter(names="-R",description=ReferenceGenomeFactory.OPT_DESCRIPTION)
-	private File refFile=null;
+	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refFile=null;
 	@Parameter(names="-B",description=" (file.bed) (optional). If not defined: use whole genome. Warning memory consumming: must alloc sizeof(int)*win.size()*num(samples).")
 	private File bedFile=null;
 	@Parameter(names="-n",description=" skip window if Reference contains one 'N'.")
@@ -310,7 +312,7 @@ public class GcPercentAndDepth extends Launcher
 			LOG.error("Illegal Number of arguments.");
 			return -1;
 			}
-		ReferenceGenome indexedFastaSequenceFile= null;
+		ReferenceSequenceFile indexedFastaSequenceFile= null;
 				
 		List<SamReader> readers=new ArrayList<SamReader>();
 
@@ -318,16 +320,15 @@ public class GcPercentAndDepth extends Launcher
 		try
 			{
 			LOG.info("Loading "+this.refFile);
-			indexedFastaSequenceFile=	new ReferenceGenomeFactory().
-					openFastaFile(this.refFile);
-			this.samSequenceDictionary = indexedFastaSequenceFile.getDictionary();
+			indexedFastaSequenceFile=ReferenceSequenceFileFactory.getReferenceSequenceFile(this.refFile);
+			this.samSequenceDictionary = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
 			if(this.samSequenceDictionary==null)
 				{
 				LOG.error("Cannot get sequence dictionary for "+this.refFile);
 				return -1;
 				}
 			
-			out= super.openFileOrStdoutAsPrintWriter(outPutFile);
+			out= super.openPathOrStdoutAsPrintWriter(outPutFile);
 			
 			Set<String> all_samples=new TreeSet<String>();
 			/* create input, collect sample names */
@@ -426,17 +427,12 @@ public class GcPercentAndDepth extends Launcher
 			
 			
 			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.samSequenceDictionary).logger(LOG);
-			ReferenceContig genomicSequence=null;
+			GenomicSequence genomicSequence=null;
 			for(final RegionCaptured roi:regionsCaptured)
 				{
-				if(genomicSequence==null || !genomicSequence.hasName(roi.getContig()))
+				if(genomicSequence==null || !genomicSequence.getChrom().equals(roi.getContig()))
 					{
-					genomicSequence= indexedFastaSequenceFile.getContig(roi.getContig());
-					if(genomicSequence==null)
-						{
-						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(roi.getContig(), this.samSequenceDictionary));
-						return -1;
-						}
+					genomicSequence= new GenomicSequence(indexedFastaSequenceFile,roi.getContig());
 					}
 				Map<String,int[]> sample2depth=new HashMap<String,int[]>();
 				Map<String,Double> sample2meanDepth=new HashMap<String,Double>();

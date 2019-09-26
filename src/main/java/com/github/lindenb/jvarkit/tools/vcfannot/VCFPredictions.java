@@ -58,7 +58,8 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
@@ -169,7 +170,7 @@ public class VCFPredictions extends Launcher
 	private static final Logger LOG = Logger.build(VCFPredictions.class).make();
 	private enum OutputSyntax {Native,Vep,SnpEff };
 	private IntervalTreeMap<List<Transcript>> knownGenes=null;
-	private IndexedFastaSequenceFile referenceGenome = null;
+	private ReferenceSequenceFile referenceGenome = null;
 	private final WeakHashMap<String, RNASequence> transcriptId2cdna = new WeakHashMap<>();
 	private GenomicSequence genomicSequence = null;
 
@@ -386,7 +387,7 @@ public class VCFPredictions extends Launcher
 		{
 		try {
 		LOG.info("opening REF:"+this.referenceGenomeSource);
-		this.referenceGenome= new IndexedFastaSequenceFile(this.referenceGenomeSource);
+		this.referenceGenome= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceGenomeSource);
 		loadGtf();
 		final VCFHeader header= r.getHeader();
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);

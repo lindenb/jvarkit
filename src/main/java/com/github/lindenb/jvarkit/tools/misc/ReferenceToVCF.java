@@ -27,6 +27,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,7 +36,8 @@ import java.util.Random;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -86,7 +89,7 @@ public class ReferenceToVCF extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-L","--bed"},description="limit to this BED")
-	private File  bedFile = null;
+	private Path  bedFile = null;
 	@Parameter(names={"-i","--insertions"},description="generate insertions")
 	private int  insertion_size = 0;
 	@Parameter(names={"-d","--deletions"},description="generate deletions")
@@ -106,7 +109,7 @@ public class ReferenceToVCF extends Launcher
 			try
 				{
 				final BedLineCodec codec = new BedLineCodec();
-				BufferedReader r=IOUtils.openFileForBufferedReading(this.bedFile);
+				BufferedReader r=IOUtils.openPathForBufferedReading(this.bedFile);
 				String line;
 				while((line=r.readLine())!=null)
 					{
@@ -126,7 +129,7 @@ public class ReferenceToVCF extends Launcher
 		VariantContextWriter out=null;
 		try
 			{
-			final IndexedFastaSequenceFile fasta=new IndexedFastaSequenceFile(new File(oneAndOnlyOneFile(args)));
+			final ReferenceSequenceFile fasta= ReferenceSequenceFileFactory.getReferenceSequenceFile(Paths.get(oneAndOnlyOneFile(args)));
 			SAMSequenceDictionary dict=fasta.getSequenceDictionary();
 			out= super.openVariantContextWriter(this.outputFile);
 			

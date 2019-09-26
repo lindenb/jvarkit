@@ -68,7 +68,8 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 
 /**
 BEGIN_DOC
@@ -184,7 +185,7 @@ public class BamStats04 extends Launcher
 			BufferedReader bedIn=null;
 			final List<SamReader> samReaders = new ArrayList<>(args.size());
 			PrintWriter pw = null;
-			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+			ReferenceSequenceFile indexedFastaSequenceFile=null;
 			GenomicSequence genomicSequence = null;
 			SAMSequenceDictionary fastaDict = null;
 			try
@@ -245,7 +246,7 @@ public class BamStats04 extends Launcher
 				final ContigNameConverter samCtgConverter = ContigNameConverter.fromOneDictionary(samDict);
 				
 				if(this.faidxUri!=null) {
-					indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxUri);
+					indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxUri);
 					fastaDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
 					if(!SequenceUtil.areSequenceDictionariesEqual(fastaDict, samDict)) {
 						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(fastaDict, samDict));

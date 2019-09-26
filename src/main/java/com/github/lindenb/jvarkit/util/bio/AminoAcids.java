@@ -121,6 +121,7 @@ public class AminoAcids {
 		if(s.length()!=3) return null;
 		return CODE3TOAA.get(StringUtils.toTitle(s));
 		}
+	/** returns null if char cannot be converted */
 	public static AminoAcid getAminoAcidFromOneLetterCode(final char c) {
 		switch(Character.toUpperCase(c)) {
 			case 'A' : return Alanine;

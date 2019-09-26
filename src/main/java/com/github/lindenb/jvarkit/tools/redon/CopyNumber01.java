@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -69,6 +70,8 @@ import org.broad.igv.bbfile.WigItem;
 import htsjdk.tribble.bed.BEDCodec;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
@@ -95,6 +98,7 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -124,14 +128,14 @@ public class CopyNumber01 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CopyNumber01.class).make();
 	/** reference */
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;	
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;	
 	/** global sam dict */
 	private SAMSequenceDictionary samDictionary=null;
 	
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File refFile=null;
-	@Parameter(names={"-o","--out"},description="output base name",required=true)
-	private File archiveFile=null;
+	private Path refFile=null;
+	@Parameter(names={"-o","--out"},description="output base name. "+ArchiveFactory.OPT_DESC,required=true)
+	private Path archiveFile=null;
 	/** size of a window */
 	@Parameter(names={"-w"},description="window size")
 	private int windowSize=1000;
@@ -764,12 +768,8 @@ public class CopyNumber01 extends Launcher
 		
 			
 			/* loading REF Reference */
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(refFile);
-			final SAMSequenceDictionary dict=this.indexedFastaSequenceFile.getSequenceDictionary();
-			if(dict==null)
-				{
-				throw new JvarkitException.DictionaryMissing(refFile.getPath());
-				}
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(refFile);
+			final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 			
 			this.sam2faiContigNameConverter = ContigNameConverter.fromDictionaries(this.samDictionary, dict);
 			

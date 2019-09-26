@@ -20,27 +20,15 @@ Usage: vcfpolyx [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
-    --outputbcf
-      Output bcf (for streams)
-      Default: false
   * -R, --reference
-      Indexed Genome Reference. It can be a the path to fasta file that must 
-      be indexed with samtools faidx and with picard CreateSequenceDictionary. 
-      It can also be a BioDAS dsn url like 
-      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BioDAS references are 
-      slower, but allow to work without a local reference file.
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --skip-filtered
       Don't spend some time to calculate the tag if the variant is FILTERed
       Default: false
     -t, --tag
       Tag used in INFO and FILTER columns.
       Default: POLYX
-    --vcfcreateindex
-      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
-      Default: false
-    --vcfmd5
-      VCF, create MD5 checksum when writing a VCF/BCF to a file.
-      Default: false
     --version
       print version and exit
 

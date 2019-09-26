@@ -60,7 +60,8 @@ import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 /**
@@ -110,7 +111,7 @@ public class GtfUpstreamOrf extends Launcher
 
 
 	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private ContigNameConverter refCtgNameConverter =null;
 	private GenomicSequence genomicSequence=null;
 	private final GeneticCode geneticCode = GeneticCode.getStandard();
@@ -418,7 +419,7 @@ public class GtfUpstreamOrf extends Launcher
 		GtfReader gtfReader = null;
 		PrintWriter pw = null;
 		try {
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 			this.refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);
 			final ContigDictComparator ctgDictComparator = new ContigDictComparator(refDict);

@@ -23,8 +23,8 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.biostar;
-import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -40,7 +40,8 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 
 /**
@@ -77,6 +78,7 @@ END_DOC
 @Program(name="biostar170742",
 description="convert sam format to axt Format",
 biostars=170742,
+modificationDate="20190926",
 keywords={"sam","axt"})
 public class Biostar170742 extends Launcher
 	{
@@ -85,9 +87,9 @@ public class Biostar170742 extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx = null;
+	private Path faidx = null;
 
 	
 	
@@ -102,13 +104,13 @@ public class Biostar170742 extends Launcher
 		SamReader sfr=null;
 		SAMRecordIterator iter=null;
 		GenomicSequence genomicSequence = null;
-		IndexedFastaSequenceFile indexedFastaSequenceFile= null;
+		ReferenceSequenceFile indexedFastaSequenceFile= null;
 		try
 			{
-			indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
+			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			long align_id=0;
 			sfr = openSamReader(oneFileOrNull(args));
-			out =  super.openFileOrStdoutAsPrintStream(this.outputFile);
+			out =  super.openPathOrStdoutAsPrintStream(this.outputFile);
 			final StringBuilder refseq = new StringBuilder();
 			final StringBuilder readseq = new StringBuilder();
 			
@@ -121,7 +123,7 @@ public class Biostar170742 extends Launcher
 				final Cigar cigar = rec.getCigar();
 				if(cigar==null) continue;
 				final byte readbases[] = rec.getReadBases();
-				if(readbases==null) continue;
+				if(readbases==null || readbases==SAMRecord.NULL_SEQUENCE) continue;
 
 				if(genomicSequence==null || !rec.getReferenceName().equals(genomicSequence.getChrom()))
 					{
@@ -209,10 +211,9 @@ public class Biostar170742 extends Launcher
 			progress.finish();
 			iter.close();
 			out.flush();
-			LOG.info("done");
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

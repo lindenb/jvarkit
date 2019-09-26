@@ -27,7 +27,8 @@ package com.github.lindenb.jvarkit.tools.samfixcigar;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.CigarElement;
@@ -116,7 +117,7 @@ END_DOC
 @Program(name="samfixcigar",
 	description="Fix Cigar String in SAM replacing 'M' by 'X' or '='",
 	keywords={"sam","bam","cigar"},
-	modificationDate="20190528",
+	modificationDate="20190926",
 	biostars= {312430,340479}
 	)
 public class SamFixCigar extends Launcher
@@ -132,7 +133,7 @@ public class SamFixCigar extends Launcher
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	
 	
 	@Override
@@ -148,7 +149,7 @@ public class SamFixCigar extends Launcher
 		SAMFileWriter sfw=null;
 		try
 			{
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
+			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			sfr = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header = sfr.getFileHeader();
 			header.addComment("Processed with "+getProgramName()+" "+JVarkitVersion.getInstance().getLabel());

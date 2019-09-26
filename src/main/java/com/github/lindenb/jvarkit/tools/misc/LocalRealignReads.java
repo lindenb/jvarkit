@@ -2,7 +2,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -12,7 +13,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,14 +32,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 @Program(name="localrealignreads",description="Local Realignment of Reads",generate_doc=false)
 public class LocalRealignReads extends Launcher
 	{
+	@SuppressWarnings("unused")
 	private static final Logger LOG = Logger.build(LocalRealignReads.class).make();
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
-	@Parameter(names={"-R","--reference"},description="Indexed fasta Reference")
-	private File faidxFile = null;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidxPath = null;
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
@@ -80,25 +82,20 @@ public class LocalRealignReads extends Launcher
 	
 	@Override
 	public int doWork(List<String> args) {
-		if(this.faidxFile==null)
-			{
-			LOG.error("REFerence file missing;");
-			return -1;
-			}
-		IndexedFastaSequenceFile  indexedFastaSequenceFile =null;
+		ReferenceSequenceFile  indexedFastaSequenceFile =null;
 		SamReader samReader =null;
 		SAMFileWriter w = null;
 		SAMRecordIterator iter = null;
 		GenomicSequence genomicSequence = null;
 		LongestCommonSequence matrix =new LongestCommonSequence();
 		try {
-			indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidxFile);
+			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxPath);
 			
 			samReader  = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header1 = samReader.getFileHeader();
 			final SAMFileHeader header2 = header1.clone();
 			header2.setSortOrder(SortOrder.unsorted);
-			w = this.writingBamArgs.setReferenceFile(faidxFile).openSAMFileWriter(outputFile,header2, true);
+			w = this.writingBamArgs.setReferencePath(faidxPath).openSamWriter(outputFile,header2, true);
 			final SAMSequenceDictionaryProgress progress = new  SAMSequenceDictionaryProgress(header1);
 			iter = samReader.iterator();
 			while(iter.hasNext())

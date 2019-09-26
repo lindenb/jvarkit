@@ -38,11 +38,12 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SamReaderFactory.Option;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +52,7 @@ import java.util.Map;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -87,16 +89,16 @@ $  java   -jar dist/extendrefwithreads.jar \
 	description="Extending ends of sequences with the help of reads",
 	biostars=148089,
 	keywords={"read","fastq","reference","sam","bam"},
-	modificationDate="20190417"
+	modificationDate="20190926"
 	)
 public class ExtendReferenceWithReads extends Launcher
 	{
 	private static final Logger LOG = Logger.build(ExtendReferenceWithReads.class).make();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx=null;
+	private Path faidx=null;
 	@Parameter(names={"-f","--callingfraction"},description="(0.0<float<=1.0) new base must have fraction greater than this number")
 	private double callingFraction=0.8;
 	@Parameter(names={"-d","--mindepth"},description="min depth")
@@ -110,7 +112,7 @@ public class ExtendReferenceWithReads extends Launcher
 	
 	private List<SamReader> samReaders=new ArrayList<>();
 	private enum Rescue {LEFT,CENTER,RIGHT};
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	
 
 	private char consensus(final Counter<Byte> count)
@@ -224,13 +226,9 @@ public class ExtendReferenceWithReads extends Launcher
 		this.samReaders.clear();
 		PrintStream out=null;
 		try {
-			this.indexedFastaSequenceFile= new IndexedFastaSequenceFile(faidx);
-			SAMSequenceDictionary dict = this.indexedFastaSequenceFile.getSequenceDictionary();
-			if(dict==null)
-				{
-				LOG.error("Reference file is missing a sequence dictionary (use picard)");
-				return -1;
-				}
+			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(faidx);
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+			
 			final SamReaderFactory srf= super.createSamReaderFactory();
 			srf.setOption(Option.CACHE_FILE_BASED_INDEXES, true);
 			for(final String uri:IOUtils.unrollFiles(args))
@@ -265,7 +263,7 @@ public class ExtendReferenceWithReads extends Launcher
 				return -1;
 				}
 			
-			out = super.openFileOrStdoutAsPrintStream(this.outputFile);
+			out = super.openPathOrStdoutAsPrintStream(this.outputFile);
 			
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(dict);
 			for(final SAMSequenceRecord ssr: dict.getSequences())

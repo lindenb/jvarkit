@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -38,7 +39,8 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import htsjdk.variant.vcf.VCFIterator;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -93,10 +95,10 @@ public class Biostar251649 extends Launcher
 	private int extend=1;
 	@Parameter(names={"-r","-R","--reference"},
 			description=INDEXED_FASTA_REFERENCE_DESCRIPTION,
-			required=true,
-			converter=Launcher.IndexedFastaSequenceFileConverter.class
+			required=true
 			)
-	private IndexedFastaSequenceFile faidx = null;
+	private Path faidx = null;
+	
 	
 	@Override
 	protected int doVcfToVcf(
@@ -104,7 +106,9 @@ public class Biostar251649 extends Launcher
 			final VCFIterator in,
 			final  VariantContextWriter w)
 		{
+		ReferenceSequenceFile referenceSequenceFile = null;
 		try {
+			referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final VCFHeader header = new VCFHeader(in.getHeader());
 			final VCFInfoHeaderLine info5 = new VCFInfoHeaderLine(leftTag+extend,
 					1, VCFHeaderLineType.String,"Sequence on the 5' of mutation");
@@ -131,7 +135,7 @@ public class Biostar251649 extends Launcher
 			while(in.hasNext()) {
 				final VariantContext ctx = progress.apply(in.next());
 				if(chrom==null || !chrom.getChrom().equals(ctx.getContig())) {
-					chrom = new GenomicSequence(this.faidx,ctx.getContig());
+					chrom = new GenomicSequence(referenceSequenceFile,ctx.getContig());
 					}
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				if(ctx.getStart()>0)
@@ -168,7 +172,7 @@ public class Biostar251649 extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(faidx);
+			CloserUtil.close(referenceSequenceFile);
 			}	
 		}
 	@Override

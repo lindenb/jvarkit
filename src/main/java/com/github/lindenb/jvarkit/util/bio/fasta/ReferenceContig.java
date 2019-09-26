@@ -30,6 +30,7 @@ import java.util.OptionalInt;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.Locatable;
 
+@Deprecated
 public interface ReferenceContig
 	extends CharSequence,Locatable{
 

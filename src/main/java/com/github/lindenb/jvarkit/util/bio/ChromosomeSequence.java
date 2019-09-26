@@ -33,4 +33,9 @@ public interface ChromosomeSequence extends CharSequence
 	{
 	/** get the chromosome name of that genomic sequence */
 	public String getChrom();
+	
+	/** return true if getChrom().equals(name) */
+	public default boolean hasName(final String name) {
+		return getChrom().equals(name);
+		}
 	}

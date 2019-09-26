@@ -29,6 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.calling;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,12 +45,11 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
@@ -62,6 +62,8 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
@@ -126,10 +128,8 @@ public class MiniCaller extends Launcher
 	private File outputFile = null;
 	@Parameter(names={"-d","--mindepth"},description="Min depth")
 	private int min_depth = 20 ;
-    @Parameter(names={"-R","--reference"},
-    		description=ReferenceGenomeFactory.OPT_DESCRIPTION_FILE_ONLY,
-    		required=true)
-    private File fastaFile = null;
+    @Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+    private Path faidxPath = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
 	@Parameter(names={"-f","--filter"},description="[20171130](replaced with jexl expression). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
@@ -140,7 +140,7 @@ public class MiniCaller extends Launcher
 	
 	private SAMSequenceDictionary dictionary=null;
     private VariantContextWriter variantContextWriter = null;
-    private ReferenceGenome referenceGenome=null;
+    private ReferenceSequenceFile referenceSequenceFile=null;
     //private final Map<String,Integer> sample2index=new TreeMap<>();
   
     private final List<MyVariantContext> buffer=new ArrayList<>();
@@ -407,23 +407,11 @@ public class MiniCaller extends Launcher
     	ConcatSam.ConcatSamIterator iter=null;
         try {
             
-            if(this.fastaFile==null)
-                {
-            	LOG.error("no REF");
-                return -1;
-                }
-            
-          
-            
             /* load faid */
            
 
-            final ReferenceGenomeFactory referenceGenomeFactory = new ReferenceGenomeFactory();
-            this.referenceGenome= referenceGenomeFactory.openFastaFile(this.fastaFile);
-            this.dictionary = this.referenceGenome.getDictionary();
-            if(this.dictionary==null) {
-            	LOG.error(JvarkitException.FastaDictionaryMissing.getMessage(this.fastaFile.getPath()));
-            	}
+            this.referenceSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxPath);
+            this.dictionary = SequenceDictionaryUtils.extractRequired(this.referenceSequenceFile);
             
             /* create sam record iterator */
             
@@ -501,7 +489,7 @@ public class MiniCaller extends Launcher
             this.variantContextWriter = super.openVariantContextWriter(outputFile);
             this.variantContextWriter.writeHeader(vcfHeader);
 
-            ReferenceContig genomicSeq=null;
+            GenomicSequence genomicSeq=null;
             SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dictionary);
             for(;;)
                 {
@@ -522,11 +510,10 @@ public class MiniCaller extends Launcher
                     	this.buffer.remove(0).print();
                     	}
                     /* get genomic sequence at this position */
-                    if(genomicSeq==null ||
-                            !genomicSeq.getContig().equals(rec.getContig()))
-                            {
-                            genomicSeq = this.referenceGenome.getContig(rec.getContig());
-                            }
+                    if(genomicSeq==null ||  !genomicSeq.getChrom().equals(rec.getContig()))
+                        {
+                        genomicSeq = new GenomicSequence(referenceSequenceFile,rec.getContig());
+                        }
                     final Cigar cigar= rec.getCigar();
                     if(cigar==null) continue;
                     int readPos=0;
@@ -637,7 +624,7 @@ public class MiniCaller extends Launcher
         finally
             {
         	 CloserUtil.close(iter);
-            CloserUtil.close(this.referenceGenome);
+            CloserUtil.close(this.referenceSequenceFile);
             CloserUtil.close(this.variantContextWriter);
             }
         }

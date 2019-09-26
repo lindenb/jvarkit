@@ -32,7 +32,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
@@ -141,12 +142,12 @@ public class SamSlop extends Launcher
 		GenomicSequence genomicSequence=null;
 		SamReader sfr=null;
 		SAMFileWriter sfw=null;
-		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+		ReferenceSequenceFile indexedFastaSequenceFile=null;
 		final char defaultQUAL=this.defaultQual.charAt(0);
 		try
 			{
 			final String inputName= oneFileOrNull(args);
-			indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
+			indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(faidx);
 			sfr = openSamReader(inputName);
 			final SAMFileHeader header=sfr.getFileHeader();
 			header.setSortOrder(SortOrder.unsorted);

@@ -28,6 +28,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -43,15 +44,16 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.AminoAcids;
+import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceContig;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
@@ -67,6 +69,8 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -244,14 +248,15 @@ END_DOC
 @Program(name="prettysam",
 description="Pretty SAM alignments",
 references="PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853798.v1](https://doi.org/10.6084/m9.figshare.5853798.v1)",
-keywords={"sam","bam"}
+keywords={"sam","bam"},
+modificationDate="20190926"
 )
 public class PrettySam extends Launcher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-r","-R","--reference"},description=ReferenceGenomeFactory.OPT_DESCRIPTION)
-	private String referenceUri = null ;
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null ;
 	@Parameter(names={"--no-unicode"},description="disable unicode to display ascii histogram")
 	private boolean disable_unicode=false;
 	@Parameter(names={"--trim"},description="trim long string to this length. <1 = do not trim.")
@@ -323,7 +328,7 @@ public class PrettySam extends Launcher {
 	
     private static final Pattern SEMICOLON_PAT = Pattern.compile("[;]");
     private static final Pattern COMMA_PAT = Pattern.compile("[,]");
-	private ReferenceGenome referenceGenome = null;
+	private ReferenceSequenceFile referenceSequenceFile = null;
 	
 	
 	private static class Base
@@ -385,7 +390,7 @@ public class PrettySam extends Launcher {
 		private SAMSequenceDictionary faidxDict=null;
 		private long nLine=0;
 		private ReferenceGenome referenceGenome=null;
-		private ReferenceContig genomicSequence=null;
+		private GenomicSequence genomicSequence=null;
 		private final Map<String,String> tags = new HashMap<>();
 		private final Map<String,String> readgroupAtt2def = new HashMap<>();
 		private ContigNameConverter contigNameConverter=null;
@@ -489,21 +494,21 @@ public class PrettySam extends Launcher {
 		
 
 		
-		private ReferenceContig getReferenceContigFor(final String contig) {
-			if(this.genomicSequence==null || !this.genomicSequence.hasName(contig)) {
-				if(PrettySam.this.referenceGenome==null || this.contigNameConverter==null) {
+		private ChromosomeSequence getChromosomeSequenceFor(final String contig) {
+			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(contig)) {
+				if(PrettySam.this.referenceSequenceFile==null || this.contigNameConverter==null) {
 					return null;
 					}
 				final String normContig = this.contigNameConverter.apply(contig);
 				if(normContig==null) return null;
-				this.genomicSequence = PrettySam.this.referenceGenome.getContig(normContig);
+				this.genomicSequence = new GenomicSequence(referenceSequenceFile,normContig);
 				}
 			return this.genomicSequence;
 			}
 		
 		private char getReferenceAt(final String contig,int refpos) {
-			final ReferenceContig refcontig = getReferenceContigFor(contig);
-			if(refcontig==null || (refpos-1)<0 || (refpos-1)>=refcontig.length())return 'N';
+			final ChromosomeSequence refcontig = getChromosomeSequenceFor(contig);
+			if(refcontig==null || (refpos-1)<0 || (refpos-1)>=refcontig.length()) return 'N';
 			return refcontig.charAt(refpos-1);
 			}
 		
@@ -520,8 +525,8 @@ public class PrettySam extends Launcher {
 			this.samDict = this.header.getSequenceDictionary();
 			
 			
-			if(PrettySam.this.referenceGenome!=null) {
-				this.faidxDict = PrettySam.this.referenceGenome.getDictionary();
+			if(PrettySam.this.referenceSequenceFile!=null) {
+				this.faidxDict = PrettySam.this.referenceSequenceFile.getSequenceDictionary();
 				}
 
 			
@@ -544,12 +549,12 @@ public class PrettySam extends Launcher {
 					LOG.info("loading "+knownGeneUri);
 					BufferedReader r=null;
 					try {
-						final Pattern tab = Pattern.compile("[\t]");
+						final CharSplitter tab = CharSplitter.TAB;
 						r = IOUtils.openURIForBufferedReading(PrettySam.this.knownGeneUri);
 						r.lines().
 							filter(S->!StringUtil.isBlank(S) || S.startsWith("#")).
 							map(S->new KnownGene(tab.split(S))).
-							filter(K->getReferenceContigFor(K.getContig())!=null).
+							filter(K->getChromosomeSequenceFor(K.getContig())!=null).
 							forEach(K->{
 								final Interval i = new Interval(K.getContig(),K.getStart(),K.getEnd());
 								List<KnownGeneInfo> L = this.knownGenes.get(i);
@@ -823,9 +828,9 @@ public class PrettySam extends Launcher {
 						Collections.emptyList():
 						this.knownGenes.getOverlapping(rec).stream().flatMap(L->L.stream()).collect(Collectors.toList())
 						;
-				final ReferenceContig referenceContig = rec.getReadUnmappedFlag()?
+				final ChromosomeSequence referenceContig = rec.getReadUnmappedFlag()?
 							null:
-							getReferenceContigFor(rec.getContig());
+							getChromosomeSequenceFor(rec.getContig());
 				
 				/** find variant info */
 				final List<VariantInfo> variantsInfo;
@@ -923,7 +928,8 @@ public class PrettySam extends Launcher {
 								final KnownGene.Peptide pep = cDna.getPeptide();
 								for(int y=0;y< pep.length();++y)
 									{
-									final String aa3letter = GeneticCode.aminoAcidTo3Letters(pep.charAt(y));
+									final com.github.lindenb.jvarkit.util.bio.AminoAcids.AminoAcid aa1=AminoAcids.getAminoAcidFromOneLetterCode(pep.charAt(y));
+									final String aa3letter = (aa1==null?null:aa1.getThreeLettersCode());
 									if(aa3letter==null) continue;
 									final int codonpos[] = pep.convertToGenomicCoordinates(y);
 									Arrays.sort(codonpos);
@@ -967,7 +973,7 @@ public class PrettySam extends Launcher {
 									break;
 							case 4: label(margin2,"Qual");break;
 							case 2:
-								if(cigar==null || cigar.isEmpty()|| PrettySam.this.referenceGenome==null) continue;
+								if(cigar==null || cigar.isEmpty()|| PrettySam.this.referenceSequenceFile==null) continue;
 								label(margin2,"Ref ("+this.fmt.format(align.stream().
 										skip(x).
 										mapToInt(B->B.refpos).
@@ -978,7 +984,7 @@ public class PrettySam extends Launcher {
 								if(cigar==null || cigar.isEmpty()) continue;
 								label(margin2,"Cigar-Operator");break;
 							case 1:
-								if(cigar==null || cigar.isEmpty() || PrettySam.this.referenceGenome==null) continue;
+								if(cigar==null || cigar.isEmpty() || PrettySam.this.referenceSequenceFile==null) continue;
 								label(margin2,"Middle");break;
 							case 5: 
 								if(rec.getReadUnmappedFlag() || cigar==null || cigar.isEmpty() /*|| PrettySam.this.referenceGenome==null*/) continue;
@@ -1301,15 +1307,8 @@ public class PrettySam extends Launcher {
 		try 
 			{
 			r= super.openSamReader(oneFileOrNull(args));
-			if(this.referenceUri!=null)
-				{
-				this.referenceGenome  = new ReferenceGenomeFactory().
-						open(this.referenceUri);
-				}
-			else
-				{
-				this.referenceGenome = null;
-				}			
+			this.referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
+			
 			out = new PrettySAMWriter(super.openFileOrStdoutAsPrintWriter(this.outputFile));
 			out.writeHeader(r.getFileHeader());
 			iter = r.iterator();
@@ -1331,6 +1330,7 @@ public class PrettySam extends Launcher {
 			CloserUtil.close(iter);
 			CloserUtil.close(r);
 			CloserUtil.close(out);
+			CloserUtil.close(this.referenceSequenceFile);
 			}
 		}
 	

@@ -9,9 +9,10 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
-@AlsoTest(VCFUtilsTest.class)
+@AlsoTest({LauncherTest.class,VCFUtilsTest.class})
 public class VCFPolyXTest {
 	
 	private final TestSupport support = new TestSupport();

@@ -61,7 +61,8 @@ import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -188,7 +189,7 @@ public class VcfScanUpstreamOrf extends Launcher
 
 	
 	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private ContigNameConverter refCtgNameConverter =null;
 	private GenomicSequence genomicSequence=null;
 	private final IntervalTreeMap<List<KnownGene>> knownGeneMap = new IntervalTreeMap<>();
@@ -1287,7 +1288,7 @@ public class VcfScanUpstreamOrf extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 			this.refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);
 						

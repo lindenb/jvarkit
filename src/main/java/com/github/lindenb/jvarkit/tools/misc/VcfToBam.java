@@ -35,6 +35,8 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -58,7 +60,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import htsjdk.variant.vcf.VCFIterator;
 
-/*
+/**
  
 BEGIN_DOC
 
@@ -97,13 +99,18 @@ END_DOC
 
 */
 
-@Program(name="vcf2bam",description="vcf to bam",keywords={"ref","vcf","bam"})
+@Program(
+	name="vcf2bam",
+	description="vcf to bam",
+	keywords={"ref","vcf","bam"},
+	modificationDate="20190926"
+	)
 public class VcfToBam extends Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfToBam.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx=null;
@@ -111,7 +118,7 @@ public class VcfToBam extends Launcher
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private ReferenceSequenceFile indexedFastaSequenceFile;
 	@Parameter(names="--fragmentsize",description="fragment size")
 	private int fragmentSize=600;
 	@Parameter(names="--readsize",description="read size")
@@ -150,7 +157,7 @@ public class VcfToBam extends Launcher
 		samHeader.setSortOrder(SortOrder.unsorted);
 		samFileWriter= this.writingBamArgs.
 				setReferencePath(this.faidx).
-				openSAMFileWriter(this.outputFile, samHeader, true);
+				openSamWriter(this.outputFile, samHeader, true);
 		
 		/* looping over sequences */
 		for(final SAMSequenceRecord ssr: dict.getSequences())
@@ -395,7 +402,7 @@ public class VcfToBam extends Launcher
 		VCFIterator iter=null;
 		try
 			{
-			this.indexedFastaSequenceFile= new IndexedFastaSequenceFile(this.faidx);
+			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getDefaultDictionaryForReferenceSequence(this.faidx);
 			iter  = super.openVCFIterator(super.oneFileOrNull(args));
 			run(iter);
 			return 0;

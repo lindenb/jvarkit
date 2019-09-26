@@ -74,7 +74,8 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
@@ -249,7 +250,7 @@ public class ScanRetroCopy extends Launcher
 	@Parameter(names={"--both"},description="Force the constraint that both sides of a deleted intron should have at least '--min-depth' reads ")
 	private boolean force_both_side=false;
 
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private ContigNameConverter refCtgNameConverter =null;
 	private GenomicSequence genomicSequence=null;
 	private PrintWriter saveInsertionsPw = null;
@@ -876,7 +877,7 @@ public class ScanRetroCopy extends Launcher
 		SAMFileWriter sfw = null;
 		try {
 			/* load the reference genome */
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.faidx);
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 			/* create a contig name converter from the REF */
 			this.refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);

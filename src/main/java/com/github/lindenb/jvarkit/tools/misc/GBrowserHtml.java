@@ -33,6 +33,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,8 +49,9 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 
@@ -84,12 +87,12 @@ END_DOC
 */
 
 
-@Program(name="forkvcf",description="Fork a VCF.")
+@Program(name="gbrowserhtml",description="HYML browser")
 public class GBrowserHtml extends Launcher
 	{
 	private static final Logger LOG = Logger.build(GBrowserHtml.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-prefix","--prefix"},description="Zip Prefix")
 	private String prefix = "gbrowse/";
@@ -108,7 +111,7 @@ public class GBrowserHtml extends Launcher
 		PrintWriter paramsWriter=null;
 		JsonWriter paramsJsonWriter=null;
 		String line;
-		IndexedFastaSequenceFile faidx = null;
+		ReferenceSequenceFile faidx = null;
 		long snapshot_id=0L;
 		final String inputName = oneFileOrNull(args);
 		try {
@@ -146,7 +149,7 @@ public class GBrowserHtml extends Launcher
 			
 			zout= new ZipOutputStream(super.openFileOrStdoutAsStream(this.outputFile));
 			File bamFile = null;
-			File faidxFile = null;
+			Path faidxFile = null;
 			String sampleName = null;
 			int extend_interval = DEFAULT_EXTEND_INTERVAL;
 			String title=null;
@@ -176,7 +179,7 @@ public class GBrowserHtml extends Launcher
 					{
 					if( faidx != null) faidx.close();
 					faidx=null;
-					faidxFile= (value.isEmpty()?null:new File(value));
+					faidxFile= (value.isEmpty()?null:Paths.get(value));
 					}
 				else if(key.equals("extend"))
 					{
@@ -255,7 +258,7 @@ public class GBrowserHtml extends Launcher
 
 					if(faidxFile!=null)  {
 						if( faidx == null) {
-							faidx= new IndexedFastaSequenceFile(faidxFile);
+							faidx= ReferenceSequenceFileFactory.getReferenceSequenceFile(faidxFile);
 							}
 						ReferenceSequence dna =faidx.getSubsequenceAt(interval.getContig(), interval.getStart(), interval.getEnd());
 						jsw.name("reference");

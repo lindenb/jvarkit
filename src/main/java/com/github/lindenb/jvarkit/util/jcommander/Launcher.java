@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.util.jcommander;
 import java.awt.Dimension;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -88,6 +87,8 @@ private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
 		"This file must be indexed with samtools faidx and with picard CreateSequenceDictionary";
+public static final String DICTIONARY_SOURCE="A SAM Sequence dictionary source: it can be a *.dict file, a fasta file indexed with 'picard CreateSequenceDictionary', or any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)";
+
 /** description used when building custom URLs (e.g: VcfServer ) */
 public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web browser. The following words will be replaced by their values: ${CHROM}, ${START}, ${END}. "
 		+ "For example for IGV that would be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see http://software.broadinstitute.org/software/igv/book/export/html/189)";
@@ -334,21 +335,6 @@ public Random convert(final String v) {
 	}
 }
 
-public static class IndexedFastaSequenceFileConverter
-implements IStringConverter<IndexedFastaSequenceFile>
-	{
-	@Override
-	public IndexedFastaSequenceFile convert(final String path) {
-		if(path==null) return null;
-		File faidx=new File(path);
-		if(!faidx.exists()) throw new ParameterException("file doesn't exists: "+path);
-		try {
-			return new IndexedFastaSequenceFile(faidx);
-		} catch (FileNotFoundException err) {
-			throw new ParameterException(err);
-		}
-		}	
-	}
 
 public static class VcfWriterOnDemand
 	implements VariantContextWriter

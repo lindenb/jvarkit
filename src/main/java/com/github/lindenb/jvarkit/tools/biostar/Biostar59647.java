@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -38,7 +39,8 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SamReader;
@@ -145,19 +147,18 @@ public class Biostar59647 extends Launcher
 
 	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File refFile=null;
-	public  Biostar59647() {
-		}
+	private Path refFile=null;
+	
 	
 	@Override
 	public int doWork(final List<String> args) {
-		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+		ReferenceSequenceFile indexedFastaSequenceFile=null;
 		SamReader samFileReader=null;
 		PrintStream pout;
 		try
 			{
 			GenomicSequence genomicSequence=null;
-			indexedFastaSequenceFile=new IndexedFastaSequenceFile(refFile);
+			indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(refFile);
 			samFileReader=null;
 			final String bamFile = oneFileOrNull(args);
 			samFileReader = super.openSamReader(bamFile);
@@ -179,7 +180,7 @@ public class Biostar59647 extends Launcher
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("sam");
 			w.writeAttribute("bam",(bamFile==null?"stdin": bamFile));
-			w.writeAttribute("ref",refFile.getPath());
+			w.writeAttribute("ref",refFile.toString());
 
 			w.writeComment(getProgramCommandLine());
 

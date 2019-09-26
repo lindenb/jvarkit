@@ -22,8 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,7 +34,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import htsjdk.variant.vcf.VCFIterator;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -130,7 +131,8 @@ END_DOC
 @Program(name="biostar175929",
 	description="Construct a combination set of fasta sequences from a vcf",
 	biostars=175929,
-	keywords={"fasta","vcf"}
+	keywords={"fasta","vcf"},
+	modificationDate="20190926"
 	)
 public class Biostar175929 extends Launcher
 	{
@@ -138,7 +140,7 @@ public class Biostar175929 extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-x","--extend"},description="extend FASTA sequence by 'n' bases")
 	private int extendBases = 100 ;
@@ -147,7 +149,7 @@ public class Biostar175929 extends Launcher
 	private boolean bracket = false;
 	
 	@Parameter(names={"-R","--reference"},description="indexed Fasta reference",required=true)
-	private File faidx = null;
+	private Path faidx = null;
 
 	
 	private PrintWriter pw;
@@ -225,12 +227,12 @@ public class Biostar175929 extends Launcher
 			LOG.error("fasta reference was not defined.");
 			return -1;
 			}
-		IndexedFastaSequenceFile reference = null;
+		ReferenceSequenceFile reference = null;
 		VCFIterator iter=null;
 		try {
-			reference = new IndexedFastaSequenceFile(this.faidx);
+			reference = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			iter = super.openVCFIterator(oneFileOrNull(args));
-			this.pw = openFileOrStdoutAsPrintWriter(this.outputFile);
+			this.pw = openPathOrStdoutAsPrintWriter(this.outputFile);
 			final List<VariantContext> variants = new ArrayList<>();
 			for(;;)
 				{

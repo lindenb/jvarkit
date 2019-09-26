@@ -48,7 +48,8 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.AminoAcids;
+import com.github.lindenb.jvarkit.util.bio.AminoAcids.AminoAcid;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -58,7 +59,8 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -68,7 +70,7 @@ import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-//import htsjdk.samtools.util.Log;
+
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
@@ -304,7 +306,7 @@ public class TView implements Closeable
 
 	
 	private int distance_between_reads=2;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile =null;
 	private final List<SamInputResource> samInputResources=new ArrayList<>();
 	private final List<SamReader> samReaders=new ArrayList<>();
 	private final List<VcfSource> vcfReaders=new ArrayList<>();
@@ -384,7 +386,7 @@ public class TView implements Closeable
 	public int initialize() throws IOException
 		{
 		if(this.referenceFile!=null) {
-			this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.referenceFile);
+			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile);
 			}
 		if(this.samRecordFilter==null) {
 			this.samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
@@ -1008,7 +1010,8 @@ public class TView implements Closeable
 								int pepIdx = peptide.convertGenomicToPeptideCoordinate(ref0);
 								if(pepIdx!=-1)
 									{
-									final String aa3 = GeneticCode.aminoAcidTo3Letters(peptide.charAt(pepIdx));
+									final AminoAcid aa= AminoAcids.getAminoAcidFromOneLetterCode(peptide.charAt(pepIdx));
+									final String aa3 = aa==null?"***":aa.getThreeLettersCode();
 									final int offset[] = peptide.convertToGenomicCoordinates(pepIdx);
 									if(offset!=null && offset.length==3 && aa3!=null && aa3.length()==3) {
 										if(offset[0]==ref0 ) pepChar=aa3.charAt(0);

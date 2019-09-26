@@ -59,6 +59,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
@@ -105,7 +107,7 @@ public class MapUniProtFeatures extends Launcher
 	@SuppressWarnings("unused")
 	private org.uniprot.ObjectFactory forceJavacCompiler=null;
 	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private Map<String,List<KnownGene>> prot2genes=new HashMap<String,List<KnownGene>>();
     private static class Range
     	{
@@ -203,7 +205,7 @@ public class MapUniProtFeatures extends Launcher
 			
 			pw=super.openFileOrStdoutAsPrintWriter(OUT);
 			LOG.info("read "+REF);
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(REF);
+			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(REF);
 			if(this.indexedFastaSequenceFile.getSequenceDictionary()==null)
 				{
 				LOG.error("fasta sequence is not indexed");

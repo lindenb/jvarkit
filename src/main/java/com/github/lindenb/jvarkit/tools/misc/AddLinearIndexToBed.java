@@ -25,23 +25,25 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Pattern;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -67,26 +69,24 @@ $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta
 @Program(
 		name="addlinearindextobed",
 		description="Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.",
-		keywords={"bed","reference"}
+		keywords={"bed","reference"},
+		modificationDate="20190926"
 		)
 public class AddLinearIndexToBed extends Launcher
 {
 	private static final Logger LOG = Logger.build(AddLinearIndexToBed.class).make();
 
 	@Parameter(names = { "-o", "--out" }, description = OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names = { "-R", "--reference" }, description = INDEXED_FASTA_REFERENCE_DESCRIPTION, required = true)
-	private File refFile = null;
-
-	public AddLinearIndexToBed() {
-
-	}
+	private Path outputFile = null;
+	@Parameter(names = { "-R", "--reference","--dict"}, description = DICTIONARY_SOURCE, required = true)
+	private Path refFile = null;
 
 	private SAMSequenceDictionary dictionary = null;
 	private long tid2offset[] = null;
 
 	protected int doWork(InputStream is, PrintStream out) throws IOException {
-		final Pattern tab = Pattern.compile("[\t]");
+		final CharSplitter tab = CharSplitter.TAB;
+		final ContigNameConverter ctgNameConverter = ContigNameConverter.fromOneDictionary(this.dictionary);
 		BufferedReader in = new BufferedReader(new InputStreamReader(is));
 		String line = null;
 		while ((line = in.readLine()) != null) {
@@ -101,13 +101,15 @@ public class AddLinearIndexToBed extends Launcher
 				LOG.warn("Bad chrom/pos line:" + line);
 				continue;
 			}
-			final SAMSequenceRecord ssr = this.dictionary.getSequence(tokens[0]);
-			if (ssr == null) {
-				for (SAMSequenceRecord sr2 : this.dictionary.getSequences()) {
-					LOG.info("available " + sr2.getSequenceName());
+			final String ctg =  ctgNameConverter.apply(tokens[0]);
+			if(StringUtils.isBlank(ctg)) {
+				throw new JvarkitException.ContigNotFoundInDictionary(tokens[0],this.dictionary);
 				}
-				throw new IOException("undefined chromosome:" + tokens[0]);
-			}
+			
+			final SAMSequenceRecord ssr = this.dictionary.getSequence(ctg);
+			if (ssr == null) {
+				throw new JvarkitException.ContigNotFoundInDictionary(tokens[0],this.dictionary);
+				}
 			int pos0 = Integer.parseInt(tokens[1]);
 			if (pos0 < 0 || pos0 >= ssr.getSequenceLength()) {
 				LOG.warn("position is out of range for : " + line + " length(" + tokens[0] + ")="
@@ -131,36 +133,29 @@ public class AddLinearIndexToBed extends Launcher
 		}
 		PrintStream out = null;
 		try {
-			htsjdk.samtools.reference.IndexedFastaSequenceFile ref = new IndexedFastaSequenceFile(this.refFile);
-			this.dictionary = ref.getSequenceDictionary();
-			ref.close();
+			this.dictionary = SequenceDictionaryUtils.extractRequired(this.refFile);
 
-			if (this.dictionary == null) {
-				throw new JvarkitException.FastaDictionaryMissing(this.refFile);
-			}
 
 			this.tid2offset = new long[this.dictionary.size()];
 			Arrays.fill(this.tid2offset, 0L);
 			for (int i = 1; i < this.dictionary.size(); ++i) {
 				this.tid2offset[i] = this.tid2offset[i - 1] + this.dictionary.getSequence(i - 1).getSequenceLength();
 			}
-			out = openFileOrStdoutAsPrintStream(this.outputFile);
+			out = openPathOrStdoutAsPrintStream(this.outputFile);
 
 			if (args.isEmpty()) {
-				LOG.info("reading stdin");
 				doWork(stdin(), out);
 			} else {
 				for (final String arg : args) {
-					LOG.info("opening " + arg);
-					InputStream in = IOUtils.openURIForReading(arg);
-					doWork(in, out);
-					CloserUtil.close(out);
+					try( InputStream in = IOUtils.openURIForReading(arg)) {
+						doWork(in, out);
+					}
 				}
 			}
 			out.flush();
 
 			return RETURN_OK;
-		} catch (Exception err) {
+		} catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
 		} finally {
@@ -170,10 +165,8 @@ public class AddLinearIndexToBed extends Launcher
 		}
 	}
 
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
+	
+	public static void main(final String[] args) {
 		new AddLinearIndexToBed().instanceMainWithExit(args);
 	}
 }

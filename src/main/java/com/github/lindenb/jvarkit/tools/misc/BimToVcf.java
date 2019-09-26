@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -38,7 +39,8 @@ import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -50,6 +52,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -96,7 +99,8 @@ END_DOC
 
 @Program(name="bim2vcf",
 	description="convert a .bim to a .vcf . For @FlorianeS44",
-	keywords= {"bim","vcf"}
+	keywords= {"bim","vcf"},
+	modificationDate="20190926"
 )
 public class BimToVcf extends Launcher
 	{
@@ -106,29 +110,23 @@ public class BimToVcf extends Launcher
 	private File outputFile = null;
 
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File REF = null;
+	private Path faidx = null;
 
 	public BimToVcf() {
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		VariantContextWriter w=null;
 		BufferedReader r=null;
-		IndexedFastaSequenceFile faidx=null;
+		ReferenceSequenceFile faidx=null;
 		GenomicSequence genomic = null;
 		try {
-			if(this.REF==null) {
-				LOG.error("Reference -R missing.");
-				return -1;
-			}
-			faidx = new IndexedFastaSequenceFile(this.REF);
 			
-			final SAMSequenceDictionary dict=faidx.getSequenceDictionary();
-			if(dict==null) {
-				LOG.error("No dictionary in "+this.REF);
-				return -1;
-				}
+			faidx = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
+			
+			final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(faidx);
+			
 			
 			r = super.openBufferedReader(oneFileOrNull(args));
 				

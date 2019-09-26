@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.onekgenomes;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -45,8 +46,9 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -129,7 +131,8 @@ END_DOC
  */
 @Program(name="vcfancestralalleles",
 description="Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README",
-keywords={"vcf","sort"}
+keywords={"vcf","sort"},
+modificationDate="20190926"
 )
 public class VcfAncestralAllele
 extends Launcher
@@ -138,7 +141,7 @@ extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-m","--manifest"},description="Manifest file containing the path to the fasta files. See doc. ALL fasta files must be indexed with `samtools faidx`", required=true)
-	private File manifestFile = null;
+	private Path manifestFile = null;
 	@Parameter(names={"-t","--tag"},description="Ancestral allele INFO attribute")
 	private String aaAttribute = "AA";
 
@@ -164,7 +167,7 @@ extends Launcher
 		try {
 			final CharSplitter tab = CharSplitter.TAB;
 			final CharSplitter pipe = CharSplitter.PIPE;
-			r = IOUtils.openFileForBufferedReading(this.manifestFile);
+			r = IOUtils.openPathForBufferedReading(this.manifestFile);
 			String line;
 			while((line=r.readLine())!=null) {
 				if(line.isEmpty() || StringUtil.isBlank(line)) continue;
@@ -206,7 +209,7 @@ extends Launcher
 			final VCFIterator iterin,
 			final VariantContextWriter out) {
 		final Set<String> unmapped_contigs= new HashSet<>();
-		IndexedFastaSequenceFile indexedFastaSequenceFile = null;
+		ReferenceSequenceFile indexedFastaSequenceFile = null;
 		try {
 			final VCFInfoHeaderLine AAheaderLine = new VCFInfoHeaderLine(
 					aaAttribute,
@@ -247,9 +250,7 @@ extends Launcher
 						continue;
 						}
 					prev_contig = ctx.getContig();
-					indexedFastaSequenceFile = new IndexedFastaSequenceFile(
-							prev_mapping.ancestralFile
-							);
+					indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(prev_mapping.ancestralFile);
 					}
 				
 				

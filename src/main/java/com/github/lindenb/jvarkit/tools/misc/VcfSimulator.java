@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -33,7 +34,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -46,6 +48,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -72,8 +75,9 @@ public class VcfSimulator extends Launcher
 	private File outputFile = null;
 	@Parameter(names="-S",description="random number seed. -1 == current time.")
 	private long randomSeed = -1L;
-	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION,converter=Launcher.IndexedFastaSequenceFileConverter.class,required=true)
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	@Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidx = null;
+	
 	@Parameter(names= {"-n","--samples"},description="Number of samples. Random if lower than zero")
 	private int numSamples=-1;
 	@Parameter(names= {"-nv","--num-variants"},description="Number of variants to output. <0 == no limit.")
@@ -92,11 +96,7 @@ public class VcfSimulator extends Launcher
 	@Override
 	public int doWork(final List<String> args)
 		{
-		if(this.indexedFastaSequenceFile==null)
-			{
-			LOG.error("Reference is undefined");
-			return -1;
-			}
+		
 		if(!args.isEmpty()) {
 			LOG.error("too many arguments");
 			return -1;
@@ -117,8 +117,11 @@ public class VcfSimulator extends Launcher
 		while(this.samples.size()<numSamples) this.samples.add("SAMPLE"+(1+this.samples.size()));
 		VariantContextWriter writer=null;
 		PrintStream pw = null;
+		ReferenceSequenceFile referenceSequenceFile = null;
 		try
 			{
+			referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
+			
 			final Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, "GT","DP");
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, "AF","AN","AC","DP");
@@ -127,7 +130,7 @@ public class VcfSimulator extends Launcher
 			final VCFHeader header=new VCFHeader(
 					metaData,
 					this.samples);
-			header.setSequenceDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
+			header.setSequenceDictionary(SequenceDictionaryUtils.extractRequired(referenceSequenceFile));
 			calc.setHeader(header);
 				
 			pw = super.openFileOrStdoutAsPrintStream(this.outputFile);
@@ -139,10 +142,10 @@ public class VcfSimulator extends Launcher
 				{
 				if(pw.checkError()) break;
 				if(this.numberOfVariants>=0 && countVariantsSoFar>=this.numberOfVariants) break;
-				for(final SAMSequenceRecord ssr: this.indexedFastaSequenceFile.getSequenceDictionary().getSequences())
+				for(final SAMSequenceRecord ssr: referenceSequenceFile.getSequenceDictionary().getSequences())
 					{
 					if(pw.checkError()) break;
-					final GenomicSequence genomic=new GenomicSequence(this.indexedFastaSequenceFile, ssr.getSequenceName());
+					final GenomicSequence genomic=new GenomicSequence(referenceSequenceFile, ssr.getSequenceName());
 					for(int pos=1;pos<=ssr.getSequenceLength();++pos)
 						{
 						if(pw.checkError()) break;
@@ -206,7 +209,7 @@ public class VcfSimulator extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
+			CloserUtil.close(referenceSequenceFile);
 			CloserUtil.close(pw);
 			CloserUtil.close(writer);
 			}

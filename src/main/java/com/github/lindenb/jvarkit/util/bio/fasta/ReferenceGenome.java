@@ -30,6 +30,7 @@ import java.util.function.Function;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
+@Deprecated
 public interface ReferenceGenome extends
 	Closeable,
 	Function<String, ReferenceContig> {

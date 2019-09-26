@@ -84,7 +84,8 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -202,7 +203,7 @@ public class VCFCombineTwoSnvs extends Launcher
 	/** known Gene collection */
 	private final IntervalTreeMap<List<Transcript>> knownGenes=new IntervalTreeMap<>();
 	/** reference genome */
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	/** current genomic sequence */
 	private GenomicSequence genomicSequence=null;
 	/** all variants */
@@ -621,7 +622,7 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 			final VCFHeader header= cah.header;
 			final List<String> sampleList = header.getSampleNamesInOrder();
 
-			this.indexedFastaSequenceFile=  new IndexedFastaSequenceFile(this.referencePath);
+			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referencePath);
 	        final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 	        this.rnaSequenceFactory.setContigToGenomicSequence(C->getGenomicSequenceForContig(C));
 	        

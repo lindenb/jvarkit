@@ -4,6 +4,7 @@
 package com.github.lindenb.jvarkit.tools.jaspar;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.Set;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.tribble.readers.LineIterator;
@@ -72,12 +75,12 @@ public class VcfJaspar extends Launcher
 	@Parameter(names="-f",description="(0<ratio<1) fraction of best score")
 	private double fraction_of_max=0.95;
 	@Parameter(names={"-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File fasta = null;
+	private Path fasta = null;
 	@Parameter(names={"-T","--tag"},description="VCF tag")
 	private String ATT = "JASPAR";
 
 	
-	private IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private List<Matrix> jasparDb=new ArrayList<Matrix>();
 	
 
@@ -187,7 +190,7 @@ public class VcfJaspar extends Launcher
 				}
 			
 			LOG.info("opening "+fasta);
-			this.indexedFastaSequenceFile=new IndexedFastaSequenceFile(fasta);
+			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(fasta);
 			return doVcfToVcf(oneFileOrNull(args),outputFile);
 			}
 		catch(Exception err)

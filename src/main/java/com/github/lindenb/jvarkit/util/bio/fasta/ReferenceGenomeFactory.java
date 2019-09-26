@@ -48,13 +48,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 
+@Deprecated
 public class ReferenceGenomeFactory
 implements IStringConverter<ReferenceGenome>  {
 private static final Logger LOG = Logger.build(ReferenceGenomeFactory.class).make();
@@ -434,12 +436,12 @@ private  class ReferenceGenomeImpl
 		}
 	
 	private final File fastaFile;
-	private IndexedFastaSequenceFile indexedFastaSequenceFile;
+	private ReferenceSequenceFile indexedFastaSequenceFile;
 	ReferenceGenomeImpl(final File fastaFile) throws IOException
 		{
 		this.fastaFile = fastaFile;
 		IOUtil.assertFileIsReadable(fastaFile);
-		this.indexedFastaSequenceFile = new IndexedFastaSequenceFile(fastaFile);
+		this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(fastaFile);
 		super.dictionary = this.indexedFastaSequenceFile.getSequenceDictionary();
 		if(super.dictionary==null) {
 			throw new JvarkitException.FastaDictionaryMissing(fastaFile);

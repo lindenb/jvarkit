@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
@@ -38,7 +39,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -120,9 +120,8 @@ public class VcfToBed  extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToBed.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-R","--reference"},description="Convert the contigs of the VCF on the fly using an indexed genome. " +
-			ReferenceFileSupplier.OPT_DESCRIPTION,converter=ReferenceFileSupplier.StringConverter.class)
-	private ReferenceFileSupplier referenceFileSupplier=null;
+	@Parameter(names={"-R","--reference","--dict"},description=DICTIONARY_SOURCE)
+	private Path faidx = null;
 	@Parameter(names={"-c","--no-ci"},description="For structural variant, ignore the extention of the boundaries using INFO/CIPOS and INFO/CIEND")
 	private boolean ignoreCi = false;
 	@Parameter(names={"-x","--slop"},description="Extends interval by 'x' bases on both sides. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
@@ -326,10 +325,9 @@ public class VcfToBed  extends Launcher {
 		
 		PrintWriter pw=null;
 		try {
-			if(this.referenceFileSupplier!=null)
+			if(this.faidx!=null)
 				{
-				final File fai = this.referenceFileSupplier.getRequired();
-				this.samSequenceDictionary = SequenceDictionaryUtils.extractRequired(fai);
+				this.samSequenceDictionary = SequenceDictionaryUtils.extractRequired(this.faidx);
 				}
 			
 			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);

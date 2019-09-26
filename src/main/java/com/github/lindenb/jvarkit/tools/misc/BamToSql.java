@@ -37,7 +37,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
@@ -315,13 +316,13 @@ public class BamToSql
 		SamReader sfr=null;
 		PrintWriter out =null;
 		GenomicSequence genomicSequence=null;
-		IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+		ReferenceSequenceFile indexedFastaSequenceFile=null;
 		args = new ArrayList<String>(IOUtils.unrollFiles(args));
 		try
 			{		
 			
 			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			indexedFastaSequenceFile=new IndexedFastaSequenceFile(this.faidxFile);
+			indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxFile);
 
 			
 			out.println("CREATE TABLE IF NOT EXISTS SamFile");

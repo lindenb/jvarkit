@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -41,14 +42,14 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceFileSupplier;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -87,8 +88,8 @@ public class NoZeroVariationVCF extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-R","-r","--reference"},description=ReferenceFileSupplier.OPT_DESCRIPTION)
-	private ReferenceFileSupplier referenceFileSupplier = ReferenceFileSupplier.getDefaultReferenceFileSupplier();
+	@Parameter(names={"-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidxFile = null;
 	@Parameter(names={"-f","--filter"},description="FILTER name")
 	private String filter = "FAKESNP";
 	
@@ -99,10 +100,9 @@ public class NoZeroVariationVCF extends Launcher
 			final VCFIterator in,
 			final VariantContextWriter out
 			) {
-			IndexedFastaSequenceFile indexedFastaSequenceFile=null;
+			ReferenceSequenceFile indexedFastaSequenceFile=null;
 			try {
-				final File faidx = this.referenceFileSupplier.getRequired();
-				 indexedFastaSequenceFile=new IndexedFastaSequenceFile(faidx);
+				indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(faidxFile);
 		
 				final VCFHeader header=in.getHeader();
 				if(in.hasNext())
@@ -124,11 +124,8 @@ public class NoZeroVariationVCF extends Launcher
 					
 					for(final VCFHeaderLine L:meta) header.addMetaDataLine(L);
 					out.writeHeader(header);
-					final SAMSequenceDictionary dict= indexedFastaSequenceFile.getSequenceDictionary();
-					if(dict==null || dict.isEmpty())
-						{
-						throw new JvarkitException.FastaDictionaryMissing(faidx);
-						}
+					final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
+
 					//choose random chrom, best is 'random' , but not 1...23,X,Y, etc...
 					String chrom=dict.getSequence(0).getSequenceName();
 					

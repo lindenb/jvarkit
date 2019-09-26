@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,6 +42,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -68,7 +70,8 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -157,7 +160,7 @@ public class Biostar78285 extends Launcher
 	@Parameter(names={"-m","--min-depth"},description="Min depth tresholds.")
 	private List<Integer> minDepthTresholds = new ArrayList<>();
 	@Parameter(names={"-R","--reference"},description="Optional. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File refFile = null;
+	private Path refFile = null;
 	@Parameter(names={"-gcw","--gc-percent-window","--gcw"},description="GC% window size. (if REF is defined)")
 	private int gc_percent_window=20;
 
@@ -185,7 +188,7 @@ public class Biostar78285 extends Launcher
 		final List<CloseableIterator<SAMRecord>> samIterators  = new ArrayList<>(); 
 		final TreeSet<String> samples = new TreeSet<>(); 
 		final String DEFAULT_PARTITION = "UNDEFINED_PARTITION";
-		IndexedFastaSequenceFile indexedFastaSequenceFile = null;
+		ReferenceSequenceFile indexedFastaSequenceFile = null;
     	VariantContextWriter out=null;
 		try
 			{
@@ -271,14 +274,10 @@ public class Biostar78285 extends Launcher
 				}
 			
 			if(this.refFile!=null) {
-				LOG.info("opening "+refFile);
-				indexedFastaSequenceFile = new IndexedFastaSequenceFile(this.refFile);
-				final SAMSequenceDictionary refdict = indexedFastaSequenceFile.getSequenceDictionary();
+				indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.refFile);
+				final SAMSequenceDictionary refdict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
 				ContigNameConverter.setDefaultAliases(refdict);
-				if(refdict==null) {
-					throw new JvarkitException.FastaDictionaryMissing(this.refFile);
-					}
-				 if(!SequenceUtil.areSequenceDictionariesEqual(dict, refdict))
+				if(!SequenceUtil.areSequenceDictionariesEqual(dict, refdict))
 		    		{
 		    		LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(dict,refdict));
 		    		return -1;

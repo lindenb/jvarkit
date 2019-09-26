@@ -1999,7 +1999,7 @@ all.add( task("vcffilterjs", type: CompileJVarkit) {
 
 all.add( task("vcfpolyx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VCFPolyX"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfrebase", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase"
