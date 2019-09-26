@@ -34,7 +34,6 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
@@ -44,7 +43,6 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -402,7 +400,7 @@ public class VcfToBam extends Launcher
 		VCFIterator iter=null;
 		try
 			{
-			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getDefaultDictionaryForReferenceSequence(this.faidx);
+			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			iter  = super.openVCFIterator(super.oneFileOrNull(args));
 			run(iter);
 			return 0;
