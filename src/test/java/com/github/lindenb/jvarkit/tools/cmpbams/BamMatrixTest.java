@@ -7,8 +7,11 @@ import java.nio.file.Paths;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
+@AlsoTest(LauncherTest.class)
 public class BamMatrixTest {
 	private final TestSupport support = new TestSupport();
 	@Test(dataProvider="src1")

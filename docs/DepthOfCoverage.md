@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Depth of Coverage
+A custom 'Depth of Coverage'.
 
 
 ## Usage
@@ -10,20 +10,29 @@ Depth of Coverage
 ```
 Usage: depthofcoverage [options] Files
   Options:
+    --auto-mask
+      Use REFerence sequence to automatically mask bases that are not ATGC
+      Default: false
+    --disable-paired-overlap
+      Count overlapping bases with mate for paired-end
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     --mapq
-      mapping quality.
-      Default: 0
+       min mapping quality.
+      Default: 1
     -B, --mask
-      bed containing regions to be MASKED
+      optional bed containing regions to be MASKED
     -o, --out
       Output file. Optional . Default: stdout
-  * -R, --reference
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+    -R, --reference
+      For reading CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
+    --skip
+      Chromosomes to skip (regular expression)
+      Default: (NC_007605|hs37d5)
     --version
       print version and exit
 
@@ -55,9 +64,18 @@ $ ./gradlew depthofcoverage
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20190927
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/coverage/DepthOfCoverage.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/coverage/DepthOfCoverage.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/coverage/DepthOfCoverageTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/coverage/DepthOfCoverageTest.java)
 
 
 ## Contribute

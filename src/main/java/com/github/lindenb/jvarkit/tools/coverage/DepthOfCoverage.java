@@ -5,10 +5,14 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.BitSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -25,6 +29,8 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 
@@ -62,45 +68,78 @@ src/test/resources/S2.bam  S2      RF07    1074    8112    7.553072625698324
 END_DOC
  */
 @Program(name="depthofcoverage",
-	description="Depth of Coverage",
-	keywords={"depth","bam","sam","coverage"}
+	description="A custom 'Depth of Coverage'.",
+	keywords={"depth","bam","sam","coverage"},
+	creationDate="20190927",
+	modificationDate="20190927"
 	)
 public class DepthOfCoverage extends Launcher
 	{
 	private static Logger LOG=Logger.build(DepthOfCoverage.class).make();
 
 	
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	@Parameter(names={"-R","--reference"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx = null;
-	@Parameter(names={"-B","--mask"},description="bed containing regions to be MASKED")
+	@Parameter(names={"-B","--mask"},description="optional bed containing regions to be MASKED")
 	private Path maskBed = null;
-	@Parameter(names={"--mapq"},description="mapping quality.")
-	private int mapping_quality=0;
+	@Parameter(names={"--mapq"},description=" min mapping quality.")
+	private int mapping_quality=1;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
-
+	@Parameter(names={"--auto-mask"},description="Use REFerence sequence to automatically mask bases that are not ATGC")
+	private boolean auto_mask = false;
+	@Parameter(names={"--skip"},description="Chromosomes to skip (regular expression)")
+	private String skipContigExpr = "(NC_007605|hs37d5)";
+	@Parameter(names={"--async"},description="use async I/O",hidden=true)
+	private boolean asyncIo=false;
+	@Parameter(names={"--disable-paired-overlap"},description="Count overlapping bases with mate for paired-end")
+	private boolean disable_paired_overlap_flag=false;
 	@Override
-	public int doWork(List<String> args)
+	public int doWork(final List<String> args)
 		{
-		SamReader sfr=null;
 		PrintWriter out=null;
+		if(this.auto_mask && this.faidx==null) {
+			LOG.error("Cannot auto mask if REF is not defined");
+			return -1;
+			}
+		ReferenceSequenceFile referenceSequenceFile=null;
 		try
 			{
+			final Predicate<String> acceptContig;
+			if(!StringUtils.isBlank(this.skipContigExpr)) {
+				final Pattern pat = Pattern.compile(this.skipContigExpr);
+				acceptContig = S-> !pat.matcher(S).matches();
+				}
+			else
+				{
+				acceptContig = S -> true;
+				}	
+			
 			final SamReaderFactory srf = super.createSamReaderFactory();
-			srf.referenceSequence(this.faidx);
+			if(this.faidx!=null) 
+				{
+				srf.referenceSequence(this.faidx);
+				srf.setUseAsyncIo(this.asyncIo);
+				referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
+				}
 			
 			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			out.println("#BAM\tSample\tContig\tLength\tCount\tDepth");
+			out.println("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth");
 			
 			for(final Path path: IOUtils.unrollPaths(args)) {
 				
 				try(final SamReader sr = srf.open(path)) {
+					if(!sr.hasIndex()) {
+						LOG.error("File "+path+" is not indexed.");
+						return -1;
+					}
 					final SAMFileHeader header = sr.getFileHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 					if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
 						LOG.error("file is not sorted on coordinate :"+header.getSortOrder()+" "+path);
 						return -1;
 						}
+					long count_raw_bases = 0L;
 					long count_bases = 0L;
 					long sum_coverage = 0L;
 					final String sample = header.getReadGroups().
@@ -111,6 +150,7 @@ public class DepthOfCoverage extends Launcher
 							;
 					int coverage[] = null;
 					String prevContig = null;
+					
 					BitSet mask=null;
 					final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 					try(CloseableIterator<SAMRecord> iter=sr.iterator()) {
@@ -122,8 +162,11 @@ public class DepthOfCoverage extends Launcher
 								if(rec.getReadUnmappedFlag()) continue;
 								if(rec.isSecondaryOrSupplementary()) continue;
 								if(rec.getDuplicateReadFlag()) continue;
-								if(rec.getMappingQuality() < this.mapping_quality ) continue;								
+								if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+								if(rec.getMappingQuality() < this.mapping_quality ) continue;				
+								if(!acceptContig.test(rec.getContig())) continue;
 								}
+							
 							if(rec==null || !rec.getContig().equals(prevContig)) {
 								if(coverage!=null) {//DUMP
 									long count_bases_ctg = 0L;
@@ -140,12 +183,14 @@ public class DepthOfCoverage extends Launcher
 									out.print("\t");
 									out.print(prevContig);
 									out.print("\t");
+									out.print(coverage.length);
+									out.print("\t");
 									out.print(count_bases_ctg);
 									out.print("\t");
 									out.print(sum_coverage_ctg);
 									out.print("\t");
 									if(count_bases_ctg>0) {
-										out.print(sum_coverage_ctg/(double)count_bases_ctg);
+										out.printf("%.2f",sum_coverage_ctg/(double)count_bases_ctg);
 										}
 									else
 										{
@@ -155,7 +200,7 @@ public class DepthOfCoverage extends Launcher
 									
 									count_bases += count_bases_ctg;
 									sum_coverage += sum_coverage_ctg;
-									
+									count_raw_bases += coverage.length;
 									
 									}
 								coverage=null;
@@ -164,9 +209,18 @@ public class DepthOfCoverage extends Launcher
 								System.gc();
 								if(rec==null) break;
 								
-								final SAMSequenceRecord ssr = dict.getSequence(rec.getContig());
+								final SAMSequenceRecord ssr = Objects.requireNonNull(dict.getSequence(rec.getContig()));
 								coverage = new int[ssr.getSequenceLength()];
 								mask = new BitSet(ssr.getSequenceLength());
+								if(this.auto_mask && referenceSequenceFile!=null) {
+									final byte refSeq[] = Objects.requireNonNull(referenceSequenceFile.getSequence(ssr.getSequenceName())).getBases();
+									for(int i=0;i< refSeq.length;i++) {
+										if(AcidNucleics.isATGC(refSeq[i])) continue;
+										mask.set(i);
+									}
+								}
+								
+								/* read mask */
 								if(this.maskBed!=null ) {
 									final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 									final BedLineCodec codec= new BedLineCodec();
@@ -188,11 +242,23 @@ public class DepthOfCoverage extends Launcher
 								prevContig=rec.getContig();
 								}
 							
+							int max_end1 = coverage.length;
+							
+							if(this.disable_paired_overlap_flag && 
+								rec.getReadPairedFlag() && 
+								!rec.getMateUnmappedFlag() &&
+								rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) &&
+								rec.getAlignmentStart() < rec.getMateAlignmentStart() &&
+								rec.getAlignmentEnd() > rec.getMateAlignmentStart()
+								) {
+								max_end1 = rec.getMateAlignmentStart() - 1;
+								}
+							
 							for(final AlignmentBlock block:rec.getAlignmentBlocks()) {
 								int pos1=block.getReferenceStart();
 								final int len = block.getLength();
 								for(int i=0;i< len;i++) {
-									if(pos1>0 && pos1 <= coverage.length) {
+									if(pos1>0 && pos1 <= max_end1) {
 										coverage[pos1-1]++;
 										}
 									}
@@ -210,12 +276,14 @@ public class DepthOfCoverage extends Launcher
 					out.print("\t");
 					out.print(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
 					out.print("\t");
+					out.print(count_raw_bases);
+					out.print("\t");
 					out.print(count_bases);
 					out.print("\t");
 					out.print(sum_coverage);
 					out.print("\t");
 					if(count_bases>0) {
-						out.print(sum_coverage/(double)count_bases);
+						out.printf("%.2f",sum_coverage/(double)count_bases);
 						}
 					else
 						{
@@ -230,14 +298,14 @@ public class DepthOfCoverage extends Launcher
 			out.close();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(sfr);
+			CloserUtil.close(referenceSequenceFile);
 			}
 
 		}
