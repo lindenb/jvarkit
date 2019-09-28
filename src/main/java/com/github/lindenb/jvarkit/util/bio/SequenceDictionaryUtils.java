@@ -26,16 +26,22 @@ package com.github.lindenb.jvarkit.util.bio;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -162,5 +168,31 @@ public static boolean hasXY(final SAMSequenceDictionary dict) {
 	if(dict.getSequence("X")==null && dict.getSequence("chrX")==null) return false;
 	if(dict.getSequence("Y")==null && dict.getSequence("chrY")==null) return false;
 	return true;
-}
+	}
+
+/** NO TESTED: TEST THIS. return complement of intervals */
+public static List<? extends Locatable> complement(final SAMSequenceDictionary dict,List<? extends Locatable> inputs) {
+	final List<Locatable> outputs =new ArrayList<>();
+	for(final SAMSequenceRecord ssr:dict.getSequences()) {
+		final List<? extends Locatable> L3 = inputs.stream().
+				filter(R->R.getContig().equals(ssr.getSequenceName())).
+				sorted((A,B)->Integer.compare(A.getStart(), B.getStart())).
+				collect(Collectors.toList());
+		int pos=1;
+		for(int i=0;i< L3.size();i++) {
+			final Locatable r=L3.get(i);
+			if(!(pos>=r.getStart() && pos<=r.getEnd()))
+				{
+				outputs.add(new SimpleInterval(ssr.getSequenceName(), pos, r.getStart()-1));
+				}
+			pos=r.getEnd()+1;
+			}
+		if(pos< ssr.getSequenceLength()) {
+			outputs.add(new SimpleInterval(ssr.getSequenceName(), pos,ssr.getSequenceLength()));
+			}
+		}
+	return outputs;
+	}
+
+
 }

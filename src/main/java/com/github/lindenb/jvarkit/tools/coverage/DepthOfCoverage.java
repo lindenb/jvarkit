@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2019 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.coverage;
 
 import java.io.BufferedReader;
@@ -6,8 +30,10 @@ import java.nio.file.Path;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -71,7 +97,7 @@ END_DOC
 	description="A custom 'Depth of Coverage'.",
 	keywords={"depth","bam","sam","coverage"},
 	creationDate="20190927",
-	modificationDate="20190927"
+	modificationDate="20190928"
 	)
 public class DepthOfCoverage extends Launcher
 	{
@@ -105,14 +131,14 @@ public class DepthOfCoverage extends Launcher
 		ReferenceSequenceFile referenceSequenceFile=null;
 		try
 			{
-			final Predicate<String> acceptContig;
+			final Predicate<String> isRejectContig;
 			if(!StringUtils.isBlank(this.skipContigExpr)) {
 				final Pattern pat = Pattern.compile(this.skipContigExpr);
-				acceptContig = S-> !pat.matcher(S).matches();
+				isRejectContig = S-> pat.matcher(S).matches();
 				}
 			else
 				{
-				acceptContig = S -> true;
+				isRejectContig = S -> false;
 				}	
 			
 			final SamReaderFactory srf = super.createSamReaderFactory();
@@ -135,6 +161,15 @@ public class DepthOfCoverage extends Launcher
 					}
 					final SAMFileHeader header = sr.getFileHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+					final Set<String> rejectContigSet = dict.getSequences()
+							.stream()
+							.map(SSR->SSR.getSequenceName())
+							.filter(isRejectContig)
+							.collect(Collectors.toSet())
+							;
+							
+					
+					
 					if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
 						LOG.error("file is not sorted on coordinate :"+header.getSortOrder()+" "+path);
 						return -1;
@@ -164,7 +199,7 @@ public class DepthOfCoverage extends Launcher
 								if(rec.getDuplicateReadFlag()) continue;
 								if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 								if(rec.getMappingQuality() < this.mapping_quality ) continue;				
-								if(!acceptContig.test(rec.getContig())) continue;
+								if(rejectContigSet.contains(rec.getContig())) continue;
 								}
 							
 							if(rec==null || !rec.getContig().equals(prevContig)) {
