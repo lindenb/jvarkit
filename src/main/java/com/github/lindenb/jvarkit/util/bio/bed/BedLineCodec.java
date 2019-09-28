@@ -57,7 +57,10 @@ public class BedLineCodec
         	LOG.warn("not enough tokens in BED line "+line+" (\""+line.replaceAll("[\t]", "(tab)")+"\"=. Skipping.");
         	return null;
         	}
-       
+        if(tokens[1].equals(tokens[2])) {
+        	LOG.warn("cannot use empty BED interval "+line+" (\""+line.replaceAll("[\t]", "(tab)")+"\"=. Skipping.");
+        	return null;
+        	}
         return new BedLine(tokens);
         }
 	
