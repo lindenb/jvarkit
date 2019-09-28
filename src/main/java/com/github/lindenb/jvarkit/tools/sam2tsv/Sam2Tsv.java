@@ -152,6 +152,7 @@ Sam2tsv was cited in :
   * "Linkage of A-to-I RNA editing in metazoans and the impact on genome evolution "  Molecular Biology and Evolution, msx274, https://doi.org/10.1093/molbev/msx274
   * "Vex-seq: high-throughput identification of the impact of genetic variation on pre-mRNA splicing efficiency" Genome Biology201819:71 https://doi.org/10.1186/s13059-018-1437-x
   * "Accurate detection of m6A RNA modifications in native RNA sequences" Huanle Liu, Oguzhan Begik, Morghan C Lucas, Christopher E Mason, Schraga Schwartz, John S Mattick, Martin A Smith, Eva Maria Novoa bioRxiv 525741; doi: https://doi.org/10.1101/525741 
+  * "DART-seq: an antibody-free method for global m6A detection"  Nature Methods https://doi.org/10.1038/s41592-019-0570-0
 
 END_DOC
 */
@@ -159,7 +160,7 @@ END_DOC
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","tsv"},
 	biostars={157232,59647,253828,264875,277493},
-	modificationDate="20190924")
+	modificationDate="20190928")
 public class Sam2Tsv
 	extends Launcher
 	{

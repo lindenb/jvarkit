@@ -677,6 +677,20 @@ https://www.biostars.org/p/397168/
 $ wget -O - -q "http://ftp.ensembl.org/pub/release-97/gtf/mus_musculus/Mus_musculus.GRCm38.97.gtf.gz" | gunzip -c | java -jar dist/bioalcidaejdk.jar -F GTF -e 'stream().forEach(G->println(G.getId()+"\t"+G.getGeneName()+"\t"+G.getTranscripts().stream().flatMap(T->T.getIntrons().stream()).mapToInt(I->I.getLengthOnReference()).average().orElse(-99) ));'
 `````
 
+# introns, exons and cds in a gtf
+
+```
+stream().
+    flatMap(GENE->GENE.getTranscripts().stream()).
+    flatMap(TRANSCRIPT->{
+        final List<Interval> L = new ArrayList<>();
+        TRANSCRIPT.getExons().stream().forEach(E->L.add(E.toInterval()));
+        TRANSCRIPT.getIntrons().stream().forEach(I->L.add(I.toInterval()));
+        TRANSCRIPT.getUTRs().stream().forEach(U->L.add(U.toInterval()));
+        return L.stream();
+        }).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getStrand()+"\t"+R.getName()));
+```
+
 END_DOC
 */
 
@@ -687,7 +701,7 @@ END_DOC
 	biostars={264894,275714,279535,279942,284852,285803,288324,293237,295040,
 			297983,299255,304780,305174,305743,308310,308554,309013,311363,
 			298361,324900,326294,326765,329423,330752,334253,335056,335692,336206,
-			338031,356474,394289,395454,397168},
+			338031,356474,394289,395454,397168,400463},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 	modificationDate="2019-08-22"
 	)
