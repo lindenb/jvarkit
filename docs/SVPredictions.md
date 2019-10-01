@@ -10,8 +10,12 @@ Basic Variant Effect prediction using gtf
 ```
 Usage: svpredictions [options] Files
   Options:
+    -F, --filter
+      FILTER to set if variant failing prediction of option --where. Empty: no 
+      FILTER, discard variant.
+      Default: BAD_SV_PRED
   * -g, --gtf
-      GTF File
+      A GTF file.
     -h, --help
       print help and exit
     --helpFormat
@@ -24,15 +28,26 @@ Usage: svpredictions [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -r, --remove-attribute
+      Do not print the annotation that don't contain the contraint of the 
+      argument  --where
+      Default: false
     --tag
       VCF info attribute
       Default: SVCSQ
     -u, --upstream
-      Upstream size. A distance specified as a positive integer.Comma are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      Gene Upstream/Downstream length. A distance specified as a positive 
+      integer.Comma are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb 
       Default: 5000
     --version
       print version and exit
+    -w, --where
+      where in gene should overlap the variant. Empty string: no limit/use all 
+      possible annotations. Should be a comma/space/semicolon string with the 
+      following items: 
+      'intergenic|gene|transcript|intron|exon|utr|cds|downstream|upstream' 
+      Default: <empty string>
 
 ```
 
@@ -70,6 +85,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictions.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictions.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictionsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictionsTest.java)
 
 
 ## Contribute
