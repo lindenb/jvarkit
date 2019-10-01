@@ -15,13 +15,15 @@ Usage: svpredictions [options] Files
       FILTER, discard variant.
       Default: BAD_SV_PRED
   * -g, --gtf
-      A GTF file.
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html .
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     --max-genes
-      don't print the genes names if their count exceed 'x'
+      don't print the genes names if their count exceed 'x'. '-1' = 
+      ignore/unlimited 
       Default: 20
     -nti, --no-transcript-id
       don't print transcript id (reduce length of annotation)
@@ -29,7 +31,7 @@ Usage: svpredictions [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -r, --remove-attribute
-      Do not print the annotation that don't contain the contraint of the 
+      Do not print the annotations that don't contain the contraint for the 
       argument  --where
       Default: false
     --tag

@@ -120,7 +120,7 @@ public class SVPredictions extends Launcher
 	private Path gtfPath = null;
 	@Parameter(names={"-u","--upstream"},description="Gene Upstream/Downstream length. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int upstream_size =  5_000;
-	@Parameter(names={"--max-genes"},description="don't print the genes names if their count exceed 'x'")
+	@Parameter(names={"--max-genes"},description="don't print the genes names if their count exceed 'x'. '-1' = ignore/unlimited")
 	private int max_genes_count =  20;
 	@Parameter(names={"-nti","--no-transcript-id"},description="don't print transcript id (reduce length of annotation)")
 	private boolean ignore_transcript_id = false;
@@ -131,10 +131,9 @@ public class SVPredictions extends Launcher
 	private String whereStr="";
 	@Parameter(names={"-F","--filter"},description="FILTER to set if variant failing prediction of option --where. Empty: no FILTER, discard variant.")
 	private String filterStr="BAD_SV_PRED";
-	@Parameter(names={"-r","--remove-attribute"},description="Do not print the annotation that don't contain the contraint of the argument  --where")
+	@Parameter(names={"-r","--remove-attribute"},description="Do not print the annotations that don't contain the contraint for the argument  --where")
 	private boolean remove_attributes =  false;
 
-		
 	private final Set<WhereInGene> limitWhere = new HashSet<>();
 	
 	
@@ -368,7 +367,7 @@ public class SVPredictions extends Launcher
 				
 				
 				
-				if(genes.size()>this.max_genes_count) {
+				if(this.max_genes_count!=-1 && genes.size()>this.max_genes_count) {
 					
 					final String prefix= annotations.stream().
 							flatMap(L->L.stream()).
