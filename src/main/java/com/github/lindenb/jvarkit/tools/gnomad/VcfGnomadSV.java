@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -39,10 +40,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -51,11 +52,20 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
+
+# Example:
+
+```
+java -jar dist/vcfgnomadsv.jar \
+	-g src/test/resources/gnomad_v2_sv.sites.vcf.gz \
+	./src/test/resources/manta.B00GWGD.vcf.gz
+```
 
 END_DOC
  */
@@ -63,7 +73,7 @@ END_DOC
 	description="Peek annotations from gnomad structural variants",
 	keywords={"vcf","annotation","gnomad","sv"},
 	creationDate="20190814",
-	modificationDate="20190814"
+	modificationDate="20191002"
 )
 public class VcfGnomadSV extends Launcher{
 	
@@ -81,12 +91,9 @@ public class VcfGnomadSV extends Launcher{
 	private String discordant_svtype_filter = "";
 	@Parameter(names={"--any-overlap-filter"},description="If not empty, set this FILTER if any variant in gnomad is found overlaping the variant BUT we didn't find a correct match")
 	private String any_overlap_filter = "";
-	@Parameter(names={"--fraction"},description="two segments are identical if they overlap at fraction 'x' ")
-	private double fraction_overlap = 0.7;
-	@Parameter(names={"--bnd-distance"},description="two bnd are identical if they're distant from  'x' bases")
-	private int bnd_distance=10;
 
-
+	@ParametersDelegate
+	private StructuralVariantComparator svComparator = new StructuralVariantComparator();
 
 	@Override
 	protected int doVcfToVcf(
@@ -99,7 +106,12 @@ public class VcfGnomadSV extends Launcher{
 		final VCFHeader gnomadHeader = gnomadVcfReader.getFileHeader();
 		final SAMSequenceDictionary gnomadDict= SequenceDictionaryUtils.extractRequired(gnomadHeader);
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(gnomadDict);
-		
+		this.svComparator.setContigComparator((A,B)->{
+			final String c1 = contigNameConverter.apply(A);
+			if(StringUtils.isBlank(c1)) return false;
+			final String c2 = contigNameConverter.apply(A);
+			return c1.equals(c2);
+		});
 		
 		final VCFHeader h0 = iter.getHeader();
 		final SAMSequenceDictionary dict= h0.getSequenceDictionary();
@@ -131,6 +143,9 @@ public class VcfGnomadSV extends Launcher{
 			h2.addMetaDataLine(hd2);
 		}
 		
+		final VCFInfoHeaderLine ghomadIdInfo = new VCFInfoHeaderLine(this.prefix + "ID",1,VCFHeaderLineType.String,"Original ID column in gnomad");
+		h2.addMetaDataLine(ghomadIdInfo);
+		
 		JVarkitVersion.getInstance().addMetaData(this, h2);
 		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 		
@@ -143,67 +158,27 @@ public class VcfGnomadSV extends Launcher{
 				out.add(ctx);
 				continue;
 				}
-			final String svType = ctx.getAttributeAsString(VCFConstants.SVTYPE,"");
-			if(StringUtil.isBlank(svType)) {
-				LOG.warn("No SV Type in "+ctx.getContig()+":"+ctx.getStart());
-				out.add(ctx);
-				continue;
-				}
+			
 			
 			VariantContext cgtx=null;
 			final CloseableIterator<VariantContext> iter2 = gnomadVcfReader.query(
 					ctg,
-					Math.max(1,ctx.getStart()-bnd_distance),
-					ctx.getEnd()+bnd_distance
+					Math.max(1,ctx.getStart()-this.svComparator.getBndDistance()),
+					ctx.getEnd()+this.svComparator.getBndDistance()
 					);
 			boolean found_any_overlap = false;
 			
 			while(iter2.hasNext()) {
 				final VariantContext ctx2 = iter2.next();
-				final String gSvType = ctx2.getAttributeAsString(VCFConstants.SVTYPE,"");
-				if(StringUtil.isBlank(gSvType)) {
-					LOG.warn("No SV Type in gnomad: "+ctx2.getContig()+":"+ctx2.getStart());
-					continue;
-					}
-				if(CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), ctx2.getStart(), ctx2.getEnd())) /* don't use 'ctx.overlap(ctx2)' chr1 vs 1 */{
+				
+				if(this.svComparator.testSimpleOverlap(ctx, ctx2)) {
 					found_any_overlap = true;
-				}
+					}
 				
-				if(svType.equals("BND") && gSvType.equals(svType))
-					{
-					if(Math.abs(ctx.getStart()-ctx2.getStart()) > this.bnd_distance) continue;
-					if(Math.abs(ctx.getEnd()-ctx2.getEnd()) > this.bnd_distance) continue;
+				if(this.svComparator.test(ctx, ctx2)) {
 					cgtx=ctx2;
 					break;
 					}
-				else if(svType.equals("BND") || gSvType.equals("BND")) {
-					//ignore
-					}
-				else
-					{
-					if(!CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), ctx2.getStart(), ctx2.getEnd())) /* don't use 'ctx.overlap(ctx2)' chr1 vs 1 */{
-						continue;
-						}
-					final int left= Math.max(ctx.getStart(),ctx2.getStart());
-					final int right= Math.min(ctx.getEnd(),ctx2.getEnd());
-					if(left > right) {
-						LOG.debug("strange overlap??\n"+
-								ctx+"\n"+
-								ctx2);
-						continue;
-						}
-					double len = CoordMath.getLength(left, right);
-					//System.err.println("#");
-					//System.err.println(len);
-					//System.err.println(len/ctx.getLengthOnReference());
-					//System.err.println(len/ctx2.getLengthOnReference());
-					
-					if(len/ctx.getLengthOnReference() < this.fraction_overlap ) continue;
-					if(len/ctx2.getLengthOnReference() < this.fraction_overlap ) continue;
-					cgtx=ctx2;
-					break;
-					}
-				
 				}
 			iter2.close();
 			
@@ -226,14 +201,20 @@ public class VcfGnomadSV extends Launcher{
 			for(final String f: cgtx.getFilters()) {
 				vcb.filter(this.prefix+f);
 				}
-			if(!ctx.hasID())
-				{
-				vcb.id(cgtx.getID());
+			
+			if(cgtx.hasID()) {
+				if(!ctx.hasID())
+					{
+					vcb.id(cgtx.getID());
+					}
+				vcb.attribute(ghomadIdInfo.getID(),cgtx.getID());
 				}
+			
 			if(!StringUtil.isBlank(this.in_gnomad_filter)) {
 				vcb.filter(this.in_gnomad_filter);
 				}
-			if(!StringUtil.isBlank(this.discordant_svtype_filter) && !svType.equals(cgtx.getAttributeAsString(VCFConstants.SVTYPE, ""))) {
+			if(!StringUtil.isBlank(this.discordant_svtype_filter) && 
+				!ctx.getAttributeAsString(VCFConstants.SVTYPE,".").equals(cgtx.getAttributeAsString(VCFConstants.SVTYPE, "."))) {
 				vcb.filter(this.discordant_svtype_filter);
 				}
 			out.add(vcb.make());

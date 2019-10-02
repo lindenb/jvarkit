@@ -31,6 +31,7 @@ import java.util.function.BiPredicate;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
@@ -57,9 +58,16 @@ public class StructuralVariantComparator implements BiPredicate<VariantContext,V
 	@Parameter(names={"--check-bnd-mate"},description="When comparing two BND, check that their mate (using the ALT allele) are the same too")
 	private boolean check_bnd_mate = false;
 
+	/** test if two contigs are the same */
+	private BiPredicate<String,String> contigComparator = (A,B)->A.equals(B);
 	
 public StructuralVariantComparator() {
 		
+	}
+
+public StructuralVariantComparator setContigComparator(BiPredicate<String,String> contigComparator) {
+	this.contigComparator = contigComparator;
+	return this;
 	}
 
 /** must be accessible when using vcf.query(... ) */
@@ -98,20 +106,43 @@ private SimpleInterval toInterval(final VariantContext ctx) {
 		}
 	}
 
+private boolean withinDistanceOf(final Locatable a,final Locatable b, final int distance) {
+    return this.contigsMatch(a,b) && 
+            CoordMath.overlaps(a.getStart(), a.getEnd(), b.getStart()-distance, b.getEnd()+distance);
+	}
+
+
 private boolean testBNDDistance(final Locatable a,final Locatable b) {
-	return a.withinDistanceOf(b, this.small_length_on_ref );
-}
+	//  a.withinDistanceOf(b, this.small_length_on_ref ); <-- NO contigs can be renamed
+	// we use SimplePosition because getEnd() can be large when the BND is on the same chromosome
+	return this.withinDistanceOf(
+			new SimplePosition(a.getContig(), a.getStart()),
+			new SimplePosition(b.getContig(), b.getStart()), 
+			this.bnd_max_distance);
+	}
+
+/** test if two locatable have overlaping overlaps after contig name conversion. This is NOT the function used to compare two SV.*/
+public boolean testSimpleOverlap(final Locatable a,final Locatable b) {
+	return this.withinDistanceOf(a, b,0);
+	}
+
 
 /** return true if SV types will be tested to be the same */
 public boolean isTestingSvTypes() {
 	return this.svtype_mus_be_the_same;
 	}
 
+/** return true two contigs are the same, after conversion */
+private boolean contigsMatch(final Locatable a,final Locatable b)  {
+	if(a.contigsMatch(b)) return true;
+	return this.contigComparator.test(a.getContig(), b.getContig());
+}
+
 @Override
 public boolean test(final VariantContext a, final VariantContext b) {
 	if(a==null || b==null) return false;
 	
-	if(!a.contigsMatch(b)) return false;
+	if(!this.contigsMatch(a,b)) return false;
 
 	final String typea = getSvtype(a);
 	if(typea.equals(VCFConstants.MISSING_VALUE_v4)) return false;
@@ -128,11 +159,20 @@ public boolean test(final VariantContext a, final VariantContext b) {
 			}
 		if(this.check_bnd_mate) {
 			final List<Breakend> bk1 =  Breakend.parse(a);
-			if(bk1.isEmpty()) return false;
 			final List<Breakend> bk2 =  Breakend.parse(b);
-			if(bk2.isEmpty()) return false;
+			if(!bk1.isEmpty() && ! bk2.isEmpty())
+				{
+				return bk1.stream().anyMatch(BK1->bk2.stream().anyMatch(BK2->testBNDDistance(BK1, BK2)));
+				}
 			
-			return bk1.stream().anyMatch(BK1->bk2.stream().anyMatch(BK2->testBNDDistance(BK1, BK2)));
+			final String chr2a = a.getAttributeAsString("CHR2", "");
+			final String chr2b = b.getAttributeAsString("CHR2", "");
+			if(!StringUtils.isBlank(chr2a) && !StringUtils.isBlank(chr2b)) {
+				if((chr2a.equals(chr2b) || this.contigComparator.test(chr2a, chr2b))) {
+					//TODO use END/POS2
+					}
+				}
+			return false;
 			}
 		
 		return true;
@@ -145,7 +185,7 @@ public boolean test(final VariantContext a, final VariantContext b) {
 		{
 		final SimpleInterval interval1 =toInterval(a);
 		final SimpleInterval interval2 = toInterval(b);
-		if(!interval1.overlaps(interval2)) return false;
+		if(!testSimpleOverlap(interval1,interval2)) return false;
 
 		/* small overlapping variant
 		chrZ    137402727       MantaINS:160764:0:0:0:0:0       CTAA    CACCCGGCTAAT    .       .       CIGAR=1M11I3D;CLUSTER=CTX8375;DOWNSTREAM_PAIR_COUNT=0;END=137402730;PAIR_COUNT=0;SVLEN=11;SVTYPE=INS;UPSTREAM_PAIR_COUNT=0

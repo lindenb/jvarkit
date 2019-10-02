@@ -34,7 +34,7 @@ import com.beust.jcommander.ParameterException;
 public class DistanceParser implements ToIntFunction<String> {
 	public static final String OPT_DESCRIPTION =
 			"A distance specified as a positive integer."
-			+ "Comma are removed. "
+			+ "Commas are removed. "
 			+ "The following suffixes are interpreted : b,bp,k,kb,m,mb";
 
 	

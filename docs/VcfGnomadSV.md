@@ -15,14 +15,21 @@ Usage: vcfgnomadsv [options] Files
       overlaping the variant BUT we didn't find a correct match
       Default: <empty string>
     --bnd-distance
-      two bnd are identical if they're distant from  'x' bases
-      Default: 10
+      Two BND variants are the same if their bounds are distant by less than 
+      xxx bases. A distance specified as a positive integer.Commas are 
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 100
+    --check-bnd-mate
+      When comparing two BND, check that their mate (using the ALT allele) are 
+      the same too
+      Default: false
     --discordant_svtype
       If not empty, set this FILTER if SVTYPE are discordants
       Default: <empty string>
-    --fraction
-      two segments are identical if they overlap at fraction 'x'
-      Default: 0.7
+    --force-svtype
+      When comparing two SV variants, their INFO/SVTYPE should be the same. 
+      Default is to just use coordinates to compare non-BND variants.
+      Default: false
   * -g, --gnomad
       Gnomad-SV VCF file. see 
       https://gnomad.broadinstitute.org/downloads#structural-variants 
@@ -38,6 +45,22 @@ Usage: vcfgnomadsv [options] Files
     -p, --prefix
       INFO field prefix
       Default: GNOMAD_
+    --sv-alleles-bases
+      When comparing two non-BND SV variants, use their ALT alleles to adjust 
+      the interval. It solves the problem of  
+      'chr2:10556028:AATTATATAATTAAATTAATTATATAATT:A'  vs 
+      'chr2:10556028:A:AATTATATAATTAAATTAATTATATAATT'. See 
+      https://twitter.com/yokofakun/status/1169182491606999046 
+      Default: false
+    --sv-overlap-fraction
+      Two CNV/DEL/.. variants are the same if they share 'x' fraction of their 
+      size. 
+      Default: 0.75
+    --sv-small-overlap
+      Two non-BND variants are the same if they overlap and both have a 
+      length<= 'x'. A distance specified as a positive integer.Commas are 
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 10
     --version
       print version and exit
 
@@ -103,4 +126,12 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+# Example:
+
+```
+java -jar dist/vcfgnomadsv.jar \
+	-g src/test/resources/gnomad_v2_sv.sites.vcf.gz \
+	./src/test/resources/manta.B00GWGD.vcf.gz
+```
 

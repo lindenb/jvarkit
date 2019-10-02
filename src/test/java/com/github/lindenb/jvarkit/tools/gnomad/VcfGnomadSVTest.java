@@ -1,9 +1,7 @@
 package com.github.lindenb.jvarkit.tools.gnomad;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -20,23 +18,23 @@ public class VcfGnomadSVTest {
 
 	
 @DataProvider(name="src01")
-public Object[][] testData01() {
-	return new Object[][] {
-		{support.resource("test_vcf01.vcf")}
-		
-	};
-}
+public Object[] testData01() {
+	return new Object[] {
+			support.resource("manta.B00GWGD.vcf.gz"),
+			support.resource("manta.B00GWIU.vcf.gz"),
+			support.resource("manta.B00I9CJ.vcf.gz"),
+			support.resource("manta.D000Q1R.vcf.gz")	
+		};
+	}
 
 @Test(dataProvider="src01")
 public void test01(final String vcfpath) throws IOException {
 	try {
-		Path gnomad_sv = Paths.get("/home/lindenb/data/gnomad_v2_sv.sites.vcf.gz");
-		if(!Files.exists(gnomad_sv)) return;
 		final Path vcfOut = support.createTmpPath(".vcf");
 		
-		Assert.assertEquals(new VcfGnomad().instanceMain(new String[]{
+		Assert.assertEquals(new VcfGnomadSV().instanceMain(new String[]{
 				"-o",vcfOut.toString(),
-				"-g",gnomad_sv.toString(),
+				"-g",support.resource("gnomad_v2_sv.sites.vcf.gz"),
 				vcfpath
 				}),0);
 		support.assertIsVcf(vcfOut);
