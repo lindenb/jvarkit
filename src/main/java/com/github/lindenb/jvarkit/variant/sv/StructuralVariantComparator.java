@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.variant.sv;
 
 import java.util.List;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -87,8 +88,11 @@ private int getATGCNLength(final Allele a) {
 	return s.length();
 	}
 
+
 /** convert variant to interval, using DNA bases if needed  */
 private SimpleInterval toInterval(final VariantContext ctx) {
+
+	
 	if(this.use_bases && ctx.getNAlleles()>1) {
 		final int x1 = ctx.getStart();
 		int x2 = ctx.getEnd();
@@ -112,12 +116,45 @@ private boolean withinDistanceOf(final Locatable a,final Locatable b, final int 
 	}
 
 
+
+
 private boolean testBNDDistance(final Locatable a,final Locatable b) {
+	final Function<Locatable,Locatable> bnd2interval=LOC->{
+		if(!(LOC instanceof VariantContext)) {
+			return new SimplePosition(LOC.getContig(), LOC.getStart());
+			}
+		final VariantContext CTX = VariantContext.class.cast(LOC);
+		int extend_5 = 0;//can be negative
+		int extend_3 = 0;//can be negative
+		if(CTX.hasAttribute("CIPOS")) {
+			try {
+				// can be negative
+				final List<Integer> xList=CTX.getAttributeAsIntList("CIPOS", 0);
+				if(xList.size()==2) {
+					extend_5 = xList.get(0).intValue();
+					extend_3 = xList.get(1).intValue();
+					if(extend_5>0) extend_5=0;
+					if(extend_3<0) extend_3=0;
+					}
+				}
+			catch(final Throwable err)
+				{
+				extend_5=0;
+				extend_3=0;
+				}
+			}
+		return new SimpleInterval(
+				CTX.getContig(),
+				CTX.getStart()+extend_5/* can be negative */,
+				CTX.getEnd()+extend_3
+				);
+		};
+	
 	//  a.withinDistanceOf(b, this.small_length_on_ref ); <-- NO contigs can be renamed
 	// we use SimplePosition because getEnd() can be large when the BND is on the same chromosome
 	return this.withinDistanceOf(
-			new SimplePosition(a.getContig(), a.getStart()),
-			new SimplePosition(b.getContig(), b.getStart()), 
+			bnd2interval.apply(a),
+			bnd2interval.apply(b), 
 			this.bnd_max_distance);
 	}
 
@@ -168,9 +205,10 @@ public boolean test(final VariantContext a, final VariantContext b) {
 			final String chr2a = a.getAttributeAsString("CHR2", "");
 			final String chr2b = b.getAttributeAsString("CHR2", "");
 			if(!StringUtils.isBlank(chr2a) && !StringUtils.isBlank(chr2b)) {
-				if((chr2a.equals(chr2b) || this.contigComparator.test(chr2a, chr2b))) {
-					//TODO use END/POS2
+				if(!((chr2a.equals(chr2b) || this.contigComparator.test(chr2a, chr2b)))) {
+					return false;
 					}
+				//TODO
 				}
 			return false;
 			}

@@ -155,58 +155,24 @@ public class SVPredictions extends Launcher
 				return ret;
 				}
 			}
-		
-		if(ctx.contains(transcript)) {
-			if(transcript.hasCDS()) ret.where.add(WhereInGene.cds);
-			if(transcript.hasIntron()) ret.where.add(WhereInGene.intron);
-			if(transcript.hasExon()) ret.where.add(WhereInGene.exon);
-			if(transcript.hasUTR()) ret.where.add(WhereInGene.utr);
-			
-			return ret;
-			}
-		
-		if(transcript.getUTRs().stream().anyMatch(U->U.contains(ctx))) {
+		if(transcript.hasUTR() && transcript.getUTRs().stream().anyMatch(U->U.overlaps(ctx))) {
 			ret.where.add(WhereInGene.utr);
 			ret.where.add(WhereInGene.exon);
-			return ret;
 			}
-		
-		if(transcript.hasCDS() && transcript.getAllCds().stream().anyMatch(U->U.contains(ctx))) {
+
+		if(transcript.hasCDS() && transcript.getAllCds().stream().anyMatch(U->U.overlaps(ctx))) {
 			 ret.where.add(WhereInGene.cds);
 			 ret.where.add(WhereInGene.exon);
-			return ret;
 			}
-
-		if(transcript.getExons().stream().anyMatch(U->ctx.contains(U))) {
+		
+		if(transcript.hasExon() && transcript.getExons().stream().anyMatch(U->ctx.overlaps(U))) {
 			 ret.where.add(WhereInGene.exon);
-			return ret;
 			}
-		
-		if(transcript.getIntrons().stream().anyMatch(U->ctx.contains(U))) {
-			ret.where.add(WhereInGene.intron);
-			return ret;
-			}
-		
-		
-		if(transcript.getUTRs().stream().anyMatch(U->U.overlaps(ctx))) {
-			ret.where.add(WhereInGene.utr);
-			ret.where.add(WhereInGene.exon);
-			}
-		
-		
-		if(transcript.hasCDS() && transcript.getAllCds().stream().anyMatch(U->U.overlaps(ctx))) {
-			ret.where.add(WhereInGene.cds);
-			ret.where.add(WhereInGene.exon);
-			}
-		
-
-		if(transcript.getExons().stream().anyMatch(U->ctx.overlaps(U))) {
-			ret.where.add(WhereInGene.exon);
-			}
-		
-		if(transcript.getIntrons().stream().anyMatch(U->ctx.overlaps(U))) {
+		if(transcript.hasIntron() && transcript.getIntrons().stream().anyMatch(U->ctx.overlaps(U))) {
 			ret.where.add(WhereInGene.intron);
 			}
+		
+		
 		return ret;
 		}
 	

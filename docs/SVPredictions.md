@@ -39,7 +39,7 @@ Usage: svpredictions [options] Files
       Default: SVCSQ
     -u, --upstream
       Gene Upstream/Downstream length. A distance specified as a positive 
-      integer.Comma are removed. The following suffixes are interpreted : 
+      integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb 
       Default: 5000
     --version
