@@ -29,13 +29,15 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.bamstats01;
 
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -146,7 +148,11 @@ END_DOC
 */
 
 
-@Program(name="bamstats02",description="Statistics about the flags and reads in a BAM")
+@Program(name="bamstats02",
+	description="Statistics about the flags and reads in a BAM",
+	keywords= {"sam","bam"},
+	modificationDate="20191003"
+	)
 public class BamStats02
 	extends Launcher
 	{
@@ -154,20 +160,19 @@ public class BamStats02
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 
-	@Parameter(names={"-B","--bed"},description="Optional Bed File")
-	private File bedFile = null;
+	@Parameter(names={"-B","--bed"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class)
+	private IntervalListProvider intervalListProvider = null;
+	@Parameter(names={"-R","--ref"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 
+
+	
+	
 	private IntervalTreeMap<Boolean> intervals=null;
     
-   
-	private static boolean isEmpty(String s)
-		{
-		return s==null || s.trim().isEmpty() || s.equals(".");
-		}
-	
     /* visible from BamStats02View */ static enum STRING_PROPS {
     	filename,samplename,
     	chromosome,mate_chromosome,
@@ -190,7 +195,7 @@ public class BamStats02
     		Arrays.fill(_ints, -1);
     		}
     	
-    	private void print(PrintWriter pw)
+    	private void print(final PrintWriter pw)
     		{
     		boolean first=true;
     		for(String s:_strings)
@@ -243,12 +248,12 @@ public class BamStats02
     	public String getChrom()
     		{
     		String s= _strings[STRING_PROPS.chromosome.ordinal()];
-    		return isEmpty(s)?null:s;
+    		return StringUtils.isBlank(s)?null:s;
     		}
     	
     	void set(STRING_PROPS p,String s)
 			{
-			this._strings[p.ordinal()]=isEmpty(s)?".":s;
+			this._strings[p.ordinal()]=StringUtils.isBlank(s)?".":s;
 			}
     	
     	void set(INT_PROPS p,int v)
@@ -353,12 +358,14 @@ public class BamStats02
 		PrintWriter out=null;
 		try
 			{
-			if(bedFile!=null)
-				{
-				LOG.info("Reading BED file "+bedFile);
-				this.intervals= super.readBedFileAsBooleanIntervalTreeMap(bedFile);
+			if(this.intervalListProvider!=null)
+				{				
+				this.intervals = new IntervalTreeMap<>();
+				this.intervalListProvider.stream().forEach(X->{
+					intervals.put(new Interval(X), Boolean.TRUE);
+						});
 				}
-			out = 	super.openFileOrStdoutAsPrintWriter(outputFile);
+			out = 	super.openPathOrStdoutAsPrintWriter(outputFile);
 			boolean first=true;
 			out.print("#");
 			for(final STRING_PROPS p:STRING_PROPS.values())
@@ -383,9 +390,10 @@ public class BamStats02
 
 			
 			final SamReaderFactory srf= super.createSamReaderFactory();
+			if(faidx!=null) srf.referenceSequence(this.faidx);
+			
 			if(args.isEmpty())
 				{
-				LOG.info("Reading from stdin");
 				samFileReader= srf.open(SamInputResource.of(stdin()));
 				run("stdin",samFileReader,out);
 				samFileReader.close();
@@ -393,11 +401,10 @@ public class BamStats02
 				}
 			else
 				{
-				for(final String filename:IOUtils.unrollFiles(args))
+				for(final Path filename:IOUtils.unrollPaths(args))
 					{
-					LOG.info("Reading from "+filename);
-					samFileReader=srf.open(new File(filename));
-					run(filename,samFileReader,out);
+					samFileReader=srf.open(filename);
+					run(filename.toString(),samFileReader,out);
 					samFileReader.close();
 					samFileReader=null;
 					}
@@ -406,7 +413,7 @@ public class BamStats02
 			out.flush();
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

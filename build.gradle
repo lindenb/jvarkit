@@ -1448,7 +1448,7 @@ all.add( task("vcfancestralalleles", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.onekgenomes.VcfAncestralAllele"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfannobam", type: CompileJVarkit) {
+all2.add( task("vcfannobam", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfannobam.VCFAnnoBam"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});

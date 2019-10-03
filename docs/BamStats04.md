@@ -11,7 +11,10 @@ Coverage statistics for a BED file.
 Usage: bamstats04 [options] Files
   Options:
   * -B, --bed
-      Bed File. Required
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
     -cov, --cov
       add this min coverage value to ask wether the position is not covered. 
       Use with care: any depth below this treshold will be trimmed to zero.

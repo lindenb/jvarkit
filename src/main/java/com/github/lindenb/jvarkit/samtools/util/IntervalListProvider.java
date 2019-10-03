@@ -48,8 +48,9 @@ import htsjdk.tribble.IntervalList.IntervalListCodec;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 public abstract class IntervalListProvider {
-	public static final String OPT_DESC="A source of intervals. The following suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, geff, gff.gz, gtf.gz."
-			+ "Otherwise it could be an empty string or a list of plain interval separated by '[ \\t\\n;,]' ";
+	public static final String OPT_DESC="A source of intervals. The following suffixes are recognized: "
+			+ "vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz."
+			+ "Otherwise it could be an empty string (no interval) or a list of plain interval separated by '[ \\t\\n;,]' ";
 	public static final class StringConverter implements IStringConverter<IntervalListProvider> {
 		@Override
 		public IntervalListProvider convert(final  String s) {
@@ -62,6 +63,7 @@ public abstract class IntervalListProvider {
 	protected IntervalListProvider(final String path) {
 		this.path =path;
 	}
+	
 	
 	public abstract Stream<? extends Locatable> stream();
 
@@ -93,20 +95,31 @@ public abstract class IntervalListProvider {
 			}
 		else
 			{
+			return new ProviderIsString(path);
+			}
+		}
+	
+	
+	private static class ProviderIsString extends IntervalListProvider
+		{
+		private final List<? extends Locatable> array;
+		ProviderIsString(final String path) {
+			super(path);
+			
 			final Function<String, Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().make();
-			final List<? extends Locatable> L=Arrays.
+			this.array =Arrays.
 					stream(path.split("[ ;,\t\n]+")).
 					filter(S->!StringUtils.isBlank(S)).
 					map(S->(Locatable)parser.apply(S).orElseThrow(()->new IllegalArgumentException("Cannot convert interval"))).
 					collect(Collectors.toList());
-			return new IntervalListProvider(path) {
-				@Override
-				public Stream<? extends Locatable> stream() {
-					return L.stream();
-					}
-				};
+			
 			}
-		}
+		@Override
+		public Stream<? extends Locatable> stream() {
+			return array.stream();
+			}
+		}	
+
 	
 	private static class ProviderIsVcf extends IntervalListProvider
 		{

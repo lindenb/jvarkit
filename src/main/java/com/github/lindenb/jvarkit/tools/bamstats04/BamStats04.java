@@ -24,13 +24,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.bamstats04;
 
-import java.io.BufferedReader;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -43,9 +42,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -55,6 +53,7 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
@@ -109,7 +108,7 @@ END_DOC
 	description="Coverage statistics for a BED file.",
 	keywords={"sam","bam","coverage","depth","statistics","bed"},
 	biostars= {309673,348251},
-	modificationDate="20190329"
+	modificationDate="20191003"
 	)
 public class BamStats04 extends Launcher
 	{
@@ -121,8 +120,8 @@ public class BamStats04 extends Launcher
 	private List<Integer> minCoverages = new ArrayList<>() ;
 	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
-	@Parameter(names={"-B","--bed"},description="Bed File. Required",required=true)
-	private Path bedFile = null;
+	@Parameter(names={"-B","--bed"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
+	private IntervalListProvider intervalListProvider = null;
 	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added. Also used to read CRAM.")
 	private Path faidxUri = null;
 	@Parameter(names={"-partition","--partition"},description="[20171120]"+SAMRecordPartition.OPT_DESC)
@@ -132,9 +131,9 @@ public class BamStats04 extends Launcher
 	
 	private static class IntervalStat
 		{	
-		private final BedLine bedLine;
+		private final Locatable bedLine;
 		private final int counts[];
-		IntervalStat(final BedLine bedLine) {
+		IntervalStat(final Locatable bedLine) {
 			this.bedLine = bedLine;
 			this.counts=new int[bedLine.getEnd()-bedLine.getStart()+1];
 			Arrays.fill(this.counts, 0);
@@ -166,10 +165,7 @@ public class BamStats04 extends Launcher
 	
 	@Override
 		public int doWork(final List<String> args) {
-			if(this.bedFile==null || !Files.exists(this.bedFile)) {
-				LOG.error("undefined option -B (bed file)");
-				return -1;
-			}
+			
 			final List<Path> bamPaths = IOUtils.unrollPaths(args);
 			if(bamPaths.isEmpty())  {
 				LOG.error("Bam files missing");
@@ -182,7 +178,6 @@ public class BamStats04 extends Launcher
 				}
 			
 			final String NO_PARTITION="N/A";
-			BufferedReader bedIn=null;
 			final List<SamReader> samReaders = new ArrayList<>(args.size());
 			PrintWriter pw = null;
 			ReferenceSequenceFile indexedFastaSequenceFile=null;
@@ -190,13 +185,12 @@ public class BamStats04 extends Launcher
 			SAMSequenceDictionary fastaDict = null;
 			try
 				{
-				final BedLineCodec codec= new BedLineCodec();
 				final Set<String> all_partitions = new TreeSet<>();
-				bedIn=IOUtils.openPathForBufferedReading(this.bedFile);
 				SAMSequenceDictionary samDict = null;
 				
 				final SamReaderFactory srf = super.createSamReaderFactory();
 				if(this.faidxUri!=null) srf.referenceSequence(faidxUri);
+				
 				for(final Path filename:bamPaths) {
 					final SamReader samReader = srf.open(filename);
 					if(!samReader.hasIndex()) {
@@ -275,11 +269,11 @@ public class BamStats04 extends Launcher
 	
 			
 				String line=null;
-				while((line=bedIn.readLine())!=null)
+				for(final Iterator<? extends Locatable> iter2= intervalListProvider.stream().iterator();
+						iter2.hasNext();
+						)
 					{
-					if(line.isEmpty() || line.startsWith("#")) continue;
-					final BedLine bedLine = codec.decode(line);
-					if(bedLine==null) continue;
+					final Locatable bedLine = iter2.next();
 					final String ctg2 = samCtgConverter.apply(bedLine.getContig());
 					if(StringUtils.isBlank(ctg2))
 						{
@@ -420,7 +414,6 @@ public class BamStats04 extends Launcher
 			{
 			CloserUtil.close(indexedFastaSequenceFile);
 			CloserUtil.close(pw);
-			CloserUtil.close(bedIn);
 			CloserUtil.close(samReaders);
 			}
 		}
