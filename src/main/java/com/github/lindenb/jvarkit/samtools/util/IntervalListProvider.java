@@ -36,10 +36,13 @@ import java.util.stream.Stream;
 import com.beust.jcommander.IStringConverter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.LineIterator;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
@@ -58,15 +61,47 @@ public abstract class IntervalListProvider {
 			}
 		}
 	
+	private boolean skip_unknown_contig = false;
+	private SAMSequenceDictionary dictionary = null;
+	private ContigNameConverter contigNameConverter = null;
 	final protected String path;
 	
 	protected IntervalListProvider(final String path) {
 		this.path =path;
 	}
 	
+	/** set dictionary that can be of help to decode contig names . Can be null */
+	public IntervalListProvider dictionary(final SAMSequenceDictionary dictionary) {
+		this.dictionary = dictionary;
+		if(this.dictionary==null) {
+			this.contigNameConverter = null;
+		} else {
+			this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.dictionary);
+		}
+		return this;
+	}
 	
 	public abstract Stream<? extends Locatable> stream();
 
+	public IntervalListProvider skipUnknownContigs(boolean skip_unknown_contig) {
+		this.skip_unknown_contig = skip_unknown_contig;
+		return this;
+		}
+	
+	public IntervalListProvider skipUnknownContigs() {
+		return this.skipUnknownContigs(true);
+		}
+
+	
+	protected Locatable remapContig(final Locatable loc) {
+		if(this.contigNameConverter==null) return loc;
+		final Optional<SimpleInterval> r = this.contigNameConverter.convertToSimpleInterval(loc);
+		if(!r.isPresent()) {
+			if(this.skip_unknown_contig) return null;
+			throw new JvarkitException.ContigNotFoundInDictionary(loc.getContig(), this.dictionary);
+			}
+		return r.get();
+		}
 	
 	
 	/** default provider throwing an IllegalStateException */
@@ -124,6 +159,7 @@ public abstract class IntervalListProvider {
 					stream(path.split("[ ;,\t\n]+")).
 					filter(S->!StringUtils.isBlank(S)).
 					map(S->(Locatable)parser.apply(S).orElseThrow(()->new IllegalArgumentException("Cannot convert interval"))).
+					map(L->this.remapContig(L)).filter(L->L!=null).
 					collect(Collectors.toList());
 			
 			}
@@ -144,7 +180,9 @@ public abstract class IntervalListProvider {
 			try {
 				return new VCFIteratorBuilder().
 						open(path).
-						stream();
+						stream().
+						map(L->this.remapContig(L)).
+						filter(L->L!=null);
 						
 				}
 			catch(final IOException err) {
@@ -167,6 +205,7 @@ public abstract class IntervalListProvider {
 						filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
 						map(L->codec.decode(L)).
 						filter(L->L!=null).
+						map(L->this.remapContig(L)).filter(L->L!=null).
 						onClose(()->CloserUtil.close(r));
 				}
 			catch(final IOException err) {
@@ -188,6 +227,7 @@ public abstract class IntervalListProvider {
 						filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
 						map(L->CharSplitter.TAB.split(L)).
 						map(L->new SimpleInterval(L[0],Integer.parseInt(L[3]),Integer.parseInt(L[4]))).
+						map(L->this.remapContig(L)).filter(L->L!=null).
 						onClose(()->CloserUtil.close(r));
 				}
 			catch(final IOException err) {

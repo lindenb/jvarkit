@@ -24,30 +24,22 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.viewmate;
 
-import java.io.BufferedReader;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
@@ -63,7 +55,6 @@ import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -104,7 +95,7 @@ END_DOC
 	keywords={"sam","bam"},
 	biostars={151403,105714,368754},
 	creationDate="2019-02-07",
-	modificationDate="2019-02-13"
+	modificationDate="2019-10-04"
 	)
 public class SamViewWithMate
 	extends Launcher
@@ -112,16 +103,13 @@ public class SamViewWithMate
 	private static final Logger LOG = Logger.build(SamViewWithMate.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-r","--region"},description="One or more region." + IntervalParserFactory.OPT_DESC,splitter=NoSplitter.class)
-	private List<String> regionList = new ArrayList<>();
-	@Parameter(names={"-b","--bed"},description="Bed file containing the region.")
-	private File bedFile = null;
+	private Path outputPath = null;
+	@Parameter(names={"-b","--bed","-r","--region"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
+	private IntervalListProvider intervalListProvider =  IntervalListProvider.unspecified();
 	@Parameter(names={"-st","--streaming"},description="Force Streaming mode even if bam is indexed. Warning: Streaming mode doesn't garantee that all mates will be fetched because a read only contains the start position of the mate of which may be out of the user's intervals, unless the MC (mate cigar) attribute is defined.")
 	private boolean forceStreaming=false;
 	@Parameter(names={"-u","--unmapped"},description="Also search for the unmapped mates. Not available in streaming mode.")
 	private boolean look_in_unmapped = false;
-
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
@@ -147,36 +135,15 @@ public class SamViewWithMate
 				};
 			final List<QueryInterval> queryList= new ArrayList<>();
 			
-			final Function<String, Optional<SimpleInterval>> intervalParser=
-					IntervalParserFactory.
-					newInstance().
-					dictionary(dict).
-					make();
-			for(final String str:regionList) {
-				if(StringUtils.isBlank(str)) continue;
-				final SimpleInterval interval= intervalParser.apply(str).orElseThrow(IntervalParserFactory.exception(str));
+		
+			 this.intervalListProvider.
+			 	dictionary(dict).
+			 	skipUnknownContigs().
+			 	stream().
+			 	forEach(R->{
+			 		queryList.add(interval2query.apply(R));
+			 	});
 				
-				queryList.add(interval2query.apply(interval));
-				}
-			if(this.bedFile!=null) {
-				try (BufferedReader br=IOUtil.openFileForBufferedReading(this.bedFile)) {
-					String line;
-					final BedLineCodec codec=new BedLineCodec();
-					final ContigNameConverter ctgConverter = ContigNameConverter.fromOneDictionary(dict);
-					while((line=br.readLine())!=null) {
-						final BedLine bed = codec.decode(line);
-						if(bed==null) {
-							LOG.warn("skipping "+line);
-							continue;
-							}
-						final String ctg= ctgConverter.apply(bed.getContig());
-						if(ctg==null) throw new JvarkitException.ContigNotFoundInDictionary(bed.getContig(), dict);
-						int tid = dict.getSequenceIndex(bed.getContig());
-						if(tid<0) throw new JvarkitException.ContigNotFoundInDictionary(bed.getContig(), dict);
-						queryList.add(interval2query.apply(bed));
-						}
-					}
-				}
 			Collections.sort(queryList);
 			
 			final Function<QueryInterval,Interval> query2interval= REC->{
@@ -206,7 +173,7 @@ public class SamViewWithMate
 			smr.setProgramVersion(this.getGitHash());
 			smr.setCommandLine(this.getProgramCommandLine());
 			
-        	sw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
+        	sw = this.writingBamArgs.openSamWriter(this.outputPath,header, true);
 
 			if(queryList.isEmpty())
 				{

@@ -43,6 +43,7 @@ import java.util.TreeMap;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -157,13 +158,13 @@ public class BamStats05 extends Launcher
 				if(bedLine==null) continue;
 				if(bedLine.getColumnCount()<4)
 					{
-					throw new IOException("bad bed line in "+line+" "+bedFile);
+					throw new IOException("bad bed line  (expected 4 columns CHROM/START/END/GENE) in "+line+" "+bedFile);
 					}
 				final String chrom = bedLine.getContig();
 				final int chromStart1= bedLine.getStart();
 				final int chromEnd1= bedLine.getEnd();
 				final String gene = bedLine.get(3);
-				if(gene.isEmpty())  throw new IOException("bad bed gene in "+line+" "+bedFile);
+				if(StringUtils.isBlank(gene))  throw new IOException("bad bed gene in "+line+" "+bedFile);
 				 List<SimpleInterval> intervals = gene2interval.get(gene);
 				 if(intervals==null)
 				 	{
@@ -336,7 +337,7 @@ public class BamStats05 extends Launcher
 						mean/=counts.size();
 						
 						pw.print("\t"+
-								mean+"\t"+
+								String.format("%.2f",mean)+"\t"+
 								count_no_coverage+"\t"+
 								(int)(((counts.size()-count_no_coverage)/(double)counts.size())*100.0)
 								);

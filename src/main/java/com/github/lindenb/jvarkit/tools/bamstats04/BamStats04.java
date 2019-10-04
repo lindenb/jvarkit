@@ -392,8 +392,8 @@ public class BamStats04 extends Launcher
 			                
 							
 							pw.print("\t"+
-									mean+"\t"+
-									median_depth+"\t"+
+									String.format("%.2f",mean)+"\t"+
+									String.format("%.2f",median_depth)+"\t"+
 									count_no_coverage+"\t"+
 									(int)(((stat.counts.length-count_no_coverage)/(double)stat.counts.length)*100.0)
 									);

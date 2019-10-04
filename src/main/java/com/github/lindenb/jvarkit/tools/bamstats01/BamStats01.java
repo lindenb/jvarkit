@@ -29,12 +29,9 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.bamstats01;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -43,8 +40,8 @@ import java.util.Map;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -130,7 +127,7 @@ END_DOC
 @Program(name="samstats01",
 	description="Statistics about the reads in a BAM.",
 	keywords= {"sam","bam"},
-	modificationDate="20190506"
+	modificationDate="20191004"
 	)
 public class BamStats01
 	extends Launcher
@@ -142,8 +139,8 @@ public class BamStats01
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
-	@Parameter(names={"-B","--bed"},description="capture bed file. Optional")
-	private Path bedFile = null;
+	@Parameter(names={"-B","--bed"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class)
+	private IntervalListProvider intervalListProvider = null;
 
 	@Parameter(names={"-q","--qual"},description="min mapping quality")
 	private double minMappingQuality = 30.0 ;
@@ -338,44 +335,32 @@ public class BamStats01
 		
 	private void run(final String filename,SamReader samFileReader) throws IOException
 		{	
-		Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.Histogram>();
+		final Map<String,Histogram> sample2hist=new HashMap<String, BamStats01.Histogram>();
 			
-			SAMSequenceDictionary currDict=samFileReader.getFileHeader().getSequenceDictionary();
+		final SAMSequenceDictionary currDict=SequenceDictionaryUtils.extractRequired(samFileReader.getFileHeader());
 
-			if(samSequenceDictionary==null)
+			if(this.samSequenceDictionary==null)
 				{
-				samSequenceDictionary=currDict;
+				this.samSequenceDictionary=currDict;
 				}
 			
-			if(this.bedFile!=null )
+			if(this.intervalListProvider!=null )
 				{
 				if(!SequenceUtil.areSequenceDictionariesEqual(currDict, samSequenceDictionary))
 					{
 					samFileReader.close();
-					throw new IOException("incompatible sequence dictionaries."+filename);
+					throw new JvarkitException.DictionariesAreNotTheSame(currDict,this.samSequenceDictionary);
 					}
 					
 				
 				if(intervalTreeMap==null)
 					{
-					final BedLineCodec bedCodec=new BedLineCodec();
-					intervalTreeMap=new IntervalTreeMap<>();
-					LOG.info("opening "+this.bedFile);
-					String line;
-					final BufferedReader bedIn=IOUtils.openPathForBufferedReading(bedFile);
-					while((line=bedIn.readLine())!=null)
-						{
-						final BedLine bedLine = bedCodec.decode(line);
-						if(bedLine==null) continue;
-						int seqIndex=currDict.getSequenceIndex(bedLine.getContig());
-						if(seqIndex==-1)
-							{
-							throw new JvarkitException.ContigNotFoundInDictionary(bedLine.getContig(),currDict);
-							}
-						intervalTreeMap.put(bedLine.toInterval(),Boolean.TRUE);
-						}
-					bedIn.close();
-					LOG.info("done reading "+this.bedFile);
+;					intervalTreeMap=new IntervalTreeMap<>();
+					this.intervalListProvider.
+						dictionary(currDict).
+						stream().
+						forEach(L->intervalTreeMap.put(new Interval(L),Boolean.TRUE))
+						;
 					}
 				}
 			this.chrX_index=-1;
@@ -460,7 +445,7 @@ public class BamStats01
 		}
 	@Override
 	public int doWork(final List<String> inputs) {
-		final List<String> args= new ArrayList<>(IOUtils.unrollFiles(inputs)); 
+		final List<Path> args=IOUtils.unrollPaths(inputs);
 		try {
 			this.out = super.openPathOrStdoutAsPrintStream(this.outputFile);
 			
@@ -471,7 +456,7 @@ public class BamStats01
 					{
 					out.print("\t"+cat2+"_"+cat1);//je je suis libertineuuh, je suis une cat1
 					}
-				if(bedFile==null) break;
+				if(this.intervalListProvider==null) break;
 				}
 			out.println();
 			
@@ -488,11 +473,11 @@ public class BamStats01
 				}
 			else
 				{
-				for(final String filename:args)
+				for(final Path filename:args)
 					{
-					try(final SamReader sfr=srf.open(Paths.get(filename)))
+					try(final SamReader sfr=srf.open(filename))
 						{
-						run(filename,sfr);
+						run(filename.toString(),sfr);
 						}
 					}
 				}
