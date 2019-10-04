@@ -32,14 +32,12 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
@@ -53,11 +51,9 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -66,6 +62,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.Cigar;
@@ -84,7 +81,6 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -142,24 +138,25 @@ https://twitter.com/yokofakun/status/1057625407913111557
 
 ![ScreenShot](https://pbs.twimg.com/media/Dq1whOTX0AAzkZc.jpg)
 
+https://twitter.com/yokofakun/status/1180046139502059521
+
+![ScreenShot](https://pbs.twimg.com/media/EGBdtO7WoAEHjEE?format=jpg&name=small)
+
 
 END_DOC
  */
 @Program(name="wescnvsvg",
 description="SVG visualization of bam DEPTH for multiple regions",
 keywords={"bam","alignment","graphics","visualization","svg","wes","bed","capture","exome"},
-modificationDate="20190417"
+modificationDate="20190904"
 )
 public class WesCnvSvg  extends Launcher {
 	private static final Logger LOG = Logger.build(WesCnvSvg.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-B","--bed","-b","--capture"},description=
-			"BED Capture. BED file containing the Regions to be observed.")
-	private File bedFile = null;
-	@Parameter(names={"-r","-rgn","--region","--interval"},description="Interval regions: 'CHR:START-END'. multiple separated with spaces or semicolon")
-	private String bedRegions = null;
+	@Parameter(names={"-B","--bed","-b","--capture","-r","-rgn","--region","--interval"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class)
+	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 	@Parameter(names={"-R","--ref","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
 	@Parameter(names={"-w","--width"},description="Page width")
@@ -192,7 +189,7 @@ public class WesCnvSvg  extends Launcher {
 	private class BamInput implements Closeable
 		{
 		int index;
-		File bamFile;
+		Path bamPath;
 		SamReader samReader=null;
 		String sample;
 		ContigNameConverter contigNameConverter;
@@ -304,44 +301,36 @@ public class WesCnvSvg  extends Launcher {
 			
 			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
-			final List<SimpleInterval> userIntervals = new ArrayList<>();
-			if(!StringUtil.isBlank(this.bedRegions))
-				{
-				final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(this.refDict).make();
-				for(final String s: this.bedRegions.split("[ \t;]+"))
-					{
-					if(StringUtil.isBlank(s)) continue;
-					final SimpleInterval i = intervalParser.apply(s).orElseThrow(IntervalParserFactory.exception(s));
-					userIntervals.add(i);
-					}
-				}
+			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(refDict);
+
 			
-			if(this.bedFile==null && userIntervals.isEmpty())
+			final List<SimpleInterval> userIntervals = this.intervalListProvider.
+					stream().
+					map(loc->contigNameConverter.convertToSimpleInterval(loc).orElseThrow(()->new JvarkitException.ContigNotFoundInDictionary(loc.getContig(),refDict))).
+					sorted(new ContigDictComparator(this.refDict).createLocatableComparator()).
+					collect(Collectors.toCollection(ArrayList::new))
+					;
+		
+			if(userIntervals.isEmpty())
 				{
 				LOG.error("no interval or bed defined");
 				return -1;
 				}
-			else if(this.bedFile!=null && !userIntervals.isEmpty())
-				{
-				LOG.error("intervals and bed both defined");
-				return -1;
-				}
 			
-			final ContigNameConverter contigNameConverter=ContigNameConverter.fromOneDictionary(this.refDict);
 			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					validationStringency(ValidationStringency.LENIENT).
 					referenceSequence(this.faidx);
-			for(final File bamFile:IOUtils.unrollFiles2018(args)) {
+			for(final Path bamFile:IOUtils.unrollPaths(args)) {
 				final BamInput bi = new BamInput();
 				bi.index = this.bamInputs.size();
-				bi.bamFile = bamFile;
+				bi.bamPath = bamFile;
 				bi.samReader = srf.open(bamFile);
 				final SAMSequenceDictionary samDict = bi.samReader.getFileHeader().getSequenceDictionary();
 				bi.contigNameConverter = samDict==null?ContigNameConverter.getIdentity():ContigNameConverter.fromOneDictionary(samDict);
 				
 				JvarkitException.BamHasIndex.verify(bi.samReader);
-				final SAMSequenceDictionary dict2= JvarkitException.BamDictionaryMissing.mustHaveDictionary(bi.samReader);
+				final SAMSequenceDictionary dict2= SequenceDictionaryUtils.extractRequired(bi.samReader.getFileHeader());
 				if(!SequenceUtil.areSequenceDictionariesEqual(this.refDict, dict2))
 					{
 					LOG.warn("Not the same dictionaries ! REF/BAM "+ JvarkitException.DictionariesAreNotTheSame.getMessage(this.refDict, dict2));
@@ -349,7 +338,9 @@ public class WesCnvSvg  extends Launcher {
 				
 				bi.sample = bi.samReader.getFileHeader().getReadGroups().stream().
 					map(V->V.getSample()).
-					filter(S->!StringUtil.isBlank(S)).findFirst().orElse(bamFile.getName());
+					filter(S->!StringUtil.isBlank(S)).
+					findFirst().
+					orElse(bamFile.getFileName().toString());
 				this.bamInputs.add(bi);
 				}
 			if(this.bamInputs.isEmpty()) {
@@ -357,38 +348,20 @@ public class WesCnvSvg  extends Launcher {
 				return -1;
 			}
 			
-			if(this.bedFile!=null)
+			
+			final List<QueryInterval> listQueryIntervals = new ArrayList<>(userIntervals.size());
+			for(SimpleInterval interval: userIntervals)
 				{
-				r = IOUtils.openFileForBufferedReading(this.bedFile);
-				}
-			else
-				{
-				r = new BufferedReader(new StringReader(userIntervals.stream().map(
-						R->R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()
-						).collect(Collectors.joining("\n"))));
-				}
-			final BedLineCodec bedCodec = new BedLineCodec();
-			String line;
-			List<QueryInterval> listQueryIntervals = new ArrayList<>();
-			while((line=r.readLine())!=null)
-				{
-				if(BedLine.isBedHeader(line)) continue;
-				final BedLine bed = bedCodec.decode(line);
-				if(bed==null || bed.getStart()>bed.getEnd()) {
-					LOG.warn("Ignoring "+line);
-					continue;
-					}
-				Interval interval = bed.toInterval();
-				final int tid = this.refDict.getSequenceIndex(contigNameConverter.apply(interval.getContig()));
+				final int tid = this.refDict.getSequenceIndex(interval.getContig());
 				if(tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(), refDict);
 				
 				//user asked to extend the regions
 				if(!StringUtil.isBlank(this.extendStr))
 					{
 					final SAMSequenceRecord ssr = Objects.requireNonNull(this.refDict.getSequence(tid),"??");
-					final int halflen = (bed.getEnd() - bed.getStart())/2;
-					final int mid = bed.getStart()+halflen;
-					int len;
+					final int halflen = (interval.getEnd() - interval.getStart())/2;
+					final int mid = interval.getStart()+halflen;
+					final int len;
 					if(this.extendStr.endsWith("%"))
 						{
 						double x = Double.parseDouble(this.extendStr.substring(0, this.extendStr.length()-1).trim())/100.0;
@@ -399,9 +372,9 @@ public class WesCnvSvg  extends Launcher {
 						{
 						len = halflen + Integer.parseInt(this.extendStr.trim());
 						}
-					interval = new Interval(
-							bed.getContig(),
-							Math.max(0, mid-len),
+					interval = new SimpleInterval(
+							interval.getContig(),
+							Math.max(1, mid-len),
 							Math.min(ssr.getSequenceLength(),mid+len)
 							);
 					}
@@ -438,7 +411,7 @@ public class WesCnvSvg  extends Launcher {
 					Arrays.fill(si.pixel_coverage, 0.0);
 					si.pixel_clipping = new double[(int)ci.getPixelWidth()];
 					Arrays.fill(si.pixel_clipping, 0.0);
-					LOG.info("get cov "+ci.getName()+" for "+bi.bamFile);
+					LOG.info("get cov "+ci.getName()+" for "+bi.bamPath);
 					ci.sampleInfos.add(si);
 					final int base_coverage[] = new int[ci.getBaseLength()];
 					Arrays.fill(base_coverage, 0);
@@ -446,7 +419,7 @@ public class WesCnvSvg  extends Launcher {
 					Arrays.fill(clip_coverage, 0);
 					final String newContig = bi.contigNameConverter.apply(ci.getContig());
 					if(newContig==null) {
-						LOG.error("cannot find contig "+ci.getContig()+" in "+bi.bamFile);
+						LOG.error("cannot find contig "+ci.getContig()+" in "+bi.bamPath);
 						return -1;
 						}
 					final SAMRecordIterator iter=bi.samReader.queryOverlapping(newContig,ci.getStart(),ci.getEnd());
@@ -735,7 +708,7 @@ public class WesCnvSvg  extends Launcher {
 			
 			for(final BamInput bi:this.bamInputs)
 				{	
-				w.writeComment(bi.bamFile.getPath());
+				w.writeComment(bi.bamPath.toString());
 				w.writeStartElement("g");
 				w.writeAttribute("transform","translate(0,"+y+")");
 				
@@ -870,7 +843,7 @@ public class WesCnvSvg  extends Launcher {
 					w.writeAttribute("x","5");
 					w.writeAttribute("y","12");
 					w.writeStartElement("title");
-					w.writeCharacters(bi.bamFile.getPath());
+					w.writeCharacters(bi.bamPath.toString());
 					w.writeEndElement();
 					w.writeCharacters(bi.sample);
 				w.writeEndElement();//text

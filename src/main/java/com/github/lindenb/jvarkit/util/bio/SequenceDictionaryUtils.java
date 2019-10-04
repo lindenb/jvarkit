@@ -36,6 +36,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -107,7 +108,6 @@ public static SAMSequenceDictionary extractRequired(final ReferenceSequenceFile 
 		}
 	return dict;
 	}
-
 
 /** extract required SAMSequenceDictionary */
 public static SAMSequenceDictionary extractRequired(final SAMFileHeader h) {
@@ -194,5 +194,17 @@ public static List<? extends Locatable> complement(final SAMSequenceDictionary d
 	return outputs;
 	}
 
+/** convert a locatable to a queryInterval */
+public static Optional<QueryInterval> toQueryInterval(final SAMSequenceDictionary dict,final Locatable loc) {
+	if(loc==null) return Optional.empty();
+	final SAMSequenceRecord ssr = dict.getSequence(loc.getContig());
+	if(ssr==null) return Optional.empty();
+	if(loc.getStart()>ssr.getSequenceLength()) return Optional.empty();
+	return Optional.of(new QueryInterval(
+			ssr.getSequenceIndex(),
+			Math.max(1, loc.getStart()),
+			Math.min(loc.getEnd(), ssr.getSequenceLength())
+			));
+	}
 
 }

@@ -68,6 +68,19 @@ public abstract class IntervalListProvider {
 	public abstract Stream<? extends Locatable> stream();
 
 	
+	
+	/** default provider throwing an IllegalStateException */
+	public static IntervalListProvider unspecified() {
+		return new IntervalListProvider("(unspecified)") {
+			@Override
+			public Stream<? extends Locatable> stream() {
+				throw new IllegalStateException("No interval/Bed/Gtf was provided.");
+				}
+			};
+		}
+
+	
+	/** default provider returning empty */
 	public static IntervalListProvider empty() {
 		return new IntervalListProvider("(empty)") {
 			@Override

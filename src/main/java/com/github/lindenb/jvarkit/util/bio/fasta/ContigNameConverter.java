@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -50,6 +51,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 
@@ -61,7 +63,13 @@ public String getName() {
 	return "Untitled";
 }
 
-
+/** rename the contig of a locatable to a SimpleInterval. Returns  `Optional.empty()` if loc==null or contig cannot be converted */
+public Optional<SimpleInterval> convertToSimpleInterval(final Locatable loc) {
+	if(loc==null) return Optional.empty();
+	final String ctg = this.apply(loc.getContig());
+	if(StringUtils.isBlank(ctg)) return Optional.empty();
+	return Optional.of(new SimpleInterval(ctg,loc.getStart(),loc.getEnd()));
+}
 
 /** return converted contig, or null */
 @Override
