@@ -13,14 +13,21 @@ Usage: bamslicebed [options] Files
     --bamcompression
       Compression Level.
       Default: 5
-  * -B, --bed
-      Bed file used to slice the bam
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+  * -B, --bed, --region, --interval
+      Regions containing non-overlapping PCR fragments. A source of intervals. 
+      The following suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, 
+      gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
+      or a list of plain interval separated by '[ \t\n;,]'
+      Default: (unspecified)
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For CRAM. Indexed fasta Reference file. This file must be indexed with 
+      samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM

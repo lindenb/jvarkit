@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +42,9 @@ import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -49,6 +52,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -146,7 +150,7 @@ END_DOC
 	description="Soft clip bam files based on PCR target regions",
 	biostars={147136,178308},
 	keywords={"sam","bam","pcr","bed"},
-	modificationDate="20190220"
+	modificationDate="20191007"
 	)
 public class PcrClipReads extends Launcher
 	{
@@ -154,21 +158,23 @@ public class PcrClipReads extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 
-	@Parameter(names={"-B","--bed"},description="Bed file containing non-overlapping PCR fragments",required=true)
-	private File bedFile = null;
+	@Parameter(names={"-B","--bed","--region","--interval"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
+	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 
-	@Parameter(names={"-flag","--flag"},description="Only run on reads having sam flag (flag). -1 = all reads. (as https://github.com/lindenb/jvarkit/issues/43)")
+	@Parameter(names={"-flag","--flag"},description="Only run on reads having sam flag 'x' (flag). -1 = all reads. (as https://github.com/lindenb/jvarkit/issues/43)")
 	private int onlyFlag = -1 ;
 
-	@Parameter(names={"-largest","--largest"},description="see if a read overlaps two bed intervals use the bed region sharing the longest sequence with a read. see https://github.com/lindenb/jvarkit/issues/44")
+	@Parameter(names={"-largest","--largest"},description="check if a read overlaps two bed intervals use the bed region sharing the longest sequence with a read. see https://github.com/lindenb/jvarkit/issues/44")
 	private boolean chooseLargestOverlap = false;
 
 	@Parameter(names={"-pr","--programId"},description="add a program group PG to the clipped SAM records")
 	private boolean programId = false;
 
+	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
@@ -226,7 +232,7 @@ public class PcrClipReads extends Launcher
 		SAMRecordIterator iter = null;
 		try
 			{
-			sw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header2, false);
+			sw = this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(this.outputFile,header2, false);
 			
 			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(header1).logger(LOG).build();
 			iter =  reader.iterator();
@@ -301,54 +307,37 @@ public class PcrClipReads extends Launcher
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.bedFile==null)
-			{
-			LOG.error("undefined bed file ");
-			return -1;
-			}
+		
 		BufferedReader r=null;
 		SamReader samReader=null;
 		try {
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+			
 			final String inputName = oneFileOrNull(args);
-			samReader = openSamReader(inputName);
+			if(inputName==null) {
+				samReader = srf.open(SamInputResource.of(stdin()));
+				}
+			else
+				{
+				samReader = srf.open(SamInputResource.of(inputName));
+				}
+			
 			final SAMFileHeader header = samReader.getFileHeader();
-			if(header==null)
-				{
-				LOG.error("No SAM header in input");
-				return -1;
-				}
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-			LOG.info("reading bed File "+this.bedFile);
-			r= IOUtils.openFileForBufferedReading(this.bedFile);
-			String line;
-			final BedLineCodec codec = new BedLineCodec();
-			while((line=r.readLine())!=null)
+			
+			this.intervalListProvider.
+				dictionary(dict).
+				stream().
+				map(R->new Interval(R)).
+				forEach(R->
 				{
-				final BedLine bedLine = codec.decode(line);
-				if(bedLine==null)
-					{
-					LOG.warn("Ignoring bed line "+line);
-					continue;
-					}
-				Interval i = bedLine.toInterval();
-				final String ctg = contigNameConverter.apply(i.getContig());
-				
-				if(StringUtils.isBlank(ctg)) {
-					throw new JvarkitException.ContigNotFoundInDictionary(bedLine.getContig(), dict);
-					}
-				else if(!i.getContig().equals(ctg))
-					{
-					i = new Interval(ctg,i.getStart(),i.getEnd());
-					}
-				
-				this.bedIntervals.put(i, i);
-				}
-			CloserUtil.close(r);r=null;
+				this.bedIntervals.put(R,R);
+				});
 			
 			return run(samReader);
 			}
-		catch (final Exception err) {
+		catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}

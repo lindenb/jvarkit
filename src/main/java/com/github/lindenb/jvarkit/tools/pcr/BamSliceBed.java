@@ -26,7 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -41,20 +41,22 @@ import htsjdk.samtools.DefaultSAMRecordFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordFactory;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -132,16 +134,19 @@ END_DOC
 
 @Program(name="bamslicebed",
 	description="For @wouter_decoster : slice (long reads) overlapping the records of a BED file",
-	keywords={"sam","bam","bed"}
+	keywords={"sam","bam","bed"},
+	modificationDate="20191007"
 	)
 public class BamSliceBed extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BamSliceBed.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-B","--bed"},description="Bed file used to slice the bam",required=true)
-	private File bedFile = null;
+	private Path outputFile = null;
+	@Parameter(names={"-B","--bed","--region","--interval"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
+	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
+	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
@@ -161,51 +166,35 @@ public class BamSliceBed extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.bedFile==null)
-			{
-			LOG.error("undefined bed file ");
-			return -1;
-			}
+		
 		BufferedReader r=null;
 		SamReader samReader=null;
 		SAMFileWriter sw=null;
 		SAMRecordIterator iter = null;
 		try {
-			final String inputName = oneFileOrNull(args);
-			samReader = openSamReader(inputName);
-			final SAMFileHeader header = samReader.getFileHeader();
-			if(header==null)
-				{
-				LOG.error("No SAM header in input");
-				return -1;
-				}
-			final SAMSequenceDictionary dict = header.getSequenceDictionary();
-			if(dict==null)
-				{
-				LOG.error(JvarkitException.BamDictionaryMissing.getMessage(String.valueOf(inputName)));
-				return -1;
-				}
-			final IntervalTreeMap<BedLine> bedIntervals = new IntervalTreeMap<>();
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
 
-			LOG.info("reading bed File "+this.bedFile);
-			r= IOUtils.openFileForBufferedReading(this.bedFile);
-			String line;
-			final BedLineCodec codec = new BedLineCodec();
-			while((line=r.readLine())!=null)
-				{
-				final BedLine bedLine = codec.decode(line);
-				if(bedLine==null)
-					{
-					LOG.warn("Ignoring bed line "+line);
-					continue;
-					}
-				
-				if(dict.getSequenceIndex(bedLine.getContig())==-1) {
-					throw new JvarkitException.ContigNotFoundInDictionary(bedLine.getContig(), dict);
-					}
-					
-				bedIntervals.put(bedLine.toInterval(),bedLine);
+			final String inputName = oneFileOrNull(args);
+			if(inputName==null) {
+				samReader = srf.open(SamInputResource.of(stdin()));
 				}
+			else
+				{
+				samReader = srf.open(SamInputResource.of(inputName));
+				}
+			final SAMFileHeader header = samReader.getFileHeader();
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+			
+			final IntervalTreeMap<Interval> bedIntervals = new IntervalTreeMap<>();
+
+			this.intervalListProvider.
+				dictionary(dict).
+				skipUnknownContigs().
+				stream().
+				map(R->new Interval(R)).
+				forEach(R->bedIntervals.put(R,R));
+				
 			CloserUtil.close(r);r=null;
 			
 			
@@ -214,7 +203,13 @@ public class BamSliceBed extends Launcher
 			header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 			header2.setSortOrder(SortOrder.unsorted);
 			
-			sw = this.writingBamArgs.openSAMFileWriter(outputFile,header2, false);
+			final SAMProgramRecord spr = header2.createProgramRecord();
+			spr.setProgramName(BamSliceBed.class.getSimpleName());
+			spr.setProgramVersion(this.getGitHash());
+			spr.setCommandLine(getProgramCommandLine().replace('\t', ' '));
+			
+			
+			sw = this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(outputFile,header2, false);
 			final SAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
 			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
 							newInstance().
@@ -228,7 +223,7 @@ public class BamSliceBed extends Launcher
 				if(rec.getReadUnmappedFlag()) continue;
 				final Cigar cigar = rec.getCigar();
 				if(cigar==null || cigar.isEmpty()) continue;
-				final Collection<BedLine> beds = bedIntervals.getOverlapping(rec);
+				final Collection<Interval> beds = bedIntervals.getOverlapping(rec);
 				if(beds.isEmpty()) continue;
 				
 				final List<Base> align = new ArrayList<>();
@@ -322,9 +317,9 @@ public class BamSliceBed extends Launcher
 
 				
 				
-				for(final BedLine bed: beds) {
+				for(final Interval bed: beds) {
 					final LinkedList<Base> copy = new LinkedList<>(align);
-					Predicate<Base> canRemoveBase = B->{
+					final Predicate<Base> canRemoveBase = B->{
 						if(B.refpos==-1) return true;
 						if(B.readpos==-1) return true;
 						if(B.refpos< bed.getStart()) return true;
@@ -359,12 +354,18 @@ public class BamSliceBed extends Launcher
 					newrec.setBaseQualityString(
 							copy.stream().
 							filter(B->B.readqual!=NO_QUAL).
-							map(B->String.valueOf((char)B.readqual)).
+							map(B->String.valueOf(B.readqual)).
 							collect(Collectors.joining()));
 					newrec.setReadUnmappedFlag(false);
 					newrec.setReadNegativeStrandFlag(rec.getReadNegativeStrandFlag());
 					newrec.setReferenceName(rec.getReferenceName());
 					newrec.setCigar(Cigar.fromCigarOperators(copy.stream().map(B->B.cigaroperator).collect(Collectors.toList())));
+					
+					if(rec.hasAttribute("RG")) {
+						newrec.setAttribute("RG", rec.getAttribute("RG"));
+					}
+					
+					newrec.setAttribute("PG",spr.getId());
 					
 					sw.addAlignment(newrec);
 					}
