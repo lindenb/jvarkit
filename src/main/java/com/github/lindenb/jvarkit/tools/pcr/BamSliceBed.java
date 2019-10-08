@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.pcr;
 
-import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -167,7 +166,6 @@ public class BamSliceBed extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		
-		BufferedReader r=null;
 		SamReader samReader=null;
 		SAMFileWriter sw=null;
 		SAMRecordIterator iter = null;
@@ -195,7 +193,6 @@ public class BamSliceBed extends Launcher
 				map(R->new Interval(R)).
 				forEach(R->bedIntervals.put(R,R));
 				
-			CloserUtil.close(r);r=null;
 			
 			
 			final SAMFileHeader header2 = header.clone();
@@ -385,7 +382,6 @@ public class BamSliceBed extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(r);
 			CloserUtil.close(samReader);
 			}
 		}

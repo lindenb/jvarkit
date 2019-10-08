@@ -66,6 +66,8 @@ public static Supplier<IllegalArgumentException> exception() {
 public IntervalParserFactory dictionary(final SAMSequenceDictionary dic);
 public IntervalParserFactory enableWholeContig();
 public IntervalParserFactory throwOnError();
+/** enable single point position like chr1:1334 */
+public IntervalParserFactory enableSinglePoint();
 
 
 public static Supplier<IllegalArgumentException> exception(final String str) {
@@ -84,6 +86,7 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 		final boolean tryToFixContigName = true;
 		boolean trimToContigLength = false;
 		private final int MAX_CONTIG_LENGTH = Integer.MAX_VALUE - 1000;
+		boolean enable_single_point = false;
 
 		ContigNameConverter ctgNameConverter = null;
 		@Override
@@ -99,7 +102,7 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 			return this.dict;
 			}
 		
-		private Optional<SimpleInterval> returnErrorOrNullInterval(final String message) {
+		private <T> Optional<T> returnErrorOrNullInterval(final String message) {
 			if(raiseExceptionOnError)
 				{
 				throw new IllegalArgumentException(message);
@@ -176,6 +179,30 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 				}
 			return vbi.intValue();
 			}
+		
+		private Optional<String> parseChrom(final String chrom,final String context) {
+			if(hasDictionary())
+				{
+				final SAMSequenceRecord ssr= getSAMSequenceRecord(chrom);
+				if(ssr==null)
+					{
+					return returnErrorOrNullInterval(
+						"Cannot find chromosome \""+chrom+"\" from \""+ context +"\" in dictionary. Available chromosomes are : "+
+						this.dict.getSequences().stream().
+						map(S->"\""+S.getSequenceName()+"\"").
+						collect(Collectors.joining(", ")));
+					}
+				return Optional.of(ssr.getSequenceName());
+				}
+			else if(StringUtils.isBlank(chrom)) {
+				return returnErrorOrNullInterval("empty chromosome in \""+context+"\".");
+				}
+			else
+				{
+				return Optional.of(chrom);
+				}
+			}
+		
 		private Optional<SimpleInterval> parse(final String s)
 			{
 			final int colon=s.indexOf(':');
@@ -183,23 +210,17 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 				/* chromosome alone */
 				if(colon==-1 && this.enableWholeContig)
 					{
-					String chrom=s;
+					final Optional<String> optChrom = parseChrom(s,s);
+					if(!optChrom.isPresent()) return Optional.empty();
 					if(hasDictionary())
 						{
-						final SAMSequenceRecord ssr= getSAMSequenceRecord(chrom);
-						if(ssr==null)
-							{
-							return returnErrorOrNullInterval(
-								"Cannot find chromosome \""+chrom+"\" in dictionary. Available chromosomes are : "+
-								this.dict.getSequences().stream().
-								map(S->"\""+S.getSequenceName()+"\"").
-								collect(Collectors.joining(", ")));
-							}
+						final SAMSequenceRecord ssr= getSAMSequenceRecord(optChrom.get());
+						if(ssr==null) throw new IllegalStateException("cannot get chrom in "+s);
 						return Optional.of(new SimpleInterval(ssr.getSequenceName(),1,ssr.getSequenceLength()));
 						}
 					else
 						{
-						return Optional.of(new SimpleInterval(chrom, 1, MAX_CONTIG_LENGTH));
+						return Optional.of(new SimpleInterval(optChrom.get(), 1, MAX_CONTIG_LENGTH));
 						}
 					}
 				
@@ -207,7 +228,15 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 				}
 			final int hyphen = s.indexOf('-',colon+1);
 			final int plus = s.indexOf('+',colon+1);
-			if(hyphen==-1 && plus==-1) return returnErrorOrNullInterval("Cannot find hyphen or plus in "+s);
+			if(hyphen==-1 && plus==-1) {
+				if(!this.enable_single_point) return returnErrorOrNullInterval("Cannot find hyphen or plus in "+s+". Single point position like 'chr1:234' are not allowed");
+				/** single point mutation */
+				final Optional<String> optChrom = parseChrom(s.substring(0,colon).trim(),s);
+				if(!optChrom.isPresent()) return Optional.empty();
+				final BigInteger bPos = parseBigInteger(s.substring(colon+1).trim());
+				final int pos= BigIntegerToInt(bPos);
+				return Optional.of(new SimpleInterval(optChrom.get(), pos, pos)); 
+				}
 			if(hyphen!=-1 && plus!=-1)
 				{
 				// chr1:123-+
@@ -216,19 +245,12 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 				
 			BigInteger start=null,end=null;
 			try {
-				SAMSequenceRecord ssr=null;
-				String chrom=s.substring(0,colon);
-				if(hasDictionary())
-					{
-					ssr= getSAMSequenceRecord(chrom);
-					if(ssr==null)
-						{
-						return returnErrorOrNullInterval(
-							"Cannot find chromosome \""+chrom+"\" in dictionary. Available chromosomes are : "+
-							this.dict.getSequences().stream().map(S->"\""+S.getSequenceName()+"\"").collect(Collectors.joining(", ")));
-						}
-					chrom = ssr.getSequenceName();
-					}
+				
+				final Optional<String> optChrom = parseChrom(s.substring(0,colon).trim(),s);
+				if(!optChrom.isPresent()) return Optional.empty();
+				final String chrom = optChrom.get();
+				final SAMSequenceRecord ssr=getSAMSequenceRecord(chrom);
+				
 				if(hyphen!=-1)
 					{
 					final BigInteger extend;
@@ -302,6 +324,7 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 	private boolean enableWholeContig=false;
 	private boolean raiseExceptionOnError = false;
 	private boolean trimToContigLength = false;
+	private boolean enable_single_point = false;
 	@Override
 	public IntervalParserFactory dictionary(final SAMSequenceDictionary dict) {
 		this.dict = dict;
@@ -317,6 +340,7 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 		parser.enableWholeContig = this.enableWholeContig;
 		parser.raiseExceptionOnError = this.raiseExceptionOnError;
 		parser.trimToContigLength = this.trimToContigLength;
+		parser.enable_single_point = this.enable_single_point;
 		return parser;
 		}
 	@Override
@@ -329,6 +353,10 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 		this.raiseExceptionOnError = true;
 		return this;
 		}
-
+	@Override
+	public IntervalParserFactory enableSinglePoint() {
+		this.enable_single_point = true;
+		return this;
+		}
 	}
 }

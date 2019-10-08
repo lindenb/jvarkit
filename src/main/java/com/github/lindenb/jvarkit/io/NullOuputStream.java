@@ -27,7 +27,9 @@ package com.github.lindenb.jvarkit.io;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 /** output stream that doesn't print anything */
+import java.io.PrintWriter;
 public class NullOuputStream extends OutputStream
 	{
 	private boolean _closed=false;
@@ -71,5 +73,14 @@ public class NullOuputStream extends OutputStream
 	public String toString()
 		{
 		return "NullOuputStream: closed:"+ isClosed()+" N="+getByteWrittenCount();
+		}
+	
+	/** create a new PrintWriter */
+	public static PrintWriter newPrintWriter() {
+		return new PrintWriter(new NullOuputStream());
+		}
+	/** create a new PrintWriter */
+	public static PrintStream newPrintStream() {
+		return new PrintStream(new NullOuputStream());
 		}
 	}
