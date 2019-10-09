@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -44,7 +45,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
@@ -126,7 +127,7 @@ public class SamFindClippedRegions extends Launcher
 	@Parameter(names= {"--region","--bed","-B"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class)
 	private IntervalListProvider intervalListProvider = null;
 	@Parameter(names="-c",description="consider only clip having length >= 'x'")
-	private int min_clip_operator_length = 2;
+	private int min_clip_operator_length = 1;
 
 	@Parameter(names={"--groupby","--partition"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition=SAMRecordPartition.sample;
@@ -145,6 +146,7 @@ public class SamFindClippedRegions extends Launcher
 		int noClip=0;
 		int leftClip = 0;
 		int rightClip = 0;
+		int del = 0;
 		int clip() { return leftClip+rightClip;}
 		int dp() { return noClip+clip();}
 		double ratio() {return clip()/(double)dp();}
@@ -153,17 +155,14 @@ public class SamFindClippedRegions extends Launcher
 	private static class Base
 		{
 		final int pos;
-		final Map<String,Gt> sample2gt = new HashMap<>();
-		Base(final int pos) {
+		final Map<String,Gt> sample2gt;
+		Base(final int pos,final Set<String> samples) {
 			this.pos = pos;
+			sample2gt = new HashMap<>(samples.size());
+			for(final String sn:samples) sample2gt.put(sn, new Gt());
 			}
 		Gt getGt(final String sn) {
-			Gt gt = this.sample2gt.get(sn);
-			if(gt==null) {
-				gt=new Gt();
-				this.sample2gt.put(sn,gt);
-				}
-			return gt;
+			return Objects.requireNonNull(this.sample2gt.get(sn),sn);
 			}
 		}
 	
@@ -281,6 +280,8 @@ public class SamFindClippedRegions extends Launcher
 			vcfHeaderLines.add(rightClip);
 			final VCFFormatHeaderLine totalCip = new VCFFormatHeaderLine("TL", 1,VCFHeaderLineType.Integer,"Total Clip");
 			vcfHeaderLines.add(totalCip);
+			final VCFFormatHeaderLine totalDel = new VCFFormatHeaderLine("DL", 1,VCFHeaderLineType.Integer,"Total Deletions");
+			vcfHeaderLines.add(totalDel);
 			
 			final VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
 			vcfHeader.setSequenceDictionary(dict);
@@ -340,6 +341,7 @@ public class SamFindClippedRegions extends Launcher
 					gb.attribute(leftClip.getID(), gt.leftClip);
 					gb.attribute(rightClip.getID(), gt.rightClip);
 					gb.attribute(totalCip.getID(), gt.clip());
+					gb.attribute(totalDel.getID(), gt.del);
 					gb.AD(new int[] {gt.noClip, gt.clip()});
 					
 					genotypes.add(gb.make());
@@ -368,13 +370,12 @@ public class SamFindClippedRegions extends Launcher
 			final Function<Integer, Base> baseAt = POS->{
 				Base b = pos2base.get(POS);
 				if(b==null) {
-					b = new Base(POS);
+					b = new Base(POS,samples);
 					pos2base.put(POS, b);
 					}
 				return b;
 				};
 			
-			final Decoy decoy= Decoy.getDefaultInstance();
 			for(;;) {
 				final SAMRecord rec=(iter.hasNext()?progress.apply(iter.next()):null);
 				if(rec!=null) {
@@ -382,7 +383,6 @@ public class SamFindClippedRegions extends Launcher
 					if(rec.isSecondaryOrSupplementary()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
 					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					if(decoy.isDecoy(rec.getContig())) continue;
 					}
 				
 				if(rec==null || !rec.getContig().equals(prevContig))
@@ -411,11 +411,29 @@ public class SamFindClippedRegions extends Launcher
 				
 				for(final AlignmentBlock ab:rec.getAlignmentBlocks()) {
 					for(int n=0;n< ab.getLength();++n) {
-						baseAt.apply(ab.getReferenceStart()+n).getGt(rg).noClip++;
+						
 						}
 					}
 				
 				final Cigar cigar = rec.getCigar();
+				int refPos= rec.getAlignmentStart();
+				for(final CigarElement ce: cigar.getCigarElements()) {
+					final CigarOperator op = ce.getOperator();
+					if(op.consumesReferenceBases()) {
+						if(op.consumesReadBases()) {
+							for(int x=0;x< ce.getLength();++x) {
+								baseAt.apply(refPos+x).getGt(rg).noClip++;
+								}
+							}
+						else if(op.equals(CigarOperator.D) || op.equals(CigarOperator.N))
+							{
+							baseAt.apply(refPos).getGt(rg).del++;
+							baseAt.apply(refPos + ce.getLength() - 1).getGt(rg).del++;
+							}
+						refPos += ce.getLength();
+						}
+					}
+				
 				CigarElement ce = cigar.getFirstCigarElement();
 				if(ce!=null && ce.getOperator().isClipping() && ce.getLength()>=this.min_clip_operator_length) {
 					baseAt.apply(rec.getStart()-1).getGt(rg).leftClip++;
@@ -447,10 +465,8 @@ public class SamFindClippedRegions extends Launcher
 			CloserUtil.close(w);
 			}
 		}
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+	
+	public static void main(final String[] args)
 		{
 		new SamFindClippedRegions().instanceMainWithExit(args);
 		}

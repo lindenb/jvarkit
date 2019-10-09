@@ -43,7 +43,7 @@ Usage: samfindclippedregions [options] Files
       print version and exit
     -c
       consider only clip having length >= 'x'
-      Default: 2
+      Default: 1
 
 ```
 
