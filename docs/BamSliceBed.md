@@ -10,6 +10,9 @@ For @wouter_decoster : slice (long reads) overlapping the records of a BED file
 ```
 Usage: bamslicebed [options] Files
   Options:
+    --bai
+      Use bam index to only scan the regions overlaping the user's intervals.
+      Default: false
     --bamcompression
       Compression Level.
       Default: 5

@@ -33,6 +33,7 @@ public class BamSliceBedTest  {
 			Assert.assertEquals(new BamSliceBed().instanceMain(new String[]{
 		    		"-o",out.toString(),
 		    		"-B",bed.toString(),
+		    		"--bai",
 		    		support.resource("S1.bam")
 		    		}),0);
 			support.assertIsValidBam(out);

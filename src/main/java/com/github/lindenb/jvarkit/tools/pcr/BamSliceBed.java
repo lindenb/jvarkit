@@ -53,6 +53,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -134,7 +135,7 @@ END_DOC
 @Program(name="bamslicebed",
 	description="For @wouter_decoster : slice (long reads) overlapping the records of a BED file",
 	keywords={"sam","bam","bed"},
-	modificationDate="20191007"
+	modificationDate="20191009"
 	)
 public class BamSliceBed extends Launcher
 	{
@@ -146,6 +147,8 @@ public class BamSliceBed extends Launcher
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx = null;
+	@Parameter(names={"--bai"},description="Use bam index to only scan the regions overlaping the user's intervals.")
+	private boolean use_bai = false;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
@@ -213,7 +216,22 @@ public class BamSliceBed extends Launcher
 							dictionary(dict).
 							logger(LOG).
 							build();
-			iter =  samReader.iterator();
+			
+			if(this.use_bai && inputName!=null && samReader.hasIndex()) {
+				iter = samReader.queryOverlapping(
+					bedIntervals.
+						values().
+						stream().
+						map(R->SequenceDictionaryUtils.toQueryInterval(dict, R).get()).
+						collect(HtsCollectors.optimizedQueryIntervals())
+					);
+				}
+			else
+				{
+				iter =  samReader.iterator();
+				}
+			
+			
 			while(iter.hasNext())
 				{
 				final SAMRecord rec= progress.apply(iter.next());
