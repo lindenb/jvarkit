@@ -38,11 +38,14 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.LineIterator;
 
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
@@ -83,6 +86,19 @@ public abstract class IntervalListProvider {
 	
 	public abstract Stream<? extends Locatable> stream();
 
+	/** convert stream to optimizedQueryIntervals for reading indexed bam */
+	public QueryInterval[] optimizedQueryIntervals() {
+		if(this.dictionary==null) throw new IllegalStateException("No dictionary available.");
+		return this.stream().
+			map(R->{
+				if(R==null) throw new NullPointerException("Locatable is null at this point.");
+				final SAMSequenceRecord ssr = this.dictionary.getSequence(R.getContig());
+				if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(R.getContig(),this.dictionary);
+				return new QueryInterval(ssr.getSequenceIndex(), R.getStart(), R.getEnd()); 
+				}).
+			collect(HtsCollectors.optimizedQueryIntervals());
+		}
+	
 	public IntervalListProvider skipUnknownContigs(boolean skip_unknown_contig) {
 		this.skip_unknown_contig = skip_unknown_contig;
 		return this;
