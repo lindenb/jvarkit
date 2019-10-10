@@ -67,7 +67,11 @@ public IntervalParserFactory dictionary(final SAMSequenceDictionary dic);
 public IntervalParserFactory enableWholeContig();
 public IntervalParserFactory throwOnError();
 /** enable single point position like chr1:1334 */
-public IntervalParserFactory enableSinglePoint();
+public default IntervalParserFactory enableSinglePoint() {
+	return enableSinglePoint(true);
+	}
+/** enable single point position like chr1:1334 */
+public IntervalParserFactory enableSinglePoint(boolean b);
 
 
 public static Supplier<IllegalArgumentException> exception(final String str) {
@@ -354,8 +358,8 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 		return this;
 		}
 	@Override
-	public IntervalParserFactory enableSinglePoint() {
-		this.enable_single_point = true;
+	public IntervalParserFactory enableSinglePoint(boolean b) {
+		this.enable_single_point = b;
 		return this;
 		}
 	}

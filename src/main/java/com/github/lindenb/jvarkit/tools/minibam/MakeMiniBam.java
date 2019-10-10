@@ -24,12 +24,10 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.minibam;
 
-import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -37,19 +35,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
+import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -76,9 +73,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.variant.variantcontext.StructuralVariantType;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
+
 /**
  BEGIN_DOC
  
@@ -127,7 +122,7 @@ No errors detected in compressed data of out.zip.
 		description="Creates an archive of small bams with only a few regions.",
 		keywords={"bam","sam"},
 		creationDate="20190410",
-		modificationDate="20190427"
+		modificationDate="20191010"
 		)
 public class MakeMiniBam extends Launcher {
 	private static final Logger LOG = Logger.build(MakeMiniBam.class).make();
@@ -137,38 +132,23 @@ public class MakeMiniBam extends Launcher {
 	private Path outputFile = null;
 	@Parameter(names={"-x","--extend"},description="Extend the positions by 'x' bases. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend = 5_000;
-	@Parameter(names={"-p","--pos"},description="Add this position 'chrom:pos'")
-	private Set<String> posStrSet = new HashSet<>();
 	@Parameter(names={"-T","--tmp"},description="Tmp working directory")
 	private Path tmpDir = IOUtils.getDefaultTempDir();
-	@Parameter(names={"--prefix"},description="File prefix in the archive. Special value 'now' will be replace by the current date")
+	@Parameter(names={"--prefix"},description="File prefix in the archive. Special value 'now' or empty string will be replaced by the current date")
 	private String filePrefix="miniBam.";
-	@Parameter(names={"-V","--variant","--vcf"},description="Use the intervals from this VCF file.")
-	private Path vcfInput=null;
-	@Parameter(names={"-B","--bed"},description="Use the intervals from this BED file.")
-	private Path bedInput=null;
+	@Parameter(names={"-B","--bed","-p","--pos","-V","--variant","--vcf"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class,required=true)
+	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 	@Parameter(names={"-R","--reference"},description="Optional Reference file for CRAM files. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path referencePath = null;
 	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
 	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
-	@Parameter(names={"-b","--bounds","--edge"},description="[20190427] If `b` is greater than 0 and the genomic object has a length greater than `b` then consider the edges of the object as two positions. the idea is to just save the boundaries of a large deletion. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"-b","--bounds","--edge"},description="[20190427] If `b` is greater than 0 and the user interval has a length greater than `b` then consider the edges of the object as two positions. the idea is to just save the boundaries of a large deletion. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int bound_edge = -1;
 	@Parameter(names={"-C","--comment"},description="[20190427]Add a file '*.md' with this comment.")
 	private String userComment="";
 	@Parameter(names={"--bnd"},description="[20190427]When reading VCF file, don't get the mate position for the structural BND variants.")
 	private boolean disable_sv_bnd = false;
 
-
-
-	private List<Locatable> getEdge(final Locatable loc) {
-		if(this.bound_edge<1 || loc.getLengthOnReference() <= this.bound_edge) {
-			return Collections.singletonList(loc);
-			}
-		return Arrays.asList(
-				new SimpleInterval(loc.getContig(),loc.getStart(),loc.getStart()),
-				new SimpleInterval(loc.getContig(),loc.getEnd(),loc.getEnd())
-				);
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -178,10 +158,13 @@ public class MakeMiniBam extends Launcher {
 		try {
 			
 			
-			if (this.filePrefix.equals("now")) {
+			if (StringUtils.isBlank(this.filePrefix) || this.filePrefix.equals("now")) {
 				final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMdd");
 				this.filePrefix = simpleDateFormat.format(new Date()) + ".";
 			}
+			if(!this.filePrefix.endsWith(".")) {
+				this.filePrefix+=".";
+				}
 			
 			IOUtil.assertDirectoryIsWritable(tmpDir);
 			final List<Path> bamFiles = IOUtils.unrollPaths(args);
@@ -189,10 +172,19 @@ public class MakeMiniBam extends Launcher {
 				LOG.error("no bam file defined");
 				return -1;
 				}
-			if(posStrSet.isEmpty() && this.vcfInput==null && this.bedInput==null) {
+			
+			final List<Locatable> locatables = this.intervalListProvider.
+					enableBreakEndInterval(!disable_sv_bnd).
+					enableSinglePoint().
+					stream().
+					collect(Collectors.toList())
+					;
+			
+			if(locatables.isEmpty()) {
 				LOG.error("no position defined");
 				return -1;
 				}
+			
 			final SAMFileWriterFactory swf = new SAMFileWriterFactory();
 			swf.setCompressionLevel(9);
 			swf.setCreateIndex(true);
@@ -220,79 +212,42 @@ public class MakeMiniBam extends Launcher {
 				final Optional<String> dictLabel = SequenceDictionaryUtils.getBuildName(dict);
 				final String labelSuffix = 
 						(dictLabel.isPresent()? "." + dictLabel.get():"") + 
-						(posStrSet.size()==1?"."+posStrSet.iterator().next().replace(':', '_').replace(',', '_'):"")
+						(locatables.size()==1?"."+locatables.get(0).getContig()+"_"+locatables.get(0).getStart()+(locatables.get(0).getStart()==locatables.get(0).getEnd()?"":"_"+locatables.get(0).getEnd()):"")
 						;
 						
 				final ContigNameConverter ctgConvert = ContigNameConverter.fromOneDictionary(dict);
 				
-				final List<QueryInterval> queryIntervals = new ArrayList<>(this.posStrSet.size());
-				
-				final Consumer<Locatable> locatableConsummer = (LOC)->{
-					final String contig  = ctgConvert.apply(LOC.getContig());
-					if(StringUtils.isBlank(contig)) {
-						LOG.warn("Cannot find "+LOC.getContig()+" in "+bamFile);
-						return;
-						}
-					final SAMSequenceRecord ssr = dict.getSequence(contig);
-					
-					if(LOC.getStart()> ssr.getSequenceLength()) {
-						LOG.warn("pos "+LOC+" is greater than chromosome size "+ssr.getSequenceLength()+" in "+bamFile);
-						return;
-						}
-					final QueryInterval queryInterval = new QueryInterval(
-							ssr.getSequenceIndex(), 
-							Math.max(1, LOC.getStart()-extend),
-							Math.min(ssr.getSequenceLength(), LOC.getEnd()+extend)
-							);
-					queryIntervals.add(queryInterval);
-					};
-				
-				for(final String posStr:this.posStrSet) {
-					locatableConsummer.accept(new SimpleInterval(new SimplePosition(posStr)));
-					}
-				// read vcf data
-				if(this.vcfInput!=null) {
-					try(final VCFFileReader vr = new VCFFileReader(this.vcfInput,false)) {
-						try(final CloseableIterator<VariantContext> iter = vr.iterator()) {
-							while(iter.hasNext()) {
-								final VariantContext ctx = iter.next();
-								getEdge(ctx).stream().forEach(locatableConsummer);
-								//is it a BND ? with an allele for the mate position
-								// eg: "N]chr7:23042387]"
-								if(!this.disable_sv_bnd &&
-									StructuralVariantType.BND.equals(ctx.getStructuralVariantType()) &&
-									ctx.getAlleles().size()==2 &&
-									ctx.getAlleles().get(1).isSymbolic()) {
-									final String tokens[] =  ctx.getAlleles().get(1).getDisplayString().split("[\\[\\]]");
-									if(tokens.length>2 && tokens[1].indexOf(":")>0) {
-										final int colon = tokens[1].indexOf(':');
-										final String mateCtg = tokens[1].substring(0,colon);
-										final int matePos = Integer.parseInt(tokens[1].substring(colon+1));
-										locatableConsummer.accept(new SimpleInterval(mateCtg,matePos,matePos));
-										}
-									}
+				final QueryInterval array[]= locatables.
+						stream().
+						flatMap(loc->{
+							 if(this.bound_edge<1 || loc.getLengthOnReference() <= this.bound_edge) {
+								 return Collections.singletonList(loc).stream();
+								 }
+							return Arrays.asList(
+									(Locatable)new SimpleInterval(loc.getContig(),loc.getStart(),loc.getStart()),
+									(Locatable)new SimpleInterval(loc.getContig(),loc.getEnd(),loc.getEnd())
+							        ).stream();
+							}).
+						map(LOC->{
+							final String contig  = ctgConvert.apply(LOC.getContig());
+							if(StringUtils.isBlank(contig)) {
+								LOG.warn("Cannot find "+LOC.getContig()+" in "+bamFile);
+								return null ;
 								}
-							}
-						}
-					}
-				
-				// read BED data
-				if(this.bedInput!=null) {
-					final BedLineCodec codec= new BedLineCodec();
-					try(final BufferedReader br = IOUtils.openPathForBufferedReading(this.bedInput)) {
-						br.lines().
-							filter(L->!BedLine.isBedHeader(L)).
-							map(L->codec.decode(L)).
-							filter(B->B!=null).
-							map(B->B.toInterval()).
-							flatMap(L->getEdge(L).stream()).
-							forEach(locatableConsummer);
-						}
-					}
-				
-				
-				
-				final QueryInterval array[]= QueryInterval.optimizeIntervals(queryIntervals.toArray(new QueryInterval[queryIntervals.size()]));
+							final SAMSequenceRecord ssr = dict.getSequence(contig);
+							
+							if(LOC.getStart()> ssr.getSequenceLength()) {
+								LOG.warn("pos "+LOC+" is greater than chromosome size "+ssr.getSequenceLength()+" in "+bamFile);
+								return null;
+								}
+							return new QueryInterval(
+									ssr.getSequenceIndex(), 
+									Math.max(1, LOC.getStart()-extend),
+									Math.min(ssr.getSequenceLength(), LOC.getEnd()+extend)
+									);
+							}).
+						filter(Q->Q!=null).
+						collect(HtsCollectors.optimizedQueryIntervals());
 				
 				
 				final Path tmpBam = Files.createTempFile(this.tmpDir,"tmp.", ".bam");

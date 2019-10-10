@@ -31,8 +31,7 @@ public class MakeMiniBamTest {
 
 			Assert.assertEquals(new MakeMiniBam().instanceMain(new String[] {
 					"-o",out.toString(),
-					"-p","RF01:100",
-					"-p","RF02:100",
+					"-p","RF01:100 RF02:100",
 					bams.toString()
 					}),0);
 			support.assertZip(out);

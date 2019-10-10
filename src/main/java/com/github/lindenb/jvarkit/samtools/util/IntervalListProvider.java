@@ -26,11 +26,11 @@ package com.github.lindenb.jvarkit.samtools.util;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.beust.jcommander.IStringConverter;
@@ -42,6 +42,7 @@ import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.LineIterator;
+import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -65,6 +66,8 @@ public abstract class IntervalListProvider {
 		}
 	
 	private boolean skip_unknown_contig = false;
+	protected boolean enable_single_point = false;
+	protected boolean enable_breakend_vcf = false;
 	private SAMSequenceDictionary dictionary = null;
 	private ContigNameConverter contigNameConverter = null;
 	final protected String path;
@@ -108,6 +111,28 @@ public abstract class IntervalListProvider {
 		return this.skipUnknownContigs(true);
 		}
 
+	/** enable 'chr:pos' notation */
+	public IntervalListProvider enableSinglePoint(boolean enable_single_point) {
+		this.enable_single_point = enable_single_point;
+		return this;
+		}
+	
+	/** enable 'chr:pos' notation */
+	public IntervalListProvider enableSinglePoint() {
+		return this.enableSinglePoint(true);
+		}
+	
+	/** in a VCF, for a BND, add the mate interval */
+	public IntervalListProvider enableBreakEndInterval(boolean enable_breakend_vcf) {
+		this.enable_breakend_vcf = enable_breakend_vcf;
+		return this;
+		}
+	
+	/** in a VCF, for a BND, add the mate interval */
+	public IntervalListProvider enableBreakEndInterval() {
+		return this.enableBreakEndInterval(true);
+		}
+	
 	
 	protected Locatable remapContig(final Locatable loc) {
 		if(this.contigNameConverter==null) return loc;
@@ -166,22 +191,21 @@ public abstract class IntervalListProvider {
 	
 	private static class ProviderIsString extends IntervalListProvider
 		{
-		private final List<? extends Locatable> array;
 		ProviderIsString(final String path) {
 			super(path);
-			
-			final Function<String, Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().make();
-			this.array =Arrays.
-					stream(path.split("[ ;,\t\n]+")).
-					filter(S->!StringUtils.isBlank(S)).
-					map(S->(Locatable)parser.apply(S).orElseThrow(()->new IllegalArgumentException("Cannot convert interval"))).
-					map(L->this.remapContig(L)).filter(L->L!=null).
-					collect(Collectors.toList());
-			
 			}
 		@Override
 		public Stream<? extends Locatable> stream() {
-			return array.stream();
+			final Function<String, Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().
+					throwOnError().
+					enableSinglePoint(this.enable_single_point).
+					make();
+			return Arrays.
+					stream(path.split("[ ;,\t\n]+")).
+					filter(S->!StringUtils.isBlank(S)).
+					map(S->(Locatable)parser.apply(S).orElseThrow(()->new IllegalArgumentException("Cannot convert interval \""+S+"\""))).
+					map(L->this.remapContig(L)).filter(L->L!=null)
+					;
 			}
 		}	
 
@@ -197,6 +221,13 @@ public abstract class IntervalListProvider {
 				return new VCFIteratorBuilder().
 						open(path).
 						stream().
+						flatMap(V->{
+							/* enable break end ?*/
+							final List<Locatable> L = new ArrayList<>();
+							L.add(V);
+							if(enable_breakend_vcf) L.addAll(Breakend.parse(V));
+							return L.stream();
+						}).
 						map(L->this.remapContig(L)).
 						filter(L->L!=null);
 						

@@ -10,17 +10,15 @@ Creates an archive of small bams with only a few regions.
 ```
 Usage: mkminibam [options] Files
   Options:
-    -B, --bed
-      Use the intervals from this BED file.
     --bnd
       [20190427]When reading VCF file, don't get the mate position for the 
       structural BND variants.
       Default: false
     -b, --bounds, --edge
-      [20190427] If `b` is greater than 0 and the genomic object has a length 
+      [20190427] If `b` is greater than 0 and the user interval has a length 
       greater than `b` then consider the edges of the object as two positions. 
       the idea is to just save the boundaries of a large deletion. A distance 
-      specified as a positive integer.Comma are removed. The following 
+      specified as a positive integer.Commas are removed. The following 
       suffixes are interpreted : b,bp,k,kb,m,mb
       Default: -1
     -C, --comment
@@ -28,7 +26,7 @@ Usage: mkminibam [options] Files
       Default: <empty string>
     -x, --extend
       Extend the positions by 'x' bases. A distance specified as a positive 
-      integer.Comma are removed. The following suffixes are interpreted : 
+      integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb 
       Default: 5000
     --filter
@@ -42,12 +40,9 @@ Usage: mkminibam [options] Files
       What kind of help. One of [usage,markdown,xml].
   * -o, --output
       An existing directory or a filename ending with the '.zip' suffix.
-    -p, --pos
-      Add this position 'chrom:pos'
-      Default: []
     --prefix
-      File prefix in the archive. Special value 'now' will be replace by the 
-      current date
+      File prefix in the archive. Special value 'now' or empty string will be 
+      replaced by the current date
       Default: miniBam.
     -R, --reference
       Optional Reference file for CRAM files. Indexed fasta Reference file. 
@@ -56,8 +51,12 @@ Usage: mkminibam [options] Files
     -T, --tmp
       Tmp working directory
       Default: /tmp
-    -V, --variant, --vcf
-      Use the intervals from this VCF file.
+  * -B, --bed, -p, --pos, -V, --variant, --vcf
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
+      Default: (unspecified)
     --version
       print version and exit
 

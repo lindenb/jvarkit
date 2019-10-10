@@ -105,6 +105,8 @@ public class KnownDeletion extends Launcher
 	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
 	@Parameter(names={"-B","--bam"},description="Optional Bam to sasve the matching reads")
 	private Path bamOut=null;
+	@Parameter(names={"-R","--reference"},description="For Reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx=null;
 	
 	@Override
 	public int doWork(final List<String> args) {		
@@ -124,7 +126,9 @@ public class KnownDeletion extends Launcher
 		try
 			{
 			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			final SamReaderFactory srf = SamReaderFactory.makeDefault().
+					referenceSequence(this.faidx).
+					validationStringency(ValidationStringency.LENIENT);
 			
 			final List<String> filenames=IOUtils.unrollStrings2018(args);
 			if(this.bamOut!=null && !filenames.isEmpty()) {
@@ -159,7 +163,7 @@ public class KnownDeletion extends Launcher
 					header.addReadGroup(srg);
 					}
 				final SAMFileWriterFactory swf = 	new SAMFileWriterFactory();
-				sfw = swf.makeSAMOrBAMWriter(header, true, this.bamOut);
+				sfw = swf.makeSAMOrBAMWriter(header, true, this.bamOut);			
 				}
 			
 			for(final String filename: IOUtils.unrollStrings2018(args)) {
