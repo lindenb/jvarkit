@@ -29,7 +29,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -43,10 +43,11 @@ import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /**
@@ -144,8 +145,9 @@ END_DOC
 @Program(
 		name="bamtile",
 		description="Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target.",
-		keywords={"bam","sam"},
-		biostars=287915
+		keywords={"bam","sam","tile"},
+		biostars=287915,
+		modificationDate="20191010"
 		)
 public class BamTile
 	extends Launcher
@@ -156,7 +158,9 @@ public class BamTile
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
+	@Parameter(names={"-R","--reference"},description="For Reading Cram. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 	@Parameter(names={"-e","--exclude"},description="[20171206]"+SamRecordJEXLFilter.FILTER_DESCRIPTION)
 	private SamRecordFilter filterOut = SamRecordJEXLFilter.buildAcceptAll();
 	@Parameter(names={"-n","--no-overlap"},description="[20171206]No overlap, just the read close to each other")
@@ -190,12 +194,11 @@ public class BamTile
 				}
 			
 			final SAMFileHeader header2=header1.clone();
-			header2.addComment("BamTile:"+getVersion()+":"+getProgramCommandLine());
+			JVarkitVersion.getInstance().addMetaData(this, header2);			
+			sfw =  this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(this.outputFile,header2, true);
 			
-			sfw =  this.writingBamArgs.openSAMFileWriter(this.outputFile,header2, true);
 			
-			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(header1).logger(LOG).build();
 			iter=sfr.iterator();
 			final LinkedList<SAMRecord> buffer=new LinkedList<>();
 			for(;;)
@@ -203,7 +206,7 @@ public class BamTile
 				SAMRecord rec=null;
 				if( iter.hasNext())
 					{
-					rec= progress.watch(iter.next());
+					rec= progress.apply(iter.next());
 					if(rec.getReadUnmappedFlag()) continue;
 					if(this.filterOut.filterOut(rec)) continue;
 					if(!buffer.isEmpty())
@@ -264,11 +267,10 @@ public class BamTile
 					}
 				
 				}
-			progress.finish();
+			progress.close();
 			sfw.close();sfw=null;
 			iter.close();iter=null;
 			sfr.close();sfr=null;
-			LOG.info("done");
 			return  RETURN_OK;
 			}
 		catch(final Exception err)

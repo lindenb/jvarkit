@@ -28,9 +28,9 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,7 +39,9 @@ import java.util.TreeMap;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
@@ -96,7 +98,7 @@ END_DOC
 @Program(name="samreadlengthdistribution",
 description="Sam read length distribution",
 keywords={"sam","bam","histogram"},
-modificationDate="20190307"
+modificationDate="20191010"
 )
 public class SamReadLengthDistribution extends Launcher
 	{
@@ -109,13 +111,15 @@ public class SamReadLengthDistribution extends Launcher
 	}
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition=SAMRecordPartition.sample;
 	@Parameter(names={"-m"},description="method, how should I get the read length ?")
 	private Method method = Method.SEQ_LENGTH;
 	@Parameter(names={"-w","--windows"},description=RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class)
 	private RangeOfIntegers ranges = new RangeOfIntegers(0,10,20,30,40,50,100,150,200,250,300,350,400,450,500,1000);
+	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 
 	private final Map<String,Counter<RangeOfIntegers.Range>> lengths=new TreeMap<>();
 
@@ -186,11 +190,13 @@ public class SamReadLengthDistribution extends Launcher
 		try
 			{
 			final Set<String> args = IOUtils.unrollFiles(inputs);
-
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+			
 			
 			if(args.isEmpty())
 				{
-				r = super.openSamReader(null);
+				r = srf.open(SamInputResource.of(stdin()));
 				scan(r,"<STDIN>");
 				r.close();
 				}
@@ -198,12 +204,12 @@ public class SamReadLengthDistribution extends Launcher
 				{
 				for(final String filename: args)
 					{
-					r = super.openSamReader(filename);
+					r = srf.open(SamInputResource.of(filename));
 					scan(r,filename);
 					r.close();
 					}
 				}
-			out=super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out=super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			out.print("#ReadLength");
 			for(final String sample:this.lengths.keySet())
 				{
@@ -231,7 +237,7 @@ public class SamReadLengthDistribution extends Launcher
 			out = null;
 			return RETURN_OK;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

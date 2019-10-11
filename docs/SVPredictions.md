@@ -14,6 +14,9 @@ Usage: svpredictions [options] Files
       FILTER to set if variant failing prediction of option --where. Empty: no 
       FILTER, discard variant.
       Default: BAD_SV_PRED
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
   * -g, --gtf
       A GTF (General Transfer Format) file. See 
       https://www.ensembl.org/info/website/upload/gff.html .

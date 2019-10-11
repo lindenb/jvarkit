@@ -10,12 +10,18 @@ Annotate variants with the distance between previous and next variant.
 ```
 Usage: vcfdistancevariants [options] Files
   Options:
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --prefix
+      INFO Attribute Prefix
+      Default: DIST_
     --version
       print version and exit
 
@@ -26,6 +32,7 @@ Usage: vcfdistancevariants [options] Files
 
  * vcf
  * annotation
+ * distance
 
 
 ## Compilation

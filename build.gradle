@@ -2309,6 +2309,11 @@ task("vcfphased01", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         }
 
+task("jeter", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
+        jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient")
+        }
+
 
 /** bottom task */
 

@@ -28,7 +28,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import htsjdk.samtools.util.Interval;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+
 import htsjdk.samtools.util.Locatable;
 
 public interface Codon extends TranscriptInterval {
@@ -43,22 +44,22 @@ public interface Codon extends TranscriptInterval {
 		if(!isSpliced()) return Collections.singletonList(this);
 		if(getStart()+1==getMiddle() && getMiddle()+1!=getEnd() ) {
 			return Arrays.asList(
-					new Interval(getContig(),getStart(),getMiddle()),
-					new Interval(getContig(),getEnd(),getEnd())
+					new SimpleInterval(getContig(),getStart(),getMiddle()),
+					new SimpleInterval(getContig(),getEnd(),getEnd())
 					);
 			}
 		else if(getStart()+1!=getMiddle() && getMiddle()+1==getEnd() ) {
 			return Arrays.asList(
-					new Interval(getContig(),getStart(),getStart()),
-					new Interval(getContig(),getMiddle(),getEnd())
+					new SimpleInterval(getContig(),getStart(),getStart()),
+					new SimpleInterval(getContig(),getMiddle(),getEnd())
 					);
 			}
 		else
 			{
 			return Arrays.asList(
-					new Interval(getContig(),getStart(),getStart()),
-					new Interval(getContig(),getMiddle(),getMiddle()),
-					new Interval(getContig(),getEnd(),getEnd())
+					new SimpleInterval(getContig(),getStart(),getStart()),
+					new SimpleInterval(getContig(),getMiddle(),getMiddle()),
+					new SimpleInterval(getContig(),getEnd(),getEnd())
 					);
 			}
 		}

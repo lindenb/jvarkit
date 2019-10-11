@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfannot;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,6 +35,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -48,8 +48,10 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -102,7 +104,9 @@ public class SVPredictions extends Launcher
 		cds,
 		utr,
 		exon,
-		intron
+		intron,
+		start,
+		stop
 	}
 	
 	private static class Annotation {
@@ -115,7 +119,7 @@ public class SVPredictions extends Launcher
 		}
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
 	private Path gtfPath = null;
 	@Parameter(names={"-u","--upstream"},description="Gene Upstream/Downstream length. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
@@ -133,6 +137,8 @@ public class SVPredictions extends Launcher
 	private String filterStr="BAD_SV_PRED";
 	@Parameter(names={"-r","--remove-attribute"},description="Do not print the annotations that don't contain the contraint for the argument  --where")
 	private boolean remove_attributes =  false;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
 	private final Set<WhereInGene> limitWhere = new HashSet<>();
 	
@@ -155,7 +161,7 @@ public class SVPredictions extends Launcher
 				return ret;
 				}
 			}
-		if(transcript.hasUTR() && transcript.getUTRs().stream().anyMatch(U->U.overlaps(ctx))) {
+		if(transcript.hasUTR() && transcript.getUTRs().stream().flatMap(U->U.getIntervals().stream()).anyMatch(U->U.overlaps(ctx))) {
 			ret.where.add(WhereInGene.utr);
 			ret.where.add(WhereInGene.exon);
 			}
@@ -166,13 +172,17 @@ public class SVPredictions extends Launcher
 			}
 		
 		if(transcript.hasExon() && transcript.getExons().stream().anyMatch(U->ctx.overlaps(U))) {
-			 ret.where.add(WhereInGene.exon);
+			ret.where.add(WhereInGene.exon);
 			}
 		if(transcript.hasIntron() && transcript.getIntrons().stream().anyMatch(U->ctx.overlaps(U))) {
 			ret.where.add(WhereInGene.intron);
 			}
-		
-		
+		if(transcript.hasCodonStopDefined() && transcript.getCodonStop().get().getBlocks().stream().anyMatch(U->ctx.overlaps(U))) {
+			ret.where.add(WhereInGene.stop);
+			}
+		if(transcript.hasCodonStartDefined() && transcript.getCodonStart().get().getBlocks().stream().anyMatch(U->ctx.overlaps(U))) {
+			ret.where.add(WhereInGene.start);
+			}
 		return ret;
 		}
 	
@@ -186,199 +196,204 @@ public class SVPredictions extends Launcher
 		}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, final VCFIterator r, VariantContextWriter w)
-		{
+	public int doWork(final List<String> args) {
+		VCFIterator r=null;
+		VariantContextWriter w = null;
 		try {
-		final VCFHeader header= r.getHeader();
-		final SAMSequenceDictionary dict=  header.getSequenceDictionary();
-		try(final GtfReader gtfReader=new GtfReader(this.gtfPath)) {
-			if(dict!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-			gtfReader.getAllGenes().stream().forEach(G->this.all_gene.put(new Interval(G), G));
-			}
-		
-		
-		
-		
-		final VCFHeader h2=new VCFHeader(header);
-		
-		
-		/* split 'limit' string */
-		if(StringUtils.isBlank(this.whereStr)) {
-			//add all
-			Arrays.stream(WhereInGene.values()).forEach(C->this.limitWhere.add(C));
-		} else {
-			for(final String ss: this.whereStr.split("[ \t,;]+")) {
-				if(StringUtils.isBlank(ss)) continue;
-				// gene and transcript expand to everything but intergenic
-				if(ss.toLowerCase().equals("gene") || ss.toLowerCase().equals("transcript")) {
-					Arrays.stream(WhereInGene.values()).
-						filter(C->!C.equals(WhereInGene.intergenic)).
-						forEach(C->this.limitWhere.add(C));
-					} 
-				else
-					{
-					final WhereInGene g = Arrays.stream(WhereInGene.values()).
-							filter(A->A.name().equalsIgnoreCase(ss)).
-							findFirst().
-							orElseThrow(()->new IllegalArgumentException(
-								"Bad identifier expected one of :" +
-								Arrays.stream(WhereInGene.values()).
-								map(X->X.name()).
-								collect(Collectors.joining(", "))));
-					this.limitWhere.add(g);
-					}
-			}
-		if(this.limitWhere.isEmpty()) {
-			LOG.error("--where option provided but no identifier was found.");
-			return -1;
-			}
-		}
-		
-		final VCFFilterHeaderLine filterHeader;
-		if(!StringUtils.isBlank(this.filterStr))
-			{
-			filterHeader = new VCFFilterHeaderLine(this.filterStr, "variant failing locations: " + 
-					this.limitWhere.stream().map(V->V.name()).collect(Collectors.joining(","))
-					);
-			h2.addMetaDataLine(filterHeader);
-			}
-		else
-			{
-			filterHeader = null;
-			}
-
-		
-		h2.addMetaDataLine(new VCFInfoHeaderLine(
-				this.info_tag,
-				VCFHeaderLineCount.UNBOUNDED,
-				VCFHeaderLineType.String,
-				"Structural variant consequence."
-				));
-		JVarkitVersion.getInstance().addMetaData(this, h2);
-		w.writeHeader(h2);
-
-		final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
-		while(r.hasNext())
-			{
-			final VariantContext ctx=progress.apply(r.next());
+			r= super.openVCFIterator(oneFileOrNull(args));
 			
-			final Collection<Gene> genes  = this.all_gene.getOverlapping(new Interval(
-					ctx.getContig(),
-					Math.max(1,ctx.getStart()-this.upstream_size),
-					ctx.getEnd()+this.upstream_size
-					));
+				
+			final VCFHeader header= r.getHeader();
+			final SAMSequenceDictionary dict=  header.getSequenceDictionary();
+			try(final GtfReader gtfReader=new GtfReader(this.gtfPath)) {
+				if(dict!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+				gtfReader.getAllGenes().stream().forEach(G->this.all_gene.put(new Interval(G), G));
+				}
 			
 			
-			if(genes.isEmpty()) // intergenic
-				{
-				// discard anyway
-				if(!this.limitWhere.contains(WhereInGene.intergenic) && filterHeader==null) continue;
-				
-				Gene leftGene = null;
-				for(final Gene g:this.all_gene.getOverlapping(new Interval(
-					ctx.getContig(),
-					1,
-					ctx.getStart()
-					)))
-					{
-					if(leftGene==null || leftGene.getEnd() < g.getEnd()) leftGene=g;
-					}
-
-				final String leftId = (leftGene==null?"":leftGene.getId());
-				final String leftName =  (leftGene==null?"":leftGene.getGeneName());
-				
-				
-				Gene rightGene = null;
-				
-				for(final Gene g:this.all_gene.getOverlapping(new Interval(
-						ctx.getContig(),
-						ctx.getStart(),
-						Integer.MAX_VALUE
-						)))
+			
+			
+			final VCFHeader h2=new VCFHeader(header);
+			
+			
+			/* split 'limit' string */
+			if(StringUtils.isBlank(this.whereStr)) {
+				//add all
+				Arrays.stream(WhereInGene.values()).forEach(C->this.limitWhere.add(C));
+			} else {
+				for(final String ss: this.whereStr.split("[ \t,;]+")) {
+					if(StringUtils.isBlank(ss)) continue;
+					// gene and transcript expand to everything but intergenic
+					if(ss.toLowerCase().equals("gene") || ss.toLowerCase().equals("transcript")) {
+						Arrays.stream(WhereInGene.values()).
+							filter(C->!C.equals(WhereInGene.intergenic)).
+							forEach(C->this.limitWhere.add(C));
+						} 
+					else
 						{
-						if(rightGene==null || rightGene.getStart() > g.getStart()) rightGene=g;
+						final WhereInGene g = Arrays.stream(WhereInGene.values()).
+								filter(A->A.name().equalsIgnoreCase(ss)).
+								findFirst().
+								orElseThrow(()->new IllegalArgumentException(
+									"Bad identifier expected one of :" +
+									Arrays.stream(WhereInGene.values()).
+									map(X->X.name()).
+									collect(Collectors.joining(", "))));
+						this.limitWhere.add(g);
 						}
-				final String rightId = (rightGene==null?"":rightGene.getId());
-				final String rightName =  (rightGene==null?"":rightGene.getGeneName());
-				
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				// FILTER
-				if(!this.limitWhere.contains(WhereInGene.intergenic) && filterHeader!=null) {
-					vcb.filter(filterHeader.getID());
-					}
-				
-				
-				if(!(leftGene==null && rightGene==null)) {
-					vcb.attribute(this.info_tag, "intergenic|"+leftId+"-"+rightId+"|"+leftName+"-"+rightName);
-					}
-				w.add(vcb.make());
+				}
+			if(this.limitWhere.isEmpty()) {
+				LOG.error("--where option provided but no identifier was found.");
+				return -1;
+				}
+			}
+			
+			final VCFFilterHeaderLine filterHeader;
+			if(!StringUtils.isBlank(this.filterStr))
+				{
+				filterHeader = new VCFFilterHeaderLine(this.filterStr, "variant failing locations: " + 
+						this.limitWhere.stream().map(V->V.name()).collect(Collectors.joining(","))
+						);
+				h2.addMetaDataLine(filterHeader);
 				}
 			else
 				{
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				final List<List<Annotation>> annotations = genes.stream().
-						map(G->annotGene(G, ctx)).
-						collect(Collectors.toList());
+				filterHeader = null;
+				}
+	
+			
+			h2.addMetaDataLine(new VCFInfoHeaderLine(
+					this.info_tag,
+					VCFHeaderLineCount.UNBOUNDED,
+					VCFHeaderLineType.String,
+					"Structural variant consequence."
+					));
+			JVarkitVersion.getInstance().addMetaData(this, h2);
+			
+			w= this.writingVariants.dictionary(dict).open(this.outputFile);
+			w.writeHeader(h2);
+	
+			final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			while(r.hasNext())
+				{
+				final VariantContext ctx=progress.apply(r.next());
 				
-				final boolean match_user_filter = annotations.stream().
-						flatMap(L->L.stream()).
-						flatMap(A->A.where.stream()).
-						anyMatch(A->this.limitWhere.contains(A))
-						;
-				
-				if(!match_user_filter) {
-					if(filterHeader==null) continue;
-					vcb.filter(filterHeader.getID());
-					}
+				final Collection<Gene> genes  = this.all_gene.getOverlapping(new Interval(
+						ctx.getContig(),
+						Math.max(1,ctx.getStart()-this.upstream_size),
+						ctx.getEnd()+this.upstream_size
+						));
 				
 				
-				
-				if(this.max_genes_count!=-1 && genes.size()>this.max_genes_count) {
+				if(genes.isEmpty()) // intergenic
+					{
+					// discard anyway
+					if(!this.limitWhere.contains(WhereInGene.intergenic) && filterHeader==null) continue;
 					
-					final String prefix= annotations.stream().
-							flatMap(L->L.stream()).
-							flatMap(A->A.where.stream()).
-							map(A->A.name()).
-							collect(Collectors.toCollection(TreeSet::new)).
-							stream().
-							collect(Collectors.joining("&"));
-
-					vcb.attribute(this.info_tag, 
-							(StringUtils.isBlank(prefix)?".":prefix)+
-							"|multiple_genes|"+genes.size());
+					Gene leftGene = null;
+					for(final Gene g:this.all_gene.getOverlapping(new Interval(
+						ctx.getContig(),
+						1,
+						ctx.getStart()
+						)))
+						{
+						if(leftGene==null || leftGene.getEnd() < g.getEnd()) leftGene=g;
+						}
+	
+					final String leftId = (leftGene==null?"":leftGene.getId());
+					final String leftName =  (leftGene==null?"":leftGene.getGeneName());
+					
+					
+					Gene rightGene = null;
+					
+					for(final Gene g:this.all_gene.getOverlapping(new Interval(
+							ctx.getContig(),
+							ctx.getStart(),
+							Integer.MAX_VALUE
+							)))
+							{
+							if(rightGene==null || rightGene.getStart() > g.getStart()) rightGene=g;
+							}
+					final String rightId = (rightGene==null?"":rightGene.getId());
+					final String rightName =  (rightGene==null?"":rightGene.getGeneName());
+					
+					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+					// FILTER
+					if(!this.limitWhere.contains(WhereInGene.intergenic) && filterHeader!=null) {
+						vcb.filter(filterHeader.getID());
+						}
+					
+					
+					if(!(leftGene==null && rightGene==null)) {
+						vcb.attribute(this.info_tag, "intergenic|"+leftId+"-"+rightId+"|"+leftName+"-"+rightName);
+						}
+					w.add(vcb.make());
 					}
 				else
 					{
-					final List<String> annots = annotations.
-							stream().
-							flatMap(L->L.stream()).
-							map(A->A.where.stream().
-								map(X->X.name()).
-								collect(Collectors.toCollection(TreeSet::new)).
-								stream().
-								collect(Collectors.joining("&")) + A.label ).
-							collect(Collectors.toSet()).
-							stream().
+					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+					final List<List<Annotation>> annotations = genes.stream().
+							map(G->annotGene(G, ctx)).
 							collect(Collectors.toList());
 					
-					if(!annots.isEmpty()) vcb.attribute(this.info_tag,annots);
+					final boolean match_user_filter = annotations.stream().
+							flatMap(L->L.stream()).
+							flatMap(A->A.where.stream()).
+							anyMatch(A->this.limitWhere.contains(A))
+							;
+					
+					if(!match_user_filter) {
+						if(filterHeader==null) continue;
+						vcb.filter(filterHeader.getID());
+						}
+					
+					
+					
+					if(this.max_genes_count!=-1 && genes.size()>this.max_genes_count) {
+						
+						final String prefix= annotations.stream().
+								flatMap(L->L.stream()).
+								flatMap(A->A.where.stream()).
+								map(A->A.name()).
+								collect(Collectors.toCollection(TreeSet::new)).
+								stream().
+								collect(Collectors.joining("&"));
+	
+						vcb.attribute(this.info_tag, 
+								(StringUtils.isBlank(prefix)?".":prefix)+
+								"|multiple_genes|"+genes.size());
+						}
+					else
+						{
+						final List<String> annots = annotations.
+								stream().
+								flatMap(L->L.stream()).
+								map(A->A.where.stream().
+									map(X->X.name()).
+									collect(Collectors.toCollection(TreeSet::new)).
+									stream().
+									collect(Collectors.joining("&")) + A.label ).
+								collect(Collectors.toSet()).
+								stream().
+								collect(Collectors.toList());
+						
+						if(!annots.isEmpty()) vcb.attribute(this.info_tag,annots);
+						}
+					w.add(vcb.make());
 					}
-				w.add(vcb.make());
 				}
-			}
-		progress.close();
-		return 0;
+			w.close();w=null;
+			r.close();r=null;
+			progress.close();
+			return 0;
 		} catch(final Throwable err ) {
 			LOG.error(err);
 			return -1;
 		} finally {
+			CloserUtil.close(w);
 			}
-		}
-	
-	@Override
-	public int doWork(final List<String> args) {
-		return doVcfToVcf(args,outputFile);
-		}
+		
+	}
 	
 	public static void main(final String[] args)
 		{

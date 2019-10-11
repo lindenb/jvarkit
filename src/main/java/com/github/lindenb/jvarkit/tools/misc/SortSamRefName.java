@@ -33,13 +33,15 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 
@@ -82,14 +84,16 @@ END_DOC
 		name="sortsamrefname",
 		description="Sort a BAM of contig and then on name",
 		keywords={"sam","sort"},
-		biostars=154220
+		biostars=154220,
+		modificationDate="20191010"
 		)
 public class SortSamRefName extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SortSamRefName.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
+	private Path outputFile = null;
+	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	@ParametersDelegate
@@ -134,7 +138,18 @@ public class SortSamRefName extends Launcher
 		SortingCollection<SAMRecord> sorter=null;
 		try
 			{
-			in  = openSamReader(oneFileOrNull(args));
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+			final String input = oneFileOrNull(args);
+			
+			if(input==null)
+				{
+				in = srf.open(SamInputResource.of(stdin()));
+				}
+			else
+				{
+				in =  srf.open(SamInputResource.of(input));
+				}
 			final SAMFileHeader header= in.getFileHeader();
 			
 			final BAMRecordCodec bamRecordCodec=new BAMRecordCodec(header);
@@ -160,7 +175,7 @@ public class SortSamRefName extends Launcher
 			final SAMFileHeader header2=header.clone();
 			header2.addComment(getProgramName()+" "+getVersion()+" "+getProgramCommandLine());
 			header2.setSortOrder(SortOrder.unsorted);
-			out = this.writingBamArgs.openSAMFileWriter(outputFile,header2, true);
+			out = this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(outputFile,header2, true);
 			iter2 = sorter.iterator();
 			while(iter2.hasNext())
 				{

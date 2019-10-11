@@ -28,12 +28,13 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -73,18 +74,21 @@ END_DOC
 @Program(
 		name="vcfdistancevariants",
 		description="Annotate variants with the distance between previous and next variant.",
-		keywords={"vcf","annotation"},
+		keywords={"vcf","annotation","distance"},
 		creationDate="20190410",
-		modificationDate="20190410"
+		modificationDate="20191011"
 		)
 public class VcfDistanceBetweenVariants extends Launcher{
 	private static final Logger LOG = Logger.build(VcfDistanceBetweenVariants.class).make();
 
 	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	 private Path outputFile = null;
-
+	 @Parameter(names={"-p","--prefix"},description="INFO Attribute Prefix")
+	 private String prefix="DIST_";
+	 @ParametersDelegate
+	 private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
     
-    protected int distance(final VariantContext v1,final VariantContext v2) {
+    protected static int distance(final VariantContext v1,final VariantContext v2) {
     	if(v1.overlaps(v2)) 
     		{
     		return 0;
@@ -108,15 +112,14 @@ public class VcfDistanceBetweenVariants extends Launcher{
     	VariantContextWriter w = null;
     	try {
     		in = super.openVCFIterator(oneFileOrNull(args));
-    		w = outputFile==null?
-    			VCFUtils.createVariantContextWriterToOutputStream(stdout()):
-    			VCFUtils.createVariantContextWriterToPath(outputFile)
-    			;
+    		
     		
         	final VCFHeader header= new VCFHeader(in.getHeader());
+        	w =  this.writingVariants.dictionary(header).open(this.outputFile);
         	
-        	final VCFInfoHeaderLine infoPrev= new VCFInfoHeaderLine("DIST_PREV", 1,VCFHeaderLineType.Integer ,"Distance to previous variant");
-        	final VCFInfoHeaderLine infoNext= new VCFInfoHeaderLine("DIST_NEXT", 1,VCFHeaderLineType.Integer ,"Distance to next variant");
+        	
+        	final VCFInfoHeaderLine infoPrev= new VCFInfoHeaderLine(prefix+"PREV", 1,VCFHeaderLineType.Integer ,"Distance to previous variant.");
+        	final VCFInfoHeaderLine infoNext= new VCFInfoHeaderLine(prefix+"NEXT", 1,VCFHeaderLineType.Integer ,"Distance to next variant.");
         	
         	header.addMetaDataLine(infoPrev);
         	header.addMetaDataLine(infoNext);
