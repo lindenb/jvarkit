@@ -85,7 +85,7 @@ public class SAM4WebLogoTest
 	@Test(dataProvider="src1")
 	public void testFastq(final String inBam) throws IOException {
 		try {
-			final Path out=basetest(inBam,"-c --fastq -fqu _ -fqp _",true);
+			final Path out=basetest(inBam,"-c --format fastq -fqu _ -fqp _",true);
 			if(out!=null) support.assertIsFastq(out);
 			}
 			finally

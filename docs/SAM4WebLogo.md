@@ -13,10 +13,10 @@ Usage: sam4weblogo [options] Files
     -c, --clipped, --clip
       Use Clipped Bases
       Default: false
-    -q, --fastq
-      [20180812]print fastq-like format. Was : 
-      https://github.com/lindenb/jvarkit/issues/109 
-      Default: false
+    --format, -F
+      output format.
+      Default: fasta
+      Possible Values: [fasta, fastq, tabular]
     -fqp, --fqp
       [20180813] fastq padding quality character
       Default: -
@@ -28,7 +28,14 @@ Usage: sam4weblogo [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
   * -r, --region, --interval
-      Region to observe: chrom:start-end
+      Region to observe. A source of intervals. The following suffixes are 
+      recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise 
+      it could be an empty string (no interval) or a list of plain interval 
+      separated by '[ \t\n;,]'
+      Default: (unspecified)
+    --no-insert
+      Do not show insertions
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -readFilter, --readFilter
@@ -39,6 +46,9 @@ Usage: sam4weblogo [options] Files
       the read). An empty expression keeps everything. The variable 'record' 
       is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
       Default: 'Accept all' (Empty expression)
+    -R, --reference
+      For Reading CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
@@ -113,6 +123,9 @@ The current reference is:
 
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/sam2weblogo.png)
 
+## History
+
+On October 14th, I tried to implement the insertions. I haven't tested this feature in depth.
 
 ## Example
 
@@ -165,7 +178,7 @@ TGGGGGGGGCGCAGT----------------
 ### fastq-like output
 
 ```
-$ java -jar dist/sam4weblogo.jar -r 'RF01:100-130' src/test/resources/S1.bam -q -c
+$ java -jar dist/sam4weblogo.jar -r 'RF01:100-130' src/test/resources/S1.bam --format fastq -c
 
 @RF01_44_622_1:0:0_1:0:0_3a/1
 TATTCTTCCAATAG-----------------
@@ -196,7 +209,48 @@ TATTCTTCCAATAGTGAATTAGAGAATAGAT
 +
                      2222222222
 ```
+## tabular output
 
+```
+$ java -jar /home/lindenb/src/jvarkit-git/dist/sam4weblogo.jar  -r 'chr4:15648762-15648862'    src/test/resources/retrocopy01.bwa.bam --format tabular -c
+CTTGAACCCAGGAGGGGGAGGTGCCAGGGAGCCGAGATCATGCCACTGCACCCCAGCCTGGGCAACAAACCAAACCTCCATCC-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1111:24870:51570/1
+CTTGAACCCAGGAGGCAGAGGTGGCAGTGAGCAGAAAACAAGCCACTGCACCCCAGCCGGGGAAAAAAAACAAGACCCCATCTaA-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1107:19532:10468/1
+CTTGAACCCAGGAGGCAGAGGTTGCAGTGAGCCGAGATCATGCCACTGCACTCCAGCCTGGGCAACAAAGCAAGACTCCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2121:23043:26536/2
+ctggacCCCAGGAGGCAGAGGTTGCAGGTACCCGAAATAATGCCCCTGCCCCCCAGCCTGGGCAACAAAGCAAGACCCCATCT-A-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1212:10642:64966/2
+-------------GGCAGAGGTTGCAGTGAGCCGAGATCATGCCACTGCACTCCAGCCTGGGCAACAAAGCAAGACTCCATCT-CaAAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1119:27661:8095/2
+--------------------------------CGAGATCATGCCACTGCACTCCAGCCTGGGCAACAAAGCAAGACTCCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2224:26189:58778/2
+-------------------------------------------CACTGCACTCCAGCCTGGGCAACAAAGCAAGACTCCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2103:11972:45611/1
+ctggacccaaggaggcagaggttgaagggagcagaaacaaggccacggccccCCAGCCTGGGAAACAAAGCAAACCCCAATCT-A-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2121:29701:6108/1
+---------------------------------------------------------CTGGGCAACAAAGCAAGACTCCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1114:11992:43044/1
+---------------------------------------------------------CTGGGCAACAAAGCAAGACTCCATCT-CaAAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2109:9019:23477/2
+----------------------------------------------------------------ACAAAGCAAGACTCCATCT-CaAAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2110:15706:60765/2
+---------------------------------------------------------------------GCAAGACTCCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1218:27600:65793/1
+-------------------------------------------------------------------------GACNCCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1209:1326:20805/1
+-----------------------------------------------------------------------------CCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2201:25895:8095/2
+gggccgatggtgaaaagtggcagggcgcaacaaaaaatgcccgtcacaccaaccgggggcaaaaaaaaaaaaccccaaccaaa-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1102:32319:57829/2
+-----------------------------------------------------agcagggaaaacaaaccaaaacacaacata-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1106:29437:72033/1
+--------------------------------------------------------------------------------------AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1109:27813:4104/1
+------------------------------------------ccacgaccccaccacggaaaaaaaaaaaaaacacaaaaaaa-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1112:17137:65951/1
+tttaaaccaagacgccagacgtccaagatatacgactacccgccactgcaaaaccacctgtgcacaaacacacaaataaaact-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1117:10693:25042/2
+------------------------------------------------------caccagggaaaaaaaaaaaaactcaaaaa-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1118:24962:18502/1
+ttgacaccagaagcaaaagttaaaagtcaaccgaaatcagcaaaataatctacaacgtaggaaaaagccaaagtctcattcta-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1119:15432:30791/1
+tgaaagacggggggcagaggttgcaagagcccaaaaacatgccccggcacccaaacgtgggcaacaaagaaaaacccaatcaa-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1123:1590:53891/1
+----------------------------------------------------------------------------------a-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1215:26585:67586/1
+--------------------------------------------------------------------------------------AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1216:18142:49900/1
+---------------------------------------atgccactgaacccaagccagggcaaaaaagaaaaaaccaatcc-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1219:25043:11048/2
+-------------------------------------------------------------------aaaaaaacacaaaaaa-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2113:14215:55086/1
+aataaacccaaaagaaaaagtgcgcagtaggccaaaatcaagcaaatgaaatcaagccggggaaaaaaacaaagaccccacat-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2113:14418:23618/1
+-------------------------------------------aaccgaaacccaacccagaaaaaaaaaaaaaacacaaaca-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2120:21420:20629/2
+--------------------------------------aaagcacagacaaaacaaccagacaaacaaaaaaaaaacaaaaaa-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2212:28564:14301/1
+tacgaaccagggaggctcgggctgaggaagccgaacttcattcctcccaccgcaagactggcaaataaatcaagtcccaattt-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2216:20324:64685/1
+--------------------------------------------accaccccccacccgggccacaaaaaaaaaaccaaaaaa-a-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2216:23429:26607/1
+---------------------------------------------------------------------------------------AAAAAAAAAAAGAGAA X2:1:H7T57CCXY:8:2124:1306:6249/1
+----------------------------------------------------------------------------------------AAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1222:16579:28488/1
+-----------------------------------------------------------------------------------------AAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1222:17513:27890/1
+-------------------------------------------------------------------------------------------AAAAAAAAAAAA X2:1:H7T57CCXY:8:2109:14316:7902/1
+-------------------------------------------------------------------------------------------------AAAAAA X2:1:H7T57CCXY:8:2108:14357:62329/1
+--------------------------------------------------------------------------------------------------AAAAA X2:1:H7T57CCXY:8:1124:18223:49162/1
+```
 
 ## See also
 

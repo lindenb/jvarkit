@@ -1301,6 +1301,7 @@ all.add( task("referencetovcf", type: CompileJVarkit) {
 all.add( task("sam4weblogo", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	endMsg = "October 2019. I added a support for insertions. But I have not tested this feature in depth."
 	});
 all2.add( task("samaddpi", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamAddPI"
