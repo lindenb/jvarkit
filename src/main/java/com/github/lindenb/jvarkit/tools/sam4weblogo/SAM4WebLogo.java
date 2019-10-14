@@ -47,7 +47,9 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.filter.SamRecordFilter;
 /**
@@ -155,7 +157,7 @@ END_DOC
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
 	biostars= {73021,368200},
-	modificationDate="20190528",
+	modificationDate="20191014",
 	keywords={"sam","bam","visualization","logo"}
 	)
 public class SAM4WebLogo extends Launcher
@@ -180,6 +182,8 @@ public class SAM4WebLogo extends Launcher
 	private String fastq_quality_unknown_str = "!";
 	@Parameter(names={"-fqp","--fqp"},description="[20180813] fastq padding quality character")
 	private String fastq_quality_padding_str = "-";
+	@Parameter(names={"-R","--reference"},description="For Reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 
 	
 	private final Function<SAMRecord,Integer> readStart = rec -> 
@@ -365,9 +369,12 @@ public class SAM4WebLogo extends Launcher
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
 		try {
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+			
 			out = super.openPathOrStdoutAsPrintWriter(outputFile);
 			for(final String inputName: IOUtils.unrollFiles(args)) {
-				samReader = openSamReader(inputName);
+				samReader = srf.open(SamInputResource.of(inputName));
 				
 				final SimpleInterval interval = IntervalParserFactory.newInstance().
 							dictionary(samReader.getFileHeader().getSequenceDictionary()).
@@ -404,7 +411,7 @@ public class SAM4WebLogo extends Launcher
 	        out.close();out=null;
 	        return 0;
 			} 
-		catch (final Exception err) {
+		catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
