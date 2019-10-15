@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.SAMRecordNaming;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -46,12 +47,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -245,7 +244,8 @@ public class SAM4WebLogo extends Launcher
 	private Path faidx = null;
 	@Parameter(names={"--no-insert"},description="Do not show insertions")
 	private boolean hide_insertions = false;
-
+	@Parameter(names={"--naming"},description=SAMRecordNaming.OPT_DESC,converter=SAMRecordNaming.StringConverter.class,splitter=NoSplitter.class)
+	private SAMRecordNaming samRecordNaming = SAMRecordNaming.compile("%n (%f) %N");
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -541,17 +541,7 @@ public class SAM4WebLogo extends Launcher
 							++x;
 							}
 						
-						String readName= rec.getReadName();
-						if(rec.getReadPairedFlag())
-				        	{
-				        	if(rec.getFirstOfPairFlag()) readName+=FastqConstants.FIRST_OF_PAIR;
-				        	if(rec.getSecondOfPairFlag()) readName+=FastqConstants.SECOND_OF_PAIR;
-				        	}
-						readName+= " "+rec.getFlags();
-						
-						final String sample = SAMRecordPartition.sample.getPartion(rec, null);
-						if(!StringUtil.isBlank(sample)) readName+=" "+sample;
-						
+						final String readName= this.samRecordNaming.apply(rec);
 						switch(this.output_format)
 							{
 							case fastq:

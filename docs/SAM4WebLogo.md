@@ -33,6 +33,12 @@ Usage: sam4weblogo [options] Files
       it could be an empty string (no interval) or a list of plain interval 
       separated by '[ \t\n;,]'
       Default: (unspecified)
+    --naming
+      How to print a Read. A format 'a la C-printf'. %% :% , %n:read name, %s: 
+      read bases, %q: read quals, %f : read flags,%m: mapq, %c: contig, %b: 
+      start, %B: unclipped start, %e: end, %E: unclipped end,%I: read group 
+      id, %N: sample name,%S: SAM String.
+      Default: %n (%f) %N
     --no-insert
       Do not show insertions
       Default: false
