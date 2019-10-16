@@ -112,9 +112,9 @@ Predicate<SAMRecord> anyNode(): { Predicate<SAMRecord> other;}
 	}
 
 
-private Predicate<SAMRecord> NegateExpr(): { }
+private Predicate<SAMRecord> NegateExpr(): { Predicate<SAMRecord> root;}
 	{
-	<NOT> OrExpr() { return null;}
+	<NOT> root= OrExpr() { return root.negate();}
 	}
 
 

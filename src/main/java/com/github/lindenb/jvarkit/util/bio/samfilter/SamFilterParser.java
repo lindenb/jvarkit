@@ -89,10 +89,10 @@ public class SamFilterParser implements SamFilterParserConstants {
     throw new Error("Missing return statement in function");
   }
 
-  final private Predicate<SAMRecord> NegateExpr() throws ParseException {
+  final private Predicate<SAMRecord> NegateExpr() throws ParseException {Predicate<SAMRecord> root;
     jj_consume_token(NOT);
-    OrExpr();
-{if ("" != null) return null;}
+    root = OrExpr();
+{if ("" != null) return root.negate();}
     throw new Error("Missing return statement in function");
   }
 
