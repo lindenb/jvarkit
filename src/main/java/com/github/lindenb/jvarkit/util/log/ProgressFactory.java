@@ -517,30 +517,7 @@ private static class VCFIteratorWatcher extends DelegateVcfIterator
 
 private static String duration(long millisecs)
 	{
-	long n =millisecs/1000;
-	if(n<60)
-		{
-		return n+" second"+(n<2?"":"s");
-		}
-	n/=60;//minutes
-	if(n< 60)
-		{
-		return n+" minute"+(n<2?"":"s");
-		}
-	n/=60;//hours
-	if(n< 24)
-		{
-		return n+" hour"+(n<2?"":"s");
-		}
-	n/=24;
-	
-	if(n< 365)
-		{
-		return n+" day"+(n<2?"":"s");
-		}
-	n/=365;
-	
-	return n+" year"+(n<2?"":"s");
+	return StringUtils.niceDuration(millisecs);
 	}
 
 

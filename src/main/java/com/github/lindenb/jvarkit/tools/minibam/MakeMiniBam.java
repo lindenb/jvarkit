@@ -73,6 +73,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.StopWatch;
 
 /**
  BEGIN_DOC
@@ -195,6 +196,8 @@ public class MakeMiniBam extends Launcher {
 			archive = ArchiveFactory.open(this.outputFile);
 			for(final Path bamFile:bamFiles) {
 				LOG.info(bamFile.toString());
+				final StopWatch stopWatch = new StopWatch();
+				stopWatch.start();
 				final SamReader sr = srf.open(bamFile);
 				if(!sr.hasIndex()) {
 					sr.close();
@@ -297,7 +300,8 @@ public class MakeMiniBam extends Launcher {
 				outputFileNames.add(filename);
 				archive.copyTo(tmpBam, filename + FileExtensions.BAM);
 				archive.copyTo(tmpBai, filename + IOUtils.getFileSuffix(tmpBai));
-
+				stopWatch.stop();
+				LOG.info("Added "+ StringUtils.niceFileSize(Files.size(tmpBam))+"(bam) and "+StringUtils.niceFileSize(Files.size(tmpBai))+" (Bai). "+StringUtils.niceDuration(stopWatch.getElapsedTime()));
 				
 				Files.deleteIfExists(tmpBam);
 				Files.deleteIfExists(tmpBai);

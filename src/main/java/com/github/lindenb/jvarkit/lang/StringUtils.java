@@ -237,5 +237,44 @@ public static String unescapeC(final String s)
 	return b.toString();
 }
 
+/** convert duration to a nice string */
+public static String niceDuration(long durationMillisec) {
+	long n =durationMillisec/1000;
+	if(n<60)
+		{
+		return n+" second"+(n<2?"":"s");
+		}
+	n/=60;//minutes
+	if(n< 60)
+		{
+		return n+" minute"+(n<2?"":"s");
+		}
+	n/=60;//hours
+	if(n< 24)
+		{
+		return n+" hour"+(n<2?"":"s");
+		}
+	n/=24;
+	
+	if(n< 365)
+		{
+		return n+" day"+(n<2?"":"s");
+		}
+	n/=365;
+	
+	return n+" year"+(n<2?"":"s");
+	}
+/** convert file size to a nice string 
+ * source: https://stackoverflow.com/questions/3758606 */
+public static String niceFileSize(final long bytes) {
+	final boolean si = false;
+	final  int unit = si ? 1000 : 1024;
+    if (bytes < unit) return bytes + " B";
+    final int exp = (int) (Math.log(bytes) / Math.log(unit));
+    final String suffixes = (si ? "kMGTPE" : "KMGTPE");
+    if(exp-1 >= suffixes.length()) return String.valueOf(bytes);
+    final String pre = suffixes.charAt(exp-1) + (si ? "" : "i");
+    return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+	}
 
 }
