@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.Deflater;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
@@ -194,6 +195,7 @@ public class MakeMiniBam extends Launcher {
 			if(this.referencePath!=null) srf.referenceSequence(this.referencePath);
 			
 			archive = ArchiveFactory.open(this.outputFile);
+			archive.setCompressionLevel(Deflater.NO_COMPRESSION);
 			for(final Path bamFile:bamFiles) {
 				LOG.info(bamFile.toString());
 				final StopWatch stopWatch = new StopWatch();

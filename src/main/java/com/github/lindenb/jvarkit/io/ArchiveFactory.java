@@ -33,6 +33,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -55,12 +56,15 @@ public interface ArchiveFactory extends Closeable{
 			}
 		}
 	
+	/** open a writer to this archive */
 	public default PrintWriter openWriter(final String filename) throws IOException
 		{
 		return new PrintWriter(openOuputStream(filename), true);
 		}
 
-	
+	/** set compression level for zip archives */
+	public void setCompressionLevel(int level);
+	 
 	/** open a new ArchiveFactory, if filename ends with '.zip' it will be a zip instance
 	 * otherwise it will be a FileInstance */
 	public static ArchiveFactory open(final Path f)  throws IOException
@@ -100,6 +104,11 @@ public interface ArchiveFactory extends Closeable{
 		@Override
 		public final boolean isZip() { return true;}
 
+		@Override
+		public void setCompressionLevel(int level) {
+			this.zout.setLevel(Math.max(Deflater.NO_COMPRESSION, Math.min(Deflater.BEST_COMPRESSION, level)));
+			}
+		
 		
 		@Override
 		public OutputStream openOuputStream(final String filename) throws IOException
@@ -196,6 +205,11 @@ public interface ArchiveFactory extends Closeable{
 				{
 				throw new IOException("Not a directory:"+baseDir);
 				}				
+			}
+		
+		@Override
+		public void setCompressionLevel(int level) {
+			// do nothing
 			}
 		
 		@Override

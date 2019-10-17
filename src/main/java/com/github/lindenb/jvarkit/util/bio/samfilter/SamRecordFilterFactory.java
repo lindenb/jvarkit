@@ -58,8 +58,12 @@ public class SamRecordFilterFactory  implements IStringConverter<SamRecordFilter
 
 private static final Logger LOG = Logger.build(SamRecordFilterFactory.class).make();
 
-public static final String FILTER_DESCRIPTION = "A filter expression. Reads matching the expression will be filtered-out. Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj for a complete syntax. ";
-public static final String DEFAULT_FILTER = "mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
+public static final String DEFAULT_FILTER = "mapqlt(1) || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
+public static final String FILTER_DESCRIPTION = "A filter expression. "
+		+ "Reads matching the expression will be filtered-out. "
+		+ "Empty String means 'filter out nothing/Accept all'. "
+		+ "See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj for a complete syntax. "
+		+ "'default' is '"+DEFAULT_FILTER+"'";
 public static final String DEFAULT_OPT = "--samFilter";
 
 /** a SamRecordFilter accepting any SAMRecord */
@@ -70,7 +74,7 @@ public static final SamRecordFilter  ACCEPT_ALL = new SamRecordFilter() {
     }
 
     @Override
-    public boolean filterOut(SAMRecord record) {
+    public boolean filterOut(final SAMRecord record) {
             return false;
     }
     @Override
@@ -101,7 +105,7 @@ public SamRecordFilter buildDefault() {
 public SamRecordFilter convert(final String query) {
      if(StringUtils.isBlank(query)) return ACCEPT_ALL;
      try {
-        return build(query);
+        return build(query.equals("default")?DEFAULT_FILTER:query);
      	}
      catch (final ParseException e) {
          throw new ParameterException("Cannot parse samFilter : "+query,e);
