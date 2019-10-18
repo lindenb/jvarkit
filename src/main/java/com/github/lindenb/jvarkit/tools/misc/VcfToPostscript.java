@@ -3,9 +3,10 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -22,11 +23,12 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -35,25 +37,28 @@ BEGIN_DOC
 
 END_DOC
 */
-@Program(name="vcf2postscript",description="Print VCF context as Postscript",
-		keywords={"vcf","postscript"})
+@Program(name="vcf2postscript",
+	description="Print VCF context as Postscript",
+		keywords={"vcf","postscript"},
+		modificationDate="20191018"
+		)
 public class VcfToPostscript extends Launcher
 	{
 	private final static Logger LOG=Logger.build(VcfToPostscript.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 
-	private final List<KnownGene> genes=new ArrayList<KnownGene>();
+	private final List<Transcript> genes=new ArrayList<>();
 	private final Set<Integer> positions=new HashSet<Integer>();
-	private final Map<String,Set<Integer>> sample2positions=new TreeMap<String,Set<Integer>>();
+	private final Map<String,Set<Integer>> sample2positions=new TreeMap<>();
 	private int chromStart=Integer.MAX_VALUE;
 	private int chromEnd=Integer.MIN_VALUE;
 	
-	@Parameter(names={"-kg","-k","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String ucscKnownGene=KnownGene.getDefaultUri();
+	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC)
+	private Path gtfPath = null;
 
 
-	private final Map<String,List<KnownGene>> chrom2knownGenes=new HashMap<String,List<KnownGene>>();
+	private final Map<String,List<Transcript>> chrom2transcript=new HashMap<>();
 	private Insets margin=new Insets(100, 200, 50, 50);
 	private Dimension pageDef=new Dimension(900,700);
 	private float fHeight=20;
@@ -73,10 +78,10 @@ public class VcfToPostscript extends Launcher
 		chromEnd=Integer.MIN_VALUE;
 		}
 	
-	private void addGene(final KnownGene g)
+	private void addGene(final Transcript g)
 		{
-		chromStart=Math.min(chromStart, g.getTxStart());
-		chromEnd=Math.max(chromEnd, g.getTxEnd());
+		chromStart=Math.min(chromStart, g.getStart());
+		chromEnd=Math.max(chromEnd, g.getEnd());
 		genes.add(g);
 		}
 	
@@ -88,9 +93,9 @@ public class VcfToPostscript extends Launcher
 			
 	private void addVariant(final VariantContext ctx)
 		{
-		if(!ctx.getContig().equals(genes.get(0).getChromosome())) return;
-		if(ctx.getStart()>=chromEnd) return;
-		if(ctx.getStart()<chromStart) return;
+		if(!ctx.getContig().equals(genes.get(0).getContig())) return;
+		if(ctx.getStart()>chromEnd) return;
+		if(ctx.getEnd()<chromStart) return;
 		positions.add(ctx.getStart());
 		for(final String sample: ctx.getSampleNames())
 			{
@@ -117,7 +122,7 @@ public class VcfToPostscript extends Launcher
 			}
 		++count_pages_printed;
 		
-		final KnownGene first=genes.get(0);
+		final Transcript first=genes.get(0);
 		final double fHeight=20;
 		
 		
@@ -143,7 +148,7 @@ public class VcfToPostscript extends Launcher
 
 		this.outw.println(
 				"2 "  +  (localPage.height-10 ) +
-				" moveto ("  + first.getChromosome() + ":"+this.chromStart+ "-" +this.chromEnd+") show"
+				" moveto ("  + first.getContig() + ":"+this.chromStart+ "-" +this.chromEnd+") show"
 				 )
 				;
 
@@ -160,7 +165,7 @@ public class VcfToPostscript extends Launcher
 
 		for(int i=0;i< this.genes.size();++i)
 			{
-			final KnownGene g=this.genes.get(i);
+			final Transcript g=this.genes.get(i);
 			this.outw.println(  "gsave");
 			this.outw.println( "0 " +  (localPage.height - margin.top-(fHeight*i)) + " translate");
 
@@ -182,15 +187,17 @@ public class VcfToPostscript extends Launcher
 
 
 			this.outw.print(  "0.5 setlinewidth\n");
+			if(g.hasCodonStartDefined() && g.hasCodonStopDefined()) {
 			//draw txStart/txEnd
 			this.outw.print(  "0.1 0.1 0.5 setrgbcolor\n"+
 					"newpath\n"+
-					 +  toPixel(g.getCdsStart())  +  " "+
+					 +  toPixel(g.getCodonStart().get().getStart())  +  " "+
 					 +  (midy-cdsHeight/2.0)  + " "
-					 +  (toPixel(g.getCdsEnd())-toPixel(g.getCdsStart()))  +  " "
+					 +  (toPixel(g.getCodonStop().get().getEnd())-toPixel(g.getEnd()))  +  " "
 					 +  cdsHeight  +  " box closepath fill\n"
 					 )
 					;
+			}
 			//draw each exon
 			for(int j=0;j< g.getExonCount();++j)
 				{
@@ -203,7 +210,7 @@ public class VcfToPostscript extends Launcher
 				}
 			//draw name
 			this.outw.print(  "0 0 0 setrgbcolor\n");
-			this.outw.print(  "10 "  +  midy  +  " moveto ("  +  g.getName()  +  ") show\n");
+			this.outw.print(  "10 "  +  midy  +  " moveto ("  +  g.getId()  +  ") show\n");
 			this.outw.println(  "grestore");
 			}
 		
@@ -283,36 +290,27 @@ public class VcfToPostscript extends Launcher
 		    		if(ctx==null) return;
 		    		this.clear();
 
-		    		if(chrom2knownGenes.containsKey(ctx.getContig()))
-		    			{
-		    			for(KnownGene g:chrom2knownGenes.get(ctx.getContig()))
+		    		
+		    		for(Transcript g:chrom2transcript.getOrDefault(ctx.getContig(),Collections.emptyList()))
+						{
+						if(this.genes.isEmpty())
 							{
-							if(this.genes.isEmpty())
+							if(g.getTxEnd() <=ctx.getStart() || g.getTxStart()> ctx.getEnd() )
 								{
-								if(g.getTxEnd() <=ctx.getStart() || g.getTxStart()> ctx.getEnd() )
-									{
-									continue;
-									}
+								continue;
+								}
+							this.addGene(g);
+							}
+						else
+							{
+							if(!(g.getTxStart()>this.chromEnd || g.getTxEnd()<= this.chromStart))
+								{
 								this.addGene(g);
 								}
-							else
-								{
-								if(!(g.getTxStart()>this.chromEnd || g.getTxEnd()<= this.chromStart))
-									{
-									this.addGene(g);
-									}
-								}
-			
 							}
-		    			if(genes.isEmpty())
-		    				{
-		    				LOG.debug("no gene for "+ctx.getContig()+":"+ctx.getStart());
-		    				}
-		    			}
-		    		else
-		    			{
-		    			LOG.debug("not any gene for "+ctx.getContig());
-		    			}
+		
+						}
+		    			
 		    		}
 		    	
 		    	if(!genes.isEmpty() &&
@@ -335,32 +333,20 @@ public class VcfToPostscript extends Launcher
 		try
 			{
 			iter = super.openVCFIterator( oneFileOrNull(args));
-			this.outw = super.openFileOrStdoutAsPrintStream(this.outputFile);
+			this.outw = super.openPathOrStdoutAsPrintStream(this.outputFile);
 			final SAMSequenceDictionary dict=iter.getHeader().getSequenceDictionary();
 
-			LOG.info("Reading "+this.ucscKnownGene);
-			r=IOUtils.openURIForBufferedReading(this.ucscKnownGene);
-			
-			int nKG=0;
-			Pattern tab=Pattern.compile("[\t]");
-			String line;
-			while((line=r.readLine())!=null)
-				{
-				String tokens[]=tab.split(line);
-				KnownGene g=new KnownGene(tokens);
-				if(dict!=null && dict.getSequence(g.getContig())==null) continue;
-				
-				List<KnownGene> kg=this.chrom2knownGenes.get(g.getContig());
-				if(kg==null)
-					{
-					kg=new ArrayList<KnownGene>();
-					this.chrom2knownGenes.put(g.getContig(),kg);
+			if(this.gtfPath!=null) {
+				try(GtfReader gtfReader = new GtfReader(this.gtfPath)) {
+					if(dict!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+					this.chrom2transcript.putAll(gtfReader.getAllGenes().
+							stream().
+							flatMap(G->G.getTranscripts().stream()).
+							collect(Collectors.groupingBy(X->X.getContig())));
+						
 					}
-				kg.add(g);
-				++nKG;
 				}
-			r.close();
-			LOG.info("Done Reading knownGenes. N="+nKG);
+			
 
 		    final double ticksH=(fHeight/2.0f)*0.6f;
 			final double ticksx=20;

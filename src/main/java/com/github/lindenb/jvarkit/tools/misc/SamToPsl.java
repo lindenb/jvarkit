@@ -66,6 +66,7 @@ What ? **bamtobed** http://bedtools.readthedocs.org/en/latest/content/tools/bamt
 ## Cited in:
 
    * "R2C2: Improving nanopore read accuracy enables the sequencing of highly-multiplexed full-length single-cell cDNA" biorxiv  https://doi.org/10.1101/338020 
+   * Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
 
 ### Example
 
@@ -97,8 +98,8 @@ used as a custom track in the **UCSC genome browser**.
 
 ## Cited in
 
-  *  "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
-Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978 
+  * "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
+  * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978  
 
 END_DOC
 */
@@ -106,7 +107,7 @@ END_DOC
 	deprecatedMsg="use bedtools/bamtobed",
 	description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12",
 	keywords={"sam","bam","psl"},
-	modificationDate="20190917"
+	modificationDate="20191018"
 	)
 public class SamToPsl extends Launcher
 	{

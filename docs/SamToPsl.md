@@ -20,6 +20,9 @@ Usage: sam2psl [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     -s, --single
       treat all reads as single end.
       Default: false
@@ -97,6 +100,7 @@ What ? **bamtobed** http://bedtools.readthedocs.org/en/latest/content/tools/bamt
 ## Cited in:
 
    * "R2C2: Improving nanopore read accuracy enables the sequencing of highly-multiplexed full-length single-cell cDNA" biorxiv  https://doi.org/10.1101/338020 
+   * Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
 
 ### Example
 
@@ -128,6 +132,6 @@ used as a custom track in the **UCSC genome browser**.
 
 ## Cited in
 
-  *  "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
-Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978 
+  * "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
+  * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978  
 

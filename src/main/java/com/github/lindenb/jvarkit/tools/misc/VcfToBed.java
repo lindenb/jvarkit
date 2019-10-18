@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -119,7 +118,7 @@ public class VcfToBed  extends Launcher {
 	
 	private static final Logger LOG = Logger.build(VcfToBed.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-R","--reference","--dict"},description=DICTIONARY_SOURCE)
 	private Path faidx = null;
 	@Parameter(names={"-c","--no-ci"},description="For structural variant, ignore the extention of the boundaries using INFO/CIPOS and INFO/CIEND")
@@ -330,7 +329,7 @@ public class VcfToBed  extends Launcher {
 				this.samSequenceDictionary = SequenceDictionaryUtils.extractRequired(this.faidx);
 				}
 			
-			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			
 			
 			if(printHeader) {
