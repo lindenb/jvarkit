@@ -127,7 +127,9 @@ e">0</flags>
 
 ## Cited in
 
-* cited in http://biorxiv.org/content/early/2014/01/21/001834 "Illumina TruSeq synthetic long-reads empower de novo assembly and resolve complex, highly repetitive transposable elements"
+  * http://biorxiv.org/content/early/2014/01/21/001834 "Illumina TruSeq synthetic long-reads empower de novo assembly and resolve complex, highly repetitive transposable elements"
+  * "Bacterial production and direct functional screening of expanded molecular libraries for discovering inhibitors of protein aggregation" Science Advances  16 Oct 2019: Vol. 5, no. 10, eaax5108 DOI: 10.1126/sciadv.aax5108 
+
 
 END_DOC
 
