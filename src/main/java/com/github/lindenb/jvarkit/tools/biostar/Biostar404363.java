@@ -263,7 +263,7 @@ public class Biostar404363 extends Launcher {
 							if(pos2change==null) continue;
 							
 							bases[readpos+i]=pos2change.base;
-							NM++;
+							if(op.isAlignment()) NM++;
 							changed=true;
 							}
 						}
