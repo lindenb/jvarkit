@@ -28,15 +28,12 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -44,6 +41,7 @@ import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -60,9 +58,14 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFileReader;
 
 
 /**
@@ -71,43 +74,82 @@ BEGIN_DOC
 ##Example
 
 ```
+# look at the original bam at position 14:79838836
+$ samtools tview -d T -p 14:79838836 src/test/resources/HG02260.transloc.chr9.14.bam | cut -c 1-20
+     79838841  79838
+NNNNNNNNNNNNNNNNNNNN
+CATAGGAAAACTAAAGGCAA
+cataggaaaactaaaggcaa
+cataggaaaaCTAAAGGCAA
+cataggaaaactaaaggcaa
+CATAGGAAAACTAAAGGCAA
+cataggaaaactaaaggcaa
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+           taaaggcaa
 
-$ samtools view src/test/resources/toy.bam | tail -1
-x6	0	ref2	14	30	23M	*	0	0	TAATTAAGTCTACAGAGCAACTA	???????????????????????	RG:Z:gid1
-
+# look at the VCF , we want to change 14:79838836 with 'A' with probability = 0.5
 $ cat jeter.vcf
-ref2	14	A	C
+##fileformat=VCFv4.2
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency among genotypes, for each ALT allele, in the same order as listed">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+14	79838836	.	N	A	.	.	AF=0.5
 
-$ java -jar dist/biostar404363.jar -p jeter.vcf src/test/resources/toy.bam | tail -1
-x6	0	ref2	14	30	23M	*	0	0	CAATTAAGTCTACAGAGCAACTA	???????????????????????	PG:Z:0	RG:Z:gid1	NM:i:1
+# apply biostar404363
+$  java -jar dist/biostar404363.jar -o jeter.bam -p jeter.vcf src/test/resources/HG02260.transloc.chr9.14.bam
 
+# index the sequence
+$ samtools index jeter.bam
 
-
+# view the result (half of the bases were replaced because AF=0.5 in the VCF)
+$ samtools tview -d T -p 14:79838836 jeter.bam | cut -c 1-20
+     79838841  79838
+NNNNNNNNNNNNNNNNNNNN
+MATAGGAAAACTAAAGGCAA
+cataggaaaactaaaggcaa
+aataggaaaaCTAAAGGCAA
+cataggaaaactaaaggcaa
+CATAGGAAAACTAAAGGCAA
+aataggaaaactaaaggcaa
+AATAGGAAAACTAAAGGCAA
+AATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+AATAGGAAAACTAAAGGCAA
+           taaaggcaa
 ```
 
 END_DOC
 */
 @Program(name="biostar404363",
 	keywords={"sam","bam","variant"},
-	description="introduce artificial mutation in bam",
-	biostars=404363
+	description="introduce artificial mutation SNV in bam",
+	biostars=404363,
+	creationDate="20191023",
+	modificationDate="20191024"
 	)
 public class Biostar404363 extends Launcher {
 	
 	private static final Logger LOG = Logger.build(Biostar404363.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-p","--position","--vcf"},description="File containing the positions to change: syntax (looks like a VCF line): 'CHROM\\tPOS\\t(ignored)\\tBASE",required=true)
+	@Parameter(names={"-p","--position","--vcf"},description="VCF File containing the positions to change. if INFO/AF(allele frequency) field is present, variant is inserted if rand()<= AF. ",required=true)
 	private Path vcfPath=null;
-
 	@Parameter(names= {"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx;
-
+	@Parameter(names= {"--disable-nm"},description="Disable NM change. By default the value of NM is increasing to each change.")
+	private boolean keep_original_nm = false;
+	@Parameter(names= {"--ignore-clip"},description="Ignore clipped section of the reads.")
+	private boolean ignore_clip = false;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
 	private static class PosToChange extends SimplePosition {
 		byte base = 'N';
+		double proba=1.0;
 		PosToChange(final String ctg,int pos) {
 			super(ctg,pos);
 		}
@@ -139,28 +181,40 @@ public class Biostar404363 extends Launcher {
 			prg.setProgramName(this.getProgramName());
 			prg.setProgramVersion(this.getGitHash());
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+			final ContigNameConverter contigNameConverter=ContigNameConverter.fromOneDictionary(dict);
 			
-			BufferedReader br=IOUtils.openPathForBufferedReading(this.vcfPath);
-			String line;
-			while((line=br.readLine())!=null) {
-				if(line.startsWith("#")) continue;
-				final String tokens[] = CharSplitter.TAB.split(line);
-				if(tokens.length<4 ||
-						!StringUtils.isInteger(tokens[1]) || 
-						tokens[3].length()!=1 || 
-						!AcidNucleics.isATGCN(tokens[3].charAt(0))) {
-						LOG.error("Syntax error "+line);
-						return -1;
-						}
-				final String theContig = tokens[0];
-				if(dict.getSequence(theContig)==null) throw new JvarkitException.ContigNotFoundInDictionary(theContig, dict);
+			try(VCFFileReader vcfReader=new VCFFileReader(this.vcfPath,false)) {
+				try(CloseableIterator<VariantContext> iter=vcfReader.iterator()) {
+					while(iter.hasNext()) {
+						final VariantContext ctx=iter.next();
+						final List<Allele> alts = ctx.getAlternateAlleles();
+						if(alts.size()!=1) {
+							LOG.error("Expected one ALT allele in "+ctx);
+							return -1;
+							}
+						final Allele alt = alts.get(0);
+						if(alt.isSymbolic() || alt.length()!=1 || !AcidNucleics.isATGCN(alt)) {
+							LOG.error("Bad ALT allele in "+ctx);
+							return -1;
+							}
+						final String theContig= contigNameConverter.apply(ctx.getContig());
+						if(StringUtils.isBlank(theContig)) throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), dict);
 
-				final int thePos = Integer.parseInt(tokens[1]);
-				final PosToChange pos2change = new PosToChange(theContig, thePos);
-				pos2change.base=(byte)Character.toUpperCase(tokens[3].charAt(0));
-				
-				intervalTreeMap.put(new Interval(pos2change),pos2change);
+						final PosToChange pos2change = new PosToChange(theContig, ctx.getStart());
+						pos2change.base=(byte)Character.toUpperCase(alt.getBases()[0]);
+						if(ctx.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY)) {
+							pos2change.proba =  ctx.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY,1.0);
+							}	
+						final Interval key=new Interval(pos2change);
+						if(intervalTreeMap.containsKey(key)) {
+							LOG.error("Duplicate key "+key+ " for "+ctx);
+							return -1;
+							}
+						intervalTreeMap.put(key,pos2change);
+					}
 				}
+			}
+			
 			
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			out = this.writingBamArgs.openSamWriter(this.outputFile, header, true);
@@ -190,17 +244,20 @@ public class Biostar404363 extends Launcher {
 				int ref=rec.getUnclippedStart();
 				boolean changed=false;
 				final Cigar cigar = rec.getCigar();
+				
 				for(final CigarElement ce:cigar) {
 					final CigarOperator op =ce.getOperator();
 					
-					if(op.equals(CigarOperator.S) || (op.consumesReadBases() &&  op.consumesReferenceBases() )) {
+					if( (op.equals(CigarOperator.S) && !this.ignore_clip) || 
+						(op.consumesReadBases() &&  op.consumesReferenceBases() )) {
 						{
 						for(int i=0;i< ce.getLength();i++) {
 							final int the_pos = ref+i;
-							final byte the_base= bases[readpos+i]; 
+							final byte the_base = bases[readpos+i]; 
 							final PosToChange pos2change = changes.stream().
 									filter(P->P.getPosition()==the_pos).
 									filter(P->P.base!=the_base).
+									filter(P->Math.random()<=P.proba).
 									findFirst().
 									orElse(null);
 							if(pos2change==null) continue;
@@ -216,12 +273,11 @@ public class Biostar404363 extends Launcher {
 					if(op.isClipping() || op.consumesReferenceBases()) {
 						ref+=ce.getLength();
 						}
-					
 					}
 				
 				if(changed) {
 					rec.setReadBases(bases);
-					rec.setAttribute("NM", NM);
+					if(!keep_original_nm) rec.setAttribute("NM", NM);
 					rec.setAttribute("PG", prg.getId());
 					}
 				out.addAlignment(rec);

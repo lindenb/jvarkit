@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-introduce artificial mutation in bam
+introduce artificial mutation SNV in bam
 
 
 ## Usage
@@ -13,15 +13,22 @@ Usage: biostar404363 [options] Files
     --bamcompression
       Compression Level.
       Default: 5
+    --disable-nm
+      Disable NM change. By default the value of NM is increasing to each 
+      change. 
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore-clip
+      Ignore clipped section of the reads.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -p, --position, --vcf
-      File containing the positions to change: syntax (looks like a VCF line): 
-      'CHROM\tPOS\t(ignored)\tBASE 
+      VCF File containing the positions to change. if INFO/AF(allele 
+      frequency) field is present, variant is inserted if rand()<= AF.
     -R, --reference
       For reading CRAM. Indexed fasta Reference file. This file must be 
       indexed with samtools faidx and with picard CreateSequenceDictionary
@@ -65,9 +72,18 @@ $ ./gradlew biostar404363
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20191023
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar404363.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar404363.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar404363Test.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/biostar/Biostar404363Test.java)
 
 
 ## Contribute
@@ -94,17 +110,51 @@ The current reference is:
 ##Example
 
 ```
+# look at the original bam at position 14:79838836
+$ samtools tview -d T -p 14:79838836 src/test/resources/HG02260.transloc.chr9.14.bam | cut -c 1-20
+     79838841  79838
+NNNNNNNNNNNNNNNNNNNN
+CATAGGAAAACTAAAGGCAA
+cataggaaaactaaaggcaa
+cataggaaaaCTAAAGGCAA
+cataggaaaactaaaggcaa
+CATAGGAAAACTAAAGGCAA
+cataggaaaactaaaggcaa
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+           taaaggcaa
 
-$ samtools view src/test/resources/toy.bam | tail -1
-x6	0	ref2	14	30	23M	*	0	0	TAATTAAGTCTACAGAGCAACTA	???????????????????????	RG:Z:gid1
-
+# look at the VCF , we want to change 14:79838836 with 'A' with probability = 0.5
 $ cat jeter.vcf
-ref2	14	A	C
+##fileformat=VCFv4.2
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency among genotypes, for each ALT allele, in the same order as listed">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+14	79838836	.	N	A	.	.	AF=0.5
 
-$ java -jar dist/biostar404363.jar -p jeter.vcf src/test/resources/toy.bam | tail -1
-x6	0	ref2	14	30	23M	*	0	0	CAATTAAGTCTACAGAGCAACTA	???????????????????????	PG:Z:0	RG:Z:gid1	NM:i:1
+# apply biostar404363
+$  java -jar dist/biostar404363.jar -o jeter.bam -p jeter.vcf src/test/resources/HG02260.transloc.chr9.14.bam
 
+# index the sequence
+$ samtools index jeter.bam
 
-
+# view the result (half of the bases were replaced because AF=0.5 in the VCF)
+$ samtools tview -d T -p 14:79838836 jeter.bam | cut -c 1-20
+     79838841  79838
+NNNNNNNNNNNNNNNNNNNN
+MATAGGAAAACTAAAGGCAA
+cataggaaaactaaaggcaa
+aataggaaaaCTAAAGGCAA
+cataggaaaactaaaggcaa
+CATAGGAAAACTAAAGGCAA
+aataggaaaactaaaggcaa
+AATAGGAAAACTAAAGGCAA
+AATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+CATAGGAAAACTAAAGGCAA
+AATAGGAAAACTAAAGGCAA
+           taaaggcaa
 ```
 
