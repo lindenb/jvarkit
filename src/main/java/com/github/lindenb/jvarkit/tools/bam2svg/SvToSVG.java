@@ -141,7 +141,8 @@ END_DOC
  */
 @Program(name="sv2svg",
 description="BAM to SVG. Used to display the structural variations.",
-keywords={"bam","alignment","graphics","visualization","svg"}
+keywords={"bam","alignment","graphics","visualization","svg"},
+biostars=405059
 )
 public class SvToSVG extends Launcher
 	{

@@ -52,6 +52,12 @@ Usage: sv2svg [options] Files
  * svg
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/405059](https://www.biostars.org/p/405059)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
