@@ -97,14 +97,9 @@ public static String beautifyCode(final String sourceCode)
 	return codeWithLineNumber.toString();
 	}
 /** repeat  char `c` for  `n` time */
-public static String repeat(int n,char c) {
+public static String repeat(final int n,final char c) {
 	if(n<0) throw new IllegalArgumentException("repeat: n is negative");
-	final StringBuilder sb = new StringBuilder(n);
-	while(n>0) {
-		sb.append(c);
-		n--;
-		}
-	return sb.toString();
+	return repeatCharNTimes(c, n);
 	}
 /** escape Http using UTF-8 */
 public static String escapeHttp(final String str) {

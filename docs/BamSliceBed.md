@@ -29,8 +29,8 @@ Usage: bamslicebed [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
-      For CRAM. Indexed fasta Reference file. This file must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary
+      For Reading CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM

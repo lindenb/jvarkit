@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 
@@ -149,5 +150,23 @@ public Range getRange(final int value) {
 @Override
 public String toString() {
 		return getRanges().toString();
+	}
+
+/** builds a RangeOfIntegers using a for:loop with a step = 1 */
+public static RangeOfIntegers fromTo(int fromIncl,int toIncl) {
+	return fromTo(fromIncl,toIncl,1);
+	}
+
+
+/** builds a RangeOfIntegers using a for:loop with defined step */
+public static RangeOfIntegers fromTo(int fromIncl,int toIncl,int step) {
+	if(fromIncl > toIncl) throw new IllegalArgumentException("from "+fromIncl +" > toIncl "+toIncl);
+	if(step<=0)  throw new IllegalArgumentException("step <=0 : "+step);
+	final List<Integer> L = new ArrayList<>();
+	while(fromIncl <= toIncl) {
+		L.add(fromIncl);
+		fromIncl += step;
+		}
+	return new RangeOfIntegers(L.stream().mapToInt(V->V.intValue()).toArray());
 	}
 }

@@ -52,6 +52,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.beust.jcommander.Parameter;
@@ -135,7 +136,7 @@ END_DOC
 @Program(name="bamslicebed",
 	description="For @wouter_decoster : slice (long reads) overlapping the records of a BED file",
 	keywords={"sam","bam","bed"},
-	modificationDate="20191009"
+	modificationDate="20191030"
 	)
 public class BamSliceBed extends Launcher
 	{
@@ -145,7 +146,7 @@ public class BamSliceBed extends Launcher
 	private Path outputFile = null;
 	@Parameter(names={"-B","--bed","--region","--interval"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
-	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description="For Reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx = null;
 	@Parameter(names={"--bai"},description="Use bam index to only scan the regions overlaping the user's intervals.")
 	private boolean use_bai = false;
@@ -246,9 +247,18 @@ public class BamSliceBed extends Launcher
 				int readpos=0;
 				final byte bases[] = rec.getReadBases();
 				if(bases == SAMRecord.NULL_SEQUENCE) continue;
-				if(rec.getBaseQualities() == SAMRecord.NULL_QUALS) continue;
-				final String quals = rec.getBaseQualityString();
 				
+				final String quals;
+				final boolean qual_is_available;
+				if(rec.getBaseQualities() == SAMRecord.NULL_QUALS) {
+					quals = StringUtils.repeatCharNTimes('#',bases.length);
+					qual_is_available = false;
+					}
+				else
+					{
+					quals = rec.getBaseQualityString();
+					qual_is_available = true;
+					}
 				
 				
 				for(final CigarElement ce:cigar)
@@ -366,11 +376,18 @@ public class BamSliceBed extends Launcher
 							filter(B->B.readbase!=NO_BASE).
 							map(B->String.valueOf((char)B.readbase)).
 							collect(Collectors.joining()));
-					newrec.setBaseQualityString(
-							copy.stream().
-							filter(B->B.readqual!=NO_QUAL).
-							map(B->String.valueOf(B.readqual)).
-							collect(Collectors.joining()));
+					
+					if(qual_is_available) {
+						newrec.setBaseQualityString(
+								copy.stream().
+								filter(B->B.readqual!=NO_QUAL).
+								map(B->String.valueOf(B.readqual)).
+								collect(Collectors.joining()));
+						}
+					else
+						{
+						newrec.setBaseQualities(SAMRecord.NULL_QUALS);
+						}
 					newrec.setReadUnmappedFlag(false);
 					newrec.setReadNegativeStrandFlag(rec.getReadNegativeStrandFlag());
 					newrec.setReferenceName(rec.getReferenceName());
