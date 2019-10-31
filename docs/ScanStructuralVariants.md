@@ -15,8 +15,8 @@ Usage: scansv [options] Files
       Default: false
     --bnd-distance
       Two BND variants are the same if their bounds are distant by less than 
-      xxx bases. A distance specified as a positive integer.Comma are removed. 
-      The following suffixes are interpreted : b,bp,k,kb,m,mb
+      xxx bases. A distance specified as a positive integer.Commas are 
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 100
     --check-bnd-mate
       When comparing two BND, check that their mate (using the ALT allele) are 
@@ -60,7 +60,7 @@ Usage: scansv [options] Files
       Default: 0.75
     --sv-small-overlap
       Two non-BND variants are the same if they overlap and both have a 
-      length<= 'x'. A distance specified as a positive integer.Comma are 
+      length<= 'x'. A distance specified as a positive integer.Commas are 
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 10
     --version
@@ -102,6 +102,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/ScanStructuralVariants.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/ScanStructuralVariants.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/ScanStructuralVariantsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/ScanStructuralVariantsTest.java)
 
 
 ## Contribute

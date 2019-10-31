@@ -49,7 +49,8 @@ Usage: vcfcomposite [options] Files
     -o, --out
       Output file. Optional . Default: stdout
   * -p, -ped, --pedigree
-      A pedigree file.
+      A pedigree file. sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -r, --report
       Optional tabular text report for pairs of variants
     -a, --select-pair

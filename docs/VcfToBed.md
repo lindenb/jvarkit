@@ -23,11 +23,11 @@ Usage: vcf2bed [options] Files
       What kind of help. One of [usage,markdown,xml].
     -M, --max
       Optional filter: max sequence length. A distance specified as a positive 
-      integer.Comma are removed. The following suffixes are interpreted : 
+      integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb 
     -m, --min
       Optional filter: min sequence length. A distance specified as a positive 
-      integer.Comma are removed. The following suffixes are interpreted : 
+      integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb 
     -c, --no-ci
       For structural variant, ignore the extention of the boundaries using 
@@ -35,25 +35,13 @@ Usage: vcf2bed [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -R, --reference
-      Convert the contigs of the VCF on the fly using an indexed genome. The 
-      parameter is the path to an Indexed fasta Reference file. This fasta 
-      file must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary. The parameter can also be a 'key' (matching 
-      the regular expression `[A-Za-z][A-Za-z0-9_\\-]*`) in a catalog file. A 
-      'catalog' file is a java property file ( 
-      https://docs.oracle.com/javase/tutorial/essential/environment/properties.html 
-      ) where the values are the path to the fasta file.  Catalogs are 
-      searched in that order : `${PWD}/fasta-ref.properties`, 
-      `${HOME}/.fasta-ref.properties`, `/etc/jvarkit/fasta-ref.properties`.  
-      If the key or the path are not defined by the user, they will be 
-      searched in that order 1) the java property 
-      -Djvarkit.fasta.reference=pathTofastaOrCatalogKey . 2) the linux 
-      environement variable $FASTA_REFERENCE=pathTofastaOrCatalogKey 3) The 
-      catalogs. 
+    -R, --reference, --dict
+      A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
+      indexed with 'picard CreateSequenceDictionary', or any hts file 
+      containing a dictionary (VCF, BAM, CRAM, intervals...)
     -x, --slop
       Extends interval by 'x' bases on both sides. A distance specified as a 
-      positive integer.Comma are removed. The following suffixes are 
+      positive integer.Commas are removed. The following suffixes are 
       interpreted : b,bp,k,kb,m,mb
       Default: 0
     --version
