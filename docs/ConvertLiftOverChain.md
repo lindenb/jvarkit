@@ -18,9 +18,9 @@ Usage: convertliftoverchain [options] Files
       Output file. Optional . Default: stdout
     -R1, --ref1
       Source chain REFference mapping. Default : no conversion. Chromosome 
-      mapping file. If the file looks like a NGS file (vcf, bam) the mapping 
-      is extracted from a dictionary; Otherwise, it is interpreted as a 
-      mapping file ( See https://github.com/dpryan79/ChromosomeMappings )
+      mapping file. If the file looks like a NGS file (fasta, vcf, bam...) the 
+      mapping is extracted from a dictionary; Otherwise, it is interpreted as 
+      a mapping file ( See https://github.com/dpryan79/ChromosomeMappings )
     -R2, --ref2
       Destination chain REFference mapping. Default : no conversion. Indexed 
       fasta Reference file. This file must be indexed with samtools faidx and 

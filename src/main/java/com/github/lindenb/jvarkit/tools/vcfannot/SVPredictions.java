@@ -57,6 +57,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -90,7 +91,7 @@ END_DOC
 	description="Basic Variant Effect prediction using gtf",
 	keywords={"vcf","annotation","prediction","sv"},
 	creationDate="20190815",
-	modificationDate="20191001"
+	modificationDate="20191005"
 	)
 public class SVPredictions extends Launcher
 	{
@@ -137,9 +138,12 @@ public class SVPredictions extends Launcher
 	private String filterStr="BAD_SV_PRED";
 	@Parameter(names={"-r","--remove-attribute"},description="Do not print the annotations that don't contain the contraint for the argument  --where")
 	private boolean remove_attributes =  false;
+	@Parameter(names={"--bnd"},description="Ignore the INFO/END attribute for SVTYPE=BND, so it is just considered as a single point mutation.")
+	private boolean ignore_bnd_end =  false;
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
+	
 	private final Set<WhereInGene> limitWhere = new HashSet<>();
 	
 	
@@ -278,10 +282,21 @@ public class SVPredictions extends Launcher
 				{
 				final VariantContext ctx=progress.apply(r.next());
 				
+				final int ctx_bnd_end;
+				if(this.ignore_bnd_end &&
+					ctx.hasAttribute(VCFConstants.SVTYPE) &&
+					ctx.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")) {
+					ctx_bnd_end = ctx.getStart();
+					}
+				else
+					{
+					ctx_bnd_end = ctx.getEnd();
+					}
+				
 				final Collection<Gene> genes  = this.all_gene.getOverlapping(new Interval(
 						ctx.getContig(),
 						Math.max(1,ctx.getStart()-this.upstream_size),
-						ctx.getEnd()+this.upstream_size
+						ctx_bnd_end + this.upstream_size
 						));
 				
 				

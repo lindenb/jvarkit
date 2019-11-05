@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.retrocopy;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -38,6 +37,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -76,7 +77,11 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
 
+## Example
 
+```
+java -jar dist/gtfretrocopy.jar --gtf transcript.gtf.gz input.vcf.gz > retrocopies.vcf
+```
 
 END_DOC
 
@@ -84,15 +89,18 @@ END_DOC
 @Program(name="gtfretrocopy",
 description="Scan retrocopies by comparing the gtf/intron and the deletions in a VCF",
 keywords={"gtf","retrocopy","deletion"},
-creationDate="2019-08-13",
-modificationDate="2019-08-13"
+creationDate="20190813",
+modificationDate="20191104"
 )
 public class GtfRetroCopy extends Launcher
 	{
 	private static final Logger LOG = Logger.build(GtfRetroCopy.class).make();
+	private enum IdKey {transcript_id,gene_id,gene_name};
+	
+	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-gtf","--gtf"},description="GTF file that was used by STAR",required=true)
+	private Path outputFile = null;
+	@Parameter(names={"-gtf","--gtf"},description=GtfReader.OPT_DESC,required=true)
 	private Path gtfPath = null;
 	@Parameter(names={"-d","--distance"},description="max distance between an intron and the deletion found in the VCF")
 	private int distance = 10;
@@ -102,6 +110,14 @@ public class GtfRetroCopy extends Launcher
 	private boolean only_all_introns = false;
 	@Parameter(names={"-k","--known"},description="Gene-ID of known retrogenes. One per line. A source could be : http://retrogenedb.amu.edu.pl/static/download/")
 	private Path knownPath = null;
+	@Parameter(names={"--id","-id"},description="Which key should I use for the column ID. The idea is to use the gene name to get the uniq entities per vcf.")
+	private IdKey idKey = IdKey.transcript_id;
+
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVcf = new WritingVariantsDelegate();
+
+	
+	
 	
 	private static final String ENSEMBL_TRANSCRIPT_ATTS[]=new String[] {"gene_id","gene_version","transcript_id","transcript_version","gene_name","gene_source","gene_biotype","transcript_name","transcript_source","transcript_biotype","tag","ccds_id","havana_transcript","havana_transcript_version","tag"};
 	private final static String ATT_INTRONS_COUNT="COUNT_INTRONS";
@@ -159,7 +175,10 @@ public class GtfRetroCopy extends Launcher
 			};
 			
 			final GtfReader gtfReader = new GtfReader(this.gtfPath);
-			if(dict!=null && !dict.isEmpty()) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+			if(dict!=null && !dict.isEmpty()) {
+				this.writingVcf.dictionary(dict);
+				gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+			}
 			final List<Gene> genes = gtfReader.getAllGenes().
 					stream().
 					filter(G->G.getTranscripts().stream().count()>0L).
@@ -216,7 +235,7 @@ public class GtfRetroCopy extends Launcher
 			
 			
 			/* open vcf for writing*/
-			vcw0=super.openVariantContextWriter(this.outputFile);
+			vcw0= this.writingVcf.open(this.outputFile);
 			vcw0.writeHeader(header2);
 
 			
@@ -265,7 +284,16 @@ public class GtfRetroCopy extends Launcher
 					vcb.chr(transcript.getContig());
 					vcb.start(transcript.getStart());
 					vcb.stop(transcript.getEnd());
-					vcb.id(transcript.getId());
+					switch(this.idKey) {
+						case gene_name:
+							final String gn= transcript.getGene().getGeneName();
+							vcb.id( StringUtils.isBlank(gn)?transcript.getId():gn);
+							break;
+						case gene_id:vcb.id(transcript.getGene().getId());break;
+						case transcript_id : vcb.id(transcript.getId());break;
+						default: throw new IllegalStateException();
+						}
+					
 					final List<Allele> alleles = Arrays.asList(ref,alt);
 
 					//vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,2);

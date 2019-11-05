@@ -10,6 +10,10 @@ Basic Variant Effect prediction using gtf
 ```
 Usage: svpredictions [options] Files
   Options:
+    --bnd
+      Ignore the INFO/END attribute for SVTYPE=BND, so it is just considered 
+      as a single point mutation.
+      Default: false
     -F, --filter
       FILTER to set if variant failing prediction of option --where. Empty: no 
       FILTER, discard variant.

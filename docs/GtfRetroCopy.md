@@ -16,12 +16,21 @@ Usage: gtfretrocopy [options] Files
     -d, --distance
       max distance between an intron and the deletion found in the VCF
       Default: 10
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
   * -gtf, --gtf
-      GTF file that was used by STAR
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html .
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --id, -id
+      Which key should I use for the column ID. The idea is to use the gene 
+      name to get the uniq entities per vcf.
+      Default: transcript_id
+      Possible Values: [transcript_id, gene_id, gene_name]
     -k, --known
       Gene-ID of known retrogenes. One per line. A source could be : 
       http://retrogenedb.amu.edu.pl/static/download/ 
@@ -60,7 +69,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-2019-08-13
+20190813
 
 ## Source code 
 
@@ -92,5 +101,9 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Example
 
+```
+java -jar dist/gtfretrocopy.jar --gtf transcript.gtf.gz input.vcf.gz > retrocopies.vcf
+```
 
