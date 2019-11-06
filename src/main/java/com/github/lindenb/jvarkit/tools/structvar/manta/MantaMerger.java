@@ -113,7 +113,7 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 description="Merge Vcf from Manta VCF.",
 keywords= {"sv","burden","manta","vcf"},
 creationDate="20190916",
-modificationDate="20190920"
+modificationDate="20191106"
 )
 public class MantaMerger extends Launcher {
 	private static final Logger LOG = Logger.build( MantaMerger.class).make();
@@ -412,6 +412,7 @@ public int doWork(final List<String> args) {
 				final Set<String> samples = variants2samples.get(key);
 				final Allele refAllele = key.archetype.getReference();
 				final Allele altAllele = Allele.create("<SV>", false);
+				final Object svType = key.archetype.getAttribute(VCFConstants.SVTYPE, ".");
 				final VariantContextBuilder vcb=new VariantContextBuilder();
 				vcb.chr(key.archetype.getContig());
 				vcb.start(key.archetype.getStart());
@@ -419,8 +420,8 @@ public int doWork(final List<String> args) {
 				vcb.log10PError(key.archetype.getLog10PError());
 				vcb.alleles(Arrays.asList(refAllele,altAllele));
 				vcb.attribute(VCFConstants.END_KEY, key.archetype.getEnd());
-				vcb.attribute(VCFConstants.SVTYPE, key.archetype.getAttribute(VCFConstants.SVTYPE, "."));
-				vcb.attribute(infoSvLen.getID(), key.archetype.getLengthOnReference());
+				vcb.attribute(VCFConstants.SVTYPE, svType);
+				vcb.attribute(infoSvLen.getID(), (svType.equals("DEL")?-1:1)*key.archetype.getLengthOnReference());
 				vcb.attribute(infoNSamples.getID(),samples.size());
 				vcb.attribute(infoSamples.getID(),samples.stream().sorted().collect(Collectors.toList()));
 				
