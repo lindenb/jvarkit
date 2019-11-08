@@ -42,12 +42,16 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.iterator.MergingIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -55,7 +59,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
@@ -71,6 +75,9 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -78,10 +85,12 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
@@ -114,7 +123,8 @@ END_DOC
 @Program(name="samfindclippedregions",
 	description="Fins clipped position in one or more bam. Output is a VCF file",
 	keywords= {"sam","bam","clip","vcf"},
-	modificationDate="20191009"
+	creationDate="20140228",
+	modificationDate="20191108"
 	)
 public class SamFindClippedRegions extends Launcher
 	{
@@ -137,7 +147,13 @@ public class SamFindClippedRegions extends Launcher
 	private int min_clip_depth =10;
 	@Parameter(names={"--min-ratio"},description="Ignore genotypes where count(clip)/(count(clip)+DP) < x")
 	private double fraction = 0.1;
+	@Parameter(names={"--gtf"},description="Optional gtf file. Will be used to set a warning if the junction could be a junction exon-exon of a retrogene. "+GtfReader.OPT_DESC)
+	private Path gtfPath = null;
+	@Parameter(names={"--intron-distance"},description="when gtf is specified: max distance between breakend and the intron bound")
+	private int max_intron_distance=3;
 
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVcfConfig = new WritingVariantsDelegate();
 	
 	private final int max_clip_length=1000;
 	
@@ -197,6 +213,7 @@ public class SamFindClippedRegions extends Launcher
 			if(this.faidx!=null) {
 				srf.referenceSequence(this.faidx);
 				dict = SequenceDictionaryUtils.extractRequired(this.faidx);
+				
 				}
 			
 			final Set<String> samples = new TreeSet<>();
@@ -244,6 +261,19 @@ public class SamFindClippedRegions extends Launcher
 				samIterators.add(iter);
 				}
 			
+			final IntervalTreeMap<Interval> intronMap = new IntervalTreeMap<>();
+			if(this.gtfPath!=null) {
+				try(GtfReader gtfReader= new GtfReader(this.gtfPath)) {
+					gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+					gtfReader.getAllGenes().
+						stream().
+						flatMap(G->G.getTranscripts().stream()).
+						filter(T->T.hasIntron()).
+						flatMap(T->T.getIntrons().stream()).
+						map(I->new Interval(I.getContig(),I.getStart(),I.getEnd(),I.isNegativeStrand(),I.getTranscript().getId())).
+						forEach(I->intronMap.put(I,I));
+				}
+			}
 			
 			/* create merged iterator */
 			final SAMRecordComparator samRecordComparator = new SAMRecordCoordinateComparator();
@@ -283,18 +313,20 @@ public class SamFindClippedRegions extends Launcher
 			final VCFFormatHeaderLine totalDel = new VCFFormatHeaderLine("DL", 1,VCFHeaderLineType.Integer,"Total Deletions");
 			vcfHeaderLines.add(totalDel);
 			
+			
+			final VCFInfoHeaderLine infoRetrogene = new VCFInfoHeaderLine("RETROGENE", 1,VCFHeaderLineType.String,"transcript name for Possible retrogene.");
+			vcfHeaderLines.add(infoRetrogene);
+			final VCFFilterHeaderLine filterRetrogene = new VCFFilterHeaderLine("POSSIBLE_RETROGENE","Junction is a possible Retrogene.");
+			vcfHeaderLines.add(filterRetrogene);
+
+			
 			final VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
 			vcfHeader.setSequenceDictionary(dict);
-			
 			JVarkitVersion.getInstance().addMetaData(this, vcfHeader);
 			
-			if(this.outputFile!=null) {
-				w=VCFUtils.createVariantContextWriterToPath(this.outputFile);
-				}
-			else
-				{
-				w=VCFUtils.createVariantContextWriterToOutputStream(stdout());
-				}
+			this.writingVcfConfig.dictionary(dict);
+			w = this.writingVcfConfig.open(this.outputFile);
+			
 		
 			w.writeHeader(vcfHeader);
 			
@@ -318,6 +350,25 @@ public class SamFindClippedRegions extends Launcher
 				vcb.stop(B.pos);
 				vcb.alleles(Arrays.asList(reference_allele,alt_allele));
 				vcb.attribute(VCFConstants.DEPTH_KEY,B.sample2gt.values().stream().mapToInt(G->G.dp()).sum());
+				
+				/* if gtf was specified, find intron which ends are near this pos */
+				if(gtfPath!=null) {
+					final Locatable bounds1 = new SimpleInterval(CTG, Math.max(1, B.pos-max_intron_distance), B.pos+max_intron_distance);
+					intronMap.getOverlapping(bounds1).stream().
+						filter(I->
+								Math.abs(I.getStart()-B.pos)<= this.max_intron_distance ||
+								Math.abs(I.getEnd()-B.pos)<= this.max_intron_distance
+								).
+						map(I->I.getName()).
+						findFirst().
+						ifPresent(transcript_id->{
+							vcb.attribute(infoRetrogene.getID(),transcript_id);
+							vcb.filter(filterRetrogene.getID());
+							});
+							;						
+					}
+				
+				
 				final List<Genotype> genotypes = new ArrayList<>(B.sample2gt.size());
 				int AC=0;
 				int AN=0;

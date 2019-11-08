@@ -10,10 +10,21 @@ Fins clipped position in one or more bam. Output is a VCF file
 ```
 Usage: samfindclippedregions [options] Files
   Options:
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
+    --gtf
+      Optional gtf file. Will be used to set a warning if the junction could 
+      be a junction exon-exon of a retrogene. A GTF (General Transfer Format) 
+      file. See https://www.ensembl.org/info/website/upload/gff.html .
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --intron-distance
+      when gtf is specified: max distance between breakend and the intron 
+      bound 
+      Default: 3
     --min-clip-depth
       Ignore number of clipped bases lower than 'x'
       Default: 10
@@ -72,6 +83,11 @@ $ ./gradlew samfindclippedregions
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20140228
 
 ## Source code 
 
