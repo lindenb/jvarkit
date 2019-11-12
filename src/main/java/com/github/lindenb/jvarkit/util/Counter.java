@@ -185,6 +185,17 @@ public class Counter<T>
 		return asList().stream();
 		}
 
+	@Override
+	public int hashCode() {
+		return this.object2count.hashCode();
+		}
+	
+	@Override
+	public boolean equals(final Object obj) {
+		if(obj==this) return true;
+		if(obj==null || !(obj instanceof Counter)) return false;
+		return this.object2count.equals(Counter.class.cast(obj).object2count);
+		}
 	
 	@Override
 	public String toString() {

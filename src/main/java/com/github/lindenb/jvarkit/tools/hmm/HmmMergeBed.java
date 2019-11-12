@@ -32,9 +32,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -59,6 +62,46 @@ BEGIN_DOC
 
 input is a set of sorted BED file , or a file with the '.list' suffix containing the paths to the bed file. 
 
+## Example:
+
+```
+$ head -n 3  ~/DC10* 
+==> DC1074_UCSC.bed.txt <==
+chr22	0	64000	6_Heterochrom_lowsignal
+chr22	64000	65400	1_Polycomb_repressed
+chr22	65400	119600	6_Heterochrom_lowsignal
+
+==> DC1076_UCSC.bed.txt <==
+chr22	0	119600	6_Heterochrom_lowsignal
+chr22	119600	120000	3_Weak_promoter
+chr22	120000	120200	4_Active_promoter
+
+==> DC1077_UCSC.bed.txt <==
+chr22	0	118400	7_Heterochrom_lowsignal
+chr22	118400	119600	1_Polycomb_repressed
+chr22	119600	120200	2_Poised_promoter
+
+==> DC1082_UCSC.bed.txt <==
+chr22	0	119600	6_Heterochrom_lowsignal
+chr22	119600	120200	3_Weak_promoter
+chr22	120200	122200	6_Heterochrom_lowsignal
+
+
+$ java -jar dist/hmmmergebed.jar -n 3 ~/DC10*.txt 
+chr22	0	64000	6_Heterochrom_lowsignal
+#chr22	64000	65400	1_Polycomb_repressed:1;6_Heterochrom_lowsignal:2;7_Heterochrom_lowsignal:1
+chr22	65400	119600	6_Heterochrom_lowsignal
+chr22	119600	120000	3_Weak_promoter
+#chr22	120000	120200	2_Poised_promoter:1;3_Weak_promoter:1;4_Active_promoter:2
+#chr22	120200	120400	1_Polycomb_repressed:1;3_Weak_promoter:1;4_Active_promoter:1;6_Heterochrom_lowsignal:1
+chr22	120400	122000	6_Heterochrom_lowsignal
+chr22	122000	122600	3_Weak_promoter
+#chr22	122600	122800	3_Weak_promoter:2;6_Heterochrom_lowsignal:2
+chr22	122800	130000	6_Heterochrom_lowsignal
+(...)
+
+```
+
 END_DOC
 */
 @Program(name="hmmmergebed",
@@ -72,9 +115,14 @@ public class HmmMergeBed extends Launcher {
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-R","--reference","--dict"},description="dictionary if data are sorted on a REF order." +DICTIONARY_SOURCE)
-	private final Path dictPath = null;
-	
+	@Parameter(names={"-R","--reference","--dict"},description="optional dictionary if data are sorted on a REF order." +DICTIONARY_SOURCE)
+	private Path dictPath = null;
+	@Parameter(names={"-n","--num"},description="dictionary if data are sorted on a REF order." , required=true)
+	private int numTreshold = -1;
+	@Parameter(names={"-u"},description="Hide invalid lines")
+	private boolean hide_invalid = false;
+
+	/** one base in a BED record */
 	private static class Base implements Locatable
 		{
 		final BedLine bedline;
@@ -82,6 +130,9 @@ public class HmmMergeBed extends Launcher {
 		Base(final BedLine bedline,int pos) {
 			this.bedline = bedline;
 			this.pos = pos;
+			}
+		String getOpcode() {
+			return this.bedline.get(3);
 			}
 		@Override
 		public String getContig() {
@@ -104,9 +155,14 @@ public class HmmMergeBed extends Launcher {
 			}
 		}
 	
-	private static class BedLineToBaseIterator extends AbstractIterator<Base> implements CloseableIterator<Base> {
+	/** iterator over all the bases of a bed record */
+	private static class BedLineToBaseIterator 
+		extends AbstractIterator<Base> 
+		implements CloseableIterator<Base> {
 		final BedLineIterator delegate;
+		/* current bed line */
 		BedLine bedline = null;
+		/* curren pos in bedline */
 		int pos;
 		BedLineToBaseIterator(final BedLineIterator delegate) {
 			this.delegate = delegate;
@@ -159,6 +215,8 @@ public class HmmMergeBed extends Launcher {
 						}
 					final BedLine bed = this.codec.decode(line);
 					if(bed==null) continue;
+					if(bed.getColumnCount()<4) throw new IOException("Column $4 missing in "+bed+" in "+this.path);
+					if(StringUtils.isBlank(bed.get(3)))  throw new IOException("Column $4 empty in "+bed+" in "+this.path);
 					if(prevRec!=null && prevRec.overlaps(bed)) {
 						throw new IOException("got two bed overlapping "+bed+" "+prevRec+" in "+this.path);
 						}
@@ -181,10 +239,42 @@ public class HmmMergeBed extends Launcher {
 	
 	private class BaseMerge implements Locatable
 		{
-		String contig;
-		int start;
+		final String contig;
+		final int start;
 		int end;
-		String opcode;
+		final String opcode ;
+		final boolean valid_flag;
+		
+		BaseMerge(final List<Base> bases) {
+			final Base first = bases.get(0);
+			this.contig = first.getContig();
+			this.start = first.getPos();
+			this.end  = start;
+			final Counter<String> count = new  Counter<>();
+			for(final Base b:bases) {
+				count.incr(b.getOpcode());
+				}
+			
+			final String freq = count.getMostFrequent();
+			final long num =  count.count(freq);
+			if( num>= HmmMergeBed.this.numTreshold ) {
+				//ambiguity on best: check other with the sam occurence
+				if(count.keySet().
+						stream().
+						filter(K->count.count(K)==num).
+						count()==1L) {
+					this.opcode= freq;
+					valid_flag= true;
+					return;
+					}
+				}
+			valid_flag = false;
+			this.opcode= count.
+				stream().
+				sorted((A,B)->A.getKey().compareTo(B.getKey())).
+				map(KV->KV.getKey()+":"+KV.getValue()).
+				collect(Collectors.joining(";"));
+			}
 		
 		@Override
 		public String getContig() {
@@ -198,7 +288,16 @@ public class HmmMergeBed extends Launcher {
 		public int getEnd() {
 			return end;
 			}
+		boolean isValid() {
+			
+			return this.valid_flag;
+			}
+		
+		String getOpcode() {
+			return this.opcode;
+			}
 		}
+	
 	private class BaseMergerIterator extends AbstractIterator<BaseMerge> implements CloseableIterator<BaseMerge> {
 		private final List<CloseableIterator<Base>> baseiterators;
 		private final MergingIterator<Base> mergingIter;
@@ -208,28 +307,24 @@ public class HmmMergeBed extends Launcher {
 			this.mergingIter = new MergingIterator<>(locCompare, baseiterators);
 			this.equalIter = new EqualRangeIterator<>(mergingIter, locCompare);
  			}
-		String getOpcode(final  List<Base> s) {
-			return "*";
-			}
+		
+		
 		
 		@Override
 		protected BaseMerge advance() {
-			if(!equalIter.hasNext()) return null;
+			if(!this.equalIter.hasNext()) return null;
 			final List<Base> L = equalIter.next();
-			final Base first = L.get(0);
-			final BaseMerge bm = new BaseMerge();
-			bm.contig = first.getContig();
-			bm.start = first.getPos();
-			bm.end = first.getPos();
-			bm.opcode = getOpcode(L);
-			while(equalIter.hasNext()) {
+			final BaseMerge bm = new BaseMerge(L);
+			
+			while(this.equalIter.hasNext()) {
 				final List<Base> L2 = equalIter.peek();
-				final Base second = L2.get(0);
-				if(!second.getContig().equals(bm.contig)) break;
-				if(bm.end+1 != second.getPos()) break;
-				if(!bm.opcode.equals(getOpcode(L2))) break;
-				equalIter.next();//consumme
-				bm.end = second.getPos();
+				final BaseMerge bm2 = new BaseMerge(L2);
+				
+				if(!bm2.getContig().equals(bm.contig)) break;
+				if(bm.end+1 != bm2.getStart()) break;
+				if(!bm.getOpcode().equals(bm2.getOpcode())) break;
+				this.equalIter.next();//consumme
+				bm.end = bm2.getStart();
 				}
 			return bm;
 			}
@@ -241,10 +336,16 @@ public class HmmMergeBed extends Launcher {
 			}
 		}
 	
+	
 	@Override
 	public int doWork(final List<String> args) {
 		PrintWriter pw = null;
 		try {
+			if(this.numTreshold<1) {
+				LOG.error("bad treshold.");
+				return -1;
+			}
+			
 			final Comparator<Base> locCompare;
 			
 			if(this.dictPath!=null) {
@@ -262,6 +363,11 @@ public class HmmMergeBed extends Launcher {
 					};
 				}
 			final List<Path> paths = IOUtils.unrollPaths(args);
+			if(this.numTreshold>paths.size()) {
+				LOG.error("bad treshold (> number of files).");
+				return -1;
+			}
+			
 			if(paths.isEmpty()) {
 				LOG.error("empty input");
 				return -1;
@@ -282,13 +388,17 @@ public class HmmMergeBed extends Launcher {
 			
 			while(bmiter.hasNext()) {
 				final BaseMerge bm = bmiter.next();
+				if(!bm.isValid()) {
+					if(this.hide_invalid) continue;
+					pw.print("#");
+					}
 				pw.print(bm.contig);
 				pw.print('\t');
 				pw.print(bm.start-1);
 				pw.print('\t');
 				pw.print(bm.end);
 				pw.print('\t');
-				pw.print(bm.opcode);
+				pw.print(bm.getOpcode());
 				pw.println();
 				}
 			bmiter.close();
@@ -304,5 +414,7 @@ public class HmmMergeBed extends Launcher {
 		
 		}
 	
-	
+	public static void main(final String[] args) {
+		new HmmMergeBed().instanceMainWithExit(args);
+		}
 	}
