@@ -10,8 +10,9 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.RebaseTest;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest(RebaseTest.class)
+@AlsoTest(value= {LauncherTest.class,RebaseTest.class})
 public class VcfRebaseTest {
 	private final TestSupport support = new TestSupport();
 
@@ -40,5 +41,24 @@ public class VcfRebaseTest {
 			support.removeTmpFiles();
 			}
 		}
-	
+	@Test
+	public void test2() throws IOException {
+			try {
+			final Path ref=	support.getGRCh37Path().orElse(null);
+			if(ref==null) return;
+			final Path out = support.createTmpPath(".vcf");
+			Assert.assertEquals(
+				new VcfRebase().instanceMain(new String[] {
+				"-o",out.toString(),
+				"-R",ref.toString(),
+				"-E","EcoRI",
+				"-E","BamHI",
+				support.resource("gnomad.exomes.r2.0.1.sites.vcf.gz")
+				}),0);
+			support.assertIsVcf(out);
+			}
+		finally {
+			support.removeTmpFiles();
+			}
+		}
 }
