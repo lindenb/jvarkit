@@ -8,7 +8,7 @@ Restriction sites overlaping variations in a vcf
 ## Usage
 
 ```
-Usage: vcfrefbase [options] Files
+Usage: vcfrebase [options] Files
   Options:
     -A, --attribute
       VCF INFO attribute
@@ -57,7 +57,7 @@ Usage: vcfrefbase [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ ./gradlew vcfrefbase
+$ ./gradlew vcfrebase
 ```
 
 The java jar file will be installed in the `dist` directory.
@@ -87,7 +87,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfrefbase** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **vcfrebase** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -103,7 +103,7 @@ The current reference is:
  ```
 $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resources/test_vcf01.vcf | bcftools annotate -x '^INFO/ENZ' | bcftools view --drop-genotypes | grep ENZ
 
-##INFO=<ID=ENZ,Number=.,Type=String,Description="Enzyme overlapping: Format: (Name,Site,Sequence,pos,strand)">
+##INFO=<ID=ENZ,Number=.,Type=String,Description="Enzyme overlapping: Format: (Name|Site|Sequence|pos|strand)">
 ##bcftools_annotateCommand=annotate -x ^INFO/ENZ; Date=Wed Nov 13 10:38:39 2019
 1	852063	.	G	A	387	PASS	ENZ=PflMI|CCANNNN^NTGG|CCAGGCCCTGG|852064|+
 1	866893	.	T	C	431	PASS	ENZ=SacI|GAGCT^C|GAGCtC|866889|+
