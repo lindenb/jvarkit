@@ -25,6 +25,9 @@ Usage: samfindclippedregions [options] Files
       when gtf is specified: max distance between breakend and the intron 
       bound 
       Default: 3
+    --mapq
+      min mapping quality
+      Default: 1
     --min-clip-depth
       Ignore if number of clipped bases lower than 'x'
       Default: 10

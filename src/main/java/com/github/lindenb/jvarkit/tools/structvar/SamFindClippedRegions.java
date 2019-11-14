@@ -170,6 +170,8 @@ public class SamFindClippedRegions extends Launcher
 	private Path gtfPath = null;
 	@Parameter(names={"--intron-distance"},description="when gtf is specified: max distance between breakend and the intron bound")
 	private int max_intron_distance=3;
+	@Parameter(names={"--mapq"},description="min mapping quality")
+	private int min_mapq= 1;
 
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVcfConfig = new WritingVariantsDelegate();
@@ -453,6 +455,7 @@ public class SamFindClippedRegions extends Launcher
 					if(rec.isSecondaryOrSupplementary()) continue;
 					if(rec.getDuplicateReadFlag()) continue;
 					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+					if(rec.getMappingQuality() < this.min_mapq) continue;
 					}
 				
 				if(rec==null || !rec.getContig().equals(prevContig))
