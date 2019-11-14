@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Basic Variant Effect prediction using ucsc-known gene
+Basic Variant Effect prediction using gtf
 
 
 ## Usage
@@ -10,34 +10,25 @@ Basic Variant Effect prediction using ucsc-known gene
 ```
 Usage: vcfpredictions [options] Files
   Options:
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
+  * -k, -g, --gtf
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html .
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -k, --knownGene
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
     -o, --output
       Output file. Optional . Default: stdout
     -os, --output-syntax, --syntax
       [20180122]output formatting syntax. SnpEff is still not complete.
       Default: Native
       Possible Values: [Native, Vep, SnpEff]
-    -soacn, --printsoacn
-      Print SO:term accession rather than label
-      Default: false
   * -R, --reference
-      [20180122](moved to faidx/DAS). Indexed Genome Reference. It can be a 
-      the path to fasta file that must be indexed with samtools faidx and with 
-      picard CreateSequenceDictionary. It can also be a BioDAS dsn url like 
-      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BioDAS references are 
-      slower, but allow to work without a local reference file.
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
 
@@ -49,6 +40,7 @@ Usage: vcfpredictions [options] Files
  * vcf
  * annotation
  * prediction
+ * gtf
 
 
 ## Compilation
@@ -68,9 +60,18 @@ $ ./gradlew vcfpredictions
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20160318
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFPredictions.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFPredictions.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFPredictionsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFPredictionsTest.java)
 
 
 ## Contribute
@@ -94,19 +95,12 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-
 First described in http://plindenbaum.blogspot.fr/2011/01/my-tool-to-annotate-vcf-files.html.
-
-
 
 ### Examples
 
 
-
-
 #### Example 1
-
-
 
 
 ```
@@ -117,11 +111,7 @@ $java -jar  dist/vcfpredictions.jar  \
 
 ```
 
-
-
 #### Annotate 1000 genomes
-
-
 
 
 ```
@@ -147,26 +137,10 @@ cut -d '    ' -f 1-8 | grep -A 10 CHROM
 ```
 
 
-
-
-
 ### See also
-
-
 
  *  http://plindenbaum.blogspot.fr/2013/10/yes-choice-of-transcripts-and-software.html
  *  VcfFilterSequenceOntology
  *  GroupByGene
-
-
-
-## History
-
- *  2013-Dec : moved to a standard arg/argv command line
-
-
-
-
-
 
 

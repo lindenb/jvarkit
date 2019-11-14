@@ -95,10 +95,22 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
 
+samfindclippedregions find 'blunt' regions where the reads are clipped. It can be used to find structural variations in exomes/genomes data.
+
+input is a set of indexed BAM/CRAM files or a list with the '.list' suffix containing the path to the bam.
+
+output is a VCF file
+
+genotypes carrying an event are always 'HET'.
+
+
+
 ### Example
 
 ```
 $ java -jar dist/samfindclippedregions.jar --min-depth 10 --min-ratio 0.2 src/test/resources/S*.bam
+
+
 ##fileformat=VCFv4.2
 ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
 ##FORMAT=<ID=CL,Number=1,Type=Integer,Description="Left Clip">
@@ -117,14 +129,21 @@ RF01	996	.	N	<CLIP>	.	.	AC=1;AF=0.1;AN=10;DP=30	GT:AD:CL:DP:RL:TL	0/0:2,0:0:2:0:
 (...)
 ```
 
+
+### Screenshot
+
+https://twitter.com/yokofakun/status/1194921855875977216
+
+![https://twitter.com/yokofakun/status/1194921855875977216](https://pbs.twimg.com/media/EJU3F9hWoAACgsd?format=png&name=large)
+
 END_DOC
 
  */
 @Program(name="samfindclippedregions",
-	description="Fins clipped position in one or more bam. Output is a VCF file",
+	description="Fins clipped position in one or more bam. ",
 	keywords= {"sam","bam","clip","vcf"},
 	creationDate="20140228",
-	modificationDate="20191108"
+	modificationDate="20191114"
 	)
 public class SamFindClippedRegions extends Launcher
 	{
@@ -141,9 +160,9 @@ public class SamFindClippedRegions extends Launcher
 
 	@Parameter(names={"--groupby","--partition"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition=SAMRecordPartition.sample;
-	@Parameter(names={"--min-depth"},description="Ignore Depth lower than 'x'")
+	@Parameter(names={"--min-depth"},description="Ignore if Depth lower than 'x'")
 	private int min_depth=10;
-	@Parameter(names={"--min-clip-depth"},description="Ignore number of clipped bases lower than 'x'")
+	@Parameter(names={"--min-clip-depth"},description="Ignore if number of clipped bases lower than 'x'")
 	private int min_clip_depth =10;
 	@Parameter(names={"--min-ratio"},description="Ignore genotypes where count(clip)/(count(clip)+DP) < x")
 	private double fraction = 0.1;

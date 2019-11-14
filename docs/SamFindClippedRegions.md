@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Fins clipped position in one or more bam. Output is a VCF file
+Fins clipped position in one or more bam. 
 
 
 ## Usage
@@ -26,10 +26,10 @@ Usage: samfindclippedregions [options] Files
       bound 
       Default: 3
     --min-clip-depth
-      Ignore number of clipped bases lower than 'x'
+      Ignore if number of clipped bases lower than 'x'
       Default: 10
     --min-depth
-      Ignore Depth lower than 'x'
+      Ignore if Depth lower than 'x'
       Default: 10
     --min-ratio
       Ignore genotypes where count(clip)/(count(clip)+DP) < x
@@ -119,10 +119,22 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+samfindclippedregions find 'blunt' regions where the reads are clipped. It can be used to find structural variations in exomes/genomes data.
+
+input is a set of indexed BAM/CRAM files or a list with the '.list' suffix containing the path to the bam.
+
+output is a VCF file
+
+genotypes carrying an event are always 'HET'.
+
+
+
 ### Example
 
 ```
 $ java -jar dist/samfindclippedregions.jar --min-depth 10 --min-ratio 0.2 src/test/resources/S*.bam
+
+
 ##fileformat=VCFv4.2
 ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
 ##FORMAT=<ID=CL,Number=1,Type=Integer,Description="Left Clip">
@@ -140,4 +152,11 @@ $ java -jar dist/samfindclippedregions.jar --min-depth 10 --min-ratio 0.2 src/te
 RF01	996	.	N	<CLIP>	.	.	AC=1;AF=0.1;AN=10;DP=30	GT:AD:CL:DP:RL:TL	0/0:2,0:0:2:0:0	0/0:4,0:0:4:0:00/0:4,0:0:4:0:0	0/0:15,0:0:15:0:0	0/1:4,1:0:5:1:1
 (...)
 ```
+
+
+### Screenshot
+
+https://twitter.com/yokofakun/status/1194921855875977216
+
+![https://twitter.com/yokofakun/status/1194921855875977216](https://pbs.twimg.com/media/EJU3F9hWoAACgsd?format=png&name=large)
 
