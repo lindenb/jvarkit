@@ -101,9 +101,6 @@ input is a set of indexed BAM/CRAM files or a list with the '.list' suffix conta
 
 output is a VCF file
 
-genotypes carrying an event are always 'HET'.
-
-
 
 ### Example
 
@@ -184,9 +181,13 @@ public class SamFindClippedRegions extends Launcher
 		int leftClip = 0;
 		int rightClip = 0;
 		int del = 0;
+		double noClip_sum_mapq = 0;
 		int clip() { return leftClip+rightClip;}
 		int dp() { return noClip+clip();}
 		double ratio() {return clip()/(double)dp();}
+		int noClipMapq() {
+			return noClip==0 ? 0: (int) (this.noClip_sum_mapq /this.noClip);
+			}
 		}
 
 	private static class Base
@@ -215,7 +216,7 @@ public class SamFindClippedRegions extends Launcher
 			return -1;
 		}
 		
-		
+		final int bad_mapq = 30;
 		final List<SamReader> samReaders =new ArrayList<>();
 		final List<CloseableIterator<SAMRecord>> samIterators =new ArrayList<>();
 		
@@ -333,12 +334,18 @@ public class SamFindClippedRegions extends Launcher
 			vcfHeaderLines.add(totalCip);
 			final VCFFormatHeaderLine totalDel = new VCFFormatHeaderLine("DL", 1,VCFHeaderLineType.Integer,"Total Deletions");
 			vcfHeaderLines.add(totalDel);
-			
-			
+			final VCFFormatHeaderLine noClipMAPQ = new VCFFormatHeaderLine("MQ", 1,VCFHeaderLineType.Integer,"Average MAPQ for reads without clip at this position.");
+			vcfHeaderLines.add(noClipMAPQ);
+
+			final VCFInfoHeaderLine averageMAPQ = new VCFInfoHeaderLine("AVG_MAPQ", 1,VCFHeaderLineType.Integer,"Average MAPQ for called genotypes");
+			vcfHeaderLines.add(averageMAPQ);
+
 			final VCFInfoHeaderLine infoRetrogene = new VCFInfoHeaderLine("RETROGENE", 1,VCFHeaderLineType.String,"transcript name for Possible retrogene.");
 			vcfHeaderLines.add(infoRetrogene);
 			final VCFFilterHeaderLine filterRetrogene = new VCFFilterHeaderLine("POSSIBLE_RETROGENE","Junction is a possible Retrogene.");
 			vcfHeaderLines.add(filterRetrogene);
+			final VCFFilterHeaderLine filterlowMapq = new VCFFilterHeaderLine("LOW_MAPQ","Low average mapq (< "+bad_mapq+")");
+			vcfHeaderLines.add(filterlowMapq);
 
 			
 			final VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
@@ -394,19 +401,34 @@ public class SamFindClippedRegions extends Launcher
 				int AC=0;
 				int AN=0;
 				int max_clip=1;
+				double sum_mapq=0.0;
+				int count_mapq = 0;
+				
 				for(final String sn:B.sample2gt.keySet()) {
 					final Gt gt = B.sample2gt.get(sn);
 					final GenotypeBuilder gb = new GenotypeBuilder(sn);
-					if(gt.noClip==0) {
+					
+					if(gt.clip()==0 && gt.noClip==0)
+						{
+						gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+						}
+					else if(gt.noClip==0) {
 						gb.alleles(Arrays.asList(alt_allele,alt_allele));
 						AC+=2;
+						sum_mapq += gt.noClipMapq();
+						count_mapq++;
+						AN+=2;
 						}
-					else if(gt.leftClip+gt.rightClip==0) {
+					else if(gt.clip()==0) {
 						gb.alleles(Arrays.asList(reference_allele,reference_allele));
+						AN+=2;
 						}
 					else{
 						gb.alleles(Arrays.asList(reference_allele,alt_allele));
 						AC++;
+						sum_mapq += gt.noClipMapq();
+						count_mapq++;
+						AN+=2;
 						}
 					
 					gb.DP(gt.dp());
@@ -414,11 +436,17 @@ public class SamFindClippedRegions extends Launcher
 					gb.attribute(rightClip.getID(), gt.rightClip);
 					gb.attribute(totalCip.getID(), gt.clip());
 					gb.attribute(totalDel.getID(), gt.del);
+					gb.attribute(noClipMAPQ.getID(), gt.noClipMapq());
 					gb.AD(new int[] {gt.noClip, gt.clip()});
 					
 					genotypes.add(gb.make());
-					AN+=2;
+					
 					max_clip = Math.max(max_clip, gt.clip());
+					}
+				if(count_mapq>0) {
+					final int avg_mapq = (int)(sum_mapq/count_mapq);
+					vcb.attribute(averageMAPQ.getID(),avg_mapq);
+					if(avg_mapq < bad_mapq ) vcb.filter(filterlowMapq.getID());
 					}
 				vcb.log10PError(max_clip/-10.0);
 				vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, AC);
@@ -495,7 +523,9 @@ public class SamFindClippedRegions extends Launcher
 					if(op.consumesReferenceBases()) {
 						if(op.consumesReadBases()) {
 							for(int x=0;x< ce.getLength();++x) {
-								baseAt.apply(refPos+x).getGt(rg).noClip++;
+								final Gt gt=baseAt.apply(refPos+x).getGt(rg);
+								gt.noClip++;
+								gt.noClip_sum_mapq += rec.getMappingQuality();
 								}
 							}
 						else if(op.equals(CigarOperator.D) || op.equals(CigarOperator.N))

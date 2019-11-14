@@ -128,9 +128,6 @@ input is a set of indexed BAM/CRAM files or a list with the '.list' suffix conta
 
 output is a VCF file
 
-genotypes carrying an event are always 'HET'.
-
-
 
 ### Example
 
