@@ -13,9 +13,16 @@ Usage: vcfhead [options] Files
     -c, --bycontig
       Print first variant for each contig; Implies VCF is sorted
       Default: false
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output
+      Default: false
     -n, -N, --count
       number of variants
       Default: 10
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -49,6 +56,11 @@ $ ./gradlew vcfhead
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20131210
 
 ## Source code 
 

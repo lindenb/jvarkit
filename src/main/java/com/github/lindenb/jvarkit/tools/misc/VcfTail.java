@@ -29,17 +29,11 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
-
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -49,9 +43,8 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -77,132 +70,74 @@ END_DOC
 **/
 @Program(
 	name="vcftail",
-	description="print the last variants of a vcf",keywords={"vcf"})
+	description="print the last variants of a vcf",
+	keywords={"vcf"},
+	modificationDate="20191115",
+	creationDate="20131210"
+	)
 public class VcfTail extends Launcher
 	{
 	private static final Logger LOG=Logger.build(VcfTail.class).make();
-	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT,required=false)
-	private File output=null;
+	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
+	private Path output=null;
+	@Parameter(names={"-n","-N","--count"},description="number of variants")
+	private long count=10;
+	@Parameter(names={"-c","--bycontig"},description="Print first variant for each contig; Implies VCF is sorted",order=1)
+	private boolean by_contig=false;
 	@ParametersDelegate
-	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
-	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
-	
-	@XmlType(name="vcftail")
-	@XmlRootElement(name="vcftail")
-	@XmlAccessorType(XmlAccessType.FIELD)
-	public static class CtxWriterFactory 
-		implements VariantContextWriterFactory
-			{
-			@XmlElement(name="count")
-			@Parameter(names={"-n","--count"},description="number of variants")
-			private long count=10;
-			@XmlElement(name="by-contig")
-			@Parameter(names={"-c","--bycontig"},descriptionKey="Print last variant for each contig; Implies VCF is sorted",order=1,description="number of variants")
-			private boolean by_contig=false;
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+
+					
+	@Override
+	public int doWork(final List<String> args) {
+		if(count<0) {
+			LOG.error("count < 0");
+			return -1;
+			}
+		VCFIterator in = null;
+		VariantContextWriter w = null;
+		try {
+			in = super.openVCFIterator(oneFileOrNull(args));
+			final VCFHeader header = in.getHeader();
+
+			w  = this.writingVariantsDelegate.dictionary(header).open(this.output);
 			
-			public void setCount(long count) {
-				this.count = count;
-				}
+			final LinkedList<VariantContext> buffer=new LinkedList<VariantContext>();
 			
-			public void setByContig(boolean by_contig) {
-				this.by_contig = by_contig;
-				}
-			
-			private class CtxWriter extends DelegateVariantContextWriter
+			JVarkitVersion.getInstance().addMetaData(this, header);
+			String prev_contig=null;
+			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			w.writeHeader(header);
+			while(in.hasNext())
 				{
-				private String prev_contig=null;
-				private final LinkedList<VariantContext> buffer=new LinkedList<VariantContext>();
-
-				private void dump()
+				final VariantContext ctx = progress.apply(in.next());
+				if(this.by_contig &&
+						(prev_contig==null || !prev_contig.equals(ctx.getContig())))
 					{
-					for(final VariantContext ctx:this.buffer) 
-						{
-						super.add(ctx);
-						}
-					this.buffer.clear();
+					for(final VariantContext v2:buffer) w.add(v2);
+					buffer.clear();
+					prev_contig = ctx.getContig();
 					}
-				
-				CtxWriter(final VariantContextWriter delegate) {
-					super(delegate);
-					}
-				@Override
-				public void writeHeader(final VCFHeader header) {
-					super.writeHeader(header);
-					}
-				
-				@Override
-				public void add(final VariantContext ctx) {
-					if(CtxWriterFactory.this.by_contig &&
-							(this.prev_contig==null || !this.prev_contig.equals(ctx.getContig())))
-						{
-						dump();
-						this.prev_contig = ctx.getContig();
-						}
-					this.buffer.add(ctx);
-					if(buffer.size() > CtxWriterFactory.this.count)
-						{
-						this.buffer.removeFirst();
-						}
-					}
-				
-				@Override
-				public void close() {
-					dump();
-					super.close();
+				buffer.add(ctx);
+				if(buffer.size() > this.count)
+					{
+					buffer.removeFirst();
 					}
 				}
-
-			@Override
-			public VariantContextWriter open(final VariantContextWriter delegate) {
-				return new CtxWriter(delegate);
-				}
-			
-			
+			for(final VariantContext v2:buffer) w.add(v2);
+			progress.close();
+			w.close();w=null;
+			in.close();in=null;
+			return 0;
+		} catch (final Throwable err) {
+			LOG.error(err);
+			return -1;
+		} finally
+			{
+			CloserUtil.close(in);
+			CloserUtil.close(w);
+			}
 		}
-	
-		
-		
-		public VcfTail()
-			{
-			}
-		
-		@Override
-		protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-			return new PostponedVariantContextWriter(writingVcfArgs,stdout(),outorNull);
-			}
-		
-		@Override
-		protected int doVcfToVcf(
-				final String inputName, 
-				final VCFIterator in,
-				final VariantContextWriter delegate) {
-	
-			try
-				{
-				final VariantContextWriter out  = this.component.open(delegate);
-				out.writeHeader(in.getHeader());
-				
-				final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
-				while(in.hasNext())
-					{
-					out.add(progress.apply(in.next()));
-					}
-				progress.close();
-				out.close();
-				return 0;
-				}
-			catch(final Exception err)
-				{
-				LOG.error(err);
-				return -1;
-				}
-			}
-		
-		@Override
-		public int doWork(final List<String> args) {
-			return doVcfToVcf(args,output);
-			}
 		
 	
 		public static void main(final String[] args)

@@ -11,26 +11,25 @@ print the last variants of a vcf
 Usage: vcftail [options] Files
   Options:
     -c, --bycontig
-      number of variants
+      Print first variant for each contig; Implies VCF is sorted
       Default: false
-    -n, --count
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is: 2.1 (last checked 2019-11-15)
+      Default: false
+    -n, -N, --count
       number of variants
       Default: 10
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
-    --outputbcf
-      Output bcf (for streams)
-      Default: false
-    --vcfcreateindex
-      VCF, create tribble or tabix Index when writing a VCF/BCF to a file.
-      Default: false
-    --vcfmd5
-      VCF, create MD5 checksum when writing a VCF/BCF to a file.
-      Default: false
     --version
       print version and exit
 
@@ -58,6 +57,11 @@ $ ./gradlew vcftail
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20131210
 
 ## Source code 
 

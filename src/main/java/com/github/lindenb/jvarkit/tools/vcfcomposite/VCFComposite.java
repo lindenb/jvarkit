@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.tools.vcfcomposite;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -79,6 +78,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 /*
 BEGIN_DOC
 
@@ -214,7 +214,7 @@ public class VCFComposite extends Launcher {
 	@Parameter(names={"-p","-ped","--pedigree"},description=PedigreeParser.OPT_DESC,required=true)
 	private Path pedigreeFile=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantJexl = JexlVariantPredicate.create("");
 	@Parameter(names={"-gf","--genotype-filter"},description=JexlGenotypePredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
@@ -249,6 +249,8 @@ public class VCFComposite extends Launcher {
 	//private boolean listModels=false;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 	
 	private AbstractVCFCodec vcfDecoder = null;
@@ -962,7 +964,7 @@ public class VCFComposite extends Launcher {
 			}
 		
 		try {
-			return doVcfToVcf(args, this.outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
 		catch(final Exception err)
 			{

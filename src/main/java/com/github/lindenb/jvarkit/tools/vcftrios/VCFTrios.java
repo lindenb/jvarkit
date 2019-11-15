@@ -25,7 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcftrios;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,12 +33,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.pedigree.Trio;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.StringUtil;
@@ -127,7 +133,9 @@ END_DOC
 @Program(
 		name="vcftrio",
 		description="Find mendelian incompatibilitie / denovo variants in a VCF",
-		keywords={"vcf","mendelian","pedigree","denovo"}
+		keywords={"vcf","mendelian","pedigree","denovo"},
+		creationDate="20130705",
+		modificationDate="20191115"
 		)
 public class VCFTrios
 	extends Launcher
@@ -135,9 +143,9 @@ public class VCFTrios
 	private static final  Logger LOG = Logger.build(VCFTrios.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+Pedigree.OPT_DESCRIPTION)
-	private File pedigreeFile = null;
+	private Path outputFile = null;
+	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+PedigreeParser.OPT_DESC,required=true)
+	private Path pedigreeFile = null;
 	@Parameter(names={"-fo","--filter-out","--filter-no-denovo"},description="FILTER name if there is NO mendelian violation.")
 	private String filterNoIncompat = null;
 	@Parameter(names={"-fi","--filter-in"},description="FILTER name if there is ANY mendelian violation.")
@@ -150,8 +158,10 @@ public class VCFTrios
 	private boolean discard_variants_without_mendelian_incompat=false;	
 	@Parameter(names={"-hr","--hom-ref"},description="[20180705] treat NO_CALL genotypes as HOM_REF (when individual VCF/Sample have been merged).")
 	private boolean nocall_to_homref = false;
-		
-	private static class Trio
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+	
+	private static class TrioTriple
 		{
 		int father_id = -1;
 		int mother_id = -1;
@@ -163,21 +173,16 @@ public class VCFTrios
 		long count_incompats=0L;
 		final Set<String> sampleNotFoundInVcf = new HashSet<>();
 		Pedigree pedigree=null;
-		final List<Trio> trios = new ArrayList<>();
+		final List<TrioTriple> trios = new ArrayList<>();
 		
 		try		{
 				final DeNovoDetector detector = new DeNovoDetector();
 				detector.setConvertingNoCallToHomRef(this.nocall_to_homref);
 				
 				final VCFHeader header = r.getHeader(); 
-				if(this.pedigreeFile!=null) {
-					LOG.info("reading pedigree "+this.pedigreeFile);
-					pedigree = Pedigree.newParser().parse(this.pedigreeFile);
-					}
-				else
-					{
-					pedigree = Pedigree.newParser().parse(header);
-					}
+				final PedigreeParser pedParser = new PedigreeParser();
+				pedigree =  pedParser.parse(this.pedigreeFile);
+				
 				final VCFHeader h2=new VCFHeader(header);
 				final Set<VCFHeaderLine> meta = new HashSet<>();
 				meta.add(new VCFInfoHeaderLine(
@@ -203,32 +208,25 @@ public class VCFTrios
 				JVarkitVersion.getInstance().addMetaData(this, h2);
 				
 				
-				for(final String sampleName:h2.getSampleNamesInOrder())
+				
+				for(final Trio pedTrio: pedigree.getTrios())
 					{
-					if(pedigree==null) continue;
-					final Pedigree.Person p= pedigree.getUniqPersonById(sampleName);
-					if(p==null)
-						{
-						sampleNotFoundInVcf.add(sampleName);
-						LOG.info("Cannot find "+sampleName+" in "+pedigreeFile);
+					final TrioTriple trio = new TrioTriple();
+					final Sample child = pedTrio.getChild();
+					trio.child_id = header.getSampleNameToOffset().getOrDefault(child.getId(),-1);
+					if(trio.child_id<0) continue;
+					if(pedTrio.hasFather()) {
+						final Sample parent = pedTrio.getFather();
+						trio.father_id = header.getSampleNameToOffset().getOrDefault(parent.getId(),-1);
 						}
-					else
-						{
-						final Trio trio = new Trio();
-						trio.child_id = header.getSampleNameToOffset().getOrDefault(sampleName,-1);
-						if(trio.child_id<0) throw new IllegalStateException(sampleName);
-						if(p.hasFather()) {
-							final Pedigree.Person parent = p.getFather();
-							trio.father_id = header.getSampleNameToOffset().getOrDefault(parent.getId(),-1);
-							}
-						if(p.hasMother()) {
-							final Pedigree.Person parent = p.getMother();
-							trio.mother_id = header.getSampleNameToOffset().getOrDefault(parent.getId(),-1);
-							}
-						if(!(trio.father_id==-1 && trio.mother_id==-1)) {
-							trios.add(trio);
-							}
+					if(pedTrio.hasMother()) {
+						final Sample parent = pedTrio.getMother();
+						trio.mother_id = header.getSampleNameToOffset().getOrDefault(parent.getId(),-1);
 						}
+					if(trio.father_id==-1 && trio.mother_id==-1) {
+						continue;
+						}
+					trios.add(trio);
 					}
 			
 				LOG.info("trios(s) in pedigree: "+trios.size());
@@ -245,7 +243,7 @@ public class VCFTrios
 					final Set<String> incompatibilities = new HashSet<String>();
 					
 					
-					for(final Trio trio : trios)
+					for(final TrioTriple trio : trios)
 						{
 						final Genotype gChild = ctx.getGenotype(trio.child_id);
 						if(gChild==null) throw new IllegalStateException();
@@ -315,7 +313,7 @@ public class VCFTrios
 					}
 				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
@@ -334,7 +332,7 @@ public class VCFTrios
 			LOG.error("Filters no/any incompatibilities both defined.");
 			return -1;
 			}
-		return doVcfToVcf(args, this.outputFile);
+		return doVcfToVcfPath(args,this.writingVariantsDelegate, this.outputFile);
 		}
 	
 	

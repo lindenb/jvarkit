@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.CmdUsageBuilder;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -554,6 +555,9 @@ protected int doVcfToVcf(final String inputName,final VCFIterator iterin,final V
 	VCFUtils.copyHeaderAndVariantsTo(iterin, out);
 	return 0;
 	}
+
+
+
 protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
 	VCFIterator iterin=null;
 	VariantContextWriter w=null;
@@ -579,8 +583,39 @@ protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
 		}
 	}
 
+
+protected int doVcfToVcfPath(final String inputNameOrNull,final WritingVariantsDelegate delegate,final Path outorNull){
+	VCFIterator iterin=null;
+	VariantContextWriter w=null;
+	try {
+		iterin = openVCFIterator(inputNameOrNull);
+		w = delegate.dictionary(iterin.getHeader()).open(outorNull);
+		int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
+		w.close();
+		w=null;
+		iterin.close();
+		iterin=null;
+		return ret;
+		}
+	catch(final Exception err)
+		{
+		LOG.error(err);
+		return -1;
+		}
+	finally
+		{
+		CloserUtil.close(iterin);
+		CloserUtil.close(w);
+		}
+	}
+
+
 protected int doVcfToVcf(final List<String> inputs,final File outorNull) {
 	return doVcfToVcf(oneFileOrNull(inputs),outorNull);
+	}
+
+protected int doVcfToVcfPath(final List<String> inputs,final WritingVariantsDelegate delegate, Path outorNull) {
+	return doVcfToVcfPath(oneFileOrNull(inputs),delegate, outorNull);
 	}
 
 

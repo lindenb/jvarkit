@@ -13,6 +13,11 @@ Usage: vcftrio [options] Files
     -A, --attribute
       INFO Attribute name containing the name of the affected samples.
       Default: MENDEL
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is: 2.1 (last checked 2019-11-15)
+      Default: false
     -d, --dicard
       Discard the variant if there is NO mendelian violation.
       Default: false
@@ -20,6 +25,9 @@ Usage: vcftrio [options] Files
       FILTER name if there is ANY mendelian violation.
     -fo, --filter-out, --filter-no-denovo
       FILTER name if there is NO mendelian violation.
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -gtf, --gtfilter
       GENOTYPE FILTER name. Create a filter in the GENOTYPE column when there 
       is NO mendelian violation
@@ -33,11 +41,10 @@ Usage: vcftrio [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -p, --ped, --pedigree
-      Pedigree file. A pedigree is a text file delimited with tabs. No header. 
-      Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
-      Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
-      unaffected, 1 affected,-9 unknown
+  * -p, --ped, --pedigree
+      Pedigree file. A pedigree file. sex:(0:unknown;1:male;2:female), 
+      phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --version
       print version and exit
 
@@ -68,6 +75,11 @@ $ ./gradlew vcftrio
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20130705
 
 ## Source code 
 

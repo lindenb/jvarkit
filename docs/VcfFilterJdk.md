@@ -10,12 +10,17 @@ Filtering VCF with dynamically-compiled java expressions
 ```
 Usage: vcffilterjdk [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is: 2.1 (last checked 2019-11-15)
+      Default: false
     --body
       user's code is the whole body of the filter class, not just the 'apply' 
       method. 
       Default: false
     -e, --expression
-       (java expression). Optional.
+      The java code expression.
     -xf, --extra-filters
       [20180716] extra FILTERs names that will be added in the VCF header and 
       that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- 
@@ -25,6 +30,9 @@ Usage: vcffilterjdk [options] Files
       If not empty, variants won't be discarded and this name will be used in 
       the FILTER column
       Default: <empty string>
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -42,7 +50,7 @@ Usage: vcffilterjdk [options] Files
     --saveCodeInDir
       Save the generated java code in the following directory
     -f, --script
-       (java file). Optional.
+      The java source code file.
     -vn, --variable
       [20180716] how to name the VariantContext in the code. htsjdk/gatk often 
       use 'vc'.
@@ -106,9 +114,18 @@ $ ./gradlew vcffilterjdk
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20170705
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdk.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdkTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcffilterjs/VcfFilterJdkTest.java)
 
 
 ## Contribute

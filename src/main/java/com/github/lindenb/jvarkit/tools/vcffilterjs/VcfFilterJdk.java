@@ -25,10 +25,12 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcffilterjs;
 
 
-import java.io.File;
+import java.io.BufferedWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -43,6 +45,7 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -50,6 +53,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -67,6 +71,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
@@ -414,7 +419,8 @@ END_DOC
 				347173,351205,351404,354126,302217,384864
 				},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
-		modificationDate="20190222"
+		creationDate="20170705",
+		modificationDate="20191115"
 		)
 public class VcfFilterJdk
 	extends Launcher
@@ -424,16 +430,16 @@ public class VcfFilterJdk
 	private static final Counter<?> _fool_javac=null;
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	
 	@Parameter(names={"-F","--filter"},description="If not empty, variants won't be discarded and this name will be used in the FILTER column")
 	private String filteredTag = "";
 	
-	@Parameter(names={"-e","--expression"},description=" (java expression). Optional.")
+	@Parameter(names={"-e","--expression"},description="The java code expression.")
 	private String scriptExpr=null;
 	
-	@Parameter(names={"-f","--script"},description=" (java file). Optional.")
-	private File scriptFile=null;
+	@Parameter(names={"-f","--script"},description="The java source code file.")
+	private Path scriptPath=null;
 	
 	@Parameter(names={"--nocode"},description=" Don't show the generated code")
 	private boolean hideGeneratedCode=false;
@@ -442,7 +448,7 @@ public class VcfFilterJdk
 	private boolean user_code_is_body=false;
 	
 	@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
-	private File saveCodeInDir=null;
+	private Path saveCodeInDir=null;
 	
 	@Parameter(names={"-vn","--variable"},description="[20180716] how to name the VariantContext in the code. htsjdk/gatk often use 'vc'.")
 	private String variantVariable="variant";
@@ -453,18 +459,8 @@ public class VcfFilterJdk
 	@Parameter(names={"-xf","--extra-filters"},description="[20180716] extra FILTERs names that will be added in the VCF header and that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- . Multiple separated by space/comma")
 	private String extraFilters = "";
 
-			
-			
-				
-				
-				
-				
-				
-				public void add(final VariantContext variation) {
-					}
-				
-				
-			
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 			
 			
 			
@@ -511,9 +507,7 @@ public class VcfFilterJdk
 		}
 	
 	
-	@Override
-	protected int doVcfToVcf(
-			final String inputName,
+	private int run(
 			final VCFIterator iter,
 			final VariantContextWriter out
 			)
@@ -523,9 +517,9 @@ public class VcfFilterJdk
 		
 		try {
 			
-			if(this.scriptFile!=null)
+			if(this.scriptPath!=null)
 				{
-				code = IOUtil.slurp(this.scriptFile);
+				code = IOUtils.slurpPath(this.scriptPath);
 				}
 			else
 				{
@@ -578,11 +572,11 @@ public class VcfFilterJdk
 			
 			if(this.saveCodeInDir!=null)
 				{
-				PrintWriter cw=null;
+				BufferedWriter cw=null;
 				try 
 					{
 					IOUtil.assertDirectoryIsWritable(this.saveCodeInDir);
-					cw = new PrintWriter(new File(this.saveCodeInDir,javaClassName+".java"));
+					cw = Files.newBufferedWriter(this.saveCodeInDir.resolve(javaClassName+".java"));
 					cw.write(codeWriter.toString());
 					cw.flush();
 					cw.close();
@@ -759,7 +753,6 @@ public class VcfFilterJdk
 				}
 			progress.close();
 			progress = null;
-			out.close();
 			return 0;
 			}
 		catch(final Throwable err) {
@@ -775,18 +768,35 @@ public class VcfFilterJdk
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.scriptFile!=null && !StringUtil.isBlank(this.scriptExpr))
+		if(this.scriptPath!=null && !StringUtil.isBlank(this.scriptExpr))
 			{
 			LOG.error("script file and expression both defined");
 			return -1;
 			}
 	
-		if(this.scriptFile==null && StringUtil.isBlank(this.scriptExpr))
+		if(this.scriptPath==null && StringUtil.isBlank(this.scriptExpr))
 			{
 			LOG.error("script file or expression missing");
 			return -1;
 			}	
-		return doVcfToVcf(args, this.outputFile);
+		VCFIterator in = null;
+		VariantContextWriter w = null;
+		try {
+			in = super.openVCFIterator(oneFileOrNull(args));
+			w  = this.writingVariantsDelegate.dictionary( in.getHeader()).open(this.outputFile);
+			final int err= run(in,w);
+			in.close();in=null;
+			w.close();w=null;
+			return err ;
+			}
+		catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally {
+			CloserUtil.close(in);
+			CloserUtil.close(w);
+			}
 		}
 
 	public static void main(final String[] args) throws Exception

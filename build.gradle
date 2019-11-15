@@ -2018,13 +2018,13 @@ all.add( task("vcfstripannot", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	});
-all.add( task("vcftabixml", type: CompileJVarkit) {
+all2.add( task("vcftabixml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcftabixml.VCFTabixml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	});
 all.add( task("vcftail", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfTail"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcffamilies", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies"

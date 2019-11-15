@@ -37,6 +37,12 @@ public class WritingVariantsDelegate {
 private SAMSequenceDictionary dict;
 @Parameter(names= {"--generate-vcf-md5"},description="Generate MD5 checksum for VCF output.")
 private boolean generate_md5 = false;
+@Parameter(names= {"--bcf-output"},description="If this program writes a VCF to a file, "+
+		"The format is first guessed from the file suffix. Otherwise, force BCF output. "
+		+ "The current supported BCF version is: 2.1 (last checked 2019-11-15)"
+		)
+private boolean force_bcf_output = false;
+
 
 public WritingVariantsDelegate dictionary(final VCFHeader header) {
 	return dictionary(header==null?null:header.getSequenceDictionary());
@@ -56,13 +62,22 @@ public VariantContextWriter open(final Path pathOrNull) {
 	
 	if(pathOrNull!=null) {
 		vcwb.setCreateMD5(this.generate_md5);
+		// output type : Determines file type implicitly from the filename.
 		vcwb.setOutputPath(pathOrNull);
 		}
 	else
 		{
 		vcwb.setCreateMD5(false);
-		vcwb.setOutputStream(System.out);
+		if(this.force_bcf_output) {
+			vcwb.setOutputBCFStream(System.out);
+			}
+		else
+			{
+			vcwb.setOutputVCFStream(System.out);
+			}
 		}
+	
+	
 	return vcwb.build();
 	}
 }

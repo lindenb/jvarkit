@@ -852,4 +852,13 @@ public class IOUtils {
 			throw new RuntimeIOException(err);
 			}
 		}
+	/** read all path content into string */
+	public static String slurpPath(final Path p) {
+		IOUtil.assertFileIsReadable(p);
+		try {
+			return new String(Files.readAllBytes(p));
+		} catch (final IOException e) {
+			throw new RuntimeIOException("Cannot read content of "+p, e);
+			}
+		}
 	}
