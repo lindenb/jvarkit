@@ -783,7 +783,7 @@ def all2=new ArrayList<>();
 
 all.add( task("vcffilterso", type: CompileJVarkit) {
 		mainClass = 'com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology'
-		jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+		jarLibs = combineLibs("htsjdk","testng","jcommander")
 		});
 all2.add( task("biostar105754", type: CompileJVarkit) {
 		mainClass = biostar2java(105754)

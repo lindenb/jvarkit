@@ -333,7 +333,14 @@ public class TestSupport {
 			sr.close();
 			return n;
 			}
-		
+		else if(f.getFileName().toString().endsWith(".vcf") || f.getFileName().toString().endsWith(".vcf.gz")) {
+			final VCFFileReader sr = new VCFFileReader(f,false);
+			final CloseableIterator<VariantContext> iter =sr.iterator();
+			final long n= iter.stream().count();
+			iter.close();
+			sr.close();
+			return n;
+			}
 		final BufferedReader br = IOUtils.openPathForBufferedReading(f);
 		final long n=br.lines().count();
 		br.close();

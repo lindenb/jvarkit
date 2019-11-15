@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.<
+Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.
 
 
 ## Usage
@@ -22,11 +22,12 @@ Usage: vcffilterso [options] Files
     -fi, --filterin
       Do not discard variant but add this FILTER its' prediction is found in 
       the database
-      Default: <empty string>
     -fo, --filterout
       Do not discard variant but add this FILTER its' prediction is NOT found 
       in the database
-      Default: <empty string>
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -93,9 +94,18 @@ $ ./gradlew vcffilterso
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20170331
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterso/VcfFilterSequenceOntology.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcffilterso/VcfFilterSequenceOntology.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcffilterso/VcfFilterSequenceOntologyTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcffilterso/VcfFilterSequenceOntologyTest.java)
 
 
 ## Contribute
@@ -181,10 +191,5 @@ SO:0001599	3D_polypeptide_structure_variant
  * GroupByGene
  * VCFPredictions
  * http://www.sequenceontology.org/browser/obob.cgi
-
-## History
-
- * 2018-02-07 refactored a large part of the code
- * 2017 moved to jcommander
 
 
