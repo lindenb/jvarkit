@@ -1942,6 +1942,10 @@ all.add( task("vcfgenesplitter", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfGeneSplitter"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all.add( task("vcfgtfsplitter", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfGtfSplitter"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("vcfwindowsplitter", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfSlidingWindowSplitter"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
