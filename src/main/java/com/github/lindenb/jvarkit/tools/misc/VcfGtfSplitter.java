@@ -149,8 +149,8 @@ public class VcfGtfSplitter
 	private boolean use_bcf= false;
 	@Parameter(names={"--index"},description="index files")
 	private boolean index_vcf= false;
-	@Parameter(names={"--features"},description="Features to keep. Comma separated. a set of 'cds,exon,intron,transcript,utr,stop,start'")
-	private String featuresString = "cds,exon,intron,transcript,utr,stop,start";
+	@Parameter(names={"--features"},description="Features to keep. Comma separated. a set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start'")
+	private String featuresString = "cds,exon,intron,transcript,utr5,utr3,stop,start";
 
 
 	
@@ -159,7 +159,8 @@ public class VcfGtfSplitter
 	private boolean use_exon = false;
 	private boolean use_stop = false;
 	private boolean use_start = false;
-	private boolean use_utr = false;
+	private boolean use_utr5 = false;
+	private boolean use_utr3 = false;
 
 	
 	private abstract class AbstractSplitter
@@ -253,7 +254,14 @@ public class VcfGtfSplitter
 		if(this.use_exon && transcript.hasExon() && transcript.getExons().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		if(this.use_intron && transcript.hasIntron() && transcript.getIntrons().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		if(this.use_cds && transcript.hasCDS() && transcript.getAllCds().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
-		if(this.use_utr && transcript.hasUTR() && transcript.getUTRs().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
+		if(this.use_utr5) {
+			if(transcript.isPositiveStrand() && transcript.getUTR5().isPresent() && transcript.getUTR5().get().overlaps(ctx)) return true;
+			if(transcript.isNegativeStrand() && transcript.getUTR3().isPresent() && transcript.getUTR3().get().overlaps(ctx)) return true;
+			}
+		if(this.use_utr3) {
+			if(transcript.isPositiveStrand() && transcript.getUTR3().isPresent() && transcript.getUTR3().get().overlaps(ctx)) return true;
+			if(transcript.isNegativeStrand() && transcript.getUTR5().isPresent() && transcript.getUTR5().get().overlaps(ctx)) return true;
+			}
 		if(this.use_stop && transcript.hasCodonStopDefined() && transcript.getCodonStop().get().getBlocks().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		if(this.use_start && transcript.hasCodonStartDefined() && transcript.getCodonStart().get().getBlocks().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		
@@ -368,7 +376,9 @@ public class VcfGtfSplitter
 				else if(s.equals("stop")) { use_stop = true; }
 				else if(s.equals("start")) { use_start = true; }
 				else if(s.equals("transcript")) { use_exon = true; use_intron = true; }
-				else if(s.equals("utr")) { use_utr= true;}
+				else if(s.equals("utr5")) { use_utr5= true;}
+				else if(s.equals("utr3")) { use_utr3= true;}
+				else if(s.equals("utr")) { use_utr3= true;use_utr5= true;}
 				else {
 					LOG.error("unknown code "+s+" in "+this.featuresString);
 					return -1;

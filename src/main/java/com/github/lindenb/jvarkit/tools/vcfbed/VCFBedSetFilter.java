@@ -89,7 +89,8 @@ END_DOC
 @Program(name="vcfbedsetfilter",
 	description="Set FILTER for VCF if intersects with BED.",
 	keywords={"vcf","bed","filter"},
-	modificationDate="20191104"
+	modificationDate="20191119",
+	creationDate="20150415"
 	)
 public class VCFBedSetFilter extends Launcher
 	{
@@ -104,12 +105,11 @@ public class VCFBedSetFilter extends Launcher
 			+ "If `--filter` is empty, FILTERED variant will be discarded.")
 	private String filterName = "VCFBED";
 
-	@Parameter(names={"-i","--inverse"},description="Inverse selection. "
-			+ "FILTER will be **set** for a Variant overlaping **NO** bed record. Variant overlapping any bed record remains unfiltered.")
-	private boolean inverse = false;
 
-	@Parameter(names={"-B","--bed","-m","--map","--exclude","--blacklist"},description="Tribble or Tabix bed file containing the regions to be FILTERED. Must be indexed with tribble or tabix, or use '--fast' to load in memory.", required=true)
-	private File tabixFile = null;
+	@Parameter(names={"--exclude","--blacklist"},description="Tribble or Tabix bed file containing the regions to be FILTERED. Must be indexed with tribble or tabix, or use '--fast' to load in memory.")
+	private File tabixExcludeFile = null;
+	@Parameter(names={"--include","--whitelist"},description="Tribble or Tabix bed file containing the regions to be FILTERED. Must be indexed with tribble or tabix, or use '--fast' to load in memory.")
+	private File tabixIncludeFile = null;
 
 	@Parameter(names={"--fast","--memory"},description="Load the bed in memory: faster than tribble/tabix but memory consumming)")
 	private boolean useInMemory = false;

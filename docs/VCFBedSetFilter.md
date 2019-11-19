@@ -10,7 +10,12 @@ Set FILTER for VCF if intersects with BED.
 ```
 Usage: vcfbedsetfilter [options] Files
   Options:
-  * -B, --bed, -m, --map
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is: 2.1 (last checked 2019-11-15)
+      Default: false
+  * -B, --bed, -m, --map, --exclude, --blacklist
       Tribble or Tabix bed file containing the regions to be FILTERED. Must be 
       indexed with tribble or tabix, or use '--fast' to load in memory.
     -x, --extend
