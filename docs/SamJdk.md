@@ -43,6 +43,9 @@ Usage: samjdk [options] Files
       SortSam (not `samtools sort` 
       https://github.com/samtools/hts-specs/issues/5 ).
       Default: false
+    -R, --reference
+      For reading CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -91,6 +94,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/362298](https://www.biostars.org/p/362298)
  * [https://www.biostars.org/p/368754](https://www.biostars.org/p/368754)
  * [https://www.biostars.org/p/378205](https://www.biostars.org/p/378205)
+ * [https://www.biostars.org/p/408279](https://www.biostars.org/p/408279)
 
 
 ## Compilation
@@ -109,6 +113,11 @@ $ ./gradlew samjdk
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20170807
 
 ## Source code 
 

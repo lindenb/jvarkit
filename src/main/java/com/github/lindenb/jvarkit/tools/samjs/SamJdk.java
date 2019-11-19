@@ -24,10 +24,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.samjs;
 
-import java.io.File;
+import java.io.BufferedWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,6 +43,7 @@ import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -54,7 +57,9 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Iso8601Date;
@@ -373,8 +378,11 @@ END_DOC
 	keywords={"sam","bam","java","jdk","filter"},
 	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,
 		287057,299673,301080,305526,306034,309143,327317,335998,
-                336965,340479,342675,345679,362298,368754,378205},
-	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
+                336965,340479,342675,345679,362298,368754,378205,
+                408279},
+	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
+	creationDate="20170807",
+	modificationDate="20191119"
 	)
 public class SamJdk
 	extends Launcher
@@ -382,9 +390,9 @@ public class SamJdk
 	private static final Logger LOG = Logger.build(SamJdk.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-X","--fail"},description="Save dicarded reads in that file")
-	private File failingReadsFile = null;
+	private Path failingReadsFile = null;
 	@Parameter(names={"-N","--limit"},description="limit to 'N' records (for debugging).")
 	private long LIMIT = -1L ;
 	@ParametersDelegate
@@ -392,7 +400,7 @@ public class SamJdk
 	@Parameter(names={"-e","--expression"},description="java expression")
 	private String scriptExpr=null;
 	@Parameter(names={"-f","--file"},description="java file. Either option -e or -f is required.")
-	private File scriptFile =null;
+	private Path scriptPath =null;
 	
 	private SAMFileWriter failingReadsWriter=null;
 	
@@ -401,13 +409,15 @@ public class SamJdk
 	@Parameter(names={"--body"},description="user's code is the whole body of the filter class, not just the 'apply' method.")
 	private boolean user_code_is_body=false;
 	@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
-	private File saveCodeInDir=null;
+	private Path saveCodeInDir=null;
 	@Parameter(names={"--pair"},description=
 			"[20171110] PAIR-MODE ."
 			+ "The signature of java function is `public Object apply(final List<SAMRecord> records)`. "
 			+ "This function must return `true` to accept the whole list, `false` to reject eveything, or another `List<SAMRecord>`."
 			+ "Input MUST be sorted on query name using picard SortSam (not `samtools sort` https://github.com/samtools/hts-specs/issues/5 ). ")
 	private boolean pair_mode=false;
+	@Parameter(names={"-R","--reference"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refFaidx =null;
 
 	
 	public static abstract class AbstractBaseFilter<T>
@@ -461,7 +471,7 @@ public class SamJdk
 			{
 			LOG.info("Writing failings to "+ this.failingReadsFile);
 			final SAMFileHeader h2= h.clone();
-			this.failingReadsWriter=this.writingBamArgs.openSAMFileWriter(failingReadsFile, h2,true);
+			this.failingReadsWriter=this.writingBamArgs.setReferencePath(this.refFaidx).openSamWriter(this.failingReadsFile, h2,true);
 			}
 		}
 
@@ -480,10 +490,13 @@ public class SamJdk
 		try
 			{
 			final String code;
-			
-			if(this.scriptFile!=null)
+			if(this.scriptPath!=null && !StringUtil.isBlank(this.scriptExpr)) {
+				LOG.error("Option -e or -f are both defined.");
+				return -1;
+				}
+			else if(this.scriptPath!=null)
 				{
-				code = IOUtil.slurp(this.scriptFile);
+				code = IOUtils.slurpPath(this.scriptPath);
 				}
 			else if(!StringUtil.isBlank(this.scriptExpr))
 				{
@@ -542,11 +555,11 @@ public class SamJdk
 			
 			if(this.saveCodeInDir!=null)
 				{
-				PrintWriter cw=null;
+				BufferedWriter cw=null;
 				try 
 					{
 					IOUtil.assertDirectoryIsWritable(this.saveCodeInDir);
-					cw = new PrintWriter(new File(this.saveCodeInDir,javaClassName+".java"));
+					cw = Files.newBufferedWriter(this.saveCodeInDir.resolve(javaClassName+".java"));
 					cw.write(codeWriter.toString());
 					cw.flush();
 					cw.close();
@@ -569,8 +582,16 @@ public class SamJdk
 			
 			final Constructor<?> ctor=compiledClass.getDeclaredConstructor(SAMFileHeader.class);
 			
+			final String input = oneFileOrNull(args);
+			final SamReaderFactory srf= this.createSamReaderFactory();
+			if(this.refFaidx!=null) srf.referenceSequence(this.refFaidx);
 			
-			samFileReader= openSamReader(oneFileOrNull(args));
+			if(input==null) {
+				samFileReader = srf.open(SamInputResource.of(stdin()));
+			} else
+				{
+				samFileReader = srf.open(SamInputResource.of(input));
+				}
 			final SAMFileHeader header=samFileReader.getFileHeader();
 			if(this.pair_mode)
 				{
@@ -590,7 +611,7 @@ public class SamJdk
 			
 			long count=0L;
 	        final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
-	        sw = this.writingBamArgs.openSAMFileWriter(this.outputFile,header, true);
+	        sw = this.writingBamArgs.setReferencePath(this.refFaidx).openSamWriter(this.outputFile,header, true);
 	        iter = samFileReader.iterator();
 	        
 	        

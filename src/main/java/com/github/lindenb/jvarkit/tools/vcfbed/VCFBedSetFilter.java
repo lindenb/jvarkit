@@ -100,16 +100,13 @@ public class VCFBedSetFilter extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
-	@Parameter(names={"-f","--filter"},description="FILTER name. "
-			+ "Filter is **set** if the variant overlaps any BED region, unless `--inverse` is set. "
-			+ "If `--filter` is empty, FILTERED variant will be discarded.")
+	@Parameter(names={"-f","--filter"},description="FILTER name. If `--filter` is empty, FILTERED variant will be discarded.")
 	private String filterName = "VCFBED";
 
-
-	@Parameter(names={"--exclude","--blacklist"},description="Tribble or Tabix bed file containing the regions to be FILTERED. Must be indexed with tribble or tabix, or use '--fast' to load in memory.")
-	private File tabixExcludeFile = null;
-	@Parameter(names={"--include","--whitelist"},description="Tribble or Tabix bed file containing the regions to be FILTERED. Must be indexed with tribble or tabix, or use '--fast' to load in memory.")
-	private File tabixIncludeFile = null;
+	@Parameter(names={"-e","--exclude","--blacklist"},description="Tribble or Tabix bed file containing the regions to be FILTERED. Must be indexed with tribble or tabix, or use '--fast' to load in memory.")
+	private File tabixBlackFile = null;
+	@Parameter(names={"-i","--include","--whitelist"},description="Tribble or Tabix bed file containing the regions to be accepted. Regions NOT overlapping those regions will be FILTERED. Must be indexed with tribble or tabix, or use '--fast' to load in memory.")
+	private File tabixWhiteFile = null;
 
 	@Parameter(names={"--fast","--memory"},description="Load the bed in memory: faster than tribble/tabix but memory consumming)")
 	private boolean useInMemory = false;
@@ -161,17 +158,23 @@ public class VCFBedSetFilter extends Launcher
 		VCFIterator r = null;
 		try
 			{
-			if(this.tabixFile==null)
-				{
-				LOG.error("Undefined tabix or memory file");
+			if(this.tabixBlackFile==null && this.tabixWhiteFile==null) {
+				LOG.error("include / exclude file are both undefined");
 				return -1;
-				}
+			}
+			if(this.tabixBlackFile!=null && this.tabixWhiteFile!=null) {
+				LOG.error("include / exclude file are both defined");
+				return -1;
+			}
+			
+			final File tabixFile = (this.tabixBlackFile==null?this.tabixWhiteFile:this.tabixBlackFile);
+			
 			
 			if(this.useInMemory) {
 				this.intervalTreeMap  = new IntervalTreeMap<>();
 				final BedLineCodec bedCodec=new BedLineCodec();
 
-				try(BufferedReader br= IOUtils.openFileForBufferedReading(this.tabixFile)) {
+				try(BufferedReader br= IOUtils.openFileForBufferedReading(tabixFile)) {
 					br.lines().
 						filter(line->!StringUtil.isBlank(line)).
 						filter(line->!BedLine.isBedHeader(line)).
@@ -184,10 +187,9 @@ public class VCFBedSetFilter extends Launcher
 				}
 			else 
 				{
-				this.bedReader= new IndexedBedReader(this.tabixFile);
+				this.bedReader= new IndexedBedReader(tabixFile);
 				}
 			r = openVCFIterator(oneFileOrNull(args));
-			
 			final Set<String> contigs_not_found = new HashSet<>();
 			final VCFHeader h2=new VCFHeader(r.getHeader());
 						
@@ -197,9 +199,8 @@ public class VCFBedSetFilter extends Launcher
 				filter = new VCFFilterHeaderLine(
 					this.filterName,
 					"Variant "+
-					(this.inverse?" NOT  ":"")+
-					"overlapping any bed record of "+
-					this.tabixFile
+					(this.tabixBlackFile!=null?" overlapping any bed record of ":" that do not overlap any bed record of ")+
+					tabixFile
 					);
 				h2.addMetaDataLine(filter);
 				}
@@ -285,8 +286,8 @@ public class VCFBedSetFilter extends Launcher
 						}
 					}
 				
-				
-				if(this.inverse) {
+				/* variant is in whitelist, we want to keep it */
+				if(this.tabixWhiteFile!=null) {
 					set_filter=!set_filter;
 					if(debug) LOG.warn("inverse. Now Filter="+set_filter+" for "+ctx.getContig()+":"+ctx.getStart() );
 

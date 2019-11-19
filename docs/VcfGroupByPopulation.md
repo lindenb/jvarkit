@@ -10,6 +10,14 @@ Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population
 ```
 Usage: vcfgroupbypop [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is: 2.1 (last checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -22,6 +30,14 @@ Usage: vcfgroupbypop [options] Files
       mapping file: each line is (SAMPLE)\t(POP)\n
 
 ```
+
+
+## Keywords
+
+ * vcf
+ * pedigree
+ * population
+
 
 ## Compilation
 
@@ -39,6 +55,11 @@ $ ./gradlew vcfgroupbypop
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20190319
 
 ## Source code 
 

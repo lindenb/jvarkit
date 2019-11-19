@@ -41,9 +41,8 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.Reader;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,24 +52,33 @@ import java.util.Map;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 @Program(name="vcfgroupbypop",
-description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population")
+	description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population",
+	creationDate="20190319",
+	modificationDate="20191119",
+	keywords= {"vcf","pedigree","population"}
+	)
 public class VcfGroupByPopulation extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfGroupByPopulation.class).make();
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names="-p",description="mapping file: each line is (SAMPLE)\\t(POP)\\n",required=true)
-	private File mappingFile=null;
-
+	private Path mappingFile=null;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 	private Map<String,String> sample2population=new HashMap<>();
 	
@@ -123,19 +131,19 @@ public class VcfGroupByPopulation extends Launcher
 	protected int doVcfToVcf(String inputName, VCFIterator vcfIn, VariantContextWriter out) {
 		try {
 			
-			Reader r=IOUtils.openFileForBufferedReading(this.mappingFile);
-			parsePopulationMapping(r);
-			r.close();
+			try(BufferedReader r=IOUtils.openPathForBufferedReading(this.mappingFile)) {
+				parsePopulationMapping(r);
+			}
 			
-		VCFHeader header= vcfIn.getHeader();
-		Set<String> samplesInVcf=new HashSet<>( header.getSampleNamesInOrder());
+		final VCFHeader header= vcfIn.getHeader();
+		final Set<String> samplesInVcf=new HashSet<>( header.getSampleNamesInOrder());
 		
 		this.sample2population.keySet().retainAll(samplesInVcf);
 		
-		Map<String,Set<String>> population2samples=new HashMap<>();
+		final Map<String,Set<String>> population2samples=new HashMap<>();
 		for(String sample:this.sample2population.keySet())
 			{
-			String pop= this.sample2population.get(sample);
+			final String pop= this.sample2population.get(sample);
 			Set<String> samples= population2samples.get(pop);
 			if(samples==null)
 				{
@@ -223,15 +231,15 @@ public class VcfGroupByPopulation extends Launcher
 				metaData,
 				population2samples.keySet()
 				);
-		
+		JVarkitVersion.getInstance().addMetaData(this, h2);
 		out.writeHeader(h2);
 		
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(vcfIn.getHeader());
+		final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		
 		while(vcfIn.hasNext())
 			{
-			VariantContext ctx=progress.watch(vcfIn.next());
-			VariantContextBuilder vcb=new VariantContextBuilder(
+			final VariantContext ctx=progress.apply(vcfIn.next());
+			final VariantContextBuilder vcb=new VariantContextBuilder(
 					ctx.getSource(),
 					ctx.getContig(),
 					ctx.getStart(),
@@ -296,7 +304,7 @@ public class VcfGroupByPopulation extends Launcher
 			vcb.genotypes(genotypes);
 			out.add(vcb.make());
 			}
-		progress.finish();
+		progress.close();
 		return 0;
 		}
 	catch(Exception err) {
@@ -307,32 +315,31 @@ public class VcfGroupByPopulation extends Launcher
 	
 	
 	
-	public void parsePopulationMapping(Reader in) throws IOException
+	private void parsePopulationMapping(final BufferedReader r) throws IOException
 		{
-		BufferedReader r=new BufferedReader(in);
 		String line;
 		while((line=r.readLine())!=null)
 			{
-			if(line.isEmpty() || line.startsWith("#")) continue;
+			if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
 			int space=line.indexOf('\t');
 			if(space<=0) throw new IOException("tab missing in "+line);
 			String sample = line.substring(0,space);
 			String pop= line.substring(space+1);
-			if(sample.trim().isEmpty())  throw new IOException("empty sample in "+line);
-			if(pop.trim().isEmpty())  throw new IOException("empty sample in "+line);
+			if(StringUtils.isBlank(sample))  throw new IOException("empty sample in "+line);
+			if(StringUtils.isBlank(pop))  throw new IOException("empty sample in "+line);
 			String prevpo= this.sample2population.get(sample);
 			if(prevpo!=null && !prevpo.equals(pop))
 				throw new IOException("two pop declared for "+sample);
-			sample2population.put(sample, pop);
+			this.sample2population.put(sample, pop);
 			}
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
-		return doVcfToVcf(args, outputFile);
+	public int doWork(final List<String> args) {
+		return doVcfToVcfPath(args, this.writingVariantsDelegate,outputFile);
 		}
 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfGroupByPopulation().instanceMainWithExit(args);
 		}
