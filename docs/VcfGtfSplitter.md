@@ -169,5 +169,5 @@ $ column -t jeter.manifest
 
 * https://twitter.com/yokofakun/status/1197149666237911040
 
-![https://pbs.twimg.com/media/EJ0hReMX0AcaBoq?format=png&name=small](https://twitter.com/yokofakun/status/1197149666237911040)
+![https://twitter.com/yokofakun/status/1197149666237911040](https://pbs.twimg.com/media/EJ0hReMX0AcaBoq?format=png&name=small)
 
