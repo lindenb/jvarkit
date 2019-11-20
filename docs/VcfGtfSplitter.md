@@ -19,13 +19,13 @@ Usage: vcfgtfsplitter [options] Files
     --coding
       Only use  gene_biotype="protein_coding".
       Default: false
-    --upstream, --drownstream
+    --upstream, --downstream
       length for upstream and downstream features. A distance specified as a 
       positive integer.Commas are removed. The following suffixes are 
       interpreted : b,bp,k,kb,m,mb
       Default: 1000
     --features
-      Features to keep. Comma separated. a set of 
+      Features to keep. Comma separated values. A set of 
       'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream' 
       Default: cds,exon,intron,transcript,utr5,utr3,stop,start
     --force
@@ -164,4 +164,10 @@ $ column -t jeter.manifest
 1       1017197  1051736  ENSG00000131591  C1orf159   protein_coding  ENST00000294576  df/3aa6bebac650a6c9f59409521ae17d/ENST00000294576.vcf.gz  6
 (...)
 ```
+
+# screenshot
+
+* https://twitter.com/yokofakun/status/1197149666237911040
+
+![https://pbs.twimg.com/media/EJ0hReMX0AcaBoq?format=png&name=small](https://twitter.com/yokofakun/status/1197149666237911040)
 

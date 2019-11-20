@@ -124,6 +124,12 @@ $ column -t jeter.manifest
 (...)
 ```
 
+# screenshot
+
+* https://twitter.com/yokofakun/status/1197149666237911040
+
+![https://pbs.twimg.com/media/EJ0hReMX0AcaBoq?format=png&name=small](https://twitter.com/yokofakun/status/1197149666237911040)
+
 END_DOC
 */
 @Program(
@@ -155,13 +161,13 @@ public class VcfGtfSplitter
 	private boolean use_bcf= false;
 	@Parameter(names={"--index"},description="index files")
 	private boolean index_vcf= false;
-	@Parameter(names={"--features"},description="Features to keep. Comma separated. a set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream'")
+	@Parameter(names={"--features"},description="Features to keep. Comma separated values. A set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream'")
 	private String featuresString = "cds,exon,intron,transcript,utr5,utr3,stop,start";
 	@Parameter(names={"--force"},description="Force writing a gene/transcript even if there is no variant.")
 	private boolean enable_empty_vcf = false;
 	@Parameter(names={"--coding"},description="Only use  gene_biotype=\"protein_coding\".")
 	private boolean protein_coding_only = false;
-	@Parameter(names={"--upstream","--drownstream"},description="length for upstream and downstream features. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"--upstream","--downstream"},description="length for upstream and downstream features. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int xxxxstream_length = 1_000;
 
 
@@ -177,9 +183,10 @@ public class VcfGtfSplitter
 	private boolean use_upstream = false;
 
 	
+	/** abstract splitter for Gene or Transcript */
 	private abstract class AbstractSplitter
 		{
-		void addMetadata(VCFHeader h) {
+		void addMetadata(final VCFHeader h) {
 			final Gene gene = this.getGene();
 			h.addMetaDataLine(new VCFHeaderLine("split.gene-id", gene.getId()));
 			h.addMetaDataLine(new VCFHeaderLine("split.gene-name", gene.getGeneName()));
@@ -200,6 +207,7 @@ public class VcfGtfSplitter
 		abstract Gene getGene();
 		}
 	
+	/** splitter for transcript */
 	private  class TranscriptSplitter extends AbstractSplitter
 		{
 		private final Transcript transcript;
@@ -234,6 +242,8 @@ public class VcfGtfSplitter
 			pw.print(transcript.getId());
 			}
 		}
+	
+	/** splitter for gene */
 	private class GeneSplitter extends AbstractSplitter
 		{
 		private final Gene gene;
@@ -266,7 +276,6 @@ public class VcfGtfSplitter
 		
 	public VcfGtfSplitter()
 		{
-		
 		}
 	
 	private boolean testTranscript(final Transcript transcript,final VariantContext ctx) {
