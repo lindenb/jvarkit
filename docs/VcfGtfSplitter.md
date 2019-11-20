@@ -16,10 +16,21 @@ Usage: vcfgtfsplitter [options] Files
     -C, --contig, --chromosome
       Limit to those contigs.
       Default: []
+    --coding
+      Only use  gene_biotype="protein_coding".
+      Default: false
+    --upstream, --drownstream
+      length for upstream and downstream features. A distance specified as a 
+      positive integer.Commas are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb
+      Default: 1000
     --features
       Features to keep. Comma separated. a set of 
-      'cds,exon,intron,transcript,utr,stop,start' 
-      Default: cds,exon,intron,transcript,utr,stop,start
+      'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream' 
+      Default: cds,exon,intron,transcript,utr5,utr3,stop,start
+    --force
+      Force writing a gene/transcript even if there is no variant.
+      Default: false
   * -g, -G, --gtf
       A GTF (General Transfer Format) file. See 
       https://www.ensembl.org/info/website/upload/gff.html .

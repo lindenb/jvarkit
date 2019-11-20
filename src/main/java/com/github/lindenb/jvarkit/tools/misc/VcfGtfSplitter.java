@@ -31,6 +31,7 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -43,13 +44,18 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -124,7 +130,7 @@ END_DOC
 		name="vcfgtfsplitter",
 		description="Split VCF+VEP by gene/transcript using a GTF file.",
 		creationDate="20191118",
-		modificationDate="20191118",
+		modificationDate="20191120",
 		keywords= {"genes","vcf","split","gtf"}
 		)
 public class VcfGtfSplitter
@@ -149,8 +155,14 @@ public class VcfGtfSplitter
 	private boolean use_bcf= false;
 	@Parameter(names={"--index"},description="index files")
 	private boolean index_vcf= false;
-	@Parameter(names={"--features"},description="Features to keep. Comma separated. a set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start'")
+	@Parameter(names={"--features"},description="Features to keep. Comma separated. a set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream'")
 	private String featuresString = "cds,exon,intron,transcript,utr5,utr3,stop,start";
+	@Parameter(names={"--force"},description="Force writing a gene/transcript even if there is no variant.")
+	private boolean enable_empty_vcf = false;
+	@Parameter(names={"--coding"},description="Only use  gene_biotype=\"protein_coding\".")
+	private boolean protein_coding_only = false;
+	@Parameter(names={"--upstream","--drownstream"},description="length for upstream and downstream features. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int xxxxstream_length = 1_000;
 
 
 	
@@ -161,19 +173,36 @@ public class VcfGtfSplitter
 	private boolean use_start = false;
 	private boolean use_utr5 = false;
 	private boolean use_utr3 = false;
+	private boolean use_downstream = false;
+	private boolean use_upstream = false;
 
 	
 	private abstract class AbstractSplitter
 		{
-		abstract void addMetadata(VCFHeader h);
+		void addMetadata(VCFHeader h) {
+			final Gene gene = this.getGene();
+			h.addMetaDataLine(new VCFHeaderLine("split.gene-id", gene.getId()));
+			h.addMetaDataLine(new VCFHeaderLine("split.gene-name", gene.getGeneName()));
+			h.addMetaDataLine(new VCFHeaderLine("split.gene-biotype", gene.getGeneBiotype()));
+			}
 		abstract Locatable getInterval();
 		abstract boolean accept(final VariantContext ctx);
 		abstract String getId();
-		abstract void printManifest(PrintWriter pw);
+		void printManifest(final PrintWriter pw) {
+			final Gene gene = this.getGene();
+
+			pw.print(gene.getId());
+			pw.print("\t");
+			pw.print(gene.getGeneName());
+			pw.print("\t");
+			pw.print(gene.getGeneBiotype());
+			}
+		abstract Gene getGene();
 		}
+	
 	private  class TranscriptSplitter extends AbstractSplitter
 		{
-		final Transcript transcript;
+		private final Transcript transcript;
 		TranscriptSplitter(final Transcript transcript) {
 			this.transcript = transcript;
 			}
@@ -182,15 +211,16 @@ public class VcfGtfSplitter
 			return this.transcript;
 			}
 		@Override
-		void addMetadata(VCFHeader h) {
-			final Gene gene = transcript.getGene();
-			h.addMetaDataLine(new VCFHeaderLine("split.gene-id", gene.getId()));
-			h.addMetaDataLine(new VCFHeaderLine("split.gene-name", gene.getGeneName()));
-			h.addMetaDataLine(new VCFHeaderLine("split.gene-biotype", gene.getGeneBiotype()));
+		Gene getGene() {
+			return transcript.getGene();
+			}
+		@Override
+		void addMetadata(final VCFHeader h) {
+			super.addMetadata(h);
 			h.addMetaDataLine(new VCFHeaderLine("split.transcript-id", transcript.getId()));
 			}
 		@Override
-		boolean accept(VariantContext ctx) {
+		boolean accept(final VariantContext ctx) {
 			return testTranscript(this.transcript,ctx);
 			}
 		@Override
@@ -198,21 +228,15 @@ public class VcfGtfSplitter
 			return transcript.getId();
 			}
 		@Override
-		void printManifest(PrintWriter pw) {
-			final Gene gene = transcript.getGene();
-			pw.print("\t");
-			pw.print(gene.getId());
-			pw.print("\t");
-			pw.print(gene.getGeneName());
-			pw.print("\t");
-			pw.print(gene.getGeneBiotype());
+		void printManifest(final PrintWriter pw) {
+			super.printManifest(pw);
 			pw.print("\t");
 			pw.print(transcript.getId());
 			}
 		}
-	private  class GeneSplitter extends AbstractSplitter
+	private class GeneSplitter extends AbstractSplitter
 		{
-		final Gene gene;
+		private final Gene gene;
 		GeneSplitter(final Gene gene) {
 			this.gene = gene;
 			}
@@ -221,10 +245,8 @@ public class VcfGtfSplitter
 			return this.gene;
 			}
 		@Override
-		void addMetadata(VCFHeader h) {
-			h.addMetaDataLine(new VCFHeaderLine("split.gene-id", gene.getId()));
-			h.addMetaDataLine(new VCFHeaderLine("split.gene-name", gene.getGeneName()));
-			h.addMetaDataLine(new VCFHeaderLine("split.gene-biotype", gene.getGeneBiotype()));
+		Gene getGene() {
+			return this.gene;
 			}
 		@Override
 		boolean accept(final VariantContext ctx) {
@@ -235,13 +257,10 @@ public class VcfGtfSplitter
 			return gene.getId();
 			}
 		@Override
-		void printManifest(PrintWriter pw) {
+		void printManifest(final PrintWriter pw) {
+			super.printManifest(pw);
 			pw.print("\t");
-			pw.print(gene.getId());
-			pw.print("\t");
-			pw.print(gene.getGeneName());
-			pw.print("\t");
-			pw.print(gene.getGeneBiotype());
+			pw.print(this.gene.getTranscripts().stream().map(T->T.getId()).collect(Collectors.joining(";")));
 			}
 		}
 		
@@ -251,6 +270,22 @@ public class VcfGtfSplitter
 		}
 	
 	private boolean testTranscript(final Transcript transcript,final VariantContext ctx) {
+		if(!transcript.overlaps(ctx)) {
+			if(this.use_upstream) {
+				final SimplePosition pos = new SimplePosition(
+						transcript.getContig(),
+						transcript.isPositiveStrand()?transcript.getStart():transcript.getEnd());
+				if(ctx.withinDistanceOf(pos, this.xxxxstream_length)) return true;
+			}
+			if(this.use_downstream) {
+				final SimplePosition pos = new SimplePosition(
+						transcript.getContig(),
+						transcript.isPositiveStrand()?transcript.getEnd():transcript.getStart());
+				if(ctx.withinDistanceOf(pos, this.xxxxstream_length)) return true;
+			}
+			return false;
+		}
+		
 		if(this.use_exon && transcript.hasExon() && transcript.getExons().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		if(this.use_intron && transcript.hasIntron() && transcript.getIntrons().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		if(this.use_cds && transcript.hasCDS() && transcript.getAllCds().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
@@ -276,11 +311,20 @@ public class VcfGtfSplitter
 			final ArchiveFactory archiveFactory,
 			final Path tmpVcf,
 			final PrintWriter manifest
-			) throws IOException {
-		
+			) throws IOException
+		{
 		final Locatable interval = splitter.getInterval();
-		CloseableIterator<VariantContext> iter=vcfFileReader.query(interval);
-		if(!iter.hasNext()) {
+		final CloseableIterator<VariantContext> iter;
+		if((this.use_downstream || this.use_upstream) && this.xxxxstream_length>0) {
+			iter = vcfFileReader.query(new SimpleInterval(interval).extend(this.xxxxstream_length));
+			}
+		else
+			{
+			iter = vcfFileReader.query(interval);
+			}
+		
+		
+		if(!this.enable_empty_vcf && !iter.hasNext()) {
 			iter.close();
 			return;
 		}
@@ -327,7 +371,7 @@ public class VcfGtfSplitter
 		iter.close();
 		out.close();
 
-		if(count_ctx==0) {
+		if(!this.enable_empty_vcf && count_ctx==0) {
 			Files.delete(tmpVcf);
 			if(tbiPath!=null) Files.delete(tbiPath);
 			return ;
@@ -356,6 +400,7 @@ public class VcfGtfSplitter
 		manifest.print(interval.getStart()-1);
 		manifest.print('\t');
 		manifest.print(interval.getEnd());
+		manifest.print('\t');
 		splitter.printManifest(manifest);
 		manifest.print('\t');
 		manifest.print((archiveFactory.isZip()?"":this.outputFile.toString()+File.separator)+filename);
@@ -379,6 +424,8 @@ public class VcfGtfSplitter
 				else if(s.equals("utr5")) { use_utr5= true;}
 				else if(s.equals("utr3")) { use_utr3= true;}
 				else if(s.equals("utr")) { use_utr3= true;use_utr5= true;}
+				else if(s.equals("upstream")) {use_upstream=true;}
+				else if(s.equals("downstream")) {use_downstream=true;}
 				else {
 					LOG.error("unknown code "+s+" in "+this.featuresString);
 					return -1;
@@ -412,26 +459,36 @@ public class VcfGtfSplitter
 			
 			final List<Gene> all_genes;
 			try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
-				if(dict!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+				final Comparator<Gene> cmp;
+				if(dict!=null) {
+					gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+					cmp = new ContigDictComparator(dict).createLocatableComparator();
+					}
+				else
+					{
+					cmp = (A,B)->{
+						final int i= A.getContig().compareTo(B.getContig());
+						if(i!=0) return i;
+						return Integer.compare(A.getStart(), B.getStart());
+						};
+					}
 				all_genes = gtfReader.
 						getAllGenes().
 						stream().
 						filter(G->{
+							if(this.protein_coding_only && !"protein_coding".equals(G.getGeneBiotype())) return false;
 							if(this.limitToContigs.isEmpty()) return true;
 							return this.limitToContigs.contains(G.getContig());
-						}).collect(Collectors.toList());
+						}).
+						sorted(cmp).
+						collect(Collectors.toList());
 				}
 			
 			archiveFactory = ArchiveFactory.open(this.outputFile);
 			archiveFactory.setCompressionLevel(0);
 			
 			manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile));
-			manifest.print("#chrom\tstart\tend\tGene-Id\tGene-Name\tGene-Biotype");
-			if(this.split_by_transcript)
-				{
-				manifest.print("\tTranscript-Id");
-				}
-			manifest.println("\tpath\tCount_Variants");
+			manifest.println("#chrom\tstart\tend\tGene-Id\tGene-Name\tGene-Biotype\tTranscript-Id\tpath\tCount_Variants");
 
 			if(this.split_by_transcript) {
 				final Iterator<Transcript> triter = all_genes.
@@ -439,14 +496,14 @@ public class VcfGtfSplitter
 						flatMap(G->G.getTranscripts().stream()).iterator();
 				while(triter.hasNext()) {
 					final Transcript tr=triter.next();
-					final TranscriptSplitter splitter = new TranscriptSplitter(tr);
-					split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
+					final AbstractSplitter splitter = new TranscriptSplitter(tr);
+					this.split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
 				}
 				
 			} else {
 				for(Gene gene: all_genes) {
-					final GeneSplitter splitter = new GeneSplitter(gene);
-					split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
+					final AbstractSplitter splitter = new GeneSplitter(gene);
+					this.split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
 				}
 			}
 			
@@ -472,9 +529,6 @@ public class VcfGtfSplitter
 			}
 		}
 	
-	
-		
-		
 	 	
 	
 	public static void main(final String[] args)
