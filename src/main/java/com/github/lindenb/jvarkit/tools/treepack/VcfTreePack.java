@@ -334,8 +334,7 @@ public class VcfTreePack extends  AbstractTreePackCommandLine
 			
 			if(args.isEmpty())
 				{
-				LOG.info("Reading stdin");
-				in=VCFUtils.createVCFIteratorFromStream(stdin());
+				in=VCFUtils.createVCFIteratorFromInputStream(stdin());
 				scan(in);
 				CloserUtil.close(in);
 				}
@@ -352,7 +351,7 @@ public class VcfTreePack extends  AbstractTreePackCommandLine
 			this.svg(this.outputFile);
 			return RETURN_OK;
 			}
-		catch (final Exception err)
+		catch (final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

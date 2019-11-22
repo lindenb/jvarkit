@@ -11,7 +11,8 @@ Mapping a mutation on a protein back to the genome.
 Usage: backlocate [options] Files
   Options:
   * -g, --gtf
-      A GTF file.
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html .
     -h, --help
       print help and exit
     --helpFormat

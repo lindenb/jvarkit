@@ -93,6 +93,8 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/394289](https://www.biostars.org/p/394289)
  * [https://www.biostars.org/p/395454](https://www.biostars.org/p/395454)
  * [https://www.biostars.org/p/397168](https://www.biostars.org/p/397168)
+ * [https://www.biostars.org/p/400463](https://www.biostars.org/p/400463)
+ * [https://www.biostars.org/p/409177](https://www.biostars.org/p/409177)
 
 
 ## Compilation
@@ -732,4 +734,18 @@ https://www.biostars.org/p/397168/
 `````
 $ wget -O - -q "http://ftp.ensembl.org/pub/release-97/gtf/mus_musculus/Mus_musculus.GRCm38.97.gtf.gz" | gunzip -c | java -jar dist/bioalcidaejdk.jar -F GTF -e 'stream().forEach(G->println(G.getId()+"\t"+G.getGeneName()+"\t"+G.getTranscripts().stream().flatMap(T->T.getIntrons().stream()).mapToInt(I->I.getLengthOnReference()).average().orElse(-99) ));'
 `````
+
+# introns, exons and cds in a gtf
+
+```
+stream().
+    flatMap(GENE->GENE.getTranscripts().stream()).
+    flatMap(TRANSCRIPT->{
+        final List<Interval> L = new ArrayList<>();
+        TRANSCRIPT.getExons().stream().forEach(E->L.add(E.toInterval()));
+        TRANSCRIPT.getIntrons().stream().forEach(I->L.add(I.toInterval()));
+        TRANSCRIPT.getUTRs().stream().forEach(U->L.add(U.toInterval()));
+        return L.stream();
+        }).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getStrand()+"\t"+R.getName()));
+```
 

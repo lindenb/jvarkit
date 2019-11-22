@@ -28,13 +28,11 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfconcat;
 
-import java.io.File;
 import java.io.FileOutputStream;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
@@ -43,6 +41,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -102,14 +101,18 @@ END_DOC
 */
 
 
-@Program(name="vcf2zip",description="Reads a stream of concatenated VCFs and insert them into a Zip file")
+@Program(name="vcf2zip",
+description="Reads a stream of concatenated VCFs and insert them into a Zip file",
+keywords= {"vcf","zip"},
+modificationDate="20191121"
+)
 public class VcfToZip extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfToZip.class).make();
 
 
-	@Parameter(names={"-o","--output"},description="Output zip file.")
-	private File outputFile = null;
+	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)
+	private Path outputFile = null;
 
 
 	@Parameter(names={"-p","--prefix"},description="Prefix all zip entries with this prefix")
@@ -125,41 +128,28 @@ public class VcfToZip extends Launcher
 	@Override
 	public int doWork(List<String> args) {
 		
-		if(this.outputFile!=null && this.outputFile.getName().endsWith(".zip")) {
-			LOG.error("Filename must end with '.zip' "+outputFile);
-			return -1;
-		}
+	
 		LineIterator lr=null;
 		VCFIterator in = null;
-		ZipOutputStream zout =null;
+		ArchiveFactory archive =null;
 		FileOutputStream fout=null;
 		int num_vcfs= 0;
 		VariantContextWriter vcw = null;
 		args = new ArrayList<>(IOUtils.unrollFiles(args));
 		try {
 			int optind=0;
-			
-			if(this.outputFile!=null) {
-				fout = new FileOutputStream(this.outputFile);
-				zout = new ZipOutputStream(fout);
-			} else
-				{
-				zout = new ZipOutputStream(stdout());
-				}
-
+			final Path tmpVcf = Files.createTempFile("tmp.",".vcf");
 			
 			do {
 				
 				if(args.isEmpty()) {
-					LOG.info("reading concatenated vcf from stdin");
 					lr = IOUtils.openStreamForLineIterator(stdin());
 					}
 				else
 					{
-					LOG.info("reading concatenated vcf from "+args.get(optind));
 					lr = IOUtils.openURIForLineIterator(args.get(optind));
 					}
-				
+				archive  = ArchiveFactory.open(this.outputFile);
 				
 				while(lr.hasNext()) {
 					++num_vcfs;
@@ -188,12 +178,7 @@ public class VcfToZip extends Launcher
 								filename;
 						}
 					LOG.info(filename);
-					final ZipEntry entry = new ZipEntry(filename);
-					entry.setComment("Created with "+getProgramName());
-					zout.putNextEntry(entry);
-					vcw = VCFUtils.createVariantContextWriterToOutputStream(
-							IOUtils.uncloseableOutputStream(zout)
-							);
+					vcw = VCFUtils.createVariantContextWriterToPath(tmpVcf);
 					vcw.writeHeader(header);
 					final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header);
 					while(in.hasNext()) {
@@ -201,17 +186,15 @@ public class VcfToZip extends Launcher
 					}
 					vcw.close();
 					progress.finish();
-					zout.closeEntry();
-					in.close();
+					archive.copyTo(tmpVcf, filename);
+					Files.delete(tmpVcf);
 				}
 				
 				
 				++optind;
 			} while(optind< args.size());
 			
-			zout.finish();
-			zout.flush();
-			zout.close();zout=null;
+			archive.close();archive=null;
 			CloserUtil.close(fout);
 
 			
@@ -223,7 +206,7 @@ public class VcfToZip extends Launcher
 		} finally {
 			CloserUtil.close(in);
 			CloserUtil.close(lr);
-			CloserUtil.close(zout);
+			CloserUtil.close(archive);
 			CloserUtil.close(fout);
 		}
 		}

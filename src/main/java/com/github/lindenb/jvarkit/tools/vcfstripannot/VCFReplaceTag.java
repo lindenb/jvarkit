@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,11 +51,14 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -78,7 +81,7 @@ END_DOC
 		description="Replace the key for INFO/FORMAT/FILTER",
 		keywords={"vcf"},
 		deprecatedMsg="use `bcftools annotate` with option `-c`",
-		modificationDate="20190321"
+		modificationDate="20191121"
 		)
 public class VCFReplaceTag extends Launcher
 	{
@@ -91,7 +94,11 @@ public class VCFReplaceTag extends Launcher
 	private List<String> userTagList = new ArrayList<>();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
+	
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+
 	
 	private Map<String,String> transformMap=new HashMap<>();
 	private int replaceTypeNo=-1;
@@ -260,7 +267,7 @@ public class VCFReplaceTag extends Launcher
 				}
 			this.transformMap.put(key,s.substring(slash+1));
 			}
-		return doVcfToVcf(args,outputFile);
+		return doVcfToVcfPath(args,this.writingVariantsDelegate,outputFile);
 		}
 
 	

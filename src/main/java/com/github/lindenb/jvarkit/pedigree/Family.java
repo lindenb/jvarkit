@@ -26,16 +26,18 @@ package com.github.lindenb.jvarkit.pedigree;
 
 import java.util.Iterator;
 
-/** A Family from a Family */
+/** A Family from a Pedigree */
 public interface Family extends SampleSet, Iterable<Sample>,Comparable<Family> {
 	/** get family id */
 	public String getId();
 	/** get associated pedigree */
 	public Pedigree getPedigree();
+	/** samples in this family */
 	@Override
 	public default Iterator<Sample> iterator() {
 		return getSamples().iterator();
 		}
+	/** default: compare two families using getId() */
 	@Override
 	public default int compareTo(final Family o) {
 		return this.getId().compareTo(o.getId());

@@ -60,6 +60,7 @@ import org.broad.igv.bbfile.WigItem;
 import org.broad.tribble.util.SeekableStream;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jexl.JexlPredicate;
 import com.github.lindenb.jvarkit.jexl.JexlToString;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -68,6 +69,7 @@ import com.github.lindenb.jvarkit.util.iterator.LineIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import org.broad.tribble.util.SeekableFileStream;
 
@@ -158,11 +160,13 @@ public class VcfUcscGdb extends Launcher {
 	private static final Logger LOG = Logger.build(VcfUcscGdb.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-r","--resource"},description="Resource File. See manual",required=true)
 	private Path resourceFile = null;
 	@Parameter(names={"-C"},description="try to convert chromosome name to match the UCSC nomenclature 1->'chr1'")
 	private boolean forceUcscNames = false;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 	
 	
@@ -776,7 +780,7 @@ private SeekableStream openRemoteSeekableStream(final URL url)
 	@Override
 	public int doWork(final List<String> args) {
 		
-		return doVcfToVcf(args, this.outputFile);
+		return doVcfToVcfPath(args, this.writingVariantsDelegate,this.outputFile);
 		}
 	public static void main(final String[] args) {
 		new VcfUcscGdb().instanceMain(args);

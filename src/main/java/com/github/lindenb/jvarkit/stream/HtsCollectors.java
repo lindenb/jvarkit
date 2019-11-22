@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,6 +60,19 @@ public static <T> Collector<T, ?, T> toSingleton() {
             	}
     		);
 		}
+
+/** return item if there was one and only one item in the stream. 
+ * If there is none or more than one, empty is returned.
+ * Usage: want to take uniq item in set if set.size()==1
+ *  */
+public static <T> Collector<T, ?, Optional<T>> oneAndOnlyOne() {
+    return Collectors.collectingAndThen(
+            Collectors.toList(),
+            list -> list.size()==1?Optional.of(list.get(0)):Optional.empty()
+    		);
+		}
+
+
 
 /** convert stream of<QueryInterval> to an optimized array of QueryInterval */
 public static Collector<QueryInterval, ?,QueryInterval[]>   optimizedQueryIntervals() {

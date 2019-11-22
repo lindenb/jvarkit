@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.vcfbed;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,6 +44,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jexl.JexlToString;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -67,6 +69,8 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 
@@ -131,7 +135,8 @@ END_DOC
 	description="Transfer information from a BED to a VCF",
 	keywords={"bed","vcf","annotation"},
 	biostars=247224,
-	modificationDate="20190430"
+	creationDate="20180406",
+	modificationDate="20191121"
 	)
 public class VCFBed extends Launcher
 	{
@@ -139,7 +144,7 @@ public class VCFBed extends Launcher
 	private static final Logger LOG = Logger.build(VCFBed.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;	
+	private Path outputFile = null;	
 	@Parameter(names={"-e","--expr","--jexl"},description="[20180124]A JEXL Expression returning a string " + JexlToString.OPT_WHAT_IS_JEXL +". "
 			+ "The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java ). "
 			+ " The variable 'ctx' or 'variant' is the current observed variant."
@@ -177,7 +182,9 @@ public class VCFBed extends Launcher
 	private Double min_overlap_bed_fraction=  null;	
 	@Parameter(names={"-mofr","--min-overlap-fraction"},description="[20180822] Require that the minimum fraction be satisfied for VCF OR BED.")
 	private Double min_overlap_both_fraction=  null;
-	
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+
 	private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
 	private IndexedBedReader bedReader =null;
 	private ContigNameConverter contigNameConverter = null;
@@ -512,7 +519,7 @@ public class VCFBed extends Launcher
 				}
 			
 			
-			return doVcfToVcf(args, outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
 		catch(final Throwable err)
 			{

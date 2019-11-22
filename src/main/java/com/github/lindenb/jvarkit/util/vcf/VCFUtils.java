@@ -261,15 +261,6 @@ public class VCFUtils
 		return new VCFCodec();
 		}
 	
-	/** create a VCF iterator
-	 * use createVCFIteratorFromInputStream
-	 * @param IN input stream
-	 * */
-	@Deprecated
-	public static  VCFIterator createVCFIteratorFromStream(final InputStream in) throws IOException
-		{
-		return createVCFIteratorFromInputStream(in);
-		}
 	
 	/** create a VCF iterator
 	 * 
@@ -277,7 +268,7 @@ public class VCFUtils
 	 * */
 	public static  VCFIterator createVCFIteratorFromFile(final File vcfOrBcfFile) throws IOException
 		{
-		return createVCFIteratorFromPath(vcfOrBcfFile==null?null:vcfOrBcfFile.toPath());
+		return createVCFIteratorFromPath(IOUtil.toPath(vcfOrBcfFile));
 		}
 	
 	
@@ -414,9 +405,9 @@ public class VCFUtils
 	 * @return
 	 * @throws IOException
 	 */
-	public static  VariantContextWriter createVariantContextWriter(final File OUT) throws IOException
+	public static  VariantContextWriter createVariantContextWriter(final File f) throws IOException
 		{
-		return createVariantContextWriterToPath(OUT==null?null:OUT.toPath());
+		return createVariantContextWriterToPath(IOUtil.toPath(f));
 		}
 	
 	public static SAMSequenceRecord contigLineToSamSequenceRecord(String line)
@@ -474,7 +465,7 @@ public class VCFUtils
 		}
 	public static boolean isVcfFile(final File f)
 		{
-		return isVcfPath(f==null?null:f.toPath());
+		return isVcfPath(IOUtil.toPath(f));
 		}
 	
 	/** return true if p ends with vcf/vcf.gz/vcf.bgz */
@@ -488,13 +479,13 @@ public class VCFUtils
 	/** returns true if file ends with .vcf.gz and a .tbi file is associated */
 	public static boolean isTabixVcfFile(final File f)
 		{
-		return isTabixVcfPath(f==null?null:f.toPath());
+		return isTabixVcfPath(IOUtil.toPath(f));
 		}
 	
 	/** returns true if file ends with .vcf and a .idx file is associated */
 	public static boolean isTribbleVcfFile(final File f)
 		{
-		return isTribbleVcfPath(f==null?null:f.toPath());
+		return isTribbleVcfPath(IOUtil.toPath(f));
 		}
 	
 	/** returns true if file ends with .vcf.gz and a .tbi file is associated */

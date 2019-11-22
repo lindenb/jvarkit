@@ -24,7 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfucsc;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -58,6 +58,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jexl.BaseJexlHandler;
 import com.github.lindenb.jvarkit.jexl.JexlPredicate;
 import com.github.lindenb.jvarkit.jexl.JexlToString;
@@ -100,12 +101,14 @@ java -jar dist/vcfucsc.jar -a 'score > 200 ' -e ' chromStart + "|" + chromEnd + 
 
 END_DOC
  */
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 @Program(
 		name="vcfucsc",
 		description="annotate an VCF with mysql UCSC data",
 		keywords={"ucsc","mysql","vcf"},
-		modificationDate="20190424"
+		creationDate="20160105",
+		modificationDate="20191121"
 		)
 public class VcfUcsc extends Launcher
 	{
@@ -158,7 +161,7 @@ public class VcfUcsc extends Launcher
 
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-e","--expression"},description="JEXL expression used to convert a row to String. Empty=default. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
 	private String convertToStrExpr ="";
 	@Parameter(names={"-a","--accept"},description="JEXL expression used to accept a result set. Must return a boolean. Empty=defaul/accept all. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
@@ -180,6 +183,8 @@ public class VcfUcsc extends Launcher
 	private String filterIn=null;
 	@Parameter(names={"-fo","--filterOut"},description="Set this FILTER if no item is found in the database")
 	private String filterOut=null;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	private Connection connection=null;
 	private boolean has_bin_column=false;
@@ -426,7 +431,7 @@ public class VcfUcsc extends Launcher
 			}
 
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -499,9 +504,9 @@ public class VcfUcsc extends Launcher
 				LOG.error("cannot find endColumn in "+cols);
 				return -1;
 				}
-			return doVcfToVcf(args,this.outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
