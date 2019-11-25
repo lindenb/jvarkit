@@ -81,12 +81,13 @@ public class PlateOptimizer extends Launcher {
 	
 	private int bonusDiagonal = 0;
 
-	private String header[]=null;
+	private final List<String> headers = new ArrayList<>();
+	private final Map<String,Integer> column2index = new HashMap<>();
 	private final List<Content> all_contents = new ArrayList<>();
 	private final List<Criteria> all_criterias = new ArrayList<>();
 	private volatile int ctrlc_catched_count=5;
 	private final Random random = new Random(System.currentTimeMillis());
-	
+	private Predicate<Plate> platePredicate = T->true;
 	private class Content 
 		{
 		final String tokens[];
@@ -169,7 +170,7 @@ public class PlateOptimizer extends Launcher {
 							}
 						else //diagonal
 							{
-							score += n + bonusDiagonal;
+							//score += n + bonusDiagonal;
 							}
 						}
 					}
@@ -327,7 +328,7 @@ public class PlateOptimizer extends Launcher {
 			try {
 				try(PrintWriter w= new PrintWriter(output+".txt")) {
 					w.print("#plate\tcell");
-					for(String header:PlateOptimizer.this.header) w.print("\t"+header);
+					for(final String header:PlateOptimizer.this.headers) w.print("\t"+header);
 					w.println();
 					for(final Plate p:this.plates) {
 						
@@ -388,7 +389,7 @@ public class PlateOptimizer extends Launcher {
 	
 	private Solution best=null;
 	
-	void iteration(long iter_id) {
+	private void iteration(long iter_id) {
 		Solution sol = null;
 		if(iter_id == 0 || iter_id%20==0 || this.best==null)
 			{
@@ -398,9 +399,9 @@ public class PlateOptimizer extends Launcher {
 			{
 			sol = this.best.mute(iter_id);
 			}
-
 		
-
+		if(!sol.plates.stream().allMatch(this.platePredicate)) return;
+				
 		if(this.best==null || sol.score> this.best.score)
 			{
 			this.best=sol;
@@ -409,11 +410,16 @@ public class PlateOptimizer extends Launcher {
 			}
 		}
 	
+	private int getColumnByName(final String s) {
+		if(!this.column2index.containsKey(s)) {
+			throw new IllegalArgumentException("not column '"+s+"' in "+String.join(" , ", this.column2index.keySet()));
+			}
+		return this.column2index.get(s);
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			final Map<String,Integer>  column2index= new HashMap<>();
 			final CharSplitter tab = CharSplitter.TAB;
 			final String input = oneFileOrNull(args);
 			try(BufferedReader br = (input==null?
@@ -424,13 +430,13 @@ public class PlateOptimizer extends Launcher {
 				if(line==null) {
 					LOG.error("cannot read first line");
 				}
-				this.header = tab.split(line);
-				for(int i=0;i< this.header.length;++i) column2index.put(this.header[i],i);
-				LOG.info("header: "+String.join(";", this.header));
+				this.headers.addAll(Arrays.asList(tab.split(line)));
+				for(int i=0;i< this.headers.size();++i) this.column2index.put(this.headers.get(i),i);
+				LOG.info("header: "+String.join(";", this.headers));
 				while((line=br.readLine())!=null) {
 					if(StringUtils.isBlank(line)) continue;
 					final String tokens[]=tab.split(line);
-					if(tokens.length!=this.header.length) throw new JvarkitException.TokenErrors(this.header.length, tokens);
+					if(tokens.length!=this.headers.size()) throw new JvarkitException.TokenErrors(this.headers.size(), tokens);
 					final Content content = new Content(tokens);
 					this.all_contents.add(content);
 				}
@@ -450,11 +456,7 @@ public class PlateOptimizer extends Launcher {
 					}
 					if(curr==null || line.indexOf(':')==-1) {
 						curr= new Criteria();
-						if(!column2index.containsKey(line)) {
-							LOG.error("field "+line+" is not part of:\n"+String.join("\n",column2index.keySet()));
-							return -1;
-						}
-						curr.column = column2index.get(line);
+						curr.column = getColumnByName(line);
 						this.all_criterias.add(curr);
 						final int final_col = curr.column;
 						LOG.info("criteria["+this.all_criterias.size()+"] on column "+line+" with :"+
@@ -497,6 +499,15 @@ public class PlateOptimizer extends Launcher {
 			        		}
 			        }
 			    });
+			
+			this.platePredicate = T->{
+				final int sexcol=getColumnByName("Sexe");
+				return Arrays.stream(T.cells).
+						map(C->C.content!=null  && C.content.tokens[sexcol].equals("F")).
+						count()>=10L
+						;
+				};
+			
 			long n_iteration = 0L;
 			while(this.ctrlc_catched_count>0) {
 				
