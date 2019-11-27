@@ -127,6 +127,9 @@ public class PlateOptimizer extends Launcher {
 		String getSexe() {
 			return get("Sexe");
 			}
+		String getTube() {
+			return get("Type_Tubes");
+			}
 		boolean isFemale() {
 			return getSexe().equals("F");
 			}
@@ -235,10 +238,10 @@ public class PlateOptimizer extends Launcher {
 			return this.cells[y*12+x];
 			}
 		/* number of original plates */
-		int getNumberOfOriginalPlates() {
+		int getNumberOfTubes() {
 			return Arrays.stream(cells).
 					filter(C->C.content!=null).
-					map(C->C.content.content_index/96)./* for original plate position, we divide per 96 */
+					map(C->C.content.getTube()).
 					collect(Collectors.toSet()).
 					size();
 		}
@@ -248,7 +251,7 @@ public class PlateOptimizer extends Launcher {
 			w.writeStartElement("table");
 			
 			w.writeStartElement("caption");
-			w.writeCharacters(this.name +" op:"+this.getNumberOfOriginalPlates()+" nf:"+ Arrays.stream(this.cells).filter(C->C.content!=null).filter(C->C.content.get("Sexe").equals("F")).count());
+			w.writeCharacters(this.name +" type-tubes:"+this.getNumberOfTubes()+" nf:"+ Arrays.stream(this.cells).filter(C->C.content!=null).filter(C->C.content.get("Sexe").equals("F")).count());
 			w.writeEndElement();
 			
 			
@@ -332,6 +335,7 @@ public class PlateOptimizer extends Launcher {
 				this.plates.add(plate);
 				}
 			}
+		
 		Solution fill2() {
 			this.fillEmptyPlates();
 			final List<Content> contents = new ArrayList<>(all_contents);
@@ -560,6 +564,8 @@ public class PlateOptimizer extends Launcher {
 				LOG.error("no data defined");
 				return -1;
 			}
+			Collections.sort(this.all_contents,(A,B)->A.getTube().compareTo(B.getTube()));
+			
 			try(BufferedReader br= IOUtils.openPathForBufferedReading(this.criteraPath)) {
 				Criteria curr = null;
 				for(;;) {

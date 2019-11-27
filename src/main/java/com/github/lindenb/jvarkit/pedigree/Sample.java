@@ -25,8 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.pedigree;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.lang.StringUtils;
-
 import java.util.Collections;
 import java.util.Arrays;
 
