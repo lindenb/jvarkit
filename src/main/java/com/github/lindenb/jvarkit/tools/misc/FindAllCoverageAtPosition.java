@@ -105,16 +105,14 @@ $ find ./testdata/ -type f -name "*.bam" | \
  * [https://twitter.com/pjacock/status/538299549455233024](https://twitter.com/pjacock/status/538299549455233024)
  * FindAVariation
 
-## History
 
- * 2017: moved to jcommander
 
 END_DOC
  */
 @Program(name="findallcoverageatposition",
 	keywords={"bam","coverage","search","depth"},
 	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
-	biostars= {259223,250099},
+	biostars= {259223,250099,409942},
 	modificationDate="20190905"
 	)
 public class FindAllCoverageAtPosition extends Launcher

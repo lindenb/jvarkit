@@ -50,12 +50,14 @@ import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.Intron;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.variant.variantcontext.AttributeCleaner;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -130,13 +132,17 @@ $ column -t jeter.manifest
 
 ![https://twitter.com/yokofakun/status/1197149666237911040](https://pbs.twimg.com/media/EJ0hReMX0AcaBoq?format=png&name=small)
 
+* https://twitter.com/yokofakun/status/1199621057533140992
+
+![https://twitter.com/yokofakun/status/1199621057533140992](https://twitter.com/i/status/1199621057533140992)
+
 END_DOC
 */
 @Program(
 		name="vcfgtfsplitter",
 		description="Split VCF+VEP by gene/transcript using a GTF file.",
 		creationDate="20191118",
-		modificationDate="20191120",
+		modificationDate="20191128",
 		keywords= {"genes","vcf","split","gtf"}
 		)
 public class VcfGtfSplitter
@@ -161,7 +167,7 @@ public class VcfGtfSplitter
 	private boolean use_bcf= false;
 	@Parameter(names={"--index"},description="index files")
 	private boolean index_vcf= false;
-	@Parameter(names={"--features"},description="Features to keep. Comma separated values. A set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream'")
+	@Parameter(names={"--features"},description="Features to keep. Comma separated values. A set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream,splice'")
 	private String featuresString = "cds,exon,intron,transcript,utr5,utr3,stop,start";
 	@Parameter(names={"--force"},description="Force writing a gene/transcript even if there is no variant.")
 	private boolean enable_empty_vcf = false;
@@ -169,6 +175,10 @@ public class VcfGtfSplitter
 	private boolean protein_coding_only = false;
 	@Parameter(names={"--upstream","--downstream"},description="length for upstream and downstream features. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int xxxxstream_length = 1_000;
+	@Parameter(names={"--splice"},description="distance to splice site for 'splice' feature. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int split_length = 5;
+	@Parameter(names={"--xannotate"},description="Remove annotations. "+AttributeCleaner.OPT_DESC)
+	private String xannotatePattern= null;
 
 
 	
@@ -181,7 +191,8 @@ public class VcfGtfSplitter
 	private boolean use_utr3 = false;
 	private boolean use_downstream = false;
 	private boolean use_upstream = false;
-
+	private boolean use_splice = false;
+    private AttributeCleaner attCleaner = null;
 	
 	/** abstract splitter for Gene or Transcript */
 	private abstract class AbstractSplitter
@@ -309,6 +320,16 @@ public class VcfGtfSplitter
 		if(this.use_stop && transcript.hasCodonStopDefined() && transcript.getCodonStop().get().getBlocks().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		if(this.use_start && transcript.hasCodonStartDefined() && transcript.getCodonStart().get().getBlocks().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		
+		if(this.use_splice && transcript.hasIntron()) {
+			for(final Intron intron:transcript.getIntrons()) {
+				final SimpleInterval splice1 = new SimpleInterval(intron.getContig(),intron.getStart()-1,intron.getStart());
+				if(ctx.withinDistanceOf(splice1, this.split_length)) return true;
+				final SimpleInterval splice2 = new SimpleInterval(intron.getContig(),intron.getEnd(),intron.getEnd()+1);
+				if(ctx.withinDistanceOf(splice2, this.split_length)) return true;
+				}
+			}
+		
+		
 		return false;
 	}
 	
@@ -363,7 +384,7 @@ public class VcfGtfSplitter
 		
 		
 		final VariantContextWriter out = vcwb.build();
-		final VCFHeader header2=new VCFHeader(header);
+		final VCFHeader header2=new VCFHeader(this.attCleaner.cleanHeader(header));
 		super.addMetaData(header2);
 		splitter.addMetadata(header2);
 		out.writeHeader(header2);
@@ -375,7 +396,7 @@ public class VcfGtfSplitter
 			if(this.ignoreFiltered && ctx.isFiltered()) continue;
 			if(!splitter.accept(ctx)) continue;
 			count_ctx++;
-			out.add(ctx);
+			out.add(this.attCleaner.apply(ctx));
 			}
 		iter.close();
 		out.close();
@@ -422,6 +443,8 @@ public class VcfGtfSplitter
 		PrintWriter manifest = null;
 		VCFFileReader vcfFileReader = null;
 		try {
+			this.attCleaner = AttributeCleaner.compile(this.xannotatePattern);
+			
 			for(final String s: featuresString.split("[;, ]")) {
 				if(StringUtils.isBlank(s)) continue;
 				if(s.equals("cds")) { use_cds = true; }
@@ -435,6 +458,7 @@ public class VcfGtfSplitter
 				else if(s.equals("utr")) { use_utr3= true;use_utr5= true;}
 				else if(s.equals("upstream")) {use_upstream=true;}
 				else if(s.equals("downstream")) {use_downstream=true;}
+				else if(s.equals("splice")) {use_splice=true;}
 				else {
 					LOG.error("unknown code "+s+" in "+this.featuresString);
 					return -1;

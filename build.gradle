@@ -2020,7 +2020,7 @@ all.add( task("vcfremoveunusedalt", type: CompileJVarkit) {
 	});
 all.add( task("vcfstripannot", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("vcftabixml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcftabixml.VCFTabixml"

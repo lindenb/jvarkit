@@ -12,7 +12,7 @@ Usage: findallcoverageatposition [options] Files
   Options:
     -x, --extend
       [20190218]extend by 'x' base to try to catch close with clipped reads. A 
-      distance specified as a positive integer.Comma are removed. The 
+      distance specified as a positive integer.Commas are removed. The 
       following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 500
     -filter, --filter
@@ -64,6 +64,7 @@ Usage: findallcoverageatposition [options] Files
 
  * [https://www.biostars.org/p/259223](https://www.biostars.org/p/259223)
  * [https://www.biostars.org/p/250099](https://www.biostars.org/p/250099)
+ * [https://www.biostars.org/p/409942](https://www.biostars.org/p/409942)
 
 
 ## Compilation
@@ -135,7 +136,5 @@ $ find ./testdata/ -type f -name "*.bam" | \
  * [https://twitter.com/pjacock/status/538299549455233024](https://twitter.com/pjacock/status/538299549455233024)
  * FindAVariation
 
-## History
 
- * 2017: moved to jcommander
 

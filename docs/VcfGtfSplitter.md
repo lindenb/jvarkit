@@ -25,15 +25,15 @@ Usage: vcfgtfsplitter [options] Files
       interpreted : b,bp,k,kb,m,mb
       Default: 1000
     --features
-      Features to keep. Comma separated values. A set of 
-      'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream' 
+      Features to keep. Comma separated values. A set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream,splice'
       Default: cds,exon,intron,transcript,utr5,utr3,stop,start
     --force
       Force writing a gene/transcript even if there is no variant.
       Default: false
   * -g, -G, --gtf
       A GTF (General Transfer Format) file. See 
-      https://www.ensembl.org/info/website/upload/gff.html .
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
@@ -48,11 +48,19 @@ Usage: vcfgtfsplitter [options] Files
       Manifest Bed file output containing chrom/start/end of each gene
   * -o, --output
       An existing directory or a filename ending with the '.zip' suffix.
+    --splice
+      distance to splice site for 'splice' feature. A distance specified as a 
+      positive integer.Commas are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb
+      Default: 5
     -T, --transcript
       split by transcript. (default is to split per gene)
       Default: false
     --version
       print version and exit
+    --xannotate
+      Remove annotations. Variant Attribute cleaner. The syntax is the same as 
+      'bcftools annotate'. e.g: 'INFO/AC,INFO/ANN'  Empty string does nothing.
 
 ```
 
@@ -170,4 +178,8 @@ $ column -t jeter.manifest
 * https://twitter.com/yokofakun/status/1197149666237911040
 
 ![https://twitter.com/yokofakun/status/1197149666237911040](https://pbs.twimg.com/media/EJ0hReMX0AcaBoq?format=png&name=small)
+
+* https://twitter.com/yokofakun/status/1199621057533140992
+
+![https://twitter.com/yokofakun/status/1199621057533140992](https://twitter.com/i/status/1199621057533140992)
 

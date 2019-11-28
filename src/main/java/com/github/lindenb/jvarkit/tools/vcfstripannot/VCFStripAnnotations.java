@@ -28,48 +28,31 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
-
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypeBuilder;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFilterHeaderLine;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.AttributeCleaner;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
+
+## DEPRECATED
+
+use `bcftools annotate `
 
 ## Example
 
@@ -100,331 +83,40 @@ END_DOC
 @Program(name="vcfstripannot",
 	description="Removes one or more field from the INFO/FORMAT column of a VCF.",
 	deprecatedMsg="Use bcftools annotate -x ",
-	keywords={"vcf"}
+	keywords={"vcf"},
+	modificationDate="20191127"
 	)
 public class VCFStripAnnotations extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFStripAnnotations.class).make();	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	
+	private Path outputFile = null;
+	@Parameter(names={"-x","--exclude"},description="Use bcftools syntax INFO/x,INFO/y. "+AttributeCleaner.OPT_DESC)
+	private String pattern = null;
+
 	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
+	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 	
 	
-	@XmlType(name="vcfstripannot")
-	@XmlRootElement(name="vcfstripannot")
-	@XmlAccessorType(XmlAccessType.FIELD)
-	public static class CtxWriterFactory 
-		implements VariantContextWriterFactory
-			{
-			@XmlElement(name="exclude")
-			@Parameter(names={"-x","--exclude"},description="Use bcftools syntax INFO/x,INFO/y")
-			private List<String> bcfToolStringSet=new ArrayList<>();
-			
-			private class CtxWriter extends DelegateVariantContextWriter
-				{	
-				private final Set<String> infoToKeep= new HashSet<>();
-				private final Set<String> infoToRemove= new HashSet<>();
-				private final Set<String> formatToKeep= new HashSet<>();
-				private final Set<String> formatToRemove= new HashSet<>();
-				private final Set<String> filterToKeep= new HashSet<>();
-				private final Set<String> filterToRemove= new HashSet<>();
-				private boolean removeId=false;
-				
-				CtxWriter(final VariantContextWriter delegate) {
-					super(delegate);
-					}
-				
-				@Override
-				public void writeHeader(final VCFHeader header) {
-					Set<VCFHeaderLine> vcfHeaderLines=  header.getMetaDataInInputOrder();
-					for(String bcfToolString: CtxWriterFactory.this.bcfToolStringSet) {
-						boolean inverse=false;
-						if(bcfToolString.startsWith("^")) {
-							inverse=true;
-							bcfToolString=bcfToolString.substring(1);
-							}
-						for(final String bcfStr:bcfToolString.split("[,]"))
-							{
-							if(bcfStr.equals("ID"))
-								{
-								if(inverse)
-									{
-									LOG.warning("using inverse with ID");
-									}
-								this.removeId=true;
-								continue;
-								}
-							else if(bcfStr.startsWith("INFO/"))
-								{
-								final String tag = bcfStr.substring(5);
-								
-								if(inverse)
-									{
-									this.infoToKeep.add(tag);
-									}
-								else
-									{
-									this.infoToRemove.add(tag);
-									}
-								}
-							else if(bcfStr.startsWith("FILTER/"))
-								{
-								final String filter = bcfStr.substring(7);
-								if(inverse)
-									{
-									this.filterToKeep.add(filter);
-									}
-								else
-									{
-									this.filterToRemove.add(filter);
-									}
-								}
-							else if(bcfStr.startsWith("FORMAT/"))
-								{
-								final String format = bcfStr.substring(7);
-								if(inverse)
-									{
-									this.formatToKeep.add(format);
-									}
-								else
-									{
-									this.formatToRemove.add(format);
-									}
-								continue;
-								}
-							else if(bcfStr.equals("FILTER"))
-								{
-								this.filterToRemove.add("*");
-								}
-							else if(bcfStr.equals("INFO"))
-								{
-								this.infoToRemove.add("*");
-								}
-							else
-								{
-								throw new JvarkitException.UserError("Cannot decode "+bcfStr+" in "+bcfToolString);
-								}
-							}
-						}
-					if( this.formatToKeep.contains(VCFConstants.GENOTYPE_KEY) ||
-						this.formatToRemove.contains(VCFConstants.GENOTYPE_KEY))
-						{
-						throw new JvarkitException.UserError("Cannot remove/keep protected FORMAT:"+VCFConstants.GENOTYPE_KEY);
-						}
-					
-					if(!this.filterToKeep.isEmpty() && !this.filterToRemove.isEmpty())
-						{
-						throw new JvarkitException.UserError("Cannot keep and remove FILTER at the same time");
-						}
-					if(!this.infoToKeep.isEmpty() && !this.infoToKeep.isEmpty())
-						{
-						throw new JvarkitException.UserError("Cannot keep and remove INFO at the same time");
-						}
-
-					if(!this.formatToKeep.isEmpty() && !this.formatToRemove.isEmpty())
-						{
-						throw new JvarkitException.UserError("Cannot keep and remove FORMAT at the same time");
-						}
-					if(!this.filterToKeep.isEmpty())
-						{
-						vcfHeaderLines = vcfHeaderLines.stream().
-							filter(H->{
-								if(!(H instanceof VCFFilterHeaderLine)) return true;
-								final VCFFilterHeaderLine h = VCFFilterHeaderLine.class.cast(H);
-								return filterToKeep.contains(h.getID());
-								}).collect(Collectors.toSet());
-						}
-					if(!this.filterToRemove.isEmpty())
-						{
-						vcfHeaderLines = vcfHeaderLines.stream().
-							filter(H->{
-								if(!(H instanceof VCFFilterHeaderLine)) return true;
-								if(filterToRemove.contains("*")) return false;
-								final VCFFilterHeaderLine h = VCFFilterHeaderLine.class.cast(H);
-								return !filterToRemove.contains(h.getID());
-								}).collect(Collectors.toSet());
-						}
-					
-					if(!this.infoToKeep.isEmpty())
-						{
-						vcfHeaderLines = vcfHeaderLines.stream().
-							filter(H->{
-								if(!(H instanceof VCFInfoHeaderLine)) return true;
-								final VCFInfoHeaderLine h = VCFInfoHeaderLine.class.cast(H);
-								return infoToKeep.contains(h.getID());
-								}).collect(Collectors.toSet());
-						}
-					if(!this.infoToRemove.isEmpty())
-						{
-						vcfHeaderLines = vcfHeaderLines.stream().
-							filter(H->{
-								if(!(H instanceof VCFInfoHeaderLine)) return true;
-								if(this.infoToRemove.contains("*")) return false;
-								final VCFInfoHeaderLine h = VCFInfoHeaderLine.class.cast(H);
-								return !this.infoToRemove.contains(h.getID());
-								}).collect(Collectors.toSet());
-						}
-
-					if(!this.formatToKeep.isEmpty())
-						{
-						vcfHeaderLines = vcfHeaderLines.stream().
-							filter(H->{
-								if(!(H instanceof VCFInfoHeaderLine)) return true;
-								final VCFFormatHeaderLine h = VCFFormatHeaderLine.class.cast(H);
-								return this.formatToKeep.contains(h.getID());
-								}).collect(Collectors.toSet());
-						}
-					if(!this.formatToRemove.isEmpty())
-						{
-						vcfHeaderLines = vcfHeaderLines.stream().
-							filter(H->{
-								if(!(H instanceof VCFFormatHeaderLine)) return true;
-								final VCFFormatHeaderLine h = VCFFormatHeaderLine.class.cast(H);
-								return !this.formatToRemove.contains(h.getID());
-								}).collect(Collectors.toSet());
-						}
-
-					
-					
-					
-					final VCFHeader h2= new VCFHeader(
-							vcfHeaderLines,
-							header.getSampleNamesInOrder()
-							);
-					//addMetaData(h2);
-					
-					super.writeHeader(h2);
-					}
-				
-				@Override
-				public void add(final VariantContext ctx) {
-					final VariantContextBuilder b=new VariantContextBuilder(ctx);
-					if(this.removeId) b.noID();
-					
-					/* INFO */
-					if(!this.infoToKeep.isEmpty())
-						{
-						for(final String k2: ctx.getAttributes().keySet())
-							{
-							if(!this.infoToKeep.contains(k2)) b.rmAttribute(k2);
-							}
-						}
-					if(!this.infoToRemove.isEmpty())
-						{
-						for(final String k2: ctx.getAttributes().keySet())
-							{
-							if(this.infoToRemove.contains(k2) || this.infoToRemove.contains("*")) {
-								b.rmAttribute(k2);
-								}
-							}
-						}
-					/* formats */
-					if(!this.formatToKeep.isEmpty())
-						{
-						final List<Genotype> genotypes=new ArrayList<Genotype>();
-						for(final Genotype g:ctx.getGenotypes())
-							{
-							final GenotypeBuilder gb=new GenotypeBuilder(g);
-							final Map<String, Object> map=new HashMap<String, Object>();
-							for(final String key: g.getExtendedAttributes().keySet())
-								{
-								if(!this.formatToKeep.contains(key)) continue;
-								map.put(key, g.getExtendedAttribute(key));
-								}
-							gb.attributes(map);
-							genotypes.add(gb.make());
-							}
-						b.genotypes(genotypes);
-						}
-					if(!this.formatToRemove.isEmpty())
-						{
-						final List<Genotype> genotypes=new ArrayList<Genotype>();
-						for(final Genotype g:ctx.getGenotypes())
-							{
-							final GenotypeBuilder gb=new GenotypeBuilder(g);
-							if(this.formatToRemove.contains(VCFConstants.GENOTYPE_PL_KEY))
-								{
-								gb.noPL();
-								}
-							if(this.formatToRemove.contains("DP"))
-								{
-								gb.noDP();
-								}
-							if(this.formatToRemove.contains("AD"))
-								{
-								gb.noAD();
-								}
-							if(this.formatToRemove.contains("GQ"))
-								{
-								gb.noGQ();
-								}
-							if(this.formatToRemove.contains("*"))
-								{
-								gb.noAttributes();
-								continue;
-								}
-							final Map<String, Object> map=new HashMap<String, Object>();
-							for(final String key: g.getExtendedAttributes().keySet())
-								{
-								if(key.equals("DP") || key.equals("AD") || key.equals("GQ") || key.equals("PL")) continue;
-								if(this.formatToRemove.contains(key)) continue;
-								map.put(key, g.getExtendedAttribute(key));
-								}
-							gb.attributes(map);
-							genotypes.add(gb.make());
-							}
-						b.genotypes(genotypes);
-						}
-					
-					
-					if(!this.filterToKeep.isEmpty())
-						{
-						final Set<String> filters = new HashSet<>( ctx.getFilters());
-						filters.removeIf(S->!this.filterToKeep.contains(S));
-						b.filters(filters);
-						}
-					if(!this.filterToRemove.isEmpty())
-						{
-						final Set<String> filters = new HashSet<>( ctx.getFilters());
-						filters.removeAll(this.filterToRemove);
-						if(this.filterToRemove.contains("*")) filters.clear();
-						b.filters(filters);
-						}
-
-					super.add(b.make());
-					}
-				
-				}
-			
-			@Override
-			public VariantContextWriter open(final VariantContextWriter delegate) {
-				return new CtxWriter(delegate);
-				}
-			
-			}
-	
-	
-	public VCFStripAnnotations()
-		{
-		}
+	private AttributeCleaner cleaner = null;
+		
 	
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
 			final VCFIterator iter,
-			final VariantContextWriter delegate
-			) {	
-		final VariantContextWriter out = this.component.open(delegate);
-		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(iter.getHeader()).logger(LOG);
-		out.writeHeader(iter.getHeader());
+			final VariantContextWriter out
+			) 
+		{	
+		final VCFHeader h2 = this.cleaner.cleanHeader(iter.getHeader());
+		JVarkitVersion.getInstance().addMetaData(this, h2);
+		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(h2).logger(LOG).build();
+		out.writeHeader(h2);
 		while(iter.hasNext())
 			{
-			out.add(progress.watch(iter.next()));
+			out.add(this.cleaner.apply(progress.apply(iter.next())));
 			}
-		out.close();
-		progress.finish();
+		progress.close();
 		return 0;
 		}
 	
@@ -432,21 +124,16 @@ public class VCFStripAnnotations extends Launcher
 	public int doWork(final List<String> args) {
 		try 
 			{
-			if(this.component.initialize()!=0) return -1;
-			return doVcfToVcf(args, outputFile);
+			this.cleaner = AttributeCleaner.compile(this.pattern);
+			return doVcfToVcfPath(args,this.writingVariants, outputFile);
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.component);
-			}
-		
 		}
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new VCFStripAnnotations().instanceMainWithExit(args);
 		}

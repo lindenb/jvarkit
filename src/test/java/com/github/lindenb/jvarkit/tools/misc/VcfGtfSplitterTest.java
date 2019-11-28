@@ -9,9 +9,10 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+import com.github.lindenb.jvarkit.variant.variantcontext.AttributeCleanerTest;
 
 
-@AlsoTest(LauncherTest.class)
+@AlsoTest({LauncherTest.class,AttributeCleanerTest.class})
 public class VcfGtfSplitterTest {
 	private final TestSupport support = new TestSupport();
 
@@ -26,6 +27,7 @@ public class VcfGtfSplitterTest {
 					"--gtf",support.resource("Homo_sapiens.GRCh37.87.gtf.gz"),
 					"--index",
 					"-o",tmp.toString(),
+					"--xannotate","INFO/ANN",
 					support.resource("test_vcf01.vcf")
 					}),0);
 			

@@ -14,9 +14,16 @@ Use bcftools annotate -x
 ```
 Usage: vcfstripannot [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is: 2.1 (last checked 2019-11-15)
+      Default: false
     -x, --exclude
-      Use bcftools syntax INFO/x,INFO/y
-      Default: []
+      Use bcftools syntax INFO/x,INFO/y. Empty string does nothing.
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -55,6 +62,10 @@ The java jar file will be installed in the `dist` directory.
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotations.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotations.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotationsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfstripannot/VCFStripAnnotationsTest.java)
+
 
 ## Contribute
 
@@ -76,6 +87,10 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## DEPRECATED
+
+use `bcftools annotate `
 
 ## Example
 

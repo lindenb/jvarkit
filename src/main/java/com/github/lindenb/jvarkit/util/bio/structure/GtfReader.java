@@ -49,19 +49,22 @@ import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.tribble.readers.TabixReader;
 
 /**
  * A GTF/KnownGene Reader
  */
 public class GtfReader implements Closeable {
 	private static final Logger LOG = Logger.build(GtfReader.class).make();
-	public static final String OPT_DESC="A GTF (General Transfer Format) file. See https://www.ensembl.org/info/website/upload/gff.html .";
+	public static final String OPT_DESC="A GTF (General Transfer Format) file. See https://www.ensembl.org/info/website/upload/gff.html . "
+			+ "Please note that CDS are only detected if a start and stop codons are defined.";
 	/** available files extensions for GTF files */
 	public static List<String> SUFFIXES = Arrays.asList(".gtf",".gtf.gz");
 	
@@ -70,15 +73,26 @@ public class GtfReader implements Closeable {
 	private enum InputFormat {undefined,knowngene,gtf};
 	private InputFormat format = InputFormat.undefined;
 	private Function<String,String> contigNameConverter  = S->S;
-	
+	private TabixReader tabixReader = null;
 	
 	public GtfReader(final InputStream in) {
 		this.resource = new InputStreamGtfResource(in);
 	}
 	
 	public GtfReader(final Path path) {
+		this(path,false);
+		}
+	
+	private GtfReader(final Path path,boolean requireIndex) {
 		IOUtil.assertFileIsReadable(path);
 		this.resource = new PathGtfResource(path);
+		if(requireIndex) {
+			try {
+				this.tabixReader = new TabixReader(path.toString());
+			} catch (final IOException e) {
+				throw new RuntimeIOException(e);
+				}
+			}
 		}
 	
 	public GtfReader(final String uri) {
@@ -113,7 +127,7 @@ public class GtfReader implements Closeable {
 		final IntervalTreeMap<Locatable> treemap;
 		final GTFCodec codec = new GTFCodec();
 
-		
+		/** @param intervals can be null */
 		State(final Collection<Locatable> intervals)
 			{
 			if(intervals==null)
@@ -334,7 +348,52 @@ public class GtfReader implements Closeable {
 	public List<Gene> getAllGenes() {
 		return fetchGenes(null);
 		}
+	
+	/** not tested */
+	private List<Gene> queryGenes(final Locatable interval) {
+		if(interval==null) throw new IllegalArgumentException("interval cannot be null");
+		if(this.tabixReader==null) throw new IllegalArgumentException("Not a opened as a bgzipped+tabix indexed gtf file.");
+		String tabixContig= interval.getContig();
+		if(this.contigNameConverter!=null) {
+			tabixContig = this.tabixReader.getChromosomes().
+				stream().
+				map(C->this.contigNameConverter.apply(C)).
+				filter(C->C!=null && C.equals(interval.getContig())).
+				findFirst().
+				orElse(null);
+			}
 		
+		if(StringUtils.isBlank(tabixContig)) return Collections.emptyList();
+		
+		try {
+			 
+			final GTFCodec codec = new GTFCodec();
+			int start = interval.getStart();
+			int end  = interval.getEnd();
+			TabixReader.Iterator iter = this.tabixReader.query(tabixContig, start, end);
+			for(;;) {
+				final String line = iter.next();
+				if(line==null) break;
+				GTFLine L=codec.decode(line);
+				if(L==null) continue;
+				if(!L.getType().equals("gene")) continue;
+				start = Math.min(start, L.getStart());
+				end = Math.max(end, L.getEnd());
+				}
+			final State state = new State(null);
+			iter = this.tabixReader.query(tabixContig, start, end);
+			for(;;) {
+				final String line = iter.next();
+				if(line==null) break;
+				state.visitGtf(line);
+				}
+			return state.finish();
+		} catch(final IOException err) {
+			throw new RuntimeIOException(err);
+		}
+	}
+	
+	
 	private List<Gene> fetchGenes(final Collection<Locatable> intervals) {
 		final State state = new State(intervals);
 		
@@ -370,6 +429,7 @@ public class GtfReader implements Closeable {
 	@Override
 	public void close()  {
 		this.resource.close();
+		if(tabixReader!=null) tabixReader.close();
 		}
 	
 	private abstract class GtfResource  implements Closeable {
