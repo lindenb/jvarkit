@@ -266,11 +266,18 @@ HWI-1KL149:20:C1CU7ACXX:2:2311:14082:99026/2	EQ|EQ|EQ	K01:2081=163/100M	K01:2081
 HWI-1KL149:20:C1CU7ACXX:2:2315:4940:7934/1	EQ|EQ|EQ	K01:2133=83/100M	K01:2133=83/100M	K01:2133=83/100M
 HWI-1KL149:20:C1CU7ACXX:2:2315:4940:7934/2	EQ|EQ|EQ	K01:2059=163/100M	K01:2059=163/100M	K01:2059=163/100M</h:pre>
 ```
+
+## Cited in
+
+* "Blood transcriptome analysis in a buck-ewe hybrid and its parents" Falker-Gieske, C., Knorr, C. & Tetens, J. Blood transcriptome analysis in a buck-ewe hybrid and its parents. Sci Rep 9, 17492 (2019) doi:10.1038/s41598-019-53901-z
+
 END_DOC
 */
 
-@Program(name="cmpbams",description="Compare two or more BAM files",
-	keywords={"sam","bam","compare"}
+@Program(name="cmpbams",
+	description="Compare two or more BAM files",
+	keywords={"sam","bam","compare"},
+	modificationDate="20191128"
 	)
 public class CompareBams  extends Launcher
 	{
