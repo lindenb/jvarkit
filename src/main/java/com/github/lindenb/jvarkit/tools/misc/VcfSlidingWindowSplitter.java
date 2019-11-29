@@ -133,7 +133,7 @@ END_DOC
 		name="vcfwindowsplitter",
 		description="Split VCF by sliding window",
 		creationDate="20190619",
-		modificationDate="20190620",
+		modificationDate="20191129",
 		keywords= {"vcf","sliding","window"}
 		)
 public class VcfSlidingWindowSplitter
@@ -145,8 +145,6 @@ public class VcfSlidingWindowSplitter
 	private Path outputFile = null;
 	@Parameter(names={"-m","--manifest"},description="Manifest Bed file output containing chrom/start/end of each gene")
 	private Path manifestFile = null;
-	@Parameter(names={"-l","--list"},description= "list all available extractors", help=true)
-	private boolean list_extractors = false;
 	@Parameter(names={"-w","-W","--window-size"},description="Sliding window size. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int window_size = 1_000_000;
 	@Parameter(names={"-s","-S","--window-shift"},description="Sliding window shift. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)

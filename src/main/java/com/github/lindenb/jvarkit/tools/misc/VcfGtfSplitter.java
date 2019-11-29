@@ -168,7 +168,7 @@ public class VcfGtfSplitter
 	@Parameter(names={"--index"},description="index files")
 	private boolean index_vcf= false;
 	@Parameter(names={"--features"},description="Features to keep. Comma separated values. A set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream,splice'")
-	private String featuresString = "cds,exon,intron,transcript,utr5,utr3,stop,start";
+	private String featuresString = "cds,exon,intron,transcript,cds_utr,cds_utr5,cds_utr3,utr5,utr3,stop,start";
 	@Parameter(names={"--force"},description="Force writing a gene/transcript even if there is no variant.")
 	private boolean enable_empty_vcf = false;
 	@Parameter(names={"--coding"},description="Only use  gene_biotype=\"protein_coding\".")
@@ -189,6 +189,9 @@ public class VcfGtfSplitter
 	private boolean use_start = false;
 	private boolean use_utr5 = false;
 	private boolean use_utr3 = false;
+	private boolean use_cds_utr5 = false;
+	private boolean use_cds_utr3 = false;
+
 	private boolean use_downstream = false;
 	private boolean use_upstream = false;
 	private boolean use_splice = false;
@@ -317,6 +320,17 @@ public class VcfGtfSplitter
 			if(transcript.isPositiveStrand() && transcript.getUTR3().isPresent() && transcript.getUTR3().get().overlaps(ctx)) return true;
 			if(transcript.isNegativeStrand() && transcript.getUTR5().isPresent() && transcript.getUTR5().get().overlaps(ctx)) return true;
 			}
+		
+		if(this.use_cds_utr5) {
+			if(transcript.isPositiveStrand() && transcript.getUTR5().isPresent() && transcript.getUTR5().get().getIntervals().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
+			if(transcript.isNegativeStrand() && transcript.getUTR3().isPresent() && transcript.getUTR3().get().getIntervals().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
+			}
+		if(this.use_cds_utr3) {
+			if(transcript.isPositiveStrand() && transcript.getUTR3().isPresent() && transcript.getUTR3().get().getIntervals().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
+			if(transcript.isNegativeStrand() && transcript.getUTR5().isPresent() && transcript.getUTR5().get().getIntervals().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
+			}
+		
+		
 		if(this.use_stop && transcript.hasCodonStopDefined() && transcript.getCodonStop().get().getBlocks().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		if(this.use_start && transcript.hasCodonStartDefined() && transcript.getCodonStart().get().getBlocks().stream().anyMatch(FEAT->FEAT.overlaps(ctx))) return true;
 		
@@ -459,6 +473,9 @@ public class VcfGtfSplitter
 				else if(s.equals("upstream")) {use_upstream=true;}
 				else if(s.equals("downstream")) {use_downstream=true;}
 				else if(s.equals("splice")) {use_splice=true;}
+				else if(s.equals("cds_utr5")) {use_cds_utr5=true;}
+				else if(s.equals("cds_utr3")) {use_cds_utr3=true;}
+				else if(s.equals("cds_utr")) {use_cds_utr3=true;use_cds_utr5=true;}
 				else {
 					LOG.error("unknown code "+s+" in "+this.featuresString);
 					return -1;

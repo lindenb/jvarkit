@@ -26,7 +26,7 @@ Usage: vcfgtfsplitter [options] Files
       Default: 1000
     --features
       Features to keep. Comma separated values. A set of 'cds,exon,intron,transcript,utr,utr5,utr3,stop,start,upstream,downstream,splice'
-      Default: cds,exon,intron,transcript,utr5,utr3,stop,start
+      Default: cds,exon,intron,transcript,cds_utr,cds_utr5,cds_utr3,utr5,utr3,stop,start
     --force
       Force writing a gene/transcript even if there is no variant.
       Default: false

@@ -861,4 +861,18 @@ public class IOUtils {
 			throw new RuntimeIOException("Cannot read content of "+p, e);
 			}
 		}
+	
+    /** Returns the name of the file minus the directory and the extension (i.e. text after the last "." in the filename). 
+     * repeat the procedure until 'repeat'. repeat==-1 : forever. '.' at beggining of the line is always kept (hidden linux file ) */
+    public static String getFilenameWithoutSuffix(final Path f,int repeat) {
+        String s = f.getFileName().toString();
+        if(repeat<-1) throw new IllegalArgumentException("repeat <-1");
+        for(;;) {
+			if(repeat==0) return s;
+			final int index = s.lastIndexOf('.');
+			if(index<1) return s;//0 is for hidden file
+			s = s.substring(0,index);
+			if(repeat!=-1) repeat--;
+        	}
+    	}
 	}

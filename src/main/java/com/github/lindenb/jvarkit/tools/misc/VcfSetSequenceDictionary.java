@@ -29,6 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +44,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -50,6 +52,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
@@ -72,7 +76,8 @@ END_DOC
 */
 @Program(name="vcfsetdict",
 	description="Set the `##contig` lines in a VCF header on the fly",
-	keywords={"vcf","dict","fai"}
+	keywords={"vcf","dict","fai"},
+	modificationDate="20191129"
 	)
 public class VcfSetSequenceDictionary extends Launcher
 	{
@@ -82,12 +87,14 @@ public class VcfSetSequenceDictionary extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx=null;
+	private Path faidx=null;
 	@Parameter(names={"-n","--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
 	private OnNotFound onContigNotFound = OnNotFound.SKIP;			
 	@Parameter(names={"-ho","--header-only"},description=
 			"only change the vcf header. Keep the whole VCF body unchanged. The idea is to use a faster(?) `sed sed 's/^chr//' ` for the VCF body. " )
-	private boolean header_only=false;			
+	private boolean header_only=false;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 	
 	private SAMSequenceDictionary dict=null;

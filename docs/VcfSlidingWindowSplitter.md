@@ -14,8 +14,6 @@ Usage: vcfwindowsplitter [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -l, --list
-      list all available extractors
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
     -M, --max-variant
@@ -40,11 +38,11 @@ Usage: vcfwindowsplitter [options] Files
     --version
       print version and exit
     -s, -S, --window-shift
-      Sliding window shift. A distance specified as a positive integer.Comma 
+      Sliding window shift. A distance specified as a positive integer.Commas 
       are removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 500000
     -w, -W, --window-size
-      Sliding window size. A distance specified as a positive integer.Comma 
+      Sliding window size. A distance specified as a positive integer.Commas 
       are removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 1000000
 

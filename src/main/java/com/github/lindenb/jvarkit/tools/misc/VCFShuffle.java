@@ -32,8 +32,8 @@ import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Random;
 
@@ -46,11 +46,13 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 /**
 BEGIN_DOC
 
@@ -73,14 +75,16 @@ public class VCFShuffle extends Launcher
 	private static final Logger LOG = Logger.build(VCFShuffle.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	
 	@Parameter(names={"-N","--seed"},description="random seed. Optional. -1 = time.")
 	private long seed = -1L ;
-
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	private static class RLine
 		{
@@ -131,14 +135,17 @@ public class VCFShuffle extends Launcher
 		try
 			{
 			lr = super.openBufferedReader(oneFileOrNull(args));
-			out = super.openVariantContextWriter(this.outputFile);
+			final VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(lr);
+			final VCFHeader header=cah.header;
+			JVarkitVersion.getInstance().addMetaData(this, header);
+			super.addMetaData(header);
+
+			
+			out = this.writingVariantsDelegate.dictionary(header).open(this.outputFile);
 			
 			
 			final Random random=new Random(this.seed);
 
-			final VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(lr);
-			final VCFHeader header=cah.header;
-			super.addMetaData(header);
 			out.writeHeader(header);
 			LOG.info("shuffling");
 			
@@ -163,7 +170,6 @@ public class VCFShuffle extends Launcher
 				shuffled.add(rLine);
 				}
 			shuffled.doneAdding();
-			LOG.info("done shuffling");
 			
 			final CloseableIterator<RLine> iter=shuffled.iterator();
 			while(iter.hasNext())

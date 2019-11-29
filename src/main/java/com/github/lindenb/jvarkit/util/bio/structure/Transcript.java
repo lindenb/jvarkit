@@ -29,6 +29,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+
+import htsjdk.samtools.util.Locatable;
 
 
 public interface Transcript extends StrandedLocatable {
@@ -153,5 +158,33 @@ public interface Transcript extends StrandedLocatable {
 	public boolean hasCodonStartDefined();	
 	/** test if stop codon defined. eg:  wget -q -O - "http://ftp.ensembl.org/pub/grch37/current/gtf/homo_sapiens/Homo_sapiens.GRCh37.87.gtf.gz" | gunzip -c | grep ENST00000327956 | grep stop */
 	public boolean hasCodonStopDefined();
+
+	/**return genomic interval spanning between codon start and codon stop if they both exists*/
+	public default Optional<Locatable> getCdsInterval() {
+		if(!hasCodonStartDefined() || !hasCodonStopDefined()) return Optional.empty();
+		int x1=this.getEnd();
+		int x2=this.getStart();
+
+		Locatable codon = getCodonStart().get();
+		x1=Math.min(codon.getStart(), x1);
+		x2=Math.max(codon.getEnd(), x2);
+		
+		codon = getCodonStop().get();
+		x1=Math.min(codon.getStart(), x1);
+		x2=Math.max(codon.getEnd(), x2);
+		return Optional.of(new SimpleInterval(getContig(), x1, x2));
+		}
+	
+	/** 1-based leftmost position of the cds in genomic order (equivalent of ucsc knownGene.getCdsStart) */
+	public default OptionalInt getCdsStart() {
+		final Integer p= getCdsInterval().map(A->A.getStart()).orElse(null);
+		return p==null?OptionalInt.empty() : OptionalInt.of(p.intValue());
+		}
+	
+	/** 1-based rightmost position of the cds in genomic order (equivalent of ucsc knownGene.getCdsStart) */
+	public default OptionalInt getCdsEnd() {
+		final Integer p= getCdsInterval().map(A->A.getEnd()).orElse(null);
+		return p==null?OptionalInt.empty() : OptionalInt.of(p.intValue());
+		}
 
 }

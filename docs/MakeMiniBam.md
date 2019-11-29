@@ -32,12 +32,17 @@ Usage: mkminibam [options] Files
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
+      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
+      FailsVendorQuality() || NotPrimaryAlignment() || 
+      SupplementaryAlignment()' 
       Default: Accept All/ Filter out nothing
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --no-samples
+      [20191129]Allow no sample/ no read group : use fileame
+      Default: false
   * -o, --output
       An existing directory or a filename ending with the '.zip' suffix.
     --prefix

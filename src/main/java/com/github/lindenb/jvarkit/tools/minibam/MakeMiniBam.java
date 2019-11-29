@@ -150,6 +150,8 @@ public class MakeMiniBam extends Launcher {
 	private String userComment="";
 	@Parameter(names={"--bnd"},description="[20190427]When reading VCF file, don't get the mate position for the structural BND variants.")
 	private boolean disable_sv_bnd = false;
+	@Parameter(names={"--no-samples"},description="[20191129]Allow no sample/ no read group : use fileame")
+	private boolean allow_no_sample = false;
 
 	
 	@Override
@@ -289,12 +291,26 @@ public class MakeMiniBam extends Launcher {
 					}
 	            
 				
-				final String sampleName = header.getReadGroups().
+				final String sampleName1 = header.getReadGroups().
 						stream().
 						map(RG->RG.getSample()).
 						filter(S->!StringUtils.isBlank(S)).
 						findFirst().
-						orElseThrow(()->new IllegalArgumentException("No Sample found in "+bamFile));
+						orElse(null);
+				final String sampleName;
+				if(!StringUtils.isBlank(sampleName1))
+					{
+					sampleName = sampleName1;
+					}
+				else if(this.allow_no_sample) {
+					sampleName = IOUtils.getFilenameWithoutSuffix(bamFile,1);
+					LOG.warn("No Read group in "+bamFile+" using filename : "+sampleName);
+					}
+				else
+					{
+					throw new IllegalArgumentException("No Sample found in "+bamFile+". Use --no-samples option ?");
+					}
+				
 				String filename=this.filePrefix + sampleName + labelSuffix;
 				while(outputFileNames.contains(filename)) 	{
 					filename=this.filePrefix+sampleName+"."+ (id_generator++) + labelSuffix;

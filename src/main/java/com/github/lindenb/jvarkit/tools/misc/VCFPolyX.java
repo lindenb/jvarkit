@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -46,6 +45,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -55,6 +55,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 /*
@@ -75,14 +77,15 @@ END_DOC
 */
 @Program(name="vcfpolyx",
 	description="Number of repeated REF bases around POS.",
-	keywords={"vcf","repeat"}
-		)
+	keywords={"vcf","repeat"},
+	modificationDate="20191129"
+	)
 public class VCFPolyX extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VCFPolyX.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-n","--filter"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
 	private int filterTrehsold = -1 ;
 	@Parameter(names={"-t","--tag"},description="Tag used in INFO and FILTER columns.")
@@ -91,7 +94,9 @@ public class VCFPolyX extends Launcher
 	private Path faixPath = null;
 	@Parameter(names={"--skip-filtered"},description="Don't spend some time to calculate the tag if the variant is FILTERed")
 	private boolean skip_filtered=false;
-
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
+	
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
@@ -198,17 +203,13 @@ public class VCFPolyX extends Launcher
 			}
 		return RETURN_OK;
 		}
-		
-		
-	
 	
 	@Override
 	public int doWork(final List<String> args) {
-		return doVcfToVcf(args,outputFile);
+		return doVcfToVcfPath(args,this.writingVariants,this.outputFile);
 		}
 
-
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VCFPolyX().instanceMainWithExit(args);
 		}

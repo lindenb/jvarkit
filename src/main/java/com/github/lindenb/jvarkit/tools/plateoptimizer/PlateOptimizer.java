@@ -137,7 +137,7 @@ public class PlateOptimizer extends Launcher {
 			return getSexe().equals("M");
 			}
 		String getName() {
-			return tokens[0];
+			return get("id_KIT");
 			}
 		}
 	

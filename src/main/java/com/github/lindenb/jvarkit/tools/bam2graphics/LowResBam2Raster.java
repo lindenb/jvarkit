@@ -32,11 +32,13 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -45,12 +47,15 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.Exon;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -71,8 +76,8 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
 /**
@@ -108,14 +113,16 @@ END_DOC
 */
 @Program(name="lowresbam2raster",
 		description="Low Resolution BAM to raster graphics",
-		keywords={"bam","alignment","graphics","visualization","png","knowngene"},
-		biostars= 293741
+		keywords={"bam","alignment","graphics","visualization","png","gtf"},
+		biostars= 293741,
+		creationDate="20170523",
+		modificationDate="20191129"
 		)
 public class LowResBam2Raster extends AbstractBam2Raster {
 	private static final Logger LOG = Logger.build(LowResBam2Raster.class).make();
-	@Parameter(names={"-kg","--knownGene"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String knownGeneUrl =null;
-	private final List<KnownGene> knownGenes = new ArrayList<>();
+	@Parameter(names={"-gtf","--gtf"},description=GtfReader.OPT_DESC)
+	private Path gtfPath =null;
+	private final List<Transcript> transcripts = new ArrayList<>();
 	@Parameter(names={"-gcPercent","--gcPercent"},description="GC% track height.")
 	private int gcPercentSize=100;
 	@Parameter(names={"-gcwin","--gcWindowSize"},description="GC% Window size")
@@ -427,7 +434,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 				imageDimension.height += featureHeight*2+spaceYbetweenFeatures;//interval
 				imageDimension.height += ruler_height+spaceYbetweenFeatures;//ruler
 				
-				imageDimension.height += (knownGenes.size()*(featureHeight+spaceYbetweenFeatures));
+				imageDimension.height += (transcripts.size()*(featureHeight+spaceYbetweenFeatures));
 				imageDimension.height += rows.size()*(featureHeight+spaceYbetweenFeatures);
 				if(depthSize>0)
 					{
@@ -505,7 +512,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 				y+=ruler_height+spaceYbetweenFeatures;
 
 				
-				for(final KnownGene gene:LowResBam2Raster.this.knownGenes) {
+				for(final Transcript transcript:LowResBam2Raster.this.transcripts) {
 					final double cdsHeigh= LowResBam2Raster.this.featureHeight*0.9;
 					final double y0 = y;
 					final double y1 = y0+cdsHeigh;
@@ -513,9 +520,9 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			
 					g.setColor(ALMOST_BLACK);
 					g.draw(new Line2D.Double(
-						pos2pixel.apply(gene.getTxStart()+1),
+						pos2pixel.apply(transcript.getTxStart()),
 						midY,
-						pos2pixel.apply(gene.getTxEnd()),
+						pos2pixel.apply(transcript.getTxEnd()),
 						midY)
 						);
 					
@@ -524,11 +531,11 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 						pixX< LowResBam2Raster.this.WIDTH;
 						pixX+=30)
 						{
-						int pos1= LowResBam2Raster.this.pixel2pos.apply(pixX);
-						if(pos1< gene.getTxStart()+1) continue;
-						if(pos1> gene.getTxEnd()) break;
+						final int pos1= LowResBam2Raster.this.pixel2pos.apply(pixX);
+						if(pos1< transcript.getTxStart()) continue;
+						if(pos1> transcript.getTxEnd()) break;
 						final GeneralPath ticks = new GeneralPath();
-						if(gene.isPositiveStrand())
+						if(transcript.isPositiveStrand())
 							{
 							
 							}
@@ -540,12 +547,12 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 						}
 				
 					/* exons */
-					for(KnownGene.Exon exon:gene.getExons())
+					for(final Exon exon:transcript.getExons())
 						{
 						final Rectangle2D exonRect= new Rectangle2D.Double(
-							pos2pixel.apply(exon.getStart()+1),
+							pos2pixel.apply(exon.getStart()),
 							y0,
-							pos2pixel.apply(exon.getEnd())-pos2pixel.apply(exon.getStart()+1),
+							pos2pixel.apply(exon.getEnd())-pos2pixel.apply(exon.getStart()),
 							cdsHeigh
 							);
 						g.draw(exonRect);
@@ -553,16 +560,19 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 						}
 				
 					/* coding line */
-					if(!gene.isNonCoding())
+					if(transcript.isCoding() )
 						{
-						final Rectangle2D cdsRect= new Rectangle2D.Double(
-							pos2pixel.apply(gene.getCdsStart()+1),
-							y0,
-							pos2pixel.apply(gene.getCdsEnd())-pos2pixel.apply(gene.getCdsStart()+1),
-							cdsHeigh
-							);
-						g.draw(cdsRect);
-						g.fill(cdsRect);
+						final Optional<Locatable> cds = transcript.getCdsInterval();
+						if(cds.isPresent()) {
+							final Rectangle2D cdsRect= new Rectangle2D.Double(
+								pos2pixel.apply(cds.get().getStart()),
+								y0,
+								pos2pixel.apply(cds.get().getEnd())-pos2pixel.apply(cds.get().getStart()),
+								cdsHeigh
+								);
+							g.draw(cdsRect);
+							g.fill(cdsRect);
+							}
 						}
 					y+=featureHeight;
 					y+=spaceYbetweenFeatures;
@@ -1032,19 +1042,15 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 						}
 				    else
 				    	{
-				    	LOG.info("loading reference");
 						this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile);
-						this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
-						if(this.refDict==null)
-							{
-							LOG.error(JvarkitException.FastaDictionaryMissing.getMessage(this.referenceFile.getPath()));
-							return -1;
-							}
+						this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 						this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 				    	}
 
 					
 					final SamReaderFactory srf = super.createSamReaderFactory();
+					srf.referenceSequence(this.referenceFile);
+					
 					this.interval = IntervalParserFactory.newInstance().
 							dictionary(this.refDict).
 							make().
@@ -1054,26 +1060,25 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					
 					loadVCFs();
 					
-					if(this.knownGeneUrl!=null)
+					if(this.gtfPath!=null)
 						{
-						IntervalTreeMap<List<KnownGene>> map=KnownGene.
-								loadUriAsIntervalTreeMap(this.knownGeneUrl,
-								(KG)->(this.interval.getContig().equals(this.contigNameConverter.apply(KG.getContig())) && !(KG.getEnd()<this.interval.getStart() || KG.getStart()+1>this.interval.getEnd()
-								)));
-						
-						this.knownGenes.addAll(map.values().stream().flatMap(L->L.stream()).collect(Collectors.toList()));
+						try(GtfReader gtfReader = new GtfReader(this.gtfPath)) {
+							gtfReader.setContigNameConverter(this.contigNameConverter);
+							gtfReader.getAllGenes().
+							stream().
+							filter(G->G.overlaps(this.interval)).
+							flatMap(G->G.getTranscripts().stream()).
+							filter(G->G.overlaps(this.interval)).
+							forEach(T->this.transcripts.add(T));
+							}
 						}
 
-					for(final String bamFile: IOUtils.unrollFiles(args))
+					for(final Path bamFile: IOUtils.unrollPaths(args))
 						{
 						samFileReader = srf.open(SamInputResource.of(bamFile));
 						final SAMFileHeader header=samFileReader.getFileHeader();
-						final SAMSequenceDictionary dict=header.getSequenceDictionary();
-						
-						if(dict==null) {
-							LOG.error("no dict in "+bamFile);
-							return -1;
-							}
+						final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(header);
+						SequenceUtil.assertSequenceDictionariesEqual(dict, this.refDict);
 						final ContigNameConverter conv = ContigNameConverter.fromOneDictionary(dict);
 						final String normalizedContig = conv.apply(this.interval.getContig());
 						
@@ -1103,7 +1108,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							);					
 					return RETURN_OK;
 					}
-				catch(final Exception err)
+				catch(final Throwable err)
 					{
 					LOG.error(err);
 					return -1;
@@ -1115,7 +1120,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 		
 				}
 			
-		public static void main(String[] args)
+		public static void main(final String[] args)
 			{
 			new LowResBam2Raster().instanceMainWithExit(args);
 			}

@@ -78,8 +78,10 @@ Usage: lowresbam2raster [options] Files
     -srf, --samRecordFilter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
+      FailsVendorQuality() || NotPrimaryAlignment() || 
+      SupplementaryAlignment()' 
+      Default: mapqlt(1) || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     --spaceyfeature
       number of pixels between features
       Default: 1
