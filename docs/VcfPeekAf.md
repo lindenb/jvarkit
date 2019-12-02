@@ -1,0 +1,116 @@
+# VcfPeekAf
+
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
+Peek the AF from another VCF
+
+
+## Usage
+
+```
+Usage: vcfpeekaf [options] Files
+  Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is: 2.1 (last checked 2019-11-15)
+      Default: false
+    -b, --buffer-size
+      buffer size (in bp). We don't do a random access for each variant. 
+      Instead of this, load all the variants in a defined window. A distance 
+      specified as a positive integer.Commas are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 100000
+  * -F, --database, --tabix, --resource
+      An indexed VCF file. Source of the annotations
+    -f, --filter
+      soft FILTER the variant of this data if AF is not found or it greater > 
+      threshold. If empty, just DISCARD the variant
+      Default: <empty string>
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
+    -h, --help
+      print help and exit
+    --helpFormat
+      What kind of help. One of [usage,markdown,xml].
+    -l, --list
+      List available AF peekers and exit.
+    --no-alt
+      Do not look at the alternate alleles concordance
+      Default: false
+    -o, --output
+      Output file. Optional . Default: stdout
+  * -p, --peeker
+      Peeker name
+    -T, --tag
+      INFO tag to put found frequency. empty: no extra tag.
+      Default: <empty string>
+  * -t, --treshold
+      AF treshold. Variant is accepted is computed AF <= treshold.
+      Default: 1.0
+    --version
+      print version and exit
+
+```
+
+
+## Keywords
+
+ * vcf
+ * annotation
+ * af
+
+
+## Compilation
+
+### Requirements / Dependencies
+
+* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+
+
+### Download and Compile
+
+```bash
+$ git clone "https://github.com/lindenb/jvarkit.git"
+$ cd jvarkit
+$ ./gradlew vcfpeekaf
+```
+
+The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20191202
+
+## Source code 
+
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekAf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekAf.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekAfTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfvcf/VcfPeekAfTest.java)
+
+
+## Contribute
+
+- Issue Tracker: [http://github.com/lindenb/jvarkit/issues](http://github.com/lindenb/jvarkit/issues)
+- Source Code: [http://github.com/lindenb/jvarkit](http://github.com/lindenb/jvarkit)
+
+## License
+
+The project is licensed under the MIT license.
+
+## Citing
+
+Should you cite **vcfpeekaf** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+
+The current reference is:
+
+[http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
+> [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+

@@ -30,11 +30,13 @@ package com.github.lindenb.jvarkit.tools.misc;
 import java.io.File;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -42,22 +44,35 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.stream.HtsCollectors;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.Exon;
+import com.github.lindenb.jvarkit.util.bio.structure.Gene;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.svg.SVG;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
-import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
@@ -65,17 +80,9 @@ BEGIN_DOC
 ## Example
 
 ```
-# download and gzip refGene from UCSC
-$ curl -s "http://hgdownload.cse.ucsc.edu/goldenpath/hg19/database/refGene.txt.gz" |\
-   gunzip -c | LC_ALL=C sort -t '	' -k3,3 -k5,5n | bgzip > refGene.txt.gz
-
-# index the refGene file
-$ tabix  -0 -s  3 -b 5 -e 6 -f refGene.txt.gz
 
 # run vcf2svg 
-$ java -jar dist/vcf2svg.jar \
-   --stopAfterFirst \
-   -k refGene.txt.gz input.vcf > out.svg
+$ java -jar dist/vcf2svg.jar  -r "chr22:100-2000"  --gtf gtf.txt.gz input.vcf -o out.zip
 ```
 
 ## Screenshot
@@ -91,30 +98,26 @@ END_DOC
  */
 @Program(name="vcf2svg",
 	description="write a vcf to svg , with gene context",
-	keywords={"vcf","svg","xlm","visualization"}
-		)
+	keywords={"vcf","svg","xlm","visualization"},
+	modificationDate="20191121",
+	creationDate="20170411"
+	)
 public class VcfToSvg extends Launcher {
 private static final Logger LOG=Logger.build(VcfToSvg.class).make();
-private static final String SEGMENT="__SEGMENT__";
 
-@Parameter(names={"-o","--out"},description="Output SVG file. If defined, MUST Contains the word \'"+SEGMENT+"\'")
-private File outputFile=null;
+@Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
+private Path outputPath=null;
+@Parameter(names={"-r","--interval"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class,required=true)
+private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 
-@Parameter(names={"-k","--knownGenes"},description=KnownGene.OPT_KNOWNGENE_DESC,required=true)
-private String knownGeneUri=null;
+@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC)
+private Path gtfPath = null;
 
-@Parameter(names={"-trim2ctx","--trimToVariant"},
-  description="Don't use gene interval for graphics but min/max of variants")
-private boolean trimToVariants=false;
-
-@Parameter(names={"-m","--manifest"},description="Manifest file containing the names of the files.")
-private File manifestFile=null;
-@Parameter(names={"--stopAfterFirst"},
-description="when writing multiple SVG docs, stop after the first one. It avoids writing multiple concatenated SVG documents when writing to stdout")
-private boolean stop_at_first=false;
+@Parameter(names={"-m","--manifest"},description="Manifest bed file containing the names of the files.")
+private Path manifestFile=null;
 @Parameter(names={"-gw","--genotypeWidth"},description="Genotype square width")
 private int genotype_width=10;
-@Parameter(names={"--nonCoding"},description="Ignore Non-coding genes")
+@Parameter(names={"--nonCoding"},description="Ignore Non-coding transcripts")
 private boolean removeNonCoding = false;
 @Parameter(names={"--exon","--exons"},description="Only keep variants in exons")
 private boolean variantsInExonOnly = false;
@@ -122,6 +125,8 @@ private boolean variantsInExonOnly = false;
 private double variantFILTEREDOpacity = 1.0;
 @Parameter(names={"--alphaINDEL"},description="Variant INDEL opacity (0== hide INDEL variants) ")
 private double variantIndelOpacity = 1.0;
+@Parameter(names={"--pedigree"},description="Optional pedigree. "+PedigreeParser.OPT_DESC)
+private Path pedPath=null;
 
 
 
@@ -135,187 +140,102 @@ private void title(final XMLStreamWriter w,final String title) throws XMLStreamE
 
 @Override
 public int doWork(final List<String> args) {
-	if(this.outputFile!=null && !outputFile.getName().contains(SEGMENT))
-		{
-		LOG.error("output file must contain the word "+SEGMENT+" :"+this.outputFile);
-		return -1;
-		}
-	TabixKnownGeneFileReader tabix = null;
-	VCFIterator r=null;
+	
+	VCFFileReader r=null;
 	OutputStream outputStream=null;
 	XMLStreamWriter w=null;
 	PrintWriter manifestW=null;
+	ArchiveFactory archiveFactory = null;
 	try {
-		
-		LOG.info("opening knownGene ");
-		tabix= new TabixKnownGeneFileReader(knownGeneUri);
-		
-		if(manifestFile!=null && this.outputFile!=null)
+		r= new VCFFileReader(Paths.get(oneAndOnlyOneFile(args)), true);
+		final VCFHeader header=r.getFileHeader();
+		final List<String> samples= new ArrayList<>(header.getSampleNamesInOrder());
+		/* read pedigree if any */
+		final Pedigree pedigree;
+		if(this.pedPath!=null) {
+			pedigree = new PedigreeParser().parse(pedPath);
+			}
+		else
 			{
-			manifestW= new PrintWriter(manifestFile);
+			pedigree=null;
+			}
+		
+		
+		final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(header);
+		intervalListProvider.dictionary(dict);
+		
+		/* read gtf if any */
+		final IntervalTreeMap<Gene> geneMap = new IntervalTreeMap<>();
+		if(this.gtfPath!=null) {
+			try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
+				gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+				 gtfReader.getAllGenes().
+					stream().
+					filter(G->!this.removeNonCoding || G.getTranscripts().stream().anyMatch(T->T.isCoding())).
+					forEach(G->geneMap.put(new Interval(G),G));
+				}
+			}
+		archiveFactory = ArchiveFactory.open(this.outputPath);
+		if(manifestFile!=null)
+			{
+			manifestW= IOUtils.openPathForPrintWriter(this.manifestFile);
 			}
 		else
 			{
 			manifestW= new PrintWriter(new NullOuputStream());
 			}
 
-		
-		final Set<String> chromosomes = tabix.getChromosomes();
+		final Path tmpSvg = Files.createTempFile("vcf.", ".svg");
 		final XMLOutputFactory xof=XMLOutputFactory.newInstance();
-		r= super.openVCFIterator(super.oneFileOrNull(args));
-		final VCFHeader header=r.getHeader();
-		while(r.hasNext())
-			{
-			final VariantContext ctx=r.next();
-			String tabixContig=ctx.getContig();
-			if(!chromosomes.contains(tabixContig))
-				{
-				if(tabixContig.startsWith("chr"))
-					{
-					tabixContig=tabixContig.substring(3);
-					}
-				else if(!tabixContig.startsWith("chr"))
-					{
-					tabixContig="chr"+tabixContig;
-					}
-				if(!chromosomes.contains(tabixContig))
-					{
-					while(r.hasNext())
-						{
-						final VariantContext ctx2 = r.peek();
-						if(!ctx2.getContig().equals(ctx.getContig())) break;
-						r.next();
-						}
-					LOG.error("No chromosome "+ctx.getContig()+" in "+knownGeneUri+". Check the chromosome nomenclature.");
-					continue;
-					}
-				}
-			
-			final List<VariantContext> variants = new ArrayList<>();
-			final List<KnownGene> genes = new ArrayList<>();
-			variants.add(ctx);
 		
-			int chromStart=ctx.getStart()-1;
-			int chromEnd = ctx.getEnd();
-			/* walk over know gene, loop until there is no overapping transcript 
-			 * over that region */
-			for(;;) {
-				genes.clear();
-				/* the max chromEnd, let's see if we can get a bigger */
-				int newStart=chromStart;
-				int newEnd=chromEnd;
-				final Iterator<KnownGene> kgr = tabix.iterator(
-						tabixContig,
-						chromStart,
-						chromEnd
-						);
-				while(kgr.hasNext())
-					{		
-					final KnownGene g=kgr.next();
-					if(this.removeNonCoding && g.isNonCoding()) continue;
-					genes.add(g);
-					newStart=Math.min(g.getTxStart(),newStart);
-					newEnd=Math.max(g.getTxEnd(),newEnd);
-					}
-				if( newStart>=chromStart &&  newEnd <= chromEnd)
-					{
-					break;
-					}
-				chromStart=newStart;
-				chromEnd=newEnd;
-				}
-			// intergenic, no gene over that variant
-			if(genes.isEmpty()) continue;
-			
-			//fill the variant for that region
-			while(r.hasNext())
-				{
-				final VariantContext ctx2 = r.peek();
-				if(!ctx2.getContig().equals(ctx.getContig())) break;
-				if(ctx2.getStart()> chromEnd) break;
-				
-				
-				variants.add(r.next());
-					
-				}
-			
-			if(this.variantsInExonOnly)
-				{
-				variants.removeIf(V->{
-					for(final KnownGene gene:genes)
-						{
-						for(final KnownGene.Exon exon: gene.getExons())
-							{
-							if(V.getEnd()< exon.getStart() || V.getStart()>=exon.getEnd())
-								{
-								//rien
-								}
-							else
-								{
-								
-								return false;
-								}
-							}
-						}
-					return true;
-					});
-				}
-			if(this.variantFILTEREDOpacity<=0)
-				{
-				variants.removeIf(V->V.isFiltered());
-				}
-			if(this.variantIndelOpacity<=0)
-				{
-				variants.removeIf(V->V.isIndel());
-				}
-
-			
+		for(final Locatable interval : intervalListProvider.dictionary(dict).stream().collect(Collectors.toList()))
+			{
+			final List<VariantContext> variants =  r.query(interval).stream().
+					filter(V->this.variantFILTEREDOpacity>0 ||!V.isFiltered()).					
+					filter(V->this.variantIndelOpacity>0 ||!V.isIndel()).					
+					collect(Collectors.toCollection(ArrayList::new));
 			
 			if(variants.isEmpty()) continue;
 			
-			LOG.info("Variants ("+variants.size()+") Transcripts ("+genes.size()+") "+tabixContig+":"+chromStart+"-"+chromEnd);
 
-			if(outputFile!=null)
-				{
-				File fname=new File(outputFile.getParentFile(),
-						outputFile.getName().replaceAll("__SEGMENT__",
-						ctx.getContig()+"_"+chromStart+"_"+chromEnd));
-				LOG.info("saving as "+fname);
-				outputStream=IOUtils.openFileForWriting(fname);
-				w=xof.createXMLStreamWriter(outputStream);
-				
-				manifestW.println(ctx.getContig()+"\t"+chromStart+"\t"+chromEnd+"\t"+
-						genes.stream().map(G->G.getName()).collect(Collectors.joining(","))+"\t"+
-						genes.size()+"\t"+
-						variants.size()+"\t"+
-						fname
-						);
+			final List<Transcript> transcripts =  geneMap.
+					getOverlapping(interval).
+					stream().
+					flatMap(G->G.getTranscripts().stream()).
+					filter(T->!this.removeNonCoding || T.isCoding()).
+					collect(Collectors.toList());
 
-				
-				}
-			else
-				{
-				w=xof.createXMLStreamWriter(stdout());
-				}
+			variants.removeIf(V->this.gtfPath!=null && this.variantsInExonOnly && transcripts.stream().flatMap(T->T.getExons().stream()).noneMatch(EX->EX.overlaps(V)));
+
+			if(variants.isEmpty()) continue;
+
+			
+			final String geneId =  transcripts.stream().
+					map(T->T.getGene().getId()).
+					collect(Collectors.toSet()).stream().
+					collect(HtsCollectors.oneAndOnlyOne()).
+					orElse(null);
+			final String geneName =  transcripts.stream().
+					map(T->T.getGene().getGeneName()).
+					collect(Collectors.toSet()).stream().
+					collect(HtsCollectors.oneAndOnlyOne()).
+					orElse(null);
+
+			
+			
+			outputStream=IOUtils.openPathForWriting(tmpSvg);
+			w=xof.createXMLStreamWriter(outputStream);
+
+			
 			
 			
 			double featureHeight=10;
 			double TRANSCRIPT_HEIGHT=featureHeight; 
 
 			final int all_genotypes_width = variants.size()*this.genotype_width;
-            if(trimToVariants)
-	        	{
-	        	chromStart = variants.stream().map(V->V.getStart()-1).
-	        			min((A,B)->A.compareTo(B)).get();
-	        	chromEnd = variants.stream().map(V->V.getEnd()+1).
-	        			max((A,B)->A.compareTo(B)).get();
-	        	}	
+           
 	        final int drawinAreaWidth=Math.max(all_genotypes_width,1000);
 	
-	        final Interval interval=new Interval(ctx.getContig(),
-	        		chromStart, 
-	        		chromEnd
-	        		);
 			final int interline_weight=6;
 			final int margin_top=10;
 			final int margin_bottom=10;
@@ -331,11 +251,11 @@ public int doWork(final List<String> args) {
             w.writeAttribute("width",String.valueOf(margin_right+margin_right+drawinAreaWidth));
             w.writeAttribute("height",String.valueOf(
             		margin_top+margin_bottom+
-            		genes.size()*TRANSCRIPT_HEIGHT+
+            		transcripts.size()*TRANSCRIPT_HEIGHT+
             		interline_weight*featureHeight+
-            		header.getSampleNamesInOrder().size()*this.genotype_width
+            		samples.size()*this.genotype_width
             		));
-            title(w,ctx.getContig()+":"+chromStart+"-"+chromEnd);
+            title(w,interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd());
             
             w.writeStartElement("desc");
             w.writeCharacters("generated with "+getProgramName()+"\n"+
@@ -459,26 +379,16 @@ public int doWork(final List<String> args) {
 
             
             	
-			final Function<Integer,Integer> trim= new Function<Integer,Integer>() {
-				@Override
-				public Integer apply(final Integer t) {
-					return Math.max(interval.getStart(), Math.min(interval.getEnd(), t));
-					}
-			};
-			final Function<Integer,Double> baseToPixel= new Function<Integer,Double>() {
-				@Override
-				public Double apply(final Integer t) {
-					return  margin_left + drawinAreaWidth*(t-(double)interval.getStart())/((double)interval.length());
-					}
-			};
-			final Function<Integer,Double> variantIndexToPixel= new Function<Integer,Double>() {
-				@Override
-				public Double apply(final Integer idx) {
+			final IntFunction<Integer> trim= t-> Math.max(interval.getStart(), Math.min(interval.getEnd(), t));
+			
+			final IntFunction<Double> baseToPixel=  t->margin_left + drawinAreaWidth*(t-(double)interval.getStart())/((double)interval.getLengthOnReference());
+				
+			final IntFunction<Double> variantIndexToPixel= idx-> {
 					final double variant_width= drawinAreaWidth/(double)variants.size();
 					final double midx=variant_width*idx+variant_width/2.0;
 					return margin_left+ midx-genotype_width/2.0;
-					}
-			};
+					};
+			
 			
 			final Function<VariantContext,String> variantTitle= V-> (V.getContig().startsWith("chr")?V.getContig().substring(3):V.getContig())+":"+V.getStart()+" "+V.getReference().getDisplayString();
 			
@@ -491,7 +401,7 @@ public int doWork(final List<String> args) {
 			w.writeEndElement();
 			y+= featureHeight;
 			
-			for(final KnownGene g:genes)
+			for(final Transcript g:transcripts)
 				{
 				int cdsHeigh= 5;
 				double exonHeight=TRANSCRIPT_HEIGHT-5;
@@ -503,13 +413,13 @@ public int doWork(final List<String> args) {
 				
 				w.writeAttribute("transform", "translate(0,"+y+")");
 				
-				title(w, g.getName());
+				title(w, g.getId());
 				
 				w.writeStartElement("text");
 				w.writeAttribute("x",String.valueOf(margin_left-10));
 				w.writeAttribute("y",String.valueOf(featureHeight));
 				w.writeAttribute("style","text-anchor:end;");
-				w.writeCharacters(g.getName());
+				w.writeCharacters(g.getId());
 				w.writeEndElement();
 				
 				/* transcript line */
@@ -528,7 +438,7 @@ public int doWork(final List<String> args) {
 					pixX< drawinAreaWidth;
 					pixX+=30)
 					{
-					double pos0= interval.getStart()+(pixX/(double)drawinAreaWidth)*interval.length();
+					double pos0= interval.getStart()+(pixX/(double)drawinAreaWidth)*interval.getLengthOnReference();
 						if(pos0+1< g.getTxStart()) continue;
 						if(pos0> g.getTxEnd()) break;
 						w.writeEmptyElement("use");
@@ -539,7 +449,7 @@ public int doWork(final List<String> args) {
 					}
 			
 				/* exons */
-				for(KnownGene.Exon exon:g.getExons())
+				for(final Exon exon:g.getExons())
 						{
 						if(exon.getStart()+1>=  interval.getEnd()) continue;
 						if(exon.getEnd()<= interval.getStart()) continue;
@@ -555,13 +465,15 @@ public int doWork(final List<String> args) {
 						}
 			
 				/* coding line */
-				if(!g.isNonCoding())
+				if(!g.isNonCoding() && g.hasCodonStartDefined() && g.hasCodonStopDefined())
 					{
+					final double codonx1 = baseToPixel.apply(trim.apply(g.getLeftmostCodon().get().getStart()));
+					final double codonx2 = baseToPixel.apply(trim.apply(g.getRightmostCodon().get().getEnd()));
 					w.writeEmptyElement("rect");
 					w.writeAttribute("class","kgcds");
-					w.writeAttribute("x",String.valueOf(baseToPixel.apply(trim.apply(g.getCdsStart()))));
+					w.writeAttribute("x",String.valueOf(codonx1));
 					w.writeAttribute("y",String.valueOf(midY-cdsHeigh/4.0));
-					w.writeAttribute("width",String.valueOf(baseToPixel.apply(trim.apply(g.getCdsEnd()))-baseToPixel.apply((trim.apply((g.getCdsStart()))))));
+					w.writeAttribute("width",String.valueOf(baseToPixel.apply((int)(codonx2 - codonx1))));
 					w.writeAttribute("height",String.valueOf(cdsHeigh/2.0));
 					}
 				
@@ -612,7 +524,7 @@ public int doWork(final List<String> args) {
 			y+=featureHeight*interline_weight;
 			
 			w.writeStartElement("g");
-			for(final String sample: header.getSampleNamesInOrder())
+			for(final String sample: samples )
 				{
 				for(int vidx=0;vidx < variants.size();++vidx)
 					{
@@ -631,7 +543,7 @@ public int doWork(final List<String> args) {
 						}
 					
 					w.writeEmptyElement("use");
-					w.writeAttribute("x",""+variantIndexToPixel.apply(vidx));
+					w.writeAttribute("x",String.valueOf(variantIndexToPixel.apply(vidx)));
 					w.writeAttribute("y",String.valueOf(y));
 					w.writeAttribute("xlink", XLINK.NS, "href", "#g_"+g.getType());
 					
@@ -659,22 +571,53 @@ public int doWork(final List<String> args) {
 			w.writeCharacters("\n");
 			w.flush();
 			w.close();
-			if(outputFile!=null)
-				{
-				outputStream.flush();
-				outputStream.close();
-				outputStream=null;
-				}
-			if(stop_at_first) 
-				{
-				LOG.info("Stop after first SVG document");
-				break;
-				}
+			
+			
+			final String md5 = StringUtils.md5(interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd());
+			final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+
+					interval.getContig().replaceAll("[/\\:]", "_") +
+					"_"+
+					interval.getStart() +
+					"_"+
+					interval.getEnd() +
+					(StringUtils.isBlank(geneName)?"":"."+geneName.replaceAll("[/\\:]", ""))+
+					(StringUtils.isBlank(geneId)?"":"."+geneId.replaceAll("[/\\:]", ""))+
+					".svg"
+					;
+
+			
+			OutputStream os = archiveFactory.openOuputStream(filename);
+			IOUtils.copyTo(tmpSvg, os);
+			os.flush();
+			os.close();
+			
+			Files.delete(tmpSvg);
+			
+			
+			manifestW.print(interval.getContig());
+			manifestW.print('\t');
+			manifestW.print(interval.getStart()-1);
+			manifestW.print('\t');
+			manifestW.print(interval.getEnd());
+			manifestW.print('\t');
+			manifestW.print(transcripts.stream().map(G->G.getGene().getId()).collect(Collectors.toSet()).stream().collect(Collectors.joining(";")));
+			manifestW.print('\t');
+			manifestW.print(transcripts.stream().map(G->G.getGene().getGeneName()).collect(Collectors.toSet()).stream().collect(Collectors.joining(";")));
+			manifestW.print('\t');
+			manifestW.print(transcripts.stream().map(G->G.getId()).collect(Collectors.toSet()).stream().collect(Collectors.joining(";")));
+			manifestW.print('\t');
+			manifestW.print((archiveFactory.isZip()?"":this.outputPath.toString()+File.separator)+filename);
+			manifestW.print('\t');
+			manifestW.println(variants.size());
 			}
 		r.close();
 		manifestW.flush();
 		manifestW.close();
 		manifestW=null;
+		
+		archiveFactory.close();
+		archiveFactory=null;
+
 		return 0;
 		}
 	catch(Throwable err)
@@ -684,8 +627,8 @@ public int doWork(final List<String> args) {
 		}
 	finally
 		{
+		CloserUtil.close(archiveFactory);
 		CloserUtil.close(r);
-		CloserUtil.close(tabix);
 		CloserUtil.close(outputStream);
 		CloserUtil.close(manifestW);
 		}

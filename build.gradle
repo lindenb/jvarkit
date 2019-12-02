@@ -1618,6 +1618,10 @@ all.add( task("vcfpeekvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("vcfpeekaf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekAf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("vcfphylotree", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.phylo.VcfPhyloTree"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

@@ -50,7 +50,9 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -159,9 +161,11 @@ END_DOC
 */
 @Program(name="sam2tsv",
 	description="Prints the SAM alignments as a TAB delimited file.",
-	keywords={"sam","bam","table","tsv"},
+	keywords={"sam","bam","table","cram","tsv"},
 	biostars={157232,59647,253828,264875,277493},
-	modificationDate="20191201")
+	modificationDate="20191201",
+	creationDate="20170712"
+	)
 public class Sam2Tsv
 	extends Launcher
 	{
@@ -495,8 +499,7 @@ public class Sam2Tsv
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		
-		if(printAlignment)
+		if(this.printAlignment)
 			{
 			L1=new StringBuilder();
 			L2=new StringBuilder();
@@ -506,21 +509,33 @@ public class Sam2Tsv
 		SamReader samFileReader=null;
 		try
 			{
+			final SamReaderFactory srf = super.createSamReaderFactory();
 			if(this.refFile!=null)
 				{
 				this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(refFile);
 				this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 				this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
+				srf.referenceSequence(this.refFile);
 				}
-			this.out  =  openPathOrStdoutAsPrintWriter(outputFile);
+			
+			final String input = oneFileOrNull(args);
+			if(input==null)
+				{
+				samFileReader = srf.open(SamInputResource.of(stdin()));
+				}
+			else
+				{
+				samFileReader = srf.open(SamInputResource.of(input));
+				}
+			
+			this.out  =  openPathOrStdoutAsPrintWriter(this.outputFile);
 			this.out.println("#READ_NAME\tFLAG\tCHROM\tREAD_POS\tBASE\tQUAL\tREF_POS\tREF\tOP");
-			samFileReader= openSamReader(oneFileOrNull(args));
 			
 			scan(samFileReader);
 			samFileReader.close();
 			samFileReader = null;
 			this.out.flush();this.out.close();this.out=null;
-			return RETURN_OK;
+			return 0;
 			}
 		catch (final Throwable e)
 			{

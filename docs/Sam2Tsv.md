@@ -33,6 +33,7 @@ Usage: sam2tsv [options] Files
  * sam
  * bam
  * table
+ * cram
  * tsv
 
 
@@ -62,6 +63,11 @@ $ ./gradlew sam2tsv
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20170712
 
 ## Source code 
 
@@ -187,4 +193,5 @@ Sam2tsv was cited in :
   * "Vex-seq: high-throughput identification of the impact of genetic variation on pre-mRNA splicing efficiency" Genome Biology201819:71 https://doi.org/10.1186/s13059-018-1437-x
   * "Accurate detection of m6A RNA modifications in native RNA sequences" Huanle Liu, Oguzhan Begik, Morghan C Lucas, Christopher E Mason, Schraga Schwartz, John S Mattick, Martin A Smith, Eva Maria Novoa bioRxiv 525741; doi: https://doi.org/10.1101/525741 
   * "DART-seq: an antibody-free method for global m6A detection"  Nature Methods https://doi.org/10.1038/s41592-019-0570-0
+  * "Thiouridine-to-Cytidine Conversion Sequencing (TUC-Seq) to Measure mRNA Transcription and Degradation Rates" The Eukaryotic RNA Exosome. Nov 2019. https://doi.org/10.1007/978-1-4939-9822-7_10
 
