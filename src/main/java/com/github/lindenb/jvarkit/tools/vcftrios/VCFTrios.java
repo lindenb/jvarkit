@@ -154,7 +154,7 @@ public class VCFTrios
 	private String genotypeFilterNameNoIncompat = null;
 	@Parameter(names={"-A","--attribute"},description="INFO Attribute name containing the name of the affected samples.")
 	private String attributeName = "MENDEL";
-	@Parameter(names={"-d","--dicard"},description="Discard the variant if there is NO mendelian violation.")
+	@Parameter(names={"-d","--discard"},description="Discard the variant if there is NO mendelian violation.")
 	private boolean discard_variants_without_mendelian_incompat=false;	
 	@Parameter(names={"-hr","--hom-ref"},description="[20180705] treat NO_CALL genotypes as HOM_REF (when individual VCF/Sample have been merged).")
 	private boolean nocall_to_homref = false;

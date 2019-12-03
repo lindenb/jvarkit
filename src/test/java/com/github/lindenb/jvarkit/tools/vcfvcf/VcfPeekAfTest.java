@@ -2,7 +2,6 @@ package com.github.lindenb.jvarkit.tools.vcfvcf;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
 
 import org.testng.Assert;
 
@@ -150,6 +149,7 @@ public void testAF02()
 						Assert.assertTrue(ctx.getFilters().contains(fname));
 						}
 					}
+				iter.close();
 				}
 			
 			}
