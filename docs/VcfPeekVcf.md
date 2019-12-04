@@ -20,7 +20,7 @@ Usage: vcfpeekvcf [options] Files
     -b, --buffer-size
       buffer size (in bp). We don't do a random access for each variant. 
       Instead of this, load all the variants in a defined window. A distance 
-      specified as a positive integer.Comma are removed. The following 
+      specified as a positive integer.Commas are removed. The following 
       suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 100000
     --default-float

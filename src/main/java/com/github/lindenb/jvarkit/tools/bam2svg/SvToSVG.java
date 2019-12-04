@@ -762,7 +762,7 @@ public class SvToSVG extends Launcher
 			svgRoot.appendChild(title);
 			title.appendChild(text(String.join(" ",this.intervalStrList)));
 			
-			final Element descr = element("dec");
+			final Element descr = element("desc");
 			svgRoot.appendChild(descr);
 			descr.appendChild(text("Author: Pierre Lindenbaum"));
 			
