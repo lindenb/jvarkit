@@ -8,7 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.DoubleFunction;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -52,6 +54,7 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -62,23 +65,24 @@ keywords={"bam","visualization","svg","rna","exon"},
 modificationDate="20191104",
 creationDate="20191104"
 )
-public class PlotSaShimi extends Launcher {
-private static final Logger LOG = Logger.build(PlotSaShimi.class).make();
+public class PlotSashimi extends Launcher {
+private static final Logger LOG = Logger.build(PlotSashimi.class).make();
 
-@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
+@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC)
 private Path gtfPath = null;
 
-@Parameter(names={"-r","--region","--interval"},description=IntervalListProvider.OPT_DESC,required=true)
+@Parameter(names={"-r","--region","--interval"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
 private IntervalListProvider intervalListProvider= IntervalListProvider.empty();
 
-@Parameter(names={"-R","--reference"},description="For Reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+@Parameter(names={"-R","--reference"},description="For Reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
 private Path faidx = null;
 
 @Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
 private Path outputFile=null;
 
+@SuppressWarnings("serial")
 @DynamicParameter(names = "-D", description = "Other parameters.")
-public Map<String, String> dynamicParams = new HashMap<>() {{{
+public Map<String, String> dynamicParams = new HashMap<String,String>() {{{
 	put("width","1000");
 	put("coverage.height","300");
 	}}};
@@ -111,6 +115,9 @@ private void plotSashimi(
 	) {
 	final int drawing_width = Math.max(100,Integer.parseInt(this.dynamicParams.getOrDefault("width","1000")));
 	final int coverageHeight =  Math.max(100,Integer.parseInt(this.dynamicParams.getOrDefault("coverage.height","300")));
+	final double pixelperbase =  drawing_width/(double)interval.getLengthOnReference();
+	
+	final Function<Integer, Double> pos2pixel = POS-> (POS - interval.getStart())/(double)interval.getLengthOnReference() * drawing_width;
 	
 	final Counter<SimpleInterval> gaps = new  Counter<>();
 	final int coverage[] = new int[interval.getLengthOnReference()];
@@ -157,13 +164,19 @@ private void plotSashimi(
 			}
 	
 		final Element svgRoot = element("svg");
-		
-		
-		int doc_height =0;
+		this.document.appendChild(svgRoot);
 		
 		final Element title = element("title");
 		svgRoot.appendChild(title);
 		title.appendChild(text(interval.toString()));
+		
+		final Element style = element("style");
+		svgRoot.appendChild(style);
+		style.appendChild(text(
+				".coverage { background-color:red;}" +
+				".frame { fill:none; color: darkgray;}"
+				));
+
 		
 		final Element descr = element("desc");
 		svgRoot.appendChild(descr);
@@ -179,21 +192,13 @@ private void plotSashimi(
 		maing.appendChild(covPath);
 		
 		int y=0;
-		final double coverage_y[] = new double[drawing_width];
-		for(int k=0;k< drawing_width;k++)
-			{
-			final int pos1 = interval.getStart()+ (int)(((k+0)/(double)drawing_width)*(double)interval.getLengthOnReference());
-			final int pos2 = interval.getStart()+ (int)(((k+1)/(double)drawing_width)*(double)interval.getLengthOnReference());
-			final double dp = IntStream.range(pos1, pos2).mapToLong(p->coverage[p]).max().orElse(0L);
-			coverage_y[k]= y+ coverageHeight - (dp/(double)max_coverage)*(double)coverageHeight;
-			}
-		
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "M 0 "+format(y+coverageHeight));
-		for(int k=0;k< drawing_width;k++)
+		for(int k=0;k< coverage.length;k++)
 			{
-			final double dpy= coverage_y[k];			
-			sb.append(" L "+format(k)+" "+format(dpy));
+			if(k+1< coverage.length && coverage[k]==coverage[k+1]) continue; 
+			final double dpy= y+ coverageHeight - coverageHeight*(coverage[k]/(double)max_coverage);
+			sb.append(" L "+format(pixelperbase*k)+" "+format(dpy));
 			}
 		sb.append(" L "+format(drawing_width)+" "+format(y+ coverageHeight));
 		sb.append(" Z");
@@ -207,67 +212,68 @@ private void plotSashimi(
 			if(!gaps.isEmpty()) {
 				int max_occurence = (int)gaps.count(gaps.getMostFrequent());
 				for(final SimpleInterval intron:gaps.keySet()) {
+					final int junctionStart = intron.getStart()-1;
+	                final int junctionEnd = intron.getEnd()+1;
+					if(!CoordMath.encloses(interval.getStart(), interval.getEnd(), junctionStart, junctionEnd)) continue;
+	                
+					double xstart = pos2pixel.apply(junctionStart);
+					double xend = pos2pixel.apply(junctionEnd);
+					double ystart=  y+ coverageHeight - coverageHeight*(coverage[junctionStart - interval.getStart()]/(double)max_coverage);
+					double yend=  y+ coverageHeight - coverageHeight*(coverage[junctionStart- interval.getStart()]/(double)max_coverage);
+
+					final Element arc= element("path");
+					sb.setLength(0);
 					
-					int junctionStart = intron.getStart();
-	                int junctionEnd = intron.getEnd();
-	
-	
-	
-	                double virtualPixelJunctionStart = Math.round((junctionStart - interval.getStart()) / locScale);
-	                double virtualPixelJunctionEnd = Math.round((junctionEnd - interval.getStart()) / locScale);
-	
-	
-	                long depth = gaps.count(intron);
-	                String color = feature.getColor();
-	
-	                //Calculate the height of the coverage track. This doesn't need to be exact,
-	                //but we want the arcs to start at roughly the top of the coverage
-	                int pixelYstart = 0;
-	                int pixelYend = 0;
-	
-	
-	               
-	                //float depthProportionOfMax = Math.min(1, depth / maxDepth);
-	                int effDepth = Math.min(max_occurence, depth);
-	
-	                //We adjust up or down depending on whether drawing up or down
-	                int yPosModifier = drawAbove ? -1 : 1;
-	
-	                int arcBeginY = (int) trackRectangle.getCenterY() + yPosModifier + (drawAbove ? pixelYStartOffset - 2 : 0);
-	                int arcEndY = (int) trackRectangle.getCenterY() + yPosModifier + (drawAbove ? pixelYEndOffset - 2 : 0);
-	
-	
-	                //We use corners of a square as control points because why not
-	                //The control point is never actually reached
-	                int arcControlPeakY = arcBeginY + yPosModifier * arcHeight;
-	
-	
-	                GeneralPath arcPath = new GeneralPath();
-	                arcPath.moveTo(pixelJunctionStart, arcBeginY);
-	                arcPath.curveTo(pixelJunctionStart, arcControlPeakY,
-	                        pixelJunctionEnd, arcControlPeakY,
-	                        pixelJunctionEnd, arcEndY);
-	                
-	                
+					double x_mid = (xend - xstart)/2.0;
+					double x2 = xstart + x_mid;
+					double y2= ystart+(yend-ystart)/2.0 + (drawAbove?-1:1)*x_mid;
+					
+					sb.append("M "+format(xstart)+" "+format(ystart));
+					sb.append("Q "+format(x2)+" "+format(y2)+" "+format(xend)+" "+format(yend));
+					
+					arc.setAttribute("p", sb.toString());
+					arc.setAttribute("class","arc");
+					arc.setAttribute("style", "stroke-width:5px;");
+					arc.appendChild(element("title",new SimpleInterval(interval.getContig(),junctionStart,junctionEnd).toNiceString()));
+					covPath.appendChild(arc);
+					
 	                drawAbove = !drawAbove;
 				}
 			}
 
 		final Element transcripts_g = element("g");
 		maing.appendChild(transcripts_g);
+		int transcript_height = Math.max(10, Integer.parseInt(this.dynamicParams.getOrDefault("transcript.height", "12")));
 		for(final Transcript transcript: this.transcriptMap.getOverlapping(interval)) {
 			final Element transcript_g = element("g");
 			transcripts_g.appendChild(transcript_g);
 			final Element tr = element("line");
+			tr.setAttribute("x1", format(0));
+			tr.setAttribute("y1", format(y+transcript_height/2.0));
+			tr.setAttribute("x2", format(0));
+			tr.setAttribute("y2", format(y+transcript_height/2.0));
 			transcript_g.appendChild(tr);
 			
 			for(final Exon exon:transcript.getExons()) {
+				if(!exon.overlaps(interval)) continue;
 				final Element exon_rect = element("rect");
+				exon_rect.setAttribute("x", format(0));
+				exon_rect.setAttribute("y", format(y+transcript_height/2.0));
+				exon_rect.appendChild(element("title",exon.getName()));
 				transcript_g.appendChild(exon_rect);
-			}
-			y+=10;
+				}
+			y+=transcript_height+1;
 		}
+		
+		final Element frame_rect = element("frame");
+		frame_rect.setAttribute("class", "frame");
+		frame_rect.setAttribute("x", "0");
+		frame_rect.setAttribute("y", "0");
+		frame_rect.setAttribute("width", format(drawing_width));
+		frame_rect.setAttribute("height",format(y));
+		
 		svgRoot.setAttribute("width",format(drawing_width+1));
+		svgRoot.setAttribute("height",format(y+1));
 		
 		
 		try {
@@ -275,7 +281,7 @@ private void plotSashimi(
 		final Transformer tr = TransformerFactory.newInstance().newTransformer();
 		final Result result;
 		
-		String fname=".svg";
+		String fname="jeter.svg";
 		try(final PrintWriter pw=archive.openWriter(fname)) {
 			result = new StreamResult(pw);
 			tr.transform(new DOMSource(this.document),result);
@@ -303,13 +309,15 @@ public int doWork(final List<String> args) {
 		if(faidx!=null) {
 			srf.referenceSequence(this.faidx);
 			}
-		try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
-			if(this.faidx!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(this.faidx)));
-			gtfReader.
-				getAllGenes().
-				stream().
-				flatMap(G->G.getTranscripts().stream()).
-				forEach(T->this.transcriptMap.put(new Interval(T), T));
+		if(this.gtfPath!=null) {
+			try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
+				if(this.faidx!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(this.faidx)));
+				gtfReader.
+					getAllGenes().
+					stream().
+					flatMap(G->G.getTranscripts().stream()).
+					forEach(T->this.transcriptMap.put(new Interval(T), T));
+				}
 			}
 		
 		archive = ArchiveFactory.open(this.outputFile);
@@ -342,6 +350,6 @@ public int doWork(final List<String> args) {
 	}
 
 public static void main(final String[] args) {
-	new PlotSaShimi().instanceMainWithExit(args);
+	new PlotSashimi().instanceMainWithExit(args);
 	}
 }

@@ -2323,6 +2323,10 @@ all2.add( task("plateoptimizer", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.plateoptimizer.PlateOptimizer"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add( task("plotsashimi", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.sashimi.PlotSashimi"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 
 task("vcfphased01", type: CompileJVarkit) {
