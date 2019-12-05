@@ -646,7 +646,7 @@ private void plotSashimi(
 		manifest.print('\t');
 		manifest.print(StringUtils.isBlank(sampleName)?".":sampleName);
 		manifest.print('\t');
-		manifest.print(filename);
+		manifest.print((archive.isZip()?"":this.outputFile.toString()+File.separator)+filename);
 		manifest.println();
 		} catch(final Exception err) {
 			throw new RuntimeException(err);
