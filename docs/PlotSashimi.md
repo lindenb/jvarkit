@@ -147,9 +147,9 @@ Archive:  jeter.zip
 
 
 $ cat jeter.mf | column -t
-#chrom  start     end       bam                     Sample  Genes  svg
-chr3    38595150  38599347  ENCFF331CGL.rnaseq.bam  SCN5A   .      f6/d0bf04098aa24eb3111666ed171a11/chr3_38599347_38599347.svg
-chr3    38595350  38599500  ENCFF331CGL.rnaseq.bam  SCN5A   .      82/fd0c7ad61ecc0fa22eda93e75a6943/chr3_38599500_38599500.svg
+#chrom  start     end       bam                     Genes   Samples  svg
+chr3    38595150  38599347  ENCFF331CGL.rnaseq.bam  SCN5A   .        f6/d0bf04098aa24eb3111666ed171a11/chr3_38599347_38599347.svg
+chr3    38595350  38599500  ENCFF331CGL.rnaseq.bam  SCN5A   .        82/fd0c7ad61ecc0fa22eda93e75a6943/chr3_38599500_38599500.svg
 
 ```
 
