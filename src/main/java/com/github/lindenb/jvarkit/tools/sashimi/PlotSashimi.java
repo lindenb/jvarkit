@@ -177,6 +177,8 @@ private Path manifestFile = null;
 private boolean use_D_operator= false;
 @Parameter(names={"-w","--width"},description="image width.")
 private int image_width_pixel  = 1_000;
+@Parameter(names={"--skip-empty"},description="Do not generate a SVG file if there is no read in the interval")
+private boolean skip_region_without_read = false;
 
 
 @SuppressWarnings("serial")
@@ -216,8 +218,8 @@ private void plotSashimi(
 	final ArchiveFactory archive,
 	final SamReader samReader,
 	final Locatable interval,
-	Path bamPath,
-	PrintWriter manifest
+	final Path bamPath,
+	final PrintWriter manifest
 	) {
 	final int drawing_width = Math.max(100,this.image_width_pixel);
 	final int coverageHeight =  Math.max(100,Integer.parseInt(this.dynamicParams.getOrDefault("coverage.height","300")));
@@ -239,6 +241,9 @@ private void plotSashimi(
 	final Counter<SimpleInterval> gaps = new  Counter<>();
 	final int coverage[] = new int[interval.getLengthOnReference()];
 	try(SAMRecordIterator iter=samReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd())) {
+		/** no read here, skip */
+		if(!iter.hasNext() && this.skip_region_without_read) return;
+		
 		while(iter.hasNext()) {
 			final SAMRecord rec = iter.next();
 			if(rec.getReadUnmappedFlag()) continue;

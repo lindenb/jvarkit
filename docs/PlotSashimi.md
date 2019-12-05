@@ -31,6 +31,9 @@ Usage: plotsashimi [options] Files
     -R, --reference
       For Reading CRAM. Indexed fasta Reference file. This file must be 
       indexed with samtools faidx and with picard CreateSequenceDictionary
+    --skip-empty
+      Do not generate a SVG file if there is no read in the interval
+      Default: false
     -D, --use-deletion
       also use the D operator in the cigar string (default is use only 'N').
       Default: false
