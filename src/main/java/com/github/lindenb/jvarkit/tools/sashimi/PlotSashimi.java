@@ -50,6 +50,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.Text;
 
 import com.beust.jcommander.DynamicParameter;
@@ -146,6 +147,10 @@ chr3    38595350  38599500  ENCFF331CGL.rnaseq.bam  SCN5A   .        82/fd0c7ad6
 
 ![https://twitter.com/yokofakun/status/1202587424725127168](https://pbs.twimg.com/media/ELBy4vAX0AABSzF?format=jpg&name=small)
 
+* https://twitter.com/yokofakun/status/1202905778140712960
+
+![https://twitter.com/yokofakun/status/1202905778140712960](https://pbs.twimg.com/media/ELGUbZ_W4AAMKxj?format=png&name=small)
+
 
 END_DOC
 
@@ -154,7 +159,7 @@ END_DOC
 description="Print Sashimi plots from Bam",
 keywords={"bam","visualization","svg","rna","exon"},
 modificationDate="20191104",
-creationDate="20191104"
+creationDate="20191106"
 )
 public class PlotSashimi extends Launcher {
 private static final Logger LOG = Logger.build(PlotSashimi.class).make();
@@ -183,6 +188,15 @@ private boolean skip_region_without_read = false;
 private int min_mapq = 0;
 @Parameter(names={"--force-max-coverage"},description="Force the maximum coverage to this value. ignored if <=0 ")
 private int force_max_coverage = 0;
+@Parameter(names={"--css"},description="Custom CSS stylesheet")
+private Path cssPath = null;
+@Parameter(names={"-u","--url","--hyperlink"},description=
+"creates a hyperlink when 'click' in an area. "
+	+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. "
+	+ "IGV : \"http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__\" , "
+	+ "UCSC: \"http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__\" "
+	)
+private String hyperlinkType = "none";
 
 
 @SuppressWarnings("serial")
@@ -217,6 +231,24 @@ private int bestTicks(final int max) {
 	final int ndigit=(int)Math.ceil(Math.log10(max-1));
 	return (int)Math.pow(10, ndigit-2);
 }
+
+private Node wrapLoc(final Element node,final Locatable loc) {
+	if(loc==null) return node;
+	if(StringUtils.isBlank(this.hyperlinkType)) return node;
+	if(!this.hyperlinkType.contains("__CHROM__"))  return node;
+	if(!this.hyperlinkType.contains("__START__"))  return node;
+	if(!this.hyperlinkType.contains("__END__"))  return node;
+	final Element a = element("a");
+	a.setAttribute("target","_blank");
+	a.setAttribute("href",
+			this.hyperlinkType.
+				replaceAll("__CHROM__", StringUtils.escapeHttp(loc.getContig())).
+				replaceAll("__START__", String.valueOf(loc.getStart())).
+				replaceAll("__END__", String.valueOf(loc.getEnd()))
+			);
+	a.appendChild(node);
+	return a;
+	}
 
 /** create the SVG itself */
 private void plotSashimi(
@@ -314,9 +346,10 @@ private void plotSashimi(
 		final Element style = element("style");
 		svgRoot.appendChild(style);
 		style.appendChild(text(
+				this.cssPath==null?
 				".coverage { fill:red;fill:url('#grad01')} " +
-				".maintitle {text-anchor:middle;stroke:blue} "+
-				".sample {stroke:blue} "+
+				".maintitle {text-anchor:middle;fill:blue} "+
+				".sample {fill:blue;font-size:7px;} "+
 				".frame { fill:none; stroke: darkgray;} " +
 				".arcK { fill:none; stroke: blue; stroke-linecap:round;opacity:0.8;} " +
 				".arcU { fill:none; stroke: red; stroke-linecap:round;opacity:0.8;} " +
@@ -325,7 +358,9 @@ private void plotSashimi(
 				".frame { fill:none; stroke: darkgray;} " +
 				".rulerline {stroke:lightgray;stroke-width:0.5px;}\n"+
 				".exonline {stroke:green;stroke-width:0.5px;opacity:0.5;}\n"+
-				".rulerlabel {stroke:gray;stroke-width:0.5px;font-size:7px;}\n"
+				".rulerlabel {stroke:gray;stroke-width:0.5px;font-size:7px;}\n" +
+				"a {cursor: pointer;}\n"
+				: IOUtils.slurpPath(this.cssPath)
 				));
 		}
 		
@@ -379,7 +414,7 @@ private void plotSashimi(
 			gtitle= element("text",sampleName);
 			gtitle.setAttribute("class", "sample");
 			gtitle.setAttribute("x", "5");
-			gtitle.setAttribute("y", "10");
+			gtitle.setAttribute("y", "20");
 			svgRoot.appendChild(gtitle);
 			}
 		y+=50;
@@ -409,7 +444,7 @@ private void plotSashimi(
 			final Element label = element("text",StringUtils.niceInt(pos));
 			label.setAttribute("class","rulerlabel");
 			label.setAttribute("x","0");
-			label.setAttribute("y", "0");
+			label.setAttribute("y","0");
 			label.setAttribute("transform", "translate("+format(x)+","+y+") rotate(90) ");
 			ruler_gh.appendChild(label);
 			}
@@ -520,11 +555,11 @@ private void plotSashimi(
 				arc.setAttribute("d", sb.toString());
 				arc.setAttribute("class","arc"+(is_known_intron?"K":"U"));
 				
-				double stroke_width = 1 /* show very small one */ + (occurence/(double)max_occurence)*10;
+				final double stroke_width = 1 /* show very small one */ + (occurence/(double)max_occurence)*10;
 				
 				arc.setAttribute("style", "stroke-width:"+format(stroke_width)+"px;");
 				arc.appendChild(element("title",new SimpleInterval(interval.getContig(),junctionStart,junctionEnd).toNiceString()+" ("+StringUtils.niceInt(occurence)+") "+(is_known_intron?"known":"unknown")));
-				maing.appendChild(arc);
+				maing.appendChild(wrapLoc(arc,intron));
 				
 			
 				
@@ -583,7 +618,7 @@ private void plotSashimi(
 				tr.setAttribute("y2", format(midy));
 				tr.appendChild(element("title",transcript.getId()+" "+transcript.getGene().getGeneName()));
 
-				transcript_g.appendChild(tr);
+				transcript_g.appendChild(wrapLoc(tr,transcript));
 				
 				final Element label=element("text",transcript.getId()+" "+transcript.getGene().getGeneName());
 				label.setAttribute("class", "rulerlabel");
@@ -606,7 +641,7 @@ private void plotSashimi(
 					exon_rect.setAttribute("height", format(transcript_height));
 					exon_rect.setAttribute("width", format(exonx2-exonx1));
 					exon_rect.appendChild(element("title",exon.getName()+" "+transcript.getId()+" "+transcript.getGene().getGeneName()));
-					transcript_g.appendChild(exon_rect);
+					transcript_g.appendChild(wrapLoc(exon_rect,exon));
 					
 					
 					

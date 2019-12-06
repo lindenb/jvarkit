@@ -10,6 +10,8 @@ Print Sashimi plots from Bam
 ```
 Usage: plotsashimi [options] Files
   Options:
+    --css
+      Custom CSS stylesheet
     --force-max-coverage
       Force the maximum coverage to this value. ignored if <=0
       Default: 0
@@ -21,6 +23,12 @@ Usage: plotsashimi [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -u, --url, --hyperlink
+      creates a hyperlink when 'click' in an area. The URL must contains 
+      __CHROM__, __START__ and __END__ that will be replaced by their values. 
+      IGV : "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" 
+      , UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
+      Default: none
   * -r, --region, --interval
       A source of intervals. The following suffixes are recognized: vcf, 
       vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
@@ -81,7 +89,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-20191104
+20191106
 
 ## Source code 
 
@@ -168,5 +176,9 @@ chr3    38595350  38599500  ENCFF331CGL.rnaseq.bam  SCN5A   .        82/fd0c7ad6
 * https://twitter.com/yokofakun/status/1202587424725127168
 
 ![https://twitter.com/yokofakun/status/1202587424725127168](https://pbs.twimg.com/media/ELBy4vAX0AABSzF?format=jpg&name=small)
+
+* https://twitter.com/yokofakun/status/1202905778140712960
+
+![https://twitter.com/yokofakun/status/1202905778140712960](https://pbs.twimg.com/media/ELGUbZ_W4AAMKxj?format=png&name=small)
 
 
