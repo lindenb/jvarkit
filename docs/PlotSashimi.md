@@ -10,6 +10,9 @@ Print Sashimi plots from Bam
 ```
 Usage: plotsashimi [options] Files
   Options:
+    --force-max-coverage
+      Force the maximum coverage to this value. ignored if <=0
+      Default: 0
     -g, --gtf
       A GTF (General Transfer Format) file. See 
       https://www.ensembl.org/info/website/upload/gff.html . Please note that 

@@ -61,6 +61,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Exon;
@@ -85,7 +86,6 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.StringUtil;
 
 /**
 BEGIN_DOC
@@ -181,6 +181,8 @@ private int image_width_pixel  = 1_000;
 private boolean skip_region_without_read = false;
 @Parameter(names={"--mapq"},description="Min mapping quality")
 private int min_mapq = 0;
+@Parameter(names={"--force-max-coverage"},description="Force the maximum coverage to this value. ignored if <=0 ")
+private int force_max_coverage = 0;
 
 
 @SuppressWarnings("serial")
@@ -231,7 +233,7 @@ private void plotSashimi(
 	final Collection<Gene> genes= this.geneMap.getOverlapping(interval);
 	final Set<String> geneNames = genes.stream().map(G->G.getGeneName()).filter(S->!StringUtils.isBlank(S)).collect(Collectors.toCollection(TreeSet::new));
 	
-	
+	/** extract the sample name or just use the filename */
 	final String sampleName = header.getReadGroups().
 		stream().
 		map(G->G.getSample()).
@@ -283,8 +285,14 @@ private void plotSashimi(
 		if(!got_one) return;
 		}
 	
-		final int max_coverage = Math.max(1,Arrays.stream(coverage).max().orElse(0));
-
+		final int max_coverage;
+		
+		if(this.force_max_coverage>0) {
+			max_coverage = this.force_max_coverage;
+		} else
+			{
+			max_coverage = Math.max(1,Arrays.stream(coverage).max().orElse(0));
+			}
 
 	
 		while(this.document.hasChildNodes()) {
@@ -294,10 +302,15 @@ private void plotSashimi(
 		final Element svgRoot = element("svg");
 		this.document.appendChild(svgRoot);
 		
+		/* SVG title */
+		{
 		final Element title = element("title");
 		svgRoot.appendChild(title);
 		title.appendChild(text(interval.toString() +(!geneNames.isEmpty() && geneNames.size()<3?" "+String.join(" ", geneNames):"")));
+		}
 		
+		/* SVG style */
+		{
 		final Element style = element("style");
 		svgRoot.appendChild(style);
 		style.appendChild(text(
@@ -314,7 +327,11 @@ private void plotSashimi(
 				".exonline {stroke:green;stroke-width:0.5px;opacity:0.5;}\n"+
 				".rulerlabel {stroke:gray;stroke-width:0.5px;font-size:7px;}\n"
 				));
-		//def
+		}
+		
+		
+		// SVG def
+		{
 		final Element defs = element("defs");
 		svgRoot.appendChild(defs);
 		//linear gradient	
@@ -335,26 +352,29 @@ private void plotSashimi(
 			stop.setAttribute("stop-color", "darkblue");
 			
 			}
-		
+		}		
 
 		
 		final Element descr = element("desc");
 		svgRoot.appendChild(descr);
-		descr.appendChild(text("Author: Pierre Lindenbaum"));
+		descr.appendChild(text("Author: Pierre Lindenbaum\n" +
+				JVarkitVersion.getInstance().getCompilationDate()+"\n"+
+				JVarkitVersion.getInstance().getGitHash()
+				));
 	
 		final Element maing = element("g");
 		svgRoot.appendChild(maing);
 		int y=0;
 		
 		// main title
-		Element gtitle= element("text",new SimpleInterval(interval).toNiceString()+(StringUtil.isBlank(sampleName)?"":" "+sampleName)+ (geneNames.isEmpty()?"": " "+String.join(" ", geneNames)));
+		Element gtitle= element("text",new SimpleInterval(interval).toNiceString()+(StringUtils.isBlank(sampleName)?"":" "+sampleName)+ (geneNames.isEmpty()?"": " "+String.join(" ", geneNames)));
 		gtitle.setAttribute("class", "maintitle");
 		gtitle.setAttribute("x", format(drawing_width/2));
 		gtitle.setAttribute("y", "15");
 		svgRoot.appendChild(gtitle);
 		y+=20;
 		// sample name
-		if(!StringUtil.isBlank(sampleName))
+		if(!StringUtils.isBlank(sampleName))
 			{	
 			gtitle= element("text",sampleName);
 			gtitle.setAttribute("class", "sample");
