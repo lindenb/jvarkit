@@ -24,11 +24,13 @@ Usage: plotsashimi [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -u, --url, --hyperlink
-      creates a hyperlink when 'click' in an area. The URL must contains 
-      __CHROM__, __START__ and __END__ that will be replaced by their values. 
-      IGV : "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" 
-      , UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
-      Default: none
+      creates a hyperlink an area is clicked. creates a hyperlink when 'click' 
+      in an area. The URL must contains __CHROM__, __START__ and __END__ that 
+      will be replaced by their values. Predefined values are 
+      'hg19','hg38','igv'. IGV : 
+      "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" , 
+      UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
+      Default: <empty string>
   * -r, --region, --interval
       A source of intervals. The following suffixes are recognized: vcf, 
       vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
@@ -42,6 +44,12 @@ Usage: plotsashimi [options] Files
       Default: 0
   * -o, --out
       An existing directory or a filename ending with the '.zip' suffix.
+    --partition
+      Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --reference
       For Reading CRAM. Indexed fasta Reference file. This file must be 
       indexed with samtools faidx and with picard CreateSequenceDictionary

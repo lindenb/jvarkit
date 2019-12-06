@@ -67,7 +67,7 @@ import htsjdk.variant.vcf.VCFIterator;
 @Program(name="vcfgroupbypop",
 	description="Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population",
 	creationDate="20190319",
-	modificationDate="20191119",
+	modificationDate="20191206",
 	keywords= {"vcf","pedigree","population"}
 	)
 public class VcfGroupByPopulation extends Launcher
@@ -80,7 +80,7 @@ public class VcfGroupByPopulation extends Launcher
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
-	private Map<String,String> sample2population=new HashMap<>();
+	private final Map<String,String> sample2population=new HashMap<>();
 	
 	private static class GCount
 		{

@@ -51,6 +51,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -171,13 +172,8 @@ public class WesCnvSvg  extends Launcher {
 	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
 	@Parameter(names={"--title"},description="document title")
 	private String domSvgTitle=WesCnvSvg.class.getSimpleName();
-	@Parameter(names={"-u","--url","--hyperlink"},description=
-			"creates a hyperlink when 'click' in an area. "
-			+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. "
-			+ "IGV : \"http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__\" , "
-			+ "UCSC: \"http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__\" "
-			)
-	private String hyperlinkType = "none";
+	@Parameter(names={"-u","--url","--hyperlink"},description= "creates a hyperlink an area is 'clicked'. " + Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
+	private Hyperlink hyperlinkType = Hyperlink.empty();
 	@Parameter(names={"-p","-percentile","--percentile"},description="How to compute the percentil of a region")
 	private Percentile.Type percentile = Percentile.Type.AVERAGE;
 	@Parameter(names={"-css","--css"},description="custom svg css stylesheet")
@@ -643,13 +639,9 @@ public class WesCnvSvg  extends Launcher {
 			final StringBuilder openBrowserFunction = new StringBuilder(
 					"function openGenomeBrowser(contig,chromStart,chromEnd) {\n"
 					);
-			if( hyperlinkType.contains("__CHROM__") &&
-				hyperlinkType.contains("__START__")	&&
-				hyperlinkType.contains("__END__") &&
-				!hyperlinkType.contains("\"")
-				)
+			if(!this.hyperlinkType.isEmpty())
 				{
-				openBrowserFunction.append("var url=\""+this.hyperlinkType+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
+				openBrowserFunction.append("var url=\""+this.hyperlinkType.getPattern()+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
 				openBrowserFunction.append("window.open(url,'_blank');\n");
 
 				}

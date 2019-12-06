@@ -50,10 +50,12 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
@@ -179,13 +181,9 @@ public class Biostar336589 extends Launcher{
 	@Parameter(names={"--bedpe","-bpe","--interact"},description="Input is UCSC interact format https://genome.ucsc.edu/goldenPath/help/interact.html. I will draw arcs.",hidden=true)
 	private boolean input_is_bedpe = false;
 
-	@Parameter(names={"-u","--url","--hyperlink"},description=
-			"creates a hyperlink when 'click' in an area. "
-			+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. "
-			+ "IGV : \"http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__\" , "
-			+ "UCSC: \"http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__\" "
-			)
-	private String hyperlinkType = "none";
+	@Parameter(names={"-u","--url","--hyperlink"},description="creates a hyperlink when a area is clicked. " + Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
+	private Hyperlink hyperlinkType = Hyperlink.empty();
+	
 	@Parameter(names={"--title"},description="document title")
 	private String domTitle = Biostar336589.class.getSimpleName();
 
@@ -614,15 +612,10 @@ public class Biostar336589 extends Launcher{
 		final StringBuilder openBrowserFunction = new StringBuilder(
 				"function openGenomeBrowser(contig,chromStart,chromEnd) {\n"
 				);
-		if( hyperlinkType.contains("__CHROM__") &&
-			hyperlinkType.contains("__START__")	&&
-			hyperlinkType.contains("__END__") &&
-			!hyperlinkType.contains("\"")
-			)
+		if(!this.hyperlinkType.isEmpty())
 			{
-			openBrowserFunction.append("var url=\""+this.hyperlinkType+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
+			openBrowserFunction.append("var url=\""+this.hyperlinkType.getPattern()+"\".replace(/__CHROM__/g,contig).replace(/__START__/g,chromStart).replace(/__END__/g,chromEnd);\n");
 			openBrowserFunction.append("window.open(url,'_blank');\n");
-
 			}
 		else
 			{

@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.lang;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
@@ -272,4 +271,7 @@ public static String niceFileSize(final long bytes) {
     return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 
+public static String ifBlank(final String s,final String def) {
+	return isBlank(s)?def:s;
+	}
 }

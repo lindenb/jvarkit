@@ -26,7 +26,7 @@ public void test01() throws IOException {
 		Assert.assertEquals(
 			new Biostar81455().instanceMain(new String[] {
 			"-o",out.toString(),
-			"-KG",support.resource("test_vcf01.knownGenes.txt.gz"),
+			"--gtf",support.resource("gencode.v19.annotation.gtf"),
 			in.toString()
 			}),0);
 		

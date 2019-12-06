@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -70,8 +71,10 @@ import com.github.lindenb.jvarkit.util.bio.structure.Gene;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.Cigar;
@@ -190,13 +193,12 @@ private int min_mapq = 0;
 private int force_max_coverage = 0;
 @Parameter(names={"--css"},description="Custom CSS stylesheet")
 private Path cssPath = null;
-@Parameter(names={"-u","--url","--hyperlink"},description=
-"creates a hyperlink when 'click' in an area. "
-	+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. "
-	+ "IGV : \"http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__\" , "
-	+ "UCSC: \"http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__\" "
-	)
-private String hyperlinkType = "none";
+@Parameter(names={"-u","--url","--hyperlink"},description= "creates a hyperlink an area is clicked. " + Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
+private Hyperlink hyperlinkType = Hyperlink.empty();
+
+@Parameter(names={"--partition"},description=SAMRecordPartition.OPT_DESC)
+private SAMRecordPartition partition= SAMRecordPartition.sample;
+
 
 
 @SuppressWarnings("serial")
@@ -232,20 +234,14 @@ private int bestTicks(final int max) {
 	return (int)Math.pow(10, ndigit-2);
 }
 
+/** wrape node into a genomic hyperlink if needed */
 private Node wrapLoc(final Element node,final Locatable loc) {
 	if(loc==null) return node;
-	if(StringUtils.isBlank(this.hyperlinkType)) return node;
-	if(!this.hyperlinkType.contains("__CHROM__"))  return node;
-	if(!this.hyperlinkType.contains("__START__"))  return node;
-	if(!this.hyperlinkType.contains("__END__"))  return node;
+	final String url = this.hyperlinkType.apply(loc);
+	if(StringUtils.isBlank(url)) return node;
 	final Element a = element("a");
 	a.setAttribute("target","_blank");
-	a.setAttribute("href",
-			this.hyperlinkType.
-				replaceAll("__CHROM__", StringUtils.escapeHttp(loc.getContig())).
-				replaceAll("__START__", String.valueOf(loc.getStart())).
-				replaceAll("__END__", String.valueOf(loc.getEnd()))
-			);
+	a.setAttribute("href",url);
 	a.appendChild(node);
 	return a;
 	}
@@ -266,12 +262,16 @@ private void plotSashimi(
 	final Set<String> geneNames = genes.stream().map(G->G.getGeneName()).filter(S->!StringUtils.isBlank(S)).collect(Collectors.toCollection(TreeSet::new));
 	
 	/** extract the sample name or just use the filename */
-	final String sampleName = header.getReadGroups().
-		stream().
-		map(G->G.getSample()).
-		filter(S->!StringUtils.isBlank(S)).
-		findFirst().
-		orElse(bamPath.getFileName().toString());
+	final String sampleName = StringUtils.ifBlank(
+		header.getReadGroups().
+			stream().
+			map(G->this.partition.apply(G)).
+			filter(S->!StringUtils.isBlank(S)).
+			sorted().
+			collect(Collectors.joining(";"))
+			,
+			bamPath.getFileName().toString()
+			);
 	
 	final Function<Integer, Double> pos2pixel = POS-> (POS - interval.getStart())/(double)interval.getLengthOnReference() * drawing_width;
 	
@@ -279,7 +279,6 @@ private void plotSashimi(
 	final int coverage[] = new int[interval.getLengthOnReference()];
 	try(SAMRecordIterator iter=samReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd())) {
 		/** no read here, skip */
-		if(!iter.hasNext() && this.skip_region_without_read) return;
 		boolean got_one = false;
 		while(iter.hasNext()) {
 			final SAMRecord rec = iter.next();
@@ -314,7 +313,8 @@ private void plotSashimi(
 					}
 				}
 			}
-		if(!got_one) return;
+
+		if(!got_one && this.skip_region_without_read) return;
 		}
 	
 		final int max_coverage;

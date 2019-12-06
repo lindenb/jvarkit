@@ -10,19 +10,14 @@ Defining precisely the exonic genomic context based on a position .
 ```
 Usage: biostar81455 [options] Files
   Options:
+  * -gtf, --gtf
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-  * -KG, --knownGene
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -38,8 +33,7 @@ Usage: biostar81455 [options] Files
 
  * bed
  * gene
- * knownGene
- * ucsc
+ * gtf
 
 
 
@@ -101,9 +95,12 @@ tab delimited file. 2 columns: CHROM and POS
 
 ## Example
 
+The example below is old, we now use a GTF instead of a ucsc gene file.
+
 ```bash
+
 echo -e "chr22\t41258261\nchr22\t52000000\nchr22\t0" |\
-	java   dist/biostar81455.jar 
+	java   dist/biostar81455.jar
 
 chr22	41258261	uc003azg.2	41253084	41258785	POSITIVE	Exon 2	41257621	41258785	0
 chr22	41258261	uc011aox.2	41253084	41305239	POSITIVE	Exon 1	41253084	41253249	-5012
