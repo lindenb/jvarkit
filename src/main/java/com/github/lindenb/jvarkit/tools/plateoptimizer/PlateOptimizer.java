@@ -27,18 +27,18 @@ package com.github.lindenb.jvarkit.tools.plateoptimizer;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -69,7 +69,7 @@ END_DOC
 @Program(
 		name="plateoptimizer",
 		creationDate="20191125",
-		modificationDate="20191126",
+		modificationDate="20191206",
 		generate_doc=false,
 		keywords= {"plate"}
 		)
@@ -77,20 +77,16 @@ public class PlateOptimizer extends Launcher {
 	private static final Logger LOG = Logger.build(PlateOptimizer.class).make();
 	@Parameter(names= {"-o","--ouput"},description="Output prefix",required=true)
 	private String output;
-	@Parameter(names= {"-f","--fields"},description="Ordered critera",required=true)
-	private Path criteraPath=null;
-	
-	private int bonusDiagonal = 0;
+	@Parameter(names= {"--seed"},description="Random seed . -1 == use currentTimeMillis")
+	private long seed= -1L;
 
 	final int num_female_per_plates = 10;
+	private final String watched_columns[]={"Typeind","Type_Donneur","hsf_Patient"};
 	private final List<String> headers = new ArrayList<>();
 	private final Map<String,Integer> column2index = new HashMap<>();
 	private final List<Content> all_contents = new ArrayList<>();
-	private final List<Criteria> all_criterias = new ArrayList<>();
 	private volatile int ctrlc_catched_count=5;
-	private final Random random = new Random(System.currentTimeMillis());
-	private Predicate<Plate> platePredicate = T->true;
-	private boolean mute_per_plate = true;
+	private Random random = new Random(System.currentTimeMillis());
 	
 	private class Content 
 		{
@@ -100,22 +96,8 @@ public class PlateOptimizer extends Launcher {
 			this.content_index = content_index;
 			this.tokens=tokens;
 			}
-		int score(final Content other) {
-			if(this==other) return 0;
-			int n=0;
-			for(final Criteria c: all_criterias) {
-				if(!c.isSameContent(this,other)) n+=c.score;
-				}
-			return n;
-			}
 		
-		boolean isOptimal(final Content other) {
-			if(this==other) return true;
-			for(final Criteria c: all_criterias) {
-				if(c.isSameContent(this,other)) return false;
-				}
-			return true;
-			}
+		
 		@Override
 		public String toString() {
 			return String.join("\t", tokens);
@@ -130,6 +112,16 @@ public class PlateOptimizer extends Launcher {
 		String getTube() {
 			return get("Type_Tubes");
 			}
+		String getTypeInd() {
+			return get("Typeind");
+		}
+		String getTypeDonneur() {
+			return get("Type_Donneur");
+		}
+		String getHsfPatient() {
+			return get("hsf_Patient");
+		}
+		
 		boolean isFemale() {
 			return getSexe().equals("F");
 			}
@@ -141,6 +133,7 @@ public class PlateOptimizer extends Launcher {
 			}
 		}
 	
+	/*
 	private class Criteria {
 		int column;
 		int score=-10;
@@ -155,7 +148,7 @@ public class PlateOptimizer extends Launcher {
 			String s2 = c2.tokens[this.column];
 			return this.comparator.test(s1, s2);
 		}
-	}
+	}*/
 	
 	private class Cell 
 		{
@@ -171,8 +164,16 @@ public class PlateOptimizer extends Launcher {
 		String getLabel() {
 			return (char)((int)'A'+y)+String.format("%02d", x+1);
 			}
-		int getScore() {
-			if(this.content==null) return 0;
+		/** return true if cell is empty */
+		boolean isEmpty() {
+			return this.content == null;
+		}
+		
+		private boolean isEmptyString(final String s) {
+			return StringUtils.isBlank(s) || s.equals("NA") || s.equals("N/A");
+			}
+		int getScore(final Function<Content, String> cellExtract) {
+			if(this.isEmpty()) return 0;
 			int score=0;
 			for(int x=-1;x<=1;++x)
 				{
@@ -181,30 +182,30 @@ public class PlateOptimizer extends Launcher {
 					if(x==0 && y==0) continue;
 					final Cell neighbour = this.plate.get(this.x + x, this.y + y);
 					if( neighbour == null ) continue;
-					if( neighbour.content==null)
+					if( neighbour.isEmpty()) continue;
+					final String s1 = cellExtract.apply(neighbour.content);
+					if(isEmptyString(s1)) continue;
+					final String s2 = cellExtract.apply(this.content);
+					if(isEmptyString(s2)) continue;
+					if(!s1.equals(s2)) continue;
+					
+					final int n= 100;
+					if(x==0 || y==0)
 						{
-						score += -1;
+						score += n;
 						}
-					else if(!neighbour.content.isOptimal(this.content))
+					else //diagonal
 						{
-						final int n= neighbour.content.score(this.content);
-						if(n>0) throw new IllegalStateException();
-						if(x==0 || y==0)
-							{
-							score += n;
-							}
-						else //diagonal
-							{
-							//score += n + bonusDiagonal;
-							}
+						score += n/10;
 						}
+					
 					}
 				}
 			return score;
 			}
-		
 		}
-	private class Plate {
+	
+	private class Plate implements Iterable<Cell>{
 		final String name;
 		final Cell cells[] = new Cell[96];
 		Plate(final String name) {
@@ -222,8 +223,17 @@ public class PlateOptimizer extends Launcher {
 			for(int i=0;i< this.cells.length;i++) this.cells[i].content=cp.cells[i].content;
 			}
 		
+		public Stream<Cell> stream() {
+			return Arrays.stream(this.cells);
+			}
+		
+		@Override
+		public Iterator<Cell> iterator() {
+			return stream().iterator();
+			}
+		
 		void shuffle() {
-			final List<Content> contents = Arrays.stream(this.cells).
+			final List<Content> contents = this.stream().
 					map(C->C.content).
 					collect(Collectors.toCollection(ArrayList::new));
 			Collections.shuffle(contents,PlateOptimizer.this.random);
@@ -276,15 +286,13 @@ public class PlateOptimizer extends Launcher {
 				for(int x=0;x< 12;++x) {
 					w.writeStartElement("td");
 					final Cell cell = this.get(x, y);
-					if(cell.content!=null) {
+					if(!cell.isEmpty()) {
 						String bckg="background:AliceBlue;";
 						if(cell.content.isFemale()) bckg+="color:pink;";
 						if(cell.content.isMale()) bckg+="color:blue;";
 						w.writeAttribute("style", bckg);
 						w.writeCharacters(cell.content.getName()+":");
-						for(final Criteria c:all_criterias) {
-							w.writeCharacters(cell.content.tokens[c.column]+";");
-							}
+						w.writeCharacters(Arrays.stream(watched_columns).map(C->cell.content.get(C)).collect(Collectors.joining(";")));
 						}
 					w.writeEndElement();//td
 					}
@@ -307,24 +315,37 @@ public class PlateOptimizer extends Launcher {
 		
 		@Override
 		public int compareTo(final Solution o) {
-			return Integer.compare(o.getScore(), this.getScore());//inverse
-			}
-		
-		Solution computeScore() {
-		
-			this.score = this.plates.
+			final Function<Content, String> xcell1 = C->C.getTypeInd();
+			final Function<Content, String> xcell2 = C->C.getTypeDonneur();
+			final Function<Content, String> xcell3 = C->C.getHsfPatient();
+			
+			for(final Function<Content, String> xcell: Arrays.asList(xcell1,xcell2,xcell3)) {
+				int i1 = this.plates.
+						stream().
+						flatMap(P->P.stream()).
+						mapToInt(C->C.getScore(xcell)).
+						sum();
+				int i2= o.plates.
+						stream().
+						flatMap(P->P.stream()).
+						mapToInt(C->C.getScore(xcell)).
+						sum();
+				final int i= Integer.compare(i1, i2);
+				if(i!=0) return i;
+				}
+			int i1 = this.plates.
 					stream().
-					flatMap(P->Arrays.stream(P.cells)).
-					mapToInt(C->C.getScore()).
+					mapToInt(T->T.getNumberOfTubes()).
+					sum();
+			int i2= o.plates.
+					stream().
+					mapToInt(T->T.getNumberOfTubes()).
 					sum();
 			
-			return this;
+			return Integer.compare(i1, i2);
 			}
 		
 		
-		int getScore() {
-			return this.score;
-		}
 
 		private void fillEmptyPlates() {
 			final int n_plates = (int)Math.ceil(PlateOptimizer.this.all_contents.size()/96.0);
@@ -372,7 +393,7 @@ public class PlateOptimizer extends Launcher {
 				p.shuffle();
 				}
 			if(!contents.isEmpty()) throw new IllegalStateException();
-			return this.computeScore();
+			return this;
 			}
 		
 		
@@ -380,7 +401,7 @@ public class PlateOptimizer extends Launcher {
 			this.fillEmptyPlates();
 			
 			final List<Cell> cells = this.plates.stream().
-					flatMap(P->Arrays.stream(P.cells)).
+					flatMap(P->P.stream()).
 					collect(Collectors.toCollection(ArrayList::new));
 			Collections.shuffle(cells,PlateOptimizer.this.random);
 			int i=0;
@@ -389,7 +410,7 @@ public class PlateOptimizer extends Launcher {
 				i++;
 				}
 			
-			return this.computeScore();
+			return this;
 			}
 		
 		private void mute(final List<Cell> cells) {
@@ -425,6 +446,9 @@ public class PlateOptimizer extends Launcher {
 				map(P->new Plate(P)).
 				collect(Collectors.toList())
 				);
+			
+			boolean mute_per_plate = random.nextBoolean();
+			
 			if(mute_per_plate) {
 				for(final Plate plate:sol.plates) {
 					final List<Cell> cells = Arrays.asList(plate.cells);
@@ -438,7 +462,7 @@ public class PlateOptimizer extends Launcher {
 						collect(Collectors.toCollection(ArrayList::new));				
 				mute(cells);
 				}
-			return sol.computeScore();
+			return sol;
 			}
 		
 		private void save() {
@@ -471,7 +495,7 @@ public class PlateOptimizer extends Launcher {
 					
 					w.writeStartElement("head");
 					w.writeStartElement("title");
-					w.writeCharacters("Iteration :"+this.id+" Score:"+this.getScore());
+					w.writeCharacters("Iteration :"+this.id);
 					w.writeEndElement();//title
 					w.writeStartElement("style");
 					w.writeCharacters("table{font-family:Arial,Verdana,sans-serif;color:darkgray;font-size:14px;border-collapse:collapse;border:1px solid black;padding:5px;margin:5px;}");
@@ -481,7 +505,7 @@ public class PlateOptimizer extends Launcher {
 					
 					w.writeStartElement("body");
 					w.writeStartElement("h2");
-					w.writeCharacters("Iteration :"+this.id+" Score:"+this.getScore());
+					w.writeCharacters("Iteration :"+this.id);
 					w.writeEndElement();//h2
 					w.writeStartElement("div");
 					for(final Plate p:this.plates) {
@@ -502,7 +526,7 @@ public class PlateOptimizer extends Launcher {
 			}
 		@Override
 		public String toString() {
-			return String.valueOf(this.getScore());
+			return String.valueOf(this.id);
 			}
 		}
 	
@@ -512,19 +536,20 @@ public class PlateOptimizer extends Launcher {
 		Solution sol = null;
 		if(iter_id == 0 || iter_id%20==0 || this.best==null)
 			{
-			sol = new Solution(iter_id).fill2();
+			sol = new Solution(iter_id).fill();
 			}
 		else
 			{
 			sol = this.best.mute(iter_id);
 			}
 		
-		if(!sol.plates.stream().allMatch(this.platePredicate)) return;
+		if(!sol.plates.stream().
+				allMatch(P->P.stream().map(C->!C.isEmpty()  && C.content.isFemale()).count()>=num_female_per_plates)) return;
 				
 		if(this.best==null || sol.compareTo(this.best)<0)
 			{
 			this.best=sol;
-			LOG.info("["+iter_id+"] best score:" + best.getScore());
+			LOG.info("["+iter_id+"]");
 			sol.save();
 			}
 		}
@@ -539,6 +564,13 @@ public class PlateOptimizer extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		try {
+			if(this.seed!=-1) {
+				this.random = new Random(this.seed);
+				}
+			else
+				{
+				this.random = new Random(System.currentTimeMillis());
+				}
 			final CharSplitter tab = CharSplitter.TAB;
 			final String input = oneFileOrNull(args);
 			try(BufferedReader br = (input==null?
@@ -564,48 +596,7 @@ public class PlateOptimizer extends Launcher {
 				LOG.error("no data defined");
 				return -1;
 			}
-			Collections.sort(this.all_contents,(A,B)->A.getTube().compareTo(B.getTube()));
 			
-			try(BufferedReader br= IOUtils.openPathForBufferedReading(this.criteraPath)) {
-				Criteria curr = null;
-				for(;;) {
-					String line  = br.readLine();
-					if(line==null) break;
-					if(StringUtils.isBlank(line)) {
-						curr=null;
-						continue;
-					}
-					if(curr==null || line.indexOf(':')==-1) {
-						curr= new Criteria();
-						curr.column = getColumnByName(line);
-						this.all_criterias.add(curr);
-						final int final_col = curr.column;
-						LOG.info("criteria["+this.all_criterias.size()+"] on column "+line+" with :"+
-								String.join(" ", this.all_contents.stream().map(K->K.tokens[final_col]).collect(Collectors.toSet())));
-					} else
-						{
-						int colon= line.indexOf(":");
-						if(colon==-1) {
-							LOG.error("':' missing in "+line);
-							return -1;
-							}
-						String left = line.substring(0,colon).trim();
-						String right = line.substring(colon+1).trim();
-						if(left.equals("score")) {
-							curr.score = Integer.parseInt(right);
-							if(curr.score>=0) {
-								LOG.error("score must be <0 in "+line);
-								return -1;
-								}
-							}
-						else
-							{
-							LOG.error("unknow modifier in "+line);
-							return -1;
-							}
-						}
-					}
-				}
 			
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 			        public void run() {
@@ -621,17 +612,10 @@ public class PlateOptimizer extends Launcher {
 			        }
 			    });
 			
-			this.platePredicate = T->{
-				return Arrays.stream(T.cells).
-						map(C->C.content!=null  && C.content.isFemale()).
-						count()>=num_female_per_plates
-						;
-				};
 			
 			long n_iteration = 0L;
 			while(this.ctrlc_catched_count>0) {
 				iteration(++n_iteration);
-				if(this.best!=null && best.getScore()>=0) break;
 				}
 			ctrlc_catched_count=0;
 			LOG.info("done");
