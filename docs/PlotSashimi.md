@@ -26,6 +26,9 @@ Usage: plotsashimi [options] Files
       Default: (empty)
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
+    --mapq
+      Min mapping quality
+      Default: 0
   * -o, --out
       An existing directory or a filename ending with the '.zip' suffix.
     -R, --reference

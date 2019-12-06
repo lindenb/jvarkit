@@ -179,6 +179,8 @@ private boolean use_D_operator= false;
 private int image_width_pixel  = 1_000;
 @Parameter(names={"--skip-empty"},description="Do not generate a SVG file if there is no read in the interval")
 private boolean skip_region_without_read = false;
+@Parameter(names={"--mapq"},description="Min mapping quality")
+private int min_mapq = 0;
 
 
 @SuppressWarnings("serial")
@@ -207,13 +209,14 @@ private String format(double v)
 	{
 	return this.decimalFormater.format(v);
 	}
-
+/** best ticks separation */
 private int bestTicks(final int max) {
 	if(max<=10) return 1;
 	final int ndigit=(int)Math.ceil(Math.log10(max-1));
 	return (int)Math.pow(10, ndigit-2);
 }
 
+/** create the SVG itself */
 private void plotSashimi(
 	final ArchiveFactory archive,
 	final SamReader samReader,
@@ -234,7 +237,7 @@ private void plotSashimi(
 		map(G->G.getSample()).
 		filter(S->!StringUtils.isBlank(S)).
 		findFirst().
-		orElse(null);
+		orElse(bamPath.getFileName().toString());
 	
 	final Function<Integer, Double> pos2pixel = POS-> (POS - interval.getStart())/(double)interval.getLengthOnReference() * drawing_width;
 	
@@ -243,15 +246,17 @@ private void plotSashimi(
 	try(SAMRecordIterator iter=samReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd())) {
 		/** no read here, skip */
 		if(!iter.hasNext() && this.skip_region_without_read) return;
-		
+		boolean got_one = false;
 		while(iter.hasNext()) {
 			final SAMRecord rec = iter.next();
 			if(rec.getReadUnmappedFlag()) continue;
 			if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 			if(rec.isSecondaryOrSupplementary()) continue;
 			if(rec.getDuplicateReadFlag()) continue;
+			if(rec.getMappingQuality()< this.min_mapq) continue;
 			final Cigar cigar =rec.getCigar();
 			if(cigar==null || cigar.isEmpty()) continue;
+			got_one = true;
 			int ref= rec.getAlignmentStart();
 			for(final CigarElement ce:cigar) {
 				if(ref> interval.getEnd()) break;
@@ -275,6 +280,7 @@ private void plotSashimi(
 					}
 				}
 			}
+		if(!got_one) return;
 		}
 	
 		final int max_coverage = Math.max(1,Arrays.stream(coverage).max().orElse(0));
@@ -290,7 +296,7 @@ private void plotSashimi(
 		
 		final Element title = element("title");
 		svgRoot.appendChild(title);
-		title.appendChild(text(interval.toString() +(geneNames.size()<3?String.join(" ", geneNames):"")));
+		title.appendChild(text(interval.toString() +(!geneNames.isEmpty() && geneNames.size()<3?" "+String.join(" ", geneNames):"")));
 		
 		final Element style = element("style");
 		svgRoot.appendChild(style);

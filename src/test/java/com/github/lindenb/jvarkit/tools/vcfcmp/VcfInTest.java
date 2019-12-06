@@ -34,12 +34,29 @@ final Allele ZORG_ALLELE = Allele.create("<ZORG>", false);
 
 @DataProvider(name = "all-indexed-vcf-files")
 public Object[][] createData1() {
-	return support.toArrayArray(support.
-			allVcfOrBcf().
-			filter(S->support.vcfHasIndex).
-			map(F->new Object[] {F})
-			)
-			;
+	return new Object[][] {
+			{support.resource("test_vcf01.vcf")},
+			{support.resource("manta.B00GWGD.vcf.gz")},
+			{support.resource("rotavirus_rf.vcf.gz")},
+			{support.resource("S5.vcf.gz")},
+			{support.resource("S4.vcf.gz")},
+			{support.resource("toy.vcf.gz")},
+			{support.resource("rotavirus_rf.ann.vcf.gz")},
+			{support.resource("manta.D000Q1R.vcf.gz")},
+			{support.resource("S2.vcf.gz")},
+			{support.resource("rotavirus_rf.freebayes.vcf.gz")},
+			{support.resource("ExAC.r1.sites.vep.vcf.gz")},
+			{support.resource("gnomad.genomes.r2.0.1.sites.1.vcf.gz")},
+			{support.resource("S3.vcf.gz")},
+			{support.resource("S1.vcf.gz")},
+			{support.resource("manta.B00GWIU.vcf.gz")},
+			{support.resource("gnomad.exomes.r2.0.1.sites.vcf.gz")},
+			{support.resource("gnomad_v2_sv.sites.vcf.gz")},
+			{support.resource("manta.B00I9CJ.vcf.gz")},
+			{support.resource("rotavirus_rf.unifiedgenotyper.vcf.gz")},
+			{support.resource("rotavirus_rf.unifiedgenotyper.vcf.gz")}
+			}; 
+			
 	}
 
 @Test(dataProvider="all-indexed-vcf-files")
