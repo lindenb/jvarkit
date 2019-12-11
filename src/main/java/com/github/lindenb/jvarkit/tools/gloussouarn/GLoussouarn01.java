@@ -28,16 +28,25 @@ package com.github.lindenb.jvarkit.tools.gloussouarn;
 
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Logger;
+import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
+
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileFilter;
 
 
 /**
@@ -47,39 +56,72 @@ import java.util.logging.Logger;
  */
 public class GLoussouarn01  {
 	private static final Logger LOG=Logger.getLogger(GLoussouarn01.class.getName());
-	private final List<XY> data =  new ArrayList<>(1_000_000);
-
+	private static final String SUFFIX=".convert.txt";
+	
 	private static class XY{
-		float x;
-		float y;
+		double time;
+		double y;
 		}
+
+	private class Converter {
+	private final List<XY> data =  new ArrayList<>(1_000_000);
+	private final List<UserInterval> intervals =  new ArrayList<>(100);
+	private Double deltaTime = null;
+
 	
-	private class Slice
-		{
-		final int x1;
-		final int x2;
-		Slice(int x1,int x2) {
-			this.x1=x1;
-			this.x2=x2;
-			}
-		String getTitle() { return "Y";}
-		int getRows() { return x2-x1;}
+	
+	private  class UserInterval {
+		double timeStart;
+		double timeEnd;
+		List<XY> data= null;
+		
+		String getTitle() { return String.valueOf(timeStart)+":"+this.timeEnd;}
+		int getRows() { return (int)(1+(timeEnd-timeStart)/deltaTime.doubleValue());}
 		String getAt(int y) {
-			final int idx = x1+y;
-			if(idx>=x2) return ".";
-			return String.valueOf(GLoussouarn01.this.data.get(idx));
+			if(y>=this.data.size()) return ".";
+			return String.format("%.4f",this.data.get(y).y);
 			}
-		}
+	}
 	
-	private int readData(final Path path) throws IOException {
-		BufferedReader br = null;
-		try {
+		
+	private BufferedReader open(final Path path) throws IOException {
 		if(path.getFileName().endsWith(".gz")) {
-			br = new BufferedReader(new InputStreamReader(Files.newInputStream(path)));
+			return new BufferedReader(new InputStreamReader(Files.newInputStream(path)));
 		} else
 			{
-			br = Files.newBufferedReader(path);
+			return Files.newBufferedReader(path);
 			}
+		}
+	
+	private int readUserIntervals(final Path path) throws IOException {
+		try(BufferedReader br=open(path)) {
+		for(;;) {
+			final String line= br.readLine();
+			if(line==null) break;
+			if(line.trim().isEmpty()) continue;
+			final int tab= line.indexOf('\t');
+			if(tab==-1) throw new IOException("cannot find tabulation in "+line	);
+			final UserInterval ui = new UserInterval();
+			ui.timeStart = Double.parseDouble(line.substring(0,tab).trim());
+			ui.timeEnd = Double.parseDouble(line.substring(tab+1).trim());
+			if(ui.timeStart>ui.timeEnd) throw new IOException("Bad line "+line);
+			
+			ui.data = this.data.stream().
+				filter(xy-> xy.time>=ui.timeStart && xy.time<=ui.timeEnd).
+				sorted((A,B)->Double.compare(A.time, B.time)).
+				collect(Collectors.toList()); 
+				
+			
+			this.intervals.add(ui);
+			}
+		} 
+		return this.intervals.size();
+	}
+	
+	
+	private int readData(final Path path) throws IOException {
+		final double precision = 1E-3;
+		try(BufferedReader br=open(path)) {
 		for(;;) {
 			final String line= br.readLine();
 			if(line==null) break;
@@ -87,123 +129,161 @@ public class GLoussouarn01  {
 			final int tab= line.indexOf('\t');
 			if(tab==-1) throw new IOException("cannot find tabulation in "+line	);
 			final XY xy = new XY();
-			xy.x = Float.parseFloat(line.substring(0,tab).trim());
-			xy.y = Float.parseFloat(line.substring(tab+1).trim());
+			xy.time = Double.parseDouble(line.substring(0,tab).trim());
+			xy.y = Double.parseDouble(line.substring(tab+1).trim());
+			if(!data.isEmpty()) {
+				final XY prev=data.get(data.size()-1);
+				final double dtime = xy.time - prev.time;
+				if(dtime<=0) throw new IOException("Bad order by time");
+				if(this.deltaTime==null ) {
+					this.deltaTime = dtime;
+				} else if(Math.abs(this.deltaTime.doubleValue()- dtime) > precision)
+					throw new IOException("Bad delta times !! got "+this.deltaTime+" and then "+dtime+" line "+line);
+				}
 			this.data.add(xy);
 			}
-		br.close();
-		} finally
-			{
-			if(br!=null) br.close();
-			}
+		} 
 		return this.data.size();
 		}
-	private void usage(final PrintStream out) {
-		out.println(this.getClass().getSimpleName());
-		out.println("Usage: java -jar dist/"+this.getClass().getSimpleName().toLowerCase()+".jar [option] file");
-		out.println("Options:");
-		out.println("  -h help this screen.");
-		out.println("  -o (file) output file (required)");
-		out.println();
-		}
-	private int instanceMain(final String args[]) {
-		try {
-			Path out = null;
-			int optind=0;
-			while(optind< args.length) {
-				if(args[optind].equals("-h") ) {
-					usage(System.out);
-					return 0;
-					}
-				if(args[optind].equals("-o") && optind+1 < args.length) {
-					out = Paths.get(args[++optind]);
-					}
-				else if(args[optind].equals("--")) {
-					++optind;
-					break;
-				}else if(args[optind].startsWith("-")) {
-					LOG.severe("Illegal option "+args[optind]);
-					return -1;
-				}
-				else
-					{
-					break;
-					}
-				++optind;
+	Path convert(final Path intervalPath,final Path inPath) throws IOException {
+		if(inPath.getFileName().toString().endsWith(SUFFIX)) throw new IOException("File "+inPath+" ends with "+SUFFIX);
+		
+		final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
+		
+		final Path out = inPath.getParent().resolve(sdf.format(new Date())+"."+inPath.getFileName().toString()+SUFFIX);
+		if(Files.exists(out)) throw new IOException("File exists "+out);
+		if( this.readData(inPath)==0) {
+			throw new IOException("no data in "+inPath);
 			}
-			if(optind+1!=args.length) {
-				LOG.severe("Illegal number of arguments.");
-				usage(System.err);
-				return -1;
-				}
-			if(out==null)  {
-				LOG.severe("Output file is undefined.");
-				usage(System.err);
-				return -1;
-				}
-			final Path inPath = Paths.get(args[optind]);
-			if(inPath.equals(out)) {
-				LOG.severe("input and output are same file.");
-				return -1;
+		
+		if( this.readUserIntervals(intervalPath)==0) {
+			throw new IOException("no data in "+intervalPath);
 			}
-			if( this.readData(inPath)==0) {
-				LOG.severe("no data in "+inPath);
-				return -1;
+		
+		try(PrintWriter w= new PrintWriter(Files.newBufferedWriter(out))) {
+			w.print("#t");
+			for(final UserInterval ui: this.intervals) {
+				w.print("\t");
+				w.print(ui.getTitle());
 			}
+			w.println();
 			
-			final List<Slice> slices = new  ArrayList<>();
-			int x1=0;
-			while(x1< this.data.size()) {
-				final XY xy1 = this.data.get(x1);
-				if(xy1.x<0) { x1++; continue;}
-				
-				int x2 = x1 +1 ;
-				
-				while(x2< this.data.size() && this.data.get(x2).x==xy1.x) {
-					x2++;
-					}
-				slices.add(new Slice(x1,x2));
-				x1 = x2;
-			}
-			if(slices.isEmpty()) {
-				LOG.severe("no slice was found.");
-				return -1;
-			}
-			
-			try(PrintWriter w= new PrintWriter(Files.newBufferedWriter(out))) {
-				w.print("#X");
-				for(final Slice slice: slices) {
+			final int maxrows = this.intervals.stream().mapToInt(S->S.getRows()).max().orElse(0);
+			for(int y=0;y< maxrows;y++) {
+				w.printf("%.2f",y*this.deltaTime);
+				for(final UserInterval ui: this.intervals) {
 					w.print("\t");
-					w.print(slice.getTitle());
+					w.print(ui.getAt(y));
 				}
 				w.println();
-				
-				final int maxrows = slices.stream().mapToInt(S->S.getRows()).max().orElse(0);
-				for(int y=0;y< maxrows;y++) {
-					final Slice first =  slices.get(0);
-					w.print("?");
-					for(final Slice slice: slices) {
-						w.print("\t");
-						w.print(slice.getAt(y));
-					}
-					w.println();
+			}
+			
+			
+		w.flush();
+		}
+		return out;
+	}
+	
+	}
+	
+	
+	
+	
+	 int instanceMain(final String args[]) {
+		try {
+			Locale.setDefault(Locale.ENGLISH);
+			
+			final Preferences prefs = Preferences.userNodeForPackage(GLoussouarn01.class);
+
+			
+			if(args.length!=0) {
+				LOG.severe("too many args");
+				return -1;
+			}
+			
+			JFileChooser jfc = new JFileChooser();
+			File directory = null;
+			String dirStr =prefs.get("config.dir", null);
+			if(dirStr!=null) directory=new File(dirStr);
+			if(directory==null || !directory.exists() || !directory.isDirectory()) directory=null;
+			
+			jfc.setCurrentDirectory(directory);
+			jfc.setDialogTitle("Configuration file");
+			if(jfc.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION) {
+				LOG.warning("User canceled");
+				return -1;
+			}
+			final File configFile = jfc.getSelectedFile();
+			if(configFile==null || !configFile.isFile()) {
+				LOG.warning("User canceled");
+				return -1;
+			}
+			prefs.put("config.dir",configFile.getParentFile().getPath());
+			
+			jfc = new JFileChooser();
+			
+			directory=null;
+			dirStr =prefs.get("data.dir", null);
+			if(dirStr!=null) directory=new File(dirStr);
+			if(directory==null || !directory.exists() || !directory.isDirectory()) directory=null;
+
+			
+			jfc.setDialogTitle("Data files");
+			jfc.setCurrentDirectory(directory);
+			jfc.setMultiSelectionEnabled(true);
+			jfc.setFileFilter(new FileFilter() {
+				@Override
+				public String getDescription() {
+					return "Data files";
 				}
 				
-				
-			w.flush();
+				@Override
+				public boolean accept(File f) {
+					return f!=null && !f.getName().endsWith(SUFFIX);
+				}
+			});
+			
+			
+			if(jfc.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION) {
+				LOG.warning("User canceled");
+				return -1;
 			}
+			final File dataFiles[] = jfc.getSelectedFiles();
+			if(dataFiles==null || dataFiles.length==0) {
+				LOG.warning("User canceled");
+				return -1;
+				}
+			
+			int i=0;
+			for(final File dataFile:dataFiles) {
+				final Converter converter = new Converter();
+				Path out = converter.convert(configFile.toPath(), dataFile.toPath());
+				LOG.info("converted : "+out);
+				i++;
+				
+				prefs.put("data.dir",dataFile.getParentFile().getPath());
+
+			}
+			JOptionPane.showMessageDialog(null, String.valueOf(i)+ " file(s) converted");
+			
+			prefs.sync();
 			return 0;
 		} catch(final Throwable err ) {
+			err.printStackTrace();
+			JOptionPane.showMessageDialog(null, String.valueOf(err.getMessage()));
 			return -1;
 		}
 	}
 	
-	private void instanceMainWithExit(final String args[]) {
-		int err= instanceMain(args);
-		System.exit(err);
+	public static void main(final String[] args) {
+		try {
+		SwingUtilities.invokeAndWait(()->{
+			int ret=new GLoussouarn01().instanceMain(args);
+			System.exit(ret);
+		});
+		} catch(final Throwable err) {
+			err.printStackTrace();
 		}
-	public static void main(String[] args) {
-		new GLoussouarn01().instanceMainWithExit(args);
 	}
 
 }

@@ -102,7 +102,7 @@ END_DOC
 
  */
 @Program(name="validatecnv",
-	description="experimental CNV detection. Look variange of depths before/after putative known CNV.",
+	description="experimental CNV detection. Look variance of depths before/after putative known CNV.",
 	keywords= {"cnv","bam","sam","vcf"},
 	modificationDate="20190328",
 	generate_doc=false

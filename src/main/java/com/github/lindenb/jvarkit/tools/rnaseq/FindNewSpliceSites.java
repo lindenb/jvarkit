@@ -48,7 +48,9 @@ import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -85,6 +87,8 @@ public class FindNewSpliceSites extends Launcher
 	private Path gtfPath = null;
 	@Parameter(names="-d",description="max distance between known splice site and cigar end")
 	private int max_distance=10;
+	@Parameter(names= {"-R","--reference"},description="For reading cram. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
@@ -271,7 +275,15 @@ public class FindNewSpliceSites extends Launcher
 					new PrintWriter(new NullOuputStream()):
 					super.openPathOrStdoutAsPrintWriter(this.bedOut);
 			
-			sfr = super.openSamReader(oneFileOrNull(args));
+			final SamReaderFactory srf = super.createSamReaderFactory();		
+			if(this.faidx!=null) {
+				srf.referenceSequence(this.faidx);
+				}
+			
+			final String input = oneFileOrNull(args);
+	
+			sfr = input==null?srf.open(SamInputResource.of(stdin())):
+				srf.open(SamInputResource.of(input));
 			
 			SAMFileHeader header=sfr.getFileHeader().clone();
 			final SAMProgramRecord p=header.createProgramRecord();
