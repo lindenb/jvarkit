@@ -250,10 +250,14 @@ public class PlateOptimizer extends Launcher {
 		/* number of original plates */
 		int getNumberOfTubes() {
 			return Arrays.stream(cells).
-					filter(C->C.content!=null).
+					filter(C->!C.isEmpty()).
 					map(C->C.content.getTube()).
 					collect(Collectors.toSet()).
 					size();
+		}
+		
+		boolean hasEmptyCell() {
+			return stream().anyMatch(C->C.isEmpty());
 		}
 		
 		void writeXML(final XMLStreamWriter w) throws XMLStreamException
@@ -313,11 +317,28 @@ public class PlateOptimizer extends Launcher {
 			this.id = id;
 		}
 		
+		
+		boolean hasEmptyCells() {
+			//empty cell only allowed in last plate
+			for(int i=0;i+1/* YES*/ < this.plates.size();i++) {
+				if(this.plates.get(i).hasEmptyCell()) return true;
+			}
+			return false;
+		}
+		
 		@Override
 		public int compareTo(final Solution o) {
 			final Function<Content, String> xcell1 = C->C.getTypeInd();
 			final Function<Content, String> xcell2 = C->C.getTypeDonneur();
 			final Function<Content, String> xcell3 = C->C.getHsfPatient();
+			
+			boolean b1 = this.hasEmptyCells();
+			boolean b2 = o.hasEmptyCells();
+			if(!b1 && b2) return -1;
+			if(b1 && !b2) return 1;
+				
+			
+				
 			
 			for(final Function<Content, String> xcell: Arrays.asList(xcell1,xcell2,xcell3)) {
 				int i1 = this.plates.

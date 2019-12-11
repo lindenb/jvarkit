@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.swing.JFileChooser;
@@ -57,7 +58,7 @@ import javax.swing.filechooser.FileFilter;
 public class GLoussouarn01  {
 	private static final Logger LOG=Logger.getLogger(GLoussouarn01.class.getName());
 	private static final String SUFFIX=".convert.txt";
-	
+	private static final Pattern SPACES = Pattern.compile("[ \t]+");
 	private static class XY{
 		double time;
 		double y;
@@ -76,7 +77,7 @@ public class GLoussouarn01  {
 		List<XY> data= null;
 		
 		String getTitle() { return String.valueOf(timeStart)+":"+this.timeEnd;}
-		int getRows() { return (int)(1+(timeEnd-timeStart)/deltaTime.doubleValue());}
+		int getRows() { return this.data.size();}
 		String getAt(int y) {
 			if(y>=this.data.size()) return ".";
 			return String.format("%.4f",this.data.get(y).y);
@@ -99,12 +100,12 @@ public class GLoussouarn01  {
 			final String line= br.readLine();
 			if(line==null) break;
 			if(line.trim().isEmpty()) continue;
-			final int tab= line.indexOf('\t');
-			if(tab==-1) throw new IOException("cannot find tabulation in "+line	);
+			final String tokens[]=SPACES.split(line);
+			if(tokens.length!=2) throw new IOException("Expected two words in "+line);
 			final UserInterval ui = new UserInterval();
-			ui.timeStart = Double.parseDouble(line.substring(0,tab).trim());
-			ui.timeEnd = Double.parseDouble(line.substring(tab+1).trim());
-			if(ui.timeStart>ui.timeEnd) throw new IOException("Bad line "+line);
+			ui.timeStart = Double.parseDouble(tokens[0].trim());
+			ui.timeEnd = Double.parseDouble(tokens[1].trim());
+			if(ui.timeStart>ui.timeEnd) throw new IOException("Bad times in line "+line);
 			
 			ui.data = this.data.stream().
 				filter(xy-> xy.time>=ui.timeStart && xy.time<=ui.timeEnd).
@@ -126,20 +127,21 @@ public class GLoussouarn01  {
 			final String line= br.readLine();
 			if(line==null) break;
 			if(line.trim().isEmpty()) continue;
-			final int tab= line.indexOf('\t');
-			if(tab==-1) throw new IOException("cannot find tabulation in "+line	);
+			final String tokens[]=SPACES.split(line);
+			if(tokens.length!=2) throw new IOException("Expected two words in "+line);
 			final XY xy = new XY();
-			xy.time = Double.parseDouble(line.substring(0,tab).trim());
-			xy.y = Double.parseDouble(line.substring(tab+1).trim());
+			xy.time = Double.parseDouble(tokens[0].trim());
+			xy.y = Double.parseDouble(tokens[1].trim());
 			if(!data.isEmpty()) {
 				final XY prev=data.get(data.size()-1);
 				final double dtime = xy.time - prev.time;
 				if(dtime<=0) throw new IOException("Bad order by time");
 				if(this.deltaTime==null ) {
 					this.deltaTime = dtime;
+					LOG.info("delta time: "+this.deltaTime);
 				} else if(Math.abs(this.deltaTime.doubleValue()- dtime) > precision)
 					throw new IOException("Bad delta times !! got "+this.deltaTime+" and then "+dtime+" line "+line);
-				}
+			}
 			this.data.add(xy);
 			}
 		} 
@@ -170,7 +172,7 @@ public class GLoussouarn01  {
 			
 			final int maxrows = this.intervals.stream().mapToInt(S->S.getRows()).max().orElse(0);
 			for(int y=0;y< maxrows;y++) {
-				w.printf("%.2f",y*this.deltaTime);
+				w.printf("%.6f",y*this.deltaTime);
 				for(final UserInterval ui: this.intervals) {
 					w.print("\t");
 					w.print(ui.getAt(y));
@@ -209,6 +211,7 @@ public class GLoussouarn01  {
 			
 			jfc.setCurrentDirectory(directory);
 			jfc.setDialogTitle("Configuration file");
+			
 			if(jfc.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION) {
 				LOG.warning("User canceled");
 				return -1;
