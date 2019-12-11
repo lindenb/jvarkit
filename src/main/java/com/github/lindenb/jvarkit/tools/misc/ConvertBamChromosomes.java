@@ -27,8 +27,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -41,12 +41,12 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
@@ -55,7 +55,9 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
@@ -125,7 +127,8 @@ END_DOC
 @Program(
 	name="bamrenamechr",
 	description="Convert the names of the chromosomes in a BAM file",
-	keywords={"sam","bam","chromosome","contig"}
+	keywords={"sam","bam","chromosome","contig"},
+	modificationDate="20191210"
 	)
 public class ConvertBamChromosomes
 	extends Launcher
@@ -133,14 +136,16 @@ public class ConvertBamChromosomes
 	private static final Logger LOG = Logger.build(ConvertBamChromosomes.class).make();
 	
 	
-	@Parameter(names={"-i","-ignore"},description="If the tool cannot convert a contig, skip the read ")
+	@Parameter(names={"-i","--ignore"},description="If the tool cannot convert a contig, skip the read ")
 	private boolean skip_on_not_found = false;
 	@Parameter(names={"-f","--mapping","-m"},description="load a custom name mapping. Format (chrom-source\\tchrom-dest\\n)+",required=false)
-	private File mappingFile=null;
-	@Parameter(names={"-R","--reference","-r"},description="Use this reference file. "+INDEXED_FASTA_REFERENCE_DESCRIPTION,required=false)
-	private File referenceFile=null;
+	private Path mappingFile=null;
+	@Parameter(names={"--dict"},description="Use this new dictionary "+DICTIONARY_SOURCE,required=false)
+	private Path dictSource=null;
+	@Parameter(names={"-R","--reference"},description="For Reading CRAM "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File output= null;
+	private Path output= null;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
@@ -148,13 +153,13 @@ public class ConvertBamChromosomes
 	private final Set<String> unmappedChromosomes = new HashSet<>();
 	
 	
-	private String convert(final String contig) {
+	private String convert(final String contig,SAMSequenceDictionary dictOut) {
 		final String newctg = this.mapper.apply(contig);
-		if(newctg==null)
+		if(StringUtils.isBlank(newctg))
 			{
 			this.unmappedChromosomes.add(contig);
 			if(skip_on_not_found) return null;
-			throw new JvarkitException.ContigNotFound("Cannot convert contig "+contig);
+			throw new JvarkitException.ContigNotFoundInDictionary(contig,dictOut);
 			}
 		return newctg;
 		}
@@ -165,16 +170,17 @@ public class ConvertBamChromosomes
 			) throws IOException {
 		final Map<String,String> mapper= new LinkedHashMap<>();
 		BufferedReader in=null;
+		final CharSplitter tab = CharSplitter.TAB;
 		try {
-			in=IOUtils.openFileForBufferedReading(this.mappingFile);
+			in=IOUtils.openPathForBufferedReading(this.mappingFile);
 			String line;
 			while((line=in.readLine())!=null)
 				{
 				if(StringUtil.isBlank(line) || line.startsWith("#")) continue;
-				final String tokens[]=line.split("[\t]");
+				final String tokens[]=tab.split(line);
 				if(tokens.length!=2
-						|| tokens[0].trim().isEmpty()
-						|| tokens[1].trim().isEmpty()
+						|| StringUtil.isBlank(tokens[0])
+						|| StringUtil.isBlank(tokens[1])
 						) {
 					in.close();in=null;
 					throw new IOException("Bad mapping line: \""+line+"\"");
@@ -214,24 +220,34 @@ public class ConvertBamChromosomes
 			}
 		}
 	
-	@SuppressWarnings("deprecation")
 	@Override
 	public int doWork(final List<String> args) {
 		final CharSplitter SEMICOLON_PAT = CharSplitter.SEMICOLON;
 	   	final CharSplitter COMMA_PAT = CharSplitter.COMMA;
 
-		if(this.referenceFile==null && this.mappingFile==null) {
-			LOG.error("reference undefined and mapping file is undefined");
+		if(this.dictSource==null && this.mappingFile==null) {
+			LOG.error("dict source undefined and mapping file both undefined");
 			return -1;
 			}
 		
 		
-		SamReader sfr=null;
+		SamReader sr=null;
 		SAMFileWriter sfw=null;
 		try
 			{
-			sfr = super.openSamReader(oneFileOrNull(args));
-			final SAMFileHeader inHeader = sfr.getFileHeader();
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+			
+			final String input = oneFileOrNull(args);
+			if(input==null) {
+				sr = srf.open(SamInputResource.of(stdin()));
+			} else
+				{
+				sr = srf.open(SamInputResource.of(input));
+				}
+			
+			
+			final SAMFileHeader inHeader = sr.getFileHeader();
 			if(inHeader==null)
 				{
 				LOG.error("File header missing");
@@ -244,25 +260,26 @@ public class ConvertBamChromosomes
 				LOG.error("input Sequence dict is empty");
 				return -1;
 				}
-			final SAMFileHeader outHeader =inHeader.clone();
+			final SAMFileHeader outHeader = inHeader.clone();
 			
 			//create new sequence dict
 			SAMSequenceDictionary dictOut = null;
 			
 			Map<String,String> contigMap = null;
 			
-			if(this.referenceFile!=null)
+			if(this.dictSource!=null)
 				{
-				dictOut  = SAMSequenceDictionaryExtractor.extractDictionary(this.referenceFile);
+				dictOut  = SAMSequenceDictionaryExtractor.extractDictionary(this.dictSource);
 				}
-			
 			if(this.mappingFile!=null)
 				{
 				contigMap = this.readMappingFile(dictIn, dictOut);
 				}
 			
+			
 			if(dictOut==null && contigMap!=null)
 				{
+				contigMap = this.readMappingFile(dictIn, dictOut);
 				final List<SAMSequenceRecord> ssrs=new ArrayList<SAMSequenceRecord>(dictIn.size());
 				for(final String ci : contigMap.keySet())
 					{
@@ -282,6 +299,7 @@ public class ConvertBamChromosomes
 				{
 				this.mapper = ContigNameConverter.fromDictionaries(dictIn, dictOut); 
 				}
+			
 			if(this.mapper==null || dictOut==null)
 				{
 				LOG.error("Illegal state mapper==null or dict-out=null");
@@ -312,26 +330,24 @@ public class ConvertBamChromosomes
 				outHeader.setSortOrder(SortOrder.unsorted);
 				}
 			
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
-					newInstance().dictionary(inHeader).logger(LOG).build();
 			
-			sfw = this.writingBamArgs.openSAMFileWriter(this.output, outHeader, true);
+			sfw = this.writingBamArgs.openSamWriter(this.output, outHeader, true);
 			
 			
 			long num_ignored=0L;
-			SAMRecordIterator iter=sfr.iterator();
+			SAMRecordIterator iter=sr.iterator();
 			while(iter.hasNext())
 				{
-				final SAMRecord rec1=progress.apply(iter.next());
+				final SAMRecord rec1= iter.next();
 				String newName1=null;
 				String newName2=null;
 				if(!SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getReferenceName()))
 					{
-					newName1= convert(rec1.getReferenceName());
+					newName1= convert(rec1.getReferenceName(),dictOut);
 					}
 				if(rec1.getReadPairedFlag() && !SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(rec1.getMateReferenceName()))
 					{
-					newName2= convert(rec1.getMateReferenceName());
+					newName2= convert(rec1.getMateReferenceName(),dictOut);
 					}
 				rec1.setHeader(outHeader);
 
@@ -364,7 +380,7 @@ public class ConvertBamChromosomes
 						final List<String> L = new ArrayList<>(tokens.length);
 						for(final String semiColonStr:tokens) {
 							final String commaStrs[] = COMMA_PAT.split(semiColonStr);
-							final String newctg = convert(commaStrs[0]);
+							final String newctg = convert(commaStrs[0],dictOut);
 							if(newctg==null) continue;
 							commaStrs[0]=newctg;
 							L.add(String.join(",", commaStrs));
@@ -387,17 +403,16 @@ public class ConvertBamChromosomes
 				LOG.warning("Unmapped chromosomes: "+unmappedChromosomes);
 				}
 			LOG.warning("num ignored read:"+num_ignored);
-			progress.close();
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(sfr);
+			CloserUtil.close(sr);
 			CloserUtil.close(sfw);
 			}
 		}

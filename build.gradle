@@ -281,6 +281,7 @@ public class CompileJVarkit extends DefaultTask {
 	String deprecatedMsg = null;
 	def xsdFiles =[];
 	String endMsg = null;
+	boolean with_jni = false;
 
 	CompileJVarkit() {
 		def baseDir = this.getProject().projectDir.getPath();
@@ -512,6 +513,19 @@ public class CompileJVarkit extends DefaultTask {
 		return 	""+this.getName()+" "+this.mainClass;
 		}
 	
+	private void compileJni() {
+	 try {
+	    project.exec {
+			commandLine "make", "-C" , "src/main/cpp" "--ignore-errors"
+			standardOutput = stderr
+		    }
+		}
+	    catch(Exception err) {
+	    	project.logger.warn("Compiling JNI failed. "+err.getMessage());
+	    	}
+	}
+	
+	
 	private String getExecutablePath(String exe) {
 	    try {
 		def stdout = new ByteArrayOutputStream()
@@ -558,7 +572,7 @@ public class CompileJVarkit extends DefaultTask {
 			project.logger.warn("I won't compile "+getName()+" because the current jvm doesn't support javafx");
 			return;
 			}
-		if(this.jarLibs.isEmpty()) throw new GradleException("Empty ?? "+this.jarLibs);
+		// ignore for simple app if(this.jarLibs.isEmpty()) throw new GradleException("Empty ?? "+this.jarLibs);
 		
 		/** prepare directories */
 		ant.mkdir(dir:"${this.tmpDir}/META-INF")
@@ -606,6 +620,9 @@ public class CompileJVarkit extends DefaultTask {
 				include(name: "**/ObjectFactory.java")
 				compilerarg(value:'-Xlint')
 			}
+		
+		/** compile jni */
+		if(this.with_jni) this.compileJni();
 		
 		/** C binding, JNI run javah */
 		final File htslibBindingClass = new File("${this.tmpDir}/com/github/lindenb/jvarkit/htslib/Htslib.class");
@@ -2326,6 +2343,10 @@ all2.add( task("plateoptimizer", type: CompileJVarkit) {
 all2.add( task("plotsashimi", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.sashimi.PlotSashimi"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
+all2.add( task("gloussouarn01", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.gloussouarn.GLoussouarn01"
         });
 
 

@@ -13,6 +13,11 @@ Usage: bamrenamechr [options] Files
     --bamcompression
       Compression Level.
       Default: 5
+    --dict
+      Use this new dictionary A SAM Sequence dictionary source: it can be a 
+      *.dict file, a fasta file indexed with 'picard 
+      CreateSequenceDictionary', or any hts file containing a dictionary (VCF, 
+      BAM, CRAM, intervals...)
     -h, --help
       print help and exit
     --helpFormat
@@ -21,9 +26,9 @@ Usage: bamrenamechr [options] Files
       load a custom name mapping. Format (chrom-source\tchrom-dest\n)+
     -o, --out
       Output file. Optional . Default: stdout
-    -R, --reference, -r
-      Use this reference file. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+    -R, --reference
+      For Reading CRAM Indexed fasta Reference file. This file must be indexed 
+      with samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM

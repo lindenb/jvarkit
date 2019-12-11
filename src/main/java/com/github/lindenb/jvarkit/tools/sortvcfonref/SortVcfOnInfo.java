@@ -22,40 +22,33 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 
 package com.github.lindenb.jvarkit.tools.sortvcfonref;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFRecordCodec;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -83,9 +76,10 @@ chr10	135369532	.	T	C	122.62	.	AC=2;AF=0.25;AN=8;BaseQRankSum=2.118;
 
 END_DOC
  */
-@Program(name="sortvcfoninfo"
-,description="Sort a VCF a field in the INFO column",
-keywords={"vcf","sort","annotation"}
+@Program(name="sortvcfoninfo",
+description="Sort a VCF a field in the INFO column",
+keywords={"vcf","sort","annotation"},
+modificationDate="20191210"
 )
 public class SortVcfOnInfo extends Launcher
 	{
@@ -93,211 +87,208 @@ public class SortVcfOnInfo extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
-	@Parameter(names={"-T","--tag","-t"},description="INFO tag",required=true)
+	@Parameter(names={"-T","--tag","-t"},description="INFO tag. Special words are '<ID>' to sort on ID, and <QUAL> to sort on QUAL ",required=true)
     private String infoField=null;
+	
     private VCFInfoHeaderLine infoDecl;
-    private AbstractVCFCodec codec;
     
     @ParametersDelegate
     private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
+    @ParametersDelegate
+    private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
     
-
-
+    
     
     public SortVcfOnInfo()
 	    {
 	    }
     
-    private class VcfLine
-    	implements Comparable<VcfLine>
+    public String getObject(final VariantContext ctx)
+		{
+		Object o= ctx.getAttribute(SortVcfOnInfo.this.infoField);
+		if(o==null) return null;
+		if(o.getClass().isArray())
+			{
+			Object array[]=(Object[])o;
+			o = Arrays.asList(array);
+			}
+		if(o instanceof List)
+			{
+			@SuppressWarnings("rawtypes")
+			final List L=(List)o;
+			if(L.isEmpty()) return null;
+			for(final Object o2:L)
+				{
+				if(o2==null || o2.equals(".")) continue;
+				return o2.toString();
+				}
+			return null;
+			}
+		return o.toString();
+		}
+    
+    private int defaultCompare(final VariantContext vc1,final VariantContext vc2) {
+    	int i = vc1.getContig().compareTo(vc2.getContig());
+		if(i!=0) return i;
+		i = Integer.compare(vc1.getStart(), vc2.getStart());
+		if(i!=0) return i;
+		i = Integer.compare(vc1.getEnd(), vc2.getEnd());
+		if(i!=0) return i;
+		i = vc1.getReference().compareTo(vc2.getReference());
+		return i;
+    }
+    
+    private int compareID(final VariantContext vc1,final VariantContext vc2) 
     	{
-    	VariantContext ctx=null;
-    	String line;
-    	VcfLine()
+    	final String id1 = vc1.hasID()?null:vc1.getID();
+    	final String id2 = vc2.hasID()?null:vc2.getID();
+    	if(id1!=null)
     		{
-    		}
-    	public VcfLine(final String line)
-    		{
-    		this.line=line;
-    		}
-    	
-    	public String getObject()
-    		{
-    		Object o=getContext().getAttribute(SortVcfOnInfo.this.infoField);
-    		if(o==null) return null;
-    		if(o.getClass().isArray())
-    			{
-    			Object array[]=(Object[])o;
-    			o = Arrays.asList(array);
+    		if(id2!=null) {
+    			int i= id1.compareTo(id2);
+    			if(i!=0) return i;
+    			return defaultCompare(vc1,vc2);
     			}
-    		if(o instanceof List)
-    			{
-    			@SuppressWarnings("rawtypes")
-				final List L=(List)o;
-    			if(L.isEmpty()) return null;
-    			for(Object o2:L)
-    				{
-    				if(o2==null || o2.equals(".")) continue;
-    				return o2.toString();
-    				}
-    			return null;
-    			}
-    		return o.toString();
-    		}
-    	@Override
-    	public int compareTo(final VcfLine other)
-    		{
-    		final String o1=getObject();
-    		final String o2=other.getObject();
-    		if(o1==null)
-    			{
-    			if(o2==null) return line.compareTo(other.line);
-    			return -1;
-    			}
-    		else if(o2==null)
+    		else
     			{
     			return 1;
     			}
-    		switch(infoDecl.getType())
-    			{	
-    			case Float:
-    				{	
-    				return new BigDecimal(o1).compareTo(new BigDecimal(o2));
-    				}
-    			case Integer:
-					{	
-	    			return new BigInteger(o1).compareTo(new BigInteger(o2));
-					}
-    			default:
-    				{
-    				return o1.compareTo(o2);
-    				}
-    			}
-    		
     		}
-    	@Override
-    	public int hashCode() {
-    		return line.hashCode();
+    	else {
+    		 if(id2!=null) {
+    			 return -1;
+    		 	}
+    		 else
+	    		 {
+	    		 return defaultCompare(vc1,vc2);
+	    		 }
     		}
-    	@Override
-    	public boolean equals(Object obj) {
-    		return line.equals(VcfLine.class.cast(obj).line);
-    		}
-    	@Override
-    	public String toString() {
-    		return line;
-    		}
-    	VariantContext getContext()
-    		{
-    		if(this.ctx==null) this.ctx=SortVcfOnInfo.this.codec.decode(this.line);
-    		return this.ctx;
-    		}
+    	
     	}
-    
-    
-	private class VariantCodec extends AbstractDataCodec<VcfLine>
+    private int compareQUAL(final VariantContext vc1,final VariantContext vc2) 
 		{
-		@Override
-		public VcfLine decode(final DataInputStream dis) throws IOException
+    	final Double id1 = vc1.hasLog10PError()?null:vc1.getPhredScaledQual();
+    	final Double id2 = vc2.hasLog10PError()?null:vc2.getPhredScaledQual();
+    	if(id1!=null)
+    		{
+    		if(id2!=null) {
+    			int i= id1.compareTo(id2);
+    			if(i!=0) return i;
+    			return defaultCompare(vc1,vc2);
+    			}
+    		else
+    			{
+    			return 1;
+    			}
+    		}
+    	else {
+    		 if(id2!=null) {
+    			 return -1;
+    		 	}
+    		 else
+	    		 {
+	    		 return defaultCompare(vc1,vc2);
+	    		 }
+    		}
+    	
+    	}
+
+    
+    	
+    private int compareVariants(final VariantContext vc1,final VariantContext vc2) {
+		final String o1=getObject(vc1);
+		final String o2=getObject(vc2);
+		if(o1==null)
 			{
-			VcfLine cpl=new VcfLine();
-			try
-				{
-				cpl.line=readString(dis);
+			if(o2==null) {
+				return defaultCompare(vc1,vc2);
 				}
-			catch(final IOException err)
-				{
-				return null;
+			return -1;
+			}
+		else if(o2==null)
+			{
+			return 1;
+			}
+		switch(this.infoDecl.getType())
+			{	
+			case Float:
+				{	
+				return new BigDecimal(o1).compareTo(new BigDecimal(o2));
 				}
-			return cpl;
+			case Integer:
+				{	
+    			return new BigInteger(o1).compareTo(new BigInteger(o2));
+				}
+			default:
+				{
+				return o1.compareTo(o2);
+				}
 			}
-		@Override
-		public void encode(final DataOutputStream dos, final VcfLine s)
-				throws IOException {
-			writeString(dos,s.line);
-			}
-		@Override
-		public VariantCodec clone() {
-			return new VariantCodec();
-			}
-		}
-	
-	
+    }
+    
 	@Override
 	public int doWork(final List<String> args)
 		{
-		CloseableIterator<VcfLine> iter=null;
+		CloseableIterator<VariantContext> iter=null;
 		VariantContextWriter w=null;
-		SortingCollection<VcfLine> sorted=null;
-		LineIterator r=null;
+		SortingCollection<VariantContext> sorted=null;
+		VCFIterator r=null;
 		try {
-			if(args.isEmpty())
-			{
-			LOG.info("reading from stdin");
-			r=IOUtils.openStreamForLineIterator(stdin());
-			}
-		else if(args.size()==1)
-			{
-			String filename=args.get(0);
-			LOG.info("Reading "+filename);
-			r=IOUtils.openURIForLineIterator(filename);
-			}
-		else
-			{
-			LOG.error("Illegal number of arguments.");
-			return -1;
-			}
-
-			
-			
-			final VCFUtils.CodecAndHeader ch=VCFUtils.parseHeader(r);
-			VCFHeader header=ch.header;
-			this.codec=ch.codec;
-			this.infoDecl=header.getInfoHeaderLine(this.infoField);
-			if(this.infoDecl==null)
+			r= super.openVCFIterator(oneFileOrNull(args));
+				
+			final Comparator<VariantContext> cmp;
+			final VCFHeader header=r.getHeader();
+			if(this.infoField!=null && this.infoField.equals("<ID>")) 
 				{
-				final StringBuilder msg=new StringBuilder("VCF doesn't contain the INFO field :"+infoField+". Available:");
-				for(VCFInfoHeaderLine vil:header.getInfoHeaderLines()) msg.append(" ").append(vil.getID());
-				LOG.error(msg.toString());
-				return -1;
+				cmp = (A,B)->compareID(A, B);
 				}
-			
-			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
-	
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			else if(this.infoField!=null && this.infoField.equals("<QUAL>")) 
+				{
+				cmp = (A,B)->compareQUAL(A, B);
+				}
+			else
+				{
+				this.infoDecl=header.getInfoHeaderLine(this.infoField);
+				if(this.infoDecl==null)
+					{
+					LOG.error("VCF doesn't contain the INFO field :"+infoField+". Available:" +
+							header.getInfoHeaderLines().stream().map(H->H.getID()).collect(Collectors.joining(" ")));
+					return -1;
+					}
+				cmp = (V1,V2)->compareVariants(V1,V2);
+				}	
+				
+			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), header);
-			w=super.openVariantContextWriter(this.outputFile);
 			
-			w.writeHeader(header);
 			
 			
 			sorted=SortingCollection.newInstance(
-					VcfLine.class,
-					new VariantCodec(),
-					(V1,V2)->V1.compareTo(V2),
+					VariantContext.class,
+					new VCFRecordCodec(header),
+					cmp,
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpPaths()
 					);
 			sorted.setDestructiveIteration(true);
 			while(r.hasNext())
 				{
-				final VcfLine vc=new VcfLine(r.next());
-				progress.watch(vc.getContext());
-				sorted.add(vc);
+				sorted.add(progress.apply(r.next()));
 				}
 			CloserUtil.close(r);r=null;
 			
 			sorted.doneAdding();
-			progress.finish();
-			LOG.info("now writing...");
+			progress.close();
+			w= this.writingVariantsDelegate.dictionary(header.getSequenceDictionary()).open(this.outputFile);
+			
+			w.writeHeader(header);
+			
 			iter =sorted.iterator();
 			while(iter.hasNext())
 				{
-				w.add(iter.next().getContext());
+				w.add(iter.next());
 				}
 			iter.close();
 			iter=null;
@@ -305,7 +296,7 @@ public class SortVcfOnInfo extends Launcher
 			w=null;
 			return 0;
 			} 
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -321,11 +312,7 @@ public class SortVcfOnInfo extends Launcher
 			}
 		}
 	
-    
- 
-	/**
-	 * @param args
-	 */
+
 	public static void main(final String[] args) {
 		new SortVcfOnInfo().instanceMainWithExit(args);
 	}

@@ -29,7 +29,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -95,13 +94,27 @@ TAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTACCCCTAACCCTA
 ==;<?>@@@<>>@??<>>???<=>>?>:><@?4=:>7=5=>:<=@;'@A?########################################################################################################################################################################################################
 ```
 
+## Just bash
+
+.. or you can just use bash...
+
+```
+$ paste <(gunzip  -c S2.R1.fq.gz | paste - - - -)  <(gunzip  -c S2.R2.fq.gz |paste - - - -) |\
+	awk '{printf("%f\t%s\n",rand(),$0);}' |\
+	sort -t $'\t' -k1,1g |\
+	awk -F '\t' '{printf("%s\n%s\n%s\n%s\n",$2,$3,$4,$5) > "random.R1.fq"; printf("%s\n%s\n%s\n%s\n",$6,$7,$8,$9) > "random.R2.fq" }'
+```
+
+
 
 END_DOC
  *
  */
 @Program(name="fastqshuffle",
 	description="Shuffle Fastq files",
-	keywords="fastq"
+	keywords="fastq",
+	modificationDate="20191209",
+	creationDate="20140901"
 	)
 public class FastqShuffle extends Launcher
 	{
@@ -110,15 +123,17 @@ public class FastqShuffle extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File fileout = null;
-
+	
 	@Parameter(names={"-i"},description="single input is paired reads interleaved.(optional)")
 	private boolean interleaved_input=false;
 
-	@Parameter(names={"-r"},description="random seed ",converter=Launcher.RandomConverter.class)
-	private Random random=new Random(-1L);
+	@Parameter(names={"-r","--seed"},description="random seed.  -1 == use System.currentMillisec ")
+	private long seed = -1L;
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
+	private Random random = null;
 	
 	private static class OneRead
 		{
@@ -132,28 +147,6 @@ public class FastqShuffle extends Launcher
 		{
 		FastqRecord second;
 		}
-	
-	private static class OneReadCompare
-		implements Comparator<OneRead>
-		{
-		@Override
-		public int compare(final OneRead o1, final OneRead o2) {
-			final int i= o1.random < o2.random ? -1:  o1.random > o2.random ? 1: 0;
-			if(i!=0) return i;
-			return  o1.index < o2.index ? -1:  o1.index > o2.index ? 1: 0;
-			}
-		}
-	private static class TwoReadsCompare
-	implements Comparator<TwoReads>
-		{
-		@Override
-		public int compare(final TwoReads o1, final TwoReads o2) {
-			int i= o1.random < o2.random ? -1:  o1.random > o2.random ? 1: 0;
-			if(i!=0) return i;
-			return  o1.index < o2.index ? -1:  o1.index > o2.index ? 1: 0;
-			}
-		}
-
 	
 	private static class OneReadCodec extends AbstractDataCodec<OneRead>
 		{
@@ -248,7 +241,11 @@ public class FastqShuffle extends Launcher
 		final SortingCollection<TwoReads> sorting= SortingCollection.newInstance(
 				TwoReads.class,
 				new TwoReadsCodec(),
-				new TwoReadsCompare(),
+				(A,B)->{
+					final int i  = Long.compare(A.random, B.random);
+					if(i!=0) return i;
+					return Long.compare(A.index, B.random);
+				},
 				this.writingSortingCollection.getMaxRecordsInRam(),
 				this.writingSortingCollection.getTmpPaths()
 				);
@@ -302,7 +299,11 @@ public class FastqShuffle extends Launcher
 		final  SortingCollection<OneRead> sorting= SortingCollection.newInstance(
 				OneRead.class,
 				new OneReadCodec(),
-				new OneReadCompare(),
+				(A,B)->{
+					final int i  = Long.compare(A.random, B.random);
+					if(i!=0) return i;
+					return Long.compare(A.index, B.random);
+					},
 				this.writingSortingCollection.getMaxRecordsInRam(),
 				this.writingSortingCollection.getTmpPaths()
 				);
@@ -344,6 +345,14 @@ public class FastqShuffle extends Launcher
 		
 		try
 			{
+			if(this.seed==-1L) {
+				this.random=new Random(System.currentTimeMillis());
+			} else
+			{
+				this.random=new Random(this.seed);
+			}
+			
+			
 			if(fileout==null)
 				{
 				w=	new BasicFastqWriter(stdout());
@@ -388,12 +397,12 @@ public class FastqShuffle extends Launcher
 				}
 			else
 				{
-				LOG.error("illegal.number.of.arguments");
+				LOG.error("illegal number of arguments");
 				return -1;
 				}
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -406,7 +415,7 @@ public class FastqShuffle extends Launcher
 			}
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new FastqShuffle().instanceMainWithExit(args);
 		}

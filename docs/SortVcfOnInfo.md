@@ -10,6 +10,15 @@ Sort a VCF a field in the INFO column
 ```
 Usage: sortvcfoninfo [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -23,7 +32,8 @@ Usage: sortvcfoninfo [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -T, --tag, -t
-      INFO tag
+      INFO tag. Special words are '<ID>' to sort on ID, and <QUAL> to sort on 
+      QUAL 
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []

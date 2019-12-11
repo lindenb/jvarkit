@@ -22,6 +22,9 @@ Usage: fastqshuffle [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    -r, --seed
+      random seed.  -1 == use System.currentMillisec
+      Default: -1
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -30,9 +33,6 @@ Usage: fastqshuffle [options] Files
     -i
       single input is paired reads interleaved.(optional)
       Default: false
-    -r
-      random seed
-      Default: java.util.Random@17d10166
 
 ```
 
@@ -59,9 +59,18 @@ $ ./gradlew fastqshuffle
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20140901
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffle.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffle.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffleTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/fastq/FastqShuffleTest.java)
 
 
 ## Contribute
@@ -126,5 +135,17 @@ TAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTACCCCTAACCCTA
 +
 ==;<?>@@@<>>@??<>>???<=>>?>:><@?4=:>7=5=>:<=@;'@A?########################################################################################################################################################################################################
 ```
+
+## Just bash
+
+.. or you can just use bash...
+
+```
+$ paste <(gunzip  -c S2.R1.fq.gz | paste - - - -)  <(gunzip  -c S2.R2.fq.gz |paste - - - -) |\
+	awk '{printf("%f\t%s\n",rand(),$0);}' |\
+	sort -t $'\t' -k1,1g |\
+	awk -F '\t' '{printf("%s\n%s\n%s\n%s\n",$2,$3,$4,$5) > "random.R1.fq"; printf("%s\n%s\n%s\n%s\n",$6,$7,$8,$9) > "random.R2.fq" }'
+```
+
 
 
