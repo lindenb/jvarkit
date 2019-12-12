@@ -58,7 +58,9 @@ import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -66,6 +68,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
@@ -141,7 +144,7 @@ public class FindAllCoverageAtPosition extends Launcher
 	
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
-	
+	private SAMSequenceDictionary fastaDict = null;
 	
 	private static class CigarAndBases
 		{
@@ -198,9 +201,22 @@ public class FindAllCoverageAtPosition extends Launcher
 			if(!Files.isReadable(f)) continue;
 			final String filename=f.getFileName().toString();
 			
+			if(filename.endsWith(FileExtensions.CRAM)) {
+				if(referenceFileFile==null) {
+					LOG.warn("skipping "+f+" not reference was provided");
+					continue;
+				}
+				final SAMSequenceDictionary dict  = SAMSequenceDictionaryExtractor.extractDictionary(f);
+				if(dict==null) continue;
+				if(!SequenceUtil.areSequenceDictionariesEqual(dict,this.fastaDict)) {
+					LOG.warn("skipping "+f+" because this is not the same sequence dictionary");
+					continue;
+				}
+			} 
+			
 			if(!(filename.endsWith(FileExtensions.BAM) || 
 				filename.endsWith(FileExtensions.CRAM))) continue;
-			
+						
     			
 			SamReader samReader=null;
 			SAMRecordIterator iter=null;
@@ -395,6 +411,7 @@ public class FindAllCoverageAtPosition extends Launcher
 			if(this.referenceFileFile!=null) {
 				this.indexedFastaSequenceFile = htsjdk.samtools.reference.ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFileFile);
 				this.samReaderFactory.referenceSequence(this.referenceFileFile);
+				this.fastaDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 				}
 			
 			this.positionStrs.

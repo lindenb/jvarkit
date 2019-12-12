@@ -331,13 +331,6 @@ public class PlateOptimizer extends Launcher {
 			final Function<Content, String> xcell1 = C->C.getTypeInd();
 			final Function<Content, String> xcell2 = C->C.getTypeDonneur();
 			final Function<Content, String> xcell3 = C->C.getHsfPatient();
-			
-			boolean b1 = this.hasEmptyCells();
-			boolean b2 = o.hasEmptyCells();
-			if(!b1 && b2) return -1;
-			if(b1 && !b2) return 1;
-				
-			
 				
 			
 			for(final Function<Content, String> xcell: Arrays.asList(xcell1,xcell2,xcell3)) {
@@ -423,6 +416,7 @@ public class PlateOptimizer extends Launcher {
 			
 			final List<Cell> cells = this.plates.stream().
 					flatMap(P->P.stream()).
+					limit(PlateOptimizer.this.all_contents.size()).//evite puits vides
 					collect(Collectors.toCollection(ArrayList::new));
 			Collections.shuffle(cells,PlateOptimizer.this.random);
 			int i=0;
@@ -563,6 +557,8 @@ public class PlateOptimizer extends Launcher {
 			{
 			sol = this.best.mute(iter_id);
 			}
+		
+		if(sol.hasEmptyCells()) return;
 		
 		if(!sol.plates.stream().
 				allMatch(P->P.stream().map(C->!C.isEmpty()  && C.content.isFemale()).count()>=num_female_per_plates)) return;

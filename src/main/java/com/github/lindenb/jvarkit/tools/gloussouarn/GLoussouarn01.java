@@ -52,6 +52,12 @@ import javax.swing.filechooser.FileFilter;
 
 /**
  * 2019-12-10 outil demande par G Loussouarn pour manipuler des fichiers tabulaires
+ * 
+ * le fichier de confg consitste en des paires d'interval (time-start, time-end)
+ * le fichier de donnees contient 2 valeurs: (time: value)
+ * 
+ * on veut un tableau croise avec les intervals
+ * 
  * @author lindenb
  *
  */
