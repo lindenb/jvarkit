@@ -104,6 +104,10 @@ java -jar dist/samjs.jar -e 'function accept(r) { if(r.getReadUnmappedFlag()) re
 ```
 
 
+## Cited in
+
+  *  "Nanopore Targeted Sequencing for Rapid Gene Mutations Detection in Acute Myeloid Leukemia "  Genes 2019, 10(12), 1026; https://doi.org/10.3390/genes10121026  
+
 END_DOC
 */
 @Program(name="samjs",
