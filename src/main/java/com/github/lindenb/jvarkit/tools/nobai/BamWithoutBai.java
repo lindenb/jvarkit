@@ -320,7 +320,7 @@ public class BamWithoutBai extends Launcher{
 		         
 				 // https://twitter.com/jomarnz/status/1205533685413486594
 				 mySamRecordIter = null;
-				 final ByteArrayInputStream bais = new ByteArrayInputStream(buffer, 0, buffer.length);
+				 final ByteArrayInputStream bais = new ByteArrayInputStream(buffer, offset, buffer.length);
 				 final SequenceInputStream mergeIn= new SequenceInputStream(bais,in);
 				 final BlockCompressedInputStream bci = new BlockCompressedInputStream(mergeIn);
 				 try {
