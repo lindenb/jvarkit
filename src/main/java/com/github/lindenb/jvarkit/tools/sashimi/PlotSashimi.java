@@ -685,7 +685,7 @@ private void plotSashimi(
 		
 		final String md5 = StringUtils.md5(interval.getContig()+":"+interval.getStart()+":"+interval.getEnd()+":"+bamPath.toString());
 		final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + 
-					File.separator+ interval.getContig()+"_"+interval.getEnd()+"_"+interval.getEnd()+
+					File.separator+ interval.getContig()+"_"+interval.getStart()+"_"+interval.getEnd()+
 					(StringUtils.isBlank(sampleName)?"":"."+sampleName.replaceAll("[/\\:]", "_")) +
 					".svg";
 		

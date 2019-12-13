@@ -875,4 +875,8 @@ public class IOUtils {
 			if(repeat!=-1) repeat--;
         	}
     	}
+    /** return default user agent for http connnection */
+    public static String getDefaultUserAgent() {
+    	return "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0";
+    }
 	}
