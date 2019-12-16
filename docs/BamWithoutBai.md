@@ -75,6 +75,10 @@ The java jar file will be installed in the `dist` directory.
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/nobai/BamWithoutBai.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/nobai/BamWithoutBai.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/nobai/BamWithoutBaiTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/nobai/BamWithoutBaiTest.java)
+
 
 ## Contribute
 
