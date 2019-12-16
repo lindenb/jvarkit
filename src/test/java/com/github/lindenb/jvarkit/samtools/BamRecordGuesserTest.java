@@ -16,7 +16,7 @@ import htsjdk.samtools.util.CloserUtil;
 public class BamRecordGuesserTest {
 	private final TestSupport support = new TestSupport();
 	@Test
-	public void test01() 
+	public void testFindSam() 
 		throws IOException
 		{
 		BlockCompressedInputStream bcis = null;
@@ -36,4 +36,5 @@ public class BamRecordGuesserTest {
 			support.removeTmpFiles();
 			}
 		}
+
 }
