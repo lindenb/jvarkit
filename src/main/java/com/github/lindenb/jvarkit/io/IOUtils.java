@@ -878,5 +878,52 @@ public class IOUtils {
     /** return default user agent for http connnection */
     public static String getDefaultUserAgent() {
     	return "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0";
+    	}
+    
+    /** Reads len bytes in a loop.
+     * @param in The InputStream to read from
+     * @param buf The buffer to fill
+     * @param off offset from the buffer
+     * @param len the length of bytes to read
+     * @throws IOException if it could not read requested number of bytes 
+     * for any reason (including EOF)
+     */
+    public static void readFully(final InputStream in, final byte buf[], int off, int len ) throws IOException {
+      int toRead = len;
+      while ( toRead > 0 ) {
+        int ret = in.read( buf, off, toRead );
+        if ( ret < 0 ) {
+          throw new IOException( "Premeture EOF from inputStream");
+        }
+        toRead -= ret;
+        off += ret;
+      }
     }
+    /** Reads len bytes in a loop.
+     * @param in The InputStream to read from
+     * @param buf The buffer to fill
+     * @throws IOException if it could not read requested number of bytes 
+     * for any reason (including EOF)
+     */
+    public static void readFully(final InputStream in, final byte buf[]) throws IOException {
+    	readFully(in, buf,0,buf.length);
+    }
+    
+    /** Similar to readFully(). Skips bytes in a loop.
+     * @param in The InputStream to skip bytes from
+     * @param len number of bytes to skip.
+     * @throws IOException if it could not skip requested number of bytes 
+     * for any reason (including EOF)
+     */
+    public static void skipFully(final InputStream in, long len ) throws IOException {
+      while ( len > 0 ) {
+        long ret = in.skip( len );
+        if ( ret < 0 ) {
+          throw new IOException( "Premeture EOF from inputStream");
+        }
+        len -= ret;
+      }
+    }
+    
+    
 	}

@@ -24,23 +24,24 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.nobai;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.SequenceInputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.io.PushbackInputStream;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
 
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
+import org.disq_bio.disq.impl.formats.bgzf.BgzfBlockGuesser;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.CustomSeekableStreamFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.samtools.BamRecordGuesser;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -49,36 +50,56 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.BAMRecordCodec;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.seekablestream.SeekableBufferedStream;
+import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedInputStream;
-import htsjdk.samtools.util.BlockCompressedStreamConstants;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.RuntimeIOException;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 /**
 BEGIN_DOC
 
-Motivation: query a remote bam without bai.
+Motivation: query a remote bam without bai (e.g: Encode bams - last checked 2019-12-16)
+
+The idea is to run a **binary search** on the remote BAM, scanning for the BGZF blocks and the Bam Record.
+
+This tool uses a class from the https://github.com/disq-bio/disq project.
+
+This tool expect 'small' reads. Long reads may fail.
+
+## Acknowledgement
+
+Louis Bergelson and John Marshall for their useful suggestions 
 
 ## Example
 
-'https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam'
+
+$ java  -jar dist/bamwithoutbai.jar  -r "chr3:38548061-38649667" \
+ 'https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam' -o jeter.bam https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam
+
+$ samtools view jeter.bam 
+D2FC08P1:268:C3NPCACXX:8:1111:11204:70951	99	chr3	38548254	255	1S99M1S	=	38548442	289	CCACCTCCCACCCCCAACCACACCGTCTGCAGCCAGCCCCAGGCACCTGTCTCAAAGCTCCCGGGCTGTCCACACACACAAAAACCACAGTCTCCTTCCGC	@@@FFFFFFHHGHJIGIIJJIJJIGIIJGHGGHIIHHIIJJJGIIJJDGCHGHHHFEDFFFDCBDDBBBCDDDDDDDDDDB?BBDDBD@?>CCCCC@CC##	NH:i:1	HI:i:1	AS:i:198	NM:i:0	MD:Z:99
+D2FC08P1:268:C3NPCACXX:8:1216:18650:7210	99	chr3	38548254	255	1S100M	=	38548442	289	CCACCTCCCACCCCCAACCACACCGTCTGCAGCCAGCCCCAGGCACCTGTCTCAAAGCTCCCGGGCTGTCCACACACACAAAAACCACAGTCTCCTTCCGG	CCCFFFFFHHHDHIJJJJJJIJJJJHHIJIJIJIJIIJIGIIJIIJJJJHHGHFHFFFFFFDDDBDDBBDCDDDDDDBBDDBDDDDDDDDCDDDDDDDD##	NH:i:1	HI:i:1	AS:i:199	NM:i:0	MD:Z:100
+(...)
+D2FC08P1:268:C3NPCACXX:8:1303:15665:9279	147	chr3	38649573	255	101M	=	38633218	-16456	TTGGCGCGGACTCGGCTCGGCGCGGGGCTCGGGGCACTGGGCGCAGGCTCAGCGGCCCCGGGGGAGCGATCCCTGCATCCTACGGGCGCCGCCGCCGTCTC	<9DDBB@C<2BB@DBDDBDBDDDDDBDB9BDDDDDCDDDDDDDDDDDDDDDDDDDDDDBDDDDDBBBDDDDDDDDDDDDDDBDDDDFJHHHHHFFFFFCCC	NH:i:1	HI:i:1	AS:i:196	NM:i:0	MD:Z:101
+D2FC08P1:268:C3NPCACXX:8:2312:16447:12679	147	chr3	38649596	255	23S78M	=	38633222	-16452	GGGGCGGGGCCCGGGGGGGGGGGGGGGCGGGGGGCGCGGGGCGCAGCCTCGGCGCCCCGGGGGGAGCGATCCCTGCATCCTACGGGCGCCGCCGCCGTCTC	###################################################################################B>6<6F?DFFDDDDD@@@	NH:i:1	HI:i:1	AS:i:155	NM:i:8	MD:Z:5T0C5A1T8G3A3G3C42
+
+
+
+## See also
+
+ * lbergelson on github: https://github.com/samtools/htsjdk/issues/1445#issuecomment-565599459
+ * https://twitter.com/yokofakun/status/1202681859051859969
+ * https://twitter.com/jomarnz/status/1205532441353560066
 
 END_DOC
 
@@ -86,10 +107,9 @@ END_DOC
 
 @Program(name="bamwithoutbai",
 description="Query a Remote BAM without bai",
-keywords={"bam","sam","bai"},
+keywords={"bam","sam","bai","remote"},
 creationDate="20191213",
-modificationDate="20191213",
-generate_doc=false
+modificationDate="20191213"
 )
 public class BamWithoutBai extends Launcher{
 	private static final Logger LOG = Logger.build(BamWithoutBai.class).make();
@@ -98,12 +118,12 @@ public class BamWithoutBai extends Launcher{
 	private Path outputFile = null;
 	@Parameter(names={"-r","--region","--interval"},description=IntervalParserFactory.OPT_DESC,required=true)
 	private String intervalStr ="";
-	@Parameter(names={"--buffer-size"},description="Buffer size. Must be large enough to contains a few reads and a BGZF block")
-	private int byte_buffer_size=100_000;
-	@Parameter(names={"--repeat"},description="Dichotomy repeat")
+	@Parameter(names={"--repeat"},description="Max dichotomy repeat to perform during binary search.")
 	private int dichotomy_repeat=20;
 	@Parameter(names={"--debug"},description="Enable debugging.")
 	private boolean do_debug = false;
+	@ParametersDelegate
+	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
 	
 	private CloseableHttpClient httpClient = null;
@@ -120,39 +140,6 @@ public class BamWithoutBai extends Launcher{
 	
 
 		
-	private class HeadingSamRecordIterator extends  AbstractIterator<SAMRecord>
-		implements CloseableIterator<SAMRecord> {
-        private SamReader reader;
-        private CloseableIterator<SAMRecord> delegate;
-        private CloseableHttpResponse httpResponse;
-        HeadingSamRecordIterator(final HttpGet httpGet) throws IOException{
-            this.httpResponse = httpClient.execute(httpGet);
-            final int responseCode = httpResponse.getStatusLine().getStatusCode();
-
-            if(responseCode != 200)
- 			 	{
-            	this.httpResponse.close();
-            	throw new RuntimeIOException("Response code was not 200 . Detected response was "+responseCode);
- 			 	}
-            	
-			 final HttpEntity entity = httpResponse.getEntity();
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.LENIENT);
-			this.reader = srf.open(SamInputResource.of(entity.getContent()));
-			this.delegate = this.reader.iterator();
-        }
-        
-		@Override
-		protected SAMRecord advance() {
-            return delegate.hasNext()?delegate.next():null;
-			}
-		@Override
-		public void close() {
-			CloserUtil.close(delegate);
-			CloserUtil.close(reader);
-			CloserUtil.close(httpResponse);
-			}
-		}
 	
 	private class MySamRecordIterator 
 		extends AbstractIterator<SAMRecord>
@@ -199,225 +186,147 @@ public class BamWithoutBai extends Launcher{
 					close();
 					return null;
 					}
-				else if(rec.getStart() > this.interval.start) {
+				else if(rec.getStart() > this.interval.end) {
 					close();
 					return null;
 					}
-				if(!CoordMath.overlaps(rec.getStart(), rec.getEnd(), this.interval.start, this.interval.end)) continue;
+				else if(rec.getEnd() < this.interval.start) {
+					continue;
+					}
 				return rec;
 				}
 			return null;
 			}
 		@Override
 		public void close() {
-			delegate.close();
+			this.delegate.close();
 			}
 		}
 
 	
 	
 	private class CustomSamReader implements Closeable {
-		final String url;
-		final long content_length;
-		final HttpGet httpGet;
+		final URL url;
 		final SAMFileHeader samFileHeader;
-
+		final SeekableStream seekableStream;
+		private SamReader samReader ;
+		final BgzfBlockGuesser bgzfBlockGuesser;
 		
-		CustomSamReader(final String url ) throws IOException {
-				this.url=url;
-				this.httpGet = new HttpGet(url);
-				
+		CustomSamReader(final URL url ) throws IOException {
+				this.url = url;
 				final SamReaderFactory srf = SamReaderFactory.makeDefault().
 						validationStringency(ValidationStringency.LENIENT);
 				
+				final CustomSeekableStreamFactory customSeekableStreamFactory = new CustomSeekableStreamFactory();
 				// get Header
-				LOG.debug("getting header for "+url);
+				LOG.debug("opening "+url);
 
-				try( CloseableHttpResponse httpResponse = httpClient.execute(httpGet)) {
-					 final int responseCode = httpResponse.getStatusLine().getStatusCode();
-					LOG.debug("responseCode: "+responseCode);
+				
+				this.seekableStream = customSeekableStreamFactory.
+						setUserAgent(IOUtils.getDefaultUserAgent()).
+						setUsingHttpHead(false).
+						getStreamFor(url);
+				
+				this.bgzfBlockGuesser= new BgzfBlockGuesser(this.seekableStream, this.url.toString());
 
-					 if(responseCode != 200)
-					 	{
-						throw new RuntimeIOException("Response code was not 200. Detected response was "+responseCode);
-					 	}
-					
-					 final HttpEntity entity = httpResponse.getEntity();
-					 LOG.info("content length 0");
-					 this.content_length = entity.getContentLength();
-					 LOG.info("content length 1 "+this.content_length);
-					
 					 
-					SamReader sr = null;
-					    {
-						sr= srf.open(SamInputResource.of(entity.getContent())); 
-						LOG.info("get sr");
-						this.samFileHeader = sr.getFileHeader();
-						LOG.info("got sr");
-						//in.close();
-						//sr.close();
-						}
-					
-					LOG.info("getFileHeader"+this.samFileHeader.getSortOrder());
-				 
+				this.samReader = srf.open(SamInputResource.of(this.seekableStream)); 
+				
+				this.samFileHeader = this.samReader.getFileHeader();
+				
 				// end try with resource
 				if(!this.samFileHeader.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
 					throw new IOException("Bam "+url+" is not sorted on coordinate: "+this.samFileHeader.getSortOrder());
 					}
 				}
-			}
 		
 		public SAMFileHeader getFileHeader() {
 			return samFileHeader;
 		}
 
 		
+		
+		
 		private CloseableIterator<SAMRecord> queryAtOffset(final long start_offset) throws IOException {
-			LOG.warn("opening at offset="+start_offset);
+			if(do_debug) LOG.debug("opening at offset="+start_offset);
 
-			if(start_offset>=this.content_length) return EOF_ITER;
-			LOG.warn("read at "+start_offset);
-			final byte buffer[]  =  new byte[byte_buffer_size];
-            httpGet.setHeader("Range", "bytes="+start_offset+"-"+this.content_length);
-            CloseableHttpResponse httpResponse = httpClient.execute(httpGet);
-            final int responseCode = httpResponse.getStatusLine().getStatusCode();
+			if(start_offset>=this.seekableStream.length()) return EOF_ITER;
+			
+			final BgzfBlockGuesser.BgzfBlock bgzfBlock = this.bgzfBlockGuesser.guessNextBGZFPos(start_offset, seekableStream.length());
+			if(bgzfBlock==null) {
+				if(do_debug) LOG.debug("No bgz block found at "+start_offset);
+				return EOF_ITER;
+			}
+			
+			this.seekableStream.seek(bgzfBlock.pos);
 
-            if(!(responseCode == 200 || responseCode == 206 /* partial */))
- 			 	{
-            	httpResponse.close();
-            	throw new RuntimeIOException("Response code was not 200/206 for offset '"+start_offset+"'. Detected response was "+responseCode);
- 			 	}
-            	
-			 final HttpEntity entity = httpResponse.getEntity();
-			 final InputStream in;
-			 try {
-				in = entity.getContent();
-			 	}
-			 catch(final Throwable err) {
-				httpResponse.close();
-				throw new RuntimeIOException(err);
-			 	}
-			 //fill buffer
-			 int nBytesRead = 0;
-			 while(nBytesRead< buffer.length) {
-				int n=in.read(buffer,nBytesRead,buffer.length-nBytesRead);
-				if(n==-1) break;
-				nBytesRead+=n;
-			 	}
-			 if(nBytesRead==0) {
-				 LOG.warn("nothing read at "+start_offset);
-				 in.close();
-				 return EOF_ITER;
-			 }
-				 
-				 
-			 MySamRecordIterator mySamRecordIter = null;
-			 for(int offset=0;offset +1 < buffer.length;offset++) {
-		         final ByteBuffer byteBuffer = ByteBuffer.wrap(buffer,offset,2);
-		         byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-		         if (byteBuffer.get() != BlockCompressedStreamConstants.GZIP_ID1) continue;
-		         if (byteBuffer.get() != (byte)BlockCompressedStreamConstants.GZIP_ID2) continue;
-		         
-				 // https://twitter.com/jomarnz/status/1205533685413486594
-				 mySamRecordIter = null;
-				 final ByteArrayInputStream bais = new ByteArrayInputStream(buffer, offset, buffer.length);
-				 final SequenceInputStream mergeIn= new SequenceInputStream(bais,in);
-				 final BlockCompressedInputStream bci = new BlockCompressedInputStream(mergeIn);
-				 try {
-					 LOG.info("ok1");
-					mySamRecordIter = new MySamRecordIterator(this.samFileHeader,bci,this.url);
-					 LOG.info("ok2");
-					mySamRecordIter.hasNext();//force checking next
-					mySamRecordIter.onClose=()->{
-						try {
-							//in.close();
-							httpResponse.close();
-							}
-						catch(final IOException err) 
-							{
-							LOG.warning(err);
-							}
-						};
-					LOG.info("got it !");
-					return mySamRecordIter;
-				 	}
-				 catch(java.lang.OutOfMemoryError err) {
-					 mySamRecordIter = null;
-					 err.printStackTrace();
-				 	}
-				 catch(final Throwable err) {
-					 System.err.println("offset:"+offset+" "+err.getMessage()+" "+err.getClass());
-					 mySamRecordIter = null;
-				 	}
-			 	}
-			//in.close();
-			httpResponse.close();
-			LOG.info("bgzf signature no found");
+			final BlockCompressedInputStream bcis = new BlockCompressedInputStream(this.seekableStream);
+			final PushbackInputStream bpi = new PushbackInputStream(bcis,BamRecordGuesser.BUFFER_SIZE);
+			final BamRecordGuesser bamRecordGuesser = new BamRecordGuesser(this.samFileHeader);
+			bamRecordGuesser.setDebug(do_debug);
+			if(bamRecordGuesser.find(bpi)) {
+					if(do_debug) LOG.debug("Got SAMRecord at "+start_offset);
+					return new MySamRecordIterator(this.samFileHeader,bpi,this.url.toString());
+				}
 			return EOF_ITER;
 			}
 		
 		
 		
 		public CloseableIterator<SAMRecord> query(final Locatable locatable) throws IOException {
-			LOG.info("ici "+locatable);
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samFileHeader);
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samFileHeader);			
 			final int tid = dict.getSequenceIndex(locatable.getContig());
 			if(tid==-1) {
-				LOG.info("unknown contig "+locatable.getContig());
+				LOG.warn("unknown contig "+locatable.getContig());
 				return EOF_ITER;
 			}
 			final QueryInterval userQueryInterval = new QueryInterval(tid, locatable.getStart(),locatable.getEnd());
 			long byte_start = 0L;
-			long byte_end=this.content_length;
+			long byte_end=this.seekableStream.length();
 			int repeat_dichotomy = dichotomy_repeat;
 		    long len = byte_end - byte_start;
+		    long last_offset_before=0L;
 		    while (len > 0L)
 		            {
-		    		LOG.info("len="+len);
 		    		repeat_dichotomy--;
 		            final long half = len / 2;
 		            final long middle = byte_start + half;
-		            if(middle < 1_000_000L) {
-		            	LOG.info("return default iter");
-		            	return new MySamFilterIterator(new HeadingSamRecordIterator(this.httpGet),userQueryInterval);
-		            }
 		            
 		            
 		            CloseableIterator<SAMRecord> iter1 = queryAtOffset(middle);
-		            if(iter1.hasNext())
-		            	{
-		            	if(repeat_dichotomy==0) return new MySamFilterIterator(iter1,userQueryInterval);
-		            	final SAMRecord rec = iter1.next();
-		            	
-		            	LOG.debug("got "+rec.getSAMString());
-		            	if(
-		            		(rec.getReferenceIndex()!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX && rec.getReferenceIndex()< userQueryInterval.referenceIndex) ||
-		            		(rec.getReferenceIndex()== userQueryInterval.referenceIndex && rec.getAlignmentStart() <= userQueryInterval.start)
-		            		)
-		            		{
-		            		byte_start = middle + 1;
-		                    len = len - half - 1;
-		            		}
-		            	else
-		            		{
-		            		len = half;
-		            		}
-		            	
+		            /* something wrong happened or we've run too many binary search, start from here please */
+		            if(!iter1.hasNext() || repeat_dichotomy==0) {
+		            	break;
 		            	}
-		            else
-		            	{
-		            	return EOF_ITER;
-		            	}
-		            iter1.close();
+		            
+	            	/* we've run too many binary search, start from here please */
+
+	            	final SAMRecord rec = iter1.next();
+	            	
+	            	if(
+	            		(rec.getReferenceIndex()!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX && rec.getReferenceIndex()< userQueryInterval.referenceIndex) ||
+	            		(rec.getReferenceIndex()== userQueryInterval.referenceIndex && rec.getAlignmentStart() <= userQueryInterval.start)
+	            		)
+	            		{
+	            		byte_start = middle + 1;
+	                    len = len - half - 1;
+	                    last_offset_before = byte_start;
+	            		}
+	            	else
+	            		{
+	            		len = half;
+	            		}
 		            }
-				
-			return EOF_ITER;
+		    final CloseableIterator<SAMRecord> iter1 = queryAtOffset(last_offset_before);
+		    if(!iter1.hasNext()) return EOF_ITER;
+		    return new MySamFilterIterator(iter1,userQueryInterval);
 			}
 		
 		
 		@Override
 		public void close()  {
-			
+			CloserUtil.close(this.seekableStream);
+			this.bgzfBlockGuesser.close();
 			}
 	}
 	
@@ -427,13 +336,18 @@ public class BamWithoutBai extends Launcher{
 	public int doWork(final List<String> args) {
 	
 	try {
+		if(dichotomy_repeat<10) {
+			LOG.error("dichotomy_repeat is too low "+dichotomy_repeat);
+			return -1;
+		}
+		
 		final String urlStr = oneAndOnlyOneFile(args);
 		if(!( urlStr.startsWith("http://") || urlStr.startsWith("https://"))) {
 			LOG.error("No a remote http url: "+urlStr);
 			return -1;
 		}
 
-		if(do_debug || true) {
+		if(do_debug ) {
 			// https://hc.apache.org/httpcomponents-client-4.5.x/logging.html
 			System.setProperty("org.apache.commons.logging.Log","org.apache.commons.logging.impl.SimpleLog");
 			System.setProperty("org.apache.commons.logging.simplelog.showdatetime","true");
@@ -442,7 +356,6 @@ public class BamWithoutBai extends Launcher{
 		}
 		
 
-		HttpHost proxy = new HttpHost("cache.ha.univ-nantes.fr", 3128, "http");
 		/** create http client */
 		this.httpClient = HttpClientBuilder.
 				create().
@@ -450,21 +363,22 @@ public class BamWithoutBai extends Launcher{
 				build();
 		
 		
-		try( CustomSamReader sr =  new CustomSamReader(urlStr)) {
-			LOG.info("A");
+		try( CustomSamReader sr =  new CustomSamReader(new URL(urlStr))) {
 			final SAMFileHeader samFileHeader = sr.getFileHeader();
-			LOG.info("B");
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samFileHeader);
 			final Locatable userInterval = IntervalParserFactory.newInstance(dict).make().apply(this.intervalStr).orElse(null);
 			if(userInterval==null) {
 				LOG.error("cannot parse interval "+this.intervalStr+" for "+urlStr);
 				return -1;
 				}
-			LOG.info("query "+userInterval);
-			try(CloseableIterator<SAMRecord> iter = sr.query(userInterval)) {
-				while(iter.hasNext()) {
-					final SAMRecord rec=iter.next();
-					System.err.println(""+rec);
+			final SAMFileHeader header2 =  samFileHeader.clone();
+			JVarkitVersion.getInstance().addMetaData(this, header2);
+			try(SAMFileWriter sfw=this.writingBamArgs.openSamWriter(this.outputFile, header2, true)) {
+				try(CloseableIterator<SAMRecord> iter = sr.query(userInterval)) {
+					while(iter.hasNext()) {
+						final SAMRecord rec=iter.next();
+						sfw.addAlignment(rec);
+						}
 					}
 				}
 			}

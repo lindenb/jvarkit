@@ -30,8 +30,8 @@ import java.io.OutputStream;
 
 public class TeeInputStream extends InputStream
 		{
-		private  InputStream in;
-	    private  OutputStream out;
+		private final InputStream in;
+	    private final OutputStream out;
 	    /** shall we close out after 'in' ? */
 	    private boolean closeOutOnCloseIn=false;
 
@@ -39,7 +39,7 @@ public class TeeInputStream extends InputStream
 	    public TeeInputStream(final InputStream in,final OutputStream out, boolean closeOutOnCloseIn)
 	    	{
 	        this.in = in;
-	        this.out=out;
+	        this.out = out;
 	        this.closeOutOnCloseIn = closeOutOnCloseIn;
 	    	}
 
@@ -47,19 +47,19 @@ public class TeeInputStream extends InputStream
 	    public void close() throws IOException
 	    	{
 	        try {
-	            in.close();
+	            this.in.close();
 	        	} finally {
-	            if (closeOutOnCloseIn && out!=null)
+	            if (closeOutOnCloseIn && this.out!=null)
 	            	{
-	            	out.flush();
-	            	out.close();
+	            	this.out.flush();
+	            	this.out.close();
 	            	}
 	        	}
 	    	}
 
 	    public int read() throws IOException
 	    	{
-	        int ch = this.in.read();
+	        final int ch = this.in.read();
 	        if (ch != -1 && out!=null) {
 	        	 out.write(ch);
 	        	}
@@ -67,18 +67,17 @@ public class TeeInputStream extends InputStream
 	    	}
 
 	
-	    public int read(byte[] bts, int st, int end) throws IOException {
-	        int n = super.read(bts, st, end);
-	        if (n != -1 && out!=null)
+	    public int read(final byte[] bts, int st, int end) throws IOException {
+	        final int n = this.in.read(bts, st, end);
+	        if (n != -1 && this.out!=null)
 	        	{
-	            out.write(bts, st, n);
+	        	this.out.write(bts, st, n);
 	        	}	
 	        return n;
 	    }
 
 	   
-	    public final int read(byte[] bts) throws IOException
-	    	{
+	    public final int read(final byte[] bts) throws IOException 	{
 	        return read(bts,0,bts.length);
 	    	}
 
