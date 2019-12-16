@@ -16,30 +16,47 @@ Usage: findnewsplicesites [options] Files
     -B, --bed
       Optional BED output
   * -g, --gtf
-      A GTF file.
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
     -out, --out
       Output file. Optional . Default: stdout
+    -R, --reference
+      For reading cram. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exit
     -d
       max distance between known splice site and cigar end
-      Default: 10
+      Default: 0
 
 ```
 
 
 ## Keywords
 
+ * bam
+ * sam
  * rnaseq
  * splice
+ * gtf
 
 
 ## Compilation
