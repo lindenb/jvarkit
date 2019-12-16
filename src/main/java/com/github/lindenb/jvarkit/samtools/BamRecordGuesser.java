@@ -106,14 +106,18 @@ private boolean canDecode(final PushbackInputStream pbis) throws IOException  {
         
         final int coordinate = this.binaryCodec.readInt() + 1;
         n+=4;
-        if(coordinate<1 || coordinate> this.dict.getSequence(referenceID).getSequenceLength()) return false; 
-
+        if(referenceID!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX) {
+	        if(coordinate<1 || coordinate> this.dict.getSequence(referenceID).getSequenceLength()) return false; 
+	        }
+        
         final short readNameLength = this.binaryCodec.readUByte();
         n++;
         if(readNameLength <= 0) return false;
         
         final short mappingQuality = this.binaryCodec.readUByte();
         n++;
+        if(mappingQuality> SAMRecord.UNKNOWN_MAPPING_QUALITY) return false;
+
         
         final int bin = this.binaryCodec.readUShort();
         n+=2;
