@@ -109,7 +109,7 @@ END_DOC
 description="Query a Remote BAM without bai",
 keywords={"bam","sam","bai","remote"},
 creationDate="20191213",
-modificationDate="20191213"
+modificationDate="20191217"
 )
 public class BamWithoutBai extends Launcher{
 	private static final Logger LOG = Logger.build(BamWithoutBai.class).make();
@@ -118,9 +118,11 @@ public class BamWithoutBai extends Launcher{
 	private Path outputFile = null;
 	@Parameter(names={"-r","--region","--interval"},description=IntervalParserFactory.OPT_DESC,required=true)
 	private String intervalStr ="";
-	@Parameter(names={"--repeat"},description="Max dichotomy repeat to perform during binary search.")
-	private int dichotomy_repeat=20;
-	@Parameter(names={"--debug"},description="Enable debugging.")
+	@Parameter(names={"--repeat"},description="Max dichotomy repeat to perform during binary search.",hidden=true)
+	private int dichotomy_repeat=50;
+	@Parameter(names={"--reference","-R"},description="For writing CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
+	@Parameter(names={"--debug"},description="Enable debugging information.")
 	private boolean do_debug = false;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
@@ -131,7 +133,7 @@ public class BamWithoutBai extends Launcher{
 	/** empty closeable iterator */
 	private static final CloseableIterator<SAMRecord> EOF_ITER  = new CloseableIterator<SAMRecord>() {
 		@Override
-		public SAMRecord next() { return null; }
+		public SAMRecord next() { throw new IllegalStateException(); }
 		@Override
 		public boolean hasNext() { return false; }
 		@Override
@@ -163,23 +165,31 @@ public class BamWithoutBai extends Launcher{
 			}
 		}
 	
+	/** limit delegate iterator to the user's interval */
 	private class MySamFilterIterator 
 		extends AbstractIterator<SAMRecord>
 		implements CloseableIterator<SAMRecord> {
-		final CloseableIterator<SAMRecord> delegate;
-		final QueryInterval interval;
+		private final CloseableIterator<SAMRecord> delegate;
+		/** user interval */
+		private final QueryInterval interval;
+		
 		MySamFilterIterator(final CloseableIterator<SAMRecord> delegate,final QueryInterval interval) {
 	    	this.delegate = delegate;
 			this.interval = interval;
-	    	
 	    }
 	    
+		
 		@Override
 		protected SAMRecord advance() {
 			while(this.delegate.hasNext()) {
 				final SAMRecord rec = delegate.next();
 				final int rec_tid= rec.getReferenceIndex();
-				if(rec_tid < this.interval.referenceIndex) {
+				// unmapped are at the end.
+				if(rec_tid==SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX) {
+					close();
+					return null;
+					}
+				else if(rec_tid < this.interval.referenceIndex) {
 					continue;
 					}
 				else if(rec_tid > this.interval.referenceIndex) {
@@ -219,7 +229,7 @@ public class BamWithoutBai extends Launcher{
 				
 				final CustomSeekableStreamFactory customSeekableStreamFactory = new CustomSeekableStreamFactory();
 				// get Header
-				LOG.debug("opening "+url);
+				if(do_debug) LOG.debug("opening "+url);
 
 				
 				this.seekableStream = customSeekableStreamFactory.
@@ -310,7 +320,18 @@ public class BamWithoutBai extends Launcher{
 	            		{
 	            		byte_start = middle + 1;
 	                    len = len - half - 1;
-	                    last_offset_before = byte_start;
+	                    // are we **strictly** before the interval  rec.getAlignmentStart() < userQueryInterval.start ?
+		            	if(
+			            		(rec.getReferenceIndex()!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX && rec.getReferenceIndex()< userQueryInterval.referenceIndex) ||
+			            		(rec.getReferenceIndex()== userQueryInterval.referenceIndex && rec.getAlignmentStart() < userQueryInterval.start)
+			            		)
+		            		{
+		            		final long new_best = byte_start;
+		            		if(new_best==last_offset_before) break;
+		            		last_offset_before = byte_start;
+		            		}
+	                    
+	                    
 	            		}
 	            	else
 	            		{
@@ -336,7 +357,7 @@ public class BamWithoutBai extends Launcher{
 	public int doWork(final List<String> args) {
 	
 	try {
-		if(dichotomy_repeat<10) {
+		if(dichotomy_repeat<2) {
 			LOG.error("dichotomy_repeat is too low "+dichotomy_repeat);
 			return -1;
 		}
@@ -373,7 +394,7 @@ public class BamWithoutBai extends Launcher{
 				}
 			final SAMFileHeader header2 =  samFileHeader.clone();
 			JVarkitVersion.getInstance().addMetaData(this, header2);
-			try(SAMFileWriter sfw=this.writingBamArgs.openSamWriter(this.outputFile, header2, true)) {
+			try(SAMFileWriter sfw=this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(this.outputFile, header2, true)) {
 				try(CloseableIterator<SAMRecord> iter = sr.query(userInterval)) {
 					while(iter.hasNext()) {
 						final SAMRecord rec=iter.next();
