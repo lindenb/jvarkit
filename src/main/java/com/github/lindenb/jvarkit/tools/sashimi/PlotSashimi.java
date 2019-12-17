@@ -231,7 +231,7 @@ private String format(double v)
 private int bestTicks(final int max) {
 	if(max<=10) return 1;
 	final int ndigit=(int)Math.ceil(Math.log10(max-1));
-	return (int)Math.pow(10, ndigit-2);
+	return Math.max(1,(int)Math.pow(10, ndigit-2));
 }
 
 /** wrape node into a genomic hyperlink if needed */
@@ -732,7 +732,7 @@ public int doWork(final List<String> args) {
 			}
 		if(this.gtfPath!=null) {
 			try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
-				if(this.faidx!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(this.faidx)));
+				if(this.faidx!=null) {gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(this.faidx)));
 				gtfReader.
 					getAllGenes().
 					stream().
