@@ -131,7 +131,7 @@ D2FC08P1:268:C3NPCACXX:8:2312:16447:12679	147	chr3	38649596	255	23S78M	=	3863322
 
 see  https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
 
-``
+```
 $ java -Dhttp.proxyHost=webcache.example.com  -Dhttp.proxyPort=1234 \
     -Dhttps.proxyHost=webcache.example.com  -Dhttps.proxyPort=1234 \
     -jar dist/bamwithoutbai.jar  -r "chr3:38548061-38649667" \

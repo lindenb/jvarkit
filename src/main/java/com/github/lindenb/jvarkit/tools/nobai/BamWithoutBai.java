@@ -98,7 +98,7 @@ D2FC08P1:268:C3NPCACXX:8:2312:16447:12679	147	chr3	38649596	255	23S78M	=	3863322
 
 see  https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html
 
-``
+```
 $ java -Dhttp.proxyHost=webcache.example.com  -Dhttp.proxyPort=1234 \
     -Dhttps.proxyHost=webcache.example.com  -Dhttps.proxyPort=1234 \
     -jar dist/bamwithoutbai.jar  -r "chr3:38548061-38649667" \
@@ -115,11 +115,6 @@ END_DOC
 
 **/
 
-/**
- *  note to self: failing:  
- java
- -jar /home/lindenb/src/jvarkit-git/dist/bamwithoutbai.jar  -r "3:38600222-38600223"  'https://www.encodeproject.org/files/ENCFF040ULF/@@download/ENCFF040ULF.bam'  
-*/
 @Program(name="bamwithoutbai",
 description="Query a Remote BAM without bai",
 keywords={"bam","sam","bai","remote"},
@@ -311,6 +306,7 @@ public class BamWithoutBai extends Launcher{
 			int repeat_dichotomy = dichotomy_repeat;
 		    long len = byte_end - byte_start;
 		    long last_offset_before= 0L;
+		    SAMRecord previousBeforeRecord = null;
 		    while (len > 0L)
 		            {
 		    		repeat_dichotomy--;
@@ -347,11 +343,17 @@ public class BamWithoutBai extends Launcher{
 		            		if(do_debug) LOG.debug("tid:"+rec.getReferenceIndex()+":"+rec.getStart()+" strictly before "+userQueryInterval.referenceIndex+":"+userQueryInterval.start);
 
 		            		if(do_debug) LOG.debug("new 'best' is offset="+save_byte_start);
-		            		if(save_byte_start==last_offset_before) {
-		            			if(do_debug) LOG.debug("new 'best' is same: break");
+		            		if(previousBeforeRecord!=null &&
+		            			rec.getReadName().equals(previousBeforeRecord.getReadName()) &&
+		            			rec.getFlags() == previousBeforeRecord.getFlags() &&
+		            			rec.getStart() == previousBeforeRecord.getStart() &&
+		            			rec.getEnd() == previousBeforeRecord.getEnd() &&
+		            			rec.getReferenceIndex().equals(previousBeforeRecord.getReferenceIndex())) {
+		            			if(do_debug) LOG.debug("new 'best' is same than previously record: break the loop");
 		            			break;
 		            			}
 		            		last_offset_before = save_byte_start;
+		            		previousBeforeRecord = rec;
 		            		}
 	            		}
 	            	else

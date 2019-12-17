@@ -506,7 +506,6 @@ private void plotSashimi(
 		int next_y=y+coverageHeight;
 		/* plot arc */
 		if(!gaps.isEmpty()) {
-			
 			 boolean drawAbove  = true;
 			int max_occurence = (int)gaps.count(gaps.getMostFrequent());
 			for(final SimpleInterval intron:gaps.keySet()) {
@@ -527,8 +526,8 @@ private void plotSashimi(
                 
 				if(!CoordMath.encloses(interval.getStart(),interval.getEnd(), junctionStart, junctionEnd)) continue;
                 
-				double xstart = pos2pixel.apply(junctionStart);
-				double xend = pos2pixel.apply(junctionEnd);
+				final double xstart = pos2pixel.apply(junctionStart);
+				final double xend = pos2pixel.apply(junctionEnd);
 				double ystart=  y+ coverageHeight - coverageHeight*(coverage[junctionStart - interval.getStart()]/(double)max_coverage);
 				double yend=  y+ coverageHeight - coverageHeight*(coverage[junctionEnd- interval.getStart()]/(double)max_coverage);
 				
@@ -538,6 +537,9 @@ private void plotSashimi(
 				double x_mid = (xend - xstart)/2.0;
 				double x2 = xstart + x_mid;
 				final double y2;
+				
+				// small gap: always print it under xaxis
+				if(xend - xstart < 30) drawAbove=true;
 				
 				if(drawAbove)
 					{
