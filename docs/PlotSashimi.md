@@ -19,6 +19,9 @@ Usage: plotsashimi [options] Files
       A GTF (General Transfer Format) file. See 
       https://www.ensembl.org/info/website/upload/gff.html . Please note that 
       CDS are only detected if a start and stop codons are defined.
+    --gzip
+      Generate gzipped compressed svg files.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -97,7 +100,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-20191106
+20191117
 
 ## Source code 
 

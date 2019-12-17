@@ -105,6 +105,11 @@ END_DOC
 
 **/
 
+/**
+ *  note to self: failing:  
+ java
+ -jar /home/lindenb/src/jvarkit-git/dist/bamwithoutbai.jar  -r "3:38600222-38600223"  'https://www.encodeproject.org/files/ENCFF040ULF/@@download/ENCFF040ULF.bam'  
+*/
 @Program(name="bamwithoutbai",
 description="Query a Remote BAM without bai",
 keywords={"bam","sam","bai","remote"},
@@ -275,7 +280,7 @@ public class BamWithoutBai extends Launcher{
 			final BamRecordGuesser bamRecordGuesser = new BamRecordGuesser(this.samFileHeader);
 			bamRecordGuesser.setDebug(do_debug);
 			if(bamRecordGuesser.find(bpi)) {
-					if(do_debug) LOG.debug("Got SAMRecord at "+start_offset);
+					if(do_debug) LOG.debug("Got SAMRecord at offset = "+start_offset);
 					return new MySamRecordIterator(this.samFileHeader,bpi,this.url.toString());
 				}
 			return EOF_ITER;
@@ -295,7 +300,7 @@ public class BamWithoutBai extends Launcher{
 			long byte_end=this.seekableStream.length();
 			int repeat_dichotomy = dichotomy_repeat;
 		    long len = byte_end - byte_start;
-		    long last_offset_before=0L;
+		    long last_offset_before= 0L;
 		    while (len > 0L)
 		            {
 		    		repeat_dichotomy--;
@@ -306,18 +311,21 @@ public class BamWithoutBai extends Launcher{
 		            CloseableIterator<SAMRecord> iter1 = queryAtOffset(middle);
 		            /* something wrong happened or we've run too many binary search, start from here please */
 		            if(!iter1.hasNext() || repeat_dichotomy==0) {
+		            	if(do_debug) LOG.debug("break repeat="+repeat_dichotomy);
 		            	break;
 		            	}
 		            
 	            	/* we've run too many binary search, start from here please */
 
 	            	final SAMRecord rec = iter1.next();
-	            	
+	            	if(do_debug) LOG.debug("Got SAM record at tid:"+rec.getReferenceIndex()+":"+rec.getStart());
 	            	if(
 	            		(rec.getReferenceIndex()!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX && rec.getReferenceIndex()< userQueryInterval.referenceIndex) ||
 	            		(rec.getReferenceIndex()== userQueryInterval.referenceIndex && rec.getAlignmentStart() <= userQueryInterval.start)
 	            		)
 	            		{
+	            		final long save_byte_start = middle;
+	            		if(do_debug) LOG.debug("tid:"+rec.getReferenceIndex()+":"+rec.getStart()+" before "+userQueryInterval.referenceIndex+":"+userQueryInterval.start);
 	            		byte_start = middle + 1;
 	                    len = len - half - 1;
 	                    // are we **strictly** before the interval  rec.getAlignmentStart() < userQueryInterval.start ?
@@ -326,20 +334,28 @@ public class BamWithoutBai extends Launcher{
 			            		(rec.getReferenceIndex()== userQueryInterval.referenceIndex && rec.getAlignmentStart() < userQueryInterval.start)
 			            		)
 		            		{
-		            		final long new_best = byte_start;
-		            		if(new_best==last_offset_before) break;
-		            		last_offset_before = byte_start;
+		            		if(do_debug) LOG.debug("tid:"+rec.getReferenceIndex()+":"+rec.getStart()+" strictly before "+userQueryInterval.referenceIndex+":"+userQueryInterval.start);
+
+		            		if(do_debug) LOG.debug("new 'best' is offset="+save_byte_start);
+		            		if(save_byte_start==last_offset_before) {
+		            			if(do_debug) LOG.debug("new 'best' is same: break");
+		            			break;
+		            			}
+		            		last_offset_before = save_byte_start;
 		            		}
-	                    
-	                    
 	            		}
 	            	else
 	            		{
+	            		if(do_debug) LOG.debug("tid:"+rec.getReferenceIndex()+":"+rec.getStart()+" after "+userQueryInterval.referenceIndex+":"+userQueryInterval.start);
 	            		len = half;
 	            		}
 		            }
+    		if(do_debug) LOG.debug("best offset="+last_offset_before);
 		    final CloseableIterator<SAMRecord> iter1 = queryAtOffset(last_offset_before);
-		    if(!iter1.hasNext()) return EOF_ITER;
+		    if(!iter1.hasNext()) {
+		    	if(do_debug) LOG.debug("iter has no next");
+		    	return EOF_ITER;
+				}
 		    return new MySamFilterIterator(iter1,userQueryInterval);
 			}
 		
