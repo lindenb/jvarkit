@@ -11,6 +11,8 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
+import htsjdk.samtools.util.CoordMath;
+
 @AlsoTest({LauncherTest.class,BamRecordGuesserTest.class})
 public class BamWithoutBaiTest {
 	private final TestSupport support = new TestSupport();
@@ -26,6 +28,8 @@ public class BamWithoutBaiTest {
 				"https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam"
 				}),0);
 			support.assertIsValidBam(out);
+			
+			Assert.assertTrue(support.samStream(out).allMatch(R->R.getReferenceName().equals("chr3") && CoordMath.overlaps(R.getStart(),R.getEnd(), 38400000,38649667)));
 		} finally
 			{
 			support.removeTmpFiles();

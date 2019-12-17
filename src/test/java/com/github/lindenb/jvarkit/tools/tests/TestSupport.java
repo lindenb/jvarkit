@@ -133,6 +133,13 @@ public class TestSupport {
 		final CloseableIterator<VariantContext> iter = r.iterator();
 		return iter.stream().onClose(()->{CloserUtil.close(iter);CloserUtil.close(r);});
 		}
+	
+	public Stream<SAMRecord> samStream(final Path samFile ) {
+		SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+		final SamReader sr = srf.open(samFile);
+		final CloseableIterator<SAMRecord> iter = sr.iterator();
+		return iter.stream().onClose(()->{CloserUtil.close(iter);CloserUtil.close(sr);});
+		}
 
 	public void assertIsNotEmpty(final Path f) throws IOException {
 		Assert.assertNotNull(f,"File is null");

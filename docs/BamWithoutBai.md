@@ -14,7 +14,7 @@ Usage: bamwithoutbai [options] Files
       Compression Level.
       Default: 5
     --debug
-      Enable debugging.
+      Enable debugging information.
       Default: false
     -h, --help
       print help and exit
@@ -28,9 +28,9 @@ Usage: bamwithoutbai [options] Files
       Default: <empty string>
     -o, --output
       Output file. Optional . Default: stdout
-    --repeat
-      Max dichotomy repeat to perform during binary search.
-      Default: 20
+    --reference, -R
+      For writing CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM

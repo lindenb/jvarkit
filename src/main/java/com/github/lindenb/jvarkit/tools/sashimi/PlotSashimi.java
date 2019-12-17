@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.sashimi;
 
 import java.io.File;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
@@ -39,10 +40,10 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.Result;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
@@ -162,7 +163,7 @@ END_DOC
 description="Print Sashimi plots from Bam",
 keywords={"bam","visualization","svg","rna","exon"},
 modificationDate="20191104",
-creationDate="20191106"
+creationDate="20191117"
 )
 public class PlotSashimi extends Launcher {
 private static final Logger LOG = Logger.build(PlotSashimi.class).make();
@@ -198,8 +199,8 @@ private Hyperlink hyperlinkType = Hyperlink.empty();
 
 @Parameter(names={"--partition"},description=SAMRecordPartition.OPT_DESC)
 private SAMRecordPartition partition= SAMRecordPartition.sample;
-
-
+@Parameter(names= {"--gzip"},description="Generate gzipped compressed svg files.")
+private boolean compressed_svg=false;
 
 @SuppressWarnings("serial")
 @DynamicParameter(names = "--param", description = "Other parameters.",hidden=true)
@@ -231,7 +232,7 @@ private String format(double v)
 private int bestTicks(final int max) {
 	if(max<=10) return 1;
 	final int ndigit=(int)Math.ceil(Math.log10(max-1));
-	return (int)Math.pow(10, ndigit-2);
+	return Math.max(1,(int)Math.pow(10, ndigit-2));
 }
 
 /** wrape node into a genomic hyperlink if needed */
@@ -493,7 +494,7 @@ private void plotSashimi(
 		sb.append( "M 0 "+format(y+coverageHeight));
 		for(int k=0;k< coverage.length;k++)
 			{
-			if(k+1< coverage.length && coverage[k]==coverage[k+1]) continue; 
+			//if(k+1< coverage.length && coverage[k]==coverage[k+1]) continue; 
 			final double dpy= y+ coverageHeight - coverageHeight*(coverage[k]/(double)max_coverage);
 			sb.append(" L "+format(pixelperbase*k)+" "+format(dpy));
 			}
@@ -681,19 +682,30 @@ private void plotSashimi(
 		try {
 		
 		final Transformer tr = TransformerFactory.newInstance().newTransformer();
-		final Result result;
 		
 		final String md5 = StringUtils.md5(interval.getContig()+":"+interval.getStart()+":"+interval.getEnd()+":"+bamPath.toString());
 		final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + 
 					File.separator+ interval.getContig()+"_"+interval.getStart()+"_"+interval.getEnd()+
 					(StringUtils.isBlank(sampleName)?"":"."+sampleName.replaceAll("[/\\:]", "_")) +
-					".svg";
+					".svg"+(this.compressed_svg?".gz":"");
 		
 
-		try(final PrintWriter pw=archive.openWriter(filename)) {
-			result = new StreamResult(pw);
-			tr.transform(new DOMSource(this.document),result);
-			pw.flush();
+		if(this.compressed_svg) {
+			try(final OutputStream pw=archive.openOuputStream(filename)) {
+				try(GZIPOutputStream gzout = new GZIPOutputStream(pw)) {
+					tr.transform(new DOMSource(this.document),new StreamResult(gzout));
+					gzout.finish();
+					gzout.flush();
+					}
+				pw.flush();
+				}
+			}
+		else
+			{
+			try(final PrintWriter pw=archive.openWriter(filename)) {
+				tr.transform(new DOMSource(this.document),new StreamResult(pw));
+				pw.flush();
+				}
 			}
 		manifest.print(interval.getContig());
 		manifest.print('\t');
@@ -751,7 +763,7 @@ public int doWork(final List<String> args) {
 				if(!sr.hasIndex()) {
 					LOG.error("Bam is not indexed "+bam);
 					return -1;
-				}
+					}
 				final SAMFileHeader header= sr.getFileHeader();
 				final ArchiveFactory final_archive = archive;
 				final PrintWriter final_manifest = manifest;

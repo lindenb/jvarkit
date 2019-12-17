@@ -50,20 +50,22 @@ public class LimitInputStream extends InputStream {
 		return c;
 		}
 	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
+	public int read(final byte[] b, int off, int len) throws IOException {
 		long max_avail = this.max_size - this.nRead;
+		if(max_avail<=0L) return -1;
 		len = (int)Math.min((long)len, max_avail);
 		int nRead= this.delegate.read(b, off, len);
 		if(nRead==-1) return -1;
 		this.nRead+= nRead;
 		return nRead;
 		}
-	
+
 	@Override
 	public void close() throws IOException {
 		this.delegate.close();
 		this.nRead=this.max_size;
 		}
+
 	@Override
 	public String toString() {
 		return getClass().getName()+"("+this.max_size+")";
