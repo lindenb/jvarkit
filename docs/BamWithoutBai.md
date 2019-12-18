@@ -101,11 +101,13 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-Motivation: query a remote bam without bai (e.g: Encode bams - last checked 2019-12-16)
+## Motivation
+
+this tool queries a remote bam without bai (e.g: Encode bams - last checked 2019-12-16)
 
 The idea is to run a **binary search** on the remote BAM, scanning for the BGZF blocks and the Bam Record.
 
-This tool uses a class from the https://github.com/disq-bio/disq project.
+This tool uses a class from the https://github.com/disq-bio/disq project , written by Tom White,  originally from the Hadoop-BAM project.
 
 This tool expect 'small' reads. Long reads may fail.
 
@@ -137,6 +139,13 @@ $ java -Dhttp.proxyHost=webcache.example.com  -Dhttp.proxyPort=1234 \
     -jar dist/bamwithoutbai.jar  -r "chr3:38548061-38649667" \
    -o jeter.bam https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam
 ```
+
+## Screenshot
+
+https://twitter.com/yokofakun/status/1207337424935936001
+
+![https://twitter.com/yokofakun/status/1207337424935936001](https://pbs.twimg.com/media/EMFS-xGXsAAVR20?format=jpg&name=small)
+
 
 ## See also
 

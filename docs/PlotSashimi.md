@@ -78,6 +78,7 @@ Usage: plotsashimi [options] Files
  * svg
  * rna
  * exon
+ * rnaseq
 
 
 ## Compilation
@@ -192,4 +193,7 @@ chr3    38595350  38599500  ENCFF331CGL.rnaseq.bam  SCN5A   .        82/fd0c7ad6
 
 ![https://twitter.com/yokofakun/status/1202905778140712960](https://pbs.twimg.com/media/ELGUbZ_W4AAMKxj?format=png&name=small)
 
+* https://twitter.com/yokofakun/status/1207337424935936001
+
+![https://twitter.com/yokofakun/status/1207337424935936001](https://pbs.twimg.com/media/EMFS-xGXsAAVR20?format=jpg&name=small)
 
