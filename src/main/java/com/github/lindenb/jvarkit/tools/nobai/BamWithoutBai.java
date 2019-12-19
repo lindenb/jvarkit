@@ -96,6 +96,36 @@ D2FC08P1:268:C3NPCACXX:8:1303:15665:9279	147	chr3	38649573	255	101M	=	38633218	-
 D2FC08P1:268:C3NPCACXX:8:2312:16447:12679	147	chr3	38649596	255	23S78M	=	38633222	-16452	GGGGCGGGGCCCGGGGGGGGGGGGGGGCGGGGGGCGCGGGGCGCAGCCTCGGCGCCCCGGGGGGAGCGATCCCTGCATCCTACGGGCGCCGCCGCCGTCTC	###################################################################################B>6<6F?DFFDDDDD@@@	NH:i:1	HI:i:1	AS:i:155	NM:i:8	MD:Z:5T0C5A1T8G3A3G3C42
 ```
 
+comparing wget+samtools vs bamwithoutbai : 
+
+
+```
+$ cat interval.bed
+chr22	41697506	41756151
+
+$ time wget -q -O - "https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam" |\
+	samtools view -L interval.bed -O BAM -owget.bam - 
+
+real	17m48,710s
+user	8m7,346s
+sys	0m51,719s
+
+
+$ samtools view wget.bam | sha1sum 
+5fc261d051592edd791309211727ebbd0e3de909  -
+
+time java -jar dist/bamwithoutbai.jar  -o nobai.bam -r "chr22:41697507-41756151" \
+	 'https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam' 
+
+real	0m24,848s
+user	0m3,860s
+sys	0m0,320s
+
+$ samtools view nobai.bam | sha1sum 
+5fc261d051592edd791309211727ebbd0e3de909  -
+```
+
+
 ## Working behind a proxy.
 
 see  https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html

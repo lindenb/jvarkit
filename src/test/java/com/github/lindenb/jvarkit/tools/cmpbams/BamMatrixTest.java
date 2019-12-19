@@ -2,7 +2,6 @@ package com.github.lindenb.jvarkit.tools.cmpbams;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -14,7 +13,7 @@ import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 @AlsoTest(LauncherTest.class)
 public class BamMatrixTest {
 	private final TestSupport support = new TestSupport();
-	@Test(dataProvider="src1")
+	@Test
 	public void test01() throws IOException
 		{
 		try {
@@ -24,6 +23,7 @@ public class BamMatrixTest {
 			"-r","RF01",
 			support.resource("S1.bam")
 			}),0);
+		Assert.assertTrue(support.isImage(out));
 		} finally {
 			support.removeTmpFiles();
 			}

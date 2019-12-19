@@ -61,7 +61,6 @@ import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -69,13 +68,13 @@ import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.QueryInterval;
@@ -148,8 +147,8 @@ public class BamMatrix  extends Launcher
 	private ColorScale color_scale = ColorScale.LOG;
 	@Parameter(names={"--mapq"},description="minimal mapping quality")
 	private int min_mapq = 30;
-	@Parameter(names={"--kg","-k"},description="Optional 'known gene' file to draw the exons. "+KnownGene.OPT_KNOWNGENE_DESC)
-	private String kgPath = null;
+	@Parameter(names={"--gtf","-g"},description="Optional gtf file to draw the exons. "+GtfReader.OPT_DESC)
+	private Path gtfPath = null;
 	@Parameter(names={"--higligth","-B"},description="Optional Bed file to hightlight regions of interest")
 	private String highlightPath = null;
 	@Parameter(names={"--counter-type"},description="How to count reads. In memory, use disk random access for each point instead of storing data in memory, on disk+sort each row/column on disk. disk: do random access for each point (worst choice). Other than in memory: makes all things slowwwwww.")
@@ -517,7 +516,7 @@ public class BamMatrix  extends Launcher
 			final int font_size=10;
 			final int cov_height = (this.hide_coverage?0:50);
 			final int gene_height = 25;
-			final int margin = font_size+ cov_height+ (this.kgPath==null?0:gene_height);
+			final int margin = font_size+ cov_height+ (this.gtfPath==null?0:gene_height);
 			final Insets margins = new Insets(margin,margin, 10, 10);
 			
 			final Dimension drawingAreaDim = new Dimension(
@@ -612,6 +611,29 @@ public class BamMatrix  extends Launcher
 
 			// used to plot depth
 			final double coverage[]=new double[matrix_size];
+			
+			final List<SimpleInterval> exonsList;
+			if(this.gtfPath==null) {
+				exonsList = Collections.emptyList();
+			} else
+				{
+				try(GtfReader gtfReader = new GtfReader(this.gtfPath)) {
+					gtfReader.setContigNameConverter(converter);
+					exonsList = gtfReader.
+						getAllGenes().
+						stream().
+						filter(K->K.overlaps(this.userIntervalX) || K.overlaps(this.userIntervalY)).
+						flatMap(G->G.getTranscripts().stream()).
+						filter(T->T.hasExon()).
+						flatMap(K->K.getExons().stream()).
+						filter(E->E.overlaps(this.userIntervalX) || E.overlaps(this.userIntervalY)).
+						map(E->new SimpleInterval(E)).
+						collect(Collectors.toSet()).
+						stream().
+						collect(Collectors.toList());
+					}
+				}
+			
 			
 			for(int side=0;side< 2;++side) {
 				final SimpleInterval r = (side==0?this.userIntervalX:this.userIntervalY);
@@ -711,32 +733,22 @@ public class BamMatrix  extends Launcher
 				y+= font_size;
 				
 				// draw genes
-				if(!StringUtils.isBlank(this.kgPath)) {
+				if(this.gtfPath!=null) {
 					final double curr_y = y;
 					double midy = y+ gene_height/2.0;
 					g.setColor(Color.CYAN);
 					g.draw(new Line2D.Double(0,midy,matrix_size,midy));
-					try(BufferedReader br = IOUtils.openURIForBufferedReading(this.kgPath)) {
-						br.lines().
-							filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
-							map(L->CharSplitter.TAB.split(L)).
-							map(L->new KnownGene(L)).
-							filter(K->r.getContig().equals(converter.apply(K.getContig()))).
-							filter(K->CoordMath.overlaps(K.getStart(), K.getEnd(), r.getStart(), r.getEnd())).
-							flatMap(K->K.getExons().stream()).
-							map(E->new Interval(converter.apply(E.getContig()),E.getStart()+1,E.getEnd())).
-							filter(E->CoordMath.overlaps(E.getStart(), E.getEnd(), r.getStart(), r.getEnd())).
-							map(E->new Interval(E.getContig(),Math.max(r.getStart(),E.getStart()),Math.min(r.getEnd(),E.getEnd()))).
+					exonsList.
+							stream().
+							filter(E->E.overlaps(r)).
+							map(E->new SimpleInterval(E.getContig(),Math.max(r.getStart(),E.getStart()),Math.min(r.getEnd(),E.getEnd()))).
 							forEach(E->{
-								double x = ((E.getStart()-r.getStart())/(double)r.getLengthOnReference())*matrix_size;
-								double width  = ((E.getLengthOnReference())/(double)r.getLengthOnReference())*matrix_size;
+								final double x = ((E.getStart()-r.getStart())/(double)r.getLengthOnReference())*matrix_size;
+								final double width  = ((E.getLengthOnReference())/(double)r.getLengthOnReference())*matrix_size;
 								g.setColor(Color.BLUE);
 								g.fill(new Rectangle2D.Double(x, curr_y, width, gene_height));
-								
 							});
 					}
-					
-				}
 				
 				
 				g.setTransform(oldtr);
@@ -769,7 +781,7 @@ public class BamMatrix  extends Launcher
 			CloserUtil.close(this.samReader);
 			}
 		}
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new BamMatrix().instanceMainWithExit(args);
 		}
 }

@@ -25,20 +25,16 @@ Usage: bammatrix [options] Files
       Don't evaluate a point if the distance between the regions is lower than 
       'd'. Negative: don't consider distance.
       Default: -1
+    --gtf, -g
+      Optional gtf file to draw the exons. A GTF (General Transfer Format) 
+      file. See https://www.ensembl.org/info/website/upload/gff.html . Please 
+      note that CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     --higligth, -B
       Optional Bed file to hightlight regions of interest
-    --kg, -k
-      Optional 'known gene' file to draw the exons. UCSC knownGene File/URL. 
-      The knowGene format is a compact alternative to GFF/GTF because one 
-      transcript is described using only one line.	Beware chromosome names are 
-      formatted the same as your REFERENCE. A typical KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
     --mapq
       minimal mapping quality
       Default: 30

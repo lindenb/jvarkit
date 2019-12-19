@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipInputStream;
 
+import javax.imageio.ImageIO;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
@@ -551,4 +552,13 @@ public class TestSupport {
 			}
 		return Optional.empty();
 		}
+	
+	public boolean isImage(final Path path) {
+		try {
+			ImageIO.read(path.toFile());
+			return true;
+		} catch(Throwable err) {
+			return false;
+		}
+	}
 	}
