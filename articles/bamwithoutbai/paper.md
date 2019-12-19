@@ -29,21 +29,20 @@ bibliography: ../paper.bib
 
 # Summary
 
-*BAM* (*Binary Alignment/Map format* ) is a [standard](https://samtools.github.io/hts-specs/SAMv1.pdf) binary format for storing hight-troughtpout sequencing data [@pmid19505943]. *BAM* files are compressed using the *BGZF* format. The **BGZF** format is a compression format implemented on top of the standard gzip file format while allowing efficient random access to the BAM file for indexed queries. A Bam Index (*Bai*) achieves a fast retrieval of alignments overlapping a specified region without going through the whole alignment. It also works through the web. 
+*BAM* (*Binary Alignment/Map format* ) is a [standard](https://samtools.github.io/hts-specs/SAMv1.pdf) binary format for storing hight-troughtpout sequencing data [@pmid19505943]. *BAM* files are compressed using the *BGZF* format,  a compression format implemented on top of the standard gzip file format while allowing efficient random access to the BAM file for indexed queries. An associated Bam Index (*BAI*) achieves a fast retrieval of alignments overlapping a specified region without going through the whole alignment. This technology also works through HTTP, making it possible to fetch regions from remote BAM files. 
 
+Some sequencing projects, like Encode[@pmid29126249], provide *BAM* files but don't provide the associated *BAI* files, making it difficult to retrieve some specific regions of the BAM files: users need to download the whole *BAM* file before filtering the overlaping reads with samtools. 
 
-Some sequencing project like Encode[@pmid29126249] provides bam files but don't provide the associated BAI files, making it difficult to retrieve some specific regions of the BAM files: a user needs to download the whole BAM file before filtering the overlaping reads with samtools. 
+We wrote a progam named '*bamwithoutbai*' that peforms a binary search on a remote *BAM*: it sends a HTTP `Range-Request` at some point of the bam, tries to find the next *BGZF* block and uncompress the stream until it finds a valid *BAM* record. This operation is repeated until the region of interest is narrowed.
 
-We wrote a progam named 'bamwithoutbai' that run a kind of binary search on a remote BAM: it performs a HTTP Range-Request at some point of the bam, tries to find the next *BGZF* block and uncompress the stream until it finds a valid BAM record. This operation is executed until the region of interest is narrowed.
-
-In our test, downloading and filtering a BAM with samtools takes about 17 minutes while using our software takes 24 seconds.
+In our test, downloading and filtering a BAM with samtools takes about 17 minutes while it only takes 24 seconds using our software.
 
 BamWithoutBai is a java program, it uses the 'java library for high throughput sequencing'[@htsjdk] as well as some code from Hadoop-Bam project[@pmid22302568]. , it's part of the 'jvarkit' package[@jvarkit] and is available under the MIT License at: [http://lindenb.github.io/jvarkit/BamWithoutBai.html](http://lindenb.github.io/jvarkit).
 
 
 # Acknowledgements
 
-We acknowledge contributions from Louis Bergelson (Broad Institute) and John Marshall during the genesis of this project.
+We acknowledge contributions from Louis Bergelson (Broad Institute) and John Marshall ( Global Alliance for Genomics and Health ) during the genesis of this project.
 
 # References
 
