@@ -190,12 +190,13 @@ public class BamWithoutBai extends Launcher{
 	};
 	
 
-		
-	
+	/** an iterator  converting an uncompressed input stream to SAMRecord */
 	private class MySamRecordIterator 
 		extends AbstractIterator<SAMRecord>
 		implements CloseableIterator<SAMRecord> {
+		/** bam record codec converting input stream to sam record */
         private final BAMRecordCodec bamRecordCodec;
+        /** cleanup on close */
         private Runnable onClose = null;
         MySamRecordIterator(final SAMFileHeader header,final InputStream in,final String url) {
         	this.bamRecordCodec = new BAMRecordCodec(header);
@@ -239,17 +240,21 @@ public class BamWithoutBai extends Launcher{
 					return null;
 					}
 				else if(rec_tid < this.interval.referenceIndex) {
+					/* we're before the interval */
 					continue;
 					}
 				else if(rec_tid > this.interval.referenceIndex) {
+					/* we're beyond the interval */
 					close();
 					return null;
 					}
 				else if(rec.getStart() > this.interval.end) {
+					/* we're beyond the interval */
 					close();
 					return null;
 					}
 				else if(rec.getEnd() < this.interval.start) {
+					/* we're before the interval */
 					continue;
 					}
 				return rec;
@@ -263,12 +268,17 @@ public class BamWithoutBai extends Launcher{
 		}
 
 	
-	
+	/* a custom SAMReader returning a closeable iterator for the user's interval */
 	private class CustomSamReader implements Closeable {
+		/* BAM url */
 		final URL url;
+		/* BAM header */
 		final SAMFileHeader samFileHeader;
+		/* seekable stream to the remote bam */
 		final SeekableStream seekableStream;
+		/* the underlying samReader */
 		private SamReader samReader ;
+		/* class finding the next BGZF block */
 		final BgzfBlockGuesser bgzfBlockGuesser;
 		
 		CustomSamReader(final URL url ) throws IOException {
@@ -288,7 +298,7 @@ public class BamWithoutBai extends Launcher{
 				
 				this.bgzfBlockGuesser= new BgzfBlockGuesser(this.seekableStream, this.url.toString());
 
-					 
+				/* get the header */ 
 				this.samReader = srf.open(SamInputResource.of(this.seekableStream)); 
 				
 				this.samFileHeader = this.samReader.getFileHeader();
@@ -304,11 +314,10 @@ public class BamWithoutBai extends Launcher{
 		}
 
 		
-		
-		
+		/* create a SAMRecord Iterator at the given offset in the rem */
 		private CloseableIterator<SAMRecord> queryAtOffset(final long start_offset) throws IOException {
 			if(do_debug) LOG.debug("opening at offset="+start_offset);
-
+			
 			if(start_offset>=this.seekableStream.length()) return EOF_ITER;
 			
 			final BgzfBlockGuesser.BgzfBlock bgzfBlock = this.bgzfBlockGuesser.guessNextBGZFPos(start_offset, seekableStream.length());
@@ -331,7 +340,7 @@ public class BamWithoutBai extends Launcher{
 			}
 		
 		
-		
+		/** return a SAM record iterator for the given genomic region */
 		public CloseableIterator<SAMRecord> query(final Locatable locatable) throws IOException {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samFileHeader);			
 			final int tid = dict.getSequenceIndex(locatable.getContig());
@@ -346,6 +355,7 @@ public class BamWithoutBai extends Launcher{
 		    long len = byte_end - byte_start;
 		    long last_offset_before= 0L;
 		    SAMRecord previousBeforeRecord = null;
+		    /* run binary search */
 		    while (len > 0L)
 		            {
 		    		repeat_dichotomy--;
@@ -450,18 +460,24 @@ public class BamWithoutBai extends Launcher{
 				setUserAgent(IOUtils.getDefaultUserAgent()).
 				build();
 		
-		
+		/* open SAM reader */
 		try( CustomSamReader sr =  new CustomSamReader(new URL(urlStr))) {
+			/* extract sam header */
 			final SAMFileHeader samFileHeader = sr.getFileHeader();
+			/* extract the SAM dictionary */
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samFileHeader);
+			/* parse the user's interval*/
 			final Locatable userInterval = IntervalParserFactory.newInstance(dict).make().apply(this.intervalStr).orElse(null);
 			if(userInterval==null) {
 				LOG.error("cannot parse interval "+this.intervalStr+" for "+urlStr);
 				return -1;
 				}
+			/* create output SAM header */
 			final SAMFileHeader header2 =  samFileHeader.clone();
 			JVarkitVersion.getInstance().addMetaData(this, header2);
+			/* open output SAM */
 			try(SAMFileWriter sfw=this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(this.outputFile, header2, true)) {
+				/* query the interval and write in the output */
 				try(CloseableIterator<SAMRecord> iter = sr.query(userInterval)) {
 					while(iter.hasNext()) {
 						final SAMRecord rec=iter.next();
@@ -470,7 +486,7 @@ public class BamWithoutBai extends Launcher{
 					}
 				}
 			}
-		
+		/* we're done */
 		return 0;
 	} catch(final Throwable err) {
 		LOG.error(err);
