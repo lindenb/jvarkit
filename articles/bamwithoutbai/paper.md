@@ -29,8 +29,7 @@ bibliography: ../paper.bib
 
 # Summary
 
-Remote files storing sequencing data (*BAM*) can be queried by genomic intervals if they are associated with an index file (*BAI*). If the
-*BAI* is missing, the whole *BAM* must be downloaded and filtered on the client side. We have developed a tool named '*bamwithoutbai*' which is able to quickly download a genomic region without this associated index.
+Remote files storing sequencing data (*BAM*) can be queried by genomic intervals if they are associated with an index file (*BAI*). If the *BAI* is missing, the whole *BAM* must be downloaded and filtered on the client side. We have developed a tool named '*bamwithoutbai*' which is able to quickly download a genomic region without this associated index.
 
 # Description
 
@@ -40,10 +39,9 @@ Some sequencing projects, like ENCODE[@pmid29126249], provide *BAM* files but do
 
 We wrote a program named '*bamwithoutbai*' that performs a binary search on a remote *BAM*: it sends a HTTP `Range-Request` at some point of the BAM, tries to find the next *BGZF* block and uncompress the stream until it finds a valid *BAM* record. This operation is repeated until the region of interest is exhausted.
 
-In our test, downloading and filtering the *BAM* '[ENCFF741DEO.bam](https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam)' from ENCODE (12 gigabytes) with `samtools` takes about 17 minutes while it only takes 24 seconds using our software.
+In our test, downloading and filtering the region `chr3:38548061-38649667` for the ENCODE *BAM* '[ENCFF741DEO.bam](https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam)' (12 gigabytes) with `samtools` takes about 17 minutes while it only takes 24 seconds using our software.
 
 `BamWithoutBai` is a Java program, it uses the 'java library for high throughput sequencing'[@htsjdk] as well as some code from Hadoop-BAM project[@pmid22302568]. It's part of the 'jvarkit' package[@jvarkit] and is available under the MIT License at: [http://lindenb.github.io/jvarkit/BamWithoutBai.html](http://lindenb.github.io/jvarkit).
-
 
 # Acknowledgements
 
