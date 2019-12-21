@@ -20,16 +20,26 @@ public class BamWithoutBaiTest {
 	public void test01() 
 		throws IOException
 		{
+		final String contig= "chr3";
+		final int chromStart=38548061;
+		final int chromEnd=38649667;
 		try {
+			// tmp output bam
 			final Path out = support.createTmpPath(".bam");
+			// execute
 			Assert.assertEquals(new BamWithoutBai().instanceMain(new String[] {
-				"-r","chr3:38400000-38649667",
+				"-r",contig+":"+chromStart+"-"+chromEnd,
 				"-o",out.toString(),
 				"https://www.encodeproject.org/files/ENCFF741DEO/@@download/ENCFF741DEO.bam"
 				}),0);
+			// check this is bam
 			support.assertIsValidBam(out);
-			
-			Assert.assertTrue(support.samStream(out).allMatch(R->R.getReferenceName().equals("chr3") && CoordMath.overlaps(R.getStart(),R.getEnd(), 38400000,38649667)));
+			//check overlap
+			Assert.assertTrue(support.samStream(out).allMatch(R->R.getReferenceName().equals(contig) && CoordMath.overlaps(R.getStart(),R.getEnd(), chromStart,chromEnd)));
+			// check first read
+			Assert.assertEquals(support.samStream(out).map(R->R.getReadName()).findFirst().orElse(null),"D2FC08P1:268:C3NPCACXX:8:1111:11204:70951");
+			// check last read
+			Assert.assertEquals(support.samStream(out).map(R->R.getReadName()).reduce((A,B)->B).orElse(null),"D2FC08P1:268:C3NPCACXX:8:2312:16447:12679");
 		} finally
 			{
 			support.removeTmpFiles();
