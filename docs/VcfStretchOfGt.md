@@ -10,17 +10,23 @@ Try to finds deletion by searching strech of HOM_REF/HOM_VAR/NO_CALL Genotypes.
 ```
 Usage: vcfstrechofgt [options] Files
   Options:
+    -a, --affected
+      Same as option --pedigree but provide the name of the samples using a 
+      comma/space/semicolon separated string
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -nc, --no-call
+      Do not accept NO_CALL genotypes.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -p, --pedigree
-      A pedigree is a text file delimited with tabs. No header. Columns are 
-      (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
-      (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
-      affected,-9 unknown
+      If defined, the tool will use the affected sample and find strech where 
+      all affected could be a DEL.A pedigree file. 
+      sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --version
       print version and exit
 
@@ -49,6 +55,11 @@ $ ./gradlew vcfstrechofgt
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20190103
 
 ## Source code 
 

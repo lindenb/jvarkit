@@ -67,6 +67,12 @@ $ java -jar dist/vcfstrechofgt.jar -p src/test/resources/test_vcf01.ped src/test
 1	1004201	1004202	1	1	0.0	0
 ```
 
+## See also
+
+```
+bcftools roh
+```
+
 END_DOC
 */
 @Program(name="vcfstrechofgt",
@@ -96,6 +102,7 @@ public class VcfStretchOfGt extends Launcher
 		int countVariants=0;
 		double sumAvgDp=0.0;
 		int countOthers=0;
+		
 		}
 
 	
@@ -127,10 +134,11 @@ public class VcfStretchOfGt extends Launcher
 			w.print('\t');
 			w.print(current.countVariants);
 			w.print('\t');
-			w.print(current.sumAvgDp/current.countVariants);
+			w.print(String.format("%.2f",current.sumAvgDp/current.countVariants));
 			w.print('\t');
 			w.print(current.countOthers);
 			w.println();
+
 		}
 		
 		private void visit(final PrintWriter w,final VariantContext ctx) {
