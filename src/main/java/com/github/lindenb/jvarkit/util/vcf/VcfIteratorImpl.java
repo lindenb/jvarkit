@@ -40,7 +40,6 @@ import htsjdk.tribble.readers.SynchronousLineReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFIterator;
 
 public class VcfIteratorImpl implements htsjdk.variant.vcf.VCFIterator
 	{
