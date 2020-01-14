@@ -52,6 +52,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,6 +70,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.illumina.ShortReadName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -233,6 +235,8 @@ public class XContaminations extends Launcher
 	@Parameter(names={"-singleton","--singleton"},description="[20171212] R. Redon's idea: we're not sure that the contamination comes from the watched pair."
 			+ ". With this option, we're sure that there is only one HOM_VAR on the line and no HET.")
 	private boolean use_singleton = false;
+	@Parameter(names={"-R","--reference"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refFaidx = null;
 
 	
 	private DoublePredicate passFractionTreshold  = (V) -> V > fraction_treshold;
@@ -541,8 +545,7 @@ public class XContaminations extends Launcher
 			LOG.error("Illegal Number of args");
 			return -1;
 			}
-		final Set<File> bamFiles = IOUtils.unrollFiles(args.subList(1, args.size())).
-				stream().map(S->new File(S)).collect(Collectors.toSet());
+		final Set<Path> bamFiles = IOUtils.unrollPaths(args.subList(1, args.size())).stream().collect(Collectors.toSet());
 			
 		if(bamFiles.isEmpty())
 			{
@@ -556,6 +559,7 @@ public class XContaminations extends Launcher
 		VariantContextWriter vcfw = null;
 		try {
 			final SamReaderFactory srf= super.createSamReaderFactory();
+			if(refFaidx!=null) srf.referenceSequence(this.refFaidx);
 			
 			if(args.get(0).equals("-"))
 				{
@@ -568,12 +572,8 @@ public class XContaminations extends Launcher
 			
 			
 			VCFHeader vcfHeader=in.getHeader();
-			final SAMSequenceDictionary dict1=vcfHeader.getSequenceDictionary();
-			if(dict1==null)
-				{
-				LOG.error(JvarkitException.VcfDictionaryMissing.getMessage(args.get(0)));
-				return -1;
-				}
+			final SAMSequenceDictionary dict1= SequenceDictionaryUtils.extractRequired(vcfHeader);
+			
 			
 			final Set<String> sampleNames= new HashSet<>(vcfHeader.getSampleNamesInOrder());
 			if( sampleNames.isEmpty())
@@ -582,18 +582,13 @@ public class XContaminations extends Launcher
 				return -1;
 				}
 			
-			for(final File bamFile:bamFiles)
+			for(final Path bamFile:bamFiles)
 				{
 				LOG.info("Opening "+bamFile);
 				final SamReader samReader=srf.open(bamFile);
 				final SAMFileHeader samHeader= samReader.getFileHeader();
-				final SAMSequenceDictionary dict2=samHeader.getSequenceDictionary();
-				if(dict2==null)
-					{
-					samReader.close();
-					LOG.error(JvarkitException.BamDictionaryMissing.getMessage(bamFile.getPath()));
-					return -1;
-					}
+				final SAMSequenceDictionary dict2= SequenceDictionaryUtils.extractRequired(samHeader);
+				
 				
 				if(!SequenceUtil.areSequenceDictionariesEqual(dict1, dict2))
 					{
@@ -1058,10 +1053,7 @@ public class XContaminations extends Launcher
 				CloserUtil.close(samReader);
 			sample2samReader.clear();
 			}
-		
 		}
-
-	
 	
 	public static void main(final String[] args)
 		{

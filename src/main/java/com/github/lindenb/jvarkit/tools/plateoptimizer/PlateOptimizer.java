@@ -34,9 +34,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -69,7 +71,7 @@ END_DOC
 @Program(
 		name="plateoptimizer",
 		creationDate="20191125",
-		modificationDate="20191206",
+		modificationDate="20200114",
 		generate_doc=false,
 		keywords= {"plate"}
 		)
@@ -80,7 +82,7 @@ public class PlateOptimizer extends Launcher {
 	@Parameter(names= {"--seed"},description="Random seed . -1 == use currentTimeMillis")
 	private long seed= -1L;
 
-	final int num_female_per_plates = 10;
+	final int num_female_per_plates = 8;
 	private final String watched_columns[]={"Typeind","Type_Donneur","hsf_Patient"};
 	private final List<String> headers = new ArrayList<>();
 	private final Map<String,Integer> column2index = new HashMap<>();
@@ -112,6 +114,14 @@ public class PlateOptimizer extends Launcher {
 		String getTube() {
 			return get("Type_Tubes");
 			}
+		String getBox() {
+			String s= get("Pos_Box_DIV");
+			int hyphen = s.indexOf("-");
+			if(hyphen==-1) throw new IllegalStateException(s);
+			return s.substring(0,hyphen);
+			}
+		
+		
 		String getTypeInd() {
 			return get("Typeind");
 		}
@@ -130,6 +140,9 @@ public class PlateOptimizer extends Launcher {
 			}
 		String getName() {
 			return get("id_KIT");
+			}
+		boolean isAlive() {
+			return getTypeDonneur().equals("Vivant");
 			}
 		}
 	
@@ -232,6 +245,27 @@ public class PlateOptimizer extends Launcher {
 			return stream().iterator();
 			}
 		
+		private OptionalDouble getRatioX(Predicate<Cell> pred1,Predicate<Cell> pred2) {
+			final long count1 = this.stream().filter(C->!C.isEmpty()).filter(pred1).count();
+			final long count2 = this.stream().filter(C->!C.isEmpty()).filter(pred2).count();
+			if(count1+count2==0L) return OptionalDouble.empty();
+			return OptionalDouble.of(count1/(double)(count1+count2));
+			}
+		OptionalDouble getRatioTypeInd() {
+			return getRatioX(
+					C->C.content.getTypeInd().equals("D"),
+					C->C.content.getTypeInd().equals("R")
+					);
+			}
+		
+		OptionalDouble getRatioTypeDonneur() {
+			final long countD = this.stream().filter(C->!C.isEmpty()).filter(C->C.content.isAlive()).count();
+			final long countR = this.stream().filter(C->!C.isEmpty()).filter(C->!C.content.isAlive()).count();
+			if(countR+countD==0L) return OptionalDouble.empty();
+			return OptionalDouble.of(countD/(double)(countR+countD));
+			}
+		
+		
 		void shuffle() {
 			final List<Content> contents = this.stream().
 					map(C->C.content).
@@ -249,9 +283,17 @@ public class PlateOptimizer extends Launcher {
 			}
 		/* number of original plates */
 		int getNumberOfTubes() {
-			return Arrays.stream(cells).
+			return  stream().
 					filter(C->!C.isEmpty()).
 					map(C->C.content.getTube()).
+					collect(Collectors.toSet()).
+					size();
+		}
+		
+		int getNumberOfBoxes() {
+			return stream().
+					filter(C->!C.isEmpty()).
+					map(C->C.content.getBox()).
 					collect(Collectors.toSet()).
 					size();
 		}
@@ -265,7 +307,11 @@ public class PlateOptimizer extends Launcher {
 			w.writeStartElement("table");
 			
 			w.writeStartElement("caption");
-			w.writeCharacters(this.name +" type-tubes:"+this.getNumberOfTubes()+" nf:"+ Arrays.stream(this.cells).filter(C->C.content!=null).filter(C->C.content.get("Sexe").equals("F")).count());
+			w.writeCharacters(this.name +
+					" boxes:"+this.getNumberOfBoxes()+
+					" ratio D/R :"+this.getRatioTypeDonneur()+
+					" ratio Ind :"+this.getRatioTypeInd()+
+					" n-females:"+ this.stream().filter(C->!C.isEmpty()).filter(C->C.content.isFemale()).count());
 			w.writeEndElement();
 			
 			
@@ -296,7 +342,7 @@ public class PlateOptimizer extends Launcher {
 						if(cell.content.isMale()) bckg+="color:blue;";
 						w.writeAttribute("style", bckg);
 						w.writeCharacters(cell.content.getName()+":");
-						w.writeCharacters(Arrays.stream(watched_columns).map(C->cell.content.get(C)).collect(Collectors.joining(";")));
+						w.writeCharacters(String.join(";",cell.content.getBox(),cell.content.getTypeDonneur(),cell.content.getTypeInd()));
 						}
 					w.writeEndElement();//td
 					}
@@ -318,6 +364,11 @@ public class PlateOptimizer extends Launcher {
 		}
 		
 		
+		List<Plate> getPlatesButLastOne() {
+			if(this.plates.isEmpty()) throw new IllegalStateException();
+			return this.plates.subList(0, this.plates.size()-1);
+		}
+		
 		boolean hasEmptyCells() {
 			//empty cell only allowed in last plate
 			for(int i=0;i+1/* YES*/ < this.plates.size();i++) {
@@ -328,6 +379,51 @@ public class PlateOptimizer extends Launcher {
 		
 		@Override
 		public int compareTo(final Solution o) {
+			
+			
+			int i1 = this.getPlatesButLastOne().
+					stream().
+					mapToInt(T->T.getNumberOfBoxes()).
+					max().orElse(10000);
+			int i2= o.getPlatesButLastOne().
+					stream().
+					mapToInt(T->T.getNumberOfBoxes()).
+					max().orElse(10000);
+			
+			int d= Integer.compare(i1, i2);
+			if(d!=0) return d;
+			
+			final Predicate<OptionalDouble> testOpt = opt->opt.isPresent() && opt.getAsDouble()>=0.4 && opt.getAsDouble() <=0.6;
+			
+			i1 = (int)this.getPlatesButLastOne().
+					stream().
+					filter(P->testOpt.test(P.getRatioTypeDonneur())).
+					count();
+			i2 = (int)o.getPlatesButLastOne().
+					stream().
+					filter(P->testOpt.test(P.getRatioTypeDonneur())).
+					count();
+			
+			d= Integer.compare(i2, i1);//inverse
+			if(d!=0) return d;
+			
+			
+			i1 = (int)this.getPlatesButLastOne().
+					stream().
+					filter(P->testOpt.test(P.getRatioTypeInd())).
+					count();
+			i2 = (int)o.getPlatesButLastOne().
+					stream().
+					filter(P->testOpt.test(P.getRatioTypeInd())).
+					count();
+			d= Integer.compare(i2,i1);//inverse
+			if(d!=0) return d;
+			
+			return 0;
+			}
+		
+		
+		public int compareToOld(final Solution o) {
 			final Function<Content, String> xcell1 = C->C.getTypeInd();
 			final Function<Content, String> xcell2 = C->C.getTypeDonneur();
 			final Function<Content, String> xcell3 = C->C.getHsfPatient();
@@ -562,7 +658,7 @@ public class PlateOptimizer extends Launcher {
 		
 		if(!sol.plates.stream().
 				allMatch(P->P.stream().map(C->!C.isEmpty()  && C.content.isFemale()).count()>=num_female_per_plates)) return;
-				
+
 		if(this.best==null || sol.compareTo(this.best)<0)
 			{
 			this.best=sol;
@@ -603,6 +699,7 @@ public class PlateOptimizer extends Launcher {
 				LOG.info("header: "+String.join(";", this.headers));
 				while((line=br.readLine())!=null) {
 					if(StringUtils.isBlank(line)) continue;
+					line = line.replaceAll("<e9>", "e");
 					final String tokens[]=tab.split(line);
 					if(tokens.length!=this.headers.size()) throw new JvarkitException.TokenErrors(this.headers.size(), tokens);
 					final Content content = new Content(this.all_contents.size(),tokens);
