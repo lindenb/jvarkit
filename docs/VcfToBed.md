@@ -40,9 +40,9 @@ Usage: vcf2bed [options] Files
       indexed with 'picard CreateSequenceDictionary', or any hts file 
       containing a dictionary (VCF, BAM, CRAM, intervals...)
     -x, --slop
-      Extends interval by 'x' bases on both sides. A distance specified as a 
-      positive integer.Commas are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb
+      Extends interval. Extending interval. The following syntaxes are 
+      supported: 1000; 1kb; 1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 
+      1.5 (extend)
       Default: 0
     --version
       print version and exit

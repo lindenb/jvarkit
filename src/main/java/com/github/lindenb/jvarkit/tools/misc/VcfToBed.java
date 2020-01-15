@@ -35,6 +35,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -49,7 +51,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -109,7 +111,8 @@ END_DOC
 */
 @Program(name="vcf2bed",
 	description="vcf to bed",
-	keywords={"bed","vcf"}
+	keywords={"bed","vcf"},
+	modificationDate="20200115"
 )
 public class VcfToBed  extends Launcher {
 	private enum OutputFormat {
@@ -123,8 +126,9 @@ public class VcfToBed  extends Launcher {
 	private Path faidx = null;
 	@Parameter(names={"-c","--no-ci"},description="For structural variant, ignore the extention of the boundaries using INFO/CIPOS and INFO/CIEND")
 	private boolean ignoreCi = false;
-	@Parameter(names={"-x","--slop"},description="Extends interval by 'x' bases on both sides. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
-	private int slopSize = 0;
+	@Parameter(names={"-x","--slop"},description="Extends interval. "+IntervalExtender.OPT_DESC,splitter=NoSplitter.class)
+	private String extendsStr = "0";
+	
 	@Parameter(names={"-F","--format"},description="output format")
 	private OutputFormat outputFormat = OutputFormat.bed;
 	@Parameter(names={"-m","--min"},description="Optional filter: min sequence length. " + DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
@@ -140,12 +144,16 @@ public class VcfToBed  extends Launcher {
 	private int maxLength = -1;
 	
 	
-	private void scan(String uriOrNull,final PrintWriter pw)
+	private int scan(String uriOrNull,final PrintWriter pw)
 		{
 		VCFIterator iter = null;
 		try {
 			iter =  super.openVCFIterator(uriOrNull);
 			final SAMSequenceDictionary dictIn = iter.getHeader().getSequenceDictionary();
+			final IntervalExtender extender = IntervalExtender.of(dictIn, this.extendsStr);
+			if(extender.isShriking()) {
+				throw new IllegalArgumentException("shrinking interval are not supported "+extender);
+				}
 			
 			final ContigNameConverter ctgNameConverter ;
 			final Function<String, SAMSequenceRecord> funGetSSR;
@@ -210,10 +218,11 @@ public class VcfToBed  extends Launcher {
 						}
 					}
 				
-				if(this.slopSize>0)
+				if(extender.isChanging())
 					{
-					start -= this.slopSize;
-					end += this.slopSize;
+					final Locatable extended= extender.apply(new SimpleInterval(ctx.getContig(), start, end));
+					start = extended.getStart();
+					end = extended.getEnd();
 					}
 				
 				final String newtContig ;
@@ -240,7 +249,7 @@ public class VcfToBed  extends Launcher {
 				
 				start = Math.max(1, start);
 				
-				final Interval interval = new Interval(newtContig,start,end);
+				final SimpleInterval interval = new SimpleInterval(newtContig,start,end);
 				
 				if(interval.getStart()>interval.getEnd())
 					{
@@ -301,10 +310,12 @@ public class VcfToBed  extends Launcher {
 			
 				
 				}
+			return 0;
 			}
 		catch(final Exception err)
 			{
 			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
@@ -355,7 +366,6 @@ public class VcfToBed  extends Launcher {
 						}	
 					}
 				}
-				
 			
 			if(args.size()==1 && args.get(0).endsWith(".list"))
 				{

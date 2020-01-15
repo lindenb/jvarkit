@@ -38,11 +38,11 @@ import htsjdk.samtools.util.Locatable;
  * Utility to extend Intervals
  */
 public interface IntervalExtender extends Function<Locatable,SimpleInterval> {
-public static final String OPT_DESC="Extending interval.";
+public static final String OPT_DESC="Extending interval. The following syntaxes are supported: 1000; 1kb; 1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 1.5 (extend)";
 
 public static class StringConverter implements IStringConverter<IntervalExtender> {
 	@Override
-	public IntervalExtender convert(String arg0) {
+	public IntervalExtender convert(final String arg0) {
 		return IntervalExtender.of(arg0);
 		}
 }
@@ -71,9 +71,16 @@ public static IntervalExtender of(final SAMSequenceDictionary dict,final double 
 public static IntervalExtender of(final String decode) {
 	return of(null,decode);
 }
+/** test whether interval will be changed : fraction is !=1.0 or number of bases is !=0*/ 
+public boolean isChanging();
 
-/** test whether interval will be reduced : fraction is < 1.0  of number of base is <0*/ 
+
+/** test whether interval will be reduced : fraction is < 1.0  of number of bases is <0*/ 
 public boolean isShriking();
+
+/** test whether interval will be reduced : fraction is < 1.0  of number of bases is <0*/ 
+public boolean isExtendingByFraction();
+
 
 /** using a samsequence dictionary */
 public static IntervalExtender of(final SAMSequenceDictionary dict,String decode) {
@@ -86,37 +93,40 @@ public static IntervalExtender of(final SAMSequenceDictionary dict,String decode
 		return of(dict,fraction);
 	} else
 	{
+		int factor = 1;
+		// DistanceParser don't handle negative distances
+		if(decode.startsWith("-"))  {
+			factor=-1;
+			decode=decode.substring(1);
+			}
 		final int xtend = new DistanceParser().applyAsInt(decode);
-		return of(dict,xtend);
+		return of(dict,xtend * factor);
 	}
 	
 }
-
 
 static abstract class AbstractExtender implements IntervalExtender {
 	private final SAMSequenceDictionary dict;
 	protected AbstractExtender(final SAMSequenceDictionary dict) {
 		this.dict = dict;
 		}
-	protected SimpleInterval extend(final Locatable t,final int n) {
-		final int mid = (int)(((long)t.getStart()+(long)t.getEnd())/2L);
-		int beg = mid - n; /* not /2 : headeach if n==1 */
-		int end = mid + n;
+	protected SimpleInterval extend(final String contig,int beg,int end) {
 		// shrinking
 		if(beg>end) {
+			final int mid = (int)(((long)beg+(long)end)/2L);
 			beg = mid;
 			end = mid;
 			}
 		if(this.dict!=null) {
-			final SAMSequenceRecord ssr = this.dict.getSequence(t.getContig());
-			if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(t.getContig(), this.dict);
-			if(t.getStart()> ssr.getSequenceLength()) {
-				throw new IllegalArgumentException("in "+t+". start is greater than contig length "+ssr.getSequenceLength());
+			final SAMSequenceRecord ssr = this.dict.getSequence(contig);
+			if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(contig, this.dict);
+			if(beg> ssr.getSequenceLength()) {
+				throw new IllegalArgumentException("in "+contig+". start is greater than contig length "+ssr.getSequenceLength());
 				}
 			beg = Math.min(ssr.getSequenceLength(), Math.max(1, beg));
 			end = Math.min(ssr.getSequenceLength(), Math.max(1, end));
 			}
-		return new SimpleInterval(t.getContig(), beg, end);
+		return new SimpleInterval(contig, beg, end);
 		}
 	}
 
@@ -125,6 +135,7 @@ static class ExtendByFraction extends AbstractExtender {
 	final double fract;
 	ExtendByFraction(final SAMSequenceDictionary dict,double fract) {
 		super(dict);
+		if(fract<0.0) throw new IllegalArgumentException("negative fractions are not allowed: "+fract);
 		this.fract = fract;
 		}
 	@Override
@@ -132,11 +143,25 @@ static class ExtendByFraction extends AbstractExtender {
 		return fract < 1.0;
 		}
 	@Override
+	public boolean isExtendingByFraction() {
+		return true;
+		}
+	@Override
 	public SimpleInterval apply(final Locatable t) {
 		final int oldLen = t.getLengthOnReference();
 		final int newLen = (int)Math.ceil(oldLen* this.fract);
-		return extend(t,newLen - oldLen);
+		final int mid = (int)(((long)t.getStart()+(long)t.getEnd())/2L);
+		final int beg = mid - newLen/2;
+		final int end = beg + newLen -1;
+
+		return extend(t.getContig(),beg,end);
 		}
+
+	@Override
+	public boolean isChanging() {
+		return fract!=1.0;
+		}
+
 	@Override
 	public String toString() {
 		return getClass().getName()+" fraction : "+this.fract;
@@ -150,13 +175,23 @@ static class ExtendByDistance extends AbstractExtender {
 		this.xtend = xtend;
 		}
 	@Override
+	public boolean isChanging() {
+		return xtend!=0;
+		}
+
+	@Override
 	public boolean isShriking() {
 		return xtend < 0;
 		}
 	
 	@Override
+	public boolean isExtendingByFraction() {
+		return false;
+		}
+	
+	@Override
 	public SimpleInterval apply(final Locatable t) {
-		return extend(t,this.xtend);
+		return extend(t.getContig(),t.getStart()-this.xtend,t.getEnd()+this.xtend);
 		}
 	@Override
 	public String toString() {
