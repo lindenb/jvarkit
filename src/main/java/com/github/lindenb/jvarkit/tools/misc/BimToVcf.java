@@ -29,13 +29,12 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
+import java.util.function.Predicate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -52,6 +51,9 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -95,23 +97,27 @@ $ java -jar dist/bim2vcf.jar -R human_g1k_v37.fasta input.bim
 
 END_DOC
 */
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 
 @Program(name="bim2vcf",
 	description="convert a .bim to a .vcf . For @FlorianeS44",
 	keywords= {"bim","vcf"},
-	modificationDate="20190926"
+	modificationDate="20200115"
 )
 public class BimToVcf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BimToVcf.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
 
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
+	
 	public BimToVcf() {
 		}
 	
@@ -127,6 +133,7 @@ public class BimToVcf extends Launcher
 			
 			final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(faidx);
 			
+			this.writingVariants.dictionary(dict);
 			
 			r = super.openBufferedReader(oneFileOrNull(args));
 				
@@ -141,13 +148,14 @@ public class BimToVcf extends Launcher
 			final List<String> genotypeSampleNames = Collections.emptyList();
 			final VCFHeader header=new VCFHeader(headerLines, genotypeSampleNames);
 			header.setSequenceDictionary(dict);
-			w = super.openVariantContextWriter(this.outputFile);
+			w = this.writingVariants.open(this.outputFile);
 			w.writeHeader(header);
-			final Pattern tab=Pattern.compile("[\t]");
+			final CharSplitter tab=CharSplitter.TAB;
 			String line;
-			final Pattern iupacATGC = Pattern.compile("[atgcATGC]");
+			final Predicate<String> iupacATGC = S->AcidNucleics.isATGC(S);
+			
 			while((line=r.readLine())!=null) {
-				String tokens[]=tab.split(line);
+				final String tokens[]=tab.split(line);
 				if(tokens.length!=6) {
 					LOG.error("expected 6 column in "+line);
 					return -1;
@@ -203,9 +211,9 @@ public class BimToVcf extends Launcher
 				vcb.chr(ssr.getSequenceName());
 				vcb.attribute(morgan.getID(), Float.parseFloat(tokens[2]));
 				
-				if(iupacATGC.matcher(tokens[4]).matches() && iupacATGC.matcher(tokens[5]).matches())
+				if(iupacATGC.test(tokens[4]) && iupacATGC.test(tokens[5]))
 					{
-					String refBase=String.valueOf(genomic.charAt(pos1-1));
+					final String refBase=String.valueOf(genomic.charAt(pos1-1));
 					ref= Allele.create(refBase,true);
 					a1 = refBase.equalsIgnoreCase(tokens[4])?
 							ref:
@@ -215,15 +223,25 @@ public class BimToVcf extends Launcher
 							ref:
 							Allele.create(tokens[5],false)
 							;
-					vcb.attribute(svtype.getID(),
-							a1.isReference() && a2.isReference()?
-							"NOVARIATION":
-							"SNV"
-							);
+					final String type;
+					if(a1.isReference() && a2.isReference()) {
+						type = "NOVARIATION";
+						}
+					else if(tokens[4].length() < tokens[5].length()) {
+						type = "INS";
+						}
+					else if(tokens[4].length() > tokens[5].length()) {
+						type = "DEL";
+						}
+					else
+						{
+						type = "SNV";
+						}
+					vcb.attribute(svtype.getID(),type);
 					}
 				else if(
-					(tokens[4].equals("-") &&  iupacATGC.matcher(tokens[5]).matches()) ||
-					(tokens[5].equals("-") &&  iupacATGC.matcher(tokens[4]).matches())
+					(tokens[4].equals("-") &&  iupacATGC.test(tokens[5])) ||
+					(tokens[5].equals("-") &&  iupacATGC.test(tokens[4]))
 					) {
 					pos1--;//shift left
 					String refBase=  String.valueOf(genomic.charAt(pos1-1));
@@ -270,7 +288,7 @@ public class BimToVcf extends Launcher
 			CloserUtil.close(r);
 		}
 	}
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new BimToVcf().instanceMainWithExit(args);
 	}
 	}
