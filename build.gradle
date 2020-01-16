@@ -82,7 +82,7 @@ class JarFile
 		}
 
 	public String getServer() {
-		return this.server==null?"http://repo1.maven.org/maven2":this.server;
+		return this.server==null?"https://repo1.maven.org/maven2":this.server;
 		}
 	
 	public String getUrl() {
