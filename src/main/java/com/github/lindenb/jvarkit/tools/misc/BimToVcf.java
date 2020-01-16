@@ -161,7 +161,6 @@ public class BimToVcf extends Launcher
 					"26", "MT",
 					"26", "chrM"
 					);
-			
 			while((line=r.readLine())!=null) {
 				final String tokens[]=tab.split(line);
 				if(tokens.length!=6) {
