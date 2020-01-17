@@ -13,7 +13,8 @@ Usage: vcffilterjdk [options] Files
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 
-      version is: 2.1 (last checked 2019-11-15)
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
       Default: false
     --body
       user's code is the whole body of the filter class, not just the 'apply' 
@@ -95,6 +96,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/354126](https://www.biostars.org/p/354126)
  * [https://www.biostars.org/p/302217](https://www.biostars.org/p/302217)
  * [https://www.biostars.org/p/384864](https://www.biostars.org/p/384864)
+ * [https://www.biostars.org/p/416955](https://www.biostars.org/p/416955)
 
 
 ## Compilation
