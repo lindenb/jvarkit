@@ -118,7 +118,10 @@ private static final  Percentile _PMedian = new Percentile() {
 	public double evaluate(final DoubleStream stream) {
 		final double copy[]= stream.sorted().toArray();
 		final int mid_x= copy.length/2;
-		if(copy.length==1)
+		if(copy.length==0) {
+			return Double.NaN;
+			}
+		else if(copy.length==1)
 			{
 			return copy[0];
 			}
