@@ -59,6 +59,11 @@ $ ./gradlew sam2psl
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20140404
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SamToPsl.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SamToPsl.java)
@@ -134,4 +139,5 @@ used as a custom track in the **UCSC genome browser**.
 
   * "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
   * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978  
+  * Building A Better Transcriptome. Byrne, Ashley . 2019. Thesis. "https://escholarship.org/content/qt71z3w6dc/qt71z3w6dc.pdf"
 

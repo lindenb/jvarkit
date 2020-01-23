@@ -77,7 +77,7 @@ END_DOC
 */
 @Program(name="vcfstrechofgt",
 description="Try to finds deletion by searching strech of HOM_REF/HOM_VAR/NO_CALL Genotypes.",
-keywords={"vcf","deletion"},
+keywords={"vcf","deletion","cnv"},
 creationDate="20190103",
 modificationDate="20200108"
 )
@@ -93,7 +93,9 @@ public class VcfStretchOfGt extends Launcher
 	private String affectedStr = null;
 	@Parameter(names={"-nc","--no-call"},description="Do not accept NO_CALL genotypes.")
 	private boolean exclude_no_call = false;
-
+	
+	
+	
 	private static class Stretch
 		{
 		String contig;
@@ -102,7 +104,6 @@ public class VcfStretchOfGt extends Launcher
 		int countVariants=0;
 		double sumAvgDp=0.0;
 		int countOthers=0;
-		
 		}
 
 	
@@ -239,6 +240,7 @@ public class VcfStretchOfGt extends Launcher
 					}
 				}
 			
+			/* singletons */
 			for(final String sn:vcf_samples) {
 				final SampleSet sampleSet = new SampleSet(vcf_samples,Collections.singleton(sn));
 				all_sample_set.add(sampleSet);

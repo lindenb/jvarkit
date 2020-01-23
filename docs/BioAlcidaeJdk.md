@@ -34,6 +34,10 @@ Usage: bioalcidaejdk [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --pedigree
+      Optional pedigree file. A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -R, --reference
       [20190808]Indexed fasta Reference file. This file must be indexed with 
       samtools faidx and with picard CreateSequenceDictionary For reading BAM 
@@ -115,6 +119,11 @@ $ ./gradlew bioalcidaejdk
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+2017-07-12
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bioalcidae/BioAlcidaeJdk.java)
@@ -176,7 +185,10 @@ At the time of writing, we have:
     	public void print(final Object o) { this.out.print(o);}
     	public void println() { this.out.println();}
     	public void println(final Object o) { this.print(o);this.println();}
-
+		
+		// if option pedigree was specified
+		public Pedigree getPedigree();
+		publc boolean hasPedigree();
     	}
     
     public static abstract class VcfHandler extends AbstractHandler
@@ -221,6 +233,17 @@ At the time of writing, we have:
 			{
 			return StreamSupport.stream(
 					new IterableAdapter<FastaSequence>(this.iter).spliterator(),
+					false);
+			}
+		}
+
+    public static abstract class SimpleLineHandler extends AbstractHandler
+		{
+		protected CloseableIterator<String> iter=null;
+		public Stream<String> stream()
+			{
+			return StreamSupport.stream(
+					new IterableAdapter<String>(this.iter).spliterator(),
 					false);
 			}
 		}

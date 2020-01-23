@@ -483,7 +483,8 @@ public class IOUtils {
 		{
 		return openStreamForBufferedReader(System.in);
 		}
-    public static BufferedReader openStreamForBufferedReader(InputStream in) throws IOException
+    /** convert input stream for buffered reader */
+    public static BufferedReader openStreamForBufferedReader(final InputStream in) throws IOException
 		{
 		return  new BufferedReader(new InputStreamReader(in));
 		}
@@ -531,7 +532,7 @@ public class IOUtils {
     /** write String to DataOutputStream
      * motivation: DataInputStream.readUTF can't print lines larger than USHORTMAX
      *  */
-    public static void writeString(DataOutputStream os,String s) throws IOException
+    public static void writeString(final DataOutputStream os,String s) throws IOException
 		{
 		if(s==null)
 			{

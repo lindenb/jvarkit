@@ -24,8 +24,8 @@ Usage: vcfstrechofgt [options] Files
       Output file. Optional . Default: stdout
     -p, --pedigree
       If defined, the tool will use the affected sample and find strech where 
-      all affected could be a DEL.A pedigree file. 
-      sex:(0:unknown;1:male;2:female), phenotype 
+      all affected could be a DEL.A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --version
       print version and exit
@@ -37,6 +37,7 @@ Usage: vcfstrechofgt [options] Files
 
  * vcf
  * deletion
+ * cnv
 
 
 ## Compilation
@@ -101,5 +102,11 @@ $ java -jar dist/vcfstrechofgt.jar -p src/test/resources/test_vcf01.ped src/test
 1	919500	919501	1	1	0.0	0
 1	963703	963704	1	1	0.0	0
 1	1004201	1004202	1	1	0.0	0
+```
+
+## See also
+
+```
+bcftools roh
 ```
 

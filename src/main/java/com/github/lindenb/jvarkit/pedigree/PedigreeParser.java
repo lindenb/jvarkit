@@ -47,7 +47,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
  * A class parsing pedigrees
  */
 public class PedigreeParser {
-public static final String OPT_DESC="A pedigree file. sex:(0:unknown;1:male;2:female), phenotype (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected)";
+public static final String OPT_DESC="A pedigree file. tab delimited. Columns: family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected)";
 private static final List<String> PEDFILE_EXTENSIONS=Arrays.asList(".ped",".pedigree",".fam");
 	
 /** return valid extensions for a pedigree file */

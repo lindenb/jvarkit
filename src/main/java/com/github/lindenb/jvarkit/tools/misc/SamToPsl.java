@@ -100,6 +100,7 @@ used as a custom track in the **UCSC genome browser**.
 
   * "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
   * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978  
+  * Building A Better Transcriptome. Byrne, Ashley . 2019. Thesis. "https://escholarship.org/content/qt71z3w6dc/qt71z3w6dc.pdf"
 
 END_DOC
 */
@@ -107,7 +108,8 @@ END_DOC
 	deprecatedMsg="use bedtools/bamtobed",
 	description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12",
 	keywords={"sam","bam","psl"},
-	modificationDate="20191018"
+	modificationDate="20191018",
+	creationDate="20140404"
 	)
 public class SamToPsl extends Launcher
 	{

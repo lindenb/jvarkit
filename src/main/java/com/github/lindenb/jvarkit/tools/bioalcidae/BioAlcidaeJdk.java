@@ -46,6 +46,8 @@ import java.util.stream.StreamSupport;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -117,7 +119,10 @@ At the time of writing, we have:
     	public void print(final Object o) { this.out.print(o);}
     	public void println() { this.out.println();}
     	public void println(final Object o) { this.print(o);this.println();}
-
+		
+		// if option pedigree was specified
+		public Pedigree getPedigree();
+		publc boolean hasPedigree();
     	}
     
     public static abstract class VcfHandler extends AbstractHandler
@@ -162,6 +167,17 @@ At the time of writing, we have:
 			{
 			return StreamSupport.stream(
 					new IterableAdapter<FastaSequence>(this.iter).spliterator(),
+					false);
+			}
+		}
+
+    public static abstract class SimpleLineHandler extends AbstractHandler
+		{
+		protected CloseableIterator<String> iter=null;
+		public Stream<String> stream()
+			{
+			return StreamSupport.stream(
+					new IterableAdapter<String>(this.iter).spliterator(),
 					false);
 			}
 		}
@@ -703,7 +719,8 @@ END_DOC
 			298361,324900,326294,326765,329423,330752,334253,335056,335692,336206,
 			338031,356474,394289,395454,397168,400463,409177,410405},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
-	modificationDate="2019-08-22"
+	modificationDate="2020-01-23",
+	creationDate="2017-07-12"
 	)
 public class BioAlcidaeJdk
 	extends Launcher
@@ -711,7 +728,7 @@ public class BioAlcidaeJdk
 	private static final Logger LOG = Logger.build(BioAlcidaeJdk.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-F","--format"},description="define format if input is stdin or cannot be inferred from filename. "
 			+ "Must be one of: VCF,SAM,BAM,CRAM,FASTA,FASTQ,TEXT,GTF")
@@ -734,6 +751,8 @@ public class BioAlcidaeJdk
 			+ "Multiple separated by space/colon/comma. .eg: 'java.util.StringBuilder java.awt.*' . "
 			+ "	Useful if those packages are not already defined in the default code.")
 	private String extraImport = "";
+	@Parameter(names={"-p","--pedigree"},description="Optional pedigree file. " + PedigreeParser.OPT_DESC)
+	private Path pedigreePath = null;
 
 	
 	@SuppressWarnings("unused")
@@ -745,6 +764,7 @@ public class BioAlcidaeJdk
 	
     public static abstract class AbstractHandler
     	{
+    	protected Pedigree pedigree = null;
     	protected PrintStream out = System.out;
     	protected String inputFile = null;
     	public void initialize() {}
@@ -753,18 +773,21 @@ public class BioAlcidaeJdk
     	public void println() { this.out.println();}
     	public void println(final Object o) { this.print(o);this.println();}
     	public abstract void execute() throws Exception;
+    	public Pedigree getPedigree() { return this.pedigree;}
+    	public boolean hasPedigree() { return this.pedigree!=null;}
     	}
     
     public static abstract class AbstractHandlerFactory<H extends AbstractHandler>
     	{
     	protected Path faidxPath = null;
+    	protected Pedigree pedigree = null;
     	private File scriptFile  = null;
     	private String scriptExpr = null ;
     	private boolean user_code_is_body=false;
     	private boolean hideGeneratedCode = false;
     	private Constructor<H> ctor=null;
     	private Set<String> extraImportSet = new HashSet<>();
-
+    	
     	
     	public abstract int execute(final String inputFile,final PrintStream out) throws Exception;
     	protected abstract Class<H> getHandlerClass();
@@ -819,6 +842,7 @@ public class BioAlcidaeJdk
 				pw.println("import htsjdk.samtools.util.*;");
 				pw.println("import htsjdk.variant.variantcontext.*;");
 				pw.println("import htsjdk.variant.vcf.*;");
+				pw.println("import com.github.lindenb.jvarkit.pedigree.*;");
 				pw.println("import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;");
 				pw.println("import com.github.lindenb.jvarkit.math.RangeOfIntegers;");
 				pw.println("import com.github.lindenb.jvarkit.math.RangeOfDoubles;");
@@ -917,6 +941,7 @@ public class BioAlcidaeJdk
 				vcfHandler.iter = VCFUtils.createVCFIterator(inputFile);
 				vcfHandler.header = vcfHandler.iter.getHeader();
 				vcfHandler.tools = new VcfTools(vcfHandler.header);
+				vcfHandler.pedigree = this.pedigree;
 				vcfHandler.initialize();
 				vcfHandler.execute();
 				return 0;
@@ -965,6 +990,7 @@ public class BioAlcidaeJdk
 				samHandler = this.getConstructor().newInstance();
 				samHandler.out = out;
 				samHandler.inputFile = inputFile;
+				samHandler.pedigree = this.pedigree;
 				//
 				final htsjdk.samtools.SamReaderFactory srf= htsjdk.samtools.SamReaderFactory.makeDefault().validationStringency(htsjdk.samtools.ValidationStringency.LENIENT);
 				if(this.faidxPath!=null) {
@@ -1031,6 +1057,7 @@ public class BioAlcidaeJdk
 				fqHandler.out = out;
 				fqHandler.inputFile = inputFile;
 				fqHandler.iter = new FastqReader(super.openBufferedReader(inputFile));
+				fqHandler.pedigree = this.pedigree;
 				
 				fqHandler.initialize();
 				fqHandler.execute();
@@ -1078,6 +1105,7 @@ public class BioAlcidaeJdk
 				faHandler = this.getConstructor().newInstance();
 				faHandler.out = out;
 				faHandler.inputFile = inputFile;
+				faHandler.pedigree = this.pedigree;
 				//
 				faHandler.iter =  new FastaSequenceReader().iterator(super.openBufferedReader(inputFile));
 				
@@ -1147,8 +1175,13 @@ public class BioAlcidaeJdk
 				lineHandler = this.getConstructor().newInstance();
 				lineHandler.out = out;
 				lineHandler.inputFile = inputFile;
+				lineHandler.pedigree = this.pedigree;
 				//
-				lineHandler.iter =  new LineIterator(IOUtils.openURIForBufferedReading(inputFile));
+				lineHandler.iter =  new LineIterator(
+						inputFile ==null ?
+						IOUtils.openStreamForBufferedReader(System.in):
+						IOUtils.openURIForBufferedReading(inputFile)
+						);
 				
 				lineHandler.initialize();
 				lineHandler.execute();
@@ -1203,6 +1236,8 @@ public class BioAlcidaeJdk
     			gtfHandler = this.getConstructor().newInstance();
     			gtfHandler.out = out;
     			gtfHandler.genes = gtfReader.getAllGenes();
+    			gtfHandler.pedigree = this.pedigree;
+    			
     			gtfReader.close();
     			gtfReader = null;
 				gtfHandler.initialize();
@@ -1330,13 +1365,16 @@ public class BioAlcidaeJdk
 			abstractFactory.scriptFile = this.scriptFile;
 			abstractFactory.user_code_is_body = this.user_code_is_body ;
 			abstractFactory.hideGeneratedCode = this.hideGeneratedCode ;
+			if(this.pedigreePath!=null) {
+				abstractFactory.pedigree = new PedigreeParser().parse(this.pedigreePath);
+				}
 			abstractFactory.extraImportSet.addAll(
 					Arrays.asList(this.extraImport.split("[ ,;]+"))
 					);//blank will be ignored
 			
 			try
 				{
-				return abstractFactory.execute(inputFile,super.openFileOrStdoutAsPrintStream(this.outputFile));
+				return abstractFactory.execute(inputFile,super.openPathOrStdoutAsPrintStream(this.outputFile));
 				}
 			catch(final Throwable err)
 				{
@@ -1348,7 +1386,7 @@ public class BioAlcidaeJdk
 				abstractFactory.ctor=null;
 				}			
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
