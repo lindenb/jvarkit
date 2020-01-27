@@ -5,34 +5,24 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.commons.math3.stat.inference.OneWayAnova;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.util.Algorithms;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -40,7 +30,6 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
@@ -49,18 +38,14 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
@@ -71,8 +56,10 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 public class CnvSlidingWindow extends Launcher {
 	private static final Logger LOG = Logger.build( CnvSlidingWindow.class).make();
@@ -96,7 +83,7 @@ public class CnvSlidingWindow extends Launcher {
 	private static class Gt {
 		int start;
 		int end;
-		String sample;
+		int sample_idx;
 		int cnv;
 		
 		int compare0(final Gt o ) {
@@ -110,35 +97,35 @@ public class CnvSlidingWindow extends Launcher {
 		int compare1(final Gt o ) {
 			int i=compare0(o);
 			if(i!=0) return i;
-			return this.sample.compareTo(o.sample);
+			return Integer.compare(this.sample_idx,o.sample_idx);
 		}
 
 	}
 	
 	private static class GtCodec extends AbstractDataCodec<Gt> {
 		@Override
-		public Gt decode(DataInputStream dis) throws IOException {
+		public Gt decode(final DataInputStream dis) throws IOException {
 			Gt gt = new Gt();
 			try {
 				gt.start = dis.readInt();
 				} 
-			catch(EOFException err) {
+			catch(final EOFException err) {
 				return null;
 				}
 			gt.end = dis.readInt();
-			gt.sample = dis.readUTF();
+			gt.sample_idx = dis.readInt();
 			gt.cnv = dis.readInt();
 			return gt;
 			}
 		
-		
 		@Override
-		public void encode(DataOutputStream dos, Gt o) throws IOException {
+		public void encode(final DataOutputStream dos, final Gt o) throws IOException {
 			dos.writeInt(o.start);
 			dos.writeInt(o.end);
-			dos.writeUTF(o.sample);
+			dos.writeInt(o.sample_idx);
 			dos.writeInt(o.cnv);
 			}
+		
 		@Override
 		public AbstractDataCodec<Gt> clone() {
 			return new GtCodec();
@@ -180,12 +167,19 @@ private class Sample
 
 
 
-private double median(double array[],int len) {
+private static double median(final double array[],int len) {
+	if(len==0) return Double.NaN;
 	Arrays.sort(array,0,len);
-	return Double.NaN;
+	int n = len/2;
+	if(len%2==0) {
+		return (array[n]+array[n+1])/2.0;
+	} else {
+		return array[n];
+	}
+	
 }
 
-private boolean between(double v,double base,double dy) {
+private static boolean between(double v,double base,double dy) {
 	return v>=base-dy && v<=base+dy;
 }
 
@@ -231,11 +225,11 @@ public int doWork(final List<String> args) {
 		
 
 		final Set<String> sampleNames = new TreeSet<>();
-		for(final Path samFile:inputBams) {
+		for(final Path samFile: inputBams) {
 			final Sample sample = new Sample(samFile);
 			if(sampleNames.contains(sample.name))
 				{
-				LOG.info("duplicate sample "+sample.name);
+				LOG.error("duplicate sample "+sample.name);
 				return -1;
 				}
 			samples.add(sample);
@@ -293,12 +287,14 @@ public int doWork(final List<String> args) {
 		};
 		
 		final Set<VCFHeaderLine> metaData = new HashSet<>();
+		VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
 		VCFHeader header = new VCFHeader(metaData,sampleNames);
 		header.setSequenceDictionary(dict);
-		VariantContextWriter vcw = writingVariantsDelegate.dictionary(dict).open(this.outputFile);
+		JVarkitVersion.getInstance().addMetaData(this, header);
+		
+		VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
 		vcw.writeHeader(header);
 
-		
 		
 		for(final Locatable contig : contigs) {
 			System.gc();
@@ -312,86 +308,93 @@ public int doWork(final List<String> args) {
 					);
 			
 		
-			for(final Sample sampleBam: samples) {
+			for(int bam_index=0;bam_index < samples.size();bam_index++) {
+				final Sample sampleBam = samples.get(bam_index);
 				Arrays.fill(array, (short)0);
 				
-				SAMRecordIterator iter = sampleBam.samReader.queryOverlapping(contig.getContig(),contig.getStart(),contig.getEnd());
-				while(iter.hasNext())
-					{
-					final SAMRecord rec = iter.next();
-					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					final Cigar cigar = rec.getCigar();
-					if(cigar==null || cigar.isEmpty()) continue;
-					
-					int refPos=rec.getStart();
-					
-					for(final CigarElement ce:cigar)
+				try(SAMRecordIterator iter = sampleBam.samReader.queryOverlapping(contig.getContig(),contig.getStart(),contig.getEnd())) {
+					while(iter.hasNext())
 						{
-						final CigarOperator op=ce.getOperator();
-						if(op.consumesReferenceBases())
+						final SAMRecord rec = iter.next();
+						if(rec.getReadUnmappedFlag()) continue;
+						if(rec.getReadFailsVendorQualityCheckFlag()) continue;
+						final Cigar cigar = rec.getCigar();
+						if(cigar==null || cigar.isEmpty()) continue;
+						
+						int refPos=rec.getStart();
+						
+						for(final CigarElement ce:cigar)
 							{
-							if(op.consumesReadBases())
+							final CigarOperator op=ce.getOperator();
+							if(op.consumesReferenceBases())
 								{
-								for(int i=0;i< ce.getLength() &&
-										refPos-1+i < array.length &&
-										array[refPos-1+i]!=Short.MAX_VALUE
-										;i++)
+								if(op.consumesReadBases())
 									{
-									array[refPos-1+i]++;
+									for(int i=0;i< ce.getLength() &&
+											refPos-1+i < array.length &&
+											array[refPos-1+i]!=Short.MAX_VALUE
+											;i++)
+										{
+										array[refPos-1+i]++;
+										}
 									}
+								refPos+=ce.getLength();
 								}
-							refPos+=ce.getLength();
 							}
 						}
 					}
-				iter.close();
 				
 				for(int i=0;i< windows_array.length;i+=2) {
-					final int window_size_init = windows_array[i+0];
-					int extend = (int)Math.ceil(window_size_init*this.extend);
+					final int window_size = windows_array[i+0];
+					final int extend = (int)Math.ceil(window_size * this.extend);
 					if(extend<=0) continue;
-					final int window_size = extend+window_size_init+extend;
 					if(window_size> contig.getLengthOnReference()) continue;
 					final int window_shift = windows_array[i+1];
-					int pos1 = contig.getStart();
-					final double coverage[] = new double[window_size];
 					final double bound_array[] = new double[extend+extend];
-					int n=0;
-					int n2=0;
-					while(pos1+window_size <= contig.getEnd() ) {
-						Arrays.fill(coverage, 0);
-						for(int x=0;x< window_size;x++) {
-							coverage[x] = array[pos1];
-							if(x< extend || x>extend+window_size_init) {
-								bound_array[n]= array[pos1];
-								n++;
-								}
-							else
-								{
-								coverage[n2]=array[pos1];
-								n2++;
-								}
-							}
+					final double coverage[] = new double[window_size];
+					
+					for(int pos1 = contig.getStart();
+							pos1 + window_size + extend + extend <= contig.getEnd();
+							pos1 += window_shift) {
+						int n=0;
 						
-						double median = median(bound_array,n);
+						for(int x=0;x<extend;i++) {
+							final int idx = pos1 + x;
+							bound_array[n]= array[idx];
+							n++;
+						}
+						
+						
+						for(int x=0;x<extend;i++) {
+							final int idx = pos1 + extend + window_size + x;
+							bound_array[n]= array[idx];
+							n++;
+						}
+						
+						
+						int n2=0;
+						for(int x=0;x<window_size;i++) {
+							final int idx = pos1 + extend + x;
+							coverage[n2]= array[idx];
+							n2++;
+						}
+											
+						final double median = median(bound_array,n);
 						for(int x=0;x< n2;x++) {
 							coverage[x] = coverage[x]/median;
 						}
-						double norm_depth =  median(coverage,n2);
-						int cnv = getCNVIndex(norm_depth);
-						if(cnv!=CNV_UNDEFINED && cnv!=0) {
+						
+						final double norm_depth =  median(coverage,n2);
+						final int cnv = getCNVIndex(norm_depth);
+						if(cnv!=CNV_UNDEFINED ) {
 							final Gt gt = new Gt();
 							gt.start = pos1+extend;
-							gt.end = gt.start + window_size_init;;
-							gt.sample = sampleBam.name;
+							gt.end = gt.start + window_size;
+							gt.sample_idx = bam_index;
 							gt.cnv = cnv;
 							sorter.add(gt);
 							}
-						pos1 += window_shift;
 					}
-					
-					
 				}
 			}
 			sorter.setDestructiveIteration(true);
@@ -399,15 +402,20 @@ public int doWork(final List<String> args) {
 			try(CloseableIterator<Gt> iter=sorter.iterator()) {
 				EqualRangeIterator<Gt> eq=new EqualRangeIterator<>(iter, (A,B)->A.compare0(B));
 				while(eq.hasNext()) {
-					List<Gt> row = eq.next();
+					final List<Gt> row = eq.next();
+					if(row.isEmpty()) continue;
 					final Gt first = row.get(0);
 					final Set<Allele> alleles = new HashSet<>();
 					row.stream().flatMap(GT->cnv2allele.apply(GT.cnv).stream()).forEach(CNV->alleles.add(CNV));
+					
 					alleles.add(ref_allele);
-					VariantContextBuilder vcb = new VariantContextBuilder(null, contig.getContig(),first.start,first.end, alleles);
+					
+					if(alleles.size()<=1) continue;
+					
+					final VariantContextBuilder vcb = new VariantContextBuilder(null, contig.getContig(),first.start,first.end, alleles);
 					final List<Genotype> genotypes = new ArrayList<>(samples.size());
 					for(final Gt gt:row) {
-						final GenotypeBuilder gb=new GenotypeBuilder(gt.sample,cnv2allele.apply(gt.cnv));
+						final GenotypeBuilder gb=new GenotypeBuilder(samples.get(gt.sample_idx).name,cnv2allele.apply(gt.cnv));
 						genotypes.add(gb.make());
 					}
 					vcw.add(vcb.make());
