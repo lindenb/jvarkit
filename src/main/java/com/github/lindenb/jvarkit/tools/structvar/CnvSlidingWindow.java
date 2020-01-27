@@ -85,8 +85,10 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
@@ -119,6 +121,8 @@ public class CnvSlidingWindow extends Launcher {
 	private double extend = 0.3;
 	@Parameter(names={"--treshold"},description="treshold",hidden=true)
 	private double treshold = 0.05;
+	@Parameter(names={"--min-depth"},description="min depth",hidden=true)
+	private int min_depth=20;
 	@ParametersDelegate
 	private WritingSortingCollection sorting = new WritingSortingCollection();
 	@ParametersDelegate
@@ -129,6 +133,9 @@ public class CnvSlidingWindow extends Launcher {
 		int end;
 		int sample_idx;
 		int cnv;
+		float leftMedian;
+		float midMedian;
+		float rightMedian;
 		
 		int compare0(final Gt o ) {
 			int i=Integer.compare(this.start, o.start);
@@ -146,6 +153,25 @@ public class CnvSlidingWindow extends Launcher {
 
 	}
 	
+	private static class Coverage {
+		private final double array[];
+		int count=0;
+		Coverage(final int len) {
+			this.array=new double[len];
+			count=0;
+		}
+		double median() {
+			return CnvSlidingWindow.median(this.array, this.count);
+		}
+		void reset() {
+			count=0;
+		}
+		void add(double v) {
+			this.array[this.count++]=v;
+		}
+		
+	}
+	
 	private static class GtCodec extends AbstractDataCodec<Gt> {
 		@Override
 		public Gt decode(final DataInputStream dis) throws IOException {
@@ -159,6 +185,9 @@ public class CnvSlidingWindow extends Launcher {
 			gt.end = dis.readInt();
 			gt.sample_idx = dis.readInt();
 			gt.cnv = dis.readInt();
+			gt.leftMedian = dis.readFloat();
+			gt.midMedian = dis.readFloat();
+			gt.rightMedian = dis.readFloat();
 			return gt;
 			}
 		
@@ -168,6 +197,9 @@ public class CnvSlidingWindow extends Launcher {
 			dos.writeInt(o.end);
 			dos.writeInt(o.sample_idx);
 			dos.writeInt(o.cnv);
+			dos.writeFloat(o.leftMedian);
+			dos.writeFloat(o.midMedian);
+			dos.writeFloat(o.rightMedian);
 			}
 		
 		@Override
@@ -362,6 +394,15 @@ public int doWork(final List<String> args) {
 		final Set<VCFHeaderLine> metaData = new HashSet<>();
 		VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
 		VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.END_KEY);
+		final VCFFormatHeaderLine fmtLeftCov = new VCFFormatHeaderLine("LC",1,VCFHeaderLineType.Float,"Left normalized median coverage.");
+		final VCFFormatHeaderLine fmtMidCov = new VCFFormatHeaderLine("MC",1,VCFHeaderLineType.Float,"Middle normalized median coverage.");
+		final VCFFormatHeaderLine fmtRightCov = new VCFFormatHeaderLine("RC",1,VCFHeaderLineType.Float,"right normalized median coverage.");
+		
+		metaData.add(fmtLeftCov);
+		metaData.add(fmtMidCov);
+		metaData.add(fmtRightCov);
+		
+		
 		VCFHeader header = new VCFHeader(metaData,sampleNames);
 		header.setSequenceDictionary(dict);
 		JVarkitVersion.getInstance().addMetaData(this, header);
@@ -433,44 +474,51 @@ public int doWork(final List<String> args) {
 					
 					LOG.info(contig+" "+window_size+"+-"+extend+";"+window_shift+" "+sampleBam.name);
 
-					
-					final double bound_array[] = new double[extend+extend];
-					final double coverage[] = new double[window_size];
+					final Coverage leftcov = new Coverage(extend);
+					final Coverage rightcov = new Coverage(extend);
+					final Coverage leftrightcov = new Coverage(extend+extend);
+					final Coverage midcov = new Coverage(window_size);
 					
 					for(int pos1 = contig.getStart();
 							pos1 + window_size + extend + extend <  contig.getEnd();
 							pos1 += window_shift) {
 						
-						int n=0;
+						leftcov.reset();
+						rightcov.reset();
+						leftrightcov.reset();
+						midcov.reset();
+						
 						for(int x=0;x<extend;x++) {
 							final int idx = pos1 - contig.getStart() + x;
-							if(idx<0 || idx >= array.length) throw new IndexOutOfBoundsException(""+idx+" "+array.length+" "+contig.getLengthOnReference()+" "+x);
-							if(n<0 || n>=bound_array.length) throw new IndexOutOfBoundsException(""+n+" "+bound_array.length+" "+contig.getLengthOnReference()+" "+x);
-							bound_array[n++] = array[idx];
+							leftcov.add(array[idx]);
+							leftrightcov.add(array[idx]);
 						}
+						final double leftMedian = leftcov.median();
 						
+						if(leftMedian < this.min_depth) continue;
 						
 						for(int x=0;x<extend;x++) {
 							final int idx = pos1 -  contig.getStart() + extend + window_size + x;
-							bound_array[n++]= array[idx];
+							rightcov.add(array[idx]);
+							leftrightcov.add(array[idx]);
 						}
+						final double rightMedian = rightcov.median();
+						if(rightMedian < this.min_depth) continue;
 						
-						
-						int n2=0;
 						for(int x=0;x<window_size;x++) {
 							final int idx = pos1 -  contig.getStart() + extend + x;
-							coverage[n2]= array[idx];
-							n2++;
+							midcov.add( array[idx]);
 						}
 											
-						final double median = median(bound_array,n);
-						if(median>0) {
-							for(int x=0;x< n2;x++) {
-								coverage[x] = coverage[x]/median;
-							}
-						}
+						final double median = leftrightcov.median();
+						if(rightcov.median()< this.min_depth) continue;
 						
-						final double norm_depth =  median(coverage,n2);
+						for(int x=0;x< midcov.count;x++) {
+							midcov.array[x] /= median;
+							}
+						
+						
+						final double norm_depth =  midcov.median();
 						final int cnv = getCNVIndex(norm_depth);
 						if(cnv!=CNV_UNDEFINED ) {
 							final Gt gt = new Gt();
@@ -478,6 +526,9 @@ public int doWork(final List<String> args) {
 							gt.end = gt.start + window_size;
 							gt.sample_idx = bam_index;
 							gt.cnv = cnv;
+							gt.leftMedian= (float)leftMedian;
+							gt.midMedian= (float)median;
+							gt.rightMedian= (float)rightMedian;
 							sorter.add(gt);
 							}
 					}
@@ -505,6 +556,9 @@ public int doWork(final List<String> args) {
 					final List<Genotype> genotypes = new ArrayList<>(samples.size());
 					for(final Gt gt:row) {
 						final GenotypeBuilder gb=new GenotypeBuilder(samples.get(gt.sample_idx).name,cnv2allele.apply(gt.cnv));
+						gb.attribute(fmtLeftCov.getID(), (double)gt.leftMedian);
+						gb.attribute(fmtMidCov.getID(), (double)gt.midMedian);
+						gb.attribute(fmtRightCov.getID(), (double)gt.rightMedian);
 						genotypes.add(gb.make());
 					}
 					vcb.genotypes(genotypes);
