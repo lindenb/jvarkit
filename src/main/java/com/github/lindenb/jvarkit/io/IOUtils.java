@@ -863,6 +863,31 @@ public class IOUtils {
 			}
 		}
 	
+	 /** Returns the name of the file minus the common suffixes */
+    public static String getFilenameWithoutCommonSuffixes(final Path f) {
+        String s = f.getFileName().toString();
+        final String suffixes[]= {
+        		".bed",".txt",".zip",".bam",".cram",".sam",".vcf",".bcf",
+        		".xls",".tsv",".csv",".gff",".gtf",
+        		".fasta",".fa",
+        		".fastq",".fq",
+        		".tar",".gz",
+        		".pdf",".xml"
+        		};
+       boolean changed=true;
+       while(changed) {
+    	   changed = false;
+        	for(int i=0;i< suffixes.length;i++) {
+        		final String suff= suffixes[i];
+        		if(s.equals(suff)) continue;
+        		if(!s.endsWith(suff)) continue;
+        		s = s.substring(0,s.length()-suff.length());
+        		changed=true;
+        		}
+        	}
+		return s;
+    	}
+	
     /** Returns the name of the file minus the directory and the extension (i.e. text after the last "." in the filename). 
      * repeat the procedure until 'repeat'. repeat==-1 : forever. '.' at beggining of the line is always kept (hidden linux file ) */
     public static String getFilenameWithoutSuffix(final Path f,int repeat) {
