@@ -136,6 +136,10 @@ public class CnvSlidingWindow extends Launcher {
 		float leftMedian;
 		float midMedian;
 		float rightMedian;
+		float leftCov;
+		float midCov;
+		float rightCov;
+
 		
 		int compare0(final Gt o ) {
 			int i=Integer.compare(this.start, o.start);
@@ -188,6 +192,9 @@ public class CnvSlidingWindow extends Launcher {
 			gt.leftMedian = dis.readFloat();
 			gt.midMedian = dis.readFloat();
 			gt.rightMedian = dis.readFloat();
+			gt.leftCov = dis.readFloat();
+			gt.midCov = dis.readFloat();
+			gt.rightCov = dis.readFloat();
 			return gt;
 			}
 		
@@ -200,6 +207,9 @@ public class CnvSlidingWindow extends Launcher {
 			dos.writeFloat(o.leftMedian);
 			dos.writeFloat(o.midMedian);
 			dos.writeFloat(o.rightMedian);
+			dos.writeFloat(o.leftCov);
+			dos.writeFloat(o.midCov);
+			dos.writeFloat(o.rightCov);			
 			}
 		
 		@Override
@@ -277,7 +287,7 @@ private static List<Locatable> split(final Locatable contig,final Locatable gap)
 	return intervals1;
 	}
 
-private  boolean between(double v,double base) {
+private  boolean between(final double v,final double base) {
 	return v>=base-this.treshold && v<=base+this.treshold;
 }
 
@@ -287,7 +297,7 @@ private int getCNVIndex(double normalizedDepth) {
 	if(between(normalizedDepth,0)) return 0;
 	if(between(normalizedDepth,1.5)) return 1;
 	if(between(normalizedDepth,2.0)) return 2;
-	if(between(normalizedDepth,-1.5)) return -1;
+	if(between(normalizedDepth,0.5)) return -1;
 	if(between(normalizedDepth,0.0)) return -2;
 	return CNV_UNDEFINED;
 	}
@@ -394,16 +404,25 @@ public int doWork(final List<String> args) {
 		final Set<VCFHeaderLine> metaData = new HashSet<>();
 		VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
 		VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.END_KEY);
-		final VCFFormatHeaderLine fmtLeftCov = new VCFFormatHeaderLine("LC",1,VCFHeaderLineType.Float,"Left normalized median coverage.");
-		final VCFFormatHeaderLine fmtMidCov = new VCFFormatHeaderLine("MC",1,VCFHeaderLineType.Float,"Middle normalized median coverage.");
-		final VCFFormatHeaderLine fmtRightCov = new VCFFormatHeaderLine("RC",1,VCFHeaderLineType.Float,"right normalized median coverage.");
+		final VCFFormatHeaderLine fmtLeftCov = new VCFFormatHeaderLine("LC",1,VCFHeaderLineType.Float,"Left median coverage.");
+		final VCFFormatHeaderLine fmtMidCov = new VCFFormatHeaderLine("MC",1,VCFHeaderLineType.Float,"Middle median coverage.");
+		final VCFFormatHeaderLine fmtRightCov = new VCFFormatHeaderLine("RC",1,VCFHeaderLineType.Float,"right median coverage.");
+		
+		final VCFFormatHeaderLine fmtLeftMedian = new VCFFormatHeaderLine("LM",1,VCFHeaderLineType.Float,"Left normalized median coverage.");
+		final VCFFormatHeaderLine fmtMidMedian = new VCFFormatHeaderLine("MM",1,VCFHeaderLineType.Float,"Middle normalized median coverage.");
+		final VCFFormatHeaderLine fmtRightMedian = new VCFFormatHeaderLine("RM",1,VCFHeaderLineType.Float,"right normalized median coverage.");
+	
 		
 		metaData.add(fmtLeftCov);
 		metaData.add(fmtMidCov);
 		metaData.add(fmtRightCov);
+		metaData.add(fmtLeftMedian);
+		metaData.add(fmtMidMedian);
+		metaData.add(fmtRightMedian);
+
 		
 		
-		VCFHeader header = new VCFHeader(metaData,sampleNames);
+		final VCFHeader header = new VCFHeader(metaData,sampleNames);
 		header.setSequenceDictionary(dict);
 		JVarkitVersion.getInstance().addMetaData(this, header);
 		
@@ -415,12 +434,12 @@ public int doWork(final List<String> args) {
 			
 			System.gc();
 			final short array[] = new short[contig.getLengthOnReference()];
-			SortingCollection<Gt> sorter = SortingCollection.newInstance(
+			final SortingCollection<Gt> sorter = SortingCollection.newInstance(
 					Gt.class,
 					new GtCodec(),
 					(A,B)->A.compare1(B),
-					sorting.getMaxRecordsInRam(),
-					sorting.getTmpPaths()
+					this.sorting.getMaxRecordsInRam(),
+					this.sorting.getTmpPaths()
 					);
 			
 		
@@ -516,19 +535,34 @@ public int doWork(final List<String> args) {
 						for(int x=0;x< midcov.count;x++) {
 							midcov.array[x] /= median;
 							}
-						
+						for(int x=0;x< leftcov.count;x++) {
+							leftcov.array[x] /= median;
+							}
+						for(int x=0;x< rightcov.count;x++) {
+							rightcov.array[x] /= median;
+							}
 						
 						final double norm_depth =  midcov.median();
+						
 						final int cnv = getCNVIndex(norm_depth);
-						if(cnv!=CNV_UNDEFINED ) {
+						if(cnv!=CNV_UNDEFINED && cnv!=1 && 
+								getCNVIndex(leftcov.median())==1 && 
+								getCNVIndex(rightcov.median())==1) {
 							final Gt gt = new Gt();
 							gt.start = pos1+extend;
 							gt.end = gt.start + window_size;
 							gt.sample_idx = bam_index;
 							gt.cnv = cnv;
-							gt.leftMedian= (float)leftMedian;
-							gt.midMedian= (float)median;
-							gt.rightMedian= (float)rightMedian;
+							
+							gt.leftMedian = (float)leftMedian;
+							gt.midMedian = (float)median;
+							gt.rightMedian = (float)rightMedian;
+							
+							
+							
+							gt.leftCov= (float)leftcov.median();
+							gt.midCov= (float)norm_depth;
+							gt.rightCov= (float)rightcov.median();
 							sorter.add(gt);
 							}
 					}
@@ -556,9 +590,14 @@ public int doWork(final List<String> args) {
 					final List<Genotype> genotypes = new ArrayList<>(samples.size());
 					for(final Gt gt:row) {
 						final GenotypeBuilder gb=new GenotypeBuilder(samples.get(gt.sample_idx).name,cnv2allele.apply(gt.cnv));
-						gb.attribute(fmtLeftCov.getID(), (double)gt.leftMedian);
-						gb.attribute(fmtMidCov.getID(), (double)gt.midMedian);
-						gb.attribute(fmtRightCov.getID(), (double)gt.rightMedian);
+						gb.attribute(fmtLeftMedian.getID(), (double)gt.leftMedian);
+						gb.attribute(fmtMidMedian.getID(), (double)gt.midMedian);
+						gb.attribute(fmtRightMedian.getID(), (double)gt.rightMedian);
+						gb.attribute(fmtLeftCov.getID(), (double)gt.leftCov);
+						gb.attribute(fmtMidCov.getID(), (double)gt.midCov);
+						gb.attribute(fmtRightCov.getID(), (double)gt.rightCov);
+						
+						
 						genotypes.add(gb.make());
 					}
 					vcb.genotypes(genotypes);
