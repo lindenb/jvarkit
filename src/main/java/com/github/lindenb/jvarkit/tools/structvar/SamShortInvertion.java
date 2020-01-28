@@ -25,7 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.BufferedReader;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -36,16 +36,20 @@ import java.util.function.ToIntBiFunction;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMRecord;
@@ -102,21 +106,23 @@ public class SamShortInvertion extends Launcher
 	private static final byte SUPPORTING_RIGHT=(byte)2;
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-m","--maxsize"},description="max size of inversion")
+	private Path outputFile = null;
+	@Parameter(names={"-m","--maxsize"},description="max size of inversion.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_size_inversion = 10_000 ;
 	@Parameter(names={"-r","--rgn"},description="limit to that region CHROM:START-END")
 	private String intervalStr = null;
 	@Parameter(names={"-B","--bed"},description="limit to that bed file")
-	private File intervalBed = null;
+	private Path intervalBed = null;
 	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
-	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
+	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int extend=50;
 	@Parameter(names={"-s","-supporting"},description="Don't print the variant if INFO/DP <= 's'")
 	private int min_supporting_reads = 1;
 	@Parameter(names={"--debug"},description="Debug",hidden=true)
 	private boolean debug = false;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
 	private static class Arc
 		{
@@ -253,7 +259,7 @@ public class SamShortInvertion extends Launcher
 			if(this.intervalBed!=null)
 				{
 				final BedLineCodec codec = new BedLineCodec();
-				final BufferedReader br = IOUtils.openFileForBufferedReading(this.intervalBed);
+				final BufferedReader br = IOUtils.openPathForBufferedReading(this.intervalBed);
 				br.lines().
 					filter(L->!StringUtil.isBlank(L)).
 					map(L->codec.decode(L)).
@@ -309,7 +315,7 @@ public class SamShortInvertion extends Launcher
 			final VCFHeader header=new VCFHeader(meta,samples);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			header.setSequenceDictionary(dict);
-			vcw = super.openVariantContextWriter(outputFile);
+			vcw = this.writingVariants.open(this.outputFile);
 			vcw.writeHeader(header);
 			
 			
