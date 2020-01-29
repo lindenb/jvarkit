@@ -66,6 +66,12 @@ import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.AggregateFilter;
+import htsjdk.samtools.filter.DuplicateReadFilter;
+import htsjdk.samtools.filter.FailsVendorReadQualityFilter;
+import htsjdk.samtools.filter.FilteringSamIterator;
+import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.filter.SecondaryOrSupplementaryFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
@@ -263,12 +269,37 @@ public class SamShortInvertion extends Launcher
 		try {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceFaidx);
 			
+			final short SA_TAG = SAMTag.SA.getBinaryTag();
+
+			
 			final QueryInterval queryIntervals[] = this.intervallistProvider==null?
 				null:
 				this.intervallistProvider.
 					dictionary(dict).
 					optimizedQueryIntervals()
 					;
+			
+			final AggregateFilter theFilter = new AggregateFilter(
+					Arrays.asList(
+							new DuplicateReadFilter(),
+							new SecondaryOrSupplementaryFilter(),
+							new FailsVendorReadQualityFilter(),
+							new SamRecordFilter() {
+								@Override
+								public boolean filterOut(SAMRecord first, SAMRecord second) {
+									return filterOut(first) || filterOut(second);
+								}
+								@Override
+								public boolean filterOut(final SAMRecord rec) {
+									if(rec.getReadUnmappedFlag()) return true;
+									if(rec.getAttribute(SA_TAG) == null) return true;
+									final Cigar cigar = rec.getCigar();
+									if(cigar==null || cigar.isEmpty() || !cigar.isClipped()) return true;
+									return false;
+								}
+							}
+							)				
+					);
 			
 			for(final Path samPath:IOUtils.unrollPaths(args)) {
 				final SamReader srf = SamReaderFactory.
@@ -285,8 +316,8 @@ public class SamShortInvertion extends Launcher
 					{
 					iter = srf.iterator();
 					}
-				
-				samReaders.put(srf,iter);
+				final FilteringSamIterator sfi = new FilteringSamIterator(iter,theFilter);
+				samReaders.put(srf,sfi);
 				}
 			final SamFileHeaderMerger headerMerger  = new SamFileHeaderMerger(SAMFileHeader.SortOrder.coordinate,samReaders.keySet().stream().map(SR->SR.getFileHeader()).collect(Collectors.toList()),false);
 			final MergingSamRecordIterator iter = new MergingSamRecordIterator( headerMerger,samReaders, true);
@@ -349,21 +380,13 @@ public class SamShortInvertion extends Launcher
 					dictionary(dict).
 					logger(LOG).
 					build();
-			final short SA_TAG = SAMTag.SA.getBinaryTag();
 			
 			String prevContig=null;
 			while(iter.hasNext())
 				{
 				final SAMRecord rec = progress.apply(iter.next());
 				
-				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				if(rec.getDuplicateReadFlag()) continue;
-				if(rec.getAttribute(SA_TAG) == null) continue;
-				
-				final Cigar cigar = rec.getCigar();
-				if(cigar==null || cigar.isEmpty() || !cigar.isClipped()) continue;
+				if(theFilter.filterOut(rec)) continue;
 				
 				final String sample= this.partition.getPartion(rec, null);
 				if(StringUtil.isBlank(sample))continue;
@@ -399,7 +422,7 @@ public class SamShortInvertion extends Launcher
 						}
 					list.add(A);					
 					};
-				
+				final Cigar cigar = rec.getCigar();
 				if(cigar.isLeftClipped())
 					{
 					for(final SAMRecord rec2:others) {
