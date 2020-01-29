@@ -10,17 +10,29 @@ Scan short inversions in SAM
 ```
 Usage: samshortinvert [options] Files
   Options:
-    -B, --bed
-      limit to that bed file
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    -B, --bed, -r, --rgn
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
     -x, --extend
       extends interval by 'x' pb before merging.
       Default: 50
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -m, --maxsize
-      max size of inversion
+      max size of inversion.
       Default: 10000
     -o, --output
       Output file. Optional . Default: stdout
@@ -30,8 +42,9 @@ Usage: samshortinvert [options] Files
       be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
-    -r, --rgn
-      limit to that region CHROM:START-END
+  * -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --version
       print version and exit
     -s, -supporting

@@ -24,12 +24,13 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.ToIntBiFunction;
@@ -38,10 +39,10 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -52,10 +53,17 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.Cigar;
+import htsjdk.samtools.MergingSamRecordIterator;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.SamFileHeaderMerger;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
@@ -97,7 +105,8 @@ END_DOC
 
 @Program(name="samshortinvert",
 	description="Scan short inversions in SAM",
-	keywords={"sam","bam","sv","inversion"}
+	keywords={"sam","bam","sv","inversion"},
+	modificationDate="20200129"
 	)
 public class SamShortInvertion extends Launcher
 	{
@@ -107,12 +116,12 @@ public class SamShortInvertion extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path referenceFaidx = null;
 	@Parameter(names={"-m","--maxsize"},description="max size of inversion.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_size_inversion = 10_000 ;
-	@Parameter(names={"-r","--rgn"},description="limit to that region CHROM:START-END")
-	private String intervalStr = null;
-	@Parameter(names={"-B","--bed"},description="limit to that bed file")
-	private Path intervalBed = null;
+	@Parameter(names={"-B","--bed","-r","--rgn"},description=IntervalListProvider.OPT_DESC)
+	private IntervalListProvider intervallistProvider = null;
 	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
@@ -249,35 +258,47 @@ public class SamShortInvertion extends Launcher
 			LOG.error("max size insersion must be >=100");
 			return -1;
 		}
-	 	ConcatSam.ConcatSamIterator iter = null;
+	 	final Map<SamReader,CloseableIterator<SAMRecord>> samReaders = new HashMap<>();
 	 	VariantContextWriter vcw= null;
 	 	final  IntervalTreeMap<List<Arc>> database = new IntervalTreeMap<>(); 
 		try {
-			final ConcatSam.Factory concatFactory = new ConcatSam.Factory();
-			concatFactory.setEnableUnrollList(true);
-			concatFactory.addInterval(this.intervalStr);
-			if(this.intervalBed!=null)
-				{
-				final BedLineCodec codec = new BedLineCodec();
-				final BufferedReader br = IOUtils.openPathForBufferedReading(this.intervalBed);
-				br.lines().
-					filter(L->!StringUtil.isBlank(L)).
-					map(L->codec.decode(L)).
-					filter(L->L!=null).
-					forEach(B->concatFactory.addInterval(B.getContig()+":"+B.getStart()+"-"+B.getEnd()));
-				br.close();
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceFaidx);
+			
+			for(final Path samPath:IOUtils.unrollPaths(args)) {
+				final SamReader srf = SamReaderFactory.
+						makeDefault().
+						validationStringency(ValidationStringency.LENIENT).
+						referenceSequence(this.referenceFaidx).
+						open(samPath);
+				final CloseableIterator<SAMRecord> iter;
+				if(this.intervallistProvider!=null)
+					{
+					iter = srf.query(this.intervallistProvider.
+						dictionary(dict).
+						optimizedQueryIntervals(),false);
+					}
+				else
+					{
+					iter = srf.iterator();
+					}
+				
+				samReaders.put(srf,iter);
 				}
+			final SamFileHeaderMerger headerMerger  = new SamFileHeaderMerger(SAMFileHeader.SortOrder.coordinate,samReaders.keySet().stream().map(SR->SR.getFileHeader()).collect(Collectors.toList()),false);
+			final MergingSamRecordIterator iter = new MergingSamRecordIterator( headerMerger,samReaders, true);
 			
 			
-			iter = concatFactory.open(args);
 			
-			final SAMSequenceDictionary dict = iter.getFileHeader().getSequenceDictionary();
+			final Set<String> samples = headerMerger.getHeaders().stream().
+					flatMap(R->R.getReadGroups().stream()).
+					map(RG->this.partition.apply(RG, null)).
+					filter(S->!StringUtil.isBlank(S)).
+					collect(Collectors.toSet());
 			
-			final Set<String> samples = iter.getFileHeader().getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtil.isBlank(S)).collect(Collectors.toSet());
 			if(samples.isEmpty())
 				{
 				iter.close();
-				LOG.error("No samples defined");
+				LOG.error("No samples/bam defined");
 				return -1;
 				}
 			
@@ -321,7 +342,7 @@ public class SamShortInvertion extends Launcher
 			
 			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
 					newInstance().
-					dictionary(iter.getFileHeader().getSequenceDictionary()).
+					dictionary(dict).
 					logger(LOG).
 					build();
 			final short SA_TAG = SAMTag.SA.getBinaryTag();
@@ -409,9 +430,13 @@ public class SamShortInvertion extends Launcher
 					}				
 				}
 			dump(dict,database,vcw,samples,null);
-			iter.close();iter=null;
+			iter.close();
 			progress.close();
 			vcw.close();vcw=null;
+			for(final SamReader sr: samReaders.keySet()) {
+				samReaders.get(sr).close();
+				sr.close();
+			}
 			return 0;
 			} 
 		catch (final Exception e) {
@@ -420,7 +445,6 @@ public class SamShortInvertion extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(iter);	
 			CloserUtil.close(vcw);	
 			}
 		}
