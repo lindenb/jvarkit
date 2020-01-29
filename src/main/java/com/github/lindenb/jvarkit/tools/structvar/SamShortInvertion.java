@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.structvar;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,6 +41,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -54,6 +56,7 @@ import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsD
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.MergingSamRecordIterator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -120,7 +123,7 @@ public class SamShortInvertion extends Launcher
 	private Path referenceFaidx = null;
 	@Parameter(names={"-m","--maxsize"},description="max size of inversion.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_size_inversion = 10_000 ;
-	@Parameter(names={"-B","--bed","-r","--rgn"},description=IntervalListProvider.OPT_DESC)
+	@Parameter(names={"-B","--bed","-r","--rgn"},description=IntervalListProvider.OPT_DESC,splitter= NoSplitter.class,converter=IntervalListProvider.StringConverter.class)
 	private IntervalListProvider intervallistProvider = null;
 	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
@@ -164,24 +167,18 @@ public class SamShortInvertion extends Launcher
 		if(this.debug) LOG.debug("dump");
 		final Allele REF = Allele.create("N", true);
 		final Allele SPLIT = Allele.create("<INV>", false);
-		final ContigDictComparator ctgCmp  = new ContigDictComparator(dict);
-		final List<Interval> intervals  = database.keySet().stream().
-				map(R-> new Interval(
+		final Comparator<Locatable> cmp = new ContigDictComparator(dict).createLocatableComparator();
+		final List<SimpleInterval> intervals  = database.keySet().stream().
+				map(R-> new SimpleInterval(
 					R.getContig(),
 					Math.max(1,R.getStart() - this.extend),
 					R.getEnd() + this.extend
 					)).
 				filter(R->(before==null?true:R.getEnd() < before.intValue())).
-				sorted((A,B)->{
-					int i = ctgCmp.compare(A.getContig(), B.getContig());
-					if(i!=0) return i;
-					i = A.getStart() - B.getStart();
-					if(i!=0) return i;
-					return A.getEnd() - B.getEnd();
-					}).
+				sorted(cmp).
 				collect(Collectors.toList());
 		
-		for(final Interval interval0:intervals) {
+		for(final SimpleInterval interval0:intervals) {
 			
 			final List<Arc> arcs = database.getOverlapping(interval0).
 					stream().
@@ -209,13 +206,15 @@ public class SamShortInvertion extends Launcher
 			vcb.stop(chromEnd);
 			
 			vcb.attribute(VCFConstants.END_KEY, chromEnd);
-			vcb.attribute("SVLEN", 1+chromEnd-chromStart);
+			vcb.attribute("SVLEN", CoordMath.getLength(chromStart,chromEnd));
 			
 			int depth = 0;
 			int nsamples = 0;
 			for(final String sample : samples) {
 			
-				final List<Arc> sampleArcs = arcs.stream().filter(A->A.sample.equals(sample)).collect(Collectors.toList());
+				final List<Arc> sampleArcs = arcs.stream().
+						filter(A->A.sample.equals(sample)).
+						collect(Collectors.toList());
 				if(sampleArcs.isEmpty())
 					{
 					genotypes.add(GenotypeBuilder.createMissing(sample, 2));
@@ -264,6 +263,13 @@ public class SamShortInvertion extends Launcher
 		try {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceFaidx);
 			
+			final QueryInterval queryIntervals[] = this.intervallistProvider==null?
+				null:
+				this.intervallistProvider.
+					dictionary(dict).
+					optimizedQueryIntervals()
+					;
+			
 			for(final Path samPath:IOUtils.unrollPaths(args)) {
 				final SamReader srf = SamReaderFactory.
 						makeDefault().
@@ -271,11 +277,9 @@ public class SamShortInvertion extends Launcher
 						referenceSequence(this.referenceFaidx).
 						open(samPath);
 				final CloseableIterator<SAMRecord> iter;
-				if(this.intervallistProvider!=null)
+				if(queryIntervals!=null)
 					{
-					iter = srf.query(this.intervallistProvider.
-						dictionary(dict).
-						optimizedQueryIntervals(),false);
+					iter = srf.query(queryIntervals,false);
 					}
 				else
 					{
