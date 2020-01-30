@@ -43,6 +43,10 @@ Usage: vcffilterjdk [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --pedigree
+      Optional pedigree file. A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -rc, --recalc
       [20180716] recalc attributes like INFO/AF, INFO/AC, INFO/AN... if the 
       number of genotypes has been altered. Recal is not applied if there is 
@@ -172,6 +176,9 @@ public static class AbstractFilter
 	public Object apply(final VariantContext variant) {
 		throw new IllegalStateException("apply(variant) for AbstractFilter is not implemented");
 		}
+	// if option --pedigree is defined. Returns an instance of com.github.lindenb.jvarkit.pedigree.Pedigree
+	public Pedigree getPedigree();
+    public boolean hasPedigree();
 	}
 ```
 

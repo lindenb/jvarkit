@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.ToIntBiFunction;
 import java.util.stream.Collectors;
@@ -106,7 +107,21 @@ output is a VCF file
 ## Example:
 
 ```
+$ find DIR -type f -name "*.bam" > bams.list
+$ java -jar ${JVARKIT_DIST}/samshortinvert.jar -R ref.fasta bams.list |\
+ 	bcftools view -i 'INFO/DPMAX>10' > out.vcf
 ```
+
+## Screenshot
+
+* https://twitter.com/yokofakun/status/1222848286048112641
+![https://twitter.com/yokofakun/status/1222848286048112641](https://pbs.twimg.com/media/EPhuCJnX4AA3Brc?format=png&name=medium)
+
+* https://twitter.com/yokofakun/status/1222832425518141442
+![https://twitter.com/yokofakun/status/1222832425518141442](https://pbs.twimg.com/media/EPhfm8EW4AAiaBq?format=png&name=medium)
+
+* https://twitter.com/yokofakun/status/1222853635656364032
+![https://twitter.com/yokofakun/status/1222853635656364032](https://pbs.twimg.com/media/EPhy5fAUYAAMunf?format=png&name=medium)
 
 END_DOC
 
@@ -115,7 +130,8 @@ END_DOC
 @Program(name="samshortinvert",
 	description="Scan short inversions in SAM",
 	keywords={"sam","bam","sv","inversion"},
-	modificationDate="20200129"
+	modificationDate="20200129",
+	creationDate="20140228"
 	)
 public class SamShortInvertion extends Launcher
 	{
@@ -262,7 +278,7 @@ public class SamShortInvertion extends Launcher
 		if(this.max_size_inversion<100) {
 			LOG.error("max size insersion must be >=100");
 			return -1;
-		}
+			}
 	 	final Map<SamReader,CloseableIterator<SAMRecord>> samReaders = new HashMap<>();
 	 	VariantContextWriter vcw= null;
 	 	final  IntervalTreeMap<List<Arc>> database = new IntervalTreeMap<>(); 
@@ -307,6 +323,7 @@ public class SamShortInvertion extends Launcher
 						validationStringency(ValidationStringency.LENIENT).
 						referenceSequence(this.referenceFaidx).
 						open(samPath);
+				
 				final CloseableIterator<SAMRecord> iter;
 				if(queryIntervals!=null)
 					{
@@ -328,7 +345,7 @@ public class SamShortInvertion extends Launcher
 					flatMap(R->R.getReadGroups().stream()).
 					map(RG->this.partition.apply(RG, null)).
 					filter(S->!StringUtil.isBlank(S)).
-					collect(Collectors.toSet());
+					collect(Collectors.toCollection(TreeSet::new));
 			
 			if(samples.isEmpty())
 				{
@@ -466,7 +483,7 @@ public class SamShortInvertion extends Launcher
 			}
 			return 0;
 			} 
-		catch (final Exception e) {
+		catch (final Throwable e) {
 			LOG.error(e);
 			return -1;
 			}

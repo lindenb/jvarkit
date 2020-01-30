@@ -45,6 +45,8 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -102,6 +104,9 @@ public static class AbstractFilter
 	public Object apply(final VariantContext variant) {
 		throw new IllegalStateException("apply(variant) for AbstractFilter is not implemented");
 		}
+	// if option --pedigree is defined. Returns an instance of com.github.lindenb.jvarkit.pedigree.Pedigree
+	public Pedigree getPedigree();
+    public boolean hasPedigree();
 	}
 ```
 
@@ -420,7 +425,7 @@ END_DOC
 				},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 		creationDate="20170705",
-		modificationDate="20191115"
+		modificationDate="20200130"
 		)
 public class VcfFilterJdk
 	extends Launcher
@@ -459,6 +464,10 @@ public class VcfFilterJdk
 	@Parameter(names={"-xf","--extra-filters"},description="[20180716] extra FILTERs names that will be added in the VCF header and that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- . Multiple separated by space/comma")
 	private String extraFilters = "";
 
+	@Parameter(names={"-p","--pedigree"},description="Optional pedigree file. " + PedigreeParser.OPT_DESC)
+	private Path pedigreePath = null;
+
+	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 			
@@ -471,7 +480,8 @@ public class VcfFilterJdk
 		{
 		protected final Map<String,Object> userData = new HashMap<>();
 		protected final VCFHeader header;
-		
+    	protected Pedigree pedigree = null;
+
 		/** Utility: Predicate for filtering the genotypes having at least one ALT allele */
 		public final Predicate<Genotype> genotypeHasAltAllele = G->{
 			if(G==null) return false;
@@ -494,6 +504,10 @@ public class VcfFilterJdk
 		public Object apply(final VariantContext variant) {
 			throw new IllegalStateException("apply(variant) for AbstractFilter is not implemented");
 			}
+		
+    	public Pedigree getPedigree() { return this.pedigree;}
+    	public boolean hasPedigree() { return this.pedigree!=null;}
+
 		}
 	
 	
@@ -664,6 +678,11 @@ public class VcfFilterJdk
 			
 			JVarkitVersion.getInstance().addMetaData(this, h2);
 			out.writeHeader(h2);
+			
+			
+			if(this.pedigreePath!=null) {
+				filter_instance.pedigree = new PedigreeParser().parse(this.pedigreePath);
+				}
 			
 			filter_instance.userData.put("first.variant", Boolean.TRUE);
 			filter_instance.userData.put("last.variant", Boolean.FALSE);

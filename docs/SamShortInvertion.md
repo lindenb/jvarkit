@@ -79,6 +79,11 @@ $ ./gradlew samshortinvert
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20140228
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SamShortInvertion.java)
@@ -116,5 +121,19 @@ output is a VCF file
 ## Example:
 
 ```
+$ find DIR -type f -name "*.bam" > bams.list
+$ java -jar ${JVARKIT_DIST}/samshortinvert.jar -R ref.fasta bams.list |\
+ 	bcftools view -i 'INFO/DPMAX>10' > out.vcf
 ```
+
+## Screenshot
+
+* https://twitter.com/yokofakun/status/1222848286048112641
+![https://twitter.com/yokofakun/status/1222848286048112641](https://pbs.twimg.com/media/EPhuCJnX4AA3Brc?format=png&name=medium)
+
+* https://twitter.com/yokofakun/status/1222832425518141442
+![https://twitter.com/yokofakun/status/1222832425518141442](https://pbs.twimg.com/media/EPhfm8EW4AAiaBq?format=png&name=medium)
+
+* https://twitter.com/yokofakun/status/1222853635656364032
+![https://twitter.com/yokofakun/status/1222853635656364032](https://pbs.twimg.com/media/EPhy5fAUYAAMunf?format=png&name=medium)
 
