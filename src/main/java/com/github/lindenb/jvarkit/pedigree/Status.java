@@ -32,4 +32,7 @@ public enum Status {
 	Status(int v) { this.v = v;}
 	
 	public int intValue() { return this.v;}
+	public boolean isMissing() {
+		return this.equals(Status.missing);
+	}
 }

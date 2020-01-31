@@ -34,6 +34,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
@@ -51,10 +52,10 @@ import org.eclipse.jetty.server.handler.HandlerList;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
-import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -128,8 +129,8 @@ private static final String HIDE_HOMREF_PARAM="hr";
 private static final String HIDE_GENOTYPES_PARAM="gt";
 private static final String TEXT_FORMAT_PARAM="txt";
 
-@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION)
-private File pedigreeFile=null;
+@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+PedigreeParser.OPT_DESC)
+private Path pedigreeFile=null;
 @Parameter(names={"-P","--port","-port"},description="Server listening port")
 private int port=8080;	
 @Parameter(names={"-timeout","--timeout"},description="query timeout in seconds")

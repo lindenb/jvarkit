@@ -66,11 +66,10 @@ Usage: vcf2table [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -p, --ped, --pedigree
-      Optional Pedigree file:A pedigree is a text file delimited with tabs. No 
-      header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' 
-      (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 
-      0 unaffected, 1 affected,-9 unknown  If undefined, this tool will try to 
-      get the pedigree from the header.
+      Optional Pedigree file:A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
+      If undefined, this tool will try to get the pedigree from the header.
     --url
       A custom URL for a web browser. The following words will be replaced by 
       their values: ${CHROM}, ${START}, ${END}. For example for IGV that would 

@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,7 +55,9 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -727,8 +730,8 @@ public class VcfToTable extends Launcher {
 		private boolean hideNoCallGenotypes=false;
 		@Parameter(names={"-hr","--hideHomRefs"},description="Hide HOM_REF genotypes")
 		private boolean hideHomRefGenotypes=false;
-		@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+Pedigree.OPT_DESCRIPTION+" If undefined, this tool will try to get the pedigree from the header.")
-		private File pedigreeFile=null;
+		@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+PedigreeParser.OPT_DESC+" If undefined, this tool will try to get the pedigree from the header.")
+		private Path pedigreeFile=null;
 		@Parameter(names={"-L","-limit","--limit"},description="Limit the number of output variant. '-1' == ALL/No limit.")
 		private int limitVariants=-1;
 		@Parameter(names={"--color","--colors"},description="[20170808] Print Terminal ANSI colors.")
@@ -781,6 +784,15 @@ public class VcfToTable extends Launcher {
 			abstract void endVariant(final VariantContext ctx);
 			
 			
+			protected String getSampleStatusSymbol(final Sample s) {
+				if(s==null) return null;
+				switch(s.getStatus()) {
+				case affected: return "X";
+				case unaffected: return ".";
+				default: return null;
+				}
+			}
+			
 			@Override
 			public void writeHeader(final VCFHeader header)
 				{
@@ -791,16 +803,17 @@ public class VcfToTable extends Launcher {
 				
 				if(getOwner().pedigreeFile!=null) {
 					try {
-						this.pedigree = Pedigree.newParser().parse(getOwner().pedigreeFile);
-					} catch (final IOException e) {
-						throw new RuntimeIOException(e);
+						this.pedigree = new PedigreeParser().parse(getOwner().pedigreeFile);
 						}
+					catch(final IOException err2) {
+						throw new RuntimeIOException(err2);
+					}
 				} else
 					{
-					this.pedigree = Pedigree.newParser().parse(header);
+					this.pedigree = null;
 					}
 				
-				if(this.pedigree.isEmpty())
+				if(this.pedigree!=null && this.pedigree.isEmpty())
 					{
 					this.pedigree = null;
 					}
@@ -891,16 +904,17 @@ public class VcfToTable extends Launcher {
 						}
 					if(this.pedigree!=null)
 						{
-						final Table t=new Table("Family","Sample","Father","Mother","Sex","Status").setCaption("Samples");
+						final Table t=new Table("Family","Sample","P","Father","Mother","Sex","Status").setCaption("Samples");
 						for(final String sample: this.header.getSampleNamesInOrder())
 							{
 							final List<Object> r = new ArrayList<>();
-							final Pedigree.Person person = this.pedigree.getPersonById(sample);
+							final Sample person = this.pedigree.getSampleById(sample);
 							
 							r.add(person==null?null:person.getFamily().getId());
 							r.add(sample);
-							r.add(person==null?null:person.getFatherId());
-							r.add(person==null?null:person.getMotherId());
+							r.add(getSampleStatusSymbol(person));
+							r.add(person==null || !person.hasFather()?null:person.getFather().getId());
+							r.add(person==null || !person.hasMother()?null:person.getMother().getId());
 							r.add(person==null?null:person.getSex());
 							r.add(person==null?null:person.getStatus());
 							t.addList(r);
@@ -970,7 +984,7 @@ public class VcfToTable extends Launcher {
 					AN = (int)vc.getGenotypes().stream().flatMap(G->G.getAlleles().stream()).filter(A->A.isCalled()).count();
 					
 					if(this.pedigree!=null &&
-						this.pedigree.getPersons().stream().filter(P->P.getStatus()!=Pedigree.Status.missing).findAny().isPresent()
+						this.pedigree.getSamples().stream().anyMatch(P->!P.getStatus().isMissing())
 						) {
 						has_affected_cols=true;
 						h.add("AC_affected");
@@ -1022,13 +1036,13 @@ public class VcfToTable extends Launcher {
 						if(has_affected_cols)
 							{
 							int AC_aff=  (int)vc.getGenotypes().stream().filter(G->{
-										final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+										final Sample p=this.pedigree.getSampleById(G.getSampleName());
 										if(p==null || !p.isAffected()) return false;
 										return true;
 										}).
 									flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
 							int AC_unaff=  (int)vc.getGenotypes().stream().filter(G->{
-								final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+								final Sample p=this.pedigree.getSampleById(G.getSampleName());
 								if(p==null || !p.isUnaffected()) return false;
 								return true;
 								}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
@@ -1037,12 +1051,12 @@ public class VcfToTable extends Launcher {
 							}
 						if(this.pedigree!=null ) {
 							int AC_male=  (int)vc.getGenotypes().stream().filter(G->{
-								final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+								final Sample p=this.pedigree.getSampleById(G.getSampleName());
 								if(p==null || !p.isMale()) return false;
 								return true;
 								}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
 							int AC_female=  (int)vc.getGenotypes().stream().filter(G->{
-								final Pedigree.Person p=this.pedigree.getPersonById(G.getSampleName());
+								final Sample p=this.pedigree.getSampleById(G.getSampleName());
 								if(p==null || !p.isFemale()) return false;
 								return true;
 								}).flatMap(G->G.getAlleles().stream()).filter(A->A.equals(a, false)).count();
@@ -1308,6 +1322,9 @@ public class VcfToTable extends Launcher {
 					
 					hds.add("Sample");
 					hds.add("Type");
+					if(this.pedigree!=null) {
+						hds.add("P");
+					}
 					
 					final int prefix_header_size = hds.size();
 					
@@ -1351,6 +1368,10 @@ public class VcfToTable extends Launcher {
 							{
 							r.add(new ColoredDecorator(g.getType().name(),AnsiColor.MAGENTA));
 							}
+						
+						if(this.pedigree!=null) {
+							r.add(getSampleStatusSymbol(this.pedigree.getSampleById(g.getSampleName())));
+						}
 						
 						for(int j=prefix_header_size;j< hds.size();++j)
 							{
@@ -1433,15 +1454,15 @@ public class VcfToTable extends Launcher {
 								).setCaption("TRIOS");
 						for(final String childId:this.header.getSampleNamesInOrder())
 							{
-							final Pedigree.Person child = this.pedigree.getPersonById(childId);
+							final Sample child = this.pedigree.getSampleById(childId);
 							if(child==null) continue;
 							final Genotype gc = vc.getGenotype(childId);
 							if(gc==null) continue;
 							
-							final  Pedigree.Person father= child.getFather();
+							final  Sample father= child.getFather();
 							final Genotype gf =  (father==null?null:vc.getGenotype(father.getId()));
 							
-							final  Pedigree.Person mother= child.getMother();
+							final  Sample mother= child.getMother();
 							final Genotype gm =  (mother==null?null:vc.getGenotype(mother.getId()));
 							
 							if(gf==null && gm==null) continue;
@@ -1961,7 +1982,7 @@ public class VcfToTable extends Launcher {
 			this.printHeader = printHeader;
 		}
 		
-		public void setPedigreeFile(File pedigreeFile) {
+		public void setPedigreeFile(final Path pedigreeFile) {
 			this.pedigreeFile = pedigreeFile;
 			}
 		
