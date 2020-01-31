@@ -817,6 +817,12 @@ all2.add( task("allelefreqcalc", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
+
+all2.add( task("bedcluster", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedCluster"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 all2.add( task("almostsortedvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sortvcfonref.AlmostSortedVcf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

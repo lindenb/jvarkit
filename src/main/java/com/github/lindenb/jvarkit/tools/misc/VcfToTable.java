@@ -264,7 +264,8 @@ END_DOC
 		keywords={"vcf","table","visualization"},
 		references="Vcf2table : a VCF prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853801](https://doi.org/10.6084/m9.figshare.5853801)",
 		biostars=293855,
-		modificationDate="20190416"
+		creationDate="20170511",
+		modificationDate="20200131"
 		)
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
