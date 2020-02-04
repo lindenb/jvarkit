@@ -26,10 +26,9 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -95,7 +94,8 @@ END_DOC
 @Program(name="pubmeddump",keywords={"ncbi","pubmed","xml"}, 
 	description="Dump XML results from pubmed/Eutils",
 	biostars= {270498,365479},
-	modificationDate="20190222"
+	creationDate="20140805",
+	modificationDate="20200204"
 	)
 public class PubmedDump
 	extends Launcher
@@ -105,9 +105,12 @@ public class PubmedDump
 	@Parameter(names={"-e","--email"},description="optional user email")
 	private String email = null;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-skip","--skip"},description="[20180302]  Optional set of elements names to be ignored in the output. Spaces or comma separated. .eg: 'AuthorList PubmedData '")
 	private String skipTagsStr = "";
+	@Parameter(names={"-r","--retmax"},description="value for 'retmax' parameter for Eutils.")
+	private int retmax_param =10_000;
+
 	@ParametersDelegate
 	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
 
@@ -132,6 +135,11 @@ public class PubmedDump
 	@Override
 	public int doWork(final List<String> args) {
 		PrintWriter pw=null;
+		
+		if(this.retmax_param<=0) {
+			LOG.error("bad retmax value");
+			return -1;
+		}
 		
 		if(args.isEmpty())
 			{
@@ -162,14 +170,14 @@ public class PubmedDump
 		
 		try
 			{
-			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
+			final XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
 			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
 			xmlInputFactory.setXMLResolver(new XMLResolver() {
 				@Override
-				public Object resolveEntity(String publicID, String systemID, String baseURI, String namespace)
+				public Object resolveEntity(final String publicID,final String systemID,final String baseURI, String namespace)
 						throws XMLStreamException {
 					LOG.info("ignoring DTD : "+publicID+" "+baseURI);
 					return new ByteArrayInputStream(new byte[0]);
@@ -181,11 +189,12 @@ public class PubmedDump
 					StringUtils.escapeHttp(query.toString())+
 					ncbiApiKey.getAmpParamValue()+
 					"&retstart=0&retmax=0&usehistory=y&retmode=xml"+
-					(email==null?"":"&email="+StringUtils.escapeHttp(email))+
-					(tool==null?"":"&tool="+StringUtils.escapeHttp(tool))
+					(StringUtils.isBlank(this.email)?"":"&email="+StringUtils.escapeHttp(email))+
+					(StringUtils.isBlank(this.tool)?"":"&tool="+StringUtils.escapeHttp(tool))
 					;
 			LOG.info(url);
 			long expected_total_count=-1;
+			long total_found_so_far = 0;
 			String WebEnv=null;
 			String QueryKey=null;
 			XMLEventReader r=xmlInputFactory.createXMLEventReader(new StreamSource(url));
@@ -217,15 +226,21 @@ public class PubmedDump
 				LOG.error("Bad esearch result");
 				return -1;
 				}
-			pw=super.openFileOrStdoutAsPrintWriter(outputFile);
+			pw=super.openPathOrStdoutAsPrintWriter(outputFile);
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			final XMLEventWriter w=xof.createXMLEventWriter(pw);
-			long total_found_so_far  = 0L;
-			boolean end_document_printed=false;
+			final String xmlRootName = "PubmedArticleSet";
+			
+			final XMLEventFactory xmlEventFactory = XMLEventFactory.newFactory();
+			w.add(xmlEventFactory.createStartDocument());
+			w.add(xmlEventFactory.createDTD(NcbiConstants.PUBMED_DTD));
+			w.add(xmlEventFactory.createStartElement(new QName(xmlRootName),null,null));
+			
+			
 			
 			while(total_found_so_far< expected_total_count)
 				{
-				final int ret_max=90000;
+				final int ret_max= Math.max(1,Math.min(this.retmax_param,90_000));
 				LOG.info("nFound:"+total_found_so_far+"/"+expected_total_count);
 				url= NcbiConstants.efetch()+"?"+
 						"db=pubmed&WebEnv="+
@@ -233,112 +248,88 @@ public class PubmedDump
 						ncbiApiKey.getAmpParamValue()+
 						"&query_key="+StringUtils.escapeHttp(QueryKey)+
 						"&retmode=xml&retmax="+ret_max+"&retstart="+total_found_so_far+
-						(email==null?"":"&email="+StringUtils.escapeHttp(email))+
-						(tool==null?"":"&tool="+StringUtils.escapeHttp(tool))
+						(StringUtils.isBlank(this.email)?"":"&email="+StringUtils.escapeHttp(email))+
+						(StringUtils.isBlank(this.tool)?"":"&tool="+StringUtils.escapeHttp(tool))
 						;
 				LOG.info(url);
 				int curr_count=0;
 				r = xmlInputFactory.createXMLEventReader(new StreamSource(url));
-				int current_dom_depth =0;
+				
+				
 				
 				while(r.hasNext())
 					{
-					final XMLEvent evt=r.nextEvent();
+					final XMLEvent evt;
+					
+					try {
+						evt = r.nextEvent();
+						}
+					catch(final XMLStreamException err) {
+						//2020 4 Feb. PLein d'erreur SSL a ce niveau au bout d'un moment.
+						LOG.error("skip loop",err);
+						break;
+						}
 					
 					switch(evt.getEventType())
 						{
 						case XMLEvent.ATTRIBUTE:
 							{
-							if(current_dom_depth>0) w.add(evt);
+							w.add(evt);
 							break;
 							}
 						case XMLEvent.START_DOCUMENT:
 							{
-							if(total_found_so_far==0)
-								{
-								w.add(evt);
-								}
 							break;
 							}
 						case XMLEvent.END_DOCUMENT:
 							{
-							if(total_found_so_far>= expected_total_count)
-								{
-								end_document_printed = true;
-								w.add(evt);
-								}
 							break;
 							}
 						case XMLEvent.START_ELEMENT:
 							{
 							final  String localName= evt.asStartElement().getName().getLocalPart();
 
-							if(current_dom_depth==0)
-								{
-								if(!localName.equals("PubmedArticleSet")) {
-									throw new XMLStreamException("Expected <PubmedArticleSet> but got <"+localName+">",evt.getLocation());
-									}
-								if( total_found_so_far == 0)
-									{
-									w.add(evt);
-									}
-								current_dom_depth++;
+							if(localName.equals(xmlRootName)) {
+								break;
 								}
-							else if(current_dom_depth==1)
+							
+							if(localName.equals("PubmedArticle") || localName.equals("PubmedBookArticle"))
 								{
-								if(!(localName.equals("PubmedArticle") || localName.equals("PubmedBookArticle")))
-									{
-									throw new IllegalStateException("Not PubmedArticle: "+evt);
-									}
 								++curr_count;
 								++total_found_so_far;
-								++current_dom_depth;
-								w.add(evt);
 								}
-							else if(current_dom_depth>1)
+						
+							if(skipTags.contains(localName))
 								{
-								if(skipTags.contains(localName))
-									{
-									skip(r);
-									}
-								else
-									{
-									w.add(evt);
-									current_dom_depth++;
-									}
+								skip(r);
 								}
 							else
 								{
-								LOG.warn("unmatched case <"+localName+"> depth:"+current_dom_depth);
+								w.add(evt);
 								}
 							break;
 							}
 						case XMLEvent.END_ELEMENT:
 							{
-							current_dom_depth--;
-							if(current_dom_depth>0)
-								{
-								w.add(evt);
-								}
-							else if(total_found_so_far>=expected_total_count)//depth ==0
-								{
-								end_document_printed = true;
-								w.add(evt);
+							final  String localName= evt.asEndElement().getName().getLocalPart();
+							
+							if(localName.equals(xmlRootName)) {
+								break;
 								}
 							
+							w.add(evt);
 							break; 
 							}
 						case XMLEvent.COMMENT:break;
 						case XMLEvent.PROCESSING_INSTRUCTION:break;
 						case XMLEvent.DTD:
 							{
-							if(total_found_so_far==0) w.add(evt);
 							break;	
 							}
 						case XMLEvent.SPACE:break;
 						case XMLEvent.CHARACTERS:
 							{
-							if(current_dom_depth>1) w.add(evt);
+							w.add(evt);
 							break;
 							}
 						default:
@@ -352,11 +343,6 @@ public class PubmedDump
 				if(curr_count==0)
 					{
 					LOG.info("Nothing found . Exiting.");
-					if(!end_document_printed) {
-						final XMLEventFactory xef = XMLEventFactory.newFactory();
-						w.add(xef.createEndElement(new QName("PubmedArticleSet"),Collections.emptyIterator()));
-						w.add(xef.createEndDocument());
-						}
 					break;
 					}
 				else
@@ -364,6 +350,10 @@ public class PubmedDump
 					LOG.info("found "+curr_count+" total "+total_found_so_far+" expect "+expected_total_count);
 					}
 				}
+			
+			w.add(xmlEventFactory.createEndElement(new QName(xmlRootName),null));
+			w.add(xmlEventFactory.createEndDocument());
+			
 			w.flush();
 			w.close();
 			pw.flush();
@@ -371,7 +361,7 @@ public class PubmedDump
 			LOG.info("Done. found "+total_found_so_far+" / expected:" +expected_total_count+" articles.");
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -382,7 +372,7 @@ public class PubmedDump
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new PubmedDump().instanceMainWithExit(args);
 	}
 }

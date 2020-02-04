@@ -259,8 +259,10 @@ public class IOUtils {
 		}
 	}
 	
-	public static boolean isRemoteURI(String uri)
+	public static boolean isRemoteURI(final String uri)
 		{	
+		if(uri==null) return false;
+		if(!IOUtil.isUrl(uri)) return false;
 	    return  uri.startsWith("http://") ||
 				uri.startsWith("https://") ||
 				uri.startsWith("ftp://")

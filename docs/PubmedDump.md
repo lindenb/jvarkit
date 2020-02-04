@@ -23,6 +23,9 @@ Usage: pubmeddump [options] Files
       java property file ${HOME}/.ncbi.properties and key api_key
     -o, --output
       Output file. Optional . Default: stdout
+    -r, --retmax
+      value for 'retmax' parameter for Eutils.
+      Default: 10000
     -skip, --skip
       [20180302]  Optional set of elements names to be ignored in the output. 
       Spaces or comma separated. .eg: 'AuthorList PubmedData '
@@ -63,6 +66,11 @@ $ ./gradlew pubmeddump
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20140805
 
 ## Source code 
 

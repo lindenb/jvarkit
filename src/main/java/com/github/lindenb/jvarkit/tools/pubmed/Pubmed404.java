@@ -26,10 +26,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.pubmed;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -62,6 +62,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
 /**
+BEGIN_DOC
 
 ## Example
 
@@ -100,16 +101,18 @@ $ java -jar dist/pubmeddump.jar 'bioinformatics 2001' 2> /dev/null |\
 17221864	HbVar database of human hemoglobin variants and thalassemia mutations: 2007 update.	2007	http://www.goldenhelix.org/xprbase	403
 (...)
 ```
-
+END_DOC
 */
 @Program(name="pubmed404",
 description="Test if URL in the pubmed abstracts are reacheable.",
-keywords={"pubmed","url"}
+keywords={"pubmed","url"},
+creationDate="20181210",
+modificationDate="20200204"
 )
 public class Pubmed404  extends Launcher{
 	private static final Logger LOG = Logger.build(Pubmed404.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outFile=null;
+	private Path outFile=null;
 	@Parameter(names={"-t","--timeout"},description="timeout in seconds")
 	private int timeoutSeconds = 5;
 	@Parameter(names={"-c","--collapse"},description="Only one URL per article. Print the '200/OK' first.")
@@ -223,7 +226,7 @@ public class Pubmed404  extends Launcher{
 				token=token.substring(0,token.length()-1);
 			}
 			if(token.isEmpty()) continue;
-			if(!IOUtil.isUrl(token)) {
+			if(!IOUtils.isRemoteURI(token)) {
 				if(token.startsWith("http")) LOG.debug("strange url: "+token);
 				continue;
 			}
@@ -273,8 +276,6 @@ public class Pubmed404  extends Launcher{
 		InputStream in=null;
 		try {
 			/** create http client */
-			
-			
 			this.httpClient = HttpClients.createSystem();//createDefault();
 		
 			
@@ -290,7 +291,7 @@ public class Pubmed404  extends Launcher{
 			in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
 			r = xmlInputFactory.createXMLEventReader(in);
 			
-			out = super.openFileOrStdoutAsPrintWriter(this.outFile);
+			out = super.openPathOrStdoutAsPrintWriter(this.outFile);
 			out.println("#PMID\tTITLE\tYEAR\tURL\thttp.code\thttp.reason");
 			
 			while(r.hasNext()) {
@@ -320,8 +321,7 @@ public class Pubmed404  extends Launcher{
 
 		}
 	
-public static void main(final String[] args)
-	{
+public static void main(final String[] args) {
 	new Pubmed404().instanceMainWithExit(args);
 	}
 }
