@@ -24,7 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,12 +32,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -81,12 +83,13 @@ END_DOC
 public class VcfRemoveUnusedAlt extends Launcher {
 	private static final Logger LOG=Logger.build(VcfRemoveUnusedAlt.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT,required=false)
-	private File output=null;
+	private Path output=null;
 	@Parameter(names={"-onespan","--onespan"},description="Don't print the variant if the only remaining allele is  '"+Allele.SPAN_DEL_STRING+"'")
 	private boolean no_span_allele =false;
 	@Parameter(names={"-neverspan","--neverspan"},description="Remove ALL spanning deletions '"+Allele.SPAN_DEL_STRING+"'. VCF must have no genotype.")
 	private boolean never_span_allele =false;
-
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate =new WritingVariantsDelegate();
 
 	public VcfRemoveUnusedAlt()
 		{
@@ -252,7 +255,7 @@ public class VcfRemoveUnusedAlt extends Launcher {
 			LOG.info("number of changes "+ nChanges);
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -261,7 +264,7 @@ public class VcfRemoveUnusedAlt extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		return doVcfToVcf(args,this.output);
+		return doVcfToVcfPath(args,this.writingVariantsDelegate,this.output);
 		}
 
 	public static void main(final String[] args)

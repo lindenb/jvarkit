@@ -14,7 +14,7 @@ Usage: vcf2bam [options] Files
       Compression Level.
       Default: 5
     --fragmentsize
-      fragment size
+      fragment size (TLEN)
       Default: 600
     -h, --help
       print help and exit
@@ -45,6 +45,12 @@ Usage: vcf2bam [options] Files
  * bam
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/420363](https://www.biostars.org/p/420363)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -61,6 +67,11 @@ $ ./gradlew vcf2bam
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20150612
 
 ## Source code 
 
@@ -87,6 +98,14 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Warning
+
+> converting a bcf to a bam is like creating a cow from a steak.
+
+VCF input must be sorted in the same order than the REF sequence.
+
+VCF input must contain some genotypes.
 
 ##Example
 

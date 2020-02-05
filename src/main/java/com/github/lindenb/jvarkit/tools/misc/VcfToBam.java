@@ -52,6 +52,7 @@ import java.util.TreeSet;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -61,6 +62,14 @@ import htsjdk.variant.vcf.VCFIterator;
 /**
  
 BEGIN_DOC
+
+## Warning
+
+> converting a bcf to a bam is like creating a cow from a steak.
+
+VCF input must be sorted in the same order than the REF sequence.
+
+VCF input must contain some genotypes.
 
 ##Example
 
@@ -101,7 +110,9 @@ END_DOC
 	name="vcf2bam",
 	description="vcf to bam",
 	keywords={"ref","vcf","bam"},
-	modificationDate="20190926"
+	creationDate="20150612",
+	modificationDate="20200205",
+	biostars=420363
 	)
 public class VcfToBam extends Launcher
 	{
@@ -109,24 +120,21 @@ public class VcfToBam extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
-	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx=null;
-
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
-	
-	private ReferenceSequenceFile indexedFastaSequenceFile;
-	@Parameter(names="--fragmentsize",description="fragment size")
+	@Parameter(names="--fragmentsize",description="fragment size (TLEN)")
 	private int fragmentSize=600;
 	@Parameter(names="--readsize",description="read size")
 	private int readSize=100;
 	
 	
+	private ReferenceSequenceFile indexedFastaSequenceFile;
+
 	
 	
-	
-	private void run(VCFIterator vcfIterator) throws IOException
+	private void run(final VCFIterator vcfIterator) throws IOException
 		{
 		 long id_generator=0L;
 		 SAMFileWriter samFileWriter =null;
@@ -142,16 +150,19 @@ public class VcfToBam extends Launcher
 			}
 		final SAMFileHeader samHeader=new SAMFileHeader();
 		samHeader.setSequenceDictionary(dict);
+		if(!header.hasGenotypingData()) {
+			throw new IOException("vcf doesn't have any genotypes");
+			}
 		for(final String sample:new TreeSet<>(header.getSampleNamesInOrder()))
 			{
 			final SAMReadGroupRecord rg= new SAMReadGroupRecord(sample);
 			rg.setSample(sample);
 			rg.setLibrary(sample);
 			rg.setDescription(sample);
-			rg.setLibrary("illumina");
+			rg.setPlatform("illumina");
 			samHeader.addReadGroup(rg);
 			}
-		samHeader.addComment("Generated with "+getProgramCommandLine());
+		JVarkitVersion.getInstance().addMetaData(this, samHeader);
 		samHeader.setSortOrder(SortOrder.unsorted);
 		samFileWriter= this.writingBamArgs.
 				setReferencePath(this.faidx).
@@ -405,7 +416,7 @@ public class VcfToBam extends Launcher
 			run(iter);
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -418,7 +429,7 @@ public class VcfToBam extends Launcher
 
 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfToBam().instanceMainWithExit(args);
 		}
