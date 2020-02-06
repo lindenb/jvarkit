@@ -4,6 +4,8 @@
 
 
 gradle -Djvarkit.delete.jar=true -Djvarkit.disable.test=true all all2
+gradle -Djvarkit.generate.doc=false all all2
+
 */
 
 //import org.gradle.internal.logging.text.StyledTextOutput 
@@ -267,20 +269,35 @@ libraries.put("arq",new Library().
 
 
 public class CompileJVarkit extends DefaultTask {
+	@Input @Optional
 	String mainClass = ''
+	@Input @Optional
 	String srcDir =''
+	@Input @Optional
 	String testDir =''
+	@Input @Optional
 	String tmpDir = ""
+	@Input @Optional
 	String distDir = ""	
+	@Input @Optional
 	String docDir = ""
+	@Input @Optional
 	String testNgDir=""
+	@Input @Optional
 	String jdkTarget = "8"
+	@Input @Optional
 	String jdkSource = "8"
+	@Input @Optional
 	Library jarLibs = new Library();
-	boolean requireJfx = false;
+	@Input
+	boolean requireJfx = false;	
+	@Input @Optional
 	String deprecatedMsg = null;
-	def xsdFiles =[];
+	@Input @Optional
+	def xsdFiles =[];	
+	@Input @Optional
 	String endMsg = null;
+	@Input
 	boolean with_jni = false;
 
 	CompileJVarkit() {
@@ -448,6 +465,7 @@ public class CompileJVarkit extends DefaultTask {
 			
 			}
 		}
+	@Input
 	boolean isJavaFxAvailable() {
 		try {
 		    this.getClass().getClassLoader().loadClass("javafx.embed.swing.JFXPanel");
@@ -457,11 +475,17 @@ public class CompileJVarkit extends DefaultTask {
 		 	return false;
 			}
 		}
-
+	@Input
 	boolean isFatJar() {
 		return java.lang.System.getProperty("jvarkit.fat.jar","true").equals("true");
 		}
 	
+	private boolean isGeneratingDoc() {
+		if(!java.lang.System.getProperty("jvarkit.generate.doc","true").equals("true")) return false;
+		return true;
+		}
+	
+	@Input
 	String getMainPackage() {
 		String s= this.mainClass;
 		int dollar = s.indexOf('$');
@@ -470,7 +494,8 @@ public class CompileJVarkit extends DefaultTask {
 		if(dot==-1) return "";
 		return s.substring(0,dot);
 		}
-	File getMainJavaTestFile() {
+
+	private File getMainJavaTestFile() {
 		String travis = java.lang.System.getenv("TRAVIS");
 		if(travis!=null && travis.equals("true")) return null;
 		if(java.lang.System.getProperty("jvarkit.disable.test","false").equals("true")) return null;
@@ -482,6 +507,8 @@ public class CompileJVarkit extends DefaultTask {
 		if(!f.exists()) return null;
 		return f;
 		}
+
+	@Input
 	String getMainJavaSource() {
 		String s = this.mainClass;
 		int dollar = s.indexOf('$');
@@ -489,18 +516,21 @@ public class CompileJVarkit extends DefaultTask {
 		s = this.srcDir + "/" + s.replace('.','/')+".java";
 		return s;
 		}
+	@Input
 	String getTestNgClass() {
 		String s = this.mainClass;
 		int dollar = s.indexOf('$');
 		if(dollar!=-1) s=s.substring(0,dollar);
 		return s+"Test";
 		}
+	@Input
 	String getAntInclude() {
 		final String s= this.getMainJavaSource();
 		final int slash = s.lastIndexOf('/');
 		String s2 =  "**"+s.substring(slash);
 		return s2;
 		}
+	@Input
 	String getAntTestInclude() {
 		String s= this.getMainJavaSource();
 		int slash = s.lastIndexOf('/');
@@ -510,7 +540,7 @@ public class CompileJVarkit extends DefaultTask {
 		return "**"+s+"Test.java";	
 		}
 	public String toString() {
-		return 	""+this.getName()+" "+this.mainClass;
+		return	""+this.getName()+" "+this.mainClass;
 		}
 	
 	private void compileJni() {
@@ -521,11 +551,11 @@ public class CompileJVarkit extends DefaultTask {
 		    }
 		}
 	    catch(Exception err) {
-	    	project.logger.warn("Compiling JNI failed. "+err.getMessage());
-	    	}
+	        project.logger.warn("Compiling JNI failed. "+err.getMessage());
+	        }
 	}
 	
-	
+
 	private String getExecutablePath(String exe) {
 	    try {
 		def stdout = new ByteArrayOutputStream()
@@ -538,6 +568,7 @@ public class CompileJVarkit extends DefaultTask {
 	    catch(Exception err) { return "";}
 	    }
 
+	@Input
 	public String getGitHash() {
 	    try {
 		def stdout = new ByteArrayOutputStream()
@@ -550,8 +581,9 @@ public class CompileJVarkit extends DefaultTask {
 	    catch(Exception err) { return "undefined";}
 	    }
 
+	/**
 	def getConfiguration() {
-		//System.err.println("SEACHING "+ this.configName);
+		//System.err.println("SEARCHING "+ this.configName);
 		//project.configurations.each{ System.err.println("conf : "+it.name); } 
 		def c= project.configurations.find{it.name == this.configName}
 		//System.err.println("GOT::"+this.configName +" =  "+c);
@@ -559,7 +591,7 @@ public class CompileJVarkit extends DefaultTask {
 		
 		return c;	
 		}	
-	
+	*/
 
 	 @TaskAction
 	 void doIt() {
@@ -690,7 +722,7 @@ public class CompileJVarkit extends DefaultTask {
 		// done : https://stackoverflow.com/questions/14516693/
 		project.logger.lifecycle("jar file generated :" + distJar)
 		
-		
+		if( isGeneratingDoc()) {
 		/* generate doc */
 		ant.java(
 			jar :  this.distDir+"/${this.name}.jar" , fork: true
@@ -700,7 +732,7 @@ public class CompileJVarkit extends DefaultTask {
 			arg(value: "--helpFormat")
 			arg(value: "make-doc")
 			}
-		
+		}
 
 		/** test */
 		

@@ -10,13 +10,20 @@ Fins clipped position in one or more bam.
 ```
 Usage: samfindclippedregions [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
     --gtf
       Optional gtf file. Will be used to set a warning if the junction could 
       be a junction exon-exon of a retrogene. A GTF (General Transfer Format) 
-      file. See https://www.ensembl.org/info/website/upload/gff.html .
+      file. See https://www.ensembl.org/info/website/upload/gff.html . Please 
+      note that CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
