@@ -28,9 +28,9 @@ package com.github.lindenb.jvarkit.tools.biostar;
 import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,9 +48,11 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -149,11 +151,11 @@ public class Biostar336589 extends Launcher{
 	private static final Logger LOG = Logger.build(Biostar336589.class).make();
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private File faidx=null;
+	private Path faidx=null;
 	@Parameter(names={"-css","--css"},description="custom svg css file")
-	private File customCssFile=null;
+	private Path customCssFile=null;
 	@Parameter(names="-md",description="min distance in bp between two features on the same arc.")
 	private int min_distance_bp =100;
 	@Parameter(names="-mr",description="min internal radius")
@@ -363,10 +365,8 @@ public class Biostar336589 extends Launcher{
 		PrintWriter out = null;
 		try
 			{
-			this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx.toPath());
-			if(this.dict==null ) {
-				throw new JvarkitException.DictionaryMissing(String.valueOf(this.faidx.toString()));
-				}
+			this.dict = SequenceDictionaryUtils.extractRequired(this.faidx);
+			
 			if(this.skip_chromosome_size > 0 )
 				{
 				this.dict = new SAMSequenceDictionary(
@@ -554,7 +554,7 @@ public class Biostar336589 extends Launcher{
 			
 
 			
-			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			final XMLOutputFactory xof = XMLOutputFactory.newInstance();
 			final XMLStreamWriter w = xof.createXMLStreamWriter(out);
 			w.writeStartDocument("UTF-8", "1.0");
@@ -590,7 +590,7 @@ public class Biostar336589 extends Launcher{
 	private void writeStyle(final XMLStreamWriter w) throws XMLStreamException,IOException {
 		w.writeStartElement("style");
 		if(this.customCssFile!=null) {
-			w.writeCharacters(IOUtil.slurp(this.customCssFile));
+			w.writeCharacters(IOUtils.slurpPath(this.customCssFile));
 			}
 		else
 			{

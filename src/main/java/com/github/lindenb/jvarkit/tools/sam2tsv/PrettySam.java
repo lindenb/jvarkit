@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -45,11 +44,11 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.util.bio.AminoAcids;
 import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenome;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -68,7 +67,9 @@ import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -249,12 +250,13 @@ END_DOC
 description="Pretty SAM alignments",
 references="PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853798.v1](https://doi.org/10.6084/m9.figshare.5853798.v1)",
 keywords={"sam","bam"},
-modificationDate="20190926"
+creationDate="20171215",
+modificationDate="20200206"
 )
 public class PrettySam extends Launcher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx = null ;
 	@Parameter(names={"--no-unicode"},description="disable unicode to display ascii histogram")
@@ -286,7 +288,7 @@ public class PrettySam extends Launcher {
 	@Parameter(names={"-u","--unstranslated"},description="[20171219]Show untranslated regions (used with option -kg)")
 	private boolean show_untranslated_region=false;
 	@Parameter(names={"-V","--variant","--vcf"},description="[20171220]Show VCF data. VCf must be indexed. if VCF has no genotype, the variant positions are shown, otherwise, the genotypes associated to the read will be show.")
-	private File vcfFile=null;
+	private Path vcfFile=null;
 
 
 	private enum AnsiColor {
@@ -389,7 +391,7 @@ public class PrettySam extends Launcher {
 		private SAMSequenceDictionary samDict=null;
 		private SAMSequenceDictionary faidxDict=null;
 		private long nLine=0;
-		private ReferenceGenome referenceGenome=null;
+		private ReferenceSequenceFile referenceSequenceFile=null;
 		private GenomicSequence genomicSequence=null;
 		private final Map<String,String> tags = new HashMap<>();
 		private final Map<String,String> readgroupAtt2def = new HashMap<>();
@@ -1295,7 +1297,7 @@ public class PrettySam extends Launcher {
 		public void close() {
 			pw.close();
 			CloserUtil.close(this.vcfFileReader);
-			CloserUtil.close(this.referenceGenome);
+			CloserUtil.close(this.referenceSequenceFile);
 			this.genomicSequence=null;
 			}
 		}
@@ -1306,10 +1308,19 @@ public class PrettySam extends Launcher {
 		CloseableIterator<SAMRecord> iter = null;
 		try 
 			{
-			r= super.openSamReader(oneFileOrNull(args));
+			final SamReaderFactory srf= super.createSamReaderFactory();
+			srf.referenceSequence(this.faidx);
+			final String input = oneFileOrNull(args);
+			if(StringUtils.isBlank(input)) {
+				r= srf.open(SamInputResource.of(stdin()));
+			} else
+			{
+				r= srf.open(SamInputResource.of(input));
+			}
+			
 			this.referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			
-			out = new PrettySAMWriter(super.openFileOrStdoutAsPrintWriter(this.outputFile));
+			out = new PrettySAMWriter(super.openPathOrStdoutAsPrintWriter(this.outputFile));
 			out.writeHeader(r.getFileHeader());
 			iter = r.iterator();
 			while(iter.hasNext())

@@ -27,10 +27,10 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.awt.Insets;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,12 +76,12 @@ public class Biostar77288 extends Launcher
 	
 	@Parameter(names="-S",description="Input is seqLogo")
     private boolean SEQLOGO=false;
-	@Parameter(names="-W",description=" Alignment width")
+	@Parameter(names="-W",description="Alignment width")
     private int ALN_WIDTH=1000;
-	@Parameter(names="-r",description="Use Rect")
+	@Parameter(names="-r",description="Use Rectangle.")
     private boolean use_rect=false;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-    private File outputFile = null;
+    private Path outputFile = null;
 
    
     private final Map<String,Seq> sequences=new LinkedHashMap<String,Seq>();
@@ -194,7 +194,7 @@ public class Biostar77288 extends Launcher
 
             
             final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-            out = super.openFileOrStdoutAsPrintStream(outputFile);
+            out = super.openPathOrStdoutAsPrintStream(outputFile);
             this.w= xmlfactory.createXMLStreamWriter(out,"UTF-8");
             w.writeStartDocument("UTF-8","1.0");
             w.writeStartElement("svg");

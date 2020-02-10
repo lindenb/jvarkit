@@ -203,7 +203,8 @@ END_DOC
 @Program(name="vcfcomposite",
 	description="(in developpement) Finds Variants involved in a Het Compound Disease",
 	keywords={"vcf","disease","annotation","pedigree","haplotype"},
-	modificationDate = "20190628"
+	creationDate= "20170331",
+	modificationDate = "20200210"
 )
 public class VCFComposite extends Launcher {
 	private static final String INFO_TAG="COMPOSITE";
@@ -477,7 +478,7 @@ public class VCFComposite extends Launcher {
 			}
 		// test if this gene is a big pool of variant, false positive. e.g: highly variables genes.
 		if(max_number_of_variant_per_gene>=0) {
-			if(variants.size()< max_number_of_variant_per_gene) {
+			if(variants.size() > max_number_of_variant_per_gene) {
 				LOG.warn("Too many variants "+variants.size()+" for "+geneKey);
 				return;
 			}
@@ -606,7 +607,7 @@ public class VCFComposite extends Launcher {
 						
 						final StringBuilder sb=new StringBuilder();
 						sb.append("gene|").append(geneKey.geneName);
-						sb.append("name|").append(geneKey.label);
+						sb.append("|name|").append(geneKey.label);
 						sb.append("|source|").append(geneKey.source);
 						if(side==1) {
 							sb.append("|pos|").append(vcx.getStart());
@@ -694,7 +695,7 @@ public class VCFComposite extends Launcher {
 			this.affectedSamples.addAll(pedigree.getAffectedSamples());
 			this.affectedSamples.removeIf(S->!sampleNames.contains(S.getId()));
 			if(this.affectedSamples.isEmpty()) {
-				LOG.error("No Affected sample in pedigre. "  + this.pedigreeFile+"/"+inputName);
+				LOG.error("No Affected sample in pedigree. "  + this.pedigreeFile+"/"+inputName);
 				return -1;
 				}
 			this.unaffectedSamples.addAll(pedigree.getUnaffectedSamples());

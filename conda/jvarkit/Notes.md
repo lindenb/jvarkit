@@ -15,5 +15,10 @@ conda install --use-local  jvarkit
 ```
 
 ```
+anaconda login
+anaconda upload /home/lindenb/anaconda2/envs/ANACONDA/conda-bld/linux-64/jvarkit-v20200206-0.tar.bz2
+```
+
+```
 conda remove --use-local jvarkit
 ```

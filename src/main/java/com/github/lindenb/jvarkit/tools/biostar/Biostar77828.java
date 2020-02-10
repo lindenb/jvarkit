@@ -1,15 +1,16 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -43,7 +44,7 @@ public class Biostar77828 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar77828.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-minc","--minc"},description="min core")
 	private int MINC = 20 ;
 	@Parameter(names={"-maxc","--maxc"},description="max core")
@@ -54,51 +55,17 @@ public class Biostar77828 extends Launcher
 
 
     
-    private List<Segment> all_segments=new ArrayList<Segment>();
+    private List<Interval> all_segments=new ArrayList<>();
     private final Random random=new Random(System.currentTimeMillis());
     private long effective_genome_size=0L;
     	
-    private static class Segment implements Comparable<Segment>
-    	{
-    	final String chrom;
-    	final int start;
-    	final int end;
-    	final String name;
-    	
-    	Segment(String chrom,int start,int end)
-    		{
-    		this(chrom,start,end,chrom+":"+start+":"+end);
-    		}
-    	
-    	Segment(String chrom,int start,int end,String name)
-			{
-			this.chrom=chrom;
-			this.start=start;
-			this.end=end;
-			this.name=name;
-			}
-    	
-    	int size()
-    		{
-    		return end-start;
-    		}
-    	@Override
-    	public int compareTo(final Segment o)
-    		{
-    		int i=chrom.compareTo(o.chrom);
-    		if(i!=0) return i;
-    		i=start-o.start;
-    		if(i!=0) return i;
-    		return end-o.end;
-    		}
-    	}
     
     private static class Core
     	{
-    	final List<Segment> segments=new ArrayList<Segment>();
+    	final List<Interval> segments=new ArrayList<>();
     	long length()
     		{
-    		return this.segments.stream().mapToLong(S->S.size()).sum();
+    		return this.segments.stream().mapToLong(S->S.length()).sum();
     		}
     	void simplify()
 			{
@@ -106,11 +73,11 @@ public class Biostar77828 extends Launcher
 			int i=0;
 			while(i+1< this.segments.size())
 				{
-				final Segment S1=this.segments.get(i);
-				final Segment S2=this.segments.get(i+1);
-				if(S1.chrom.equals(S2.chrom) && S1.end==S2.start)
+				final Interval S1=this.segments.get(i);
+				final Interval S2=this.segments.get(i+1);
+				if(S1.contigsMatch(S2) && S1.getEnd()+1==S2.getStart())
 					{
-					this.segments.set(i, new Segment(S1.chrom, S1.start, S1.end,S1.name));
+					this.segments.set(i, new Interval(S1.getContig(), S1.getStart(), S1.getEnd(),false,S1.getName()));
 					this.segments.remove(i+1);
 					}
 				else
@@ -168,17 +135,17 @@ public class Biostar77828 extends Launcher
     			this.cores.get(i).simplify();
     			
     			out.println("#cores["+i+"]. N="+this.cores.get(i).segments.size()+"  size_bp="+this.cores.get(i).length()+" bp.");
-    			for(Segment seg:this.cores.get(i).segments)
+    			for(Interval seg:this.cores.get(i).segments)
     				{
-    				out.print(seg.chrom);
+    				out.print(seg.getContig());
     				out.print('\t');
-    				out.print(seg.start);
+    				out.print(seg.getStart()-1);
     				out.print('\t');
-    				out.print(seg.end);
+    				out.print(seg.getEnd());
     				out.print('\t');
-    				out.print(seg.size());
+    				out.print(seg.length());
     				out.print('\t');
-    				out.print(seg.name);
+    				out.print(seg.getName());
     				out.println();
     				}
     			}
@@ -200,22 +167,22 @@ public class Biostar77828 extends Launcher
     	Solution sol=new Solution();
     	
     	//create a copy, split the segments
-    	ArrayList<Segment> segments=new ArrayList<Segment>(this.all_segments.size());
-    	for(Segment seg:this.all_segments)
+    	ArrayList<Interval> segments=new ArrayList<>(this.all_segments.size());
+    	for(Interval seg:this.all_segments)
     		{
-    		if((long)seg.size()<=optimal_size)
+    		if((long)seg.length()<=optimal_size)
     			{
     			segments.add(seg);
     			}
     		else
     			{
-    			int split_count=(int)(Math.ceil(seg.size()/(double)optimal_size));
-    			int fragment_size=seg.size()/split_count;
-    			int start=seg.start;
+    			int split_count=(int)(Math.ceil(seg.length()/(double)optimal_size));
+    			int fragment_size=seg.length()/split_count;
+    			int start=seg.getStart();
     			for(int s=0;s<split_count;++s)
     				{
-    				int end=(s+1==split_count?seg.end:start+fragment_size);
-    				segments.add(new Segment(seg.chrom, start, end,seg.name));
+    				int end=(s+1==split_count?seg.getEnd():start+fragment_size);
+    				segments.add(new Interval(seg.getContig(), start, end,false,seg.getName()));
     				start=end;
     				}
     			}
@@ -237,14 +204,14 @@ public class Biostar77828 extends Launcher
     	//fill core with random segments
     	for(int i=sol.cores.size();i< segments.size();++i)
     		{
-    		Segment seg=segments.get(i);
+    		Interval seg=segments.get(i);
     		//start a new sequence of insertion
     		if(seq_count%sol.cores.size()==0)
     			{
         		//put it in a random core
         		Core core=sol.cores.get(this.random.nextInt(sol.cores.size()));
         		core.segments.add(seg);
-        		seq_total_size=seg.size();
+        		seq_total_size=seg.length();
         		seq_count=1;
     			}
     		else
@@ -255,14 +222,14 @@ public class Biostar77828 extends Launcher
     			for(Core core:sol.cores)
     				{
     				if(best==null ||
-    					(Math.abs((core.length()+seg.size())-mean) < Math.abs((best.length()+seg.size())-mean)))
+    					(Math.abs((core.length()+seg.length())-mean) < Math.abs((best.length()+seg.length())-mean)))
     					{
     					best=core;
     					}
     			
     				}
     			best.segments.add(seg);
-    			seq_total_size+=seg.size();
+    			seq_total_size+=seg.length();
         		seq_count++;
     			}
     		
@@ -287,18 +254,18 @@ public class Biostar77828 extends Launcher
 	    		final BedLine bedLine = codec.decode(line);
 	    		if(bedLine==null) continue;
     			if(bedLine.getColumnCount()<3) throw new IOException("bad BED input "+bedLine);
-    			final Segment seg=new Segment(
+    			final Interval seg=new Interval(
     					bedLine.getContig(),
-    					bedLine.getStart()-1,
+    					bedLine.getStart(),
     					bedLine.getEnd()
     					)
     					;
-    			if(seg.size()==0) continue;
-    			this.effective_genome_size+=seg.size();
+    			if(seg.length()==0) continue;
+    			this.effective_genome_size+=seg.length();
     			this.all_segments.add(seg);
 				}
 	    	
-	    	pw = super.openFileOrStdoutAsPrintStream(this.outputFile);
+	    	pw = super.openPathOrStdoutAsPrintStream(this.outputFile);
 	    	
 	    	Solution best=null;
 	    	for(long generation=0;generation< this.N_ITERATIONS;++generation)
@@ -326,7 +293,7 @@ public class Biostar77828 extends Launcher
 	    	pw.close();
 	    	return RETURN_OK;
 	    	}
-    	catch(final Exception err)
+    	catch(final Throwable err)
     		{
     		LOG.error(err);
     		return -1;

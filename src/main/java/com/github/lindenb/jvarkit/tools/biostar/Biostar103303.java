@@ -38,11 +38,12 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.LineIterator;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -87,8 +88,8 @@ public class Biostar103303 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar103303.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-g","--gtf"},description="GTF file",required=true)
+	private Path outputFile = null;
+	@Parameter(names={"-g","--gtf"},description="GTF file.",required=true)
 	private String gtfuri = null;
 
 	private static class GTFGene
@@ -306,16 +307,15 @@ public class Biostar103303 extends Launcher
 		
 		try
 			{
-			out = super.openFileOrStdoutAsPrintWriter(outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(outputFile);
 			final SamReaderFactory srf= super.createSamReaderFactory();
 			if(args.isEmpty())
 				{
-				LOG.info("Reading sfomr stdin");
 				samReader=srf.open(SamInputResource.of(stdin()));
 				}
 			else if(args.size()==1)
 				{
-				final File filename=new File(args.get(0));
+				final Path filename= Paths.get(args.get(0));
 				LOG.info("Reading from "+filename);
 				samReader=srf.open(filename);
 				}

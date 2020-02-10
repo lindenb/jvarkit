@@ -10,6 +10,12 @@
 ```
 Usage: vcfcomposite [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -e, -E, --extractors
       Gene Extractors Name. Space/semicolon/Comma separated
       Default: ANN/GeneId VEP/GeneId
@@ -17,6 +23,9 @@ Usage: vcfcomposite [options] Files
       [20180718] set FILTER for the variants that are not part of a composite 
       mutation. Blank = filter out non-composites
       Default: NOT_COMPOSITE
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -g, --genes
       Optional tabular text report for genes
     -gf, --genotype-filter
@@ -49,7 +58,8 @@ Usage: vcfcomposite [options] Files
     -o, --out
       Output file. Optional . Default: stdout
   * -p, -ped, --pedigree
-      A pedigree file. sex:(0:unknown;1:male;2:female), phenotype 
+      A pedigree file. tab delimited. Columns: family,id,father,mother, 
+      sex:(0:unknown;1:male;2:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -r, --report
       Optional tabular text report for pairs of variants
@@ -106,6 +116,11 @@ $ ./gradlew vcfcomposite
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20170331
 
 ## Source code 
 

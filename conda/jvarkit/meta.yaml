@@ -1,10 +1,10 @@
 package:
   name: jvarkit
-  version: 20200205
+  version: v20200206
 
 source:
-   url: https://github.com/lindenb/jvarkit/archive/20200205.zip
-   md5: 17956e3c734db5503a67a8325a0091a3
+   url: https://github.com/lindenb/jvarkit/archive/v20200206.zip
+   md5: b0e3bc720065f051508d7ac3adfc9899
 
 requirements:
   build:
