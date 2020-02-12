@@ -2116,8 +2116,12 @@ all.add( task("bioalcidae", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb","gson")
 	xsdFiles = ["blast","dbsnp","insdseq"]
 	});
-all.add( task("projectserver", type: CompileJVarkit) {
+all2.add( task("projectserver", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.server.ProjectServer"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","jetty")
+	});
+all2.add( task("coverageserver", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.server.CoverageServer"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jetty")
 	});
 all.add( task("vcfderby01", type: CompileJVarkit) {
