@@ -191,4 +191,8 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 			}
 		return r;
 		}
-}
+	/** get center position */
+	public SimplePosition getCenter() {
+		return new SimplePosition(getContig(), getStart()+this.getLengthOnReference()/2);
+		}
+	}
