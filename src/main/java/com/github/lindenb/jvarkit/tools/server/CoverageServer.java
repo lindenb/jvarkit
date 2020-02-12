@@ -24,15 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.server;
 
-import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -56,13 +55,17 @@ import org.eclipse.jetty.servlet.ServletHolder;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 
 import htsjdk.samtools.Cigar;
@@ -76,6 +79,8 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.SequenceUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -106,18 +111,26 @@ public  class CoverageServer extends Launcher {
 	private int serverPort = 8080;
 	@Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxRef = null;
-	@Parameter(names= {"-r","--region","--vcf","--bed","--interval"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class)
-	private IntervalListProvider intervalsource = IntervalListProvider.empty();
+	@Parameter(names= {"--bed","--B"},description="Optional bed file containing user's intervals. 4th column is used as the name of the interval")
+	private Path intervalsource = null;
+	@Parameter(names= {"--pedigree","-p"},description=PedigreeParser.OPT_DESC)
+	private Path pedigreePath = null;
 
 	private SAMSequenceDictionary dictionary;
-	private final List<SimpleInterval> intervals = new Vector<>();
-	private final List<Path> bamPaths = new Vector<>();
-	
+	private final List<Interval> named_intervals = new Vector<>();
+	private final List<BamInput> bamInput = new Vector<>();
+	private Pedigree pedigree = null;
 	
 	private final int image_width= 800;
 	private final int image_height= 400;
 
-	
+	private static class BamInput {
+		final Path bamPath;
+		String sample;
+		BamInput(final Path path) {
+			this.bamPath = path;
+		}
+	}
 	
 	@SuppressWarnings("serial")
 	private  class CoverageServlet extends HttpServlet {
@@ -161,17 +174,16 @@ public  class CoverageServer extends Launcher {
 			bam_id=-1;
 		}
 		final SimpleInterval region = parseInterval(request.getParameter("interval"));
-		if(region==null || bam_id<0 || bam_id>=this.bamPaths.size()) {
+		if(region==null || bam_id<0 || bam_id>=this.bamInput.size()) {
 			response.reset();
 			response.sendError(HttpStatus.BAD_REQUEST_400,"id:"+bam_id);
 			response.flushBuffer();
 			return;
 		}
 		
-		final Path bam = this.bamPaths.get(bam_id);
+		final BamInput bam = this.bamInput.get(bam_id);
 		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
-		try(SamReader sr=srf.open(bam)) {
-			final SAMFileHeader header = sr.getFileHeader();
+		try(SamReader sr=srf.open(bam.bamPath)) {
 			if(region.getLengthOnReference()>10_000_000)  {
 				response.reset();
 				response.sendError(HttpStatus.BAD_REQUEST_400,"contig:"+region);
@@ -232,14 +244,15 @@ public  class CoverageServer extends Launcher {
 			 g.fillRect(0, 0, image_width+1, image_height+1);
 			 
 			 final Composite oldComposite = g.getComposite();
-			 g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,(float)Math.min(1.0, pixelperbase)));
+			 //g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,(float)Math.min(1.0, pixelperbase)));
 			 
 			 for(int x=0;x< coverage.length;++x) {
 				 final double height = image_height*(coverage[x]/max_cov);
-				 if(coverage[x]<10) g.setColor(Color.DARK_GRAY);
-				 else if(coverage[x]<20) g.setColor(Color.BLUE);
-				 else g.setColor(Color.GREEN);
-				 
+				
+				 if(max_cov<10) g.setColor(Color.RED);
+				 else if(max_cov<20) g.setColor(Color.BLUE);
+				 else g.setColor(Color.DARK_GRAY);
+				
 				 g.fill(new Rectangle2D.Double(
 						 x*pixelperbase,
 						 image_height-height,
@@ -248,12 +261,8 @@ public  class CoverageServer extends Launcher {
 			 }
 			 g.setComposite(oldComposite);
 			 
-			 g.drawString("max-cov:"+(int)max_cov+" sample:"+header.getReadGroups().
-					 stream().
-					 map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).
-					 collect(Collectors.toSet()).
-					 stream().
-					 collect(Collectors.joining(" "))+" "+
+			 g.setColor(Color.DARK_GRAY);
+			 g.drawString("max-cov:"+(int)max_cov+" sample:"+ bam.sample +" "+
 					 region.toNiceString()
 					 , 10, 10);
 
@@ -302,8 +311,8 @@ public  class CoverageServer extends Launcher {
 				}
 		 	}
 		 
-		 if(interval==null && 	!this.intervals.isEmpty()) {
-			 interval = this.intervals.get(0);
+		 if(interval==null && 	!this.named_intervals.isEmpty()) {
+			 interval = new SimpleInterval(this.named_intervals.get(0));
 		 }
 		 
 		 if(interval==null) {
@@ -384,7 +393,7 @@ public  class CoverageServer extends Launcher {
 				/* messy with < and > characters + xmlstream */
 				pw.write(
 				"function loadImage(idx) {"+
-				"if(idx>="+this.bamPaths.size()+") return;"+
+				"if(idx>="+this.bamInput.size()+") return;"+
 				"var img = document.getElementById(\"bamid\"+idx);"+
 				"img.addEventListener('load',(event) => {img.width="+image_width+";img.height="+image_height+";loadImage(idx+1);});"+
 				"img.setAttribute(\"src\",\"/getimage?id=\"+idx+\"&interval="+ StringUtils.escapeHttp(interval.toString()) +"\");"+
@@ -428,20 +437,25 @@ public  class CoverageServer extends Launcher {
 			w.writeAttribute("type", "hidden");
 
 			
-			if(!this.intervals.isEmpty()) {
+			if(!this.named_intervals.isEmpty()) {
 				w.writeStartElement("select");
+				w.writeAttribute("id", "selinterval");
+
 				
 				w.writeEmptyElement("option");
 				
-				for(final SimpleInterval r:this.intervals) {
+				for(final Interval r:this.named_intervals) {
+					final SimpleInterval simple= new SimpleInterval(r);
 					w.writeStartElement("option");
-					w.writeAttribute("value",r.toString());
-					if(r.equals(interval)) w.writeAttribute("selected", "true");
-					w.writeCharacters(r.toNiceString());
+					w.writeAttribute("value",simple.toString());
+					if(simple.equals(interval)) w.writeAttribute("selected", "true");
+					w.writeCharacters(simple.toNiceString()+(StringUtils.isBlank(r.getName())?"":" ["+r.getName()+"]"));
 					w.writeEndElement();
+					w.writeCharacters("\n");
 				}
 				
 				w.writeEndElement();//select
+				w.writeEmptyElement("br");
 				
 				//
 				
@@ -451,6 +465,7 @@ public  class CoverageServer extends Launcher {
 				w.writeEndElement();
 				for(final String mv:new String[]{"<<<","<<","<",">",">>",">>>"}) {
 					w.writeEmptyElement("input");
+					w.writeAttribute("class", "btn");
 					w.writeAttribute("type", "submit");
 					w.writeAttribute("name", "move");
 					w.writeAttribute("value", mv);
@@ -462,10 +477,25 @@ public  class CoverageServer extends Launcher {
 				w.writeEndElement();
 				for(final String zoom:new String[]{"1.5","3","10"}) {
 					w.writeEmptyElement("input");
+					w.writeAttribute("class", "btn");
 					w.writeAttribute("type", "submit");
 					w.writeAttribute("name", "zoomin");
 					w.writeAttribute("value", zoom);
 				}
+				
+				
+				/* zoom in */
+				w.writeStartElement("label");
+				w.writeCharacters("zoom out");
+				w.writeEndElement();
+				for(final String zoom:new String[]{"1.5","3","10","100"}) {
+					w.writeEmptyElement("input");
+					w.writeAttribute("type", "submit");
+					w.writeAttribute("class", "btn");
+					w.writeAttribute("name", "zoomout");
+					w.writeAttribute("value", zoom);
+					}
+				w.writeEmptyElement("br");
 				
 				w.writeStartElement("span");
 				w.writeAttribute("id", "spaninterval");
@@ -483,30 +513,68 @@ public  class CoverageServer extends Launcher {
 				w.writeCharacters("GO");
 				w.writeEndElement();//button
 				
-				
-				/* zoom in */
-				w.writeStartElement("label");
-				w.writeCharacters("zoom out");
-				w.writeEndElement();
-				for(final String zoom:new String[]{"1.5","3","10","100"}) {
-					w.writeEmptyElement("input");
-					w.writeAttribute("type", "submit");
-					w.writeAttribute("name", "zoomout");
-					w.writeAttribute("value", zoom);
-					}
+
 				}
 			w.writeEndElement();//form
 			w.writeEndElement();//div
 			
+			
 			w.writeStartElement("div");
-			for(int i=0;i< this.bamPaths.size();i++) {
-				final Path bam = this.bamPaths.get(i);
-				if(!Files.exists(bam)) continue;
+			for(final BamInput bi:this.bamInput.stream().sorted((A,B)->A.sample.compareTo(B.sample)).collect(Collectors.toList())) {
+				w.writeStartElement("a");
+				w.writeAttribute("title", bi.sample);
+				w.writeAttribute("href", "#"+bi.sample);
+				w.writeCharacters("["+bi.sample+"] ");
+				w.writeEndElement();
+			}
+			w.writeEndElement();//div
+			w.writeCharacters("\n");
+			
+			w.writeStartElement("div");
+			for(int i=0;i< this.bamInput.size();i++) {
+				final BamInput bamInput = this.bamInput.get(i);
+				final Path bam = bamInput.bamPath;
+
 				w.writeStartElement("div");
 				
+				w.writeEmptyElement("a");
+				w.writeAttribute("name", bamInput.sample);
+
 				w.writeStartElement("h3");
-				w.writeCharacters(IOUtils.getFilenameWithoutCommonSuffixes(bam));
+				w.writeCharacters(bamInput.sample);
+				
+				if(this.pedigree!=null) {
+					final Sample sample = this.pedigree.getSampleById(bamInput.sample);
+					if(sample!=null) {
+						if(sample.isMale()) w.writeCharacters(" Male.");
+						if(sample.isFemale()) w.writeCharacters(" Female.");
+						switch(sample.getStatus()) {
+							case affected:  w.writeCharacters(" AFFECTED."); break;
+							case unaffected:  w.writeCharacters(" [+]."); break;
+							default:  w.writeCharacters(" [.]."); break;
+							}
+						
+						if(sample.hasFather() && this.bamInput.stream().anyMatch(B->B.sample.equals(sample.getFather().getId()))) {
+							w.writeCharacters(" ");
+							w.writeStartElement("a");
+							w.writeAttribute("href","#"+sample.getFather().getId());
+							w.writeCharacters("Father ["+sample.getFather().getId()+"].");
+							w.writeEndElement();
+						}
+						if(sample.hasMother() && this.bamInput.stream().anyMatch(B->B.sample.equals(sample.getMother().getId()))) {
+							w.writeCharacters(" ");
+							w.writeStartElement("a");
+							w.writeAttribute("href","#"+sample.getMother().getId());
+							w.writeCharacters("Mother ["+sample.getMother().getId()+"].");
+							w.writeEndElement();
+						}
+
+						
+					}
+				}
+				
 				w.writeEndElement();
+				
 				w.writeStartElement("div");
 				w.writeCharacters(bam.toString());
 				w.writeEndElement();
@@ -519,7 +587,8 @@ public  class CoverageServer extends Launcher {
 				w.writeAttribute("height","32");
 
 				
-				w.writeEndElement();
+				w.writeEndElement();//div
+				w.writeCharacters("\n");
 				}
 			w.writeEndElement();
 			
@@ -544,18 +613,49 @@ public  class CoverageServer extends Launcher {
 	public int doWork(final List<String> args) {
 	
 		try {
-			this.bamPaths.addAll(IOUtils.unrollPaths(args));
-			if(this.bamPaths.isEmpty()) {
+			this.bamInput.addAll(IOUtils.unrollPaths(args).stream().map(F->new BamInput(F)).collect(Collectors.toList()));
+			if(this.bamInput.isEmpty()) {
 				LOG.error("No BAM defined.");
 				return -1;
 				}
 			this.dictionary = SequenceDictionaryUtils.extractRequired(this.faidxRef);
 			
-			this.intervals.addAll(this.intervalsource.
-					dictionary(this.dictionary).
-					stream().
-					map(T->new SimpleInterval(T)).
-					collect(Collectors.toList()));
+			for(final BamInput bi:this.bamInput) {
+				final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
+				try(SamReader sr=srf.open(bi.bamPath)) {
+					final SAMFileHeader header = sr.getFileHeader();
+					SequenceUtil.assertSequenceDictionariesEqual(this.dictionary, SequenceDictionaryUtils.extractRequired(header));
+					bi.sample = header.getReadGroups().
+					 stream().
+					 map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).
+					 findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bi.bamPath));
+				}
+			}
+			
+			if(this.pedigreePath!=null) {
+				this.pedigree = new PedigreeParser().parse(this.pedigreePath);
+			}
+			
+			if(this.intervalsource!=null) {
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(this.dictionary);
+				final BedLineCodec codec = new BedLineCodec();
+				try(BufferedReader br=IOUtils.openPathForBufferedReading(this.intervalsource)) {
+					br.lines().
+						filter(L->!BedLine.isBedHeader(L)).
+						map(L->codec.decode(L)).
+						filter(B->B!=null).
+						map(B->new Interval(B.getContig(), B.getStart(), B.getEnd(),false,B.getOrDefault(3, ""))).
+						map(B->{
+							final String ctg= cvt.apply(B.getContig());
+							if(StringUtils.isBlank(ctg)) return null;
+							if(ctg.equals(B.getContig())) return B;
+							return new Interval(ctg,B.getStart(), B.getEnd(),false,B.getName());
+							}).
+						filter(B->B!=null).
+						forEach(B->named_intervals.add(B));
+					}
+				
+			}
 			final Server server = new Server(this.serverPort);
 			
 			final ServletContextHandler context = new ServletContextHandler();
