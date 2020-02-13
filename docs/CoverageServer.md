@@ -36,6 +36,9 @@ Usage: coverageserver [options] Files
     --images-per-row, --ipr
       Number of images per row.
       Default: 2
+    --mapq
+      Min. Read Mapping Quality.
+      Default: 0
     --max_-size
       Security. Max interval size. A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
@@ -51,6 +54,9 @@ Usage: coverageserver [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --small-length
+      show reads if the region has a length <= 'x'.
+      Default: 100
     --version
       print version and exit
     --width

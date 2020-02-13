@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.server;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Graphics2D;
+import java.awt.Shape;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -37,9 +38,12 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
+import java.util.function.Function;
+import java.util.function.IntToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -152,6 +156,10 @@ public  class CoverageServer extends Launcher {
 	private double extend_factor=1.0;
 	@Parameter(names= {"-o","--output","--comment"},description="Output file for writing comments as a BED file.")
 	private Path commentPath= null; 
+	@Parameter(names= {"--mapq"},description="Min. Read Mapping Quality.")
+	private int min_mapq = 0; 
+	@Parameter(names= {"--small-length"},description="show reads if the region has a length <= 'x'.")
+	private int small_region_size = 100; 
 
 	
 	private SAMSequenceDictionary dictionary;
@@ -283,8 +291,134 @@ public  class CoverageServer extends Launcher {
 		
 	}
 	
+	private boolean acceptRead(final SAMRecord rec) {
+		 if(
+			rec.getReadUnmappedFlag() ||
+			rec.getDuplicateReadFlag() ||
+	 		rec.getReadFailsVendorQualityCheckFlag() ||
+	 		rec.isSecondaryOrSupplementary() ||
+	 		rec.getMappingQuality()<this.min_mapq) return false;
+		 return true;
+		}
 	
-	private void printImage( HttpServletRequest request, HttpServletResponse response)	throws IOException, ServletException
+	/** print BAM for small interval, displaying reads */
+	private void printRaster(final BamInput bam,final SimpleInterval midRegion,final SimpleInterval region,final HttpServletRequest request,final HttpServletResponse response) throws IOException, ServletException {
+	    final double pixelperbase = (double)image_width/(double)region.getLengthOnReference();
+		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
+		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
+		final List<List<SAMRecord>> rows = new ArrayList<>();
+		try(SamReader sr=srf.open(bam.bamPath)) {
+			 try(CloseableIterator<SAMRecord> iter=sr.query(region.getContig(), region.getStart(), region.getEnd(),false)) {
+				 while(iter.hasNext()) {
+					 final SAMRecord rec=iter.next();
+					 if(!acceptRead(rec)) continue;
+					 final Cigar cigar = rec.getCigar();
+					 if(cigar==null || cigar.isEmpty()) continue;
+					 int y=0;
+					 for(y=0;y< rows.size();++y) {
+						 final List<SAMRecord> row = rows.get(y);
+						 final SAMRecord last = row.get(row.size()-1);
+						 if(position2pixel.applyAsDouble(last.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(rec.getUnclippedStart())) {
+							 row.add(rec);
+							 break;
+						 	}
+					 	}
+				     if(y==rows.size()) {
+						 final List<SAMRecord> row = new ArrayList<>();
+						 row.add(rec);
+						 rows.add(row);
+				     	} 
+				 	}
+				 }//end iterator
+			}//end samreder
+		
+		final BufferedImage img = new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
+		 final Graphics2D g=img.createGraphics();
+		 g.setColor(Color.WHITE);
+		 g.fillRect(0, 0, image_width+1, image_height+1);
+ 
+			 
+	     double y=10;
+	     final double featureHeight= Math.min(20,(this.image_height-y)/Math.max(1.0,(double)rows.size()));
+	     for(final List<SAMRecord> row:rows) {
+	    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
+
+	    	for(final SAMRecord rec: row) {
+	    		Cigar cigar=rec.getCigar();
+	    		if(cigar==null || cigar.isEmpty()) continue;
+	    		
+	    		final double midy=y+h2/2.0;
+	    		g.setColor(Color.DARK_GRAY);
+	    		g.draw(new Line2D.Double(
+	    				position2pixel.applyAsDouble(rec.getUnclippedStart()),
+	    				midy,
+	    				position2pixel.applyAsDouble(rec.getUnclippedEnd()),
+	    				midy));
+	    		int ref1 = rec.getUnclippedStart();
+	    		final List<Double> insertions = new ArrayList<>();
+	    		for(CigarElement ce: cigar.getCigarElements()) {
+	    			if(ref1> region.getEnd()) break;
+	    			final CigarOperator op=ce.getOperator();
+	    			Shape shape = null;
+	    			Color fill=null;
+	    			Color stroke=Color.DARK_GRAY;
+	    			switch(op) {
+	    				case P: break;
+	    				case M://through
+	    				case X://through
+	    				case EQ://through
+	    				case S: //through
+	    				case H: 
+	    						final double x1=position2pixel.applyAsDouble(ref1);
+	    						
+	    						shape = new Rectangle2D.Double(
+	    						x1, y,
+	    						position2pixel.applyAsDouble(ref1+ce.getLength())-x1,h2
+	    						);
+	    						
+	    						ref1+=ce.getLength();
+	    						switch(op) {
+	    							case H: case S: fill=Color.YELLOW;break;
+	    							case X: fill=Color.RED;break;
+	    							case EQ: case M: fill=Color.LIGHT_GRAY;break;
+	    							default:break;
+	    							}
+	    						break;
+	    				case N://through
+	    				case D: shape=null;fill=null;stroke=null;ref1+=ce.getLength();break;
+	    				case I: shape=null;fill=null;stroke=null;insertions.add(position2pixel.applyAsDouble(ref1));break;
+	    				default: throw new IllegalStateException(""+op);
+	    				}
+	    			if(ref1 < region.getStart()) continue;
+	    			
+	    			if(shape!=null) {
+	    				if(fill!=null) {g.setColor(fill);g.fill(shape);}
+	    				if(stroke!=null)  {g.setColor(stroke);g.draw(shape);}
+	    				}
+	    			
+	    			}
+	    		for(double px:insertions) {
+	    			g.setColor(Color.RED);
+	    			g.draw(new Line2D.Double(px,y,px,y+h2));
+	    			}
+	    		}
+	    	 
+	    	y+=featureHeight;
+	     	}
+	     g.setColor(Color.PINK);
+	     double x1  = position2pixel.applyAsDouble(midRegion.getStart());
+	     g.draw(new Line2D.Double(x1,0,x1,image_height));
+	     x1  = position2pixel.applyAsDouble(midRegion.getEnd());
+	     g.draw(new Line2D.Double(x1,0,x1,image_height));
+	     
+		 final String basename = bam.sample+"_"+region.getContig()+"_"+region.getStart()+"_"+region.getEnd();
+		 response.setContentType("image/png");
+		 response.addHeader("Content-Disposition","form-data; name=\""+basename+"\"; filename=\""+basename +".png\"");
+		 ImageIO.write(img, "PNG", response.getOutputStream());
+		 response.flushBuffer();
+		}
+	
+	private void printImage(final HttpServletRequest request,final HttpServletResponse response) throws IOException, ServletException
 	{
 		int bam_id;
 		try {
@@ -299,36 +433,40 @@ public  class CoverageServer extends Launcher {
 			response.flushBuffer();
 			return;
 		}
-		final boolean normalize = request.getParameter("normalize")!=null;
+		final int extend = (int)(midRegion.getLengthOnReference()*this.extend_factor);
+		int xstart = Math.max(midRegion.getStart()-extend,0);
+		int xend = midRegion.getEnd()+extend;
+		final SAMSequenceRecord ssr = this.dictionary.getSequence(midRegion.getContig());
+		if(ssr!=null) {
+			xend = Math.min(xend, ssr.getSequenceLength());
+		}
+		final SimpleInterval region = new SimpleInterval(midRegion.getContig(),xstart,xend);
+		if(region.getLengthOnReference()>this.max_window_size)  {
+			response.reset();
+			response.sendError(HttpStatus.BAD_REQUEST_400,"contig:"+midRegion);
+			response.flushBuffer();
+			return;
+		}
 		
 		final BamInput bam = this.bamInput.get(bam_id);
+
+		if(region.length() <=this.small_region_size) {
+			printRaster(bam,midRegion, region, request, response);
+			return;
+		}
+		
+		final boolean normalize = request.getParameter("normalize")!=null;
+		
 		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
 		try(SamReader sr=srf.open(bam.bamPath)) {
 			
-			final int extend = (int)(midRegion.getLengthOnReference()*this.extend_factor);
-			int xstart = Math.max(midRegion.getStart()-extend,0);
-			int xend = midRegion.getEnd()+extend;
-			final SAMSequenceRecord ssr = this.dictionary.getSequence(midRegion.getContig());
-			if(ssr!=null) {
-				xend = Math.min(xend, ssr.getSequenceLength());
-			}
-			final SimpleInterval region = new SimpleInterval(midRegion.getContig(),xstart,xend);
-			if(region.getLengthOnReference()>this.max_window_size)  {
-				response.reset();
-				response.sendError(HttpStatus.BAD_REQUEST_400,"contig:"+midRegion);
-				response.flushBuffer();
-				return;
-			}
 			
 			 final int int_coverage[]=new int[region.getLengthOnReference()];
 			 Arrays.fill(int_coverage, 0);
 			 try(CloseableIterator<SAMRecord> iter=sr.query(region.getContig(), region.getStart(), region.getEnd(),false)) {
 				 while(iter.hasNext()) {
 					 final SAMRecord rec=iter.next();
-					 if(rec.getReadUnmappedFlag()) continue;
-					 if(rec.getDuplicateReadFlag()) continue;
-					 if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					 if(rec.isSecondaryOrSupplementary()) continue;
+					 if(!acceptRead(rec)) continue;
 					 final Cigar cigar = rec.getCigar();
 					 if(cigar==null || cigar.isEmpty()) continue;
 					 int ref=rec.getAlignmentStart();
