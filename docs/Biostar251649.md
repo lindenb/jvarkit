@@ -10,6 +10,15 @@
 ```
 Usage: biostar251649 [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -65,6 +74,11 @@ $ ./gradlew biostar251649
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20170508
 
 ## Source code 
 

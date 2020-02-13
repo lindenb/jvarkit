@@ -24,11 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -37,6 +37,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
@@ -48,7 +50,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-/*
+/**
 BEGIN_DOC
 
 ## Examples
@@ -80,13 +82,15 @@ END_DOC
 @Program(name="biostar251649",
 	description=" Annotating the flanking bases of SNPs in a VCF file",
 	biostars={251649,334253},
-	keywords={"vcf","annotation","sequence","reference"}
+	keywords={"vcf","annotation","sequence","reference"},
+	creationDate="20170508",
+	modificationDate="20200213"
 	)
 public class Biostar251649 extends Launcher
 	{
 	private static final Logger LOG= Logger.build(Biostar251649.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names="-5",description="Left tag")
 	private String leftTag="SEQ5_";
 	@Parameter(names="-3",description="Right tag")
@@ -98,6 +102,9 @@ public class Biostar251649 extends Launcher
 			required=true
 			)
 	private Path faidx = null;
+	
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVcf = new WritingVariantsDelegate();
 	
 	
 	@Override
@@ -111,9 +118,9 @@ public class Biostar251649 extends Launcher
 			referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final VCFHeader header = new VCFHeader(in.getHeader());
 			final VCFInfoHeaderLine info5 = new VCFInfoHeaderLine(leftTag+extend,
-					1, VCFHeaderLineType.String,"Sequence on the 5' of mutation");
+					1, VCFHeaderLineType.String,"Sequence on the 5' of variant");
 			final VCFInfoHeaderLine info3 = new VCFInfoHeaderLine(rightTag+extend,
-					1, VCFHeaderLineType.String,"Sequence on the 3' of mutation");
+					1, VCFHeaderLineType.String,"Sequence on the 3' of variant");
 		
 			if(header.getInfoHeaderLine(info5.getID())!=null)
 				{
@@ -165,7 +172,7 @@ public class Biostar251649 extends Launcher
 			progress.close();
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -178,7 +185,7 @@ public class Biostar251649 extends Launcher
 	@Override
 	public int doWork(final List<String> args)
 		{
-		return doVcfToVcf(args, outputFile);
+		return doVcfToVcfPath(args,this.writingVcf,this.outputFile);
 		}
 	
 	public static void main(final String[] args)

@@ -274,4 +274,11 @@ public static String niceFileSize(final long bytes) {
 public static String ifBlank(final String s,final String def) {
 	return isBlank(s)?def:s;
 	}
+
+/** if s is null return empty string. replace all CR per space. Trim and Replace all consecutive spaces */
+public static String normalizeSpaces(final String s) {
+	if(s==null) return "";
+	return s.replaceAll("[\\s]+", " ").trim();
+	}
+
 }

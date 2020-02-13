@@ -31,9 +31,12 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
@@ -92,10 +95,14 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 /**
 BEGIN_DOC
 
+## input
+
+input is a set of indexed BAM file or a file with the suffix `.list` containing the path to the bams.
+ 
 ## Example
 
 ```
-java -jar dist/coverageserver.jar -r 'RF01:100-200' -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam
+java -jar dist/coverageserver.jar --bed roi.bed -o comments.bed -R fasta src/test/resources/S*.bam
 
 ```
  
@@ -105,7 +112,6 @@ END_DOC
 
 @Program(name="coverageserver",
 	description="Jetty Based http server serving Bam coverage.",
-	generate_doc=false,
 	creationDate="20200212",
 	modificationDate="20200212",
 	keywords={"cnb","bam","coverage","server"}
@@ -125,14 +131,23 @@ public  class CoverageServer extends Launcher {
 	private int max_window_size = 10_000_000;
 	@Parameter(names= {"--link","--url","--hyperlink"},description=Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
 	private Hyperlink hyperlink =Hyperlink.empty();
+	@Parameter(names= {"--width"},description="Image width")
+	private int image_width= 500;
+	@Parameter(names= {"--height"},description="Image height")
+	private int image_height= 300;
+	@Parameter(names= {"--image-per-row"},description="Number of images per row.")
+	private int images_per_row= 2;
+	@Parameter(names= {"--extend"},description="Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> chr1:50-250")
+	private double extend_factor=0.5;
+	@Parameter(names= {"-o","--output","--comment"},description="Output file for writing comments as a BED file.")
+	private Path commentPath= null; 
+
 	
 	private SAMSequenceDictionary dictionary;
 	private final List<Interval> named_intervals = new Vector<>();
 	private final List<BamInput> bamInput = new Vector<>();
 	private Pedigree pedigree = null;
 	
-	private final int image_width= 800;
-	private final int image_height= 400;
 
 	private static class BamInput {
 		final Path bamPath;
@@ -143,14 +158,18 @@ public  class CoverageServer extends Launcher {
 	}
 	
 	private static class Coverage {
-		private final double array[];
+		private final float array[];
 		int count=0;
 		Coverage(final int len) {
-			this.array=new double[len];
+			this.array=new float[len];
+			Arrays.fill(this.array, 0.0f);
 			count=0;
-		}
+			}
 		double median() {
-			if(count==0) return 1.0;
+			if(count==0) {
+				LOG.warn("count=0");
+				return 1.0;
+				}
 			Arrays.sort(this.array,0,count);
 			int mid_x = count/2;
 			if(count%2==0) {
@@ -161,11 +180,12 @@ public  class CoverageServer extends Launcher {
 			
 		
 		}
-		void reset() {
-			count=0;
-		}
-		void add(double v) {
-			this.array[this.count++]=v;
+		void add(final int v) {
+			if(count>=this.array.length) {
+				LOG.warn("array out of range");
+				return;
+			}
+			this.array[this.count++]=(float)v;
 		}
 		
 	}
@@ -186,6 +206,9 @@ public  class CoverageServer extends Launcher {
 				{
 				printImage(request,response);
 				}
+			else if(pathInfo.equals("/comment")) {
+				saveComment(request,response);
+				}
 			else
 				{
 				printPage(request,response);
@@ -204,6 +227,52 @@ public  class CoverageServer extends Launcher {
 	}
 	
 
+	private void saveComment( HttpServletRequest request, HttpServletResponse response) 	throws IOException, ServletException{
+		final SimpleInterval region = parseInterval(request.getParameter("interval"));
+		final String comment =request.getParameter("comment");
+		if(this.commentPath==null || region==null || StringUtils.isBlank(comment)) {
+			LOG.info("region "+region+"."+request.getParameter("interval"));
+			LOG.info("comment "+comment+".");
+			response.reset();
+			response.sendError(HttpStatus.BAD_REQUEST_400,"bad request");
+			response.flushBuffer();
+			return;
+		}
+		try(BufferedWriter pw= Files.newBufferedWriter(this.commentPath,StandardOpenOption.CREATE,StandardOpenOption.APPEND)) {
+			pw.append(region.getContig());
+			pw.append("\t");
+			pw.append(String.valueOf(region.getStart()-1));
+			pw.append("\t");
+			pw.append(String.valueOf(region.getEnd()));
+			pw.append("\t");
+			pw.append(StringUtils.normalizeSpaces(comment));
+			pw.append("\t");
+			pw.append(StringUtils.ifBlank(this.named_intervals.
+					stream().
+					filter(I->new SimpleInterval(I).equals(region)).
+					map(R->R.getName()).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.joining("; ")),"."));
+			pw.append('\n');
+			pw.flush();
+			
+			response.setContentType("text/plain");
+			PrintWriter w=response.getWriter();
+			w.append("OK. Comment saved.");
+			w.flush();
+			return;
+		} catch(final IOException err) {
+			 LOG.error(err);
+			 response.reset();
+			 response.setContentType("text/plain");
+			 PrintWriter w=response.getWriter();
+			 w.append("Error. Cannot save comment ("+err.getMessage()+")");
+			 w.flush();
+			 return;
+		}
+		
+	}
+	
 	
 	private void printImage( HttpServletRequest request, HttpServletResponse response)	throws IOException, ServletException
 	{
@@ -220,12 +289,13 @@ public  class CoverageServer extends Launcher {
 			response.flushBuffer();
 			return;
 		}
+		final boolean normalize = request.getParameter("normalize")!=null;
 		
 		final BamInput bam = this.bamInput.get(bam_id);
 		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
 		try(SamReader sr=srf.open(bam.bamPath)) {
 			
-			final double factor = 0.3;
+			final double factor = 0.5;
 			final int extend = (int)(midRegion.getLengthOnReference()*factor);
 			int xstart = Math.max(midRegion.getStart()-extend,0);
 			int xend = midRegion.getEnd()+extend;
@@ -241,7 +311,6 @@ public  class CoverageServer extends Launcher {
 				return;
 			}
 			
-			LOG.info("drawing "+bam+" "+region);
 			 final int int_coverage[]=new int[region.getLengthOnReference()];
 			 Arrays.fill(int_coverage, 0);
 			 try(CloseableIterator<SAMRecord> iter=sr.query(region.getContig(), region.getStart(), region.getEnd(),false)) {
@@ -272,7 +341,6 @@ public  class CoverageServer extends Launcher {
 			 }
 			 /* smooth coverage */
 			 if(int_coverage.length>image_width) {
-				 LOG.info("smooth");
 				 final int copy[]=Arrays.copyOf(int_coverage, int_coverage.length);
 				 final int len = Math.max(1,int_coverage.length/100);
 				 
@@ -289,30 +357,42 @@ public  class CoverageServer extends Launcher {
 				 }
 			 }
 			 
-				
-			final Coverage leftrightcov = new Coverage( extend*2 );
-			 LOG.info("left");
-			 for(int x=region.getStart();x<midRegion.getStart();x++) {
-					final int idx = x-region.getStart();
-					leftrightcov.add(int_coverage[idx]);
-				}
-			 LOG.info("right");
-			 for(int x=midRegion.getEnd()+1;x<=region.getEnd();x++) {
-					final int idx = x-midRegion.getEnd()+1;
-					leftrightcov.add(int_coverage[idx]);
-				}
-			 
-			final double median = leftrightcov.median();
-			LOG.info("median"+median);
 			final double norm_coverage[] = new double[int_coverage.length];
-			for(int x=0;x< int_coverage.length;++x) {
-				norm_coverage[x]=int_coverage[x]/median;
-			}
+			final double median;
+			/* normalize on median */
+			if(normalize)
+				{
+				final Coverage leftrightcov = new Coverage( extend*2 );
+				 for(int x=region.getStart();x<midRegion.getStart();x++) {
+						final int idx = x-region.getStart();
+						leftrightcov.add(int_coverage[idx]);
+					}
+				 for(int x=midRegion.getEnd()+1;x<=region.getEnd();x++) {
+						final int idx = x-region.getStart();
+						leftrightcov.add(int_coverage[idx]);
+					}
+				 
+				median = Math.max(1.0,leftrightcov.median());
+				//LOG.info("median is "+median+" "+leftrightcov.median());
+				for(int x=0;x< int_coverage.length;++x) {
+					norm_coverage[x]=int_coverage[x]/median;
+					}
+				} 
+			else /* no normalisation */
 			
-			 double max_cov= Math.max(10, DoubleStream.of(norm_coverage).max().orElse(1));
+				{
+				/* won't be used */
+				median = Double.NaN;
+				for(int x=0;x< int_coverage.length;++x) {
+						norm_coverage[x]=int_coverage[x];
+					}
+				}
+			
+			 final double real_max_cov = DoubleStream.of(norm_coverage).max().orElse(1.0);
+			 final double max_cov= Math.max((normalize?2:10),real_max_cov );
 			 final double pixelperbase = image_width/(double)norm_coverage.length;
 			 final BufferedImage img = new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
-			 Graphics2D g=img.createGraphics();
+			 final Graphics2D g=img.createGraphics();
 			 g.setColor(Color.WHITE);
 			 g.fillRect(0, 0, image_width+1, image_height+1);
 			 
@@ -322,7 +402,8 @@ public  class CoverageServer extends Launcher {
 			 for(int x=0;x< norm_coverage.length;++x) {
 				 final double height = image_height*(norm_coverage[x]/max_cov);
 				
-				 if(max_cov<10) g.setColor(Color.RED);
+				 if(normalize) g.setColor(Color.DARK_GRAY);
+				 else if(max_cov<10) g.setColor(Color.RED);
 				 else if(max_cov<20) g.setColor(Color.BLUE);
 				 else g.setColor(Color.DARK_GRAY);
 				
@@ -331,21 +412,24 @@ public  class CoverageServer extends Launcher {
 						 image_height-height,
 						 pixelperbase,
 						 height));
-			 }
+			 	}
 			 g.setComposite(oldComposite);
 			 
 			 g.setColor(Color.DARK_GRAY);
-			 g.drawString("max-cov:"+IntStream.of(int_coverage).max().orElse(0)+" sample:"+ bam.sample +" "+
+			 g.drawString("max-cov:"+IntStream.of(int_coverage).max().orElse(0)+
+					 (normalize?" normalized on median ("+median+")":"")+
+					 " sample:"+ bam.sample +" "+
 					 region.toNiceString()
 					 , 10, 10);
 
 			 /* ticks for vertical axis */
-			 g.setColor(Color.BLUE);
+			 g.setColor(Color.MAGENTA);
 			 for(int i=1;i<10;i++) {
 				 final double cov=Math.ceil(max_cov/10.0*i);
 				 final double y = image_height - image_height/10.0*i;
+				 if(!normalize && i>0 && (int)cov==Math.ceil(max_cov/10.0*(i-1))) continue;
 				 g.drawLine(0, (int)y, 5, (int)y);
-				 g.drawString(String.valueOf((int)cov),7,(int)y);
+				 g.drawString(normalize?String.valueOf(cov):String.valueOf((int)cov),7,(int)y);
 			 }
 			 
 			 /* vertical line for original view */
@@ -355,21 +439,22 @@ public  class CoverageServer extends Launcher {
 			 vertical = ((midRegion.getEnd()-region.getStart())/(double)region.getLengthOnReference())*image_width;
 			 g.draw(new Line2D.Double(vertical, 0, vertical, image_height));
 
-			 /* horizontal line for median */
-			 g.setColor(Color.ORANGE);
-			 double mediany= image_height-(median/max_cov)*image_height;
-			 g.draw(new Line2D.Double(0,mediany,image_width,mediany));
-			 g.setColor(Color.CYAN);
-			 mediany= image_height-((median*2)/max_cov)*image_height;
-			 g.draw(new Line2D.Double(0,mediany,image_width,mediany));
-			 mediany= image_height-((median*0.5)/max_cov)*image_height;
-			 g.draw(new Line2D.Double(0,mediany,image_width,mediany));
+			 if(normalize) {
+				 /* horizontal line for median 0.5 / 1 / 1.5 */
+				 for(int t=1;t<4;++t) {
+					 g.setColor(t==2?Color.ORANGE:Color.PINK);
+					 final double mediany= image_height-((0.5*t)/max_cov)*image_height;
+					 g.draw(new Line2D.Double(0,mediany,image_width,mediany));
+					 }
+				 }
 
 			 
 			 g.setColor(Color.GRAY);
 			 g.drawRect(0, 0, img.getWidth(),  img.getHeight());
 
+			 final String basename = bam.sample+"_"+region.getContig()+"_"+region.getStart()+"_"+region.getEnd();
 			 response.setContentType("image/png");
+			 response.addHeader("Content-Disposition","form-data; name=\""+basename+"\"; filename=\""+basename +".png\"");
 			 ImageIO.write(img, "PNG", response.getOutputStream());
 			 response.flushBuffer();
 		}
@@ -390,7 +475,7 @@ public  class CoverageServer extends Launcher {
 		
 		switch(sample.getStatus()) {
 			case unaffected:  w.writeEntityRef("#128578"); break;
-			case affected:  w.writeEntityRef("##128577"); break;
+			case affected:  w.writeEntityRef("#128577"); break;
 			default:  w.writeEntityRef("#63"); break;
 			}
 		w.writeCharacters(".");
@@ -405,6 +490,8 @@ public  class CoverageServer extends Launcher {
 		 response.setCharacterEncoding(charset);
 		 PrintWriter pw = response.getWriter();
 		 SimpleInterval interval = null;
+		 
+		 final boolean normalize = request.getParameter("normalize")!=null;
 		 
 		 if(!StringUtils.isBlank(request.getParameter("custominterval"))) {
 			 interval = parseInterval(request.getParameter("custominterval"));
@@ -492,7 +579,16 @@ public  class CoverageServer extends Launcher {
 			w.writeEndElement();//title
 			
 			w.writeStartElement("style");
-			w.writeCharacters("");
+			w.writeCharacters(
+					"body {background-color:#f0f0f0;color:#070707;font-size:18px;}"
+					+ "h1 {text-align:center;color:#070707;}"
+					+ ".grid-container {display: grid; grid-template-columns: "+IntStream.range(0, Math.max(1,this.images_per_row)).mapToObj(X->"auto").collect(Collectors.joining(" "))+";grid-gap: 10px;  padding: 10px;}"
+					+ ".span1 {border:1px dotted blue;}"
+					+ ".lbl {font-weight: bold;}"
+					+ ".bampath {font-family:monospace;font-size:12px; font-style: normal;color:gray;}"
+					+ ".headerform {background-color:lavender;text-align:center;font-size:14px;}"
+					+ ".comment {background-color:khaki;text-align:center;font-size:14px;}"
+					);
 			w.writeEndElement();//title
 			
 			w.writeStartElement("script");
@@ -501,11 +597,20 @@ public  class CoverageServer extends Launcher {
 				w.flush();
 				/* messy with < and > characters + xmlstream */
 				pw.write(
+				"function sendComment() {"+
+				"var commentstr=document.getElementById(\"comment\").value;" +
+				"console.log(\"comment is\"+commentstr);"+
+				"if(commentstr.trim().length==0) return;" +
+				"var xhttp = new XMLHttpRequest();"+
+				"xhttp.onreadystatechange = function() {if (this.readyState == 4) if(this.status == 200) { alert(this.responseText);} else alert(\"Cannot send Comment.\")};"+
+				"xhttp.open(\"GET\",\"/comment?interval="+StringUtils.escapeHttp(interval.toString())+"&comment=\"+encodeURI(commentstr), true);"+
+				"xhttp.send();"+
+				"}"+
 				"function loadImage(idx) {"+
 				"if(idx>="+this.bamInput.size()+") return;"+
 				"var img = document.getElementById(\"bamid\"+idx);"+
 				"img.addEventListener('load',(event) => {img.width="+image_width+";img.height="+image_height+";loadImage(idx+1);});"+
-				"img.setAttribute(\"src\",\"/getimage?id=\"+idx+\"&interval="+ StringUtils.escapeHttp(interval.toString()) +"\");"+
+				"img.setAttribute(\"src\",\"/getimage?id=\"+idx+\"&interval="+ StringUtils.escapeHttp(interval.toString()) +(normalize?"&normalize=1":"")+"\");"+
 				"img.setAttribute(\"alt\",\"bam idx\"+idx);"+
 				"}"+
 				"function init() {"+
@@ -513,6 +618,12 @@ public  class CoverageServer extends Launcher {
 				"if(span!=null) span.addEventListener('click',(evt)=>{document.getElementById(\"custominterval\").value = span.textContent; });"+
 				"var sel=document.getElementById(\"selinterval\");"+
 				"if(sel!=null) sel.addEventListener('change',(evt)=>{document.getElementById(\"custominterval\").value = evt.target.value; });"+
+				"var cbox=document.getElementById(\"norminput\");"+
+				"if(cbox!=null) cbox.addEventListener('change',(evt)=>{cbox.form.submit(); });"+
+				"var comment=document.getElementById(\"commentbtn\");" +
+				"if(comment!=null) comment.addEventListener('click',(evt)=>{ console.log(\"send comment\");sendComment(); });"+
+				"var shortcuts=document.getElementById(\"shortcuts\");"+
+				"if(shortcuts!=null) shortcuts.addEventListener('change',(evt)=>{document.getElementById(\"comment\").value += evt.target.value; });"+
 				"loadImage(0);"+
 				"}"+
 				"window.addEventListener('load', (event) => {init();});"
@@ -545,7 +656,9 @@ public  class CoverageServer extends Launcher {
 				w.writeEndElement();//h2
 			}
 			
+			w.writeComment("BEGIN FORM");
 			w.writeStartElement("div");
+			w.writeAttribute("class", "headerform");
 			w.writeStartElement("form");
 			w.writeAttribute("method", "GET");
 			w.writeAttribute("action", "/page");
@@ -559,6 +672,7 @@ public  class CoverageServer extends Launcher {
 			/* write select box with predefined interval */
 			if(!this.named_intervals.isEmpty()) {
 				w.writeStartElement("select");
+				w.writeAttribute("class", "btn");
 				w.writeAttribute("id", "selinterval");
 				
 				w.writeEmptyElement("option");
@@ -581,6 +695,7 @@ public  class CoverageServer extends Launcher {
 				
 				/* move */
 				w.writeStartElement("label");
+				w.writeAttribute("class", "lbl");
 				w.writeCharacters("move");
 				w.writeEndElement();
 				for(final String mv:new String[]{"<<<","<<","<",">",">>",">>>"}) {
@@ -593,6 +708,7 @@ public  class CoverageServer extends Launcher {
 				
 				/* zoom in */
 				w.writeStartElement("label");
+				w.writeAttribute("class", "lbl");
 				w.writeCharacters("zoom in");
 				w.writeEndElement();
 				for(final String zoom:new String[]{"1.5","3","10"}) {
@@ -606,6 +722,7 @@ public  class CoverageServer extends Launcher {
 				
 				/* zoom in */
 				w.writeStartElement("label");
+				w.writeAttribute("class", "lbl");
 				w.writeCharacters("zoom out");
 				w.writeEndElement();
 				for(final String zoom:new String[]{"1.5","3","10","100"}) {
@@ -615,9 +732,25 @@ public  class CoverageServer extends Launcher {
 					w.writeAttribute("name", "zoomout");
 					w.writeAttribute("value", zoom);
 					}
+				/* checkbox normalize */
+				
+				w.writeEmptyElement("input");
+				w.writeAttribute("id", "norminput");
+				w.writeAttribute("name", "normalize");
+				w.writeAttribute("type", "checkbox");
+				if(normalize) w.writeAttribute("checked", "true");
+				
+				w.writeStartElement("label");
+				w.writeAttribute("class", "lbl");
+				w.writeAttribute("for", "norminput");
+				w.writeCharacters("normalize");
+				w.writeEndElement();
+				
+				
 				w.writeEmptyElement("br");
 				
 				w.writeStartElement("span");
+				w.writeAttribute("class", "span1");
 				w.writeAttribute("id", "spaninterval");
 				w.writeCharacters(interval.toNiceString());
 				w.writeEndElement();//span
@@ -629,6 +762,7 @@ public  class CoverageServer extends Launcher {
 				w.writeAttribute("value","");
 				
 				w.writeStartElement("button");
+				w.writeAttribute("class", "btn");
 				w.writeAttribute("name", "parseinterval");
 				w.writeCharacters("GO");
 				w.writeEndElement();//button
@@ -638,8 +772,56 @@ public  class CoverageServer extends Launcher {
 			w.writeEndElement();//form
 			w.writeEndElement();//div
 			
+			if(this.commentPath!=null) {
+				w.writeStartElement("div");
+				w.writeAttribute("class", "comment");
+				
+				w.writeStartElement("label");
+				w.writeAttribute("for", "comment");
+				w.writeCharacters("Comment:");
+				w.writeEndElement();
+				w.writeEmptyElement("input");
+				w.writeAttribute("id", "comment");
+				w.writeAttribute("type", "text");
+				w.writeAttribute("placeholder", "Comment about "+ interval.toNiceString());
+				
+				w.writeStartElement("button");
+				w.writeAttribute("class", "btn");
+				w.writeAttribute("id", "commentbtn");
+				w.writeCharacters("Send comment");
+				w.writeEndElement();//button
+				w.writeCharacters(" ");
+				
+				w.writeStartElement("select");
+				w.writeAttribute("class", "btn");
+				w.writeAttribute("id", "shortcuts");
+				
+				w.writeEmptyElement("option");
+				
+				for(final String opt : new String[] {"OK","BAD","Noisy","False positive","Deletion","Later"}) {
+					w.writeStartElement("option");
+					w.writeAttribute("value"," "+opt+".");
+					w.writeCharacters(opt);
+					w.writeEndElement();
+				}
+				
+				w.writeEndElement();//select
+				
+				w.writeEndElement();//div
+			}
 			
+			w.writeComment("END FORM");
+			
+			
+			
+			
+			
+			/* write anchors to samples */
 			w.writeStartElement("div");
+			w.writeEmptyElement("a");
+			w.writeAttribute("name", "top");
+			w.writeAttribute("class", "allsamples");
+			w.writeCharacters("Samples: ");
 			for(final BamInput bi:this.bamInput.stream().sorted((A,B)->A.sample.compareTo(B.sample)).collect(Collectors.toList())) {
 				w.writeStartElement("a");
 				w.writeAttribute("title", bi.sample);
@@ -660,17 +842,26 @@ public  class CoverageServer extends Launcher {
 			w.writeCharacters("\n");
 			
 			w.writeStartElement("div");
+			w.writeAttribute("class", "grid-container");
+			
 			for(int i=0;i< this.bamInput.size();i++) {
 				final BamInput bamInput = this.bamInput.get(i);
 				final Path bam = bamInput.bamPath;
 
 				w.writeStartElement("div");
-				
+				w.writeAttribute("class", "sample");
 				w.writeEmptyElement("a");
 				w.writeAttribute("name", bamInput.sample);
 
 				w.writeStartElement("h3");
 				w.writeCharacters(bamInput.sample);
+				w.writeCharacters(" ");
+				w.writeStartElement("a");
+				w.writeAttribute("href","#top");
+				w.writeAttribute("title","top");
+				w.writeCharacters("[^]");
+				w.writeEndElement();
+				
 				
 					{
 					final Sample sample = this.pedigree==null?null:this.pedigree.getSampleById(bamInput.sample);
@@ -683,7 +874,7 @@ public  class CoverageServer extends Launcher {
 							
 							boolean has_bam= this.bamInput.stream().anyMatch(B->B.sample.equals(parent.getId()));
 							w.writeCharacters(" ");
-							w.writeCharacters(i==0?"Father ":"Mother ");
+							w.writeCharacters(p==0?"Father ":"Mother ");
 							if(has_bam) {
 								w.writeStartElement("a");
 								w.writeAttribute("href","#"+parent.getId());
@@ -705,6 +896,7 @@ public  class CoverageServer extends Launcher {
 				w.writeEndElement();
 				
 				w.writeStartElement("div");
+				w.writeAttribute("class", "bampath");
 				w.writeCharacters(bam.toString());
 				w.writeEndElement();
 
@@ -723,6 +915,7 @@ public  class CoverageServer extends Launcher {
 			
 			w.writeEmptyElement("hr");
 			w.writeStartElement("div");
+			w.writeCharacters("Author: Pierre Lindenbaum. ");
 			w.writeCharacters(JVarkitVersion.getInstance().getLabel());
 			w.writeEndElement();
 			
@@ -740,8 +933,24 @@ public  class CoverageServer extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-	
+		if(this.image_width<10) {
+			LOG.error("low image width");
+			return -1;
+			}
+		if(this.image_height<10) {
+			LOG.error("low image height");
+			return -1;
+			}
+		if(this.images_per_row<1) {
+			LOG.error("low images_per_row");
+			return -1;
+			}
+		if(this.extend_factor <= 0) {
+			LOG.error("bad extend_factor "+this.extend_factor);
+			return -1;
+			}
 		try {
+			
 			this.bamInput.addAll(IOUtils.unrollPaths(args).stream().map(F->new BamInput(F)).collect(Collectors.toList()));
 			if(this.bamInput.isEmpty()) {
 				LOG.error("No BAM defined.");
