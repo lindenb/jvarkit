@@ -102,10 +102,21 @@ input is a set of indexed BAM file or a file with the suffix `.list` containing 
 ## Example
 
 ```
-java -jar dist/coverageserver.jar --bed roi.bed -o comments.bed -R fasta src/test/resources/S*.bam
+java -jar dist/coverageserver.jar \
+	--pedigree fam.ped \
+	--bed roi.bed \
+	-o comments.bed \
+	-R fasta src/test/resources/S*.bam
 
 ```
- 
+## Hidden parameters
+
+ * `columns=5` change the number of columns at runtime.
+
+## Screenshot
+
+![https://twitter.com/yokofakun/status/1227932501747871745](https://pbs.twimg.com/media/EQp-Ga4XsAAxNYn?format=png&name=small)
+
 END_DOC
  
  */
@@ -135,10 +146,10 @@ public  class CoverageServer extends Launcher {
 	private int image_width= 500;
 	@Parameter(names= {"--height"},description="Image height")
 	private int image_height= 300;
-	@Parameter(names= {"--image-per-row"},description="Number of images per row.")
+	@Parameter(names= {"--images-per-row","--ipr"},description="Number of images per row.")
 	private int images_per_row= 2;
 	@Parameter(names= {"--extend"},description="Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> chr1:50-250")
-	private double extend_factor=0.5;
+	private double extend_factor=1.0;
 	@Parameter(names= {"-o","--output","--comment"},description="Output file for writing comments as a BED file.")
 	private Path commentPath= null; 
 
@@ -201,7 +212,6 @@ public  class CoverageServer extends Launcher {
 		protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 			  String pathInfo = request.getPathInfo();
 			  if(pathInfo==null) pathInfo="/";
-				LOG.info(pathInfo);
 			if(pathInfo.equals("/getimage"))
 				{
 				printImage(request,response);
@@ -295,8 +305,7 @@ public  class CoverageServer extends Launcher {
 		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
 		try(SamReader sr=srf.open(bam.bamPath)) {
 			
-			final double factor = 0.5;
-			final int extend = (int)(midRegion.getLengthOnReference()*factor);
+			final int extend = (int)(midRegion.getLengthOnReference()*this.extend_factor);
 			int xstart = Math.max(midRegion.getStart()-extend,0);
 			int xend = midRegion.getEnd()+extend;
 			final SAMSequenceRecord ssr = this.dictionary.getSequence(midRegion.getContig());
@@ -425,11 +434,12 @@ public  class CoverageServer extends Launcher {
 			 /* ticks for vertical axis */
 			 g.setColor(Color.MAGENTA);
 			 for(int i=1;i<10;i++) {
-				 final double cov=Math.ceil(max_cov/10.0*i);
+				 double cov=max_cov/10.0*i;
+				 if(!normalize) cov= Math.ceil(cov);
 				 final double y = image_height - image_height/10.0*i;
 				 if(!normalize && i>0 && (int)cov==Math.ceil(max_cov/10.0*(i-1))) continue;
 				 g.drawLine(0, (int)y, 5, (int)y);
-				 g.drawString(normalize?String.valueOf(cov):String.valueOf((int)cov),7,(int)y);
+				 g.drawString(normalize?String.format("%.2f",cov):String.valueOf((int)cov),7,(int)y);
 			 }
 			 
 			 /* vertical line for original view */
@@ -490,6 +500,11 @@ public  class CoverageServer extends Launcher {
 		 response.setCharacterEncoding(charset);
 		 PrintWriter pw = response.getWriter();
 		 SimpleInterval interval = null;
+		 
+		 int columns_count = this.images_per_row;
+		 if(!StringUtils.isBlank(request.getParameter("columns"))) {
+			 columns_count = Math.max(1,StringUtils.parseInt(request.getParameter("columns")).orElse(this.images_per_row));
+		 }
 		 
 		 final boolean normalize = request.getParameter("normalize")!=null;
 		 
@@ -582,12 +597,15 @@ public  class CoverageServer extends Launcher {
 			w.writeCharacters(
 					"body {background-color:#f0f0f0;color:#070707;font-size:18px;}"
 					+ "h1 {text-align:center;color:#070707;}"
-					+ ".grid-container {display: grid; grid-template-columns: "+IntStream.range(0, Math.max(1,this.images_per_row)).mapToObj(X->"auto").collect(Collectors.joining(" "))+";grid-gap: 10px;  padding: 10px;}"
+					+ ".grid-container {display: grid; grid-template-columns: "+IntStream.range(0, Math.max(1,columns_count)).mapToObj(X->"auto").collect(Collectors.joining(" "))+";grid-gap: 10px;  padding: 10px;}"
 					+ ".span1 {border:1px dotted blue;}"
 					+ ".lbl {font-weight: bold;}"
 					+ ".bampath {font-family:monospace;font-size:12px; font-style: normal;color:gray;}"
 					+ ".headerform {background-color:lavender;text-align:center;font-size:14px;}"
 					+ ".comment {background-color:khaki;text-align:center;font-size:14px;}"
+					+ ".highlight {background-color:#DB7093;}"
+					+ ".parents {font-size:75%;color:gray;}"
+					+ ".allsamples {font-size:125%;}"
 					);
 			w.writeEndElement();//title
 			
@@ -597,6 +615,11 @@ public  class CoverageServer extends Launcher {
 				w.flush();
 				/* messy with < and > characters + xmlstream */
 				pw.write(
+				"function highlight(name) {"+
+				"var e = document.getElementById(name+\"_div\"); if(e==null) return;"+
+				"e.classList.add(\"highlight\");"+
+				"setTimeout(function () {e.classList.remove(\"highlight\");},2000);"+
+				"}"+
 				"function sendComment() {"+
 				"var commentstr=document.getElementById(\"comment\").value;" +
 				"console.log(\"comment is\"+commentstr);"+
@@ -636,6 +659,8 @@ public  class CoverageServer extends Launcher {
 			
 			w.writeStartElement("body");
 			
+
+			
 			w.writeStartElement("h1");
 			final String outlinkurl = hyperlink.apply(interval);
 			if(StringUtils.isBlank(outlinkurl)) {
@@ -656,6 +681,11 @@ public  class CoverageServer extends Launcher {
 				w.writeEndElement();//h2
 			}
 			
+			
+			w.writeEmptyElement("a");
+			w.writeAttribute("name", "top");
+
+			
 			w.writeComment("BEGIN FORM");
 			w.writeStartElement("div");
 			w.writeAttribute("class", "headerform");
@@ -668,6 +698,16 @@ public  class CoverageServer extends Launcher {
 			w.writeAttribute("value", interval.toString());
 			w.writeAttribute("type", "hidden");
 
+			
+			 if(!StringUtils.isBlank(request.getParameter("columns"))) {
+				w.writeEmptyElement("input");
+				w.writeAttribute("name", "columns");
+				w.writeAttribute("value",String.valueOf(columns_count));
+				w.writeAttribute("type", "hidden");
+			 }
+
+			
+			
 			
 			/* write select box with predefined interval */
 			if(!this.named_intervals.isEmpty()) {
@@ -818,14 +858,14 @@ public  class CoverageServer extends Launcher {
 			
 			/* write anchors to samples */
 			w.writeStartElement("div");
-			w.writeEmptyElement("a");
-			w.writeAttribute("name", "top");
 			w.writeAttribute("class", "allsamples");
+
 			w.writeCharacters("Samples: ");
 			for(final BamInput bi:this.bamInput.stream().sorted((A,B)->A.sample.compareTo(B.sample)).collect(Collectors.toList())) {
 				w.writeStartElement("a");
 				w.writeAttribute("title", bi.sample);
 				w.writeAttribute("href", "#"+bi.sample);
+				w.writeAttribute("onclick", "highlight('"+bi.sample+"');");
 				w.writeCharacters("["+bi.sample);
 				if(pedigree!=null) {
 					final Sample sn = this.pedigree.getSampleById(bi.sample);
@@ -849,6 +889,7 @@ public  class CoverageServer extends Launcher {
 				final Path bam = bamInput.bamPath;
 
 				w.writeStartElement("div");
+				w.writeAttribute("id", bamInput.sample+"_div");
 				w.writeAttribute("class", "sample");
 				w.writeEmptyElement("a");
 				w.writeAttribute("name", bamInput.sample);
@@ -867,6 +908,8 @@ public  class CoverageServer extends Launcher {
 					final Sample sample = this.pedigree==null?null:this.pedigree.getSampleById(bamInput.sample);
 					if(sample!=null) {
 						writeSample(w,sample);
+						w.writeStartElement("span");
+						w.writeAttribute("class","parents");
 						for(int p=0;p<2;++p) {
 							if(p==0 && !sample.hasFather()) continue;
 							if(p==1 && !sample.hasMother()) continue;
@@ -879,6 +922,7 @@ public  class CoverageServer extends Launcher {
 								w.writeStartElement("a");
 								w.writeAttribute("href","#"+parent.getId());
 								w.writeAttribute("title",parent.getId());
+								w.writeAttribute("onclick", "highlight('"+parent.getId()+"');");
 								w.writeCharacters("["+parent.getId()+"].");
 								w.writeEndElement();
 								}
@@ -887,8 +931,8 @@ public  class CoverageServer extends Launcher {
 								w.writeCharacters(parent.getId());
 								}
 							writeSample(w,parent);
-						}
-
+							}
+						w.writeEndElement();
 						
 					}
 				}
@@ -1006,7 +1050,7 @@ public  class CoverageServer extends Launcher {
 		    
 		    LOG.info("Starting server "+getProgramName()+" on port "+this.serverPort);
 		    server.start();
-		    LOG.info("Server started. Press Ctrl-C to stop");
+		    LOG.info("Server started. Press Ctrl-C to stop. http://localhost:"+this.serverPort+"/coverage");
 		    server.join();
 		    return 0;
 			}

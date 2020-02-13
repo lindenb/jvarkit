@@ -30,6 +30,10 @@ import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -48,17 +52,46 @@ private static <T> boolean _is(final String s,Function<String,T> fun,final Predi
 	}
 	
 public static boolean isDouble(final String s) {
-	return _is(s,Double::parseDouble,null);
+	return parseDouble(s).isPresent();
 	}
 public static boolean isFloat(final String s) {
 	return _is(s,Float::parseFloat,null);
 	}
 public static boolean isInteger(final String s) {
-	return _is(s,Integer::parseInt,null);
+	return parseInt(s).isPresent();
 	}
 public static boolean isLong(final String s) {
-	return _is(s,Long::parseLong,null);
+	return parseLong(s).isPresent();
 	}
+
+public static OptionalInt parseInt(final String s) {
+	if(StringUtils.isBlank(s)) return OptionalInt.empty();
+	try {
+		return OptionalInt.of(Integer.parseInt(s));
+	} catch(final NumberFormatException err) {
+		return OptionalInt.empty();
+	}
+}
+
+public static OptionalLong parseLong(final String s) {
+	if(StringUtils.isBlank(s)) return OptionalLong.empty();
+	try {
+		return OptionalLong.of(Long.parseLong(s));
+	} catch(final NumberFormatException err) {
+		return OptionalLong.empty();
+	}
+}
+
+public static OptionalDouble parseDouble(final String s) {
+	if(StringUtils.isBlank(s)) return OptionalDouble.empty();
+	try {
+		return OptionalDouble.of(Double.parseDouble(s));
+	} catch(final NumberFormatException err) {
+		return OptionalDouble.empty();
+	}
+}
+
+
 /**
  * returns a string that is the rest of a given string after a given substring.
  * @param haystack The string to be evaluated. Part of this string will be returned.

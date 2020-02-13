@@ -18,7 +18,7 @@ Usage: coverageserver [options] Files
     --extend
       Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> 
       chr1:50-250 
-      Default: 0.5
+      Default: 1.0
     --height
       Image height
       Default: 300
@@ -33,7 +33,7 @@ Usage: coverageserver [options] Files
       "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" , 
       UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
       Default: <empty string>
-    --image-per-row
+    --images-per-row, --ipr
       Number of images per row.
       Default: 2
     --max_-size
@@ -123,7 +123,18 @@ input is a set of indexed BAM file or a file with the suffix `.list` containing 
 ## Example
 
 ```
-java -jar dist/coverageserver.jar --bed roi.bed -o comments.bed -R fasta src/test/resources/S*.bam
+java -jar dist/coverageserver.jar \
+	--pedigree fam.ped \
+	--bed roi.bed \
+	-o comments.bed \
+	-R fasta src/test/resources/S*.bam
 
 ```
- 
+## Hidden parameters
+
+ * `columns=5` change the number of columns at runtime.
+
+## Screenshot
+
+![https://twitter.com/yokofakun/status/1227932501747871745](https://pbs.twimg.com/media/EQp-Ga4XsAAxNYn?format=png&name=small)
+
