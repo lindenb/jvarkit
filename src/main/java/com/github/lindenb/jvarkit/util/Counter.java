@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -131,6 +132,12 @@ public class Counter<T>
 			}
 		return key;
 		}
+	
+	/** return maximum occurence found in this Counter */
+	public OptionalLong getMaxCount() {
+		return this.object2count.values().stream().mapToLong(V->V.longValue()).max();
+		}
+	
 	
 	public List<T> keySetDecreasing()
 		{

@@ -139,7 +139,7 @@ java -jar dist/coverageserver.jar \
 	--pedigree fam.ped \
 	--bed roi.bed \
 	-o comments.bed \
-	-R fasta src/test/resources/S*.bam
+	-R ref.fasta src/test/resources/S*.bam
 
 ```
 ## Hidden parameters

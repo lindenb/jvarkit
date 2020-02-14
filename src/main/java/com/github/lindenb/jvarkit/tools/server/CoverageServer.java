@@ -75,6 +75,7 @@ import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -119,7 +120,7 @@ java -jar dist/coverageserver.jar \
 	--pedigree fam.ped \
 	--bed roi.bed \
 	-o comments.bed \
-	-R fasta src/test/resources/S*.bam
+	-R ref.fasta src/test/resources/S*.bam
 
 ```
 ## Hidden parameters
@@ -173,6 +174,8 @@ public  class CoverageServer extends Launcher {
 	private int small_region_size = 1_000; 
 	@Parameter(names= {"--vcf","--region","--regions","--intervals"},description="Same as --bed but intervals won't be annotated. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.empty();
+	@Parameter(names= {"--sashimi"},description="Enable sashimi plots.",hidden=true)
+	private boolean enable_sashimi = false;
 
 	
 	
@@ -181,6 +184,36 @@ public  class CoverageServer extends Launcher {
 	private final List<BamInput> bamInput = new Vector<>();
 	private Pedigree pedigree = null;
 	
+	/** arc for sashimi plot */
+	private static class Arc implements Comparable<Arc>{
+		final int start;
+		final int end;
+		Arc(final int start,final int end) {
+			this.start = start;
+			this.end = end;
+			}
+		@Override
+		public int hashCode() {
+			return Integer.hashCode(this.start)*31+Integer.hashCode(this.end);
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if(obj==this) return true;
+			if(obj==null || !(obj instanceof Arc)) return false;
+			final Arc a=Arc.class.cast(obj);
+			return this.start == a.start && this.end == a.end;
+			}
+		@Override
+		public int compareTo(Arc o) {
+			int i=Integer.compare(this.start, o.start);
+			if(i!=0) return i;
+			return Integer.compare(this.end, o.end);
+			}
+		@Override
+		public String toString() {
+			return String.valueOf(start)+"-"+end;
+			}
+		}
 
 	private static class ReviewedInterval extends SimpleInterval {
 		final String name;
@@ -606,7 +639,7 @@ public  class CoverageServer extends Launcher {
 			response.flushBuffer();
 			return;
 		}
-		
+		final Counter<Arc> sashimiArcs = new Counter<>();
 		final BamInput bam = this.bamInput.get(bam_id);
 
 		if(region.length() <=this.small_region_size) {
@@ -632,6 +665,11 @@ public  class CoverageServer extends Launcher {
 					 for(final CigarElement ce:cigar) {
 						 final CigarOperator op=ce.getOperator();
 						 if(op.consumesReferenceBases()) {
+							 if(this.enable_sashimi && op.equals(CigarOperator.N)) {
+								 sashimiArcs.incr(new Arc(ref,ref+ce.getLength()));
+							 }
+							 
+							 
 							 if(op.consumesReadBases()) {
 								 for(int x=0;x< ce.getLength();++x) {
 									 int pos=ref+x;
@@ -699,6 +737,7 @@ public  class CoverageServer extends Launcher {
 			 final double pixelperbase = image_width/(double)norm_coverage.length;
 			 final BufferedImage img = new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 			 final Graphics2D g=img.createGraphics();
+			 g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
 			 g.setColor(Color.WHITE);
 			 g.fillRect(0, 0, image_width+1, image_height+1);
 			 
@@ -755,6 +794,28 @@ public  class CoverageServer extends Launcher {
 					 }
 				 }
 
+			 if(this.enable_sashimi && !sashimiArcs.isEmpty()) {
+				final double max_count = sashimiArcs.getMaxCount().orElse(1L);
+				g.setColor(Color.GREEN);
+				for(final Arc arc: sashimiArcs.keySet()) {
+					final double x1 = ((arc.start - region.getStart())/(double)region.getLengthOnReference())*image_width;
+					final double x2 = ((arc.end - region.getStart())/(double)region.getLengthOnReference())*image_width;
+					final double distance = x2-x1;
+					final GeneralPath curve = new GeneralPath();
+					curve.moveTo(x1, image_height);
+					curve.curveTo(
+							x1, image_height,
+							distance/2, image_height-Math.min(distance,image_height*0.75),
+							x2, image_height);
+					final double weight= (sashimiArcs.count(arc)/max_count)*5;
+					final Stroke oldStroke= g.getStroke();
+					g.setStroke(new BasicStroke((float)weight));
+					g.draw(curve);
+					g.setStroke(oldStroke);
+					}
+				
+			 }
+			 
 			 
 			 g.setColor(Color.GRAY);
 			 g.drawRect(0, 0, img.getWidth(),  img.getHeight());
