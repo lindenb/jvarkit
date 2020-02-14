@@ -30,13 +30,14 @@ import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
 import htsjdk.samtools.util.StringUtil;
 
 public class StringUtils extends StringUtil {
@@ -313,5 +314,8 @@ public static String normalizeSpaces(final String s) {
 	if(s==null) return "";
 	return s.replaceAll("[\\s]+", " ").trim();
 	}
-
+/** return date using format yyyyMMdd_HHmmss */
+public static String now() {
+	return new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+	}
 }

@@ -36,6 +36,12 @@ Usage: coverageserver [options] Files
     --images-per-row, --ipr
       Number of images per row.
       Default: 2
+    --vcf, --region, --regions, --intervals
+      Same as --bed but intervals won't be annotated. A source of intervals. 
+      The following suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, 
+      gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
+      or a list of plain interval separated by '[ \t\n;,]'
+      Default: (empty)
     --mapq
       Min. Read Mapping Quality.
       Default: 0
@@ -49,14 +55,14 @@ Usage: coverageserver [options] Files
       sex:(0:unknown;1:male;2:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --port
-      server port
+      server port.
       Default: 8080
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     --small-length
       show reads if the region has a length <= 'x'.
-      Default: 100
+      Default: 1000
     --version
       print version and exit
     --width

@@ -24,10 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.server;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.Stroke;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -42,7 +46,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
-import java.util.function.Function;
 import java.util.function.IntToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -68,6 +71,7 @@ import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -92,6 +96,7 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 
 import com.beust.jcommander.Parameter;
@@ -134,7 +139,7 @@ END_DOC
 public  class CoverageServer extends Launcher {
 	private static final Logger LOG = Logger.build(CoverageServer.class).make();
 	
-	@Parameter(names="--port",description="server port")
+	@Parameter(names="--port",description="server port.")
 	private int serverPort = 8080;
 	@Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxRef = null;
@@ -159,15 +164,30 @@ public  class CoverageServer extends Launcher {
 	@Parameter(names= {"--mapq"},description="Min. Read Mapping Quality.")
 	private int min_mapq = 0; 
 	@Parameter(names= {"--small-length"},description="show reads if the region has a length <= 'x'.")
-	private int small_region_size = 100; 
+	private int small_region_size = 1_000; 
+	@Parameter(names= {"--vcf","--region","--regions","--intervals"},description="Same as --bed but intervals won't be annotated. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class)
+	private IntervalListProvider intervalListProvider = IntervalListProvider.empty();
 
 	
+	
 	private SAMSequenceDictionary dictionary;
-	private final List<Interval> named_intervals = new Vector<>();
+	private final List<ReviewedInterval> named_intervals = new Vector<>();
 	private final List<BamInput> bamInput = new Vector<>();
 	private Pedigree pedigree = null;
 	
 
+	private static class ReviewedInterval extends SimpleInterval {
+		final String name;
+		boolean reviewed = false;
+		ReviewedInterval(final Locatable loc,String name) {
+			super(loc);
+			this.name=StringUtils.ifBlank(name, "");
+			}
+		public String getName()  {
+			return this.name;
+			}
+		}
+	
 	private static class BamInput {
 		final Path bamPath;
 		String sample;
@@ -271,6 +291,8 @@ public  class CoverageServer extends Launcher {
 					map(R->R.getName()).
 					filter(S->!StringUtils.isBlank(S)).
 					collect(Collectors.joining("; ")),"."));
+			pw.append("\t");
+			pw.append(StringUtils.now());
 			pw.append('\n');
 			pw.flush();
 			
@@ -301,9 +323,25 @@ public  class CoverageServer extends Launcher {
 		 return true;
 		}
 	
+	private void writeImage(
+			final BufferedImage img,
+			final BamInput bam,Locatable region,
+			final HttpServletResponse response
+			) throws IOException{
+
+		 final String basename = bam.sample+"_"+region.getContig()+"_"+region.getStart()+"_"+region.getEnd();
+		 response.setContentType("image/png");
+		 response.addHeader("Content-Disposition","form-data; name=\""+basename+"\"; filename=\""+basename +".png\"");
+		 try {
+			 ImageIO.write(img, "PNG", response.getOutputStream());
+			 response.flushBuffer();
+		 	 }
+		 catch(Throwable err) {
+		 	}
+		}
+	
 	/** print BAM for small interval, displaying reads */
 	private void printRaster(final BamInput bam,final SimpleInterval midRegion,final SimpleInterval region,final HttpServletRequest request,final HttpServletResponse response) throws IOException, ServletException {
-	    final double pixelperbase = (double)image_width/(double)region.getLengthOnReference();
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
 		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
 		final List<List<SAMRecord>> rows = new ArrayList<>();
@@ -332,20 +370,56 @@ public  class CoverageServer extends Launcher {
 				 }//end iterator
 			}//end samreder
 		
-		final BufferedImage img = new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
+		 final BufferedImage img = new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 		 final Graphics2D g=img.createGraphics();
-		 g.setColor(Color.WHITE);
+		 g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+		 g.setColor(new Color(240,240,240));
 		 g.fillRect(0, 0, image_width+1, image_height+1);
  
-			 
-	     double y=10;
-	     final double featureHeight= Math.min(20,(this.image_height-y)/Math.max(1.0,(double)rows.size()));
+		 
+	     
+	     final Stroke oldStroke = g.getStroke();	 
+	     g.setStroke(new BasicStroke(0.5f));
+	     
+	     g.setColor(Color.WHITE);
+	     final double mid_start =  position2pixel.applyAsDouble(midRegion.getStart());
+	     final double mid_end =  position2pixel.applyAsDouble(midRegion.getEnd()+1);
+	     g.fill(new Rectangle2D.Double(mid_start, 0, (mid_end-mid_start),this.image_height));
+	     
+
+	     
+	     final int int_coverage[]=new int[region.getLengthOnReference()];
+	     final int margin_top=12;
+	     
+	     final double featureHeight= Math.min(20,(this.image_height-margin_top)/Math.max(1.0,(double)rows.size()));
+	     
+	     double y=image_height-featureHeight;
+	     
 	     for(final List<SAMRecord> row:rows) {
 	    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
 
 	    	for(final SAMRecord rec: row) {
-	    		Cigar cigar=rec.getCigar();
+	    		final Cigar cigar=rec.getCigar();
 	    		if(cigar==null || cigar.isEmpty()) continue;
+	    		
+	    		/* fill coverage array  */
+	    		int ref1 = rec.getUnclippedStart();
+	    		for(CigarElement ce: cigar.getCigarElements()) {
+	    			 if(ref1> region.getEnd()) break;
+					 final CigarOperator op=ce.getOperator();
+					 if(op.consumesReferenceBases()) {
+						 if(op.consumesReadBases()) {
+							 for(int x=0;x< ce.getLength();++x) {
+								 int pos=ref1+x;
+								 if(pos< region.getStart()) continue;
+								 if(pos> region.getEnd()) break;
+								 int_coverage[pos-region.getStart()]++;
+							 }
+						 }
+						 ref1+=ce.getLength();
+					 }
+				 }
+	    		
 	    		
 	    		final double midy=y+h2/2.0;
 	    		g.setColor(Color.DARK_GRAY);
@@ -354,7 +428,7 @@ public  class CoverageServer extends Launcher {
 	    				midy,
 	    				position2pixel.applyAsDouble(rec.getUnclippedEnd()),
 	    				midy));
-	    		int ref1 = rec.getUnclippedStart();
+	    		ref1 = rec.getUnclippedStart();
 	    		final List<Double> insertions = new ArrayList<>();
 	    		for(CigarElement ce: cigar.getCigarElements()) {
 	    			if(ref1> region.getEnd()) break;
@@ -395,27 +469,44 @@ public  class CoverageServer extends Launcher {
 	    				if(fill!=null) {g.setColor(fill);g.fill(shape);}
 	    				if(stroke!=null)  {g.setColor(stroke);g.draw(shape);}
 	    				}
-	    			
-	    			}
+	    			} // end loop cigar
 	    		for(double px:insertions) {
 	    			g.setColor(Color.RED);
 	    			g.draw(new Line2D.Double(px,y,px,y+h2));
 	    			}
 	    		}
-	    	 
-	    	y+=featureHeight;
+	    	y-=featureHeight;
 	     	}
-	     g.setColor(Color.PINK);
-	     double x1  = position2pixel.applyAsDouble(midRegion.getStart());
-	     g.draw(new Line2D.Double(x1,0,x1,image_height));
-	     x1  = position2pixel.applyAsDouble(midRegion.getEnd());
-	     g.draw(new Line2D.Double(x1,0,x1,image_height));
 	     
-		 final String basename = bam.sample+"_"+region.getContig()+"_"+region.getStart()+"_"+region.getEnd();
-		 response.setContentType("image/png");
-		 response.addHeader("Content-Disposition","form-data; name=\""+basename+"\"; filename=\""+basename +".png\"");
-		 ImageIO.write(img, "PNG", response.getOutputStream());
-		 response.flushBuffer();
+	     double max_cov = IntStream.of(int_coverage).max().orElse(0);
+
+	     g.setColor(Color.DARK_GRAY);
+	     g.drawString("Sample:"+ bam.sample +" max-cov:"+(int)max_cov+" "+region.toNiceString() , 10, 10);
+
+	     
+	     /* plot coverage */
+	     final GeneralPath gp = new GeneralPath();
+	     for(int i=0;max_cov>0 && i< int_coverage.length;++i) {
+	    	 final double x1= position2pixel.applyAsDouble(region.getStart()+i);
+	    	 final double x2= position2pixel.applyAsDouble(region.getStart()+i+1);
+	    	 final double y1= image_height - (int_coverage[i]/max_cov)*(image_height-margin_top);
+	    	 if(i==0) gp.moveTo(x1, y1);
+	    	 else gp.lineTo(x1, y1);
+	    	 gp.lineTo(x2, y1);
+	     	}
+	     g.setStroke(new BasicStroke(0.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0f, new float[] { 1f, 2f, 1f }, 0f));
+	     g.setColor(Color.BLUE);
+	     g.draw(gp);
+	     
+	     g.setStroke(oldStroke);
+	     
+	     g.setColor(Color.PINK);
+	     g.draw(new Line2D.Double(mid_start,0,mid_start,image_height));
+	     g.draw(new Line2D.Double(mid_end,0,mid_end,image_height));
+	     
+	     
+	     
+	     writeImage(img,bam,region,response);
 		}
 	
 	private void printImage(final HttpServletRequest request,final HttpServletResponse response) throws IOException, ServletException
@@ -599,37 +690,32 @@ public  class CoverageServer extends Launcher {
 			 
 			 g.setColor(Color.GRAY);
 			 g.drawRect(0, 0, img.getWidth(),  img.getHeight());
-
-			 final String basename = bam.sample+"_"+region.getContig()+"_"+region.getStart()+"_"+region.getEnd();
-			 response.setContentType("image/png");
-			 response.addHeader("Content-Disposition","form-data; name=\""+basename+"\"; filename=\""+basename +".png\"");
-			 ImageIO.write(img, "PNG", response.getOutputStream());
-			 response.flushBuffer();
+			 
+			 writeImage(img,bam,region,response);
+			}
 		}
-		
-		
-		
-	}
 	
+	/** write generic information for a sample */
 	private void writeSample(final XMLStreamWriter w,final Sample sample) throws XMLStreamException {
 		if(sample==null) return;
 		w.writeCharacters(" ");
 		switch(sample.getSex()){
-		case male: w.writeEntityRef("#9794");break;
-		case female:  w.writeEntityRef("#9792");break;
-		default: w.writeEntityRef("#63");break;
-		}
+			case male: w.writeEntityRef("#9794");break;
+			case female:  w.writeEntityRef("#9792");break;
+			default: break;
+			}
 		w.writeCharacters(" ");
 		
 		switch(sample.getStatus()) {
 			case unaffected:  w.writeEntityRef("#128578"); break;
 			case affected:  w.writeEntityRef("#128577"); break;
-			default:  w.writeEntityRef("#63"); break;
+			default: break;
 			}
-		w.writeCharacters(".");
-	}
+		w.writeCharacters(" ");
+		}
 	
-	private void printPage( HttpServletRequest request, HttpServletResponse response)	throws IOException, ServletException
+	/** print HTML page */
+	private void printPage(final HttpServletRequest request,final HttpServletResponse response)	throws IOException, ServletException
 		{
 		 String message="";
 		 
@@ -661,9 +747,17 @@ public  class CoverageServer extends Launcher {
 		 	}
 		 
 		 if(interval==null && 	!this.named_intervals.isEmpty()) {
-			 interval = new SimpleInterval(this.named_intervals.get(0));
+			 /* first non reviewed */
+			 interval = this.named_intervals.stream().
+					 filter(R->!R.reviewed).
+					 findFirst().
+					 map(R->new SimpleInterval(R)).
+					 orElse(null);
+			 /* all reviewed ? */
+			 if(interval==null) interval = new SimpleInterval(this.named_intervals.get(0));
 		 }
 		 
+		 /* still no interval ?*/
 		 if(interval==null) {
 			 final SAMSequenceRecord ssr=this.dictionary.getSequence(0);
 			 interval= new SimpleInterval(ssr.getSequenceName(), 1,Math.min(ssr.getSequenceLength(),100));
@@ -694,6 +788,7 @@ public  class CoverageServer extends Launcher {
 			interval = new SimpleInterval(interval.getContig(), start, end);
 		 	}
 		 
+		 /* ZOOM buttons */
 		 for(int side=0;side<2;++side) {
 			 final String param = "zoom"+(side==0?"in":"out");
 			 String value = request.getParameter(param);
@@ -727,6 +822,9 @@ public  class CoverageServer extends Launcher {
 			
 			w.writeStartElement("head");
 			
+			w.writeEmptyElement("meta");
+			w.writeAttribute("charset", charset);
+			
 			w.writeStartElement("title");
 			w.writeCharacters(title);
 			w.writeEndElement();//title
@@ -744,6 +842,7 @@ public  class CoverageServer extends Launcher {
 					+ ".highlight {background-color:#DB7093;}"
 					+ ".parents {font-size:75%;color:gray;}"
 					+ ".allsamples {font-size:125%;}"
+					+ ".message {color:red;}"
 					);
 			w.writeEndElement();//title
 			
@@ -800,6 +899,10 @@ public  class CoverageServer extends Launcher {
 
 			
 			w.writeStartElement("h1");
+			
+			w.writeCharacters(SequenceDictionaryUtils.getBuildName(this.dictionary).orElse("")+" ");
+			
+			
 			final String outlinkurl = hyperlink.apply(interval);
 			if(StringUtils.isBlank(outlinkurl)) {
 				w.writeCharacters(title);
@@ -815,6 +918,7 @@ public  class CoverageServer extends Launcher {
 			
 			if(!StringUtils.isBlank(message)) {
 				w.writeStartElement("h2");
+				w.writeAttribute("class", "message");
 				w.writeCharacters(message);
 				w.writeEndElement();//h2
 			}
@@ -836,8 +940,8 @@ public  class CoverageServer extends Launcher {
 			w.writeAttribute("value", interval.toString());
 			w.writeAttribute("type", "hidden");
 
-			
-			 if(!StringUtils.isBlank(request.getParameter("columns"))) {
+			/* number of images per row */
+			if(!StringUtils.isBlank(request.getParameter("columns"))) {
 				w.writeEmptyElement("input");
 				w.writeAttribute("name", "columns");
 				w.writeAttribute("value",String.valueOf(columns_count));
@@ -855,14 +959,25 @@ public  class CoverageServer extends Launcher {
 				
 				w.writeEmptyElement("option");
 				
-				for(final Interval r:this.named_intervals) {
-					final SimpleInterval simple= new SimpleInterval(r);
-					w.writeStartElement("option");
-					w.writeAttribute("value",simple.toString());
-					if(simple.equals(interval)) w.writeAttribute("selected", "true");
-					w.writeCharacters(simple.toNiceString()+(StringUtils.isBlank(r.getName())?"":" ["+r.getName()+"]"));
-					w.writeEndElement();
-					w.writeCharacters("\n");
+				for(int side=0;side<2;++side) {
+					for(final ReviewedInterval r:this.named_intervals) {
+						if(side==0 && r.reviewed) continue;
+						if(side==1 && !r.reviewed) continue;
+						final SimpleInterval simple= new SimpleInterval(r);
+						w.writeStartElement("option");
+						w.writeAttribute("value",simple.toString());
+						if(simple.equals(interval)) {
+							r.reviewed=true;
+							w.writeAttribute("selected", "true");
+						}
+						if(r.reviewed) {
+							w.writeEntityRef("#x2713");
+							w.writeCharacters(" ");
+							}
+						w.writeCharacters(simple.toNiceString()+(StringUtils.isBlank(r.getName())?"":" ["+r.getName()+"]"));
+						w.writeEndElement();
+						w.writeCharacters("\n");
+						}
 					}
 				
 				w.writeEndElement();//select
@@ -1164,18 +1279,25 @@ public  class CoverageServer extends Launcher {
 						filter(L->!BedLine.isBedHeader(L)).
 						map(L->codec.decode(L)).
 						filter(B->B!=null).
-						map(B->new Interval(B.getContig(), B.getStart(), B.getEnd(),false,B.getOrDefault(3, ""))).
+						map(B->new ReviewedInterval(new SimpleInterval(B.getContig(), B.getStart(), B.getEnd()),B.getOrDefault(3, ""))).
 						map(B->{
 							final String ctg= cvt.apply(B.getContig());
 							if(StringUtils.isBlank(ctg)) return null;
 							if(ctg.equals(B.getContig())) return B;
-							return new Interval(ctg,B.getStart(), B.getEnd(),false,B.getName());
+							return new ReviewedInterval(new SimpleInterval(ctg, B.getStart(), B.getEnd()),B.getName());
 							}).
 						filter(B->B!=null).
 						forEach(B->named_intervals.add(B));
 					}
-				
-			}
+				}
+			
+			this.intervalListProvider.
+				dictionary(this.dictionary).
+				skipUnknownContigs().
+				stream().
+				map(L->new Interval(L)).
+				forEach(B->named_intervals.add(new ReviewedInterval(B,"")));
+			
 			final Server server = new Server(this.serverPort);
 			
 			final ServletContextHandler context = new ServletContextHandler();
