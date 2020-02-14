@@ -126,6 +126,8 @@ java -jar dist/coverageserver.jar \
 
 ![https://twitter.com/yokofakun/status/1227932501747871745](https://pbs.twimg.com/media/EQp-Ga4XsAAxNYn?format=png&name=small)
 
+![https://twitter.com/yokofakun/status/1228260742157209601](https://pbs.twimg.com/media/EQuooeGX0AAAHeu?format=jpg&name=medium)
+
 END_DOC
  
  */
@@ -133,7 +135,7 @@ END_DOC
 @Program(name="coverageserver",
 	description="Jetty Based http server serving Bam coverage.",
 	creationDate="20200212",
-	modificationDate="20200212",
+	modificationDate="20200214",
 	keywords={"cnb","bam","coverage","server"}
 	)
 public  class CoverageServer extends Launcher {
@@ -843,6 +845,7 @@ public  class CoverageServer extends Launcher {
 					+ ".parents {font-size:75%;color:gray;}"
 					+ ".allsamples {font-size:125%;}"
 					+ ".message {color:red;}"
+					+ ".affected {background-color:#e8e3e3;}"
 					);
 			w.writeEndElement();//title
 			
@@ -1140,10 +1143,12 @@ public  class CoverageServer extends Launcher {
 			for(int i=0;i< this.bamInput.size();i++) {
 				final BamInput bamInput = this.bamInput.get(i);
 				final Path bam = bamInput.bamPath;
+				final Sample sample = this.pedigree==null?null:this.pedigree.getSampleById(bamInput.sample);
+
 
 				w.writeStartElement("div");
 				w.writeAttribute("id", bamInput.sample+"_div");
-				w.writeAttribute("class", "sample");
+				w.writeAttribute("class", "sample"+(sample!=null && sample.isAffected()?" affected":""));
 				w.writeEmptyElement("a");
 				w.writeAttribute("name", bamInput.sample);
 
@@ -1158,7 +1163,6 @@ public  class CoverageServer extends Launcher {
 				
 				
 					{
-					final Sample sample = this.pedigree==null?null:this.pedigree.getSampleById(bamInput.sample);
 					if(sample!=null) {
 						writeSample(w,sample);
 						w.writeStartElement("span");

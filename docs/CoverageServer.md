@@ -150,3 +150,5 @@ java -jar dist/coverageserver.jar \
 
 ![https://twitter.com/yokofakun/status/1227932501747871745](https://pbs.twimg.com/media/EQp-Ga4XsAAxNYn?format=png&name=small)
 
+![https://twitter.com/yokofakun/status/1228260742157209601](https://pbs.twimg.com/media/EQuooeGX0AAAHeu?format=jpg&name=medium)
+
