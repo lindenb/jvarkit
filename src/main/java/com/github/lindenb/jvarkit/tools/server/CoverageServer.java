@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
+import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -94,6 +95,9 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
@@ -348,12 +352,18 @@ public  class CoverageServer extends Launcher {
 		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
 		final List<List<SAMRecord>> rows = new ArrayList<>();
 		try(SamReader sr=srf.open(bam.bamPath)) {
-			 try(CloseableIterator<SAMRecord> iter=sr.query(region.getContig(), region.getStart(), region.getEnd(),false)) {
+			 try(CloseableIterator<SAMRecord> iter=sr.query(
+					 region.getContig(),
+					 Math.max(0,region.getStart()-this.small_region_size), //extend to get clip
+					 region.getEnd()+this.small_region_size,false)) {
 				 while(iter.hasNext()) {
 					 final SAMRecord rec=iter.next();
 					 if(!acceptRead(rec)) continue;
+					 if(rec.getUnclippedEnd() < region.getStart()) continue;
+					 if(rec.getUnclippedStart() > region.getEnd()) continue;
 					 final Cigar cigar = rec.getCigar();
 					 if(cigar==null || cigar.isEmpty()) continue;
+
 					 int y=0;
 					 for(y=0;y< rows.size();++y) {
 						 final List<SAMRecord> row = rows.get(y);
@@ -371,6 +381,18 @@ public  class CoverageServer extends Launcher {
 				 	}
 				 }//end iterator
 			}//end samreder
+		ReferenceSequence refInInterval=null;
+		 try (ReferenceSequenceFile refseq=ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxRef)) {
+			 
+			 final SAMSequenceRecord ssr = this.dictionary.getSequence(region.getContig());
+			 if(region.getStart()<=ssr.getSequenceLength()) {
+				 refInInterval = refseq.getSubsequenceAt(
+						 region.getContig(),
+						 region.getStart(),
+						 Math.min(region.getEnd(),ssr.getSequenceLength())
+						 );
+			 	}
+		 	}
 		
 		 final BufferedImage img = new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 		 final Graphics2D g=img.createGraphics();
@@ -405,7 +427,7 @@ public  class CoverageServer extends Launcher {
 	    		if(cigar==null || cigar.isEmpty()) continue;
 	    		
 	    		/* fill coverage array  */
-	    		int ref1 = rec.getUnclippedStart();
+	    		int ref1 = rec.getAlignmentStart();
 	    		for(CigarElement ce: cigar.getCigarElements()) {
 	    			 if(ref1> region.getEnd()) break;
 					 final CigarOperator op=ce.getOperator();
@@ -422,7 +444,7 @@ public  class CoverageServer extends Launcher {
 					 }
 				 }
 	    		
-	    		
+	    		/* draw rec itself */
 	    		final double midy=y+h2/2.0;
 	    		g.setColor(Color.DARK_GRAY);
 	    		g.draw(new Line2D.Double(
@@ -432,7 +454,7 @@ public  class CoverageServer extends Launcher {
 	    				midy));
 	    		ref1 = rec.getUnclippedStart();
 	    		final List<Double> insertions = new ArrayList<>();
-	    		for(CigarElement ce: cigar.getCigarElements()) {
+	    		for(final CigarElement ce: cigar.getCigarElements()) {
 	    			if(ref1> region.getEnd()) break;
 	    			final CigarOperator op=ce.getOperator();
 	    			Shape shape = null;
@@ -469,16 +491,60 @@ public  class CoverageServer extends Launcher {
 	    			
 	    			if(shape!=null) {
 	    				if(fill!=null) {g.setColor(fill);g.fill(shape);}
-	    				if(stroke!=null)  {g.setColor(stroke);g.draw(shape);}
+	    				if(stroke!=null && h2>4)  {g.setColor(stroke);g.draw(shape);}
 	    				}
 	    			} // end loop cigar
+	    		
+	    		
+	    		 /* draw mismatched bases */
+	   	     	if(refInInterval!=null && rec.getReadBases()!=null && rec.getReadBases()!=SAMRecord.NULL_SEQUENCE) {
+	   	     		final byte bases[]=rec.getReadBases();
+	   	     		final IntFunction<Character> baseRead= IDX-> IDX<0 || IDX>=bases.length || bases==SAMRecord.NULL_SEQUENCE?'N':(char)Character.toUpperCase(bases[IDX]);
+	   	     		int read0=0;
+	   	     		ref1 = rec.getAlignmentStart();
+		   	     	for(CigarElement ce: cigar.getCigarElements()) {
+		    			if(ref1> region.getEnd()) break;
+		    			final CigarOperator op=ce.getOperator();
+		    			switch(op) {
+			    			case P:break;
+			    			case H:break;
+			    			case D: case N: ref1+=ce.getLength(); break;
+			    			case S: case I: read0+=ce.getLength(); break;
+			    			case EQ:case M: case X:
+			    				{
+			    				for(int j=0;j< ce.getLength();j++) {
+			    					if(ref1+j< region.getStart()) continue;
+			    					if(ref1+j>=region.getStart()+refInInterval.length()) break;
+			    					final int ref_base_idx = ref1-region.getStart()+j;
+			    					char ctgBase =(char)(ref_base_idx<0 || ref_base_idx>=refInInterval.length()?'N':Character.toUpperCase(refInInterval.getBases()[ref_base_idx]));
+			    					if(ctgBase=='N') continue;
+			    					char readBase = baseRead.apply(read0+j);
+			    					if(readBase=='N') continue;
+			    					if(readBase==ctgBase) continue;
+			    					g.setColor(Color.ORANGE);
+			    					final double x1 = position2pixel.applyAsDouble(ref1+j);
+			    					final double x2 = position2pixel.applyAsDouble(ref1+j+1);
+			    					g.fill( new Rectangle2D.Double( x1, y,x2-x1,h2));
+			    					}
+			    				read0+=ce.getLength();
+			    				ref1+=ce.getLength();
+			    				break;
+			    				}
+			    			default:break;
+		    				}
+		   	     		}
+	   	     		
+	   	     		}
+	    		
+	    		
 	    		for(double px:insertions) {
 	    			g.setColor(Color.RED);
-	    			g.draw(new Line2D.Double(px,y,px,y+h2));
+	    			g.draw(new Line2D.Double(px,y-0.5,px,y+h2+0.5));
 	    			}
 	    		}
 	    	y-=featureHeight;
 	     	}
+	    
 	     
 	     double max_cov = IntStream.of(int_coverage).max().orElse(0);
 
@@ -845,7 +911,7 @@ public  class CoverageServer extends Launcher {
 					+ ".parents {font-size:75%;color:gray;}"
 					+ ".allsamples {font-size:125%;}"
 					+ ".message {color:red;}"
-					+ ".affected {background-color:#e8e3e3;}"
+					+ ".affected {background-color:#e6cccc;}"
 					);
 			w.writeEndElement();//title
 			
