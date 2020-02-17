@@ -318,4 +318,24 @@ public static String normalizeSpaces(final String s) {
 public static String now() {
 	return new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
 	}
+
+/** return index of 'needle' in haystack, case insensitive */
+public static int indexOfIgnoreCase(final String haystack,final String needle) {
+	//return default behavior if any empty 
+	if (needle.isEmpty() || haystack.isEmpty()) return haystack.indexOf(needle);
+	
+	for (int i = 0; i + needle.length() <= haystack.length(); ++i) {
+		int j=0;
+		for(j=0;
+				j< needle.length() && 
+				Character.toLowerCase(haystack.charAt(i+j)) == 
+				Character.toLowerCase(needle.charAt(j));
+			j++) {
+			//nothing
+			}
+		if(j==needle.length()) return i;
+	 	}
+    return -1;
+	}
+
 }

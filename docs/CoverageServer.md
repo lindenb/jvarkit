@@ -19,6 +19,9 @@ Usage: coverageserver [options] Files
       Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> 
       chr1:50-250 
       Default: 1.0
+    --gtf
+      Optional Tabix indexed GTF file. Will be used to retrieve an interval by 
+      gene name, or to display gene names in a region.
     --height
       Image height
       Default: 300
@@ -60,6 +63,9 @@ Usage: coverageserver [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --sashimi
+      Enable sashimi plots.
+      Default: false
     --small-length
       show reads if the region has a length <= 'x'.
       Default: 1000

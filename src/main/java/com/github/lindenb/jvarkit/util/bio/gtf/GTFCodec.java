@@ -94,8 +94,15 @@ public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 			throw new RuntimeIOException("header was not parsed");
 		}*/
 		if(StringUtil.isBlank(line) || line.startsWith("#")) return null;
-		return new GTFLineImpl(tab.split(line));
+		return decode(tab.split(line));
 		}
+	
+	/** decode from array of strings */
+	public GTFLine decode(final String tokens[]) {
+		if(tokens==null) return null;
+		return new GTFLineImpl(tokens);
+		}
+	
 	
 	public static interface GTFHeader
 		{

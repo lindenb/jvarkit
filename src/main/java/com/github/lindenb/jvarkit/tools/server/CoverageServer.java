@@ -68,6 +68,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
@@ -83,6 +84,8 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -104,6 +107,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.tribble.readers.TabixReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -178,8 +182,10 @@ public  class CoverageServer extends Launcher {
 	private int small_region_size = 1_000; 
 	@Parameter(names= {"--vcf","--region","--regions","--intervals"},description="Same as --bed but intervals won't be annotated. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.empty();
-	@Parameter(names= {"--sashimi"},description="Enable sashimi plots.",hidden=true)
+	@Parameter(names= {"--sashimi"},description="Enable sashimi plots.")
 	private boolean enable_sashimi = false;
+	@Parameter(names= {"--gtf"},description="Optional Tabix indexed GTF file. Will be used to retrieve an interval by gene name, or to display gene names in a region.")
+	private Path gtfFile = null;
 
 	
 	
@@ -299,6 +305,49 @@ public  class CoverageServer extends Launcher {
 	
 	private SimpleInterval parseInterval(final String s) {
 		if(StringUtils.isBlank(s)) return null;
+		
+		/* search in GTF file */
+		if(this.gtfFile!=null && !s.contains(":")) {
+			final String geneName  = s.trim();
+			TabixReader tbr =null;
+			try {
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(this.dictionary);
+				tbr= new TabixReader(this.gtfFile.toString());
+				final GTFCodec codec = new GTFCodec();
+				String line;
+				while((line=tbr.readLine())!=null) {
+					if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+					final String tokens[]= CharSplitter.TAB.split(line);
+					if(tokens.length<9 ) continue;
+					if(!(tokens[2].equals("gene") || tokens[2].equals("transcript"))) continue;
+					if(StringUtils.indexOfIgnoreCase(tokens[8],geneName)==-1) continue;
+					final GTFLine gtfLine = codec.decode(line);
+					if(gtfLine==null) continue;
+					
+					if(tokens[2].equals("gene") ) {
+						if(!(geneName.equals(gtfLine.getAttribute("gene_id")) || geneName.equals(gtfLine.getAttribute("gene_name")))) continue;
+					}
+					else if(tokens[2].equals("transcript") ) {
+						if(!(geneName.equals(gtfLine.getAttribute("transcript_id")))) continue;
+					}
+					
+					final String ctg = cvt.apply(gtfLine.getContig());
+					if(StringUtils.isBlank(ctg)) continue;
+					tbr.close();
+					tbr = null;
+					return new SimpleInterval(ctg,gtfLine.getStart(),gtfLine.getEnd());
+					}
+				}
+			catch(final Throwable err) {
+				return null;
+				}
+			finally
+				{
+				if(tbr!=null) tbr.close();
+				}
+			}
+		
+		
 		return IntervalParserFactory.newInstance(this.dictionary).
 			enableSinglePoint().
 			make().
@@ -984,6 +1033,7 @@ public  class CoverageServer extends Launcher {
 					+ ".allsamples {font-size:125%;}"
 					+ ".message {color:red;}"
 					+ ".affected {background-color:#e6cccc;}"
+					+ ".gtf {background-color:moccasin;text-align:center;}"
 					);
 			w.writeEndElement();//title
 			
@@ -1248,7 +1298,56 @@ public  class CoverageServer extends Launcher {
 			
 			
 			
-			
+			if(this.gtfFile!=null ) {
+				w.writeStartElement("div");
+				w.writeAttribute("class", "gtf");
+				TabixReader tbr =null;
+				try {
+					tbr= new TabixReader(this.gtfFile.toString());
+					final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+					final String ctg = cvt.apply(interval.getContig());
+					if(!StringUtils.isBlank(ctg)) {
+						final GTFCodec codec = new GTFCodec();
+						final TabixReader.Iterator xiter = tbr.query(ctg, interval.getStart(), interval.getEnd());
+						for(;;) {
+							final String line= xiter.next();
+							if(line==null) break;
+							if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+							final String tokens[]= CharSplitter.TAB.split(line);
+							if(tokens.length<9 ) continue;
+							if(!tokens[2].equals("gene")) continue;
+							if(StringUtils.indexOfIgnoreCase(line,tokens[8])==-1) continue;
+							final GTFLine gtfLine = codec.decode(line);
+							if(gtfLine==null) continue;
+							String key=null;
+							if(gtfLine.getAttributes().containsKey("gene_id")) {
+								key = gtfLine.getAttribute("gene_id");
+								}
+							
+							if(gtfLine.getAttributes().containsKey("gene_name")) {
+								key = gtfLine.getAttribute("gene_name");
+								}
+							if(StringUtils.isBlank(key)) continue;
+							final String url="https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(key);
+							w.writeStartElement("a");
+							w.writeAttribute("href", url);
+							w.writeAttribute("target","_blank");
+							w.writeAttribute("title",key);
+							w.writeCharacters(key);
+							w.writeEndElement();
+							w.writeCharacters(" ");
+							}
+						}
+					}
+				catch(final Throwable err) {
+					LOG.warn(err);
+					}
+				finally
+					{
+					if(tbr!=null) tbr.close();
+					}
+				w.writeEndElement();//div
+				}
 			
 			/* write anchors to samples */
 			w.writeStartElement("div");
