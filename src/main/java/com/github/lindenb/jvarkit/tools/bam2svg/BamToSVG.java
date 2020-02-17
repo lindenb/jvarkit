@@ -32,10 +32,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +61,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -79,7 +80,6 @@ import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
-import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 
 
 /**
@@ -112,7 +112,8 @@ END_DOC
 @Program(name="bam2svg",
 description="BAM to Scalar Vector Graphics (SVG)",
 keywords={"bam","alignment","graphics","visualization","svg"},
-modificationDate="20190923"
+creationDate="20141013",
+modificationDate="20200217"
 )
 public class BamToSVG extends Launcher
 	{
@@ -125,32 +126,24 @@ public class BamToSVG extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
-
 	@Parameter(names={"-i","--interval","--region"},description=IntervalParserFactory.OPT_DESC,required=true)
 	private String intervalStr = null;
-
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
-
 	@Parameter(names={"-c","--showclipping"},description="Show clipping")
 	private boolean showClipping = false;
-
-	@Parameter(names={"-S","--vcf"},description="add VCF indexed with tabix. Optinal. the Samples's name must be the same than in the BAM")
+	@Parameter(names={"-S","--vcf"},description="add VCF indexed with tabix. Optional. the Samples's name must be the same than in the BAM")
 	private Set<String> vcfFileSet = new LinkedHashSet<>() ;
-
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path referenceFile = null;
-
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
-
 	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
 	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
 	
 	
 		private int HEIGHT_RULER=200;
-		private Hershey hershey=new Hershey();
+		private final Hershey hershey=new Hershey();
 		private ReferenceSequenceFile indexedFastaSequenceFile=null;
 		private GenomicSequence genomicSequence=null;
 		private SimpleInterval interval=null;
@@ -159,7 +152,7 @@ public class BamToSVG extends Launcher
 		private double featureWidth =1;
 		private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 		//private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
-		private List<VariantContext> pos2variant=new ArrayList<VariantContext>();
+		private final List<VariantContext> pos2variant=new ArrayList<VariantContext>();
 		private class Sample
 			{
 			String name;
@@ -221,17 +214,11 @@ public class BamToSVG extends Launcher
 			{
 			return  ((pos - this.interval.getStart())/(double)(this.interval.length()))*(this.drawinAreaWidth);
 			}
-		private void readVariantFile(String vcf)  throws IOException
+		private void readVariantFile(final Path vcf)  throws IOException
 			{
-			LOG.info("Reading "+vcf);
-			TabixVcfFileReader tfr=new TabixVcfFileReader(vcf);
-			Iterator<VariantContext> iter=tfr.iterator(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd());
-			while(iter.hasNext())
-				{
-				final VariantContext ctx=iter.next();
-				this.pos2variant.add(ctx);
+			try(VCFFileReader r=new VCFFileReader(vcf, true)) {
+				r.query(this.interval).stream().forEach(ctx->this.pos2variant.add(ctx));
 				}
-			tfr.close();
 			}
 		
 		private void readBamStream(final SAMRecordIterator iter) throws IOException
@@ -342,7 +329,7 @@ public class BamToSVG extends Launcher
 			/* skip line for later consensus */
 			double consensus_y=y;
 			y+=featureHeight;
-			Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
+			final Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
 			
 			/* print variants */
 			if(!pos2variant.isEmpty())
@@ -904,7 +891,7 @@ public class BamToSVG extends Launcher
 				
 				for(final String vcf:this.vcfFileSet)
 					{
-					readVariantFile(vcf);
+					readVariantFile(Paths.get(vcf));
 					}
 				final List<Path> inputFiles = IOUtils.unrollPaths(args);
 				/* read SAM data */

@@ -45,6 +45,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 
@@ -58,6 +59,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.BcfToolsBuilder;
+
 import htsjdk.variant.vcf.VCFIterator;
 /** 
  BEGIN_DOC
@@ -85,8 +88,9 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
  */
 @Program(name="findavariation",
 	description="Finds a specific mutation in a list of VCF files",
-	keywords={"vcf","variation","search"},
-	modificationDate="20190821"
+	keywords={"vcf","variation","search","find","bcf"},
+	creationDate="20140623",
+	modificationDate="20200217"
 	)
 public class FindAVariation extends Launcher
 	{
@@ -105,6 +109,8 @@ public class FindAVariation extends Launcher
 	private boolean onlySnp=false;
 	@Parameter(names={"-indexed","--indexed"},description="[20171020] Search only in indexed vcf")
 	private boolean indexedOnly=false;
+	@Parameter(names={"--bcf"},description="Enable BCF. On 20200217 the java library htsjdk doesn't support the recent version of bcf. This tool will call `bcftools` to get the variants. bcftools must be in the ${PATH}.")
+	private boolean use_bcf=false;
 
 	
 	private final Set<SimplePosition> mutations=new HashSet<>();
@@ -257,8 +263,43 @@ public class FindAVariation extends Launcher
 		VCFIterator iter=null;
 		VCFFileReader r=null;
 		try {
-			
-			if(VCFUtils.isTribbleVcfPath(vcfPath) || 
+			if(vcfPathString.endsWith(FileExtensions.BCF)) {
+				if(!this.use_bcf) return;
+				BcfToolsBuilder bcftoolsBuilder = new BcfToolsBuilder();
+				BcfToolsBuilder.BcfToolsView view = bcftoolsBuilder.getView(vcfPathString);
+				final VCFHeader header =view.getHeader();
+				if(Files.exists(Paths.get(vcfPathString+FileExtensions.CSI))) {
+					for(final SimplePosition m:convertFromVcfHeader(vcfPath.toString(),header))
+						{
+						try( CloseableIterator<VariantContext> iter2 = view.query(m)) {
+							while(iter2.hasNext())
+								{
+								final VariantContext ctx=iter2.next();
+						    	if(this.onlySnp  && (ctx.getStart()!=m.getPosition() || ctx.getEnd()!=m.getPosition())) continue;
+								report(vcfPathString,header,ctx,m);
+								}
+							}
+						}
+					}
+				else if(!this.indexedOnly)
+					{
+					final Set<SimplePosition> mutlist=convertFromVcfHeader(vcfPath.toString(),header);
+					try(VCFIterator iter2=view.open()) {
+						while(iter2.hasNext())
+							{
+							final VariantContext ctx=iter2.next();
+							if(this.onlySnp && ctx.getLengthOnReference()!=1) continue;
+							for(final SimplePosition m2: mutlist)
+								{
+								if(!m2.overlaps(ctx)) continue;
+						    	if(this.onlySnp  && (ctx.getStart()!=m2.getPosition() || ctx.getEnd()!=m2.getPosition())) continue;
+								report(vcfPathString,header,ctx,m2);
+								}
+							}
+						}
+					}
+				}
+			else if(VCFUtils.isTribbleVcfPath(vcfPath) || 
 				VCFUtils.isTabixVcfPath(vcfPath))
 				{
 				r=new VCFFileReader(vcfPath,true);

@@ -10,6 +10,11 @@ Finds a specific mutation in a list of VCF files
 ```
 Usage: findavariation [options] Files
   Options:
+    --bcf
+      Enable BCF. On 20200217 the java library htsjdk doesn't support the 
+      recent version of bcf. This tool will call `bcftools` to get the 
+      variants. bcftools must be in the ${PATH}.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -46,6 +51,8 @@ Usage: findavariation [options] Files
  * vcf
  * variation
  * search
+ * find
+ * bcf
 
 
 ## Compilation
@@ -64,6 +71,11 @@ $ ./gradlew findavariation
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20140623
 
 ## Source code 
 

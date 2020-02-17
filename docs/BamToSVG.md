@@ -13,7 +13,9 @@ Usage: bam2svg [options] Files
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
+      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
+      FailsVendorQuality() || NotPrimaryAlignment() || 
+      SupplementaryAlignment()' 
       Default: Accept All/ Filter out nothing
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
@@ -39,8 +41,8 @@ Usage: bam2svg [options] Files
       Show clipping
       Default: false
     -S, --vcf
-      add VCF indexed with tabix. Optinal. the Samples's name must be the same 
-      than in the BAM
+      add VCF indexed with tabix. Optional. the Samples's name must be the 
+      same than in the BAM
       Default: []
     --version
       print version and exit
@@ -76,6 +78,11 @@ $ ./gradlew bam2svg
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20141013
 
 ## Source code 
 
