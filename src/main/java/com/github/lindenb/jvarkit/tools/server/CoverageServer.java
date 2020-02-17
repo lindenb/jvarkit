@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.server;
 
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
@@ -133,6 +134,9 @@ java -jar dist/coverageserver.jar \
 
 ![https://twitter.com/yokofakun/status/1228260742157209601](https://pbs.twimg.com/media/EQuooeGX0AAAHeu?format=jpg&name=medium)
 
+![https://twitter.com/yokofakun/status/1229343426036076546](https://pbs.twimg.com/media/EQ-BJSXWkAItBtJ?format=jpg&name=medium)
+
+
 END_DOC
  
  */
@@ -200,8 +204,7 @@ public  class CoverageServer extends Launcher {
 		public boolean equals(Object obj) {
 			if(obj==this) return true;
 			if(obj==null || !(obj instanceof Arc)) return false;
-			final Arc a=Arc.class.cast(obj);
-			return this.start == a.start && this.end == a.end;
+			return this.compareTo(Arc.class.cast(obj))==0;
 			}
 		@Override
 		public int compareTo(Arc o) {
@@ -299,7 +302,7 @@ public  class CoverageServer extends Launcher {
 		return IntervalParserFactory.newInstance(this.dictionary).
 			enableSinglePoint().
 			make().
-			apply(s).
+			apply(s.trim()).
 			orElse(null);
 	}
 	
@@ -732,17 +735,19 @@ public  class CoverageServer extends Launcher {
 					}
 				}
 			
+			
 			 final double real_max_cov = DoubleStream.of(norm_coverage).max().orElse(1.0);
 			 final double max_cov= Math.max((normalize?2:10),real_max_cov );
 			 final double pixelperbase = image_width/(double)norm_coverage.length;
+			 final IntFunction<Double> pos2pixel = POS->((POS-region.getStart())/(double)region.getLengthOnReference())*image_width;
+			 
 			 final BufferedImage img = new BufferedImage(image_width, image_height, BufferedImage.TYPE_INT_RGB);
 			 final Graphics2D g=img.createGraphics();
-			 g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+			 g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 			 g.setColor(Color.WHITE);
 			 g.fillRect(0, 0, image_width+1, image_height+1);
 			 
-			 final Composite oldComposite = g.getComposite();
-			 //g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,(float)Math.min(1.0, pixelperbase)));
+			 
 			 
 			 for(int x=0;x< norm_coverage.length;++x) {
 				 final double height = image_height*(norm_coverage[x]/max_cov);
@@ -751,14 +756,16 @@ public  class CoverageServer extends Launcher {
 				 else if(max_cov<10) g.setColor(Color.RED);
 				 else if(max_cov<20) g.setColor(Color.BLUE);
 				 else g.setColor(Color.DARK_GRAY);
-				
+				 
+				 
+				 
 				 g.fill(new Rectangle2D.Double(
 						 x*pixelperbase,
 						 image_height-height,
 						 pixelperbase,
 						 height));
 			 	}
-			 g.setComposite(oldComposite);
+			 
 			 
 			 g.setColor(Color.DARK_GRAY);
 			 g.drawString("max-cov:"+IntStream.of(int_coverage).max().orElse(0)+
@@ -798,20 +805,24 @@ public  class CoverageServer extends Launcher {
 				final double max_count = sashimiArcs.getMaxCount().orElse(1L);
 				g.setColor(Color.GREEN);
 				for(final Arc arc: sashimiArcs.keySet()) {
-					final double x1 = ((arc.start - region.getStart())/(double)region.getLengthOnReference())*image_width;
-					final double x2 = ((arc.end - region.getStart())/(double)region.getLengthOnReference())*image_width;
+					final double x1 = pos2pixel.apply(arc.start);
+					final double x2 = pos2pixel.apply(arc.end);
 					final double distance = x2-x1;
 					final GeneralPath curve = new GeneralPath();
 					curve.moveTo(x1, image_height);
 					curve.curveTo(
 							x1, image_height,
-							distance/2, image_height-Math.min(distance,image_height*0.75),
-							x2, image_height);
+							x1+distance/2.0, image_height-Math.min(distance,image_height*0.75),
+							x2, image_height
+							);
 					final double weight= (sashimiArcs.count(arc)/max_count)*5;
 					final Stroke oldStroke= g.getStroke();
-					g.setStroke(new BasicStroke((float)weight));
+					final Composite oldComposite = g.getComposite();
+					g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,0.5f));
+					g.setStroke(new BasicStroke((float)weight,BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 					g.draw(curve);
 					g.setStroke(oldStroke);
+					g.setComposite(oldComposite);
 					}
 				
 			 }
@@ -1405,6 +1416,7 @@ public  class CoverageServer extends Launcher {
 			if(this.intervalsource!=null) {
 				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(this.dictionary);
 				final BedLineCodec codec = new BedLineCodec();
+
 				try(BufferedReader br=IOUtils.openPathForBufferedReading(this.intervalsource)) {
 					br.lines().
 						filter(L->!BedLine.isBedHeader(L)).

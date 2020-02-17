@@ -25,14 +25,18 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.msa2vcf;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.tribble.readers.LineIterator;
@@ -42,19 +46,19 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFContigHeaderLine;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 /**
 
@@ -156,7 +160,9 @@ END_DOC
 	description="Getting a VCF file from a CLUSTAW or a FASTA alignment. ",
 	deprecatedMsg="use https://github.com/sanger-pathogens/snp_sites",
 	biostars=94573,
-	keywords={"vcf","snp","msa","alignment"}
+	keywords={"vcf","snp","msa","alignment"},
+	creationDate="20151226",
+	modificationDate="20200217"
 	)
 public class MsaToVcf extends Launcher
 	{
@@ -164,16 +170,16 @@ public class MsaToVcf extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-R","--REF"},description="reference name used for the CHROM column. Optional")
 	private String REF = "chrUn";
 
-	@Parameter(names={"-c","--consensus"},description="ruse this sequence as CONSENSUS")
+	@Parameter(names={"-c","--consensus"},description="use this sequence as CONSENSUS")
 	private String consensusRefName = null;
 
 	@Parameter(names={"-f","--fasta"},description="save computed fasta sequence in this file.")
-	private File outFasta = null;
+	private Path outFasta = null;
 
 	@Parameter(names={"-m","--haploid"},description="haploid output")
 	private boolean haploid = false;
@@ -181,11 +187,15 @@ public class MsaToVcf extends Launcher
 	@Parameter(names={"-a","--allsites"},description="print all sites")
 	private boolean printAllSites = false;
 
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate=new WritingVariantsDelegate();
+	
+	
 	private static final char CLIPPING=' ';
 	private static final char DELETION='-';
 	private static final char MATCH='*';
 	private int align_length=0;
-	private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
+	private final Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
 	private AbstractSequence consensus=null;
 	private enum Format{None,Clustal,Fasta};
 	
@@ -268,12 +278,10 @@ public class MsaToVcf extends Launcher
 			final String inputName= oneFileOrNull(args);
 			if(inputName==null)
 				{
-				LOG.info("Reading from stdin");
 				r=IOUtils.openStreamForLineIterator(stdin());
 				}
 			else 
 				{
-				LOG.info("Reading from "+inputName);
 				r=IOUtils.openURIForLineIterator(inputName);
 				}
 			
@@ -431,21 +439,21 @@ public class MsaToVcf extends Launcher
 			/** we're done, print VCF */
 			
 			/** first, print header */
-			Set<VCFHeaderLine> vcfHeaderLines=new HashSet<VCFHeaderLine>();
-
-			vcfHeaderLines.add(new VCFInfoHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth."));
-			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_KEY, 1, VCFHeaderLineType.String, "Genotype"));
-			vcfHeaderLines.add(new VCFFormatHeaderLine(VCFConstants.DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Approximate read depth"));
-			//super.addMetaData(vcfHeaderLines);
-			Map<String,String> mapping=new HashMap<String,String>();
-			mapping.put("ID", REF);
-			mapping.put("length",String.valueOf(this.align_length));
-			vcfHeaderLines.add(new VCFContigHeaderLine(mapping,1));
-
-			Set<String> samples=new TreeSet<String>(this.sample2sequence.keySet());
-			VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
+			final Set<VCFHeaderLine> vcfHeaderLines=new HashSet<VCFHeaderLine>();
+			VCFStandardHeaderLines.addStandardFormatLines(vcfHeaderLines, true, VCFConstants.GENOTYPE_KEY,VCFConstants.DEPTH_KEY);
+			VCFStandardHeaderLines.addStandardInfoLines(vcfHeaderLines, true, VCFConstants.DEPTH_KEY);
 			
-			w= super.openVariantContextWriter(this.outputFile);
+			//super.addMetaData(vcfHeaderLines);
+			final SAMSequenceDictionary dictionary = new SAMSequenceDictionary(
+					Collections.singletonList(new SAMSequenceRecord(this.REF,this.align_length))
+					);
+			
+			final Set<String> samples=new TreeSet<String>(this.sample2sequence.keySet());
+			final VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
+			vcfHeader.setSequenceDictionary(dictionary);
+			JVarkitVersion.getInstance().addMetaData(this, vcfHeader);
+			
+			w= this.writingVariantsDelegate.dictionary(dictionary).open(this.outputFile);
 			w.writeHeader(vcfHeader);
 			
 			/** loop over data, print header */
@@ -498,7 +506,7 @@ public class MsaToVcf extends Launcher
 				/* longest variant */
 				String longest=null;
 				Counter<String> countAlleles=new Counter<String>();
-				Map<String,String> sample2genotype=new HashMap<String,String>(samples.size());
+				final Map<String,String> sample2genotype=new HashMap<String,String>(samples.size());
 				
 				String namedConsensusRefAllele="N";
 				
@@ -605,9 +613,7 @@ public class MsaToVcf extends Launcher
 				vcb.start(start);
 				vcb.stop(start+(refAllStr.length()-1));
 				vcb.chr(REF);
-				HashMap<String, Object> atts=new HashMap<String,Object>();
-				atts.put(VCFConstants.DEPTH_KEY, genotypes.size());
-				vcb.attributes(atts);
+				vcb.attribute(VCFConstants.DEPTH_KEY, genotypes.size());
 				vcb.alleles(alleles);
 				vcb.genotypes(genotypes);
 				w.add(vcb.make());
@@ -616,34 +622,29 @@ public class MsaToVcf extends Launcher
 			w.close();
 			if(outFasta!=null)
 				{
-				final PrintWriter fasta= super.openFileOrStdoutAsPrintWriter(outFasta);
-				for(final String sample:samples)
-					{
-					fasta.println(">"+sample);
-					final Sequence seq=this.sample2sequence.get(sample);
+				try(final PrintWriter fasta= super.openPathOrStdoutAsPrintWriter(outFasta)) {
+					for(final String sample:samples)
+						{
+						fasta.println(">"+sample);
+						final Sequence seq=this.sample2sequence.get(sample);
+						for(int i=0;i< align_length;++i)
+							{
+							fasta.print(seq.at(i));
+							}
+						fasta.println();
+						}	
+					fasta.println(">CONSENSUS");
 					for(int i=0;i< align_length;++i)
-						{
-						fasta.print(seq.at(i));
-						}
+							{
+							fasta.print(consensus.at(i));
+							}
 					fasta.println();
-					}	
-				fasta.println(">CONSENSUS");
-				for(int i=0;i< align_length;++i)
-						{
-						fasta.print(consensus.at(i));
-						}
-				fasta.println();
-				fasta.flush();
-				fasta.close();
+					fasta.flush();
+					}
 				}
-			
-			LOG.info("Done");
-			
-			
-			
-			return RETURN_OK;
+			return 0;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -655,7 +656,7 @@ public class MsaToVcf extends Launcher
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new MsaToVcf().instanceMainWithExit(args);
 	}
 }

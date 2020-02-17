@@ -20,10 +20,19 @@ Usage: msa2vcf [options] Files
     -a, --allsites
       print all sites
       Default: false
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -c, --consensus
       ruse this sequence as CONSENSUS
     -f, --fasta
       save computed fasta sequence in this file.
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -m, --haploid
       haploid output
       Default: false
@@ -70,6 +79,11 @@ $ ./gradlew msa2vcf
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20151226
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/msa2vcf/MsaToVcf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/msa2vcf/MsaToVcf.java)
@@ -114,6 +128,7 @@ input is a clustalw file like: https://github.com/biopython/biopython/blob/maste
   * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean‐Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
   * 'Two key events associated with a transposable element burst occurred during rice domestication'  https://doi.org/10.1101/405290  
   * 'Tracking the origin of two genetic components associated with transposable element bursts in domesticated rice'. Nature Communicationsvolume 10, Article number: 641 (2019) https://www.nature.com/articles/s41467-019-08451-3
+  * 'Predicting antimicrobial resistance in Pseudomonas aeruginosa with machine learning‐enabled molecular diagnostics'. EMBO Mol Med (2020)e10264https://doi.org/10.15252/emmm.201910264
 
 ## Example
 
