@@ -83,10 +83,8 @@ public class VcfDoest
 	{
 	private static final Logger LOG = Logger.build(VcfDoest.class).make();
 
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-
 
 	@Parameter(names={"-k","--kg"},description=KnownGene.OPT_KNOWNGENE_DESC+". File must be compressed and indexed with tabix.",required=true)
 	private String knownGeneURI = KnownGene.getDefaultUri();

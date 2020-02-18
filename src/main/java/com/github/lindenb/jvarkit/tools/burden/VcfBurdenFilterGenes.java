@@ -27,8 +27,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -49,8 +49,9 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
-
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -99,7 +100,8 @@ END_DOC
 		name="vcfburdenfiltergenes",
 		description="Filter VEP/SnpEff Output from a list of genes.",
 		keywords={"gene","vcf","vep","snpeff"},
-		biostars=353011
+		biostars=353011,
+		modificationDate="20200218"
 		)
 public class VcfBurdenFilterGenes
 	extends Launcher
@@ -107,17 +109,19 @@ public class VcfBurdenFilterGenes
 	private static final Logger LOG = Logger.build(VcfBurdenFilterGenes.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
+	private Path outputFile = null;
 
 	@Parameter(names={"-g","--genes"},description="Gene/transcript file: one name per line")
-	private File geneFile = null;
+	private Path geneFile = null;
 	@Parameter(names={"-a","--add"},description="[20180627] Gene Names: Add this gene, multiple separated by comma,spaces,semicolon")
 	private String geneStr="";
 
 	@Parameter(names={"-filter","--filter"},description="If empty: remove the variants from the VCF. If not empty, add a token in the column FILTER.")
 	private String filterTag = "";
 
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+	
 	private final Set<String> geneNames= new HashSet<>();
 	
 	
@@ -258,29 +262,31 @@ public class VcfBurdenFilterGenes
 	 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtil.isBlank(this.geneStr) && (this.geneFile==null || !this.geneFile.exists())) {
-			LOG.error("Undefined gene file option.");
-			return -1;
-			}
 			
 		try {
+			
+			if(StringUtil.isBlank(this.geneStr) && (this.geneFile==null || !Files.exists(this.geneFile))) {
+				LOG.error("Undefined gene file option.");
+				return -1;
+				}
+
+			
 			this.geneNames.clear();
 			if(this.geneFile!=null)
 				{
-				this.geneNames.addAll(Files.readAllLines(this.geneFile.toPath()));
+				this.geneNames.addAll(Files.readAllLines(this.geneFile));
 				}
 			
-			for(final String gs: this.geneStr.split("[ ;\t\n,]+"))
-				{
-				if(StringUtil.isBlank(gs)) continue;
-				this.geneNames.add(gs);
-				}
+			Arrays.stream(this.geneStr.split("[ ;\t\n,]+")).
+				filter(gs->!StringUtil.isBlank(gs)).
+				forEach(gs->this.geneNames.add(gs));
+				
 			
-			geneNames.remove(".");
-			geneNames.remove("");
+			this.geneNames.remove(".");
+			this.geneNames.remove("");
 			LOG.info("number of genes : "+geneNames.size());
-			return doVcfToVcf(args,this.outputFile);
-		} catch (final Exception err) {
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
+		} catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}

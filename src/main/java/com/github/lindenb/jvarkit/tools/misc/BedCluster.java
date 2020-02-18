@@ -34,6 +34,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -51,11 +52,13 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -73,7 +76,7 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/bedcluster.jar -m jeter.mf -o jeter.zip --compress --contig test.bed
+$ java -jar dist/bedcluster.jar -j 10 -m jeter.mf -o jeter.zip --compress --contig test.bed
 
 $ head jeter.mf
 
@@ -119,10 +122,10 @@ END_DOC
  */
 @Program(
 		name="bedcluster",
-		description="Convert the names of the chromosomes in a Bed file",
+		description="Clusters a BED file into a set of BED files.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
-		modificationDate="20200130"
+		modificationDate="20200218"
 		)
 public class BedCluster
 	extends Launcher
@@ -131,8 +134,10 @@ public class BedCluster
 	
 	@Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile= null;
-	@Parameter(names={"-J","--jobs"},description="number of clusters.")
-	private int njobs=100;
+	@Parameter(names={"-J","--jobs"},description="number of clusters. (or specify --size)")
+	private int number_of_jobs=-1;
+	@Parameter(names={"-S","--size"},description="number of bases max per bin. (or specify --jobs). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int length_per_bin=-1;
 	@Parameter(names={"-C","--contig","--chromosome"},description="group by chromosome.")
 	private boolean group_by_contig = false;
 	@Parameter(names={"-R","--reference"},description="For Sorting." +DICTIONARY_SOURCE)
@@ -148,30 +153,56 @@ public class BedCluster
 
 	private int id_generator =0;
 	
-	/** get sum of lengths */
-	private long getSumLength(final List<SimpleInterval> list,final SimpleInterval malus) {
-		return list.stream().mapToLong(L->L.getLengthOnReference()).sum() + (malus==null?0:malus.getLengthOnReference());
-	}
-
-	
-	/** get standard deviation of intervals length if 'malus' is added to the pool */
-	private double getAvgLength(final List<SimpleInterval> list,final SimpleInterval malus) {
-		final int n=list.size()+(malus==null?0:1);
-		final double total= getSumLength(list,malus);
-		return total/n;
-	}
-
-	
-	/** get standard deviation of intervals length if 'malus' is added to the pool */
-	private double getStdDev(final List<SimpleInterval> list,final SimpleInterval malus) {
-		final double avg = getAvgLength(list,malus);
-		final int n=list.size()+(malus==null?0:1);
+	private static class Cluster extends AbstractList<SimpleInterval>{
+		private long sum_length=0L;
+		private final List<SimpleInterval> intervals = new ArrayList<>();
 		
-		return  (
-				(malus==null?0.0:Math.abs(avg-malus.getLengthOnReference())) + 
-				list.stream().mapToDouble(L->Math.abs(avg-L.getLengthOnReference())).sum()
-				) / n;
+		@Override
+		public boolean add(final SimpleInterval si) {
+			this.intervals.add(si);
+			this.sum_length+=si.getLengthOnReference();
+			return true;
+		}
+		
+		/** get sum of lengths */
+		long getSumLength(final SimpleInterval malus) {
+			return this.sum_length + (malus==null?0:malus.getLengthOnReference());
+		}
+		/** get average length in cluster */
+		double getAvgLength(final SimpleInterval malus) {
+			final int n= this.intervals.size()+(malus==null?0:1);
+			final double total= getSumLength(malus);
+			return total/n;
+		}
+		
+		/** get standard deviation of intervals length if 'malus' is added to the pool */
+		double getStdDev(final SimpleInterval malus) {
+			final double avg = this.getAvgLength(malus);
+			final int n=intervals.size()+(malus==null?0:1);
+			
+			return  (
+					(malus==null?0.0:Math.abs(avg-malus.getLengthOnReference())) + 
+					intervals.stream().mapToDouble(L->Math.abs(avg-L.getLengthOnReference())).sum()
+					) / n;
+			}
+		
+		@Override
+		public SimpleInterval get(int index) {
+			return this.intervals.get(index);
+			}
+		
+		@Override
+		public int size() {
+			return this.intervals.size();
+		}
 	}
+	
+
+	
+	
+
+	
+	
 	
 	private final Comparator<SimpleInterval> defaultIntervalCmp=(B1,B2)->{
 			int i = B1.getContig().compareTo(B2.getContig());
@@ -210,37 +241,59 @@ public class BedCluster
 			final SAMSequenceDictionary dict)
 			throws IOException
 		{
-		final List<List<SimpleInterval>> clusters = new ArrayList<>(this.njobs);
+		final List<Cluster> clusters = new ArrayList<>(Math.max(this.number_of_jobs,100));
 		final LinkedList<SimpleInterval> list = new LinkedList<>(mergeBedRecords(src));
 		//sort by decreasing size
 		Collections.sort(list,(B1,B2)->Integer.compare(B2.getLengthOnReference(),B1.getLengthOnReference()));
 		
-		while(!list.isEmpty()) {
-			final SimpleInterval first=list.pop();
-			if(clusters.size()<this.njobs) {
-				final List<SimpleInterval> c = new ArrayList<>();
-				c.add(first);
-				clusters.add(c);
-				}
-			else
-				{
-				int best_idx=-1;
-				double best_length=-1;
-				for(int y=0;y< clusters.size();++y) {
-					final double total_length = getSumLength(clusters.get(y),first);
-					if(best_idx==-1 ||total_length<best_length ) {
-						best_idx=y;
-						best_length = total_length;
-						}
+		if(number_of_jobs>0) {
+			while(!list.isEmpty()) {
+				final SimpleInterval first=list.pop();
+				if(clusters.size()<this.number_of_jobs) {
+					final Cluster c = new Cluster();
+					c.add(first);
+					clusters.add(c);
 					}
-				clusters.get(best_idx).add(first);
+				else
+					{
+					int best_idx=-1;
+					double best_length=-1;
+					for(int y=0;y< clusters.size();++y) {
+						final double total_length = clusters.get(y).getSumLength(first);
+						if(best_idx==-1 ||total_length<best_length ) {
+							best_idx=y;
+							best_length = total_length;
+							}
+						}
+					clusters.get(best_idx).add(first);
+					}
+				}
+			}
+		else // group by size
+			{
+			while(!list.isEmpty()) {
+				final SimpleInterval first=list.pop();
+				int y=0;
+				while(y<clusters.size()) {
+					final Cluster cluster = clusters.get(y);
+					if(cluster.getSumLength(first)<=this.length_per_bin) {
+						cluster.add(first);
+						break;
+						}
+					y++;
+					}
+				if(y==clusters.size()) {
+					final Cluster cluster = new Cluster();
+					cluster.add(first);
+					clusters.add(cluster);
+					}
 				}
 			}
 		
 		final Path tmpPath = (this.save_as_interval_list?Files.createTempFile("data.", FileExtensions.INTERVAL_LIST):null);
 		
-		for(final List<SimpleInterval> cluster : clusters) {
-			Collections.sort(cluster,sorter);
+		for(final Cluster cluster : clusters) {
+			Collections.sort(cluster.intervals,sorter);
 			final String prefix;
 
 			if(this.group_by_contig) {
@@ -272,11 +325,11 @@ public class BedCluster
 			manifest.print("\t");
 			manifest.print(cluster.size());
 			manifest.print("\t");
-			manifest.print(getSumLength(cluster, null));
+			manifest.print(cluster.getSumLength(null));
 			manifest.print("\t");
-			manifest.print((int)getAvgLength(cluster, null));
+			manifest.print((int)cluster.getAvgLength(null));
 			manifest.print("\t");
-			manifest.print((int)getStdDev(cluster, null));
+			manifest.print((int)cluster.getStdDev(null));
 
 			manifest.println();
 			
@@ -327,8 +380,13 @@ public class BedCluster
 			LOG.error("REF must be specified when saving as interval list");
 			return -1;
 			}
-		if(this.njobs<1) {
-			LOG.error("bad value of --jobs.");
+		
+		if(this.number_of_jobs<1 && this.length_per_bin<1) {
+			LOG.error("at least --jobs or --size must be specified.");
+			return -1;
+			}
+		if(this.number_of_jobs>0 &&  this.length_per_bin>0) {
+			LOG.error(" --jobs OR --size must be specified. Not both.");
 			return -1;
 			}
 

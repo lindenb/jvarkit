@@ -58,10 +58,12 @@ import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 
 /**
@@ -99,7 +101,7 @@ public class VcfBurdenFisherH
 	private static final Logger LOG = Logger.build(VcfBurdenFisherH.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-fisher","--minFisherPValue"},description="if p-value fisher(case/control vs have alt/have not alt) lower than 'fisher' the FILTER Column is Filled")
 	private double minFisherPValue = DEFAULT_MIN_FISHER_PVALUE ;
 	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
@@ -114,7 +116,9 @@ public class VcfBurdenFisherH
 	private String burdenHFisherAttr = "BurdenHFisher";
 	@Parameter(names={"--report"},description="[20190418] save report as bed file")
 	private Path bedExportPath = null;
-
+	@ParametersDelegate
+	private WritingVariantsDelegate variantsDelegate=new WritingVariantsDelegate();
+	
 	
 	
 
@@ -360,7 +364,7 @@ public class VcfBurdenFisherH
 			LOG.error("empty  burdenHFisherAttr");
 			return -1;
 			}
-		return doVcfToVcf(args,this.outputFile);
+		return doVcfToVcfPath(args,this.variantsDelegate,this.outputFile);
 		}
 	 	
 	

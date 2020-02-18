@@ -49,6 +49,8 @@ public class BedClusterTest {
 			if(dict) { args.add("--reference");args.add(support.resource("rotavirus_rf.fa"));}
 			if(interval) args.add("--interval-list");
 			if(contig) args.add("--contig");
+			args.add("--jobs");
+			args.add("10");
 			
 			args.add(bed.toString());
 			
@@ -67,5 +69,26 @@ public class BedClusterTest {
 		execute(true,true,true,false,false);
 		execute(false,true,false,true,true);
 		execute(false,true,false,true,false);
+	}
+	
+	@Test
+	public void test02() throws IOException {
+		try {
+			Path bed = generateBed();
+			Path out = support.createTmpPath(".zip");
+			final List<String> args = new ArrayList<>();
+			args.add("--size");
+			args.add("1000");
+			args.add("-o");
+			args.add(out.toString());
+			
+			args.add(bed.toString());
+			
+			Assert.assertEquals(
+					new BedCluster().instanceMain(args),0);
+			support.assertZip(out);
+		} finally {
+			support.removeTmpFiles();
+		}
 	}
 }

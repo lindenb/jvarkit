@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Convert the names of the chromosomes in a Bed file
+Clusters a BED file into a set of BED files.
 
 
 ## Usage
@@ -25,8 +25,8 @@ Usage: bedcluster [options] Files
       instead of bed.
       Default: false
     -J, --jobs
-      number of clusters.
-      Default: 100
+      number of clusters. (or specify --size)
+      Default: -1
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
     --merge
@@ -38,6 +38,11 @@ Usage: bedcluster [options] Files
       For Sorting.A SAM Sequence dictionary source: it can be a *.dict file, a 
       fasta file indexed with 'picard CreateSequenceDictionary', or any hts 
       file containing a dictionary (VCF, BAM, CRAM, intervals...)
+    -S, --size
+      number of bases max per bin. (or specify --jobs). A distance specified 
+      as a positive integer.Commas are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb
+      Default: -1
     --version
       print version and exit
 
@@ -106,7 +111,7 @@ The current reference is:
 ## Example
 
 ```
-$ java -jar dist/bedcluster.jar -m jeter.mf -o jeter.zip --compress --contig test.bed
+$ java -jar dist/bedcluster.jar -j 10 -m jeter.mf -o jeter.zip --compress --contig test.bed
 
 $ head jeter.mf
 

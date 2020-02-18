@@ -29,6 +29,7 @@ package com.github.lindenb.jvarkit.tools.burden;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -55,10 +56,12 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import htsjdk.variant.vcf.VCFIterator;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 /**
 BEGIN_DOC
@@ -121,7 +124,7 @@ END_DOC
 @Program(name="vcfburdenmaf",
 	description="Burden : MAF for Cases / Controls ",
 	keywords={"vcf","burden","maf","case","control"},
-	modificationDate="20190628"
+	modificationDate="20200218"
 	)
 public class VcfBurdenMAF
 	extends Launcher
@@ -132,7 +135,7 @@ public class VcfBurdenMAF
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-maxMAF","--maxMAF","-maxAF","--maxAF"},description="if MAF of cases OR MAF of control is greater than maxMAF, the the FILTER Column is Filled")
 	private double maxMAF = 0.05 ;
@@ -155,6 +158,8 @@ public class VcfBurdenMAF
 	@Parameter(names={"-pfx","--prefix"},description="Prefix for FILTER/INFO")
 	private String prefix="Burden";
 
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	public VcfBurdenMAF()
 		{
@@ -365,7 +370,7 @@ public class VcfBurdenMAF
 	public int doWork(final List<String> args) {
 		try 
 			{
-			return doVcfToVcf(args,this.outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
