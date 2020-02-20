@@ -22,34 +22,31 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.cmpbams;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
@@ -277,14 +274,15 @@ END_DOC
 @Program(name="cmpbams",
 	description="Compare two or more BAM files",
 	keywords={"sam","bam","compare"},
-	modificationDate="20191128"
+	creationDate="20130506",
+	modificationDate="20200220"
 	)
 public class CompareBams  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBams.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	
 	@Parameter(names={"-Q","--mapq"},description="min MAPQ")
 	private int min_mapq = 0 ;
@@ -301,6 +299,10 @@ public class CompareBams  extends Launcher
 	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
 	private String REGION = "";
 
+	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refPath;
+
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
@@ -483,7 +485,7 @@ public class CompareBams  extends Launcher
 	
 	
 	
-	private final List<File> IN=new ArrayList<File>();
+	private final List<Path> inputBamsList=new ArrayList<>();
 	
     private boolean same(final Set<Match> set1,final Set<Match> set2)
     	{
@@ -513,13 +515,13 @@ public class CompareBams  extends Launcher
     
     @Override
     public int doWork(final List<String> args) {
-    	this.IN.addAll(args.stream().map(S->new File(S)).collect(Collectors.toList()));
+    	this.inputBamsList.addAll( IOUtils.unrollPaths(args));
    		SortingCollection<Match> database = null;
 		SamReader samFileReader=null;
 		CloseableIterator<Match> iter=null;
 		try
 			{
-			if(this.IN.size() <2)
+			if(this.inputBamsList.size() <2)
 				{
 				LOG.error("Need more bams please");
 				return -1;
@@ -537,12 +539,15 @@ public class CompareBams  extends Launcher
 	
 			
 			for(int currentSamFileIndex=0;
-					currentSamFileIndex<this.IN.size();
+					currentSamFileIndex<this.inputBamsList.size();
 					currentSamFileIndex++ )
 				{
-				final File samFile=this.IN.get(currentSamFileIndex);
-				LOG.info("Opening "+samFile);
-				samFileReader= super.createSamReaderFactory().open(samFile);
+				final Path samFile=this.inputBamsList.get(currentSamFileIndex);
+				
+				
+				samFileReader= super.createSamReaderFactory().
+						referenceSequence(this.refPath).
+						open(samFile);
 				final SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
 				if(dict==null || dict.isEmpty())
 					{
@@ -589,10 +594,10 @@ public class CompareBams  extends Launcher
 							interval.get().getEnd()
 							);
 					}
-				final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
+				final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 				while(it.hasNext() )
 					{
-					final SAMRecord rec=progress.watch(it.next());
+					final SAMRecord rec=progress.apply(it.next());
 					if(!rec.getReadUnmappedFlag())
 						{
 						if(rec.getMappingQuality() < this.min_mapq) continue;
@@ -624,38 +629,38 @@ public class CompareBams  extends Launcher
 						}
 					database.add(m);
 					}
+				progress.close();
 				it.close();
 				samFileReader.close();
 				samFileReader=null;
-				LOG.info("Close "+samFile);
 				}
 			database.doneAdding();
 			LOG.info("Writing results....");
 			
-			this.out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			this.out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			
 			//compute the differences for each read
 			this.out.print("#READ-Name\t");
-			for(int x=0;x<this.IN.size();++x)
+			for(int x=0;x<this.inputBamsList.size();++x)
 				{
-				for(int y=x+1;y<this.IN.size();++y)
+				for(int y=x+1;y<this.inputBamsList.size();++y)
 					{
 					if(!(x==0 && y==1)) this.out.print("|");
-					this.out.print(IN.get(x));
+					this.out.print(inputBamsList.get(x));
 					this.out.print(" ");
-					this.out.print(IN.get(y));
+					this.out.print(inputBamsList.get(y));
 					}
 				}
-			for(int x=0;x<this.IN.size();++x)
+			for(int x=0;x<this.inputBamsList.size();++x)
 				{
-				this.out.print("\t"+IN.get(x));
+				this.out.print("\t"+inputBamsList.get(x));
 				}
 			this.out.println();
 			
 			/* create an array of set<Match> */
 			final MatchComparator match_comparator=new MatchComparator();
-			final List<Set<Match>> matches=new ArrayList<Set<CompareBams.Match>>(this.IN.size());
-			while(matches.size() < this.IN.size())
+			final List<Set<Match>> matches=new ArrayList<Set<CompareBams.Match>>(this.inputBamsList.size());
+			while(matches.size() < this.inputBamsList.size())
 				{
 				matches.add(new TreeSet<CompareBams.Match>(match_comparator));
 				}
@@ -685,10 +690,10 @@ public class CompareBams  extends Launcher
 						this.out.print("\t");
 						
 						
-						for(int x=0;x<this.IN.size();++x)
+						for(int x=0;x<this.inputBamsList.size();++x)
 							{
 							final Set<Match> first=matches.get(x);
-							for(int y=x+1;y<this.IN.size();++y)
+							for(int y=x+1;y<this.inputBamsList.size();++y)
 								{
 								if(!(x==0 && y==1)) this.out.print("|");
 								Set<Match> second=matches.get(y);
@@ -703,7 +708,7 @@ public class CompareBams  extends Launcher
 								}
 							}
 	
-						for(int x=0;x<this.IN.size();++x)
+						for(int x=0;x<this.inputBamsList.size();++x)
 							{
 							this.out.print("\t");
 							print(matches.get(x),sequenceDictionaries.get(x));
@@ -722,9 +727,9 @@ public class CompareBams  extends Launcher
 			
 			iter.close();
 			this.out.flush();
-			return RETURN_OK;
+			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -737,7 +742,7 @@ public class CompareBams  extends Launcher
 			}
 		}
 		
-	public static void main(String[] args) throws Exception
+	public static void main(final String[] args) throws Exception
 		{
 		new CompareBams().instanceMainWithExit(args);
 		}
