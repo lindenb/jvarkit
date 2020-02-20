@@ -128,7 +128,7 @@ java -jar dist/coverageserver.jar \
 	-R ref.fasta src/test/resources/S*.bam
 
 ```
-## Hidden parameters
+## Hidden http parameters
 
  * `columns=5` change the number of columns at runtime.
 
@@ -148,8 +148,8 @@ END_DOC
 @Program(name="coverageserver",
 	description="Jetty Based http server serving Bam coverage.",
 	creationDate="20200212",
-	modificationDate="20200214",
-	keywords={"cnb","bam","coverage","server"}
+	modificationDate="20200219",
+	keywords={"cnv","bam","coverage","server"}
 	)
 public  class CoverageServer extends Launcher {
 	private static final Logger LOG = Logger.build(CoverageServer.class).make();
@@ -162,7 +162,7 @@ public  class CoverageServer extends Launcher {
 	private Path intervalsource = null;
 	@Parameter(names= {"--pedigree","-p"},description=PedigreeParser.OPT_DESC)
 	private Path pedigreePath = null;
-	@Parameter(names= {"--max_-size"},description="Security. Max interval size. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names= {"--max_-size"},description="Security for memory. Max interval size. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_window_size = 10_000_000;
 	@Parameter(names= {"--link","--url","--hyperlink"},description=Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
 	private Hyperlink hyperlink =Hyperlink.empty();
@@ -414,9 +414,58 @@ public  class CoverageServer extends Launcher {
 		 return true;
 		}
 	
+	private void writeGenes(final Graphics2D g,final Locatable region) {
+		if(this.gtfFile==null) return;
+		TabixReader tbr = null;
+		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
+		final Composite oldComposite = g.getComposite();
+		final Stroke oldStroke = g.getStroke();
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+		g.setColor(Color.ORANGE);
+		final double y= image_height-4.0;
+		try {
+			tbr= new TabixReader(this.gtfFile.toString());
+			
+			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+			final String ctg = cvt.apply(region.getContig());
+			if(StringUtils.isBlank(ctg)) return;
+			final GTFCodec codec = new GTFCodec();
+			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
+			for(;;) {
+				String line=iter.next();
+				if(line==null) break;
+				if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+				final String tokens[]= CharSplitter.TAB.split(line);
+				if(tokens.length<9 ) continue;
+				if(!(tokens[2].equals("exon") || tokens[2].equals("transcript"))) continue;
+				final GTFLine gtfLine = codec.decode(line);
+				if(gtfLine==null) continue;
+				final double x1 = position2pixel.applyAsDouble(gtfLine.getStart());
+				final double x2 = position2pixel.applyAsDouble(gtfLine.getEnd());
+				if(tokens[2].equals("exon") ) {
+					g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
+				}
+				else if(tokens[2].equals("transcript") ) {
+					g.draw(new Line2D.Double(x1, y, x2, y));
+					}
+				}
+
+			}
+		catch(Throwable err) {
+			
+			}
+		finally {
+			if(tbr!=null) tbr.close();
+			g.setComposite(oldComposite);
+			g.setStroke(oldStroke);
+			}
+		
+		}
+	
 	private void writeImage(
 			final BufferedImage img,
-			final BamInput bam,Locatable region,
+			final BamInput bam,
+			final Locatable region,
 			final HttpServletResponse response
 			) throws IOException{
 
@@ -653,6 +702,8 @@ public  class CoverageServer extends Launcher {
 	     
 	     g.setStroke(oldStroke);
 	     
+	     writeGenes(g,region);
+	     
 	     g.setColor(Color.PINK);
 	     g.draw(new Line2D.Double(mid_start,0,mid_start,image_height));
 	     g.draw(new Line2D.Double(mid_end,0,mid_end,image_height));
@@ -876,6 +927,8 @@ public  class CoverageServer extends Launcher {
 				
 			 }
 			 
+			 
+			 writeGenes(g,region);
 			 
 			 g.setColor(Color.GRAY);
 			 g.drawRect(0, 0, img.getWidth(),  img.getHeight());
@@ -1552,7 +1605,8 @@ public  class CoverageServer extends Launcher {
 		    
 		    LOG.info("Starting server "+getProgramName()+" on port "+this.serverPort);
 		    server.start();
-		    LOG.info("Server started. Press Ctrl-C to stop. http://localhost:"+this.serverPort+"/coverage");
+		    LOG.info("Server started. Press Ctrl-C to stop. Check your proxy settings ."
+		    		+ " Open a web browser at http://localhost:"+this.serverPort+"/coverage .");
 		    server.join();
 		    return 0;
 			}

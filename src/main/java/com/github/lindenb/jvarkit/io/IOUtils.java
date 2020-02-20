@@ -870,11 +870,13 @@ public class IOUtils {
         String s = f.getFileName().toString();
         final String suffixes[]= {
         		".bed",".txt",".zip",".bam",".cram",".sam",".vcf",".bcf",
-        		".xls",".tsv",".csv",".gff",".gtf",
+        		".xls",".tsv",".csv",".gff",".gtf",".csi",".tbi",
         		".fasta",".fa",
         		".fastq",".fq",
         		".tar",".gz",
-        		".pdf",".xml"
+        		".pdf",".xml",
+        		".interval_list",
+        		".sortedByCoord.out"//STAR
         		};
        boolean changed=true;
        while(changed) {

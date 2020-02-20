@@ -49,9 +49,9 @@ Usage: coverageserver [options] Files
       Min. Read Mapping Quality.
       Default: 0
     --max_-size
-      Security. Max interval size. A distance specified as a positive 
-      integer.Commas are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
+      Security for memory. Max interval size. A distance specified as a 
+      positive integer.Commas are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb
       Default: 10000000
     --pedigree, -p
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
@@ -80,7 +80,7 @@ Usage: coverageserver [options] Files
 
 ## Keywords
 
- * cnb
+ * cnv
  * bam
  * coverage
  * server
@@ -148,7 +148,7 @@ java -jar dist/coverageserver.jar \
 	-R ref.fasta src/test/resources/S*.bam
 
 ```
-## Hidden parameters
+## Hidden http parameters
 
  * `columns=5` change the number of columns at runtime.
 
