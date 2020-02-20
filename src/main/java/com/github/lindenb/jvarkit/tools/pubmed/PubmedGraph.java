@@ -28,9 +28,11 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.File;
-import java.io.FileWriter;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -116,37 +118,43 @@ END_DOC
  */
 @Program(name="pubmedgraph",
 	description="Creates a Gephi-gexf graph of references-cites for a given PMID",
-	keywords={"pubmed","xml","graph"}
+	keywords={"pubmed","xml","graph"},
+	creationDate="20150605",
+	modificationDate="20200220"
 )
 public class PubmedGraph extends Launcher
 	{
 	private static final Logger LOG = Logger.build(PubmedGraph.class).make();
 
 	
-	@Parameter(names="-d",description="max-depth")
+	@Parameter(names={"-d","--depth","--max-depth"},description="max-depth")
 	private int maxDepth=3;
-	private XMLInputFactory xmlInputFactory;
-	private Map<String, Article> pmid2article=new HashMap<String, PubmedGraph.Article>();
-	@Parameter(names="-f",description="disable forward (cited-in)")
+	@Parameter(names={"-f","--forward"},description="disable forward (cited-in)")
 	private boolean disable_cited_in=false;
-	@Parameter(names="-b",description="disable backward (referenced-in)")
+	@Parameter(names={"-b","--backward"},description="disable backward (referenced-in)")
 	private boolean disable_references=false;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outFile=null;
+	private Path outFile=null;
 	@ParametersDelegate
 	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
 
-
-	private class Article
+	private static class Article
 		{
-		String pmid;
+		final String pmid;
 		String title=null;
 		String year=null;
 		boolean visited=false;
-		Set<String> cites = new HashSet<>();
+		final Set<String> cites = new HashSet<>();
+		Article(final String pmid) {
+			this.pmid = pmid;
+			}
 		}
 	
-	private List<String> eLink(String pmid,String linkname) throws IOException,XMLStreamException
+	private XMLInputFactory xmlInputFactory;
+	private final Map<String, Article> pmid2article=new HashMap<>(10_000);
+
+	
+	private List<String> eLink(final String pmid,final String linkname) throws IOException,XMLStreamException
 		{
 		final List<String> L=new ArrayList<>();
 		final String url=
@@ -162,10 +170,10 @@ public class PubmedGraph extends Launcher
 		int in_link=0;
 		while(reader.hasNext())
 			{
-			XMLEvent evt=reader.nextEvent();
+			final XMLEvent evt=reader.nextEvent();
 			if(evt.isStartElement())
 				{
-				String localName=evt.asStartElement().getName().getLocalPart();
+				final String localName=evt.asStartElement().getName().getLocalPart();
 				if(localName.equals("Link"))
 					{
 					in_link=1;
@@ -177,7 +185,7 @@ public class PubmedGraph extends Launcher
 				}
 			else if(evt.isEndElement())
 				{
-				String localName=evt.asEndElement().getName().getLocalPart();
+				final String localName=evt.asEndElement().getName().getLocalPart();
 				if(localName.equals("Link"))
 					{
 					in_link=0;
@@ -199,20 +207,20 @@ public class PubmedGraph extends Launcher
 				;
 		LOG.info(url);
 		StreamSource src=new StreamSource(url);
-		XMLEventReader reader= this.xmlInputFactory.createXMLEventReader(src);
+		final XMLEventReader reader= this.xmlInputFactory.createXMLEventReader(src);
 		int in_title=0;
 		int in_date=0;
 		while(reader.hasNext() && !(a.title!=null && a.year!=null))
 			{
-			XMLEvent evt=reader.nextEvent();
+			final XMLEvent evt=reader.nextEvent();
 			if(evt.isStartElement())
 				{
-				StartElement startE=evt.asStartElement();
-				String localName=startE.getName().getLocalPart();
+				final StartElement startE=evt.asStartElement();
+				final String localName=startE.getName().getLocalPart();
 				if(localName.equals("Item"))
 					{
-					Attribute name= startE.getAttributeByName(attName);
-					Attribute type= startE.getAttributeByName(attType);
+					final Attribute name= startE.getAttributeByName(attName);
+					final Attribute type= startE.getAttributeByName(attType);
 					if(name.getValue().equals("Title") && type.getValue().equals("String"))
 						{
 						in_title=1;
@@ -244,7 +252,7 @@ public class PubmedGraph extends Launcher
 	
 	
 	/** Citation referenced in PubMed article. */
-	private List<String> getCitesReferences(String pmid) throws IOException,XMLStreamException
+	private List<String> getCitesReferences(final String pmid) throws IOException,XMLStreamException
 		{
 		if(this.disable_references) return Collections.emptyList();
 		return eLink(pmid,"pubmed_pubmed_refs");
@@ -265,14 +273,13 @@ public class PubmedGraph extends Launcher
 		Article article = this.pmid2article.get(pmid);
 		if(article==null)
 			{
-			article=new Article();
-			article.pmid=pmid;
+			article=new Article(pmid);
 			this.pmid2article.put(pmid,article);
 			}
 		return article;
 		}
 	
-	private void run(final Article article,int depth)throws IOException,XMLStreamException
+	private void run(final Article article,final int depth)throws IOException,XMLStreamException
 		{
 		if(depth>this.maxDepth) return;
 		if(article.visited) return;
@@ -298,7 +305,7 @@ public class PubmedGraph extends Launcher
 			{
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			XMLStreamWriter w= null;
-			FileWriter fw=null;
+			BufferedWriter fw=null;
 			
 			if(this.outFile==null)
 				{
@@ -306,7 +313,7 @@ public class PubmedGraph extends Launcher
 				}
 			else
 				{
-				w=xof.createXMLStreamWriter((fw=new FileWriter(this.outFile)));
+				w=xof.createXMLStreamWriter((fw=Files.newBufferedWriter(this.outFile,Charset.forName("UTF-8"))));
 				}
 			w.writeStartDocument("UTF-8", "1.0");
 			w.writeStartElement("gexf");
@@ -450,7 +457,7 @@ public class PubmedGraph extends Launcher
 			gexf();
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -458,7 +465,7 @@ public class PubmedGraph extends Launcher
 		}
 
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new PubmedGraph().instanceMainWithExit(args);
 		}
