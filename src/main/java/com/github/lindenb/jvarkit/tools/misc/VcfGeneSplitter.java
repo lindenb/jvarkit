@@ -355,7 +355,7 @@ public class VcfGeneSplitter
 							manifest.print('\t');
 							manifest.print(first.keyAndGene.key);
 							manifest.print('\t');
-							manifest.print((archiveFactory.isZip()?"":this.outputFile.toString()+File.separator)+filename);
+							manifest.print((archiveFactory.isTarOrZipArchive()?"":this.outputFile.toString()+File.separator)+filename);
 							manifest.print('\t');
 							manifest.println(buffer.size());
 							}

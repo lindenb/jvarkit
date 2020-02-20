@@ -33,7 +33,8 @@ Usage: bedcluster [options] Files
       Merge overlapping bed records before clustering
       Default: false
   * -o, --out
-      An existing directory or a filename ending with the '.zip' suffix.
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
     -R, --reference
       For Sorting.A SAM Sequence dictionary source: it can be a *.dict file, a 
       fasta file indexed with 'picard CreateSequenceDictionary', or any hts 

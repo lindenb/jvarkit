@@ -447,7 +447,7 @@ public class VcfGtfSplitter
 		manifest.print('\t');
 		splitter.printManifest(manifest);
 		manifest.print('\t');
-		manifest.print((archiveFactory.isZip()?"":this.outputFile.toString()+File.separator)+filename);
+		manifest.print((archiveFactory.isTarOrZipArchive()?"":this.outputFile.toString()+File.separator)+filename);
 		manifest.print('\t');
 		manifest.println(count_ctx);
 		}

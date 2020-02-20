@@ -379,7 +379,7 @@ public class GtfFileSplitter
 				os.flush();
 				os.close();
 				
-				manifest.println((archiveFactory.isZip()?"":GtfFileSplitter.this.outputFile.toString()+File.separator)+filename);
+				manifest.println((archiveFactory.isTarOrZipArchive()?"":GtfFileSplitter.this.outputFile.toString()+File.separator)+filename);
 				}
 			peekIter.close();		
 			iter.close();

@@ -17,7 +17,8 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "2.20.1"
+	htsjdkVersion = "2.21.1"
+	jettyVersion = "9.4.26.v20200117"
 	}
 
 class JarFile
@@ -173,9 +174,9 @@ libraries.put("htsjdk",new Library().
 	add("commons-logging:commons-logging:jar:1.1.1").
 	add("gov.nih.nlm.ncbi:ngs-java:jar:2.9.0").
 	add("org.apache.commons:commons-jexl:jar:2.1.1").
-	add("org.apache.commons:commons-compress:jar:1.4.1").
-	add("org.tukaani:xz:jar:1.5").
-	add("org.xerial.snappy:snappy-java:jar:1.1.4")
+	add("org.apache.commons:commons-compress:jar:1.19").
+	add("org.tukaani:xz:jar:1.8").
+	add("org.xerial.snappy:snappy-java:jar:1.1.7.3")
 	);
 libraries.put("jcommander",new Library().
 	add("com.beust:jcommander:jar:1.72")
@@ -228,15 +229,15 @@ libraries.put("httpclient",new Library().
 	add("commons-codec:commons-codec:jar:1.11")
 	);
 libraries.put("jetty",new Library().
-	add("javax.servlet:javax.servlet-api:jar:4.0.0-b01").
-	add("org.eclipse.jetty:jetty-webapp:jar:9.3.7.v20160115").
-	add("org.eclipse.jetty:jetty-http:jar:9.3.7.v20160115").
-	add("org.eclipse.jetty:jetty-server:jar:9.3.7.v20160115").
-	add("org.eclipse.jetty:jetty-io:jar:9.3.7.v20160115").
-	add("org.eclipse.jetty:jetty-security:jar:9.3.7.v20160115").
-	add("org.eclipse.jetty:jetty-servlet:jar:9.3.7.v20160115").
-	add("org.eclipse.jetty:jetty-util:jar:9.3.7.v20160115").
-	add("org.eclipse.jetty:jetty-xml:jar:9.3.7.v20160115")
+	add("javax.servlet:javax.servlet-api:jar:4.0.1").
+	add("org.eclipse.jetty:jetty-webapp:jar:" + ext.jettyVersion).
+	add("org.eclipse.jetty:jetty-http:jar:"  + ext.jettyVersion).
+	add("org.eclipse.jetty:jetty-server:jar:" + ext.jettyVersion).
+	add("org.eclipse.jetty:jetty-io:jar:" + ext.jettyVersion).
+	add("org.eclipse.jetty:jetty-security:jar:" + ext.jettyVersion).
+	add("org.eclipse.jetty:jetty-servlet:jar:"  + ext.jettyVersion).
+	add("org.eclipse.jetty:jetty-util:jar:" + ext.jettyVersion).
+	add("org.eclipse.jetty:jetty-xml:jar:" + ext.jettyVersion)
 	);
 
 libraries.put("derby",new Library().

@@ -125,7 +125,7 @@ END_DOC
 		description="Clusters a BED file into a set of BED files.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
-		modificationDate="20200218"
+		modificationDate="20200220"
 		)
 public class BedCluster
 	extends Launcher
@@ -321,7 +321,7 @@ public class BedCluster
 			
 			final String filename = String.format("%s.%09d%s",prefix, ++id_generator,suffix);
 
-			manifest.print(archiveFactory.isZip()?filename:this.outputFile.resolve(filename));
+			manifest.print(archiveFactory.isTarOrZipArchive()?filename:this.outputFile.resolve(filename));
 			manifest.print("\t");
 			manifest.print(cluster.size());
 			manifest.print("\t");
@@ -411,7 +411,7 @@ public class BedCluster
 			}
 			
 			archiveFactory = ArchiveFactory.open(this.outputFile);
-			if(!this.save_as_interval_list && this.do_compress && archiveFactory.isZip()) {
+			if(!this.save_as_interval_list && this.do_compress && archiveFactory.isTarOrZipArchive()) {
 				archiveFactory.setCompressionLevel(0);
 			}
 			
