@@ -281,6 +281,9 @@ public class CompareBams  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBams.class).make();
 
+	@Parameter(names={"-a","--all"}, description="compare all reads. Without this option reads marked as secondary or supplementary are discarded in the comparison")
+	private boolean compareAllReads = false;
+
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	
@@ -601,7 +604,7 @@ public class CompareBams  extends Launcher
 					if(!rec.getReadUnmappedFlag())
 						{
 						if(rec.getMappingQuality() < this.min_mapq) continue;
-						if(rec.isSecondaryOrSupplementary()) continue;
+						if(rec.isSecondaryOrSupplementary() && !compareAllReads) continue;
 						}
 					final Match m=new Match();
 					if(rec.getReadPairedFlag())

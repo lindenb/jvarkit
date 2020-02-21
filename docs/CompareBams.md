@@ -10,6 +10,10 @@ Compare two or more BAM files
 ```
 Usage: cmpbams [options] Files
   Options:
+    -a, --all
+      compare all reads. Without this option reads marked as secondary or 
+      supplementary are discarded in the comparison
+      Default: false
     -c, --cigar
       use cigar String for comparaison
       Default: false
