@@ -275,14 +275,14 @@ END_DOC
 	description="Compare two or more BAM files",
 	keywords={"sam","bam","compare"},
 	creationDate="20130506",
-	modificationDate="20200220"
+	modificationDate="20200221"
 	)
 public class CompareBams  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBams.class).make();
 
-	@Parameter(names={"-a","--all"}, description="compare all reads. Without this option reads marked as secondary or supplementary are discarded in the comparison")
-	private boolean compareAllReads = false;
+	@Parameter(names={"--no-filter"}, description="Do not filter the reads. Default is to ignore secondary or supplementary alignments.")
+	private boolean no_read_filtering = false;
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -313,18 +313,19 @@ public class CompareBams  extends Launcher
 	
 	
 	private boolean samSequenceDictAreTheSame=true;
-	private List<SAMSequenceDictionary> sequenceDictionaries=new ArrayList<SAMSequenceDictionary>();
+	private final List<SAMSequenceDictionary> sequenceDictionaries=new ArrayList<SAMSequenceDictionary>();
 	private PrintWriter out;
 	
-	private class MatchComparator
-		implements Comparator<Match>
-		{
-		@Override
-		public int compare(final Match m0, final Match m1)
-			{
+	private static int matchCompare0(final Match m0, final Match m1) {
 			int i=m0.readName.compareTo(m1.readName);
 			if(i!=0) return i;
-			i=m0.num_in_pair-m1.num_in_pair;
+			i= Integer.compare(m0.num_in_pair,m1.num_in_pair);
+			return i;
+			}
+		
+	private  int matchCompare1(final Match m0, final Match m1)
+			{
+			int i= matchCompare0(m0,m1);
 			if(i!=0) return i;
 			//i= m0.bamIndex - m1.bamIndex;//NO ! (when comparing two Set<Match>)
 			//if(i!=0) return i;
@@ -337,20 +338,8 @@ public class CompareBams  extends Launcher
 			i= m0.cigar.compareTo(m1.cigar);
 			return 0;
 			}
-		}
+		
 	
-	private class MatchOrderer
-	implements Comparator<Match>
-		{
-		@Override
-		public int compare(final Match m0, final Match m1)
-			{
-			int i=m0.readName.compareTo(m1.readName);
-			if(i!=0) return i;
-			i=m0.num_in_pair-m1.num_in_pair;
-			return i;
-			}
-		}
 	
 	private class MatchCodec
 		extends AbstractDataCodec<Match>
@@ -526,14 +515,14 @@ public class CompareBams  extends Launcher
 			{
 			if(this.inputBamsList.size() <2)
 				{
-				LOG.error("Need more bams please");
+				LOG.error("Need more bams please, got "+this.inputBamsList.size());
 				return -1;
 				}
 			
 			database = SortingCollection.newInstance(
 					Match.class,
 					new MatchCodec(),
-					new MatchOrderer(),
+					(A,B)->matchCompare0(A, B),
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpPaths()
 					);
@@ -604,7 +593,7 @@ public class CompareBams  extends Launcher
 					if(!rec.getReadUnmappedFlag())
 						{
 						if(rec.getMappingQuality() < this.min_mapq) continue;
-						if(rec.isSecondaryOrSupplementary() && !compareAllReads) continue;
+						if(!this.no_read_filtering && rec.isSecondaryOrSupplementary()) continue;
 						}
 					final Match m=new Match();
 					if(rec.getReadPairedFlag())
@@ -661,7 +650,7 @@ public class CompareBams  extends Launcher
 			this.out.println();
 			
 			/* create an array of set<Match> */
-			final MatchComparator match_comparator=new MatchComparator();
+			final Comparator<Match> match_comparator=(A,B)->matchCompare1(A, B);
 			final List<Set<Match>> matches=new ArrayList<Set<CompareBams.Match>>(this.inputBamsList.size());
 			while(matches.size() < this.inputBamsList.size())
 				{
@@ -699,7 +688,7 @@ public class CompareBams  extends Launcher
 							for(int y=x+1;y<this.inputBamsList.size();++y)
 								{
 								if(!(x==0 && y==1)) this.out.print("|");
-								Set<Match> second=matches.get(y);
+								final Set<Match> second=matches.get(y);
 								if(same(first,second))
 									{
 									this.out.print("EQ");
@@ -720,7 +709,7 @@ public class CompareBams  extends Launcher
 						this.out.println();
 						}
 					if(nextMatch==null) break;
-					for(Set<Match> set:matches) set.clear();
+					for(final Set<Match> set:matches) set.clear();
 					}
 				currReadName=nextMatch.readName;
 				curr_num_in_pair=nextMatch.num_in_pair;

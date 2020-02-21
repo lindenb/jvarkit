@@ -10,10 +10,6 @@ Compare two or more BAM files
 ```
 Usage: cmpbams [options] Files
   Options:
-    -a, --all
-      compare all reads. Without this option reads marked as secondary or 
-      supplementary are discarded in the comparison
-      Default: false
     -c, --cigar
       use cigar String for comparaison
       Default: false
@@ -33,6 +29,10 @@ Usage: cmpbams [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
+    --no-filter
+      Do not filter the reads. Default is to ignore secondary or supplementary 
+      alignments. 
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
@@ -88,6 +88,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBamsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBamsTest.java)
 
 
 ## Contribute
