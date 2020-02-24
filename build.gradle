@@ -1661,11 +1661,11 @@ all2.add( task("vcfmerge", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfmulti2one", type: CompileJVarkit) {
+all2.add( task("vcfmulti2one", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("vcfmulti2oneinfo", type: CompileJVarkit) {
+all2.add( task("vcfmulti2oneinfo", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfMultiToOneInfo"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});

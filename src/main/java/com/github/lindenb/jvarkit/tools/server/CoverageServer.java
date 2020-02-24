@@ -157,7 +157,7 @@ END_DOC
 @Program(name="coverageserver",
 	description="Jetty Based http server serving Bam coverage.",
 	creationDate="20200212",
-	modificationDate="20200219",
+	modificationDate="20200224",
 	keywords={"cnv","bam","coverage","server"}
 	)
 public  class CoverageServer extends Launcher {
@@ -183,7 +183,7 @@ public  class CoverageServer extends Launcher {
 	private int images_per_row= 2;
 	@Parameter(names= {"--extend"},description="Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> chr1:50-250")
 	private double extend_factor=1.0;
-	@Parameter(names= {"-o","--output","--comment"},description="Output file for writing comments as a BED file.")
+	@Parameter(names= {"-o","--output","--comment"},description="Output file for writing comments as a BED file. Very basic= not suitable for multiple users.")
 	private Path commentPath= null; 
 	@Parameter(names= {"--mapq"},description="Min. Read Mapping Quality.")
 	private int min_mapq = 0; 
@@ -527,9 +527,55 @@ public  class CoverageServer extends Launcher {
 			}
 	}
 	
+	
+	private Stream<GTFLine> getGenes(final Locatable region) {
+		if(this.gtfFile==null) return Stream.empty();
+		TabixReader tbr = null;
+		try {
+			tbr= new TabixReader(this.gtfFile.toString());
+			
+			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+			final String ctg = cvt.apply(region.getContig());
+			if(StringUtils.isBlank(ctg)) {
+				tbr.close();
+				return Stream.empty();
+				}
+			
+			final GTFCodec codec = new GTFCodec();
+			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
+			final TabixReader tbrfinal = tbr;
+			final AbstractIterator<GTFLine> iter2= new AbstractIterator<GTFLine>() {
+				@Override
+				protected GTFLine advance() {
+					try {
+						for(;;) {
+							final String line = iter.next();
+							if(line==null) return null;
+							if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+							final String tokens[]= CharSplitter.TAB.split(line);
+							if(tokens.length<9 ) continue;
+							tokens[0]=region.getContig();
+							final GTFLine gtfline = codec.decode(line);
+							if(gtfline==null) continue;
+							return gtfline;
+							}
+						} catch (final IOException e) {
+						LOG.error(e);
+						return null;
+						}
+					}
+				};
+			return StreamSupport.stream(new IterableAdapter<GTFLine>(iter2).spliterator(),false).
+					onClose(()->{ tbrfinal.close(); });
+			}
+		catch(Throwable err) {
+			if(tbr!=null) tbr.close();
+			return Stream.empty();
+			}
+	}
+	
 	private void writeGenes(final Graphics2D g,final Locatable region) {
 		if(this.gtfFile==null) return;
-		TabixReader tbr = null;
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
 		final Composite oldComposite = g.getComposite();
 		final Stroke oldStroke = g.getStroke();
@@ -537,38 +583,24 @@ public  class CoverageServer extends Launcher {
 		g.setColor(Color.ORANGE);
 		final double y= image_height-4.0;
 		try {
-			tbr= new TabixReader(this.gtfFile.toString());
-			
-			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
-			final String ctg = cvt.apply(region.getContig());
-			if(StringUtils.isBlank(ctg)) return;
-			final GTFCodec codec = new GTFCodec();
-			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
-			for(;;) {
-				String line=iter.next();
-				if(line==null) break;
-				if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
-				final String tokens[]= CharSplitter.TAB.split(line);
-				if(tokens.length<9 ) continue;
-				if(!(tokens[2].equals("exon") || tokens[2].equals("transcript"))) continue;
-				final GTFLine gtfLine = codec.decode(line);
-				if(gtfLine==null) continue;
-				final double x1 = position2pixel.applyAsDouble(gtfLine.getStart());
-				final double x2 = position2pixel.applyAsDouble(gtfLine.getEnd());
-				if(tokens[2].equals("exon") ) {
-					g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
-				}
-				else if(tokens[2].equals("transcript") ) {
-					g.draw(new Line2D.Double(x1, y, x2, y));
-					}
-				}
+			getGenes(region).
+				filter(G->G.getType().equals("exon") || G.getType().equals("transcript")).
+				forEach(feature->{
+					final double x1 = position2pixel.applyAsDouble(feature.getStart());
+					final double x2 = position2pixel.applyAsDouble(feature.getEnd());
+					if(feature.getType().equals("exon") ) {
+						g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
+						}
+					else if(feature.getType().equals("transcript") ) {
+						g.draw(new Line2D.Double(x1, y, x2, y));
+						}
+					});
 
 			}
 		catch(Throwable err) {
 			
 			}
 		finally {
-			if(tbr!=null) tbr.close();
 			g.setComposite(oldComposite);
 			g.setStroke(oldStroke);
 			}
@@ -1469,24 +1501,11 @@ public  class CoverageServer extends Launcher {
 			if(this.gtfFile!=null ) {
 				w.writeStartElement("div");
 				w.writeAttribute("class", "gtf");
-				TabixReader tbr =null;
-				try {
-					tbr= new TabixReader(this.gtfFile.toString());
-					final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
-					final String ctg = cvt.apply(interval.getContig());
-					if(!StringUtils.isBlank(ctg)) {
-						final GTFCodec codec = new GTFCodec();
-						final TabixReader.Iterator xiter = tbr.query(ctg, interval.getStart(), interval.getEnd());
-						for(;;) {
-							final String line= xiter.next();
-							if(line==null) break;
-							if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
-							final String tokens[]= CharSplitter.TAB.split(line);
-							if(tokens.length<9 ) continue;
-							if(!tokens[2].equals("gene")) continue;
-							if(StringUtils.indexOfIgnoreCase(line,tokens[8])==-1) continue;
-							final GTFLine gtfLine = codec.decode(line);
-							if(gtfLine==null) continue;
+				
+				getGenes(interval).
+					filter(G->G.getType().equals("gene")).
+					forEach(gtfLine->{
+						try {
 							String key=null;
 							if(gtfLine.getAttributes().containsKey("gene_id")) {
 								key = gtfLine.getAttribute("gene_id");
@@ -1495,7 +1514,7 @@ public  class CoverageServer extends Launcher {
 							if(gtfLine.getAttributes().containsKey("gene_name")) {
 								key = gtfLine.getAttribute("gene_name");
 								}
-							if(StringUtils.isBlank(key)) continue;
+							if(StringUtils.isBlank(key)) return;
 							final String url="https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(key);
 							w.writeStartElement("a");
 							w.writeAttribute("href", url);
@@ -1505,15 +1524,12 @@ public  class CoverageServer extends Launcher {
 							w.writeEndElement();
 							w.writeCharacters(" ");
 							}
+					catch(final XMLStreamException err) {
+						
 						}
-					}
-				catch(final Throwable err) {
-					LOG.warn(err);
-					}
-				finally
-					{
-					if(tbr!=null) tbr.close();
-					}
+					
+					});
+				
 				w.writeEndElement();//div
 				}
 			

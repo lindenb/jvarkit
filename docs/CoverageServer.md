@@ -14,7 +14,8 @@ Usage: coverageserver [options] Files
       Optional bed file containing user's intervals. 4th column is used as the 
       name of the interval
     -o, --output, --comment
-      Output file for writing comments as a BED file.
+      Output file for writing comments as a BED file. Very basic= not suitable 
+      for multiple users.
     --extend
       Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> 
       chr1:50-250 

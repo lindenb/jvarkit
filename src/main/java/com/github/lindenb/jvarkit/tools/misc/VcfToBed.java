@@ -24,6 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.BufferedInputStream;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,8 +35,15 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.NoCloseInputStream;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -45,12 +54,13 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.variant.vcf.VCFIteratorBuilder;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -68,6 +78,9 @@ I'm lazy about using awk or bioalcidaejdk for this task and I want something tha
 input is one or more VCF file
 
 one file ending with '.list' is interpreted as a list of paths (one per lines)
+
+one file ending with '.zip' or '.tar' or '.tar.gz' is interpreted an archive and all the files looking like vcf files are extracted
+
 
 if there is no input, the program reads vcf from stdin
 
@@ -106,13 +119,39 @@ $ wget -q -O - "https://github.com/hall-lab/cshl_sv_2014/blob/master/supplementa
 1	6618978	6619069	19_1	0
 ```
 
+### With tar.gz
+
+```
+$ tar cvfz ~/jeter.tar.gz src/test/resources/rotavirus_rf.*.vcf.gz
+$ tar tvfz ~/jeter.tar.gz
+-rw-r--r-- lindenb/lindenb 5805 2019-01-11 18:29 src/test/resources/rotavirus_rf.ann.vcf.gz
+-rw-r--r-- lindenb/lindenb 27450 2019-01-11 18:29 src/test/resources/rotavirus_rf.freebayes.vcf.gz
+-rw-r--r-- lindenb/lindenb  7366 2019-01-11 18:29 src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
+
+java -jar dist/vcf2bed.jar ~/jeter.tar.gz
+```
+
+### With zip
+
+```
+$ zip ~/jeter.zip src/test/resources/rotavirus_rf.*.vcf.gz
+$ tar tvfz ~/jeter.tar.gz
+-rw-r--r-- lindenb/lindenb 5805 2019-01-11 18:29 src/test/resources/rotavirus_rf.ann.vcf.gz
+-rw-r--r-- lindenb/lindenb 27450 2019-01-11 18:29 src/test/resources/rotavirus_rf.freebayes.vcf.gz
+-rw-r--r-- lindenb/lindenb  7366 2019-01-11 18:29 src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
+
+$ java -jar dist/vcf2bed.jar ~/jeter.zip  | wc
+```
+
+
 END_DOC
 
 */
 @Program(name="vcf2bed",
 	description="vcf to bed",
 	keywords={"bed","vcf"},
-	modificationDate="20200115"
+	creationDate="20181203",
+	modificationDate="20200224"
 )
 public class VcfToBed  extends Launcher {
 	private enum OutputFormat {
@@ -149,6 +188,21 @@ public class VcfToBed  extends Launcher {
 		VCFIterator iter = null;
 		try {
 			iter =  super.openVCFIterator(uriOrNull);
+			return scan(uriOrNull,iter,pw);
+			}
+		catch(final Exception err)
+			{
+			LOG.error(err);
+			return -1;
+			}
+		finally
+			{
+			CloserUtil.close(iter);
+			}
+		}
+	
+	private int scan(String uriOrNull,final VCFIterator iter,final PrintWriter pw) {
+		try {
 			final SAMSequenceDictionary dictIn = iter.getHeader().getSequenceDictionary();
 			final IntervalExtender extender = IntervalExtender.of(dictIn, this.extendsStr);
 			if(extender.isShriking()) {
@@ -317,10 +371,6 @@ public class VcfToBed  extends Launcher {
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(iter);
-			}
 		}
 	
 	@Override
@@ -374,6 +424,61 @@ public class VcfToBed  extends Launcher {
 					L->{
 						scan(L,finalpw);
 					});
+				}
+			else if(args.size()==1 && args.get(0).endsWith(".zip"))
+				{
+				try(InputStream in=new BufferedInputStream(Files.newInputStream(Paths.get(args.get(0))))) {
+					ZipInputStream zin = new ZipInputStream(in);
+					for(;;) {
+						final ZipEntry entry = zin.getNextEntry();
+						if(entry==null) break;
+						if(entry.isDirectory()) {
+							//zin.closeEntry();
+							continue;
+							}
+						if(!FileExtensions.VCF_LIST.stream().anyMatch(X->entry.getName().endsWith(X))) {
+							//zin.closeEntry();
+							continue;
+							}
+						/* prevent zip from being closed */
+						final InputStream do_not_close_in = new NoCloseInputStream(zin);
+						try(VCFIterator iter = new VCFIteratorBuilder().open(do_not_close_in)){
+							scan(args.get(0)+"!"+entry.getName(),iter,pw);
+							}
+						//zin.closeEntry();
+						}
+					zin.close();
+					}
+				}
+			else if(args.size()==1 && (args.get(0).endsWith(".tar") || args.get(0).endsWith(".tar.gz")))
+				{
+				try(InputStream in=new BufferedInputStream(Files.newInputStream(Paths.get(args.get(0))))) {
+					InputStream in2 = args.get(0).endsWith(".tar")?in:new GZIPInputStream(in);
+					final TarArchiveInputStream tarin = new TarArchiveInputStream(in2);
+					for(;;) {
+						final TarArchiveEntry entry = tarin.getNextTarEntry();
+						if(entry==null) break;
+						
+						if(!tarin.canReadEntryData(entry)) continue;
+						
+						if(entry.isDirectory()) {
+							continue;
+							}
+						
+						if(!FileExtensions.VCF_LIST.stream().anyMatch(X->entry.getName().endsWith(X))) {
+							continue;
+							}
+						
+						/* prevent tar from being closed */
+						final InputStream do_not_close_in = new NoCloseInputStream(tarin);
+
+						try(VCFIterator iter = new VCFIteratorBuilder().open(do_not_close_in)){
+							scan(args.get(0)+"!"+entry.getName(),iter,pw);
+							}
+						}
+					tarin.close();
+					in2.close();
+					}
 				}
 			else if(args.isEmpty())
 				{
