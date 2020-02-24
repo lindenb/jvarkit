@@ -606,7 +606,7 @@ public int doWork(final List<String> args) {
 			manifestW.print('\t');
 			manifestW.print(transcripts.stream().map(G->G.getId()).collect(Collectors.toSet()).stream().collect(Collectors.joining(";")));
 			manifestW.print('\t');
-			manifestW.print((archiveFactory.isZip()?"":this.outputPath.toString()+File.separator)+filename);
+			manifestW.print((archiveFactory.isTarOrZipArchive()?"":this.outputPath.toString()+File.separator)+filename);
 			manifestW.print('\t');
 			manifestW.println(variants.size());
 			}

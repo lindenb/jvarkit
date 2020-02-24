@@ -52,4 +52,34 @@ public void testZip() throws IOException {
 		}
 	}
 
+
+@Test
+public void testTar() throws IOException {
+	try {
+		Path zipFile = support.createTmpPath(".tar");
+		ArchiveFactory archive =  ArchiveFactory.open(zipFile);
+		fillArchive(archive);
+		archive.close();
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
+	}
+
+@Test
+public void testTarGz() throws IOException {
+	try {
+		Path zipFile = support.createTmpPath(".tar.gz");
+		ArchiveFactory archive =  ArchiveFactory.open(zipFile);
+		fillArchive(archive);
+		archive.close();
+		}
+	finally
+		{
+		support.removeTmpFiles();
+		}
+	}
+
+
 }

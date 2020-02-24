@@ -34,16 +34,20 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.Deflater;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 
 
 public interface ArchiveFactory extends Closeable{
 
-	public static final String OPT_DESC="An existing directory or a filename ending with the '.zip' suffix.";
+	public static final String OPT_DESC="An existing directory or a filename ending with the '.zip' or '.tar' or '.tar.gz' suffix.";
 	
-	/** return true is archive is instance of ZipInstance */
-	public boolean isZip();
+	/** return true is archive is instance of ZipInstance or Tar*/
+	public boolean isTarOrZipArchive();
 	
 	public abstract OutputStream openOuputStream(final String filename) throws IOException;
 	
@@ -70,9 +74,14 @@ public interface ArchiveFactory extends Closeable{
 	public static ArchiveFactory open(final Path f)  throws IOException
 		{
 		if( f == null ) throw new IllegalArgumentException("Cannot open(null)");
-		if(f.getFileName().toString().toLowerCase().endsWith(".zip"))
+		final String fn = f.getFileName().toString().toLowerCase();
+		if(fn.endsWith(".zip"))
 			{
 			return new ZipInstance(f);
+			}
+		else if(fn.endsWith(".tar") || fn.endsWith(".tar.gz") )
+			{
+			return new TarInstance(f);
 			}
 		else
 			{
@@ -89,6 +98,32 @@ public interface ArchiveFactory extends Closeable{
 		}
 	
 	
+	static abstract class AbstractOutputStream extends OutputStream
+		{
+		protected OutputStream out;
+		
+		@Override
+		public void write(final int b) throws IOException {
+			if(out!=null) out.write(b);
+			}
+		
+		@Override
+		public void write(final byte[] b) throws IOException {
+			if(out!=null)  out.write(b);
+			}
+		
+		@Override
+		public void write(final byte[] b, final int off, final int len) throws IOException {
+			if(out!=null) out.write(b, off, len);
+			}
+		
+		@Override
+		public void flush() throws IOException
+			{
+			if(out!=null) out.flush();
+			}
+		}
+	
 	static class ZipInstance
 		implements ArchiveFactory
 		{
@@ -102,7 +137,7 @@ public interface ArchiveFactory extends Closeable{
 			}
 		
 		@Override
-		public final boolean isZip() { return true;}
+		public final boolean isTarOrZipArchive() { return true;}
 
 		@Override
 		public void setCompressionLevel(int level) {
@@ -132,11 +167,10 @@ public interface ArchiveFactory extends Closeable{
 				}
 			}
 		
-		private class ZipOS extends OutputStream
+		private class ZipOS extends AbstractOutputStream
 			{
 			ZipEntry ze;
 			File tmp;
-			OutputStream out;
 			
 			ZipOS(String filename) throws IOException
 				{
@@ -145,29 +179,10 @@ public interface ArchiveFactory extends Closeable{
 				
 				this.tmp=File.createTempFile("tmp", ".zipentry");
 				this.tmp.deleteOnExit();
-				this.out=new FileOutputStream(this.tmp);
+				super.out=new FileOutputStream(this.tmp);
 				}
 			
-			@Override
-			public void write(final int b) throws IOException {
-				if(out!=null) out.write(b);
-				}
-			
-			@Override
-			public void write(final byte[] b) throws IOException {
-				if(out!=null)  out.write(b);
-				}
-			
-			@Override
-			public void write(final byte[] b, final int off, final int len) throws IOException {
-				if(out!=null) out.write(b, off, len);
-				}
-			
-			@Override
-			public void flush() throws IOException
-				{
-				if(out!=null) out.flush();
-				}
+
 			
 			@Override
 			public void close() throws IOException
@@ -194,6 +209,100 @@ public interface ArchiveFactory extends Closeable{
 		
 		}
 	
+	static class TarInstance
+	implements ArchiveFactory
+		{
+		OutputStream fout;
+		GZIPOutputStream gzout = null;
+		TarArchiveOutputStream tarout;
+		
+		TarInstance(final Path f) throws IOException
+			{
+			fout= Files.newOutputStream(f);
+			if(f.getFileName().toString().toLowerCase().endsWith(".gz")) {
+				gzout = new GZIPOutputStream(fout);
+				tarout=new TarArchiveOutputStream(gzout);
+				}
+			else
+				{
+				tarout=new TarArchiveOutputStream(fout);
+				}
+			}
+		
+		@Override
+		public boolean isTarOrZipArchive() {
+			return true;
+			}
+		@Override
+		public void setCompressionLevel(int level) {
+			//ignore
+			}
+		
+		
+		@Override
+		public OutputStream openOuputStream(final String filename) throws IOException
+			{
+			final TarOs os =new TarOs(filename);
+			return os;
+			}
+		
+		@Override
+		public void close() throws IOException
+			{
+			this.tarout.close();
+			if(this.gzout!=null)
+				{
+				this.gzout.finish();
+				this.gzout.flush();
+				}
+			if(this.fout!=null) {
+				this.fout.flush();
+				this.fout.close();
+				}
+			}
+		
+		private class TarOs extends AbstractOutputStream
+			{
+			final String entryName;
+			File tmp;
+			
+			TarOs(String filename) throws IOException
+				{
+				while(filename.startsWith("/")) filename=filename.substring(1);
+				this.entryName = filename;
+				this.tmp=File.createTempFile("tmp", ".tarentry");
+				this.tmp.deleteOnExit();
+				super.out=new FileOutputStream(this.tmp);
+				}
+			
+			
+			@Override
+			public void close() throws IOException
+				{
+				if(out!=null)
+					{
+					out.flush();
+					out.close();
+
+					if(TarInstance.this.tarout!=null)
+						{
+						final TarArchiveEntry tarEntry  = new TarArchiveEntry(this.tmp, this.entryName);
+						TarInstance.this.tarout.putArchiveEntry(tarEntry);
+												
+						IOUtils.copyTo(this.tmp,TarInstance.this.tarout );
+						TarInstance.this.tarout.closeArchiveEntry();
+						}
+					out=null;
+					tmp.delete();
+					tmp=null;
+					}
+				}
+			}
+		
+		}
+
+	
+	
 	static class FileInstance implements ArchiveFactory
 		{
 		private final Path baseDir;
@@ -213,7 +322,9 @@ public interface ArchiveFactory extends Closeable{
 			}
 		
 		@Override
-		public final boolean isZip() { return false;}
+		public boolean isTarOrZipArchive() {
+			return false;
+			}
 		
 		@Override
 		public OutputStream openOuputStream(String filename) throws IOException
