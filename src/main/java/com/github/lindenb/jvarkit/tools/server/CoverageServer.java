@@ -46,12 +46,16 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.imageio.ImageIO;
 import javax.servlet.ServletException;
@@ -103,11 +107,16 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.tribble.readers.TabixReader;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFileReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -186,6 +195,8 @@ public  class CoverageServer extends Launcher {
 	private boolean enable_sashimi = false;
 	@Parameter(names= {"--gtf"},description="Optional Tabix indexed GTF file. Will be used to retrieve an interval by gene name, or to display gene names in a region.")
 	private Path gtfFile = null;
+	@Parameter(names= {"--known"},description="Optional Tabix indexed BED file or VCF file of known CNV. Both types must be indexed.")
+	private Path knownCnvFile = null;
 
 	
 	
@@ -413,6 +424,108 @@ public  class CoverageServer extends Launcher {
 	 		rec.getMappingQuality()<this.min_mapq) return false;
 		 return true;
 		}
+	
+	/** return a stream of interval of the known CNV overlapping the region */
+	private Stream<Interval> getKnownCnv(final Locatable region) {
+		if(this.knownCnvFile==null) return Stream.empty();
+		final String fname=this.knownCnvFile.getFileName().toString();
+		if(fname.endsWith(".bed.gz")) {
+			TabixReader tbr = null;
+			try
+				{
+				tbr = new TabixReader(this.knownCnvFile.toString());
+				final TabixReader tbrfinal = tbr;
+				final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+				final String ctg = cvt.apply(region.getContig());
+				if(StringUtils.isBlank(ctg)) {
+					tbr.close();
+					return Stream.empty();
+					}
+				
+				final TabixReader.Iterator iter = tbr.query(ctg,region.getStart(), region.getEnd());
+				final BedLineCodec codec = new BedLineCodec();
+				final AbstractIterator<Interval> iter2= new AbstractIterator<Interval>() {
+					@Override
+					protected Interval advance() {
+						try {
+							for(;;) {
+								final String line = iter.next();
+								if(line==null) return null;
+								final BedLine bed = codec.decode(line);
+								if(bed==null) continue;
+								return new Interval(region.getContig(),bed.getStart(),bed.getEnd(),false,bed.getOrDefault(3, ""));
+								}
+							} catch (IOException e) {
+							LOG.error(e);
+							return null;
+							}
+						}
+					};
+				return StreamSupport.stream(new IterableAdapter<Interval>(iter2).spliterator(),false).onClose(()->{
+					tbrfinal.close();
+					});
+				}
+			catch(final Throwable err) {
+				if(tbr!=null) tbr.close();
+				LOG.error(err);
+				return Stream.empty();
+				}
+			}
+		else if(FileExtensions.VCF_LIST.stream().anyMatch(X->fname.endsWith(X))) {
+			VCFFileReader vcfFileReader= null;
+			try {
+				vcfFileReader = new VCFFileReader(this.knownCnvFile,true);
+				
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getFileHeader()));
+				final String ctg = cvt.apply(region.getContig());
+				if(StringUtils.isBlank(ctg)) {
+					vcfFileReader.close();
+					return Stream.empty();
+					}
+				final VCFFileReader vcfFileReaderFinal = vcfFileReader;
+				return vcfFileReader.query(ctg, region.getStart(), region.getEnd()).
+						stream().
+						filter(VC->!VC.isSNP()).
+						map(VC->{
+							final List<String> list = new ArrayList<>();
+							if(VC.hasID()) list.add(VC.getID());
+							if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
+							return new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));}).
+						onClose(()->vcfFileReaderFinal.close());
+				}
+			catch(final Throwable err) {
+				if(vcfFileReader!=null) vcfFileReader.close();
+				LOG.error(err);
+				return Stream.empty();
+				}
+		}
+		else
+		{
+			LOG.warn("not a vcf of bed.gz file "+this.knownCnvFile);
+			return Stream.empty();
+		}
+	}
+	
+	private void writeKnownCnv(final Graphics2D g,final Locatable region) {
+		if(this.knownCnvFile==null) return;
+		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
+		final Composite oldComposite = g.getComposite();
+		final Stroke oldStroke = g.getStroke();
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+		g.setColor(Color.MAGENTA);
+		final double y= image_height-6.0;
+		try {
+			getKnownCnv(region).forEach(R->{
+				final double x1 = position2pixel.applyAsDouble(R.getStart());
+				final double x2 = position2pixel.applyAsDouble(R.getEnd()+1);
+				g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
+			});
+		} 
+		finally {
+			g.setComposite(oldComposite);
+			g.setStroke(oldStroke);
+			}
+	}
 	
 	private void writeGenes(final Graphics2D g,final Locatable region) {
 		if(this.gtfFile==null) return;
@@ -703,7 +816,7 @@ public  class CoverageServer extends Launcher {
 	     g.setStroke(oldStroke);
 	     
 	     writeGenes(g,region);
-	     
+	     writeKnownCnv(g,region);
 	     g.setColor(Color.PINK);
 	     g.draw(new Line2D.Double(mid_start,0,mid_start,image_height));
 	     g.draw(new Line2D.Double(mid_end,0,mid_end,image_height));
@@ -929,7 +1042,7 @@ public  class CoverageServer extends Launcher {
 			 
 			 
 			 writeGenes(g,region);
-			 
+			 writeKnownCnv(g,region);
 			 g.setColor(Color.GRAY);
 			 g.drawRect(0, 0, img.getWidth(),  img.getHeight());
 			 
@@ -1083,10 +1196,12 @@ public  class CoverageServer extends Launcher {
 					+ ".comment {background-color:khaki;text-align:center;font-size:14px;}"
 					+ ".highlight {background-color:#DB7093;}"
 					+ ".parents {font-size:75%;color:gray;}"
+					+ ".children {font-size:75%;color:gray;}"
 					+ ".allsamples {font-size:125%;}"
 					+ ".message {color:red;}"
 					+ ".affected {background-color:#e6cccc;}"
 					+ ".gtf {background-color:moccasin;text-align:center;}"
+					+ ".known {background-color:wheat;text-align:center;}"
 					);
 			w.writeEndElement();//title
 			
@@ -1402,6 +1517,45 @@ public  class CoverageServer extends Launcher {
 				w.writeEndElement();//div
 				}
 			
+			/* write known CNV */
+			if(this.knownCnvFile!=null ) {
+				final Interval interval_f = new Interval(interval);
+				final ToIntFunction<Interval> percentOverlap = R-> {
+					if(!R.intersects(interval_f)) return 0;
+					final double interL=R.getIntersectionLength(interval_f);
+					return (int)(100.0*Math.min(
+							interL/R.getLengthOnReference(),
+							interL/interval_f.getLengthOnReference()
+							));
+						};
+				w.writeStartElement("div");
+				w.writeAttribute("class", "known");
+				w.writeStartElement("label");
+				w.writeCharacters("Known: ");
+				w.writeEndElement();
+				
+				getKnownCnv(interval).
+					sorted((A,B)->Integer.compare(percentOverlap.applyAsInt(B),percentOverlap.applyAsInt(A))).
+					map(R->{
+						String s= R.getContig()+":"+R.getStart()+"-"+R.getEnd();
+						if(!StringUtils.isBlank(R.getName())) s+=":"+R.getName();
+						s+= "["+percentOverlap.applyAsInt(R)+"%]";
+						return s;
+						}).
+					forEach(R->{
+						try {
+						w.writeStartElement("span");
+						w.writeCharacters(R);
+						w.writeEndElement();
+						w.writeCharacters(". ");
+						} catch(final XMLStreamException err) {
+							LOG.error(err);
+						}
+					});
+				w.writeEndElement();//div
+			} /* end known CNV */
+			
+			
 			/* write anchors to samples */
 			w.writeStartElement("div");
 			w.writeAttribute("class", "allsamples");
@@ -1481,8 +1635,32 @@ public  class CoverageServer extends Launcher {
 							}
 						w.writeEndElement();
 						
+						final Set<Sample> children=sample.getChildren();
+						if(!children.isEmpty()) {
+							w.writeStartElement("span");
+							w.writeAttribute("class","children");
+							w.writeCharacters(" Has Children :");
+							for(final Sample child:children) {
+								boolean has_bam= this.bamInput.stream().anyMatch(B->B.sample.equals(child.getId()));
+								w.writeCharacters(" ");
+								if(has_bam) {
+									w.writeStartElement("a");
+									w.writeAttribute("href","#"+child.getId());
+									w.writeAttribute("title",child.getId());
+									w.writeAttribute("onclick", "highlight('"+child.getId()+"');");
+									w.writeCharacters("["+child.getId()+"].");
+									w.writeEndElement();
+									}
+								else
+									{
+									w.writeCharacters(child.getId());
+									}
+								writeSample(w,child);
+								}
+							w.writeEndElement();
+							}//end has children
+						}
 					}
-				}
 				
 				w.writeEndElement();
 				

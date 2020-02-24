@@ -45,6 +45,9 @@ Usage: coverageserver [options] Files
       gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
       or a list of plain interval separated by '[ \t\n;,]'
       Default: (empty)
+    --known
+      Optional Tabix indexed BED file or VCF file of known CNV. Both types 
+      must be indexed.
     --mapq
       Min. Read Mapping Quality.
       Default: 0

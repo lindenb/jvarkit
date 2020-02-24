@@ -24,7 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.pedigree;
 import java.util.List;
-
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.Collections;
 import java.util.Arrays;
 
@@ -61,6 +62,16 @@ public interface Sample extends Comparable<Sample> {
 		} 
 	}
 	
+
+	/** get the children of this individual in its family whatever is the other parent*/
+	public default Set<Sample> getChildren() {
+		return getFamily().
+				getSamples().
+				stream().
+				filter(S->S!=this).
+				filter(S->(S.hasFather() && S.getFather().equals(this)) || (S.hasMother() && S.getMother().equals(this))).
+				collect(Collectors.toSet());
+		}
 	
 	
 	/** get the parents of this individual */
