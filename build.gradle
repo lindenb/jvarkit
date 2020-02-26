@@ -2406,7 +2406,10 @@ all2.add(task("bamwithoutbai", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.nobai.BamWithoutBai"
         jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient")
         });
-
+all2.add(task("jeter", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
+        jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient","gson")
+        });
 
 /** bottom task */
 
