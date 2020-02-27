@@ -35,6 +35,7 @@ import java.util.Set;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
@@ -134,8 +135,8 @@ public class IndexCovToVcf extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.treshold>=1.0f) {
-			LOG.error("Bad deletion treshold >=1.0");
+		if(this.treshold<0f || this.treshold>=0.25f) {
+			LOG.error("Bad treshold 0 < "+this.treshold+" >=0.25 ");
 			return -1;
 		}
 
@@ -205,16 +206,20 @@ public class IndexCovToVcf extends Launcher {
 			final List<String> samples = Arrays.asList(tokens). subList(3,tokens.length);
 			final Pedigree pedigree;
 			
-
+			final int count_cases_in_pedigree;
 			if(this.pedFile==null) {
 				pedigree = PedigreeParser.empty();
+				count_cases_in_pedigree = 0;
 			} else
 			{
 				pedigree = new PedigreeParser().parse(this.pedFile);
+				final Set<String> set = new HashSet<>(samples);
+				count_cases_in_pedigree = (int)pedigree.getAffectedSamples().stream().filter(S->set.contains(S.getId())).count();
 			}
-			final int count_cases_in_pedigree = (int)pedigree.getAffectedSamples().stream().filter(S->samples.contains(S.getId())).count();
+
 			
 			final VCFHeader vcfHeader = new VCFHeader(metaData, samples);
+	  		JVarkitVersion.getInstance().addMetaData(this, vcfHeader);
 
 			
 			if(dict!=null) {
@@ -227,7 +232,6 @@ public class IndexCovToVcf extends Launcher {
 			//final List<Allele> NO_CALL_NO_CALL = Arrays.asList(Allele.NO_CALL,Allele.NO_CALL);
 			final Allele DUP_ALLELE =Allele.create("<DUP>",false);
 			final Allele DEL_ALLELE =Allele.create("<DEL>",false);
-			final Allele UNKNOW_ALLELE =Allele.create("<UN>",false);
 			final Allele REF_ALLELE =Allele.create("N",true);
 
 			while((line=r.readLine())!=null) {
@@ -317,7 +321,7 @@ public class IndexCovToVcf extends Launcher {
 						}
 					else
 						{
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,UNKNOW_ALLELE));
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
 						is_sv = false;
 						}	
 					if(is_sv) got_sv=true;
