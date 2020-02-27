@@ -220,7 +220,7 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 						{
 						final SAMSequenceRecord ssr= getSAMSequenceRecord(optChrom.get());
 						if(ssr==null) throw new IllegalStateException("cannot get chrom in "+s);
-						return Optional.of(new SimpleInterval(ssr.getSequenceName(),1,ssr.getSequenceLength()));
+						return Optional.of(new SimpleInterval(ssr));
 						}
 					else
 						{

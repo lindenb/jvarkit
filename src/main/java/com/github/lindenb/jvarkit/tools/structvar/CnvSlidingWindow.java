@@ -349,7 +349,6 @@ public int doWork(final List<String> args) {
 		final List<Locatable> contigs  = dict.getSequences().
 				stream().
 				filter(SR->!SR.getSequenceName().matches(this.excludeRegex)).
-				map(SR->new SimpleInterval(SR.getSequenceName(),1, SR.getSequenceLength())).
 				collect(Collectors.toCollection(ArrayList::new));
 		
 		if(this.excludeBedPath!=null) {
@@ -426,7 +425,7 @@ public int doWork(final List<String> args) {
 		header.setSequenceDictionary(dict);
 		JVarkitVersion.getInstance().addMetaData(this, header);
 		
-		VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
+		final VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
 		vcw.writeHeader(header);
 
 		

@@ -450,7 +450,7 @@ public class HicStraw  extends Launcher {
 						{
 						loc2list = hicReader.getDictionary().
 								getSequences().stream().
-								map(SR->new Interval(SR.getSequenceName(),1,SR.getSequenceLength())).
+								map(SR->new Interval(SR)).
 								collect(Collectors.toList());
 						}
 					

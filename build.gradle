@@ -17,7 +17,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "2.21.1"
+	htsjdkVersion = "2.21.2"
 	jettyVersion = "9.4.26.v20200117"
 	}
 
@@ -1755,7 +1755,7 @@ all.add( task("xsltstream", type: CompileJVarkit) {
 /* other */
 all.add( task("vcfbigwig", type: CompileJVarkit) {
 	mainClass =  "com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
 	});
 
 all2.add( task("vcfensemblreg", type: CompileJVarkit) {
@@ -2131,7 +2131,7 @@ all.add( task("vcfderby01", type: CompileJVarkit) {
 	});
 all.add( task("indexcov2vcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.IndexCovToVcf"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","math")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("validatecnv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.ValidateCnv"

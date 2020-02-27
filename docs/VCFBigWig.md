@@ -15,6 +15,12 @@ Usage: vcfbigwig [options] Files
       'first': use first, 'all' : print all the data
       Default: avg
       Possible Values: [avg, median, first, all]
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
   * -B, --bigwig
       Path to the bigwig file. [20180122] If the path ends with '.xml' it is 
       interpretted as a XML file containing describing a set of BigWig 
@@ -22,6 +28,9 @@ Usage: vcfbigwig [options] Files
     -C, --contained
       Specifies wig values must be contained by region. if false: return any 
       intersecting region values
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
       Default: false
     -h, --help
       print help and exit
@@ -61,6 +70,11 @@ $ ./gradlew vcfbigwig
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20200506
 
 ## Source code 
 

@@ -26,20 +26,17 @@ package com.github.lindenb.jvarkit.tools.vcfbigwig;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.events.XMLEvent;
@@ -52,11 +49,12 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -72,8 +70,8 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 /*
 BEGIN_DOC
@@ -105,7 +103,9 @@ END_DOC
 */
 @Program(name="vcfbigwig",
 	description="Annotate a VCF with values from a bigwig file",
-	keywords={"vcf","wig","wiggle","bigwig"}
+	keywords={"vcf","wig","wiggle","bigwig"},
+	creationDate="20200506",
+	modificationDate="20200227"
 	)
 public class VCFBigWig extends Launcher
 	{
@@ -208,178 +208,42 @@ public class VCFBigWig extends Launcher
 				}
 			}
 		}
+	
+	private final List<BigWigResource> bigwigResources = new ArrayList<>();
 
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
+	private WritingVariantsDelegate writingDelegate = new WritingVariantsDelegate();
 
-	@XmlType(name="vcfbigwig")
-	@XmlRootElement(name="vcfbigwig")
-	@XmlAccessorType(XmlAccessType.FIELD)
-	public static class CtxWriterFactory 
-	implements VariantContextWriterFactory
-		{
-		@XmlElement(name="bigwig")
-		@Parameter(names={"-B","--bigwig"},description=
-				"Path to the bigwig file. "
-				+ "[20180122] If the path ends with '.xml' it is interpretted as a XML file containing describing a set of BigWig resources; See online doc.",required=true)
-		private String userBigWigFileUri = null;
 	
-		@XmlElement(name="tag")
-		@Parameter(names={"-T","--tag","-tag"},description="Name of the INFO tag. default: name of the bigwig")
-		private String userVcfTag = null;
+	@Parameter(names={"-B","--bigwig"},description=
+			"Path to the bigwig file. "
+			+ "[20180122] If the path ends with '.xml' it is interpretted as a XML file containing describing a set of BigWig resources; See online doc.",required=true)
+	private String userBigWigFileUri = null;
+
+	@Parameter(names={"-T","--tag","-tag"},description="Name of the INFO tag. default: name of the bigwig")
+	private String userVcfTag = null;
+
+	@Parameter(names={"-C","--contained"},description="Specifies wig values must be contained by region. if false: return any intersecting region values")
+	private boolean contained = false;
 	
-		@Parameter(names={"-C","--contained"},description="Specifies wig values must be contained by region. if false: return any intersecting region values")
-		private boolean contained = false;
-	
-		@XmlElement(name="aggregate")
-		@Parameter(names={"-a","--aggregate"},description="How to aggregate overlapping values: 'avg' average; 'median': median, 'first': use first, 'all' : print all the data")
-		private AggregateMethod aggregateMethod  = AggregateMethod.avg;
-	
-		@XmlTransient
-		@Parameter(names={"-t","--transform"},description="Deprecated",hidden=true)
-		private String _convertChrName = null;
-	
-		
-		private final List<BigWigResource> bigwigResources = new ArrayList<>();
+	@Parameter(names={"-a","--aggregate"},description="How to aggregate overlapping values: 'avg' average; 'median': median, 'first': use first, 'all' : print all the data")
+	private AggregateMethod aggregateMethod  = AggregateMethod.avg;
+
+	@Parameter(names={"-t","--transform"},description="Deprecated",hidden=true)
+	private String _convertChrName = null;
+
 
 		
-		private class CtxWriter extends DelegateVariantContextWriter
-			{
-			private final AggregateMethod aggregateMethod;
-			private final List<Float> values=new ArrayList<Float>();
 
-			
-			CtxWriter(final VariantContextWriter delegate) {
-				super(delegate);
-				this.aggregateMethod = CtxWriterFactory.this.aggregateMethod;
-				}
-			
-			
-			@Override
-			public void writeHeader(final VCFHeader header) {
-					
-				final VCFHeader h2=new VCFHeader(header);
-				
-				for(final BigWigResource rsrc: CtxWriterFactory.this.bigwigResources) {
-					
-					if(h2.getInfoHeaderLine(rsrc.getToken())!=null)
-						{
-						throw new JvarkitException.DuplicateVcfHeaderInfo(h2,rsrc.getToken());
-						}
-					
-					if(this.aggregateMethod.equals(AggregateMethod.all))
-						{
-						h2.addMetaDataLine(new VCFInfoHeaderLine(
-								rsrc.getToken(),
-								VCFHeaderLineCount.UNBOUNDED,
-								VCFHeaderLineType.Float,
-								"Values from bigwig file: "+rsrc.getPath()+". "+rsrc.getDescription()
-								));
-						}
-					else
-						{
-						h2.addMetaDataLine(new VCFInfoHeaderLine(
-								rsrc.getToken(),1,
-								VCFHeaderLineType.Float,
-								"Values from bigwig file: "+rsrc.getPath()+". "+rsrc.getDescription()
-								));
-						}
-					}
-				
-				super.writeHeader(h2);
-				}
-
-			@Override
-			public void add(final VariantContext ctx) {
-				VariantContextBuilder vcb = null;
-				
-				
-				for(final BigWigResource rsrc:CtxWriterFactory.this.bigwigResources) {
-					this.values.clear();
-					final String variantChrom=  rsrc.contigNameConverter.apply(ctx.getContig());
-					
-					if(StringUtil.isBlank(variantChrom)) {
-						if(!rsrc.userContigsNotFound.contains(ctx.getContig()))
-							{
-							rsrc.userContigsNotFound.add(ctx.getContig());
-							LOG.warn("Bigwig file \""+rsrc.getPath()+"\" doesn't contains contig "+ variantChrom+"/"+ctx.getContig());
-							}
-						continue;
-						}
-					
-					
-					final Iterator<WigItem> iter=rsrc.iterator(
-							new Interval(variantChrom,ctx.getStart(),ctx.getEnd()),
-							CtxWriterFactory.this.contained
-							);
-					while(iter!=null && iter.hasNext())
-						{
-						final WigItem item=iter.next();
-						final float v=item.getWigValue();
-						this.values.add(v);
-						if(this.aggregateMethod.equals(AggregateMethod.first)) break;
-						}
-					
-					if(this.values.isEmpty())
-						{
-						continue;
-						}
-					if(vcb==null) vcb=new VariantContextBuilder(ctx);
-	
-					switch(this.aggregateMethod)
-						{
-						case all:
-							vcb.attribute(rsrc.getToken(),this.values);
-							break;
-						case avg:
-							vcb.attribute(rsrc.getToken(),
-									(float)Percentile.average().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
-							break;
-						case first:
-							vcb.attribute(rsrc.getToken(),values.get(0));
-							break;
-						case median:
-							vcb.attribute(rsrc.getToken(),
-									(float)Percentile.median().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
-							break;
-						default: throw new IllegalStateException();
-						}
-					}
-				if(vcb==null)
-					{
-					super.add(ctx);
-					}
-				else
-					{
-					super.add(vcb.make());
-					}
-				
-				
-				}
-			
-			@Override
-			public void close() {
-				for(final BigWigResource rsrc:CtxWriterFactory.this.bigwigResources)
-					{
-					if(!rsrc.userContigsNotFound.isEmpty())
-						{
-						LOG.warn("\""+rsrc.getPath()+
-								"\": Contigs not found :"+
-								String.join(" ", rsrc.userContigsNotFound));
-						}
-					rsrc.close();
-					}
-				super.close();
-				}
-			
-			}
 		
-		@Override
-		public int initialize() {
-			FileReader fr =null;
+		
+		
+		
+		private int initBigWig() {
+			Reader fr =null;
 			try
 				{
 				if(StringUtil.isBlank(this.userBigWigFileUri))
@@ -390,9 +254,9 @@ public class VCFBigWig extends Launcher
 				
 				if(this.userBigWigFileUri.endsWith(".xml"))
 					{
-					XMLInputFactory xif=XMLInputFactory.newFactory();
-					fr=new FileReader(new File(this.userBigWigFileUri));
-					XMLEventReader r = xif.createXMLEventReader(fr);
+					final XMLInputFactory xif=XMLInputFactory.newFactory();
+					fr=Files.newBufferedReader(Paths.get(this.userBigWigFileUri));
+					final XMLEventReader r = xif.createXMLEventReader(fr);
 					XMLEvent evt=r.nextTag();
 					if(evt==null || !evt.isStartElement() ||
 							!evt.asStartElement().getName().getLocalPart().equals("registry"))
@@ -462,7 +326,7 @@ public class VCFBigWig extends Launcher
 					});
 				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
@@ -473,17 +337,9 @@ public class VCFBigWig extends Launcher
 				}
 			}
 		
-		@Override
-		public VariantContextWriter open(VariantContextWriter delegate) {
-			return new CtxWriter(delegate);
-			}
-
-		@Override
-		public void close() throws IOException {
-			CloserUtil.close(this.bigwigResources);
-			VariantContextWriterFactory.super.close();
-			}
-		}
+		
+	
+		
 	
 	
 	private enum AggregateMethod
@@ -496,22 +352,125 @@ public class VCFBigWig extends Launcher
 	
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, final VCFIterator r, final VariantContextWriter delegate) {
-		final VariantContextWriter w = this.component.open(delegate);
-		w.writeHeader(r.getHeader());
-		final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(r.getHeader()).logger(LOG);
+	protected int doVcfToVcf(final String inputName, final VCFIterator r, final VariantContextWriter w) {
+		final VCFHeader header = r.getHeader();
+		final VCFHeader h2=new VCFHeader(header);
+		
+		for(final BigWigResource rsrc: this.bigwigResources) {
+			
+			if(h2.getInfoHeaderLine(rsrc.getToken())!=null)
+				{
+				throw new JvarkitException.DuplicateVcfHeaderInfo(h2,rsrc.getToken());
+				}
+			
+			if(this.aggregateMethod.equals(AggregateMethod.all))
+				{
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						rsrc.getToken(),
+						VCFHeaderLineCount.UNBOUNDED,
+						VCFHeaderLineType.Float,
+						"Values from bigwig file: "+rsrc.getPath()+". "+rsrc.getDescription()
+						));
+				}
+			else
+				{
+				h2.addMetaDataLine(new VCFInfoHeaderLine(
+						rsrc.getToken(),1,
+						VCFHeaderLineType.Float,
+						"Values from bigwig file: "+rsrc.getPath()+". "+rsrc.getDescription()
+						));
+				}
+			}
+		JVarkitVersion.getInstance().addMetaData(this, h2);
+		w.writeHeader(h2);
+		
+		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+		long count=0L;
+		final List<Float> values = new ArrayList<>();
 		while(r.hasNext())
 			{
-			w.add(progress.watch(r.next()));
+			final VariantContext ctx = progress.apply(r.next());
+			VariantContextBuilder vcb = null;
+			
+			for(final BigWigResource rsrc: this.bigwigResources) {
+				values.clear();
+				final String variantChrom=  rsrc.contigNameConverter.apply(ctx.getContig());
+				
+				if(StringUtil.isBlank(variantChrom)) {
+					if(!rsrc.userContigsNotFound.contains(ctx.getContig()))
+						{
+						rsrc.userContigsNotFound.add(ctx.getContig());
+						LOG.warn("Bigwig file \""+rsrc.getPath()+"\" doesn't contains contig "+ variantChrom+"/"+ctx.getContig());
+						}
+					continue;
+					}
+				
+				
+				final Iterator<WigItem> iter=rsrc.iterator(
+						new Interval(variantChrom,ctx.getStart(),ctx.getEnd()),
+						this.contained
+						);
+				while(iter!=null && iter.hasNext())
+					{
+					final WigItem item=iter.next();
+					final float v=item.getWigValue();
+					values.add(v);
+					if(this.aggregateMethod.equals(AggregateMethod.first)) break;
+					}
+				
+				if(values.isEmpty())
+					{
+					continue;
+					}
+				if(vcb==null) vcb=new VariantContextBuilder(ctx);
+
+				switch(this.aggregateMethod)
+					{
+					case all:
+						vcb.attribute(rsrc.getToken(),values);
+						break;
+					case avg:
+						vcb.attribute(rsrc.getToken(),
+								(float)Percentile.average().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
+						break;
+					case first:
+						vcb.attribute(rsrc.getToken(),values.get(0));
+						break;
+					case median:
+						vcb.attribute(rsrc.getToken(),
+								(float)Percentile.median().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
+						break;
+					default: throw new IllegalStateException();
+					}
+				}
+			if(vcb==null)
+				{
+				w.add(ctx);
+				}
+			else
+				{
+				w.add(vcb.make());
+				}
 			
 			// JVM crash sometimes ? suspect there is a memory leak ?
-			if(progress.getCount()%1000L==0)
+			if(++count%1000L==0)
 				{
 				System.gc();
 				}
 			}
-		progress.finish();
+		progress.close();
 		w.close();
+		
+		for(final BigWigResource rsrc:this.bigwigResources)
+			{
+			if(!rsrc.userContigsNotFound.isEmpty())
+				{
+				LOG.warn("\""+rsrc.getPath()+
+						"\": Contigs not found :"+
+						String.join(" ", rsrc.userContigsNotFound));
+				}
+			rsrc.close();
+			}
 		return 0;
 		}
 	
@@ -519,18 +478,16 @@ public class VCFBigWig extends Launcher
 	public int doWork(final List<String> args) {
 		try 
 			{
-			if(this.component.initialize()!=0) {
-				return -1;
-				}
-			return doVcfToVcf(args,this.outputFile);
+			if(this.initBigWig()!=0) return -1;
+			return doVcfToVcfPath(args,this.writingDelegate,this.outputFile);
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(this.component);
+			CloserUtil.close(this.bigwigResources);
 			}
 		}
 	

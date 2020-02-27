@@ -32,8 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
-
-
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -312,7 +311,7 @@ public class VcfToRdf extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 
 	@Parameter(names={"-a","--alleles"},description="print ALT alleles")
@@ -671,7 +670,7 @@ public class VcfToRdf extends Launcher
 	public int doWork(List<String> args) {
 		try
 			{
-			this.w= super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			this.w= super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			prefix("rdf",RDF);
 			prefix("dc", DC);
 			prefix("vcf", NS);

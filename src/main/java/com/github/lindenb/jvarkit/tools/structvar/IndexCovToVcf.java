@@ -24,28 +24,26 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 import java.io.BufferedReader;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
-import org.apache.commons.math3.stat.descriptive.rank.Median;
-import org.apache.commons.math3.stat.inference.ChiSquareTest;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -112,21 +110,23 @@ END_DOC
 @Program(
 		name="indexcov2vcf",
 		description="convert indexcov data to vcf",
-		keywords={"cnv","jfx","duplication","deletion","sv"}
+		keywords={"cnv","jfx","duplication","deletion","sv"},
+		modificationDate="20200227"
 		)
 public class IndexCovToVcf extends Launcher {
 	private static final Logger LOG = Logger.build(IndexCovToVcf.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-dup","--duplication"},description="Duplication treshold")
-	private float duplicationTreshold = 1.9f;
-	@Parameter(names={"-del","--deletion"},description="Deletion treshold")
-	private float deletionTreshold = 0.6f;
+	private Path outputFile = null;
+	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x")
+	private float treshold = 0.05f;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File refFile = null;
-	@Parameter(names={"-ped","--pedigree"},description="Optional pedigree. " + Pedigree.OPT_DESCRIPTION)
-	private File pedFile = null;
+	private Path refFile = null;
+	@Parameter(names={"-p","--pedigree"},description="Optional Pedigree. "+PedigreeParser.OPT_DESC)
+	private Path pedFile = null;
 
+	@ParametersDelegate
+	private WritingVariantsDelegate writingDelegate = new WritingVariantsDelegate();
+	
 	
 	public IndexCovToVcf() {
 	}
@@ -134,23 +134,15 @@ public class IndexCovToVcf extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.deletionTreshold>=1.0f) {
+		if(this.treshold>=1.0f) {
 			LOG.error("Bad deletion treshold >=1.0");
 			return -1;
 		}
-		if(this.duplicationTreshold<=1.0f) {
-			LOG.error("Bad duplication treshold <=1.0");
-			return -1;
-		}
-		if(this.deletionTreshold>=this.duplicationTreshold) {
-			LOG.error("Bad tresholds del>=dup");
-			return -1;
-		}
+
 		final CharSplitter tab = CharSplitter.TAB;
 		BufferedReader r = null;
 		VariantContextWriter vcw  = null;
 		try {
-			final ChiSquareTest chiSquareTest = new ChiSquareTest();
 
 			
 			final SAMSequenceDictionary dict;
@@ -170,7 +162,6 @@ public class IndexCovToVcf extends Launcher {
 			r = super.openBufferedReader(oneFileOrNull(args));
 			String line = r.readLine();
 			if(line==null) {		
-				
 				LOG.error( "Cannot read first line of input");
 				return -1;
 				}
@@ -190,71 +181,63 @@ public class IndexCovToVcf extends Launcher {
 			/** raw value in indexcov */
 			final VCFFormatHeaderLine foldHeader = new VCFFormatHeaderLine("F", 1, VCFHeaderLineType.Float,"Relative number of copy: 0.5 deletion 1 normal 2.0 duplication");
 			metaData.add(foldHeader);
-			final VCFFormatHeaderLine formatIsDeletion = new VCFFormatHeaderLine("DEL", 1, VCFHeaderLineType.Integer,"set to 1 if relative number of copy <= " + this.deletionTreshold );
-			metaData.add(formatIsDeletion);
-			final VCFFormatHeaderLine formatIsDuplication = new VCFFormatHeaderLine("DUP", 1, VCFHeaderLineType.Integer,"set to 1 if relative number of copy >= " + this.duplicationTreshold );
-			metaData.add(formatIsDuplication);
+
 			final VCFFilterHeaderLine filterAllDel = new VCFFilterHeaderLine("ALL_DEL", "number of samples greater than 1 and all are deletions");
 			metaData.add(filterAllDel);
 			final VCFFilterHeaderLine filterAllDup = new VCFFilterHeaderLine("ALL_DUP", "number of samples  greater than  1 and all are duplication");
 			metaData.add(filterAllDup);
 			final VCFFilterHeaderLine filterNoSV= new VCFFilterHeaderLine("NO_SV", "There is no DUP or DEL in this variant");
 			metaData.add(filterNoSV);
+			final VCFFilterHeaderLine filterHomDel = new VCFFilterHeaderLine("HOM_DEL", "There is one Homozygous deletion.");
+			metaData.add(filterHomDel);
+
+			
 			final VCFInfoHeaderLine infoNumDup = new VCFInfoHeaderLine("NDUP", 1, VCFHeaderLineType.Integer,"Number of samples being duplicated");
 			metaData.add(infoNumDup);
 			final VCFInfoHeaderLine infoNumDel = new VCFInfoHeaderLine("NDEL", 1, VCFHeaderLineType.Integer,"Number of samples being deleted");
 			metaData.add(infoNumDel);
-			final VCFInfoHeaderLine infoMedianFold = new VCFInfoHeaderLine("MEDIAN_FOLD", 1, VCFHeaderLineType.Float,"Median fold");
-			metaData.add(infoMedianFold);
-			final VCFInfoHeaderLine infoStdDevFold = new VCFInfoHeaderLine("STDEV_FOLD", 1, VCFHeaderLineType.Float,"Stddev fold");
-			metaData.add(infoStdDevFold);
-
+			final VCFInfoHeaderLine infoSingleton = new VCFInfoHeaderLine("SINGLETON", 1, VCFHeaderLineType.Flag,"Singleton candidate");
+			metaData.add(infoSingleton);
+			final VCFInfoHeaderLine infoAllAffected = new VCFInfoHeaderLine("ALL_CASES", 1, VCFHeaderLineType.Flag,"All cases are affected");
+			metaData.add(infoAllAffected);
+			
 			
 			final List<String> samples = Arrays.asList(tokens). subList(3,tokens.length);
-			final Set<String> cases;
-			final Set<String> controls;
+			final Pedigree pedigree;
 			
-			if(this.pedFile!=null)
-				{
-				final Pedigree ped = new Pedigree.Parser().parse(this.pedFile);
-				cases = ped.getAffected().stream().map(I->I.getId()).filter(S->samples.contains(S)).collect(Collectors.toSet());
-				controls = ped.getUnaffected().stream().map(I->I.getId()).filter(S->samples.contains(S)).collect(Collectors.toSet());
-				}
-			else
-				{
-				cases = Collections.emptySet();
-				controls = Collections.emptySet();
-				}
-			final boolean valid_pedigree = !cases.isEmpty() && !controls.isEmpty();
-			
-			final VCFInfoHeaderLine chiSquareHeader = new VCFInfoHeaderLine("CHISQUARE", 1, VCFHeaderLineType.Float,"ChiSquare Cases vs Controls");
-			final VCFFormatHeaderLine pedStatusFormat = new VCFFormatHeaderLine("ST", 1, VCFHeaderLineType.Integer,"Status in pedigree file");
-			
-			if(valid_pedigree) {
-				metaData.add(chiSquareHeader);
-				metaData.add(pedStatusFormat);
-				}
+
+			if(this.pedFile==null) {
+				pedigree = PedigreeParser.empty();
+			} else
+			{
+				pedigree = new PedigreeParser().parse(this.pedFile);
+			}
+			final int count_cases_in_pedigree = (int)pedigree.getAffectedSamples().stream().filter(S->samples.contains(S.getId())).count();
 			
 			final VCFHeader vcfHeader = new VCFHeader(metaData, samples);
+
 			
 			if(dict!=null) {
 				vcfHeader.setSequenceDictionary(dict);
 			}
 			
-			vcw = super.openVariantContextWriter(outputFile);
+			vcw = this.writingDelegate.dictionary(dict).open(outputFile);
 			vcw.writeHeader(vcfHeader);
 			
 			//final List<Allele> NO_CALL_NO_CALL = Arrays.asList(Allele.NO_CALL,Allele.NO_CALL);
 			final Allele DUP_ALLELE =Allele.create("<DUP>",false);
 			final Allele DEL_ALLELE =Allele.create("<DEL>",false);
+			final Allele UNKNOW_ALLELE =Allele.create("<UN>",false);
 			final Allele REF_ALLELE =Allele.create("N",true);
 
 			while((line=r.readLine())!=null) {
 				if(StringUtil.isBlank(line)) continue;
 				tokens =  tab.split(line);
 				if(tokens.length!=3+samples.size()) {
+					r.close();
+					vcw.close();
 					throw new JvarkitException.TokenErrors("expected "+(samples.size()+3)+ "columns.", tokens);
-				}
+					}
 				
 				final Set<Allele> alleles =  new HashSet<>();
 				alleles.add(REF_ALLELE);
@@ -291,120 +274,105 @@ public class IndexCovToVcf extends Launcher {
 				
 				
 				final List<Genotype> genotypes = new ArrayList<>(samples.size());
-				int count_cases_del = 0;
-				int count_ctrs_del= 0;
-				int count_cases_void = 0;
-				int count_ctrs_void= 0;
-				int count_cases_dup = 0;
-				int count_ctrs_dup= 0;
 				
-				
+				int count_sv_cases = 0;
+				int count_sv_controls = 0;
+				int count_ref_cases = 0;
+				int count_ref_controls = 0;
+
+				boolean got_sv = false;
 				for(final String sampleName:sample2fold.keySet())
 					{
-					final float f = sample2fold.get(sampleName);
+					final float normDepth = sample2fold.get(sampleName);
 					final GenotypeBuilder gb;
 					
-					if(f<=this.deletionTreshold) {
-						gb = new GenotypeBuilder(sampleName,Collections.singletonList(DEL_ALLELE));
-						alleles.add(DEL_ALLELE);
-						gb.attribute(formatIsDeletion.getID(),1);
-						gb.attribute(formatIsDuplication.getID(),0);
-						count_del++;
-						if(controls.contains(sampleName))
-							{
-							count_ctrs_del++;
-							}
-						else if(cases.contains(sampleName))
-							{
-							count_cases_del++;
-							}
+					final boolean is_sv;
+					final boolean is_het_deletion = Math.abs(normDepth-0.5)<= this.treshold; 
+					final boolean is_hom_deletion = Math.abs(normDepth-0.0)<= this.treshold; 
+					final boolean is_het_dup = Math.abs(normDepth-1.5)<= this.treshold; 
+					final boolean is_ref = Math.abs(normDepth-1.0)<= this.treshold; 
+
+					if(is_ref) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
+						is_sv = false;
 						}
-					else if(f>=this.duplicationTreshold) {
-						gb = new GenotypeBuilder(sampleName,Collections.singletonList(DUP_ALLELE));
+					else if(is_het_deletion) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
+						alleles.add(DEL_ALLELE);
+						count_del++;
+						is_sv = true;
+						}
+					else if(is_hom_deletion) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
+						alleles.add(DEL_ALLELE);
+						count_del++;
+						vcb.filter(filterHomDel.getID());
+						is_sv = true;
+						}
+					else if(is_het_dup) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
 						alleles.add(DUP_ALLELE);
-						gb.attribute(formatIsDeletion.getID(),0);
-						gb.attribute(formatIsDuplication.getID(),1);
 						count_dup++;
-						if(controls.contains(sampleName))
-							{
-							count_ctrs_dup++;
-							}
-						else if(cases.contains(sampleName))
-							{
-							count_cases_dup++;
-							}
+						is_sv = true;
 						}
 					else
 						{
-						gb = new GenotypeBuilder(sampleName,Collections.singletonList(REF_ALLELE));
-						gb.attribute(formatIsDeletion.getID(),0);
-						gb.attribute(formatIsDuplication.getID(),0);
-						if(controls.contains(sampleName))
-							{
-							count_ctrs_void++;
-							}
-						else if(cases.contains(sampleName))
-							{
-							count_cases_void++;
-							}
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,UNKNOW_ALLELE));
+						is_sv = false;
 						}	
-					gb.attribute(foldHeader.getID(),f);
+					if(is_sv) got_sv=true;
+					gb.attribute(foldHeader.getID(),normDepth);
 					
-					if(valid_pedigree)
-						{
-						if(cases.contains(sampleName))
-							{
-							gb.attribute(pedStatusFormat.getID(),1);
-							}
-						else if(controls.contains(sampleName))
-							{
-							gb.attribute(pedStatusFormat.getID(),0);
+					final Sample sn = pedigree.getSampleById(sampleName);
+					if(sn!=null) {
+						if(is_sv) {
+							if(sn.isAffected()) 
+								{
+								count_sv_cases++;
+								}
+							else if(sn.isUnaffected()) 
+								{
+								count_sv_controls++;
+								}
 							}
 						else
 							{
-							gb.attribute(pedStatusFormat.getID(),-9);
+							if(sn.isAffected()) 
+								{
+								count_ref_cases++;
+								}
+							else if(sn.isUnaffected()) 
+								{
+								count_ref_controls++;
+								}
 							}
 						}
 					
+					
 					genotypes.add(gb.make());
 					}
+				
+				
 				vcb.alleles(alleles);
 				
+				if(!pedigree.isEmpty() &&
+						count_sv_cases==1 && 
+						count_ref_cases>0 &&
+						count_sv_controls==0 &&
+						count_ref_controls>0
+					) {
+					vcb.attribute(infoSingleton.getID(),Boolean.TRUE);
+				} else if(!pedigree.isEmpty() &&
+						count_sv_cases>0 && 
+						count_sv_cases == count_cases_in_pedigree &&
+						count_ref_cases==0 &&
+						count_sv_controls==0 &&
+						count_ref_controls>0
+					) {
+					vcb.attribute(infoAllAffected.getID(),Boolean.TRUE);
+				}
 				
-				/** median fold */
-				vcb.attribute(infoMedianFold.getID(),
-					new Median().evaluate(sample2fold.values().
-							stream().
-							mapToDouble(F->F.doubleValue()).
-							toArray())
-						);
 					
-				if(sample2fold.size()>1) {
-					/** std fold */
-					vcb.attribute(infoStdDevFold.getID(),
-							new StandardDeviation().evaluate(
-									sample2fold.values().
-									stream().
-									mapToDouble(F->F.doubleValue()).
-									toArray())
-								);
-					}
-					
-				
-				if(valid_pedigree)
-					{
-					final double p_value =chiSquareTest.chiSquare(new long[][]{
-						{
-						count_cases_del + count_cases_dup,
-						count_ctrs_del + count_ctrs_dup,
-						},{
-						count_cases_void,
-						count_ctrs_void
-						}}
-						);
-
-					vcb.attribute(chiSquareHeader.getID(),p_value);
-					}
 				
 				vcb.genotypes(genotypes);
 				
@@ -415,9 +383,9 @@ public class IndexCovToVcf extends Launcher {
 					vcb.filter(filterAllDel.getID());
 				}
 				
-				if(count_dup == 0 && count_del==0) {
+				if(!got_sv) {
 					vcb.filter(filterNoSV.getID());
-				}
+					}
 				
 				vcb.attribute(infoNumDel.getID(), count_del);
 				vcb.attribute(infoNumDup.getID(), count_dup);
@@ -430,7 +398,7 @@ public class IndexCovToVcf extends Launcher {
 			r=null;
 			
 			return 0;
-		} catch(final Exception err) {
+		} catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}

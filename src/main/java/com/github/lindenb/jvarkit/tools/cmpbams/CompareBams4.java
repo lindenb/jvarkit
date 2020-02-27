@@ -24,6 +24,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.cmpbams;
 import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -31,6 +33,7 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -115,16 +118,23 @@ BOTH	SameChrom	SameContig	Zero	0	0	177/177	chr22/chr22	1417
 END_DOC
  */
 @Program(name="cmpbams4",
-	description="Compare two BAM files. Print a tab-delimited report",
-	keywords={"sam","bam","compare"})
+	description="Compare two query-name sorted BAM files. Print a tab-delimited report",
+	keywords={"sam","bam","compare"},
+	creationDate="20161206",
+	modificationDate="20200327"
+	)
 public class CompareBams4  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBams4.class).make();
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
+	@Parameter(names={"-R","--reference"},description="For Reading CRAM. Reference for first BAM" + INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refFaidx1 = null;
+	@Parameter(names={"-R2","--reference2"},description="For Reading CRAM. Reference for second BAM, if different from 1st bam. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refFaidx2 = null;
 
 	@Parameter(names={"-c","--chain"},description="Lift Over file from bam1 to bam2. Optional")
 	private File chainFile = null;
@@ -273,6 +283,8 @@ public class CompareBams4  extends Launcher
 			);
 	}
 	
+	
+	
 	/** used by Comm Bams */
 	static int side(final SAMRecord rec) {
 		if(rec.getReadPairedFlag()) {
@@ -303,33 +315,39 @@ public class CompareBams4  extends Launcher
 		
 		try
 			{
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT);
+			
 			
 			for(int i=0;i< args.size() && i< samFileReaders.length;++i)
 				{
-				final File samFile = new File(args.get(i));
-				LOG.info("opening "+samFile);
+				final SamReaderFactory srf = SamReaderFactory.makeDefault().
+						validationStringency(ValidationStringency.LENIENT);
+				
+				if(i==0 && this.refFaidx1!=null) {
+					srf.referenceSequence(this.refFaidx1);
+				} else if(i==1 && this.refFaidx1!=null && this.refFaidx2==null) {
+					srf.referenceSequence(this.refFaidx1);
+				} else if(i==1 && this.refFaidx1==null && this.refFaidx2!=null) {
+					srf.referenceSequence(this.refFaidx2);
+				} 
+				
+				final Path samFile = Paths.get(args.get(i));
 				samFileReaders[i]=srf.open(samFile);
 				final SAMFileHeader header = samFileReaders[i].getFileHeader();
 				if(header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
 					LOG.error("Expected "+samFile+" to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder());
 					return -1;	
 					}
-				dicts[i] = header.getSequenceDictionary();
-				if( dicts[i]==null || dicts[i].isEmpty()) {
-					LOG.error("In "+samFile+": No SAMSequenceDictionary in header.");
-					return -1;
-					}
+				dicts[i] = SequenceDictionaryUtils.extractRequired(header);
+				
 				iters[i] = new PeekableIterator<>(samFileReaders[i].iterator());
 				}
 			
 			if(this.chainFile!=null) {
-				LOG.info("opening chain file "+this.chainFile+".");
 				this.liftOver =new LiftOver(this.chainFile);
 				this.liftOver.setLiftOverMinMatch(this.liftOverMismatch<=0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:this.liftOverMismatch);
 
 				if(!this.disableChainValidation) {
-				this.liftOver.validateToSequences(dicts[1]);
+					this.liftOver.validateToSequences(dicts[1]);
 				}
 			}
 			
@@ -497,7 +515,6 @@ public class CompareBams4  extends Launcher
 			}
 			
 			
-			LOG.info("done");
 			
 			final StringBuilder sb = new StringBuilder();
 			str(sb,"onlyIn");
@@ -510,7 +527,7 @@ public class CompareBams4  extends Launcher
 			str(sb,"diffChroms");
 			str(sb,"diffFlag");
 			sb.append("Count");
-			out = super.openFileOrStdoutAsPrintWriter(outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(outputFile);
 			out.println(sb);
 			for(final Diff key:diffs.keySet()) {
 				out.print(key.toString());
@@ -521,7 +538,7 @@ public class CompareBams4  extends Launcher
 			
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
