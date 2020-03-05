@@ -14,6 +14,12 @@ Usage: fixvcfmissinggenotypes [options] Files
       path of indexed BAM path with read Groups. You can put those paths in a 
       text file having a *.list sufffix
       Default: []
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -d, --depth
       minimal depth before setting a genotype to HOM_REF
       Default: 10
@@ -33,6 +39,9 @@ Usage: fixvcfmissinggenotypes [options] Files
     --force, -f
       [20181120] Update all fields like DP even if the Genotype is called.
       Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -45,6 +54,13 @@ Usage: fixvcfmissinggenotypes [options] Files
       be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    --reference, -R
+      For reading CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
+    --stringency
+      SAM Validation stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     -T, --tag
       FORMAT 'Tag' for fixed genotype
       Default: FXG
