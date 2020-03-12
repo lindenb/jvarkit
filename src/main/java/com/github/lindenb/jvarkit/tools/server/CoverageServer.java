@@ -49,9 +49,12 @@ import java.util.List;
 import java.util.Vector;
 import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.imageio.ImageIO;
 import javax.servlet.ServletException;
@@ -103,11 +106,16 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.tribble.readers.TabixReader;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFileReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -140,6 +148,8 @@ java -jar dist/coverageserver.jar \
 
 ![https://twitter.com/yokofakun/status/1229343426036076546](https://pbs.twimg.com/media/EQ-BJSXWkAItBtJ?format=jpg&name=medium)
 
+![https://twitter.com/yokofakun/status/1238112128646733824](https://pbs.twimg.com/media/ES6oQbmWoAAxAx9?format=png&name=small)
+
 
 END_DOC
  
@@ -148,7 +158,7 @@ END_DOC
 @Program(name="coverageserver",
 	description="Jetty Based http server serving Bam coverage.",
 	creationDate="20200212",
-	modificationDate="20200219",
+	modificationDate="20200312",
 	keywords={"cnv","bam","coverage","server"}
 	)
 public  class CoverageServer extends Launcher {
@@ -186,6 +196,10 @@ public  class CoverageServer extends Launcher {
 	private boolean enable_sashimi = false;
 	@Parameter(names= {"--gtf"},description="Optional Tabix indexed GTF file. Will be used to retrieve an interval by gene name, or to display gene names in a region.")
 	private Path gtfFile = null;
+	@Parameter(names= {"--known"},description="Optional indexed Bed or VCF file containing known CNV. Will be used to retrieve t.")
+	private Path knownCnvFile = null;
+
+	
 
 	
 	
@@ -544,8 +558,33 @@ public  class CoverageServer extends Launcher {
 			g.setComposite(oldComposite);
 			g.setStroke(oldStroke);
 			}
-		
 		}
+	
+	private void writeKnownCnv(final Graphics2D g,final Locatable region) {
+		if(this.knownCnvFile==null) return;
+		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
+		final Composite oldComposite = g.getComposite();
+		final Stroke oldStroke = g.getStroke();
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+		g.setColor(Color.MAGENTA);
+		final double y= image_height-8.0;
+		try {
+			this.getKnownCnv(region).forEach(R->{
+				final double x1 = position2pixel.applyAsDouble(R.getStart());
+				final double x2 = position2pixel.applyAsDouble(R.getEnd());
+				g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1), 3));
+				});
+
+			}
+		catch(Throwable err) {
+			
+			}
+		finally {
+			g.setComposite(oldComposite);
+			g.setStroke(oldStroke);
+			}
+		}
+
 	
 	private void writeImage(
 			final BufferedImage img,
@@ -788,6 +827,7 @@ public  class CoverageServer extends Launcher {
 	     g.setStroke(oldStroke);
 	     
 	     writeGenes(g,region);
+	     writeKnownCnv(g,region);
 	     
 	     g.setColor(Color.PINK);
 	     g.draw(new Line2D.Double(mid_start,0,mid_start,image_height));
@@ -1014,6 +1054,7 @@ public  class CoverageServer extends Launcher {
 			 
 			 
 			 writeGenes(g,region);
+			 writeKnownCnv(g,region);
 			 
 			 g.setColor(Color.GRAY);
 			 g.drawRect(0, 0, img.getWidth(),  img.getHeight());
@@ -1172,6 +1213,7 @@ public  class CoverageServer extends Launcher {
 					+ ".message {color:red;}"
 					+ ".affected {background-color:#e6cccc;}"
 					+ ".gtf {background-color:moccasin;text-align:center;}"
+					+ ".known {background-color:#ccb690;text-align:center;}"
 					);
 			w.writeEndElement();//title
 			
@@ -1484,6 +1526,38 @@ public  class CoverageServer extends Launcher {
 					{
 					if(tbr!=null) tbr.close();
 					}
+				w.writeEndElement();//div
+				}
+			
+			if(this.knownCnvFile!=null ) {
+				final Interval final_interval = new Interval(interval);
+				final ToDoubleFunction<Interval> getOvelap = R->{
+					if(!R.overlaps(final_interval)) return 0;
+					final double L1 = R.getIntersectionLength(final_interval);
+					final double r1 = L1/R.getLengthOnReference();
+					final double r2 = L1/final_interval.getLengthOnReference();
+					return Double.min(r1, r2);
+				};
+				
+				w.writeStartElement("div");
+				w.writeAttribute("class", "known");
+				getKnownCnv(interval).
+					sorted((A,B)->Double.compare(getOvelap.applyAsDouble(B), (getOvelap.applyAsDouble(A)))).
+					limit(100).
+					forEach(R->{
+					try {
+						w.writeCharacters(new SimpleInterval(R).toNiceString());
+						if(!StringUtils.isBlank(R.getName())) {
+							w.writeCharacters(" ");
+							w.writeCharacters(R.getName());
+							}
+						w.writeEndElement();
+						w.writeCharacters("; ");
+						}
+					catch(final Throwable err) {
+						LOG.warn(err);
+						}
+					});
 				w.writeEndElement();//div
 				}
 			
